@@ -7,7 +7,7 @@ use serde_json as json;
 use sha2::{Digest, Sha256};
 
 static DESCR: &str = "
-Given a Rust toolchain path and a vendor directory, this program vendors Rust std dependencies in
+XGiven a Rust toolchain path and a vendor directory, this program vendors Rust std dependencies in
 the given vendor directory. This directory can then be used to build packages with `-Zbuild-std`
 parameters in nix.
 ";
