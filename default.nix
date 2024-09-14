@@ -6,6 +6,8 @@
 
 let nixpkgs = import ./nix { inherit system; }; in
 
+assert !officialRelease || nixpkgs.lib.asserts.assertOneOf "system" system [ "x86_64-linux" "x86_64-darwin" ];
+
 let releaseVersion = import nix/releaseVersion.nix { pkgs = nixpkgs; inherit officialRelease; }; in
 
 let stdenv = nixpkgs.stdenv; in
