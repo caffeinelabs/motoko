@@ -39,6 +39,7 @@ jobs:
       run: |
         nix-build --max-jobs 1 --arg officialRelease true -A moc -A mo-ide -A mo-doc -A js.moc -A js.moc_interpreter
         nix derivation show /nix/store/*-moc-rts.drv
+        ls -l /nix/store/*-moc-rts.drv
 
   # Finally do the upload. Hopefully the previous job has uploaded the
   # build product to the cachix cache, as we cannot build the darwin products on
@@ -57,3 +58,4 @@ jobs:
 
     - run: |
         nix-build --option download-buffer-size 167108864 --max-jobs 1 --arg officialRelease true release-files.nix || nix derivation show /nix/store/*-moc-rts.drv
+        ls -l /nix/store/*-moc-rts.drv
