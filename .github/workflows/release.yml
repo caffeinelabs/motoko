@@ -38,3 +38,20 @@ jobs:
       # these are the dependencies listed in release-files. Sorry for the duplication
       run: |
         nix-build --max-jobs 1 --arg officialRelease true -A moc -A mo-ide -A mo-doc -A js.moc -A js.moc_interpreter
+
+  # Finally do the upload. Hopefully the previous job has uploaded the
+  # build product to the cachix cache, as we cannot build the darwin products on
+  # linux
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: 'ubuntu-latest'
+    needs: [ build ]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: cachix/install-nix-action@V28
+    - uses: cachix/cachix-action@v15
+      with:
+        name: ic-hs-test
+        # NB: No auth token, we don’t expect to push new stuff here
+
+    - run: nix-build --max-jobs 1 --arg officialRelease true release-files.nix
