@@ -54,4 +54,4 @@ jobs:
         name: ic-hs-test
         # NB: No auth token, we don’t expect to push new stuff here
 
-    - run: nix-build --download-buffer-size 167108864 --max-jobs 1 --arg officialRelease true release-files.nix
+    - run: nix-build --option download-buffer-size 167108864 --max-jobs 1 --arg officialRelease true release-files.nix
