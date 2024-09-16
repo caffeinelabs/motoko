@@ -108,16 +108,16 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "staging-next-24.05",
+        "branch": "release-24.05",
         "builtin": true,
         "description": "Nixpkgs/NixOS branches that track the Nixpkgs/NixOS channels",
         "homepage": null,
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "da5758d7f60ef6118f2f0c0ebcad3dcde71279aa",
-        "sha256": "1j7605nc8yfqf9i5pkkr56kgbi82hj35gfqlmv7j2ddqb4rwb3lh",
+        "rev": "c9f334394ee879381cbb9768fc11dad14ae767fe",
+        "sha256": "0zy5i0m79pkxacg2gx7ai2yg12rh2lvlr61sj7lapmrwdlgzngby",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/da5758d7f60ef6118f2f0c0ebcad3dcde71279aa.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/c9f334394ee879381cbb9768fc11dad14ae767fe.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs-mozilla": {
