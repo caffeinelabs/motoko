@@ -57,5 +57,6 @@ jobs:
         # NB: No auth token, we don’t expect to push new stuff here
 
     - run: |
-        nix-build --option download-buffer-size 167108864 --max-jobs 1 --arg officialRelease true release-files.nix || nix derivation show /nix/store/*-moc-rts.drv
+        nix-build --option download-buffer-size 167108864 --max-jobs 1 --arg officialRelease true release-files.nix
+        nix derivation show /nix/store/*-moc-rts.drv
         ls -l /nix/store/*-moc-rts.drv
