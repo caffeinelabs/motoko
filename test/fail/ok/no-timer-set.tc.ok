@@ -88,6 +88,7 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
     cyclesAdd : <system>Nat -> ();
     cyclesAvailable : () -> Nat;
     cyclesBalance : () -> Nat;
+    cyclesBurn : <system>Nat -> Nat;
     cyclesRefunded : () -> Nat;
     debugPrint : Text -> ();
     debugPrintChar : Char -> ();

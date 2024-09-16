@@ -676,7 +676,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
     (* Cycles *)
     | (SystemCyclesBalancePrim | SystemCyclesAvailablePrim | SystemCyclesRefundedPrim), [] ->
       T.nat <: t
-    | SystemCyclesAcceptPrim, [e1] ->
+    | (SystemCyclesAcceptPrim | SystemCyclesBurnPrim), [e1] ->
       typ e1 <: T.nat;
       T.nat <: t
     | SystemCyclesAddPrim, [e1] ->

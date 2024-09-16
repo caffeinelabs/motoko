@@ -121,6 +121,25 @@ Callsite:
 ``` motoko no-repl file=../examples/todo-error.mo#L143-L150
 ```
 
+## Using try/finally
+
+A `finally` clause can be used within a `try/catch` error handling expression that facilitates control-flow expression cleanups, resource deallocation, or rolling back temporary state changes. The `finally` clause is optional, and when used, the `catch` clause may be omitted. Any uncaught error from the `try` block will be propagated after the `finally` block has executed.
+
+:::info
+
+`try/finally` is supported in `moc` `v0.12.0` and newer, and `dfx` `v0.24.0` and newer.
+
+:::
+
+`try/finally` must be used within an async expression or in the body of a shared function. Before using `try/finally`, please review the [security best practices](https://internetcomputer.org/docs/current/developer-docs/security/security-best-practices/inter-canister-calls#recommendation) for using this syntax.
+
+``` motoko no-repl file=../examples/try-finally.mo
+```
+
+Inside the `try` block, include code that may throw an error. In the `finally` block, include code that should be executed whether an error was thrown or not. Code within the `finally` block should not trap and should terminate promptly. If a `finally` block were to trap, it may prevent a future upgrade to the canister.
+
+Learn more about [`try/finally`](https://internetcomputer.org/docs/current/motoko/main/reference/language-manual#try).
+
 ### How not to handle errors
 
 A generally poor way of reporting errors is through the use of a sentinel value. For example, for your `markDone` function, you might decide to use the value `-1` to signal that something failed. The callsite then has to check the return value against this special value and report the error. It's easy to not check for that error condition and continue to work with that value in the code. This can lead to delayed or even missing error detection and is strongly discouraged.

@@ -22,7 +22,7 @@
     i32.mul)
   (func $link_start (type 0)
     call $__wasm_call_ctors)
-  (table (;0;) 0 0 funcref)
+  (table (;0;) 1 1 funcref)
   (memory (;0;) i64 2)
   (global (;0;) i64 (i64.const 65536))
   (start $link_start))

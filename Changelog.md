@@ -1,8 +1,13 @@
 # Motoko compiler changelog
 
+## 0.13.0 (2024-09-13)
+
 * motoko (`moc`)
 
-  * **For beta testing:** Support __enhanced orthogonal persistence__, enabled with new moc flag `--enhanced-orthogonal-persistence` (#4193).
+  * Added a new primitive `cyclesBurn : <system> Nat -> Nat` for burning the canister's cycles
+    programmatically (#4690).
+
+  * **For beta testing:** Support __enhanced orthogonal persistence__, enabled with new `moc` flag `--enhanced-orthogonal-persistence` (#4193).
 
     This implements scalable and efficient orthogonal persistence (stable variables) for Motoko:
     * The Wasm main memory (heap) is retained on upgrade with new program versions directly picking up this state.
@@ -28,10 +33,11 @@
       "args" : "--enhanced-orthogonal-persistence"
     ...
     ```
+    BREAKING CHANGE (Minor): changes some aspects of `Float` formatting.
 
     For more information, see:
     * The Motoko design documentation `design/OrthogonalPersistence.md`
-    * The Motoko user documentation `doc/md/canister-maintenance//upgrades.md`.
+    * The Motoko user documentation `doc/md/canister-maintenance/upgrades.md`.
 
   * Candid decoding: impose an upper limit on the number of values decoded or skipped in a single candid payload,
     as a linear function, `max_values`, of binary payload size.

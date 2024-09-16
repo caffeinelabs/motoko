@@ -88,6 +88,7 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     cyclesAdd : <system>Nat -> ();
     cyclesAvailable : () -> Nat;
     cyclesBalance : () -> Nat;
+    cyclesBurn : <system>Nat -> Nat;
     cyclesRefunded : () -> Nat;
     debugPrint : Text -> ();
     debugPrintChar : Char -> ();

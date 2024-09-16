@@ -108,7 +108,7 @@ func filter<A>(xs : Iter<A>, f : A -> Bool) : Iter<A>
 Takes a function and an iterator and returns a new iterator that produces
 elements from the original iterator if and only if the predicate is true.
 ```motoko
-import Iter "o:base/Iter";
+import Iter "mo:base/Iter";
 let iter = Iter.range(1, 3);
 let mappedIter = Iter.filter(iter, func (x : Nat) : Bool { x % 2 == 1 });
 assert(?1 == mappedIter.next());
@@ -129,6 +129,25 @@ assert(?10 == iter.next());
 assert(?10 == iter.next());
 assert(?10 == iter.next());
 // ...
+```
+
+## Function `concat`
+``` motoko no-repl
+func concat<A>(a : Iter<A>, b : Iter<A>) : Iter<A>
+```
+
+Takes two iterators and returns a new iterator that produces
+elements from the original iterators sequentally.
+```motoko
+import Iter "mo:base/Iter";
+let iter1 = Iter.range(1, 2);
+let iter2 = Iter.range(5, 6);
+let concatenatedIter = Iter.concat(iter1, iter2);
+assert(?1 == concatenatedIter.next());
+assert(?2 == concatenatedIter.next());
+assert(?5 == concatenatedIter.next());
+assert(?6 == concatenatedIter.next());
+assert(null == concatenatedIter.next());
 ```
 
 ## Function `fromArray`

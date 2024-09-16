@@ -56,11 +56,11 @@ For more details on our CI and CI setup, see `CI.md`.
 
 ## Making releases
 
-We make frequent releases, at least weekly. The steps to make a release (say, version 0.12.1) are:
+We make frequent releases, at least weekly. The steps to make a release (say, version 0.13.1) are:
 
  * Make sure that the top section of `Changelog.md` has a title like
 
-        ## 0.12.1 (2024-07-29)
+        ## 0.13.1 (2024-09-10)
 
    with today’s date.
 
@@ -77,18 +77,18 @@ We make frequent releases, at least weekly. The steps to make a release (say, ve
 
  * Define a shell variable `export MOC_MINOR=1`
 
- * Look at `git log --first-parent 0.12.$(expr $MOC_MINOR - 1)..HEAD` and check
+ * Look at `git log --first-parent 0.13.$(expr $MOC_MINOR - 1)..HEAD` and check
    that everything relevant is mentioned in the changelog section, and possibly
    clean it up a bit, curating the information for the target audience.
 
- * `git commit -am "chore: Releasing 0.12."$MOC_MINOR`
+ * `git commit -am "chore: Releasing 0.13."$MOC_MINOR`
  * Create a PR from this commit, and label it `automerge-squash`. E.g.
-   with `git push origin HEAD:$USER/0.12.$MOC_MINOR`. Mergify will
+   with `git push origin HEAD:$USER/0.13.$MOC_MINOR`. Mergify will
    merge it into `master` without additional approval, but it will take some
    time as the title (version number) enters into the `nix` dependency tracking.
  * `git switch master; git pull --rebase`. The release commit should be your `HEAD`
- * `git tag 0.12.$MOC_MINOR -m "Motoko 0.12."$MOC_MINOR`
- * `git push origin 0.12.$MOC_MINOR`
+ * `git tag 0.13.$MOC_MINOR -m "Motoko 0.13."$MOC_MINOR`
+ * `git push origin 0.13.$MOC_MINOR`
 
 Pushing the tag should cause GitHub Actions to create a “Release” on the GitHub
 project. This will fail if the changelog is not in order (in this case, fix and
@@ -102,12 +102,12 @@ branch to the `next-moc` branch.
 * Wait ca. 5min after releasing to give the CI/CD pipeline time to upload the release artifacts
 * Change into `motoko-base`
 * `git switch next-moc; git pull`
-* `git switch -c $USER/update-moc-0.12.$MOC_MINOR`
+* `git switch -c $USER/update-moc-0.13.$MOC_MINOR`
 * Update the `CHANGELOG.md` file with an entry at the top
 * Update the `moc_version` env variable in `.github/workflows/{ci, package-set}.yml` and `mops.toml`
   to the new released version:
-  `perl -pi -e "s/moc_version: \"0\.12\.\\d+\"/moc_version: \"0.12.$MOC_MINOR\"/g; s/moc = \"0\.12\.\\d+\"/moc = \"0.12.$MOC_MINOR\"/g; s/version = \"0\.12\.\\d+\"/version = \"0.12.$MOC_MINOR\"/g" .github/workflows/ci.yml .github/workflows/package-set.yml mops.toml`
-* `git add .github/ CHANGELOG.md mops.toml && git commit -m "Motoko 0.12."$MOC_MINOR`
+  `perl -pi -e "s/moc_version: \"0\.13\.\\d+\"/moc_version: \"0.13.$MOC_MINOR\"/g; s/moc = \"0\.13\.\\d+\"/moc = \"0.13.$MOC_MINOR\"/g; s/version = \"0\.13\.\\d+\"/version = \"0.13.$MOC_MINOR\"/g" .github/workflows/ci.yml .github/workflows/package-set.yml mops.toml`
+* `git add .github/ CHANGELOG.md mops.toml && git commit -m "Motoko 0.13."$MOC_MINOR`
 * Revise `CHANGELOG.md`, adding a top entry for the release
 * You can `git push` now
 
@@ -117,8 +117,8 @@ repo by a scheduled `niv-updater-action`.
 
 Finally tag the base release (so the documentation interpreter can do the right thing):
 * `git switch master && git pull`
-* `git tag moc-0.12.$MOC_MINOR`
-* `git push origin moc-0.12.$MOC_MINOR`
+* `git tag moc-0.13.$MOC_MINOR`
+* `git push origin moc-0.13.$MOC_MINOR`
 
 If you want to update the portal documentation, typically to keep in sync with a `dfx` release, follow the instructions in https://github.com/dfinity/portal/blob/master/MAINTENANCE.md.
 

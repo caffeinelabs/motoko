@@ -8,6 +8,7 @@ actor a {
   let available : () -> Nat = Prim.cyclesAvailable;
   let accept : <system>Nat -> Nat = Prim.cyclesAccept;
   let add : <system>Nat -> () = Prim.cyclesAdd;
+  let burn : <system>Nat -> Nat = Prim.cyclesBurn;
 
   let refunded : () -> Nat = Prim.cyclesRefunded;
 
@@ -91,6 +92,7 @@ actor a {
   public func go() : async (){
     await overflow();
     await iter();
+    assert 1000 == burn<system> 1000
   }
 };
 

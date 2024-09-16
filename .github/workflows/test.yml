@@ -17,7 +17,7 @@ jobs:
         fetch-depth: 0
         # fetch PR commit, not predicted merge commit
         ref: ${{ github.event.pull_request.head.sha }}
-    - uses: cachix/install-nix-action@V27
+    - uses: cachix/install-nix-action@V28
 
     # We are using the ic-hs-test cachix cache that is also used by
     # dfinity/ic-hs. This is partly laziness (on need to set up a separate
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v27
+    - uses: cachix/install-nix-action@V28
     - uses: cachix/cachix-action@v15
       with:
         name: ic-hs-test
@@ -129,7 +129,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v27
+    - uses: cachix/install-nix-action@V28
     - uses: cachix/cachix-action@v15
       with:
         name: ic-hs-test
