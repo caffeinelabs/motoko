@@ -1,0 +1,10 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: 99_996_840_445_048
+debug.print: 12_000_000_000
+ingress Completed: Reply: 0x4449444c0000
+debug.print: tick: 0, balance: 773_083_623
+debug.print: tick: 1, balance: 612_659_043
+debug.print: tick: 2, balance: 452_258_547
+debug.print: tick: 3, balance: 291_834_325
+ingress Completed: Reject: could not perform self call
