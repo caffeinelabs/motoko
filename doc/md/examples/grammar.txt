@@ -300,6 +300,7 @@
     '_'
     <id>
     <lit>
+    <unop> <lit>
     '(' <list(<pat_bin>, ',')> ')'
 
 <pat_nullary> ::= 
@@ -311,7 +312,6 @@
     '#' <id>
     '#' <id> <pat_nullary>
     '?' <pat_un>
-    <unop> <lit>
 
 <pat_bin> ::= 
     <pat_un>
