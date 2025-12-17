@@ -572,6 +572,14 @@ let open_binds tbs =
   List.iter2 set_kind cs ks;
   ts
 
+let open_binds_unbounded tbs =
+  if tbs = [] then [] else
+  let cs = List.map (fun {var; _} -> Cons.fresh var (Abs ([], Pre))) tbs in
+  let ts = List.map (fun c -> Con (c, [])) cs in
+  let ks = List.map (fun {bound; _} -> Abs ([], Any)) tbs in
+  List.iter2 set_kind cs ks;
+  ts
+
 
 (* Normalization and Classification *)
 
@@ -1293,7 +1301,7 @@ and rel_tags t2 d rel eq tfs1 tfs2 =
     missing_tag d tf1.lab t2
 
 and rel_binds d rel eq tbs1 tbs2 =
-  let ts = open_binds tbs2 in
+  let ts = open_binds_unbounded tbs2 in
   if rel_list "type parameters" d (rel_bind ts) rel eq tbs2 tbs1
   then Some ts
   else None
@@ -1598,7 +1606,7 @@ let rec combine rel lubs glbs t1 t2 =
     | Func (s1, c1, bs1, ts11, ts12), Func (s2, c2, bs2, ts21, ts22) when
         s1 = s2 && c1 = c2 && eq_binds bs1 bs2 &&
         List.(length ts11 = length ts21 && length ts12 = length ts22) ->
-      let ts = open_binds bs1 in
+      let ts = open_binds_unbounded bs1 in
       let cs = List.map (fun t -> fst (as_con t)) ts in
       let opened = List.map (open_ ts) in
       let closed = List.map (close cs) in
