@@ -886,6 +886,13 @@ pat_plain :
     { VarP(x) @! at $sloc }
   | l=lit
     { LitP(ref l) @! at $sloc }
+  | op=unop l=lit
+    { match op, l with
+      | (PosOp | NegOp), PreLit (s, (Type.(Nat | Float) as typ)) ->
+        let signed = match op with NegOp -> "-" ^ s | _ -> "+" ^ s in
+        LitP(ref (PreLit (signed, Type.(if typ = Nat then Int else typ)))) @! at $sloc
+      | _ -> SignP(op, ref l) @! at $sloc
+    }
   | LPAR ps=seplist(pat_bin, COMMA) RPAR
     { (match ps with [p] -> ParP(p) | _ -> TupP(ps)) @! at $sloc }
 
@@ -904,13 +911,6 @@ pat_un :
     { TagP(x, p) @! at $sloc }
   | QUEST p=pat_un
     { OptP(p) @! at $sloc }
-  | op=unop l=lit
-    { match op, l with
-      | (PosOp | NegOp), PreLit (s, (Type.(Nat | Float) as typ)) ->
-        let signed = match op with NegOp -> "-" ^ s | _ -> "+" ^ s in
-        LitP(ref (PreLit (signed, Type.(if typ = Nat then Int else typ)))) @! at $sloc
-      | _ -> SignP(op, ref l) @! at $sloc
-    }
 
 pat_bin :
   | p=pat_un

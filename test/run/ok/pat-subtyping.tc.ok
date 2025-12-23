@@ -1,5 +1,5 @@
 pat-subtyping.mo:6.8-6.9: warning [M0146], this pattern is never matched
-pat-subtyping.mo:7.8-7.12: warning [M0146], this pattern is never matched
+pat-subtyping.mo:7.8-7.10: warning [M0146], this pattern is never matched
 pat-subtyping.mo:10.8-10.17: warning [M0146], this pattern is never matched
 pat-subtyping.mo:11.8-11.17: warning [M0146], this pattern is never matched
 pat-subtyping.mo:18.8-18.25: warning [M0146], this pattern is never matched

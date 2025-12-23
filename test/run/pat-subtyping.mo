@@ -4,7 +4,7 @@ if false {
 
 switch (magic ()) {
   case 1 {};  // redundant
-  case (-1) {};  // redundant
+  case -1 {};  // redundant
 };
 switch (magic ()) {
   case (1 : Nat) {};  // redundant

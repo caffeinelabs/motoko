@@ -6,10 +6,10 @@ let x1 = switch 2 {
 assert (x1 == 1);
 
 let x2 : Int = switch (-3) {
-  case (0) 0;
-  case (-1) 2;
-  case (-3) 1;
-  case (x) x;
+  case 0 0;
+  case -1 2;
+  case -3 1;
+  case x x;
 };
 assert (x2 == 1);
 
