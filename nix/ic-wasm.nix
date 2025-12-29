@@ -5,6 +5,7 @@ pkgs: with pkgs.llvmPackages_19; pkgs.rustPlatform-stable.buildRustPackage rec {
   cargoLock = {
     lockFile = "${src}/Cargo.lock";
   };
+  patches = ["ic-wasm.patch"];
   doCheck = false;
 
   # use the unwrapped clang with appropriate include paths
