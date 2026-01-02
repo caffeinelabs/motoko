@@ -1,0 +1,8 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {cycles = 2_502_566; size = +25_528}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {cycles = 54_742_916; size = +830_464}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: instructions: 67_674_453
+ingress Completed: Reply: 0x4449444c0000
