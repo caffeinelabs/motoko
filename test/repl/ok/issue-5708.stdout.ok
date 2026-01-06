@@ -1,0 +1,5 @@
+Motoko compiler (source XXX)
+> type t = <T>T -> <T_1>T_1 -> T_1
+> type T = ()
+> type t = <T>T -> <T_1>T_1 -> T_1
+> 

@@ -344,7 +344,7 @@ let add_val env id t =
 let add_typs env xs cs =
   { env with
     typs = List.fold_right2 T.Env.add xs cs env.typs;
-    cons = List.fold_right T.ConSet.disjoint_add cs env.cons;
+    cons = List.fold_right T.ConSet.add cs env.cons;
   }
 
 let adjoin env scope =
@@ -361,7 +361,7 @@ let adjoin_vals env ve = {env with vals = T.Env.adjoin env.vals (available ve)}
 let adjoin_typs env te ce =
   { env with
     typs = T.Env.adjoin env.typs te;
-    cons = T.ConSet.disjoint_union env.cons ce;
+    cons = T.ConSet.union env.cons ce;
   }
 
 let disjoint_union env at code fmt env1 env2 =
