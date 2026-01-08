@@ -1,0 +1,3 @@
+install $ID test_upgrades/driver.wasm.gz ""
+ingress $ID install_all "DIDL\x00\x00"
+ingress lxzze-o7777-77777-aaaaa-cai sum "DIDL\x00\x00"
