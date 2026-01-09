@@ -395,20 +395,19 @@ module {
     let size = sizeOfPattern(p);
     let cs = CharBuffer(t.chars());
     var res = "";
-    label l
     loop {
       switch (match(cs)) {
         case (#success) {
           res #= r;
           if (size > 0) {
-            continue l;
+            continue;
           }
         };
         case (#empty(cs1)) {
           for (c1 in cs1) {
             res #= fromChar(c1);
           };
-          break l;
+          break;
         };
         case (#fail (cs1, c)) {
           cs.pushBack(cs1, c);
@@ -416,7 +415,7 @@ module {
       };
       switch (cs.next()) {
         case null {
-          break l;
+          break;
         };
         case (?c1) {
          res #= fromChar(c1);

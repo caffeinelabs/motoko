@@ -3,6 +3,7 @@
 
 * motoko (`moc`)
 
+  * Allow `break` and `continue` in loops without labels (#5702).
 
   * Print type constructors using available type paths (#5698).
 

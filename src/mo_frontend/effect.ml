@@ -74,11 +74,11 @@ let rec infer_effect_exp (exp:Syntax.exp) : T.eff =
   | NotE exp1
   | AssertE (_, exp1)
   | LabelE (_, _, exp1)
-  | BreakE (_, exp1)
+  | BreakE (_, _, exp1)
   | RetE exp1
   | AnnotE (exp1, _)
   | IgnoreE exp1
-  | LoopE (exp1, None) ->
+  | LoopE (exp1, None, _) ->
     effect_exp exp1
   | BinE (_, exp1, _, exp2)
   | IdxE (exp1, exp2)
@@ -86,9 +86,9 @@ let rec infer_effect_exp (exp:Syntax.exp) : T.eff =
   | AssignE (exp1, exp2)
   | AndE (exp1, exp2)
   | OrE (exp1, exp2)
-  | WhileE (exp1, exp2)
-  | LoopE (exp1, Some exp2)
-  | ForE (_, exp1, exp2) ->
+  | WhileE (exp1, exp2, _)
+  | LoopE (exp1, Some exp2, _)
+  | ForE (_, exp1, exp2, _) ->
     map_max_effs effect_exp [exp1; exp2]
   | CallE (None, exp1, _, (_, exp2)) ->
     map_max_effs effect_exp [exp1; !exp2]

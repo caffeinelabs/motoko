@@ -234,7 +234,8 @@
     'assert' <exp_nest>
     'label' <id> (':' <typ>)? <exp_nest>
     'break' <id> <exp_nullary>?
-    'continue' <id>
+    'break'
+    'continue' <id>?
     'debug' <exp_nest>
     'if' <exp_nullary> <exp_nest>
     'if' <exp_nullary> <exp_nest> 'else' <exp_nest>

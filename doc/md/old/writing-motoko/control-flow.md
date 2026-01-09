@@ -30,11 +30,12 @@ Motoko provides several kinds of repetition constructs, including:
 
 -   `while` loops for programmatic repetition with entry condition.
 
-Any of these can be prefixed with a `label <name>` qualifier to give the loop a symbolic name. Named loops are useful for imperatively changing control flow to continue from the entry or exit of the named loop, such as:
+You can use `break` and `continue` (without labels) in loops to exit or continue the innermost loop.
+Any of these loops can also be prefixed with a `label <name>` qualifier to give the loop a symbolic name. Labeled loops are useful for imperatively changing control flow in nested loops or when you need to target a specific loop, such as:
 
--   Re-entering the loop with `continue <name>`.
+-   Re-entering the loop with `continue <name>` (or `continue` without a name for the innermost loop).
 
--   Exiting the loop altogether with `break <name>`.
+-   Exiting the loop altogether with `break <name>` (or `break` without a name for the innermost loop).
 
 In the following example, the `for` expression loops over characters of some text and abandons iteration as soon as an exclamation sign is encountered.
 

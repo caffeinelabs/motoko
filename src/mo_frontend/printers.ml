@@ -212,6 +212,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_option_exp_nullary_ob__) -> "<exp_nullary(ob)>?", eg_exp
   | X (N N_option_typ_args_) -> "<typ_args>?", eg_typ_args
   | X (N N_option_query_) -> "<query>?", "query"
+  | X (N N_option_id_) -> "<id>?", "x"
   | X (N N_parse_module_header) -> entry_point "<parse_module_header>"
   | X (N N_parse_prog) -> entry_point "<parse_prog>"
   | X (N N_parse_prog_interactive) -> entry_point "<parse_prog_interactive>"

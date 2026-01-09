@@ -25,7 +25,7 @@ However, certain constructs can alter the flow of control, such as exiting a blo
 
 ## `return`
 
-A `return` statement immediately exits a function or `async` block with a result. Unlike `break` or `continue`, which jump to a labeled point within the same function, `return` does not target a label. Instead, it exits the current function entirely, either returning control to the caller or, in asynchronous contexts, completing a future and resuming the caller that's awaiting the result.
+A `return` statement immediately exits a function or `async` block with a result. Unlike `break` or `continue`, which jump to a point within the same function (either to a label or to the innermost loop), `return` does not target a label. Instead, it exits the current function entirely, either returning control to the caller or, in asynchronous contexts, completing a future and resuming the caller that's awaiting the result.
 
 Consider this function that computes the product of an array of integers.
 
@@ -241,10 +241,22 @@ It will run forever if the iterator's `next` method never returns `null`.
 
 ## `continue`
 
-A `continue` expression skips the remainder of the current iteration in a loop and immediately proceeds to the next iteration. Like `break`, `continue` must reference a label and only works within a labeled `while`, `for` or `loop` or `loop-while` expression.
+A `continue` expression skips the remainder of the current iteration in a loop and immediately proceeds to the next iteration. `continue` without a label continues the innermost loop. When a loop is labeled with a label `l`, then `continue l` continues the loop labeled `l`. This works within `while`, `for`, `loop`, or `loop-while` expressions.
 
+For example, computing the product we can skip a multiplication when the number is `1`:
 
-For example, computing the product we can skip a multiplication when the number is `1`.
+``` motoko no-repl
+func product(numbers : [Int]) : Int {
+  var prod : Int = 1;
+  for (number in numbers.vals()) {
+    if (number == 1) continue;
+    prod *= number;
+  };
+  prod;
+}
+```
+
+When you have nested loops and need to continue a specific outer loop, you can use a label:
 
 ``` motoko no-repl
 func product(numbers : [Int]) : Int {
@@ -259,8 +271,10 @@ func product(numbers : [Int]) : Int {
 
 ## Loop exits
 
-You can alway exit a labelled `loop`, `loop-while`, `while` or `for` loop or using `break` and any loop in a function using `return` or (in an asynchronous function) `throw`.
-
+You can always exit a `loop`, `loop-while`, `while` or `for` loop using `break`.
+`break` without a label exits the innermost loop.
+If a loop is labeled with a label `l`, then `break l` exits the loop labeled `l`.
+You can also exit any loop in a function using `return` or (in an asynchronous function) `throw`.
 
 ## Function calls
 

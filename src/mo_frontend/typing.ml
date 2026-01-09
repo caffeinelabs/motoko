@@ -64,6 +64,7 @@ type env =
     reported_stable_memory : bool ref;
     errors_only : bool;
     srcs : Field_sources.t;
+    closest_loop : Syntax.loop_flags option;
   }
 and ret_env =
   | NoRet
@@ -94,6 +95,7 @@ let env_of_scope msgs scope =
     reported_stable_memory = ref false;
     errors_only = false;
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
+    closest_loop = None;
   }
 
 let use_identifier env id =
@@ -1154,7 +1156,7 @@ let rec is_explicit_exp e =
     (cs = [] || List.exists (fun (c : case) -> is_explicit_exp c.it.exp) cs)
   | BlockE ds -> List.for_all is_explicit_dec ds
   | FuncE (_, _, _, p, t_opt, _, _) -> is_explicit_pat p && t_opt <> None
-  | LoopE (_, e_opt) -> e_opt <> None
+  | LoopE (_, e_opt, _) -> e_opt <> None
 
 and is_explicit_dec d =
   match d.it with
@@ -2080,24 +2082,28 @@ and infer_exp'' env exp : T.typ =
       Option.iter (check_exp_strong { env with async = C.NullCap; rets = NoRet; labs = T.Env.empty } T.unit) exp2_opt
     end;
     T.lub ~src_fields:env.srcs t1 t2
-  | WhileE (exp1, exp2) ->
+  | WhileE (exp1, exp2, loop_ref) ->
     if not env.pre then begin
-      check_exp_strong env T.bool exp1;
-      check_exp_strong env T.unit exp2
+      let env' = { env with closest_loop = Some loop_ref } in
+      check_exp_strong env' T.bool exp1;
+      check_exp_strong env' T.unit exp2
     end;
     T.unit
-  | LoopE (exp1, None) ->
+  | LoopE (exp1, None, loop_ref) ->
     if not env.pre then begin
-      check_exp_strong env T.unit exp1
-    end;
-    T.Non
-  | LoopE (exp1, Some exp2) ->
+      let env' = { env with closest_loop = Some loop_ref } in
+      check_exp_strong env' T.unit exp1;
+      if loop_ref.has_break then T.unit else T.Non
+    end else
+      T.Non
+  | LoopE (exp1, Some exp2, loop_ref) ->
     if not env.pre then begin
-      check_exp_strong env T.unit exp1;
-      check_exp_strong env T.bool exp2
+      let env' = { env with closest_loop = Some loop_ref } in
+      check_exp_strong env' T.unit exp1;
+      check_exp_strong env' T.bool exp2
     end;
     T.unit
-  | ForE (pat, exp1, exp2) ->
+  | ForE (pat, exp1, exp2, loop_ref) ->
     if not env.pre then begin
       let t1 = infer_exp_promote env exp1 in
       (try
@@ -2107,7 +2113,8 @@ and infer_exp'' env exp : T.typ =
         if not (sub env exp1.at T.unit t1) then raise (Invalid_argument "");
         let t2' = T.as_opt_sub t2 in
         let ve = check_pat_exhaustive warn env t2' pat in
-        check_exp_strong (adjoin_vals env ve) T.unit exp2
+        let env' = { (adjoin_vals env ve) with closest_loop = Some loop_ref } in
+        check_exp_strong env' T.unit exp2
       with Invalid_argument _ | Not_found ->
         local_error env exp1.at "M0082"
           "expected iterable type, but expression has type%a"
@@ -2122,7 +2129,18 @@ and infer_exp'' env exp : T.typ =
   | DebugE exp1 ->
     if not env.pre then check_exp_strong env T.unit exp1;
     T.unit
-  | BreakE (id, exp1) ->
+  | BreakE (kind, None, exp1) ->
+    (match env.closest_loop with
+    | None ->
+      let op = match kind with Break -> "break" | Continue -> "continue" in
+      local_error env exp.at "M0238" "%s outside of loop" op
+    | Some flags ->
+      (match kind with
+      | Break -> flags.has_break <- true
+      | Continue -> flags.has_continue <- true);
+      if not env.pre then check_exp_strong env T.unit exp1);
+    T.Non
+  | BreakE (kind, Some id, exp1) ->
     (match T.Env.find_opt id.it env.labs with
     | Some t ->
       if not env.pre then check_exp env t exp1

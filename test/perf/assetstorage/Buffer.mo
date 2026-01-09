@@ -43,8 +43,8 @@ public class Buffer<X> (initCapacity : Nat) {
         };
       let elems2 = Prim.Array_init<X>(size, elem);
       var i = 0;
-      label l loop {
-        if (i >= count) break l;
+      loop {
+        if (i >= count) break;
         elems2[i] := elems[i];
         i += 1;
       };
@@ -88,8 +88,8 @@ public class Buffer<X> (initCapacity : Nat) {
   public func clone() : Buffer<X> {
     let c = Buffer<X>(elems.size());
     var i = 0;
-    label l loop {
-      if (i >= count) break l;
+    loop {
+      if (i >= count) break;
       c.add(elems[i]);
       i += 1;
     };
@@ -121,8 +121,8 @@ public class Buffer<X> (initCapacity : Nat) {
     if (count == 0) { [var] } else {
       let a = Prim.Array_init<X>(count, elems[0]);
       var i = 0;
-      label l loop {
-        if (i >= count) break l;
+      loop {
+        if (i >= count) break;
         a[i] := elems[i];
         i += 1;
       };

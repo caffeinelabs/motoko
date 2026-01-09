@@ -331,7 +331,7 @@ and objblock eo s id ty dec_fields =
     open Mo_def.Syntax
 
     (* mk_stub_expr loc = VarE ("__error_recovery_var__" @~ loc) @? loc *)
-    let mk_stub_expr loc = LoopE (BlockE [] @? loc, None) @? loc
+    let mk_stub_expr loc = LoopE (BlockE [] @? loc, None, new_loop_flags ()) @? loc
  ]
 
 %type<unit> start
@@ -769,18 +769,22 @@ exp_un(B) :
       let unit () = TupT [] @! at $sloc in
       let e' =
         match e.it with
-        | WhileE (e1, e2) -> WhileE (e1, LabelE (x', unit (), e2) @? e2.at) @? e.at
-        | LoopE (e1, eo) -> LoopE (LabelE (x', unit (), e1) @? e1.at, eo) @? e.at
-        | ForE (p, e1, e2) -> ForE (p, e1, LabelE (x', unit (), e2) @? e2.at) @? e.at
+        | WhileE (e1, e2, flags) -> WhileE (e1, LabelE (x', unit (), e2) @? e2.at, flags) @? e.at
+        | LoopE (e1, eo, flags) -> LoopE (LabelE (x', unit (), e1) @? e1.at, eo, flags) @? e.at
+        | ForE (p, e1, e2, flags) -> ForE (p, e1, LabelE (x', unit (), e2) @? e2.at, flags) @? e.at
         | _ -> e
       in
       LabelE(x, Lib.Option.get rt (unit ()), e') @? at $sloc }
   | BREAK x=id eo=exp_nullary(ob)?
     { let e = Lib.Option.get eo (TupE([]) @? at $sloc) in
-      BreakE(x, e) @? at $sloc }
-  | CONTINUE x=id
-    { let x' = ("continue " ^ x.it) @@ x.at in
-      BreakE(x', TupE([]) @? no_region) @? at $sloc }
+      BreakE(Break, Some x, e) @? at $sloc }
+  | BREAK
+    { let e = TupE([]) @? at $sloc in
+      BreakE(Break, None, e) @? at $sloc }
+  | CONTINUE x=id?
+    { let e = TupE([]) @? at $sloc in
+      let x = Option.map (fun x -> ("continue " ^ x.it) @@ x.at) x in
+      BreakE(Continue, x, e) @? at $sloc }
   | DEBUG e=exp_nest
     { DebugE(e) @? at $sloc }
   | IF b=exp_nullary(ob) e1=exp_nest %prec IF_NO_ELSE
@@ -802,13 +806,13 @@ exp_un(B) :
   | SWITCH e=exp_nullary(ob) LCURLY cs=seplist(case, semicolon) RCURLY
     { SwitchE(e, cs) @? at $sloc }
   | WHILE e1=exp_nullary(ob) e2=exp_nest
-    { WhileE(e1, e2) @? at $sloc }
+    { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
   | LOOP e=exp_nest %prec LOOP_NO_WHILE
-    { LoopE(e, None) @? at $sloc }
+    { LoopE(e, None, new_loop_flags ()) @? at $sloc }
   | LOOP e1=exp_nest WHILE e2=exp_nest
-    { LoopE(e1, Some e2) @? at $sloc }
+    { LoopE(e1, Some e2, new_loop_flags ()) @? at $sloc }
   | FOR LPAR p=pat IN e1=exp(ob) RPAR e2=exp_nest
-    { ForE(p, e1, e2) @? at $sloc }
+    { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
   | IGNORE e=exp_nest
     { IgnoreE(e) @? at $sloc }
   | DO e=block

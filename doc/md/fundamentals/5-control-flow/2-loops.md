@@ -22,7 +22,20 @@ Motoko supports different types of loops:
 
 An unconditional loop runs indefinitely until it is explicitly stopped. Unlike `while` or `for` loops, which rely on a condition to determine when to exit, unconditional loops continue executing without any predefined exit condition. They are useful in scenarios where the program waits for an external event or depends on a break condition defined within the loop body.
 
-Motoko uses the `loop` keyword to define an infinite loop. To exit such a loop, you must use a `break` statement with a label, indicating exactly which loop to terminate.
+Motoko uses the `loop` keyword to define an infinite loop. To exit such a loop, you can use a `break` statement that will exit the innermost loop, or `break <label>` to exit the labeled loop.
+
+```motoko no-repl
+import Debug "mo:core/Debug";
+
+var count : Nat = 0;
+loop {
+  if (count > 5) break;
+  Debug.print(debug_show(count));
+  count += 1;
+}
+```
+
+You can also use a labeled loop when you need to break from a specific loop in nested loops:
 
 ```motoko no-repl
 import Debug "mo:core/Debug";
@@ -137,7 +150,21 @@ while (count > 0) {
 
 ## Continuing loops
 
-If a loop is labeled with a label `l` then you continue to the next iteration of the loop using the expression `continue l`.
+You can skip to the next iteration of a loop using the `continue` expression.
+
+```motoko no-repl
+import Debug "mo:core/Debug";
+
+var count = 8;
+while (count > 0) {
+  count -= 1;
+  if (count % 2 == 0) continue;
+  Debug.print("Counting down...");
+};
+```
+
+If a loop is labeled with a label `l` then you can continue to the next iteration of the loop labeled `l` using the expression `continue l`.
+This is useful when you have nested loops and need to continue a specific outer loop.
 
 ```motoko no-repl
 import Debug "mo:core/Debug";

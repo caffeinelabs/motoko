@@ -18,7 +18,7 @@ let rec over_exp (f : exp -> exp) (exp : exp) : exp = match exp.it with
   | NotE exp1 -> f { exp with it = NotE (over_exp f exp1) }
   | AssertE (how, exp1) -> f { exp with it = AssertE (how, over_exp f exp1) }
   | LabelE (x, y, exp1) -> f { exp with it = LabelE (x, y, over_exp f exp1) }
-  | BreakE (x, exp1) -> f { exp with it = BreakE (x, over_exp f exp1) }
+  | BreakE (k, i, exp1) -> f { exp with it = BreakE (k, i, over_exp f exp1) }
   | RetE exp1 -> f { exp with it = RetE (over_exp f exp1) }
   | AnnotE (exp1, x) -> f { exp with it = AnnotE (over_exp f exp1, x) }
   | AsyncE (par, s, tb, exp1) -> f { exp with it = AsyncE (Option.map (over_exp f) par, s, tb, over_exp f exp1) }
@@ -38,12 +38,12 @@ let rec over_exp (f : exp -> exp) (exp : exp) : exp = match exp.it with
      f { exp with it = AndE (over_exp f exp1, over_exp f exp2) }
   | OrE (exp1, exp2) ->
      f { exp with it = OrE (over_exp f exp1, over_exp f exp2) }
-  | WhileE (exp1, exp2) ->
-     f { exp with it = WhileE (over_exp f exp1, over_exp f exp2) }
-  | LoopE (exp1, exp2_opt) ->
-     f { exp with it = LoopE (over_exp f exp1, Option.map (over_exp f) exp2_opt) }
-  | ForE (x, exp1, exp2) ->
-     f { exp with it = ForE (x, over_exp f exp1, over_exp f exp2) }
+  | WhileE (exp1, exp2, flags) ->
+     f { exp with it = WhileE (over_exp f exp1, over_exp f exp2, flags) }
+  | LoopE (exp1, exp2_opt, flags) ->
+     f { exp with it = LoopE (over_exp f exp1, Option.map (over_exp f) exp2_opt, flags) }
+  | ForE (x, exp1, exp2, flags) ->
+     f { exp with it = ForE (x, over_exp f exp1, over_exp f exp2, flags) }
   | DebugE exp1 ->
      f { exp with it = DebugE (over_exp f exp1) }
   | TupE exps ->

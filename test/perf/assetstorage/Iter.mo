@@ -56,17 +56,17 @@ module {
     f : (A, Nat) -> ()
   ) {
     var i = 0;
-    label l loop {
+    loop {
       switch (xs.next()) {
         case (?next) {
           f(next, i);
         };
         case (null) {
-          break l;
+          break;
         };
       };
       i += 1;
-      continue l;
+      continue;
     };
   };
 
@@ -90,16 +90,16 @@ module {
   /// ```
   public func map<A, B>(xs : Iter<A>, f : A -> B) : Iter<B> = object {
     public func next() : ?B {
-      label l loop {
+      loop {
         switch (xs.next()) {
           case (?next) {
             return ?f(next);
           };
           case (null) {
-            break l;
+            break;
           };
         };
-        continue l;
+        continue;
       };
       null;
     };

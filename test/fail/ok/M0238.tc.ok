@@ -1,0 +1,2 @@
+M0238.mo:2.3-2.8: type error [M0238], break outside of loop
+M0238.mo:6.3-6.11: type error [M0238], continue outside of loop
