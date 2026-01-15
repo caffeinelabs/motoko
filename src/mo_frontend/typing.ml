@@ -820,8 +820,10 @@ and check_typ' env typ : T.typ =
     let env' = infer_async_cap (adjoin_typs env te ce) sort.it cs tbs None typ.at in
     let typs1 = as_domT typ1 in
     let c, typs2 = as_codomT sort.it typ2 in
-    let ts1 = List.map (check_typ_item env') typs1 in
-    let ts2 = List.map (check_typ_item env') typs2 in
+    let ts1 = List.filter_map (fun i -> try Some(check_typ_item env' i) with Recover -> None) typs1 in
+    let ts2 = List.filter_map (fun i -> try Some(check_typ_item env' i) with Recover -> None) typs2 in
+    if List.length ts1 <> List.length typs1 then raise Recover;
+    if List.length ts2 <> List.length typs2 then raise Recover;
     check_shared_return env typ2.at sort.it c ts2;
     if not env.pre && Type.is_shared_sort sort.it then begin
       check_shared_binds env typ.at tbs;
