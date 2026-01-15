@@ -6,3 +6,11 @@ obj-field-multi-error.mo:13.19-13.27: type error [M0030], type field MissingA do
   module {type T = ()}
 obj-field-multi-error.mo:13.31-13.39: type error [M0030], type field MissingB does not exist in type:
   module {type T = ()}
+obj-field-multi-error.mo:19.18-19.26: type error [M0030], type field MissingA does not exist in type:
+  module {type T = ()}
+obj-field-multi-error.mo:19.33-19.41: type error [M0030], type field MissingB does not exist in type:
+  module {type T = ()}
+obj-field-multi-error.mo:25.17-25.25: type error [M0030], type field MissingA does not exist in type:
+  module {type T = ()}
+obj-field-multi-error.mo:25.31-25.39: type error [M0030], type field MissingB does not exist in type:
+  module {type T = ()}

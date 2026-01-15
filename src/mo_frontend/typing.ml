@@ -871,8 +871,11 @@ and check_typ' env typ : T.typ =
     let fs, tfs = List.partition_map (check_typ_field env sort.it) fields in
     T.Obj (sort.it, List.sort T.compare_field fs, List.sort T.compare_field tfs)
   | AndT (typ1, typ2) ->
-    let t1 = check_typ env typ1 in
-    let t2 = check_typ env typ2 in
+    let t1 = try Some(check_typ env typ1) with Recover -> None in
+    let t2 = try Some(check_typ env typ2) with Recover -> None in
+    let t1, t2 = match t1, t2 with
+      | Some t1, Some t2 -> t1, t2
+      | _ -> raise Recover in
     let t = try T.glb ~src_fields:env.srcs t1 t2 with T.PreEncountered ->
       error env typ2.at "M0168"
         "cannot compute intersection of types containing recursive or forward references to other type definitions"
@@ -885,8 +888,11 @@ and check_typ' env typ : T.typ =
         display_typ_expand t2;
     t
   | OrT (typ1, typ2) ->
-    let t1 = check_typ env typ1 in
-    let t2 = check_typ env typ2 in
+    let t1 = try Some(check_typ env typ1) with Recover -> None in
+    let t2 = try Some(check_typ env typ2) with Recover -> None in
+    let t1, t2 = match t1, t2 with
+      | Some t1, Some t2 -> t1, t2
+      | _ -> raise Recover in
     let t = try T.lub ~src_fields:env.srcs t1 t2 with T.PreEncountered ->
       error env typ2.at "M0168"
         "cannot compute union of types containing recursive or forward references to other type definitions"

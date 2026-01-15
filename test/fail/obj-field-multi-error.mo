@@ -11,4 +11,16 @@ module {
   module A { public type T = () };
   module B { public type T = () };
   type MyTup = (A.MissingA, B.MissingB);
-}
+};
+
+module {
+  module A { public type T = () };
+  module B { public type T = () };
+  type MyAnd = A.MissingA and B.MissingB;
+};
+
+module {
+  module A { public type T = () };
+  module B { public type T = () };
+  type MyOr = A.MissingA or B.MissingB;
+};
