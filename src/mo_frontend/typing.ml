@@ -812,7 +812,9 @@ and check_typ' env typ : T.typ =
     let t = check_typ env typ in
     T.Array (infer_mut mut t)
   | TupT typ_items ->
-    T.Tup (List.map (check_typ_item env) typ_items)
+     let ts = List.filter_map (fun i -> try Some(check_typ_item env i) with Recover -> None) typ_items in
+     if List.length ts <> List.length typ_items then raise Recover;
+     T.Tup ts
   | FuncT (sort, binds, typ1, typ2) ->
     let cs, tbs, te, ce = check_typ_binds env binds in
     let env' = infer_async_cap (adjoin_typs env te ce) sort.it cs tbs None typ.at in
