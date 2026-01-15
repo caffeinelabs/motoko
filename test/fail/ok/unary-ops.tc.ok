@@ -1,0 +1,2 @@
+unary-ops.mo:5.10-5.15: syntax error [M0001], unexpected token '2.abs', expected one of token or <phrase> sequence:
+  <exp_nullary(ob)>

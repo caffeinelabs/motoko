@@ -204,7 +204,7 @@
     '#' <id>
     '#' <id> <exp_nullary>
     '?' <exp_un>
-    <unop> <exp_un>
+    <unop> <exp_nullary>
     <unassign> <exp_un>
     'actor' <exp_plain>
     'not' <exp_un>
