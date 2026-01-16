@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/VarArray.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/VarArray.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#corevararray" id="toc-corevararray">core/VarArray</a>
+<ul>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-repeat" id="toc-function-repeat">Function
+<code>repeat</code></a></li>
+<li><a href="#function-clone" id="toc-function-clone">Function
+<code>clone</code></a></li>
+<li><a href="#function-tabulate" id="toc-function-tabulate">Function
+<code>tabulate</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-find" id="toc-function-find">Function
+<code>find</code></a></li>
+<li><a href="#function-findindex" id="toc-function-findindex">Function
+<code>findIndex</code></a></li>
+<li><a href="#function-concat" id="toc-function-concat">Function
+<code>concat</code></a></li>
+<li><a href="#function-sort" id="toc-function-sort">Function
+<code>sort</code></a></li>
+<li><a href="#function-sortinplace"
+id="toc-function-sortinplace">Function <code>sortInPlace</code></a></li>
+<li><a href="#function-reverse" id="toc-function-reverse">Function
+<code>reverse</code></a></li>
+<li><a href="#function-reverseinplace"
+id="toc-function-reverseinplace">Function
+<code>reverseInPlace</code></a></li>
+<li><a href="#function-foreach" id="toc-function-foreach">Function
+<code>forEach</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-mapinplace" id="toc-function-mapinplace">Function
+<code>mapInPlace</code></a></li>
+<li><a href="#function-filter" id="toc-function-filter">Function
+<code>filter</code></a></li>
+<li><a href="#function-filtermap" id="toc-function-filtermap">Function
+<code>filterMap</code></a></li>
+<li><a href="#function-mapresult" id="toc-function-mapresult">Function
+<code>mapResult</code></a></li>
+<li><a href="#function-mapentries" id="toc-function-mapentries">Function
+<code>mapEntries</code></a></li>
+<li><a href="#function-flatmap" id="toc-function-flatmap">Function
+<code>flatMap</code></a></li>
+<li><a href="#function-foldleft" id="toc-function-foldleft">Function
+<code>foldLeft</code></a></li>
+<li><a href="#function-foldright" id="toc-function-foldright">Function
+<code>foldRight</code></a></li>
+<li><a href="#function-join" id="toc-function-join">Function
+<code>join</code></a></li>
+<li><a href="#function-flatten" id="toc-function-flatten">Function
+<code>flatten</code></a></li>
+<li><a href="#function-singleton" id="toc-function-singleton">Function
+<code>singleton</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-keys" id="toc-function-keys">Function
+<code>keys</code></a></li>
+<li><a href="#function-values" id="toc-function-values">Function
+<code>values</code></a></li>
+<li><a href="#function-enumerate" id="toc-function-enumerate">Function
+<code>enumerate</code></a></li>
+<li><a href="#function-all" id="toc-function-all">Function
+<code>all</code></a></li>
+<li><a href="#function-any" id="toc-function-any">Function
+<code>any</code></a></li>
+<li><a href="#function-indexof" id="toc-function-indexof">Function
+<code>indexOf</code></a></li>
+<li><a href="#function-nextindexof"
+id="toc-function-nextindexof">Function <code>nextIndexOf</code></a></li>
+<li><a href="#function-lastindexof"
+id="toc-function-lastindexof">Function <code>lastIndexOf</code></a></li>
+<li><a href="#function-previndexof"
+id="toc-function-previndexof">Function <code>prevIndexOf</code></a></li>
+<li><a href="#function-range" id="toc-function-range">Function
+<code>range</code></a></li>
+<li><a href="#function-slicetoarray"
+id="toc-function-slicetoarray">Function
+<code>sliceToArray</code></a></li>
+<li><a href="#function-slicetovararray"
+id="toc-function-slicetovararray">Function
+<code>sliceToVarArray</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-binarysearch"
+id="toc-function-binarysearch">Function
+<code>binarySearch</code></a></li>
+<li><a href="#function-issorted" id="toc-function-issorted">Function
+<code>isSorted</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="corevararray">core/VarArray</h1>
+<p>Provides extended utility functions on mutable Arrays
+(<code>[var]</code>).</p>
+<p>Note the difference between mutable (<code>[var]</code>) and
+immutable (<code>[]</code>) arrays. Mutable arrays allow their elements
+to be modified after creation, while immutable arrays are fixed once
+created.</p>
+<p>WARNING: If you are looking for a list that can grow and shrink in
+size, it is recommended you use <code>List</code> for those purposes.
+Arrays must be created with a fixed size.</p>
+<p>Import from the core package to use this module.</p>
+<pre class="motoko"><code>import VarArray &quot;mo:core/VarArray&quot;;</code></pre>
+<h2 id="function-empty">Function <code>empty</code></h2>
+<pre class="motoko"><code>func empty&lt;T&gt;() : [var T]</code></pre>
+<p>Creates an empty mutable array (equivalent to
+<code>[var]</code>).</p>
+<pre class="motoko"><code>let array = VarArray.empty&lt;Text&gt;();
+assert array.size() == 0;</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-repeat">Function <code>repeat</code></h2>
+<pre class="motoko"><code>func repeat&lt;T&gt;(item : T, size : Nat) : [var T]</code></pre>
+<p>Creates a mutable array containing <code>item</code> repeated
+<code>size</code> times.</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;
+
+let array = VarArray.repeat&lt;Text&gt;(&quot;Echo&quot;, 3);
+assert VarArray.equal(array, [var &quot;Echo&quot;, &quot;Echo&quot;, &quot;Echo&quot;], Text.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<h2 id="function-clone">Function <code>clone</code></h2>
+<pre class="motoko"><code>func clone&lt;T&gt;(self : [var T]) : [var T]</code></pre>
+<p>Duplicates <code>array</code>, returning a shallow copy of the
+original.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array1 = [var 1, 2, 3];
+let array2 = VarArray.clone&lt;Nat&gt;(array1);
+array2[0] := 0;
+assert VarArray.equal(array1, [var 1, 2, 3], Nat.equal);
+assert VarArray.equal(array2, [var 0, 2, 3], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<h2 id="function-tabulate">Function <code>tabulate</code></h2>
+<pre class="motoko"><code>func tabulate&lt;T&gt;(size : Nat, generator : Nat -&gt; T) : [var T]</code></pre>
+<p>Creates a mutable array of size <code>size</code>. Each element at
+index i is created by applying <code>generator</code> to i.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array : [var Nat] = VarArray.tabulate&lt;Nat&gt;(4, func i = i * 2);
+assert VarArray.equal(array, [var 0, 2, 4, 6], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>generator</code> runs in O(1)
+time and space.</p>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal&lt;T&gt;(self : [var T], other : [var T], equal : (implicit : (T, T) -&gt; Bool)) : Bool</code></pre>
+<p>Tests if two arrays contain equal values (i.e. they represent the
+same list of elements). Uses <code>equal</code> to compare elements in
+the arrays.</p>
+<pre class="motoko"><code>// Use the equal function from the Nat module to compare Nats
+import Nat &quot;mo:core/Nat&quot;;
+
+let array1 = [var 0, 1, 2, 3];
+let array2 = [var 0, 1, 2, 3];
+assert VarArray.equal(array1, array2, Nat.equal);</code></pre>
+<p>Runtime: O(size1 + size2)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>equal</code> runs in O(1) time
+and space.</p>
+<h2 id="function-find">Function <code>find</code></h2>
+<pre class="motoko"><code>func find&lt;T&gt;(self : [var T], predicate : T -&gt; Bool) : ?T</code></pre>
+<p>Returns the first value in <code>array</code> for which
+<code>predicate</code> returns true. If no element satisfies the
+predicate, returns null.</p>
+<pre class="motoko"><code>let array = [var 1, 9, 4, 8];
+let found = VarArray.find&lt;Nat&gt;(array, func x = x &gt; 8);
+assert found == ?9;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-findindex">Function <code>findIndex</code></h2>
+<pre class="motoko"><code>func findIndex&lt;T&gt;(self : [var T], predicate : T -&gt; Bool) : ?Nat</code></pre>
+<p>Returns the first index in <code>array</code> for which
+<code>predicate</code> returns true. If no element satisfies the
+predicate, returns null.</p>
+<pre class="motoko"><code>let array = [var &#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;D&#39;];
+let found = VarArray.findIndex&lt;Char&gt;(array, func(x) { x == &#39;C&#39; });
+assert found == ?2;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-concat">Function <code>concat</code></h2>
+<pre class="motoko"><code>func concat&lt;T&gt;(self : [var T], other : [var T]) : [var T]</code></pre>
+<p>Create a new mutable array by concatenating the values of
+<code>array1</code> and <code>array2</code>. Note that
+<code>VarArray.concat</code> copies its arguments and has linear
+complexity.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array1 = [var 1, 2, 3];
+let array2 = [var 4, 5, 6];
+let result = VarArray.concat&lt;Nat&gt;(array1, array2);
+assert VarArray.equal(result, [var 1, 2, 3, 4, 5, 6], Nat.equal);</code></pre>
+<p>Runtime: O(size1 + size2)</p>
+<p>Space: O(size1 + size2)</p>
+<h2 id="function-sort">Function <code>sort</code></h2>
+<pre class="motoko"><code>func sort&lt;T&gt;(self : [var T], compare : (implicit : (T, T) -&gt; Order.Order)) : [var T]</code></pre>
+<p>Creates a new sorted copy of the mutable array according to
+<code>compare</code>. Sort is deterministic and stable.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 4, 2, 6];
+let sorted = VarArray.sort(array, Nat.compare);
+assert VarArray.equal(sorted, [var 2, 4, 6], Nat.equal);</code></pre>
+<p>Runtime: O(size * log(size))</p>
+<p>Space: O(size) *Runtime and space assumes that <code>compare</code>
+runs in O(1) time and space.</p>
+<h2 id="function-sortinplace">Function <code>sortInPlace</code></h2>
+<pre class="motoko"><code>func sortInPlace&lt;T&gt;(self : [var T], compare : (implicit : (T, T) -&gt; Order.Order)) : ()</code></pre>
+<p>Sorts the elements in a mutable array in place according to
+<code>compare</code>. Sort is deterministic and stable. This modifies
+the original array.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 4, 2, 6];
+VarArray.sortInPlace(array, Nat.compare);
+assert VarArray.equal(array, [var 2, 4, 6], Nat.equal);</code></pre>
+<p>Runtime: O(size * log(size))</p>
+<p>Space: O(size) *Runtime and space assumes that <code>compare</code>
+runs in O(1) time and space.</p>
+<h2 id="function-reverse">Function <code>reverse</code></h2>
+<pre class="motoko"><code>func reverse&lt;T&gt;(self : [var T]) : [var T]</code></pre>
+<p>Creates a new mutable array by reversing the order of elements in
+<code>array</code>. The original array is not modified.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 10, 11, 12];
+let reversed = VarArray.reverse(array);
+assert VarArray.equal(reversed, [var 12, 11, 10], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<h2 id="function-reverseinplace">Function
+<code>reverseInPlace</code></h2>
+<pre class="motoko"><code>func reverseInPlace&lt;T&gt;(self : [var T]) : ()</code></pre>
+<p>Reverses the order of elements in a mutable array in place. This
+modifies the original array.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 10, 11, 12];
+VarArray.reverseInPlace(array);
+assert VarArray.equal(array, [var 12, 11, 10], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<h2 id="function-foreach">Function <code>forEach</code></h2>
+<pre class="motoko"><code>func forEach&lt;T&gt;(self : [var T], f : T -&gt; ())</code></pre>
+<p>Calls <code>f</code> with each element in <code>array</code>. Retains
+original ordering of elements.</p>
+<pre class="motoko"><code>var sum = 0;
+let array = [var 0, 1, 2, 3];
+VarArray.forEach&lt;Nat&gt;(array, func(x) {
+  sum += x;
+});
+assert sum == 6;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;T, R&gt;(self : [var T], f : T -&gt; R) : [var R]</code></pre>
+<p>Creates a new mutable array by applying <code>f</code> to each
+element in <code>array</code>. <code>f</code> "maps" each element it is
+applied to of type <code>T</code> to an element of type <code>R</code>.
+Retains original ordering of elements.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 0, 1, 2, 3];
+let array2 = VarArray.map&lt;Nat, Nat&gt;(array, func x = x * 2);
+assert VarArray.equal(array2, [var 0, 2, 4, 6], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-mapinplace">Function <code>mapInPlace</code></h2>
+<pre class="motoko"><code>func mapInPlace&lt;T&gt;(self : [var T], f : T -&gt; T)</code></pre>
+<p>Applies <code>f</code> to each element of <code>array</code> in
+place, retaining the original ordering of elements. This modifies the
+original array.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 0, 1, 2, 3];
+VarArray.mapInPlace&lt;Nat&gt;(array, func x = x * 3);
+assert VarArray.equal(array, [var 0, 3, 6, 9], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-filter">Function <code>filter</code></h2>
+<pre class="motoko"><code>func filter&lt;T&gt;(self : [var T], f : T -&gt; Bool) : [var T]</code></pre>
+<p>Creates a new mutable array by applying <code>predicate</code> to
+every element in <code>array</code>, retaining the elements for which
+<code>predicate</code> returns true.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 4, 2, 6, 1, 5];
+let evenElements = VarArray.filter&lt;Nat&gt;(array, func x = x % 2 == 0);
+assert VarArray.equal(evenElements, [var 4, 2, 6], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size) *Runtime and space assumes that <code>predicate</code>
+runs in O(1) time and space.</p>
+<h2 id="function-filtermap">Function <code>filterMap</code></h2>
+<pre class="motoko"><code>func filterMap&lt;T, R&gt;(self : [var T], f : T -&gt; ?R) : [var R]</code></pre>
+<p>Creates a new mutable array by applying <code>f</code> to each
+element in <code>array</code>, and keeping all non-null elements. The
+ordering is retained.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+
+let array = [var 4, 2, 0, 1];
+let newArray =
+  VarArray.filterMap&lt;Nat, Text&gt;( // mapping from Nat to Text values
+    array,
+    func x = if (x == 0) { null } else { ?Nat.toText(100 / x) } // can&#39;t divide by 0, so return null
+  );
+assert VarArray.equal(newArray, [var &quot;25&quot;, &quot;50&quot;, &quot;100&quot;], Text.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size) *Runtime and space assumes that <code>f</code> runs in
+O(1) time and space.</p>
+<h2 id="function-mapresult">Function <code>mapResult</code></h2>
+<pre class="motoko"><code>func mapResult&lt;T, R, E&gt;(self : [var T], f : T -&gt; Result.Result&lt;R, E&gt;) : Result.Result&lt;[var R], E&gt;</code></pre>
+<p>Creates a new mutable array by applying <code>f</code> to each
+element in <code>array</code>. If any invocation of <code>f</code>
+produces an <code>#err</code>, returns an <code>#err</code>. Otherwise
+returns an <code>#ok</code> containing the new array.</p>
+<pre class="motoko"><code>import Result &quot;mo:core/Result&quot;;
+
+let array = [var 4, 3, 2, 1, 0];
+// divide 100 by every element in the array
+let result = VarArray.mapResult&lt;Nat, Nat, Text&gt;(array, func x {
+  if (x &gt; 0) {
+    #ok(100 / x)
+  } else {
+    #err &quot;Cannot divide by zero&quot;
+  }
+});
+assert Result.isErr(result);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space. @deprecated M0235</p>
+<h2 id="function-mapentries">Function <code>mapEntries</code></h2>
+<pre class="motoko"><code>func mapEntries&lt;T, R&gt;(self : [var T], f : (T, Nat) -&gt; R) : [var R]</code></pre>
+<p>Creates a new array by applying <code>f</code> to each element in
+<code>array</code> and its index. Retains original ordering of
+elements.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 10, 10, 10, 10];
+let newArray = VarArray.mapEntries&lt;Nat, Nat&gt;(array, func (x, i) = i * x);
+assert VarArray.equal(newArray, [var 0, 10, 20, 30], Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-flatmap">Function <code>flatMap</code></h2>
+<pre class="motoko"><code>func flatMap&lt;T, R&gt;(self : [var T], k : T -&gt; Types.Iter&lt;R&gt;) : [var R]</code></pre>
+<p>Creates a new mutable array by applying <code>k</code> to each
+element in <code>array</code>, and concatenating the resulting arrays in
+order.</p>
+<pre class="motoko"><code>import Int &quot;mo:core/Int&quot;
+
+let array = [var 1, 2, 3, 4];
+let newArray = VarArray.flatMap&lt;Nat, Int&gt;(array, func x = [x, -x].vals());
+assert VarArray.equal(newArray, [var 1, -1, 2, -2, 3, -3, 4, -4], Int.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size) *Runtime and space assumes that <code>k</code> runs in
+O(1) time and space.</p>
+<h2 id="function-foldleft">Function <code>foldLeft</code></h2>
+<pre class="motoko"><code>func foldLeft&lt;T, A&gt;(self : [var T], base : A, combine : (A, T) -&gt; A) : A</code></pre>
+<p>Collapses the elements in <code>array</code> into a single value by
+starting with <code>base</code> and progessively combining elements into
+<code>base</code> with <code>combine</code>. Iteration runs left to
+right.</p>
+<pre class="motoko"><code>import {add} &quot;mo:core/Nat&quot;;
+
+let array = [var 4, 2, 0, 1];
+let sum =
+  VarArray.foldLeft&lt;Nat, Nat&gt;(
+    array,
+    0, // start the sum at 0
+    func(sumSoFar, x) = sumSoFar + x // this entire function can be replaced with `add`!
+  );
+assert sum == 7;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>combine</code> runs in O(1)
+time and space.</p>
+<h2 id="function-foldright">Function <code>foldRight</code></h2>
+<pre class="motoko"><code>func foldRight&lt;T, A&gt;(self : [var T], base : A, combine : (T, A) -&gt; A) : A</code></pre>
+<p>Collapses the elements in <code>array</code> into a single value by
+starting with <code>base</code> and progessively combining elements into
+<code>base</code> with <code>combine</code>. Iteration runs right to
+left.</p>
+<pre class="motoko"><code>import {toText} &quot;mo:core/Nat&quot;;
+
+let array = [var 1, 9, 4, 8];
+let bookTitle = VarArray.foldRight&lt;Nat, Text&gt;(array, &quot;&quot;, func(x, acc) = toText(x) # acc);
+assert bookTitle == &quot;1948&quot;;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>combine</code> runs in O(1)
+time and space.</p>
+<h2 id="function-join">Function <code>join</code></h2>
+<pre class="motoko"><code>func join&lt;T&gt;(self : Types.Iter&lt;[var T]&gt;) : [var T]</code></pre>
+<p>Combines an iterator of mutable arrays into a single mutable array.
+Retains the original ordering of the elements.</p>
+<p>Consider using <code>VarArray.flatten()</code> for better
+performance.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let arrays : [[var Nat]] = [[var 0, 1, 2], [var 2, 3], [var], [var 4]];
+let joinedArray = VarArray.join&lt;Nat&gt;(arrays.vals());
+assert VarArray.equal(joinedArray, [var 0, 1, 2, 2, 3, 4], Nat.equal);</code></pre>
+<p>Runtime: O(number of elements in array)</p>
+<p>Space: O(number of elements in array)</p>
+<h2 id="function-flatten">Function <code>flatten</code></h2>
+<pre class="motoko"><code>func flatten&lt;T&gt;(self : [var [var T]]) : [var T]</code></pre>
+<p>Combines a mutable array of mutable arrays into a single mutable
+array. Retains the original ordering of the elements.</p>
+<p>This has better performance compared to
+<code>VarArray.join()</code>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let arrays : [var [var Nat]] = [var [var 0, 1, 2], [var 2, 3], [var], [var 4]];
+let flatArray = VarArray.flatten&lt;Nat&gt;(arrays);
+assert VarArray.equal(flatArray, [var 0, 1, 2, 2, 3, 4], Nat.equal);</code></pre>
+<p>Runtime: O(number of elements in array)</p>
+<p>Space: O(number of elements in array)</p>
+<h2 id="function-singleton">Function <code>singleton</code></h2>
+<pre class="motoko"><code>func singleton&lt;T&gt;(element : T) : [var T]</code></pre>
+<p>Create an array containing a single value.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = VarArray.singleton&lt;Nat&gt;(2);
+assert VarArray.equal(array, [var 2], Nat.equal);</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size&lt;T&gt;(self : [var T]) : Nat</code></pre>
+<p>Returns the size of a mutable array. Equivalent to
+<code>array.size()</code>.</p>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty&lt;T&gt;(self : [var T]) : Bool</code></pre>
+<p>Returns whether a mutable array is empty, i.e. contains zero
+elements.</p>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray&lt;T&gt;(array : [T]) : [var T]</code></pre>
+<p>Transforms an immutable array into a mutable array.</p>
+<pre class="motoko"><code>let array = [0, 1, 2];
+let varArray = VarArray.fromArray&lt;Nat&gt;(array);
+assert varArray.size() == 3;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter&lt;T&gt;(iter : Types.Iter&lt;T&gt;) : [var T]</code></pre>
+<p>Converts an iterator to a mutable array.</p>
+<h2 id="function-keys">Function <code>keys</code></h2>
+<pre class="motoko"><code>func keys&lt;T&gt;(self : [var T]) : Types.Iter&lt;Nat&gt;</code></pre>
+<p>Returns an iterator (<code>Iter</code>) over the indices of
+<code>array</code>. An iterator provides a single method
+<code>next()</code>, which returns indices in order, or
+<code>null</code> when out of index to iterate over.</p>
+<p>NOTE: You can also use <code>array.keys()</code> instead of this
+function. See example below.</p>
+<pre class="motoko"><code>let array = [var 10, 11, 12];
+
+var sum = 0;
+for (element in array.keys()) {
+  sum += element;
+};
+assert sum == 3; // 0 + 1 + 2</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-values">Function <code>values</code></h2>
+<pre class="motoko"><code>func values&lt;T&gt;(self : [var T]) : Types.Iter&lt;T&gt;</code></pre>
+<p>Iterator provides a single method <code>next()</code>, which returns
+elements in order, or <code>null</code> when out of elements to iterate
+over.</p>
+<p>Note: You can also use <code>array.values()</code> instead of this
+function. See example below.</p>
+<pre class="motoko"><code>let array = [var 10, 11, 12];
+
+var sum = 0;
+for (element in array.values()) {
+  sum += element;
+};
+assert sum == 33; // 10 + 11 + 12</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-enumerate">Function <code>enumerate</code></h2>
+<pre class="motoko"><code>func enumerate&lt;T&gt;(self : [var T]) : Types.Iter&lt;(Nat, T)&gt;</code></pre>
+<p>Returns an iterator that provides pairs of (index, element) in order,
+or <code>null</code> when out of elements to iterate over.</p>
+<pre class="motoko"><code>let array = [var 10, 11, 12];
+
+var sum = 0;
+for ((index, element) in VarArray.enumerate(array)) {
+  sum += element;
+};
+assert sum == 33;</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-all">Function <code>all</code></h2>
+<pre class="motoko"><code>func all&lt;T&gt;(self : [var T], predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Returns true if all elements in <code>array</code> satisfy the
+predicate function.</p>
+<pre class="motoko"><code>let array = [var 1, 2, 3, 4];
+assert VarArray.all&lt;Nat&gt;(array, func x = x &gt; 0);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-any">Function <code>any</code></h2>
+<pre class="motoko"><code>func any&lt;T&gt;(self : [var T], predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Returns true if any element in <code>array</code> satisfies the
+predicate function.</p>
+<pre class="motoko"><code>let array = [var 1, 2, 3, 4];
+assert VarArray.any&lt;Nat&gt;(array, func x = x &gt; 3);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-indexof">Function <code>indexOf</code></h2>
+<pre class="motoko"><code>func indexOf&lt;T&gt;(self : [var T], equal : (implicit : (T, T) -&gt; Bool), element : T) : ?Nat</code></pre>
+<p>Returns the index of the first <code>element</code> in the
+<code>array</code>.</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;
+
+let array = [var &#39;c&#39;, &#39;o&#39;, &#39;f&#39;, &#39;f&#39;, &#39;e&#39;, &#39;e&#39;];
+assert VarArray.indexOf&lt;Char&gt;(array, Char.equal, &#39;c&#39;) == ?0;
+assert VarArray.indexOf&lt;Char&gt;(array, Char.equal, &#39;f&#39;) == ?2;
+assert VarArray.indexOf&lt;Char&gt;(array, Char.equal, &#39;g&#39;) == null;</code></pre>
+<p>Runtime: O(array.size())</p>
+<p>Space: O(1)</p>
+<h2 id="function-nextindexof">Function <code>nextIndexOf</code></h2>
+<pre class="motoko"><code>func nextIndexOf&lt;T&gt;(self : [var T], equal : (implicit : (T, T) -&gt; Bool), element : T, fromInclusive : Nat) : ?Nat</code></pre>
+<p>Returns the index of the next occurence of <code>element</code> in
+the <code>array</code> starting from the <code>from</code> index
+(inclusive).</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;
+
+let array = [var &#39;c&#39;, &#39;o&#39;, &#39;f&#39;, &#39;f&#39;, &#39;e&#39;, &#39;e&#39;];
+assert VarArray.nextIndexOf&lt;Char&gt;(array, Char.equal, &#39;c&#39;, 0) == ?0;
+assert VarArray.nextIndexOf&lt;Char&gt;(array, Char.equal, &#39;f&#39;, 0) == ?2;
+assert VarArray.nextIndexOf&lt;Char&gt;(array, Char.equal, &#39;f&#39;, 2) == ?2;
+assert VarArray.nextIndexOf&lt;Char&gt;(array, Char.equal, &#39;f&#39;, 3) == ?3;
+assert VarArray.nextIndexOf&lt;Char&gt;(array, Char.equal, &#39;f&#39;, 4) == null;</code></pre>
+<p>Runtime: O(array.size())</p>
+<p>Space: O(1)</p>
+<h2 id="function-lastindexof">Function <code>lastIndexOf</code></h2>
+<pre class="motoko"><code>func lastIndexOf&lt;T&gt;(self : [var T], equal : (implicit : (T, T) -&gt; Bool), element : T) : ?Nat</code></pre>
+<p>Returns the index of the last <code>element</code> in the
+<code>array</code>.</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;
+
+let array = [var &#39;c&#39;, &#39;o&#39;, &#39;f&#39;, &#39;f&#39;, &#39;e&#39;, &#39;e&#39;];
+assert VarArray.lastIndexOf&lt;Char&gt;(array, Char.equal, &#39;c&#39;) == ?0;
+assert VarArray.lastIndexOf&lt;Char&gt;(array, Char.equal, &#39;f&#39;) == ?3;
+assert VarArray.lastIndexOf&lt;Char&gt;(array, Char.equal, &#39;e&#39;) == ?5;
+assert VarArray.lastIndexOf&lt;Char&gt;(array, Char.equal, &#39;g&#39;) == null;</code></pre>
+<p>Runtime: O(array.size())</p>
+<p>Space: O(1)</p>
+<h2 id="function-previndexof">Function <code>prevIndexOf</code></h2>
+<pre class="motoko"><code>func prevIndexOf&lt;T&gt;(self : [var T], equal : (implicit : (T, T) -&gt; Bool), element : T, fromExclusive : Nat) : ?Nat</code></pre>
+<p>Returns the index of the previous occurence of <code>element</code>
+in the <code>array</code> starting from the <code>from</code> index
+(exclusive).</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;
+let array = [var &#39;c&#39;, &#39;o&#39;, &#39;f&#39;, &#39;f&#39;, &#39;e&#39;, &#39;e&#39;];
+assert VarArray.prevIndexOf&lt;Char&gt;(array, Char.equal, &#39;c&#39;, array.size()) == ?0;
+assert VarArray.prevIndexOf&lt;Char&gt;(array, Char.equal, &#39;e&#39;, array.size()) == ?5;
+assert VarArray.prevIndexOf&lt;Char&gt;(array, Char.equal, &#39;e&#39;, 5) == ?4;
+assert VarArray.prevIndexOf&lt;Char&gt;(array, Char.equal, &#39;e&#39;, 4) == null;</code></pre>
+<p>Runtime: O(array.size()); Space: O(1);</p>
+<h2 id="function-range">Function <code>range</code></h2>
+<pre class="motoko"><code>func range&lt;T&gt;(self : [var T], fromInclusive : Int, toExclusive : Int) : Types.Iter&lt;T&gt;</code></pre>
+<p>Returns an iterator over a slice of <code>array</code> starting at
+<code>fromInclusive</code> up to (but not including)
+<code>toExclusive</code>.</p>
+<p>Negative indices are relative to the end of the array. For example,
+<code>-1</code> corresponds to the last element in the array.</p>
+<p>If the indices are out of bounds, they are clamped to the array
+bounds. If the first index is greater than the second, the function
+returns an empty iterator.</p>
+<pre class="motoko"><code>let array = [var 1, 2, 3, 4, 5];
+let iter1 = VarArray.range&lt;Nat&gt;(array, 3, array.size());
+assert iter1.next() == ?4;
+assert iter1.next() == ?5;
+assert iter1.next() == null;
+
+let iter2 = VarArray.range&lt;Nat&gt;(array, 3, -1);
+assert iter2.next() == ?4;
+assert iter2.next() == null;
+
+let iter3 = VarArray.range&lt;Nat&gt;(array, 0, 0);
+assert iter3.next() == null;</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-slicetoarray">Function <code>sliceToArray</code></h2>
+<pre class="motoko"><code>func sliceToArray&lt;T&gt;(self : [var T], fromInclusive : Int, toExclusive : Int) : [T]</code></pre>
+<p>Returns a new array containing elements from <code>array</code>
+starting at index <code>fromInclusive</code> up to (but not including)
+index <code>toExclusive</code>. If the indices are out of bounds, they
+are clamped to the array bounds.</p>
+<pre class="motoko"><code>let array = [var 1, 2, 3, 4, 5];
+
+let slice1 = VarArray.sliceToArray&lt;Nat&gt;(array, 1, 4);
+assert slice1 == [2, 3, 4];
+
+let slice2 = VarArray.sliceToArray&lt;Nat&gt;(array, 1, -1);
+assert slice2 == [2, 3, 4];</code></pre>
+<p>Runtime: O(toExclusive - fromInclusive)</p>
+<p>Space: O(toExclusive - fromInclusive)</p>
+<h2 id="function-slicetovararray">Function
+<code>sliceToVarArray</code></h2>
+<pre class="motoko"><code>func sliceToVarArray&lt;T&gt;(self : [var T], fromInclusive : Int, toExclusive : Int) : [var T]</code></pre>
+<p>Returns a new mutable array containing elements from
+<code>array</code> starting at index <code>fromInclusive</code> up to
+(but not including) index <code>toExclusive</code>. If the indices are
+out of bounds, they are clamped to the array bounds.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 1, 2, 3, 4, 5];
+
+let slice1 = VarArray.sliceToVarArray&lt;Nat&gt;(array, 1, 4);
+assert VarArray.equal(slice1, [var 2, 3, 4], Nat.equal);
+
+let slice2 = VarArray.sliceToVarArray&lt;Nat&gt;(array, 1, -1);
+assert VarArray.equal(slice2, [var 2, 3, 4], Nat.equal);</code></pre>
+<p>Runtime: O(toExclusive - fromInclusive)</p>
+<p>Space: O(toExclusive - fromInclusive)</p>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray&lt;T&gt;(self : [var T]) : [T]</code></pre>
+<p>Transforms a mutable array into an immutable array.</p>
+<pre class="motoko"><code>let varArray = [var 0, 1, 2];
+varArray[2] := 3;
+let array = VarArray.toArray&lt;Nat&gt;(varArray);
+assert array == [0, 1, 3];</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText&lt;T&gt;(self : [var T], f : (implicit : (toText : T -&gt; Text))) : Text</code></pre>
+<p>Converts the mutable array to its textual representation using
+<code>f</code> to convert each element to <code>Text</code>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 1, 2, 3];
+assert VarArray.toText&lt;Nat&gt;(array, Nat.toText) == &quot;[var 1, 2, 3]&quot;;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare&lt;T&gt;(self : [var T], other : [var T], compare : (implicit : (T, T) -&gt; Order.Order)) : Order.Order</code></pre>
+<p>Compares two mutable arrays using the provided comparison function
+for elements. Returns #less, #equal, or #greater if <code>array1</code>
+is less than, equal to, or greater than <code>array2</code>
+respectively.</p>
+<p>If arrays have different sizes but all elements up to the shorter
+length are equal, the shorter array is considered #less than the longer
+array.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+let array1 = [var 1, 2, 3];
+let array2 = [var 1, 2, 4];
+assert VarArray.compare&lt;Nat&gt;(array1, array2, Nat.compare) == #less;
+
+let array3 = [var 1, 2];
+let array4 = [var 1, 2, 3];
+assert VarArray.compare&lt;Nat&gt;(array3, array4, Nat.compare) == #less;</code></pre>
+<p>Runtime: O(min(size1, size2))</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>compare</code> runs in O(1)
+time and space.</p>
+<h2 id="function-binarysearch">Function <code>binarySearch</code></h2>
+<pre class="motoko"><code>func binarySearch&lt;T&gt;(self : [var T], compare : (implicit : (T, T) -&gt; Order.Order), element : T) : {#found : Nat; #insertionIndex : Nat}</code></pre>
+<p>Performs binary search on a sorted mutable array to find the index of
+the <code>element</code>. Returns <code>#found(index)</code> if the
+element is found, or <code>#insertionIndex(index)</code> with the
+index</p>
+<p>If there are multiple equal elements, no guarantee is made about
+which index is returned. The array must be sorted in ascending order
+according to the <code>compare</code> function.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let sorted = [var 1, 3, 5, 7, 9, 11];
+assert VarArray.binarySearch&lt;Nat&gt;(sorted, Nat.compare, 5) == #found(2);
+assert VarArray.binarySearch&lt;Nat&gt;(sorted, Nat.compare, 6) == #insertionIndex(3);</code></pre>
+<p>Runtime: O(log(size))</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>compare</code> runs in O(1)
+time and space.</p>
+<h2 id="function-issorted">Function <code>isSorted</code></h2>
+<pre class="motoko"><code>func isSorted&lt;T&gt;(self : [var T], compare : (implicit : (T, T) -&gt; Order.Order)) : Bool</code></pre>
+<p>Checks whether the mutable <code>array</code> is sorted according to
+the <code>compare</code> function.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let array = [var 1, 2, 3];
+assert VarArray.isSorted&lt;Nat&gt;(array, Nat.compare);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>compare</code> runs in O(1)
+time and space.</p>
+</body>
+</html>

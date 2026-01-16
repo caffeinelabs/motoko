@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Queue.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Queue.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#corequeue" id="toc-corequeue">core/Queue</a>
+<ul>
+<li><a href="#type-queue" id="toc-type-queue">Type
+<code>Queue</code></a></li>
+<li><a href="#function-topure" id="toc-function-topure">Function
+<code>toPure</code></a></li>
+<li><a href="#function-frompure" id="toc-function-frompure">Function
+<code>fromPure</code></a></li>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-singleton" id="toc-function-singleton">Function
+<code>singleton</code></a></li>
+<li><a href="#function-clear" id="toc-function-clear">Function
+<code>clear</code></a></li>
+<li><a href="#function-clone" id="toc-function-clone">Function
+<code>clone</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-contains" id="toc-function-contains">Function
+<code>contains</code></a></li>
+<li><a href="#function-peekfront" id="toc-function-peekfront">Function
+<code>peekFront</code></a></li>
+<li><a href="#function-peekback" id="toc-function-peekback">Function
+<code>peekBack</code></a></li>
+<li><a href="#function-pushfront" id="toc-function-pushfront">Function
+<code>pushFront</code></a></li>
+<li><a href="#function-pushback" id="toc-function-pushback">Function
+<code>pushBack</code></a></li>
+<li><a href="#function-popfront" id="toc-function-popfront">Function
+<code>popFront</code></a></li>
+<li><a href="#function-popback" id="toc-function-popback">Function
+<code>popBack</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-toqueue" id="toc-function-toqueue">Function
+<code>toQueue</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+<li><a href="#function-values" id="toc-function-values">Function
+<code>values</code></a></li>
+<li><a href="#function-reversevalues"
+id="toc-function-reversevalues">Function
+<code>reverseValues</code></a></li>
+<li><a href="#function-all" id="toc-function-all">Function
+<code>all</code></a></li>
+<li><a href="#function-any" id="toc-function-any">Function
+<code>any</code></a></li>
+<li><a href="#function-foreach" id="toc-function-foreach">Function
+<code>forEach</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-filter" id="toc-function-filter">Function
+<code>filter</code></a></li>
+<li><a href="#function-filtermap" id="toc-function-filtermap">Function
+<code>filterMap</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="corequeue">core/Queue</h1>
+<p>A mutable double-ended queue of elements. The queue has two ends,
+front and back. Elements can be added and removed at the two ends.</p>
+<p>This can be used for different use cases, such as:</p>
+<ul>
+<li>Queue (FIFO) by using <code>pushBack()</code> and
+<code>popFront()</code></li>
+<li>Stack (LIFO) by using <code>pushFront()</code> and
+<code>popFront()</code>.</li>
+</ul>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let orders = Queue.empty&lt;Text&gt;();
+  Queue.pushBack(orders, &quot;Motoko&quot;);
+  Queue.pushBack(orders, &quot;Mops&quot;);
+  Queue.pushBack(orders, &quot;IC&quot;);
+  assert Queue.popFront(orders) == ?&quot;Motoko&quot;;
+  assert Queue.popFront(orders) == ?&quot;Mops&quot;;
+  assert Queue.popFront(orders) == ?&quot;IC&quot;;
+  assert Queue.popFront(orders) == null;
+}</code></pre>
+<p>The internal implementation is a doubly-linked list.</p>
+<p>Performance:</p>
+<ul>
+<li>Runtime: <code>O(1)</code> for push, pop, and peek operations.</li>
+<li>Space: <code>O(n)</code>. <code>n</code> denotes the number of
+elements stored in the queue.</li>
+</ul>
+<h2 id="type-queue">Type <code>Queue</code></h2>
+<pre class="motoko"><code>type Queue&lt;T&gt; = Types.Queue.Queue&lt;T&gt;</code></pre>
+<h2 id="function-topure">Function <code>toPure</code></h2>
+<pre class="motoko"><code>func toPure&lt;T&gt;(self : Queue&lt;T&gt;) : PureQueue.Queue&lt;T&gt;</code></pre>
+<p>Converts a mutable queue to an immutable, purely functional
+queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  let pureQueue = Queue.toPure&lt;Nat&gt;(queue);
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue. @deprecated M0235</p>
+<h2 id="function-frompure">Function <code>fromPure</code></h2>
+<pre class="motoko"><code>func fromPure&lt;T&gt;(pureQueue : PureQueue.Queue&lt;T&gt;) : Queue&lt;T&gt;</code></pre>
+<p>Converts an immutable, purely functional queue to a mutable
+queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+import PureQueue &quot;mo:core/pure/Queue&quot;;
+
+persistent actor {
+  let pureQueue = PureQueue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  let queue = Queue.fromPure&lt;Nat&gt;(pureQueue);
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue. @deprecated M0235</p>
+<h2 id="function-empty">Function <code>empty</code></h2>
+<pre class="motoko"><code>func empty&lt;T&gt;() : Queue&lt;T&gt;</code></pre>
+<p>Create a new empty mutable double-ended queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.empty&lt;Text&gt;();
+  assert Queue.size(queue) == 0;
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-singleton">Function <code>singleton</code></h2>
+<pre class="motoko"><code>func singleton&lt;T&gt;(element : T) : Queue&lt;T&gt;</code></pre>
+<p>Creates a new queue with a single element.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.singleton&lt;Nat&gt;(123);
+  assert Queue.size(queue) == 1;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-clear">Function <code>clear</code></h2>
+<pre class="motoko"><code>func clear&lt;T&gt;(self : Queue&lt;T&gt;)</code></pre>
+<p>Removes all elements from the queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  Queue.clear(queue);
+  assert Queue.isEmpty(queue);
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-clone">Function <code>clone</code></h2>
+<pre class="motoko"><code>func clone&lt;T&gt;(self : Queue&lt;T&gt;) : Queue&lt;T&gt;</code></pre>
+<p>Creates a deep copy of the queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let original = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  let copy = Queue.clone(original);
+  Queue.clear(original);
+  assert Queue.size(original) == 0;
+  assert Queue.size(copy) == 3;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size&lt;T&gt;(self : Queue&lt;T&gt;) : Nat</code></pre>
+<p>Returns the number of elements in the queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Text&gt;([&quot;A&quot;, &quot;B&quot;, &quot;C&quot;].values());
+  assert Queue.size(queue) == 3;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty&lt;T&gt;(self : Queue&lt;T&gt;) : Bool</code></pre>
+<p>Returns <code>true</code> if the queue contains no elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.empty&lt;Nat&gt;();
+  assert Queue.isEmpty(queue);
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-contains">Function <code>contains</code></h2>
+<pre class="motoko"><code>func contains&lt;T&gt;(self : Queue&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), element : T) : Bool</code></pre>
+<p>Checks if an element exists in the queue using the provided equality
+function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.contains(queue, Nat.equal, 2);
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-peekfront">Function <code>peekFront</code></h2>
+<pre class="motoko"><code>func peekFront&lt;T&gt;(self : Queue&lt;T&gt;) : ?T</code></pre>
+<p>Returns the first element in the queue without removing it. Returns
+null if the queue is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.peekFront(queue) == ?1;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-peekback">Function <code>peekBack</code></h2>
+<pre class="motoko"><code>func peekBack&lt;T&gt;(self : Queue&lt;T&gt;) : ?T</code></pre>
+<p>Returns the last element in the queue without removing it. Returns
+null if the queue is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.peekBack(queue) == ?3;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-pushfront">Function <code>pushFront</code></h2>
+<pre class="motoko"><code>func pushFront&lt;T&gt;(self : Queue&lt;T&gt;, element : T)</code></pre>
+<p>Adds an element to the front of the queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.empty&lt;Nat&gt;();
+  Queue.pushFront(queue, 1);
+  assert Queue.peekFront(queue) == ?1;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-pushback">Function <code>pushBack</code></h2>
+<pre class="motoko"><code>func pushBack&lt;T&gt;(self : Queue&lt;T&gt;, element : T)</code></pre>
+<p>Adds an element to the back of the queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.empty&lt;Nat&gt;();
+  Queue.pushBack(queue, 1);
+  assert Queue.peekBack(queue) == ?1;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-popfront">Function <code>popFront</code></h2>
+<pre class="motoko"><code>func popFront&lt;T&gt;(self : Queue&lt;T&gt;) : ?T</code></pre>
+<p>Removes and returns the first element in the queue. Returns null if
+the queue is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.popFront(queue) == ?1;
+  assert Queue.size(queue) == 2;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-popback">Function <code>popBack</code></h2>
+<pre class="motoko"><code>func popBack&lt;T&gt;(self : Queue&lt;T&gt;) : ?T</code></pre>
+<p>Removes and returns the last element in the queue. Returns null if
+the queue is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.popBack(queue) == ?3;
+  assert Queue.size(queue) == 2;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter&lt;T&gt;(iter : Iter.Iter&lt;T&gt;) : Queue&lt;T&gt;</code></pre>
+<p>Creates a new queue from an iterator.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Text&gt;([&quot;A&quot;, &quot;B&quot;, &quot;C&quot;].values());
+  assert Queue.size(queue) == 3;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-toqueue">Function <code>toQueue</code></h2>
+<pre class="motoko"><code>func toQueue&lt;T&gt;(self : Iter.Iter&lt;T&gt;) : Queue&lt;T&gt;</code></pre>
+<p>Converts an iterator to a queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  transient let iter = [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;].values();
+
+  let queue = iter.toQueue&lt;Text&gt;();
+
+  assert Queue.size(queue) == 3;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray&lt;T&gt;(array : [T]) : Queue&lt;T&gt;</code></pre>
+<p>Creates a new queue from an array. Elements appear in the same order
+as in the array.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromArray&lt;Text&gt;([&quot;A&quot;, &quot;B&quot;, &quot;C&quot;]);
+  assert Queue.size(queue) == 3;
+  assert Queue.peekFront(queue) == ?&quot;A&quot;;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the array.</p>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray&lt;T&gt;(array : [var T]) : Queue&lt;T&gt;</code></pre>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray&lt;T&gt;(self : Queue&lt;T&gt;) : [T]</code></pre>
+<p>Creates a new immutable array containing all elements from the queue.
+Elements appear in the same order as in the queue (front to back).</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+import Array &quot;mo:core/Array&quot;;
+
+persistent actor {
+  let queue = Queue.fromArray&lt;Text&gt;([&quot;A&quot;, &quot;B&quot;, &quot;C&quot;]);
+  let array = Queue.toArray(queue);
+  assert array == [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;];
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-tovararray">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray&lt;T&gt;(self : Queue&lt;T&gt;) : [var T]</code></pre>
+<h2 id="function-values">Function <code>values</code></h2>
+<pre class="motoko"><code>func values&lt;T&gt;(self : Queue&lt;T&gt;) : Iter.Iter&lt;T&gt;</code></pre>
+<p>Returns an iterator over the elements in the queue. Iterates from
+front to back.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+persistent actor {
+  let queue = Queue.fromIter&lt;Text&gt;([&quot;A&quot;, &quot;B&quot;, &quot;C&quot;].values());
+  transient let iter = Queue.values(queue);
+  assert iter.next() == ?&quot;A&quot;;
+  assert iter.next() == ?&quot;B&quot;;
+  assert iter.next() == ?&quot;C&quot;;
+  assert iter.next() == null;
+}</code></pre>
+<p>Runtime: O(1) for iterator creation, O(n) for full iteration Space:
+O(1)</p>
+<h2 id="function-reversevalues">Function <code>reverseValues</code></h2>
+<pre class="motoko"><code>func reverseValues&lt;T&gt;(self : Queue&lt;T&gt;) : Iter.Iter&lt;T&gt;</code></pre>
+<h2 id="function-all">Function <code>all</code></h2>
+<pre class="motoko"><code>func all&lt;T&gt;(self : Queue&lt;T&gt;, predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Tests whether all elements in the queue satisfy the given
+predicate.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([2, 4, 6].values());
+  assert Queue.all&lt;Nat&gt;(queue, func(x) { x % 2 == 0 });
+}</code></pre>
+<p>Runtime: O(n) Space: O(1)</p>
+<h2 id="function-any">Function <code>any</code></h2>
+<pre class="motoko"><code>func any&lt;T&gt;(self : Queue&lt;T&gt;, predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Tests whether any element in the queue satisfies the given
+predicate.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.any&lt;Nat&gt;(queue, func (x) { x &gt; 2 });
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-foreach">Function <code>forEach</code></h2>
+<pre class="motoko"><code>func forEach&lt;T&gt;(self : Queue&lt;T&gt;, operation : T -&gt; ())</code></pre>
+<p>Applies the given operation to all elements in the queue.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  var sum = 0;
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  Queue.forEach&lt;Nat&gt;(queue, func(x) { sum += x });
+  assert sum == 6;
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;T, U&gt;(self : Queue&lt;T&gt;, project : T -&gt; U) : Queue&lt;U&gt;</code></pre>
+<p>Creates a new queue by applying the given function to all
+elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  let doubled = Queue.map&lt;Nat, Nat&gt;(queue, func(x) { x * 2 });
+  assert Queue.peekFront(doubled) == ?2;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-filter">Function <code>filter</code></h2>
+<pre class="motoko"><code>func filter&lt;T&gt;(self : Queue&lt;T&gt;, criterion : T -&gt; Bool) : Queue&lt;T&gt;</code></pre>
+<p>Creates a new queue containing only elements that satisfy the given
+predicate.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3, 4].values());
+  let evens = Queue.filter&lt;Nat&gt;(queue, func(x) { x % 2 == 0 });
+  assert Queue.size(evens) == 2;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-filtermap">Function <code>filterMap</code></h2>
+<pre class="motoko"><code>func filterMap&lt;T, U&gt;(self : Queue&lt;T&gt;, project : T -&gt; ?U) : Queue&lt;U&gt;</code></pre>
+<p>Creates a new queue by applying the given function to all elements
+and keeping only the non-null results.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3, 4].values());
+  let evenDoubled = Queue.filterMap&lt;Nat, Nat&gt;(
+    queue,
+    func(x) {
+      if (x % 2 == 0) { ?(x * 2) } else  { null }
+    }
+  );
+  assert Queue.size(evenDoubled) == 2;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal&lt;T&gt;(self : Queue&lt;T&gt;, other : Queue&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool)) : Bool</code></pre>
+<p>Compares two queues for equality using the provided equality
+function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let queue1 = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  let queue2 = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.equal(queue1, queue2, Nat.equal);
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText&lt;T&gt;(self : Queue&lt;T&gt;, format : (implicit : (toText : T -&gt; Text))) : Text</code></pre>
+<p>Converts a queue to its string representation using the provided
+element formatter.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let queue = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.toText(queue, Nat.toText) == &quot;Queue[1, 2, 3]&quot;;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare&lt;T&gt;(self : Queue&lt;T&gt;, other : Queue&lt;T&gt;, compare : (implicit : (T, T) -&gt; Order.Order)) : Order.Order</code></pre>
+<p>Compares two queues using the provided comparison function. Returns
+#less, #equal, or #greater.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Queue &quot;mo:core/Queue&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let queue1 = Queue.fromIter&lt;Nat&gt;([1, 2].values());
+  let queue2 = Queue.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  assert Queue.compare(queue1, queue2, Nat.compare) == #less;
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) <code>n</code> denotes the number of
+elements stored in the queue.</p>
+</body>
+</html>

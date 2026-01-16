@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>productive.ml &mdash; Coverage report</title>
+    <meta name="description" content="92.31% coverage in mo_types/productive.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_types/</span>productive.ml
+        </a>
+      </h1>
+      <h2>92.31%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="bottom:39.44%"></span>
+      <span class="unvisited" style="bottom:30.99%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span > </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span class="visited"> </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span > </span>
+<a id="L29"></a><span > </span>
+<a id="L30"></a><span > </span>
+<a id="L31"></a><span class="visited"> </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span class="visited"> </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span class="visited"> </span>
+<a id="L37"></a><span class="visited"> </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span > </span>
+<a id="L40"></a><span class="visited"> </span>
+<a id="L41"></a><span class="visited"> </span>
+<a id="L42"></a><span class="visited"> </span>
+<a id="L43"></a><span class="unvisited"> </span>
+<a id="L44"></a><span > </span>
+<a id="L45"></a><span > </span>
+<a id="L46"></a><span > </span>
+<a id="L47"></a><span class="visited"> </span>
+<a id="L48"></a><span > </span>
+<a id="L49"></a><span class="unvisited"> </span>
+<a id="L50"></a><span > </span>
+<a id="L51"></a><span class="visited"> </span>
+<a id="L52"></a><span > </span>
+<a id="L53"></a><span > </span>
+<a id="L54"></a><span > </span>
+<a id="L55"></a><span class="visited"> </span>
+<a id="L56"></a><span class="visited"> </span>
+<a id="L57"></a><span class="visited"> </span>
+<a id="L58"></a><span > </span>
+<a id="L59"></a><span > </span>
+<a id="L60"></a><span class="visited"> </span>
+<a id="L61"></a><span > </span>
+<a id="L62"></a><span class="visited"> </span>
+<a id="L63"></a><span class="visited"> </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span class="visited"> </span>
+<a id="L67"></a><span > </span>
+<a id="L68"></a><span class="visited"> </span>
+<a id="L69"></a><span > </span>
+<a id="L70"></a><span class="visited"> </span>
+<a id="L71"></a><span class="visited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1"> 1</a>
+<a href="#L2"> 2</a>
+<a href="#L3"> 3</a>
+<a href="#L4"> 4</a>
+<a href="#L5"> 5</a>
+<a href="#L6"> 6</a>
+<a href="#L7"> 7</a>
+<a href="#L8"> 8</a>
+<a href="#L9"> 9</a>
+<a href="#L10">10</a>
+<a href="#L11">11</a>
+<a href="#L12">12</a>
+<a href="#L13">13</a>
+<a href="#L14">14</a>
+<a href="#L15">15</a>
+<a href="#L16">16</a>
+<a href="#L17">17</a>
+<a href="#L18">18</a>
+<a href="#L19">19</a>
+<a href="#L20">20</a>
+<a href="#L21">21</a>
+<a href="#L22">22</a>
+<a href="#L23">23</a>
+<a href="#L24">24</a>
+<a href="#L25">25</a>
+<a href="#L26">26</a>
+<a href="#L27">27</a>
+<a href="#L28">28</a>
+<a href="#L29">29</a>
+<a href="#L30">30</a>
+<a href="#L31">31</a>
+<a href="#L32">32</a>
+<a href="#L33">33</a>
+<a href="#L34">34</a>
+<a href="#L35">35</a>
+<a href="#L36">36</a>
+<a href="#L37">37</a>
+<a href="#L38">38</a>
+<a href="#L39">39</a>
+<a href="#L40">40</a>
+<a href="#L41">41</a>
+<a href="#L42">42</a>
+<a href="#L43">43</a>
+<a href="#L44">44</a>
+<a href="#L45">45</a>
+<a href="#L46">46</a>
+<a href="#L47">47</a>
+<a href="#L48">48</a>
+<a href="#L49">49</a>
+<a href="#L50">50</a>
+<a href="#L51">51</a>
+<a href="#L52">52</a>
+<a href="#L53">53</a>
+<a href="#L54">54</a>
+<a href="#L55">55</a>
+<a href="#L56">56</a>
+<a href="#L57">57</a>
+<a href="#L58">58</a>
+<a href="#L59">59</a>
+<a href="#L60">60</a>
+<a href="#L61">61</a>
+<a href="#L62">62</a>
+<a href="#L63">63</a>
+<a href="#L64">64</a>
+<a href="#L65">65</a>
+<a href="#L66">66</a>
+<a href="#L67">67</a>
+<a href="#L68">68</a>
+<a href="#L69">69</a>
+<a href="#L70">70</a>
+<a href="#L71">71</a>
+</pre>
+<pre><code class="ocaml">open Type
+
+(*
+  Maintain a map from con to info = {Nonproductive, Productive, Param n}`.
+  After the analysis, this map says, for all type constructors, whether they are  really unproductive, productive, or if their unfolding is equal to one of their parameters.
+* Maintain a set of type definitions under scrutiny
+* For each type definition:
+  * If it is already in the memo map, use that result. Else analyze it as follows, updating the memo map afterwards.
+  * If it is already in the set, we have found a loop. Mark it as `unproductive`. Else add to the setduring the next step.
+  * Consider its RHS:
+    * If it is a concrete type, return `Productive`.
+    * If it is a named type, recurse.
+    * If it is the nth type parameter, return `Param n`
+    * If it is a type application `T&lt;t1,…,tn&gt;`, recurse.
+      * If recursion returns `Productive` or `Nonproductive`, return that.
+      * If recursion returns `Param n`, loop to “Consider its RHS”, as if `tn`
+        is the RHS.
+*)
+
+type info =
+  | Nonproductive
+  | Productive
+  | Param of int
+
+let non_productive cs =
+  <span data-count="399980">l</span>et map = ref ConEnv.empty in
+  let rec rhs cs = function
+    | Pre
+    | Mut _ | Typ _ -&gt;
+      assert false (* body of a Def shouldn't be 2nd class *)
+    | <span data-count="51">V</span>ar (s, j) -&gt;
+      Param j
+    | <span data-count="12042">C</span>on (d, ts) -&gt;
+      begin
+        visit_con cs d;
+        <span data-count="12042">m</span>atch ConEnv.find d (!map) with
+        | <span data-count="20">P</span>aram n -&gt;
+          begin
+          match Cons.kind d with
+          | <span data-count="20">D</span>ef (tbs, t) -&gt;
+            assert <span data-count="20">(</span>n &lt; List.lengt<span data-count="20">h</span> tbs); (* assume types are arity-correct *)
+            rhs cs (List.nt<span data-count="20">h</span> ts n)
+          | <span data-count="0">A</span>bs (tbs, t) -&gt;
+            (* we could assert here since Defs should be closed *)
+            Productive
+          end
+        | <span data-count="12022">i</span>nfo -&gt; info
+      end
+    | <span data-count="0">N</span>amed (n, t) -&gt;
+      rhs cs t (* TBR *)
+    | <span data-count="109813">_</span> -&gt;  (* anything else is productive *)
+      Productive
+
+  and visit_con cs c =
+    <span data-count="124058">m</span>atch ConEnv.find_opt c (!map) with
+    | <span data-count="2158">S</span>ome info -&gt; ()
+    | <span data-count="121900">N</span>one -&gt;
+      let info =
+        if ConSet.mem c cs then
+          <span data-count="14">N</span>onproductive
+        else
+          <span data-count="121886">l</span>et t = match Cons.kind c with
+            | <span data-count="121886">D</span>ef (_, t) -&gt; t
+            | _ -&gt; assert false
+          in
+          rh<span data-count="121886">s</span> (ConSet.ad<span data-count="121886">d</span> c cs) t
+      in
+      map := ConEnv.ad<span data-count="121900">d</span> c info !map
+  in
+  ConSet.iter (visit_co<span data-count="399980">n</span> ConSet.empty) cs;
+  <span data-count="399980">C</span>onSet.filter (fun c -&gt; <span data-count="112016">C</span>onEnv.fin<span data-count="112016">d</span> c !map = Nonproductive) cs
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

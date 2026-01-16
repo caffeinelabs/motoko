@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Tuples.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Tuples.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coretuples" id="toc-coretuples">core/Tuples</a>
+<ul>
+<li><a href="#module-tuple2" id="toc-module-tuple2">Module
+<code>Tuple2</code></a>
+<ul>
+<li><a href="#function-swap" id="toc-function-swap">Function
+<code>swap</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-maketotext" id="toc-function-maketotext">Function
+<code>makeToText</code></a></li>
+<li><a href="#function-makeequal" id="toc-function-makeequal">Function
+<code>makeEqual</code></a></li>
+<li><a href="#function-makecompare"
+id="toc-function-makecompare">Function <code>makeCompare</code></a></li>
+</ul></li>
+<li><a href="#module-tuple3" id="toc-module-tuple3">Module
+<code>Tuple3</code></a>
+<ul>
+<li><a href="#function-totext-1" id="toc-function-totext-1">Function
+<code>toText</code></a></li>
+<li><a href="#function-equal-1" id="toc-function-equal-1">Function
+<code>equal</code></a></li>
+<li><a href="#function-compare-1" id="toc-function-compare-1">Function
+<code>compare</code></a></li>
+<li><a href="#function-maketotext-1"
+id="toc-function-maketotext-1">Function <code>makeToText</code></a></li>
+<li><a href="#function-makeequal-1"
+id="toc-function-makeequal-1">Function <code>makeEqual</code></a></li>
+<li><a href="#function-makecompare-1"
+id="toc-function-makecompare-1">Function
+<code>makeCompare</code></a></li>
+</ul></li>
+<li><a href="#module-tuple4" id="toc-module-tuple4">Module
+<code>Tuple4</code></a>
+<ul>
+<li><a href="#function-totext-2" id="toc-function-totext-2">Function
+<code>toText</code></a></li>
+<li><a href="#function-equal-2" id="toc-function-equal-2">Function
+<code>equal</code></a></li>
+<li><a href="#function-compare-2" id="toc-function-compare-2">Function
+<code>compare</code></a></li>
+<li><a href="#function-maketotext-2"
+id="toc-function-maketotext-2">Function <code>makeToText</code></a></li>
+<li><a href="#function-makeequal-2"
+id="toc-function-makeequal-2">Function <code>makeEqual</code></a></li>
+<li><a href="#function-makecompare-2"
+id="toc-function-makecompare-2">Function
+<code>makeCompare</code></a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coretuples">core/Tuples</h1>
+<p>Contains modules for working with tuples of different sizes.</p>
+<p>Usage example:</p>
+<pre class="motoko"><code>import { Tuple2; Tuple3 } &quot;mo:core/Tuples&quot;;
+import Bool &quot;mo:core/Bool&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let swapped = Tuple2.swap((1, &quot;hello&quot;));
+assert swapped == (&quot;hello&quot;, 1);
+let text = Tuple3.toText((1, true, 3), Nat.toText, Bool.toText, Nat.toText);
+assert text == &quot;(1, true, 3)&quot;;</code></pre>
+<h2 id="module-tuple2">Module <code>Tuple2</code></h2>
+<pre class="motoko"><code>module Tuple2</code></pre>
+<h3 id="function-swap">Function <code>swap</code></h3>
+<pre class="motoko"><code>func swap&lt;A, B&gt;() : (B, A)</code></pre>
+<p>Swaps the elements of a tuple.</p>
+<pre class="motoko"><code>import { Tuple2 } &quot;mo:core/Tuples&quot;;
+
+assert Tuple2.swap((1, &quot;hello&quot;)) == (&quot;hello&quot;, 1);</code></pre>
+<h3 id="function-totext">Function <code>toText</code></h3>
+<pre class="motoko"><code>func toText&lt;A, B&gt;(self : (A, B), toTextA : A -&gt; Text, toTextB : B -&gt; Text) : Text</code></pre>
+<p>Creates a textual representation of a tuple for debugging
+purposes.</p>
+<pre class="motoko"><code>import { Tuple2 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+assert Tuple2.toText((1, &quot;hello&quot;), Nat.toText, func (x: Text): Text = x) == &quot;(1, hello)&quot;;</code></pre>
+<h3 id="function-equal">Function <code>equal</code></h3>
+<pre class="motoko"><code>func equal&lt;A, B&gt;(self : (A, B), other : (A, B), aEqual : (A, A) -&gt; Bool, bEqual : (B, B) -&gt; Bool) : Bool</code></pre>
+<p>Compares two tuples for equality.</p>
+<pre class="motoko"><code>import { Tuple2 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+assert Tuple2.equal((1, &quot;hello&quot;), (1, &quot;hello&quot;), Nat.equal, Text.equal);</code></pre>
+<h3 id="function-compare">Function <code>compare</code></h3>
+<pre class="motoko"><code>func compare&lt;A, B&gt;(self : (A, B), other : (A, B), aCompare : (A, A) -&gt; Types.Order, bCompare : (B, B) -&gt; Types.Order) : Types.Order</code></pre>
+<p>Compares two tuples lexicographically.</p>
+<pre class="motoko"><code>import { Tuple2 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+assert Tuple2.compare((1, &quot;hello&quot;), (1, &quot;world&quot;), Nat.compare, Text.compare) == #less;
+assert Tuple2.compare((1, &quot;hello&quot;), (2, &quot;hello&quot;), Nat.compare, Text.compare) == #less;
+assert Tuple2.compare((1, &quot;hello&quot;), (1, &quot;hello&quot;), Nat.compare, Text.compare) == #equal;
+assert Tuple2.compare((2, &quot;hello&quot;), (1, &quot;hello&quot;), Nat.compare, Text.compare) == #greater;
+assert Tuple2.compare((1, &quot;world&quot;), (1, &quot;hello&quot;), Nat.compare, Text.compare) == #greater;</code></pre>
+<h3 id="function-maketotext">Function <code>makeToText</code></h3>
+<pre class="motoko"><code>func makeToText&lt;A, B&gt;(toTextA : A -&gt; Text, toTextB : B -&gt; Text) : ((A, B)) -&gt; Text</code></pre>
+<p>Creates a <code>toText</code> function for a tuple given
+<code>toText</code> functions for its elements. This is useful when you
+need to reuse the same toText conversion multiple times.</p>
+<pre class="motoko"><code>import { Tuple2 } &quot;mo:core/Tuples&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let tupleToText = Tuple2.makeToText&lt;Nat, Text&gt;(Nat.toText, func x = x);
+assert tupleToText((1, &quot;hello&quot;)) == &quot;(1, hello)&quot;;</code></pre>
+<h3 id="function-makeequal">Function <code>makeEqual</code></h3>
+<pre class="motoko"><code>func makeEqual&lt;A, B&gt;(aEqual : (A, A) -&gt; Bool, bEqual : (B, B) -&gt; Bool) : ((A, B), (A, B)) -&gt; Bool</code></pre>
+<p>Creates an <code>equal</code> function for a tuple given
+<code>equal</code> functions for its elements. This is useful when you
+need to reuse the same equality comparison multiple times.</p>
+<pre class="motoko"><code>import { Tuple2 } &quot;mo:core/Tuples&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+
+let tupleEqual = Tuple2.makeEqual(Nat.equal, Text.equal);
+assert tupleEqual((1, &quot;hello&quot;), (1, &quot;hello&quot;));</code></pre>
+<h3 id="function-makecompare">Function <code>makeCompare</code></h3>
+<pre class="motoko"><code>func makeCompare&lt;A, B&gt;(aCompare : (A, A) -&gt; Types.Order, bCompare : (B, B) -&gt; Types.Order) : ((A, B), (A, B)) -&gt; Types.Order</code></pre>
+<p>Creates a <code>compare</code> function for a tuple given
+<code>compare</code> functions for its elements. This is useful when you
+need to reuse the same comparison multiple times.</p>
+<pre class="motoko"><code>import { Tuple2 } &quot;mo:core/Tuples&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+
+let tupleCompare = Tuple2.makeCompare(Nat.compare, Text.compare);
+assert tupleCompare((1, &quot;hello&quot;), (1, &quot;world&quot;)) == #less;</code></pre>
+<h2 id="module-tuple3">Module <code>Tuple3</code></h2>
+<pre class="motoko"><code>module Tuple3</code></pre>
+<h3 id="function-totext-1">Function <code>toText</code></h3>
+<pre class="motoko"><code>func toText&lt;A, B, C&gt;(self : (A, B, C), toTextA : A -&gt; Text, toTextB : B -&gt; Text, toTextC : C -&gt; Text) : Text</code></pre>
+<p>Creates a textual representation of a 3-tuple for debugging
+purposes.</p>
+<pre class="motoko"><code>import { Tuple3 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+assert Tuple3.toText((1, &quot;hello&quot;, 2), Nat.toText, func (x: Text): Text = x, Nat.toText) == &quot;(1, hello, 2)&quot;;</code></pre>
+<h3 id="function-equal-1">Function <code>equal</code></h3>
+<pre class="motoko"><code>func equal&lt;A, B, C&gt;(self : (A, B, C), other : (A, B, C), aEqual : (A, A) -&gt; Bool, bEqual : (B, B) -&gt; Bool, cEqual : (C, C) -&gt; Bool) : Bool</code></pre>
+<p>Compares two 3-tuples for equality.</p>
+<pre class="motoko"><code>import { Tuple3 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+assert Tuple3.equal((1, &quot;hello&quot;, 2), (1, &quot;hello&quot;, 2), Nat.equal, Text.equal, Nat.equal);</code></pre>
+<h3 id="function-compare-1">Function <code>compare</code></h3>
+<pre class="motoko"><code>func compare&lt;A, B, C&gt;(self : (A, B, C), other : (A, B, C), aCompare : (A, A) -&gt; Types.Order, bCompare : (B, B) -&gt; Types.Order, cCompare : (C, C) -&gt; Types.Order) : Types.Order</code></pre>
+<p>Compares two 3-tuples lexicographically.</p>
+<pre class="motoko"><code>import { Tuple3 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+assert Tuple3.compare((1, &quot;hello&quot;, 2), (1, &quot;world&quot;, 1), Nat.compare, Text.compare, Nat.compare) == #less;
+assert Tuple3.compare((1, &quot;hello&quot;, 2), (2, &quot;hello&quot;, 2), Nat.compare, Text.compare, Nat.compare) == #less;
+assert Tuple3.compare((1, &quot;hello&quot;, 2), (1, &quot;hello&quot;, 2), Nat.compare, Text.compare, Nat.compare) == #equal;
+assert Tuple3.compare((2, &quot;hello&quot;, 2), (1, &quot;hello&quot;, 2), Nat.compare, Text.compare, Nat.compare) == #greater;</code></pre>
+<h3 id="function-maketotext-1">Function <code>makeToText</code></h3>
+<pre class="motoko"><code>func makeToText&lt;A, B, C&gt;(toTextA : A -&gt; Text, toTextB : B -&gt; Text, toTextC : C -&gt; Text) : ((A, B, C)) -&gt; Text</code></pre>
+<p>Creates a <code>toText</code> function for a 3-tuple given
+<code>toText</code> functions for its elements. This is useful when you
+need to reuse the same toText conversion multiple times.</p>
+<pre class="motoko"><code>import { Tuple3 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+let toText = Tuple3.makeToText&lt;Nat, Text, Nat&gt;(Nat.toText, func x = x, Nat.toText);
+assert toText((1, &quot;hello&quot;, 2)) == &quot;(1, hello, 2)&quot;;</code></pre>
+<h3 id="function-makeequal-1">Function <code>makeEqual</code></h3>
+<pre class="motoko"><code>func makeEqual&lt;A, B, C&gt;(aEqual : (A, A) -&gt; Bool, bEqual : (B, B) -&gt; Bool, cEqual : (C, C) -&gt; Bool) : ((A, B, C), (A, B, C)) -&gt; Bool</code></pre>
+<p>Creates an <code>equal</code> function for a 3-tuple given
+<code>equal</code> functions for its elements. This is useful when you
+need to reuse the same equality comparison multiple times.</p>
+<pre class="motoko"><code>import { Tuple3 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+let equal = Tuple3.makeEqual(Nat.equal, Text.equal, Nat.equal);
+assert equal((1, &quot;hello&quot;, 2), (1, &quot;hello&quot;, 2));</code></pre>
+<h3 id="function-makecompare-1">Function <code>makeCompare</code></h3>
+<pre class="motoko"><code>func makeCompare&lt;A, B, C&gt;(aCompare : (A, A) -&gt; Types.Order, bCompare : (B, B) -&gt; Types.Order, cCompare : (C, C) -&gt; Types.Order) : ((A, B, C), (A, B, C)) -&gt; Types.Order</code></pre>
+<p>Creates a <code>compare</code> function for a 3-tuple given
+<code>compare</code> functions for its elements. This is useful when you
+need to reuse the same comparison multiple times.</p>
+<pre class="motoko"><code>import { Tuple3 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+let compare = Tuple3.makeCompare(Nat.compare, Text.compare, Nat.compare);
+assert compare((1, &quot;hello&quot;, 2), (1, &quot;world&quot;, 1)) == #less;</code></pre>
+<h2 id="module-tuple4">Module <code>Tuple4</code></h2>
+<pre class="motoko"><code>module Tuple4</code></pre>
+<h3 id="function-totext-2">Function <code>toText</code></h3>
+<pre class="motoko"><code>func toText&lt;A, B, C, D&gt;(self : (A, B, C, D), toTextA : A -&gt; Text, toTextB : B -&gt; Text, toTextC : C -&gt; Text, toTextD : D -&gt; Text) : Text</code></pre>
+<p>Creates a textual representation of a 4-tuple for debugging
+purposes.</p>
+<pre class="motoko"><code>import { Tuple4 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+assert Tuple4.toText((1, &quot;hello&quot;, 2, 3), Nat.toText, func (x: Text): Text = x, Nat.toText, Nat.toText) == &quot;(1, hello, 2, 3)&quot;;</code></pre>
+<h3 id="function-equal-2">Function <code>equal</code></h3>
+<pre class="motoko"><code>func equal&lt;A, B, C, D&gt;(self : (A, B, C, D), other : (A, B, C, D), aEqual : (A, A) -&gt; Bool, bEqual : (B, B) -&gt; Bool, cEqual : (C, C) -&gt; Bool, dEqual : (D, D) -&gt; Bool) : Bool</code></pre>
+<p>Compares two 4-tuples for equality.</p>
+<pre class="motoko"><code>import { Tuple4 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+assert Tuple4.equal((1, &quot;hello&quot;, 2, 3), (1, &quot;hello&quot;, 2, 3), Nat.equal, Text.equal, Nat.equal, Nat.equal);</code></pre>
+<h3 id="function-compare-2">Function <code>compare</code></h3>
+<pre class="motoko"><code>func compare&lt;A, B, C, D&gt;(self : (A, B, C, D), other : (A, B, C, D), aCompare : (A, A) -&gt; Types.Order, bCompare : (B, B) -&gt; Types.Order, cCompare : (C, C) -&gt; Types.Order, dCompare : (D, D) -&gt; Types.Order) : Types.Order</code></pre>
+<p>Compares two 4-tuples lexicographically.</p>
+<pre class="motoko"><code>import { Tuple4 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+assert Tuple4.compare((1, &quot;hello&quot;, 2, 3), (1, &quot;world&quot;, 1, 3), Nat.compare, Text.compare, Nat.compare, Nat.compare) == #less;
+assert Tuple4.compare((1, &quot;hello&quot;, 2, 3), (2, &quot;hello&quot;, 2, 3), Nat.compare, Text.compare, Nat.compare, Nat.compare) == #less;
+assert Tuple4.compare((1, &quot;hello&quot;, 2, 3), (1, &quot;hello&quot;, 2, 3), Nat.compare, Text.compare, Nat.compare, Nat.compare) == #equal;
+assert Tuple4.compare((2, &quot;hello&quot;, 2, 3), (1, &quot;hello&quot;, 2, 3), Nat.compare, Text.compare, Nat.compare, Nat.compare) == #greater;</code></pre>
+<h3 id="function-maketotext-2">Function <code>makeToText</code></h3>
+<pre class="motoko"><code>func makeToText&lt;A, B, C, D&gt;(toTextA : A -&gt; Text, toTextB : B -&gt; Text, toTextC : C -&gt; Text, toTextD : D -&gt; Text) : ((A, B, C, D)) -&gt; Text</code></pre>
+<p>Creates a <code>toText</code> function for a 4-tuple given
+<code>toText</code> functions for its elements. This is useful when you
+need to reuse the same toText conversion multiple times.</p>
+<pre class="motoko"><code>import { Tuple4 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+let toText = Tuple4.makeToText(Nat.toText, func (x: Text): Text = x, Nat.toText, Nat.toText);
+assert toText((1, &quot;hello&quot;, 2, 3)) == &quot;(1, hello, 2, 3)&quot;;</code></pre>
+<h3 id="function-makeequal-2">Function <code>makeEqual</code></h3>
+<pre class="motoko"><code>func makeEqual&lt;A, B, C, D&gt;(aEqual : (A, A) -&gt; Bool, bEqual : (B, B) -&gt; Bool, cEqual : (C, C) -&gt; Bool, dEqual : (D, D) -&gt; Bool) : ((A, B, C, D), (A, B, C, D)) -&gt; Bool</code></pre>
+<p>Creates an <code>equal</code> function for a 4-tuple given
+<code>equal</code> functions for its elements. This is useful when you
+need to reuse the same equality comparison multiple times.</p>
+<pre class="motoko"><code>import { Tuple4 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+let equal = Tuple4.makeEqual(Nat.equal, Text.equal, Nat.equal, Nat.equal);
+assert equal((1, &quot;hello&quot;, 2, 3), (1, &quot;hello&quot;, 2, 3));</code></pre>
+<h3 id="function-makecompare-2">Function <code>makeCompare</code></h3>
+<pre class="motoko"><code>func makeCompare&lt;A, B, C, D&gt;(aCompare : (A, A) -&gt; Types.Order, bCompare : (B, B) -&gt; Types.Order, cCompare : (C, C) -&gt; Types.Order, dCompare : (D, D) -&gt; Types.Order) : ((A, B, C, D), (A, B, C, D)) -&gt; Types.Order</code></pre>
+<p>Creates a <code>compare</code> function for a 4-tuple given
+<code>compare</code> functions for its elements. This is useful when you
+need to reuse the same comparison multiple times.</p>
+<pre class="motoko"><code>import { Tuple4 } &quot;mo:core/Tuples&quot;;
+
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+let compare = Tuple4.makeCompare(Nat.compare, Text.compare, Nat.compare, Nat.compare);
+assert compare((1, &quot;hello&quot;, 2, 3), (1, &quot;world&quot;, 1, 3)) == #less;</code></pre>
+</body>
+</html>

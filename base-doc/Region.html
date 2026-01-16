@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Region">Region</a></li></li><li><li><a href="#new">new</a></li></li><li><li><a href="#id">id</a></li></li><li><li><a href="#size">size</a></li></li><li><li><a href="#grow">grow</a></li></li><li><li><a href="#loadNat8">loadNat8</a></li></li><li><li><a href="#storeNat8">storeNat8</a></li></li><li><li><a href="#loadNat16">loadNat16</a></li></li><li><li><a href="#storeNat16">storeNat16</a></li></li><li><li><a href="#loadNat32">loadNat32</a></li></li><li><li><a href="#storeNat32">storeNat32</a></li></li><li><li><a href="#loadNat64">loadNat64</a></li></li><li><li><a href="#storeNat64">storeNat64</a></li></li><li><li><a href="#loadInt8">loadInt8</a></li></li><li><li><a href="#storeInt8">storeInt8</a></li></li><li><li><a href="#loadInt16">loadInt16</a></li></li><li><li><a href="#storeInt16">storeInt16</a></li></li><li><li><a href="#loadInt32">loadInt32</a></li></li><li><li><a href="#storeInt32">storeInt32</a></li></li><li><li><a href="#loadInt64">loadInt64</a></li></li><li><li><a href="#storeInt64">storeInt64</a></li></li><li><li><a href="#loadFloat">loadFloat</a></li></li><li><li><a href="#storeFloat">storeFloat</a></li></li><li><li><a href="#loadBlob">loadBlob</a></li></li><li><li><a href="#storeBlob">storeBlob</a></li></li></ul></nav><div class="documentation"><h1>Region</h1><p>Byte-level access to isolated, (virtual) stable memory <em>regions</em>.</p>
+<p>This is a moderately lightweight abstraction over IC <em>stable memory</em> and supports persisting
+regions of binary data across Motoko upgrades.
+Use of this module is fully compatible with Motoko's use of
+<em>stable variables</em>, whose persistence mechanism also uses (real) IC stable memory internally, but does not interfere with this API.
+It is also fully compatible with existing uses of the <code>ExperimentalStableMemory</code> library, which has a similar interface, but,
+only supported a single memory region, without isolation between different applications.</p>
+<p>The <code>Region</code> type is stable and can be used in stable data structures.</p>
+<p>A new, empty <code>Region</code> is allocated using function <code>new()</code>.</p>
+<p>Regions are stateful objects and can be distinguished by the numeric identifier returned by function <code>id(region)</code>.
+Every region owns an initially empty, but growable sequence of virtual IC stable memory pages.
+The current size, in pages, of a region is returned by function <code>size(region)</code>.
+The size of a region determines the range, [ 0, ..., size(region)*2^16 ), of valid byte-offsets into the region; these offsets are used as the source and destination of <code>load</code>/<code>store</code> operations on the region.</p>
+<p>Memory is allocated to a region, using function <code>grow(region, pages)</code>, sequentially and on demand, in units of 64KiB logical pages, starting with 0 allocated pages.
+A call to <code>grow</code> may succeed, returning the previous size of the region, or fail, returning a sentinel value. New pages are zero initialized.</p>
+<p>A size of a region can only grow and never shrink.
+In addition, the stable memory pages allocated to a region will <em>not</em> be reclaimed by garbage collection, even
+if the region object itself becomes unreachable.</p>
+<p>Growth is capped by a soft limit on physical page count controlled by compile-time flag
+<code>--max-stable-pages &lt;n&gt;</code> (the default is 65536, or 4GiB).</p>
+<p>Each <code>load</code> operation loads from region relative byte address <code>offset</code> in little-endian
+format using the natural bit-width of the type in question.
+The operation traps if attempting to read beyond the current region size.</p>
+<p>Each <code>store</code> operation stores to region relative byte address <code>offset</code> in little-endian format using the natural bit-width of the type in question.
+The operation traps if attempting to write beyond the current region size.</p>
+<p>Text values can be handled by using <code>Text.decodeUtf8</code> and <code>Text.encodeUtf8</code>, in conjunction with <code>loadBlob</code> and <code>storeBlob</code>.</p>
+<p>The current region allocation and region contents are preserved across upgrades.</p>
+<p>NB: The IC's actual stable memory size (<code>ic0.stable_size</code>) may exceed the
+total page size reported by summing all regions sizes.
+This (and the cap on growth) are to accommodate Motoko's stable variables and bookkeeping for regions.
+Applications that plan to use Motoko stable variables sparingly or not at all can
+increase <code>--max-stable-pages</code> as desired, approaching the IC maximum (initially 8GiB, then 32Gib, currently 64Gib).
+All applications should reserve at least one page for stable variable data, even when no stable variables are used.</p>
+<p>Usage:</p>
+<pre><code>motoko no-repl
+import Region &quot;mo:base/Region&quot;;</code></pre><div class="declaration"><h4 class="type-declaration" id="type.Region"><span class="keyword">type </span><span class="type">Region</span> = <span class="type">Prim.Types.Region</span></h4><p><p>A stateful handle to an isolated region of IC stable memory.
+<code>Region</code> is a stable type and regions can be stored in stable variables.</p>
+</p></div><div class="declaration"><h4 class="function" id="new"><code><span class="keyword">public func </span><span class="fnname">new</span>() : <a href="#type.Region"><span class="type">Region</span></a></code></h4><p><p>Allocate a new, isolated Region of size 0.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+assert Region.size(region) == 0;</code></pre></p></div><div class="declaration"><h4 class="function" id="id"><code><span class="keyword">public func </span><span class="fnname">id</span>(<span class="parameter">_</span> : <a href="#type.Region"><span class="type">Region</span></a>) : <span class="type">Nat</span></code></h4><p><p>Return a Nat identifying the given region.
+Maybe be used for equality, comparison and hashing.
+NB: Regions returned by <code>new()</code> are numbered from 16
+(regions 0..15 are currently reserved for internal use).
+Allocate a new, isolated Region of size 0.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+assert Region.id(region) == 16;</code></pre></p></div><div class="declaration"><h4 class="function" id="size"><code><span class="keyword">public func </span><span class="fnname">size</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>) : (<span class="parameter">pages</span> : <span class="type">Nat64</span>)</code></h4><p><p>Current size of <code>region</code>, in pages.
+Each page is 64KiB (65536 bytes).
+Initially <code>0</code>.
+Preserved across upgrades, together with contents of allocated
+stable memory.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let beforeSize = Region.size(region);
+ignore Region.grow(region, 10);
+let afterSize = Region.size(region);
+afterSize - beforeSize // =&gt; 10</code></pre></p></div><div class="declaration"><h4 class="function" id="grow"><code><span class="keyword">public func </span><span class="fnname">grow</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">newPages</span> : <span class="type">Nat64</span>) : (<span class="parameter">oldPages</span> : <span class="type">Nat64</span>)</code></h4><p><p>Grow current <code>size</code> of <code>region</code> by the given number of pages.
+Each page is 64KiB (65536 bytes).
+Returns the previous <code>size</code> when able to grow.
+Returns <code>0xFFFF_FFFF_FFFF_FFFF</code> if remaining pages insufficient.
+Every new page is zero-initialized, containing byte 0x00 at every offset.
+Function <code>grow</code> is capped by a soft limit on <code>size</code> controlled by compile-time flag
+ <code>--max-stable-pages &lt;n&gt;</code> (the default is 65536, or 4GiB).</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Error &quot;mo:base/Error&quot;;
+
+let region = Region.new();
+let beforeSize = Region.grow(region, 10);
+if (beforeSize == 0xFFFF_FFFF_FFFF_FFFF) {
+  throw Error.reject(&quot;Out of memory&quot;);
+};
+let afterSize = Region.size(region);
+afterSize - beforeSize // =&gt; 10</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat8"><code><span class="keyword">public func </span><span class="fnname">loadNat8</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat8</span></code></h4><p><p>Within <code>region</code>, load a <code>Nat8</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat8(region, offset, value);
+Region.loadNat8(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat8"><code><span class="keyword">public func </span><span class="fnname">storeNat8</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Nat8</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Nat8</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat8(region, offset, value);
+Region.loadNat8(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat16"><code><span class="keyword">public func </span><span class="fnname">loadNat16</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat16</span></code></h4><p><p>Within <code>region</code>, load a <code>Nat16</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat16(region, offset, value);
+Region.loadNat16(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat16"><code><span class="keyword">public func </span><span class="fnname">storeNat16</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Nat16</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Nat16</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat16(region, offset, value);
+Region.loadNat16(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat32"><code><span class="keyword">public func </span><span class="fnname">loadNat32</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat32</span></code></h4><p><p>Within <code>region</code>, load a <code>Nat32</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat32(region, offset, value);
+Region.loadNat32(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat32"><code><span class="keyword">public func </span><span class="fnname">storeNat32</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Nat32</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Nat32</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat32(region, offset, value);
+Region.loadNat32(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat64"><code><span class="keyword">public func </span><span class="fnname">loadNat64</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat64</span></code></h4><p><p>Within <code>region</code>, load a <code>Nat64</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat64(region, offset, value);
+Region.loadNat64(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat64"><code><span class="keyword">public func </span><span class="fnname">storeNat64</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Nat64</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Nat64</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeNat64(region, offset, value);
+Region.loadNat64(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt8"><code><span class="keyword">public func </span><span class="fnname">loadInt8</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int8</span></code></h4><p><p>Within <code>region</code>, load a <code>Int8</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt8(region, offset, value);
+Region.loadInt8(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt8"><code><span class="keyword">public func </span><span class="fnname">storeInt8</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Int8</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Int8</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt8(region, offset, value);
+Region.loadInt8(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt16"><code><span class="keyword">public func </span><span class="fnname">loadInt16</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int16</span></code></h4><p><p>Within <code>region</code>, load a <code>Int16</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt16(region, offset, value);
+Region.loadInt16(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt16"><code><span class="keyword">public func </span><span class="fnname">storeInt16</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Int16</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Int16</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt16(region, offset, value);
+Region.loadInt16(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt32"><code><span class="keyword">public func </span><span class="fnname">loadInt32</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int32</span></code></h4><p><p>Within <code>region</code>, load a <code>Int32</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt32(region, offset, value);
+Region.loadInt32(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt32"><code><span class="keyword">public func </span><span class="fnname">storeInt32</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Int32</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Int32</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt32(region, offset, value);
+Region.loadInt32(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt64"><code><span class="keyword">public func </span><span class="fnname">loadInt64</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int64</span></code></h4><p><p>Within <code>region</code>, load a <code>Int64</code> value from <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt64(region, offset, value);
+Region.loadInt64(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt64"><code><span class="keyword">public func </span><span class="fnname">storeInt64</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Int64</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store a <code>Int64</code> value at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 123;
+Region.storeInt64(region, offset, value);
+Region.loadInt64(region, offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadFloat"><code><span class="keyword">public func </span><span class="fnname">loadFloat</span>(<span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Float</span></code></h4><p><p>Within <code>region</code>, loads a <code>Float</code> value from the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 1.25;
+Region.storeFloat(region, offset, value);
+Region.loadFloat(region, offset) // =&gt; 1.25</code></pre></p></div><div class="declaration"><h4 class="function" id="storeFloat"><code><span class="keyword">public func </span><span class="fnname">storeFloat</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Float</span><br/>) : ()</code></h4><p><p>Within <code>region</code>, store float <code>value</code> at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let region = Region.new();
+let offset = 0;
+let value = 1.25;
+Region.storeFloat(region, offset, value);
+Region.loadFloat(region, offset) // =&gt; 1.25</code></pre></p></div><div class="declaration"><h4 class="function" id="loadBlob"><code><span class="keyword">public func </span><span class="fnname">loadBlob</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">size</span> : <span class="type">Nat</span><br/>) : <span class="type">Blob</span></code></h4><p><p>Within <code>region,</code> load <code>size</code> bytes starting from <code>offset</code> as a <code>Blob</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Blob &quot;mo:base/Blob&quot;;
+
+let region = Region.new();
+let offset = 0;
+let value = Blob.fromArray([1, 2, 3]);
+let size = value.size();
+Region.storeBlob(region, offset, value);
+Blob.toArray(Region.loadBlob(region, offset, size)) // =&gt; [1, 2, 3]</code></pre></p></div><div class="declaration"><h4 class="function" id="storeBlob"><code><span class="keyword">public func </span><span class="fnname">storeBlob</span>(<br/>  <span class="parameter">region</span> : <a href="#type.Region"><span class="type">Region</span></a>, <br/>  <span class="parameter">offset</span> : <span class="type">Nat64</span>, <br/>  <span class="parameter">value</span> : <span class="type">Blob</span><br/>) : ()</code></h4><p><p>Within <code>region, write </code>blob.size()<code>bytes of</code>blob<code>beginning at</code>offset`.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Blob &quot;mo:base/Blob&quot;;
+
+let region = Region.new();
+let offset = 0;
+let value = Blob.fromArray([1, 2, 3]);
+let size = value.size();
+Region.storeBlob(region, offset, value);
+Blob.toArray(Region.loadBlob(region, offset, size)) // =&gt; [1, 2, 3]</code></pre></p></div></div></body></html>

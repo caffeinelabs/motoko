@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Cycles.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Cycles.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#corecycles" id="toc-corecycles">core/Cycles</a>
+<ul>
+<li><a href="#function-balance" id="toc-function-balance">Function
+<code>balance</code></a></li>
+<li><a href="#function-available" id="toc-function-available">Function
+<code>available</code></a></li>
+<li><a href="#function-accept" id="toc-function-accept">Function
+<code>accept</code></a></li>
+<li><a href="#function-refunded" id="toc-function-refunded">Function
+<code>refunded</code></a></li>
+<li><a href="#function-burn" id="toc-function-burn">Function
+<code>burn</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="corecycles">core/Cycles</h1>
+<p>Managing cycles within actors in the Internet Computer Protocol
+(ICP).</p>
+<p>The usage of the Internet Computer is measured, and paid for, in
+<em>cycles</em>. This library provides imperative operations for
+observing cycles, transferring cycles, and observing refunds of
+cycles.</p>
+<p><strong>NOTE:</strong> Since cycles measure computational resources,
+the value of <code>balance()</code> can change from one call to the
+next.</p>
+<p>Cycles can be transferred from the current actor to another actor
+with the evaluation of certain forms of expression. In particular, the
+expression must be a call to a shared function, a call to a local
+function with an <code>async</code> return type, or a simple
+<code>async</code> expression. To attach an amount of cycles to an
+expression <code>&lt;exp&gt;</code>, simply prefix the expression with
+<code>(with cycles = &lt;amount&gt;)</code>, that is,
+<code>(with cycles = &lt;amount&gt;) &lt;exp&gt;</code>.</p>
+<p><strong>NOTE:</strong> Attaching cycles will trap if the amount
+specified exceeds <code>2 ** 128</code> cycles.</p>
+<p>Upon the call, but not before, the amount of cycles is deducted from
+<code>balance()</code>. If this total exceeds <code>balance()</code>,
+the caller traps, aborting the call without consuming the cycles. Note
+that attaching cycles to a call to a local function call or
+<code>async</code> expression just transfers cycles from the current
+actor to itself.</p>
+<p>Example for use on the ICP:</p>
+<pre class="motoko"><code>import Cycles &quot;mo:core/Cycles&quot;;
+
+persistent actor {
+  public func main() : async () {
+    let initialBalance = Cycles.balance();
+    await (with cycles = 15_000_000) operation(); // accepts 10_000_000 cycles
+    assert Cycles.refunded() == 5_000_000;
+    assert Cycles.balance() &lt; initialBalance; // decreased by around 10_000_000
+  };
+
+  func operation() : async () {
+    let initialBalance = Cycles.balance();
+    let initialAvailable = Cycles.available();
+    let obtained = Cycles.accept&lt;system&gt;(10_000_000);
+    assert obtained == 10_000_000;
+    assert Cycles.balance() == initialBalance + 10_000_000;
+    assert Cycles.available() == initialAvailable - 10_000_000;
+  }
+}</code></pre>
+<h2 id="function-balance">Function <code>balance</code></h2>
+<pre class="motoko"><code>func balance() : (amount : Nat)</code></pre>
+<p>Returns the actor's current balance of cycles as
+<code>amount</code>.</p>
+<p>Example for use on the ICP:</p>
+<pre class="motoko"><code>import Cycles &quot;mo:core/Cycles&quot;;
+
+persistent actor {
+  public func main() : async() {
+    let balance = Cycles.balance();
+    assert balance &gt; 0;
+  }
+}</code></pre>
+<h2 id="function-available">Function <code>available</code></h2>
+<pre class="motoko"><code>func available() : (amount : Nat)</code></pre>
+<p>Returns the currently available <code>amount</code> of cycles. The
+amount available is the amount received in the current call, minus the
+cumulative amount <code>accept</code>ed by this call. On exit from the
+current shared function or async expression via <code>return</code> or
+<code>throw</code>, any remaining available amount is automatically
+refunded to the caller/context.</p>
+<p>Example for use on the ICP:</p>
+<pre class="motoko"><code>import Cycles &quot;mo:core/Cycles&quot;;
+
+persistent actor {
+  public func main() : async() {
+    let available = Cycles.available();
+    assert available &gt;= 0;
+  }
+}</code></pre>
+<h2 id="function-accept">Function <code>accept</code></h2>
+<pre class="motoko"><code>func accept(amount : Nat) : (accepted : Nat)</code></pre>
+<p>Transfers up to <code>amount</code> from <code>available()</code> to
+<code>balance()</code>. Returns the amount actually transferred, which
+may be less than requested, for example, if less is available, or if
+canister balance limits are reached.</p>
+<p>Example for use on the ICP (for simplicity, only transferring cycles
+to itself):</p>
+<pre class="motoko"><code>import Cycles &quot;mo:core/Cycles&quot;;
+
+persistent actor {
+  public func main() : async() {
+    await (with cycles = 15_000_000) operation(); // accepts 10_000_000 cycles
+  };
+
+  func operation() : async() {
+    let obtained = Cycles.accept&lt;system&gt;(10_000_000);
+    assert obtained == 10_000_000;
+  }
+}</code></pre>
+<h2 id="function-refunded">Function <code>refunded</code></h2>
+<pre class="motoko"><code>func refunded() : (amount : Nat)</code></pre>
+<p>Reports <code>amount</code> of cycles refunded in the last
+<code>await</code> of the current context, or zero if no await has
+occurred yet. Calling <code>refunded()</code> is solely informational
+and does not affect <code>balance()</code>. Instead, refunds are
+automatically added to the current balance, whether or not
+<code>refunded</code> is used to observe them.</p>
+<p>Example for use on the ICP (for simplicity, only transferring cycles
+to itself):</p>
+<pre class="motoko"><code>import Cycles &quot;mo:core/Cycles&quot;;
+
+persistent actor {
+  func operation() : async() {
+    ignore Cycles.accept&lt;system&gt;(10_000_000);
+  };
+
+  public func main() : async() {
+    await (with cycles = 15_000_000) operation(); // accepts 10_000_000 cycles
+    assert Cycles.refunded() == 5_000_000;
+  }
+}</code></pre>
+<h2 id="function-burn">Function <code>burn</code></h2>
+<pre class="motoko"><code>func burn(amount : Nat) : (burned : Nat)</code></pre>
+<p>Attempts to burn <code>amount</code> of cycles, deducting
+<code>burned</code> from the canister's cycle balance. The burned cycles
+are irrevocably lost and not available to any other principal
+either.</p>
+<p>Example for use on the IC:</p>
+<pre class="motoko"><code>import Cycles &quot;mo:core/Cycles&quot;;
+
+persistent actor {
+  public func main() : async() {
+    let burnt = Cycles.burn&lt;system&gt;(10_000_000);
+    assert burnt == 10_000_000;
+  }
+}</code></pre>
+</body>
+</html>

@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/base/OrderedMap.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/base/OrderedMap.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#baseorderedmap"
+id="toc-baseorderedmap">base/OrderedMap</a>
+<ul>
+<li><a href="#type-map" id="toc-type-map">Type <code>Map</code></a></li>
+<li><a href="#class-operationsk" id="toc-class-operationsk">Class
+<code>Operations&lt;K&gt;</code></a>
+<ul>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-put" id="toc-function-put">Function
+<code>put</code></a></li>
+<li><a href="#function-replace" id="toc-function-replace">Function
+<code>replace</code></a></li>
+<li><a href="#function-mapfilter" id="toc-function-mapfilter">Function
+<code>mapFilter</code></a></li>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-contains" id="toc-function-contains">Function
+<code>contains</code></a></li>
+<li><a href="#function-maxentry" id="toc-function-maxentry">Function
+<code>maxEntry</code></a></li>
+<li><a href="#function-minentry" id="toc-function-minentry">Function
+<code>minEntry</code></a></li>
+<li><a href="#function-delete" id="toc-function-delete">Function
+<code>delete</code></a></li>
+<li><a href="#function-remove" id="toc-function-remove">Function
+<code>remove</code></a></li>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-entries" id="toc-function-entries">Function
+<code>entries</code></a></li>
+<li><a href="#function-entriesrev" id="toc-function-entriesrev">Function
+<code>entriesRev</code></a></li>
+<li><a href="#function-keys" id="toc-function-keys">Function
+<code>keys</code></a></li>
+<li><a href="#function-vals" id="toc-function-vals">Function
+<code>vals</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-foldleft" id="toc-function-foldleft">Function
+<code>foldLeft</code></a></li>
+<li><a href="#function-foldright" id="toc-function-foldright">Function
+<code>foldRight</code></a></li>
+<li><a href="#function-all" id="toc-function-all">Function
+<code>all</code></a></li>
+<li><a href="#function-some" id="toc-function-some">Function
+<code>some</code></a></li>
+<li><a href="#function-validate" id="toc-function-validate">Function
+<code>validate</code></a></li>
+</ul></li>
+<li><a href="#function-make" id="toc-function-make">Function
+<code>Make</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="baseorderedmap">base/OrderedMap</h1>
+<p>Stable key-value map implemented as a red-black tree with nodes
+storing key-value pairs.</p>
+<p>A red-black tree is a balanced binary search tree ordered by the
+keys.</p>
+<p>The tree data structure internally colors each of its nodes either
+red or black, and uses this information to balance the tree during the
+modifying operations.</p>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code> (worst case per insertion, removal, or
+retrieval)</td>
+<td><code>O(n)</code> (for storing the entire tree)</td>
+</tr>
+</tbody>
+</table>
+<p><code>n</code> denotes the number of key-value entries (i.e. nodes)
+stored in the tree.</p>
+<p>:::note Garbage collection</p>
+<p>Unless stated otherwise, operations that iterate over or modify the
+map (such as insertion, deletion, traversal, and transformation) may
+create temporary objects with worst-case space usage of
+<code>O(log(n))</code> or <code>O(n)</code>. These objects are
+short-lived and will be collected by the garbage collector
+automatically.</p>
+<p>:::</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>compare</code>,
+<code>equal</code>, and other functions execute in <code>O(1)</code>
+time and space. :::</p>
+<p>:::info Credits</p>
+<p>The core of this implementation is derived from:</p>
+<ul>
+<li>Ken Friis Larsen's <a
+href="https://github.com/kfl/mosml/blob/master/src/mosmllib/Redblackmap.sml">RedBlackMap.sml</a>,
+which itself is based on:</li>
+<li>Stefan Kahrs, "Red-black trees with types", Journal of Functional
+Programming, 11(4): 425-432 (2001), <a
+href="http://www.cs.ukc.ac.uk/people/staff/smk/redblack/rb.html">version
+1 in web appendix</a>. :::</li>
+</ul>
+<h2 id="type-map">Type <code>Map</code></h2>
+<pre class="motoko"><code>type Map&lt;K, V&gt; = { size : Nat; root : Tree&lt;K, V&gt; }</code></pre>
+<p>Collection of key-value entries, ordered by the keys and key unique.
+The keys have the generic type <code>K</code> and the values the generic
+type <code>V</code>. If <code>K</code> and <code>V</code> is stable
+types then <code>Map&lt;K, V&gt;</code> is also stable. To ensure that
+property the <code>Map&lt;K, V&gt;</code> does not have any methods,
+instead they are gathered in the functor-like class
+<code>Operations</code> (see example there).</p>
+<h2 id="class-operationsk">Class <code>Operations&lt;K&gt;</code></h2>
+<pre class="motoko"><code>class Operations&lt;K&gt;(compare : (K, K) -&gt; O.Order)</code></pre>
+<p>Class that captures key type <code>K</code> along with its ordering
+function <code>compare</code> and provides all operations to work with a
+map of type <code>Map&lt;K, _&gt;</code>.</p>
+<p>An instance object should be created once as a canister field to
+ensure that the same ordering function is used for every operation.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+actor {
+  let natMap = Map.Make&lt;Nat&gt;(Nat.compare); // : Operations&lt;Nat&gt;
+  stable var keyStorage : Map.Map&lt;Nat, Text&gt; = natMap.empty&lt;Text&gt;();
+
+  public func addKey(id : Nat, key : Text) : async () {
+    keyStorage := natMap.put(keyStorage, id, key);
+  }
+}</code></pre>
+<h3 id="function-fromiter">Function <code>fromIter</code></h3>
+<pre class="motoko"><code>func fromIter&lt;V&gt;(i : I.Iter&lt;(K, V)&gt;) : Map&lt;K, V&gt;</code></pre>
+<p>Returns a new map, containing all entries given by the iterator
+<code>i</code>. If there are multiple entries with the same key the last
+one is taken.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let m = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(m))));
+
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n * log(n))</code></td>
+<td><code>O(n)</code> (retained memory + garbage)</td>
+</tr>
+</tbody>
+</table>
+<p>Note: Creates <code>O(n * log(n))</code> temporary objects that will
+be collected as garbage.</p>
+<h3 id="function-put">Function <code>put</code></h3>
+<pre class="motoko"><code>func put&lt;V&gt;(m : Map&lt;K, V&gt;, key : K, value : V) : Map&lt;K, V&gt;</code></pre>
+<p>Insert the value <code>value</code> with key <code>key</code> into
+the map <code>m</code>. Overwrites any existing entry with key
+<code>key</code>. Returns a modified map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+var map = natMap.empty&lt;Text&gt;();
+
+map := natMap.put(map, 0, &quot;Zero&quot;);
+map := natMap.put(map, 2, &quot;Two&quot;);
+map := natMap.put(map, 1, &quot;One&quot;);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map))));
+
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-replace">Function <code>replace</code></h3>
+<pre class="motoko"><code>func replace&lt;V&gt;(m : Map&lt;K, V&gt;, key : K, value : V) : (Map&lt;K, V&gt;, ?V)</code></pre>
+<p>Insert the value <code>value</code> with key <code>key</code> into
+the map <code>m</code>. Returns modified map and the previous value
+associated with key <code>key</code> or <code>null</code> if no such
+value exists.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map0 = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+let (map1, old1) = natMap.replace(map0, 0, &quot;Nil&quot;);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map1))));
+Debug.print(debug_show(old1));
+// [(0, &quot;Nil&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]
+// ?&quot;Zero&quot;
+
+let (map2, old2) = natMap.replace(map0, 3, &quot;Three&quot;);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map2))));
+Debug.print(debug_show(old2));
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;), (3, &quot;Three&quot;)]
+// null</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(log(n))</code> retained memory</td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-mapfilter">Function <code>mapFilter</code></h3>
+<pre class="motoko"><code>func mapFilter&lt;V1, V2&gt;(m : Map&lt;K, V1&gt;, f : (K, V1) -&gt; ?V2) : Map&lt;K, V2&gt;</code></pre>
+<p>Creates a new map by applying <code>f</code> to each entry in the map
+<code>m</code>. For each entry <code>(k, v)</code> in the old map, if
+<code>f</code> evaluates to <code>null</code>, the entry is discarded.
+Otherwise, the entry is transformed into a new entry
+<code>(k, v2)</code>, where the new value <code>v2</code> is the result
+of applying <code>f</code> to <code>(k, v)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func f(key : Nat, val : Text) : ?Text {
+  if(key == 0) {null}
+  else { ?(&quot;Twenty &quot; # val)}
+};
+
+let newMap = natMap.mapFilter(map, f);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(newMap))));
+
+// [(1, &quot;Twenty One&quot;), (2, &quot;Twenty Two&quot;)]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n * log(n))</code></td>
+<td><code>O(n)</code> (retained memory + garbage)</td>
+</tr>
+</tbody>
+</table>
+<p>Note: Creates <code>O(n * log(n))</code> temporary objects that will
+be collected as garbage.</p>
+<h3 id="function-get">Function <code>get</code></h3>
+<pre class="motoko"><code>func get&lt;V&gt;(m : Map&lt;K, V&gt;, key : K) : ?V</code></pre>
+<p>Get the value associated with key <code>key</code> in the given map
+<code>m</code> if present and <code>null</code> otherwise.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.get(map, 1)));
+Debug.print(debug_show(natMap.get(map, 42)));
+
+// ?&quot;One&quot;
+// null</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(1)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison.</p>
+<h3 id="function-contains">Function <code>contains</code></h3>
+<pre class="motoko"><code>func contains&lt;V&gt;(m : Map&lt;K, V&gt;, key : K) : Bool</code></pre>
+<p>Test whether the map <code>m</code> contains any binding for the
+given <code>key</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show natMap.contains(map, 1)); // =&gt; true
+Debug.print(debug_show natMap.contains(map, 42)); // =&gt; false</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-maxentry">Function <code>maxEntry</code></h3>
+<pre class="motoko"><code>func maxEntry&lt;V&gt;(m : Map&lt;K, V&gt;) : ?(K, V)</code></pre>
+<p>Retrieves a key-value pair from the map <code>m</code> with a maximal
+key. If the map is empty returns <code>null</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.maxEntry(map))); // =&gt; ?(2, &quot;Two&quot;)
+Debug.print(debug_show(natMap.maxEntry(natMap.empty()))); // =&gt; null</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-minentry">Function <code>minEntry</code></h3>
+<pre class="motoko"><code>func minEntry&lt;V&gt;(m : Map&lt;K, V&gt;) : ?(K, V)</code></pre>
+<p>Retrieves a key-value pair from the map <code>m</code> with a minimal
+key. If the map is empty returns <code>null</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.minEntry(map))); // =&gt; ?(0, &quot;Zero&quot;)
+Debug.print(debug_show(natMap.minEntry(natMap.empty()))); // =&gt; null</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-delete">Function <code>delete</code></h3>
+<pre class="motoko"><code>func delete&lt;V&gt;(m : Map&lt;K, V&gt;, key : K) : Map&lt;K, V&gt;</code></pre>
+<p>Deletes the entry with the key <code>key</code> from the map
+<code>m</code>. Has no effect if <code>key</code> is not present in the
+map. Returns modified map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(natMap.delete(map, 1)))));
+Debug.print(debug_show(Iter.toArray(natMap.entries(natMap.delete(map, 42)))));
+
+// [(0, &quot;Zero&quot;), (2, &quot;Two&quot;)]
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-remove">Function <code>remove</code></h3>
+<pre class="motoko"><code>func remove&lt;V&gt;(m : Map&lt;K, V&gt;, key : K) : (Map&lt;K, V&gt;, ?V)</code></pre>
+<p>Deletes the entry with the key <code>key</code>. Returns modified map
+and the previous value associated with key <code>key</code> or
+<code>null</code> if no such value exists.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map0 = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+let (map1, old1) = natMap.remove(map0, 0);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map1))));
+Debug.print(debug_show(old1));
+// [(1, &quot;One&quot;), (2, &quot;Two&quot;)]
+// ?&quot;Zero&quot;
+
+let (map2, old2) = natMap.remove(map0, 42);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map2))));
+Debug.print(debug_show(old2));
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]
+// null</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-empty">Function <code>empty</code></h3>
+<pre class="motoko"><code>func empty&lt;V&gt;() : Map&lt;K, V&gt;</code></pre>
+<p>Create a new empty map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+
+let map = natMap.empty&lt;Text&gt;();
+
+Debug.print(debug_show(natMap.size(map)));
+
+// 0</code></pre>
+<p>Cost of empty map creation Runtime: <code>O(1)</code>. Space:
+<code>O(1)</code></p>
+<h3 id="function-entries">Function <code>entries</code></h3>
+<pre class="motoko"><code>func entries&lt;V&gt;(m : Map&lt;K, V&gt;) : I.Iter&lt;(K, V)&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the key-value pairs in
+the map. Iterator provides a single method <code>next()</code>, which
+returns pairs in ascending order by keys, or <code>null</code> when out
+of pairs to iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map))));
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]
+var sum = 0;
+for ((k, _) in natMap.entries(map)) { sum += k; };
+Debug.print(debug_show(sum)); // =&gt; 3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(log(n))</code> retained + <code>O(n)</code> garbage</td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-entriesrev">Function <code>entriesRev</code></h3>
+<pre class="motoko"><code>func entriesRev&lt;V&gt;(m : Map&lt;K, V&gt;) : I.Iter&lt;(K, V)&gt;</code></pre>
+<p>Same as <code>entries</code> but iterates in the descending
+order.</p>
+<h3 id="function-keys">Function <code>keys</code></h3>
+<pre class="motoko"><code>func keys&lt;V&gt;(m : Map&lt;K, V&gt;) : I.Iter&lt;K&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the keys of the map.
+Iterator provides a single method <code>next()</code>, which returns
+keys in ascending order, or <code>null</code> when out of keys to
+iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.keys(map))));
+
+// [0, 1, 2]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(log(n))</code> retained + <code>O(n)</code> garbage</td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-vals">Function <code>vals</code></h3>
+<pre class="motoko"><code>func vals&lt;V&gt;(m : Map&lt;K, V&gt;) : I.Iter&lt;V&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the values of the map.
+Iterator provides a single method <code>next()</code>, which returns
+values in ascending order of associated keys, or <code>null</code> when
+out of values to iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.vals(map))));
+
+// [&quot;Zero&quot;, &quot;One&quot;, &quot;Two&quot;]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(log(n))</code> retained + <code>O(n)</code> garbage</td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-map">Function <code>map</code></h3>
+<pre class="motoko"><code>func map&lt;V1, V2&gt;(m : Map&lt;K, V1&gt;, f : (K, V1) -&gt; V2) : Map&lt;K, V2&gt;</code></pre>
+<p>Creates a new map by applying <code>f</code> to each entry in the map
+<code>m</code>. Each entry <code>(k, v)</code> in the old map is
+transformed into a new entry <code>(k, v2)</code>, where the new value
+<code>v2</code> is created by applying <code>f</code> to
+<code>(k, v)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func f(key : Nat, _val : Text) : Nat = key * 2;
+
+let resMap = natMap.map(map, f);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(resMap))));
+// [(0, 0), (1, 2), (2, 4)]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(n)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-size">Function <code>size</code></h3>
+<pre class="motoko"><code>func size&lt;V&gt;(m : Map&lt;K, V&gt;) : Nat</code></pre>
+<p>Determine the size of the map as the number of key-value entries.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.size(map)));
+// 3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-foldleft">Function <code>foldLeft</code></h3>
+<pre class="motoko"><code>func foldLeft&lt;Value, Accum&gt;(map : Map&lt;K, Value&gt;, base : Accum, combine : (Accum, K, Value) -&gt; Accum) : Accum</code></pre>
+<p>Collapses the elements in the <code>map</code> into a single value by
+starting with <code>base</code> and progressively combining keys and
+values into <code>base</code> with <code>combine</code>. Iteration runs
+left to right.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func folder(accum : (Nat, Text), key : Nat, val : Text) : ((Nat, Text))
+  = (key + accum.0, accum.1 # val);
+
+Debug.print(debug_show(natMap.foldLeft(map, (0, &quot;&quot;), folder)));
+
+// (3, &quot;ZeroOneTwo&quot;)</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td>Depends on <code>combine</code> + <code>O(n)</code> garbage</td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-foldright">Function <code>foldRight</code></h3>
+<pre class="motoko"><code>func foldRight&lt;Value, Accum&gt;(map : Map&lt;K, Value&gt;, base : Accum, combine : (K, Value, Accum) -&gt; Accum) : Accum</code></pre>
+<p>Collapses the elements in the <code>map</code> into a single value by
+starting with <code>base</code> and progressively combining keys and
+values into <code>base</code> with <code>combine</code>. Iteration runs
+right to left.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func folder(key : Nat, val : Text, accum : (Nat, Text)) : ((Nat, Text))
+  = (key + accum.0, accum.1 # val);
+
+Debug.print(debug_show(natMap.foldRight(map, (0, &quot;&quot;), folder)));
+
+// (3, &quot;TwoOneZero&quot;)</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td>Depends on <code>combine</code> + <code>O(n)</code> garbage</td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-all">Function <code>all</code></h3>
+<pre class="motoko"><code>func all&lt;V&gt;(m : Map&lt;K, V&gt;, pred : (K, V) -&gt; Bool) : Bool</code></pre>
+<p>Test whether all key-value pairs satisfy a given predicate
+<code>pred</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;0&quot;), (2, &quot;2&quot;), (1, &quot;1&quot;)]));
+
+Debug.print(debug_show(natMap.all&lt;Text&gt;(map, func (k, v) = (v == debug_show(k)))));
+// true
+Debug.print(debug_show(natMap.all&lt;Text&gt;(map, func (k, v) = (k &lt; 2))));
+// false</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-some">Function <code>some</code></h3>
+<pre class="motoko"><code>func some&lt;V&gt;(m : Map&lt;K, V&gt;, pred : (K, V) -&gt; Bool) : Bool</code></pre>
+<p>Test if there exists a key-value pair satisfying a given predicate
+<code>pred</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;0&quot;), (2, &quot;2&quot;), (1, &quot;1&quot;)]));
+
+Debug.print(debug_show(natMap.some&lt;Text&gt;(map, func (k, v) = (k &gt;= 3))));
+// false
+Debug.print(debug_show(natMap.some&lt;Text&gt;(map, func (k, v) = (k &gt;= 0))));
+// true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-validate">Function <code>validate</code></h3>
+<pre class="motoko"><code>func validate&lt;V&gt;(m : Map&lt;K, V&gt;) : ()</code></pre>
+<p>Debug helper that check internal invariants of the given map
+<code>m</code>. Raise an error (for a stack trace) if invariants are
+violated.</p>
+<h2 id="function-make">Function <code>Make</code></h2>
+<pre class="motoko"><code>func Make&lt;K&gt;(compare : (K, K) -&gt; O.Order) : Operations&lt;K&gt;</code></pre>
+<p>Create <code>OrderedMap.Operations</code> object capturing key type
+<code>K</code> and <code>compare</code> function. It is an alias for the
+<code>Operations</code> constructor.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+actor {
+  let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+  stable var map : Map.Map&lt;Nat, Text&gt; = natMap.empty&lt;Text&gt;();
+};</code></pre>
+</body>
+</html>

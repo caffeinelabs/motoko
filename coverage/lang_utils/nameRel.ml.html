@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>nameRel.ml &mdash; Coverage report</title>
+    <meta name="description" content="69.23% coverage in lang_utils/nameRel.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">lang_utils/</span>nameRel.ml
+        </a>
+      </h1>
+      <h2>69.23%</h2>
+    </div>
+    <div id="navbar">
+      <span class="some-visited" style="top:21.25%"></span>
+      <span class="unvisited" style="top:40.00%"></span>
+      <span class="unvisited" style="top:50.00%"></span>
+      <span class="unvisited" style="bottom:36.25%"></span>
+      <span class="unvisited" style="bottom:16.25%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span class="visited"> </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span class="visited"> </span>
+<a id="L15"></a><span > </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span class="some-visited"> </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span class="visited"> </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span class="visited"> </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span class="visited"> </span>
+<a id="L27"></a><span class="visited"> </span>
+<a id="L28"></a><span class="visited"> </span>
+<a id="L29"></a><span > </span>
+<a id="L30"></a><span > </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span class="unvisited"> </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span class="visited"> </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span > </span>
+<a id="L40"></a><span class="unvisited"> </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span > </span>
+<a id="L43"></a><span > </span>
+<a id="L44"></a><span class="visited"> </span>
+<a id="L45"></a><span > </span>
+<a id="L46"></a><span > </span>
+<a id="L47"></a><span class="visited"> </span>
+<a id="L48"></a><span > </span>
+<a id="L49"></a><span > </span>
+<a id="L50"></a><span > </span>
+<a id="L51"></a><span class="unvisited"> </span>
+<a id="L52"></a><span > </span>
+<a id="L53"></a><span > </span>
+<a id="L54"></a><span > </span>
+<a id="L55"></a><span class="visited"> </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span > </span>
+<a id="L58"></a><span > </span>
+<a id="L59"></a><span class="visited"> </span>
+<a id="L60"></a><span > </span>
+<a id="L61"></a><span > </span>
+<a id="L62"></a><span > </span>
+<a id="L63"></a><span > </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span > </span>
+<a id="L67"></a><span class="unvisited"> </span>
+<a id="L68"></a><span > </span>
+<a id="L69"></a><span > </span>
+<a id="L70"></a><span > </span>
+<a id="L71"></a><span class="visited"> </span>
+<a id="L72"></a><span > </span>
+<a id="L73"></a><span class="visited"> </span>
+<a id="L74"></a><span > </span>
+<a id="L75"></a><span class="visited"> </span>
+<a id="L76"></a><span class="visited"> </span>
+<a id="L77"></a><span class="visited"> </span>
+<a id="L78"></a><span class="visited"> </span>
+<a id="L79"></a><span > </span>
+<a id="L80"></a><span > </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1"> 1</a>
+<a href="#L2"> 2</a>
+<a href="#L3"> 3</a>
+<a href="#L4"> 4</a>
+<a href="#L5"> 5</a>
+<a href="#L6"> 6</a>
+<a href="#L7"> 7</a>
+<a href="#L8"> 8</a>
+<a href="#L9"> 9</a>
+<a href="#L10">10</a>
+<a href="#L11">11</a>
+<a href="#L12">12</a>
+<a href="#L13">13</a>
+<a href="#L14">14</a>
+<a href="#L15">15</a>
+<a href="#L16">16</a>
+<a href="#L17">17</a>
+<a href="#L18">18</a>
+<a href="#L19">19</a>
+<a href="#L20">20</a>
+<a href="#L21">21</a>
+<a href="#L22">22</a>
+<a href="#L23">23</a>
+<a href="#L24">24</a>
+<a href="#L25">25</a>
+<a href="#L26">26</a>
+<a href="#L27">27</a>
+<a href="#L28">28</a>
+<a href="#L29">29</a>
+<a href="#L30">30</a>
+<a href="#L31">31</a>
+<a href="#L32">32</a>
+<a href="#L33">33</a>
+<a href="#L34">34</a>
+<a href="#L35">35</a>
+<a href="#L36">36</a>
+<a href="#L37">37</a>
+<a href="#L38">38</a>
+<a href="#L39">39</a>
+<a href="#L40">40</a>
+<a href="#L41">41</a>
+<a href="#L42">42</a>
+<a href="#L43">43</a>
+<a href="#L44">44</a>
+<a href="#L45">45</a>
+<a href="#L46">46</a>
+<a href="#L47">47</a>
+<a href="#L48">48</a>
+<a href="#L49">49</a>
+<a href="#L50">50</a>
+<a href="#L51">51</a>
+<a href="#L52">52</a>
+<a href="#L53">53</a>
+<a href="#L54">54</a>
+<a href="#L55">55</a>
+<a href="#L56">56</a>
+<a href="#L57">57</a>
+<a href="#L58">58</a>
+<a href="#L59">59</a>
+<a href="#L60">60</a>
+<a href="#L61">61</a>
+<a href="#L62">62</a>
+<a href="#L63">63</a>
+<a href="#L64">64</a>
+<a href="#L65">65</a>
+<a href="#L66">66</a>
+<a href="#L67">67</a>
+<a href="#L68">68</a>
+<a href="#L69">69</a>
+<a href="#L70">70</a>
+<a href="#L71">71</a>
+<a href="#L72">72</a>
+<a href="#L73">73</a>
+<a href="#L74">74</a>
+<a href="#L75">75</a>
+<a href="#L76">76</a>
+<a href="#L77">77</a>
+<a href="#L78">78</a>
+<a href="#L79">79</a>
+<a href="#L80">80</a>
+</pre>
+<pre><code class="ocaml">(* A data structure for binary relations on names *)
+
+module M = Env.Make(String)
+module S = Set.Make(String)
+
+type t = S.t M.t
+
+let empty : t = M.empty
+
+let cardinal : t -&gt; int = fun m -&gt;
+  <span data-count="4919280">M</span>.fold (fun _ s c -&gt; <span data-count="5027468">S</span>.cardina<span data-count="5027468">l</span> s + c) m 0
+
+let iter : (string -&gt; string -&gt; unit) -&gt; t -&gt; unit = fun f -&gt;
+  <span data-count="1210308">M</span>.iter (fun x -&gt; <span data-count="1197341">S</span>.iter (<span data-count="1197341">f</span> x))
+
+let diag : string list -&gt; t =
+  List.fold_lef<span data-count="1816">t</span> (fun rel x -&gt; <span data-count="0">M</span>.add x (S.singleto<span data-count="0">n</span> x) rel) empty
+
+let diag_set : S.t -&gt; t = fun s -&gt;
+  <span data-count="2420616">S</span>.fold (fun x rel -&gt; <span data-count="2394682">M</span>.add x (S.singleto<span data-count="2394682">n</span> x) rel) s empty
+
+let cross : S.t -&gt; S.t -&gt; t = fun s1 s2 -&gt;
+  <span data-count="1210308">S</span>.fold (fun x rel -&gt; <span data-count="632670">M</span>.add x s2 rel) s1 empty
+
+let lookup : string -&gt; t -&gt; S.t = fun k rel -&gt;
+  <span data-count="2743556">m</span>atch M.find_opt k rel with
+  | <span data-count="2002342">N</span>one -&gt; S.empty
+  | <span data-count="741214">S</span>ome s -&gt; s
+
+(* dom R = { x | (x,y) ∈ R } *)
+let dom : t -&gt; S.t = fun rel -&gt;
+  <span data-count="0">M</span>.fold (fun v s dom -&gt; <span data-count="0">i</span>f S.is_empty s then <span data-count="0">d</span>om else <span data-count="0">S</span>.add v dom) rel S.empty
+
+(* range R = { y | (x,y) ∈ R } *)
+let range : t -&gt; S.t = fun rel -&gt;
+  <span data-count="1210308">M</span>.fold (fun _ s ran -&gt; <span data-count="1197341">S</span>.union s ran) rel S.empty
+
+(* remove_range R S = { (x,y) | (x,y) ∈ R ∧ y ∉ S } *)
+let remove_range : S.t -&gt; t -&gt; t = fun s -&gt;
+  <span data-count="0">M</span>.map (fun s' -&gt; <span data-count="0">S</span>.diff s' s)
+
+(* union R1 R2 = R1 ∪ R2 = { (x,y) | (x,y) ∈ R1 ∨ (x,y) ∈ R2 } *)
+let union : t -&gt; t -&gt; t =
+  M.unio<span data-count="1816">n</span> (fun _ s1 s2 -&gt; <span data-count="2513734">S</span>ome (S.unio<span data-count="2513734">n</span> s1 s2))
+
+let unions : t list -&gt; t =
+  List.fold_lef<span data-count="1816">t</span> union empty
+
+(* prod S1 S2 = S1 × S2 *)
+let prod : S.t -&gt; S.t -&gt; t = fun s1 s2 -&gt;
+  <span data-count="0">S</span>.fold (fun x rel -&gt; <span data-count="0">M</span>.add x s2 rel) s1 empty
+
+(* Just a utility function *)
+let set_bind f s =
+  <span data-count="2513734">S</span>.fold (fun y -&gt; <span data-count="2743556">S</span>.union (<span data-count="2743556">f</span> y)) s S.empty
+
+(* comp R1 R2 = R1 ∘ R2 = { (x,z) | (x,y) ∈ R1 ∧ (y,z) ∈ R2 } *)
+let comp : t -&gt; t -&gt; t = fun rel1 rel2 -&gt;
+  <span data-count="2459640">M</span>.map (set_bin<span data-count="2459640">d</span> (fun y -&gt; <span data-count="2743556">l</span>ookup y rel2)) rel1
+
+(* We can use a relation R to represent its transitive closure R⁺,
+   and operations like dom, union, prod, comp work just fine.
+   Only removing needs special care:*)
+
+(* remove_range_trans S R = R' where remove_range S R⁺ = R'⁺ *)
+let remove_range_trans : S.t -&gt; t -&gt; t = fun s rel -&gt;
+  <span data-count="0">M</span>.map (set_bin<span data-count="0">d</span> (fun y -&gt; <span data-count="0">i</span>f S.mem y s then <span data-count="0">S</span>.diff (looku<span data-count="0">p</span> y rel) s else <span data-count="0">S</span>.singleton y)) rel
+
+(* restricted_rtcl S R = { (x,z) | x ∈ S ∧ (x,z) ∈ R^* } *)
+let restricted_rtcl : S.t -&gt; t -&gt; t = fun s rel -&gt;
+  <span data-count="2420616">l</span>et rec go prev =
+    (* Add one iteration of R to the relation *)
+    <span data-count="2459640">l</span>et next = union prev (com<span data-count="2459640">p</span> prev rel) in
+    (* Do we have a fixed point? *)
+    <span data-count="2459640">i</span>f cardina<span data-count="2459640">l</span> prev = cardina<span data-count="2459640">l</span> next
+    then <span data-count="2420616">p</span>rev
+    else <span data-count="39024">g</span>o next
+  in go (diag_se<span data-count="2420616">t</span> s)
+
+
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

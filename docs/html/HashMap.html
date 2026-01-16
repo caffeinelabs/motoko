@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/base/HashMap.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/base/HashMap.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#basehashmap" id="toc-basehashmap">base/HashMap</a>
+<ul>
+<li><a href="#class-hashmapk-v" id="toc-class-hashmapk-v">Class
+<code>HashMap&lt;K, V&gt;</code></a>
+<ul>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-put" id="toc-function-put">Function
+<code>put</code></a></li>
+<li><a href="#function-replace" id="toc-function-replace">Function
+<code>replace</code></a></li>
+<li><a href="#function-delete" id="toc-function-delete">Function
+<code>delete</code></a></li>
+<li><a href="#function-remove" id="toc-function-remove">Function
+<code>remove</code></a></li>
+<li><a href="#function-keys" id="toc-function-keys">Function
+<code>keys</code></a></li>
+<li><a href="#function-vals" id="toc-function-vals">Function
+<code>vals</code></a></li>
+<li><a href="#function-entries" id="toc-function-entries">Function
+<code>entries</code></a></li>
+</ul></li>
+<li><a href="#function-clone" id="toc-function-clone">Function
+<code>clone</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-mapfilter" id="toc-function-mapfilter">Function
+<code>mapFilter</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="basehashmap">base/HashMap</h1>
+<p>Class <code>HashMap&lt;K, V&gt;</code> provides a hashmap from keys
+of type <code>K</code> to values of type <code>V</code>. The class is
+parameterized by the key's equality and hash functions, and an initial
+capacity. However, the underlying allocation occurs only upon the first
+insertion.</p>
+<p>Internally, the map is backed by an array of <code>AssocList</code>
+(buckets). The array doubles in size when the expected bucket list size
+grows beyond a fixed threshold.</p>
+<p>:::warning Performance considerations</p>
+<p>Certain operations, such as <code>put</code>, are amortized
+<code>O(1)</code> but can run in worst-case <code>O(size)</code> time.
+These worst cases may exceed the cycle limit per message on large maps.
+This analysis assumes that the hash function distributes keys uniformly.
+Use caution when growing large maps and ensure good hash functions are
+used.</p>
+<p>:::</p>
+<p>:::note Non-amortized alternative</p>
+<p>For maps without amortization, see <code>TrieMap</code>. :::</p>
+<p>:::info Constructor note</p>
+<p>The <code>initCapacity</code> argument sets the initial number of
+buckets. All runtime and space complexities assume that the equality and
+hash functions run in <code>O(1)</code> time and space.</p>
+<p>:::</p>
+<p>Example:</p>
+<pre class="motoko"><code>import HashMap &quot;mo:base/HashMap&quot;;
+import Text &quot;mo:base/Text&quot;;
+
+let map = HashMap.HashMap&lt;Text, Nat&gt;(5, Text.equal, Text.hash);</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="class-hashmapk-v">Class <code>HashMap&lt;K, V&gt;</code></h2>
+<pre class="motoko"><code>class HashMap&lt;K, V&gt;(initCapacity : Nat, keyEq : (K, K) -&gt; Bool, keyHash : K -&gt; Hash.Hash)</code></pre>
+<h3 id="function-size">Function <code>size</code></h3>
+<pre class="motoko"><code>func size() : Nat</code></pre>
+<p>Returns the current number of key-value entries in the map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>map.size() // =&gt; 0</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-get">Function <code>get</code></h3>
+<pre class="motoko"><code>func get(key : K) : (value : ?V)</code></pre>
+<p>Returns the value assocaited with key <code>key</code> if present and
+<code>null</code> otherwise.</p>
+<p>Example:</p>
+<pre class="motoko"><code>map.put(&quot;key&quot;, 3);
+map.get(&quot;key&quot;) // =&gt; ?3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime(worst)</th>
+<th>Runtime(amortized)</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-put">Function <code>put</code></h3>
+<pre class="motoko"><code>func put(key : K, value : V)</code></pre>
+<p>Insert the value <code>value</code> with key <code>key</code>.
+Overwrites any existing entry with key <code>key</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>map.put(&quot;key&quot;, 3);
+map.get(&quot;key&quot;) // =&gt; ?3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime(amortized)</th>
+<th>Runtime(worst)</th>
+<th>Space (amortized)</th>
+<th>Space(worst)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<p>:::note Initial allocation</p>
+<p>This operation triggers the allocation of the underlying array if it
+is the first entry in the map. :::</p>
+<h3 id="function-replace">Function <code>replace</code></h3>
+<pre class="motoko"><code>func replace(key : K, value : V) : (oldValue : ?V)</code></pre>
+<p>Insert the value <code>value</code> with key <code>key</code>.
+Returns the previous value associated with key <code>key</code> or
+<code>null</code> if no such value exists.</p>
+<p>Example:</p>
+<pre class="motoko"><code>map.put(&quot;key&quot;, 3);
+ignore map.replace(&quot;key&quot;, 2); // =&gt; ?3
+map.get(&quot;key&quot;) // =&gt; ?2</code></pre>
+<table>
+<thead>
+<tr>
+<th>Expected Amortized Runtime</th>
+<th>Worst Case Runtime</th>
+<th>Expected Amortized Space</th>
+<th>Worst Case Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<p>:::note Initial allocation</p>
+<p>This operation triggers the allocation of the underlying array if it
+is the first entry in the map. :::</p>
+<h3 id="function-delete">Function <code>delete</code></h3>
+<pre class="motoko"><code>func delete(key : K)</code></pre>
+<p>Deletes the entry with the key <code>key</code>. Has no effect if
+<code>key</code> is not present in the map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>map.put(&quot;key&quot;, 3);
+map.delete(&quot;key&quot;);
+map.get(&quot;key&quot;); // =&gt; null</code></pre>
+<table>
+<thead>
+<tr>
+<th>Expected Runtime</th>
+<th>Worst Case Runtime</th>
+<th>Expected Space</th>
+<th>Worst Case Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-remove">Function <code>remove</code></h3>
+<pre class="motoko"><code>func remove(key : K) : (oldValue : ?V)</code></pre>
+<p>Deletes the entry with the key <code>key</code>. Returns the previous
+value associated with key <code>key</code> or <code>null</code> if no
+such value exists.</p>
+<p>Example:</p>
+<pre class="motoko"><code>map.put(&quot;key&quot;, 3);
+map.remove(&quot;key&quot;); // =&gt; ?3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Expected Runtime</th>
+<th>Worst Case Runtime</th>
+<th>Expected Space</th>
+<th>Worst Case Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-keys">Function <code>keys</code></h3>
+<pre class="motoko"><code>func keys() : Iter.Iter&lt;K&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the keys of the map.
+Iterator provides a single method <code>next()</code>, which returns
+keys in no specific order, or <code>null</code> when out of keys to
+iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code>
+map.put(&quot;key1&quot;, 1);
+map.put(&quot;key2&quot;, 2);
+map.put(&quot;key3&quot;, 3);
+
+var keys = &quot;&quot;;
+for (key in map.keys()) {
+  keys := key # &quot; &quot; # keys
+};
+keys // =&gt; &quot;key3 key2 key1 &quot;</code></pre>
+<p>Cost of iteration over all keys:</p>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-vals">Function <code>vals</code></h3>
+<pre class="motoko"><code>func vals() : Iter.Iter&lt;V&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the values of the map.
+Iterator provides a single method <code>next()</code>, which returns
+values in no specific order, or <code>null</code> when out of values to
+iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code>
+map.put(&quot;key1&quot;, 1);
+map.put(&quot;key2&quot;, 2);
+map.put(&quot;key3&quot;, 3);
+
+var sum = 0;
+for (value in map.vals()) {
+  sum += value;
+};
+sum // =&gt; 6</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-entries">Function <code>entries</code></h3>
+<pre class="motoko"><code>func entries() : Iter.Iter&lt;(K, V)&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the key-value pairs in
+the map. Iterator provides a single method <code>next()</code>, which
+returns pairs in no specific order, or <code>null</code> when out of
+pairs to iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+map.put(&quot;key1&quot;, 1);
+map.put(&quot;key2&quot;, 2);
+map.put(&quot;key3&quot;, 3);
+
+var pairs = &quot;&quot;;
+for ((key, value) in map.entries()) {
+  pairs := &quot;(&quot; # key # &quot;, &quot; # Nat.toText(value) # &quot;) &quot; # pairs
+};
+pairs // =&gt; &quot;(key3, 3) (key2, 2) (key1, 1)&quot;</code></pre>
+<p>Cost of iteration over all pairs:</p>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-clone">Function <code>clone</code></h2>
+<pre class="motoko"><code>func clone&lt;K, V&gt;(map : HashMap&lt;K, V&gt;, keyEq : (K, K) -&gt; Bool, keyHash : K -&gt; Hash.Hash) : HashMap&lt;K, V&gt;</code></pre>
+<p>Returns a copy of <code>map</code>, initializing the copy with the
+provided equality and hash functions.</p>
+<p>Example:</p>
+<pre class="motoko"><code>map.put(&quot;key1&quot;, 1);
+map.put(&quot;key2&quot;, 2);
+map.put(&quot;key3&quot;, 3);
+
+let map2 = HashMap.clone(map, Text.equal, Text.hash);
+map2.get(&quot;key1&quot;) // =&gt; ?1</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime(expected)</th>
+<th>Runtime(worst)</th>
+<th>Space(expected)</th>
+<th>Space(worst)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size * size)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter&lt;K, V&gt;(iter : Iter.Iter&lt;(K, V)&gt;, initCapacity : Nat, keyEq : (K, K) -&gt; Bool, keyHash : K -&gt; Hash.Hash) : HashMap&lt;K, V&gt;</code></pre>
+<p>Returns a new map, containing all entries given by the iterator
+<code>iter</code>. The new map is initialized with the provided initial
+capacity, equality, and hash functions.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let entries = [(&quot;key3&quot;, 3), (&quot;key2&quot;, 2), (&quot;key1&quot;, 1)];
+let iter = entries.vals();
+
+let map2 = HashMap.fromIter&lt;Text, Nat&gt;(iter, entries.size(), Text.equal, Text.hash);
+map2.get(&quot;key1&quot;) // =&gt; ?1</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime(expected)</th>
+<th>Runtime(worst)</th>
+<th>Space(expected)</th>
+<th>Space(worst)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size * size)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;K, V1, V2&gt;(hashMap : HashMap&lt;K, V1&gt;, keyEq : (K, K) -&gt; Bool, keyHash : K -&gt; Hash.Hash, f : (K, V1) -&gt; V2) : HashMap&lt;K, V2&gt;</code></pre>
+<p>Creates a new map by applying <code>f</code> to each entry in
+<code>hashMap</code>. Each entry <code>(k, v)</code> in the old map is
+transformed into a new entry <code>(k, v2)</code>, where the new value
+<code>v2</code> is created by applying <code>f</code> to
+<code>(k, v)</code>.</p>
+<pre class="motoko"><code>map.put(&quot;key1&quot;, 1);
+map.put(&quot;key2&quot;, 2);
+map.put(&quot;key3&quot;, 3);
+
+let map2 = HashMap.map&lt;Text, Nat, Nat&gt;(map, Text.equal, Text.hash, func (k, v) = v * 2);
+map2.get(&quot;key2&quot;) // =&gt; ?4</code></pre>
+<p>Expected Runtime: O(size), Worst Case Runtime: O(size * size)</p>
+<table>
+<thead>
+<tr>
+<th>Runtime(expected)</th>
+<th>Runtime(worst)</th>
+<th>Space(expected)</th>
+<th>Space(worst)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size * size)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-mapfilter">Function <code>mapFilter</code></h2>
+<pre class="motoko"><code>func mapFilter&lt;K, V1, V2&gt;(hashMap : HashMap&lt;K, V1&gt;, keyEq : (K, K) -&gt; Bool, keyHash : K -&gt; Hash.Hash, f : (K, V1) -&gt; ?V2) : HashMap&lt;K, V2&gt;</code></pre>
+<p>Creates a new map by applying <code>f</code> to each entry in
+<code>hashMap</code>. For each entry <code>(k, v)</code> in the old map,
+if <code>f</code> evaluates to <code>null</code>, the entry is
+discarded. Otherwise, the entry is transformed into a new entry
+<code>(k, v2)</code>, where the new value <code>v2</code> is the result
+of applying <code>f</code> to <code>(k, v)</code>.</p>
+<pre class="motoko"><code>map.put(&quot;key1&quot;, 1);
+map.put(&quot;key2&quot;, 2);
+map.put(&quot;key3&quot;, 3);
+
+let map2 =
+  HashMap.mapFilter&lt;Text, Nat, Nat&gt;(
+    map,
+    Text.equal,
+    Text.hash,
+    func (k, v) = if (v == 2) { null } else { ?(v * 2)}
+);
+map2.get(&quot;key3&quot;) // =&gt; ?6</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime(expected)</th>
+<th>Runtime(worst)</th>
+<th>Space(expected)</th>
+<th>Space(worst)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size * size)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

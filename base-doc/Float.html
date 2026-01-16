@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Float">Float</a></li></li><li><li><a href="#pi">pi</a></li></li><li><li><a href="#e">e</a></li></li><li><li><a href="#isNaN">isNaN</a></li></li><li><li><a href="#abs">abs</a></li></li><li><li><a href="#sqrt">sqrt</a></li></li><li><li><a href="#ceil">ceil</a></li></li><li><li><a href="#floor">floor</a></li></li><li><li><a href="#trunc">trunc</a></li></li><li><li><a href="#nearest">nearest</a></li></li><li><li><a href="#copySign">copySign</a></li></li><li><li><a href="#min">min</a></li></li><li><li><a href="#max">max</a></li></li><li><li><a href="#sin">sin</a></li></li><li><li><a href="#cos">cos</a></li></li><li><li><a href="#tan">tan</a></li></li><li><li><a href="#arcsin">arcsin</a></li></li><li><li><a href="#arccos">arccos</a></li></li><li><li><a href="#arctan">arctan</a></li></li><li><li><a href="#arctan2">arctan2</a></li></li><li><li><a href="#exp">exp</a></li></li><li><li><a href="#log">log</a></li></li><li><li><a href="#format">format</a></li></li><li><li><a href="#toText">toText</a></li></li><li><li><a href="#toInt64">toInt64</a></li></li><li><li><a href="#fromInt64">fromInt64</a></li></li><li><li><a href="#toInt">toInt</a></li></li><li><li><a href="#fromInt">fromInt</a></li></li><li><li><a href="#equal">equal</a></li></li><li><li><a href="#notEqual">notEqual</a></li></li><li><li><a href="#equalWithin">equalWithin</a></li></li><li><li><a href="#notEqualWithin">notEqualWithin</a></li></li><li><li><a href="#less">less</a></li></li><li><li><a href="#lessOrEqual">lessOrEqual</a></li></li><li><li><a href="#greater">greater</a></li></li><li><li><a href="#greaterOrEqual">greaterOrEqual</a></li></li><li><li><a href="#compare">compare</a></li></li><li><li><a href="#neg">neg</a></li></li><li><li><a href="#add">add</a></li></li><li><li><a href="#sub">sub</a></li></li><li><li><a href="#mul">mul</a></li></li><li><li><a href="#div">div</a></li></li><li><li><a href="#rem">rem</a></li></li><li><li><a href="#pow">pow</a></li></li></ul></nav><div class="documentation"><h1>Float</h1><p>Double precision (64-bit) floating-point numbers in IEEE 754 representation.</p>
+<p>This module contains common floating-point constants and utility functions.</p>
+<p>Notation for special values in the documentation below:</p>
+<p><code>+inf</code>: Positive infinity</p>
+<p><code>-inf</code>: Negative infinity</p>
+<p><code>NaN</code>: &quot;not a number&quot; (can have different sign bit values, but <code>NaN != NaN</code> regardless of the sign).</p>
+<p>:::note
+Floating point numbers have limited precision and operations may inherently result in numerical errors.
+:::</p>
+<p>Examples of numerical errors:</p>
+<pre class="motoko"><code class="motoko">  0.1 + 0.1 + 0.1 == 0.3 // =&gt; false
+  </code></pre>
+
+<pre class="motoko"><code class="motoko"> 1e16 + 1.0 != 1e16 // =&gt; false
+  </code></pre>
+
+<p>Advice:</p>
+<ul><li>Floating point number comparisons by <code>==</code> or <code>!=</code> are discouraged. Instead, it is better to compare
+ floating-point numbers with a numerical tolerance, called epsilon.</li></ul>
+
+<p> Example:</p>
+<pre class="motoko"><code class="motoko">  import Float &quot;mo:base/Float&quot;;
+  let x = 0.1 + 0.1 + 0.1;
+  let y = 0.3;
+
+  let epsilon = 1e-6; // This depends on the application case (needs a numerical error analysis).
+  Float.equalWithin(x, y, epsilon) // =&gt; true
+  </code></pre>
+
+<ul><li>For absolute precision, it is recommend to encode the fraction number as a pair of a <code>Nat</code> for the base
+ and a <code>Nat</code> for the exponent (decimal point).</li></ul>
+
+<p><code>NaN</code> sign:</p>
+<ul><li>The <code>NaN</code> sign is only applied by <code>abs</code>, <code>neg</code>, and <code>copySign</code>. Other operations can have an arbitrary
+ sign bit for <code>NaN</code> results.</li></ul><div class="declaration"><h4 class="type-declaration" id="type.Float"><span class="keyword">type </span><span class="type">Float</span> = <span class="type">Prim.Types.Float</span></h4><p><p>64-bit floating point number type.</p>
+</p></div><div class="declaration"><h4 class="value-declaration" id="pi"><code><span class="keyword">public </span><span class="keyword">let </span><span class="fnname">pi</span> : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Ratio of the circumference of a circle to its diameter.
+Note: Limited precision.</p>
+</p></div><div class="declaration"><h4 class="value-declaration" id="e"><code><span class="keyword">public </span><span class="keyword">let </span><span class="fnname">e</span> : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Base of the natural logarithm.
+Note: Limited precision.</p>
+</p></div><div class="declaration"><h4 class="function" id="isNaN"><code><span class="keyword">public func </span><span class="fnname">isNaN</span>(<span class="parameter">number</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Bool</span></code></h4><p><p>Determines whether the <code>number</code> is a <code>NaN</code> (&quot;not a number&quot; in the floating point representation).
+Notes:</p>
+<ul><li>Equality test of <code>NaN</code> with itself or another number is always <code>false</code>.</li><li>There exist many internal <code>NaN</code> value representations, such as positive and negative <code>NaN</code>,
+ signalling and quiet <code>NaN</code>s, each with many different bit representations.</li></ul>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.isNaN(0.0/0.0) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="abs"><code><span class="keyword">public func </span><span class="fnname">abs</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the absolute value of <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>abs(+inf) =&gt; +inf
+abs(-inf) =&gt; +inf
+abs(-NaN)  =&gt; +NaN
+abs(-0.0) =&gt; 0.0</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.abs(-1.2) // =&gt; 1.2</code></pre></p></div><div class="declaration"><h4 class="function" id="sqrt"><code><span class="keyword">public func </span><span class="fnname">sqrt</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the square root of <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>sqrt(+inf) =&gt; +inf
+sqrt(-0.0) =&gt; -0.0
+sqrt(x)    =&gt; NaN if x &lt; 0.0
+sqrt(NaN)  =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.sqrt(6.25) // =&gt; 2.5</code></pre></p></div><div class="declaration"><h4 class="function" id="ceil"><code><span class="keyword">public func </span><span class="fnname">ceil</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the smallest integral float greater than or equal to <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>ceil(+inf) =&gt; +inf
+ceil(-inf) =&gt; -inf
+ceil(NaN)  =&gt; NaN
+ceil(0.0)  =&gt; 0.0
+ceil(-0.0) =&gt; -0.0</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.ceil(1.2) // =&gt; 2.0</code></pre></p></div><div class="declaration"><h4 class="function" id="floor"><code><span class="keyword">public func </span><span class="fnname">floor</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the largest integral float less than or equal to <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>floor(+inf) =&gt; +inf
+floor(-inf) =&gt; -inf
+floor(NaN)  =&gt; NaN
+floor(0.0)  =&gt; 0.0
+floor(-0.0) =&gt; -0.0</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.floor(1.2) // =&gt; 1.0</code></pre></p></div><div class="declaration"><h4 class="function" id="trunc"><code><span class="keyword">public func </span><span class="fnname">trunc</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the nearest integral float not greater in magnitude than <code>x</code>.
+This is equivalent to returning <code>x</code> with truncating its decimal places.</p>
+<p>Special cases:</p>
+<pre><code>trunc(+inf) =&gt; +inf
+trunc(-inf) =&gt; -inf
+trunc(NaN)  =&gt; NaN
+trunc(0.0)  =&gt; 0.0
+trunc(-0.0) =&gt; -0.0</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.trunc(2.75) // =&gt; 2.0</code></pre></p></div><div class="declaration"><h4 class="function" id="nearest"><code><span class="keyword">public func </span><span class="fnname">nearest</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the nearest integral float to <code>x</code>.
+A decimal place of exactly .5 is rounded up for <code>x &gt; 0</code>
+and rounded down for <code>x &lt; 0</code></p>
+<p>Special cases:</p>
+<pre><code>nearest(+inf) =&gt; +inf
+nearest(-inf) =&gt; -inf
+nearest(NaN)  =&gt; NaN
+nearest(0.0)  =&gt; 0.0
+nearest(-0.0) =&gt; -0.0</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.nearest(2.75) // =&gt; 3.0</code></pre></p></div><div class="declaration"><h4 class="function" id="copySign"><code><span class="keyword">public func </span><span class="fnname">copySign</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns <code>x</code> if <code>x</code> and <code>y</code> have same sign, otherwise <code>x</code> with negated sign.</p>
+<p>The sign bit of zero, infinity, and <code>NaN</code> is considered.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.copySign(1.2, -2.3) // =&gt; -1.2</code></pre></p></div><div class="declaration"><h4 class="function" id="min"><code><span class="keyword">public func </span><span class="fnname">min</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the smaller value of <code>x</code> and <code>y</code>.</p>
+<p>Special cases:</p>
+<pre><code>min(NaN, y) =&gt; NaN for any Float y
+min(x, NaN) =&gt; NaN for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.min(1.2, -2.3) // =&gt; -2.3 (with numerical imprecision)</code></pre></p></div><div class="declaration"><h4 class="function" id="max"><code><span class="keyword">public func </span><span class="fnname">max</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the larger value of <code>x</code> and <code>y</code>.</p>
+<p>Special cases:</p>
+<pre><code>max(NaN, y) =&gt; NaN for any Float y
+max(x, NaN) =&gt; NaN for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.max(1.2, -2.3) // =&gt; 1.2</code></pre></p></div><div class="declaration"><h4 class="function" id="sin"><code><span class="keyword">public func </span><span class="fnname">sin</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the sine of the radian angle <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>sin(+inf) =&gt; NaN
+sin(-inf) =&gt; NaN
+sin(NaN) =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.sin(Float.pi / 2) // =&gt; 1.0</code></pre></p></div><div class="declaration"><h4 class="function" id="cos"><code><span class="keyword">public func </span><span class="fnname">cos</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the cosine of the radian angle <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>cos(+inf) =&gt; NaN
+cos(-inf) =&gt; NaN
+cos(NaN)  =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.cos(Float.pi / 2) // =&gt; 0.0 (with numerical imprecision)</code></pre></p></div><div class="declaration"><h4 class="function" id="tan"><code><span class="keyword">public func </span><span class="fnname">tan</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the tangent of the radian angle <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>tan(+inf) =&gt; NaN
+tan(-inf) =&gt; NaN
+tan(NaN)  =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.tan(Float.pi / 4) // =&gt; 1.0 (with numerical imprecision)</code></pre></p></div><div class="declaration"><h4 class="function" id="arcsin"><code><span class="keyword">public func </span><span class="fnname">arcsin</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the arc sine of <code>x</code> in radians.</p>
+<p>Special cases:</p>
+<pre><code>arcsin(x)   =&gt; NaN if x &gt; 1.0
+arcsin(x)   =&gt; NaN if x &lt; -1.0
+arcsin(NaN) =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.arcsin(1.0) // =&gt; Float.pi / 2</code></pre></p></div><div class="declaration"><h4 class="function" id="arccos"><code><span class="keyword">public func </span><span class="fnname">arccos</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the arc cosine of <code>x</code> in radians.</p>
+<p>Special cases:</p>
+<pre><code>arccos(x)  =&gt; NaN if x &gt; 1.0
+arccos(x)  =&gt; NaN if x &lt; -1.0
+arcos(NaN) =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.arccos(1.0) // =&gt; 0.0</code></pre></p></div><div class="declaration"><h4 class="function" id="arctan"><code><span class="keyword">public func </span><span class="fnname">arctan</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the arc tangent of <code>x</code> in radians.</p>
+<p>Special cases:</p>
+<pre><code>arctan(+inf) =&gt; pi / 2
+arctan(-inf) =&gt; -pi / 2
+arctan(NaN)  =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.arctan(1.0) // =&gt; Float.pi / 4</code></pre></p></div><div class="declaration"><h4 class="function" id="arctan2"><code><span class="keyword">public func </span><span class="fnname">arctan2</span>(<span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Given <code>(y,x)</code>, returns the arc tangent in radians of <code>y/x</code> based on the signs of both values to determine the correct quadrant.</p>
+<p>Special cases:</p>
+<pre><code>arctan2(0.0, 0.0)   =&gt; 0.0
+arctan2(-0.0, 0.0)  =&gt; -0.0
+arctan2(0.0, -0.0)  =&gt; pi
+arctan2(-0.0, -0.0) =&gt; -pi
+arctan2(+inf, +inf) =&gt; pi / 4
+arctan2(+inf, -inf) =&gt; 3 * pi / 4
+arctan2(-inf, +inf) =&gt; -pi / 4
+arctan2(-inf, -inf) =&gt; -3 * pi / 4
+arctan2(NaN, x)     =&gt; NaN for any Float x
+arctan2(y, NaN)     =&gt; NaN for any Float y</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+let sqrt2over2 = Float.sqrt(2) / 2;
+Float.arctan2(sqrt2over2, sqrt2over2) // =&gt; Float.pi / 4</code></pre></p></div><div class="declaration"><h4 class="function" id="exp"><code><span class="keyword">public func </span><span class="fnname">exp</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the value of <code>e</code> raised to the <code>x</code>-th power.</p>
+<p>Special cases:</p>
+<pre><code>exp(+inf) =&gt; +inf
+exp(-inf) =&gt; 0.0
+exp(NaN)  =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.exp(1.0) // =&gt; Float.e</code></pre></p></div><div class="declaration"><h4 class="function" id="log"><code><span class="keyword">public func </span><span class="fnname">log</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the natural logarithm (base-<code>e</code>) of <code>x</code>.</p>
+<p>Special cases:</p>
+<pre><code>log(0.0)  =&gt; -inf
+log(-0.0) =&gt; -inf
+log(x)    =&gt; NaN if x &lt; 0.0
+log(+inf) =&gt; +inf
+log(NaN)  =&gt; NaN</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.log(Float.e) // =&gt; 1.0</code></pre></p></div><div class="declaration"><h4 class="function" id="format"><code><span class="keyword">public func </span><span class="fnname">format</span>(<span class="parameter">fmt</span> : {#fix : <span class="type">Nat8</span>; #exp : <span class="type">Nat8</span>; #gen : <span class="type">Nat8</span>; #exact}, <span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Text</span></code></h4><p><p>Formatting. <code>format(fmt, x)</code> formats <code>x</code> to <code>Text</code> according to the
+formatting directive <code>fmt</code>, which can take one of the following forms:</p>
+<ul><li><code>#fix prec</code> as fixed-point format with <code>prec</code> digits</li><li><code>#exp prec</code> as exponential format with <code>prec</code> digits</li><li><code>#gen prec</code> as generic format with <code>prec</code> digits</li><li><code>#exact</code> as exact format that can be decoded without loss.</li></ul>
+
+<p><code>-0.0</code> is formatted with negative sign bit.
+Positive infinity is formatted as &quot;inf&quot;.
+Negative infinity is formatted as &quot;-inf&quot;.</p>
+<p>:::info
+The numerical precision and the text format can vary between
+Motoko versions and runtime configuration. Moreover, <code>NaN</code> can be printed
+differently, i.e. &quot;NaN&quot; or &quot;nan&quot;, potentially omitting the <code>NaN</code> sign.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.format(#exp 3, 123.0) // =&gt; &quot;1.230e+02&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="toText"><code><span class="keyword">public func </span><span class="fnname">toText</span>(<span class="parameter">_</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Text</span></code></h4><p><p>Conversion to <code>Text</code>. Use <code>format(fmt, x)</code> for more detailed control.</p>
+<p><code>-0.0</code> is formatted with negative sign bit.
+Positive infinity is formatted as <code>inf</code>.
+Negative infinity is formatted as <code>-inf</code>.
+<code>NaN</code> is formatted as <code>NaN</code> or <code>-NaN</code> depending on its sign bit.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.toText(0.12) // =&gt; &quot;0.12&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="toInt64"><code><span class="keyword">public func </span><span class="fnname">toInt64</span>(<span class="parameter">_</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Int64</span></code></h4><p><p>Conversion to <code>Int64</code> by truncating Float, equivalent to <code>toInt64(trunc(f))</code></p>
+<p>Traps if the floating point number is larger or smaller than the representable Int64.
+Also traps for <code>inf</code>, <code>-inf</code>, and <code>NaN</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.toInt64(-12.3) // =&gt; -12</code></pre></p></div><div class="declaration"><h4 class="function" id="fromInt64"><code><span class="keyword">public func </span><span class="fnname">fromInt64</span>(<span class="parameter">_</span> : <span class="type">Int64</span>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Conversion from <code>Int64</code>.</p>
+<p>:::note
+The floating point number may be imprecise for large or small <code>Int64</code>.
+:::</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.fromInt64(-42) // =&gt; -42.0</code></pre></p></div><div class="declaration"><h4 class="function" id="toInt"><code><span class="keyword">public func </span><span class="fnname">toInt</span>(<span class="parameter">_</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Int</span></code></h4><p><p>Conversion to <code>Int</code>.</p>
+<p>Traps for <code>inf</code>, <code>-inf</code>, and <code>NaN</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.toInt(1.2e6) // =&gt; +1_200_000</code></pre></p></div><div class="declaration"><h4 class="function" id="fromInt"><code><span class="keyword">public func </span><span class="fnname">fromInt</span>(<span class="parameter">_</span> : <span class="type">Int</span>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Conversion from <code>Int</code>. May result in <code>Inf</code>.</p>
+<p>:::note
+The floating point number may be imprecise for large or small Int values.
+Returns <code>inf</code> if the integer is greater than the maximum floating point number.
+Returns <code>-inf</code> if the integer is less than the minimum floating point number.
+:::</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.fromInt(-123) // =&gt; -123.0</code></pre></p></div><div class="declaration"><h4 class="function" id="equal"><code><span class="keyword">public func </span><span class="fnname">equal</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>x == y</code>.</p>
+<p>@deprecated <code>Float.equalWithin()</code> as this function does not consider numerical errors.</p>
+</p></div><div class="declaration"><h4 class="function" id="notEqual"><code><span class="keyword">public func </span><span class="fnname">notEqual</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>x != y</code>.</p>
+<p>@deprecated Use <code>Float.notEqualWithin()</code> as this function does not consider numerical errors.</p>
+</p></div><div class="declaration"><h4 class="function" id="equalWithin"><code><span class="keyword">public func </span><span class="fnname">equalWithin</span>(<br/>  <span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <br/>  <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>, <br/>  <span class="parameter">epsilon</span> : <a href="#type.Float"><span class="type">Float</span></a><br/>) : <span class="type">Bool</span></code></h4><p><p>Determines whether <code>x</code> is equal to <code>y</code> within the defined tolerance of <code>epsilon</code>.
+The <code>epsilon</code> considers numerical errors, see comment above.
+Equivalent to <code>Float.abs(x - y) &lt;= epsilon</code> for a non-negative epsilon.</p>
+<p>Traps if <code>epsilon</code> is negative or <code>NaN</code>.</p>
+<p>Special cases:</p>
+<pre><code>equalWithin(+0.0, -0.0, epsilon) =&gt; true for any `epsilon &gt;= 0.0`
+equalWithin(-0.0, +0.0, epsilon) =&gt; true for any `epsilon &gt;= 0.0`
+equalWithin(+inf, +inf, epsilon) =&gt; true for any `epsilon &gt;= 0.0`
+equalWithin(-inf, -inf, epsilon) =&gt; true for any `epsilon &gt;= 0.0`
+equalWithin(x, NaN, epsilon)     =&gt; false for any x and `epsilon &gt;= 0.0`
+equalWithin(NaN, y, epsilon)     =&gt; false for any y and `epsilon &gt;= 0.0`</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+let epsilon = 1e-6;
+Float.equalWithin(-12.3, -1.23e1, epsilon) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="notEqualWithin"><code><span class="keyword">public func </span><span class="fnname">notEqualWithin</span>(<br/>  <span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <br/>  <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>, <br/>  <span class="parameter">epsilon</span> : <a href="#type.Float"><span class="type">Float</span></a><br/>) : <span class="type">Bool</span></code></h4><p><p>Determines whether <code>x</code> is not equal to <code>y</code> within the defined tolerance of <code>epsilon</code>.
+The <code>epsilon</code> considers numerical errors, see comment above.
+Equivalent to <code>not equal(x, y, epsilon)</code>.</p>
+<p>Traps if <code>epsilon</code> is negative or <code>NaN</code>.</p>
+<p>Special cases:</p>
+<pre><code>notEqualWithin(+0.0, -0.0, epsilon) =&gt; false for any `epsilon &gt;= 0.0`
+notEqualWithin(-0.0, +0.0, epsilon) =&gt; false for any `epsilon &gt;= 0.0`
+notEqualWithin(+inf, +inf, epsilon) =&gt; false for any `epsilon &gt;= 0.0`
+notEqualWithin(-inf, -inf, epsilon) =&gt; false for any `epsilon &gt;= 0.0`
+notEqualWithin(x, NaN, epsilon)     =&gt; true for any x and `epsilon &gt;= 0.0`
+notEqualWithin(NaN, y, epsilon)     =&gt; true for any y and `epsilon &gt;= 0.0`</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+let epsilon = 1e-6;
+Float.notEqualWithin(-12.3, -1.23e1, epsilon) // =&gt; false</code></pre></p></div><div class="declaration"><h4 class="function" id="less"><code><span class="keyword">public func </span><span class="fnname">less</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>x &lt; y</code>.</p>
+<p>Special cases:</p>
+<pre><code>less(+0.0, -0.0) =&gt; false
+less(-0.0, +0.0) =&gt; false
+less(NaN, y)     =&gt; false for any Float y
+less(x, NaN)     =&gt; false for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.less(Float.e, Float.pi) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="lessOrEqual"><code><span class="keyword">public func </span><span class="fnname">lessOrEqual</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>x &lt;= y</code>.</p>
+<p>Special cases:</p>
+<pre><code>lessOrEqual(+0.0, -0.0) =&gt; true
+lessOrEqual(-0.0, +0.0) =&gt; true
+lessOrEqual(NaN, y)     =&gt; false for any Float y
+lessOrEqual(x, NaN)     =&gt; false for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.lessOrEqual(0.123, 0.1234) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="greater"><code><span class="keyword">public func </span><span class="fnname">greater</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>x &gt; y</code>.</p>
+<p>Special cases:</p>
+<pre><code>greater(+0.0, -0.0) =&gt; false
+greater(-0.0, +0.0) =&gt; false
+greater(NaN, y)     =&gt; false for any Float y
+greater(x, NaN)     =&gt; false for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.greater(Float.pi, Float.e) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="greaterOrEqual"><code><span class="keyword">public func </span><span class="fnname">greaterOrEqual</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>x &gt;= y</code>.</p>
+<p>Special cases:</p>
+<pre><code>greaterOrEqual(+0.0, -0.0) =&gt; true
+greaterOrEqual(-0.0, +0.0) =&gt; true
+greaterOrEqual(NaN, y)     =&gt; false for any Float y
+greaterOrEqual(x, NaN)     =&gt; false for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.greaterOrEqual(0.1234, 0.123) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="compare"><code><span class="keyword">public func </span><span class="fnname">compare</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : {#less; #equal; #greater}</code></h4><p><p>Defines a total order of <code>x</code> and <code>y</code> for use in sorting.</p>
+<p>:::note
+Using this operation to determine equality or inequality is discouraged for two reasons:</p>
+<ul><li>It does not consider numerical errors, see comment above. Use <code>equalWithin(x, y, espilon)</code> or
+ <code>notEqualWithin(x, y, epsilon)</code> to test for equality or inequality, respectively.</li><li><code>NaN</code> are here considered equal if their sign matches, which is different to the standard equality
+ by <code>==</code> or when using <code>equal()</code> or <code>notEqual()</code>.
+:::</li></ul>
+
+<p>Total order:</p>
+<ul><li>negative <code>NaN</code> (no distinction between signalling and quiet negative <code>NaN</code>)</li><li>negative infinity</li><li>negative numbers (including negative subnormal numbers in standard order)</li><li>negative zero (<code>-0.0</code>)</li><li>positive zero (<code>+0.0</code>)</li><li>positive numbers (including positive subnormal numbers in standard order)</li><li>positive infinity</li><li>positive <code>NaN</code> (no distinction between signalling and quiet positive <code>NaN</code>)</li></ul>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.compare(0.123, 0.1234) // =&gt; #less</code></pre></p></div><div class="declaration"><h4 class="function" id="neg"><code><span class="keyword">public func </span><span class="fnname">neg</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the negation of <code>x</code>, <code>-x</code> .</p>
+<p>Changes the sign bit for infinity.</p>
+<p>Special cases:</p>
+<pre><code>neg(+inf) =&gt; -inf
+neg(-inf) =&gt; +inf
+neg(+NaN) =&gt; -NaN
+neg(-NaN) =&gt; +NaN
+neg(+0.0) =&gt; -0.0
+neg(-0.0) =&gt; +0.0</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.neg(1.23) // =&gt; -1.23</code></pre></p></div><div class="declaration"><h4 class="function" id="add"><code><span class="keyword">public func </span><span class="fnname">add</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the sum of <code>x</code> and <code>y</code>, <code>x + y</code>.</p>
+<p>:::info
+Numerical errors may occur, see comment above.
+:::</p>
+<p>Special cases:</p>
+<pre><code>add(+inf, y)    =&gt; +inf if y is any Float except -inf and NaN
+add(-inf, y)    =&gt; -inf if y is any Float except +inf and NaN
+add(+inf, -inf) =&gt; NaN
+add(NaN, y)     =&gt; NaN for any Float y</code></pre><p>The same cases apply commutatively, i.e. for <code>add(y, x)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.add(1.23, 0.123) // =&gt; 1.353</code></pre></p></div><div class="declaration"><h4 class="function" id="sub"><code><span class="keyword">public func </span><span class="fnname">sub</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the difference of <code>x</code> and <code>y</code>, <code>x - y</code>.</p>
+<p>Note: Numerical errors may occur, see comment above.</p>
+<p>Special cases:</p>
+<pre><code>sub(+inf, y)    =&gt; +inf if y is any Float except +inf or NaN
+sub(-inf, y)    =&gt; -inf if y is any Float except -inf and NaN
+sub(x, +inf)    =&gt; -inf if x is any Float except +inf and NaN
+sub(x, -inf)    =&gt; +inf if x is any Float except -inf and NaN
+sub(+inf, +inf) =&gt; NaN
+sub(-inf, -inf) =&gt; NaN
+sub(NaN, y)     =&gt; NaN for any Float y
+sub(x, NaN)     =&gt; NaN for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.sub(1.23, 0.123) // =&gt; 1.107</code></pre></p></div><div class="declaration"><h4 class="function" id="mul"><code><span class="keyword">public func </span><span class="fnname">mul</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the product of <code>x</code> and <code>y</code>, <code>x * y</code>.</p>
+<p>:::info
+Numerical errors may occur, see comment above.
+:::</p>
+<p>Special cases:</p>
+<pre><code>mul(+inf, y) =&gt; +inf if y &gt; 0.0
+mul(-inf, y) =&gt; -inf if y &gt; 0.0
+mul(+inf, y) =&gt; -inf if y &lt; 0.0
+mul(-inf, y) =&gt; +inf if y &lt; 0.0
+mul(+inf, 0.0) =&gt; NaN
+mul(-inf, 0.0) =&gt; NaN
+mul(NaN, y) =&gt; NaN for any Float y</code></pre><p>The same cases apply commutatively, i.e. for <code>mul(y, x)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.mul(1.23, 1e2) // =&gt; 123.0</code></pre></p></div><div class="declaration"><h4 class="function" id="div"><code><span class="keyword">public func </span><span class="fnname">div</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the division of <code>x</code> by <code>y</code>, <code>x / y</code>.</p>
+<p>:::info
+Numerical errors may occur, see comment above.
+:::</p>
+<p>Special cases:</p>
+<pre><code>div(0.0, 0.0) =&gt; NaN
+div(x, 0.0)   =&gt; +inf for x &gt; 0.0
+div(x, 0.0)   =&gt; -inf for x &lt; 0.0
+div(x, +inf)  =&gt; 0.0 for any x except +inf, -inf, and NaN
+div(x, -inf)  =&gt; 0.0 for any x except +inf, -inf, and NaN
+div(+inf, y)  =&gt; +inf if y &gt;= 0.0
+div(+inf, y)  =&gt; -inf if y &lt; 0.0
+div(-inf, y)  =&gt; -inf if y &gt;= 0.0
+div(-inf, y)  =&gt; +inf if y &lt; 0.0
+div(NaN, y)   =&gt; NaN for any Float y
+div(x, NaN)   =&gt; NaN for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.div(1.23, 1e2) // =&gt; 0.0123</code></pre></p></div><div class="declaration"><h4 class="function" id="rem"><code><span class="keyword">public func </span><span class="fnname">rem</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns the floating point division remainder <code>x % y</code>,
+which is defined as <code>x - trunc(x / y) * y</code>.</p>
+<p>:::info
+Numerical errors may occur, see comment above.
+:::</p>
+<p>Special cases:</p>
+<pre><code>rem(0.0, 0.0) =&gt; NaN
+rem(x, y)     =&gt; +inf if sign(x) == sign(y) for any x and y not being +inf, -inf, or NaN
+rem(x, y)     =&gt; -inf if sign(x) != sign(y) for any x and y not being +inf, -inf, or NaN
+rem(x, +inf)  =&gt; x for any x except +inf, -inf, and NaN
+rem(x, -inf)  =&gt; x for any x except +inf, -inf, and NaN
+rem(+inf, y)  =&gt; NaN for any Float y
+rem(-inf, y)  =&gt; NaN for any Float y
+rem(NaN, y)   =&gt; NaN for any Float y
+rem(x, NaN)   =&gt; NaN for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.rem(7.2, 2.3) // =&gt; 0.3 (with numerical imprecision)</code></pre></p></div><div class="declaration"><h4 class="function" id="pow"><code><span class="keyword">public func </span><span class="fnname">pow</span>(<span class="parameter">x</span> : <a href="#type.Float"><span class="type">Float</span></a>, <span class="parameter">y</span> : <a href="#type.Float"><span class="type">Float</span></a>) : <a href="#type.Float"><span class="type">Float</span></a></code></h4><p><p>Returns <code>x</code> to the power of <code>y</code>, <code>x ** y</code>.</p>
+<p>:::info
+Numerical errors may occur, see comment above.
+:::</p>
+<p>Special cases:</p>
+<pre><code>pow(+inf, y)    =&gt; +inf for any y &gt; 0.0 including +inf
+pow(+inf, 0.0)  =&gt; 1.0
+pow(+inf, y)    =&gt; 0.0 for any y &lt; 0.0 including -inf
+pow(x, +inf)    =&gt; +inf if x &gt; 0.0 or x &lt; 0.0
+pow(0.0, +inf)  =&gt; 0.0
+pow(x, -inf)    =&gt; 0.0 if x &gt; 0.0 or x &lt; 0.0
+pow(0.0, -inf)  =&gt; +inf
+pow(x, y)       =&gt; NaN if x &lt; 0.0 and y is a non-integral Float
+pow(-inf, y)    =&gt; +inf if y &gt; 0.0 and y is a non-integral or an even integral Float
+pow(-inf, y)    =&gt; -inf if y &gt; 0.0 and y is an odd integral Float
+pow(-inf, 0.0)  =&gt; 1.0
+pow(-inf, y)    =&gt; 0.0 if y &lt; 0.0
+pow(-inf, +inf) =&gt; +inf
+pow(-inf, -inf) =&gt; 1.0
+pow(NaN, y)     =&gt; NaN if y != 0.0
+pow(NaN, 0.0)   =&gt; 1.0
+pow(x, NaN)     =&gt; NaN for any Float x</code></pre>
+
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Float &quot;mo:base/Float&quot;;
+
+Float.pow(2.5, 2.0) // =&gt; 6.25</code></pre></p></div></div></body></html>

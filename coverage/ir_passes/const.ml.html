@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>const.ml &mdash; Coverage report</title>
+    <meta name="description" content="87.35% coverage in ir_passes/const.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">ir_passes/</span>const.ml
+        </a>
+      </h1>
+      <h2>87.35%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="top:34.01%"></span>
+      <span class="some-visited" style="bottom:43.72%"></span>
+      <span class="some-visited" style="bottom:36.84%"></span>
+      <span class="unvisited" style="bottom:35.22%"></span>
+      <span class="unvisited" style="bottom:34.41%"></span>
+      <span class="unvisited" style="bottom:34.01%"></span>
+      <span class="unvisited" style="bottom:33.60%"></span>
+      <span class="unvisited" style="bottom:32.39%"></span>
+      <span class="unvisited" style="bottom:31.17%"></span>
+      <span class="unvisited" style="bottom:30.77%"></span>
+      <span class="unvisited" style="bottom:30.36%"></span>
+      <span class="unvisited" style="bottom:29.96%"></span>
+      <span class="unvisited" style="bottom:29.55%"></span>
+      <span class="unvisited" style="bottom:29.15%"></span>
+      <span class="unvisited" style="bottom:28.74%"></span>
+      <span class="unvisited" style="bottom:28.34%"></span>
+      <span class="unvisited" style="bottom:6.88%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span > </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span > </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span > </span>
+<a id="L29"></a><span > </span>
+<a id="L30"></a><span > </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span > </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span > </span>
+<a id="L40"></a><span > </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span > </span>
+<a id="L43"></a><span > </span>
+<a id="L44"></a><span > </span>
+<a id="L45"></a><span > </span>
+<a id="L46"></a><span > </span>
+<a id="L47"></a><span > </span>
+<a id="L48"></a><span > </span>
+<a id="L49"></a><span > </span>
+<a id="L50"></a><span > </span>
+<a id="L51"></a><span > </span>
+<a id="L52"></a><span > </span>
+<a id="L53"></a><span > </span>
+<a id="L54"></a><span > </span>
+<a id="L55"></a><span > </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span > </span>
+<a id="L58"></a><span > </span>
+<a id="L59"></a><span > </span>
+<a id="L60"></a><span > </span>
+<a id="L61"></a><span > </span>
+<a id="L62"></a><span > </span>
+<a id="L63"></a><span > </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span > </span>
+<a id="L67"></a><span > </span>
+<a id="L68"></a><span > </span>
+<a id="L69"></a><span > </span>
+<a id="L70"></a><span > </span>
+<a id="L71"></a><span > </span>
+<a id="L72"></a><span class="visited"> </span>
+<a id="L73"></a><span class="visited"> </span>
+<a id="L74"></a><span > </span>
+<a id="L75"></a><span class="visited"> </span>
+<a id="L76"></a><span class="visited"> </span>
+<a id="L77"></a><span class="visited"> </span>
+<a id="L78"></a><span class="visited"> </span>
+<a id="L79"></a><span class="visited"> </span>
+<a id="L80"></a><span class="visited"> </span>
+<a id="L81"></a><span class="visited"> </span>
+<a id="L82"></a><span > </span>
+<a id="L83"></a><span class="visited"> </span>
+<a id="L84"></a><span class="unvisited"> </span>
+<a id="L85"></a><span class="visited"> </span>
+<a id="L86"></a><span > </span>
+<a id="L87"></a><span > </span>
+<a id="L88"></a><span > </span>
+<a id="L89"></a><span > </span>
+<a id="L90"></a><span > </span>
+<a id="L91"></a><span class="visited"> </span>
+<a id="L92"></a><span class="visited"> </span>
+<a id="L93"></a><span > </span>
+<a id="L94"></a><span > </span>
+<a id="L95"></a><span class="visited"> </span>
+<a id="L96"></a><span class="visited"> </span>
+<a id="L97"></a><span > </span>
+<a id="L98"></a><span > </span>
+<a id="L99"></a><span > </span>
+<a id="L100"></a><span > </span>
+<a id="L101"></a><span class="visited"> </span>
+<a id="L102"></a><span > </span>
+<a id="L103"></a><span class="visited"> </span>
+<a id="L104"></a><span class="visited"> </span>
+<a id="L105"></a><span class="visited"> </span>
+<a id="L106"></a><span class="visited"> </span>
+<a id="L107"></a><span > </span>
+<a id="L108"></a><span class="visited"> </span>
+<a id="L109"></a><span > </span>
+<a id="L110"></a><span class="visited"> </span>
+<a id="L111"></a><span class="visited"> </span>
+<a id="L112"></a><span > </span>
+<a id="L113"></a><span class="visited"> </span>
+<a id="L114"></a><span class="visited"> </span>
+<a id="L115"></a><span class="visited"> </span>
+<a id="L116"></a><span class="visited"> </span>
+<a id="L117"></a><span class="visited"> </span>
+<a id="L118"></a><span class="visited"> </span>
+<a id="L119"></a><span > </span>
+<a id="L120"></a><span class="visited"> </span>
+<a id="L121"></a><span class="visited"> </span>
+<a id="L122"></a><span class="visited"> </span>
+<a id="L123"></a><span class="visited"> </span>
+<a id="L124"></a><span class="visited"> </span>
+<a id="L125"></a><span class="visited"> </span>
+<a id="L126"></a><span class="visited"> </span>
+<a id="L127"></a><span class="visited"> </span>
+<a id="L128"></a><span class="visited"> </span>
+<a id="L129"></a><span class="visited"> </span>
+<a id="L130"></a><span > </span>
+<a id="L131"></a><span > </span>
+<a id="L132"></a><span > </span>
+<a id="L133"></a><span class="visited"> </span>
+<a id="L134"></a><span class="visited"> </span>
+<a id="L135"></a><span class="visited"> </span>
+<a id="L136"></a><span class="visited"> </span>
+<a id="L137"></a><span class="visited"> </span>
+<a id="L138"></a><span class="visited"> </span>
+<a id="L139"></a><span class="some-visited"> </span>
+<a id="L140"></a><span > </span>
+<a id="L141"></a><span class="visited"> </span>
+<a id="L142"></a><span class="visited"> </span>
+<a id="L143"></a><span > </span>
+<a id="L144"></a><span class="visited"> </span>
+<a id="L145"></a><span class="visited"> </span>
+<a id="L146"></a><span > </span>
+<a id="L147"></a><span class="visited"> </span>
+<a id="L148"></a><span class="visited"> </span>
+<a id="L149"></a><span class="visited"> </span>
+<a id="L150"></a><span class="visited"> </span>
+<a id="L151"></a><span > </span>
+<a id="L152"></a><span class="visited"> </span>
+<a id="L153"></a><span class="visited"> </span>
+<a id="L154"></a><span class="visited"> </span>
+<a id="L155"></a><span class="visited"> </span>
+<a id="L156"></a><span class="some-visited"> </span>
+<a id="L157"></a><span > </span>
+<a id="L158"></a><span class="visited"> </span>
+<a id="L159"></a><span class="visited"> </span>
+<a id="L160"></a><span class="unvisited"> </span>
+<a id="L161"></a><span > </span>
+<a id="L162"></a><span class="unvisited"> </span>
+<a id="L163"></a><span class="unvisited"> </span>
+<a id="L164"></a><span class="unvisited"> </span>
+<a id="L165"></a><span class="visited"> </span>
+<a id="L166"></a><span > </span>
+<a id="L167"></a><span class="unvisited"> </span>
+<a id="L168"></a><span > </span>
+<a id="L169"></a><span > </span>
+<a id="L170"></a><span class="unvisited"> </span>
+<a id="L171"></a><span class="unvisited"> </span>
+<a id="L172"></a><span class="unvisited"> </span>
+<a id="L173"></a><span class="unvisited"> </span>
+<a id="L174"></a><span class="unvisited"> </span>
+<a id="L175"></a><span class="unvisited"> </span>
+<a id="L176"></a><span class="unvisited"> </span>
+<a id="L177"></a><span class="unvisited"> </span>
+<a id="L178"></a><span > </span>
+<a id="L179"></a><span > </span>
+<a id="L180"></a><span class="visited"> </span>
+<a id="L181"></a><span > </span>
+<a id="L182"></a><span class="visited"> </span>
+<a id="L183"></a><span > </span>
+<a id="L184"></a><span class="visited"> </span>
+<a id="L185"></a><span > </span>
+<a id="L186"></a><span > </span>
+<a id="L187"></a><span class="visited"> </span>
+<a id="L188"></a><span > </span>
+<a id="L189"></a><span class="visited"> </span>
+<a id="L190"></a><span class="visited"> </span>
+<a id="L191"></a><span > </span>
+<a id="L192"></a><span > </span>
+<a id="L193"></a><span class="visited"> </span>
+<a id="L194"></a><span class="visited"> </span>
+<a id="L195"></a><span class="visited"> </span>
+<a id="L196"></a><span class="visited"> </span>
+<a id="L197"></a><span > </span>
+<a id="L198"></a><span > </span>
+<a id="L199"></a><span class="visited"> </span>
+<a id="L200"></a><span > </span>
+<a id="L201"></a><span class="visited"> </span>
+<a id="L202"></a><span class="visited"> </span>
+<a id="L203"></a><span class="visited"> </span>
+<a id="L204"></a><span class="visited"> </span>
+<a id="L205"></a><span class="visited"> </span>
+<a id="L206"></a><span class="visited"> </span>
+<a id="L207"></a><span class="visited"> </span>
+<a id="L208"></a><span > </span>
+<a id="L209"></a><span class="visited"> </span>
+<a id="L210"></a><span class="visited"> </span>
+<a id="L211"></a><span > </span>
+<a id="L212"></a><span > </span>
+<a id="L213"></a><span > </span>
+<a id="L214"></a><span class="visited"> </span>
+<a id="L215"></a><span > </span>
+<a id="L216"></a><span > </span>
+<a id="L217"></a><span class="visited"> </span>
+<a id="L218"></a><span class="visited"> </span>
+<a id="L219"></a><span class="visited"> </span>
+<a id="L220"></a><span class="visited"> </span>
+<a id="L221"></a><span > </span>
+<a id="L222"></a><span class="visited"> </span>
+<a id="L223"></a><span > </span>
+<a id="L224"></a><span > </span>
+<a id="L225"></a><span class="visited"> </span>
+<a id="L226"></a><span class="visited"> </span>
+<a id="L227"></a><span class="visited"> </span>
+<a id="L228"></a><span > </span>
+<a id="L229"></a><span > </span>
+<a id="L230"></a><span class="unvisited"> </span>
+<a id="L231"></a><span class="visited"> </span>
+<a id="L232"></a><span class="visited"> </span>
+<a id="L233"></a><span > </span>
+<a id="L234"></a><span class="visited"> </span>
+<a id="L235"></a><span class="visited"> </span>
+<a id="L236"></a><span > </span>
+<a id="L237"></a><span > </span>
+<a id="L238"></a><span class="visited"> </span>
+<a id="L239"></a><span class="visited"> </span>
+<a id="L240"></a><span class="visited"> </span>
+<a id="L241"></a><span class="visited"> </span>
+<a id="L242"></a><span class="visited"> </span>
+<a id="L243"></a><span class="visited"> </span>
+<a id="L244"></a><span class="visited"> </span>
+<a id="L245"></a><span > </span>
+<a id="L246"></a><span > </span>
+<a id="L247"></a><span class="visited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+<a href="#L106">106</a>
+<a href="#L107">107</a>
+<a href="#L108">108</a>
+<a href="#L109">109</a>
+<a href="#L110">110</a>
+<a href="#L111">111</a>
+<a href="#L112">112</a>
+<a href="#L113">113</a>
+<a href="#L114">114</a>
+<a href="#L115">115</a>
+<a href="#L116">116</a>
+<a href="#L117">117</a>
+<a href="#L118">118</a>
+<a href="#L119">119</a>
+<a href="#L120">120</a>
+<a href="#L121">121</a>
+<a href="#L122">122</a>
+<a href="#L123">123</a>
+<a href="#L124">124</a>
+<a href="#L125">125</a>
+<a href="#L126">126</a>
+<a href="#L127">127</a>
+<a href="#L128">128</a>
+<a href="#L129">129</a>
+<a href="#L130">130</a>
+<a href="#L131">131</a>
+<a href="#L132">132</a>
+<a href="#L133">133</a>
+<a href="#L134">134</a>
+<a href="#L135">135</a>
+<a href="#L136">136</a>
+<a href="#L137">137</a>
+<a href="#L138">138</a>
+<a href="#L139">139</a>
+<a href="#L140">140</a>
+<a href="#L141">141</a>
+<a href="#L142">142</a>
+<a href="#L143">143</a>
+<a href="#L144">144</a>
+<a href="#L145">145</a>
+<a href="#L146">146</a>
+<a href="#L147">147</a>
+<a href="#L148">148</a>
+<a href="#L149">149</a>
+<a href="#L150">150</a>
+<a href="#L151">151</a>
+<a href="#L152">152</a>
+<a href="#L153">153</a>
+<a href="#L154">154</a>
+<a href="#L155">155</a>
+<a href="#L156">156</a>
+<a href="#L157">157</a>
+<a href="#L158">158</a>
+<a href="#L159">159</a>
+<a href="#L160">160</a>
+<a href="#L161">161</a>
+<a href="#L162">162</a>
+<a href="#L163">163</a>
+<a href="#L164">164</a>
+<a href="#L165">165</a>
+<a href="#L166">166</a>
+<a href="#L167">167</a>
+<a href="#L168">168</a>
+<a href="#L169">169</a>
+<a href="#L170">170</a>
+<a href="#L171">171</a>
+<a href="#L172">172</a>
+<a href="#L173">173</a>
+<a href="#L174">174</a>
+<a href="#L175">175</a>
+<a href="#L176">176</a>
+<a href="#L177">177</a>
+<a href="#L178">178</a>
+<a href="#L179">179</a>
+<a href="#L180">180</a>
+<a href="#L181">181</a>
+<a href="#L182">182</a>
+<a href="#L183">183</a>
+<a href="#L184">184</a>
+<a href="#L185">185</a>
+<a href="#L186">186</a>
+<a href="#L187">187</a>
+<a href="#L188">188</a>
+<a href="#L189">189</a>
+<a href="#L190">190</a>
+<a href="#L191">191</a>
+<a href="#L192">192</a>
+<a href="#L193">193</a>
+<a href="#L194">194</a>
+<a href="#L195">195</a>
+<a href="#L196">196</a>
+<a href="#L197">197</a>
+<a href="#L198">198</a>
+<a href="#L199">199</a>
+<a href="#L200">200</a>
+<a href="#L201">201</a>
+<a href="#L202">202</a>
+<a href="#L203">203</a>
+<a href="#L204">204</a>
+<a href="#L205">205</a>
+<a href="#L206">206</a>
+<a href="#L207">207</a>
+<a href="#L208">208</a>
+<a href="#L209">209</a>
+<a href="#L210">210</a>
+<a href="#L211">211</a>
+<a href="#L212">212</a>
+<a href="#L213">213</a>
+<a href="#L214">214</a>
+<a href="#L215">215</a>
+<a href="#L216">216</a>
+<a href="#L217">217</a>
+<a href="#L218">218</a>
+<a href="#L219">219</a>
+<a href="#L220">220</a>
+<a href="#L221">221</a>
+<a href="#L222">222</a>
+<a href="#L223">223</a>
+<a href="#L224">224</a>
+<a href="#L225">225</a>
+<a href="#L226">226</a>
+<a href="#L227">227</a>
+<a href="#L228">228</a>
+<a href="#L229">229</a>
+<a href="#L230">230</a>
+<a href="#L231">231</a>
+<a href="#L232">232</a>
+<a href="#L233">233</a>
+<a href="#L234">234</a>
+<a href="#L235">235</a>
+<a href="#L236">236</a>
+<a href="#L237">237</a>
+<a href="#L238">238</a>
+<a href="#L239">239</a>
+<a href="#L240">240</a>
+<a href="#L241">241</a>
+<a href="#L242">242</a>
+<a href="#L243">243</a>
+<a href="#L244">244</a>
+<a href="#L245">245</a>
+<a href="#L246">246</a>
+<a href="#L247">247</a>
+</pre>
+<pre><code class="ocaml">open Mo_types
+open Ir_def
+open Source
+open Ir
+open Lbool
+
+(*
+  This module identifies subexpressions that can be compiled statically. This
+  means each subexpression must be a constant, immutable value for which the
+  backend can create the memory representation statically.
+
+  This module should stay in sync with the
+   * the `compile_const_exp` function in `codegen/compile.ml`
+   * the `Const.t` type in `codegen/compile.ml.
+   * the checks in Check_ir.
+
+  ## What is const?
+
+  The high-level idea is
+
+  * Variables can be const if their definition is const (beware, recursion!)
+  * Blocks can be const if
+    - all RHSs are const, and
+    - no mutable variable are defined, and
+    - pattern matching is side-effect free, i.e. irrefutable
+  * Functions can be const if they do not require a closure.
+    This is the case if every free variable is
+    - const or
+    - bound at the top level (`loc_known = true` below)
+  * Literals can be const
+  * Data structures can be const if they are immutable and all components are
+    const
+  * Projections can be const if they cannot fail (so no array index) and
+    their argument is const
+
+  I say “can be const” because the analysis does not have to be complete, just
+  conservative.
+
+  ## How does the analysis work?
+
+  If we didn't have recursion, this would be simple: We'd pass down an environment
+  mapping all free variables to whether they are constant or not (bool E.t), use this
+  in the VarE case, and otherwise const-able expressions are constant when their
+  subexpressions are.
+
+  As always, recursion makes things harder. But not too much, thanks to a trick:
+  we pass down a custom type called `Lbool.t`. It denotes a boolean value,
+  just we do not know which one yet.  But we can still register implications on
+  these values. Internally, these lazy_bool values keep track of their
+  dependencies, and propagate additional information automatically. When one of them
+  knows it is going to be surely false, then it updates the corresponding
+  `note.const` field. See lbool.mli for more on that.
+
+  This analysis relies on the fact that AST notes are mutable. So sharing AST
+  nodes would be bad.  Check_ir checks for the absence of sharing.
+*)
+
+(* The environment *)
+
+type lvl = TopLvl | NotTopLvl
+
+module M = Env.Make(String)
+
+type info = {
+  loc_known : bool;
+  const : Lbool.t;
+}
+type env = info M.t
+
+
+let no_info = { loc_known = false; const = surely_false }
+let arg lvl env a = <span data-count="244637">M</span>.add a.it { no_info with loc_known = lvl = TopLvl } env
+let args lvl env as_ = <span data-count="224613">L</span>ist.fold_left (ar<span data-count="224613">g</span> lvl) env as_
+
+let rec pat env p = <span data-count="126444">m</span>atch p.it with
+  | <span data-count="12826">W</span>ildP
+  | <span data-count="25568">L</span>itP _ -&gt; env
+  | <span data-count="37470">V</span>arP id -&gt; M.add id no_info env
+  | <span data-count="4958">T</span>upP pats -&gt; List.fold_left pat env pats
+  | <span data-count="2140">O</span>bjP pfs -&gt; List.fold_left pat env (pats_of_obj_pa<span data-count="2140">t</span> pfs)
+  | <span data-count="2798">A</span>ltP (pat1, _) | <span data-count="25687">O</span>ptP pat1 | <span data-count="14997">T</span>agP (_, pat1) -&gt; pat env pat1
+
+let find v env = <span data-count="1130278">m</span>atch M.find_opt v env with
+  | <span data-count="0">N</span>one -&gt; raise (Invalid_argument (Printf.sprint<span data-count="0">f</span> "Unbound var: %s\n" v))
+  | <span data-count="1130278">S</span>ome lb -&gt; lb
+
+
+(* Setting the notes *)
+
+let set_const e b =
+  <span data-count="4211052">i</span>f e.note.Note.const != b
+  then <span data-count="4211052">e</span>.note &lt;- Note.{ e.note with const = b }
+
+let set_lazy_const e lb =
+  <span data-count="2422428">s</span>et_const e true;
+  <span data-count="2422428">w</span>hen_false lb (lazy <span data-count="1788624">(</span>set_const e false))
+
+(* Traversals *)
+
+let rec exp lvl (env : env) e : Lbool.t =
+  <span data-count="2422428">l</span>et lb =
+    match e.it with
+    | <span data-count="784928">V</span>arE (_, v) -&gt; (fin<span data-count="784928">d</span> v env).const (*FIXME: use the mutability marker?*)
+    | <span data-count="224577">F</span>uncE (x, s, c, tp, as_ , ts, body) -&gt;
+      exp_ NotTopLvl (arg<span data-count="224577">s</span> NotTopLvl env as_) body;
+      <span data-count="224577">b</span>egin match s, lvl with
+      (* shared functions are not const for now *)
+      | <span data-count="1525">T</span>ype.Shared _, _ -&gt; surely_false
+      (* top-level functions can always be const (all free variables are top-level) *)
+      | <span data-count="140999">_</span>, TopLvl -&gt; surely_true
+      | <span data-count="82053">_</span>, NotTopLvl -&gt;
+        let lb = maybe_false () in
+        <span data-count="82053">F</span>reevars.M.iter (fun v _ -&gt;
+          <span data-count="169557">l</span>et {loc_known; const} = find v env in
+          <span data-count="169557">i</span>f loc_known then <span data-count="47979">(</span>) else (* static definitions are ok *)
+          <span data-count="121578">r</span>equired_for const lb
+        ) (Freevars.ex<span data-count="82053">p</span> e);
+        <span data-count="82053">l</span>b
+      end
+    | <span data-count="24681">N</span>ewObjE (Type.(<span data-count="22863">O</span>bject | <span data-count="1818">M</span>odule), fs, t) when Type.is_immutable_ob<span data-count="24681">j</span> t -&gt;
+      <span data-count="23247">a</span>l<span data-count="23247">l</span> (List.ma<span data-count="23247">p</span> (fun f -&gt; <span data-count="175793">(</span>fin<span data-count="175793">d</span> f.it.var env).const) fs)
+    | <span data-count="191355">B</span>lockE (ds, body) -&gt;
+      bloc<span data-count="191355">k</span> lvl env (ds, body)
+    | <span data-count="183117">P</span>rimE (TupPrim, es)
+    | <span data-count="1080">P</span>rimE (ArrayPrim (Const, _), es) -&gt;
+      al<span data-count="184197">l</span> (List.ma<span data-count="184197">p</span> (fun e -&gt; <span data-count="128660">e</span>xp lvl env e) es)
+    | PrimE (<span data-count="60743">D</span>otPrim _, [e1] | <span data-count="18225">P</span>rojPrim _, [e1] | <span data-count="25841">O</span>ptPrim, [e1] | <span data-count="10075">T</span>agPrim _, [e1]) -&gt;
+      ex<span data-count="114884">p</span> lvl env e1
+    | <span data-count="179709">L</span>itE _ -&gt;
+      surely_true
+
+    (* All the following expressions cannot be const, but we still need to descend *)
+    | <span data-count="516774">P</span>rimE (_, es) -&gt;
+      List.iter (exp<span data-count="516774">_</span> lvl env) es;
+      <span data-count="516774">s</span>urely_false
+    | <span data-count="16983">D</span>eclareE (id, _, e1) -&gt;
+      exp_ lvl (M.ad<span data-count="16983">d</span> id no_info env) e1;
+      <span data-count="16983">s</span>urely_false
+    | <span data-count="10361">L</span>oopE e1 | <span data-count="0">A</span>syncE (_, _, e1, _) -&gt;
+      exp_ NotTopLvl env e1;
+      <span data-count="10361">s</span>urely_false
+    | <span data-count="51221">A</span>ssignE (_, e1) | <span data-count="10086">L</span>abelE (_, _, e1) | <span data-count="16983">D</span>efineE (_, _, e1) -&gt;
+      exp_ lvl env e1;
+      <span data-count="78290">s</span>urely_false
+    | <span data-count="56944">I</span>fE (e1, e2, e3) -&gt;
+      exp_ lvl env e1;
+      <span data-count="56944">e</span>xp_ lvl env e2;
+      <span data-count="56944">e</span>xp_ lvl env e3;
+      <span data-count="56944">s</span>urely_false
+    | <span data-count="6902">S</span>elfCallE (_, e1, e2, e3, e4) -&gt;
+      exp_ NotTopLvl env e1;
+      <span data-count="6902">e</span>xp_ lvl env e2;
+      <span data-count="6902">e</span>xp_ lvl env e3;
+      <span data-count="6902">e</span>xp_ lvl env e4;
+      <span data-count="6902">s</span>urely_false
+    | <span data-count="31164">S</span>witchE (e1, cs) | <span data-count="0">T</span>ryE (e1, cs, None) -&gt;
+      exp_ lvl env e1;
+      <span data-count="31164">L</span>ist.iter (case<span data-count="31164">_</span> lvl env) cs;
+      <span data-count="31164">s</span>urely_false
+    | <span data-count="0">T</span>ryE (e1, cs, Some (v, t)) -&gt;
+      exp_ lvl env e1;
+      <span data-count="0">L</span>ist.iter (case<span data-count="0">_</span> lvl env) cs;
+      <span data-count="0">e</span>xp_ lvl env Construct.(var v t |&gt; <span data-count="0">v</span>ar<span data-count="0">E</span>);
+      <span data-count="0">s</span>urely_false
+    | <span data-count="2113">N</span>ewObjE _ -&gt; (* mutable objects *)
+      surely_false
+    | <span data-count="0">A</span>ctorE (ds, fs, {meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; stable_type}, _typ) -&gt;
+      (* this may well be “the” top-level actor, so don’t update lvl here *)
+      let (env', _) = decs lvl env ds in
+      <span data-count="0">e</span>xp_ lvl env' preupgrade;
+      <span data-count="0">e</span>xp_ lvl env' postupgrade;
+      <span data-count="0">e</span>xp_ lvl env' heartbeat;
+      <span data-count="0">e</span>xp_ lvl env' timer;
+      <span data-count="0">e</span>xp_ lvl env' inspect;
+      <span data-count="0">e</span>xp_ lvl env' low_memory;
+      <span data-count="0">e</span>xp_ lvl env' stable_record;
+      <span data-count="0">s</span>urely_false
+  in
+  set_lazy_const e lb;
+  <span data-count="2422428">l</span>b
+
+and exp_ lvl env e : unit = <span data-count="1491331">i</span>gnore (ex<span data-count="1491331">p</span> lvl env e)
+and case_ lvl env c : unit =
+  <span data-count="65705">e</span>xp_ lvl (pa<span data-count="65705">t</span> env c.it.pat) c.it.exp
+
+and gather_dec lvl scope dec : env =
+  <span data-count="524941">l</span>et mk_info const = <span data-count="470547">{</span> loc_known = lvl = TopLvl; const } in
+  let ok = match dec.it with
+  | <span data-count="496424">L</span>etD (p, _) -&gt; Ir_utils.is_irrefutabl<span data-count="496424">e</span> p
+  | <span data-count="28515">V</span>arD _ | <span data-count="2">R</span>efD _ -&gt; false
+  in
+  M.fold (fun v _ scope -&gt;
+    <span data-count="470547">i</span>f ok
+    then <span data-count="441949">M</span>.add v (mk_inf<span data-count="441949">o</span> (maybe_fals<span data-count="441949">e</span> ())) scope
+    else <span data-count="28598">M</span>.add v (mk_inf<span data-count="28598">o</span> surely_false) scope
+  ) (sn<span data-count="524941">d</span> (Freevars.de<span data-count="524941">c</span> dec)) scope (* TODO: implement gather_dec more directly *)
+
+and gather_decs lvl ds : env =
+  <span data-count="192051">L</span>ist.fold_left (gather_de<span data-count="192051">c</span> lvl) M.empty ds
+
+and check_dec lvl env dec : Lbool.t = <span data-count="524941">m</span>atch dec.it with
+  | <span data-count="496424">L</span>etD (p, e) when Ir_utils.is_irrefutabl<span data-count="496424">e</span> p -&gt;
+    <span data-count="496198">l</span>et vs = snd (Freevars.de<span data-count="496198">c</span> dec) in (* TODO: implement gather_dec more directly *)
+    <span data-count="496198">l</span>et lb = exp lvl env e in
+    <span data-count="496198">M</span>.iter (fun v _ -&gt; <span data-count="441949">r</span>equired_for lb (M.fin<span data-count="441949">d</span> v env).const) vs;
+    <span data-count="496198">l</span>b
+  | <span data-count="28515">V</span>arD (_, _, e) | <span data-count="226">L</span>etD (_, e) -&gt;
+    exp_ lvl env e;
+    <span data-count="28741">s</span>urely_false
+  | <span data-count="2">R</span>efD (_, _, _) -&gt;
+    surely_false
+
+and check_decs lvl env ds : Lbool.t =
+  <span data-count="192051">a</span>ll (List.ma<span data-count="192051">p</span> (check_de<span data-count="192051">c</span> lvl env) ds)
+
+and decs lvl env ds : (env * Lbool.t) =
+  <span data-count="192051">l</span>et scope = gather_decs lvl ds in
+  <span data-count="192051">l</span>et env' = M.adjoin env scope in
+  <span data-count="192051">l</span>et could_be = check_decs lvl env' ds in
+  <span data-count="192051">(</span>env', could_be)
+
+and decs_ lvl env ds = <span data-count="357">i</span>gnore (dec<span data-count="357">s</span> lvl env ds)
+
+and block lvl env (ds, body) =
+  <span data-count="191355">l</span>et (env', decs_const) = decs lvl env ds in
+  <span data-count="191355">l</span>et exp_const = exp lvl env' body in
+  <span data-count="191355">a</span>ll [decs_const; exp_const]
+
+and comp_unit = function
+  | <span data-count="0">L</span>ibU _ -&gt; raise (Invalid_argument "cannot compile library")
+  | <span data-count="357">P</span>rogU ds -&gt; decs_ TopLvl M.empty ds
+  | <span data-count="339">A</span>ctorU (as_opt, ds, fs, {meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; stable_type}, typ) -&gt;
+    let env = match as_opt with
+      | <span data-count="303">N</span>one -&gt; M.empty
+      | <span data-count="36">S</span>ome as_ -&gt; arg<span data-count="36">s</span> TopLvl M.empty as_
+    in
+    let (env', _) = decs TopLvl env ds in
+    <span data-count="339">e</span>xp_ TopLvl env' preupgrade;
+    <span data-count="339">e</span>xp_ TopLvl env' postupgrade;
+    <span data-count="339">e</span>xp_ TopLvl env' heartbeat;
+    <span data-count="339">e</span>xp_ TopLvl env' timer;
+    <span data-count="339">e</span>xp_ TopLvl env' inspect;
+    <span data-count="339">e</span>xp_ TopLvl env' low_memory;
+    <span data-count="339">e</span>xp_ TopLvl env' stable_record
+
+let analyze ((cu, _flavor) : prog) =
+  <span data-count="696">i</span>gnore (comp_uni<span data-count="696">t</span> cu)
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

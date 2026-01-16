@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Blob.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Blob.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coreblob" id="toc-coreblob">core/Blob</a>
+<ul>
+<li><a href="#type-blob" id="toc-type-blob">Type
+<code>Blob</code></a></li>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+<li><a href="#function-hash" id="toc-function-hash">Function
+<code>hash</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-notequal" id="toc-function-notequal">Function
+<code>notEqual</code></a></li>
+<li><a href="#function-less" id="toc-function-less">Function
+<code>less</code></a></li>
+<li><a href="#function-lessorequal"
+id="toc-function-lessorequal">Function <code>lessOrEqual</code></a></li>
+<li><a href="#function-greater" id="toc-function-greater">Function
+<code>greater</code></a></li>
+<li><a href="#function-greaterorequal"
+id="toc-function-greaterorequal">Function
+<code>greaterOrEqual</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coreblob">core/Blob</h1>
+<p>Module for working with Blobs (immutable sequences of bytes).</p>
+<p>Blobs represent sequences of bytes. They are immutable, iterable, but
+not indexable and can be empty.</p>
+<p>Byte sequences are also often represented as <code>[Nat8]</code>,
+i.e. an array of bytes, but this representation is currently much less
+compact than <code>Blob</code>, taking 4 physical bytes to represent
+each logical byte in the sequence. If you would like to manipulate
+Blobs, it is recommended that you convert Blobs to
+<code>[var Nat8]</code> or <code>Buffer&lt;Nat8&gt;</code>, do the
+manipulation, then convert back.</p>
+<p>Import from the core package to use this module.</p>
+<pre class="motoko"><code>import Blob &quot;mo:core/Blob&quot;;</code></pre>
+<p>Some built in features not listed in this module:</p>
+<ul>
+<li>You can create a <code>Blob</code> literal from a <code>Text</code>
+literal, provided the context expects an expression of type
+<code>Blob</code>.</li>
+<li><code>b.size() : Nat</code> returns the number of bytes in the blob
+<code>b</code>;</li>
+<li><code>b.values() : Iter.Iter&lt;Nat8&gt;</code> returns an iterator
+to enumerate the bytes of the blob <code>b</code>.</li>
+</ul>
+<p>For example:</p>
+<pre class="motoko"><code>import Debug &quot;mo:core/Debug&quot;;
+import Nat8 &quot;mo:core/Nat8&quot;;
+
+let blob = &quot;\00\00\00\ff&quot; : Blob; // blob literals, where each byte is delimited by a back-slash and represented in hex
+let blob2 = &quot;charsもあり&quot; : Blob; // you can also use characters in the literals
+let numBytes = blob.size();
+assert numBytes == 4; // returns the number of bytes in the Blob
+for (byte in blob.values()) { // iterator over the Blob
+  Debug.print(Nat8.toText(byte))
+}</code></pre>
+<h2 id="type-blob">Type <code>Blob</code></h2>
+<pre class="motoko"><code>type Blob = Prim.Types.Blob</code></pre>
+<h2 id="function-empty">Function <code>empty</code></h2>
+<pre class="motoko"><code>func empty() : Blob</code></pre>
+<p>Returns an empty <code>Blob</code> (equivalent to
+<code>""</code>).</p>
+<p>Example:</p>
+<pre class="motoko"><code>let emptyBlob = Blob.empty();
+assert emptyBlob.size() == 0;</code></pre>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty(self : Blob) : Bool</code></pre>
+<p>Returns whether the given <code>Blob</code> is empty (has a size of
+zero).</p>
+<pre class="motoko"><code>let blob1 = &quot;&quot; : Blob;
+let blob2 = &quot;\FF\00&quot; : Blob;
+assert Blob.isEmpty(blob1);
+assert not Blob.isEmpty(blob2);</code></pre>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size(self : Blob) : Nat</code></pre>
+<p>Returns the number of bytes in the given <code>Blob</code>. This is
+equivalent to <code>blob.size()</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob = &quot;\FF\00\AA&quot; : Blob;
+assert Blob.size(blob) == 3;
+assert blob.size() == 3;</code></pre>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray(bytes : [Nat8]) : Blob</code></pre>
+<p>Creates a <code>Blob</code> from an array of bytes
+(<code>[Nat8]</code>), by copying each element.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let bytes : [Nat8] = [0, 255, 0];
+let blob = Blob.fromArray(bytes);
+assert blob == &quot;\00\FF\00&quot;;</code></pre>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray(bytes : [var Nat8]) : Blob</code></pre>
+<p>Creates a <code>Blob</code> from a mutable array of bytes
+(<code>[var Nat8]</code>), by copying each element.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let bytes : [var Nat8] = [var 0, 255, 0];
+let blob = Blob.fromVarArray(bytes);
+assert blob == &quot;\00\FF\00&quot;;</code></pre>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray(self : Blob) : [Nat8]</code></pre>
+<p>Converts a <code>Blob</code> to an array of bytes
+(<code>[Nat8]</code>), by copying each element.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob = &quot;\00\FF\00&quot; : Blob;
+let bytes = Blob.toArray(blob);
+assert bytes == [0, 255, 0];</code></pre>
+<h2 id="function-tovararray">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray(self : Blob) : [var Nat8]</code></pre>
+<p>Converts a <code>Blob</code> to a mutable array of bytes
+(<code>[var Nat8]</code>), by copying each element.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat8 &quot;mo:core/Nat8&quot;;
+import VarArray &quot;mo:core/VarArray&quot;;
+
+let blob = &quot;\00\FF\00&quot; : Blob;
+let bytes = Blob.toVarArray(blob);
+assert VarArray.equal&lt;Nat8&gt;(bytes, [var 0, 255, 0], Nat8.equal);</code></pre>
+<h2 id="function-hash">Function <code>hash</code></h2>
+<pre class="motoko"><code>func hash(self : Blob) : Types.Hash</code></pre>
+<p>Returns the (non-cryptographic) hash of <code>blob</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob = &quot;\00\FF\00&quot; : Blob;
+let h = Blob.hash(blob);
+assert h == 1_818_567_776;</code></pre>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare(self : Blob, other : Blob) : Order.Order</code></pre>
+<p>General purpose comparison function for <code>Blob</code> by
+comparing the value of the bytes. Returns the <code>Order</code> (either
+<code>#less</code>, <code>#equal</code>, or <code>#greater</code>) by
+comparing <code>blob1</code> with <code>blob2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob1 = &quot;\00\00\00&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+let result = Blob.compare(blob1, blob2);
+assert result == #less;</code></pre>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal(self : Blob, other : Blob) : Bool</code></pre>
+<p>Equality function for <code>Blob</code> types. This is equivalent to
+<code>blob1 == blob2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob1 = &quot;\00\FF\00&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+assert Blob.equal(blob1, blob2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>==</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import List &quot;mo:core/List&quot;;
+
+let list1 = List.singleton&lt;Blob&gt;(&quot;\00\FF\00&quot;);
+let list2 = List.singleton&lt;Blob&gt;(&quot;\00\FF\00&quot;);
+assert List.equal(list1, list2, Blob.equal);</code></pre>
+<h2 id="function-notequal">Function <code>notEqual</code></h2>
+<pre class="motoko"><code>func notEqual(self : Blob, other : Blob) : Bool</code></pre>
+<p>Inequality function for <code>Blob</code> types. This is equivalent
+to <code>blob1 != blob2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob1 = &quot;\00\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+assert Blob.notEqual(blob1, blob2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>!=</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-less">Function <code>less</code></h2>
+<pre class="motoko"><code>func less(self : Blob, other : Blob) : Bool</code></pre>
+<p>"Less than" function for <code>Blob</code> types. This is equivalent
+to <code>blob1 &lt; blob2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob1 = &quot;\00\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+assert Blob.less(blob1, blob2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-lessorequal">Function <code>lessOrEqual</code></h2>
+<pre class="motoko"><code>func lessOrEqual(self : Blob, other : Blob) : Bool</code></pre>
+<p>"Less than or equal to" function for <code>Blob</code> types. This is
+equivalent to <code>blob1 &lt;= blob2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob1 = &quot;\00\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+assert Blob.lessOrEqual(blob1, blob2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;=</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-greater">Function <code>greater</code></h2>
+<pre class="motoko"><code>func greater(self : Blob, other : Blob) : Bool</code></pre>
+<p>"Greater than" function for <code>Blob</code> types. This is
+equivalent to <code>blob1 &gt; blob2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob1 = &quot;\BB\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\00\00&quot; : Blob;
+assert Blob.greater(blob1, blob2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&gt;</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-greaterorequal">Function
+<code>greaterOrEqual</code></h2>
+<pre class="motoko"><code>func greaterOrEqual(self : Blob, other : Blob) : Bool</code></pre>
+<p>"Greater than or equal to" function for <code>Blob</code> types. This
+is equivalent to <code>blob1 &gt;= blob2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob1 = &quot;\BB\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\00\00&quot; : Blob;
+assert Blob.greaterOrEqual(blob1, blob2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&gt;=</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+</body>
+</html>

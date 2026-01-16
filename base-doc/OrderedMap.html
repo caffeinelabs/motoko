@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Map">Map</a></li></li><li><li><a href="#type.Operations">Operations</a></li></li><li><li><a href="#Make">Make</a></li></li></ul></nav><div class="documentation"><h1>OrderedMap</h1><p>Stable key-value map implemented as a red-black tree with nodes storing key-value pairs.</p>
+<p>A red-black tree is a balanced binary search tree ordered by the keys.</p>
+<p>The tree data structure internally colors each of its nodes either red or black,
+and uses this information to balance the tree during the modifying operations.</p>
+<p>| Runtime   | Space |
+|----------|------------|
+| <code>O(log(n))</code> (worst case per insertion, removal, or retrieval)  | <code>O(n)</code> (for storing the entire tree) |</p>
+<p><code>n</code> denotes the number of key-value entries (i.e. nodes) stored in the tree.</p>
+<p>:::note Garbage collection</p>
+<p>Unless stated otherwise, operations that iterate over or modify the map (such as insertion, deletion, traversal, and transformation) may create temporary objects with worst-case space usage of <code>O(log(n))</code> or <code>O(n)</code>. These objects are short-lived and will be collected by the garbage collector automatically.</p>
+<p>:::</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>compare</code>, <code>equal</code>, and other functions execute in <code>O(1)</code> time and space.
+:::</p>
+<p>:::info Credits</p>
+<p>The core of this implementation is derived from:</p>
+<ul><li>Ken Friis Larsen's <a href="https://github.com/kfl/mosml/blob/master/src/mosmllib/Redblackmap.sml">RedBlackMap.sml</a>, which itself is based on:</li><li>Stefan Kahrs, &quot;Red-black trees with types&quot;, Journal of Functional Programming, 11(4): 425-432 (2001), <a href="http://www.cs.ukc.ac.uk/people/staff/smk/redblack/rb.html">version 1 in web appendix</a>.
+:::</li></ul><div class="declaration"><h4 class="type-declaration" id="type.Map"><span class="keyword">type </span><span class="type">Map</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; = { size : <span class="type">Nat</span>; root : <a href="#type.Tree"><span class="type">Tree</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; }</h4><p><p>Collection of key-value entries, ordered by the keys and key unique.
+The keys have the generic type <code>K</code> and the values the generic type <code>V</code>.
+If <code>K</code> and <code>V</code> is stable types then <code>Map&lt;K, V&gt;</code> is also stable.
+To ensure that property the <code>Map&lt;K, V&gt;</code> does not have any methods, instead
+they are gathered in the functor-like class <code>Operations</code> (see example there).</p>
+</p></div><div class="declaration"><h4 class="class-declaration" id="type.Operations"><span class="keyword">class </span><span class="classname">Operations</span>&lt;<span class="type">K</span>&gt;(<span class="parameter">compare</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <a href="Order.html#type.Order"><span class="type">O.Order</span></a>)</h4><div class="declaration"><h4 class="function" id="Operations.fromIter"><code><span class="keyword">public func </span><span class="fnname">fromIter</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">i</span> : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;(<span class="type">K</span>, <span class="type">V</span>)&gt;) : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Returns a new map, containing all entries given by the iterator <code>i</code>.
+If there are multiple entries with the same key the last one is taken.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let m = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(m))));
+
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]</code></pre>
+
+<p>| Runtime   | Space |
+|----------|------------|
+| <code>O(n * log(n))</code>  | <code>O(n)</code> (retained memory + garbage) |</p>
+<p>Note: Creates <code>O(n * log(n))</code> temporary objects that will be collected as garbage.</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.put"><code><span class="keyword">public func </span><span class="fnname">put</span>&lt;<span class="type">V</span>&gt;(<br/>  <span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">key</span> : <span class="type">K</span>, <br/>  <span class="parameter">value</span> : <span class="type">V</span><br/>) : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Insert the value <code>value</code> with key <code>key</code> into the map <code>m</code>. Overwrites any existing entry with key <code>key</code>.
+Returns a modified map.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+var map = natMap.empty&lt;Text&gt;();
+
+map := natMap.put(map, 0, &quot;Zero&quot;);
+map := natMap.put(map, 2, &quot;Two&quot;);
+map := natMap.put(map, 1, &quot;One&quot;);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map))));
+
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(log(n))</code> | <code>O(log(n))</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.replace"><code><span class="keyword">public func </span><span class="fnname">replace</span>&lt;<span class="type">V</span>&gt;(<br/>  <span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">key</span> : <span class="type">K</span>, <br/>  <span class="parameter">value</span> : <span class="type">V</span><br/>) : (<a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>Insert the value <code>value</code> with key <code>key</code> into the map <code>m</code>. Returns modified map and
+the previous value associated with key <code>key</code> or <code>null</code> if no such value exists.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map0 = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+let (map1, old1) = natMap.replace(map0, 0, &quot;Nil&quot;);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map1))));
+Debug.print(debug_show(old1));
+// [(0, &quot;Nil&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]
+// ?&quot;Zero&quot;
+
+let (map2, old2) = natMap.replace(map0, 3, &quot;Three&quot;);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map2))));
+Debug.print(debug_show(old2));
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;), (3, &quot;Three&quot;)]
+// null</code></pre>
+
+<p>| Runtime       | Space                       |
+|---------------|-----------------------------|
+| <code>O(log(n))</code>   | <code>O(log(n))</code> retained memory |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.mapFilter"><code><span class="keyword">public func </span><span class="fnname">mapFilter</span>&lt;<span class="type">V1</span>, <span class="type">V2</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V1</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V1</span>) -&gt; ?<span class="type">V2</span>) : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V2</span>&gt;</code></h4><p><p>Creates a new map by applying <code>f</code> to each entry in the map <code>m</code>. For each entry
+<code>(k, v)</code> in the old map, if <code>f</code> evaluates to <code>null</code>, the entry is discarded.
+Otherwise, the entry is transformed into a new entry <code>(k, v2)</code>, where
+the new value <code>v2</code> is the result of applying <code>f</code> to <code>(k, v)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func f(key : Nat, val : Text) : ?Text {
+  if(key == 0) {null}
+  else { ?(&quot;Twenty &quot; # val)}
+};
+
+let newMap = natMap.mapFilter(map, f);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(newMap))));
+
+// [(1, &quot;Twenty One&quot;), (2, &quot;Twenty Two&quot;)]</code></pre>
+
+<p>| Runtime   | Space |
+|----------|------------|
+| <code>O(n * log(n))</code>  | <code>O(n)</code> (retained memory + garbage) |</p>
+<p>Note: Creates <code>O(n * log(n))</code> temporary objects that will be collected as garbage.</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.get"><code><span class="keyword">public func </span><span class="fnname">get</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">key</span> : <span class="type">K</span>) : ?<span class="type">V</span></code></h4><p><p>Get the value associated with key <code>key</code> in the given map <code>m</code> if present and <code>null</code> otherwise.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.get(map, 1)));
+Debug.print(debug_show(natMap.get(map, 42)));
+
+// ?&quot;One&quot;
+// null</code></pre>
+
+<p>Runtime: <code>O(log(n))</code>.
+Space: <code>O(1)</code>.
+where <code>n</code> denotes the number of key-value entries stored in the map and
+assuming that the <code>compare</code> function implements an <code>O(1)</code> comparison.</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.contains"><code><span class="keyword">public func </span><span class="fnname">contains</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">key</span> : <span class="type">K</span>) : <span class="type">Bool</span></code></h4><p><p>Test whether the map <code>m</code> contains any binding for the given <code>key</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show natMap.contains(map, 1)); // =&gt; true
+Debug.print(debug_show natMap.contains(map, 42)); // =&gt; false</code></pre>
+
+<p>| Runtime       | Space                       |
+|---------------|-----------------------------|
+| <code>O(log(n))</code>   | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.maxEntry"><code><span class="keyword">public func </span><span class="fnname">maxEntry</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : ?(<span class="type">K</span>, <span class="type">V</span>)</code></h4><p><p>Retrieves a key-value pair from the map <code>m</code> with a maximal key. If the map is empty returns <code>null</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.maxEntry(map))); // =&gt; ?(2, &quot;Two&quot;)
+Debug.print(debug_show(natMap.maxEntry(natMap.empty()))); // =&gt; null</code></pre>
+
+<p>| Runtime       | Space                       |
+|---------------|-----------------------------|
+| <code>O(log(n))</code>   | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.minEntry"><code><span class="keyword">public func </span><span class="fnname">minEntry</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : ?(<span class="type">K</span>, <span class="type">V</span>)</code></h4><p><p>Retrieves a key-value pair from the map <code>m</code> with a minimal key. If the map is empty returns <code>null</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.minEntry(map))); // =&gt; ?(0, &quot;Zero&quot;)
+Debug.print(debug_show(natMap.minEntry(natMap.empty()))); // =&gt; null</code></pre>
+
+<p>| Runtime       | Space                       |
+|---------------|-----------------------------|
+| <code>O(log(n))</code>   | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.delete"><code><span class="keyword">public func </span><span class="fnname">delete</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">key</span> : <span class="type">K</span>) : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Deletes the entry with the key <code>key</code> from the map <code>m</code>. Has no effect if <code>key</code> is not
+present in the map. Returns modified map.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(natMap.delete(map, 1)))));
+Debug.print(debug_show(Iter.toArray(natMap.entries(natMap.delete(map, 42)))));
+
+// [(0, &quot;Zero&quot;), (2, &quot;Two&quot;)]
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]</code></pre>
+
+<p>| Runtime       | Space                       |
+|---------------|-----------------------------|
+| <code>O(log(n))</code>   | <code>O(log(n))</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.remove"><code><span class="keyword">public func </span><span class="fnname">remove</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">key</span> : <span class="type">K</span>) : (<a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>Deletes the entry with the key <code>key</code>. Returns modified map and the
+previous value associated with key <code>key</code> or <code>null</code> if no such value exists.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map0 = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+let (map1, old1) = natMap.remove(map0, 0);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map1))));
+Debug.print(debug_show(old1));
+// [(1, &quot;One&quot;), (2, &quot;Two&quot;)]
+// ?&quot;Zero&quot;
+
+let (map2, old2) = natMap.remove(map0, 42);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map2))));
+Debug.print(debug_show(old2));
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]
+// null</code></pre>
+
+<p>| Runtime       | Space                       |
+|---------------|-----------------------------|
+| <code>O(log(n))</code>   | <code>O(log(n))</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.empty"><code><span class="keyword">public func </span><span class="fnname">empty</span>&lt;<span class="type">V</span>&gt;() : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Create a new empty map.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+
+let map = natMap.empty&lt;Text&gt;();
+
+Debug.print(debug_show(natMap.size(map)));
+
+// 0</code></pre>
+
+<p>Cost of empty map creation
+Runtime: <code>O(1)</code>.
+Space: <code>O(1)</code></p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.entries"><code><span class="keyword">public func </span><span class="fnname">entries</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;(<span class="type">K</span>, <span class="type">V</span>)&gt;</code></h4><p><p>Returns an Iterator (<code>Iter</code>) over the key-value pairs in the map.
+Iterator provides a single method <code>next()</code>, which returns
+pairs in ascending order by keys, or <code>null</code> when out of pairs to iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(map))));
+// [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)]
+var sum = 0;
+for ((k, _) in natMap.entries(map)) { sum += k; };
+Debug.print(debug_show(sum)); // =&gt; 3</code></pre><p>| Runtime | Space                               |
+|---------|-------------------------------------|
+| <code>O(n)</code>  | <code>O(log(n))</code> retained + <code>O(n)</code> garbage |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.entriesRev"><code><span class="keyword">public func </span><span class="fnname">entriesRev</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;(<span class="type">K</span>, <span class="type">V</span>)&gt;</code></h4><p><p>Same as <code>entries</code> but iterates in the descending order.</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.keys"><code><span class="keyword">public func </span><span class="fnname">keys</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">K</span>&gt;</code></h4><p><p>Returns an Iterator (<code>Iter</code>) over the keys of the map.
+Iterator provides a single method <code>next()</code>, which returns
+keys in ascending order, or <code>null</code> when out of keys to iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.keys(map))));
+
+// [0, 1, 2]</code></pre><p>| Runtime | Space                               |
+|---------|-------------------------------------|
+| <code>O(n)</code>  | <code>O(log(n))</code> retained + <code>O(n)</code> garbage |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.vals"><code><span class="keyword">public func </span><span class="fnname">vals</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">V</span>&gt;</code></h4><p><p>Returns an Iterator (<code>Iter</code>) over the values of the map.
+Iterator provides a single method <code>next()</code>, which returns
+values in ascending order of associated keys, or <code>null</code> when out of values to iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(Iter.toArray(natMap.vals(map))));
+
+// [&quot;Zero&quot;, &quot;One&quot;, &quot;Two&quot;]</code></pre><p>| Runtime | Space                               |
+|---------|-------------------------------------|
+| <code>O(n)</code>  | <code>O(log(n))</code> retained + <code>O(n)</code> garbage |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.map"><code><span class="keyword">public func </span><span class="fnname">map</span>&lt;<span class="type">V1</span>, <span class="type">V2</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V1</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V1</span>) -&gt; <span class="type">V2</span>) : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V2</span>&gt;</code></h4><p><p>Creates a new map by applying <code>f</code> to each entry in the map <code>m</code>. Each entry
+<code>(k, v)</code> in the old map is transformed into a new entry <code>(k, v2)</code>, where
+the new value <code>v2</code> is created by applying <code>f</code> to <code>(k, v)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func f(key : Nat, _val : Text) : Nat = key * 2;
+
+let resMap = natMap.map(map, f);
+
+Debug.print(debug_show(Iter.toArray(natMap.entries(resMap))));
+// [(0, 0), (1, 2), (2, 4)]</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | <code>O(n)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.size"><code><span class="keyword">public func </span><span class="fnname">size</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <span class="type">Nat</span></code></h4><p><p>Determine the size of the map as the number of key-value entries.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+Debug.print(debug_show(natMap.size(map)));
+// 3</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.foldLeft"><code><span class="keyword">public func </span><span class="fnname">foldLeft</span>&lt;<span class="type">Value</span>, <span class="type">Accum</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">Value</span>&gt;, <br/>  <span class="parameter">base</span> : <span class="type">Accum</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">Accum</span>, <span class="type">K</span>, <span class="type">Value</span>) -&gt; <span class="type">Accum</span><br/>) : <span class="type">Accum</span></code></h4><p><p>Collapses the elements in the <code>map</code> into a single value by starting with <code>base</code>
+and progressively combining keys and values into <code>base</code> with <code>combine</code>. Iteration runs
+left to right.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func folder(accum : (Nat, Text), key : Nat, val : Text) : ((Nat, Text))
+  = (key + accum.0, accum.1 # val);
+
+Debug.print(debug_show(natMap.foldLeft(map, (0, &quot;&quot;), folder)));
+
+// (3, &quot;ZeroOneTwo&quot;)</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | Depends on <code>combine</code> + <code>O(n)</code> garbage |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.foldRight"><code><span class="keyword">public func </span><span class="fnname">foldRight</span>&lt;<span class="type">Value</span>, <span class="type">Accum</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">Value</span>&gt;, <br/>  <span class="parameter">base</span> : <span class="type">Accum</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">K</span>, <span class="type">Value</span>, <span class="type">Accum</span>) -&gt; <span class="type">Accum</span><br/>) : <span class="type">Accum</span></code></h4><p><p>Collapses the elements in the <code>map</code> into a single value by starting with <code>base</code>
+and progressively combining keys and values into <code>base</code> with <code>combine</code>. Iteration runs
+right to left.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]));
+
+func folder(key : Nat, val : Text, accum : (Nat, Text)) : ((Nat, Text))
+  = (key + accum.0, accum.1 # val);
+
+Debug.print(debug_show(natMap.foldRight(map, (0, &quot;&quot;), folder)));
+
+// (3, &quot;TwoOneZero&quot;)</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | Depends on <code>combine</code> + <code>O(n)</code> garbage |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.all"><code><span class="keyword">public func </span><span class="fnname">all</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">pred</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Test whether all key-value pairs satisfy a given predicate <code>pred</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;0&quot;), (2, &quot;2&quot;), (1, &quot;1&quot;)]));
+
+Debug.print(debug_show(natMap.all&lt;Text&gt;(map, func (k, v) = (v == debug_show(k)))));
+// true
+Debug.print(debug_show(natMap.all&lt;Text&gt;(map, func (k, v) = (k &lt; 2))));
+// false</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(n)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.some"><code><span class="keyword">public func </span><span class="fnname">some</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">pred</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Test if there exists a key-value pair satisfying a given predicate <code>pred</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+let map = natMap.fromIter&lt;Text&gt;(Iter.fromArray([(0, &quot;0&quot;), (2, &quot;2&quot;), (1, &quot;1&quot;)]));
+
+Debug.print(debug_show(natMap.some&lt;Text&gt;(map, func (k, v) = (k &gt;= 3))));
+// false
+Debug.print(debug_show(natMap.some&lt;Text&gt;(map, func (k, v) = (k &gt;= 0))));
+// true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(n)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.validate"><code><span class="keyword">public func </span><span class="fnname">validate</span>&lt;<span class="type">V</span>&gt;(<span class="parameter">m</span> : <a href="#type.Map"><span class="type">Map</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : ()</code></h4><p><p>Debug helper that check internal invariants of the given map <code>m</code>.
+Raise an error (for a stack trace) if invariants are violated.</p>
+</p></div><p><p>Class that captures key type <code>K</code> along with its ordering function <code>compare</code>
+and provides all operations to work with a map of type <code>Map&lt;K, _&gt;</code>.</p>
+<p>An instance object should be created once as a canister field to ensure
+that the same ordering function is used for every operation.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+actor {
+  let natMap = Map.Make&lt;Nat&gt;(Nat.compare); // : Operations&lt;Nat&gt;
+  stable var keyStorage : Map.Map&lt;Nat, Text&gt; = natMap.empty&lt;Text&gt;();
+
+  public func addKey(id : Nat, key : Text) : async () {
+    keyStorage := natMap.put(keyStorage, id, key);
+  }
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="Make"><code><span class="keyword">public func </span><span class="fnname">Make</span>&lt;<span class="type">K</span>&gt;(<span class="parameter">compare</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <a href="Order.html#type.Order"><span class="type">O.Order</span></a>) : <a href="#type.Operations"><span class="type">Operations</span></a>&lt;<span class="type">K</span>&gt;</code></h4><p><p>Create <code>OrderedMap.Operations</code> object capturing key type <code>K</code> and <code>compare</code> function.
+It is an alias for the <code>Operations</code> constructor.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Map &quot;mo:base/OrderedMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+actor {
+  let natMap = Map.Make&lt;Nat&gt;(Nat.compare);
+  stable var map : Map.Map&lt;Nat, Text&gt; = natMap.empty&lt;Text&gt;();
+};</code></pre></p></div></div></body></html>

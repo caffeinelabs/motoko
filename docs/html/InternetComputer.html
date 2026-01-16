@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/InternetComputer.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/InternetComputer.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coreinternetcomputer"
+id="toc-coreinternetcomputer">core/InternetComputer</a>
+<ul>
+<li><a href="#function-call" id="toc-function-call">Function
+<code>call</code></a></li>
+<li><a href="#function-isreplicated"
+id="toc-function-isreplicated">Function
+<code>isReplicated</code></a></li>
+<li><a href="#function-countinstructions"
+id="toc-function-countinstructions">Function
+<code>countInstructions</code></a></li>
+<li><a href="#function-performancecounter"
+id="toc-function-performancecounter">Function
+<code>performanceCounter</code></a></li>
+<li><a href="#function-replydeadline"
+id="toc-function-replydeadline">Function
+<code>replyDeadline</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coreinternetcomputer">core/InternetComputer</h1>
+<p>Low-level interface to the Internet Computer.</p>
+<h2 id="function-call">Function <code>call</code></h2>
+<pre class="motoko"><code>func call(canister : Principal, name : Text, data : Blob) : async (reply : Blob)</code></pre>
+<p>Calls <code>canister</code>'s update or query function,
+<code>name</code>, with the binary contents of <code>data</code> as IC
+argument. Returns the response to the call, an IC <em>reply</em> or
+<em>reject</em>, as a Motoko future:</p>
+<ul>
+<li>The message data of an IC reply determines the binary contents of
+<code>reply</code>.</li>
+<li>The error code and textual message data of an IC reject determines
+the future's <code>Error</code> value.</li>
+</ul>
+<p>Note: <code>call</code> is an asynchronous function and can only be
+applied in an asynchronous context.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import IC &quot;mo:core/InternetComputer&quot;;
+import Principal &quot;mo:core/Principal&quot;;
+
+persistent actor {
+  type OutputType = { decimals : Nat32 };
+
+  public func example() : async ?OutputType {
+    let ledger = Principal.fromText(&quot;ryjl3-tyaaa-aaaaa-aaaba-cai&quot;);
+    let method = &quot;decimals&quot;;
+    let input = ();
+
+    let rawReply = await IC.call(ledger, method, to_candid (input)); // serialized Candid
+    let output : ?OutputType = from_candid (rawReply);
+    assert output == ?{ decimals = 8 };
+    output
+  }
+}</code></pre>
+<p><a
+href="https://internetcomputer.org/docs/motoko/language-manual#candid-serialization">Learn
+more about Candid serialization</a></p>
+<h2 id="function-isreplicated">Function <code>isReplicated</code></h2>
+<pre class="motoko"><code>func isReplicated() : Bool</code></pre>
+<p><code>isReplicated</code> is true for update messages and for queries
+that passed through consensus.</p>
+<h2 id="function-countinstructions">Function
+<code>countInstructions</code></h2>
+<pre class="motoko"><code>func countInstructions(comp : () -&gt; ()) : Nat64</code></pre>
+<p>Given computation, <code>comp</code>, counts the number of actual and
+(for IC system calls) notional WebAssembly instructions performed during
+the execution of <code>comp()</code>.</p>
+<p>More precisely, returns the difference between the state of the IC
+instruction counter (<em>performance counter</em> <code>0</code>) before
+and after executing <code>comp()</code> (see <a
+href="https://internetcomputer.org/docs/current/references/ic-interface-spec#system-api-performance-counter">Performance
+Counter</a>).</p>
+<p>NB: <code>countInstructions(comp)</code> will <em>not</em> account
+for any deferred garbage collection costs incurred by
+<code>comp()</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import IC &quot;mo:core/InternetComputer&quot;;
+
+let count = IC.countInstructions(func() {
+  // ...
+});</code></pre>
+<h2 id="function-performancecounter">Function
+<code>performanceCounter</code></h2>
+<pre class="motoko"><code>func performanceCounter(counter : Nat32) : (value : Nat64)</code></pre>
+<p>Returns the current value of IC <em>performance counter</em>
+<code>counter</code>.</p>
+<ul>
+<li><p>Counter <code>0</code> is the <em>current execution instruction
+counter</em>, counting instructions only since the beginning of the
+current IC message. This counter is reset to value <code>0</code> on
+shared function entry and every <code>await</code>. It is therefore only
+suitable for measuring the cost of synchronous code.</p></li>
+<li><p>Counter <code>1</code> is the <em>call context instruction
+counter</em> for the current shared function call. For replicated
+message executing, this excludes the cost of nested IC calls (even to
+the current canister). For non-replicated messages, such as composite
+queries, it includes the cost of nested calls. The current value of this
+counter is preserved across <code>awaits</code> (unlike counter
+<code>0</code>).</p></li>
+<li><p>The function (currently) traps if <code>counter</code> &gt;=
+2.</p></li>
+</ul>
+<p>Consult <a
+href="https://internetcomputer.org/docs/current/references/ic-interface-spec#system-api-performance-counter">Performance
+Counter</a> for details.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import IC &quot;mo:core/InternetComputer&quot;;
+
+let c1 = IC.performanceCounter(1);
+// ...
+let diff : Nat64 = IC.performanceCounter(1) - c1;</code></pre>
+<h2 id="function-replydeadline">Function <code>replyDeadline</code></h2>
+<pre class="motoko"><code>func replyDeadline() : ?Nat</code></pre>
+<p>Returns the time (in nanoseconds from the epoch start) by when the
+update message should reply to the best effort message so that it can be
+received by the requesting canister. Queries and unbounded-time update
+messages return null.</p>
+</body>
+</html>

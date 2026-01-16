@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="A comprehensive overview">
+  <title>Motoko</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.1.0/dist/reveal.css">
+  <style>
+    .reveal .sourceCode {  /* see #7635 */
+      overflow: visible;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.1.0/dist/theme/moon.css" id="theme">
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide">
+  <h1 class="title">Motoko</h1>
+  <p class="author">A comprehensive overview</p>
+</section>
+
+<section>
+<section id="overview" class="title-slide slide level1">
+<h1>Overview</h1>
+
+</section>
+<h3 id="motivation-and-goals">Motivation and Goals</h3>
+<p>A simple, useful language for the Internet Computer (IC)</p>
+<ul>
+<li>Familiar syntax</li>
+<li>Safe by default</li>
+<li>Incorporating <del>actor</del> <em>canister</em> model</li>
+<li>Seamless integration of IC features</li>
+<li>Making most of present and future WebAssembly</li>
+</ul>
+<h3 id="key-design-points">Key Design Points</h3>
+<ul>
+<li>Object-oriented, functional &amp; imperative</li>
+<li>Objects as records of members</li>
+<li><code>async</code>/<code>await</code> for sequential programming of
+asynchronous messaging</li>
+<li>Structural typing with simple generics and subtyping</li>
+<li>Safe arithmetic (unbounded and checked)</li>
+<li>Non-nullable types by default</li>
+<li>JavaScript-like syntax but statically typed &amp; sane</li>
+</ul>
+<p>Inspirations: Java(Script), C#, Swift, Pony, ML, Haskell</p>
+<h3 id="semantics">Semantics</h3>
+<ul>
+<li>call-by-value (like Java, C, JS, ML; unlike Haskell, Nix)</li>
+<li>declarations are locally mutually recursive</li>
+<li>parametric, bounded polymorphism</li>
+<li>subtyping as subsumption, not coercion.</li>
+<li>no dynamic casts</li>
+<li>no inheritance</li>
+</ul>
+<h3 id="implementations">Implementation(s)</h3>
+<ul>
+<li>implemented in OCaml (leverages <code>wasm</code> libary)</li>
+<li>simple reference interpreter</li>
+<li>less simple compiler to WebAssembly
+<ul>
+<li>multipass with typed IR in each pass.</li>
+<li>uniform representation, unboxed arithmetic</li>
+<li>two-space gc (for now), gc between messages</li>
+</ul></li>
+<li>polymorphism by erasure</li>
+</ul></section>
+<section>
+<section id="the-language" class="title-slide slide level1">
+<h1>The language</h1>
+
+</section>
+<section id="expressions" class="slide level2">
+<h2>Expressions</h2>
+<ul>
+<li><p>Identifiers:<br />
+<code>x</code>, <code>foo_bar</code>, <code>test'</code>,
+<code>List</code>, <code>Map</code></p></li>
+<li><p>Parentheses for grouping</p></li>
+<li><p>Type annotations (to help type inference):<br />
+<code>(42 : Int)</code></p></li>
+</ul>
+</section>
+<section id="blocks-and-declarations" class="slide level2">
+<h2>Blocks and declarations</h2>
+<pre><code>  type Delta = Nat;
+  func print() {
+    Debug.print(Int.toText(counter));
+  };
+  let d : Delta = 42;
+  var counter = 1;
+  counter := counter + tmp;
+  print();</code></pre>
+<ul>
+<li>Semicolon after each declaration!</li>
+<li>Mutually recursive</li>
+<li>Mutable variables marked explicitly</li>
+</ul>
+</section>
+<section id="control-flow" class="slide level2">
+<h2>Control flow</h2>
+<ul>
+<li><code>if (b) …</code></li>
+<li><code>if (b) … else …</code></li>
+<li><code>switch x { case (pat1) e1; …; case _ en }</code></li>
+<li><code>while (b) …</code></li>
+<li><code>loop …</code></li>
+<li><code>loop … while (b)</code></li>
+<li><code>for (pat in e) …</code></li>
+</ul>
+</section></section>
+<section>
+<section id="primitive-types" class="title-slide slide level1">
+<h1>Primitive types</h1>
+
+</section>
+<section id="unbounded-integers" class="slide level2">
+<h2>Unbounded integers</h2>
+<p><code>Int</code></p>
+<p>Inferred by default for negative literals.</p>
+<p>Literals: <code>13</code>, <code>0xf4</code>, <code>-20</code>,
+<code>+1</code>, <code>1_000_000</code></p>
+</section>
+<section id="unbounded-naturals" class="slide level2">
+<h2>Unbounded naturals</h2>
+<p><code>Nat</code></p>
+<p>Non-negative, trap upon underflow.</p>
+<p>Inferred by default for non-negative literals</p>
+<p>Literals: <code>13</code>, <code>0xf4</code>,
+<code>1_000_000</code></p>
+</section>
+<section id="bounded-numbers-trapping" class="slide level2">
+<h2>Bounded numbers (trapping)</h2>
+<p><code>Nat8</code>, <code>Nat16</code>, <code>Nat32</code>,
+<code>Nat64</code>, <code>Int8</code>, <code>Int16</code>,
+<code>Int32</code>, <code>Int64</code></p>
+<p>Trap on over- and underflow. Wrap-on-trap and bit-manipulating
+operations available.</p>
+<p>Needs type annotations (somewhere)</p>
+<p>Literals: <code>13</code>, <code>0xf4</code>, <code>-20</code>,
+<code>1_000_000</code></p>
+</section>
+<section id="floating-point-numbers" class="slide level2">
+<h2>Floating point numbers</h2>
+<p><code>Float</code></p>
+<p>IEEE 754 double precision (64 bit) semantics, normalized NaN</p>
+<p>Inferred for fractional literals</p>
+<p>Literals: 0, -10, <code>2.71</code>, <code>-0.3e+15</code>,
+<code>3.141_592_653_589_793_12</code></p>
+</section>
+<section id="numeric-operations" class="slide level2">
+<h2>Numeric operations</h2>
+<p>No surprises here</p>
+<p><code>- x</code><br />
+<code>a + b</code><br />
+<code>a &amp; b</code><br />
+…</p>
+</section>
+<section id="characters-and-text" class="slide level2">
+<h2>Characters and text</h2>
+<p><code>Char</code>, <code>Text</code></p>
+<p>Unicode! No random access.</p>
+<ul>
+<li><code>'x'</code>, <code>'\u{6a}'</code>, <code>'☃'</code>,</li>
+<li><code>"boo"</code>, <code>"foo \u{62}ar ☃"</code></li>
+<li><code>"Concat" # "enation"</code></li>
+</ul>
+</section>
+<section id="booleans" class="slide level2">
+<h2>Booleans</h2>
+<p><code>Bool</code></p>
+<p>Literals: <code>true</code>, <code>false</code></p>
+<p><code>a or b</code><br />
+<code>a and b</code><br />
+<code>not b</code><br />
+<code>if (b) e1 else e2</code></p>
+</section></section>
+<section>
+<section id="functions" class="title-slide slide level1">
+<h1>Functions</h1>
+
+</section>
+<section id="function-types" class="slide level2">
+<h2>Function types</h2>
+<ul>
+<li><p>Simple functions:</p>
+<pre><code>Int.toText : Int -&gt; Text</code></pre></li>
+<li><p>multiple arguments and return values</p>
+<pre><code>divRem : (Int, Int) -&gt; (Int, Int)</code></pre></li>
+<li><p>can be generic/polymorphic</p>
+<pre><code>Option.unwrapOr : &lt;T&gt;(?T, default : T) -&gt; T</code></pre></li>
+<li><p>first-class (can be passed around, stored)</p>
+<pre><code>map : &lt;A, B&gt;(f : A -&gt; B, xs : [A]) -&gt; [B]
+let funcs : [&lt;T&gt;(T) -&gt; T] = …</code></pre></li>
+</ul>
+</section>
+<section id="function-declarations-use" class="slide level2">
+<h2>Function Declarations &amp; Use</h2>
+<pre><code>func add(x : Int, y : Int) : Int = x + y;
+
+func applyNTimes&lt;T&gt;(n : Nat, x : T, f : T -&gt; ()) {
+  if (n == 0) return;
+  f(x);
+  applyNTimes(n-1, x, f);
+}
+
+applyNTimes&lt;Text&gt;(10, &quot;Hello!&quot;, func(x) = { Debug.print(x) } );</code></pre>
+<ul>
+<li><code>func() { … }</code> short for
+<code>func() : () = { … }</code></li>
+<li>Parametric functions</li>
+<li>Type instantiations may sometimes be omitted</li>
+<li>Anonymous functions (a.k.a. lambdas)</li>
+</ul>
+</section></section>
+<section>
+<section id="composite-types" class="title-slide slide level1">
+<h1>Composite types</h1>
+
+</section>
+<section id="tuples" class="slide level2">
+<h2>Tuples</h2>
+<p><code>(Bool, Float, Text)</code></p>
+<p>immutable, heterogeneous, fixed size</p>
+<pre><code>let tuple = (true, 1.2, &quot;foo&quot;);
+tuple.1 &gt; 0.0;
+let (_,_,t) = tuple;</code></pre>
+</section>
+<section id="options" class="slide level2">
+<h2>Options</h2>
+<p><code>?Text</code></p>
+<p>is either a value of that type, or <code>null</code></p>
+<pre><code>func foo(x : ?Text) : Text {
+  switch x {
+    case (null) { &quot;No value&quot; };
+    case (?y) { &quot;Value: &quot; # y };
+  };
+};
+foo(null);
+foo(?&quot;Test&quot;);</code></pre>
+</section>
+<section id="arrays-immutable" class="slide level2">
+<h2>Arrays (immutable)</h2>
+<p><code>[Text]</code></p>
+<pre><code>let days = [&quot;Monday&quot;, &quot;Tuesday&quot;, … ];
+assert(days.len() == 7);
+assert(days[1] == &quot;Tuesday&quot;);
+// days[7] will trap (fixed size)
+for (d in days.values()) { Debug.print(d) };</code></pre>
+</section>
+<section id="arrays-mutable" class="slide level2">
+<h2>Arrays (mutable)</h2>
+<p><code>[var Nat]</code></p>
+<pre><code>let counters = [var 1, 2, 3];
+assert(counters.len() == 3);
+counters[1] := counters[1] + 1;
+// counters[3] will trap (fixed size)</code></pre>
+</section>
+<section id="records" class="slide level2">
+<h2>Records</h2>
+<p><code>{name : Text; points : var Int}</code></p>
+<pre><code>let player = { name = &quot;Joachim&quot;;  var points = 0 };
+Debug.print(
+  player.name # &quot; has &quot; #
+  Int.toText(player.points) # &quot; points.&quot;
+);
+player.points += 1;</code></pre>
+</section>
+<section id="objects" class="slide level2">
+<h2>Objects</h2>
+<p><code>{ get : () -&gt; Int; add : Int -&gt; () }</code></p>
+<pre><code>object self {
+  var points = 0; // private by default
+  public func get() = points;
+  public func add(p : Int) { points += p };
+}</code></pre>
+<p>Different syntax, same type as records</p>
+</section>
+<section id="variants" class="slide level2">
+<h2>Variants</h2>
+<p><code>{ #invincible; #alive : Int; #dead }</code></p>
+<pre><code>type Health = { #invincible; #alive : Nat; #dead };
+func takeDamage(h : Health, p : Nat) : Health {
+  switch (h) {
+    case (#invincible) #invincible;
+    case (#alive hp) {
+      if (hp &gt; p) (#alive (hp-p)) else #dead
+    };
+    case (#dead) #dead;
+  }
+}</code></pre>
+</section></section>
+<section>
+<section id="packages-and-modules" class="title-slide slide level1">
+<h1>Packages and modules</h1>
+
+</section>
+<section id="modules" class="slide level2">
+<h2>Modules</h2>
+<pre><code>// the type of base/Int.mo
+module {
+  toText : Int -&gt; Text;
+  abs : Int -&gt; Nat;
+  …
+}</code></pre>
+<p>types and values like objects</p>
+<p>but restricted to <em>static</em> content (pure, no state, …)</p>
+</section>
+<section id="module-imports" class="slide level2">
+<h2>Module imports</h2>
+<pre><code>import Debug &quot;mo:base/Debug&quot;;
+import Int &quot;mo:base/Int&quot;;</code></pre>
+<p><code>base</code> package provides basic features.</p>
+<p>More libraries popping up!</p>
+</section></section>
+<section>
+<section id="platform-features" class="title-slide slide level1">
+<h1>Platform features</h1>
+
+</section>
+<section id="actor-types" class="slide level2">
+<h2>Actor types</h2>
+<p>Like object types, but marked as <code>actor</code>:</p>
+<pre><code>type Receiver = actor { recv : Text -&gt; async Nat };
+type Broadcast = actor {
+  register : Receiver -&gt; ();
+  send : Text -&gt; async Nat;
+}</code></pre>
+<p><em>sharable</em> arguments and <em>no</em> or <em>async</em> result
+type.</p>
+<p>“canister” ≈ “actor”</p>
+</section>
+<section id="sharable-serializable" class="slide level2">
+<h2>sharable ≈ serializable</h2>
+<ul>
+<li>all primitive types</li>
+<li>records, tuples, arrays, variants, options<br />
+with immutable sharable components</li>
+<li><code>actor</code> types</li>
+<li><code>shared</code> function type<br/><br/><strong>Not
+sharable:</strong></li>
+<li>mutable things</li>
+<li>local functions</li>
+<li>objects (with methods)</li>
+</ul>
+</section>
+<section id="a-complete-actor" class="slide level2">
+<h2>A complete actor</h2>
+<pre><code>import Array &quot;mo:base/Array&quot;;
+actor {
+  var r : [Receiver] = [];
+  public func register(a : Receiver) {
+    r := Array.append(r, [a]);
+  };
+  public func send(t : Text) : async Nat {
+    var sum := 0;
+    for (a in r.values()) {
+      sum += await a.recv(t);
+    };
+    return sum;
+  };
+}</code></pre>
+<p>a typical canister main file</p>
+</section>
+<section id="asyncawait" class="slide level2">
+<h2>Async/await</h2>
+<p><code>async T</code></p>
+<p>asychronous future or promise</p>
+<p>introduced by <code>async { … }</code><br />
+(implicit in async function declaration)</p>
+<p><code>await e</code><br />
+suspends computation pending <code>e</code>’s result</p>
+</section>
+<section id="actor-import" class="slide level2">
+<h2>Actor import</h2>
+<pre><code>import Broadcast &quot;ic:ABCDEF23&quot;;
+actor Self {
+  public func go() {
+    Broadcast.register(Self);
+  };
+  public func recv(msg : Text) : async Nat {
+    …
+  }
+}</code></pre>
+</section>
+<section id="principal-and-caller" class="slide level2">
+<h2>Principal and caller</h2>
+<pre><code>actor Self {
+  let myself : Principal = Principal.fromActor(Self);
+  public shared(context) func hello() : async Text {
+    if (context.caller == myself) {
+      &quot;Talking to yourself is the first sign of madness&quot;;
+    } else {
+      &quot;Hello, nice to see you&quot;;
+    };
+  };
+}</code></pre>
+<p><code>Principal</code>: identity of a user or canister/actor</p>
+</section></section>
+<section>
+<section id="type-system" class="title-slide slide level1">
+<h1>Type system</h1>
+
+</section>
+<section id="structural" class="slide level2">
+<h2>Structural</h2>
+<pre><code>type Health1 = { #invincible; #alive : Nat; #dead };
+type Health2 = { #invincible; #alive : Nat; #dead };
+
+let takeDamage : (Health1, Nat) -&gt; Health1 = …;
+let h : Health2 = #invincible;
+let h&#39; = takeDamage(h, 100); // works</code></pre>
+<p>Type definitions<br />
+do not create types,<br />
+but name existing types</p>
+</section>
+<section id="subtyping" class="slide level2">
+<h2>Subtyping</h2>
+<p><code>Mortal &lt;: Health</code></p>
+<pre><code>type Health = { #invincible; #alive : Nat; #dead };
+type Mortal = { #alive : Nat; #dead };
+
+let takeDamage : (Health, Nat) -&gt; Health = …;
+let h : Mortal = #alive 1000;
+let h&#39; = takeDamage(h, 100); // also works</code></pre>
+<p><code>t1 &lt;: t2</code>: <code>t1</code> can be used wherever
+<code>t2</code> is expected</p>
+</section>
+<section id="generic-types" class="slide level2">
+<h2>Generic types</h2>
+<pre><code>type List&lt;T&gt; = ?{head : T; tail : List&lt;T&gt;};
+
+…
+let l : List&lt;Nat&gt; = ?{head = 0; tail = ?{head = 1 ; tail = null }};</code></pre>
+</section></section>
+<section>
+<section id="fin" class="title-slide slide level1">
+<h1>Fin</h1>
+
+</section>
+<section id="not-covered" class="slide level2">
+<h2>Not covered</h2>
+<ul>
+<li>Polymorphic functions with type bounds</li>
+<li>Classes</li>
+<li>Error handling (<code>try … catch …</code> &amp;
+<code>throw …</code>)</li>
+</ul>
+</section></section>
+<section>
+<section id="old-slides" class="title-slide slide level1">
+<h1>Old slides</h1>
+
+</section>
+<h3 id="classes">Classes</h3>
+<p>Classes as functions returning objects:</p>
+<pre><code> class Counter(init : Int) {
+    private var state : Int = init;
+    public func inc() { state += 1; };
+    public func get() : Int { state; };
+  }</code></pre>
+<p>Class instantiation as function call (no <code>new</code>):</p>
+<pre><code>let c = Counter(666);
+c.inc();
+let 667 = c.get();</code></pre>
+<h3 id="generic-classes">Generic Classes</h3>
+<pre><code>class Dict&lt; K, V &gt; (cmp : (K,K)-&gt; Int ) {
+  add(k: K, v: V) { ... };
+  find(k: K) : ? V { ... };
+};</code></pre>
+<pre><code>let d = Dict&lt;Int,Text&gt; (func (i:Int, j:Int) : Int = i - j);
+d.add(1,&quot;Alice&quot;);
+let ? name = d.find(1);</code></pre>
+<h3 id="language-prelude">Language prelude</h3>
+<ul>
+<li>connects internal primitives with surface syntax (types,
+operations)</li>
+<li>conversions like <code>intToNat32</code></li>
+<li>side-effecting operations <code>debugPrintInt</code> (tie into
+execution environment)</li>
+<li>utilities like <code>hashInt</code>, <code>clzNat32</code></li>
+</ul></section>
+<section>
+<section id="sample-app" class="title-slide slide level1">
+<h1>Sample App</h1>
+
+</section>
+<h3 id="implementing-chat">Implementing <em>Chat</em></h3>
+<ul>
+<li>type example</li>
+<li>one server actor</li>
+<li>multiple clients, each an instance of (actor) class Client.</li>
+</ul>
+<h3 id="chat-server">Chat Server</h3>
+<pre><code>actor Server {
+  private var clients : List&lt;Client&gt; = null;
+
+  private shared broadcast(message : Text) {
+    var next = clients;
+    loop {
+      switch next {
+        case null { return; }
+        case (?l) { l.head.send(message); next := l.tail; };
+      };
+    };
+  };</code></pre>
+<pre><code>  public func subscribe(client : Client) : async Post {
+    let cs = {head = client; var tail = clients};
+    clients := ?cs;
+    return broadcast;
+  };
+};</code></pre>
+<h3 id="example-the-client-class">Example: The client class</h3>
+<pre><code>type Server = actor { subscribe : Client -&gt; async Post; };
+
+actor class Client() = this {
+  private var name : Text = &quot;&quot;;
+  public func start(n : Text , s : Server) {
+    name := n;
+    let _ = async {
+       let post = await s.subscribe(this);
+       post(&quot;hello from &quot; # name);
+       post(&quot;goodbye from &quot; # name);
+    }
+  };</code></pre>
+<pre><code>  public func send(msg : Text) {
+    debugPrint(name # &quot; received &quot; # msg # &quot;\n&quot;);
+  };
+};</code></pre>
+<h3 id="example-test">Example: test</h3>
+<p>test</p>
+<pre><code>let bob = Client();
+let alice = Client();
+let charlie = Client();
+
+bob.start(&quot;Bob&quot;, Server);
+alice.start(&quot;Alice&quot;, Server);
+charlie.start(&quot;Charlie&quot;, Server);</code></pre>
+<p>output</p>
+<pre><code>[nix-shell:~/motoko/guide]$ ../src/moc -r chat.mo
+charlie received hello from bob
+alice received hello from bob
+bob received hello from bob
+charlie received goodbye from bob
+alice received goodbye from bob
+bob received goodbye from bob
+charlie received hello from alice
+alice received hello from alice
+bob received hello from alice
+charlie received goodbye from alice
+alice received goodbye from alice
+bob received goodbye from alice
+charlie received hello from charlie
+alice received hello from charlie
+bob received hello from charlie
+charlie received goodbye from charlie
+alice received goodbye from charlie
+bob received goodbye from charlie</code></pre></section>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.1.0/dist/reveal.js"></script>
+
+  <!-- reveal.js plugins -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.1.0/plugin/notes/notes.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.1.0/plugin/search/search.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.1.0/plugin/zoom/zoom.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+        // Display controls in the bottom right corner
+        controls: true,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: true,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'bottom-right',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: false,
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: true,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: false,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: true,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: false,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'default',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: true,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'slide',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'fade',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // reveal.js plugins
+        plugins: [
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    </body>
+</html>

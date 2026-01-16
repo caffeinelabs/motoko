@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Map.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Map.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coremap" id="toc-coremap">core/Map</a>
+<ul>
+<li><a href="#type-map" id="toc-type-map">Type <code>Map</code></a></li>
+<li><a href="#function-topure" id="toc-function-topure">Function
+<code>toPure</code></a></li>
+<li><a href="#function-frompure" id="toc-function-frompure">Function
+<code>fromPure</code></a></li>
+<li><a href="#function-clone" id="toc-function-clone">Function
+<code>clone</code></a></li>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-singleton" id="toc-function-singleton">Function
+<code>singleton</code></a></li>
+<li><a href="#function-clear" id="toc-function-clear">Function
+<code>clear</code></a></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-containskey"
+id="toc-function-containskey">Function <code>containsKey</code></a></li>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-insert" id="toc-function-insert">Function
+<code>insert</code></a></li>
+<li><a href="#function-add" id="toc-function-add">Function
+<code>add</code></a></li>
+<li><a href="#function-swap" id="toc-function-swap">Function
+<code>swap</code></a></li>
+<li><a href="#function-replace" id="toc-function-replace">Function
+<code>replace</code></a></li>
+<li><a href="#function-remove" id="toc-function-remove">Function
+<code>remove</code></a></li>
+<li><a href="#function-delete" id="toc-function-delete">Function
+<code>delete</code></a></li>
+<li><a href="#function-take" id="toc-function-take">Function
+<code>take</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+<li><a href="#function-maxentry" id="toc-function-maxentry">Function
+<code>maxEntry</code></a></li>
+<li><a href="#function-minentry" id="toc-function-minentry">Function
+<code>minEntry</code></a></li>
+<li><a href="#function-entries" id="toc-function-entries">Function
+<code>entries</code></a></li>
+<li><a href="#function-entriesfrom"
+id="toc-function-entriesfrom">Function <code>entriesFrom</code></a></li>
+<li><a href="#function-reverseentries"
+id="toc-function-reverseentries">Function
+<code>reverseEntries</code></a></li>
+<li><a href="#function-reverseentriesfrom"
+id="toc-function-reverseentriesfrom">Function
+<code>reverseEntriesFrom</code></a></li>
+<li><a href="#function-keys" id="toc-function-keys">Function
+<code>keys</code></a></li>
+<li><a href="#function-values" id="toc-function-values">Function
+<code>values</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-tomap" id="toc-function-tomap">Function
+<code>toMap</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-foreach" id="toc-function-foreach">Function
+<code>forEach</code></a></li>
+<li><a href="#function-filter" id="toc-function-filter">Function
+<code>filter</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-foldleft" id="toc-function-foldleft">Function
+<code>foldLeft</code></a></li>
+<li><a href="#function-foldright" id="toc-function-foldright">Function
+<code>foldRight</code></a></li>
+<li><a href="#function-all" id="toc-function-all">Function
+<code>all</code></a></li>
+<li><a href="#function-any" id="toc-function-any">Function
+<code>any</code></a></li>
+<li><a href="#function-filtermap" id="toc-function-filtermap">Function
+<code>filterMap</code></a></li>
+<li><a href="#function-assertvalid"
+id="toc-function-assertvalid">Function <code>assertValid</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coremap">core/Map</h1>
+<p>An imperative key-value map based on order/comparison of the keys.
+The map data structure type is stable and can be used for orthogonal
+persistence.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  // creation
+  let map = Map.empty&lt;Nat, Text&gt;();
+  // insertion
+  Map.add(map, Nat.compare, 0, &quot;Zero&quot;);
+  // retrieval
+  assert Map.get(map, Nat.compare, 0) == ?&quot;Zero&quot;;
+  assert Map.get(map, Nat.compare, 1) == null;
+  // removal
+  Map.remove(map, Nat.compare, 0);
+  assert Map.isEmpty(map);
+}</code></pre>
+<p>The internal implementation is a B-tree with order 32.</p>
+<p>Performance:</p>
+<ul>
+<li>Runtime: <code>O(log(n))</code> worst case cost per insertion,
+removal, and retrieval operation.</li>
+<li>Space: <code>O(n)</code> for storing the entire map. <code>n</code>
+denotes the number of key-value entries stored in the map.</li>
+</ul>
+<h2 id="type-map">Type <code>Map</code></h2>
+<pre class="motoko"><code>type Map&lt;K, V&gt; = Types.Map&lt;K, V&gt;</code></pre>
+<h2 id="function-topure">Function <code>toPure</code></h2>
+<pre class="motoko"><code>func toPure&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order)) : PureMap.Map&lt;K, V&gt;</code></pre>
+<p>Convert the mutable key-value map to an immutable key-value map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import PureMap &quot;mo:core/pure/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(), Nat.compare);
+  let pureMap = Map.toPure(map, Nat.compare);
+  assert Iter.toArray(PureMap.entries(pureMap)) == Iter.toArray(Map.entries(map))
+}</code></pre>
+<p>Runtime: <code>O(n * log(n))</code>. Space: <code>O(n)</code>
+retained memory plus garbage, see the note below. where <code>n</code>
+denotes the number of key-value entries stored in the map and assuming
+that the <code>compare</code> function implements an <code>O(1)</code>
+comparison.</p>
+<p>Note: Creates <code>O(n * log(n))</code> temporary objects that will
+be collected as garbage. @deprecated M0235</p>
+<h2 id="function-frompure">Function <code>fromPure</code></h2>
+<pre class="motoko"><code>func fromPure&lt;K, V&gt;(map : PureMap.Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order)) : Map&lt;K, V&gt;</code></pre>
+<p>Convert an immutable key-value map to a mutable key-value map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import PureMap &quot;mo:core/pure/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let pureMap = PureMap.fromIter(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(), Nat.compare);
+  let map = Map.fromPure&lt;Nat, Text&gt;(pureMap, Nat.compare);
+  assert Iter.toArray(Map.entries(map)) == Iter.toArray(PureMap.entries(pureMap))
+}</code></pre>
+<p>Runtime: <code>O(n * log(n))</code>. Space: <code>O(n)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison. @deprecated M0235</p>
+<h2 id="function-clone">Function <code>clone</code></h2>
+<pre class="motoko"><code>func clone&lt;K, V&gt;(self : Map&lt;K, V&gt;) : Map&lt;K, V&gt;</code></pre>
+<p>Create a copy of the mutable key-value map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let originalMap = Map.fromIter&lt;Nat, Text&gt;(
+    [(1, &quot;One&quot;), (2, &quot;Two&quot;), (3, &quot;Three&quot;)].values(), Nat.compare);
+  let clonedMap = Map.clone(originalMap);
+  Map.add(originalMap, Nat.compare, 4, &quot;Four&quot;);
+  assert Map.size(clonedMap) == 3;
+  assert Map.size(originalMap) == 4;
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(n)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the
+map.</p>
+<h2 id="function-empty">Function <code>empty</code></h2>
+<pre class="motoko"><code>func empty&lt;K, V&gt;() : Map&lt;K, V&gt;</code></pre>
+<p>Create a new empty mutable key-value map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+
+persistent actor {
+  let map = Map.empty&lt;Nat, Text&gt;();
+  assert Map.size(map) == 0;
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-singleton">Function <code>singleton</code></h2>
+<pre class="motoko"><code>func singleton&lt;K, V&gt;(key : K, value : V) : Map&lt;K, V&gt;</code></pre>
+<p>Create a new mutable key-value map with a single entry.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.singleton&lt;Nat, Text&gt;(0, &quot;Zero&quot;);
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-clear">Function <code>clear</code></h2>
+<pre class="motoko"><code>func clear&lt;K, V&gt;(self : Map&lt;K, V&gt;)</code></pre>
+<p>Delete all the entries in the key-value map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(),
+    Nat.compare);
+
+  assert Map.size(map) == 3;
+
+  Map.clear(map);
+  assert Map.size(map) == 0;
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty&lt;K, V&gt;(self : Map&lt;K, V&gt;) : Bool</code></pre>
+<p>Determines whether a key-value map is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(),
+    Nat.compare);
+
+  assert not Map.isEmpty(map);
+  Map.clear(map);
+  assert Map.isEmpty(map);
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size&lt;K, V&gt;(self : Map&lt;K, V&gt;) : Nat</code></pre>
+<p>Return the number of entries in a key-value map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(),
+    Nat.compare);
+
+  assert Map.size(map) == 3;
+  Map.clear(map);
+  assert Map.size(map) == 0;
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal&lt;K, V&gt;(self : Map&lt;K, V&gt;, other : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Types.Order), equal : (implicit : (V, V) -&gt; Bool)) : Bool</code></pre>
+<p>Test whether two imperative maps have equal entries. Both maps have
+to be constructed by the same comparison function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+
+persistent actor {
+  let map1 = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(),
+    Nat.compare);
+  let map2 = Map.clone(map1);
+
+  assert Map.equal(map1, map2, Nat.compare, Text.equal);
+  Map.clear(map2);
+  assert not Map.equal(map1, map2, Nat.compare, Text.equal);
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-containskey">Function <code>containsKey</code></h2>
+<pre class="motoko"><code>func containsKey&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K) : Bool</code></pre>
+<p>Tests whether the map contains the provided key.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(),
+    Nat.compare);
+
+  assert Map.containsKey(map, Nat.compare, 1);
+  assert not Map.containsKey(map, Nat.compare, 3);
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(1)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison.</p>
+<h2 id="function-get">Function <code>get</code></h2>
+<pre class="motoko"><code>func get&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K) : ?V</code></pre>
+<p>Get the value associated with key in the given map if present and
+<code>null</code> otherwise.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)].values(),
+    Nat.compare);
+
+  assert Map.get(map, Nat.compare, 1) == ?&quot;One&quot;;
+  assert Map.get(map, Nat.compare, 3) == null;
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(1)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison.</p>
+<h2 id="function-insert">Function <code>insert</code></h2>
+<pre class="motoko"><code>func insert&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K, value : V) : Bool</code></pre>
+<p>Given <code>map</code> ordered by <code>compare</code>, insert a new
+mapping from <code>key</code> to <code>value</code>. Replaces any
+existing entry under <code>key</code>. Returns true if the key is new to
+the map, otherwise false.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.empty&lt;Nat, Text&gt;();
+  assert Map.insert(map, Nat.compare, 0, &quot;Zero&quot;);
+  assert Map.insert(map, Nat.compare, 1, &quot;One&quot;);
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (1, &quot;One&quot;)];
+  assert not Map.insert(map, Nat.compare, 0, &quot;Nil&quot;);
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Nil&quot;), (1, &quot;One&quot;)]
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(log(n))</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison. @deprecated M0235</p>
+<h2 id="function-add">Function <code>add</code></h2>
+<pre class="motoko"><code>func add&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K, value : V)</code></pre>
+<p>Given <code>map</code> ordered by <code>compare</code>, add a mapping
+from <code>key</code> to <code>value</code> to <code>map</code>.
+Replaces any existing entry for <code>key</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.empty&lt;Nat, Text&gt;();
+
+  Map.add(map, Nat.compare, 0, &quot;Zero&quot;);
+  Map.add(map, Nat.compare, 1, &quot;One&quot;);
+  Map.add(map, Nat.compare, 0, &quot;Nil&quot;);
+
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Nil&quot;), (1, &quot;One&quot;)]
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(log(n))</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison.</p>
+<h2 id="function-swap">Function <code>swap</code></h2>
+<pre class="motoko"><code>func swap&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K, value : V) : ?V</code></pre>
+<p>Associates the value with the key in the map. If the key is not yet
+present in the map, a new key-value pair is added and <code>null</code>
+is returned. Otherwise, if the key is already present, the value is
+overwritten and the previous value is returned.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.singleton&lt;Nat, Text&gt;(1, &quot;One&quot;);
+
+  assert Map.swap(map, Nat.compare, 0, &quot;Zero&quot;) == null;
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (1, &quot;One&quot;)];
+
+  assert Map.swap(map, Nat.compare, 0, &quot;Nil&quot;) == ?&quot;Zero&quot;;
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Nil&quot;), (1, &quot;One&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(log(n))</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison. @deprecated M0235</p>
+<h2 id="function-replace">Function <code>replace</code></h2>
+<pre class="motoko"><code>func replace&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K, value : V) : ?V</code></pre>
+<p>Overwrites the value of an existing key and returns the previous
+value. If the key does not exist, it has no effect and returns
+<code>null</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.singleton&lt;Nat, Text&gt;(0, &quot;Zero&quot;);
+
+  let prev1 = Map.replace(map, Nat.compare, 0, &quot;Nil&quot;); // overwrites the value for existing key.
+  assert prev1 == ?&quot;Zero&quot;;
+  assert Map.get(map, Nat.compare, 0) == ?&quot;Nil&quot;;
+
+  let prev2 = Map.replace(map, Nat.compare, 1, &quot;One&quot;);  // no effect, key is absent
+  assert prev2 == null;
+  assert Map.get(map, Nat.compare, 1) == null;
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(log(n))</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison. @deprecated M0235</p>
+<h2 id="function-remove">Function <code>remove</code></h2>
+<pre class="motoko"><code>func remove&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K)</code></pre>
+<p>Delete an entry by its key in the map. No effect if the key is not
+present.</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(),
+    Nat.compare);
+
+  Map.remove(map, Nat.compare, 1);
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (2, &quot;Two&quot;)];
+  Map.remove(map, Nat.compare, 42);
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (2, &quot;Two&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(log(n))</code>
+including garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map and assuming that the
+<code>compare</code> function implements an <code>O(1)</code>
+comparison.</p>
+<p>Note: Creates <code>O(log(n))</code> objects that will be collected
+as garbage.</p>
+<h2 id="function-delete">Function <code>delete</code></h2>
+<pre class="motoko"><code>func delete&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K) : Bool</code></pre>
+<p>Delete an existing entry by its key in the map. Returns
+<code>true</code> if the key was present in the map, otherwise
+<code>false</code>.</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(),
+    Nat.compare);
+
+  assert Map.delete(map, Nat.compare, 1); // present, returns true
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (2, &quot;Two&quot;)];
+
+  assert not Map.delete(map, Nat.compare, 42); // absent, returns false
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (2, &quot;Two&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(log(n))</code>
+including garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map and assuming that the
+<code>compare</code> function implements an <code>O(1)</code>
+comparison.</p>
+<p>Note: Creates <code>O(log(n))</code> objects that will be collected
+as garbage. @deprecated M0235</p>
+<h2 id="function-take">Function <code>take</code></h2>
+<pre class="motoko"><code>func take&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K) : ?V</code></pre>
+<p>Removes any existing entry by its key in the map. Returns the
+previous value of the key or <code>null</code> if the key was
+absent.</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;(
+    [(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(),
+    Nat.compare);
+
+  assert Map.take(map, Nat.compare, 0) == ?&quot;Zero&quot;;
+  assert Iter.toArray(Map.entries(map)) == [(1, &quot;One&quot;), (2, &quot;Two&quot;)];
+
+  assert Map.take(map, Nat.compare, 3) == null;
+  assert Iter.toArray(Map.entries(map)) == [(1, &quot;One&quot;), (2, &quot;Two&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(log(n))</code>
+including garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map and assuming that the
+<code>compare</code> function implements an <code>O(1)</code>
+comparison.</p>
+<p>Note: Creates <code>O(log(n))</code> objects that will be collected
+as garbage. @deprecated M0235</p>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray&lt;K, V&gt;(self : Map&lt;K, V&gt;) : [(K, V)]</code></pre>
+<h2 id="function-tovararray">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray&lt;K, V&gt;(self : Map&lt;K, V&gt;) : [var (K, V)]</code></pre>
+<h2 id="function-maxentry">Function <code>maxEntry</code></h2>
+<pre class="motoko"><code>func maxEntry&lt;K, V&gt;(self : Map&lt;K, V&gt;) : ?(K, V)</code></pre>
+<p>Retrieves the key-value pair from the map with the maximum key. If
+the map is empty, returns <code>null</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.empty&lt;Nat, Text&gt;();
+
+  assert Map.maxEntry(map) == null;
+
+  Map.add(map, Nat.compare, 0, &quot;Zero&quot;);
+  Map.add(map, Nat.compare, 2, &quot;Two&quot;);
+  Map.add(map, Nat.compare, 1, &quot;One&quot;);
+
+  assert Map.maxEntry(map) == ?(2, &quot;Two&quot;)
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(1)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the
+map.</p>
+<h2 id="function-minentry">Function <code>minEntry</code></h2>
+<pre class="motoko"><code>func minEntry&lt;K, V&gt;(self : Map&lt;K, V&gt;) : ?(K, V)</code></pre>
+<p>Retrieves the key-value pair from the map with the minimum key. If
+the map is empty, returns <code>null</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.empty&lt;Nat, Text&gt;();
+
+  assert Map.minEntry(map) == null;
+
+  Map.add(map, Nat.compare, 2, &quot;Two&quot;);
+  Map.add(map, Nat.compare, 0, &quot;Zero&quot;);
+  Map.add(map, Nat.compare, 1, &quot;One&quot;);
+
+  assert Map.minEntry(map) == ?(0, &quot;Zero&quot;)
+}</code></pre>
+<p>Runtime: <code>O(log(n))</code>. Space: <code>O(1)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the
+map.</p>
+<h2 id="function-entries">Function <code>entries</code></h2>
+<pre class="motoko"><code>func entries&lt;K, V&gt;(self : Map&lt;K, V&gt;) : Types.Iter&lt;(K, V)&gt;</code></pre>
+<p>Returns an iterator over the key-value pairs in the map, traversing
+the entries in the ascending order of the keys.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)];
+  var sum = 0;
+  var text = &quot;&quot;;
+  for ((k, v) in Map.entries(map)) { sum += k; text #= v };
+  assert sum == 3;
+  assert text == &quot;ZeroOneTwo&quot;
+}</code></pre>
+<p>Cost of iteration over all elements: Runtime: <code>O(n)</code>.
+Space: <code>O(1)</code> retained memory plus garbage, see below. where
+<code>n</code> denotes the number of key-value entries stored in the
+map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-entriesfrom">Function <code>entriesFrom</code></h2>
+<pre class="motoko"><code>func entriesFrom&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K) : Types.Iter&lt;(K, V)&gt;</code></pre>
+<p>Returns an iterator over the key-value pairs in the map, starting
+from a given key in ascending order.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (3, &quot;Three&quot;),  (1, &quot;One&quot;)].values(), Nat.compare);
+  assert Iter.toArray(Map.entriesFrom(map, Nat.compare, 1)) == [(1, &quot;One&quot;), (3, &quot;Three&quot;)];
+  assert Iter.toArray(Map.entriesFrom(map, Nat.compare, 2)) == [(3, &quot;Three&quot;)];
+}</code></pre>
+<p>Cost of iteration over all elements: Runtime: <code>O(n)</code>.
+Space: <code>O(1)</code> retained memory plus garbage, see below. where
+<code>n</code> denotes the number of key-value entries stored in the
+map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-reverseentries">Function
+<code>reverseEntries</code></h2>
+<pre class="motoko"><code>func reverseEntries&lt;K, V&gt;(self : Map&lt;K, V&gt;) : Types.Iter&lt;(K, V)&gt;</code></pre>
+<p>Returns an iterator over the key-value pairs in the map, traversing
+the entries in the descending order of the keys.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  assert Iter.toArray(Map.reverseEntries(map)) == [(2, &quot;Two&quot;), (1, &quot;One&quot;), (0, &quot;Zero&quot;)];
+  var sum = 0;
+  var text = &quot;&quot;;
+  for ((k, v) in Map.reverseEntries(map)) { sum += k; text #= v };
+  assert sum == 3;
+  assert text == &quot;TwoOneZero&quot;
+}</code></pre>
+<p>Cost of iteration over all elements: Runtime: <code>O(n)</code>.
+Space: <code>O(1)</code> retained memory plus garbage, see below. where
+<code>n</code> denotes the number of key-value entries stored in the
+map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-reverseentriesfrom">Function
+<code>reverseEntriesFrom</code></h2>
+<pre class="motoko"><code>func reverseEntriesFrom&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), key : K) : Types.Iter&lt;(K, V)&gt;</code></pre>
+<p>Returns an iterator over the key-value pairs in the map, starting
+from a given key in descending order.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (1, &quot;One&quot;), (3, &quot;Three&quot;)].values(), Nat.compare);
+  assert Iter.toArray(Map.reverseEntriesFrom(map, Nat.compare, 0)) == [(0, &quot;Zero&quot;)];
+  assert Iter.toArray(Map.reverseEntriesFrom(map, Nat.compare, 2)) == [(1, &quot;One&quot;), (0, &quot;Zero&quot;)];
+}</code></pre>
+<p>Cost of iteration over all elements: Runtime: <code>O(n)</code>.
+Space: <code>O(1)</code> retained memory plus garbage, see below. where
+<code>n</code> denotes the number of key-value entries stored in the
+map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-keys">Function <code>keys</code></h2>
+<pre class="motoko"><code>func keys&lt;K, V&gt;(self : Map&lt;K, V&gt;) : Types.Iter&lt;K&gt;</code></pre>
+<p>Returns an iterator over the keys in the map, traversing all keys in
+ascending order.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  assert Iter.toArray(Map.keys(map)) == [0, 1, 2];
+}</code></pre>
+<p>Cost of iteration over all elements: Runtime: <code>O(n)</code>.
+Space: <code>O(1)</code>.</p>
+<h2 id="function-values">Function <code>values</code></h2>
+<pre class="motoko"><code>func values&lt;K, V&gt;(self : Map&lt;K, V&gt;) : Types.Iter&lt;V&gt;</code></pre>
+<p>Returns an iterator over the values in the map, traversing the values
+in the ascending order of the keys to which they are associated.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  assert Iter.toArray(Map.values(map)) == [&quot;Zero&quot;, &quot;One&quot;, &quot;Two&quot;];
+}</code></pre>
+<p>Cost of iteration over all elements: Runtime: <code>O(n)</code>.
+Space: <code>O(1)</code>.</p>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter&lt;K, V&gt;(iter : Types.Iter&lt;(K, V)&gt;, compare : (implicit : (K, K) -&gt; Order.Order)) : Map&lt;K, V&gt;</code></pre>
+<p>Create a mutable key-value map with the entries obtained from an
+iterator.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  transient let iter =
+    Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]);
+
+  let map = Map.fromIter&lt;Nat, Text&gt;(iter, Nat.compare);
+
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(n * log(n))</code>. Space: <code>O(n)</code>. where
+<code>n</code> denotes the number of key-value entries returned by the
+iterator and assuming that the <code>compare</code> function implements
+an <code>O(1)</code> comparison.</p>
+<h2 id="function-tomap">Function <code>toMap</code></h2>
+<pre class="motoko"><code>func toMap&lt;K, V&gt;(self : Types.Iter&lt;(K, V)&gt;, compare : (implicit : (K, K) -&gt; Order.Order)) : Map&lt;K, V&gt;</code></pre>
+<p>Converts an iterator of entries into a Map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  transient let iter =
+    Iter.fromArray([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)]);
+
+  let map = iter.toMap(Nat.compare);
+
+  assert Iter.toArray(Map.entries(map)) == [(0, &quot;Zero&quot;), (1, &quot;One&quot;), (2, &quot;Two&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(n * log(n))</code>. Space: <code>O(n)</code>. where
+<code>n</code> denotes the number of key-value entries returned by the
+iterator and assuming that the <code>compare</code> function implements
+an <code>O(1)</code> comparison.</p>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray&lt;K, V&gt;(array : [(K, V)], compare : (implicit : (K, K) -&gt; Order.Order)) : Map&lt;K, V&gt;</code></pre>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray&lt;K, V&gt;(array : [var (K, V)], compare : (implicit : (K, K) -&gt; Order.Order)) : Map&lt;K, V&gt;</code></pre>
+<h2 id="function-foreach">Function <code>forEach</code></h2>
+<pre class="motoko"><code>func forEach&lt;K, V&gt;(self : Map&lt;K, V&gt;, operation : (K, V) -&gt; ())</code></pre>
+<p>Apply an operation on each key-value pair contained in the map. The
+operation is applied in ascending order of the keys.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+  var sum = 0;
+  var text = &quot;&quot;;
+  Map.forEach&lt;Nat, Text&gt;(map, func (key, value) {
+    sum += key;
+    text #= value;
+  });
+  assert sum == 3;
+  assert text == &quot;ZeroOneTwo&quot;;
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(1)</code> retained memory
+plus garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-filter">Function <code>filter</code></h2>
+<pre class="motoko"><code>func filter&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order), criterion : (K, V) -&gt; Bool) : Map&lt;K, V&gt;</code></pre>
+<p>Filter entries in a new map. Create a copy of the mutable map that
+only contains the key-value pairs that fulfil the criterion
+function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let numberNames = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  let evenNames = Map.filter&lt;Nat, Text&gt;(numberNames, Nat.compare, func (key, value) {
+    key % 2 == 0
+  });
+
+  assert Iter.toArray(Map.entries(evenNames)) == [(0, &quot;Zero&quot;), (2, &quot;Two&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(n)</code>. where
+<code>n</code> denotes the number of key-value entries stored in the map
+and assuming that the <code>compare</code> function implements an
+<code>O(1)</code> comparison.</p>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;K, V1, V2&gt;(self : Map&lt;K, V1&gt;, project : (K, V1) -&gt; V2) : Map&lt;K, V2&gt;</code></pre>
+<p>Project all values of the map in a new map. Apply a mapping function
+to the values of each entry in the map and collect the mapped entries in
+a new mutable key-value map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  func f(key : Nat, _val : Text) : Nat = key * 2;
+
+  let resMap = Map.map&lt;Nat, Text, Nat&gt;(map, f);
+
+  assert Iter.toArray(Map.entries(resMap)) == [(0, 0), (1, 2), (2, 4)];
+}</code></pre>
+<p>Runtime: <code>O(n * log(n))</code>. Space: <code>O(n)</code>
+retained memory plus garbage, see below. where <code>n</code> denotes
+the number of key-value entries stored in the map and assuming that the
+<code>compare</code> function implements an <code>O(1)</code>
+comparison.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-foldleft">Function <code>foldLeft</code></h2>
+<pre class="motoko"><code>func foldLeft&lt;K, V, A&gt;(self : Map&lt;K, V&gt;, base : A, combine : (A, K, V) -&gt; A) : A</code></pre>
+<p>Iterate all entries in ascending order of the keys, and accumulate
+the entries by applying the combine function, starting from a base
+value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  func folder(accum : (Nat, Text), key : Nat, val : Text) : ((Nat, Text))
+    = (key + accum.0, accum.1 # val);
+
+  assert Map.foldLeft(map, (0, &quot;&quot;), folder) == (3, &quot;ZeroOneTwo&quot;);
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(1)</code> retained memory
+plus garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-foldright">Function <code>foldRight</code></h2>
+<pre class="motoko"><code>func foldRight&lt;K, V, A&gt;(self : Map&lt;K, V&gt;, base : A, combine : (K, V, A) -&gt; A) : A</code></pre>
+<p>Iterate all entries in descending order of the keys, and accumulate
+the entries by applying the combine function, starting from a base
+value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  func folder(key : Nat, val : Text, accum : (Nat, Text)) : ((Nat, Text))
+    = (key + accum.0, accum.1 # val);
+
+  assert Map.foldRight(map, (0, &quot;&quot;), folder) == (3, &quot;TwoOneZero&quot;);
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(1)</code> retained memory
+plus garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-all">Function <code>all</code></h2>
+<pre class="motoko"><code>func all&lt;K, V&gt;(self : Map&lt;K, V&gt;, predicate : (K, V) -&gt; Bool) : Bool</code></pre>
+<p>Check whether all entries in the map fulfil a predicate function,
+i.e. the predicate function returns <code>true</code> for all entries in
+the map. Returns <code>true</code> for an empty map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;0&quot;), (2, &quot;2&quot;), (1, &quot;1&quot;)].values(), Nat.compare);
+
+  assert Map.all&lt;Nat, Text&gt;(map, func (k, v) = v == Nat.toText(k));
+  assert not Map.all&lt;Nat, Text&gt;(map, func (k, v) = k &lt; 2);
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(1)</code> retained memory
+plus garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-any">Function <code>any</code></h2>
+<pre class="motoko"><code>func any&lt;K, V&gt;(self : Map&lt;K, V&gt;, predicate : (K, V) -&gt; Bool) : Bool</code></pre>
+<p>Test if any key-value pair in <code>map</code> satisfies the given
+predicate <code>pred</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;0&quot;), (2, &quot;2&quot;), (1, &quot;1&quot;)].values(), Nat.compare);
+
+  assert Map.any&lt;Nat, Text&gt;(map, func (k, v) = (k &gt;= 0));
+  assert not Map.any&lt;Nat, Text&gt;(map, func (k, v) = (k &gt;= 3));
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(1)</code> retained memory
+plus garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-filtermap">Function <code>filterMap</code></h2>
+<pre class="motoko"><code>func filterMap&lt;K, V1, V2&gt;(self : Map&lt;K, V1&gt;, compare : (implicit : (K, K) -&gt; Order.Order), project : (K, V1) -&gt; ?V2) : Map&lt;K, V2&gt;</code></pre>
+<p>Filter all entries in the map by also applying a projection to the
+value. Apply a mapping function <code>project</code> to all entries in
+the map and collect all entries, for which the function returns a
+non-null new value. Collect all non-discarded entries with the key and
+new value in a new mutable map.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+
+  func f(key : Nat, val : Text) : ?Text {
+    if(key == 0) {null}
+    else { ?(&quot;Twenty &quot; # val)}
+  };
+
+  let newMap = Map.filterMap&lt;Nat, Text, Text&gt;(map, Nat.compare, f);
+
+  assert Iter.toArray(Map.entries(newMap)) == [(1, &quot;Twenty One&quot;), (2, &quot;Twenty Two&quot;)];
+}</code></pre>
+<p>Runtime: <code>O(n * log(n))</code>. Space: <code>O(n)</code>
+retained memory plus garbage, see below. where <code>n</code> denotes
+the number of key-value entries stored in the map.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-assertvalid">Function <code>assertValid</code></h2>
+<pre class="motoko"><code>func assertValid&lt;K, V&gt;(self : Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order.Order))</code></pre>
+<p>Internal sanity check function. Can be used to check that key/value
+pairs have been inserted with a consistent key comparison function.
+Traps if the internal map structure is invalid. @deprecated M0235</p>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText&lt;K, V&gt;(self : Map&lt;K, V&gt;, keyFormat : (implicit : (toText : K -&gt; Text)), valueFormat : (implicit : (toText : V -&gt; Text))) : Text</code></pre>
+<p>Generate a textual representation of all the entries in the map.
+Primarily to be used for testing and debugging. The keys and values are
+formatted according to <code>keyFormat</code> and
+<code>valueFormat</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let map = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+  assert Map.toText&lt;Nat, Text&gt;(map, Nat.toText, func t { t }) == &quot;Map{(0, Zero), (1, One), (2, Two)}&quot;;
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(n)</code> retained memory
+plus garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map and assuming that
+<code>keyFormat</code> and <code>valueFormat</code> have runtime and
+space costs of <code>O(1)</code>.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare&lt;K, V&gt;(self : Map&lt;K, V&gt;, other : Map&lt;K, V&gt;, compareKey : (implicit : (compare : (K, K) -&gt; Order.Order)), compareValue : (implicit : (compare : (V, V) -&gt; Order.Order))) : Order.Order</code></pre>
+<p>Compare two maps by primarily comparing keys and secondarily values.
+Both maps must have been created by the same key comparison function.
+The two maps are iterated by the ascending order of their creation and
+order is determined by the following rules: Less: <code>map1</code> is
+less than <code>map2</code> if:</p>
+<ul>
+<li>the pairwise iteration hits a entry pair <code>entry1</code> and
+<code>entry2</code> where <code>entry1</code> is less than
+<code>entry2</code> and all preceding entry pairs are equal, or,</li>
+<li><code>map1</code> is a strict prefix of <code>map2</code>, i.e.
+<code>map2</code> has more entries than <code>map1</code> and all
+entries of <code>map1</code> occur at the beginning of iteration
+<code>map2</code>. <code>entry1</code> is less than <code>entry2</code>
+if:</li>
+<li>the key of <code>entry1</code> is less than the key of
+<code>entry2</code>, or</li>
+<li><code>entry1</code> and <code>entry2</code> have equal keys and the
+value of <code>entry1</code> is less than the value of
+<code>entry2</code>. Equal: <code>map1</code> and <code>map2</code> have
+same series of equal entries by pairwise iteration. Greater:
+<code>map1</code> is neither less nor equal <code>map2</code>.</li>
+</ul>
+<p>Example:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Text &quot;mo:core/Text&quot;;
+
+persistent actor {
+  let map1 = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (1, &quot;One&quot;)].values(), Nat.compare);
+  let map2 = Map.fromIter&lt;Nat, Text&gt;([(0, &quot;Zero&quot;), (2, &quot;Two&quot;)].values(), Nat.compare);
+
+  assert Map.compare(map1, map2, Nat.compare, Text.compare) == #less;
+  assert Map.compare(map1, map1, Nat.compare, Text.compare) == #equal;
+  assert Map.compare(map2, map1, Nat.compare, Text.compare) == #greater
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(1)</code> retained memory
+plus garbage, see below. where <code>n</code> denotes the number of
+key-value entries stored in the map and assuming that
+<code>compareKey</code> and <code>compareValue</code> have runtime and
+space costs of <code>O(1)</code>.</p>
+<p>Note: Creates <code>O(log(n))</code> temporary objects that will be
+collected as garbage.</p>
+</body>
+</html>

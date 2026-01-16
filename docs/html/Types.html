@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Types.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Types.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coretypes" id="toc-coretypes">core/Types</a>
+<ul>
+<li><a href="#type-blob" id="toc-type-blob">Type
+<code>Blob</code></a></li>
+<li><a href="#type-bool" id="toc-type-bool">Type
+<code>Bool</code></a></li>
+<li><a href="#type-char" id="toc-type-char">Type
+<code>Char</code></a></li>
+<li><a href="#type-error" id="toc-type-error">Type
+<code>Error</code></a></li>
+<li><a href="#type-errorcode" id="toc-type-errorcode">Type
+<code>ErrorCode</code></a></li>
+<li><a href="#type-float" id="toc-type-float">Type
+<code>Float</code></a></li>
+<li><a href="#type-int" id="toc-type-int">Type <code>Int</code></a></li>
+<li><a href="#type-int8" id="toc-type-int8">Type
+<code>Int8</code></a></li>
+<li><a href="#type-int16" id="toc-type-int16">Type
+<code>Int16</code></a></li>
+<li><a href="#type-int32" id="toc-type-int32">Type
+<code>Int32</code></a></li>
+<li><a href="#type-int64" id="toc-type-int64">Type
+<code>Int64</code></a></li>
+<li><a href="#type-nat" id="toc-type-nat">Type <code>Nat</code></a></li>
+<li><a href="#type-nat8" id="toc-type-nat8">Type
+<code>Nat8</code></a></li>
+<li><a href="#type-nat16" id="toc-type-nat16">Type
+<code>Nat16</code></a></li>
+<li><a href="#type-nat32" id="toc-type-nat32">Type
+<code>Nat32</code></a></li>
+<li><a href="#type-nat64" id="toc-type-nat64">Type
+<code>Nat64</code></a></li>
+<li><a href="#type-principal" id="toc-type-principal">Type
+<code>Principal</code></a></li>
+<li><a href="#type-region" id="toc-type-region">Type
+<code>Region</code></a></li>
+<li><a href="#type-text" id="toc-type-text">Type
+<code>Text</code></a></li>
+<li><a href="#type-hash" id="toc-type-hash">Type
+<code>Hash</code></a></li>
+<li><a href="#type-iter" id="toc-type-iter">Type
+<code>Iter</code></a></li>
+<li><a href="#type-order" id="toc-type-order">Type
+<code>Order</code></a></li>
+<li><a href="#type-result" id="toc-type-result">Type
+<code>Result</code></a></li>
+<li><a href="#type-pattern" id="toc-type-pattern">Type
+<code>Pattern</code></a></li>
+<li><a href="#type-time" id="toc-type-time">Type
+<code>Time</code></a></li>
+<li><a href="#type-duration" id="toc-type-duration">Type
+<code>Duration</code></a></li>
+<li><a href="#type-timerid" id="toc-type-timerid">Type
+<code>TimerId</code></a></li>
+<li><a href="#type-list" id="toc-type-list">Type
+<code>List</code></a></li>
+<li><a href="#module-queue" id="toc-module-queue">Module
+<code>Queue</code></a>
+<ul>
+<li><a href="#type-queue" id="toc-type-queue">Type
+<code>Queue</code></a></li>
+<li><a href="#type-node" id="toc-type-node">Type
+<code>Node</code></a></li>
+</ul></li>
+<li><a href="#type-queue-1" id="toc-type-queue-1">Type
+<code>Queue</code></a></li>
+<li><a href="#module-priorityqueue" id="toc-module-priorityqueue">Module
+<code>PriorityQueue</code></a>
+<ul>
+<li><a href="#type-priorityqueue" id="toc-type-priorityqueue">Type
+<code>PriorityQueue</code></a></li>
+</ul></li>
+<li><a href="#type-priorityqueue-1" id="toc-type-priorityqueue-1">Type
+<code>PriorityQueue</code></a></li>
+<li><a href="#module-set" id="toc-module-set">Module
+<code>Set</code></a>
+<ul>
+<li><a href="#type-node-1" id="toc-type-node-1">Type
+<code>Node</code></a></li>
+<li><a href="#type-data" id="toc-type-data">Type
+<code>Data</code></a></li>
+<li><a href="#type-internal" id="toc-type-internal">Type
+<code>Internal</code></a></li>
+<li><a href="#type-leaf" id="toc-type-leaf">Type
+<code>Leaf</code></a></li>
+<li><a href="#type-set" id="toc-type-set">Type <code>Set</code></a></li>
+</ul></li>
+<li><a href="#type-set-1" id="toc-type-set-1">Type
+<code>Set</code></a></li>
+<li><a href="#module-map" id="toc-module-map">Module
+<code>Map</code></a>
+<ul>
+<li><a href="#type-node-2" id="toc-type-node-2">Type
+<code>Node</code></a></li>
+<li><a href="#type-data-1" id="toc-type-data-1">Type
+<code>Data</code></a></li>
+<li><a href="#type-internal-1" id="toc-type-internal-1">Type
+<code>Internal</code></a></li>
+<li><a href="#type-leaf-1" id="toc-type-leaf-1">Type
+<code>Leaf</code></a></li>
+<li><a href="#type-map" id="toc-type-map">Type <code>Map</code></a></li>
+</ul></li>
+<li><a href="#type-map-1" id="toc-type-map-1">Type
+<code>Map</code></a></li>
+<li><a href="#module-stack" id="toc-module-stack">Module
+<code>Stack</code></a>
+<ul>
+<li><a href="#type-stack" id="toc-type-stack">Type
+<code>Stack</code></a></li>
+</ul></li>
+<li><a href="#type-stack-1" id="toc-type-stack-1">Type
+<code>Stack</code></a></li>
+<li><a href="#module-pure" id="toc-module-pure">Module
+<code>Pure</code></a>
+<ul>
+<li><a href="#type-list-1" id="toc-type-list-1">Type
+<code>List</code></a></li>
+<li><a href="#module-map-1" id="toc-module-map-1">Module
+<code>Map</code></a></li>
+<li><a href="#type-map-3" id="toc-type-map-3">Type
+<code>Map</code></a></li>
+<li><a href="#type-queue-2" id="toc-type-queue-2">Type
+<code>Queue</code></a></li>
+<li><a href="#module-set-1" id="toc-module-set-1">Module
+<code>Set</code></a></li>
+<li><a href="#type-set-3" id="toc-type-set-3">Type
+<code>Set</code></a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coretypes">core/Types</h1>
+<p>Common types used throughout the core package.</p>
+<p>Example usage:</p>
+<pre class="motoko"><code>import { type Result; type Iter } &quot;mo:core/Types&quot;;
+
+// Result for error handling
+let result : Result&lt;Int, Text&gt; = #ok(42);
+
+// Iterator for sequences
+let iter : Iter&lt;Nat&gt; = { next = func() { ?1 } };</code></pre>
+<h2 id="type-blob">Type <code>Blob</code></h2>
+<pre class="motoko"><code>type Blob = Prim.Types.Blob</code></pre>
+<h2 id="type-bool">Type <code>Bool</code></h2>
+<pre class="motoko"><code>type Bool = Prim.Types.Bool</code></pre>
+<h2 id="type-char">Type <code>Char</code></h2>
+<pre class="motoko"><code>type Char = Prim.Types.Char</code></pre>
+<h2 id="type-error">Type <code>Error</code></h2>
+<pre class="motoko"><code>type Error = Prim.Types.Error</code></pre>
+<h2 id="type-errorcode">Type <code>ErrorCode</code></h2>
+<pre class="motoko"><code>type ErrorCode = Prim.ErrorCode</code></pre>
+<h2 id="type-float">Type <code>Float</code></h2>
+<pre class="motoko"><code>type Float = Prim.Types.Float</code></pre>
+<h2 id="type-int">Type <code>Int</code></h2>
+<pre class="motoko"><code>type Int = Prim.Types.Int</code></pre>
+<h2 id="type-int8">Type <code>Int8</code></h2>
+<pre class="motoko"><code>type Int8 = Prim.Types.Int8</code></pre>
+<h2 id="type-int16">Type <code>Int16</code></h2>
+<pre class="motoko"><code>type Int16 = Prim.Types.Int16</code></pre>
+<h2 id="type-int32">Type <code>Int32</code></h2>
+<pre class="motoko"><code>type Int32 = Prim.Types.Int32</code></pre>
+<h2 id="type-int64">Type <code>Int64</code></h2>
+<pre class="motoko"><code>type Int64 = Prim.Types.Int64</code></pre>
+<h2 id="type-nat">Type <code>Nat</code></h2>
+<pre class="motoko"><code>type Nat = Prim.Types.Nat</code></pre>
+<h2 id="type-nat8">Type <code>Nat8</code></h2>
+<pre class="motoko"><code>type Nat8 = Prim.Types.Nat8</code></pre>
+<h2 id="type-nat16">Type <code>Nat16</code></h2>
+<pre class="motoko"><code>type Nat16 = Prim.Types.Nat16</code></pre>
+<h2 id="type-nat32">Type <code>Nat32</code></h2>
+<pre class="motoko"><code>type Nat32 = Prim.Types.Nat32</code></pre>
+<h2 id="type-nat64">Type <code>Nat64</code></h2>
+<pre class="motoko"><code>type Nat64 = Prim.Types.Nat64</code></pre>
+<h2 id="type-principal">Type <code>Principal</code></h2>
+<pre class="motoko"><code>type Principal = Prim.Types.Principal</code></pre>
+<h2 id="type-region">Type <code>Region</code></h2>
+<pre class="motoko"><code>type Region = Prim.Types.Region</code></pre>
+<h2 id="type-text">Type <code>Text</code></h2>
+<pre class="motoko"><code>type Text = Prim.Types.Text</code></pre>
+<h2 id="type-hash">Type <code>Hash</code></h2>
+<pre class="motoko"><code>type Hash = Nat32</code></pre>
+<h2 id="type-iter">Type <code>Iter</code></h2>
+<pre class="motoko"><code>type Iter&lt;T&gt; = { next : () -&gt; ?T }</code></pre>
+<h2 id="type-order">Type <code>Order</code></h2>
+<pre class="motoko"><code>type Order = {#less; #equal; #greater}</code></pre>
+<h2 id="type-result">Type <code>Result</code></h2>
+<pre class="motoko"><code>type Result&lt;T, E&gt; = {#ok : T; #err : E}</code></pre>
+<h2 id="type-pattern">Type <code>Pattern</code></h2>
+<pre class="motoko"><code>type Pattern = {#char : Char; #text : Text; #predicate : (Char -&gt; Bool)}</code></pre>
+<h2 id="type-time">Type <code>Time</code></h2>
+<pre class="motoko"><code>type Time = Int</code></pre>
+<h2 id="type-duration">Type <code>Duration</code></h2>
+<pre class="motoko"><code>type Duration = {#days : Nat; #hours : Nat; #minutes : Nat; #seconds : Nat; #milliseconds : Nat; #nanoseconds : Nat}</code></pre>
+<h2 id="type-timerid">Type <code>TimerId</code></h2>
+<pre class="motoko"><code>type TimerId = Nat</code></pre>
+<h2 id="type-list">Type <code>List</code></h2>
+<pre class="motoko"><code>type List&lt;T&gt; = { var blocks : [var [var ?T]]; var blockIndex : Nat; var elementIndex : Nat }</code></pre>
+<h2 id="module-queue">Module <code>Queue</code></h2>
+<pre class="motoko"><code>module Queue</code></pre>
+<h3 id="type-queue">Type <code>Queue</code></h3>
+<pre class="motoko"><code>type Queue&lt;T&gt; = { var front : ?Node&lt;T&gt;; var back : ?Node&lt;T&gt;; var size : Nat }</code></pre>
+<h3 id="type-node">Type <code>Node</code></h3>
+<pre class="motoko"><code>type Node&lt;T&gt; = { value : T; var next : ?Node&lt;T&gt;; var previous : ?Node&lt;T&gt; }</code></pre>
+<h2 id="type-queue-1">Type <code>Queue</code></h2>
+<pre class="motoko"><code>type Queue&lt;T&gt; = Queue.Queue&lt;T&gt;</code></pre>
+<h2 id="module-priorityqueue">Module <code>PriorityQueue</code></h2>
+<pre class="motoko"><code>module PriorityQueue</code></pre>
+<h3 id="type-priorityqueue">Type <code>PriorityQueue</code></h3>
+<pre class="motoko"><code>type PriorityQueue&lt;T&gt; = { heap : List&lt;T&gt; }</code></pre>
+<h2 id="type-priorityqueue-1">Type <code>PriorityQueue</code></h2>
+<pre class="motoko"><code>type PriorityQueue&lt;T&gt; = PriorityQueue.PriorityQueue&lt;T&gt;</code></pre>
+<h2 id="module-set">Module <code>Set</code></h2>
+<pre class="motoko"><code>module Set</code></pre>
+<h3 id="type-node-1">Type <code>Node</code></h3>
+<pre class="motoko"><code>type Node&lt;T&gt; = {#leaf : Leaf&lt;T&gt;; #internal : Internal&lt;T&gt;}</code></pre>
+<h3 id="type-data">Type <code>Data</code></h3>
+<pre class="motoko"><code>type Data&lt;T&gt; = { elements : [var ?T]; var count : Nat }</code></pre>
+<h3 id="type-internal">Type <code>Internal</code></h3>
+<pre class="motoko"><code>type Internal&lt;T&gt; = { data : Data&lt;T&gt;; children : [var ?Node&lt;T&gt;] }</code></pre>
+<h3 id="type-leaf">Type <code>Leaf</code></h3>
+<pre class="motoko"><code>type Leaf&lt;T&gt; = { data : Data&lt;T&gt; }</code></pre>
+<h3 id="type-set">Type <code>Set</code></h3>
+<pre class="motoko"><code>type Set&lt;T&gt; = { var root : Node&lt;T&gt;; var size : Nat }</code></pre>
+<h2 id="type-set-1">Type <code>Set</code></h2>
+<pre class="motoko"><code>type Set&lt;T&gt; = Set.Set&lt;T&gt;</code></pre>
+<h2 id="module-map">Module <code>Map</code></h2>
+<pre class="motoko"><code>module Map</code></pre>
+<h3 id="type-node-2">Type <code>Node</code></h3>
+<pre class="motoko"><code>type Node&lt;K, V&gt; = {#leaf : Leaf&lt;K, V&gt;; #internal : Internal&lt;K, V&gt;}</code></pre>
+<h3 id="type-data-1">Type <code>Data</code></h3>
+<pre class="motoko"><code>type Data&lt;K, V&gt; = { kvs : [var ?(K, V)]; var count : Nat }</code></pre>
+<h3 id="type-internal-1">Type <code>Internal</code></h3>
+<pre class="motoko"><code>type Internal&lt;K, V&gt; = { data : Data&lt;K, V&gt;; children : [var ?Node&lt;K, V&gt;] }</code></pre>
+<h3 id="type-leaf-1">Type <code>Leaf</code></h3>
+<pre class="motoko"><code>type Leaf&lt;K, V&gt; = { data : Data&lt;K, V&gt; }</code></pre>
+<h3 id="type-map">Type <code>Map</code></h3>
+<pre class="motoko"><code>type Map&lt;K, V&gt; = { var root : Node&lt;K, V&gt;; var size : Nat }</code></pre>
+<h2 id="type-map-1">Type <code>Map</code></h2>
+<pre class="motoko"><code>type Map&lt;K, V&gt; = Map.Map&lt;K, V&gt;</code></pre>
+<h2 id="module-stack">Module <code>Stack</code></h2>
+<pre class="motoko"><code>module Stack</code></pre>
+<h3 id="type-stack">Type <code>Stack</code></h3>
+<pre class="motoko"><code>type Stack&lt;T&gt; = { var top : Pure.List&lt;T&gt;; var size : Nat }</code></pre>
+<h2 id="type-stack-1">Type <code>Stack</code></h2>
+<pre class="motoko"><code>type Stack&lt;T&gt; = Stack.Stack&lt;T&gt;</code></pre>
+<h2 id="module-pure">Module <code>Pure</code></h2>
+<pre class="motoko"><code>module Pure</code></pre>
+<h3 id="type-list-1">Type <code>List</code></h3>
+<pre class="motoko"><code>type List&lt;T&gt; = ?(T, List&lt;T&gt;)</code></pre>
+<h3 id="module-map-1">Module <code>Map</code></h3>
+<pre class="motoko"><code>module Map</code></pre>
+<h4 id="type-map-2">Type <code>Map</code></h4>
+<pre class="motoko"><code>type Map&lt;K, V&gt; = { size : Nat; root : Tree&lt;K, V&gt; }</code></pre>
+<h4 id="type-tree">Type <code>Tree</code></h4>
+<pre class="motoko"><code>type Tree&lt;K, V&gt; = {#red : (Tree&lt;K, V&gt;, K, V, Tree&lt;K, V&gt;); #black : (Tree&lt;K, V&gt;, K, V, Tree&lt;K, V&gt;); #leaf}</code></pre>
+<h3 id="type-map-3">Type <code>Map</code></h3>
+<pre class="motoko"><code>type Map&lt;K, V&gt; = Map.Map&lt;K, V&gt;</code></pre>
+<h3 id="type-queue-2">Type <code>Queue</code></h3>
+<pre class="motoko"><code>type Queue&lt;T&gt; = (List&lt;T&gt;, Nat, List&lt;T&gt;)</code></pre>
+<h3 id="module-set-1">Module <code>Set</code></h3>
+<pre class="motoko"><code>module Set</code></pre>
+<h4 id="type-tree-1">Type <code>Tree</code></h4>
+<pre class="motoko"><code>type Tree&lt;T&gt; = {#red : (Tree&lt;T&gt;, T, Tree&lt;T&gt;); #black : (Tree&lt;T&gt;, T, Tree&lt;T&gt;); #leaf}</code></pre>
+<h4 id="type-set-2">Type <code>Set</code></h4>
+<pre class="motoko"><code>type Set&lt;T&gt; = { size : Nat; root : Tree&lt;T&gt; }</code></pre>
+<h3 id="type-set-3">Type <code>Set</code></h3>
+<pre class="motoko"><code>type Set&lt;T&gt; = Set.Set&lt;T&gt;</code></pre>
+</body>
+</html>

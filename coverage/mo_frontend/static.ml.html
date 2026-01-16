@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>static.ml &mdash; Coverage report</title>
+    <meta name="description" content="65.96% coverage in mo_frontend/static.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_frontend/</span>static.ml
+        </a>
+      </h1>
+      <h2>65.96%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="top:29.23%"></span>
+      <span class="some-visited" style="top:30.00%"></span>
+      <span class="some-visited" style="top:41.54%"></span>
+      <span class="unvisited" style="top:43.85%"></span>
+      <span class="unvisited" style="top:45.38%"></span>
+      <span class="some-visited" style="top:47.69%"></span>
+      <span class="unvisited" style="bottom:49.23%"></span>
+      <span class="unvisited" style="bottom:48.46%"></span>
+      <span class="unvisited" style="bottom:47.69%"></span>
+      <span class="unvisited" style="bottom:46.92%"></span>
+      <span class="unvisited" style="bottom:46.15%"></span>
+      <span class="unvisited" style="bottom:44.62%"></span>
+      <span class="unvisited" style="bottom:43.85%"></span>
+      <span class="unvisited" style="bottom:43.08%"></span>
+      <span class="unvisited" style="bottom:42.31%"></span>
+      <span class="unvisited" style="bottom:40.77%"></span>
+      <span class="unvisited" style="bottom:40.00%"></span>
+      <span class="unvisited" style="bottom:39.23%"></span>
+      <span class="unvisited" style="bottom:38.46%"></span>
+      <span class="unvisited" style="bottom:36.92%"></span>
+      <span class="unvisited" style="bottom:36.15%"></span>
+      <span class="unvisited" style="bottom:35.38%"></span>
+      <span class="unvisited" style="bottom:34.62%"></span>
+      <span class="unvisited" style="bottom:33.85%"></span>
+      <span class="unvisited" style="bottom:33.08%"></span>
+      <span class="unvisited" style="bottom:32.31%"></span>
+      <span class="unvisited" style="bottom:31.54%"></span>
+      <span class="unvisited" style="bottom:30.77%"></span>
+      <span class="unvisited" style="bottom:30.00%"></span>
+      <span class="some-visited" style="bottom:20.00%"></span>
+      <span class="unvisited" style="bottom:2.31%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span > </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span class="visited"> </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span class="visited"> </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span > </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span class="visited"> </span>
+<a id="L29"></a><span > </span>
+<a id="L30"></a><span class="visited"> </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span class="visited"> </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span class="unvisited"> </span>
+<a id="L39"></a><span class="some-visited"> </span>
+<a id="L40"></a><span class="visited"> </span>
+<a id="L41"></a><span class="visited"> </span>
+<a id="L42"></a><span class="visited"> </span>
+<a id="L43"></a><span > </span>
+<a id="L44"></a><span > </span>
+<a id="L45"></a><span class="visited"> </span>
+<a id="L46"></a><span class="visited"> </span>
+<a id="L47"></a><span > </span>
+<a id="L48"></a><span class="visited"> </span>
+<a id="L49"></a><span class="visited"> </span>
+<a id="L50"></a><span class="visited"> </span>
+<a id="L51"></a><span class="visited"> </span>
+<a id="L52"></a><span > </span>
+<a id="L53"></a><span > </span>
+<a id="L54"></a><span class="some-visited"> </span>
+<a id="L55"></a><span > </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span class="unvisited"> </span>
+<a id="L58"></a><span class="visited"> </span>
+<a id="L59"></a><span class="unvisited"> </span>
+<a id="L60"></a><span > </span>
+<a id="L61"></a><span > </span>
+<a id="L62"></a><span class="some-visited"> </span>
+<a id="L63"></a><span class="visited"> </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span class="unvisited"> </span>
+<a id="L67"></a><span class="unvisited"> </span>
+<a id="L68"></a><span class="unvisited"> </span>
+<a id="L69"></a><span class="unvisited"> </span>
+<a id="L70"></a><span class="unvisited"> </span>
+<a id="L71"></a><span class="visited"> </span>
+<a id="L72"></a><span class="unvisited"> </span>
+<a id="L73"></a><span class="unvisited"> </span>
+<a id="L74"></a><span class="unvisited"> </span>
+<a id="L75"></a><span class="unvisited"> </span>
+<a id="L76"></a><span class="visited"> </span>
+<a id="L77"></a><span class="unvisited"> </span>
+<a id="L78"></a><span class="unvisited"> </span>
+<a id="L79"></a><span class="unvisited"> </span>
+<a id="L80"></a><span class="unvisited"> </span>
+<a id="L81"></a><span class="visited"> </span>
+<a id="L82"></a><span class="unvisited"> </span>
+<a id="L83"></a><span class="unvisited"> </span>
+<a id="L84"></a><span class="unvisited"> </span>
+<a id="L85"></a><span class="unvisited"> </span>
+<a id="L86"></a><span class="unvisited"> </span>
+<a id="L87"></a><span class="unvisited"> </span>
+<a id="L88"></a><span class="unvisited"> </span>
+<a id="L89"></a><span class="unvisited"> </span>
+<a id="L90"></a><span class="unvisited"> </span>
+<a id="L91"></a><span class="unvisited"> </span>
+<a id="L92"></a><span > </span>
+<a id="L93"></a><span > </span>
+<a id="L94"></a><span class="visited"> </span>
+<a id="L95"></a><span > </span>
+<a id="L96"></a><span class="visited"> </span>
+<a id="L97"></a><span class="visited"> </span>
+<a id="L98"></a><span class="visited"> </span>
+<a id="L99"></a><span > </span>
+<a id="L100"></a><span class="visited"> </span>
+<a id="L101"></a><span class="visited"> </span>
+<a id="L102"></a><span class="visited"> </span>
+<a id="L103"></a><span class="visited"> </span>
+<a id="L104"></a><span class="some-visited"> </span>
+<a id="L105"></a><span > </span>
+<a id="L106"></a><span class="visited"> </span>
+<a id="L107"></a><span class="visited"> </span>
+<a id="L108"></a><span > </span>
+<a id="L109"></a><span > </span>
+<a id="L110"></a><span > </span>
+<a id="L111"></a><span > </span>
+<a id="L112"></a><span > </span>
+<a id="L113"></a><span class="visited"> </span>
+<a id="L114"></a><span class="visited"> </span>
+<a id="L115"></a><span > </span>
+<a id="L116"></a><span > </span>
+<a id="L117"></a><span > </span>
+<a id="L118"></a><span > </span>
+<a id="L119"></a><span > </span>
+<a id="L120"></a><span > </span>
+<a id="L121"></a><span > </span>
+<a id="L122"></a><span > </span>
+<a id="L123"></a><span class="visited"> </span>
+<a id="L124"></a><span > </span>
+<a id="L125"></a><span class="visited"> </span>
+<a id="L126"></a><span class="visited"> </span>
+<a id="L127"></a><span class="unvisited"> </span>
+<a id="L128"></a><span > </span>
+<a id="L129"></a><span > </span>
+<a id="L130"></a><span class="visited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+<a href="#L106">106</a>
+<a href="#L107">107</a>
+<a href="#L108">108</a>
+<a href="#L109">109</a>
+<a href="#L110">110</a>
+<a href="#L111">111</a>
+<a href="#L112">112</a>
+<a href="#L113">113</a>
+<a href="#L114">114</a>
+<a href="#L115">115</a>
+<a href="#L116">116</a>
+<a href="#L117">117</a>
+<a href="#L118">118</a>
+<a href="#L119">119</a>
+<a href="#L120">120</a>
+<a href="#L121">121</a>
+<a href="#L122">122</a>
+<a href="#L123">123</a>
+<a href="#L124">124</a>
+<a href="#L125">125</a>
+<a href="#L126">126</a>
+<a href="#L127">127</a>
+<a href="#L128">128</a>
+<a href="#L129">129</a>
+<a href="#L130">130</a>
+</pre>
+<pre><code class="ocaml">(*
+This module implements the staticity check, needed for modules and imported
+files.
+
+The guiding principle is: Static expressions are expressions that can be
+compiled to values without evaluation.
+
+There is some mushiness around let-expressions and variables, which do form
+some kind of beta-reduction, and can actually cause loops, but are required to
+allow re-exporting names in modules.
+*)
+
+open Mo_def
+
+open Source
+open Syntax
+
+let err m at =
+  <span data-count="20">l</span>et open Diag in
+  add_msg m
+    (error_messag<span data-count="20">e</span>
+       at
+       "M0014"
+       "type"
+       "non-static expression in library, module or migration expression")
+
+let pat_err m at =
+  <span data-count="1">l</span>et open Diag in
+  add_msg m
+    (error_messag<span data-count="1">e</span>
+       at
+       "M0015"
+       "type"
+       "only trivial patterns allowed in static expressions")
+
+let rec exp m e = <span data-count="217577">m</span>atch e.it with
+  (* Plain values *)
+  | <span data-count="0">H</span>oleE (s, e) -&gt; exp m !e
+  | (<span data-count="0">P</span>rimE _ | <span data-count="2784">L</span>itE _ | <span data-count="0">A</span>ctorUrlE _ | <span data-count="188680">F</span>uncE _) -&gt; ()
+  | (<span data-count="1">T</span>agE (_, exp1) | <span data-count="104">O</span>ptE exp1) -&gt; exp m exp1
+  | <span data-count="124">T</span>upE es -&gt; List.iter (ex<span data-count="124">p</span> m) es
+  | <span data-count="23">A</span>rrayE (mut, es) -&gt;
+    begin
+      match mut.it with
+      | <span data-count="19">C</span>onst -&gt;  List.iter (ex<span data-count="19">p</span> m) es
+      | <span data-count="4">V</span>ar -&gt; err m e.at
+    end
+  | <span data-count="1411">O</span>bjBlockE (eo, _, _, dfs) -&gt;
+    Option.iter (ex<span data-count="1411">p</span> m) eo; <span data-count="1411">d</span>ec_fields m dfs
+  | <span data-count="48">O</span>bjE (bases, efs) -&gt;
+    List.iter (ex<span data-count="48">p</span> m) bases; <span data-count="48">e</span>xp_fields m efs
+
+  (* Variable access. Dangerous, due to loops. *)
+  | (<span data-count="16080">V</span>arE _ | <span data-count="802">I</span>mportE _ | <span data-count="0">I</span>mplicitLibE _) -&gt; ()
+
+  (* Projections. These are a form of evaluation. *)
+  | <span data-count="0">P</span>rojE (exp1, _)
+  | <span data-count="5888">D</span>otE (exp1, _, _) -&gt; exp m exp1
+  | <span data-count="0">I</span>dxE (exp1, exp2) -&gt; err m e.at
+
+  (* Transparent *)
+  | <span data-count="1614">A</span>nnotE (exp1, _) | <span data-count="1">I</span>gnoreE exp1 | <span data-count="0">D</span>oOptE exp1 -&gt; exp m exp1
+  | <span data-count="8">B</span>lockE ds -&gt; List.iter (de<span data-count="8">c</span> m) ds
+
+  (* Clearly non-static *)
+  | <span data-count="0">U</span>nE _
+  | <span data-count="0">S</span>howE _
+  | <span data-count="0">T</span>oCandidE _
+  | <span data-count="0">F</span>romCandidE _
+  | <span data-count="0">N</span>otE _
+  | <span data-count="1">A</span>ssertE _
+  | <span data-count="0">L</span>abelE _
+  | <span data-count="0">B</span>reakE _
+  | <span data-count="0">R</span>etE _
+  | <span data-count="0">A</span>syncE _ (* TBR - Cmp could be static *)
+  | <span data-count="2">A</span>waitE _
+  | <span data-count="0">L</span>oopE _
+  | <span data-count="0">B</span>inE _
+  | <span data-count="0">R</span>elE _
+  | <span data-count="0">A</span>ssignE _
+  | <span data-count="6">C</span>allE _
+  | <span data-count="0">A</span>ndE _
+  | <span data-count="0">O</span>rE _
+  | <span data-count="0">W</span>hileE _
+  | <span data-count="0">F</span>orE _
+  | <span data-count="0">D</span>ebugE _
+  | <span data-count="0">I</span>fE _
+  | <span data-count="0">S</span>witchE _
+  | <span data-count="0">T</span>hrowE _
+  | <span data-count="0">T</span>ryE _
+  | <span data-count="0">B</span>angE _
+  -&gt; err m e.at
+
+and dec_fields m dfs = <span data-count="5563">L</span>ist.iter (fun df -&gt; <span data-count="246950">d</span>ec m df.it.dec) dfs
+
+and exp_fields m efs = <span data-count="48">L</span>ist.iter (fun (ef : exp_field) -&gt;
+  <span data-count="51">i</span>f ef.it.mut.it = Var then <span data-count="1">e</span>r<span data-count="1">r</span> m ef.at;
+  <span data-count="51">e</span>xp m ef.it.exp) efs
+
+and dec m d = <span data-count="248302">m</span>atch d.it with
+  | <span data-count="39988">T</span>ypD _ | <span data-count="949">C</span>lassD _ | <span data-count="13">M</span>ixinD _ -&gt; ()
+  | <span data-count="456">E</span>xpD e -&gt; exp m e
+  | <span data-count="206890">L</span>etD (p, e, fail) -&gt; pat m p; <span data-count="206890">e</span>xp m e; <span data-count="206890">O</span>ption.iter (ex<span data-count="206890">p</span> m) fail
+  | <span data-count="6">V</span>arD _ | <span data-count="0">I</span>ncludeD _ -&gt; err m d.at
+
+and pat m p = <span data-count="206904">m</span>atch p.it with
+  | (<span data-count="17">W</span>ildP | <span data-count="206878">V</span>arP _) -&gt; ()
+
+  (*
+  If we allow projections above, then we should allow irrefutable
+  patterns here.
+  *)
+  | <span data-count="4">T</span>upP ps -&gt; List.iter (pa<span data-count="4">t</span> m) ps
+  | <span data-count="4">O</span>bjP fs -&gt; List.iter (pat_fiel<span data-count="4">d</span> m) fs
+
+  (* TODO:
+    claudio: what about singleton variant patterns? These are irrefutable too.
+    Andreas suggests simply allowing all patterns: "The worst that can happen is that the program
+    is immediately terminated, but that doesn't break anything semantically."
+  *)
+
+  (* Everything else is forbidden *)
+  | <span data-count="1">_</span> -&gt; pat_err m p.at
+
+and pat_field m pf = <span data-count="6">m</span>atch pf.it with
+  | <span data-count="6">V</span>alPF(_, p) -&gt; pat m p
+  | <span data-count="0">T</span>ypPF(_) -&gt; ()
+
+let prog p =
+  <span data-count="544">D</span>iag.with_message_store (fun m -&gt; <span data-count="544">L</span>ist.iter (de<span data-count="544">c</span> m) p.it; <span data-count="544">S</span>ome ())
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

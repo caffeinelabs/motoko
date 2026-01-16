@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/fundamentals/9-error-handling.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/fundamentals/9-error-handling.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#error-handling" id="toc-error-handling">Error handling</a>
+<ul>
+<li><a href="#error-reporting-with-option-types"
+id="toc-error-reporting-with-option-types">Error reporting with
+<code>Option</code> types</a></li>
+<li><a href="#error-reporting-with-result-types"
+id="toc-error-reporting-with-result-types">Error reporting with
+<code>Result</code> types</a></li>
+<li><a href="#pattern-matching" id="toc-pattern-matching">Pattern
+matching</a></li>
+<li><a href="#error-reporting-with-error-asynchronous-errors"
+id="toc-error-reporting-with-error-asynchronous-errors">Error reporting
+with <code>Error</code> (asynchronous errors)</a></li>
+<li><a href="#traps" id="toc-traps">Traps</a></li>
+<li><a href="#assertions" id="toc-assertions">Assertions</a></li>
+<li><a href="#how-not-to-handle-errors"
+id="toc-how-not-to-handle-errors">How not to handle errors</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="error-handling">Error handling</h1>
+<p>Using <code>Option</code> or <code>Result</code> is the preferred way
+of signaling errors in Motoko. They work in both synchronous and
+asynchronous contexts and make your APIs safer to use by encouraging
+clients to consider the error cases as well as the success cases.
+Exceptions should only be used to signal unexpected error states.</p>
+<p>In addition to explicit error handling, Motoko provides traps and
+assertions for dealing with execution errors.</p>
+<h2 id="error-reporting-with-option-types">Error reporting with
+<code>Option</code> types</h2>
+<p>When a function might either return a value of type <code>A</code> or
+signal an error, it can return an option type <code>?A</code>. In this
+pattern, <code>null</code> is used to indicate an error or missing
+result, while <code>?value</code> wraps a successful outcome.</p>
+<p>In the following example, if the <code>markDone</code> function
+sometimes fails and returns a number of seconds on success, its return
+type would be <code>async ?Seconds</code>. This makes it clear to
+callers that the result may be absent and must be handled safely.</p>
+<p>Function definition:</p>
+<pre class="motoko"><code></code></pre>
+<p>Function callsite:</p>
+<pre class="motoko"><code></code></pre>
+<p>The main drawback of using option types to signal errors is that all
+failures are represented by a single, non-descriptive <code>null</code>
+value. This means important information about why something failed is
+lost. As a result, the only message the program can show the user might
+be something vague like <code>"Something went wrong."</code></p>
+<p>For this reason, option types should only be used for errors when
+there's just one clear reason for failure, and it can be easily
+understood at the callsite.</p>
+<h2 id="error-reporting-with-result-types">Error reporting with
+<code>Result</code> types</h2>
+<p>While options are a built-in type, the <code>Result</code> is defined
+as a variant type like so:</p>
+<pre class="motoko"><code>type Result&lt;Ok, Err&gt; = { #ok : Ok; #err : Err }</code></pre>
+<p>Unlike option types, the Result type includes a second type parameter
+<code>Err</code> which allows you to specify exactly what kind of error
+occurred. This makes error handling more informative and flexible.</p>
+<pre class="motoko"><code></code></pre>
+<p>The previous example can be revised to use <code>Result</code>
+types:</p>
+<p>Function definition:</p>
+<pre class="motoko"><code></code></pre>
+<p>Function callsite:</p>
+<pre class="motoko"><code></code></pre>
+<h2 id="pattern-matching">Pattern matching</h2>
+<p>The most common way of working with <code>Option</code> and
+<code>Result</code> is to use pattern matching. If you have a value of
+type <code>?Text</code>, you can use the <code>switch</code> keyword to
+access the potential <a href="../core/Text"><code>Text</code></a>
+contents:</p>
+<pre class="motoko"><code></code></pre>
+<p>Motoko does not let you access the optional value without also
+considering the case that it is missing.</p>
+<p>With a <code>Result</code> type, you can use pattern matching to
+handle both success and error cases. Unlike option types, the
+<code>#err</code> case carries detailed information about what went
+wrong, not just a <code>null</code> value.</p>
+<pre class="motoko"><code></code></pre>
+<p>Sometimes you need to convert between <code>Option</code> and
+<code>Result</code> types. For example, a HashMap lookup returns
+<code>null</code> on failure (an <code>Option</code>), but if the caller
+has more context, they can turn that failure into a meaningful
+<code>Result</code> with an error message. On the other hand, sometimes
+you don’t need the extra detail from a <code>Result</code> and just want
+to convert any error (<code>#err</code>) into <code>null</code>.</p>
+<p>The <a href="https://github.com/dfinity/motoko-core">core</a> package
+provides <code>fromOption</code> and <code>toOption</code> functions in
+the <code>Result</code> module that make converting between these two
+types easy.</p>
+<h2 id="error-reporting-with-error-asynchronous-errors">Error reporting
+with <code>Error</code> (asynchronous errors)</h2>
+<p>Another way to handle errors in Motoko is with asynchronous
+<code>Error</code> handling, which is a limited form of exception
+handling. These errors can only be thrown and caught in asynchronous
+contexts, like inside <code>shared</code> functions or
+<code>async</code> blocks. Regular (non-<code>shared</code>) functions
+can’t use this kind of structured error handling.</p>
+<p>This means you can <code>throw</code> an <code>Error</code> to exit a
+shared function early, and callers can <code>try</code> to run that code
+and <code>catch</code> the error if it happens. However, you can only
+use <code>throw</code> and <code>catch</code> inside asynchronous
+contexts.</p>
+<p>Asynchronous <code>Error</code>s are best reserved for unexpected
+failures that you don’t expect most callers to handle. If you want the
+caller to handle possible failures explicitly, it’s better to use
+<code>Result</code> in your function’s return type.</p>
+<p>Here’s how the <code>markDone</code> function might look using
+exceptions:</p>
+<p>Function definition:</p>
+<pre class="motoko"><code></code></pre>
+<p>Function callsite:</p>
+<pre class="motoko"><code></code></pre>
+<h2 id="traps">Traps</h2>
+<p>Traps immediately stop execution and roll back <a
+href="../fundamentals/2-actors/2-state.md">state</a>. They are used for
+fatal errors that cannot be recovered.</p>
+<pre class="motoko"><code>import Runtime &quot;mo:core/Runtime&quot;;
+
+func divide(a : Nat, b : Nat) : Nat {
+    if (b == 0) {
+        Runtime.trap(&quot;Cannot divide by zero&quot;);
+    };
+    return a / b;
+};</code></pre>
+<h2 id="assertions">Assertions</h2>
+<p>Assertions enforce expected conditions. If the condition is false,
+they introduce a trap but are not errors themselves.</p>
+<pre class="motoko"><code>func validateAge(age : Nat) : () {
+    assert(age &gt;= 18);  // Traps if age is below 18
+};</code></pre>
+<h2 id="how-not-to-handle-errors">How not to handle errors</h2>
+<p>Using sentinel values to report errors is generally a bad practice
+and strongly discouraged. For example, you might have
+<code>markDone</code> return <code>-1</code> to indicate failure. In
+that case, the caller has to remember to check for that special value
+every time. It’s easy to forget, which can cause errors to go unnoticed
+or be detected too late.</p>
+</body>
+</html>

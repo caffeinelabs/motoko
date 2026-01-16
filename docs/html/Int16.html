@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Int16.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Int16.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coreint16" id="toc-coreint16">core/Int16</a>
+<ul>
+<li><a href="#type-int16" id="toc-type-int16">Type
+<code>Int16</code></a></li>
+<li><a href="#value-minvalue" id="toc-value-minvalue">Value
+<code>minValue</code></a></li>
+<li><a href="#value-maxvalue" id="toc-value-maxvalue">Value
+<code>maxValue</code></a></li>
+<li><a href="#function-toint" id="toc-function-toint">Function
+<code>toInt</code></a></li>
+<li><a href="#function-fromint" id="toc-function-fromint">Function
+<code>fromInt</code></a></li>
+<li><a href="#function-fromintwrap"
+id="toc-function-fromintwrap">Function <code>fromIntWrap</code></a></li>
+<li><a href="#function-fromint8" id="toc-function-fromint8">Function
+<code>fromInt8</code></a></li>
+<li><a href="#function-toint8" id="toc-function-toint8">Function
+<code>toInt8</code></a></li>
+<li><a href="#function-fromint32" id="toc-function-fromint32">Function
+<code>fromInt32</code></a></li>
+<li><a href="#function-toint32" id="toc-function-toint32">Function
+<code>toInt32</code></a></li>
+<li><a href="#function-fromint64" id="toc-function-fromint64">Function
+<code>fromInt64</code></a></li>
+<li><a href="#function-toint64" id="toc-function-toint64">Function
+<code>toInt64</code></a></li>
+<li><a href="#function-fromnat16" id="toc-function-fromnat16">Function
+<code>fromNat16</code></a></li>
+<li><a href="#function-tonat16" id="toc-function-tonat16">Function
+<code>toNat16</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-abs" id="toc-function-abs">Function
+<code>abs</code></a></li>
+<li><a href="#function-min" id="toc-function-min">Function
+<code>min</code></a></li>
+<li><a href="#function-max" id="toc-function-max">Function
+<code>max</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-notequal" id="toc-function-notequal">Function
+<code>notEqual</code></a></li>
+<li><a href="#function-less" id="toc-function-less">Function
+<code>less</code></a></li>
+<li><a href="#function-lessorequal"
+id="toc-function-lessorequal">Function <code>lessOrEqual</code></a></li>
+<li><a href="#function-greater" id="toc-function-greater">Function
+<code>greater</code></a></li>
+<li><a href="#function-greaterorequal"
+id="toc-function-greaterorequal">Function
+<code>greaterOrEqual</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-neg" id="toc-function-neg">Function
+<code>neg</code></a></li>
+<li><a href="#function-add" id="toc-function-add">Function
+<code>add</code></a></li>
+<li><a href="#function-sub" id="toc-function-sub">Function
+<code>sub</code></a></li>
+<li><a href="#function-mul" id="toc-function-mul">Function
+<code>mul</code></a></li>
+<li><a href="#function-div" id="toc-function-div">Function
+<code>div</code></a></li>
+<li><a href="#function-rem" id="toc-function-rem">Function
+<code>rem</code></a></li>
+<li><a href="#function-pow" id="toc-function-pow">Function
+<code>pow</code></a></li>
+<li><a href="#function-bitnot" id="toc-function-bitnot">Function
+<code>bitnot</code></a></li>
+<li><a href="#function-bitand" id="toc-function-bitand">Function
+<code>bitand</code></a></li>
+<li><a href="#function-bitor" id="toc-function-bitor">Function
+<code>bitor</code></a></li>
+<li><a href="#function-bitxor" id="toc-function-bitxor">Function
+<code>bitxor</code></a></li>
+<li><a href="#function-bitshiftleft"
+id="toc-function-bitshiftleft">Function
+<code>bitshiftLeft</code></a></li>
+<li><a href="#function-bitshiftright"
+id="toc-function-bitshiftright">Function
+<code>bitshiftRight</code></a></li>
+<li><a href="#function-bitrotleft" id="toc-function-bitrotleft">Function
+<code>bitrotLeft</code></a></li>
+<li><a href="#function-bitrotright"
+id="toc-function-bitrotright">Function <code>bitrotRight</code></a></li>
+<li><a href="#function-bittest" id="toc-function-bittest">Function
+<code>bittest</code></a></li>
+<li><a href="#function-bitset" id="toc-function-bitset">Function
+<code>bitset</code></a></li>
+<li><a href="#function-bitclear" id="toc-function-bitclear">Function
+<code>bitclear</code></a></li>
+<li><a href="#function-bitflip" id="toc-function-bitflip">Function
+<code>bitflip</code></a></li>
+<li><a href="#function-bitcountnonzero"
+id="toc-function-bitcountnonzero">Function
+<code>bitcountNonZero</code></a></li>
+<li><a href="#function-bitcountleadingzero"
+id="toc-function-bitcountleadingzero">Function
+<code>bitcountLeadingZero</code></a></li>
+<li><a href="#function-bitcounttrailingzero"
+id="toc-function-bitcounttrailingzero">Function
+<code>bitcountTrailingZero</code></a></li>
+<li><a href="#function-explode" id="toc-function-explode">Function
+<code>explode</code></a></li>
+<li><a href="#function-addwrap" id="toc-function-addwrap">Function
+<code>addWrap</code></a></li>
+<li><a href="#function-subwrap" id="toc-function-subwrap">Function
+<code>subWrap</code></a></li>
+<li><a href="#function-mulwrap" id="toc-function-mulwrap">Function
+<code>mulWrap</code></a></li>
+<li><a href="#function-powwrap" id="toc-function-powwrap">Function
+<code>powWrap</code></a></li>
+<li><a href="#function-range" id="toc-function-range">Function
+<code>range</code></a></li>
+<li><a href="#function-rangeinclusive"
+id="toc-function-rangeinclusive">Function
+<code>rangeInclusive</code></a></li>
+<li><a href="#function-allvalues" id="toc-function-allvalues">Function
+<code>allValues</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coreint16">core/Int16</h1>
+<p>Utility functions on 16-bit signed integers.</p>
+<p>Note that most operations are available as built-in operators (e.g.
+<code>1 + 1</code>).</p>
+<p>Import from the core package to use this module.</p>
+<pre class="motoko"><code>import Int16 &quot;mo:core/Int16&quot;;</code></pre>
+<h2 id="type-int16">Type <code>Int16</code></h2>
+<pre class="motoko"><code>type Int16 = Prim.Types.Int16</code></pre>
+<p>16-bit signed integers.</p>
+<h2 id="value-minvalue">Value <code>minValue</code></h2>
+<pre class="motoko"><code>let minValue : Int16</code></pre>
+<p>Minimum 16-bit integer value, <code>-2 ** 15</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.minValue == (-32_768 : Int16);</code></pre>
+<h2 id="value-maxvalue">Value <code>maxValue</code></h2>
+<pre class="motoko"><code>let maxValue : Int16</code></pre>
+<p>Maximum 16-bit integer value, <code>+2 ** 15 - 1</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.maxValue == (+32_767 : Int16);</code></pre>
+<h2 id="function-toint">Function <code>toInt</code></h2>
+<pre class="motoko"><code>func toInt(self : Int16) : Int</code></pre>
+<p>Converts a 16-bit signed integer to a signed integer with infinite
+precision.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.toInt(12_345) == (12_345 : Int);</code></pre>
+<h2 id="function-fromint">Function <code>fromInt</code></h2>
+<pre class="motoko"><code>func fromInt(_ : Int) : Int16</code></pre>
+<p>Converts a signed integer with infinite precision to a 16-bit signed
+integer.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.fromInt(12_345) == (+12_345 : Int16);</code></pre>
+<h2 id="function-fromintwrap">Function <code>fromIntWrap</code></h2>
+<pre class="motoko"><code>func fromIntWrap(_ : Int) : Int16</code></pre>
+<p>Converts a signed integer with infinite precision to a 16-bit signed
+integer.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.fromIntWrap(-12_345) == (-12_345 : Int);</code></pre>
+<h2 id="function-fromint8">Function <code>fromInt8</code></h2>
+<pre class="motoko"><code>func fromInt8(_ : Int8) : Int16</code></pre>
+<p>Converts a 8-bit signed integer to a 16-bit signed integer.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.fromInt8(-123) == (-123 : Int16);</code></pre>
+<h2 id="function-toint8">Function <code>toInt8</code></h2>
+<pre class="motoko"><code>func toInt8(self : Int16) : Int8</code></pre>
+<p>Converts a 16-bit signed integer to a 8-bit signed integer.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.toInt8(-123) == (-123 : Int8);</code></pre>
+<h2 id="function-fromint32">Function <code>fromInt32</code></h2>
+<pre class="motoko"><code>func fromInt32(_ : Int32) : Int16</code></pre>
+<p>Converts a 32-bit signed integer to a 16-bit signed integer.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.fromInt32(-12_345) == (-12_345 : Int16);</code></pre>
+<h2 id="function-toint32">Function <code>toInt32</code></h2>
+<pre class="motoko"><code>func toInt32(self : Int16) : Int32</code></pre>
+<p>Converts a 16-bit signed integer to a 32-bit signed integer.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.toInt32(-12_345) == (-12_345 : Int32);</code></pre>
+<h2 id="function-fromint64">Function <code>fromInt64</code></h2>
+<pre class="motoko"><code>func fromInt64(x : Int64) : Int16</code></pre>
+<p>Converts a 64-bit signed integer to a 16-bit signed integer.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.fromInt64(-12_345) == (-12_345 : Int16);</code></pre>
+<h2 id="function-toint64">Function <code>toInt64</code></h2>
+<pre class="motoko"><code>func toInt64(self : Int16) : Int64</code></pre>
+<p>Converts a 16-bit signed integer to a 64-bit signed integer.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.toInt64(-12_345) == (-12_345 : Int64);</code></pre>
+<h2 id="function-fromnat16">Function <code>fromNat16</code></h2>
+<pre class="motoko"><code>func fromNat16(_ : Nat16) : Int16</code></pre>
+<p>Converts an unsigned 16-bit integer to a signed 16-bit integer.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.fromNat16(12_345) == (+12_345 : Int16);</code></pre>
+<h2 id="function-tonat16">Function <code>toNat16</code></h2>
+<pre class="motoko"><code>func toNat16(self : Int16) : Nat16</code></pre>
+<p>Converts a signed 16-bit integer to an unsigned 16-bit integer.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.toNat16(-1) == (65_535 : Nat16); // underflow</code></pre>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText(self : Int16) : Text</code></pre>
+<p>Returns the Text representation of <code>x</code>. Textual
+representation <em>do not</em> contain underscores to represent
+commas.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.toText(-12345) == &quot;-12345&quot;;</code></pre>
+<h2 id="function-abs">Function <code>abs</code></h2>
+<pre class="motoko"><code>func abs(x : Int16) : Int16</code></pre>
+<p>Returns the absolute value of <code>x</code>.</p>
+<p>Traps when <code>x == -2 ** 15</code> (the minimum <code>Int16</code>
+value).</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.abs(-12345) == +12_345;</code></pre>
+<h2 id="function-min">Function <code>min</code></h2>
+<pre class="motoko"><code>func min(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the minimum of <code>x</code> and <code>y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.min(+2, -3) == -3;</code></pre>
+<h2 id="function-max">Function <code>max</code></h2>
+<pre class="motoko"><code>func max(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the maximum of <code>x</code> and <code>y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.max(+2, -3) == +2;</code></pre>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal(x : Int16, y : Int16) : Bool</code></pre>
+<p>Equality function for Int16 types. This is equivalent to
+<code>x == y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.equal(-1, -1);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>==</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>==</code> as a function value at the moment.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let a : Int16 = -123;
+let b : Int16 = 123;
+assert not Int16.equal(a, b);</code></pre>
+<h2 id="function-notequal">Function <code>notEqual</code></h2>
+<pre class="motoko"><code>func notEqual(x : Int16, y : Int16) : Bool</code></pre>
+<p>Inequality function for Int16 types. This is equivalent to
+<code>x != y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.notEqual(-1, -2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>!=</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>!=</code> as a function value at the moment.</p>
+<h2 id="function-less">Function <code>less</code></h2>
+<pre class="motoko"><code>func less(x : Int16, y : Int16) : Bool</code></pre>
+<p>"Less than" function for Int16 types. This is equivalent to
+<code>x &lt; y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.less(-2, 1);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>&lt;</code> as a function value at the moment.</p>
+<h2 id="function-lessorequal">Function <code>lessOrEqual</code></h2>
+<pre class="motoko"><code>func lessOrEqual(x : Int16, y : Int16) : Bool</code></pre>
+<p>"Less than or equal" function for Int16 types. This is equivalent to
+<code>x &lt;= y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.lessOrEqual(-2, -2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;=</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>&lt;=</code> as a function value at the
+moment.</p>
+<h2 id="function-greater">Function <code>greater</code></h2>
+<pre class="motoko"><code>func greater(x : Int16, y : Int16) : Bool</code></pre>
+<p>"Greater than" function for Int16 types. This is equivalent to
+<code>x &gt; y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert not Int16.greater(-2, 1);</code></pre>
+<h2 id="function-greaterorequal">Function
+<code>greaterOrEqual</code></h2>
+<pre class="motoko"><code>func greaterOrEqual(x : Int16, y : Int16) : Bool</code></pre>
+<p>"Greater than or equal" function for Int16 types. This is equivalent
+to <code>x &gt;= y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.greaterOrEqual(-2, -2);</code></pre>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare(x : Int16, y : Int16) : Order.Order</code></pre>
+<p>General-purpose comparison function for <code>Int16</code>. Returns
+the <code>Order</code> ( either <code>#less</code>, <code>#equal</code>,
+or <code>#greater</code>) of comparing <code>x</code> with
+<code>y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.compare(-3, 2) == #less;</code></pre>
+<p>This function can be used as value for a high order function, such as
+a sort function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+assert Array.sort([1, -2, -3] : [Int16], Int16.compare) == [-3, -2, 1];</code></pre>
+<h2 id="function-neg">Function <code>neg</code></h2>
+<pre class="motoko"><code>func neg(x : Int16) : Int16</code></pre>
+<p>Returns the negation of <code>x</code>, <code>-x</code>.</p>
+<p>Traps on overflow, i.e. for <code>neg(-2 ** 15)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.neg(123) == -123;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>-</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>-</code> as a function value at the moment.</p>
+<h2 id="function-add">Function <code>add</code></h2>
+<pre class="motoko"><code>func add(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the sum of <code>x</code> and <code>y</code>,
+<code>x + y</code>.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.add(100, 23) == +123;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>+</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>+</code> as a function value at the moment.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+assert Array.foldLeft&lt;Int16, Int16&gt;([1, -2, -3], 0, Int16.add) == -4;</code></pre>
+<h2 id="function-sub">Function <code>sub</code></h2>
+<pre class="motoko"><code>func sub(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the difference of <code>x</code> and <code>y</code>,
+<code>x - y</code>.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.sub(123, 100) == +23;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>-</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>-</code> as a function value at the moment.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+assert Array.foldLeft&lt;Int16, Int16&gt;([1, -2, -3], 0, Int16.sub) == 4;</code></pre>
+<h2 id="function-mul">Function <code>mul</code></h2>
+<pre class="motoko"><code>func mul(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the product of <code>x</code> and <code>y</code>,
+<code>x * y</code>.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.mul(12, 10) == +120;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>*</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>*</code> as a function value at the moment.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+assert Array.foldLeft&lt;Int16, Int16&gt;([1, -2, -3], 1, Int16.mul) == 6;</code></pre>
+<h2 id="function-div">Function <code>div</code></h2>
+<pre class="motoko"><code>func div(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the signed integer division of <code>x</code> by
+<code>y</code>, <code>x / y</code>. Rounds the quotient towards zero,
+which is the same as truncating the decimal places of the quotient.</p>
+<p>Traps when <code>y</code> is zero.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.div(123, 10) == +12;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>/</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>/</code> as a function value at the moment.</p>
+<h2 id="function-rem">Function <code>rem</code></h2>
+<pre class="motoko"><code>func rem(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the remainder of the signed integer division of
+<code>x</code> by <code>y</code>, <code>x % y</code>, which is defined
+as <code>x - x / y * y</code>.</p>
+<p>Traps when <code>y</code> is zero.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.rem(123, 10) == +3;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>%</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>%</code> as a function value at the moment.</p>
+<h2 id="function-pow">Function <code>pow</code></h2>
+<pre class="motoko"><code>func pow(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns <code>x</code> to the power of <code>y</code>,
+<code>x ** y</code>.</p>
+<p>Traps on overflow/underflow and when
+<code>y &lt; 0 or y &gt;= 16</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.pow(2, 10) == +1_024;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>**</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>**</code> as a function value at the moment.</p>
+<h2 id="function-bitnot">Function <code>bitnot</code></h2>
+<pre class="motoko"><code>func bitnot(x : Int16) : Int16</code></pre>
+<p>Returns the bitwise negation of <code>x</code>, <code>^x</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitnot(-256 /* 0xff00 */) == +255 // 0xff;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>^</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>^</code> as a function value at the moment.</p>
+<h2 id="function-bitand">Function <code>bitand</code></h2>
+<pre class="motoko"><code>func bitand(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the bitwise "and" of <code>x</code> and <code>y</code>,
+<code>x &amp; y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitand(0x0fff, 0x00f0) == +240 // 0xf0;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&amp;</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>&amp;</code> as a function value at the
+moment.</p>
+<h2 id="function-bitor">Function <code>bitor</code></h2>
+<pre class="motoko"><code>func bitor(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the bitwise "or" of <code>x</code> and <code>y</code>,
+<code>x | y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitor(0x0f0f, 0x00f0) == +4_095 // 0x0fff;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>|</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>|</code> as a function value at the moment.</p>
+<h2 id="function-bitxor">Function <code>bitxor</code></h2>
+<pre class="motoko"><code>func bitxor(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the bitwise "exclusive or" of <code>x</code> and
+<code>y</code>, <code>x ^ y</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitxor(0x0fff, 0x00f0) == +3_855 // 0x0f0f;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>^</code> operator) is so that you can use
+it as a function value to pass to a higher order function. It is not
+possible to use <code>^</code> as a function value at the moment.</p>
+<h2 id="function-bitshiftleft">Function <code>bitshiftLeft</code></h2>
+<pre class="motoko"><code>func bitshiftLeft(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the bitwise left shift of <code>x</code> by <code>y</code>,
+<code>x &lt;&lt; y</code>. The right bits of the shift filled with
+zeros. Left-overflowing bits, including the sign bit, are discarded.</p>
+<p>For <code>y &gt;= 16</code>, the semantics is the same as for
+<code>bitshiftLeft(x, y % 16)</code>. For <code>y &lt; 0</code>, the
+semantics is the same as for
+<code>bitshiftLeft(x, y + y % 16)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitshiftLeft(1, 8) == +256 // 0x100 equivalent to `2 ** 8`.;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;&lt;</code> operator) is so that you
+can use it as a function value to pass to a higher order function. It is
+not possible to use <code>&lt;&lt;</code> as a function value at the
+moment.</p>
+<h2 id="function-bitshiftright">Function <code>bitshiftRight</code></h2>
+<pre class="motoko"><code>func bitshiftRight(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the signed bitwise right shift of <code>x</code> by
+<code>y</code>, <code>x &gt;&gt; y</code>. The sign bit is retained and
+the left side is filled with the sign bit. Right-underflowing bits are
+discarded, i.e. not rotated to the left side.</p>
+<p>For <code>y &gt;= 16</code>, the semantics is the same as for
+<code>bitshiftRight(x, y % 16)</code>. For <code>y &lt; 0</code>, the
+semantics is the same as for
+<code>bitshiftRight (x, y + y % 16)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitshiftRight(1024, 8) == +4 // equivalent to `1024 / (2 ** 8)`;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&gt;&gt;</code> operator) is so that you
+can use it as a function value to pass to a higher order function. It is
+not possible to use <code>&gt;&gt;</code> as a function value at the
+moment.</p>
+<h2 id="function-bitrotleft">Function <code>bitrotLeft</code></h2>
+<pre class="motoko"><code>func bitrotLeft(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the bitwise left rotatation of <code>x</code> by
+<code>y</code>, <code>x &lt;&lt;&gt; y</code>. Each left-overflowing bit
+is inserted again on the right side. The sign bit is rotated like y
+bits, i.e. the rotation interprets the number as unsigned.</p>
+<p>Changes the direction of rotation for negative <code>y</code>. For
+<code>y &gt;= 16</code>, the semantics is the same as for
+<code>bitrotLeft(x, y % 16)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitrotLeft(0x2001, 4) == +18 // 0x12.;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;&lt;&gt;</code> operator) is so that
+you can use it as a function value to pass to a higher order function.
+It is not possible to use <code>&lt;&lt;&gt;</code> as a function value
+at the moment.</p>
+<h2 id="function-bitrotright">Function <code>bitrotRight</code></h2>
+<pre class="motoko"><code>func bitrotRight(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the bitwise right rotation of <code>x</code> by
+<code>y</code>, <code>x &lt;&gt;&gt; y</code>. Each right-underflowing
+bit is inserted again on the right side. The sign bit is rotated like y
+bits, i.e. the rotation interprets the number as unsigned.</p>
+<p>Changes the direction of rotation for negative <code>y</code>. For
+<code>y &gt;= 16</code>, the semantics is the same as for
+<code>bitrotRight(x, y % 16)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitrotRight(0x2010, 8) == +4_128 // 0x01020.;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;&gt;&gt;</code> operator) is so that
+you can use it as a function value to pass to a higher order function.
+It is not possible to use <code>&lt;&gt;&gt;</code> as a function value
+at the moment.</p>
+<h2 id="function-bittest">Function <code>bittest</code></h2>
+<pre class="motoko"><code>func bittest(x : Int16, p : Nat) : Bool</code></pre>
+<p>Returns the value of bit <code>p</code> in <code>x</code>,
+<code>x &amp; 2**p == 2**p</code>. If <code>p &gt;= 16</code>, the
+semantics is the same as for <code>bittest(x, p % 16)</code>. This is
+equivalent to checking if the <code>p</code>-th bit is set in
+<code>x</code>, using 0 indexing.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bittest(128, 7);</code></pre>
+<h2 id="function-bitset">Function <code>bitset</code></h2>
+<pre class="motoko"><code>func bitset(x : Int16, p : Nat) : Int16</code></pre>
+<p>Returns the value of setting bit <code>p</code> in <code>x</code> to
+<code>1</code>. If <code>p &gt;= 16</code>, the semantics is the same as
+for <code>bitset(x, p % 16)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitset(0, 7) == +128;</code></pre>
+<h2 id="function-bitclear">Function <code>bitclear</code></h2>
+<pre class="motoko"><code>func bitclear(x : Int16, p : Nat) : Int16</code></pre>
+<p>Returns the value of clearing bit <code>p</code> in <code>x</code> to
+<code>0</code>. If <code>p &gt;= 16</code>, the semantics is the same as
+for <code>bitclear(x, p % 16)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitclear(-1, 7) == -129;</code></pre>
+<h2 id="function-bitflip">Function <code>bitflip</code></h2>
+<pre class="motoko"><code>func bitflip(x : Int16, p : Nat) : Int16</code></pre>
+<p>Returns the value of flipping bit <code>p</code> in <code>x</code>.
+If <code>p &gt;= 16</code>, the semantics is the same as for
+<code>bitclear(x, p % 16)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitflip(255, 7) == +127;</code></pre>
+<h2 id="function-bitcountnonzero">Function
+<code>bitcountNonZero</code></h2>
+<pre class="motoko"><code>func bitcountNonZero(x : Int16) : Int16</code></pre>
+<p>Returns the count of non-zero bits in <code>x</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitcountNonZero(0xff) == +8;</code></pre>
+<h2 id="function-bitcountleadingzero">Function
+<code>bitcountLeadingZero</code></h2>
+<pre class="motoko"><code>func bitcountLeadingZero(x : Int16) : Int16</code></pre>
+<p>Returns the count of leading zero bits in <code>x</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitcountLeadingZero(0x80) == +8;</code></pre>
+<h2 id="function-bitcounttrailingzero">Function
+<code>bitcountTrailingZero</code></h2>
+<pre class="motoko"><code>func bitcountTrailingZero(x : Int16) : Int16</code></pre>
+<p>Returns the count of trailing zero bits in <code>x</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.bitcountTrailingZero(0x0100) == +8;</code></pre>
+<h2 id="function-explode">Function <code>explode</code></h2>
+<pre class="motoko"><code>func explode(x : Int16) : (msb : Nat8, lsb : Nat8)</code></pre>
+<p>Returns the upper (i.e. most significant) and lower (least
+significant) byte of <code>x</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.explode 0x77ee == (119, 238);</code></pre>
+<h2 id="function-addwrap">Function <code>addWrap</code></h2>
+<pre class="motoko"><code>func addWrap(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the sum of <code>x</code> and <code>y</code>,
+<code>x +% y</code>.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.addWrap(2 ** 14, 2 ** 14) == -32_768; // overflow</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>+%</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>+%</code> as a function value at the moment.</p>
+<h2 id="function-subwrap">Function <code>subWrap</code></h2>
+<pre class="motoko"><code>func subWrap(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the difference of <code>x</code> and <code>y</code>,
+<code>x -% y</code>.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.subWrap(-2 ** 15, 1) == +32_767; // underflow</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>-%</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>-%</code> as a function value at the moment.</p>
+<h2 id="function-mulwrap">Function <code>mulWrap</code></h2>
+<pre class="motoko"><code>func mulWrap(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns the product of <code>x</code> and <code>y</code>,
+<code>x *% y</code>. Wraps on overflow.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Int16.mulWrap(2 ** 8, 2 ** 8) == 0; // overflow</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>*%</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>*%</code> as a function value at the moment.</p>
+<h2 id="function-powwrap">Function <code>powWrap</code></h2>
+<pre class="motoko"><code>func powWrap(x : Int16, y : Int16) : Int16</code></pre>
+<p>Returns <code>x</code> to the power of <code>y</code>,
+<code>x **% y</code>.</p>
+<p>Wraps on overflow/underflow. Traps if
+<code>y &lt; 0 or y &gt;= 16</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>
+assert Int16.powWrap(2, 15) == -32_768; // overflow</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>**%</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>**%</code> as a function value at the moment.</p>
+<h2 id="function-range">Function <code>range</code></h2>
+<pre class="motoko"><code>func range(fromInclusive : Int16, toExclusive : Int16) : Iter.Iter&lt;Int16&gt;</code></pre>
+<p>Returns an iterator over <code>Int16</code> values from the first to
+second argument with an exclusive upper bound.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let iter = Int16.range(1, 4);
+assert iter.next() == ?1;
+assert iter.next() == ?2;
+assert iter.next() == ?3;
+assert iter.next() == null;</code></pre>
+<p>If the first argument is greater than the second argument, the
+function returns an empty iterator.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let iter = Int16.range(4, 1);
+assert iter.next() == null; // empty iterator</code></pre>
+<h2 id="function-rangeinclusive">Function
+<code>rangeInclusive</code></h2>
+<pre class="motoko"><code>func rangeInclusive(from : Int16, to : Int16) : Iter.Iter&lt;Int16&gt;</code></pre>
+<p>Returns an iterator over <code>Int16</code> values from the first to
+second argument, inclusive.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let iter = Int16.rangeInclusive(1, 3);
+assert iter.next() == ?1;
+assert iter.next() == ?2;
+assert iter.next() == ?3;
+assert iter.next() == null;</code></pre>
+<p>If the first argument is greater than the second argument, the
+function returns an empty iterator.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let iter = Int16.rangeInclusive(4, 1);
+assert iter.next() == null; // empty iterator</code></pre>
+<h2 id="function-allvalues">Function <code>allValues</code></h2>
+<pre class="motoko"><code>func allValues() : Iter.Iter&lt;Int16&gt;</code></pre>
+<p>Returns an iterator over all Int16 values, from minValue to
+maxValue.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let iter = Int16.allValues();
+assert iter.next() == ?-32_768;
+assert iter.next() == ?-32_767;
+assert iter.next() == ?-32_766;
+// ...</code></pre>
+</body>
+</html>

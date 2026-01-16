@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Set">Set</a></li></li><li><li><a href="#type.Operations">Operations</a></li></li><li><li><a href="#Make">Make</a></li></li></ul></nav><div class="documentation"><h1>OrderedSet</h1><p>Stable ordered set implemented as a red-black tree.</p>
+<p>A red-black tree is a balanced binary search tree ordered by the elements.</p>
+<p>The tree data structure internally colors each of its nodes either red or black,
+and uses this information to balance the tree during the modifying operations.</p>
+<p>| Runtime   | Space |
+|----------|------------|
+| <code>O(log(n))</code> (worst case per insertion, removal, or retrieval)  | <code>O(n)</code> (for storing the entire tree) |</p>
+<p><code>n</code> denotes the number of key-value entries (i.e. nodes) stored in the tree.</p>
+<p>:::note Garbage collection</p>
+<p>Unless stated otherwise, operations that iterate over or modify the map (such as insertion, deletion, traversal, and transformation) may create temporary objects with worst-case space usage of <code>O(log(n))</code> or <code>O(n)</code>. These objects are short-lived and will be collected by the garbage collector automatically.</p>
+<p>:::</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>compare</code>, <code>equal</code>, and other functions execute in <code>O(1)</code> time and space.
+:::</p>
+<p>:::info Credits</p>
+<p>The core of this implementation is derived from:</p>
+<ul><li>Ken Friis Larsen's <a href="https://github.com/kfl/mosml/blob/master/src/mosmllib/Redblackmap.sml">RedBlackMap.sml</a>, which itself is based on:</li><li>Stefan Kahrs, &quot;Red-black trees with types&quot;, Journal of Functional Programming, 11(4): 425-432 (2001), <a href="http://www.cs.ukc.ac.uk/people/staff/smk/redblack/rb.html">version 1 in web appendix</a>.
+:::</li></ul><div class="declaration"><h4 class="type-declaration" id="type.Set"><span class="keyword">type </span><span class="type">Set</span>&lt;<span class="type">T</span>&gt; = { size : <span class="type">Nat</span>; root : <a href="#type.Tree"><span class="type">Tree</span></a>&lt;<span class="type">T</span>&gt; }</h4><p><p>Ordered collection of unique elements of the generic type <code>T</code>.
+If type <code>T</code> is stable then <code>Set&lt;T&gt;</code> is also stable.
+To ensure that property the <code>Set&lt;T&gt;</code> does not have any methods,
+instead they are gathered in the functor-like class <code>Operations</code> (see example there).</p>
+</p></div><div class="declaration"><h4 class="class-declaration" id="type.Operations"><span class="keyword">class </span><span class="classname">Operations</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">compare</span> : (<span class="type">T</span>, <span class="type">T</span>) -&gt; <a href="Order.html#type.Order"><span class="type">O.Order</span></a>)</h4><div class="declaration"><h4 class="function" id="Operations.fromIter"><code><span class="keyword">public func </span><span class="fnname">fromIter</span>(<span class="parameter">i</span> : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">T</span>&gt;) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Returns a new Set, containing all entries given by the iterator <code>i</code>.
+If there are multiple identical entries only one is taken.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show(Iter.toArray(natSet.vals(set))));
+// [0, 1, 2]</code></pre>
+
+<p>| Runtime   | Space |
+|----------|------------|
+| <code>O(n * log(n))</code>  | <code>O(n)</code> (retained memory + garbage) |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.put"><code><span class="keyword">public func </span><span class="fnname">put</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">value</span> : <span class="type">T</span>) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Insert the value <code>value</code> into the set <code>s</code>. Has no effect if <code>value</code> is already
+present in the set. Returns a modified set.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+var set = natSet.empty();
+
+set := natSet.put(set, 0);
+set := natSet.put(set, 2);
+set := natSet.put(set, 1);
+
+Debug.print(debug_show(Iter.toArray(natSet.vals(set))));
+// [0, 1, 2]</code></pre>
+
+<p>Runtime: <code>O(log(n))</code>.
+Space: <code>O(log(n))</code>.
+where <code>n</code> denotes the number of elements stored in the set and
+assuming that the <code>compare</code> function implements an <code>O(1)</code> comparison.</p>
+<p>Note: The returned set shares with the <code>s</code> most of the tree nodes.
+Garbage collecting one of sets (e.g. after an assignment <code>m := natSet.delete(m, k)</code>)
+causes collecting <code>O(log(n))</code> nodes.</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.delete"><code><span class="keyword">public func </span><span class="fnname">delete</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">value</span> : <span class="type">T</span>) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Deletes the value <code>value</code> from the set <code>s</code>. Has no effect if <code>value</code> is not
+present in the set. Returns modified set.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show(Iter.toArray(natSet.vals(natSet.delete(set, 1)))));
+Debug.print(debug_show(Iter.toArray(natSet.vals(natSet.delete(set, 42)))));
+// [0, 2]
+// [0, 1, 2]</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(log(n))</code> | <code>O(log(n))</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.contains"><code><span class="keyword">public func </span><span class="fnname">contains</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">value</span> : <span class="type">T</span>) : <span class="type">Bool</span></code></h4><p><p>Test if the set 's' contains a given element.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show natSet.contains(set, 1)); // =&gt; true
+Debug.print(debug_show natSet.contains(set, 42)); // =&gt; false</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(log(n))</code> | <code>O(1)</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.max"><code><span class="keyword">public func </span><span class="fnname">max</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : ?<span class="type">T</span></code></h4><p><p>Get a maximal element of the set <code>s</code> if it is not empty, otherwise returns <code>null</code></p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let s1 = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+let s2 = natSet.empty();
+
+Debug.print(debug_show(natSet.max(s1))); // =&gt; ?2
+Debug.print(debug_show(natSet.max(s2))); // =&gt; null</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(log(n))</code> | <code>O(1)</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.min"><code><span class="keyword">public func </span><span class="fnname">min</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : ?<span class="type">T</span></code></h4><p><p>Get a minimal element of the set <code>s</code> if it is not empty, otherwise returns <code>null</code></p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let s1 = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+let s2 = natSet.empty();
+
+Debug.print(debug_show(natSet.min(s1))); // =&gt; ?0
+Debug.print(debug_show(natSet.min(s2))); // =&gt; null</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(log(n))</code> | <code>O(log(1))</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.union"><code><span class="keyword">public func </span><span class="fnname">union</span>(<span class="parameter">s1</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">s2</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p><a href="https://en.wikipedia.org/wiki/Union_(set_theory)">Set union</a> operation.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set1 = natSet.fromIter(Iter.fromArray([0, 1, 2]));
+let set2 = natSet.fromIter(Iter.fromArray([2, 3, 4]));
+
+Debug.print(debug_show Iter.toArray(natSet.vals(natSet.union(set1, set2))));
+// [0, 1, 2, 3, 4]</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(m* log(n))</code> | <code>O(m)</code>retained + garbage   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.intersect"><code><span class="keyword">public func </span><span class="fnname">intersect</span>(<span class="parameter">s1</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">s2</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p><a href="https://en.wikipedia.org/wiki/Intersection_(set_theory)">Set intersection</a> operation.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set1 = natSet.fromIter(Iter.fromArray([0, 1, 2]));
+let set2 = natSet.fromIter(Iter.fromArray([1, 2, 3]));
+
+Debug.print(debug_show Iter.toArray(natSet.vals(natSet.intersect(set1, set2))));
+// [1, 2]</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(m* log(n))</code> | <code>O(m)</code>retained + garbage   |</p>
+<p>Note: Creates <code>O(m)</code> temporary objects that will be collected as garbage.</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.diff"><code><span class="keyword">public func </span><span class="fnname">diff</span>(<span class="parameter">s1</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">s2</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p><a href="https://en.wikipedia.org/wiki/Difference_(set_theory)">Set difference</a>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set1 = natSet.fromIter(Iter.fromArray([0, 1, 2]));
+let set2 = natSet.fromIter(Iter.fromArray([1, 2, 3]));
+
+Debug.print(debug_show Iter.toArray(natSet.vals(natSet.diff(set1, set2))));
+// [0]</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(m* log(n))</code> | <code>O(m)</code>retained + garbage   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.map"><code><span class="keyword">public func </span><span class="fnname">map</span>&lt;<span class="type">T1</span>&gt;(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T1</span>&gt;, <span class="parameter">f</span> : <span class="type">T1</span> -&gt; <span class="type">T</span>) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Creates a new <code>Set</code> by applying <code>f</code> to each entry in the set <code>s</code>. Each element
+<code>x</code> in the old set is transformed into a new entry <code>x2</code>, where
+the new value <code>x2</code> is created by applying <code>f</code> to <code>x</code>.
+The result set may be smaller than the original set due to duplicate elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 1, 2, 3]));
+
+func f(x : Nat) : Nat = if (x &lt; 2) { x } else { 0 };
+
+let resSet = natSet.map(set, f);
+
+Debug.print(debug_show(Iter.toArray(natSet.vals(resSet))));
+// [0, 1]</code></pre>
+
+<p>Cost of mapping all the elements:
+| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(n* log(n))</code> | <code>O(n)</code>retained + garbage   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.mapFilter"><code><span class="keyword">public func </span><span class="fnname">mapFilter</span>&lt;<span class="type">T1</span>&gt;(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T1</span>&gt;, <span class="parameter">f</span> : <span class="type">T1</span> -&gt; ?<span class="type">T</span>) : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Creates a new set by applying <code>f</code> to each element in the set <code>s</code>. For each element
+<code>x</code> in the old set, if <code>f</code> evaluates to <code>null</code>, the element is discarded.
+Otherwise, the entry is transformed into a new entry <code>x2</code>, where
+the new value <code>x2</code> is the result of applying <code>f</code> to <code>x</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 1, 2, 3]));
+
+func f(x : Nat) : ?Nat {
+  if(x == 0) {null}
+  else { ?( x * 2 )}
+};
+
+let newRbSet = natSet.mapFilter(set, f);
+
+Debug.print(debug_show(Iter.toArray(natSet.vals(newRbSet))));
+// [2, 4, 6]</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(n* log(n))</code> | <code>O(n)</code>retained + garbage   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.isSubset"><code><span class="keyword">public func </span><span class="fnname">isSubset</span>(<span class="parameter">s1</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">s2</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <span class="type">Bool</span></code></h4><p><p>Test if <code>set1</code> is subset of <code>set2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set1 = natSet.fromIter(Iter.fromArray([1, 2]));
+let set2 = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show natSet.isSubset(set1, set2)); // =&gt; true</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(n* log(n))</code> | <code>O(1)</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.equals"><code><span class="keyword">public func </span><span class="fnname">equals</span>(<span class="parameter">s1</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">s2</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <span class="type">Bool</span></code></h4><p><p>Test if two sets are equal.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set1 = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+let set2 = natSet.fromIter(Iter.fromArray([1, 2]));
+
+Debug.print(debug_show natSet.equals(set1, set1)); // =&gt; true
+Debug.print(debug_show natSet.equals(set1, set2)); // =&gt; false</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(m * log(n))</code> | <code>O(1)</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.vals"><code><span class="keyword">public func </span><span class="fnname">vals</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Returns an Iterator (<code>Iter</code>) over the elements of the set.
+Iterator provides a single method <code>next()</code>, which returns
+elements in ascending order, or <code>null</code> when out of elements to iterate over.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show(Iter.toArray(natSet.vals(set))));
+// [0, 1, 2]</code></pre><p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(n)</code> | <code>O(log(n))</code> retained + garbage  |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.valsRev"><code><span class="keyword">public func </span><span class="fnname">valsRev</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Same as <code>vals()</code> but iterates over elements of the set <code>s</code> in the descending order.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show(Iter.toArray(natSet.valsRev(set))));
+// [2, 1, 0]</code></pre><p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(n)</code> | <code>O(log(n))</code> retained + garbage  |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.empty"><code><span class="keyword">public func </span><span class="fnname">empty</span>() : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Create a new empty Set.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.empty();
+
+Debug.print(debug_show(natSet.size(set))); // =&gt; 0</code></pre>
+
+<p>Cost of empty set creation
+Runtime: <code>O(1)</code>.
+Space: <code>O(1)</code></p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.size"><code><span class="keyword">public func </span><span class="fnname">size</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <span class="type">Nat</span></code></h4><p><p>Returns the number of elements in the set.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show(natSet.size(set))); // =&gt; 3</code></pre>
+
+<p>| Runtime     | Space         |
+|-------------|---------------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.foldLeft"><code><span class="keyword">public func </span><span class="fnname">foldLeft</span>&lt;<span class="type">Accum</span>&gt;(<br/>  <span class="parameter">set</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <br/>  <span class="parameter">base</span> : <span class="type">Accum</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">Accum</span>, <span class="type">T</span>) -&gt; <span class="type">Accum</span><br/>) : <span class="type">Accum</span></code></h4><p><p>Collapses the elements in <code>set</code> into a single value by starting with <code>base</code>
+and progessively combining elements into <code>base</code> with <code>combine</code>. Iteration runs
+left to right.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+func folder(accum : Nat, val : Nat) : Nat = val + accum;
+
+Debug.print(debug_show(natSet.foldLeft(set, 0, folder)));
+// 3</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | Depends on <code>combine</code> + <code>O(n)</code> garbage |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.foldRight"><code><span class="keyword">public func </span><span class="fnname">foldRight</span>&lt;<span class="type">Accum</span>&gt;(<br/>  <span class="parameter">set</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <br/>  <span class="parameter">base</span> : <span class="type">Accum</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">T</span>, <span class="type">Accum</span>) -&gt; <span class="type">Accum</span><br/>) : <span class="type">Accum</span></code></h4><p><p>Collapses the elements in <code>set</code> into a single value by starting with <code>base</code>
+and progessively combining elements into <code>base</code> with <code>combine</code>. Iteration runs
+right to left.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+func folder(val : Nat, accum : Nat) : Nat = val + accum;
+
+Debug.print(debug_show(natSet.foldRight(set, 0, folder)));
+// 3</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | Depends on <code>combine</code> + <code>O(n)</code> garbage |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.isEmpty"><code><span class="keyword">public func </span><span class="fnname">isEmpty</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : <span class="type">Bool</span></code></h4><p><p>Test if the given set <code>s</code> is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.empty();
+
+Debug.print(debug_show(natSet.isEmpty(set))); // =&gt; true</code></pre>
+
+<p>Runtime: <code>O(1)</code>.
+Space: <code>O(1)</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.all"><code><span class="keyword">public func </span><span class="fnname">all</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">pred</span> : <span class="type">T</span> -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Test whether all values in the set <code>s</code> satisfy a given predicate <code>pred</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show(natSet.all(set, func (v) = (v &lt; 10))));
+// true
+Debug.print(debug_show(natSet.all(set, func (v) = (v &lt; 2))));
+// false</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | <code>O(n)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.some"><code><span class="keyword">public func </span><span class="fnname">some</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">pred</span> : (<span class="type">T</span>) -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Test if there exists an element in the set <code>s</code> satisfying the given predicate <code>pred</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+let set = natSet.fromIter(Iter.fromArray([0, 2, 1]));
+
+Debug.print(debug_show(natSet.some(set, func (v) = (v &gt;= 3))));
+// false
+Debug.print(debug_show(natSet.some(set, func (v) = (v &gt;= 0))));
+// true</code></pre>
+
+<p>| Runtime | Space                        |
+|---------|------------------------------|
+| <code>O(n)</code>  | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Operations.validate"><code><span class="keyword">public func </span><span class="fnname">validate</span>(<span class="parameter">s</span> : <a href="#type.Set"><span class="type">Set</span></a>&lt;<span class="type">T</span>&gt;) : ()</code></h4><p><p>Test helper that check internal invariant for the given set <code>s</code>.
+Raise an error (for a stack trace) if invariants are violated.</p>
+</p></div><p><p>Class that captures element type <code>T</code> along with its ordering function <code>compare</code>
+and provide all operations to work with a set of type <code>Set&lt;T&gt;</code>.</p>
+<p>An instance object should be created once as a canister field to ensure
+that the same ordering function is used for every operation.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+actor {
+  let natSet = Set.Make&lt;Nat&gt;(Nat.compare); // : Operations&lt;Nat&gt;
+  stable var usedIds : Set.Set&lt;Nat&gt; = natSet.empty();
+
+  public func createId(id : Nat) : async () {
+    usedIds := natSet.put(usedIds, id);
+  };
+
+  public func idIsUsed(id: Nat) : async Bool {
+     natSet.contains(usedIds, id)
+  }
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="Make"><code><span class="keyword">public func </span><span class="fnname">Make</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">compare</span> : (<span class="type">T</span>, <span class="type">T</span>) -&gt; <a href="Order.html#type.Order"><span class="type">O.Order</span></a>) : <a href="#type.Operations"><span class="type">Operations</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Create <code>OrderedSet.Operations</code> object capturing element type <code>T</code> and <code>compare</code> function.
+It is an alias for the <code>Operations</code> constructor.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Set &quot;mo:base/OrderedSet&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+actor {
+  let natSet = Set.Make&lt;Nat&gt;(Nat.compare);
+  stable var set : Set.Set&lt;Nat&gt; = natSet.empty();
+};</code></pre></p></div></div></body></html>

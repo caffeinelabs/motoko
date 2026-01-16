@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/fundamentals/10-contextual-dot.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/fundamentals/10-contextual-dot.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#contextual-dot-notation"
+id="toc-contextual-dot-notation">Contextual dot notation</a>
+<ul>
+<li><a href="#overview" id="toc-overview">Overview</a>
+<ul>
+<li><a href="#the-problem-with-traditional-functional-style"
+id="toc-the-problem-with-traditional-functional-style">The problem with
+traditional functional style</a></li>
+<li><a href="#contextual-dot-notation-syntax"
+id="toc-contextual-dot-notation-syntax">Contextual dot notation
+syntax</a></li>
+</ul></li>
+<li><a href="#how-it-works" id="toc-how-it-works">How it works</a>
+<ul>
+<li><a href="#requirements-for-contextual-dot-notation"
+id="toc-requirements-for-contextual-dot-notation">Requirements for
+contextual dot notation</a></li>
+<li><a href="#example-using-contextual-dot-notation"
+id="toc-example-using-contextual-dot-notation">Example: Using contextual
+dot notation</a></li>
+</ul></li>
+<li><a href="#enabling-contextual-dot-notation-in-modules"
+id="toc-enabling-contextual-dot-notation-in-modules">Enabling contextual
+dot notation in modules</a>
+<ul>
+<li><a href="#defining-a-contextual-method"
+id="toc-defining-a-contextual-method">Defining a contextual
+method</a></li>
+<li><a href="#naming-conventions" id="toc-naming-conventions">Naming
+conventions</a></li>
+</ul></li>
+<li><a href="#contextual-dot-notation-with-generics"
+id="toc-contextual-dot-notation-with-generics">Contextual dot notation
+with generics</a></li>
+<li><a href="#compiler-warnings-and-best-practices"
+id="toc-compiler-warnings-and-best-practices">Compiler warnings and best
+practices</a>
+<ul>
+<li><a href="#when-to-use-contextual-dot-notation"
+id="toc-when-to-use-contextual-dot-notation">When to use contextual dot
+notation</a></li>
+</ul></li>
+<li><a href="#limitations-and-considerations"
+id="toc-limitations-and-considerations">Limitations and
+considerations</a></li>
+<li><a href="#see-also" id="toc-see-also">See also</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="contextual-dot-notation">Contextual dot notation</h1>
+<p>Contextual dot notation is a language feature that allows you to call
+functions from modules using object-oriented style syntax, where a value
+appears as the receiver of a method call. This feature bridges the gap
+between Motoko's procedural and object-oriented programming styles.</p>
+<h2 id="overview">Overview</h2>
+<p>In Motoko, there are two main approaches to organizing and calling
+related functions: the object-oriented approach using classes and
+methods, and the procedural approach using modules and functions.
+Contextual dot notation allows you to use familiar method-like syntax
+for module functions, improving code readability and enabling better IDE
+support for code completion.</p>
+<h3 id="the-problem-with-traditional-functional-style">The problem with
+traditional functional style</h3>
+<p>Consider a common operation on data structures. Without contextual
+dot notation, you would write:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+
+let numbers = [1, 2, 3, 4, 5];
+let doubled = Array.map(numbers, func(n) { n * 2 });</code></pre>
+<p>This functional style, while powerful, has some drawbacks:</p>
+<ul>
+<li>Code completion and IDE support are less effective because the
+function name comes first</li>
+<li>It reads "backwards" compared to how many developers think about
+operations</li>
+<li>The receiver value is separated from the operation by the module
+name and function</li>
+</ul>
+<h3 id="contextual-dot-notation-syntax">Contextual dot notation
+syntax</h3>
+<p>With contextual dot notation, you can rewrite the same code as:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+
+let numbers = [1, 2, 3, 4, 5];
+let doubled = numbers.map(func(n) { n * 2 });</code></pre>
+<p>This reads more naturally: "take numbers and map over them". The IDE
+can also provide better code completion since it knows about all
+available operations for that type.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>Contextual dot notation works by allowing a module function to be
+called using dot notation syntax if its first parameter is of the
+appropriate type. The compiler treats <code>value.function(args)</code>
+as syntactic sugar for <code>Module.function(value, args)</code>.</p>
+<h3 id="requirements-for-contextual-dot-notation">Requirements for
+contextual dot notation</h3>
+<p>For a function to be usable with contextual dot notation, it
+must:</p>
+<ol type="1">
+<li>be defined in a module (not a class method or object method),</li>
+<li>have the first parameter named <code>self</code></li>
+<li>be publicly exported from its module.</li>
+</ol>
+<p>The self parameter is indicated by its position as the first
+parameter and its type matching the value it's called on.</p>
+<h3 id="example-using-contextual-dot-notation">Example: Using contextual
+dot notation</h3>
+<p>Here's a more comprehensive example using the <code>Array</code>
+module:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let numbers = [1, 2, 3, 4];
+
+// Traditional functional style
+let doubled1 = Array.map(numbers, func(n) { n * 2 });
+
+// Using contextual dot notation
+let doubled2 = numbers.map(func(n) { n * 2 });
+
+// Both produce the same result
+assert Array.equal(doubled1, doubled2, Nat.equal);</code></pre>
+<h2 id="enabling-contextual-dot-notation-in-modules">Enabling contextual
+dot notation in modules</h2>
+<p>When defining your own modules, you can make functions available
+through contextual dot notation. The first parameter of your function
+acts as the implicit receiver.</p>
+<h3 id="defining-a-contextual-method">Defining a contextual method</h3>
+<p>Here's how to define a module that supports contextual dot
+notation:</p>
+<pre class="motoko"><code>module TextExt {
+  // This function can be called as &quot;str.uppercase()&quot; due to contextual dot notation
+  public func uppercase(self : Text) : Text {
+    // Implementation here
+  };
+
+  public func lowercase(self : Text) : Text {
+    // Implementation here
+  };
+
+  public func contains(self : Text, substring : Text) : Bool {
+    // Implementation here
+  };
+}</code></pre>
+<p>You would then use these functions as:</p>
+<pre class="motoko"><code>import TextExt &quot;mo:text-utils/TextExt&quot;;
+
+let message = &quot;Hello World&quot;;
+let upper = message.uppercase();
+let lower = message.lowercase();
+let found = message.contains(&quot;World&quot;);</code></pre>
+<h3 id="naming-conventions">Naming conventions</h3>
+<p>While any function can use contextual dot notation based on its first
+parameter type, consider these guidelines:</p>
+<ul>
+<li>Use verb-based names for transformation and query operations:
+<code>map</code>, <code>filter</code>, <code>find</code>,
+<code>contains</code>, <code>replace</code></li>
+<li>Use noun-based names for accessor or constructor operations:
+<code>size</code>, <code>length</code>, <code>keys</code>,
+<code>values</code></li>
+<li>Avoid overly generic names that might be ambiguous across different
+types</li>
+</ul>
+<h2 id="contextual-dot-notation-with-generics">Contextual dot notation
+with generics</h2>
+<p>Contextual dot notation works seamlessly with generic types:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+
+// These work with any type T
+let naturals : [Nat] = [1, 2, 3];
+let doubled = naturals.map(func(n) { n * 2 });
+
+let texts : [Text] = [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;];
+let uppercased = texts.map(func(t) { /* convert to uppercase */ });</code></pre>
+<h2 id="compiler-warnings-and-best-practices">Compiler warnings and best
+practices</h2>
+<p>The Motoko compiler can optionally warn you about opportunities to
+use contextual dot notation. You can enable this with the
+<code>-W M0236</code> flag:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">moc</span> <span class="at">-W</span> M0236 myfile.mo</span></code></pre></div>
+<p>This helps you maintain consistent coding style across your
+project.</p>
+<h3 id="when-to-use-contextual-dot-notation">When to use contextual dot
+notation</h3>
+<ul>
+<li><strong>Use it</strong> when the syntax is clearer and more
+readable</li>
+<li><strong>Use it</strong> for commonly used operations like
+<code>map</code>, <code>filter</code>, <code>sort</code>,
+<code>find</code></li>
+<li><strong>Consider the context</strong> - in complex expressions, the
+functional style may be clearer</li>
+<li><strong>Avoid it</strong> for less common or specialized operations
+where the module name provides important semantic information</li>
+</ul>
+<h2 id="limitations-and-considerations">Limitations and
+considerations</h2>
+<p>Contextual dot notation has some intentional limitations:</p>
+<ul>
+<li>It requires the receiving value to be the first parameter, named
+<code>self</code>.</li>
+<li>Any function must be declared in a module that is imported or
+otherwise in scope: function in object, actors or nested modules are not
+considered.</li>
+<li>If there is more than one available module function, and none is
+more general than all the others, the call is considered ambigious and
+rejected at compile-time.</li>
+<li>The feature is purely syntactic - there is no runtime overhead</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="modules-imports">Modules and imports</a></li>
+<li><a href="../language-manual#dotted-function-calls">Language
+reference</a></li>
+</ul>
+</body>
+</html>

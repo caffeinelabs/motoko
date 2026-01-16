@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/motoko-tooling/4-motoko-vs-code.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/motoko-tooling/4-motoko-vs-code.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#motoko-visual-studio-code-extension"
+id="toc-motoko-visual-studio-code-extension">Motoko Visual Studio Code
+extension</a>
+<ul>
+<li><a href="#installation" id="toc-installation">Installation</a></li>
+<li><a href="#keyboard-shortcuts" id="toc-keyboard-shortcuts">Keyboard
+shortcuts</a></li>
+<li><a href="#other-features" id="toc-other-features">Other
+features</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="motoko-visual-studio-code-extension">Motoko Visual Studio Code
+extension</h1>
+<p><a
+href="https://survey.stackoverflow.co/2022/#section-worked-with-vs-want-to-work-with-integrated-development-environment">Visual
+Studio Code (VS Code)</a> is a widely used open source IDE that supports
+canister development in <a href="../1-home.mdx">Motoko</a>.</p>
+<p>The <a href="https://github.com/dfinity/vscode-motoko">Motoko VS Code
+extension</a> enhances the development experience by providing features
+such as type checking, code formatting, autocompletion,
+go-to-definition, code snippets, and more, making it easier to build,
+navigate, and manage Motoko-based canisters.</p>
+<p><a
+href="https://marketplace.visualstudio.com/items?itemName=dfinity-foundation.vscode-motoko"><img
+src="https://github.com/dfinity/vscode-motoko/raw/master/guide/assets/intro.webp"
+alt="Showcase" /></a></p>
+<h3 id="installation">Installation</h3>
+<p><a
+href="https://marketplace.visualstudio.com/items?itemName=dfinity-foundation.vscode-motoko"><img
+src="https://img.shields.io/visual-studio-marketplace/v/dfinity-foundation.vscode-motoko?color=brightgreen&amp;logo=visual-studio-code"
+alt="Visual Studio Marketplace" /></a></p>
+<p>Install the extension through the <a
+href="https://marketplace.visualstudio.com/items?itemName=dfinity-foundation.vscode-motoko">VS
+Marketplace</a>, or alternatively the <a
+href="https://code.visualstudio.com/docs/editor/extension-marketplace"><strong>Extensions</strong>
+panel</a> in your VS Code project.</p>
+<p><a href="https://vscodium.com/">VSCodium</a> users can download the
+extension from <a
+href="https://open-vsx.org/extension/dfinity-foundation/vscode-motoko">Open
+VSX</a> or the <a
+href="https://github.com/dfinity/vscode-motoko/releases">GitHub
+releases</a> page.</p>
+<h3 id="keyboard-shortcuts">Keyboard shortcuts</h3>
+<p>Below are the default key bindings for commonly used features
+supported in the extension:</p>
+<ul>
+<li><strong>Code formatter</strong> (<code>Shift</code> +
+<code>Alt</code> + <code>F</code>): Format a Motoko file using <a
+href="https://github.com/dfinity/prettier-plugin-motoko">prettier-plugin-motoko</a>.</li>
+<li><strong>Organize imports</strong> (<code>Shift</code> +
+<code>Alt</code> + <code>O</code>): Group and sort imports at the top of
+your Motoko file.</li>
+<li><strong>Import code action</strong> (<code>Ctrl/Cmd</code> +
+<code>.</code> while hovering over an unresolved variable): Show import
+quick-fix options.</li>
+<li><strong>Go to definition</strong> (<code>F12</code>): Jump to the
+definition of a local or imported identifier.</li>
+<li><strong>IntelliSense</strong> (<code>Ctrl</code> +
+<code>Space</code>): View all available auto-completions and code
+snippets.</li>
+</ul>
+<p><a
+href="https://marketplace.visualstudio.com/items?itemName=dfinity-foundation.vscode-motoko"><img
+src="https://github.com/dfinity/vscode-motoko/raw/master/guide/assets/snippets.png"
+alt="Snippets" /></a></p>
+<h3 id="other-features">Other features</h3>
+<ul>
+<li>The <a href="https://mops.one/">Mops</a> and <a
+href="https://github.com/dfinity/vessel">Vessel</a> Motoko package
+managers are supported out-of-the-box in this extension.</li>
+<li>Quickly convert between Motoko types using code snippets such as
+<code>array-2-buffer</code> or <code>principal-2-text</code>.</li>
+<li>In case you're hoping to learn Motoko without installing
+<code>dfx</code>, the Motoko VS Code extension works standalone on all
+major operating systems (including Windows).</li>
+<li>This extension also provides schema validation and autocompletion
+for <code>dfx.json</code> configuration files.</li>
+<li>View type information and documentation by hovering over function
+names, imports, and other expressions.</li>
+<li>Deploy temporary canisters to the ICP mainnet directly from the
+editor.</li>
+</ul>
+<p><a
+href="https://marketplace.visualstudio.com/items?itemName=dfinity-foundation.vscode-motoko"><img
+src="https://github.com/dfinity/vscode-motoko/raw/master/guide/assets/tooltips.png"
+alt="Tooltips" /></a></p>
+<h4 id="contributing">Contributing</h4>
+<p><a href="https://github.com/dfinity/prettier-plugin-motoko"><img
+src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?logo=github"
+alt="PRs Welcome" /></a></p>
+<p>The Motoko VS Code extension is completely open source and <a
+href="https://github.com/dfinity/vscode-motoko">available on
+GitHub</a>.</p>
+</body>
+</html>

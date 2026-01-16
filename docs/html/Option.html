@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Option.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Option.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coreoption" id="toc-coreoption">core/Option</a>
+<ul>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-getmapped" id="toc-function-getmapped">Function
+<code>getMapped</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-foreach" id="toc-function-foreach">Function
+<code>forEach</code></a></li>
+<li><a href="#function-apply" id="toc-function-apply">Function
+<code>apply</code></a></li>
+<li><a href="#function-chain" id="toc-function-chain">Function
+<code>chain</code></a></li>
+<li><a href="#function-flatten" id="toc-function-flatten">Function
+<code>flatten</code></a></li>
+<li><a href="#function-some" id="toc-function-some">Function
+<code>some</code></a></li>
+<li><a href="#function-issome" id="toc-function-issome">Function
+<code>isSome</code></a></li>
+<li><a href="#function-isnull" id="toc-function-isnull">Function
+<code>isNull</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-unwrap" id="toc-function-unwrap">Function
+<code>unwrap</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coreoption">core/Option</h1>
+<p>Typesafe nullable values.</p>
+<p>Optional values can be seen as a typesafe <code>null</code>. A value
+of type <code>?Int</code> can be constructed with either
+<code>null</code> or <code>?42</code>. The simplest way to get at the
+contents of an optional is to use pattern matching:</p>
+<pre class="motoko"><code>let optionalInt1 : ?Int = ?42;
+let optionalInt2 : ?Int = null;
+
+let int1orZero : Int = switch optionalInt1 {
+  case null 0;
+  case (?int) int;
+};
+assert int1orZero == 42;
+
+let int2orZero : Int = switch optionalInt2 {
+  case null 0;
+  case (?int) int;
+};
+assert int2orZero == 0;</code></pre>
+<p>The functions in this module capture some common operations when
+working with optionals that can be more succinct than using pattern
+matching.</p>
+<h2 id="function-get">Function <code>get</code></h2>
+<pre class="motoko"><code>func get&lt;T&gt;(self : ?T, default : T) : T</code></pre>
+<p>Unwraps an optional value, with a default value, i.e.
+<code>get(?x, d) = x</code> and <code>get(null, d) = d</code>.</p>
+<h2 id="function-getmapped">Function <code>getMapped</code></h2>
+<pre class="motoko"><code>func getMapped&lt;T, R&gt;(self : ?T, f : T -&gt; R, default : R) : R</code></pre>
+<p>Unwraps an optional value using a function, or returns the default,
+i.e. <code>option(?x, f, d) = f x</code> and
+<code>option(null, f, d) = d</code>.</p>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;T, R&gt;(self : ?T, f : T -&gt; R) : ?R</code></pre>
+<p>Applies a function to the wrapped value. <code>null</code>'s are left
+untouched.</p>
+<pre class="motoko"><code>import Option &quot;mo:core/Option&quot;;
+assert Option.map&lt;Nat, Nat&gt;(?42, func x = x + 1) == ?43;
+assert Option.map&lt;Nat, Nat&gt;(null, func x = x + 1) == null;</code></pre>
+<h2 id="function-foreach">Function <code>forEach</code></h2>
+<pre class="motoko"><code>func forEach&lt;T&gt;(self : ?T, f : T -&gt; ())</code></pre>
+<p>Applies a function to the wrapped value, but discards the result. Use
+<code>forEach</code> if you're only interested in the side effect
+<code>f</code> produces.</p>
+<pre class="motoko"><code>import Option &quot;mo:core/Option&quot;;
+var counter : Nat = 0;
+Option.forEach(?5, func (x : Nat) { counter += x });
+assert counter == 5;
+Option.forEach(null, func (x : Nat) { counter += x });
+assert counter == 5;</code></pre>
+<h2 id="function-apply">Function <code>apply</code></h2>
+<pre class="motoko"><code>func apply&lt;T, R&gt;(self : ?T, f : ?(T -&gt; R)) : ?R</code></pre>
+<p>Applies an optional function to an optional value. Returns
+<code>null</code> if at least one of the arguments is
+<code>null</code>.</p>
+<h2 id="function-chain">Function <code>chain</code></h2>
+<pre class="motoko"><code>func chain&lt;T, R&gt;(self : ?T, f : T -&gt; ?R) : ?R</code></pre>
+<p>Applies a function to an optional value. Returns <code>null</code> if
+the argument is <code>null</code>, or the function returns
+<code>null</code>.</p>
+<h2 id="function-flatten">Function <code>flatten</code></h2>
+<pre class="motoko"><code>func flatten&lt;T&gt;(self : ??T) : ?T</code></pre>
+<p>Given an optional optional value, removes one layer of
+optionality.</p>
+<pre class="motoko"><code>import Option &quot;mo:core/Option&quot;;
+assert Option.flatten(?(?(42))) == ?42;
+assert Option.flatten(?(null)) == null;
+assert Option.flatten(null) == null;</code></pre>
+<h2 id="function-some">Function <code>some</code></h2>
+<pre class="motoko"><code>func some&lt;T&gt;(self : T) : ?T</code></pre>
+<p>Creates an optional value from a definite value.</p>
+<pre class="motoko"><code>import Option &quot;mo:core/Option&quot;;
+assert Option.some(42) == ?42;</code></pre>
+<h2 id="function-issome">Function <code>isSome</code></h2>
+<pre class="motoko"><code>func isSome(self : ?Any) : Bool</code></pre>
+<p>Returns true if the argument is not <code>null</code>, otherwise
+returns false.</p>
+<h2 id="function-isnull">Function <code>isNull</code></h2>
+<pre class="motoko"><code>func isNull(self : ?Any) : Bool</code></pre>
+<p>Returns true if the argument is <code>null</code>, otherwise returns
+false.</p>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal&lt;T&gt;(self : ?T, other : ?T, eq : (implicit : (equal : (T, T) -&gt; Bool))) : Bool</code></pre>
+<p>Returns true if the optional arguments are equal according to the
+equality function provided, otherwise returns false.</p>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare&lt;T&gt;(self : ?T, other : ?T, compare : (implicit : (T, T) -&gt; Types.Order)) : Types.Order</code></pre>
+<p>Compares two optional values using the provided comparison
+function.</p>
+<p>Returns:</p>
+<ul>
+<li><code>#equal</code> if both values are <code>null</code>,</li>
+<li><code>#less</code> if the first value is <code>null</code> and the
+second is not,</li>
+<li><code>#greater</code> if the first value is not <code>null</code>
+and the second is,</li>
+<li>the result of the comparison function when both values are not
+<code>null</code>.</li>
+</ul>
+<h2 id="function-unwrap">Function <code>unwrap</code></h2>
+<pre class="motoko"><code>func unwrap&lt;T&gt;(self : ?T) : T</code></pre>
+<p>Unwraps an optional value, i.e. <code>unwrap(?x) = x</code>.</p>
+<p><code>Option.unwrap()</code> fails if the argument is null. Consider
+using a <code>switch</code> or <code>do?</code> expression instead.</p>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText&lt;T&gt;(self : ?T, toText : (implicit : T -&gt; Text)) : Text</code></pre>
+<p>Returns the textural representation of an optional value for
+debugging purposes.</p>
+</body>
+</html>

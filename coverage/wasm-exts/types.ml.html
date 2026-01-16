@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>types.ml &mdash; Coverage report</title>
+    <meta name="description" content="4.17% coverage in wasm-exts/types.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">wasm-exts/</span>types.ml
+        </a>
+      </h1>
+      <h2>4.17%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="top:7.28%"></span>
+      <span class="unvisited" style="top:7.95%"></span>
+      <span class="unvisited" style="top:9.27%"></span>
+      <span class="unvisited" style="top:9.93%"></span>
+      <span class="unvisited" style="top:29.14%"></span>
+      <span class="unvisited" style="top:29.80%"></span>
+      <span class="unvisited" style="top:31.79%"></span>
+      <span class="unvisited" style="top:32.45%"></span>
+      <span class="unvisited" style="top:33.11%"></span>
+      <span class="unvisited" style="top:35.10%"></span>
+      <span class="unvisited" style="top:35.76%"></span>
+      <span class="unvisited" style="top:39.74%"></span>
+      <span class="unvisited" style="top:40.40%"></span>
+      <span class="unvisited" style="top:41.06%"></span>
+      <span class="unvisited" style="top:41.72%"></span>
+      <span class="unvisited" style="top:42.38%"></span>
+      <span class="unvisited" style="top:44.37%"></span>
+      <span class="unvisited" style="top:45.70%"></span>
+      <span class="unvisited" style="top:46.36%"></span>
+      <span class="unvisited" style="top:47.02%"></span>
+      <span class="unvisited" style="top:47.68%"></span>
+      <span class="unvisited" style="top:48.34%"></span>
+      <span class="unvisited" style="top:49.01%"></span>
+      <span class="unvisited" style="top:49.67%"></span>
+      <span class="unvisited" style="bottom:49.67%"></span>
+      <span class="unvisited" style="bottom:49.01%"></span>
+      <span class="unvisited" style="bottom:48.34%"></span>
+      <span class="unvisited" style="bottom:47.68%"></span>
+      <span class="unvisited" style="bottom:45.70%"></span>
+      <span class="unvisited" style="bottom:43.71%"></span>
+      <span class="unvisited" style="bottom:41.72%"></span>
+      <span class="unvisited" style="bottom:41.06%"></span>
+      <span class="unvisited" style="bottom:40.40%"></span>
+      <span class="unvisited" style="bottom:39.74%"></span>
+      <span class="unvisited" style="bottom:39.07%"></span>
+      <span class="unvisited" style="bottom:38.41%"></span>
+      <span class="some-visited" style="bottom:34.44%"></span>
+      <span class="some-visited" style="bottom:33.11%"></span>
+      <span class="some-visited" style="bottom:31.79%"></span>
+      <span class="some-visited" style="bottom:30.46%"></span>
+      <span class="unvisited" style="bottom:27.15%"></span>
+      <span class="unvisited" style="bottom:26.49%"></span>
+      <span class="unvisited" style="bottom:25.83%"></span>
+      <span class="unvisited" style="bottom:25.17%"></span>
+      <span class="unvisited" style="bottom:23.18%"></span>
+      <span class="unvisited" style="bottom:22.52%"></span>
+      <span class="unvisited" style="bottom:20.53%"></span>
+      <span class="unvisited" style="bottom:18.54%"></span>
+      <span class="unvisited" style="bottom:17.88%"></span>
+      <span class="unvisited" style="bottom:15.89%"></span>
+      <span class="unvisited" style="bottom:15.23%"></span>
+      <span class="unvisited" style="bottom:14.57%"></span>
+      <span class="unvisited" style="bottom:12.58%"></span>
+      <span class="unvisited" style="bottom:11.92%"></span>
+      <span class="unvisited" style="bottom:11.26%"></span>
+      <span class="unvisited" style="bottom:10.60%"></span>
+      <span class="unvisited" style="bottom:8.61%"></span>
+      <span class="unvisited" style="bottom:7.95%"></span>
+      <span class="unvisited" style="bottom:5.96%"></span>
+      <span class="unvisited" style="bottom:3.97%"></span>
+      <span class="unvisited" style="bottom:1.99%"></span>
+      <span class="unvisited" style="bottom:1.32%"></span>
+      <span class="unvisited" style="bottom:0.66%"></span>
+      <span class="unvisited" style="bottom:0.00%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span class="unvisited"> </span>
+<a id="L12"></a><span class="unvisited"> </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span class="unvisited"> </span>
+<a id="L15"></a><span class="unvisited"> </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span > </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span > </span>
+<a id="L29"></a><span > </span>
+<a id="L30"></a><span > </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span > </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span > </span>
+<a id="L40"></a><span > </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span > </span>
+<a id="L43"></a><span > </span>
+<a id="L44"></a><span class="unvisited"> </span>
+<a id="L45"></a><span class="unvisited"> </span>
+<a id="L46"></a><span > </span>
+<a id="L47"></a><span > </span>
+<a id="L48"></a><span class="unvisited"> </span>
+<a id="L49"></a><span class="unvisited"> </span>
+<a id="L50"></a><span class="unvisited"> </span>
+<a id="L51"></a><span > </span>
+<a id="L52"></a><span > </span>
+<a id="L53"></a><span class="unvisited"> </span>
+<a id="L54"></a><span class="unvisited"> </span>
+<a id="L55"></a><span > </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span > </span>
+<a id="L58"></a><span > </span>
+<a id="L59"></a><span > </span>
+<a id="L60"></a><span class="unvisited"> </span>
+<a id="L61"></a><span class="unvisited"> </span>
+<a id="L62"></a><span class="unvisited"> </span>
+<a id="L63"></a><span class="unvisited"> </span>
+<a id="L64"></a><span class="unvisited"> </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span > </span>
+<a id="L67"></a><span class="unvisited"> </span>
+<a id="L68"></a><span > </span>
+<a id="L69"></a><span class="unvisited"> </span>
+<a id="L70"></a><span class="unvisited"> </span>
+<a id="L71"></a><span class="unvisited"> </span>
+<a id="L72"></a><span class="unvisited"> </span>
+<a id="L73"></a><span class="unvisited"> </span>
+<a id="L74"></a><span class="unvisited"> </span>
+<a id="L75"></a><span class="unvisited"> </span>
+<a id="L76"></a><span class="unvisited"> </span>
+<a id="L77"></a><span class="unvisited"> </span>
+<a id="L78"></a><span class="unvisited"> </span>
+<a id="L79"></a><span class="unvisited"> </span>
+<a id="L80"></a><span > </span>
+<a id="L81"></a><span > </span>
+<a id="L82"></a><span class="unvisited"> </span>
+<a id="L83"></a><span > </span>
+<a id="L84"></a><span > </span>
+<a id="L85"></a><span class="unvisited"> </span>
+<a id="L86"></a><span > </span>
+<a id="L87"></a><span > </span>
+<a id="L88"></a><span class="unvisited"> </span>
+<a id="L89"></a><span class="unvisited"> </span>
+<a id="L90"></a><span class="unvisited"> </span>
+<a id="L91"></a><span class="unvisited"> </span>
+<a id="L92"></a><span class="unvisited"> </span>
+<a id="L93"></a><span class="unvisited"> </span>
+<a id="L94"></a><span > </span>
+<a id="L95"></a><span > </span>
+<a id="L96"></a><span > </span>
+<a id="L97"></a><span > </span>
+<a id="L98"></a><span > </span>
+<a id="L99"></a><span class="some-visited"> </span>
+<a id="L100"></a><span > </span>
+<a id="L101"></a><span class="some-visited"> </span>
+<a id="L102"></a><span > </span>
+<a id="L103"></a><span class="some-visited"> </span>
+<a id="L104"></a><span > </span>
+<a id="L105"></a><span class="some-visited"> </span>
+<a id="L106"></a><span > </span>
+<a id="L107"></a><span > </span>
+<a id="L108"></a><span > </span>
+<a id="L109"></a><span > </span>
+<a id="L110"></a><span class="unvisited"> </span>
+<a id="L111"></a><span class="unvisited"> </span>
+<a id="L112"></a><span class="unvisited"> </span>
+<a id="L113"></a><span class="unvisited"> </span>
+<a id="L114"></a><span > </span>
+<a id="L115"></a><span > </span>
+<a id="L116"></a><span class="unvisited"> </span>
+<a id="L117"></a><span class="unvisited"> </span>
+<a id="L118"></a><span > </span>
+<a id="L119"></a><span > </span>
+<a id="L120"></a><span class="unvisited"> </span>
+<a id="L121"></a><span > </span>
+<a id="L122"></a><span > </span>
+<a id="L123"></a><span class="unvisited"> </span>
+<a id="L124"></a><span class="unvisited"> </span>
+<a id="L125"></a><span > </span>
+<a id="L126"></a><span > </span>
+<a id="L127"></a><span class="unvisited"> </span>
+<a id="L128"></a><span class="unvisited"> </span>
+<a id="L129"></a><span class="unvisited"> </span>
+<a id="L130"></a><span > </span>
+<a id="L131"></a><span > </span>
+<a id="L132"></a><span class="unvisited"> </span>
+<a id="L133"></a><span class="unvisited"> </span>
+<a id="L134"></a><span class="unvisited"> </span>
+<a id="L135"></a><span class="unvisited"> </span>
+<a id="L136"></a><span > </span>
+<a id="L137"></a><span > </span>
+<a id="L138"></a><span class="unvisited"> </span>
+<a id="L139"></a><span class="unvisited"> </span>
+<a id="L140"></a><span > </span>
+<a id="L141"></a><span > </span>
+<a id="L142"></a><span class="unvisited"> </span>
+<a id="L143"></a><span > </span>
+<a id="L144"></a><span > </span>
+<a id="L145"></a><span class="unvisited"> </span>
+<a id="L146"></a><span > </span>
+<a id="L147"></a><span > </span>
+<a id="L148"></a><span class="unvisited"> </span>
+<a id="L149"></a><span class="unvisited"> </span>
+<a id="L150"></a><span class="unvisited"> </span>
+<a id="L151"></a><span class="unvisited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+<a href="#L106">106</a>
+<a href="#L107">107</a>
+<a href="#L108">108</a>
+<a href="#L109">109</a>
+<a href="#L110">110</a>
+<a href="#L111">111</a>
+<a href="#L112">112</a>
+<a href="#L113">113</a>
+<a href="#L114">114</a>
+<a href="#L115">115</a>
+<a href="#L116">116</a>
+<a href="#L117">117</a>
+<a href="#L118">118</a>
+<a href="#L119">119</a>
+<a href="#L120">120</a>
+<a href="#L121">121</a>
+<a href="#L122">122</a>
+<a href="#L123">123</a>
+<a href="#L124">124</a>
+<a href="#L125">125</a>
+<a href="#L126">126</a>
+<a href="#L127">127</a>
+<a href="#L128">128</a>
+<a href="#L129">129</a>
+<a href="#L130">130</a>
+<a href="#L131">131</a>
+<a href="#L132">132</a>
+<a href="#L133">133</a>
+<a href="#L134">134</a>
+<a href="#L135">135</a>
+<a href="#L136">136</a>
+<a href="#L137">137</a>
+<a href="#L138">138</a>
+<a href="#L139">139</a>
+<a href="#L140">140</a>
+<a href="#L141">141</a>
+<a href="#L142">142</a>
+<a href="#L143">143</a>
+<a href="#L144">144</a>
+<a href="#L145">145</a>
+<a href="#L146">146</a>
+<a href="#L147">147</a>
+<a href="#L148">148</a>
+<a href="#L149">149</a>
+<a href="#L150">150</a>
+<a href="#L151">151</a>
+</pre>
+<pre><code class="ocaml">(*
+This module originated as a copy of interpreter/syntax/types.ml in the
+reference implementation.
+With adjustments from memory 64.
+*)
+
+module I32 = Wasm.I32
+module I64 = Wasm.I64
+
+let rec map_filter f = function
+| <span data-count="0">[</span>] -&gt; []
+| <span data-count="0">x</span>::xs -&gt;
+  match f x with
+  | <span data-count="0">N</span>one -&gt; map_filter f xs
+  | <span data-count="0">S</span>ome y -&gt; y :: map_filte<span data-count="0">r</span> f xs
+
+(* Types *)
+
+type value_type = I32Type | I64Type | F32Type | F64Type
+type index_type = I32IndexType | I64IndexType
+type elem_type = FuncRefType
+type stack_type = value_type list
+type func_type = FuncType of stack_type * stack_type
+
+type 'a limits = {min : 'a; max : 'a option}
+type mutability = Immutable | Mutable
+type table_type = TableType of Int32.t limits * elem_type
+                | HugeTableType of Int64.t limits * elem_type
+type memory_type = MemoryType of Int64.t limits * index_type
+type global_type = GlobalType of value_type * mutability
+type extern_type =
+  | ExternFuncType of func_type
+  | ExternTableType of table_type
+  | ExternMemoryType of memory_type
+  | ExternGlobalType of global_type
+
+type pack_size = Pack8 | Pack16 | Pack32
+type extension = SX | ZX
+
+
+(* Attributes *)
+
+let size = function
+  | <span data-count="0">I</span>32Type | <span data-count="0">F</span>32Type -&gt; 4
+  | <span data-count="0">I</span>64Type | <span data-count="0">F</span>64Type -&gt; 8
+
+let packed_size = function
+  | <span data-count="0">P</span>ack8 -&gt; 1
+  | <span data-count="0">P</span>ack16 -&gt; 2
+  | <span data-count="0">P</span>ack32 -&gt; 4
+
+let value_type_of_index_type = function
+  | <span data-count="0">I</span>32IndexType -&gt; I32Type
+  | <span data-count="0">I</span>64IndexType -&gt; I64Type
+
+
+(* Subtyping *)
+
+let match_limits ge lim1 lim2 =
+  <span data-count="0">g</span><span data-count="0">e</span> lim1.min lim2.min &amp;&amp;
+  <span data-count="0">m</span>atch lim1.max, lim2.max with
+  | <span data-count="0">_</span>, None -&gt; true
+  | <span data-count="0">N</span>one, Some _ -&gt; false
+  | <span data-count="0">S</span>ome i, Some j -&gt; ge j i
+
+let match_func_type ft1 ft2 =
+  <span data-count="0">f</span>t1 = ft2
+
+let match_table_type tt1 tt2 = <span data-count="0">m</span>atch tt1, tt2 with
+  | <span data-count="0">T</span>ableType (lim1, et1), TableType (lim2, et2) -&gt;
+    et1 = et2 &amp;&amp; <span data-count="0">m</span>atch_limits I32.ge_u lim1 lim2
+  | <span data-count="0">H</span>ugeTableType (lim1, et1), HugeTableType (lim2, et2) -&gt;
+    et1 = et2 &amp;&amp; <span data-count="0">m</span>atch_limits I64.ge_u lim1 lim2
+  | <span data-count="0">T</span>ableType ({min; max}, et1), HugeTableType (lim2, et2) -&gt;
+    let lim1 = {min = Int64.of_int3<span data-count="0">2</span> min; max = Option.ma<span data-count="0">p</span> Int64.of_int32 max} in
+    et1 = et2 &amp;&amp; <span data-count="0">m</span>atch_limits I64.ge_u lim1 lim2
+  | <span data-count="0">H</span>ugeTableType (lim1, et1), TableType ({min; max}, et2) -&gt;
+    let lim2 = {min = Int64.of_int3<span data-count="0">2</span> min; max = Option.ma<span data-count="0">p</span> Int64.of_int32 max} in
+    et1 = et2 &amp;&amp; <span data-count="0">m</span>atch_limits I64.ge_u lim1 lim2
+
+let match_memory_type (MemoryType (lim1, it1)) (MemoryType (lim2, it2)) =
+  <span data-count="0">i</span>t1 = it2 &amp;&amp; <span data-count="0">m</span>atch_limits I64.ge_u lim1 lim2
+
+let match_global_type gt1 gt2 =
+  <span data-count="0">g</span>t1 = gt2
+
+let match_extern_type et1 et2 =
+  <span data-count="0">m</span>atch et1, et2 with
+  | <span data-count="0">E</span>xternFuncType ft1, ExternFuncType ft2 -&gt; match_func_type ft1 ft2
+  | <span data-count="0">E</span>xternTableType tt1, ExternTableType tt2 -&gt; match_table_type tt1 tt2
+  | <span data-count="0">E</span>xternMemoryType mt1, ExternMemoryType mt2 -&gt; match_memory_type mt1 mt2
+  | <span data-count="0">E</span>xternGlobalType gt1, ExternGlobalType gt2 -&gt; match_global_type gt1 gt2
+  | <span data-count="0">_</span>, _ -&gt; false
+
+
+(* Filters *)
+
+let funcs =
+  map_filte<span data-count="1816">r</span> (function <span data-count="0">E</span>xternFuncType t -&gt; Some t | <span data-count="0">_</span> -&gt; None)
+let tables =
+  map_filte<span data-count="1816">r</span> (function <span data-count="0">E</span>xternTableType t -&gt; Some t | <span data-count="0">_</span> -&gt; None)
+let memories =
+  map_filte<span data-count="1816">r</span> (function <span data-count="0">E</span>xternMemoryType t -&gt; Some t | <span data-count="0">_</span> -&gt; None)
+let globals =
+  map_filte<span data-count="1816">r</span> (function <span data-count="0">E</span>xternGlobalType t -&gt; Some t | <span data-count="0">_</span> -&gt; None)
+
+(* String conversion *)
+
+let string_of_value_type = function
+  | <span data-count="0">I</span>32Type -&gt; "i32"
+  | <span data-count="0">I</span>64Type -&gt; "i64"
+  | <span data-count="0">F</span>32Type -&gt; "f32"
+  | <span data-count="0">F</span>64Type -&gt; "f64"
+
+let string_of_value_types = function
+  | <span data-count="0">[</span>t] -&gt; string_of_value_type t
+  | <span data-count="0">t</span>s -&gt; "[" ^ String.conca<span data-count="0">t</span> " " (List.ma<span data-count="0">p</span> string_of_value_type ts) ^ "]"
+
+let string_of_elem_type = function
+  | <span data-count="0">F</span>uncRefType -&gt; "funcref"
+
+let string_of_limits to_string {min; max} =
+  <span data-count="0">t</span>o_strin<span data-count="0">g</span> min ^
+  (match max with <span data-count="0">N</span>one -&gt; "" | <span data-count="0">S</span>ome n -&gt; " " ^ to_strin<span data-count="0">g</span> n)
+
+let string_of_memory_type = function
+  | <span data-count="0">M</span>emoryType (lim, it) -&gt;
+    string_of_value_typ<span data-count="0">e</span> (value_type_of_index_typ<span data-count="0">e</span> it) ^
+    " " ^ string_of_limit<span data-count="0">s</span> I64.to_string_u lim
+
+let string_of_table_type = function
+  | <span data-count="0">T</span>ableType (lim, t) -&gt; string_of_limit<span data-count="0">s</span> I32.to_string_u lim ^ " " ^
+                          string_of_elem_typ<span data-count="0">e</span> t
+  | <span data-count="0">H</span>ugeTableType (lim, t) -&gt; string_of_limit<span data-count="0">s</span> I64.to_string_u lim ^ " " ^
+                              string_of_elem_typ<span data-count="0">e</span> t
+
+let string_of_global_type = function
+  | <span data-count="0">G</span>lobalType (t, Immutable) -&gt; string_of_value_type t
+  | <span data-count="0">G</span>lobalType (t, Mutable) -&gt; "(mut " ^ string_of_value_typ<span data-count="0">e</span> t ^ ")"
+
+let string_of_stack_type ts =
+  <span data-count="0">"</span>[" ^ String.conca<span data-count="0">t</span> " " (List.ma<span data-count="0">p</span> string_of_value_type ts) ^ "]"
+
+let string_of_func_type (FuncType (ins, out)) =
+  <span data-count="0">s</span>tring_of_stack_typ<span data-count="0">e</span> ins ^ " -&gt; " ^ string_of_stack_typ<span data-count="0">e</span> out
+
+let string_of_extern_type = function
+  | <span data-count="0">E</span>xternFuncType ft -&gt; "func " ^ string_of_func_typ<span data-count="0">e</span> ft
+  | <span data-count="0">E</span>xternTableType tt -&gt; "table " ^ string_of_table_typ<span data-count="0">e</span> tt
+  | <span data-count="0">E</span>xternMemoryType mt -&gt; "memory " ^ string_of_memory_typ<span data-count="0">e</span> mt
+  | <span data-count="0">E</span>xternGlobalType gt -&gt; "global " ^ string_of_global_typ<span data-count="0">e</span> gt
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

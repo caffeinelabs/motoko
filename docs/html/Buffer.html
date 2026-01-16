@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/base/Buffer.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/base/Buffer.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#basebuffer" id="toc-basebuffer">base/Buffer</a>
+<ul>
+<li><a href="#class-bufferx" id="toc-class-bufferx">Class
+<code>Buffer&lt;X&gt;</code></a>
+<ul>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-add" id="toc-function-add">Function
+<code>add</code></a></li>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-getopt" id="toc-function-getopt">Function
+<code>getOpt</code></a></li>
+<li><a href="#function-put" id="toc-function-put">Function
+<code>put</code></a></li>
+<li><a href="#function-removelast" id="toc-function-removelast">Function
+<code>removeLast</code></a></li>
+<li><a href="#function-remove" id="toc-function-remove">Function
+<code>remove</code></a></li>
+<li><a href="#function-clear" id="toc-function-clear">Function
+<code>clear</code></a></li>
+<li><a href="#function-filterentries"
+id="toc-function-filterentries">Function
+<code>filterEntries</code></a></li>
+<li><a href="#function-capacity" id="toc-function-capacity">Function
+<code>capacity</code></a></li>
+<li><a href="#function-reserve" id="toc-function-reserve">Function
+<code>reserve</code></a></li>
+<li><a href="#function-append" id="toc-function-append">Function
+<code>append</code></a></li>
+<li><a href="#function-insert" id="toc-function-insert">Function
+<code>insert</code></a></li>
+<li><a href="#function-insertbuffer"
+id="toc-function-insertbuffer">Function
+<code>insertBuffer</code></a></li>
+<li><a href="#function-sort" id="toc-function-sort">Function
+<code>sort</code></a></li>
+<li><a href="#function-vals" id="toc-function-vals">Function
+<code>vals</code></a></li>
+<li><a href="#function-clone" id="toc-function-clone">Function
+<code>clone</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+</ul></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-contains" id="toc-function-contains">Function
+<code>contains</code></a></li>
+<li><a href="#function-clone-1" id="toc-function-clone-1">Function
+<code>clone</code></a></li>
+<li><a href="#function-max" id="toc-function-max">Function
+<code>max</code></a></li>
+<li><a href="#function-min" id="toc-function-min">Function
+<code>min</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-hash" id="toc-function-hash">Function
+<code>hash</code></a></li>
+<li><a href="#function-indexof" id="toc-function-indexof">Function
+<code>indexOf</code></a></li>
+<li><a href="#function-lastindexof"
+id="toc-function-lastindexof">Function <code>lastIndexOf</code></a></li>
+<li><a href="#function-indexofbuffer"
+id="toc-function-indexofbuffer">Function
+<code>indexOfBuffer</code></a></li>
+<li><a href="#function-binarysearch"
+id="toc-function-binarysearch">Function
+<code>binarySearch</code></a></li>
+<li><a href="#function-subbuffer" id="toc-function-subbuffer">Function
+<code>subBuffer</code></a></li>
+<li><a href="#function-issubbufferof"
+id="toc-function-issubbufferof">Function
+<code>isSubBufferOf</code></a></li>
+<li><a href="#function-isstrictsubbufferof"
+id="toc-function-isstrictsubbufferof">Function
+<code>isStrictSubBufferOf</code></a></li>
+<li><a href="#function-prefix" id="toc-function-prefix">Function
+<code>prefix</code></a></li>
+<li><a href="#function-isprefixof" id="toc-function-isprefixof">Function
+<code>isPrefixOf</code></a></li>
+<li><a href="#function-isstrictprefixof"
+id="toc-function-isstrictprefixof">Function
+<code>isStrictPrefixOf</code></a></li>
+<li><a href="#function-suffix" id="toc-function-suffix">Function
+<code>suffix</code></a></li>
+<li><a href="#function-issuffixof" id="toc-function-issuffixof">Function
+<code>isSuffixOf</code></a></li>
+<li><a href="#function-isstrictsuffixof"
+id="toc-function-isstrictsuffixof">Function
+<code>isStrictSuffixOf</code></a></li>
+<li><a href="#function-forall" id="toc-function-forall">Function
+<code>forAll</code></a></li>
+<li><a href="#function-forsome" id="toc-function-forsome">Function
+<code>forSome</code></a></li>
+<li><a href="#function-fornone" id="toc-function-fornone">Function
+<code>forNone</code></a></li>
+<li><a href="#function-toarray-1" id="toc-function-toarray-1">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray-1"
+id="toc-function-tovararray-1">Function <code>toVarArray</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-trimtosize" id="toc-function-trimtosize">Function
+<code>trimToSize</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-iterate" id="toc-function-iterate">Function
+<code>iterate</code></a></li>
+<li><a href="#function-mapentries" id="toc-function-mapentries">Function
+<code>mapEntries</code></a></li>
+<li><a href="#function-mapfilter" id="toc-function-mapfilter">Function
+<code>mapFilter</code></a></li>
+<li><a href="#function-mapresult" id="toc-function-mapresult">Function
+<code>mapResult</code></a></li>
+<li><a href="#function-chain" id="toc-function-chain">Function
+<code>chain</code></a></li>
+<li><a href="#function-foldleft" id="toc-function-foldleft">Function
+<code>foldLeft</code></a></li>
+<li><a href="#function-foldright" id="toc-function-foldright">Function
+<code>foldRight</code></a></li>
+<li><a href="#function-first" id="toc-function-first">Function
+<code>first</code></a></li>
+<li><a href="#function-last" id="toc-function-last">Function
+<code>last</code></a></li>
+<li><a href="#function-make" id="toc-function-make">Function
+<code>make</code></a></li>
+<li><a href="#function-reverse" id="toc-function-reverse">Function
+<code>reverse</code></a></li>
+<li><a href="#function-merge" id="toc-function-merge">Function
+<code>merge</code></a></li>
+<li><a href="#function-removeduplicates"
+id="toc-function-removeduplicates">Function
+<code>removeDuplicates</code></a></li>
+<li><a href="#function-partition" id="toc-function-partition">Function
+<code>partition</code></a></li>
+<li><a href="#function-split" id="toc-function-split">Function
+<code>split</code></a></li>
+<li><a href="#function-chunk" id="toc-function-chunk">Function
+<code>chunk</code></a></li>
+<li><a href="#function-groupby" id="toc-function-groupby">Function
+<code>groupBy</code></a></li>
+<li><a href="#function-flatten" id="toc-function-flatten">Function
+<code>flatten</code></a></li>
+<li><a href="#function-zip" id="toc-function-zip">Function
+<code>zip</code></a></li>
+<li><a href="#function-zipwith" id="toc-function-zipwith">Function
+<code>zipWith</code></a></li>
+<li><a href="#function-takewhile" id="toc-function-takewhile">Function
+<code>takeWhile</code></a></li>
+<li><a href="#function-dropwhile" id="toc-function-dropwhile">Function
+<code>dropWhile</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="basebuffer">base/Buffer</h1>
+<p>Class <code>Buffer&lt;X&gt;</code> provides a mutable list of
+elements of type <code>X</code>. It wraps a resizable underlying array
+and is comparable to <code>ArrayList</code> or <code>Vector</code> in
+other languages.</p>
+<p>You can convert a buffer to a fixed-size array using
+<code>Buffer.toArray</code>, which is recommended for storing data in
+stable variables.</p>
+<p>Like arrays, buffer elements are indexed from <code>0</code> to
+<code>size - 1</code>.</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>combine</code>,
+<code>equal</code>, and other functions execute in <code>O(1)</code>
+time and space.</p>
+<p>:::</p>
+<p>:::note Size vs capacity</p>
+<ul>
+<li><code>size</code>: Number of elements in the buffer.</li>
+<li><code>capacity</code>: Length of the underlying array.</li>
+</ul>
+<p>The invariant <code>capacity &gt;= size</code> always holds. :::</p>
+<p>:::warning Performance caveat</p>
+<p>Operations like <code>add</code> are amortized <code>O(1)</code> but
+can take <code>O(n)</code> in the worst case. For large buffers, these
+worst cases may exceed the cycle limit per message. Use with care when
+growing buffers dynamically. :::</p>
+<p>:::info Constructor behavior</p>
+<p>The <code>initCapacity</code> argument sets the initial capacity of
+the underlying array.</p>
+<ul>
+<li>When the capacity is exceeded, the array grows by a factor of
+1.5.</li>
+<li>When the buffer size drops below 1/4 of the capacity, it shrinks by
+a factor of 2. :::</li>
+</ul>
+<p>Example:</p>
+<pre class="motoko"><code>import Buffer &quot;mo:base/Buffer&quot;;
+
+let buffer = Buffer.Buffer&lt;Nat&gt;(3); // Creates a new Buffer</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(initCapacity)</code></td>
+<td><code>O(initCapacity)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="class-bufferx">Class <code>Buffer&lt;X&gt;</code></h2>
+<pre class="motoko"><code>class Buffer&lt;X&gt;(initCapacity : Nat)</code></pre>
+<h3 id="function-size">Function <code>size</code></h3>
+<pre class="motoko"><code>func size() : Nat</code></pre>
+<p>Returns the current number of elements in the buffer.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.size() // =&gt; 0</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-add">Function <code>add</code></h3>
+<pre class="motoko"><code>func add(element : X)</code></pre>
+<p>Adds a single element to the end of the buffer, doubling the size of
+the array if capacity is exceeded.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(0); // add 0 to buffer
+buffer.add(1);
+buffer.add(2);
+buffer.add(3); // causes underlying array to increase in capacity
+Buffer.toArray(buffer) // =&gt; [0, 1, 2, 3]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime (worst)</th>
+<th>Runtime (amortized)</th>
+<th>Space (worst)</th>
+<th>Space (amortized)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-get">Function <code>get</code></h3>
+<pre class="motoko"><code>func get(index : Nat) : X</code></pre>
+<p>Returns the element at index <code>index</code>. Traps if
+<code>index &gt;= size</code>. Indexing is zero-based.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(10);
+buffer.add(11);
+buffer.get(0); // =&gt; 10</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-getopt">Function <code>getOpt</code></h3>
+<pre class="motoko"><code>func getOpt(index : Nat) : ?X</code></pre>
+<p>Returns the element at index <code>index</code> as an option. Returns
+<code>null</code> when <code>index &gt;= size</code>. Indexing is
+zero-based.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(10);
+buffer.add(11);
+let x = buffer.getOpt(0); // =&gt; ?10
+let y = buffer.getOpt(2); // =&gt; null</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-put">Function <code>put</code></h3>
+<pre class="motoko"><code>func put(index : Nat, element : X)</code></pre>
+<pre class="motoko"><code>buffer.add(10);
+buffer.put(0, 20); // overwrites 10 at index 0 with 20
+Buffer.toArray(buffer) // =&gt; [20]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-removelast">Function <code>removeLast</code></h3>
+<pre class="motoko"><code>func removeLast() : ?X</code></pre>
+<p>Removes and returns the last item in the buffer or <code>null</code>
+if the buffer is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(10);
+buffer.add(11);
+buffer.removeLast(); // =&gt; ?11</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime (worst)</th>
+<th>Runtime (amortized)</th>
+<th>Space (worst)</th>
+<th>Space (amortized)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-remove">Function <code>remove</code></h3>
+<pre class="motoko"><code>func remove(index : Nat) : X</code></pre>
+<p>Removes and returns the element at <code>index</code> from the
+buffer. All elements with index &gt; <code>index</code> are shifted one
+position to the left. This may cause a downsizing of the array.</p>
+<p>Traps if index &gt;= size.</p>
+<p>:::warning Inefficient pattern</p>
+<p>Repeated removal of elements using this method is inefficient and may
+indicate that a different data structure would better suit your use
+case. :::</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+let x = buffer.remove(1); // evaluates to 11. 11 no longer in list.
+Buffer.toArray(buffer) // =&gt; [10, 12]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime (worst)</th>
+<th>Runtime (amortized)</th>
+<th>Space (worst)</th>
+<th>Space (amortized)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td>-</td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-clear">Function <code>clear</code></h3>
+<pre class="motoko"><code>func clear()</code></pre>
+<p>Resets the buffer. Capacity is set to 8.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+buffer.clear(); // buffer is now empty
+Buffer.toArray(buffer) // =&gt; []</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-filterentries">Function <code>filterEntries</code></h3>
+<pre class="motoko"><code>func filterEntries(predicate : (Nat, X) -&gt; Bool)</code></pre>
+<p>Removes all elements from the buffer for which the predicate returns
+false. The predicate is given both the index of the element and the
+element itself. This may cause a downsizing of the array.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+buffer.filterEntries(func(_, x) = x % 2 == 0); // only keep even elements
+Buffer.toArray(buffer) // =&gt; [10, 12]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime (worst)</th>
+<th>Runtime (amortized)</th>
+<th>Space (worst)</th>
+<th>Space (amortized)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td>-</td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-capacity">Function <code>capacity</code></h3>
+<pre class="motoko"><code>func capacity() : Nat</code></pre>
+<p>Returns the capacity of the buffer (the length of the underlying
+array).</p>
+<p>Example:</p>
+<pre class="motoko"><code>let buffer = Buffer.Buffer&lt;Nat&gt;(2); // underlying array has capacity 2
+buffer.add(10);
+let c1 = buffer.capacity(); // =&gt; 2
+buffer.add(11);
+buffer.add(12); // causes capacity to increase by factor of 1.5
+let c2 = buffer.capacity(); // =&gt; 3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-reserve">Function <code>reserve</code></h3>
+<pre class="motoko"><code>func reserve(capacity : Nat)</code></pre>
+<p>Changes the capacity to <code>capacity</code>. Traps if
+<code>capacity</code> &lt; <code>size</code>.</p>
+<pre class="motoko"><code>buffer.reserve(4);
+buffer.add(10);
+buffer.add(11);
+buffer.capacity(); // =&gt; 4</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(capacity)</code></td>
+<td><code>O(capacity)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-append">Function <code>append</code></h3>
+<pre class="motoko"><code>func append(buffer2 : Buffer&lt;X&gt;)</code></pre>
+<p>Adds all elements in buffer <code>b</code> to this buffer.</p>
+<pre class="motoko"><code>let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(10);
+buffer1.add(11);
+buffer2.add(12);
+buffer2.add(13);
+buffer1.append(buffer2); // adds elements from buffer2 to buffer1
+Buffer.toArray(buffer1) // =&gt; [10, 11, 12, 13]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime (worst)</th>
+<th>Runtime (amortized)</th>
+<th>Space (worst)</th>
+<th>Space (amortized)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size1 + size2)</code></td>
+<td><code>O(size2)</code></td>
+<td><code>O(size1 +size2)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-insert">Function <code>insert</code></h3>
+<pre class="motoko"><code>func insert(index : Nat, element : X)</code></pre>
+<p>Inserts <code>element</code> at <code>index</code>, shifts all
+elements to the right of <code>index</code> over by one index. Traps if
+<code>index</code> is greater than size.</p>
+<pre class="motoko"><code>let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer.add(10);
+buffer.add(11);
+buffer.insert(1, 9);
+Buffer.toArray(buffer) // =&gt; [10, 9, 11]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime (worst)</th>
+<th>Runtime (amortized)</th>
+<th>Space (worst)</th>
+<th>Space (amortized)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td>-</td>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-insertbuffer">Function <code>insertBuffer</code></h3>
+<pre class="motoko"><code>func insertBuffer(index : Nat, buffer2 : Buffer&lt;X&gt;)</code></pre>
+<p>Inserts <code>buffer2</code> at <code>index</code>, and shifts all
+elements to the right of <code>index</code> over by size2. Traps if
+<code>index</code> is greater than size.</p>
+<pre class="motoko"><code>let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(10);
+buffer1.add(11);
+buffer2.add(12);
+buffer2.add(13);
+buffer1.insertBuffer(1, buffer2);
+Buffer.toArray(buffer1) // =&gt; [10, 12, 13, 11]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime (worst)</th>
+<th>Runtime (amortized)</th>
+<th>Space (worst)</th>
+<th>Space (amortized)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td>-</td>
+<td><code>O(size1 +size2)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-sort">Function <code>sort</code></h3>
+<pre class="motoko"><code>func sort(compare : (X, X) -&gt; Order.Order)</code></pre>
+<p>Sorts the elements in the buffer according to <code>compare</code>.
+Sort is deterministic, stable, and in-place.</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(11);
+buffer.add(12);
+buffer.add(10);
+buffer.sort(Nat.compare);
+Buffer.toArray(buffer) // =&gt; [10, 11, 12]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size * log(size))</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-vals">Function <code>vals</code></h3>
+<pre class="motoko"><code>func vals() : { next : () -&gt; ?X }</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the elements of this
+buffer. Iterator provides a single method <code>next()</code>, which
+returns elements in order, or <code>null</code> when out of elements to
+iterate over.</p>
+<pre class="motoko"><code>buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+
+var sum = 0;
+for (element in buffer.vals()) {
+ sum += element;
+};
+sum // =&gt; 33</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-clone">Function <code>clone</code></h3>
+<pre class="motoko"><code>func clone() : Buffer&lt;X&gt;</code></pre>
+<p>@deprecated Use the static library function instead of this instance
+method.</p>
+<h3 id="function-toarray">Function <code>toArray</code></h3>
+<pre class="motoko"><code>func toArray() : [X]</code></pre>
+<p>@deprecated Use the static library function instead of this instance
+method.</p>
+<h3 id="function-tovararray">Function <code>toVarArray</code></h3>
+<pre class="motoko"><code>func toVarArray() : [var X]</code></pre>
+<p>@deprecated Use the static library function instead of this instance
+method.</p>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty&lt;X&gt;(buffer : Buffer&lt;X&gt;) : Bool</code></pre>
+<p>Returns true if and only if the buffer is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(2);
+buffer.add(0);
+buffer.add(3);
+Buffer.isEmpty(buffer); // =&gt; false</code></pre>
+<pre class="motoko"><code>Buffer.isEmpty(buffer); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-contains">Function <code>contains</code></h2>
+<pre class="motoko"><code>func contains&lt;X&gt;(buffer : Buffer&lt;X&gt;, element : X, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Returns true if <code>buffer</code> contains <code>element</code>
+with respect to equality defined by <code>equal</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(2);
+buffer.add(0);
+buffer.add(3);
+Buffer.contains&lt;Nat&gt;(buffer, 2, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-clone-1">Function <code>clone</code></h2>
+<pre class="motoko"><code>func clone&lt;X&gt;(buffer : Buffer&lt;X&gt;) : Buffer&lt;X&gt;</code></pre>
+<p>Returns a copy of <code>buffer</code>, with the same capacity.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(1);
+
+let clone = Buffer.clone(buffer);
+Buffer.toArray(clone); // =&gt; [1]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-max">Function <code>max</code></h2>
+<pre class="motoko"><code>func max&lt;X&gt;(buffer : Buffer&lt;X&gt;, compare : (X, X) -&gt; Order) : ?X</code></pre>
+<p>Finds the greatest element in <code>buffer</code> defined by
+<code>compare</code>. Returns <code>null</code> if <code>buffer</code>
+is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+
+Buffer.max(buffer, Nat.compare); // =&gt; ?2</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-min">Function <code>min</code></h2>
+<pre class="motoko"><code>func min&lt;X&gt;(buffer : Buffer&lt;X&gt;, compare : (X, X) -&gt; Order) : ?X</code></pre>
+<p>Finds the least element in <code>buffer</code> defined by
+<code>compare</code>. Returns <code>null</code> if <code>buffer</code>
+is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+
+Buffer.min(buffer, Nat.compare); // =&gt; ?1</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal&lt;X&gt;(buffer1 : Buffer&lt;X&gt;, buffer2 : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Defines equality for two buffers, using <code>equal</code> to
+recursively compare elements in the buffers. Returns true if the two
+buffers are of the same size, and <code>equal</code> evaluates to true
+for every pair of elements in the two buffers of the same index.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(5);
+buffer2.add(1);
+buffer2.add(2);
+
+Buffer.equal(buffer1, buffer2, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare&lt;X&gt;(buffer1 : Buffer&lt;X&gt;, buffer2 : Buffer&lt;X&gt;, compare : (X, X) -&gt; Order.Order) : Order.Order</code></pre>
+<p>Defines comparison for two buffers, using <code>compare</code> to
+recursively compare elements in the buffers. Comparison is defined
+lexicographically.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(3);
+buffer2.add(3);
+buffer2.add(4);
+
+Buffer.compare&lt;Nat&gt;(buffer1, buffer2, Nat.compare); // =&gt; #less</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText&lt;X&gt;(buffer : Buffer&lt;X&gt;, toText : X -&gt; Text) : Text</code></pre>
+<p>Creates a textual representation of <code>buffer</code>, using
+<code>toText</code> to recursively convert the elements into Text.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.toText(buffer, Nat.toText); // =&gt; &quot;[1, 2, 3, 4]&quot;</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-hash">Function <code>hash</code></h2>
+<pre class="motoko"><code>func hash&lt;X&gt;(buffer : Buffer&lt;X&gt;, hash : X -&gt; Nat32) : Nat32</code></pre>
+<p>Hashes <code>buffer</code> using <code>hash</code> to hash the
+underlying elements. The deterministic hash function is a function of
+the elements in the <code>buffer</code>, as well as their ordering.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Hash &quot;mo:base/Hash&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(1000);
+
+Buffer.hash&lt;Nat&gt;(buffer, Hash.hash); // =&gt; 2_872_640_342</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-indexof">Function <code>indexOf</code></h2>
+<pre class="motoko"><code>func indexOf&lt;X&gt;(element : X, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : ?Nat</code></pre>
+<p>Finds the first index of <code>element</code> in <code>buffer</code>
+using equality of elements defined by <code>equal</code>. Returns
+<code>null</code> if <code>element</code> is not found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.indexOf&lt;Nat&gt;(3, buffer, Nat.equal); // =&gt; ?2</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-lastindexof">Function <code>lastIndexOf</code></h2>
+<pre class="motoko"><code>func lastIndexOf&lt;X&gt;(element : X, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : ?Nat</code></pre>
+<p>Finds the last index of <code>element</code> in <code>buffer</code>
+using equality of elements defined by <code>equal</code>. Returns
+<code>null</code> if <code>element</code> is not found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(2);
+buffer.add(2);
+
+Buffer.lastIndexOf&lt;Nat&gt;(2, buffer, Nat.equal); // =&gt; ?5</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-indexofbuffer">Function <code>indexOfBuffer</code></h2>
+<pre class="motoko"><code>func indexOfBuffer&lt;X&gt;(subBuffer : Buffer&lt;X&gt;, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : ?Nat</code></pre>
+<p>Searches for <code>subBuffer</code> in <code>buffer</code>, and
+returns the starting index if it is found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let sub = Buffer.Buffer&lt;Nat&gt;(2);
+sub.add(4);
+sub.add(5);
+sub.add(6);
+
+Buffer.indexOfBuffer&lt;Nat&gt;(sub, buffer, Nat.equal); // =&gt; ?3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size of buffer + size of subBuffer)</code></td>
+<td><code>O(size of subBuffer)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-binarysearch">Function <code>binarySearch</code></h2>
+<pre class="motoko"><code>func binarySearch&lt;X&gt;(element : X, buffer : Buffer&lt;X&gt;, compare : (X, X) -&gt; Order.Order) : ?Nat</code></pre>
+<p>Similar to <code>indexOf</code>, but runs in logarithmic time.
+Assumes that <code>buffer</code> is sorted. Behavior is undefined if
+<code>buffer</code> is not sorted. Uses <code>compare</code> to perform
+the search. Returns an index of <code>element</code> if it is found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+Buffer.binarySearch&lt;Nat&gt;(5, buffer, Nat.compare); // =&gt; ?2</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(size))</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-subbuffer">Function <code>subBuffer</code></h2>
+<pre class="motoko"><code>func subBuffer&lt;X&gt;(buffer : Buffer&lt;X&gt;, start : Nat, length : Nat) : Buffer&lt;X&gt;</code></pre>
+<p>Returns the sub-buffer of <code>buffer</code> starting at index
+<code>start</code> of length <code>length</code>. Traps if
+<code>start</code> is out of bounds, or <code>start + length</code> is
+greater than the size of <code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let sub = Buffer.subBuffer(buffer, 3, 2);
+Buffer.toText(sub, Nat.toText); // =&gt; [4, 5]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(length)</code></td>
+<td><code>O(length)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-issubbufferof">Function <code>isSubBufferOf</code></h2>
+<pre class="motoko"><code>func isSubBufferOf&lt;X&gt;(subBuffer : Buffer&lt;X&gt;, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Checks if <code>subBuffer</code> is a sub-Buffer of
+<code>buffer</code>. Uses <code>equal</code> to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let sub = Buffer.Buffer&lt;Nat&gt;(2);
+sub.add(2);
+sub.add(3);
+Buffer.isSubBufferOf(sub, buffer, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size of subBuffer + size of buffer)</code></td>
+<td><code>O(size of subBuffer)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-isstrictsubbufferof">Function
+<code>isStrictSubBufferOf</code></h2>
+<pre class="motoko"><code>func isStrictSubBufferOf&lt;X&gt;(subBuffer : Buffer&lt;X&gt;, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Checks if <code>subBuffer</code> is a strict subBuffer of
+<code>buffer</code>, i.e. <code>subBuffer</code> must be strictly
+contained inside both the first and last indices of <code>buffer</code>.
+Uses <code>equal</code> to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let sub = Buffer.Buffer&lt;Nat&gt;(2);
+sub.add(2);
+sub.add(3);
+Buffer.isStrictSubBufferOf(sub, buffer, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size of subBuffer + size of buffer)</code></td>
+<td><code>O(size of subBuffer)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-prefix">Function <code>prefix</code></h2>
+<pre class="motoko"><code>func prefix&lt;X&gt;(buffer : Buffer&lt;X&gt;, length : Nat) : Buffer&lt;X&gt;</code></pre>
+<p>Returns the prefix of <code>buffer</code> of length
+<code>length</code>. Traps if <code>length</code> is greater than the
+size of <code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let pre = Buffer.prefix(buffer, 3); // =&gt; [1, 2, 3]
+Buffer.toText(pre, Nat.toText);</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(length)</code></td>
+<td><code>O(length)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-isprefixof">Function <code>isPrefixOf</code></h2>
+<pre class="motoko"><code>func isPrefixOf&lt;X&gt;(prefix : Buffer&lt;X&gt;, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Checks if <code>prefix</code> is a prefix of <code>buffer</code>.
+Uses <code>equal</code> to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let pre = Buffer.Buffer&lt;Nat&gt;(2);
+pre.add(1);
+pre.add(2);
+Buffer.isPrefixOf(pre, buffer, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size of prefix)</code></td>
+<td><code>O(size of prefix)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-isstrictprefixof">Function
+<code>isStrictPrefixOf</code></h2>
+<pre class="motoko"><code>func isStrictPrefixOf&lt;X&gt;(prefix : Buffer&lt;X&gt;, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Checks if <code>prefix</code> is a strict prefix of
+<code>buffer</code>. Uses <code>equal</code> to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let pre = Buffer.Buffer&lt;Nat&gt;(3);
+pre.add(1);
+pre.add(2);
+pre.add(3);
+Buffer.isStrictPrefixOf(pre, buffer, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size of prefix)</code></td>
+<td><code>O(size of prefix)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-suffix">Function <code>suffix</code></h2>
+<pre class="motoko"><code>func suffix&lt;X&gt;(buffer : Buffer&lt;X&gt;, length : Nat) : Buffer&lt;X&gt;</code></pre>
+<p>Returns the suffix of <code>buffer</code> of length
+<code>length</code>. Traps if <code>length</code>is greater than the
+size of <code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let suf = Buffer.suffix(buffer, 3); // =&gt; [2, 3, 4]
+Buffer.toText(suf, Nat.toText);</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(length)</code></td>
+<td><code>O(length)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-issuffixof">Function <code>isSuffixOf</code></h2>
+<pre class="motoko"><code>func isSuffixOf&lt;X&gt;(suffix : Buffer&lt;X&gt;, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Checks if <code>suffix</code> is a suffix of <code>buffer</code>.
+Uses <code>equal</code> to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let suf = Buffer.Buffer&lt;Nat&gt;(3);
+suf.add(2);
+suf.add(3);
+suf.add(4);
+Buffer.isSuffixOf(suf, buffer, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(length of suffix)</code></td>
+<td><code>O(length of suffix)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-isstrictsuffixof">Function
+<code>isStrictSuffixOf</code></h2>
+<pre class="motoko"><code>func isStrictSuffixOf&lt;X&gt;(suffix : Buffer&lt;X&gt;, buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Bool</code></pre>
+<p>Checks if <code>suffix</code> is a strict suffix of
+<code>buffer</code>. Uses <code>equal</code> to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let suf = Buffer.Buffer&lt;Nat&gt;(3);
+suf.add(2);
+suf.add(3);
+suf.add(4);
+Buffer.isStrictSuffixOf(suf, buffer, Nat.equal); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(length)</code></td>
+<td><code>O(length)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-forall">Function <code>forAll</code></h2>
+<pre class="motoko"><code>func forAll&lt;X&gt;(buffer : Buffer&lt;X&gt;, predicate : X -&gt; Bool) : Bool</code></pre>
+<p>Returns true if every element in <code>buffer</code> satisfies
+<code>predicate</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.forAll&lt;Nat&gt;(buffer, func x { x &gt; 1 }); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-forsome">Function <code>forSome</code></h2>
+<pre class="motoko"><code>func forSome&lt;X&gt;(buffer : Buffer&lt;X&gt;, predicate : X -&gt; Bool) : Bool</code></pre>
+<p>Returns true if some element in <code>buffer</code> satisfies
+<code>predicate</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.forSome&lt;Nat&gt;(buffer, func x { x &gt; 3 }); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-fornone">Function <code>forNone</code></h2>
+<pre class="motoko"><code>func forNone&lt;X&gt;(buffer : Buffer&lt;X&gt;, predicate : X -&gt; Bool) : Bool</code></pre>
+<p>Returns true if no element in <code>buffer</code> satisfies
+<code>predicate</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.forNone&lt;Nat&gt;(buffer, func x { x == 0 }); // =&gt; true</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-toarray-1">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray&lt;X&gt;(buffer : Buffer&lt;X&gt;) : [X]</code></pre>
+<p>Creates an <code>array</code> containing elements from
+<code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.toArray&lt;Nat&gt;(buffer); // =&gt; [1, 2, 3]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-tovararray-1">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray&lt;X&gt;(buffer : Buffer&lt;X&gt;) : [var X]</code></pre>
+<p>Creates a mutable array containing elements from
+<code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.toVarArray&lt;Nat&gt;(buffer); // =&gt; [1, 2, 3]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray&lt;X&gt;(array : [X]) : Buffer&lt;X&gt;</code></pre>
+<p>Creates a <code>buffer</code> containing elements from
+<code>array</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let array = [2, 3];
+
+let buf = Buffer.fromArray&lt;Nat&gt;(array); // =&gt; [2, 3]
+Buffer.toText(buf, Nat.toText);</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray&lt;X&gt;(array : [var X]) : Buffer&lt;X&gt;</code></pre>
+<p>Creates a <code>buffer</code> containing elements from
+<code>array</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let array = [var 1, 2, 3];
+
+let buf = Buffer.fromVarArray&lt;Nat&gt;(array); // =&gt; [1, 2, 3]
+Buffer.toText(buf, Nat.toText);</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter&lt;X&gt;(iter : { next : () -&gt; ?X }) : Buffer&lt;X&gt;</code></pre>
+<p>Creates a <code>buffer</code> containing elements from
+<code>iter</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let array = [1, 1, 1];
+let iter = array.vals();
+
+let buf = Buffer.fromIter&lt;Nat&gt;(iter); // =&gt; [1, 1, 1]
+Buffer.toText(buf, Nat.toText);</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-trimtosize">Function <code>trimToSize</code></h2>
+<pre class="motoko"><code>func trimToSize&lt;X&gt;(buffer : Buffer&lt;X&gt;)</code></pre>
+<p>Reallocates the array underlying <code>buffer</code> such that
+capacity == size.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let buffer = Buffer.Buffer&lt;Nat&gt;(10);
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.trimToSize&lt;Nat&gt;(buffer);
+buffer.capacity(); // =&gt; 3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;X, Y&gt;(buffer : Buffer&lt;X&gt;, f : X -&gt; Y) : Buffer&lt;Y&gt;</code></pre>
+<p>Creates a new <code>buffer</code> by applying <code>f</code> to each
+element in <code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.map&lt;Nat, Nat&gt;(buffer, func (x) { x + 1 });
+Buffer.toText(newBuf, Nat.toText); // =&gt; [2, 3, 4]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-iterate">Function <code>iterate</code></h2>
+<pre class="motoko"><code>func iterate&lt;X&gt;(buffer : Buffer&lt;X&gt;, f : X -&gt; ())</code></pre>
+<p>Applies <code>f</code> to each element in <code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.iterate&lt;Nat&gt;(buffer, func (x) {
+  Debug.print(Nat.toText(x)); // prints each element in buffer
+});</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-mapentries">Function <code>mapEntries</code></h2>
+<pre class="motoko"><code>func mapEntries&lt;X, Y&gt;(buffer : Buffer&lt;X&gt;, f : (Nat, X) -&gt; Y) : Buffer&lt;Y&gt;</code></pre>
+<p>Applies <code>f</code> to each element in <code>buffer</code> and its
+index.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.mapEntries&lt;Nat, Nat&gt;(buffer, func (x, i) { x + i + 1 });
+Buffer.toText(newBuf, Nat.toText); // =&gt; [2, 4, 6]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-mapfilter">Function <code>mapFilter</code></h2>
+<pre class="motoko"><code>func mapFilter&lt;X, Y&gt;(buffer : Buffer&lt;X&gt;, f : X -&gt; ?Y) : Buffer&lt;Y&gt;</code></pre>
+<p>Creates a new buffer by applying <code>f</code> to each element in
+<code>buffer</code>, and keeping all non-null elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.mapFilter&lt;Nat, Nat&gt;(buffer, func (x) {
+ if (x &gt; 1) {
+   ?(x * 2);
+ } else {
+   null;
+ }
+});
+Buffer.toText(newBuf, Nat.toText); // =&gt; [4, 6]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-mapresult">Function <code>mapResult</code></h2>
+<pre class="motoko"><code>func mapResult&lt;X, Y, E&gt;(buffer : Buffer&lt;X&gt;, f : X -&gt; Result.Result&lt;Y, E&gt;) : Result.Result&lt;Buffer&lt;Y&gt;, E&gt;</code></pre>
+<p>Creates a new buffer by applying <code>f</code> to each element in
+<code>buffer</code>. If any invocation of <code>f</code> produces an
+<code>#err</code>, returns an <code>#err</code>. Otherwise Returns an
+<code>#ok</code> containing the new buffer.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Result &quot;mo:base/Result&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let result = Buffer.mapResult&lt;Nat, Nat, Text&gt;(buffer, func (k) {
+ if (k &gt; 0) {
+   #ok(k);
+ } else {
+   #err(&quot;One or more elements are zero.&quot;);
+ }
+});
+
+Result.mapOk&lt;Buffer.Buffer&lt;Nat&gt;, [Nat], Text&gt;(result, func buffer = Buffer.toArray(buffer)) // =&gt; #ok([1, 2, 3])</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-chain">Function <code>chain</code></h2>
+<pre class="motoko"><code>func chain&lt;X, Y&gt;(buffer : Buffer&lt;X&gt;, k : X -&gt; Buffer&lt;Y&gt;) : Buffer&lt;Y&gt;</code></pre>
+<p>Creates a new <code>buffer</code> by applying <code>k</code> to each
+element in <code>buffer</code>, and concatenating the resulting buffers
+in order. This operation is similar to what in other functional
+languages is known as monadic bind.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let chain = Buffer.chain&lt;Nat, Nat&gt;(buffer, func (x) {
+let b = Buffer.Buffer&lt;Nat&gt;(2);
+b.add(x);
+b.add(x * 2);
+return b;
+});
+Buffer.toText(chain, Nat.toText); // =&gt; [1, 2, 2, 4, 3, 6]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-foldleft">Function <code>foldLeft</code></h2>
+<pre class="motoko"><code>func foldLeft&lt;A, X&gt;(buffer : Buffer&lt;X&gt;, base : A, combine : (A, X) -&gt; A) : A</code></pre>
+<p>Collapses the elements in <code>buffer</code> into a single value by
+starting with <code>base</code> and progessively combining elements into
+<code>base</code> with <code>combine</code>. Iteration runs left to
+right.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.foldLeft&lt;Text, Nat&gt;(buffer, &quot;&quot;, func (acc, x) { acc # Nat.toText(x)}); // =&gt; &quot;123&quot;</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-foldright">Function <code>foldRight</code></h2>
+<pre class="motoko"><code>func foldRight&lt;X, A&gt;(buffer : Buffer&lt;X&gt;, base : A, combine : (X, A) -&gt; A) : A</code></pre>
+<p>Collapses the elements in <code>buffer</code> into a single value by
+starting with <code>base</code> and progessively combining elements into
+<code>base</code> with <code>combine</code>. Iteration runs right to
+left.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.foldRight&lt;Nat, Text&gt;(buffer, &quot;&quot;, func (x, acc) { Nat.toText(x) # acc }); // =&gt; &quot;123&quot;</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-first">Function <code>first</code></h2>
+<pre class="motoko"><code>func first&lt;X&gt;(buffer : Buffer&lt;X&gt;) : X</code></pre>
+<p>Returns the first element of <code>buffer</code>. Traps if
+<code>buffer</code> is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.first(buffer); // =&gt; 1</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-last">Function <code>last</code></h2>
+<pre class="motoko"><code>func last&lt;X&gt;(buffer : Buffer&lt;X&gt;) : X</code></pre>
+<p>Returns the last element of <code>buffer</code>. Traps if
+<code>buffer</code> is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.last(buffer); // =&gt; 3</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-make">Function <code>make</code></h2>
+<pre class="motoko"><code>func make&lt;X&gt;(element : X) : Buffer&lt;X&gt;</code></pre>
+<p>Returns a new <code>buffer</code> with capacity and size 1,
+containing <code>element</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let buffer = Buffer.make&lt;Nat&gt;(1);
+Buffer.toText(buffer, Nat.toText); // =&gt; [1]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-reverse">Function <code>reverse</code></h2>
+<pre class="motoko"><code>func reverse&lt;X&gt;(buffer : Buffer&lt;X&gt;)</code></pre>
+<p>Reverses the order of elements in <code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.reverse(buffer);
+Buffer.toText(buffer, Nat.toText); // =&gt; [3, 2, 1]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-merge">Function <code>merge</code></h2>
+<pre class="motoko"><code>func merge&lt;X&gt;(buffer1 : Buffer&lt;X&gt;, buffer2 : Buffer&lt;X&gt;, compare : (X, X) -&gt; Order) : Buffer&lt;X&gt;</code></pre>
+<p>Merges two sorted buffers into a single sorted <code>buffer</code>,
+using <code>compare</code> to define the ordering. The final ordering is
+stable. Behavior is undefined if either <code>buffer1</code> or
+<code>buffer2</code> is not sorted.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+buffer1.add(4);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer2.add(2);
+buffer2.add(4);
+buffer2.add(6);
+
+let merged = Buffer.merge&lt;Nat&gt;(buffer1, buffer2, Nat.compare);
+Buffer.toText(merged, Nat.toText); // =&gt; [1, 2, 2, 4, 4, 6]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size1 + size2)</code></td>
+<td><code>O(size1 + size2)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-removeduplicates">Function
+<code>removeDuplicates</code></h2>
+<pre class="motoko"><code>func removeDuplicates&lt;X&gt;(buffer : Buffer&lt;X&gt;, compare : (X, X) -&gt; Order)</code></pre>
+<p>Eliminates all duplicate elements in <code>buffer</code> as defined
+by <code>compare</code>. Elimination is stable with respect to the
+original ordering of the elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.removeDuplicates&lt;Nat&gt;(buffer, Nat.compare);
+Buffer.toText(buffer, Nat.toText); // =&gt; [1, 2, 3]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size * log(size))</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-partition">Function <code>partition</code></h2>
+<pre class="motoko"><code>func partition&lt;X&gt;(buffer : Buffer&lt;X&gt;, predicate : X -&gt; Bool) : (Buffer&lt;X&gt;, Buffer&lt;X&gt;)</code></pre>
+<p>Splits <code>buffer</code> into a pair of buffers where all elements
+in the left <code>buffer</code> satisfy <code>predicate</code> and all
+elements in the right <code>buffer</code> do not.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let partitions = Buffer.partition&lt;Nat&gt;(buffer, func (x) { x % 2 == 0 });
+(Buffer.toArray(partitions.0), Buffer.toArray(partitions.1)) // =&gt; ([2, 4, 6], [1, 3, 5])</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-split">Function <code>split</code></h2>
+<pre class="motoko"><code>func split&lt;X&gt;(buffer : Buffer&lt;X&gt;, index : Nat) : (Buffer&lt;X&gt;, Buffer&lt;X&gt;)</code></pre>
+<p>Splits the buffer into two buffers at <code>index</code>, where the
+left buffer contains all elements with indices less than
+<code>index</code>, and the right buffer contains all elements with
+indices greater than or equal to <code>index</code>. Traps if
+<code>index</code> is out of bounds.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let split = Buffer.split&lt;Nat&gt;(buffer, 3);
+(Buffer.toArray(split.0), Buffer.toArray(split.1)) // =&gt; ([1, 2, 3], [4, 5, 6])</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-chunk">Function <code>chunk</code></h2>
+<pre class="motoko"><code>func chunk&lt;X&gt;(buffer : Buffer&lt;X&gt;, size : Nat) : Buffer&lt;Buffer&lt;X&gt;&gt;</code></pre>
+<p>Breaks up <code>buffer</code> into buffers of size <code>size</code>.
+The last chunk may have less than <code>size</code> elements if the
+number of elements is not divisible by the chunk size.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let chunks = Buffer.chunk&lt;Nat&gt;(buffer, 3);
+Buffer.toText&lt;Buffer.Buffer&lt;Nat&gt;&gt;(chunks, func buf = Buffer.toText(buf, Nat.toText)); // =&gt; [[1, 2, 3], [4, 5, 6]]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(number of elements in buffer)</code></td>
+<td><code>O(number of elements in buffer)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-groupby">Function <code>groupBy</code></h2>
+<pre class="motoko"><code>func groupBy&lt;X&gt;(buffer : Buffer&lt;X&gt;, equal : (X, X) -&gt; Bool) : Buffer&lt;Buffer&lt;X&gt;&gt;</code></pre>
+<p>Groups equal and adjacent elements in the list into sub lists.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(2);
+buffer.add(4);
+buffer.add(5);
+buffer.add(5);
+
+let grouped = Buffer.groupBy&lt;Nat&gt;(buffer, func (x, y) { x == y });
+Buffer.toText&lt;Buffer.Buffer&lt;Nat&gt;&gt;(grouped, func buf = Buffer.toText(buf, Nat.toText)); // =&gt; [[1], [2, 2], [4], [5, 5]]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-flatten">Function <code>flatten</code></h2>
+<pre class="motoko"><code>func flatten&lt;X&gt;(buffer : Buffer&lt;Buffer&lt;X&gt;&gt;) : Buffer&lt;X&gt;</code></pre>
+<p>Flattens the <code>buffer</code> of buffers into a single
+<code>buffer</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+let buffer = Buffer.Buffer&lt;Buffer.Buffer&lt;Nat&gt;&gt;(1);
+
+let inner1 = Buffer.Buffer&lt;Nat&gt;(2);
+inner1.add(1);
+inner1.add(2);
+
+let inner2 = Buffer.Buffer&lt;Nat&gt;(2);
+inner2.add(3);
+inner2.add(4);
+
+buffer.add(inner1);
+buffer.add(inner2);
+// buffer = [[1, 2], [3, 4]]
+
+let flat = Buffer.flatten&lt;Nat&gt;(buffer);
+Buffer.toText&lt;Nat&gt;(flat, Nat.toText); // =&gt; [1, 2, 3, 4]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(number of elements in buffer)</code></td>
+<td><code>O(number of elements in buffer)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-zip">Function <code>zip</code></h2>
+<pre class="motoko"><code>func zip&lt;X, Y&gt;(buffer1 : Buffer&lt;X&gt;, buffer2 : Buffer&lt;Y&gt;) : Buffer&lt;(X, Y)&gt;</code></pre>
+<p>Combines the two buffers into a single buffer of pairs, pairing
+together elements with the same index. If one buffer is longer than the
+other, the remaining elements from the longer buffer are not
+included.</p>
+<p>Example:</p>
+<pre class="motoko"><code>
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+buffer1.add(3);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer2.add(4);
+buffer2.add(5);
+
+let zipped = Buffer.zip(buffer1, buffer2);
+Buffer.toArray(zipped); // =&gt; [(1, 4), (2, 5)]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(min(size1, size2))</code></td>
+<td><code>O(min(size1, size2))</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-zipwith">Function <code>zipWith</code></h2>
+<pre class="motoko"><code>func zipWith&lt;X, Y, Z&gt;(buffer1 : Buffer&lt;X&gt;, buffer2 : Buffer&lt;Y&gt;, zip : (X, Y) -&gt; Z) : Buffer&lt;Z&gt;</code></pre>
+<p>Combines the two buffers into a single buffer, pairing together
+elements with the same index and combining them using <code>zip</code>.
+If one buffer is longer than the other, the remaining elements from the
+longer buffer are not included.</p>
+<p>Example:</p>
+<pre class="motoko"><code>
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+buffer1.add(3);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer2.add(4);
+buffer2.add(5);
+buffer2.add(6);
+
+let zipped = Buffer.zipWith&lt;Nat, Nat, Nat&gt;(buffer1, buffer2, func (x, y) { x + y });
+Buffer.toArray(zipped) // =&gt; [5, 7, 9]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(min(size1, size2))</code></td>
+<td><code>O(min(size1, size2))</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-takewhile">Function <code>takeWhile</code></h2>
+<pre class="motoko"><code>func takeWhile&lt;X&gt;(buffer : Buffer&lt;X&gt;, predicate : X -&gt; Bool) : Buffer&lt;X&gt;</code></pre>
+<p>Creates a new buffer taking elements in order from
+<code>buffer</code> until predicate returns false.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.takeWhile&lt;Nat&gt;(buffer, func (x) { x &lt; 3 });
+Buffer.toText(newBuf, Nat.toText); // =&gt; [1, 2]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-dropwhile">Function <code>dropWhile</code></h2>
+<pre class="motoko"><code>func dropWhile&lt;X&gt;(buffer : Buffer&lt;X&gt;, predicate : X -&gt; Bool) : Buffer&lt;X&gt;</code></pre>
+<p>Creates a new buffer excluding elements in order from
+<code>buffer</code> until predicate returns false.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.dropWhile&lt;Nat&gt;(buffer, func x { x &lt; 3 }); // =&gt; [3]
+Buffer.toText(newBuf, Nat.toText);</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(size)</code></td>
+<td><code>O(size)</code></td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Int64">Int64</a></li></li><li><li><a href="#minimumValue">minimumValue</a></li></li><li><li><a href="#maximumValue">maximumValue</a></li></li><li><li><a href="#toInt">toInt</a></li></li><li><li><a href="#fromInt">fromInt</a></li></li><li><li><a href="#fromInt32">fromInt32</a></li></li><li><li><a href="#toInt32">toInt32</a></li></li><li><li><a href="#fromIntWrap">fromIntWrap</a></li></li><li><li><a href="#fromNat64">fromNat64</a></li></li><li><li><a href="#toNat64">toNat64</a></li></li><li><li><a href="#toText">toText</a></li></li><li><li><a href="#abs">abs</a></li></li><li><li><a href="#min">min</a></li></li><li><li><a href="#max">max</a></li></li><li><li><a href="#equal">equal</a></li></li><li><li><a href="#notEqual">notEqual</a></li></li><li><li><a href="#less">less</a></li></li><li><li><a href="#lessOrEqual">lessOrEqual</a></li></li><li><li><a href="#greater">greater</a></li></li><li><li><a href="#greaterOrEqual">greaterOrEqual</a></li></li><li><li><a href="#compare">compare</a></li></li><li><li><a href="#neg">neg</a></li></li><li><li><a href="#add">add</a></li></li><li><li><a href="#sub">sub</a></li></li><li><li><a href="#mul">mul</a></li></li><li><li><a href="#div">div</a></li></li><li><li><a href="#rem">rem</a></li></li><li><li><a href="#pow">pow</a></li></li><li><li><a href="#bitnot">bitnot</a></li></li><li><li><a href="#bitand">bitand</a></li></li><li><li><a href="#bitor">bitor</a></li></li><li><li><a href="#bitxor">bitxor</a></li></li><li><li><a href="#bitshiftLeft">bitshiftLeft</a></li></li><li><li><a href="#bitshiftRight">bitshiftRight</a></li></li><li><li><a href="#bitrotLeft">bitrotLeft</a></li></li><li><li><a href="#bitrotRight">bitrotRight</a></li></li><li><li><a href="#bittest">bittest</a></li></li><li><li><a href="#bitset">bitset</a></li></li><li><li><a href="#bitclear">bitclear</a></li></li><li><li><a href="#bitflip">bitflip</a></li></li><li><li><a href="#bitcountNonZero">bitcountNonZero</a></li></li><li><li><a href="#bitcountLeadingZero">bitcountLeadingZero</a></li></li><li><li><a href="#bitcountTrailingZero">bitcountTrailingZero</a></li></li><li><li><a href="#explode">explode</a></li></li><li><li><a href="#addWrap">addWrap</a></li></li><li><li><a href="#subWrap">subWrap</a></li></li><li><li><a href="#mulWrap">mulWrap</a></li></li><li><li><a href="#powWrap">powWrap</a></li></li></ul></nav><div class="documentation"><h1>Int64</h1><p>Provides utility functions on 64-bit signed integers.</p>
+<p>:::note
+Most operations are available as built-in operators (e.g. <code>1 + 1</code>).
+:::</p>
+<p>:::info Function form for higher-order use</p>
+<p>Several arithmetic and comparison functions (e.g. <code>add</code>, <code>sub</code>, <code>bitor</code>, <code>bitand</code>, <code>pow</code>) are defined in this module to enable their use as first-class function values, which is not possible with operators like <code>+</code>, <code>-</code>, <code>==</code>, etc., in Motoko. This allows you to pass these operations to higher-order functions such as <code>map</code>, <code>foldLeft</code>, or <code>sort</code>.
+:::</p>
+<p>Import from the base library to use this module.</p>
+<pre><code>motoko name=import
+import Int64 &quot;mo:base/Int64&quot;;</code></pre><div class="declaration"><h4 class="type-declaration" id="type.Int64"><span class="keyword">type </span><span class="type">Int64</span> = <span class="type">Prim.Types.Int64</span></h4><p><p>64-bit signed integers.</p>
+</p></div><div class="declaration"><h4 class="value-declaration" id="minimumValue"><code><span class="keyword">public </span><span class="keyword">let </span><span class="fnname">minimumValue</span> : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Minimum 64-bit integer value, <code>-2 ** 63</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.minimumValue // =&gt; -9_223_372_036_854_775_808</code></pre></p></div><div class="declaration"><h4 class="value-declaration" id="maximumValue"><code><span class="keyword">public </span><span class="keyword">let </span><span class="fnname">maximumValue</span> : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Maximum 64-bit integer value, <code>+2 ** 63 - 1</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.maximumValue // =&gt; +9_223_372_036_854_775_807</code></pre></p></div><div class="declaration"><h4 class="function" id="toInt"><code><span class="keyword">public func </span><span class="fnname">toInt</span>(<span class="parameter">_</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Int</span></code></h4><p><p>Converts a 64-bit signed integer to a signed integer with infinite precision.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.toInt(123_456) // =&gt; 123_456 : Int</code></pre></p></div><div class="declaration"><h4 class="function" id="fromInt"><code><span class="keyword">public func </span><span class="fnname">fromInt</span>(<span class="parameter">_</span> : <span class="type">Int</span>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Converts a signed integer with infinite precision to a 64-bit signed integer.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.fromInt(123_456) // =&gt; +123_456 : Int64</code></pre></p></div><div class="declaration"><h4 class="function" id="fromInt32"><code><span class="keyword">public func </span><span class="fnname">fromInt32</span>(<span class="parameter">_</span> : <span class="type">Int32</span>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Converts a 32-bit signed integer to a 64-bit signed integer.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.fromInt32(-123_456) // =&gt; -123_456 : Int64</code></pre></p></div><div class="declaration"><h4 class="function" id="toInt32"><code><span class="keyword">public func </span><span class="fnname">toInt32</span>(<span class="parameter">_</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Int32</span></code></h4><p><p>Converts a 64-bit signed integer to a 32-bit signed integer.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.toInt32(-123_456) // =&gt; -123_456 : Int32</code></pre></p></div><div class="declaration"><h4 class="function" id="fromIntWrap"><code><span class="keyword">public func </span><span class="fnname">fromIntWrap</span>(<span class="parameter">_</span> : <span class="type">Int</span>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Converts a signed integer with infinite precision to a 64-bit signed integer.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.fromIntWrap(-123_456) // =&gt; -123_456 : Int64</code></pre></p></div><div class="declaration"><h4 class="function" id="fromNat64"><code><span class="keyword">public func </span><span class="fnname">fromNat64</span>(<span class="parameter">_</span> : <span class="type">Nat64</span>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Converts an unsigned 64-bit integer to a signed 64-bit integer.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.fromNat64(123_456) // =&gt; +123_456 : Int64</code></pre></p></div><div class="declaration"><h4 class="function" id="toNat64"><code><span class="keyword">public func </span><span class="fnname">toNat64</span>(<span class="parameter">_</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Nat64</span></code></h4><p><p>Converts a signed 64-bit integer to an unsigned 64-bit integer.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.toNat64(-1) // =&gt; 18_446_744_073_709_551_615 : Nat64 // underflow</code></pre></p></div><div class="declaration"><h4 class="function" id="toText"><code><span class="keyword">public func </span><span class="fnname">toText</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Text</span></code></h4><p><p>Returns the Text representation of <code>x</code>. Textual representation <em>do not</em>
+contain underscores to represent commas.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.toText(-123456) // =&gt; &quot;-123456&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="abs"><code><span class="keyword">public func </span><span class="fnname">abs</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the absolute value of <code>x</code>.</p>
+<p>Traps when <code>x == -2 ** 63</code> (the minimum <code>Int64</code> value).</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.abs(-123456) // =&gt; +123_456</code></pre></p></div><div class="declaration"><h4 class="function" id="min"><code><span class="keyword">public func </span><span class="fnname">min</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the minimum of <code>x</code> and <code>y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.min(+2, -3) // =&gt; -3</code></pre></p></div><div class="declaration"><h4 class="function" id="max"><code><span class="keyword">public func </span><span class="fnname">max</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the maximum of <code>x</code> and <code>y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.max(+2, -3) // =&gt; +2</code></pre></p></div><div class="declaration"><h4 class="function" id="equal"><code><span class="keyword">public func </span><span class="fnname">equal</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Bool</span></code></h4><p><p>Equality function for Int64 types.
+This is equivalent to <code>x == y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.equal(-1, -1); // =&gt; true</code></pre>
+
+<p>Example:</p>
+<pre><code>motoko include=import
+import Buffer &quot;mo:base/Buffer&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Int64&gt;(1);
+buffer1.add(-3);
+let buffer2 = Buffer.Buffer&lt;Int64&gt;(1);
+buffer2.add(-3);
+Buffer.equal(buffer1, buffer2, Int64.equal) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="notEqual"><code><span class="keyword">public func </span><span class="fnname">notEqual</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Bool</span></code></h4><p><p>Inequality function for Int64 types.
+This is equivalent to <code>x != y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.notEqual(-1, -2); // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="less"><code><span class="keyword">public func </span><span class="fnname">less</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Less than&quot; function for Int64 types.
+This is equivalent to <code>x &lt; y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.less(-2, 1); // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="lessOrEqual"><code><span class="keyword">public func </span><span class="fnname">lessOrEqual</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Less than or equal&quot; function for Int64 types.
+This is equivalent to <code>x &lt;= y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.lessOrEqual(-2, -2); // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="greater"><code><span class="keyword">public func </span><span class="fnname">greater</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Greater than&quot; function for Int64 types.
+This is equivalent to <code>x &gt; y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.greater(-2, -3); // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="greaterOrEqual"><code><span class="keyword">public func </span><span class="fnname">greaterOrEqual</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Greater than or equal&quot; function for Int64 types.
+This is equivalent to <code>x &gt;= y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.greaterOrEqual(-2, -2); // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="compare"><code><span class="keyword">public func </span><span class="fnname">compare</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : {#less; #equal; #greater}</code></h4><p><p>General-purpose comparison function for <code>Int64</code>. Returns the <code>Order</code> (
+either <code>#less</code>, <code>#equal</code>, or <code>#greater</code>) of comparing <code>x</code> with <code>y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.compare(-3, 2) // =&gt; #less</code></pre>
+
+<p>This function can be used as value for a high order function, such as a sort function.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+import Array &quot;mo:base/Array&quot;;
+Array.sort([1, -2, -3] : [Int64], Int64.compare) // =&gt; [-3, -2, 1]</code></pre></p></div><div class="declaration"><h4 class="function" id="neg"><code><span class="keyword">public func </span><span class="fnname">neg</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the negation of <code>x</code>, <code>-x</code>.</p>
+<p>Traps on overflow, i.e. for <code>neg(-2 ** 63)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.neg(123) // =&gt; -123</code></pre></p></div><div class="declaration"><h4 class="function" id="add"><code><span class="keyword">public func </span><span class="fnname">add</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the sum of <code>x</code> and <code>y</code>, <code>x + y</code>.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.add(1234, 123) // =&gt; +1_357</code></pre>
+
+<p>Example:</p>
+<pre><code>motoko include=import
+import Array &quot;mo:base/Array&quot;;
+Array.foldLeft&lt;Int64, Int64&gt;([1, -2, -3], 0, Int64.add) // =&gt; -4</code></pre></p></div><div class="declaration"><h4 class="function" id="sub"><code><span class="keyword">public func </span><span class="fnname">sub</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the difference of <code>x</code> and <code>y</code>, <code>x - y</code>.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.sub(123, 100) // =&gt; +23</code></pre>
+
+<p>Example:</p>
+<pre><code>motoko include=import
+import Array &quot;mo:base/Array&quot;;
+Array.foldLeft&lt;Int64, Int64&gt;([1, -2, -3], 0, Int64.sub) // =&gt; 4</code></pre></p></div><div class="declaration"><h4 class="function" id="mul"><code><span class="keyword">public func </span><span class="fnname">mul</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the product of <code>x</code> and <code>y</code>, <code>x * y</code>.</p>
+<p>Traps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.mul(123, 10) // =&gt; +1_230</code></pre>
+
+<p>Example:</p>
+<pre><code>motoko include=import
+import Array &quot;mo:base/Array&quot;;
+Array.foldLeft&lt;Int64, Int64&gt;([1, -2, -3], 1, Int64.mul) // =&gt; 6</code></pre></p></div><div class="declaration"><h4 class="function" id="div"><code><span class="keyword">public func </span><span class="fnname">div</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the signed integer division of <code>x</code> by <code>y</code>, <code>x / y</code>.
+Rounds the quotient towards zero, which is the same as truncating the decimal places of the quotient.</p>
+<p>Traps when <code>y</code> is zero.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.div(123, 10) // =&gt; +12</code></pre></p></div><div class="declaration"><h4 class="function" id="rem"><code><span class="keyword">public func </span><span class="fnname">rem</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the remainder of the signed integer division of <code>x</code> by <code>y</code>, <code>x % y</code>,
+which is defined as <code>x - x / y * y</code>.</p>
+<p>Traps when <code>y</code> is zero.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.rem(123, 10) // =&gt; +3</code></pre></p></div><div class="declaration"><h4 class="function" id="pow"><code><span class="keyword">public func </span><span class="fnname">pow</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns <code>x</code> to the power of <code>y</code>, <code>x ** y</code>.</p>
+<p>Traps on overflow/underflow and when <code>y &lt; 0 or y &gt;= 64</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.pow(2, 10) // =&gt; +1_024</code></pre></p></div><div class="declaration"><h4 class="function" id="bitnot"><code><span class="keyword">public func </span><span class="fnname">bitnot</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the bitwise negation of <code>x</code>, <code>^x</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitnot(-256 /* 0xffff_ffff_ffff_ff00 */) // =&gt; +255 // 0xff</code></pre></p></div><div class="declaration"><h4 class="function" id="bitand"><code><span class="keyword">public func </span><span class="fnname">bitand</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the bitwise &quot;and&quot; of <code>x</code> and <code>y</code>, <code>x &amp; y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitand(0xffff, 0x00f0) // =&gt; +240 // 0xf0</code></pre></p></div><div class="declaration"><h4 class="function" id="bitor"><code><span class="keyword">public func </span><span class="fnname">bitor</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the bitwise &quot;or&quot; of <code>x</code> and <code>y</code>, <code>x | y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitor(0xffff, 0x00f0) // =&gt; +65_535 // 0xffff</code></pre></p></div><div class="declaration"><h4 class="function" id="bitxor"><code><span class="keyword">public func </span><span class="fnname">bitxor</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the bitwise &quot;exclusive or&quot; of <code>x</code> and <code>y</code>, <code>x ^ y</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitxor(0xffff, 0x00f0) // =&gt; +65_295 // 0xff0f</code></pre></p></div><div class="declaration"><h4 class="function" id="bitshiftLeft"><code><span class="keyword">public func </span><span class="fnname">bitshiftLeft</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the bitwise left shift of <code>x</code> by <code>y</code>, <code>x &lt;&lt; y</code>.
+The right bits of the shift filled with zeros.
+Left-overflowing bits, including the sign bit, are discarded.</p>
+<p>For <code>y &gt;= 64</code>, the semantics is the same as for <code>bitshiftLeft(x, y % 64)</code>.
+For <code>y &lt; 0</code>,  the semantics is the same as for <code>bitshiftLeft(x, y + y % 64)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitshiftLeft(1, 8) // =&gt; +256 // 0x100 equivalent to `2 ** 8`.</code></pre></p></div><div class="declaration"><h4 class="function" id="bitshiftRight"><code><span class="keyword">public func </span><span class="fnname">bitshiftRight</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the signed bitwise right shift of <code>x</code> by <code>y</code>, <code>x &gt;&gt; y</code>.
+The sign bit is retained and the left side is filled with the sign bit.
+Right-underflowing bits are discarded, i.e. not rotated to the left side.</p>
+<p>For <code>y &gt;= 64</code>, the semantics is the same as for <code>bitshiftRight(x, y % 64)</code>.
+For <code>y &lt; 0</code>,  the semantics is the same as for <code>bitshiftRight (x, y + y % 64)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitshiftRight(1024, 8) // =&gt; +4 // equivalent to `1024 / (2 ** 8)`</code></pre></p></div><div class="declaration"><h4 class="function" id="bitrotLeft"><code><span class="keyword">public func </span><span class="fnname">bitrotLeft</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the bitwise left rotatation of <code>x</code> by <code>y</code>, <code>x &lt;&lt;&gt; y</code>.
+Each left-overflowing bit is inserted again on the right side.
+The sign bit is rotated like other bits, i.e. the rotation interprets the number as unsigned.</p>
+<p>Changes the direction of rotation for negative <code>y</code>.
+For <code>y &gt;= 64</code>, the semantics is the same as for <code>bitrotLeft(x, y % 64)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+
+Int64.bitrotLeft(0x2000_0000_0000_0001, 4) // =&gt; +18 // 0x12.</code></pre></p></div><div class="declaration"><h4 class="function" id="bitrotRight"><code><span class="keyword">public func </span><span class="fnname">bitrotRight</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the bitwise right rotation of <code>x</code> by <code>y</code>, <code>x &lt;&gt;&gt; y</code>.
+Each right-underflowing bit is inserted again on the right side.
+The sign bit is rotated like other bits, i.e. the rotation interprets the number as unsigned.</p>
+<p>Changes the direction of rotation for negative <code>y</code>.
+For <code>y &gt;= 64</code>, the semantics is the same as for <code>bitrotRight(x, y % 64)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitrotRight(0x0002_0000_0000_0001, 48) // =&gt; +65538 // 0x1_0002.</code></pre></p></div><div class="declaration"><h4 class="function" id="bittest"><code><span class="keyword">public func </span><span class="fnname">bittest</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">p</span> : <span class="type">Nat</span>) : <span class="type">Bool</span></code></h4><p><p>Returns the value of bit <code>p</code> in <code>x</code>, <code>x &amp; 2**p == 2**p</code>.
+If <code>p &gt;= 64</code>, the semantics is the same as for <code>bittest(x, p % 64)</code>.
+This is equivalent to checking if the <code>p</code>-th bit is set in <code>x</code>, using 0 indexing.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bittest(128, 7) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="bitset"><code><span class="keyword">public func </span><span class="fnname">bitset</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">p</span> : <span class="type">Nat</span>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the value of setting bit <code>p</code> in <code>x</code> to <code>1</code>.
+If <code>p &gt;= 64</code>, the semantics is the same as for <code>bitset(x, p % 64)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitset(0, 7) // =&gt; +128</code></pre></p></div><div class="declaration"><h4 class="function" id="bitclear"><code><span class="keyword">public func </span><span class="fnname">bitclear</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">p</span> : <span class="type">Nat</span>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the value of clearing bit <code>p</code> in <code>x</code> to <code>0</code>.
+If <code>p &gt;= 64</code>, the semantics is the same as for <code>bitclear(x, p % 64)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitclear(-1, 7) // =&gt; -129</code></pre></p></div><div class="declaration"><h4 class="function" id="bitflip"><code><span class="keyword">public func </span><span class="fnname">bitflip</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">p</span> : <span class="type">Nat</span>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the value of flipping bit <code>p</code> in <code>x</code>.
+If <code>p &gt;= 64</code>, the semantics is the same as for <code>bitclear(x, p % 64)</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitflip(255, 7) // =&gt; +127</code></pre></p></div><div class="declaration"><h4 class="function" id="bitcountNonZero"><code><span class="keyword">public func </span><span class="fnname">bitcountNonZero</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the count of non-zero bits in <code>x</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitcountNonZero(0xffff) // =&gt; +16</code></pre></p></div><div class="declaration"><h4 class="function" id="bitcountLeadingZero"><code><span class="keyword">public func </span><span class="fnname">bitcountLeadingZero</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the count of leading zero bits in <code>x</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitcountLeadingZero(0x8000_0000) // =&gt; +32</code></pre></p></div><div class="declaration"><h4 class="function" id="bitcountTrailingZero"><code><span class="keyword">public func </span><span class="fnname">bitcountTrailingZero</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the count of trailing zero bits in <code>x</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.bitcountTrailingZero(0x0201_0000) // =&gt; +16</code></pre></p></div><div class="declaration"><h4 class="function" id="explode"><code><span class="keyword">public func </span><span class="fnname">explode</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : (<span class="parameter">msb</span> : <span class="type">Nat8</span>, <span class="type">Nat8</span>, <span class="type">Nat8</span>, <span class="type">Nat8</span>, <span class="type">Nat8</span>, <span class="type">Nat8</span>, <span class="type">Nat8</span>, <span class="parameter">lsb</span> : <span class="type">Nat8</span>)</code></h4><p><p>Returns the upper (i.e. most significant), lower (least significant)
+and in-between bytes of <code>x</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.explode 0x33772266aa885511 // =&gt; (51, 119, 34, 102, 170, 136, 85, 17)</code></pre></p></div><div class="declaration"><h4 class="function" id="addWrap"><code><span class="keyword">public func </span><span class="fnname">addWrap</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the sum of <code>x</code> and <code>y</code>, <code>x +% y</code>.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.addWrap(2 ** 62, 2 ** 62) // =&gt; -9_223_372_036_854_775_808 // overflow</code></pre>
+
+<p>:::info
+The reason why this function is defined in this library (in addition
+to the existing <code>+%</code> operator) is so that you can use it as a function
+value to pass to a higher order function. It is not possible to use <code>+%</code>
+as a function value at the moment.
+:::</p>
+</p></div><div class="declaration"><h4 class="function" id="subWrap"><code><span class="keyword">public func </span><span class="fnname">subWrap</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the difference of <code>x</code> and <code>y</code>, <code>x -% y</code>.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.subWrap(-2 ** 63, 1) // =&gt; +9_223_372_036_854_775_807 // underflow</code></pre></p></div><div class="declaration"><h4 class="function" id="mulWrap"><code><span class="keyword">public func </span><span class="fnname">mulWrap</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns the product of <code>x</code> and <code>y</code>, <code>x *% y</code>. Wraps on overflow.</p>
+<p>Wraps on overflow/underflow.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.mulWrap(2 ** 32, 2 ** 32) // =&gt; 0 // overflow</code></pre></p></div><div class="declaration"><h4 class="function" id="powWrap"><code><span class="keyword">public func </span><span class="fnname">powWrap</span>(<span class="parameter">x</span> : <a href="#type.Int64"><span class="type">Int64</span></a>, <span class="parameter">y</span> : <a href="#type.Int64"><span class="type">Int64</span></a>) : <a href="#type.Int64"><span class="type">Int64</span></a></code></h4><p><p>Returns <code>x</code> to the power of <code>y</code>, <code>x **% y</code>.</p>
+<p>Wraps on overflow/underflow.
+Traps if <code>y &lt; 0 or y &gt;= 64</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+Int64.powWrap(2, 63) // =&gt; -9_223_372_036_854_775_808 // overflow</code></pre></p></div></div></body></html>

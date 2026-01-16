@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Stack.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Stack.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#corestack" id="toc-corestack">core/Stack</a>
+<ul>
+<li><a href="#type-stack" id="toc-type-stack">Type
+<code>Stack</code></a></li>
+<li><a href="#function-topure" id="toc-function-topure">Function
+<code>toPure</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+<li><a href="#function-frompure" id="toc-function-frompure">Function
+<code>fromPure</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-tabulate" id="toc-function-tabulate">Function
+<code>tabulate</code></a></li>
+<li><a href="#function-singleton" id="toc-function-singleton">Function
+<code>singleton</code></a></li>
+<li><a href="#function-clear" id="toc-function-clear">Function
+<code>clear</code></a></li>
+<li><a href="#function-clone" id="toc-function-clone">Function
+<code>clone</code></a></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-contains" id="toc-function-contains">Function
+<code>contains</code></a></li>
+<li><a href="#function-reversevalues"
+id="toc-function-reversevalues">Function
+<code>reverseValues</code></a></li>
+<li><a href="#function-push" id="toc-function-push">Function
+<code>push</code></a></li>
+<li><a href="#function-peek" id="toc-function-peek">Function
+<code>peek</code></a></li>
+<li><a href="#function-pop" id="toc-function-pop">Function
+<code>pop</code></a></li>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-reverse" id="toc-function-reverse">Function
+<code>reverse</code></a></li>
+<li><a href="#function-values" id="toc-function-values">Function
+<code>values</code></a></li>
+<li><a href="#function-all" id="toc-function-all">Function
+<code>all</code></a></li>
+<li><a href="#function-any" id="toc-function-any">Function
+<code>any</code></a></li>
+<li><a href="#function-foreach" id="toc-function-foreach">Function
+<code>forEach</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-filter" id="toc-function-filter">Function
+<code>filter</code></a></li>
+<li><a href="#function-filtermap" id="toc-function-filtermap">Function
+<code>filterMap</code></a></li>
+<li><a href="#function-find" id="toc-function-find">Function
+<code>find</code></a></li>
+<li><a href="#function-findindex" id="toc-function-findindex">Function
+<code>findIndex</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-tostack" id="toc-function-tostack">Function
+<code>toStack</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="corestack">core/Stack</h1>
+<p>A mutable stack data structure. Elements can be pushed on top of the
+stack and removed from top of the stack (LIFO).</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+
+persistent actor {
+  let levels = Stack.empty&lt;Text&gt;();
+  Stack.push(levels, &quot;Inner&quot;);
+  Stack.push(levels, &quot;Middle&quot;);
+  Stack.push(levels, &quot;Outer&quot;);
+  assert Stack.pop(levels) == ?&quot;Outer&quot;;
+  assert Stack.pop(levels) == ?&quot;Middle&quot;;
+  assert Stack.pop(levels) == ?&quot;Inner&quot;;
+  assert Stack.pop(levels) == null;
+}</code></pre>
+<p>The internal implementation is a singly-linked list.</p>
+<p>Performance:</p>
+<ul>
+<li>Runtime: <code>O(1)</code> for push, pop, and peek operation.</li>
+<li>Space: <code>O(n)</code>. <code>n</code> denotes the number of
+elements stored on the stack.</li>
+</ul>
+<h2 id="type-stack">Type <code>Stack</code></h2>
+<pre class="motoko"><code>type Stack&lt;T&gt; = Types.Stack&lt;T&gt;</code></pre>
+<h2 id="function-topure">Function <code>toPure</code></h2>
+<pre class="motoko"><code>func toPure&lt;T&gt;(self : Stack&lt;T&gt;) : PureList.List&lt;T&gt;</code></pre>
+<p>Convert a mutable stack to an immutable, purely functional list.
+Please note that functional lists are ordered like stacks (FIFO).</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import PureList &quot;mo:core/pure/List&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let mutableStack = Stack.empty&lt;Nat&gt;();
+  Stack.push(mutableStack, 3);
+  Stack.push(mutableStack, 2);
+  Stack.push(mutableStack, 1);
+  let immutableList = Stack.toPure(mutableStack);
+  assert Iter.toArray(PureList.values(immutableList)) == [1, 2, 3];
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>. where
+<code>n</code> denotes the number of elements stored in the stack.
+@deprecated M0235</p>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray&lt;T&gt;(self : Stack&lt;T&gt;) : [T]</code></pre>
+<h2 id="function-tovararray">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray&lt;T&gt;(self : Stack&lt;T&gt;) : [var T]</code></pre>
+<h2 id="function-frompure">Function <code>fromPure</code></h2>
+<pre class="motoko"><code>func fromPure&lt;T&gt;(list : PureList.List&lt;T&gt;) : Stack&lt;T&gt;</code></pre>
+<p>Convert an immutable, purely functional list to a mutable stack.
+Please note that functional lists are ordered like stacks (FIFO).</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import PureList &quot;mo:core/pure/List&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let immutableList = PureList.fromIter&lt;Nat&gt;([1, 2, 3].values());
+  let mutableStack = Stack.fromPure&lt;Nat&gt;(immutableList);
+  assert Iter.toArray(Stack.values(mutableStack)) == [1, 2, 3];
+}</code></pre>
+<p>Runtime: <code>O(n)</code>. Space: <code>O(n)</code>. where
+<code>n</code> denotes the number of elements stored in the queue.
+@deprecated M0235</p>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray&lt;T&gt;(array : [var T]) : Stack&lt;T&gt;</code></pre>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray&lt;T&gt;(array : [T]) : Stack&lt;T&gt;</code></pre>
+<h2 id="function-empty">Function <code>empty</code></h2>
+<pre class="motoko"><code>func empty&lt;T&gt;() : Stack&lt;T&gt;</code></pre>
+<p>Create a new empty mutable stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Text&gt;();
+  assert Stack.size(stack) == 0;
+}</code></pre>
+<p>Runtime: <code>O(1)</code>. Space: <code>O(1)</code>.</p>
+<h2 id="function-tabulate">Function <code>tabulate</code></h2>
+<pre class="motoko"><code>func tabulate&lt;T&gt;(size : Nat, generator : Nat -&gt; T) : Stack&lt;T&gt;</code></pre>
+<p>Creates a new stack with <code>size</code> elements by applying the
+<code>generator</code> function to indices <code>[0..size-1]</code>.
+Elements are pushed in ascending index order. Which means that the
+generated element with the index <code>0</code> will be at the bottom of
+the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let stack = Stack.tabulate&lt;Nat&gt;(3, func(i) { 2 * i });
+  assert Iter.toArray(Stack.values(stack)) == [4, 2, 0];
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>generator</code>
+has O(1) costs.</p>
+<h2 id="function-singleton">Function <code>singleton</code></h2>
+<pre class="motoko"><code>func singleton&lt;T&gt;(element : T) : Stack&lt;T&gt;</code></pre>
+<p>Creates a new stack containing a single element.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.singleton&lt;Text&gt;(&quot;motoko&quot;);
+  assert Stack.peek(stack) == ?&quot;motoko&quot;;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-clear">Function <code>clear</code></h2>
+<pre class="motoko"><code>func clear&lt;T&gt;(self : Stack&lt;T&gt;)</code></pre>
+<p>Removes all elements from the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  Stack.clear(stack);
+  assert Stack.isEmpty(stack);
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-clone">Function <code>clone</code></h2>
+<pre class="motoko"><code>func clone&lt;T&gt;(self : Stack&lt;T&gt;) : Stack&lt;T&gt;</code></pre>
+<p>Creates a deep copy of the stack with the same elements in the same
+order.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let original = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  let copy = Stack.clone(original);
+  assert Stack.equal(copy, original, Nat.equal);
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+elements stored on the stack.</p>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty&lt;T&gt;(self : Stack&lt;T&gt;) : Bool</code></pre>
+<p>Returns true if the stack contains no elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  assert Stack.isEmpty(stack);
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size&lt;T&gt;(self : Stack&lt;T&gt;) : Nat</code></pre>
+<p>Returns the number of elements on the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  assert Stack.size(stack) == 3;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-contains">Function <code>contains</code></h2>
+<pre class="motoko"><code>func contains&lt;T&gt;(self : Stack&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), element : T) : Bool</code></pre>
+<p>Returns true if the stack contains the specified element. Uses the
+provided equality function to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let stack = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  assert Stack.contains(stack, Nat.equal, 2);
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>equal</code> has
+O(1) costs.</p>
+<h2 id="function-reversevalues">Function <code>reverseValues</code></h2>
+<pre class="motoko"><code>func reverseValues&lt;T&gt;(self : Stack&lt;T&gt;) : Iter.Iter&lt;T&gt;</code></pre>
+<h2 id="function-push">Function <code>push</code></h2>
+<pre class="motoko"><code>func push&lt;T&gt;(self : Stack&lt;T&gt;, value : T)</code></pre>
+<p>Pushes a new element onto the top of the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 42);
+  assert Stack.peek(stack) == ?42;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-peek">Function <code>peek</code></h2>
+<pre class="motoko"><code>func peek&lt;T&gt;(self : Stack&lt;T&gt;) : ?T</code></pre>
+<p>Returns the top element of the stack without removing it. Returns
+null if the stack is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  assert Stack.peek(stack) == ?1;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-pop">Function <code>pop</code></h2>
+<pre class="motoko"><code>func pop&lt;T&gt;(self : Stack&lt;T&gt;) : ?T</code></pre>
+<p>Removes and returns the top element of the stack. Returns null if the
+stack is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  assert Stack.pop(stack) == ?1;
+  assert Stack.pop(stack) == ?2;
+  assert Stack.pop(stack) == ?3;
+  assert Stack.pop(stack) == null;
+}</code></pre>
+<p>Runtime: O(1) Space: O(1)</p>
+<h2 id="function-get">Function <code>get</code></h2>
+<pre class="motoko"><code>func get&lt;T&gt;(self : Stack&lt;T&gt;, position : Nat) : ?T</code></pre>
+<p>Returns the element at the specified position from the top of the
+stack. Returns null if position is out of bounds. Position 0 is the top
+of the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Char&gt;();
+  Stack.push(stack, &#39;c&#39;);
+  Stack.push(stack, &#39;b&#39;);
+  Stack.push(stack, &#39;a&#39;);
+  assert Stack.get(stack, 0) == ?&#39;a&#39;;
+  assert Stack.get(stack, 1) == ?&#39;b&#39;;
+  assert Stack.get(stack, 2) == ?&#39;c&#39;;
+  assert Stack.get(stack, 3) == null;
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) where <code>n</code> denotes the number of
+elements stored on the stack.</p>
+<h2 id="function-reverse">Function <code>reverse</code></h2>
+<pre class="motoko"><code>func reverse&lt;T&gt;(self : Stack&lt;T&gt;)</code></pre>
+<p>Reverses the order of elements in the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  Stack.reverse(stack);
+  assert Stack.pop(stack) == ?3;
+  assert Stack.pop(stack) == ?2;
+  assert Stack.pop(stack) == ?1;
+  assert Stack.pop(stack) == null;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+elements stored on the stack.</p>
+<h2 id="function-values">Function <code>values</code></h2>
+<pre class="motoko"><code>func values&lt;T&gt;(self : Stack&lt;T&gt;) : Types.Iter&lt;T&gt;</code></pre>
+<p>Returns an iterator over the elements in the stack, from top to
+bottom.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  assert Iter.toArray(Stack.values(stack)) == [1, 2, 3];
+}</code></pre>
+<p>Runtime: O(1) for iterator creation, O(n) for full traversal Space:
+O(1) where <code>n</code> denotes the number of elements stored on the
+stack.</p>
+<h2 id="function-all">Function <code>all</code></h2>
+<pre class="motoko"><code>func all&lt;T&gt;(self : Stack&lt;T&gt;, predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Returns true if all elements in the stack satisfy the predicate.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.fromIter&lt;Nat&gt;([2, 4, 6].values());
+  assert Stack.all&lt;Nat&gt;(stack, func(n) = n % 2 == 0);
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>predicate</code>
+has O(1) costs.</p>
+<h2 id="function-any">Function <code>any</code></h2>
+<pre class="motoko"><code>func any&lt;T&gt;(self : Stack&lt;T&gt;, predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Returns true if any element in the stack satisfies the predicate.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  assert Stack.any&lt;Nat&gt;(stack, func(n) = n == 2);
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) where <code>n</code> denotes the number of
+elements stored on the stack and assuming <code>predicate</code> has
+O(1) costs.</p>
+<h2 id="function-foreach">Function <code>forEach</code></h2>
+<pre class="motoko"><code>func forEach&lt;T&gt;(self : Stack&lt;T&gt;, operation : T -&gt; ())</code></pre>
+<p>Applies the operation to each element in the stack, from top to
+bottom.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  var text = &quot;&quot;;
+  Stack.forEach&lt;Nat&gt;(stack, func(n) = text #= Nat.toText(n));
+  assert text == &quot;123&quot;;
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>operation</code>
+has O(1) costs.</p>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;T, U&gt;(self : Stack&lt;T&gt;, project : T -&gt; U) : Stack&lt;U&gt;</code></pre>
+<p>Creates a new stack by applying the projection function to each
+element. Maintains the original order of elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  let doubled = Stack.map&lt;Nat, Nat&gt;(stack, func(n) { 2 * n });
+  assert Stack.get(doubled, 0) == ?2;
+  assert Stack.get(doubled, 1) == ?4;
+  assert Stack.get(doubled, 2) == ?6;
+  assert Stack.get(doubled, 3) == null;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>project</code> has
+O(1) costs.</p>
+<h2 id="function-filter">Function <code>filter</code></h2>
+<pre class="motoko"><code>func filter&lt;T&gt;(self : Stack&lt;T&gt;, predicate : T -&gt; Bool) : Stack&lt;T&gt;</code></pre>
+<p>Creates a new stack containing only elements that satisfy the
+predicate. Maintains the relative order of elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 4);
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  let evens = Stack.filter&lt;Nat&gt;(stack, func(n) { n % 2 == 0 });
+  assert Stack.pop(evens) == ?2;
+  assert Stack.pop(evens) == ?4;
+  assert Stack.pop(evens) == null;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+elements stored on the stack and assuming <code>predicate</code> has
+O(1) costs.</p>
+<h2 id="function-filtermap">Function <code>filterMap</code></h2>
+<pre class="motoko"><code>func filterMap&lt;T, U&gt;(self : Stack&lt;T&gt;, project : T -&gt; ?U) : Stack&lt;U&gt;</code></pre>
+<p>Creates a new stack by applying the projection function to each
+element and keeping only the successful results (where project returns
+?value). Maintains the relative order of elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.empty&lt;Nat&gt;();
+  Stack.push(stack, 4);
+  Stack.push(stack, 3);
+  Stack.push(stack, 2);
+  Stack.push(stack, 1);
+  let evenDoubled = Stack.filterMap&lt;Nat, Nat&gt;(stack, func(n) {
+    if (n % 2 == 0) {
+      ?(n * 2)
+    } else {
+      null
+    }
+  });
+  assert Stack.pop(evenDoubled) == ?4;
+  assert Stack.pop(evenDoubled) == ?8;
+  assert Stack.pop(evenDoubled) == null;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>project</code> has
+O(1) costs.</p>
+<h2 id="function-find">Function <code>find</code></h2>
+<pre class="motoko"><code>func find&lt;T&gt;(self : Stack&lt;T&gt;, predicate : T -&gt; Bool) : ?T</code></pre>
+<p>Return the first element for which the given <code>predicate</code>
+is true, if such an element exists.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.fromPure&lt;Nat&gt;(?(1, ?(2, ?(3, null))));
+  assert Stack.find&lt;Nat&gt;(stack, func n = n &gt; 1) == ?2;
+}</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-findindex">Function <code>findIndex</code></h2>
+<pre class="motoko"><code>func findIndex&lt;T&gt;(self : Stack&lt;T&gt;, predicate : T -&gt; Bool) : ?Nat</code></pre>
+<p>Return the first index for which the given <code>predicate</code> is
+true. If no element satisfies the predicate, returns null.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+
+persistent actor {
+  let stack = Stack.fromPure(?(&#39;A&#39;, ?(&#39;B&#39;, ?(&#39;C&#39;, ?(&#39;D&#39;, null)))));
+  let found = Stack.findIndex&lt;Char&gt;(stack, func x = x == &#39;C&#39;);
+  assert found == ?2;
+}</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal&lt;T&gt;(self : Stack&lt;T&gt;, other : Stack&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool)) : Bool</code></pre>
+<p>Compares two stacks for equality using the provided equality
+function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let stack1 = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  let stack2 = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  assert Stack.equal(stack1, stack2, Nat.equal);
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>equal</code> has
+O(1) costs.</p>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter&lt;T&gt;(iter : Types.Iter&lt;T&gt;) : Stack&lt;T&gt;</code></pre>
+<p>Creates a new stack from an iterator. Elements are pushed in
+iteration order. Which means that the last element of the iterator will
+be the first element on top of the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  let stack = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  assert Iter.toArray(Stack.values(stack)) == [1, 2, 3];
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+iterated elements.</p>
+<h2 id="function-tostack">Function <code>toStack</code></h2>
+<pre class="motoko"><code>func toStack&lt;T&gt;(self : Types.Iter&lt;T&gt;) : Stack&lt;T&gt;</code></pre>
+<p>Convert an iterator into a stack. Elements are pushed in iteration
+order. Which means that the last element of the iterator will be the
+first element on top of the stack.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+persistent actor {
+  transient let iter = [3, 2, 1].values();
+
+  let stack = iter.toStack();
+
+  assert Iter.toArray(Stack.values(stack)) == [1, 2, 3];
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+iterated elements.</p>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText&lt;T&gt;(self : Stack&lt;T&gt;, format : (implicit : (toText : T -&gt; Text))) : Text</code></pre>
+<p>Converts the stack to its string representation using the provided
+element formatting function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let stack = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  assert Stack.toText(stack, Nat.toText) == &quot;Stack[1, 2, 3]&quot;;
+}</code></pre>
+<p>Runtime: O(n) Space: O(n) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>format</code> has
+O(1) costs.</p>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare&lt;T&gt;(self : Stack&lt;T&gt;, other : Stack&lt;T&gt;, compare : (implicit : (T, T) -&gt; Order.Order)) : Order.Order</code></pre>
+<p>Compares two stacks lexicographically using the provided comparison
+function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Stack &quot;mo:core/Stack&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor {
+  let stack1 = Stack.fromIter&lt;Nat&gt;([2, 1].values());
+  let stack2 = Stack.fromIter&lt;Nat&gt;([3, 2, 1].values());
+  assert Stack.compare(stack1, stack2, Nat.compare) == #less;
+}</code></pre>
+<p>Runtime: O(n) Space: O(1) where <code>n</code> denotes the number of
+elements stored on the stack and assuming that <code>compare</code> has
+O(1) costs.</p>
+</body>
+</html>

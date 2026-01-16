@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>freevars.ml &mdash; Coverage report</title>
+    <meta name="description" content="96.75% coverage in ir_def/freevars.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">ir_def/</span>freevars.ml
+        </a>
+      </h1>
+      <h2>96.75%</h2>
+    </div>
+    <div id="navbar">
+      <span class="some-visited" style="top:32.90%"></span>
+      <span class="unvisited" style="top:48.39%"></span>
+      <span class="unvisited" style="bottom:23.23%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span class="visited"> </span>
+<a id="L16"></a><span class="visited"> </span>
+<a id="L17"></a><span class="visited"> </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span > </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span class="visited"> </span>
+<a id="L29"></a><span class="visited"> </span>
+<a id="L30"></a><span class="visited"> </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span class="visited"> </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span > </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span > </span>
+<a id="L40"></a><span > </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span class="visited"> </span>
+<a id="L43"></a><span > </span>
+<a id="L44"></a><span > </span>
+<a id="L45"></a><span > </span>
+<a id="L46"></a><span > </span>
+<a id="L47"></a><span class="visited"> </span>
+<a id="L48"></a><span > </span>
+<a id="L49"></a><span > </span>
+<a id="L50"></a><span class="visited"> </span>
+<a id="L51"></a><span class="some-visited"> </span>
+<a id="L52"></a><span class="visited"> </span>
+<a id="L53"></a><span > </span>
+<a id="L54"></a><span > </span>
+<a id="L55"></a><span class="visited"> </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span class="visited"> </span>
+<a id="L58"></a><span class="visited"> </span>
+<a id="L59"></a><span > </span>
+<a id="L60"></a><span > </span>
+<a id="L61"></a><span class="visited"> </span>
+<a id="L62"></a><span > </span>
+<a id="L63"></a><span > </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span > </span>
+<a id="L67"></a><span > </span>
+<a id="L68"></a><span > </span>
+<a id="L69"></a><span class="visited"> </span>
+<a id="L70"></a><span > </span>
+<a id="L71"></a><span > </span>
+<a id="L72"></a><span > </span>
+<a id="L73"></a><span class="visited"> </span>
+<a id="L74"></a><span > </span>
+<a id="L75"></a><span class="unvisited"> </span>
+<a id="L76"></a><span > </span>
+<a id="L77"></a><span > </span>
+<a id="L78"></a><span class="visited"> </span>
+<a id="L79"></a><span > </span>
+<a id="L80"></a><span > </span>
+<a id="L81"></a><span > </span>
+<a id="L82"></a><span class="visited"> </span>
+<a id="L83"></a><span class="visited"> </span>
+<a id="L84"></a><span class="visited"> </span>
+<a id="L85"></a><span class="visited"> </span>
+<a id="L86"></a><span class="visited"> </span>
+<a id="L87"></a><span class="visited"> </span>
+<a id="L88"></a><span class="visited"> </span>
+<a id="L89"></a><span class="visited"> </span>
+<a id="L90"></a><span > </span>
+<a id="L91"></a><span class="visited"> </span>
+<a id="L92"></a><span > </span>
+<a id="L93"></a><span class="visited"> </span>
+<a id="L94"></a><span > </span>
+<a id="L95"></a><span class="visited"> </span>
+<a id="L96"></a><span > </span>
+<a id="L97"></a><span class="visited"> </span>
+<a id="L98"></a><span > </span>
+<a id="L99"></a><span > </span>
+<a id="L100"></a><span > </span>
+<a id="L101"></a><span class="visited"> </span>
+<a id="L102"></a><span class="visited"> </span>
+<a id="L103"></a><span > </span>
+<a id="L104"></a><span > </span>
+<a id="L105"></a><span class="visited"> </span>
+<a id="L106"></a><span class="visited"> </span>
+<a id="L107"></a><span class="visited"> </span>
+<a id="L108"></a><span class="visited"> </span>
+<a id="L109"></a><span class="visited"> </span>
+<a id="L110"></a><span class="visited"> </span>
+<a id="L111"></a><span class="visited"> </span>
+<a id="L112"></a><span class="visited"> </span>
+<a id="L113"></a><span class="visited"> </span>
+<a id="L114"></a><span class="visited"> </span>
+<a id="L115"></a><span class="visited"> </span>
+<a id="L116"></a><span class="visited"> </span>
+<a id="L117"></a><span class="visited"> </span>
+<a id="L118"></a><span class="visited"> </span>
+<a id="L119"></a><span class="unvisited"> </span>
+<a id="L120"></a><span class="visited"> </span>
+<a id="L121"></a><span class="visited"> </span>
+<a id="L122"></a><span class="visited"> </span>
+<a id="L123"></a><span > </span>
+<a id="L124"></a><span class="visited"> </span>
+<a id="L125"></a><span > </span>
+<a id="L126"></a><span > </span>
+<a id="L127"></a><span class="visited"> </span>
+<a id="L128"></a><span class="visited"> </span>
+<a id="L129"></a><span class="visited"> </span>
+<a id="L130"></a><span class="visited"> </span>
+<a id="L131"></a><span class="visited"> </span>
+<a id="L132"></a><span class="visited"> </span>
+<a id="L133"></a><span class="visited"> </span>
+<a id="L134"></a><span > </span>
+<a id="L135"></a><span class="visited"> </span>
+<a id="L136"></a><span > </span>
+<a id="L137"></a><span class="visited"> </span>
+<a id="L138"></a><span class="visited"> </span>
+<a id="L139"></a><span class="visited"> </span>
+<a id="L140"></a><span class="visited"> </span>
+<a id="L141"></a><span > </span>
+<a id="L142"></a><span class="visited"> </span>
+<a id="L143"></a><span > </span>
+<a id="L144"></a><span class="visited"> </span>
+<a id="L145"></a><span > </span>
+<a id="L146"></a><span class="visited"> </span>
+<a id="L147"></a><span class="visited"> </span>
+<a id="L148"></a><span class="visited"> </span>
+<a id="L149"></a><span class="visited"> </span>
+<a id="L150"></a><span > </span>
+<a id="L151"></a><span > </span>
+<a id="L152"></a><span > </span>
+<a id="L153"></a><span class="visited"> </span>
+<a id="L154"></a><span > </span>
+<a id="L155"></a><span class="visited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+<a href="#L106">106</a>
+<a href="#L107">107</a>
+<a href="#L108">108</a>
+<a href="#L109">109</a>
+<a href="#L110">110</a>
+<a href="#L111">111</a>
+<a href="#L112">112</a>
+<a href="#L113">113</a>
+<a href="#L114">114</a>
+<a href="#L115">115</a>
+<a href="#L116">116</a>
+<a href="#L117">117</a>
+<a href="#L118">118</a>
+<a href="#L119">119</a>
+<a href="#L120">120</a>
+<a href="#L121">121</a>
+<a href="#L122">122</a>
+<a href="#L123">123</a>
+<a href="#L124">124</a>
+<a href="#L125">125</a>
+<a href="#L126">126</a>
+<a href="#L127">127</a>
+<a href="#L128">128</a>
+<a href="#L129">129</a>
+<a href="#L130">130</a>
+<a href="#L131">131</a>
+<a href="#L132">132</a>
+<a href="#L133">133</a>
+<a href="#L134">134</a>
+<a href="#L135">135</a>
+<a href="#L136">136</a>
+<a href="#L137">137</a>
+<a href="#L138">138</a>
+<a href="#L139">139</a>
+<a href="#L140">140</a>
+<a href="#L141">141</a>
+<a href="#L142">142</a>
+<a href="#L143">143</a>
+<a href="#L144">144</a>
+<a href="#L145">145</a>
+<a href="#L146">146</a>
+<a href="#L147">147</a>
+<a href="#L148">148</a>
+<a href="#L149">149</a>
+<a href="#L150">150</a>
+<a href="#L151">151</a>
+<a href="#L152">152</a>
+<a href="#L153">153</a>
+<a href="#L154">154</a>
+<a href="#L155">155</a>
+</pre>
+<pre><code class="ocaml">open Source
+open Ir
+open Mo_types
+
+(* We collect a few things along the way *)
+
+(* We want to know:
+   Is this variable used (potentially) captured?
+   Is this variable used eagerly.
+
+   capture = true; eager = false means it is _only_ used under lambdas
+*)
+type usage_info = { captured : bool; eager : bool }
+
+let join u1 u2 = <span data-count="4379079">{</span>
+  captured = u1.capture<span data-count="980661">d</span> || u2.capture<span data-count="621772">d</span>;
+  eager = u1.eage<span data-count="3570153">r</span> || u2.eage<span data-count="527140">r</span>
+}
+
+module M = Env.Make(String)
+module S = Set.Make(String)
+
+
+(* A set of free variables *)
+type f = usage_info M.t
+
+(* Operations: Union and removal *)
+let (++) : f -&gt; f -&gt; f = M.unio<span data-count="1816">n</span> (fun _ u1 u2 -&gt; <span data-count="4379079">S</span>ome (joi<span data-count="4379079">n</span> u1 u2))
+let unions f xs = <span data-count="13815878">L</span>ist.fold_left (++) M.empty (List.ma<span data-count="13815878">p</span> f xs)
+let (//) x y = <span data-count="228426">M</span>.remove y x
+
+(* Operations: left-biased Map union *)
+let (+-) = M.unio<span data-count="1816">n</span> (fun _ u1 _ -&gt; <span data-count="57">S</span>ome u1)
+
+(* A set of defined variables (with type information) *)
+type td = Mo_types.Type.typ M.t
+
+(* A combined set of free variables and defined variables,
+   (in declarations) *)
+type fd = f * td
+
+let fd_of_defs m = <span data-count="8191813">(</span>M.empty, m)
+
+(* Operations: *)
+
+(* This adds a set of free variables to a combined set *)
+let (+++) ((f,d) : fd) x = <span data-count="10408550">(</span>(++<span data-count="10408550">)</span> f x, d)
+(* This takes the union of two combined sets *)
+let (++++) (f1, d1) (f2,d2) =
+  <span data-count="8343677">(</span>++<span data-count="8343677">)</span> f1 f2,
+  M.unio<span data-count="8343677">n</span> (fun _ t _ -&gt; <span data-count="0">S</span>ome t) d1 d2 (* any type is fine *)
+let union_binders f xs = <span data-count="5457768">L</span>ist.fold_left (++++) (M.empty, M.empty) (List.ma<span data-count="5457768">p</span> f xs)
+
+let diff (m1 : 'a M.t) (m2 : 'b M.t) : 'a M.t =
+  <span data-count="6378579">M</span>.merge (fun k v1 -&gt; function <span data-count="28041607">N</span>one -&gt; v1 | <span data-count="8274374">S</span>ome _ -&gt; None) m1 m2
+
+let map_of_set x s = <span data-count="340325">S</span>.fold (fun v m -&gt; <span data-count="7383">M</span>.add v x m) s M.empty
+let set_of_map m = <span data-count="1522625">M</span>.fold (fun v _ m -&gt; <span data-count="14918358">S</span>.add v m) m S.empty
+
+(* The bound variables from the second argument scope over the first *)
+let (///) (x : f) ((f,d) : fd) = <span data-count="3193142">f</span> ++ dif<span data-count="3193142">f</span> x d
+
+(* Usage tracking:
+
+   We track which variables may be captured.
+   Initially, variables are not captured.
+   All variables under a lambda become captured.
+*)
+let under_lambda : f -&gt; f = M.ma<span data-count="1816">p</span> (fun _ -&gt; <span data-count="3533083">{</span> captured = true; eager = false })
+
+(* Projections *)
+let captured_vars : f -&gt; S.t =
+  fun f -&gt; <span data-count="315655">s</span>et_of_map (M.filte<span data-count="315655">r</span> (fun _ u -&gt; <span data-count="618104">u</span>.captured) f)
+let eager_vars : f -&gt; S.t =
+  fun f -&gt; <span data-count="0">s</span>et_of_map (M.filte<span data-count="0">r</span> (fun _ u -&gt; <span data-count="0">u</span>.eager) f)
+
+(* This closes a combined set over itself (recursion or mutual recursion) *)
+let close (f,d) = <span data-count="3137383">d</span>iff f d
+
+(* One traversal for each syntactic category, named by that category *)
+
+let rec pat p : td = <span data-count="10114845">m</span>atch p.it with
+  | <span data-count="1825290">W</span>ildP | <span data-count="353139">L</span>itP _  -&gt; M.empty
+  | <span data-count="6905228">V</span>arP i          -&gt; M.singleton i p.note
+  | <span data-count="344602">T</span>upP ps         -&gt; pats ps
+  | <span data-count="57973">O</span>bjP pfs        -&gt; pats (pats_of_obj_pa<span data-count="57973">t</span> pfs)
+  | <span data-count="352973">O</span>ptP p
+  | <span data-count="244522">T</span>agP (_, p)     -&gt; pat p
+  | <span data-count="31118">A</span>ltP (p1, p2)   -&gt; pa<span data-count="31118">t</span> p1 +- pa<span data-count="31118">t</span> p2
+
+and pats ps : td = <span data-count="402575">L</span>ist.(fold_left (+-) M.empty (ma<span data-count="402575">p</span> pat ps))
+
+let arg a : fd = <span data-count="2361607">(</span>M.empty, M.singleto<span data-count="2361607">n</span> a.it a.note)
+
+let args as_ : fd = <span data-count="2272157">u</span>nion_binders arg as_
+
+let id i = <span data-count="12285225">M</span>.singleton i {captured = false; eager = true}
+
+(* The mutable fields of an IR object behave a bit like a lambda, in that they capture mutable
+boxes by reference. So set captured = true for them. *)
+let fields fs = <span data-count="328446">u</span>nions (fun f -&gt;
+  <span data-count="1927370">M</span>.singleton f.it.var {captured = Type.is_mu<span data-count="1927370">t</span> f.note; eager = true}
+) fs
+
+let rec exp e : f = <span data-count="34127933">m</span>atch e.it with
+  | <span data-count="11332036">V</span>arE (_, i)         -&gt; id i
+  | <span data-count="2177817">L</span>itE l              -&gt; M.empty
+  | <span data-count="12040554">P</span>rimE (_, es)       -&gt; exps es
+  | <span data-count="722173">A</span>ssignE (e1, e2)    -&gt; lex<span data-count="722173">p</span> e1 ++ ex<span data-count="722173">p</span> e2
+  | <span data-count="3137044">B</span>lockE (ds, e1)     -&gt; close (dec<span data-count="3137044">s</span> ds ++<span data-count="3137044">+</span> ex<span data-count="3137044">p</span> e1)
+  | <span data-count="759688">I</span>fE (e1, e2, e3)    -&gt; exps [e1; e2; e3]
+  | <span data-count="465246">S</span>witchE (e, cs)     -&gt; ex<span data-count="465246">p</span> e ++ case<span data-count="465246">s</span> cs
+  | <span data-count="101984">L</span>oopE e1            -&gt; exp e1
+  | <span data-count="101440">L</span>abelE (i, t, e)    -&gt; exp e
+  | <span data-count="844">A</span>syncE (_, _, e, _) -&gt; exp e
+  | <span data-count="228426">D</span>eclareE (i, t, e)  -&gt; ex<span data-count="228426">p</span> e  // i
+  | <span data-count="317956">D</span>efineE (i, m, e)   -&gt; i<span data-count="317956">d</span> i ++ ex<span data-count="317956">p</span> e
+  | <span data-count="2272157">F</span>uncE (x, s, c, tp, as_, t, e) -&gt; under_lambda (ex<span data-count="2272157">p</span> e //<span data-count="2272157">/</span> arg<span data-count="2272157">s</span> as_)
+  | <span data-count="0">A</span>ctorE (ds, fs, u, _)  -&gt; actor ds fs u
+  | <span data-count="328107">N</span>ewObjE (_, fs, _)  -&gt; fields fs
+  | <span data-count="213">T</span>ryE (e, cs, cl)    -&gt; ex<span data-count="213">p</span> e +<span data-count="213">+</span> case<span data-count="213">s</span> cs ++ (match cl with <span data-count="37">S</span>ome (v, _) -&gt; i<span data-count="37">d</span> v | <span data-count="176">_</span> -&gt; M.empty)
+  | <span data-count="142248">S</span>elfCallE (_, e1, e2, e3, e4) -&gt; under_lambd<span data-count="142248">a</span> (ex<span data-count="142248">p</span> e1) ++ exp<span data-count="142248">s</span> [e2; e3; e4]
+
+and actor ds fs u = <span data-count="339">c</span>lose (dec<span data-count="339">s</span> ds ++<span data-count="339">+</span> field<span data-count="339">s</span> fs ++<span data-count="339">+</span> syste<span data-count="339">m</span> u)
+
+and system {meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; _} =
+  <span data-count="678">u</span>nder_lambd<span data-count="678">a</span> (ex<span data-count="678">p</span> preupgrade) +<span data-count="678">+</span>
+  under_lambd<span data-count="678">a</span> (ex<span data-count="678">p</span> postupgrade) +<span data-count="678">+</span>
+  under_lambd<span data-count="678">a</span> (ex<span data-count="678">p</span> heartbeat) +<span data-count="678">+</span>
+  under_lambd<span data-count="678">a</span> (ex<span data-count="678">p</span> timer) +<span data-count="678">+</span>
+  under_lambd<span data-count="678">a</span> (ex<span data-count="678">p</span> inspect) +<span data-count="678">+</span>
+  under_lambd<span data-count="678">a</span> (ex<span data-count="678">p</span> low_memory) ++
+  under_lambd<span data-count="678">a</span> (ex<span data-count="678">p</span> stable_record)
+
+and exps es : f = <span data-count="13021973">u</span>nions exp es
+
+and lexp le : f = <span data-count="722191">m</span>atch le.it with
+  | <span data-count="635196">V</span>arLE i              -&gt; id i
+  | <span data-count="7512">D</span>otLE (e1, _)        -&gt; exp e1
+  | <span data-count="79483">I</span>dxLE (e1, e2)       -&gt; exps [e1; e2]
+
+and case (c : case) = <span data-count="920985">e</span>x<span data-count="920985">p</span> c.it.exp /// fd_of_def<span data-count="920985">s</span> (pa<span data-count="920985">t</span> c.it.pat)
+
+and cases cs : f = <span data-count="465459">u</span>nions case cs
+
+and dec d = <span data-count="7270828">m</span>atch d.it with
+  | <span data-count="7028186">L</span>etD (p, e) -&gt; fd_of_def<span data-count="7028186">s</span> (pa<span data-count="7028186">t</span> p) +++ ex<span data-count="7028186">p</span> e
+  | <span data-count="242624">V</span>arD (i, t, e) -&gt; fd_of_def<span data-count="242624">s</span> (M.singleto<span data-count="242624">n</span> i t) +++ ex<span data-count="242624">p</span> e
+  | <span data-count="18">R</span>efD (i, t, e) -&gt; fd_of_def<span data-count="18">s</span> (M.singleto<span data-count="18">n</span> i t) +++ lex<span data-count="18">p</span> e
+
+(* The variables captured by a function. May include the function itself! *)
+and captured e =
+  <span data-count="12876">L</span>ist.map fst (M.binding<span data-count="12876">s</span> (ex<span data-count="12876">p</span> e))
+
+and decs ps : fd = <span data-count="3185611">u</span>nion_binders dec ps
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

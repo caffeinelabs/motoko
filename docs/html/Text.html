@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Text.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Text.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coretext" id="toc-coretext">core/Text</a>
+<ul>
+<li><a href="#type-text" id="toc-type-text">Type
+<code>Text</code></a></li>
+<li><a href="#function-fromchar" id="toc-function-fromchar">Function
+<code>fromChar</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-toiter" id="toc-function-toiter">Function
+<code>toIter</code></a></li>
+<li><a href="#function-foldleft" id="toc-function-foldleft">Function
+<code>foldLeft</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-concat" id="toc-function-concat">Function
+<code>concat</code></a></li>
+<li><a href="#function-reverse" id="toc-function-reverse">Function
+<code>reverse</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-notequal" id="toc-function-notequal">Function
+<code>notEqual</code></a></li>
+<li><a href="#function-less" id="toc-function-less">Function
+<code>less</code></a></li>
+<li><a href="#function-lessorequal"
+id="toc-function-lessorequal">Function <code>lessOrEqual</code></a></li>
+<li><a href="#function-greater" id="toc-function-greater">Function
+<code>greater</code></a></li>
+<li><a href="#function-greaterorequal"
+id="toc-function-greaterorequal">Function
+<code>greaterOrEqual</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-join" id="toc-function-join">Function
+<code>join</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-flatmap" id="toc-function-flatmap">Function
+<code>flatMap</code></a></li>
+<li><a href="#type-pattern" id="toc-type-pattern">Type
+<code>Pattern</code></a></li>
+<li><a href="#function-split" id="toc-function-split">Function
+<code>split</code></a></li>
+<li><a href="#function-tokens" id="toc-function-tokens">Function
+<code>tokens</code></a></li>
+<li><a href="#function-contains" id="toc-function-contains">Function
+<code>contains</code></a></li>
+<li><a href="#function-startswith" id="toc-function-startswith">Function
+<code>startsWith</code></a></li>
+<li><a href="#function-endswith" id="toc-function-endswith">Function
+<code>endsWith</code></a></li>
+<li><a href="#function-replace" id="toc-function-replace">Function
+<code>replace</code></a></li>
+<li><a href="#function-stripstart" id="toc-function-stripstart">Function
+<code>stripStart</code></a></li>
+<li><a href="#function-stripend" id="toc-function-stripend">Function
+<code>stripEnd</code></a></li>
+<li><a href="#function-trimstart" id="toc-function-trimstart">Function
+<code>trimStart</code></a></li>
+<li><a href="#function-trimend" id="toc-function-trimend">Function
+<code>trimEnd</code></a></li>
+<li><a href="#function-trim" id="toc-function-trim">Function
+<code>trim</code></a></li>
+<li><a href="#function-comparewith"
+id="toc-function-comparewith">Function <code>compareWith</code></a></li>
+<li><a href="#function-encodeutf8" id="toc-function-encodeutf8">Function
+<code>encodeUtf8</code></a></li>
+<li><a href="#function-decodeutf8" id="toc-function-decodeutf8">Function
+<code>decodeUtf8</code></a></li>
+<li><a href="#function-tolower" id="toc-function-tolower">Function
+<code>toLower</code></a></li>
+<li><a href="#function-toupper" id="toc-function-toupper">Function
+<code>toUpper</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coretext">core/Text</h1>
+<p>Utility functions for <code>Text</code> values.</p>
+<p>A <code>Text</code> value represents human-readable text as a
+sequence of characters of type <code>Char</code>.</p>
+<pre class="motoko"><code>let text = &quot;Hello!&quot;;
+let size = text.size();
+assert size == 6;
+let iter = text.chars();
+assert iter.next() == ?&#39;H&#39;;
+assert iter.next() == ?&#39;e&#39;;
+assert iter.next() == ?&#39;l&#39;;
+assert iter.next() == ?&#39;l&#39;;
+assert iter.next() == ?&#39;o&#39;;
+assert iter.next() == ?&#39;!&#39;;
+assert iter.next() == null;
+let concat = text # &quot; 👋&quot;;
+assert concat == &quot;Hello! 👋&quot;;</code></pre>
+<p>The <code>"mo:core/Text"</code> module defines additional operations
+on <code>Text</code> values.</p>
+<p>Import the module from the core package:</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;</code></pre>
+<p>Note: <code>Text</code> values are represented as ropes of UTF-8
+character sequences with O(1) concatenation.</p>
+<h2 id="type-text">Type <code>Text</code></h2>
+<pre class="motoko"><code>type Text = Prim.Types.Text</code></pre>
+<p>The type corresponding to primitive <code>Text</code> values.</p>
+<pre class="motoko"><code>let hello = &quot;Hello!&quot;;
+let emoji = &quot;👋&quot;;
+let concat = hello # &quot; &quot; # emoji;
+assert concat == &quot;Hello! 👋&quot;;</code></pre>
+<h2 id="function-fromchar">Function <code>fromChar</code></h2>
+<pre class="motoko"><code>func fromChar(c : Char) : Text</code></pre>
+<p>Converts the given <code>Char</code> to a <code>Text</code>
+value.</p>
+<pre class="motoko"><code>let text = Text.fromChar(&#39;A&#39;);
+assert text == &quot;A&quot;;</code></pre>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray(a : [Char]) : Text</code></pre>
+<p>Converts the given <code>[Char]</code> to a <code>Text</code>
+value.</p>
+<pre class="motoko"><code>let text = Text.fromArray([&#39;A&#39;, &#39;v&#39;, &#39;o&#39;, &#39;c&#39;, &#39;a&#39;, &#39;d&#39;, &#39;o&#39;]);
+assert text == &quot;Avocado&quot;;</code></pre>
+<p>Runtime: O(a.size()) Space: O(a.size())</p>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray(a : [var Char]) : Text</code></pre>
+<p>Converts the given <code>[var Char]</code> to a <code>Text</code>
+value.</p>
+<pre class="motoko"><code>let text = Text.fromVarArray([var &#39;E&#39;, &#39;g&#39;, &#39;g&#39;, &#39;p&#39;, &#39;l&#39;, &#39;a&#39;, &#39;n&#39;, &#39;t&#39;]);
+assert text == &quot;Eggplant&quot;;</code></pre>
+<p>Runtime: O(a.size()) Space: O(a.size())</p>
+<h2 id="function-toiter">Function <code>toIter</code></h2>
+<pre class="motoko"><code>func toIter(self : Text) : Iter.Iter&lt;Char&gt;</code></pre>
+<p>Iterates over each <code>Char</code> value in the given
+<code>Text</code>.</p>
+<p>Equivalent to calling the <code>t.chars()</code> method where
+<code>t</code> is a <code>Text</code> value.</p>
+<pre class="motoko"><code>let chars = Text.toIter(&quot;abc&quot;);
+assert chars.next() == ?&#39;a&#39;;
+assert chars.next() == ?&#39;b&#39;;
+assert chars.next() == ?&#39;c&#39;;
+assert chars.next() == null;</code></pre>
+<h2 id="function-foldleft">Function <code>foldLeft</code></h2>
+<pre class="motoko"><code>func foldLeft&lt;A&gt;(self : Text, base : A, combine : (A, Char) -&gt; A) : A</code></pre>
+<p>Collapses the characters in <code>text</code> into a single value by
+starting with <code>base</code> and progessively combining characters
+into <code>base</code> with <code>combine</code>. Iteration runs left to
+right.</p>
+<pre class="motoko"><code>
+let text = &quot;Mississippi&quot;;
+let count =
+  Text.foldLeft&lt;Nat&gt;(
+    text,
+    0, // start the sum at 0
+    func(ss, c) = if (c == &#39;s&#39;) ss + 1 else ss
+  );
+assert count == 4;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>combine</code> runs in O(1)
+time and space.</p>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray(self : Text) : [Char]</code></pre>
+<p>Creates a new <code>Array</code> containing characters of the given
+<code>Text</code>.</p>
+<p>Equivalent to <code>Iter.toArray(t.chars())</code>.</p>
+<pre class="motoko"><code>assert Text.toArray(&quot;Café&quot;) == [&#39;C&#39;, &#39;a&#39;, &#39;f&#39;, &#39;é&#39;];</code></pre>
+<p>Runtime: O(t.size()) Space: O(t.size())</p>
+<h2 id="function-tovararray">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray(self : Text) : [var Char]</code></pre>
+<p>Creates a new mutable <code>Array</code> containing characters of the
+given <code>Text</code>.</p>
+<p>Equivalent to <code>Iter.toArrayMut(t.chars())</code>.</p>
+<pre class="motoko"><code>import VarArray &quot;mo:core/VarArray&quot;;
+import Char &quot;mo:core/Char&quot;;
+
+assert VarArray.equal(Text.toVarArray(&quot;Café&quot;), [var &#39;C&#39;, &#39;a&#39;, &#39;f&#39;, &#39;é&#39;], Char.equal);</code></pre>
+<p>Runtime: O(t.size()) Space: O(t.size())</p>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter(cs : Iter.Iter&lt;Char&gt;) : Text</code></pre>
+<p>Creates a <code>Text</code> value from a <code>Char</code>
+iterator.</p>
+<pre class="motoko"><code>let text = Text.fromIter([&#39;a&#39;, &#39;b&#39;, &#39;c&#39;].values());
+assert text == &quot;abc&quot;;</code></pre>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty(self : Text) : Bool</code></pre>
+<p>Returns whether the given <code>Text</code> is empty (has a size of
+zero).</p>
+<pre class="motoko"><code>let text1 = &quot;&quot;;
+let text2 = &quot;example&quot;;
+assert Text.isEmpty(text1);
+assert not Text.isEmpty(text2);</code></pre>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size(self : Text) : Nat</code></pre>
+<p>Returns the number of characters in the given <code>Text</code>.</p>
+<p>Equivalent to calling <code>t.size()</code> where <code>t</code> is a
+<code>Text</code> value.</p>
+<pre class="motoko"><code>let size = Text.size(&quot;abc&quot;);
+assert size == 3;</code></pre>
+<h2 id="function-concat">Function <code>concat</code></h2>
+<pre class="motoko"><code>func concat(self : Text, other : Text) : Text</code></pre>
+<p>Returns <code>t1 # t2</code>, where <code>#</code> is the
+<code>Text</code> concatenation operator.</p>
+<pre class="motoko"><code>let a = &quot;Hello&quot;;
+let b = &quot;There&quot;;
+let together = a # b;
+assert together == &quot;HelloThere&quot;;
+let withSpace = a # &quot; &quot; # b;
+assert withSpace == &quot;Hello There&quot;;
+let togetherAgain = Text.concat(a, b);
+assert togetherAgain == &quot;HelloThere&quot;;</code></pre>
+<h2 id="function-reverse">Function <code>reverse</code></h2>
+<pre class="motoko"><code>func reverse(self : Text) : Text</code></pre>
+<p>Returns a new <code>Text</code> with the characters of the input
+<code>Text</code> in reverse order.</p>
+<pre class="motoko"><code>let text = Text.reverse(&quot;Hello&quot;);
+assert text == &quot;olleH&quot;;</code></pre>
+<p>Runtime: O(t.size()) Space: O(t.size())</p>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal(self : Text, other : Text) : Bool</code></pre>
+<p>Returns true if two text values are equal.</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;
+
+assert Text.equal(&quot;hello&quot;, &quot;hello&quot;);
+assert not Text.equal(&quot;hello&quot;, &quot;world&quot;);</code></pre>
+<h2 id="function-notequal">Function <code>notEqual</code></h2>
+<pre class="motoko"><code>func notEqual(self : Text, other : Text) : Bool</code></pre>
+<p>Returns true if two text values are not equal.</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;
+
+assert Text.notEqual(&quot;hello&quot;, &quot;world&quot;);
+assert not Text.notEqual(&quot;hello&quot;, &quot;hello&quot;);</code></pre>
+<h2 id="function-less">Function <code>less</code></h2>
+<pre class="motoko"><code>func less(self : Text, other : Text) : Bool</code></pre>
+<p>Returns true if the first text value is lexicographically less than
+the second.</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;
+
+assert Text.less(&quot;apple&quot;, &quot;banana&quot;);
+assert not Text.less(&quot;banana&quot;, &quot;apple&quot;);</code></pre>
+<h2 id="function-lessorequal">Function <code>lessOrEqual</code></h2>
+<pre class="motoko"><code>func lessOrEqual(self : Text, other : Text) : Bool</code></pre>
+<p>Returns true if the first text value is lexicographically less than
+or equal to the second.</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;
+
+assert Text.lessOrEqual(&quot;apple&quot;, &quot;banana&quot;);
+assert Text.lessOrEqual(&quot;apple&quot;, &quot;apple&quot;);
+assert not Text.lessOrEqual(&quot;banana&quot;, &quot;apple&quot;);</code></pre>
+<h2 id="function-greater">Function <code>greater</code></h2>
+<pre class="motoko"><code>func greater(self : Text, other : Text) : Bool</code></pre>
+<p>Returns true if the first text value is lexicographically greater
+than the second.</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;
+
+assert Text.greater(&quot;banana&quot;, &quot;apple&quot;);
+assert not Text.greater(&quot;apple&quot;, &quot;banana&quot;);</code></pre>
+<h2 id="function-greaterorequal">Function
+<code>greaterOrEqual</code></h2>
+<pre class="motoko"><code>func greaterOrEqual(self : Text, other : Text) : Bool</code></pre>
+<p>Returns true if the first text value is lexicographically greater
+than or equal to the second.</p>
+<pre class="motoko"><code>import Text &quot;mo:core/Text&quot;;
+
+assert Text.greaterOrEqual(&quot;banana&quot;, &quot;apple&quot;);
+assert Text.greaterOrEqual(&quot;apple&quot;, &quot;apple&quot;);
+assert not Text.greaterOrEqual(&quot;apple&quot;, &quot;banana&quot;);</code></pre>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare(self : Text, other : Text) : Order.Order</code></pre>
+<p>Compares <code>t1</code> and <code>t2</code> lexicographically.</p>
+<pre class="motoko"><code>assert Text.compare(&quot;abc&quot;, &quot;abc&quot;) == #equal;
+assert Text.compare(&quot;abc&quot;, &quot;def&quot;) == #less;
+assert Text.compare(&quot;abc&quot;, &quot;ABC&quot;) == #greater;</code></pre>
+<h2 id="function-join">Function <code>join</code></h2>
+<pre class="motoko"><code>func join(self : Iter.Iter&lt;Text&gt;, sep : Text) : Text</code></pre>
+<p>Join an iterator of <code>Text</code> values with a given
+delimiter.</p>
+<pre class="motoko"><code>let joined = Text.join([&quot;a&quot;, &quot;b&quot;, &quot;c&quot;].values(), &quot;, &quot;);
+assert joined == &quot;a, b, c&quot;;</code></pre>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map(self : Text, f : Char -&gt; Char) : Text</code></pre>
+<p>Applies a function to each character in a <code>Text</code> value,
+returning the concatenated <code>Char</code> results.</p>
+<pre class="motoko"><code>// Replace all occurrences of &#39;?&#39; with &#39;!&#39;
+let result = Text.map(&quot;Motoko?&quot;, func(c) {
+  if (c == &#39;?&#39;) &#39;!&#39;
+  else c
+});
+assert result == &quot;Motoko!&quot;;</code></pre>
+<h2 id="function-flatmap">Function <code>flatMap</code></h2>
+<pre class="motoko"><code>func flatMap(self : Text, f : Char -&gt; Text) : Text</code></pre>
+<p>Returns the result of applying <code>f</code> to each character in
+<code>ts</code>, concatenating the intermediate text values.</p>
+<pre class="motoko"><code>// Replace all occurrences of &#39;?&#39; with &quot;!!&quot;
+let result = Text.flatMap(&quot;Motoko?&quot;, func(c) {
+  if (c == &#39;?&#39;) &quot;!!&quot;
+  else Text.fromChar(c)
+});
+assert result == &quot;Motoko!!&quot;;</code></pre>
+<h2 id="type-pattern">Type <code>Pattern</code></h2>
+<pre class="motoko"><code>type Pattern = Types.Pattern</code></pre>
+<p>A pattern <code>p</code> describes a sequence of characters. A
+pattern has one of the following forms:</p>
+<ul>
+<li><code>#char c</code> matches the single character sequence,
+<code>c</code>.</li>
+<li><code>#text t</code> matches multi-character text sequence
+<code>t</code>.</li>
+<li><code>#predicate p</code> matches any single character sequence
+<code>c</code> satisfying predicate <code>p(c)</code>.</li>
+</ul>
+<p>A <em>match</em> for <code>p</code> is any sequence of characters
+matching the pattern <code>p</code>.</p>
+<pre class="motoko"><code>let charPattern = #char &#39;A&#39;;
+let textPattern = #text &quot;phrase&quot;;
+let predicatePattern : Text.Pattern = #predicate (func(c) { c == &#39;A&#39; or c == &#39;B&#39; });
+assert Text.contains(&quot;A&quot;, predicatePattern);
+assert Text.contains(&quot;B&quot;, predicatePattern);</code></pre>
+<h2 id="function-split">Function <code>split</code></h2>
+<pre class="motoko"><code>func split(self : Text, p : Pattern) : Iter.Iter&lt;Text&gt;</code></pre>
+<p>Splits the input <code>Text</code> with the specified
+<code>Pattern</code>.</p>
+<p>Two fields are separated by exactly one match.</p>
+<pre class="motoko"><code>let words = Text.split(&quot;This is a sentence.&quot;, #char &#39; &#39;);
+assert Text.join(words, &quot;|&quot;) == &quot;This|is|a|sentence.&quot;;</code></pre>
+<h2 id="function-tokens">Function <code>tokens</code></h2>
+<pre class="motoko"><code>func tokens(self : Text, p : Pattern) : Iter.Iter&lt;Text&gt;</code></pre>
+<p>Returns a sequence of tokens from the input <code>Text</code>
+delimited by the specified <code>Pattern</code>, derived from start to
+end. A "token" is a non-empty maximal subsequence of <code>t</code> not
+containing a match for pattern <code>p</code>. Two tokens may be
+separated by one or more matches of <code>p</code>.</p>
+<pre class="motoko"><code>let tokens = Text.tokens(&quot;this needs\n an   example&quot;, #predicate (func(c) { c == &#39; &#39; or c == &#39;\n&#39; }));
+assert Text.join(tokens, &quot;|&quot;) == &quot;this|needs|an|example&quot;;</code></pre>
+<h2 id="function-contains">Function <code>contains</code></h2>
+<pre class="motoko"><code>func contains(self : Text, p : Pattern) : Bool</code></pre>
+<p>Returns <code>true</code> if the input <code>Text</code> contains a
+match for the specified <code>Pattern</code>.</p>
+<pre class="motoko"><code>assert Text.contains(&quot;Motoko&quot;, #text &quot;oto&quot;);
+assert not Text.contains(&quot;Motoko&quot;, #text &quot;xyz&quot;);</code></pre>
+<h2 id="function-startswith">Function <code>startsWith</code></h2>
+<pre class="motoko"><code>func startsWith(self : Text, p : Pattern) : Bool</code></pre>
+<p>Returns <code>true</code> if the input <code>Text</code> starts with
+a prefix matching the specified <code>Pattern</code>.</p>
+<pre class="motoko"><code>assert Text.startsWith(&quot;Motoko&quot;, #text &quot;Mo&quot;);</code></pre>
+<h2 id="function-endswith">Function <code>endsWith</code></h2>
+<pre class="motoko"><code>func endsWith(self : Text, p : Pattern) : Bool</code></pre>
+<p>Returns <code>true</code> if the input <code>Text</code> ends with a
+suffix matching the specified <code>Pattern</code>.</p>
+<pre class="motoko"><code>assert Text.endsWith(&quot;Motoko&quot;, #char &#39;o&#39;);</code></pre>
+<h2 id="function-replace">Function <code>replace</code></h2>
+<pre class="motoko"><code>func replace(self : Text, p : Pattern, r : Text) : Text</code></pre>
+<p>Returns the input text <code>t</code> with all matches of pattern
+<code>p</code> replaced by text <code>r</code>.</p>
+<pre class="motoko"><code>let result = Text.replace(&quot;abcabc&quot;, #char &#39;a&#39;, &quot;A&quot;);
+assert result == &quot;AbcAbc&quot;;</code></pre>
+<h2 id="function-stripstart">Function <code>stripStart</code></h2>
+<pre class="motoko"><code>func stripStart(self : Text, p : Pattern) : ?Text</code></pre>
+<p>Strips one occurrence of the given <code>Pattern</code> from the
+beginning of the input <code>Text</code>. If you want to remove multiple
+instances of the pattern, use <code>Text.trimStart()</code> instead.</p>
+<pre class="motoko"><code>// Try to strip a nonexistent character
+let none = Text.stripStart(&quot;abc&quot;, #char &#39;-&#39;);
+assert none == null;
+// Strip just one &#39;-&#39;
+let one = Text.stripStart(&quot;--abc&quot;, #char &#39;-&#39;);
+assert one == ?&quot;-abc&quot;;</code></pre>
+<h2 id="function-stripend">Function <code>stripEnd</code></h2>
+<pre class="motoko"><code>func stripEnd(self : Text, p : Pattern) : ?Text</code></pre>
+<p>Strips one occurrence of the given <code>Pattern</code> from the end
+of the input <code>Text</code>. If you want to remove multiple instances
+of the pattern, use <code>Text.trimEnd()</code> instead.</p>
+<pre class="motoko"><code>// Try to strip a nonexistent character
+let none = Text.stripEnd(&quot;xyz&quot;, #char &#39;-&#39;);
+assert none == null;
+// Strip just one &#39;-&#39;
+let one = Text.stripEnd(&quot;xyz--&quot;, #char &#39;-&#39;);
+assert one == ?&quot;xyz-&quot;;</code></pre>
+<h2 id="function-trimstart">Function <code>trimStart</code></h2>
+<pre class="motoko"><code>func trimStart(self : Text, p : Pattern) : Text</code></pre>
+<p>Trims the given <code>Pattern</code> from the start of the input
+<code>Text</code>. If you only want to remove a single instance of the
+pattern, use <code>Text.stripStart()</code> instead.</p>
+<pre class="motoko"><code>let trimmed = Text.trimStart(&quot;---abc&quot;, #char &#39;-&#39;);
+assert trimmed == &quot;abc&quot;;</code></pre>
+<h2 id="function-trimend">Function <code>trimEnd</code></h2>
+<pre class="motoko"><code>func trimEnd(self : Text, p : Pattern) : Text</code></pre>
+<p>Trims the given <code>Pattern</code> from the end of the input
+<code>Text</code>. If you only want to remove a single instance of the
+pattern, use <code>Text.stripEnd()</code> instead.</p>
+<pre class="motoko"><code>let trimmed = Text.trimEnd(&quot;xyz---&quot;, #char &#39;-&#39;);
+assert trimmed == &quot;xyz&quot;;</code></pre>
+<h2 id="function-trim">Function <code>trim</code></h2>
+<pre class="motoko"><code>func trim(self : Text, p : Pattern) : Text</code></pre>
+<p>Trims the given <code>Pattern</code> from both the start and end of
+the input <code>Text</code>.</p>
+<pre class="motoko"><code>let trimmed = Text.trim(&quot;---abcxyz---&quot;, #char &#39;-&#39;);
+assert trimmed == &quot;abcxyz&quot;;</code></pre>
+<h2 id="function-comparewith">Function <code>compareWith</code></h2>
+<pre class="motoko"><code>func compareWith(self : Text, other : Text, compare : (Char, Char) -&gt; Order.Order) : Order.Order</code></pre>
+<p>Compares <code>t1</code> and <code>t2</code> using the provided
+character-wise comparison function.</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;
+
+assert Text.compareWith(&quot;abc&quot;, &quot;ABC&quot;, func(c1, c2) { Char.compare(c1, c2) }) == #greater;</code></pre>
+<h2 id="function-encodeutf8">Function <code>encodeUtf8</code></h2>
+<pre class="motoko"><code>func encodeUtf8(self : Text) : Blob</code></pre>
+<p>Returns a UTF-8 encoded <code>Blob</code> from the given
+<code>Text</code>.</p>
+<pre class="motoko"><code>let blob = Text.encodeUtf8(&quot;Hello&quot;);
+assert blob == &quot;\48\65\6C\6C\6F&quot;;</code></pre>
+<h2 id="function-decodeutf8">Function <code>decodeUtf8</code></h2>
+<pre class="motoko"><code>func decodeUtf8(self : Blob) : ?Text</code></pre>
+<p>Tries to decode the given <code>Blob</code> as UTF-8. Returns
+<code>null</code> if the blob is not valid UTF-8.</p>
+<pre class="motoko"><code>let text = Text.decodeUtf8(&quot;\48\65\6C\6C\6F&quot;);
+assert text == ?&quot;Hello&quot;;</code></pre>
+<h2 id="function-tolower">Function <code>toLower</code></h2>
+<pre class="motoko"><code>func toLower(self : Text) : Text</code></pre>
+<p>Returns the text argument in lowercase. WARNING: Unicode compliant
+only when compiled, not interpreted.</p>
+<pre class="motoko"><code>let text = Text.toLower(&quot;Good Day&quot;);
+assert text == &quot;good day&quot;;</code></pre>
+<h2 id="function-toupper">Function <code>toUpper</code></h2>
+<pre class="motoko"><code>func toUpper(self : Text) : Text</code></pre>
+<p>Returns the text argument in uppercase. Unicode compliant. WARNING:
+Unicode compliant only when compiled, not interpreted.</p>
+<pre class="motoko"><code>let text = Text.toUpper(&quot;Good Day&quot;);
+assert text == &quot;GOOD DAY&quot;;</code></pre>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText(self : Text) : Text</code></pre>
+<p>Returns the given text value unchanged. This function is provided for
+consistency with other modules.</p>
+<pre class="motoko"><code>assert Text.toText(&quot;Hello&quot;) == &quot;Hello&quot;;</code></pre>
+</body>
+</html>

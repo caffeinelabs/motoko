@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/icp-features/1-randomness.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/icp-features/1-randomness.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#randomness" id="toc-randomness">Randomness</a>
+<ul>
+<li><a href="#raw_rand" id="toc-raw_rand"><code>raw_rand</code></a></li>
+<li><a href="#random" id="toc-random"><code>Random</code></a></li>
+<li><a href="#fuzz" id="toc-fuzz"><code>fuzz</code></a></li>
+<li><a href="#idempotency-keys"
+id="toc-idempotency-keys"><code>idempotency-keys</code></a></li>
+<li><a href="#resources" id="toc-resources">Resources</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="randomness">Randomness</h1>
+<p><a
+href="https://internetcomputer.org/docs/building-apps/network-features/randomness">Randomness</a>
+is used for generating unique identifiers, ensuring fairness in games,
+cryptographic protocols, and much more. On ICP, all computations,
+including <a
+href="https://internetcomputer.org/docs/building-apps/network-features/randomness">randomness</a>,
+must be <strong>verifiable and reproducible</strong> across the
+network's nodes.</p>
+<p>The network provides a <strong>verifiable random function
+(VRF)</strong> through the <a
+href="https://internetcomputer.org/docs/references/system-canisters/management-canister">management
+canister</a> that produces random values that are unpredictable yet
+verifiable, ensuring fairness and security while maintaining network
+consensus. It guarantees cryptographic security, making it suitable for
+use cases such as cryptographic key generation.</p>
+<p>The VRF generates 256-bit random <code>Blob</code>s in each execution
+round. A canister can request one of these random <code>Blob</code>s via
+the management canister's <code>raw_rand</code> method.</p>
+<!--PRNG to be mentioned here when the new core package is published? -->
+
+<p>Motoko provides multiple options for incorporating randomness into
+your code, each suited for different scenarios. The right method for
+your application depends on its security, performance, and
+reproducibility requirements.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Functionality</th>
+<th>Security level</th>
+<th>Example use cases</th>
+<th>Key features</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>raw_rand</code> function</td>
+<td>Returns 32 bytes of cryptographic randomness from ICP’s VRF.</td>
+<td>Strong cryptographic guarantees, ensures unpredictability.</td>
+<td>Secure key generation, fairness-compliant applications,
+unpredictable randomness.</td>
+<td>Directly retrieves randomness from the network’s consensus layer,
+32-byte (256-bit) <code>Blob</code>s, asynchronous, returns fresh
+entropy each call.</td>
+</tr>
+<tr>
+<td><a href="../core/Random.md"><code>Random</code> module</a></td>
+<td>High-level wrapper for <code>raw_rand</code>, providing finite
+random pools.</td>
+<td>Uses <code>raw_rand</code>, but requires careful handling to avoid
+entropy reuse.</td>
+<td>Random number generation, shuffling, simulations.</td>
+<td>Simplifies number generation, includes finite entropy pools,
+requires fresh <code>raw_rand</code> calls when exhausted.</td>
+</tr>
+<tr>
+<td><a href="https://mops.one/fuzz"><code>fuzz</code> package</a></td>
+<td>Pseudo-random generator that can be seeded with time,
+<code>Blob</code>s, or custom functions.</td>
+<td>Security depends on the seed.</td>
+<td>Fuzz testing, procedural generation, simulations, dynamic
+randomness.</td>
+<td>Default seed is <code>Time.now</code> (low security), can be
+initialized with <code>raw_rand</code> for high security, supports
+custom generators.</td>
+</tr>
+<tr>
+<td><a
+href="https://mops.one/idempotency-keys"><code>idempotency-keys</code>
+package</a></td>
+<td>Generates UUID v4 from a 16-byte random seed.</td>
+<td>Security depends on the provided entropy.</td>
+<td>Unique transaction IDs, idempotency, database keys.</td>
+<td>Produces RFC4122-compliant UUIDs, requires secure entropy source,
+simple API <code>UUID.generateV4(seed)</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>:::info Before using the <a
+href="https://mops.one/fuzz"><code>fuzz</code></a> or <a
+href="https://mops.one/idempotency-keys"><code>idempotency-keys</code></a>
+packages, ensure that <a href="https://mops.one/">Mops</a> is installed
+and initialized in your Motoko project. :::</p>
+<h2 id="raw_rand"><code>raw_rand</code></h2>
+<p>The <code>raw_rand</code> function is a system API provided by the <a
+href="https://internetcomputer.org/docs/references/system-canisters/management-canister">ICP
+management canister</a> for requesting cryptographic randomness derived
+from the network’s verifiable random function. <code>raw_rand</code>
+generates fresh entropy in every execution round, making it suitable for
+applications requiring high security such as key generation or
+applications where fairness is a legal requirement.</p>
+<p>Since <code>raw_rand</code> operates asynchronously, canisters must
+await its response before using the generated bytes. Each call returns a
+32-byte (256-bit) random <code>Blob</code>.</p>
+<pre class="motoko"><code>persistent actor {
+  let SubnetManager : actor {
+    raw_rand() : async Blob;
+  } = actor &quot;aaaaa-aa&quot;;
+
+  public func randomBytes() : async Blob {
+    await SubnetManager.raw_rand();
+  };
+}</code></pre>
+<h2 id="random"><code>Random</code></h2>
+<p>The <a href="../core/Random.md"><code>Random</code> module</a>
+provides an interface that wraps the <code>raw_rand</code> function.
+Since <code>raw_rand</code> returns raw bytes, the <code>Random</code>
+module simplifies working with this entropy by offering structured
+methods for consuming randomness efficiently. The module includes
+<code>Random.blob()</code> for fetching fresh 32-byte entropy and
+<code>Random.Finite</code>, which provides a finite source of randomness
+that can be used until exhausted. When entropy runs out, a new random
+<code>Blob</code> must be fetched asynchronously.</p>
+<p>Below is an example demonstrating how to generate a random boolean
+using <code>Random.Finite</code>.</p>
+<pre class="motoko"><code>import Random &quot;mo:core/Random&quot;;
+
+persistent actor {
+  transient let random = Random.crypto();
+
+  public func main() : async () {
+    let coin = await* random.bool(); // true or false
+    let byte = await* random.nat8(); // 0 to 255
+    let number = await* random.nat64(); // 0 to 2^64
+    let numberInRange = await* random.natRange(0, 10); // 0 to 9
+  }
+}</code></pre>
+<h2 id="fuzz"><code>fuzz</code></h2>
+<p>The <a href="https://mops.one/fuzz"><code>fuzz</code> package</a> is
+a versatile random data generator, primarily designed for testing but
+also useful for creating random account IDs, unique values, and
+randomized inputs. It supports a wide range of data types, including
+numbers, text, arrays, <code>Blob</code>s, and
+<code>Principal</code>s.</p>
+<p>The randomness source is customizable. You can initialize it with a
+time-based seed, a fixed seed for reproducibility, a random
+<code>Blob</code> for stronger entropy, or a custom generator function.
+By default, <code>fuzz</code> uses <code>Time.now()</code> as its seed,
+enabling immediate access to pseudo-random values without external
+dependencies.</p>
+<p>The following example demonstrates initialization with the default
+seed and generating a random <code>Nat</code>.</p>
+<pre class="motoko"><code>import Fuzz &quot;mo:fuzz&quot;;
+
+let fuzz = Fuzz.Fuzz();
+
+public shared query func randomNat() : async Nat {
+  fuzz.nat.random();
+};</code></pre>
+<h2 id="idempotency-keys"><code>idempotency-keys</code></h2>
+<p>The <a
+href="https://mops.one/idempotency-keys"><code>idempotency-keys</code>
+package</a> offers a method for generating universally unique
+identifiers (UUID) version 4 (v4), ideal for transaction tracking and
+request deduplication. It takes a 16-byte random seed and formats it
+according to the UUID v4 specification.</p>
+<p>The uniqueness and security of the generated UUIDs depend on the
+entropy source used for the seed. For cryptographic-grade randomness,
+using <code>raw_rand</code> is recommended, as it makes the package
+especially useful for idempotent API requests, database keys, and other
+scenarios that require globally unique identifiers.</p>
+<p>The following example demonstrates generating a UUID v4 using
+<code>idempotency-keys</code>.</p>
+<pre class="motoko"><code>import UUID &quot;mo:idempotency-keys/UUID&quot;;
+import Random &quot;mo:core/Random&quot;;
+
+persistent actor {
+  public func generateUUID() : async Text {
+    let seed = await Random.blob();
+    UUID.v4(seed);
+  };
+}</code></pre>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a
+href="https://internetcomputer.org/docs/references/ic-interface-spec#ic-raw_rand"><code>raw_rand</code></a></li>
+<li><a href="../core/Random.md"><code>Random</code></a></li>
+<li><a href="https://mops.one/fuzz"><code>fuzz</code></a></li>
+<li><a
+href="https://mops.one/idempotency-keys"><code>idempotency-keys</code></a></li>
+</ul>
+</body>
+</html>

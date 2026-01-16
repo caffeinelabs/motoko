@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/icp-features/2-timers.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/icp-features/2-timers.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#timers" id="toc-timers">Timers</a>
+<ul>
+<li><a href="#example" id="toc-example">Example</a></li>
+<li><a href="#low-level-access" id="toc-low-level-access">Low-level
+access</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="timers">Timers</h1>
+<p>Canisters can set recurring timers that execute a piece of code after
+a specified period of time or regular interval. Timers in Motoko are
+implemented using the <a
+href="../core/Timer.md"><code>Timer.mo</code></a> module and return a
+<code>TimerId</code>. <code>TimerId</code>s are unique for each timer
+instance. A canister can contain multiple active timers.</p>
+<h2 id="example">Example</h2>
+<p>A simple example is a periodic reminder that logs a new year's
+message:</p>
+<pre class="motoko"><code></code></pre>
+<p>The underlying mechanism is a <a
+href="https://internetcomputer.org/docs/references/ic-interface-spec#timer">global
+timer</a> that, by default, is issued with appropriate callbacks from a
+priority queue maintained by the Motoko runtime.</p>
+<p>The timer mechanism can be disabled completely by passing the
+<code>--no-timer</code> flag to <code>moc</code>.</p>
+<h2 id="low-level-access">Low-level access</h2>
+<p>When lower-level access to the canister's global timer is desired, an
+actor can elect to receive timer expiry messages by declaring a
+<code>system</code> function named <code>timer</code>. The function
+takes one argument used to reset the global timer and returns a future
+of unit type <code>async ()</code>.</p>
+<p>If the <code>timer</code> system method is declared, the <a
+href="../core/Timer.md"><code>Timer.mo</code></a> core package module
+may not function correctly and should not be used.</p>
+<p>The following example of a global timer expiration callback gets
+called immediately after the canister starts, i.e. after install, and
+periodically every twenty seconds thereafter:</p>
+<pre class="motoko"><code>system func timer(setGlobalTimer : Nat64 -&gt; ()) : async () {
+  let next = Nat64.fromIntWrap(Time.now()) + 20_000_000_000;
+  setGlobalTimer(next); // absolute time in nanoseconds
+  print(&quot;Tick!&quot;);
+}</code></pre>
+</body>
+</html>

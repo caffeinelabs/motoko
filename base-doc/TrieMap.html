@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.TrieMap">TrieMap</a></li></li><li><li><a href="#clone">clone</a></li></li><li><li><a href="#fromEntries">fromEntries</a></li></li><li><li><a href="#map">map</a></li></li><li><li><a href="#mapFilter">mapFilter</a></li></li></ul></nav><div class="documentation"><h1>TrieMap</h1><p>Class <code>TrieMap&lt;K, V&gt;</code> provides a map from keys of type <code>K</code> to values of type <code>V</code>.
+The class wraps and manipulates an underlying hash trie, found in the <code>Trie</code> module.
+The trie is a binary tree where element positions are determined using the hash of the keys.</p>
+<p>:::warning Limitations</p>
+<p>This data structure allows at most <code>MAX_LEAF_SIZE = 8</code> hash collisions.
+Attempts to insert more than 8 keys (whether directly via <code>put</code> or indirectly via other operations) with the same hash value will trap.
+This limitation is inherited from the underlying <code>Trie</code> data structure.
+:::</p>
+<p>:::note Interface compatibility</p>
+<p>The <code>class</code> <code>TrieMap</code> exposes the same interface as <code>HashMap</code>.
+:::</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>hash</code>, <code>equal</code>, and other function parameters execute in <code>O(1)</code> time and space.
+Where applicable, runtimes also assume the trie is reasonably balanced.
+:::</p>
+<p>:::note Iterator performance</p>
+<p>All iterator-related runtime and space costs refer to iterator construction.
+The iteration itself takes linear time and logarithmic space to execute.
+:::</p>
+<p>Creating a map:
+The equality function is used to compare keys, and the hash function is used to hash keys. See the example below.</p>
+<pre><code>motoko name=initialize
+import TrieMap &quot;mo:base/TrieMap&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Hash &quot;mo:base/Hash&quot;;
+import Iter &quot;mo:base/Iter&quot;;
+
+let map = TrieMap.TrieMap&lt;Nat, Nat&gt;(Nat.equal, Hash.hash)</code></pre><div class="declaration"><h4 class="class-declaration" id="type.TrieMap"><span class="keyword">class </span><span class="classname">TrieMap</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">isEq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <span class="parameter">hashOf</span> : <span class="type">K</span> -&gt; <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a>)</h4><div class="declaration"><h4 class="function" id="TrieMap.size"><code><span class="keyword">public func </span><span class="fnname">size</span>() : <span class="type">Nat</span></code></h4><p><p>Returns the number of entries in the map.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.size()</code></pre>
+
+<p>| Runtime        | Space         |
+|----------------|---------------|
+| <code>O(1)</code>   | <code>O(log(1))</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.put"><code><span class="keyword">public func </span><span class="fnname">put</span>(<span class="parameter">key</span> : <span class="type">K</span>, <span class="parameter">value</span> : <span class="type">V</span>)</code></h4><p><p>Maps <code>key</code> to <code>value</code>, and overwrites the old entry if the key
+was already present.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.put(2, 12);
+Iter.toArray(map.entries())</code></pre>
+
+<p>| Runtime        | Space         |
+|----------------|---------------|
+| <code>O(log(size))</code>   | <code>O(log(size))</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.replace"><code><span class="keyword">public func </span><span class="fnname">replace</span>(<span class="parameter">key</span> : <span class="type">K</span>, <span class="parameter">value</span> : <span class="type">V</span>) : ?<span class="type">V</span></code></h4><p><p>Maps <code>key</code> to <code>value</code>. Overwrites <em>and</em> returns the old entry as an
+option if the key was already present, and <code>null</code> otherwise.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.replace(0, 20)</code></pre>
+
+<p>| Runtime        | Space         |
+|----------------|---------------|
+| <code>O(log(size))</code>   | <code>O(log(size))</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.get"><code><span class="keyword">public func </span><span class="fnname">get</span>(<span class="parameter">key</span> : <span class="type">K</span>) : ?<span class="type">V</span></code></h4><p><p>Gets the value associated with the key <code>key</code> in an option, or <code>null</code> if it
+doesn't exist.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.get(0)</code></pre>
+
+<p>| Runtime        | Space         |
+|----------------|---------------|
+| <code>O(log(size))</code>   | <code>O(log(size))</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.delete"><code><span class="keyword">public func </span><span class="fnname">delete</span>(<span class="parameter">key</span> : <span class="type">K</span>)</code></h4><p><p>Delete the entry associated with key <code>key</code>, if it exists. If the key is
+absent, there is no effect.</p>
+<p>:::note
+The deletion of an existing key shrinks the trie map.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.delete(0);
+map.get(0)</code></pre>
+
+<p>| Runtime        | Space         |
+|----------------|---------------|
+| <code>O(log(size))</code>   | <code>O(log(size))</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.remove"><code><span class="keyword">public func </span><span class="fnname">remove</span>(<span class="parameter">key</span> : <span class="type">K</span>) : ?<span class="type">V</span></code></h4><p><p>Delete the entry associated with key <code>key</code>. Return the deleted value
+as an option if it exists, and <code>null</code> otherwise.</p>
+<p>:::note
+The deletion of an existing key shrinks the trie map.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.remove(0)</code></pre>
+
+<p>| Runtime        | Space         |
+|----------------|---------------|
+| <code>O(log(size))</code>   | <code>O(log(size))</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.keys"><code><span class="keyword">public func </span><span class="fnname">keys</span>() : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">K</span>&gt;</code></h4><p><p>Returns an iterator over the keys of the map.</p>
+<p>Each iterator gets a <em>snapshot view</em> of the mapping, and is unaffected
+by concurrent updates to the iterated map.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.put(1, 11);
+map.put(2, 12);
+
+// find the sum of all the keys
+var sum = 0;
+for (key in map.keys()) {
+  sum += key;
+};
+// 0 + 1 + 2
+sum</code></pre>
+
+<p>| Runtime | Space |
+|---------|--------|
+| <code>O(1)</code>    | <code>O(1)</code>   |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.vals"><code><span class="keyword">public func </span><span class="fnname">vals</span>() : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">V</span>&gt;</code></h4><p><p>Returns an iterator over the values in the map.</p>
+<p>Each iterator gets a <em>snapshot view</em> of the mapping, and is unaffected
+by concurrent updates to the iterated map.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.put(1, 11);
+map.put(2, 12);
+
+// find the sum of all the values
+var sum = 0;
+for (key in map.vals()) {
+  sum += key;
+};
+// 10 + 11 + 12
+sum</code></pre>
+
+<p>| Runtime | Space |
+|---------|--------|
+| <code>O(1)</code>   | <code>O(1)</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="TrieMap.entries"><code><span class="keyword">public func </span><span class="fnname">entries</span>() : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;(<span class="type">K</span>, <span class="type">V</span>)&gt;</code></h4><p><p>Returns an iterator over the entries (key-value pairs) in the map.</p>
+<p>Each iterator gets a <em>snapshot view</em> of the mapping, and is unaffected
+by concurrent updates to the iterated map.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.put(1, 11);
+map.put(2, 12);
+
+// find the sum of all the products of key-value pairs
+var sum = 0;
+for ((key, value) in map.entries()) {
+  sum += key * value;
+};
+// (0 * 10) + (1 * 11) + (2 * 12)
+sum</code></pre>
+
+<p>| Runtime | Space |
+|---------|--------|
+| <code>O(1)</code>    | <code>O(1)</code>   |</p>
+</p></div><p></p></div><div class="declaration"><h4 class="function" id="clone"><code><span class="keyword">public func </span><span class="fnname">clone</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.TrieMap"><span class="type">TrieMap</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">keyEq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">keyHash</span> : <span class="type">K</span> -&gt; <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a><br/>) : <a href="#type.TrieMap"><span class="type">TrieMap</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Produce a copy of <code>map</code>, using <code>keyEq</code> to compare keys and <code>keyHash</code> to
+hash keys.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.put(1, 11);
+map.put(2, 12);
+// Clone using the same equality and hash functions used to initialize `map`
+let mapCopy = TrieMap.clone(map, Nat.equal, Hash.hash);
+Iter.toArray(mapCopy.entries())</code></pre>
+
+<p>| Runtime             | Space    |
+|---------------------|----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="fromEntries"><code><span class="keyword">public func </span><span class="fnname">fromEntries</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">entries</span> : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;(<span class="type">K</span>, <span class="type">V</span>)&gt;, <br/>  <span class="parameter">keyEq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">keyHash</span> : <span class="type">K</span> -&gt; <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a><br/>) : <a href="#type.TrieMap"><span class="type">TrieMap</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Create a new map from the entries in <code>entries</code>, using <code>keyEq</code> to compare
+keys and <code>keyHash</code> to hash keys.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+let entries = [(0, 10), (1, 11), (2, 12)];
+let newMap = TrieMap.fromEntries&lt;Nat, Nat&gt;(entries.vals(), Nat.equal, Hash.hash);
+newMap.get(2)</code></pre>
+
+<p>| Runtime             | Space    |
+|---------------------|----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="map"><code><span class="keyword">public func </span><span class="fnname">map</span>&lt;<span class="type">K</span>, <span class="type">V1</span>, <span class="type">V2</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.TrieMap"><span class="type">TrieMap</span></a>&lt;<span class="type">K</span>, <span class="type">V1</span>&gt;, <br/>  <span class="parameter">keyEq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">keyHash</span> : <span class="type">K</span> -&gt; <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a>, <br/>  <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V1</span>) -&gt; <span class="type">V2</span><br/>) : <a href="#type.TrieMap"><span class="type">TrieMap</span></a>&lt;<span class="type">K</span>, <span class="type">V2</span>&gt;</code></h4><p><p>Transform (map) the values in <code>map</code> using function <code>f</code>, retaining the keys.
+Uses <code>keyEq</code> to compare keys and <code>keyHash</code> to hash keys.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.put(1, 11);
+map.put(2, 12);
+// double all the values in map
+let newMap = TrieMap.map&lt;Nat, Nat, Nat&gt;(map, Nat.equal, Hash.hash, func(key, value) = value * 2);
+Iter.toArray(newMap.entries())</code></pre>
+
+<p>| Runtime             | Space    |
+|---------------------|----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code>  |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapFilter"><code><span class="keyword">public func </span><span class="fnname">mapFilter</span>&lt;<span class="type">K</span>, <span class="type">V1</span>, <span class="type">V2</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.TrieMap"><span class="type">TrieMap</span></a>&lt;<span class="type">K</span>, <span class="type">V1</span>&gt;, <br/>  <span class="parameter">keyEq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">keyHash</span> : <span class="type">K</span> -&gt; <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a>, <br/>  <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V1</span>) -&gt; ?<span class="type">V2</span><br/>) : <a href="#type.TrieMap"><span class="type">TrieMap</span></a>&lt;<span class="type">K</span>, <span class="type">V2</span>&gt;</code></h4><p><p>Transform (map) the values in <code>map</code> using function <code>f</code>, discarding entries
+for which <code>f</code> evaluates to <code>null</code>. Uses <code>keyEq</code> to compare keys and
+<code>keyHash</code> to hash keys.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+map.put(0, 10);
+map.put(1, 11);
+map.put(2, 12);
+// double all the values in map, only keeping entries that have an even key
+let newMap =
+  TrieMap.mapFilter&lt;Nat, Nat, Nat&gt;(
+    map,
+    Nat.equal,
+    Hash.hash,
+    func(key, value) = if (key % 2 == 0) { ?(value * 2) } else { null }
+  );
+Iter.toArray(newMap.entries())</code></pre>
+
+<p>| Runtime             | Space    |
+|---------------------|----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code></p>
+</p></div></div></body></html>

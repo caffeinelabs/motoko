@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/fundamentals/8-pattern-matching.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/fundamentals/8-pattern-matching.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#pattern-matching" id="toc-pattern-matching">Pattern
+matching</a>
+<ul>
+<li><a href="#concepts" id="toc-concepts">Concepts</a>
+<ul>
+<li><a href="#enumerated-types" id="toc-enumerated-types">Enumerated
+types</a></li>
+<li><a href="#irrefutable-and-refutable-patterns"
+id="toc-irrefutable-and-refutable-patterns">Irrefutable and refutable
+patterns</a></li>
+<li><a href="#singleton-types" id="toc-singleton-types">Singleton
+types</a></li>
+<li><a href="#exhaustiveness-checking"
+id="toc-exhaustiveness-checking">Exhaustiveness checking</a></li>
+</ul></li>
+<li><a href="#using-pattern-matching"
+id="toc-using-pattern-matching">Using pattern matching</a></li>
+<li><a href="#wildcard-_" id="toc-wildcard-_">Wildcard
+(<code>_</code>)</a></li>
+<li><a href="#literal" id="toc-literal">Literal</a></li>
+<li><a href="#option-t" id="toc-option-t">Option
+(<code>?T</code>)</a></li>
+<li><a href="#object" id="toc-object">Object</a></li>
+<li><a href="#variant" id="toc-variant">Variant</a></li>
+<li><a href="#alternative-or-patterns"
+id="toc-alternative-or-patterns">Alternative <code>or</code>
+patterns</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="pattern-matching">Pattern matching</h1>
+<p>Pattern matching in Motoko is a language feature that makes it easy
+to test and break down complex data structures. It is commonly used in
+<code>switch</code> expressions to extract and work with parts of a
+value.</p>
+<p>Unlike building structured data, pattern matching lets you
+deconstruct that data and assign its parts to variables. The syntax
+often looks like how you construct the data, but it's used in places
+like function arguments, <code>case</code> clauses in
+<code>switch</code> expressions, and after <code>let</code> or
+<code>var</code> when declaring variables.</p>
+<p>Motoko supports several types of patterns:</p>
+<table>
+<thead>
+<tr>
+<th>Pattern type</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wildcard (<code>_</code>)</td>
+<td>Matches any value without binding it to a variable.</td>
+<td><code>switch (x) { case (_) { ... } }</code></td>
+</tr>
+<tr>
+<td>Literal</td>
+<td>Matches specific constant values.</td>
+<td><code>switch (x) { case (0) { ... } case (1) { ... } }</code></td>
+</tr>
+<tr>
+<td>Option (<code>?T</code>)</td>
+<td>Matches optional values.</td>
+<td><code>switch (opt) { case (?v) { ... } case (null) { ... } }</code></td>
+</tr>
+<tr>
+<td>Object</td>
+<td>Matches object fields.</td>
+<td><code>switch (obj) { case ({field}) { ... } }</code></td>
+</tr>
+<tr>
+<td>Variant</td>
+<td>Matches tagged union types.</td>
+<td><code>switch (variant) { case (#tag v) { ... } }</code></td>
+</tr>
+<tr>
+<td>Named</td>
+<td>Introduces identifiers into a new scope.</td>
+<td><code>age</code>, <code>x</code></td>
+</tr>
+<tr>
+<td>Tuple</td>
+<td>Must have at least two components.</td>
+<td><code>( component0, component1, …​ )</code></td>
+</tr>
+<tr>
+<td>Alternative (<code>or</code>-pattern)</td>
+<td>Match multiple patterns.</td>
+<td><code>0 or 1</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="concepts">Concepts</h2>
+<h3 id="enumerated-types">Enumerated types</h3>
+<p>Unlike traditional <code>enum</code> types in other languages, which
+define fixed sets of values with no attached data, Motoko uses
+<strong>variant types</strong>, a more flexible alternative. Variants
+can optionally carry payloads and support full pattern matching. For
+simple enumerations without payloads, Motoko offers a shorthand syntax,
+such as <code>type Weekday = { #mon; #tue; #wed; ... }</code>.</p>
+<h3 id="irrefutable-and-refutable-patterns">Irrefutable and refutable
+patterns</h3>
+<p>Patterns are either refutable** or irrefutable. A refutable pattern
+can fail to match (like literal patterns or specific variant tags). An
+irrefutable pattern always matches any value of its type. Examples
+include the wildcard <code>_</code>, simple variable names, or
+structured patterns (like records or tuples) made only from irrefutable
+parts.</p>
+<h3 id="singleton-types">Singleton types</h3>
+<p>Some types only have a single possible value. These are called
+singleton types. Examples include the unit type <code>()</code> and
+variants with a single tag or singleton payload. Pattern matching on
+singleton types is simple because there’s only one possible match.</p>
+<h3 id="exhaustiveness-checking">Exhaustiveness checking</h3>
+<p>To prevent runtime errors when no <code>switch</code> case matches,
+the Motoko compiler performs exhaustiveness checking. It will warn you
+if any possible input is not handled and shows an example of a missing
+case. It also flags redundant patterns that will never be matched,
+helping you write safer, cleaner code.</p>
+<h2 id="using-pattern-matching">Using pattern matching</h2>
+<p>Consider the following function call:</p>
+<pre class="motoko"><code>let name : Text = fullName({ first = &quot;Motoko&quot;; mid = &quot;X&quot;; last = &quot;Ghost&quot; });</code></pre>
+<p>This creates a record with three fields and passes it to the
+<code>fullName</code> function. The result is stored in a variable
+called <code>name</code>. This act of assigning a value to a variable
+using a pattern (<code>name : Text</code>) is a simple example of
+pattern matching.</p>
+<p>Now, look at the function itself:</p>
+<pre class="motoko"><code>func fullName({ first : Text; mid : Text; last : Text }) : Text {
+  first # &quot; &quot; # mid # &quot; &quot; # last
+};</code></pre>
+<p>Here, the input record is*destructured. Its fields are matched and
+their values are assigned to the variables <code>first</code>,
+<code>mid</code>, and <code>last</code>, which are then used in the
+function body. This example uses name punning, where the field name
+(e.g., <code>first</code>) is reused as the variable name. A more
+flexible pattern lets you give the value a different name, like
+this:</p>
+<pre class="motoko"><code>mid = m : Text</code></pre>
+<p>In this case, the function matches the <code>mid</code> field but
+uses <code>m</code> as the variable name for its value.</p>
+<h2 id="wildcard-_">Wildcard (<code>_</code>)</h2>
+<p>The wildcard pattern <code>_</code> matches any value but does not
+bind to a variable. It is useful for handling cases where the specific
+value does not matter.</p>
+<pre class="motoko"><code>func processNumber(n : Nat) : Text {
+    switch (n) {
+        case 0 { &quot;Zero&quot; };
+        case 1 { &quot;One&quot; };
+        case _ { &quot;Other&quot; };  // Matches any other number
+    };
+};</code></pre>
+<h2 id="literal">Literal</h2>
+<p>Pattern matching supports literal patterns, which look like constant
+values (e.g., <code>#female</code>). These are especially useful in
+<code>switch</code> expressions because they let you match specific
+values, and if the match fails, the program moves on to the next
+<code>case</code>.</p>
+<pre class="motoko"><code>switch (&quot;Adrienne&quot;, #female) {
+  case (name, #female) { name # &quot; is a girl!&quot; };
+  case (name, #male) { name # &quot; is a boy!&quot; };
+  case (name, _) { name # &quot;, is a human!&quot; };
+}</code></pre>
+<p>In this example:</p>
+<ul>
+<li>The input is a pair: A name and a gender.</li>
+<li>The first <code>case</code> matches because <code>#female</code>
+equals <code>#female</code>, and <code>name</code> is bound to
+<code>"Adrienne"</code>.</li>
+<li>The result is: <code>"Adrienne is a girl!"</code>.</li>
+</ul>
+<p>The last case uses the wildcard pattern <code>_</code>, which matches
+anything but doesn’t bind it to a variable. It’s a fallback in case no
+earlier patterns match.</p>
+<h2 id="option-t">Option (<code>?T</code>)</h2>
+<p>Option patterns allow destructuring of <code>?T</code> values,
+matching either <code>null</code> or <code>?someValue</code>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+func getValue(opt : ?Nat) : Text {
+    switch opt {
+        // Parentheses required around `?n`
+        case (?n) { &quot;Value: &quot; # Nat.toText(n) };
+        case null { &quot;No value&quot; };
+    };
+};</code></pre>
+<h2 id="object">Object</h2>
+<p>Objects with named fields can be matched to extract specific
+properties.</p>
+<pre class="motoko"><code>type Person = { name : Text; age : Nat };
+
+func describePerson(person : Person) : Text {
+    switch (person) {
+        case ({ name = fullName; age }) { fullName # &quot; is &quot; # Nat.toText(age) # &quot; years old.&quot; };
+    };
+};</code></pre>
+<h2 id="variant">Variant</h2>
+<p>Motoko’s variant types represent a form of disjoint union, also known
+as a sum type. Each variant value contains exactly one discriminator (or
+tag) and an optional payload, which can differ depending on the
+discriminator. When pattern matching against a variant, the match only
+succeeds if the discriminators are the same. If they match, the
+associated payload is then made available for further matching or use
+within the pattern.</p>
+<pre class="motoko"><code>type Status = { #ok; #error : Text };
+
+func processStatus(status : Status) : Text {
+    switch status {
+        case (#ok) { &quot;Success&quot; };
+        case (#error message) { &quot;Error: &quot; # message };
+    };
+};</code></pre>
+<h2 id="alternative-or-patterns">Alternative <code>or</code>
+patterns</h2>
+<p>An <code>or</code> pattern lets you match multiple patterns using the
+keyword <code>or</code>. Each sub-pattern is tried from left to right,
+and the match succeeds as soon as one of them works. However, all
+sub-patterns must bind the same variables, so the result is consistent
+no matter which one matches.</p>
+<p>If none of the sub-patterns match, the whole <code>or</code> pattern
+fails.</p>
+</body>
+</html>

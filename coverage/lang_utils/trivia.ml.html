@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>trivia.ml &mdash; Coverage report</title>
+    <meta name="description" content="50.00% coverage in lang_utils/trivia.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">lang_utils/</span>trivia.ml
+        </a>
+      </h1>
+      <h2>50.00%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="top:13.76%"></span>
+      <span class="unvisited" style="top:14.68%"></span>
+      <span class="unvisited" style="top:16.51%"></span>
+      <span class="unvisited" style="top:20.18%"></span>
+      <span class="unvisited" style="top:21.10%"></span>
+      <span class="unvisited" style="top:22.02%"></span>
+      <span class="unvisited" style="top:22.94%"></span>
+      <span class="unvisited" style="top:23.85%"></span>
+      <span class="unvisited" style="top:33.94%"></span>
+      <span class="unvisited" style="top:34.86%"></span>
+      <span class="unvisited" style="top:35.78%"></span>
+      <span class="unvisited" style="bottom:16.51%"></span>
+      <span class="some-visited" style="bottom:6.42%"></span>
+      <span class="unvisited" style="bottom:1.83%"></span>
+      <span class="unvisited" style="bottom:0.92%"></span>
+      <span class="unvisited" style="bottom:0.00%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span class="visited"> </span>
+<a id="L14"></a><span class="visited"> </span>
+<a id="L15"></a><span class="unvisited"> </span>
+<a id="L16"></a><span class="unvisited"> </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span class="unvisited"> </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span class="unvisited"> </span>
+<a id="L23"></a><span class="unvisited"> </span>
+<a id="L24"></a><span class="unvisited"> </span>
+<a id="L25"></a><span class="unvisited"> </span>
+<a id="L26"></a><span class="unvisited"> </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span > </span>
+<a id="L29"></a><span class="visited"> </span>
+<a id="L30"></a><span > </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span > </span>
+<a id="L37"></a><span class="unvisited"> </span>
+<a id="L38"></a><span class="unvisited"> </span>
+<a id="L39"></a><span class="unvisited"> </span>
+<a id="L40"></a><span > </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span > </span>
+<a id="L43"></a><span > </span>
+<a id="L44"></a><span > </span>
+<a id="L45"></a><span class="visited"> </span>
+<a id="L46"></a><span > </span>
+<a id="L47"></a><span > </span>
+<a id="L48"></a><span > </span>
+<a id="L49"></a><span > </span>
+<a id="L50"></a><span class="visited"> </span>
+<a id="L51"></a><span > </span>
+<a id="L52"></a><span class="visited"> </span>
+<a id="L53"></a><span > </span>
+<a id="L54"></a><span > </span>
+<a id="L55"></a><span > </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span > </span>
+<a id="L58"></a><span > </span>
+<a id="L59"></a><span > </span>
+<a id="L60"></a><span class="visited"> </span>
+<a id="L61"></a><span > </span>
+<a id="L62"></a><span > </span>
+<a id="L63"></a><span class="visited"> </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span > </span>
+<a id="L67"></a><span > </span>
+<a id="L68"></a><span class="visited"> </span>
+<a id="L69"></a><span > </span>
+<a id="L70"></a><span > </span>
+<a id="L71"></a><span class="visited"> </span>
+<a id="L72"></a><span > </span>
+<a id="L73"></a><span class="visited"> </span>
+<a id="L74"></a><span class="visited"> </span>
+<a id="L75"></a><span > </span>
+<a id="L76"></a><span > </span>
+<a id="L77"></a><span > </span>
+<a id="L78"></a><span class="visited"> </span>
+<a id="L79"></a><span class="visited"> </span>
+<a id="L80"></a><span > </span>
+<a id="L81"></a><span > </span>
+<a id="L82"></a><span class="visited"> </span>
+<a id="L83"></a><span > </span>
+<a id="L84"></a><span > </span>
+<a id="L85"></a><span > </span>
+<a id="L86"></a><span > </span>
+<a id="L87"></a><span class="visited"> </span>
+<a id="L88"></a><span > </span>
+<a id="L89"></a><span class="visited"> </span>
+<a id="L90"></a><span > </span>
+<a id="L91"></a><span class="unvisited"> </span>
+<a id="L92"></a><span class="visited"> </span>
+<a id="L93"></a><span > </span>
+<a id="L94"></a><span > </span>
+<a id="L95"></a><span > </span>
+<a id="L96"></a><span class="visited"> </span>
+<a id="L97"></a><span class="visited"> </span>
+<a id="L98"></a><span > </span>
+<a id="L99"></a><span class="visited"> </span>
+<a id="L100"></a><span class="visited"> </span>
+<a id="L101"></a><span class="visited"> </span>
+<a id="L102"></a><span class="some-visited"> </span>
+<a id="L103"></a><span class="visited"> </span>
+<a id="L104"></a><span > </span>
+<a id="L105"></a><span > </span>
+<a id="L106"></a><span > </span>
+<a id="L107"></a><span class="unvisited"> </span>
+<a id="L108"></a><span class="unvisited"> </span>
+<a id="L109"></a><span class="unvisited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+<a href="#L106">106</a>
+<a href="#L107">107</a>
+<a href="#L108">108</a>
+<a href="#L109">109</a>
+</pre>
+<pre><code class="ocaml">open Source
+
+type line_feed = LF | CRLF
+
+type 'l trivia = Comment of string | Space of int | Tab of int | Line of 'l
+
+type void = |
+
+let absurd : void -&gt; 'a = function _ -&gt; .
+
+let map_trivia : ('a -&gt; 'b) -&gt; 'a trivia -&gt; 'b trivia =
+ fun f -&gt; function
+  | <span data-count="10813">C</span>omment str -&gt; Comment str
+  | <span data-count="8505082">S</span>pace n -&gt; Space n
+  | <span data-count="0">T</span>ab n -&gt; Tab n
+  | <span data-count="0">L</span>ine l -&gt; Line (<span data-count="0">f</span> l)
+
+let string_of_line_feed = function <span data-count="0">L</span>F -&gt; "LF" | <span data-count="0">C</span>RLF -&gt; "CRLF"
+
+let string_of_trivia : ('a -&gt; string) -&gt; 'a trivia -&gt; string =
+ fun f t -&gt;
+  <span data-count="0">m</span>atch t with
+  | <span data-count="0">C</span>omment str -&gt; str
+  | <span data-count="0">S</span>pace n -&gt; Printf.sprintf "Space(%d)" n
+  | <span data-count="0">T</span>ab n -&gt; Printf.sprintf "Tab(%d)" n
+  | <span data-count="0">L</span>ine l -&gt; Printf.sprintf "Line(%s)" (<span data-count="0">f</span> l)
+
+let string_of_trivia_lf : line_feed trivia -&gt; string =
+  string_of_trivi<span data-count="1933">a</span> string_of_line_feed
+
+type trivia_info = {
+  leading_trivia : line_feed trivia list;
+  trailing_trivia : void trivia list;
+}
+
+let string_of_trivia_info (info : trivia_info) : string =
+    <span data-count="0">l</span>et leading = List.map (string_of_trivi<span data-count="0">a</span> string_of_line_feed) info.leading_trivia |&gt; <span data-count="0">S</span>tring.concat ", " in
+    <span data-count="0">l</span>et trailing = List.map (string_of_trivi<span data-count="0">a</span> (fun _ -&gt; <span data-count="0">"</span>")) info.trailing_trivia |&gt; <span data-count="0">S</span>tring.concat ", " in
+    <span data-count="0">P</span>rintf.sprintf "Leading: [%s]; Trailing: [%s]" leading trailing
+
+type pos = { line : int; column : int }
+
+let pos_of_lexpos : Lexing.position -&gt; pos =
+ fun lexpos -&gt;
+  <span data-count="17239116">L</span>exing.{ line = lexpos.pos_lnum; column = lexpos.pos_cnum - lexpos.pos_bol }
+
+module PosHash = struct
+  type t = pos
+
+  let equal i j = <span data-count="50034566">i</span> = j
+
+  let hash ({ line; column } : pos) = <span data-count="33653948">c</span>olumn lor 20 land line
+end
+
+module PosHashtbl = Hashtbl.Make (PosHash)
+
+(* type triv_table = trivia_info IntHashtbl.t *)
+type triv_table = trivia_info PosHashtbl.t
+
+let empty_triv_table = PosHashtbl.creat<span data-count="1933">e</span> 0
+
+let find_trivia triv_table (parser_pos : Source.region) : trivia_info =
+  <span data-count="242303">P</span>osHashtbl.find triv_table
+    { line = parser_pos.left.line; column = parser_pos.left.column }
+
+let deprecated_of_trivia_info : trivia_info -&gt; string option =
+ fun info -&gt;
+  <span data-count="242303">l</span>et lines =
+    List.filter_map
+      (function
+        | <span data-count="61249">C</span>omment s -&gt; (
+            match Lib.String.chop_prefix "/// @deprecated" s with
+            | <span data-count="2">S</span>ome "" -&gt; Some ""
+            | <span data-count="17290">S</span>ome line_comment -&gt;
+                (* We expect a documentation line comment to start with a space
+                 *  (which we remove here) *)
+                Lib.String.chop_prefix " " line_comment
+            | <span data-count="43957">N</span>one -&gt; None )
+        | <span data-count="476791">_</span> -&gt; None)
+      info.leading_trivia
+  in
+  <span data-count="242303">i</span>f lines = [] then <span data-count="225011">N</span>one else <span data-count="17292">S</span>ome (String.conca<span data-count="17292">t</span> "\n" lines)
+
+type doc = LineComment of string | BlockComment of string
+
+let docs_of_trivia_info (info : trivia_info) : doc list =
+  <span data-count="55">L</span>ist.filter_map
+    (function
+      | <span data-count="14">C</span>omment s -&gt; (
+          match Lib.String.chop_prefix "///" s with
+          | <span data-count="0">S</span>ome "" -&gt; Some (LineComment "")
+          | <span data-count="6">S</span>ome line_comment -&gt;
+              (* We expect a documentation line comment to start with a space
+              *  (which we remove here) *)
+              Lib.String.chop_prefix " " line_comment
+              |&gt; <span data-count="6">O</span>ption.map (fun c -&gt; <span data-count="6">L</span>ineComment c)
+          | <span data-count="8">N</span>one -&gt;
+              Option.bind
+                (Lib.String.chop_prefi<span data-count="8">x</span> "/**" s)
+                (Lib.String.chop_suffi<span data-count="8">x</span> "*/")
+              |&gt; <span data-count="8">O</span>ption.map String.trim
+              |&gt; <span data-count="8">O</span>ption.map (fun c -&gt; <span data-count="0">B</span>lockComment c))
+      | <span data-count="102">_</span> -&gt; None)
+    info.leading_trivia
+ 
+let doc_comment_of_trivia_info (info : trivia_info) : string option =
+  <span data-count="0">l</span>et docs = docs_of_trivia_info info in
+  <span data-count="0">l</span>et lines = List.map (function <span data-count="0">B</span>lockComment s | <span data-count="0">L</span>ineComment s -&gt; s) docs in
+  <span data-count="0">i</span>f lines = [] then <span data-count="0">N</span>one else <span data-count="0">S</span>ome (String.conca<span data-count="0">t</span> "\n" lines)
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

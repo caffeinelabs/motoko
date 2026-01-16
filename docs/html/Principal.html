@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Principal.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Principal.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coreprincipal" id="toc-coreprincipal">core/Principal</a>
+<ul>
+<li><a href="#type-principal" id="toc-type-principal">Type
+<code>Principal</code></a></li>
+<li><a href="#function-fromactor" id="toc-function-fromactor">Function
+<code>fromActor</code></a></li>
+<li><a href="#function-toledgeraccount"
+id="toc-function-toledgeraccount">Function
+<code>toLedgerAccount</code></a></li>
+<li><a href="#function-toblob" id="toc-function-toblob">Function
+<code>toBlob</code></a></li>
+<li><a href="#function-fromblob" id="toc-function-fromblob">Function
+<code>fromBlob</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-fromtext" id="toc-function-fromtext">Function
+<code>fromText</code></a></li>
+<li><a href="#function-anonymous" id="toc-function-anonymous">Function
+<code>anonymous</code></a></li>
+<li><a href="#function-isanonymous"
+id="toc-function-isanonymous">Function <code>isAnonymous</code></a></li>
+<li><a href="#function-iscanister" id="toc-function-iscanister">Function
+<code>isCanister</code></a></li>
+<li><a href="#function-isselfauthenticating"
+id="toc-function-isselfauthenticating">Function
+<code>isSelfAuthenticating</code></a></li>
+<li><a href="#function-isreserved" id="toc-function-isreserved">Function
+<code>isReserved</code></a></li>
+<li><a href="#function-iscontroller"
+id="toc-function-iscontroller">Function
+<code>isController</code></a></li>
+<li><a href="#function-hash" id="toc-function-hash">Function
+<code>hash</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-notequal" id="toc-function-notequal">Function
+<code>notEqual</code></a></li>
+<li><a href="#function-less" id="toc-function-less">Function
+<code>less</code></a></li>
+<li><a href="#function-lessorequal"
+id="toc-function-lessorequal">Function <code>lessOrEqual</code></a></li>
+<li><a href="#function-greater" id="toc-function-greater">Function
+<code>greater</code></a></li>
+<li><a href="#function-greaterorequal"
+id="toc-function-greaterorequal">Function
+<code>greaterOrEqual</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coreprincipal">core/Principal</h1>
+<p>Module for interacting with Principals (users and canisters).</p>
+<p>Principals are used to identify entities that can interact with the
+Internet Computer. These entities are either users or canisters.</p>
+<p>Example textual representation of Principals:</p>
+<p><code>un4fu-tqaaa-aaaab-qadjq-cai</code></p>
+<p>In Motoko, there is a primitive Principal type called
+<code>Principal</code>. As an example of where you might see Principals,
+you can access the Principal of the caller of your shared function.</p>
+<pre class="motoko"><code>persistent actor {
+  public shared(msg) func foo() {
+    let caller : Principal = msg.caller;
+  };
+}</code></pre>
+<p>Then, you can use this module to work with the
+<code>Principal</code>.</p>
+<p>Import from the core package to use this module.</p>
+<pre class="motoko"><code>import Principal &quot;mo:core/Principal&quot;;</code></pre>
+<h2 id="type-principal">Type <code>Principal</code></h2>
+<pre class="motoko"><code>type Principal = Prim.Types.Principal</code></pre>
+<h2 id="function-fromactor">Function <code>fromActor</code></h2>
+<pre class="motoko"><code>func fromActor(a : actor {  }) : Principal</code></pre>
+<p>Get the <code>Principal</code> identifier of an actor.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor MyCanister {
+  func getPrincipal() : Principal {
+    let principal = Principal.fromActor(MyCanister);
+  }
+}</code></pre>
+<h2 id="function-toledgeraccount">Function
+<code>toLedgerAccount</code></h2>
+<pre class="motoko"><code>func toLedgerAccount(self : Principal, subAccount : ?Blob) : Blob</code></pre>
+<p>Compute the Ledger account identifier of a principal. Optionally
+specify a sub-account.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let subAccount : Blob = &quot;\4A\8D\3F\2B\6E\01\C8\7D\9E\03\B4\56\7C\F8\9A\01\D2\34\56\78\9A\BC\DE\F0\12\34\56\78\9A\BC\DE\F0&quot;;
+let account = Principal.toLedgerAccount(principal, ?subAccount);
+assert account == &quot;\8C\5C\20\C6\15\3F\7F\51\E2\0D\0F\0F\B5\08\51\5B\47\65\63\A9\62\B4\A9\91\5F\4F\02\70\8A\ED\4F\82&quot;;</code></pre>
+<h2 id="function-toblob">Function <code>toBlob</code></h2>
+<pre class="motoko"><code>func toBlob(self : Principal) : Blob</code></pre>
+<p>Convert a <code>Principal</code> to its <code>Blob</code> (bytes)
+representation.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let blob = Principal.toBlob(principal);
+assert blob == &quot;\00\00\00\00\00\30\00\D3\01\01&quot;;</code></pre>
+<h2 id="function-fromblob">Function <code>fromBlob</code></h2>
+<pre class="motoko"><code>func fromBlob(self : Blob) : Principal</code></pre>
+<p>Converts a <code>Blob</code> (bytes) representation of a
+<code>Principal</code> to a <code>Principal</code> value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let blob = &quot;\00\00\00\00\00\30\00\D3\01\01&quot; : Blob;
+let principal = Principal.fromBlob(blob);
+assert Principal.toText(principal) == &quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;;</code></pre>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText(self : Principal) : Text</code></pre>
+<p>Converts a <code>Principal</code> to its <code>Text</code>
+representation.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert Principal.toText(principal) == &quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;;</code></pre>
+<h2 id="function-fromtext">Function <code>fromText</code></h2>
+<pre class="motoko"><code>func fromText(t : Text) : Principal</code></pre>
+<p>Converts a <code>Text</code> representation of a
+<code>Principal</code> to a <code>Principal</code> value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert Principal.toText(principal) == &quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;;</code></pre>
+<h2 id="function-anonymous">Function <code>anonymous</code></h2>
+<pre class="motoko"><code>func anonymous() : Principal</code></pre>
+<p>Constructs and returns the anonymous principal.</p>
+<h2 id="function-isanonymous">Function <code>isAnonymous</code></h2>
+<pre class="motoko"><code>func isAnonymous(self : Principal) : Bool</code></pre>
+<p>Checks if the given principal represents an anonymous user.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert not Principal.isAnonymous(principal);</code></pre>
+<h2 id="function-iscanister">Function <code>isCanister</code></h2>
+<pre class="motoko"><code>func isCanister(self : Principal) : Bool</code></pre>
+<p>Checks if the given principal is a canister.</p>
+<p>The last byte for opaque principal ids must be 0x01 <a
+href="https://internetcomputer.org/docs/current/references/ic-interface-spec#principal">https://internetcomputer.org/docs/current/references/ic-interface-spec#principal</a></p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert Principal.isCanister(principal);</code></pre>
+<h2 id="function-isselfauthenticating">Function
+<code>isSelfAuthenticating</code></h2>
+<pre class="motoko"><code>func isSelfAuthenticating(self : Principal) : Bool</code></pre>
+<p>Checks if the given principal is a self authenticating principal.
+Most of the time, this is a user principal.</p>
+<p>The last byte for user principal ids must be 0x02 <a
+href="https://internetcomputer.org/docs/current/references/ic-interface-spec#principal">https://internetcomputer.org/docs/current/references/ic-interface-spec#principal</a></p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;6rgy7-3uukz-jrj2k-crt3v-u2wjm-dmn3t-p26d6-ndilt-3gusv-75ybk-jae&quot;);
+assert Principal.isSelfAuthenticating(principal);</code></pre>
+<h2 id="function-isreserved">Function <code>isReserved</code></h2>
+<pre class="motoko"><code>func isReserved(self : Principal) : Bool</code></pre>
+<p>Checks if the given principal is a reserved principal.</p>
+<p>The last byte for reserved principal ids must be 0x7f <a
+href="https://internetcomputer.org/docs/current/references/ic-interface-spec#principal">https://internetcomputer.org/docs/current/references/ic-interface-spec#principal</a></p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert not Principal.isReserved(principal);</code></pre>
+<h2 id="function-iscontroller">Function <code>isController</code></h2>
+<pre class="motoko"><code>func isController(self : Principal) : Bool</code></pre>
+<p>Checks if the given principal can control this canister.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert not Principal.isController(principal);</code></pre>
+<h2 id="function-hash">Function <code>hash</code></h2>
+<pre class="motoko"><code>func hash(self : Principal) : Types.Hash</code></pre>
+<p>Hashes the given principal by hashing its <code>Blob</code>
+representation.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert Principal.hash(principal) == 2_742_573_646;</code></pre>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare(self : Principal, other : Principal) : {#less; #equal; #greater}</code></pre>
+<p>General purpose comparison function for <code>Principal</code>.
+Returns the <code>Order</code> ( either <code>#less</code>,
+<code>#equal</code>, or <code>#greater</code>) of comparing
+<code>principal1</code> with <code>principal2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+assert Principal.compare(principal1, principal2) == #equal;</code></pre>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal(self : Principal, other : Principal) : Bool</code></pre>
+<p>Equality function for Principal types. This is equivalent to
+<code>principal1 == principal2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.equal(principal1, principal2);
+assert principal1 == principal2;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>==</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>==</code> as a function value at the moment.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.anonymous();
+let principal2 = Principal.fromBlob(&quot;\04&quot;);
+assert Principal.equal(principal1, principal2);</code></pre>
+<h2 id="function-notequal">Function <code>notEqual</code></h2>
+<pre class="motoko"><code>func notEqual(self : Principal, other : Principal) : Bool</code></pre>
+<p>Inequality function for Principal types. This is equivalent to
+<code>principal1 != principal2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.notEqual(principal1, principal2);
+assert not (principal1 != principal2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>!=</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>!=</code> as a function value at the moment.</p>
+<h2 id="function-less">Function <code>less</code></h2>
+<pre class="motoko"><code>func less(self : Principal, other : Principal) : Bool</code></pre>
+<p>"Less than" function for Principal types. This is equivalent to
+<code>principal1 &lt; principal2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.less(principal1, principal2);
+assert not (principal1 &lt; principal2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>&lt;</code> as a function value at the moment.</p>
+<h2 id="function-lessorequal">Function <code>lessOrEqual</code></h2>
+<pre class="motoko"><code>func lessOrEqual(self : Principal, other : Principal) : Bool</code></pre>
+<p>"Less than or equal to" function for Principal types. This is
+equivalent to <code>principal1 &lt;= principal2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.lessOrEqual(principal1, principal2);
+assert principal1 &lt;= principal2;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;=</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>&lt;=</code> as a function value at the
+moment.</p>
+<h2 id="function-greater">Function <code>greater</code></h2>
+<pre class="motoko"><code>func greater(self : Principal, other : Principal) : Bool</code></pre>
+<p>"Greater than" function for Principal types. This is equivalent to
+<code>principal1 &gt; principal2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.greater(principal1, principal2);
+assert not (principal1 &gt; principal2);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&gt;</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>&gt;</code> as a function value at the moment.</p>
+<h2 id="function-greaterorequal">Function
+<code>greaterOrEqual</code></h2>
+<pre class="motoko"><code>func greaterOrEqual(self : Principal, other : Principal) : Bool</code></pre>
+<p>"Greater than or equal to" function for Principal types. This is
+equivalent to <code>principal1 &gt;= principal2</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.greaterOrEqual(principal1, principal2);
+assert principal1 &gt;= principal2;</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&gt;=</code> operator) is so that you can
+use it as a function value to pass to a higher order function. It is not
+possible to use <code>&gt;=</code> as a function value at the
+moment.</p>
+</body>
+</html>

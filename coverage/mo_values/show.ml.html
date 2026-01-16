@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>show.ml &mdash; Coverage report</title>
+    <meta name="description" content="29.63% coverage in mo_values/show.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_values/</span>show.ml
+        </a>
+      </h1>
+      <h2>29.63%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="top:19.05%"></span>
+      <span class="unvisited" style="top:33.33%"></span>
+      <span class="unvisited" style="top:34.29%"></span>
+      <span class="unvisited" style="top:35.24%"></span>
+      <span class="unvisited" style="top:38.10%"></span>
+      <span class="unvisited" style="top:39.05%"></span>
+      <span class="unvisited" style="top:40.00%"></span>
+      <span class="unvisited" style="top:40.95%"></span>
+      <span class="unvisited" style="top:41.90%"></span>
+      <span class="unvisited" style="top:42.86%"></span>
+      <span class="unvisited" style="top:43.81%"></span>
+      <span class="unvisited" style="top:44.76%"></span>
+      <span class="unvisited" style="top:45.71%"></span>
+      <span class="unvisited" style="top:46.67%"></span>
+      <span class="unvisited" style="top:47.62%"></span>
+      <span class="unvisited" style="top:48.57%"></span>
+      <span class="unvisited" style="top:49.52%"></span>
+      <span class="unvisited" style="bottom:49.52%"></span>
+      <span class="unvisited" style="bottom:48.57%"></span>
+      <span class="unvisited" style="bottom:47.62%"></span>
+      <span class="unvisited" style="bottom:46.67%"></span>
+      <span class="unvisited" style="bottom:45.71%"></span>
+      <span class="unvisited" style="bottom:44.76%"></span>
+      <span class="unvisited" style="bottom:43.81%"></span>
+      <span class="unvisited" style="bottom:42.86%"></span>
+      <span class="unvisited" style="bottom:41.90%"></span>
+      <span class="unvisited" style="bottom:39.05%"></span>
+      <span class="unvisited" style="bottom:38.10%"></span>
+      <span class="unvisited" style="bottom:37.14%"></span>
+      <span class="unvisited" style="bottom:36.19%"></span>
+      <span class="unvisited" style="bottom:34.29%"></span>
+      <span class="unvisited" style="bottom:33.33%"></span>
+      <span class="unvisited" style="bottom:32.38%"></span>
+      <span class="unvisited" style="bottom:31.43%"></span>
+      <span class="unvisited" style="bottom:30.48%"></span>
+      <span class="unvisited" style="bottom:29.52%"></span>
+      <span class="unvisited" style="bottom:28.57%"></span>
+      <span class="unvisited" style="bottom:26.67%"></span>
+      <span class="unvisited" style="bottom:25.71%"></span>
+      <span class="unvisited" style="bottom:23.81%"></span>
+      <span class="unvisited" style="bottom:22.86%"></span>
+      <span class="unvisited" style="bottom:21.90%"></span>
+      <span class="unvisited" style="bottom:20.95%"></span>
+      <span class="unvisited" style="bottom:20.00%"></span>
+      <span class="unvisited" style="bottom:19.05%"></span>
+      <span class="unvisited" style="bottom:18.10%"></span>
+      <span class="unvisited" style="bottom:15.24%"></span>
+      <span class="unvisited" style="bottom:13.33%"></span>
+      <span class="unvisited" style="bottom:11.43%"></span>
+      <span class="unvisited" style="bottom:8.57%"></span>
+      <span class="unvisited" style="bottom:7.62%"></span>
+      <span class="unvisited" style="bottom:5.71%"></span>
+      <span class="unvisited" style="bottom:4.76%"></span>
+      <span class="unvisited" style="bottom:0.00%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span class="visited"> </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span class="visited"> </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span class="visited"> </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span class="visited"> </span>
+<a id="L14"></a><span class="visited"> </span>
+<a id="L15"></a><span class="visited"> </span>
+<a id="L16"></a><span class="visited"> </span>
+<a id="L17"></a><span class="visited"> </span>
+<a id="L18"></a><span class="visited"> </span>
+<a id="L19"></a><span class="visited"> </span>
+<a id="L20"></a><span class="unvisited"> </span>
+<a id="L21"></a><span class="visited"> </span>
+<a id="L22"></a><span class="visited"> </span>
+<a id="L23"></a><span class="visited"> </span>
+<a id="L24"></a><span class="visited"> </span>
+<a id="L25"></a><span class="visited"> </span>
+<a id="L26"></a><span class="visited"> </span>
+<a id="L27"></a><span class="visited"> </span>
+<a id="L28"></a><span class="visited"> </span>
+<a id="L29"></a><span class="visited"> </span>
+<a id="L30"></a><span class="visited"> </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span class="unvisited"> </span>
+<a id="L36"></a><span class="unvisited"> </span>
+<a id="L37"></a><span class="unvisited"> </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span > </span>
+<a id="L40"></a><span class="unvisited"> </span>
+<a id="L41"></a><span class="unvisited"> </span>
+<a id="L42"></a><span class="unvisited"> </span>
+<a id="L43"></a><span class="unvisited"> </span>
+<a id="L44"></a><span class="unvisited"> </span>
+<a id="L45"></a><span class="unvisited"> </span>
+<a id="L46"></a><span class="unvisited"> </span>
+<a id="L47"></a><span class="unvisited"> </span>
+<a id="L48"></a><span class="unvisited"> </span>
+<a id="L49"></a><span class="unvisited"> </span>
+<a id="L50"></a><span class="unvisited"> </span>
+<a id="L51"></a><span class="unvisited"> </span>
+<a id="L52"></a><span class="unvisited"> </span>
+<a id="L53"></a><span class="unvisited"> </span>
+<a id="L54"></a><span class="unvisited"> </span>
+<a id="L55"></a><span class="unvisited"> </span>
+<a id="L56"></a><span class="unvisited"> </span>
+<a id="L57"></a><span class="unvisited"> </span>
+<a id="L58"></a><span class="unvisited"> </span>
+<a id="L59"></a><span class="unvisited"> </span>
+<a id="L60"></a><span class="unvisited"> </span>
+<a id="L61"></a><span class="unvisited"> </span>
+<a id="L62"></a><span > </span>
+<a id="L63"></a><span > </span>
+<a id="L64"></a><span class="unvisited"> </span>
+<a id="L65"></a><span class="unvisited"> </span>
+<a id="L66"></a><span class="unvisited"> </span>
+<a id="L67"></a><span class="unvisited"> </span>
+<a id="L68"></a><span > </span>
+<a id="L69"></a><span class="unvisited"> </span>
+<a id="L70"></a><span class="unvisited"> </span>
+<a id="L71"></a><span class="unvisited"> </span>
+<a id="L72"></a><span class="unvisited"> </span>
+<a id="L73"></a><span class="unvisited"> </span>
+<a id="L74"></a><span class="unvisited"> </span>
+<a id="L75"></a><span class="unvisited"> </span>
+<a id="L76"></a><span > </span>
+<a id="L77"></a><span class="unvisited"> </span>
+<a id="L78"></a><span class="unvisited"> </span>
+<a id="L79"></a><span > </span>
+<a id="L80"></a><span class="unvisited"> </span>
+<a id="L81"></a><span class="unvisited"> </span>
+<a id="L82"></a><span class="unvisited"> </span>
+<a id="L83"></a><span class="unvisited"> </span>
+<a id="L84"></a><span class="unvisited"> </span>
+<a id="L85"></a><span class="unvisited"> </span>
+<a id="L86"></a><span class="unvisited"> </span>
+<a id="L87"></a><span > </span>
+<a id="L88"></a><span > </span>
+<a id="L89"></a><span class="unvisited"> </span>
+<a id="L90"></a><span > </span>
+<a id="L91"></a><span class="unvisited"> </span>
+<a id="L92"></a><span > </span>
+<a id="L93"></a><span class="unvisited"> </span>
+<a id="L94"></a><span > </span>
+<a id="L95"></a><span > </span>
+<a id="L96"></a><span class="unvisited"> </span>
+<a id="L97"></a><span class="unvisited"> </span>
+<a id="L98"></a><span > </span>
+<a id="L99"></a><span class="unvisited"> </span>
+<a id="L100"></a><span class="unvisited"> </span>
+<a id="L101"></a><span > </span>
+<a id="L102"></a><span > </span>
+<a id="L103"></a><span > </span>
+<a id="L104"></a><span > </span>
+<a id="L105"></a><span class="unvisited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+</pre>
+<pre><code class="ocaml">module T = Mo_types.Type
+
+(* Entry point for type checking: *)
+
+let can_show t =
+  <span data-count="2707">l</span>et open T in
+  let seen = ref T.S.empty in
+  let rec go t =
+    <span data-count="6109">S</span>.me<span data-count="6109">m</span> t !see<span data-count="1008">n</span> ||
+    begin
+      seen := S.ad<span data-count="5101">d</span> t !seen;
+      match normalize t with
+      | Prim (<span data-count="110">B</span>ool|<span data-count="1057">N</span>at|<span data-count="409">I</span>nt|<span data-count="269">T</span>ext|<span data-count="132">B</span>lob|<span data-count="24">C</span>har|<span data-count="28">N</span>ull|<span data-count="136">P</span>rincipal) -&gt; true
+      | Prim (<span data-count="108">N</span>at8|<span data-count="20">I</span>nt8)
+      | Prim (<span data-count="8">N</span>at16|<span data-count="8">I</span>nt16)
+      | Prim (<span data-count="118">N</span>at32|<span data-count="20">I</span>nt32)
+      | Prim (<span data-count="620">N</span>at64|<span data-count="28">I</span>nt64) -&gt; true
+      | <span data-count="72">P</span>rim Float -&gt; true
+      | <span data-count="389">T</span>up ts' -&gt; List.for_al<span data-count="389">l</span> go ts'
+      | <span data-count="0">W</span>eak t'
+      | <span data-count="280">O</span>pt t' -&gt; g<span data-count="280">o</span> t'
+      | <span data-count="133">A</span>rray t' -&gt; g<span data-count="133">o</span> (as_immu<span data-count="133">t</span> t')
+      | <span data-count="877">O</span>bj (Object, fs) -&gt;
+        List.for_al<span data-count="877">l</span> (fun f -&gt; <span data-count="1547">g</span>o (as_immu<span data-count="1547">t</span> f.typ)) fs
+      | <span data-count="224">V</span>ariant cts -&gt;
+        List.for_al<span data-count="224">l</span> (fun f -&gt; <span data-count="712">g</span>o f.typ) cts
+      | <span data-count="24">N</span>on -&gt; true
+      | <span data-count="6">T</span>yp _ -&gt; true
+      | <span data-count="1">_</span> -&gt; false
+    en<span data-count="5100">d</span>
+  in go t
+
+(* Entry point for the interpreter (reference implementation) *)
+
+let needs_parens s = <span data-count="0">s</span>.[0] = '+<span data-count="0">'</span> || s.[0] = '-<span data-count="0">'</span> || s.[0] = '?<span data-count="0">'</span> || s.[0] = '#<span data-count="0">'</span>
+let parens s = <span data-count="0">i</span>f needs_parens s then <span data-count="0">"</span>(" ^ s ^ ")" else <span data-count="0">s</span>
+let sign b s = <span data-count="0">(</span>if b then <span data-count="0">"</span>+" else <span data-count="0">"</span>") ^ s
+
+let rec show_val t v =
+  <span data-count="0">l</span>et t = T.normalize t in
+  <span data-count="0">m</span>atch t, v with
+  | <span data-count="0">T</span>.(Prim Bool), Value.Bool b -&gt; if b then <span data-count="0">"</span>true" else <span data-count="0">"</span>false"
+  | <span data-count="0">T</span>.(Prim Nat), Value.Int i -&gt; Numerics.Int.to_string i
+  | <span data-count="0">T</span>.(Prim Nat8), Value.Nat8 i -&gt; Numerics.Nat8.to_string i
+  | <span data-count="0">T</span>.(Prim Nat16), Value.Nat16 i -&gt; Numerics.Nat16.to_string i
+  | <span data-count="0">T</span>.(Prim Nat32), Value.Nat32 i -&gt; Numerics.Nat32.to_string i
+  | <span data-count="0">T</span>.(Prim Nat64), Value.Nat64 i -&gt; Numerics.Nat64.to_string i
+  | <span data-count="0">T</span>.(Prim Int), Value.Int i -&gt; Numerics.Int.(sign (g<span data-count="0">t</span> i zero) (to_strin<span data-count="0">g</span> i))
+  | <span data-count="0">T</span>.(Prim Int8), Value.Int8 i -&gt; Numerics.Int_8.(sign (g<span data-count="0">t</span> i zero) (to_strin<span data-count="0">g</span> i))
+  | <span data-count="0">T</span>.(Prim Int16), Value.Int16 i -&gt; Numerics.Int_16.(sign (g<span data-count="0">t</span> i zero) (to_strin<span data-count="0">g</span> i))
+  | <span data-count="0">T</span>.(Prim Int32), Value.Int32 i -&gt; Numerics.Int_32.(sign (g<span data-count="0">t</span> i zero) (to_strin<span data-count="0">g</span> i))
+  | <span data-count="0">T</span>.(Prim Int64), Value.Int64 i -&gt; Numerics.Int_64.(sign (g<span data-count="0">t</span> i zero) (to_strin<span data-count="0">g</span> i))
+  | <span data-count="0">T</span>.(Prim Float), Value.Float i -&gt; Numerics.Float.to_string i
+  | <span data-count="0">T</span>.(Prim Text), Value.Text s -&gt; "\"" ^ s ^ "\""
+  | <span data-count="0">T</span>.(Prim Blob), Value.Blob s -&gt; "\"" ^ Value.Blob.escap<span data-count="0">e</span> s ^ "\""
+  | <span data-count="0">T</span>.(Prim Char), Value.Char c -&gt; "\'" ^ Lib.Utf8.encod<span data-count="0">e</span> [c] ^ "\'"
+  | <span data-count="0">T</span>.(Prim Principal), Value.Blob s -&gt; Ic.Url.encode_principal s
+  | <span data-count="0">T</span>.(Prim Null), Value.Null -&gt; "null"
+  | <span data-count="0">T</span>.Opt _, Value.Null -&gt; "null"
+  | <span data-count="0">T</span>.Opt t', Value.Opt v -&gt; "?" ^ paren<span data-count="0">s</span> (show_va<span data-count="0">l</span> t' v)
+  | <span data-count="0">T</span>.Weak t', Value.Weak w -&gt;
+     (* TODO: suppress parens *)
+     let g_opt = Weak.get w 0 in
+     <span data-count="0">(</span>match g_opt with
+     | <span data-count="0">N</span>one -&gt; "(weak _)"
+     | <span data-count="0">S</span>ome v -&gt; Printf.sprintf "(weak %s)" (paren<span data-count="0">s</span> (show_va<span data-count="0">l</span> t' v)))
+  | <span data-count="0">T</span>.Tup ts', Value.Tup vs -&gt;
+    Printf.sprintf "(%s%s)"
+      (String.conca<span data-count="0">t</span> ", " (List.map<span data-count="0">2</span> show_val ts' vs))
+      (if List.lengt<span data-count="0">h</span> vs = 1 then <span data-count="0">"</span>," else <span data-count="0">"</span>")
+  | <span data-count="0">T</span>.Array (T.Mut t'), Value.Array a -&gt;
+    if a = [||] then <span data-count="0">"</span>[var]" else
+    <span data-count="0">P</span>rintf.sprintf "[var %s]"
+      (String.conca<span data-count="0">t</span> ", " (List.ma<span data-count="0">p</span> (fun v -&gt; <span data-count="0">s</span>how_val t' !(Value.as_mu<span data-count="0">t</span> v)) (Array.to_lis<span data-count="0">t</span> a)))
+  | <span data-count="0">T</span>.Array t', Value.Array a -&gt;
+    Printf.sprintf "[%s]"
+      (String.conca<span data-count="0">t</span> ", " (List.ma<span data-count="0">p</span> (show_va<span data-count="0">l</span> t') (Array.to_lis<span data-count="0">t</span> a)))
+  | <span data-count="0">T</span>.Obj (_, fts), Value.Obj fs -&gt;
+    Printf.sprintf "{%s}"
+      (String.conca<span data-count="0">t</span> "; "
+         (List.ma<span data-count="0">p</span> (show_fiel<span data-count="0">d</span> fs) (T.val_field<span data-count="0">s</span> fts)))
+  | <span data-count="0">T</span>.Variant fs, Value.Variant (l, v) -&gt;
+    begin match List.find_opt (fun {T.lab = l'; _} -&gt; <span data-count="0">l</span> = l') fs with
+    | <span data-count="0">S</span>ome {T.typ = T.Tup []; _} -&gt; Printf.sprintf "#%s" l
+    | <span data-count="0">S</span>ome {T.typ = T.Tup _ as t'; _} -&gt; Printf.sprintf "#%s%s" l (show_va<span data-count="0">l</span> t' v)
+    | <span data-count="0">S</span>ome {T.typ = t'; _} -&gt; Printf.sprintf "#%s(%s)" l (show_va<span data-count="0">l</span> t' v)
+    | _ -&gt; assert false
+    end
+  | <span data-count="0">_</span> -&gt;
+    Format.eprintf "@[show_val: %a : %a@.@]"
+      (Value.pp_va<span data-count="0">l</span> 2) (t, v)
+      T.pp_typ t;
+    <span data-count="0">a</span>ssert false
+
+and show_field fs ft =
+  <span data-count="0">l</span>et v = Value.Env.find ft.T.lab fs in
+  <span data-count="0">l</span>et m, t', v' =
+    match ft.T.typ with
+    | <span data-count="0">T</span>.Mut t' -&gt; "var ", t', !(Value.as_mu<span data-count="0">t</span>  v)
+    | <span data-count="0">t</span>' -&gt; "", t', v
+  in
+  (* With types:
+  Printf.sprintf "%s%s : %s = %s" m ft.T.name (T.string_of_typ t') (show_val t' v')
+  *)
+  Printf.sprintf "%s = %s" ft.T.lab (show_va<span data-count="0">l</span> t' v')
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>suggest.ml &mdash; Coverage report</title>
+    <meta name="description" content="92.55% coverage in mo_frontend/suggest.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_frontend/</span>suggest.ml
+        </a>
+      </h1>
+      <h2>92.55%</h2>
+    </div>
+    <div id="navbar">
+      <span class="some-visited" style="top:32.31%"></span>
+      <span class="unvisited" style="top:44.62%"></span>
+      <span class="unvisited" style="bottom:33.08%"></span>
+      <span class="unvisited" style="bottom:25.38%"></span>
+      <span class="unvisited" style="bottom:12.31%"></span>
+      <span class="unvisited" style="bottom:6.15%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span class="visited"> </span>
+<a id="L10"></a><span class="visited"> </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span class="visited"> </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span class="visited"> </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span class="visited"> </span>
+<a id="L19"></a><span class="visited"> </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span class="visited"> </span>
+<a id="L25"></a><span class="visited"> </span>
+<a id="L26"></a><span class="visited"> </span>
+<a id="L27"></a><span class="visited"> </span>
+<a id="L28"></a><span class="visited"> </span>
+<a id="L29"></a><span class="visited"> </span>
+<a id="L30"></a><span class="visited"> </span>
+<a id="L31"></a><span class="visited"> </span>
+<a id="L32"></a><span class="visited"> </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span class="visited"> </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span class="visited"> </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span class="visited"> </span>
+<a id="L40"></a><span > </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span class="some-visited"> </span>
+<a id="L43"></a><span class="visited"> </span>
+<a id="L44"></a><span class="visited"> </span>
+<a id="L45"></a><span > </span>
+<a id="L46"></a><span class="visited"> </span>
+<a id="L47"></a><span > </span>
+<a id="L48"></a><span > </span>
+<a id="L49"></a><span class="visited"> </span>
+<a id="L50"></a><span class="visited"> </span>
+<a id="L51"></a><span class="visited"> </span>
+<a id="L52"></a><span class="visited"> </span>
+<a id="L53"></a><span class="visited"> </span>
+<a id="L54"></a><span class="visited"> </span>
+<a id="L55"></a><span class="visited"> </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span class="visited"> </span>
+<a id="L58"></a><span class="unvisited"> </span>
+<a id="L59"></a><span > </span>
+<a id="L60"></a><span > </span>
+<a id="L61"></a><span > </span>
+<a id="L62"></a><span class="visited"> </span>
+<a id="L63"></a><span > </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span class="visited"> </span>
+<a id="L66"></a><span class="visited"> </span>
+<a id="L67"></a><span > </span>
+<a id="L68"></a><span > </span>
+<a id="L69"></a><span class="visited"> </span>
+<a id="L70"></a><span class="visited"> </span>
+<a id="L71"></a><span > </span>
+<a id="L72"></a><span class="visited"> </span>
+<a id="L73"></a><span > </span>
+<a id="L74"></a><span > </span>
+<a id="L75"></a><span class="visited"> </span>
+<a id="L76"></a><span class="visited"> </span>
+<a id="L77"></a><span class="visited"> </span>
+<a id="L78"></a><span > </span>
+<a id="L79"></a><span > </span>
+<a id="L80"></a><span class="visited"> </span>
+<a id="L81"></a><span class="visited"> </span>
+<a id="L82"></a><span class="visited"> </span>
+<a id="L83"></a><span > </span>
+<a id="L84"></a><span class="visited"> </span>
+<a id="L85"></a><span class="visited"> </span>
+<a id="L86"></a><span class="visited"> </span>
+<a id="L87"></a><span class="unvisited"> </span>
+<a id="L88"></a><span class="visited"> </span>
+<a id="L89"></a><span > </span>
+<a id="L90"></a><span class="visited"> </span>
+<a id="L91"></a><span class="visited"> </span>
+<a id="L92"></a><span > </span>
+<a id="L93"></a><span class="visited"> </span>
+<a id="L94"></a><span > </span>
+<a id="L95"></a><span > </span>
+<a id="L96"></a><span > </span>
+<a id="L97"></a><span class="unvisited"> </span>
+<a id="L98"></a><span class="visited"> </span>
+<a id="L99"></a><span class="visited"> </span>
+<a id="L100"></a><span > </span>
+<a id="L101"></a><span class="visited"> </span>
+<a id="L102"></a><span class="visited"> </span>
+<a id="L103"></a><span > </span>
+<a id="L104"></a><span class="visited"> </span>
+<a id="L105"></a><span class="visited"> </span>
+<a id="L106"></a><span > </span>
+<a id="L107"></a><span class="visited"> </span>
+<a id="L108"></a><span > </span>
+<a id="L109"></a><span > </span>
+<a id="L110"></a><span > </span>
+<a id="L111"></a><span class="visited"> </span>
+<a id="L112"></a><span class="visited"> </span>
+<a id="L113"></a><span class="visited"> </span>
+<a id="L114"></a><span class="unvisited"> </span>
+<a id="L115"></a><span class="visited"> </span>
+<a id="L116"></a><span > </span>
+<a id="L117"></a><span class="visited"> </span>
+<a id="L118"></a><span class="visited"> </span>
+<a id="L119"></a><span class="visited"> </span>
+<a id="L120"></a><span class="visited"> </span>
+<a id="L121"></a><span class="visited"> </span>
+<a id="L122"></a><span class="unvisited"> </span>
+<a id="L123"></a><span > </span>
+<a id="L124"></a><span class="visited"> </span>
+<a id="L125"></a><span > </span>
+<a id="L126"></a><span > </span>
+<a id="L127"></a><span > </span>
+<a id="L128"></a><span class="visited"> </span>
+<a id="L129"></a><span class="visited"> </span>
+<a id="L130"></a><span class="visited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+<a href="#L106">106</a>
+<a href="#L107">107</a>
+<a href="#L108">108</a>
+<a href="#L109">109</a>
+<a href="#L110">110</a>
+<a href="#L111">111</a>
+<a href="#L112">112</a>
+<a href="#L113">113</a>
+<a href="#L114">114</a>
+<a href="#L115">115</a>
+<a href="#L116">116</a>
+<a href="#L117">117</a>
+<a href="#L118">118</a>
+<a href="#L119">119</a>
+<a href="#L120">120</a>
+<a href="#L121">121</a>
+<a href="#L122">122</a>
+<a href="#L123">123</a>
+<a href="#L124">124</a>
+<a href="#L125">125</a>
+<a href="#L126">126</a>
+<a href="#L127">127</a>
+<a href="#L128">128</a>
+<a href="#L129">129</a>
+<a href="#L130">130</a>
+</pre>
+<pre><code class="ocaml">
+(* Suggestions *)
+open Mo_def
+open Mo_types
+open Mo_config
+open Type
+
+let oneof sep lastsep ss =
+  <span data-count="14">l</span>et rest, last = Lib.List.split_last ss in
+  <span data-count="14">(</span>(if rest &lt;&gt; [] then <span data-count="7">(</span>String.conca<span data-count="7">t</span> sep rest) ^ lastsep else <span data-count="7">"</span>") ^ last)
+
+let suggest_id desc id ids =
+  <span data-count="48">l</span>et ids =
+      List.filter (fun id -&gt;
+        <span data-count="1938">n</span>ot (Syntax.is_privilege<span data-count="1938">d</span> id))
+      ids
+  in
+  <span data-count="48">i</span>f !Flags.ai_errors then
+    <span data-count="7">P</span>rintf.sprintf
+      "\nThe %s %s is not available. Try something else?"
+      desc
+      id
+  else
+  <span data-count="41">l</span>et suggestions =
+    let limit = Lib.Int.log2 (String.lengt<span data-count="41">h</span> id) in
+    <span data-count="41">l</span>et distance = Lib.String.levenshtein_distance id in
+    <span data-count="41">l</span>et weighted_ids = List.filter_map (fun id0 -&gt;
+      <span data-count="743">l</span>et d = distance id0 in
+      <span data-count="743">i</span>f String.starts_wit<span data-count="743">h</span> ~prefix:id id<span data-count="58">0</span> || d &lt;= limi<span data-count="1">t</span> then
+        <span data-count="59">S</span>ome (d, id0)
+      else <span data-count="684">N</span>one) ids in
+    <span data-count="41">L</span>ist.sort compare weighted_ids |&gt; <span data-count="41">L</span>ist.ma<span data-count="41">p</span> snd
+  in
+  if suggestions = [] then <span data-count="32">"</span>"
+  else
+  <span data-count="9">P</span>rintf.sprintf "\nDid you mean %s %s?" desc (oneo<span data-count="9">f</span> ", " " or " suggestions)
+
+let search_obj desc path ty ty1 ty2 =
+  <span data-count="10">l</span>et suggestions = ref [] in
+  let seen = ref S.empty in
+  let rec go path ty =
+  <span data-count="30">i</span>f S.mem ty !seen then <span data-count="0">(</span>)
+  else <span data-count="30">b</span>egin
+    seen := S.ad<span data-count="30">d</span> ty (!seen);
+    match promote ty with
+    | <span data-count="30">O</span>bj(_, tfs) -&gt;
+      tfs |&gt;
+      List.iter (fun {lab;typ;_} -&gt;
+        <span data-count="60">m</span>atch normalize typ with
+        | <span data-count="40">F</span>unc _ when
+          (String.starts_wit<span data-count="40">h</span> ~prefix:"to" la<span data-count="20">b</span> ||
+           String.starts_wit<span data-count="20">h</span> ~prefix:"from" la<span data-count="20">b</span>) &amp;&amp;
+           <span data-count="40">s</span>u<span data-count="40">b</span> typ (Func(Local, Returns,  [], [ty1], [ty2])) -&gt;
+          <span data-count="20">s</span>uggestions := Printf.sprint<span data-count="20">f</span> "`%s.%s(_)`%s" path lab desc :: !suggestions
+        | <span data-count="20">O</span>bj(_, tfs) as ty1  -&gt;
+          go (path^"."^lab) ty1
+        | <span data-count="20">_</span> -&gt; ())
+    | <span data-count="0">_</span> -&gt; ()
+    end
+  in
+  go path ty;
+  <span data-count="10">!</span>suggestions
+
+let suggest_conversion libs vals ty1 ty2 =
+  <span data-count="164">m</span>atch promot<span data-count="164">e</span> ty1, promot<span data-count="164">e</span> ty2 with
+  | <span data-count="20">P</span>rim p1, Prim p2 -&gt;
+    let suggestions = ref [] in
+    Env.iter (fun filename ty -&gt;
+      <span data-count="17">i</span>f String.starts_with ~prefix:"@" filename
+      then <span data-count="7">(</span>) (* skip prim etc *)
+      else
+      <span data-count="10">l</span>et imported_name =
+        (* try to determine imported name, if any *)
+        Env.fold (fun id (ty1, _, _, _) acc -&gt;
+            <span data-count="780">i</span>f ty == ty1 (*HACK*)
+            then <span data-count="6">S</span>ome id
+            else <span data-count="774">a</span>cc)
+          vals None
+      in
+      <span data-count="10">l</span>et lib_opt = match imported_name with
+        | <span data-count="6">S</span>ome id -&gt; Some (id, "")
+        | <span data-count="4">N</span>one -&gt;
+          (* search libs for suggested import *)
+          Flags.M.fol<span data-count="4">d</span> (fun package path acc  -&gt;
+              <span data-count="4">l</span>et base = Lib.FilePath.normalise path in
+              <span data-count="4">m</span>atch Lib.FilePath.relative_to base filename with
+              | <span data-count="0">N</span>one -&gt; acc
+              | <span data-count="4">S</span>ome rel_path -&gt;
+                let rel_name = Filename.chop_extension rel_path in
+                <span data-count="4">l</span>et id = Filename.basename rel_name in
+                <span data-count="4">S</span>ome (
+                  id,
+                  Printf.sprint<span data-count="4">f</span>  " after adding `import %s = \"mo:%s/%s\"`" id package rel_name))
+             !Flags.package_urls None
+      in
+      match lib_opt with
+      | <span data-count="0">N</span>one -&gt; ()
+      | <span data-count="10">S</span>ome (id, desc) -&gt;
+        suggestions := (search_ob<span data-count="10">j</span> desc id ty ty1 ty2) @ !suggestions)
+      libs;
+    <span data-count="20">i</span>f !suggestions = []
+    then <span data-count="15">"</span>"
+    else
+      <span data-count="5">P</span>rintf.sprintf "\nMaybe try conversion:\n  %s?"
+      (oneo<span data-count="5">f</span> ",\n  " " or\n  " !suggestions)
+  (* not primitive types, make no suggestion *)
+  | <span data-count="144">_</span>, _ -&gt; ""
+
+(** Convert a filesystem path to a mo:&lt;package&gt;/&lt;module&gt; URL if it lies under any configured package path. *)
+let mo_url_of_path path =
+  <span data-count="6">l</span>et seq = Flags.M.to_seq !Flags.package_urls in
+  <span data-count="6">S</span>eq.fold_left (fun acc (package, base) -&gt;
+    <span data-count="7">m</span>atch acc with
+    | <span data-count="0">S</span>ome _ -&gt; acc
+    | <span data-count="7">N</span>one -&gt;
+      let base_norm = Lib.FilePath.normalise base in
+      <span data-count="7">l</span>et path_norm = Lib.FilePath.normalise path in
+      <span data-count="7">m</span>atch Lib.FilePath.relative_to base_norm path_norm with
+      | <span data-count="2">N</span>one -&gt; None
+      | <span data-count="5">S</span>ome rel -&gt;
+        if Filename.basenam<span data-count="5">e</span> rel = "lib.mo" then
+          <span data-count="0">S</span>ome (Printf.sprint<span data-count="0">f</span> "mo:%s" package)
+        else
+          <span data-count="5">S</span>ome (Printf.sprint<span data-count="5">f</span> "mo:%s/%s" package (Filename.chop_extensio<span data-count="5">n</span> rel))
+  ) None seq
+
+let module_name_as_url module_path =
+  <span data-count="6">m</span>atch mo_url_of_path module_path with
+  | <span data-count="5">S</span>ome url -&gt; url
+  | <span data-count="1">N</span>one -&gt; module_path
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

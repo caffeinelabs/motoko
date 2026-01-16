@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Random.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Random.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#corerandom" id="toc-corerandom">core/Random</a>
+<ul>
+<li><a href="#type-state" id="toc-type-state">Type
+<code>State</code></a></li>
+<li><a href="#type-seedstate" id="toc-type-seedstate">Type
+<code>SeedState</code></a></li>
+<li><a href="#function-blob" id="toc-function-blob">Function
+<code>blob</code></a></li>
+<li><a href="#function-bool" id="toc-function-bool">Function
+<code>bool</code></a></li>
+<li><a href="#function-nat8" id="toc-function-nat8">Function
+<code>nat8</code></a></li>
+<li><a href="#function-nat64" id="toc-function-nat64">Function
+<code>nat64</code></a></li>
+<li><a href="#function-nat64range" id="toc-function-nat64range">Function
+<code>nat64Range</code></a></li>
+<li><a href="#function-natrange" id="toc-function-natrange">Function
+<code>natRange</code></a></li>
+<li><a href="#function-intrange" id="toc-function-intrange">Function
+<code>intRange</code></a></li>
+<li><a href="#function-emptystate" id="toc-function-emptystate">Function
+<code>emptyState</code></a></li>
+<li><a href="#function-seedstate" id="toc-function-seedstate">Function
+<code>seedState</code></a></li>
+<li><a href="#function-seed" id="toc-function-seed">Function
+<code>seed</code></a></li>
+<li><a href="#function-seedfromstate"
+id="toc-function-seedfromstate">Function
+<code>seedFromState</code></a></li>
+<li><a href="#function-crypto" id="toc-function-crypto">Function
+<code>crypto</code></a></li>
+<li><a href="#function-cryptofromstate"
+id="toc-function-cryptofromstate">Function
+<code>cryptoFromState</code></a></li>
+<li><a href="#class-random" id="toc-class-random">Class
+<code>Random</code></a>
+<ul>
+<li><a href="#function-bool-1" id="toc-function-bool-1">Function
+<code>bool</code></a></li>
+<li><a href="#function-nat8-1" id="toc-function-nat8-1">Function
+<code>nat8</code></a></li>
+<li><a href="#function-nat64-1" id="toc-function-nat64-1">Function
+<code>nat64</code></a></li>
+<li><a href="#function-nat64range-1"
+id="toc-function-nat64range-1">Function <code>nat64Range</code></a></li>
+<li><a href="#function-natrange-1" id="toc-function-natrange-1">Function
+<code>natRange</code></a></li>
+<li><a href="#function-intrange-1" id="toc-function-intrange-1">Function
+<code>intRange</code></a></li>
+</ul></li>
+<li><a href="#class-asyncrandom" id="toc-class-asyncrandom">Class
+<code>AsyncRandom</code></a>
+<ul>
+<li><a href="#function-bool-2" id="toc-function-bool-2">Function
+<code>bool</code></a></li>
+<li><a href="#function-nat8-2" id="toc-function-nat8-2">Function
+<code>nat8</code></a></li>
+<li><a href="#function-nat64-2" id="toc-function-nat64-2">Function
+<code>nat64</code></a></li>
+<li><a href="#function-nat64range-2"
+id="toc-function-nat64range-2">Function <code>nat64Range</code></a></li>
+<li><a href="#function-natrange-2" id="toc-function-natrange-2">Function
+<code>natRange</code></a></li>
+<li><a href="#function-intrange-2" id="toc-function-intrange-2">Function
+<code>intRange</code></a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="corerandom">core/Random</h1>
+<p>Random number generation.</p>
+<p>Import from the core package to use this module.</p>
+<pre class="motoko"><code>import Random &quot;mo:core/Random&quot;;</code></pre>
+<h2 id="type-state">Type <code>State</code></h2>
+<pre class="motoko"><code>type State = { var bytes : [Nat8]; var index : Nat; var bits : Nat8; var bitMask : Nat8 }</code></pre>
+<h2 id="type-seedstate">Type <code>SeedState</code></h2>
+<pre class="motoko"><code>type SeedState = { random : State; prng : PRNG.State }</code></pre>
+<h2 id="function-blob">Function <code>blob</code></h2>
+<pre class="motoko"><code>func blob() : async Blob</code></pre>
+<h2 id="function-bool">Function <code>bool</code></h2>
+<pre class="motoko"><code>func bool() : async Bool</code></pre>
+<h2 id="function-nat8">Function <code>nat8</code></h2>
+<pre class="motoko"><code>func nat8() : async Nat8</code></pre>
+<h2 id="function-nat64">Function <code>nat64</code></h2>
+<pre class="motoko"><code>func nat64() : async Nat64</code></pre>
+<h2 id="function-nat64range">Function <code>nat64Range</code></h2>
+<pre class="motoko"><code>func nat64Range(fromInclusive : Nat64, toExclusive : Nat64) : async Nat64</code></pre>
+<h2 id="function-natrange">Function <code>natRange</code></h2>
+<pre class="motoko"><code>func natRange(fromInclusive : Nat, toExclusive : Nat) : async Nat</code></pre>
+<h2 id="function-intrange">Function <code>intRange</code></h2>
+<pre class="motoko"><code>func intRange(fromInclusive : Int, toExclusive : Int) : async Int</code></pre>
+<h2 id="function-emptystate">Function <code>emptyState</code></h2>
+<pre class="motoko"><code>func emptyState() : State</code></pre>
+<p>Initializes a random number generator state. This is used to create a
+<code>Random</code> or <code>AsyncRandom</code> instance with a specific
+state. The state is empty, but it can be reused after upgrading the
+canister.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Random &quot;mo:core/Random&quot;;
+
+persistent actor {
+  let state = Random.emptyState();
+  transient let random = Random.cryptoFromState(state);
+
+  public func main() : async () {
+    let coin = await* random.bool(); // true or false
+  }
+}</code></pre>
+<p>@deprecated M0235</p>
+<h2 id="function-seedstate">Function <code>seedState</code></h2>
+<pre class="motoko"><code>func seedState(seed : Nat64) : SeedState</code></pre>
+<p>Initializes a pseudo-random number generator state with a 64-bit
+seed. This is used to create a <code>Random</code> instance with a
+specific seed. The seed is used to initialize the PRNG state.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Random &quot;mo:core/Random&quot;;
+
+persistent actor {
+  let state = Random.seedState(123);
+  transient let random = Random.seedFromState(state);
+
+  public func main() : async () {
+    let coin = random.bool(); // true or false
+  }
+}</code></pre>
+<p>@deprecated M0235</p>
+<h2 id="function-seed">Function <code>seed</code></h2>
+<pre class="motoko"><code>func seed(seed : Nat64) : Random</code></pre>
+<p>Creates a pseudo-random number generator from a 64-bit seed. The seed
+is used to initialize the PRNG state. This is suitable for simulations
+and testing, but not for cryptographic purposes.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let random = Random.seed(123);
+let coin = random.bool(); // true or false</code></pre>
+<p>@deprecated M0235</p>
+<h2 id="function-seedfromstate">Function <code>seedFromState</code></h2>
+<pre class="motoko"><code>func seedFromState(state : SeedState) : Random</code></pre>
+<p>Creates a pseudo-random number generator with the given state. This
+provides statistical randomness suitable for simulations and testing,
+but should not be used for cryptographic purposes.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Random &quot;mo:core/Random&quot;;
+
+persistent actor {
+  let state = Random.seedState(123);
+  transient let random = Random.seedFromState(state);
+
+  public func main() : async () {
+    let coin = random.bool(); // true or false
+  }
+}</code></pre>
+<p>@deprecated M0235</p>
+<h2 id="function-crypto">Function <code>crypto</code></h2>
+<pre class="motoko"><code>func crypto() : AsyncRandom</code></pre>
+<p>Initializes a cryptographic random number generator using entropy
+from the ICP management canister.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Random &quot;mo:core/Random&quot;;
+
+persistent actor {
+  transient let random = Random.crypto();
+
+  public func main() : async () {
+    let coin = await* random.bool(); // true or false
+  }
+}</code></pre>
+<p>@deprecated M0235</p>
+<h2 id="function-cryptofromstate">Function
+<code>cryptoFromState</code></h2>
+<pre class="motoko"><code>func cryptoFromState(state : State) : AsyncRandom</code></pre>
+<p>Creates a random number generator suitable for cryptography using
+entropy from the ICP management canister. Initializing from a state
+makes it possible to reuse entropy after upgrading the canister.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Random &quot;mo:core/Random&quot;;
+
+persistent actor {
+  let state = Random.emptyState();
+  transient let random = Random.cryptoFromState(state);
+
+  func example() : async () {
+    let coin = await* random.bool(); // true or false
+  }
+}</code></pre>
+<p>@deprecated M0235</p>
+<h2 id="class-random">Class <code>Random</code></h2>
+<pre class="motoko"><code>class Random(state : State, generator : () -&gt; Blob)</code></pre>
+<p>@deprecated M0235</p>
+<h3 id="function-bool-1">Function <code>bool</code></h3>
+<pre class="motoko"><code>func bool() : Bool</code></pre>
+<p>Random choice between <code>true</code> and <code>false</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let random = Random.seed(42);
+let coin = random.bool(); // true or false</code></pre>
+<p>@deprecated M0235</p>
+<h3 id="function-nat8-1">Function <code>nat8</code></h3>
+<pre class="motoko"><code>func nat8() : Nat8</code></pre>
+<p>Random <code>Nat8</code> value in the range [0, 256).</p>
+<p>Example:</p>
+<pre class="motoko"><code>let random = Random.seed(42);
+let byte = random.nat8(); // 0 to 255</code></pre>
+<p>@deprecated M0235</p>
+<h3 id="function-nat64-1">Function <code>nat64</code></h3>
+<pre class="motoko"><code>func nat64() : Nat64</code></pre>
+<p>Random <code>Nat64</code> value in the range [0, 2^64).</p>
+<p>Example:</p>
+<pre class="motoko"><code>let random = Random.seed(42);
+let number = random.nat64(); // 0 to 18446744073709551615</code></pre>
+<p>@deprecated M0235</p>
+<h3 id="function-nat64range-1">Function <code>nat64Range</code></h3>
+<pre class="motoko"><code>func nat64Range(fromInclusive : Nat64, toExclusive : Nat64) : Nat64</code></pre>
+<p>Random <code>Nat64</code> value in the range [fromInclusive,
+toExclusive).</p>
+<p>Example:</p>
+<pre class="motoko"><code>let random = Random.seed(42);
+let dice = random.nat64Range(1, 7); // 1 to 6</code></pre>
+<p>@deprecated M0235</p>
+<h3 id="function-natrange-1">Function <code>natRange</code></h3>
+<pre class="motoko"><code>func natRange(fromInclusive : Nat, toExclusive : Nat) : Nat</code></pre>
+<p>Random <code>Nat</code> value in the range [fromInclusive,
+toExclusive).</p>
+<p>Example:</p>
+<pre class="motoko"><code>let random = Random.seed(42);
+let index = random.natRange(0, 10); // 0 to 9</code></pre>
+<p>@deprecated M0235</p>
+<h3 id="function-intrange-1">Function <code>intRange</code></h3>
+<pre class="motoko"><code>func intRange(fromInclusive : Int, toExclusive : Int) : Int</code></pre>
+<p>@deprecated M0235</p>
+<h2 id="class-asyncrandom">Class <code>AsyncRandom</code></h2>
+<pre class="motoko"><code>class AsyncRandom(state : State, generator : () -&gt; async* Blob)</code></pre>
+<p>@deprecated M0235</p>
+<h3 id="function-bool-2">Function <code>bool</code></h3>
+<pre class="motoko"><code>func bool() : async* Bool</code></pre>
+<p>Random choice between <code>true</code> and <code>false</code>.
+@deprecated M0235</p>
+<h3 id="function-nat8-2">Function <code>nat8</code></h3>
+<pre class="motoko"><code>func nat8() : async* Nat8</code></pre>
+<p>Random <code>Nat8</code> value in the range [0, 256). @deprecated
+M0235</p>
+<h3 id="function-nat64-2">Function <code>nat64</code></h3>
+<pre class="motoko"><code>func nat64() : async* Nat64</code></pre>
+<p>Random <code>Nat64</code> value in the range [0, 2^64). @deprecated
+M0235</p>
+<h3 id="function-nat64range-2">Function <code>nat64Range</code></h3>
+<pre class="motoko"><code>func nat64Range(fromInclusive : Nat64, toExclusive : Nat64) : async* Nat64</code></pre>
+<p>Random <code>Nat64</code> value in the range [fromInclusive,
+toExclusive). @deprecated M0235</p>
+<h3 id="function-natrange-2">Function <code>natRange</code></h3>
+<pre class="motoko"><code>func natRange(fromInclusive : Nat, toExclusive : Nat) : async* Nat</code></pre>
+<p>Random <code>Nat</code> value in the range [fromInclusive,
+toExclusive). @deprecated M0235</p>
+<h3 id="function-intrange-2">Function <code>intRange</code></h3>
+<pre class="motoko"><code>func intRange(fromInclusive : Int, toExclusive : Int) : async* Int</code></pre>
+<p>Random <code>Int</code> value in the range [fromInclusive,
+toExclusive). @deprecated M0235</p>
+</body>
+</html>

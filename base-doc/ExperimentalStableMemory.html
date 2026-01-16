@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#size">size</a></li></li><li><li><a href="#grow">grow</a></li></li><li><li><a href="#stableVarQuery">stableVarQuery</a></li></li><li><li><a href="#loadNat32">loadNat32</a></li></li><li><li><a href="#storeNat32">storeNat32</a></li></li><li><li><a href="#loadNat8">loadNat8</a></li></li><li><li><a href="#storeNat8">storeNat8</a></li></li><li><li><a href="#loadNat16">loadNat16</a></li></li><li><li><a href="#storeNat16">storeNat16</a></li></li><li><li><a href="#loadNat64">loadNat64</a></li></li><li><li><a href="#storeNat64">storeNat64</a></li></li><li><li><a href="#loadInt32">loadInt32</a></li></li><li><li><a href="#storeInt32">storeInt32</a></li></li><li><li><a href="#loadInt8">loadInt8</a></li></li><li><li><a href="#storeInt8">storeInt8</a></li></li><li><li><a href="#loadInt16">loadInt16</a></li></li><li><li><a href="#storeInt16">storeInt16</a></li></li><li><li><a href="#loadInt64">loadInt64</a></li></li><li><li><a href="#storeInt64">storeInt64</a></li></li><li><li><a href="#loadFloat">loadFloat</a></li></li><li><li><a href="#storeFloat">storeFloat</a></li></li><li><li><a href="#loadBlob">loadBlob</a></li></li><li><li><a href="#storeBlob">storeBlob</a></li></li></ul></nav><div class="documentation"><h1>ExperimentalStableMemory</h1><p>Byte-level access to (virtual) <em>stable memory</em>.</p>
+<p>:::warning Experimental module</p>
+<p>As the name suggests, this library is experimental, subject to change, and may be replaced by safer alternatives in later versions of Motoko.
+Use at your own risk and discretion.
+:::</p>
+<p>:::warning Deprecation notice</p>
+<p>Use of <code>ExperimentalStableMemory</code> may be deprecated in the future.
+Consider using <code>Region.mo</code> for isolated memory regions.
+Isolated regions ensure that writing to one region does not affect unrelated state elsewhere.
+:::</p>
+<p>This is a lightweight abstraction over IC <em>stable memory</em> and supports persisting raw binary data across Motoko upgrades.
+It is fully compatible with Motoko's <em>stable variables</em>, which also use IC stable memory internally, but do not interfere with this API.</p>
+<p>Memory is allocated using <code>grow(pages)</code>, sequentially and on demand, in units of 64KiB pages, starting with 0 allocated pages.
+New pages are zero-initialized.
+Growth is capped by a soft page limit set with the compile-time flag <code>--max-stable-pages &lt;n&gt;</code> (default: 65536, or 4GiB).</p>
+<p>Each <code>load</code> reads from byte address <code>offset</code> in little-endian format using the natural bit-width of the type.
+Traps if reading beyond the allocated size.</p>
+<p>Each <code>store</code> writes to byte address <code>offset</code> in little-endian format using the natural bit-width of the type.
+Traps if writing beyond the allocated size.</p>
+<p>Text can be handled using <code>Text.decodeUtf8</code> and <code>Text.encodeUtf8</code> in combination with <code>loadBlob</code> and <code>storeBlob</code>.</p>
+<p>The current page allocation and contents are preserved across upgrades.</p>
+<p>:::note IC stable memory discrepancy</p>
+<p>The IC’s reported stable memory size (<code>ic0.stable_size</code>) may exceed what Motoko’s <code>size()</code> returns.
+This and the growth cap exist to protect Motoko’s internal use of stable variables.
+If you're not using stable variables (or using them sparingly), you may increase <code>--max-stable-pages</code> toward the IC maximum (currently 64GiB).
+Even if not using stable variables, always reserve at least one page.
+:::</p>
+<p>Usage:</p>
+<pre><code>motoko no-repl
+import StableMemory &quot;mo:base/ExperimentalStableMemory&quot;;</code></pre><div class="declaration"><h4 class="function" id="size"><code><span class="keyword">public func </span><span class="fnname">size</span>() : (<span class="parameter">pages</span> : <span class="type">Nat64</span>)</code></h4><p><p>Current size of the stable memory, in pages.
+Each page is 64KiB (65536 bytes).
+Initially <code>0</code>.
+Preserved across upgrades, together with contents of allocated
+stable memory.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let beforeSize = StableMemory.size();
+ignore StableMemory.grow(10);
+let afterSize = StableMemory.size();
+afterSize - beforeSize // =&gt; 10</code></pre></p></div><div class="declaration"><h4 class="function" id="grow"><code><span class="keyword">public func </span><span class="fnname">grow</span>(<span class="parameter">newPages</span> : <span class="type">Nat64</span>) : (<span class="parameter">oldPages</span> : <span class="type">Nat64</span>)</code></h4><p><p>Grow current <code>size</code> of stable memory by the given number of pages.
+Each page is 64KiB (65536 bytes).
+Returns the previous <code>size</code> when able to grow.
+Returns <code>0xFFFF_FFFF_FFFF_FFFF</code> if remaining pages insufficient.
+Every new page is zero-initialized, containing byte 0x00 at every offset.
+Function <code>grow</code> is capped by a soft limit on <code>size</code> controlled by compile-time flag
+ <code>--max-stable-pages &lt;n&gt;</code> (the default is 65536, or 4GiB).</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Error &quot;mo:base/Error&quot;;
+
+let beforeSize = StableMemory.grow(10);
+if (beforeSize == 0xFFFF_FFFF_FFFF_FFFF) {
+  throw Error.reject(&quot;Out of memory&quot;);
+};
+let afterSize = StableMemory.size();
+afterSize - beforeSize // =&gt; 10</code></pre></p></div><div class="declaration"><h4 class="function" id="stableVarQuery"><code><span class="keyword">public func </span><span class="fnname">stableVarQuery</span>() : (<span class="keyword">shared query </span>() -&gt; <span class="keyword">async </span>{ size : <span class="type">Nat64</span> })</code></h4><p><p>Returns a query that, when called, returns the number of bytes of (real) IC stable memory that would be
+occupied by persisting its current stable variables before an upgrade.
+This function may be used to monitor or limit real stable memory usage.
+The query computes the estimate by running the first half of an upgrade, including any <code>preupgrade</code> system method.
+Like any other query, its state changes are discarded so no actual upgrade (or other state change) takes place.
+The query can only be called by the enclosing actor and will trap for other callers.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+actor {
+  stable var state = &quot;&quot;;
+  public func example() : async Text {
+    let memoryUsage = StableMemory.stableVarQuery();
+    let beforeSize = (await memoryUsage()).size;
+    state #= &quot;abcdefghijklmnopqrstuvwxyz&quot;;
+    let afterSize = (await memoryUsage()).size;
+    debug_show (afterSize - beforeSize)
+  };
+};</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat32"><code><span class="keyword">public func </span><span class="fnname">loadNat32</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat32</span></code></h4><p><p>Loads a <code>Nat32</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat32(offset, value);
+StableMemory.loadNat32(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat32"><code><span class="keyword">public func </span><span class="fnname">storeNat32</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Nat32</span>) : ()</code></h4><p><p>Stores a <code>Nat32</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat32(offset, value);
+StableMemory.loadNat32(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat8"><code><span class="keyword">public func </span><span class="fnname">loadNat8</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat8</span></code></h4><p><p>Loads a <code>Nat8</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat8(offset, value);
+StableMemory.loadNat8(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat8"><code><span class="keyword">public func </span><span class="fnname">storeNat8</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Nat8</span>) : ()</code></h4><p><p>Stores a <code>Nat8</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat8(offset, value);
+StableMemory.loadNat8(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat16"><code><span class="keyword">public func </span><span class="fnname">loadNat16</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat16</span></code></h4><p><p>Loads a <code>Nat16</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat16(offset, value);
+StableMemory.loadNat16(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat16"><code><span class="keyword">public func </span><span class="fnname">storeNat16</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Nat16</span>) : ()</code></h4><p><p>Stores a <code>Nat16</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat16(offset, value);
+StableMemory.loadNat16(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadNat64"><code><span class="keyword">public func </span><span class="fnname">loadNat64</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Nat64</span></code></h4><p><p>Loads a <code>Nat64</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat64(offset, value);
+StableMemory.loadNat64(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeNat64"><code><span class="keyword">public func </span><span class="fnname">storeNat64</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Nat64</span>) : ()</code></h4><p><p>Stores a <code>Nat64</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeNat64(offset, value);
+StableMemory.loadNat64(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt32"><code><span class="keyword">public func </span><span class="fnname">loadInt32</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int32</span></code></h4><p><p>Loads an <code>Int32</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt32(offset, value);
+StableMemory.loadInt32(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt32"><code><span class="keyword">public func </span><span class="fnname">storeInt32</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Int32</span>) : ()</code></h4><p><p>Stores an <code>Int32</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt32(offset, value);
+StableMemory.loadInt32(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt8"><code><span class="keyword">public func </span><span class="fnname">loadInt8</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int8</span></code></h4><p><p>Loads an <code>Int8</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt8(offset, value);
+StableMemory.loadInt8(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt8"><code><span class="keyword">public func </span><span class="fnname">storeInt8</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Int8</span>) : ()</code></h4><p><p>Stores an <code>Int8</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt8(offset, value);
+StableMemory.loadInt8(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt16"><code><span class="keyword">public func </span><span class="fnname">loadInt16</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int16</span></code></h4><p><p>Loads an <code>Int16</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt16(offset, value);
+StableMemory.loadInt16(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt16"><code><span class="keyword">public func </span><span class="fnname">storeInt16</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Int16</span>) : ()</code></h4><p><p>Stores an <code>Int16</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt16(offset, value);
+StableMemory.loadInt16(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadInt64"><code><span class="keyword">public func </span><span class="fnname">loadInt64</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Int64</span></code></h4><p><p>Loads an <code>Int64</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt64(offset, value);
+StableMemory.loadInt64(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="storeInt64"><code><span class="keyword">public func </span><span class="fnname">storeInt64</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Int64</span>) : ()</code></h4><p><p>Stores an <code>Int64</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 123;
+StableMemory.storeInt64(offset, value);
+StableMemory.loadInt64(offset) // =&gt; 123</code></pre></p></div><div class="declaration"><h4 class="function" id="loadFloat"><code><span class="keyword">public func </span><span class="fnname">loadFloat</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>) : <span class="type">Float</span></code></h4><p><p>Loads a <code>Float</code> value from stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 1.25;
+StableMemory.storeFloat(offset, value);
+StableMemory.loadFloat(offset) // =&gt; 1.25</code></pre></p></div><div class="declaration"><h4 class="function" id="storeFloat"><code><span class="keyword">public func </span><span class="fnname">storeFloat</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Float</span>) : ()</code></h4><p><p>Stores a <code>Float</code> value in stable memory at the given <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let offset = 0;
+let value = 1.25;
+StableMemory.storeFloat(offset, value);
+StableMemory.loadFloat(offset) // =&gt; 1.25</code></pre></p></div><div class="declaration"><h4 class="function" id="loadBlob"><code><span class="keyword">public func </span><span class="fnname">loadBlob</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">size</span> : <span class="type">Nat</span>) : <span class="type">Blob</span></code></h4><p><p>Load <code>size</code> bytes starting from <code>offset</code> as a <code>Blob</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Blob &quot;mo:base/Blob&quot;;
+
+let offset = 0;
+let value = Blob.fromArray([1, 2, 3]);
+let size = value.size();
+StableMemory.storeBlob(offset, value);
+Blob.toArray(StableMemory.loadBlob(offset, size)) // =&gt; [1, 2, 3]</code></pre></p></div><div class="declaration"><h4 class="function" id="storeBlob"><code><span class="keyword">public func </span><span class="fnname">storeBlob</span>(<span class="parameter">offset</span> : <span class="type">Nat64</span>, <span class="parameter">value</span> : <span class="type">Blob</span>) : ()</code></h4><p><p>Write bytes of <code>blob</code> beginning at <code>offset</code>.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Blob &quot;mo:base/Blob&quot;;
+
+let offset = 0;
+let value = Blob.fromArray([1, 2, 3]);
+let size = value.size();
+StableMemory.storeBlob(offset, value);
+Blob.toArray(StableMemory.loadBlob(offset, size)) // =&gt; [1, 2, 3]</code></pre></p></div></div></body></html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Error">Error</a></li></li><li><li><a href="#type.ErrorCode">ErrorCode</a></li></li><li><li><a href="#reject">reject</a></li></li><li><li><a href="#code">code</a></li></li><li><li><a href="#message">message</a></li></li><li><li><a href="#isRetryPossible">isRetryPossible</a></li></li></ul></nav><div class="documentation"><h1>Error</h1><p>Error values and inspection.</p>
+<p>The <code>Error</code> type is the argument to <code>throw</code>, parameter of <code>catch</code>.
+The <code>Error</code> type is opaque.</p>
+<div class="declaration"><h4 class="type-declaration" id="type.Error"><span class="keyword">type </span><span class="type">Error</span> = <span class="type">Prim.Types.Error</span></h4><p><p>Error value resulting from  <code>async</code> computations</p>
+</p></div><div class="declaration"><h4 class="type-declaration" id="type.ErrorCode"><span class="keyword">type </span><span class="type">ErrorCode</span> = <span class="type">Prim.ErrorCode</span></h4><p><p>Error code to classify different kinds of user and system errors:</p>
+<pre class="motoko"><code class="motoko">type ErrorCode = {
+  // Fatal error.
+  #system_fatal;
+  // Transient error.
+  #system_transient;
+  // Response unknown due to missed deadline.
+  #system_unknown;
+  // Destination invalid.
+  #destination_invalid;
+  // Explicit reject by canister code.
+  #canister_reject;
+  // Canister trapped.
+  #canister_error;
+  // Future error code (with unrecognized numeric code).
+  #future : Nat32;
+  // Error issuing inter-canister call
+  // (indicating destination queue full or freezing threshold crossed).
+  #call_error : { err_code :  Nat32 }
+};</code></pre></p></div><div class="declaration"><h4 class="function" id="reject"><code><span class="keyword">public func </span><span class="fnname">reject</span>(<span class="parameter">message</span> : <span class="type">Text</span>) : <a href="#type.Error"><span class="type">Error</span></a></code></h4><p><p>Create an error from the message with the code <code>#canister_reject</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Error &quot;mo:base/Error&quot;;
+
+Error.reject(&quot;Example error&quot;) // can be used as throw argument</code></pre></p></div><div class="declaration"><h4 class="function" id="code"><code><span class="keyword">public func </span><span class="fnname">code</span>(<span class="parameter">error</span> : <a href="#type.Error"><span class="type">Error</span></a>) : <a href="#type.ErrorCode"><span class="type">ErrorCode</span></a></code></h4><p><p>Returns the code of an error.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Error &quot;mo:base/Error&quot;;
+
+let error = Error.reject(&quot;Example error&quot;);
+Error.code(error) // #canister_reject</code></pre></p></div><div class="declaration"><h4 class="function" id="message"><code><span class="keyword">public func </span><span class="fnname">message</span>(<span class="parameter">error</span> : <a href="#type.Error"><span class="type">Error</span></a>) : <span class="type">Text</span></code></h4><p><p>Returns the message of an error.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Error &quot;mo:base/Error&quot;;
+
+let error = Error.reject(&quot;Example error&quot;);
+Error.message(error) // &quot;Example error&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="isRetryPossible"><code><span class="keyword">public func </span><span class="fnname">isRetryPossible</span>(<span class="parameter">error</span> : <a href="#type.Error"><span class="type">Error</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns whether retrying to send a message may result in success.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import { message; isRetryPossible } &quot;mo:base/Error&quot;;
+import { print } &quot;mo:base/Debug&quot;;
+
+try await (with timeout = 3) Actor.call(arg)
+catch e { if (isRetryPossible e) print(message e) }</code></pre></p></div></div></body></html>

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Char.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Char.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#corechar" id="toc-corechar">core/Char</a>
+<ul>
+<li><a href="#type-char" id="toc-type-char">Type
+<code>Char</code></a></li>
+<li><a href="#function-tonat32" id="toc-function-tonat32">Function
+<code>toNat32</code></a></li>
+<li><a href="#function-fromnat32" id="toc-function-fromnat32">Function
+<code>fromNat32</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-isdigit" id="toc-function-isdigit">Function
+<code>isDigit</code></a></li>
+<li><a href="#function-iswhitespace"
+id="toc-function-iswhitespace">Function
+<code>isWhitespace</code></a></li>
+<li><a href="#function-islower" id="toc-function-islower">Function
+<code>isLower</code></a></li>
+<li><a href="#function-isupper" id="toc-function-isupper">Function
+<code>isUpper</code></a></li>
+<li><a href="#function-isalphabetic"
+id="toc-function-isalphabetic">Function
+<code>isAlphabetic</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-notequal" id="toc-function-notequal">Function
+<code>notEqual</code></a></li>
+<li><a href="#function-less" id="toc-function-less">Function
+<code>less</code></a></li>
+<li><a href="#function-lessorequal"
+id="toc-function-lessorequal">Function <code>lessOrEqual</code></a></li>
+<li><a href="#function-greater" id="toc-function-greater">Function
+<code>greater</code></a></li>
+<li><a href="#function-greaterorequal"
+id="toc-function-greaterorequal">Function
+<code>greaterOrEqual</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="corechar">core/Char</h1>
+<p>Module for working with Characters (Unicode code points).</p>
+<p>Characters in Motoko represent Unicode code points in the range 0 to
+0x10FFFF, excluding the surrogate code points (0xD800 through
+0xDFFF).</p>
+<p>Import from the core package to use this module.</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;</code></pre>
+<p>Some built in features not listed in this module:</p>
+<ul>
+<li>You can create a <code>Char</code> literal using single quotes, e.g.
+'A', '1', '漢'</li>
+<li>You can compare characters using <code>&lt;</code>,
+<code>&lt;=</code>, <code>==</code>, <code>!=</code>,
+<code>&gt;=</code>, <code>&gt;</code> operators</li>
+<li>You can convert a single-character <code>Text</code> to a
+<code>Char</code> using <code>:Char</code> type annotation</li>
+</ul>
+<p>For example:</p>
+<pre class="motoko"><code>let char : Char = &#39;A&#39;;
+let unicodeChar = &#39;漢&#39;;
+let digit = &#39;7&#39;;
+assert Char.isDigit(digit);
+assert Char.toText(char) == &quot;A&quot;;</code></pre>
+<h2 id="type-char">Type <code>Char</code></h2>
+<pre class="motoko"><code>type Char = Prim.Types.Char</code></pre>
+<p>Characters represented as Unicode code points.</p>
+<h2 id="function-tonat32">Function <code>toNat32</code></h2>
+<pre class="motoko"><code>func toNat32(self : Char) : Nat32</code></pre>
+<p>Convert character <code>char</code> to a word containing its Unicode
+scalar value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let char = &#39;A&#39;;
+let unicode = Char.toNat32(char);
+assert unicode == 65;</code></pre>
+<h2 id="function-fromnat32">Function <code>fromNat32</code></h2>
+<pre class="motoko"><code>func fromNat32(nat32 : Nat32) : Char</code></pre>
+<p>Convert <code>w</code> to a character. Traps if <code>w</code> is not
+a valid Unicode scalar value. Value <code>w</code> is valid if, and only
+if,
+<code>w &lt; 0xD800 or (0xE000 &lt;= w and w &lt;= 0x10FFFF)</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let unicode : Nat32 = 65;
+let char = Char.fromNat32(unicode);
+assert char == &#39;A&#39;;</code></pre>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText(self : Char) : Text</code></pre>
+<p>Convert character <code>char</code> to single character text.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let char = &#39;漢&#39;;
+let text = Char.toText(char);
+assert text == &quot;漢&quot;;</code></pre>
+<h2 id="function-isdigit">Function <code>isDigit</code></h2>
+<pre class="motoko"><code>func isDigit(self : Char) : Bool</code></pre>
+<p>Returns <code>true</code> when <code>char</code> is a decimal digit
+between <code>0</code> and <code>9</code>, otherwise
+<code>false</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.isDigit(&#39;5&#39;);
+assert not Char.isDigit(&#39;A&#39;);</code></pre>
+<h2 id="function-iswhitespace">Function <code>isWhitespace</code></h2>
+<pre class="motoko"><code>func isWhitespace(self : Char) : Bool</code></pre>
+<p>Returns whether <code>char</code> is a whitespace character.
+Whitespace characters include space, tab, newline, etc.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.isWhitespace(&#39; &#39;);
+assert Char.isWhitespace(&#39;\n&#39;);
+assert not Char.isWhitespace(&#39;A&#39;);</code></pre>
+<h2 id="function-islower">Function <code>isLower</code></h2>
+<pre class="motoko"><code>func isLower(self : Char) : Bool</code></pre>
+<p>Returns whether <code>char</code> is a lowercase character.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.isLower(&#39;a&#39;);
+assert not Char.isLower(&#39;A&#39;);</code></pre>
+<h2 id="function-isupper">Function <code>isUpper</code></h2>
+<pre class="motoko"><code>func isUpper(self : Char) : Bool</code></pre>
+<p>Returns whether <code>char</code> is an uppercase character.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.isUpper(&#39;A&#39;);
+assert not Char.isUpper(&#39;a&#39;);</code></pre>
+<h2 id="function-isalphabetic">Function <code>isAlphabetic</code></h2>
+<pre class="motoko"><code>func isAlphabetic(self : Char) : Bool</code></pre>
+<p>Returns whether <code>char</code> is an alphabetic character.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.isAlphabetic(&#39;A&#39;);
+assert Char.isAlphabetic(&#39;漢&#39;);
+assert not Char.isAlphabetic(&#39;1&#39;);</code></pre>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal(self : Char, other : Char) : Bool</code></pre>
+<p>Returns <code>a == b</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.equal(&#39;A&#39;, &#39;A&#39;);
+assert not Char.equal(&#39;A&#39;, &#39;B&#39;);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>==</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-notequal">Function <code>notEqual</code></h2>
+<pre class="motoko"><code>func notEqual(self : Char, other : Char) : Bool</code></pre>
+<p>Returns <code>a != b</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.notEqual(&#39;A&#39;, &#39;B&#39;);
+assert not Char.notEqual(&#39;A&#39;, &#39;A&#39;);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>!=</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-less">Function <code>less</code></h2>
+<pre class="motoko"><code>func less(self : Char, other : Char) : Bool</code></pre>
+<p>Returns <code>a &lt; b</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.less(&#39;A&#39;, &#39;B&#39;);
+assert not Char.less(&#39;B&#39;, &#39;A&#39;);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-lessorequal">Function <code>lessOrEqual</code></h2>
+<pre class="motoko"><code>func lessOrEqual(self : Char, other : Char) : Bool</code></pre>
+<p>Returns <code>a &lt;= b</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.lessOrEqual(&#39;A&#39;, &#39;A&#39;);
+assert Char.lessOrEqual(&#39;A&#39;, &#39;B&#39;);
+assert not Char.lessOrEqual(&#39;B&#39;, &#39;A&#39;);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&lt;=</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-greater">Function <code>greater</code></h2>
+<pre class="motoko"><code>func greater(self : Char, other : Char) : Bool</code></pre>
+<p>Returns <code>a &gt; b</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.greater(&#39;B&#39;, &#39;A&#39;);
+assert not Char.greater(&#39;A&#39;, &#39;B&#39;);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&gt;</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-greaterorequal">Function
+<code>greaterOrEqual</code></h2>
+<pre class="motoko"><code>func greaterOrEqual(self : Char, other : Char) : Bool</code></pre>
+<p>Returns <code>a &gt;= b</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.greaterOrEqual(&#39;B&#39;, &#39;A&#39;);
+assert Char.greaterOrEqual(&#39;A&#39;, &#39;A&#39;);
+assert not Char.greaterOrEqual(&#39;A&#39;, &#39;B&#39;);</code></pre>
+<p>Note: The reason why this function is defined in this library (in
+addition to the existing <code>&gt;=</code> operator) is so that you can
+use it as a function value to pass to a higher order function.</p>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare(self : Char, other : Char) : {#less; #equal; #greater}</code></pre>
+<p>Returns the order of <code>a</code> and <code>b</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert Char.compare(&#39;A&#39;, &#39;B&#39;) == #less;
+assert Char.compare(&#39;B&#39;, &#39;A&#39;) == #greater;
+assert Char.compare(&#39;A&#39;, &#39;A&#39;) == #equal;</code></pre>
+</body>
+</html>

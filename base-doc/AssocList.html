@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.AssocList">AssocList</a></li></li><li><li><a href="#find">find</a></li></li><li><li><a href="#replace">replace</a></li></li><li><li><a href="#diff">diff</a></li></li><li><li><a href="#mapAppend">mapAppend</a></li></li><li><li><a href="#disjDisjoint">disjDisjoint</a></li></li><li><li><a href="#disj">disj</a></li></li><li><li><a href="#join">join</a></li></li><li><li><a href="#fold">fold</a></li></li></ul></nav><div class="documentation"><h1>AssocList</h1><p>Map implemented as a linked-list of key-value pairs (&quot;Associations&quot;).</p>
+<p>:::note Usage context</p>
+<p>This map implementation primarily serves as the underlying bucket structure for other map types. In most cases, those higher-level map implementations are easier to use.
+:::</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>combine</code>, <code>equal</code>, and other functions execute in <code>O(1)</code> time and space.
+:::</p>
+<div class="declaration"><h4 class="type-declaration" id="type.AssocList"><span class="keyword">type </span><span class="type">AssocList</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; = <a href="List.html#type.List"><span class="type">List.List</span></a>&lt;(<span class="type">K</span>, <span class="type">V</span>)&gt;</h4><p><p>Import from the base library to use this module.</p>
+<pre><code>motoko name=import
+import AssocList &quot;mo:base/AssocList&quot;;
+import List &quot;mo:base/List&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+type AssocList&lt;K, V&gt; = AssocList.AssocList&lt;K, V&gt;;</code></pre>
+
+<p>Initialize an empty map using an empty list.</p>
+<pre><code>motoko name=initialize include=import
+var map : AssocList&lt;Nat, Nat&gt; = List.nil(); // Empty list as an empty map
+map := null; // Alternative: null as empty list.
+map</code></pre></p></div><div class="declaration"><h4 class="function" id="find"><code><span class="keyword">public func </span><span class="fnname">find</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">key</span> : <span class="type">K</span>, <br/>  <span class="parameter">equal</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">V</span></code></h4><p><p>Find the value associated with key <code>key</code>, or <code>null</code> if no such key exists.
+Compares keys using the provided function <code>equal</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import,initialize
+// Create map = [(0, 10), (1, 11), (2, 12)]
+map := AssocList.replace(map, 0, Nat.equal, ?10).0;
+map := AssocList.replace(map, 1, Nat.equal, ?11).0;
+map := AssocList.replace(map, 2, Nat.equal, ?12).0;
+
+// Find value associated with key 1
+AssocList.find(map, 1, Nat.equal)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="replace"><code><span class="keyword">public func </span><span class="fnname">replace</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">key</span> : <span class="type">K</span>, <br/>  <span class="parameter">equal</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">value</span> : ?<span class="type">V</span><br/>) : (<a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>Maps <code>key</code> to <code>value</code> in <code>map</code>, and overwrites the old entry if the key
+was already present. Returns the old value in an option if it existed and
+<code>null</code> otherwise, as well as the new map. Compares keys using the provided
+function <code>equal</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import,initialize
+// Add three entries to the map
+// map = [(0, 10), (1, 11), (2, 12)]
+map := AssocList.replace(map, 0, Nat.equal, ?10).0;
+map := AssocList.replace(map, 1, Nat.equal, ?11).0;
+map := AssocList.replace(map, 2, Nat.equal, ?12).0;
+// Override second entry
+map := AssocList.replace(map, 1, Nat.equal, ?21).0;
+
+List.toArray(map)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="diff"><code><span class="keyword">public func </span><span class="fnname">diff</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>&gt;(<br/>  <span class="parameter">map1</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">map2</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Produces a new map containing all entries from <code>map1</code> whose keys are not
+contained in <code>map2</code>. The &quot;extra&quot; entries in <code>map2</code> are ignored. Compares
+keys using the provided function <code>equal</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import,initialize
+// Create map1 = [(0, 10), (1, 11), (2, 12)]
+var map1 : AssocList&lt;Nat, Nat&gt; = null;
+map1 := AssocList.replace(map1, 0, Nat.equal, ?10).0;
+map1 := AssocList.replace(map1, 1, Nat.equal, ?11).0;
+map1 := AssocList.replace(map1, 2, Nat.equal, ?12).0;
+
+// Create map2 = [(2, 12), (3, 13)]
+var map2 : AssocList&lt;Nat, Nat&gt; = null;
+map2 := AssocList.replace(map2, 2, Nat.equal, ?12).0;
+map2 := AssocList.replace(map2, 3, Nat.equal, ?13).0;
+
+// Take the difference
+let newMap = AssocList.diff(map1, map2, Nat.equal);
+List.toArray(newMap)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size1 * size2)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapAppend"><code><span class="keyword">public func </span><span class="fnname">mapAppend</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">map1</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">map2</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">f</span> : (?<span class="type">V</span>, ?<span class="type">W</span>) -&gt; <span class="type">X</span><br/>) : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">X</span>&gt;</code></h4><p><p>@deprecated <code>mapAppend</code> is deprecated and may be removed in future versions. Consider using an alternative approach.</p>
+</p></div><div class="declaration"><h4 class="function" id="disjDisjoint"><code><span class="keyword">public func </span><span class="fnname">disjDisjoint</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">map1</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">map2</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">f</span> : (?<span class="type">V</span>, ?<span class="type">W</span>) -&gt; <span class="type">X</span><br/>) : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">X</span>&gt;</code></h4><p><p>Produces a new map by mapping entries in <code>map1</code> and <code>map2</code> using <code>f</code> and
+concatenating the results. Assumes that there are no collisions between
+keys in <code>map1</code> and <code>map2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import,initialize
+import { trap } &quot;mo:base/Debug&quot;;
+
+// Create map1 = [(0, 10), (1, 11), (2, 12)]
+var map1 : AssocList&lt;Nat, Nat&gt; = null;
+map1 := AssocList.replace(map1, 0, Nat.equal, ?10).0;
+map1 := AssocList.replace(map1, 1, Nat.equal, ?11).0;
+map1 := AssocList.replace(map1, 2, Nat.equal, ?12).0;
+
+// Create map2 = [(4, &quot;14&quot;), (3, &quot;13&quot;)]
+var map2 : AssocList&lt;Nat, Text&gt; = null;
+map2 := AssocList.replace(map2, 4, Nat.equal, ?&quot;14&quot;).0;
+map2 := AssocList.replace(map2, 3, Nat.equal, ?&quot;13&quot;).0;
+
+// Map and append the two AssocLists
+let newMap =
+ AssocList.disjDisjoint&lt;Nat, Nat, Text, Text&gt;(
+   map1,
+   map2,
+   func((v1, v2) : (?Nat, ?Text)) {
+     switch(v1, v2) {
+       case(?v1, null) {
+         debug_show(v1) // convert values from map1 to Text
+       };
+       case(null, ?v2) {
+         v2 // keep values from map2 as Text
+       };
+       case _ {
+         trap &quot;These cases will never happen in mapAppend&quot;
+       }
+     }
+   }
+ );
+
+List.toArray(newMap)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size1 + size2)</code> | <code>O(size1 + size2)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="disj"><code><span class="keyword">public func </span><span class="fnname">disj</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">map1</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">map2</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">combine</span> : (?<span class="type">V</span>, ?<span class="type">W</span>) -&gt; <span class="type">X</span><br/>) : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">X</span>&gt;</code></h4><p><p>Creates a new map by merging entries from <code>map1</code> and <code>map2</code>, and mapping
+them using <code>combine</code>. <code>combine</code> is also used to combine the values of colliding keys.
+Keys are compared using the given <code>equal</code> function.</p>
+<p>:::note Behavior guarantee</p>
+<p><code>combine</code> will never be applied to <code>(null, null)</code>.</p>
+<p>:::</p>
+<p>Example:</p>
+<pre><code>motoko include=import,initialize
+import { trap } &quot;mo:base/Debug&quot;;
+
+// Create map1 = [(0, 10), (1, 11), (2, 12)]
+var map1 : AssocList&lt;Nat, Nat&gt; = null;
+map1 := AssocList.replace(map1, 0, Nat.equal, ?10).0;
+map1 := AssocList.replace(map1, 1, Nat.equal, ?11).0;
+map1 := AssocList.replace(map1, 2, Nat.equal, ?12).0;
+
+// Create map2 = [(2, 12), (3, 13)]
+var map2 : AssocList&lt;Nat, Nat&gt; = null;
+map2 := AssocList.replace(map2, 2, Nat.equal, ?12).0;
+map2 := AssocList.replace(map2, 3, Nat.equal, ?13).0;
+
+// Merge the two maps using `combine`
+let newMap =
+ AssocList.disj&lt;Nat, Nat, Nat, Nat&gt;(
+   map1,
+   map2,
+   Nat.equal,
+   func((v1, v2) : (?Nat, ?Nat)) : Nat {
+     switch(v1, v2) {
+       case(?v1, ?v2) {
+         v1 + v2 // combine values of colliding keys by adding them
+       };
+       case(?v1, null) {
+         v1 // when a key doesn't collide, keep the original value
+       };
+       case(null, ?v2) {
+         v2
+       };
+       case _ {
+         trap &quot;This case will never happen in disj&quot;
+       }
+     }
+   }
+ );
+
+List.toArray(newMap)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size1 * size2)</code> | <code>O(size1 + size2)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="join"><code><span class="keyword">public func </span><span class="fnname">join</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">map1</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">map2</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">V</span>, <span class="type">W</span>) -&gt; <span class="type">X</span><br/>) : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">X</span>&gt;</code></h4><p><p>Takes the intersection of <code>map1</code> and <code>map2</code>, only keeping colliding keys
+and combining values using the <code>combine</code> function. Keys are compared using
+the <code>equal</code> function.</p>
+<p>Example:</p>
+<pre><code>motoko include=import,initialize
+// Create map1 = [(0, 10), (1, 11), (2, 12)]
+var map1 : AssocList&lt;Nat, Nat&gt; = null;
+map1 := AssocList.replace(map1, 0, Nat.equal, ?10).0;
+map1 := AssocList.replace(map1, 1, Nat.equal, ?11).0;
+map1 := AssocList.replace(map1, 2, Nat.equal, ?12).0;
+
+// Create map2 = [(2, 12), (3, 13)]
+var map2 : AssocList&lt;Nat, Nat&gt; = null;
+map2 := AssocList.replace(map2, 2, Nat.equal, ?12).0;
+map2 := AssocList.replace(map2, 3, Nat.equal, ?13).0;
+
+// Take the intersection of the two maps, combining values by adding them
+let newMap = AssocList.join&lt;Nat, Nat, Nat, Nat&gt;(map1, map2, Nat.equal, Nat.add);
+
+List.toArray(newMap)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size1 * size2)</code> | <code>O(size1 + size2)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="fold"><code><span class="keyword">public func </span><span class="fnname">fold</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">map</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">base</span> : <span class="type">X</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">K</span>, <span class="type">V</span>, <span class="type">X</span>) -&gt; <span class="type">X</span><br/>) : <span class="type">X</span></code></h4><p><p>Collapses the elements in <code>map</code> into a single value by starting with <code>base</code>
+and progessively combining elements into <code>base</code> with <code>combine</code>. Iteration runs
+left to right.</p>
+<p>Example:</p>
+<pre><code>motoko include=import,initialize
+// Create map = [(0, 10), (1, 11), (2, 12)]
+var map : AssocList&lt;Nat, Nat&gt; = null;
+map := AssocList.replace(map, 0, Nat.equal, ?10).0;
+map := AssocList.replace(map, 1, Nat.equal, ?11).0;
+map := AssocList.replace(map, 2, Nat.equal, ?12).0;
+
+// (0 * 10) + (1 * 11) + (2 * 12)
+AssocList.fold&lt;Nat, Nat, Nat&gt;(map, 0, func(k, v, sumSoFar) = (k * v) + sumSoFar)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div></div></body></html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#balance">balance</a></li></li><li><li><a href="#available">available</a></li></li><li><li><a href="#accept">accept</a></li></li><li><li><a href="#add">add</a></li></li><li><li><a href="#refunded">refunded</a></li></li><li><li><a href="#burn">burn</a></li></li></ul></nav><div class="documentation"><h1>ExperimentalCycles</h1><p>Managing cycles within actors on the Internet Computer (ICP).</p>
+<p>The usage of the Internet Computer is measured, and paid for, in <em>cycles</em>.
+This library provides imperative operations for observing cycles, transferring cycles, and observing refunds of cycles.</p>
+<p>:::warning Experimental API</p>
+<p>This low-level API is experimental and may change or be removed in the future.
+Dedicated syntactic support for manipulating cycles may be added to the language, which would make this library obsolete.
+:::</p>
+<p>:::note Volatile cycle balance</p>
+<p>Since cycles measure computational resources, the value of <code>balance()</code> can change from one call to the next.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Cycles &quot;mo:base/ExperimentalCycles&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+actor {
+ public func main() : async() {
+   Debug.print(&quot;Main balance: &quot; # debug_show(Cycles.balance()));
+   Cycles.add&lt;system&gt;(15_000_000);
+   await operation(); // accepts 10_000_000 cycles
+   Debug.print(&quot;Main refunded: &quot; # debug_show(Cycles.refunded())); // 5_000_000
+   Debug.print(&quot;Main balance: &quot; # debug_show(Cycles.balance())); // decreased by around 10_000_000
+ };
+
+ func operation() : async() {
+   Debug.print(&quot;Operation balance: &quot; # debug_show(Cycles.balance()));
+   Debug.print(&quot;Operation available: &quot; # debug_show(Cycles.available()));
+   let obtained = Cycles.accept&lt;system&gt;(10_000_000);
+   Debug.print(&quot;Operation obtained: &quot; # debug_show(obtained)); // =&gt; 10_000_000
+   Debug.print(&quot;Operation balance: &quot; # debug_show(Cycles.balance())); // increased by 10_000_000
+   Debug.print(&quot;Operation available: &quot; # debug_show(Cycles.available())); // decreased by 10_000_000
+ }
+}</code></pre><div class="declaration"><h4 class="function" id="balance"><code><span class="keyword">public func </span><span class="fnname">balance</span>() : (<span class="parameter">amount</span> : <span class="type">Nat</span>)</code></h4><p><p>Returns the actor's current balance of cycles as <code>amount</code>.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Cycles &quot;mo:base/ExperimentalCycles&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+actor {
+  public func main() : async() {
+    let balance = Cycles.balance();
+    Debug.print(&quot;Balance: &quot; # debug_show(balance));
+  }
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="available"><code><span class="keyword">public func </span><span class="fnname">available</span>() : (<span class="parameter">amount</span> : <span class="type">Nat</span>)</code></h4><p><p>Returns the currently available <code>amount</code> of cycles.
+The amount available is the amount received in the current call,
+minus the cumulative amount <code>accept</code>ed by this call.
+On exit from the current shared function or async expression via <code>return</code> or <code>throw</code>,
+any remaining available amount is automatically refunded to the caller/context.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Cycles &quot;mo:base/ExperimentalCycles&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+actor {
+  public func main() : async() {
+    let available = Cycles.available();
+    Debug.print(&quot;Available: &quot; # debug_show(available));
+  }
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="accept"><code><span class="keyword">public func </span><span class="fnname">accept</span>(<span class="parameter">amount</span> : <span class="type">Nat</span>) : (<span class="parameter">accepted</span> : <span class="type">Nat</span>)</code></h4><p><p>Transfers up to <code>amount</code> from <code>available()</code> to <code>balance()</code>.
+Returns the amount actually transferred, which may be less than
+requested, for example, if less is available, or if canister balance limits are reached.</p>
+<p>Example (for simplicity, only transferring cycles to itself):</p>
+<pre><code>motoko no-repl
+import Cycles &quot;mo:base/ExperimentalCycles&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+actor {
+  public func main() : async() {
+    Cycles.add&lt;system&gt;(15_000_000);
+    await operation(); // accepts 10_000_000 cycles
+  };
+
+  func operation() : async() {
+    let obtained = Cycles.accept&lt;system&gt;(10_000_000);
+    Debug.print(&quot;Obtained: &quot; # debug_show(obtained)); // =&gt; 10_000_000
+  }
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="add"><code><span class="keyword">public func </span><span class="fnname">add</span>(<span class="parameter">amount</span> : <span class="type">Nat</span>) : ()</code></h4><p><p>Indicates additional <code>amount</code> of cycles to be transferred in
+the next call, that is, evaluation of a shared function call or
+async expression.
+Traps if the current total would exceed <code>2 ** 128</code> cycles.
+Upon the call, but not before, the total amount of cycles <code>add</code>ed since
+the last call is deducted from <code>balance()</code>.
+If this total exceeds <code>balance()</code>, the caller traps, aborting the call.</p>
+<p>:::note Reset behavior</p>
+<p>The implicit register of added amounts is reset to zero on entry to a shared function and after each shared function call or resume from an await.
+:::</p>
+<p>Example (for simplicity, only transferring cycles to itself):</p>
+<pre><code>motoko no-repl
+import Cycles &quot;mo:base/ExperimentalCycles&quot;;
+
+actor {
+  func operation() : async() {
+    ignore Cycles.accept&lt;system&gt;(10_000_000);
+  };
+
+  public func main() : async() {
+    Cycles.add&lt;system&gt;(15_000_000);
+    await operation();
+  }
+}</code></pre>
+
+<p>@deprecated This function will be removed in future. Use the parenthetical syntax on message sends and <code>async</code> expressions to attach cycles: <code>(with cycles = &lt;amount&gt;) C.send(...)</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="refunded"><code><span class="keyword">public func </span><span class="fnname">refunded</span>() : (<span class="parameter">amount</span> : <span class="type">Nat</span>)</code></h4><p><p>Reports <code>amount</code> of cycles refunded in the last <code>await</code> of the current
+context, or zero if no await has occurred yet.
+Calling <code>refunded()</code> is solely informational and does not affect <code>balance()</code>.
+Instead, refunds are automatically added to the current balance,
+whether or not <code>refunded</code> is used to observe them.</p>
+<p>Example (for simplicity, only transferring cycles to itself):</p>
+<pre><code>motoko no-repl
+import Cycles &quot;mo:base/ExperimentalCycles&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+actor {
+  func operation() : async() {
+    ignore Cycles.accept&lt;system&gt;(10_000_000);
+  };
+
+  public func main() : async() {
+    Cycles.add&lt;system&gt;(15_000_000);
+    await operation(); // accepts 10_000_000 cycles
+    Debug.print(&quot;Refunded: &quot; # debug_show(Cycles.refunded())); // 5_000_000
+  }
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="burn"><code><span class="keyword">public func </span><span class="fnname">burn</span>(<span class="parameter">amount</span> : <span class="type">Nat</span>) : (<span class="parameter">burned</span> : <span class="type">Nat</span>)</code></h4><p><p>Attempts to burn <code>amount</code> of cycles, deducting <code>burned</code> from the canister's
+cycle balance. The burned cycles are irrevocably lost and not available to any
+other principal either.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Cycles &quot;mo:base/ExperimentalCycles&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+actor {
+  public func main() : async() {
+    let burnt = Cycles.burn&lt;system&gt;(10_000_000);
+    Debug.print(&quot;Burned: &quot; # debug_show burnt); // 10_000_000
+  }
+}</code></pre></p></div></div></body></html>

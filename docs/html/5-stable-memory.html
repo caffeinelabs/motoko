@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/icp-features/5-stable-memory.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/icp-features/5-stable-memory.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#stable-memory-and-regions"
+id="toc-stable-memory-and-regions">Stable memory and regions</a>
+<ul>
+<li><a href="#what-is-a-region" id="toc-what-is-a-region">What is a
+<code>Region</code>?</a>
+<ul>
+<li><a href="#pages" id="toc-pages">Pages</a></li>
+<li><a href="#blocks" id="toc-blocks">Blocks</a></li>
+<li><a href="#position-and-offsets"
+id="toc-position-and-offsets">Position and offsets</a></li>
+</ul></li>
+<li><a href="#using-a-region" id="toc-using-a-region">Using a
+<code>Region</code></a>
+<ul>
+<li><a href="#creation-and-allocation"
+id="toc-creation-and-allocation">Creation and allocation</a></li>
+<li><a href="#growing-a-region-safely"
+id="toc-growing-a-region-safely">Growing a <code>Region</code>
+safely</a></li>
+<li><a href="#reading-and-writing-data"
+id="toc-reading-and-writing-data">Reading and writing data</a></li>
+<li><a href="#mops-packages-for-regions"
+id="toc-mops-packages-for-regions">Mops packages for Regions</a></li>
+</ul></li>
+<li><a href="#regions-comprehensive-example"
+id="toc-regions-comprehensive-example"><code>Regions</code>
+comprehensive example</a></li>
+<li><a href="#troubleshooting"
+id="toc-troubleshooting">Troubleshooting</a>
+<ul>
+<li><a href="#debugging" id="toc-debugging">Debugging</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="stable-memory-and-regions">Stable memory and regions</h1>
+<p>Canisters have two types of storage: Wasm memory and stable memory.
+The Wasm memory is often referred to as the <a
+href="https://internetcomputer.org/docs/building-apps/canister-management/storage#heap-memory">heap
+memory</a>. It is automatically used for heap-allocated objects and has
+a maximum size limitation of 4 GiB or 6 GiB respective to whether you
+are using 32-bit or 64-bit heap storage without enhanced orthogonal
+persistence. When a canister is upgraded, the heap memory is cleared,
+only retaining data stored in stable variables.</p>
+<p>Stable memory has a maximum size of 500 GiB and is preserved across
+canister upgrades. Motoko utilizes <a
+href="https://internetcomputer.org/docs/building-apps/canister-management/storage#stable-memory">stable
+memory</a> through the <a
+href="https://internetcomputer.org/docs/building-apps/canister-management/storage#motoko-storage-handling">stable
+storage feature</a> to preserve data across canister upgrades. Stable
+regions extend this functionality to allow more structured and flexible
+memory management.</p>
+<p>The system automatically commits all memory modifications, both Wasm
+and stable, after the successful execution of a message. If a message
+execution fails, the changes are not committed.</p>
+<p>:::caution The <code>Regions</code> library should only be used if <a
+href="../fundamentals/2-actors/6-orthogonal-persistence/enhanced.md">enhanced
+orthogonal persistence</a> does not fit your use case. :::</p>
+<h2 id="what-is-a-region">What is a <code>Region</code>?</h2>
+<p>A <a href="../core/Region.md"><code>Region</code></a> is an isolated
+chunk of stable memory that can be allocated, grown, and managed
+independently. It functions like a dedicated section of storage,
+ensuring that its contents remain separate and inaccessible to other
+parts of the program.</p>
+<p>Each <a href="../core/Region.md"><code>Region</code></a> has a
+starting address, a current size, and can grow dynamically. One could
+think of a <a href="../core/Region.md"><code>Region</code></a> similarly
+to an array, where each position corresponds to an index and data is
+accessed through byte offsets. However, unlike a traditional array,
+memory management within a <a
+href="../core/Region.md"><code>Region</code></a> is manual, requiring
+explicit tracking of space usage and current position to ensure accurate
+data access and storage.</p>
+<h3 id="pages">Pages</h3>
+<p>A <strong>page</strong> is the fundamental unit of allocation in
+stable memory, serving as the building block for memory management. Each
+page has a fixed size of 64 KiB (<code>65_536</code> bytes) and is
+zero-initialized upon allocation, ensuring a clean state before use.
+Pages are accessed using <a
+href="https://en.wikipedia.org/wiki/Offset_(computer_science)">byte
+offsets</a> for precise control over memory operations.</p>
+<h3 id="blocks">Blocks</h3>
+<p>A <strong>block</strong> is the physical allocation unit used by the
+ICP runtime system to manage stable memory. Each block consists of 128
+stable memory pages, effectively grouping allocations into larger
+chunks. While memory can be allocated at the page level, the system
+internally allocates at the block level, meaning memory is reserved in
+increments of 128 pages. This approach optimizes resource management and
+reduces fragmentation while maintaining the flexibility of page-level
+access.</p>
+<h3 id="position-and-offsets">Position and offsets</h3>
+<p>An <strong>offset</strong> represents a specific byte position within
+a <a href="../core/Region.md"><code>Region</code></a>, starting from
+<code>0</code>. It is used to locate data within the allocated memory
+space. Positions within a <a
+href="../core/Region.md"><code>Region</code></a> are calculated using
+<code>current_position + bytes_used</code>, ensuring proper tracking of
+where new data should be written or read.</p>
+<p>Since stable memory does not inherently manage layout, it is the
+developer’s responsibility to keep track of what data is stored at each
+offset.</p>
+<h2 id="using-a-region">Using a <code>Region</code></h2>
+<p>It is the developer's responsibility to properly manipulate and
+interpret the data within a regions structure, which may be error-prone.
+However, the safety of Motoko's native value heap objects is always
+guaranteed, independent of the stable <a
+href="../core/Region.md"><code>Region</code></a> content. The cost of
+accessing stable regions is significantly higher than using Motoko's
+native memory.</p>
+<h3 id="creation-and-allocation">Creation and allocation</h3>
+<p>A new <a href="../core/Region.md"><code>Region</code></a> is created
+using <code>Region.new()</code>, initializing it with a size of 0 pages.
+The current size can be checked with <code>Region.size(myRegion)</code>,
+which returns the number of allocated pages. To expand the <a
+href="../core/Region.md"><code>Region</code></a>, use
+<code>Region.grow(myRegion, X)</code>, where <code>X</code> is the
+number of pages to be added. The function will return the previous size
+before expansion, allowing verification of successful growth. If the
+operation fails due to memory constraints, it will return
+<code>0xFFFF_FFFF_FFFF_FFFF</code>, indicating that no additional memory
+could be allocated.</p>
+<pre class="motoko"><code>// Create a new region of initial size 0
+let myRegion = Region.new();
+
+// Check the current size (in pages)
+let currentSizeInPages = Region.size(myRegion);  // Initially 0
+
+// Grow the region by adding pages
+// Returns previous size on success, returns 0xFFFF_FFFF_FFFF_FFFF on failure
+let previousSize = Region.grow(myRegion, 10);  // Add 10 pages (640 KiB)</code></pre>
+<h3 id="growing-a-region-safely">Growing a <code>Region</code>
+safely</h3>
+<p><code>Regions</code> can only grow, never shrink. Growth may fail due
+to <a
+href="https://internetcomputer.org/docs/building-apps/canister-management/resource-limits">ICP
+resource limitations</a> and it is recommended to use the minimum pages
+needed to conserve resources.</p>
+<p>Growing a <a href="../core/Region.md"><code>Region</code></a> safely
+requires checking the current allocated size and ensuring that the
+required space does not exceed available capacity. Since stable memory
+is allocated in fixed-size pages of 64 KiB, any expansion must be done
+in page increments. To determine how many additional pages are needed,
+the difference between the required memory and the current capacity is
+calculated and rounded up to the nearest page boundary. Once the
+necessary pages are determined, the <a
+href="../core/Region.md"><code>Region</code></a> is expanded
+accordingly. After growth, verifying that the expansion was successful
+ensures stability and prevents unintended memory access issues.</p>
+<pre class="motoko"><code> // Helper function to ensure a region has enough space
+func ensureCapacity(r : Region, requiredBytes : Nat64) {
+  let currentPages = Region.size(r);
+  let bytesPerPage : Nat64 = 65536;
+  let currentCapacity = currentPages * bytesPerPage;
+  
+  if (requiredBytes &gt; currentCapacity) {
+    // Calculate how many new pages we need
+    let additionalBytesNeeded = requiredBytes - currentCapacity;
+    let pagesNeeded = (additionalBytesNeeded + bytesPerPage - 1) / bytesPerPage;
+    
+    // Grow the region and check the result
+    let result = Region.grow(r, pagesNeeded);
+    assert result == currentPages; // Verify growth succeeded
+  };
+}</code></pre>
+<h3 id="reading-and-writing-data">Reading and writing data</h3>
+<p>Since stable memory does not inherently manage data structure
+layouts, offsets must be tracked manually to ensure correct placement
+and retrieval of values.</p>
+<p>Smaller data types, such as an 8-bit naturals (<a
+href="../core/Nat8.md"><code>Nat8</code></a>), can be written and
+retrieved from a designated offset. The chosen offset determines where
+in the <a href="../core/Region.md"><code>Region</code></a> the value is
+stored.</p>
+<pre class="motoko"><code>// Store an 8-bit value at offset 0
+Region.storeNat8(myRegion, 0, 42);
+
+// Read the 8-bit value from offset 0
+let value = Region.loadNat8(myRegion, 0);  // Returns 42</code></pre>
+<p>Larger values, such as <a
+href="../core/Nat64.md"><code>Nat64</code></a>, require multiple bytes
+for storage. Allocating offsets with enough space prevents overlapping
+data.</p>
+<p>In this example, the 64-bit integer is stored at offset
+<code>100</code> to ensure it has sufficient space.</p>
+<pre class="motoko"><code>// Store a 64-bit value at offset 100
+Region.storeNat64(myRegion, 100, 123456789);
+
+// Read the 64-bit value from offset 100
+let longValue = Region.loadNat64(myRegion, 100);  // Returns 123456789</code></pre>
+<p>Floating-point numbers can also be stored in a <a
+href="../core/Region.md"><code>Region</code></a>. Since these values
+occupy multiple bytes, offsets should be spaced accordingly to avoid
+overwriting adjacent data.</p>
+<pre class="motoko"><code>// Store a floating-point value at offset 200
+Region.storeFloat(myRegion, 200, 3.14159);
+
+// Read the floating-point value from offset 200
+let pi = Region.loadFloat(myRegion, 200);  // Returns 3.14159</code></pre>
+<p>Regions can be used for storing and retrieving binary data as
+<code>Blob</code>s. This is useful for handling arbitrary sequences of
+bytes, such as serialized objects or encoded information.</p>
+<p><code>Blob</code>s can be stored at any offset, but their size must
+be considered when choosing a starting position. Retrieving the correct
+number of bytes ensures that data integrity is maintained when working
+with binary storage in a <a
+href="../core/Region.md"><code>Region</code></a>.</p>
+<pre class="motoko"><code>// Create a blob
+let myData = Blob.fromArray([1, 2, 3, 4, 5]);
+
+// Store the blob at offset 300
+Region.storeBlob(myRegion, 300, myData);
+
+// Read 5 bytes from offset 300
+let retrievedData = Region.loadBlob(myRegion, 300, 5);  // Returns the same blob</code></pre>
+<h3 id="mops-packages-for-regions">Mops packages for Regions</h3>
+<ul>
+<li><p><a
+href="https://mops.one/memory-region]"><code>memory-region</code></a>: A
+library for abstraction over the <a
+href="../core/Region.md"><code>Region</code></a> type that supports
+reusing deallocated memory.</p></li>
+<li><p><a
+href="https://mops.one/stable-enum"><code>stable-enum</code></a>:
+Enumerations implemented in stable regions.</p></li>
+<li><p><a
+href="https://mops.one/stable-buffer"><code>stable-buffer</code></a>:
+Buffers implemented in stable regions.</p></li>
+</ul>
+<h2 id="regions-comprehensive-example"><code>Regions</code>
+comprehensive example</h2>
+<p>This example illustrates the simultaneous use of stable variables and
+stable memory. It uses a single stable variable, <code>state</code>, to
+keep track of the two regions and their size in bytes, but stores the
+contents of the log directly in stable memory.</p>
+<pre class="motoko"><code>import Nat64 &quot;mo:core/Nat64&quot;;
+import Region &quot;mo:core/Region&quot;;
+
+persistent actor StableLog {
+
+  // Index of saved log entry.
+  public type Index = Nat64;
+
+  // Internal representation uses two regions, working together.
+  var state = { // implicitly `stable`
+    bytes = Region.new();
+    var bytes_count : Nat64 = 0;
+    elems = Region.new ();
+    var elems_count : Nat64 = 0;
+  };
+
+  // Grow a region to hold a certain number of total bytes.
+  func regionEnsureSizeBytes(r : Region, new_byte_count : Nat64) {
+    let pages = Region.size(r);
+    if (new_byte_count &gt; pages &lt;&lt; 16) {
+      let new_pages = ((new_byte_count + ((1 &lt;&lt; 16) - 1)) / (1 &lt;&lt; 16)) - pages;
+      assert Region.grow(r, new_pages) == pages
+    }
+  };
+
+  // Element = Position and size of a saved a Blob.
+  type Elem = {
+    pos : Nat64;
+    size : Nat64;
+  };
+
+  transient let elem_size = 16 : Nat64; /* two Nat64s, for pos and size. */
+
+  // Count of elements (Blobs) that have been logged.
+  public func size() : async Nat64 {
+      state.elems_count
+  };
+
+  // Constant-time random access to previously-logged Blob.
+  public func get(index : Index) : async Blob {
+    assert index &lt; state.elems_count;
+    let pos = Region.loadNat64(state.elems, index * elem_size);
+    let size = Region.loadNat64(state.elems, index * elem_size + 8);
+    let elem = { pos ; size };
+    Region.loadBlob(state.bytes, elem.pos, Nat64.toNat(elem.size))
+  };
+
+  // Add Blob to the log, and return the index of it.
+  public func add(blob : Blob) : async Index {
+    let elem_i = state.elems_count;
+    state.elems_count += 1;
+
+    let elem_pos = state.bytes_count;
+    state.bytes_count += Nat64.fromNat(blob.size());
+
+    regionEnsureSizeBytes(state.bytes, state.bytes_count);
+    Region.storeBlob(state.bytes, elem_pos, blob);
+
+    regionEnsureSizeBytes(state.elems, state.elems_count * elem_size);
+    Region.storeNat64(state.elems, elem_i * elem_size + 0, elem_pos);
+    Region.storeNat64(state.elems, elem_i * elem_size + 8, Nat64.fromNat(blob.size()));
+    elem_i
+  }
+};</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p>Stable memory management can introduce issues such as out-of-bounds
+access, growth failures, and data corruption.</p>
+<p>One common error is
+<code>accessing memory beyond allocated limits</code>, leading to
+out-of-bounds access. This occurs when attempting to read or write data
+beyond the <a href="../core/Region.md"><code>Region</code></a>’s current
+size. To prevent this, always ensure the <a
+href="../core/Region.md"><code>Region</code></a> has been expanded
+sufficiently before performing operations.</p>
+<p>A <a href="../core/Region.md"><code>Region</code></a> may also fail
+to grow when calling <code>Region.grow()</code>, returning
+<code>0xFFFF_FFFF_FFFF_FFFF</code> instead of the previous size. This
+typically indicates that the stable memory limit has been reached.
+Implementing fallback strategies or optimizing memory usage can help
+mitigate this issue.</p>
+<p>Data corruption can occur when memory layouts are mismanaged,
+resulting in unintended overwrites. Proper bounds checking and
+structured memory layouts help prevent this problem, ensuring that
+stored data remains intact.</p>
+<h3 id="debugging">Debugging</h3>
+<p>Tracking memory usage is essential for preventing overflow and
+inefficiencies. Keeping counters for allocated vs. used memory helps
+detect excessive usage before it leads to failures. Assertions can be
+placed in key areas of the code to verify that offset calculations
+remain within valid bounds.</p>
+<p>To ensure data integrity, checksums can be implemented to detect
+corruption, allowing verification of whether stored data has been
+altered unexpectedly. Additionally, placing known markers at structure
+boundaries helps identify memory misalignment and debugging
+inconsistencies.</p>
+</body>
+</html>

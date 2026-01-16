@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>internal_error.ml &mdash; Coverage report</title>
+    <meta name="description" content="40.00% coverage in mo_config/internal_error.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_config/</span>internal_error.ml
+        </a>
+      </h1>
+      <h2>40.00%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="bottom:33.33%"></span>
+      <span class="unvisited" style="bottom:22.22%"></span>
+      <span class="unvisited" style="bottom:11.11%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span class="visited"> </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span class="visited"> </span>
+<a id="L6"></a><span class="unvisited"> </span>
+<a id="L7"></a><span class="unvisited"> </span>
+<a id="L8"></a><span class="unvisited"> </span>
+<a id="L9"></a><span > </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">1</a>
+<a href="#L2">2</a>
+<a href="#L3">3</a>
+<a href="#L4">4</a>
+<a href="#L5">5</a>
+<a href="#L6">6</a>
+<a href="#L7">7</a>
+<a href="#L8">8</a>
+<a href="#L9">9</a>
+</pre>
+<pre><code class="ocaml">
+let setup_handler () =
+  <span data-count="1816">l</span>et open Printexc in
+  record_backtrace true;
+  <span data-count="1816">s</span>et_uncaught_exception_handler (fun exn rb -&gt;
+    <span data-count="0">P</span>rintf.eprintf "OOPS! You've triggered a compiler bug.\n";
+    <span data-count="0">P</span>rintf.eprintf "Please report this at https://github.com/dfinity/motoko/issues/new with the following details:\n\nMotoko %s\n\n" Source_id.banner;
+    <span data-count="0">d</span>efault_uncaught_exception_handler exn rb
+  );
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

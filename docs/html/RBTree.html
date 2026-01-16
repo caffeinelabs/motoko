@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/base/RBTree.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/base/RBTree.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#baserbtree" id="toc-baserbtree">base/RBTree</a>
+<ul>
+<li><a href="#type-color" id="toc-type-color">Type
+<code>Color</code></a></li>
+<li><a href="#type-tree" id="toc-type-tree">Type
+<code>Tree</code></a></li>
+<li><a href="#class-rbtreek-v" id="toc-class-rbtreek-v">Class
+<code>RBTree&lt;K, V&gt;</code></a>
+<ul>
+<li><a href="#function-share" id="toc-function-share">Function
+<code>share</code></a></li>
+<li><a href="#function-unshare" id="toc-function-unshare">Function
+<code>unshare</code></a></li>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-replace" id="toc-function-replace">Function
+<code>replace</code></a></li>
+<li><a href="#function-put" id="toc-function-put">Function
+<code>put</code></a></li>
+<li><a href="#function-delete" id="toc-function-delete">Function
+<code>delete</code></a></li>
+<li><a href="#function-remove" id="toc-function-remove">Function
+<code>remove</code></a></li>
+<li><a href="#function-entries" id="toc-function-entries">Function
+<code>entries</code></a></li>
+<li><a href="#function-entriesrev" id="toc-function-entriesrev">Function
+<code>entriesRev</code></a></li>
+</ul></li>
+<li><a href="#function-iter" id="toc-function-iter">Function
+<code>iter</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="baserbtree">base/RBTree</h1>
+<p>Key-value map implemented as a red-black tree (RBTree) with nodes
+storing key-value pairs.</p>
+<p>A red-black tree is a balanced binary search tree ordered by the
+keys.</p>
+<p>The tree data structure internally colors each of its nodes either
+red or black, and uses this information to balance the tree during the
+modifying operations.</p>
+<p>Creation: Instantiate class <code>RBTree&lt;K, V&gt;</code> that
+provides a map from keys of type <code>K</code> to values of type
+<code>V</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import RBTree &quot;mo:base/RBTree&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let tree = RBTree.RBTree&lt;Nat, Text&gt;(Nat.compare); // Create a new red-black tree mapping Nat to Text
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+tree.put(3, &quot;tree&quot;);
+for (entry in tree.entries()) {
+  Debug.print(&quot;Entry key=&quot; # debug_show(entry.0) # &quot; value=\&quot;&quot; # entry.1 #&quot;\&quot;&quot;);
+}</code></pre>
+<p>:::note Performance</p>
+<ul>
+<li>Runtime: <code>O(log(n))</code> worst case cost per insertion,
+removal, and retrieval operation.</li>
+<li>Heap space: <code>O(n)</code> for storing the entire tree.</li>
+<li>Stack space: <code>O(log(n)) for storing the entire tree. </code>n`
+denotes the number of key-value entries (i.e. nodes) stored in the tree.
+:::</li>
+</ul>
+<p>:::note Tree insertion, replacement, and removal produce
+<code>O(log(n))</code> garbage objects. :::</p>
+<p>:::info Credits The core of this implementation is derived from:</p>
+<ul>
+<li>Ken Friis Larsen's <a
+href="https://github.com/kfl/mosml/blob/master/src/mosmllib/Redblackmap.sml">RedBlackMap.sml</a>,
+which itself is based on:</li>
+<li>Stefan Kahrs, "Red-black trees with types", Journal of Functional
+Programming, 11(4): 425-432 (2001), <a
+href="http://www.cs.ukc.ac.uk/people/staff/smk/redblack/rb.html">version
+1 in web appendix</a>. :::</li>
+</ul>
+<h2 id="type-color">Type <code>Color</code></h2>
+<pre class="motoko"><code>type Color = {#R; #B}</code></pre>
+<p>Node color: Either red (<code>#R</code>) or black
+(<code>#B</code>).</p>
+<h2 id="type-tree">Type <code>Tree</code></h2>
+<pre class="motoko"><code>type Tree&lt;K, V&gt; = {#node : (Color, Tree&lt;K, V&gt;, (K, ?V), Tree&lt;K, V&gt;); #leaf}</code></pre>
+<p>Red-black tree of nodes with key-value entries, ordered by the keys.
+The keys have the generic type <code>K</code> and the values the generic
+type <code>V</code>. Leaves are considered implicitly black.</p>
+<h2 id="class-rbtreek-v">Class <code>RBTree&lt;K, V&gt;</code></h2>
+<pre class="motoko"><code>class RBTree&lt;K, V&gt;(compare : (K, K) -&gt; O.Order)</code></pre>
+<p>A map from keys of type <code>K</code> to values of type
+<code>V</code> implemented as a red-black tree. The entries of key-value
+pairs are ordered by <code>compare</code> function applied to the
+keys.</p>
+<p>The class enables imperative usage in object-oriented-style. However,
+internally, the class uses a functional implementation.</p>
+<p>The <code>compare</code> function should implement a consistent total
+order among all possible values of <code>K</code> and for efficiency,
+only involves <code>O(1)</code> runtime costs without space
+allocation.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import RBTree &quot;mo:base/RBTree&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+let tree = RBTree.RBTree&lt;Nat, Text&gt;(Nat.compare); // Create a map of `Nat` to `Text` using the `Nat.compare` order</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1))</code></td>
+<td><code>O(1))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-share">Function <code>share</code></h3>
+<pre class="motoko"><code>func share() : Tree&lt;K, V&gt;</code></pre>
+<p>Return a snapshot of the internal functional tree representation as
+sharable data. The returned tree representation is not affected by
+subsequent changes of the <code>RBTree</code> instance.</p>
+<p>Example:</p>
+<pre class="motoko"><code>tree.put(1, &quot;one&quot;);
+let treeSnapshot = tree.share();
+tree.put(2, &quot;second&quot;);
+RBTree.size(treeSnapshot) // =&gt; 1 (Only the first insertion is part of the snapshot.)</code></pre>
+<p>Useful for storing the state of a tree object as a stable variable,
+determining its size, pretty-printing, and sharing it across async
+function calls, i.e. passing it in async arguments or async results.</p>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1))</code></td>
+<td><code>O(1))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-unshare">Function <code>unshare</code></h3>
+<pre class="motoko"><code>func unshare(t : Tree&lt;K, V&gt;) : ()</code></pre>
+<p>Reset the current state of the tree object from a functional tree
+representation.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Iter &quot;mo:base/Iter&quot;;
+
+tree.put(1, &quot;one&quot;);
+let snapshot = tree.share(); // save the current state of the tree object in a snapshot
+tree.put(2, &quot;two&quot;);
+tree.unshare(snapshot); // restore the tree object from the snapshot
+Iter.toArray(tree.entries()) // =&gt; [(1, &quot;one&quot;)]</code></pre>
+<p>Useful for restoring the state of a tree object from stable data,
+saved, for example, in a stable variable.</p>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(1)</code></td>
+<td><code>O(1))</code></td>
+<td><code>O(1))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-get">Function <code>get</code></h3>
+<pre class="motoko"><code>func get(key : K) : ?V</code></pre>
+<p>Retrieve the value associated with a given key, if present. Returns
+<code>null</code>, if the key is absent. The key is searched according
+to the <code>compare</code> function defined on the class
+instantiation.</p>
+<p>Example:</p>
+<pre class="motoko"><code>
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+
+tree.get(1) // =&gt; ?&quot;one&quot;</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-replace">Function <code>replace</code></h3>
+<pre class="motoko"><code>func replace(key : K, value : V) : ?V</code></pre>
+<p>Replace the value associated with a given key, if the key is present.
+Otherwise, if the key does not yet exist, insert the key-value
+entry.</p>
+<p>Returns the previous value of the key, if the key already existed.
+Otherwise, <code>null</code>, if the key did not yet exist before.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Iter &quot;mo:base/Iter&quot;;
+
+tree.put(1, &quot;old one&quot;);
+tree.put(2, &quot;two&quot;);
+
+ignore tree.replace(1, &quot;new one&quot;);
+Iter.toArray(tree.entries()) // =&gt; [(1, &quot;new one&quot;), (2, &quot;two&quot;)]</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-put">Function <code>put</code></h3>
+<pre class="motoko"><code>func put(key : K, value : V)</code></pre>
+<p>Insert a key-value entry in the tree. If the key already exists, it
+overwrites the associated value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Iter &quot;mo:base/Iter&quot;;
+
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+tree.put(3, &quot;three&quot;);
+Iter.toArray(tree.entries()) // now contains three entries</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-delete">Function <code>delete</code></h3>
+<pre class="motoko"><code>func delete(key : K)</code></pre>
+<p>Delete the entry associated with a given key, if the key exists. No
+effect if the key is absent. Same as <code>remove(key)</code> except
+that it does not have a return value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Iter &quot;mo:base/Iter&quot;;
+
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+
+tree.delete(1);
+Iter.toArray(tree.entries()) // =&gt; [(2, &quot;two&quot;)].</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-remove">Function <code>remove</code></h3>
+<pre class="motoko"><code>func remove(key : K) : ?V</code></pre>
+<p>Remove the entry associated with a given key, if the key exists, and
+return the associated value. Returns <code>null</code> without any other
+effect if the key is absent.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Iter &quot;mo:base/Iter&quot;;
+
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+
+ignore tree.remove(1);
+Iter.toArray(tree.entries()) // =&gt; [(2, &quot;two&quot;)].</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-entries">Function <code>entries</code></h3>
+<pre class="motoko"><code>func entries() : I.Iter&lt;(K, V)&gt;</code></pre>
+<p>An iterator for the key-value entries of the map, in ascending key
+order. The iterator takes a snapshot view of the tree and is not
+affected by concurrent modifications.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Debug &quot;mo:base/Debug&quot;;
+
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+tree.put(3, &quot;two&quot;);
+
+for (entry in tree.entries()) {
+  Debug.print(&quot;Entry key=&quot; # debug_show(entry.0) # &quot; value=\&quot;&quot; # entry.1 #&quot;\&quot;&quot;);
+}
+
+// Entry key=1 value=&quot;one&quot;
+// Entry key=2 value=&quot;two&quot;
+// Entry key=3 value=&quot;three&quot;</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(log(n))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="function-entriesrev">Function <code>entriesRev</code></h3>
+<pre class="motoko"><code>func entriesRev() : I.Iter&lt;(K, V)&gt;</code></pre>
+<p>An iterator for the key-value entries of the map, in descending key
+order. The iterator takes a snapshot view of the tree and is not
+affected by concurrent modifications.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Debug &quot;mo:base/Debug&quot;;
+
+let tree = RBTree.RBTree&lt;Nat, Text&gt;(Nat.compare);
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+tree.put(3, &quot;two&quot;);
+
+for (entry in tree.entriesRev()) {
+  Debug.print(&quot;Entry key=&quot; # debug_show(entry.0) # &quot; value=\&quot;&quot; # entry.1 #&quot;\&quot;&quot;);
+}
+
+// Entry key=3 value=&quot;three&quot;
+// Entry key=2 value=&quot;two&quot;
+// Entry key=1 value=&quot;one&quot;</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(log(n))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-iter">Function <code>iter</code></h2>
+<pre class="motoko"><code>func iter&lt;X, Y&gt;(tree : Tree&lt;X, Y&gt;, direction : {#fwd; #bwd}) : I.Iter&lt;(X, Y)&gt;</code></pre>
+<p>Get an iterator for the entries of the <code>tree</code>, in
+ascending (<code>#fwd</code>) or descending (<code>#bwd</code>) order as
+specified by <code>direction</code>. The iterator takes a snapshot view
+of the tree and is not affected by concurrent modifications.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import RBTree &quot;mo:base/RBTree&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let tree = RBTree.RBTree&lt;Nat, Text&gt;(Nat.compare);
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+tree.put(3, &quot;two&quot;);
+
+for (entry in RBTree.iter(tree.share(), #bwd)) { // backward iteration
+  Debug.print(&quot;Entry key=&quot; # debug_show(entry.0) # &quot; value=\&quot;&quot; # entry.1 #&quot;\&quot;&quot;);
+}
+
+// Entry key=3 value=&quot;three&quot;
+// Entry key=2 value=&quot;two&quot;
+// Entry key=1 value=&quot;one&quot;</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(n)</code></td>
+<td><code>O(log(n))</code> retained + garbage</td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size&lt;X, Y&gt;(t : Tree&lt;X, Y&gt;) : Nat</code></pre>
+<p>Determine the size of the tree as the number of key-value
+entries.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import RBTree &quot;mo:base/RBTree&quot;;
+import Nat &quot;mo:base/Nat&quot;;
+
+let tree = RBTree.RBTree&lt;Nat, Text&gt;(Nat.compare);
+tree.put(1, &quot;one&quot;);
+tree.put(2, &quot;two&quot;);
+tree.put(3, &quot;three&quot;);
+
+RBTree.size(tree.share()) // 3 entries</code></pre>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Space (Heap)</th>
+<th>Space (Stack)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>O(log(n))</code></td>
+<td><code>O(1)</code></td>
+<td><code>O(log(n))</code></td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Duration">Duration</a></li></li><li><li><a href="#type.TimerId">TimerId</a></li></li><li><li><a href="#setTimer">setTimer</a></li></li><li><li><a href="#recurringTimer">recurringTimer</a></li></li><li><li><a href="#cancelTimer">cancelTimer</a></li></li></ul></nav><div class="documentation"><h1>Timer</h1><p>Timers for one-off or periodic tasks. Applicable as part of the default mechanism.</p>
+<p>:::note Timer resolution</p>
+<p>The resolution of the timers is in the order of the block rate,
+so durations should be chosen well above that. For frequent
+canister wake-ups the heartbeat mechanism should be considered.
+:::</p>
+<p>:::note Overriding system function</p>
+<p>The functionality described below is enabled only when the actor does not override it by declaring an explicit <code>system func timer</code>.
+:::</p>
+<p>:::note Upgrade persistence</p>
+<p>Timers are <em>not</em> persisted across upgrades. One possible strategy
+to re-establish timers after an upgrade is to walk stable variables
+in the <code>post_upgrade</code> hook and distill necessary timer information
+from there.
+:::</p>
+<p>:::note Security warning</p>
+<p>Basing security (e.g. access control) on timers is almost always the wrong choice.
+Be sure to inform yourself about state-of-the-art dApp security.
+If you <em>must use</em> timers for security controls, be sure to consider reentrancy issues,
+and the vanishing of timers on upgrades and reinstalls.
+:::</p>
+<p>:::note Further information</p>
+<p><a href="https://internetcomputer.org/docs/current/developer-docs/backend/periodic-tasks#timers-library-limitations">Further usage information for timers</a>.
+:::</p>
+<p>:::note Compilation flag</p>
+<p>If <code>moc</code> is invoked with <code>-no-timer</code>, the importing will fail.
+:::</p>
+<div class="declaration"><h4 class="type-declaration" id="type.Duration"><span class="keyword">type </span><span class="type">Duration</span> = {#seconds : <span class="type">Nat</span>; #nanoseconds : <span class="type">Nat</span>}</h4><p></p></div><div class="declaration"><h4 class="type-declaration" id="type.TimerId"><span class="keyword">type </span><span class="type">TimerId</span> = <span class="type">Nat</span></h4><p></p></div><div class="declaration"><h4 class="function" id="setTimer"><code><span class="keyword">public func </span><span class="fnname">setTimer</span>(<span class="parameter">d</span> : <a href="#type.Duration"><span class="type">Duration</span></a>, <span class="parameter">job</span> : () -&gt; <span class="keyword">async </span>()) : <a href="#type.TimerId"><span class="type">TimerId</span></a></code></h4><p><p>Installs a one-off timer that upon expiration after given duration <code>d</code>
+executes the future <code>job()</code>.</p>
+<pre><code>motoko no-repl
+let now = Time.now();
+let thirtyMinutes = 1_000_000_000 * 60 * 30;
+func alarmUser() : async () {
+  // ...
+};
+appt.reminder = setTimer(#nanoseconds (Int.abs(appt.when - now - thirtyMinutes)), alarmUser);</code></pre></p></div><div class="declaration"><h4 class="function" id="recurringTimer"><code><span class="keyword">public func </span><span class="fnname">recurringTimer</span>(<span class="parameter">d</span> : <a href="#type.Duration"><span class="type">Duration</span></a>, <span class="parameter">job</span> : () -&gt; <span class="keyword">async </span>()) : <a href="#type.TimerId"><span class="type">TimerId</span></a></code></h4><p><p>Installs a recurring timer that upon expiration after given duration <code>d</code>
+executes the future <code>job()</code> and reinserts itself for another expiration.</p>
+<p>:::info
+A duration of 0 will only expire once.
+:::</p>
+<pre><code>motoko no-repl
+func checkAndWaterPlants() : async () {
+  // ...
+};
+let daily = recurringTimer(#seconds (24 * 60 * 60), checkAndWaterPlants);</code></pre></p></div><div class="declaration"><h4 class="function" id="cancelTimer"><code><span class="keyword">public func </span><span class="fnname">cancelTimer</span>(<span class="parameter">_</span> : <a href="#type.TimerId"><span class="type">TimerId</span></a>) : ()</code></h4><p><p>Cancels a still active timer with <code>(id : TimerId)</code>. For expired timers
+and not recognized <code>id</code>s nothing happens.</p>
+<pre><code>motoko no-repl
+func deleteAppointment(appointment : Appointment) {
+  cancelTimer (appointment.reminder);
+  // ...
+};</code></pre></p></div></div></body></html>

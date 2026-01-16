@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>printers.ml &mdash; Coverage report</title>
+    <meta name="description" content="37.01% coverage in mo_frontend/printers.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_frontend/</span>printers.ml
+        </a>
+      </h1>
+      <h2>37.01%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="top:13.59%"></span>
+      <span class="unvisited" style="top:14.29%"></span>
+      <span class="unvisited" style="top:15.33%"></span>
+      <span class="unvisited" style="top:15.68%"></span>
+      <span class="unvisited" style="top:16.72%"></span>
+      <span class="unvisited" style="top:17.07%"></span>
+      <span class="unvisited" style="top:17.42%"></span>
+      <span class="unvisited" style="top:17.77%"></span>
+      <span class="unvisited" style="top:18.12%"></span>
+      <span class="unvisited" style="top:18.47%"></span>
+      <span class="unvisited" style="top:18.82%"></span>
+      <span class="unvisited" style="top:19.16%"></span>
+      <span class="unvisited" style="top:19.86%"></span>
+      <span class="unvisited" style="top:20.21%"></span>
+      <span class="unvisited" style="top:21.25%"></span>
+      <span class="unvisited" style="top:22.30%"></span>
+      <span class="unvisited" style="top:24.74%"></span>
+      <span class="unvisited" style="top:25.78%"></span>
+      <span class="unvisited" style="top:26.48%"></span>
+      <span class="unvisited" style="top:26.83%"></span>
+      <span class="unvisited" style="top:27.18%"></span>
+      <span class="unvisited" style="top:27.53%"></span>
+      <span class="unvisited" style="top:27.87%"></span>
+      <span class="unvisited" style="top:33.10%"></span>
+      <span class="unvisited" style="top:33.45%"></span>
+      <span class="unvisited" style="top:33.80%"></span>
+      <span class="unvisited" style="top:34.15%"></span>
+      <span class="unvisited" style="top:34.84%"></span>
+      <span class="unvisited" style="top:35.89%"></span>
+      <span class="unvisited" style="top:36.24%"></span>
+      <span class="unvisited" style="top:36.59%"></span>
+      <span class="unvisited" style="top:38.33%"></span>
+      <span class="unvisited" style="top:38.68%"></span>
+      <span class="unvisited" style="top:39.02%"></span>
+      <span class="unvisited" style="top:39.37%"></span>
+      <span class="unvisited" style="top:40.07%"></span>
+      <span class="unvisited" style="top:40.77%"></span>
+      <span class="unvisited" style="top:41.11%"></span>
+      <span class="unvisited" style="top:41.46%"></span>
+      <span class="unvisited" style="top:41.81%"></span>
+      <span class="unvisited" style="top:42.16%"></span>
+      <span class="unvisited" style="top:42.51%"></span>
+      <span class="unvisited" style="top:43.90%"></span>
+      <span class="unvisited" style="top:44.60%"></span>
+      <span class="unvisited" style="top:44.95%"></span>
+      <span class="unvisited" style="top:45.30%"></span>
+      <span class="unvisited" style="top:45.64%"></span>
+      <span class="unvisited" style="top:46.34%"></span>
+      <span class="unvisited" style="top:48.08%"></span>
+      <span class="unvisited" style="top:49.13%"></span>
+      <span class="unvisited" style="top:49.48%"></span>
+      <span class="unvisited" style="top:49.83%"></span>
+      <span class="unvisited" style="bottom:49.83%"></span>
+      <span class="unvisited" style="bottom:49.48%"></span>
+      <span class="unvisited" style="bottom:49.13%"></span>
+      <span class="unvisited" style="bottom:48.43%"></span>
+      <span class="unvisited" style="bottom:47.74%"></span>
+      <span class="unvisited" style="bottom:47.39%"></span>
+      <span class="unvisited" style="bottom:47.04%"></span>
+      <span class="unvisited" style="bottom:46.34%"></span>
+      <span class="unvisited" style="bottom:45.99%"></span>
+      <span class="unvisited" style="bottom:45.64%"></span>
+      <span class="unvisited" style="bottom:45.30%"></span>
+      <span class="unvisited" style="bottom:44.95%"></span>
+      <span class="unvisited" style="bottom:44.60%"></span>
+      <span class="unvisited" style="bottom:43.90%"></span>
+      <span class="unvisited" style="bottom:43.21%"></span>
+      <span class="unvisited" style="bottom:42.86%"></span>
+      <span class="unvisited" style="bottom:41.11%"></span>
+      <span class="unvisited" style="bottom:40.42%"></span>
+      <span class="unvisited" style="bottom:39.72%"></span>
+      <span class="unvisited" style="bottom:39.37%"></span>
+      <span class="unvisited" style="bottom:39.02%"></span>
+      <span class="unvisited" style="bottom:38.68%"></span>
+      <span class="unvisited" style="bottom:38.33%"></span>
+      <span class="unvisited" style="bottom:37.98%"></span>
+      <span class="unvisited" style="bottom:37.63%"></span>
+      <span class="unvisited" style="bottom:37.28%"></span>
+      <span class="unvisited" style="bottom:36.93%"></span>
+      <span class="unvisited" style="bottom:36.24%"></span>
+      <span class="unvisited" style="bottom:35.54%"></span>
+      <span class="unvisited" style="bottom:34.84%"></span>
+      <span class="unvisited" style="bottom:34.49%"></span>
+      <span class="unvisited" style="bottom:34.15%"></span>
+      <span class="unvisited" style="bottom:33.80%"></span>
+      <span class="unvisited" style="bottom:33.45%"></span>
+      <span class="unvisited" style="bottom:33.10%"></span>
+      <span class="unvisited" style="bottom:32.75%"></span>
+      <span class="unvisited" style="bottom:32.40%"></span>
+      <span class="unvisited" style="bottom:31.71%"></span>
+      <span class="unvisited" style="bottom:31.36%"></span>
+      <span class="unvisited" style="bottom:30.31%"></span>
+      <span class="unvisited" style="bottom:29.97%"></span>
+      <span class="unvisited" style="bottom:29.27%"></span>
+      <span class="unvisited" style="bottom:28.92%"></span>
+      <span class="unvisited" style="bottom:28.57%"></span>
+      <span class="unvisited" style="bottom:28.22%"></span>
+      <span class="unvisited" style="bottom:27.53%"></span>
+      <span class="unvisited" style="bottom:27.18%"></span>
+      <span class="unvisited" style="bottom:26.83%"></span>
+      <span class="unvisited" style="bottom:26.48%"></span>
+      <span class="unvisited" style="bottom:26.13%"></span>
+      <span class="unvisited" style="bottom:25.78%"></span>
+      <span class="unvisited" style="bottom:25.44%"></span>
+      <span class="unvisited" style="bottom:25.09%"></span>
+      <span class="unvisited" style="bottom:24.74%"></span>
+      <span class="unvisited" style="bottom:24.39%"></span>
+      <span class="unvisited" style="bottom:24.04%"></span>
+      <span class="unvisited" style="bottom:23.69%"></span>
+      <span class="unvisited" style="bottom:23.34%"></span>
+      <span class="unvisited" style="bottom:23.00%"></span>
+      <span class="unvisited" style="bottom:22.65%"></span>
+      <span class="unvisited" style="bottom:22.30%"></span>
+      <span class="unvisited" style="bottom:21.95%"></span>
+      <span class="unvisited" style="bottom:21.60%"></span>
+      <span class="unvisited" style="bottom:21.25%"></span>
+      <span class="unvisited" style="bottom:20.91%"></span>
+      <span class="unvisited" style="bottom:20.56%"></span>
+      <span class="unvisited" style="bottom:19.86%"></span>
+      <span class="unvisited" style="bottom:19.51%"></span>
+      <span class="unvisited" style="bottom:18.12%"></span>
+      <span class="unvisited" style="bottom:17.42%"></span>
+      <span class="unvisited" style="bottom:16.72%"></span>
+      <span class="unvisited" style="bottom:16.38%"></span>
+      <span class="unvisited" style="bottom:16.03%"></span>
+      <span class="unvisited" style="bottom:15.68%"></span>
+      <span class="unvisited" style="bottom:15.33%"></span>
+      <span class="unvisited" style="bottom:14.98%"></span>
+      <span class="unvisited" style="bottom:14.63%"></span>
+      <span class="unvisited" style="bottom:14.29%"></span>
+      <span class="unvisited" style="bottom:13.94%"></span>
+      <span class="unvisited" style="bottom:13.59%"></span>
+      <span class="unvisited" style="bottom:13.24%"></span>
+      <span class="unvisited" style="bottom:12.89%"></span>
+      <span class="unvisited" style="bottom:12.54%"></span>
+      <span class="unvisited" style="bottom:12.20%"></span>
+      <span class="unvisited" style="bottom:11.85%"></span>
+      <span class="unvisited" style="bottom:11.50%"></span>
+      <span class="unvisited" style="bottom:11.15%"></span>
+      <span class="unvisited" style="bottom:10.80%"></span>
+      <span class="unvisited" style="bottom:10.45%"></span>
+      <span class="unvisited" style="bottom:9.76%"></span>
+      <span class="unvisited" style="bottom:9.41%"></span>
+      <span class="unvisited" style="bottom:9.06%"></span>
+      <span class="unvisited" style="bottom:8.71%"></span>
+      <span class="unvisited" style="bottom:8.36%"></span>
+      <span class="unvisited" style="bottom:8.01%"></span>
+      <span class="unvisited" style="bottom:7.67%"></span>
+      <span class="unvisited" style="bottom:7.32%"></span>
+      <span class="unvisited" style="bottom:6.97%"></span>
+      <span class="unvisited" style="bottom:6.62%"></span>
+      <span class="unvisited" style="bottom:6.27%"></span>
+      <span class="unvisited" style="bottom:2.79%"></span>
+      <span class="unvisited" style="bottom:1.74%"></span>
+      <span class="unvisited" style="bottom:1.39%"></span>
+      <span class="unvisited" style="bottom:0.70%"></span>
+      <span class="unvisited" style="bottom:0.35%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span class="visited"> </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span class="visited"> </span>
+<a id="L11"></a><span class="visited"> </span>
+<a id="L12"></a><span class="visited"> </span>
+<a id="L13"></a><span class="visited"> </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span class="visited"> </span>
+<a id="L16"></a><span class="visited"> </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span > </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span > </span>
+<a id="L29"></a><span class="visited"> </span>
+<a id="L30"></a><span class="visited"> </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span class="visited"> </span>
+<a id="L33"></a><span class="visited"> </span>
+<a id="L34"></a><span class="visited"> </span>
+<a id="L35"></a><span class="visited"> </span>
+<a id="L36"></a><span > </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span class="unvisited"> </span>
+<a id="L40"></a><span > </span>
+<a id="L41"></a><span class="unvisited"> </span>
+<a id="L42"></a><span class="visited"> </span>
+<a id="L43"></a><span class="visited"> </span>
+<a id="L44"></a><span class="unvisited"> </span>
+<a id="L45"></a><span class="unvisited"> </span>
+<a id="L46"></a><span class="visited"> </span>
+<a id="L47"></a><span class="visited"> </span>
+<a id="L48"></a><span class="unvisited"> </span>
+<a id="L49"></a><span class="unvisited"> </span>
+<a id="L50"></a><span class="unvisited"> </span>
+<a id="L51"></a><span class="unvisited"> </span>
+<a id="L52"></a><span class="unvisited"> </span>
+<a id="L53"></a><span class="unvisited"> </span>
+<a id="L54"></a><span class="unvisited"> </span>
+<a id="L55"></a><span class="unvisited"> </span>
+<a id="L56"></a><span class="visited"> </span>
+<a id="L57"></a><span class="unvisited"> </span>
+<a id="L58"></a><span class="unvisited"> </span>
+<a id="L59"></a><span class="visited"> </span>
+<a id="L60"></a><span class="visited"> </span>
+<a id="L61"></a><span class="unvisited"> </span>
+<a id="L62"></a><span class="visited"> </span>
+<a id="L63"></a><span class="visited"> </span>
+<a id="L64"></a><span class="unvisited"> </span>
+<a id="L65"></a><span class="visited"> </span>
+<a id="L66"></a><span class="visited"> </span>
+<a id="L67"></a><span class="visited"> </span>
+<a id="L68"></a><span class="visited"> </span>
+<a id="L69"></a><span class="visited"> </span>
+<a id="L70"></a><span class="visited"> </span>
+<a id="L71"></a><span class="unvisited"> </span>
+<a id="L72"></a><span class="visited"> </span>
+<a id="L73"></a><span class="visited"> </span>
+<a id="L74"></a><span class="unvisited"> </span>
+<a id="L75"></a><span class="visited"> </span>
+<a id="L76"></a><span class="unvisited"> </span>
+<a id="L77"></a><span class="unvisited"> </span>
+<a id="L78"></a><span class="unvisited"> </span>
+<a id="L79"></a><span class="unvisited"> </span>
+<a id="L80"></a><span class="unvisited"> </span>
+<a id="L81"></a><span class="visited"> </span>
+<a id="L82"></a><span class="visited"> </span>
+<a id="L83"></a><span class="visited"> </span>
+<a id="L84"></a><span class="visited"> </span>
+<a id="L85"></a><span class="visited"> </span>
+<a id="L86"></a><span class="visited"> </span>
+<a id="L87"></a><span class="visited"> </span>
+<a id="L88"></a><span class="visited"> </span>
+<a id="L89"></a><span class="visited"> </span>
+<a id="L90"></a><span class="visited"> </span>
+<a id="L91"></a><span class="visited"> </span>
+<a id="L92"></a><span class="visited"> </span>
+<a id="L93"></a><span class="visited"> </span>
+<a id="L94"></a><span class="visited"> </span>
+<a id="L95"></a><span class="unvisited"> </span>
+<a id="L96"></a><span class="unvisited"> </span>
+<a id="L97"></a><span class="unvisited"> </span>
+<a id="L98"></a><span class="unvisited"> </span>
+<a id="L99"></a><span class="visited"> </span>
+<a id="L100"></a><span class="unvisited"> </span>
+<a id="L101"></a><span class="visited"> </span>
+<a id="L102"></a><span class="visited"> </span>
+<a id="L103"></a><span class="unvisited"> </span>
+<a id="L104"></a><span class="unvisited"> </span>
+<a id="L105"></a><span class="unvisited"> </span>
+<a id="L106"></a><span class="visited"> </span>
+<a id="L107"></a><span class="visited"> </span>
+<a id="L108"></a><span class="visited"> </span>
+<a id="L109"></a><span class="visited"> </span>
+<a id="L110"></a><span class="unvisited"> </span>
+<a id="L111"></a><span class="unvisited"> </span>
+<a id="L112"></a><span class="unvisited"> </span>
+<a id="L113"></a><span class="unvisited"> </span>
+<a id="L114"></a><span class="visited"> </span>
+<a id="L115"></a><span class="unvisited"> </span>
+<a id="L116"></a><span class="visited"> </span>
+<a id="L117"></a><span class="unvisited"> </span>
+<a id="L118"></a><span class="unvisited"> </span>
+<a id="L119"></a><span class="unvisited"> </span>
+<a id="L120"></a><span class="unvisited"> </span>
+<a id="L121"></a><span class="unvisited"> </span>
+<a id="L122"></a><span class="unvisited"> </span>
+<a id="L123"></a><span class="visited"> </span>
+<a id="L124"></a><span class="visited"> </span>
+<a id="L125"></a><span class="visited"> </span>
+<a id="L126"></a><span class="unvisited"> </span>
+<a id="L127"></a><span class="visited"> </span>
+<a id="L128"></a><span class="unvisited"> </span>
+<a id="L129"></a><span class="unvisited"> </span>
+<a id="L130"></a><span class="unvisited"> </span>
+<a id="L131"></a><span class="unvisited"> </span>
+<a id="L132"></a><span class="visited"> </span>
+<a id="L133"></a><span class="unvisited"> </span>
+<a id="L134"></a><span class="visited"> </span>
+<a id="L135"></a><span class="visited"> </span>
+<a id="L136"></a><span class="visited"> </span>
+<a id="L137"></a><span class="visited"> </span>
+<a id="L138"></a><span class="unvisited"> </span>
+<a id="L139"></a><span class="visited"> </span>
+<a id="L140"></a><span class="visited"> </span>
+<a id="L141"></a><span class="unvisited"> </span>
+<a id="L142"></a><span class="unvisited"> </span>
+<a id="L143"></a><span class="unvisited"> </span>
+<a id="L144"></a><span class="unvisited"> </span>
+<a id="L145"></a><span class="unvisited"> </span>
+<a id="L146"></a><span class="unvisited"> </span>
+<a id="L147"></a><span class="visited"> </span>
+<a id="L148"></a><span class="unvisited"> </span>
+<a id="L149"></a><span class="visited"> </span>
+<a id="L150"></a><span class="unvisited"> </span>
+<a id="L151"></a><span class="unvisited"> </span>
+<a id="L152"></a><span class="unvisited"> </span>
+<a id="L153"></a><span class="visited"> </span>
+<a id="L154"></a><span class="unvisited"> </span>
+<a id="L155"></a><span class="unvisited"> </span>
+<a id="L156"></a><span class="unvisited"> </span>
+<a id="L157"></a><span class="unvisited"> </span>
+<a id="L158"></a><span class="unvisited"> </span>
+<a id="L159"></a><span class="unvisited"> </span>
+<a id="L160"></a><span class="visited"> </span>
+<a id="L161"></a><span class="unvisited"> </span>
+<a id="L162"></a><span class="visited"> </span>
+<a id="L163"></a><span class="unvisited"> </span>
+<a id="L164"></a><span class="unvisited"> </span>
+<a id="L165"></a><span class="visited"> </span>
+<a id="L166"></a><span class="visited"> </span>
+<a id="L167"></a><span class="visited"> </span>
+<a id="L168"></a><span class="visited"> </span>
+<a id="L169"></a><span class="unvisited"> </span>
+<a id="L170"></a><span class="visited"> </span>
+<a id="L171"></a><span class="unvisited"> </span>
+<a id="L172"></a><span > </span>
+<a id="L173"></a><span class="unvisited"> </span>
+<a id="L174"></a><span class="unvisited"> </span>
+<a id="L175"></a><span class="unvisited"> </span>
+<a id="L176"></a><span class="unvisited"> </span>
+<a id="L177"></a><span class="unvisited"> </span>
+<a id="L178"></a><span class="unvisited"> </span>
+<a id="L179"></a><span class="unvisited"> </span>
+<a id="L180"></a><span class="unvisited"> </span>
+<a id="L181"></a><span class="unvisited"> </span>
+<a id="L182"></a><span class="visited"> </span>
+<a id="L183"></a><span class="unvisited"> </span>
+<a id="L184"></a><span class="visited"> </span>
+<a id="L185"></a><span class="unvisited"> </span>
+<a id="L186"></a><span class="visited"> </span>
+<a id="L187"></a><span class="unvisited"> </span>
+<a id="L188"></a><span class="unvisited"> </span>
+<a id="L189"></a><span class="unvisited"> </span>
+<a id="L190"></a><span class="unvisited"> </span>
+<a id="L191"></a><span class="unvisited"> </span>
+<a id="L192"></a><span class="unvisited"> </span>
+<a id="L193"></a><span class="unvisited"> </span>
+<a id="L194"></a><span class="unvisited"> </span>
+<a id="L195"></a><span class="visited"> </span>
+<a id="L196"></a><span class="unvisited"> </span>
+<a id="L197"></a><span class="unvisited"> </span>
+<a id="L198"></a><span class="visited"> </span>
+<a id="L199"></a><span class="visited"> </span>
+<a id="L200"></a><span class="unvisited"> </span>
+<a id="L201"></a><span class="unvisited"> </span>
+<a id="L202"></a><span class="visited"> </span>
+<a id="L203"></a><span class="unvisited"> </span>
+<a id="L204"></a><span class="unvisited"> </span>
+<a id="L205"></a><span class="unvisited"> </span>
+<a id="L206"></a><span class="unvisited"> </span>
+<a id="L207"></a><span class="visited"> </span>
+<a id="L208"></a><span class="unvisited"> </span>
+<a id="L209"></a><span class="unvisited"> </span>
+<a id="L210"></a><span class="unvisited"> </span>
+<a id="L211"></a><span class="unvisited"> </span>
+<a id="L212"></a><span class="unvisited"> </span>
+<a id="L213"></a><span class="unvisited"> </span>
+<a id="L214"></a><span class="unvisited"> </span>
+<a id="L215"></a><span class="unvisited"> </span>
+<a id="L216"></a><span class="unvisited"> </span>
+<a id="L217"></a><span class="unvisited"> </span>
+<a id="L218"></a><span class="unvisited"> </span>
+<a id="L219"></a><span class="unvisited"> </span>
+<a id="L220"></a><span class="unvisited"> </span>
+<a id="L221"></a><span class="unvisited"> </span>
+<a id="L222"></a><span class="unvisited"> </span>
+<a id="L223"></a><span class="unvisited"> </span>
+<a id="L224"></a><span class="unvisited"> </span>
+<a id="L225"></a><span class="unvisited"> </span>
+<a id="L226"></a><span class="unvisited"> </span>
+<a id="L227"></a><span class="unvisited"> </span>
+<a id="L228"></a><span class="unvisited"> </span>
+<a id="L229"></a><span class="visited"> </span>
+<a id="L230"></a><span class="unvisited"> </span>
+<a id="L231"></a><span class="unvisited"> </span>
+<a id="L232"></a><span class="visited"> </span>
+<a id="L233"></a><span class="visited"> </span>
+<a id="L234"></a><span class="visited"> </span>
+<a id="L235"></a><span class="unvisited"> </span>
+<a id="L236"></a><span class="visited"> </span>
+<a id="L237"></a><span class="unvisited"> </span>
+<a id="L238"></a><span class="visited"> </span>
+<a id="L239"></a><span class="unvisited"> </span>
+<a id="L240"></a><span class="unvisited"> </span>
+<a id="L241"></a><span class="unvisited"> </span>
+<a id="L242"></a><span class="unvisited"> </span>
+<a id="L243"></a><span class="unvisited"> </span>
+<a id="L244"></a><span class="unvisited"> </span>
+<a id="L245"></a><span class="unvisited"> </span>
+<a id="L246"></a><span class="unvisited"> </span>
+<a id="L247"></a><span class="unvisited"> </span>
+<a id="L248"></a><span class="unvisited"> </span>
+<a id="L249"></a><span class="unvisited"> </span>
+<a id="L250"></a><span class="unvisited"> </span>
+<a id="L251"></a><span class="unvisited"> </span>
+<a id="L252"></a><span class="unvisited"> </span>
+<a id="L253"></a><span class="unvisited"> </span>
+<a id="L254"></a><span class="unvisited"> </span>
+<a id="L255"></a><span class="unvisited"> </span>
+<a id="L256"></a><span class="unvisited"> </span>
+<a id="L257"></a><span class="unvisited"> </span>
+<a id="L258"></a><span class="visited"> </span>
+<a id="L259"></a><span class="unvisited"> </span>
+<a id="L260"></a><span class="unvisited"> </span>
+<a id="L261"></a><span class="unvisited"> </span>
+<a id="L262"></a><span class="unvisited"> </span>
+<a id="L263"></a><span class="unvisited"> </span>
+<a id="L264"></a><span class="unvisited"> </span>
+<a id="L265"></a><span class="unvisited"> </span>
+<a id="L266"></a><span class="unvisited"> </span>
+<a id="L267"></a><span class="unvisited"> </span>
+<a id="L268"></a><span class="unvisited"> </span>
+<a id="L269"></a><span class="unvisited"> </span>
+<a id="L270"></a><span > </span>
+<a id="L271"></a><span > </span>
+<a id="L272"></a><span > </span>
+<a id="L273"></a><span > </span>
+<a id="L274"></a><span > </span>
+<a id="L275"></a><span > </span>
+<a id="L276"></a><span > </span>
+<a id="L277"></a><span > </span>
+<a id="L278"></a><span class="visited"> </span>
+<a id="L279"></a><span class="unvisited"> </span>
+<a id="L280"></a><span > </span>
+<a id="L281"></a><span > </span>
+<a id="L282"></a><span class="unvisited"> </span>
+<a id="L283"></a><span class="unvisited"> </span>
+<a id="L284"></a><span > </span>
+<a id="L285"></a><span class="unvisited"> </span>
+<a id="L286"></a><span class="unvisited"> </span>
+<a id="L287"></a><span > </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+<a href="#L105">105</a>
+<a href="#L106">106</a>
+<a href="#L107">107</a>
+<a href="#L108">108</a>
+<a href="#L109">109</a>
+<a href="#L110">110</a>
+<a href="#L111">111</a>
+<a href="#L112">112</a>
+<a href="#L113">113</a>
+<a href="#L114">114</a>
+<a href="#L115">115</a>
+<a href="#L116">116</a>
+<a href="#L117">117</a>
+<a href="#L118">118</a>
+<a href="#L119">119</a>
+<a href="#L120">120</a>
+<a href="#L121">121</a>
+<a href="#L122">122</a>
+<a href="#L123">123</a>
+<a href="#L124">124</a>
+<a href="#L125">125</a>
+<a href="#L126">126</a>
+<a href="#L127">127</a>
+<a href="#L128">128</a>
+<a href="#L129">129</a>
+<a href="#L130">130</a>
+<a href="#L131">131</a>
+<a href="#L132">132</a>
+<a href="#L133">133</a>
+<a href="#L134">134</a>
+<a href="#L135">135</a>
+<a href="#L136">136</a>
+<a href="#L137">137</a>
+<a href="#L138">138</a>
+<a href="#L139">139</a>
+<a href="#L140">140</a>
+<a href="#L141">141</a>
+<a href="#L142">142</a>
+<a href="#L143">143</a>
+<a href="#L144">144</a>
+<a href="#L145">145</a>
+<a href="#L146">146</a>
+<a href="#L147">147</a>
+<a href="#L148">148</a>
+<a href="#L149">149</a>
+<a href="#L150">150</a>
+<a href="#L151">151</a>
+<a href="#L152">152</a>
+<a href="#L153">153</a>
+<a href="#L154">154</a>
+<a href="#L155">155</a>
+<a href="#L156">156</a>
+<a href="#L157">157</a>
+<a href="#L158">158</a>
+<a href="#L159">159</a>
+<a href="#L160">160</a>
+<a href="#L161">161</a>
+<a href="#L162">162</a>
+<a href="#L163">163</a>
+<a href="#L164">164</a>
+<a href="#L165">165</a>
+<a href="#L166">166</a>
+<a href="#L167">167</a>
+<a href="#L168">168</a>
+<a href="#L169">169</a>
+<a href="#L170">170</a>
+<a href="#L171">171</a>
+<a href="#L172">172</a>
+<a href="#L173">173</a>
+<a href="#L174">174</a>
+<a href="#L175">175</a>
+<a href="#L176">176</a>
+<a href="#L177">177</a>
+<a href="#L178">178</a>
+<a href="#L179">179</a>
+<a href="#L180">180</a>
+<a href="#L181">181</a>
+<a href="#L182">182</a>
+<a href="#L183">183</a>
+<a href="#L184">184</a>
+<a href="#L185">185</a>
+<a href="#L186">186</a>
+<a href="#L187">187</a>
+<a href="#L188">188</a>
+<a href="#L189">189</a>
+<a href="#L190">190</a>
+<a href="#L191">191</a>
+<a href="#L192">192</a>
+<a href="#L193">193</a>
+<a href="#L194">194</a>
+<a href="#L195">195</a>
+<a href="#L196">196</a>
+<a href="#L197">197</a>
+<a href="#L198">198</a>
+<a href="#L199">199</a>
+<a href="#L200">200</a>
+<a href="#L201">201</a>
+<a href="#L202">202</a>
+<a href="#L203">203</a>
+<a href="#L204">204</a>
+<a href="#L205">205</a>
+<a href="#L206">206</a>
+<a href="#L207">207</a>
+<a href="#L208">208</a>
+<a href="#L209">209</a>
+<a href="#L210">210</a>
+<a href="#L211">211</a>
+<a href="#L212">212</a>
+<a href="#L213">213</a>
+<a href="#L214">214</a>
+<a href="#L215">215</a>
+<a href="#L216">216</a>
+<a href="#L217">217</a>
+<a href="#L218">218</a>
+<a href="#L219">219</a>
+<a href="#L220">220</a>
+<a href="#L221">221</a>
+<a href="#L222">222</a>
+<a href="#L223">223</a>
+<a href="#L224">224</a>
+<a href="#L225">225</a>
+<a href="#L226">226</a>
+<a href="#L227">227</a>
+<a href="#L228">228</a>
+<a href="#L229">229</a>
+<a href="#L230">230</a>
+<a href="#L231">231</a>
+<a href="#L232">232</a>
+<a href="#L233">233</a>
+<a href="#L234">234</a>
+<a href="#L235">235</a>
+<a href="#L236">236</a>
+<a href="#L237">237</a>
+<a href="#L238">238</a>
+<a href="#L239">239</a>
+<a href="#L240">240</a>
+<a href="#L241">241</a>
+<a href="#L242">242</a>
+<a href="#L243">243</a>
+<a href="#L244">244</a>
+<a href="#L245">245</a>
+<a href="#L246">246</a>
+<a href="#L247">247</a>
+<a href="#L248">248</a>
+<a href="#L249">249</a>
+<a href="#L250">250</a>
+<a href="#L251">251</a>
+<a href="#L252">252</a>
+<a href="#L253">253</a>
+<a href="#L254">254</a>
+<a href="#L255">255</a>
+<a href="#L256">256</a>
+<a href="#L257">257</a>
+<a href="#L258">258</a>
+<a href="#L259">259</a>
+<a href="#L260">260</a>
+<a href="#L261">261</a>
+<a href="#L262">262</a>
+<a href="#L263">263</a>
+<a href="#L264">264</a>
+<a href="#L265">265</a>
+<a href="#L266">266</a>
+<a href="#L267">267</a>
+<a href="#L268">268</a>
+<a href="#L269">269</a>
+<a href="#L270">270</a>
+<a href="#L271">271</a>
+<a href="#L272">272</a>
+<a href="#L273">273</a>
+<a href="#L274">274</a>
+<a href="#L275">275</a>
+<a href="#L276">276</a>
+<a href="#L277">277</a>
+<a href="#L278">278</a>
+<a href="#L279">279</a>
+<a href="#L280">280</a>
+<a href="#L281">281</a>
+<a href="#L282">282</a>
+<a href="#L283">283</a>
+<a href="#L284">284</a>
+<a href="#L285">285</a>
+<a href="#L286">286</a>
+<a href="#L287">287</a>
+</pre>
+<pre><code class="ocaml">open Parser.MenhirInterpreter
+
+(* In order to print syntax error messages and/or debugging information, we
+   need a symbol printer. *)
+
+let abstract abs con = <span data-count="2100">(</span>abs, con)
+
+(* private helper *)
+let repr_of_symbol : xsymbol -&gt; (string * string) =
+  let simple_token con = <span data-count="669">(</span>con, con) in
+  let binop con = <span data-count="850">a</span>bstract "&lt;binop&gt;" "+" in
+  let relop con = <span data-count="250">a</span>bstract "&lt;relop&gt;" "==" in
+  let binassign con = <span data-count="700">a</span>bstract "&lt;binassign&gt;" "+=" in
+  (* all unary operators are also binary operators, so keep them unary *)
+  let unop con = <span data-count="150">a</span>bstract "&lt;unop&gt;" "-" in
+  let unassign con = <span data-count="150">a</span>bstract "&lt;unassign&gt;" "-=" in
+  (* non-terminal examples: *)
+  let eg_exp = "42" in
+  let eg_pat = "x" in
+  let eg_upat = "X" in
+  let eg_typ = "Int" in
+  let eg_annot = ": " ^ eg_typ in
+  let eg_dec = "let " ^ eg_pat ^ " " ^ eg_annot ^ " = 0" in
+  let eg_dec_field = "public " ^ eg_dec in
+  let eg_imp = "import Array \"mo:base/Array\"" in
+  let eg_case = "case " ^ eg_pat ^ " {}" in
+  let eg_exp_field = eg_pat ^ " " ^ eg_annot in
+  let eg_exp_obj = String.concat " " ["{"; eg_pat; eg_annot; "}"] in
+  <span data-count="1816">l</span>et eg_typ_dec = String.concat " " ["type"; eg_upat; "="; eg_typ] in
+  <span data-count="1816">l</span>et eg_typ_args = "&lt;A, B&gt;" in
+  let eg_stab_field = String.concat " " ["stable"; eg_pat; eg_annot] in
+  <span data-count="1816">l</span>et eg_pre_stab_field = String.concat " " ["in"; eg_pat; eg_annot] in
+  <span data-count="1816">l</span>et eg_typ_tag = "#t" in
+  let seplist a sep = <span data-count="109">(</span>"seplist(" ^ fs<span data-count="109">t</span> a ^ "," ^ fs<span data-count="109">t</span> sep ^ ")",
+                       sn<span data-count="109">d</span> a) in
+  let semi = "&lt;semicolon&gt;", ";" in
+  let semi2 = ";", ";" in
+  let comma = ",", "," in
+  let entry_point s = <span data-count="0">(</span>s, "") in
+  function
+  | <span data-count="0">X</span> (T T_error) -&gt; simple_token "error"
+  | <span data-count="50">X</span> (T T_XOROP) -&gt; unop "^"
+  | <span data-count="50">X</span> (T T_XORASSIGN) -&gt; unassign "^="
+  | <span data-count="0">X</span> (T T_WHILE) -&gt; simple_token "while"
+  | <span data-count="0">X</span> (T T_VAR) -&gt; simple_token "var"
+  | <span data-count="50">X</span> (T T_SHROP) -&gt; binop " &gt;&gt;"
+  | <span data-count="50">X</span> (T T_SHRASSIGN) -&gt; binop "&gt;&gt;="
+  | <span data-count="0">X</span> (T T_UNDERSCORE) -&gt; simple_token "_"
+  | <span data-count="0">X</span> (T T_TYPE) -&gt; simple_token  "type"
+  | <span data-count="0">X</span> (T T_TRANSIENT) -&gt; simple_token "transient"
+  | <span data-count="0">X</span> (T T_TRY) -&gt; simple_token "try"
+  | <span data-count="0">X</span> (T T_THROW) -&gt; simple_token "throw"
+  | <span data-count="0">X</span> (T T_FINALLY) -&gt; simple_token  "finally"
+  | <span data-count="0">X</span> (T T_TEXT) -&gt; ("&lt;text&gt;", "\"text\"")
+  | <span data-count="0">X</span> (T T_SWITCH) -&gt; simple_token "switch"
+  | <span data-count="50">X</span> (T T_SUBOP) -&gt; unop "-"
+  | <span data-count="0">X</span> (T T_SUB) -&gt; simple_token "&lt;:"
+  | <span data-count="0">X</span> (T T_STABLE) -&gt; simple_token "stable"
+  | <span data-count="50">X</span> (T T_SHLOP) -&gt; binop "&lt;&lt;"
+  | <span data-count="50">X</span> (T T_SHLASSIGN) -&gt; binassign "&lt;&lt;="
+  | <span data-count="0">X</span> (T T_SHARED) -&gt; simple_token "shared"
+  | <span data-count="50">X</span> (T T_SEMICOLON_EOL) -&gt; simple_token ";" (* suppress the \n *)
+  | <span data-count="50">X</span> (T T_SEMICOLON) -&gt; simple_token ";"
+  | <span data-count="0">X</span> (T T_SYSTEM) -&gt; simple_token "system"
+  | <span data-count="3">X</span> (T T_WITH) -&gt; simple_token "with"
+  | <span data-count="4">X</span> (T T_RPAR) -&gt; simple_token ")"
+  | <span data-count="50">X</span> (T T_ROTROP) -&gt; binop "&lt;&gt;&gt;"
+  | <span data-count="50">X</span> (T T_ROTRASSIGN) -&gt; binassign "&lt;&gt;&gt;="
+  | <span data-count="50">X</span> (T T_ROTLOP) -&gt; binop "&lt;&lt;&gt;"
+  | <span data-count="50">X</span> (T T_ROTLASSIGN) -&gt; binassign "&lt;&lt;&gt;="
+  | <span data-count="0">X</span> (T T_RETURN) -&gt; simple_token "return"
+  | <span data-count="50">X</span> (T T_RCURLY) -&gt; simple_token "}"
+  | <span data-count="51">X</span> (T T_RBRACKET) -&gt; simple_token "]"
+  | <span data-count="0">X</span> (T T_QUEST) -&gt; simple_token "?"
+  | <span data-count="50">X</span> (T T_BANG) -&gt; simple_token "!"
+  | <span data-count="0">X</span> (T T_QUERY) -&gt; simple_token "query"
+  | <span data-count="0">X</span> (T T_PERSISTENT) -&gt; simple_token "persistent"
+  | <span data-count="0">X</span> (T T_PUBLIC) -&gt; simple_token "public"
+  | <span data-count="0">X</span> (T T_PRIVATE) -&gt; simple_token "private"
+  | <span data-count="0">X</span> (T T_PRIM) -&gt; simple_token "prim"
+  | <span data-count="50">X</span> (T T_POWOP) -&gt; binop "**"
+  | <span data-count="50">X</span> (T T_WRAPADDOP) -&gt; binop "+%"
+  | <span data-count="50">X</span> (T T_WRAPSUBOP) -&gt; binop "-%"
+  | <span data-count="50">X</span> (T T_WRAPMULOP) -&gt; binop "*%"
+  | <span data-count="50">X</span> (T T_WRAPPOWOP) -&gt; binop "**%"
+  | <span data-count="50">X</span> (T T_WRAPADDASSIGN) -&gt; binassign "+%-"
+  | <span data-count="50">X</span> (T T_WRAPSUBASSIGN) -&gt; binassign "-%="
+  | <span data-count="50">X</span> (T T_WRAPMULASSIGN) -&gt; binassign "*%="
+  | <span data-count="50">X</span> (T T_WRAPPOWASSIGN) -&gt; binassign "**%="
+  | <span data-count="50">X</span> (T T_POWASSIGN) -&gt; binassign "**="
+  | <span data-count="50">X</span> (T T_PLUSASSIGN) -&gt; unassign "+="
+  | <span data-count="50">X</span> (T T_OROP) -&gt; binop "|"
+  | <span data-count="50">X</span> (T T_ORASSIGN) -&gt; binassign "|="
+  | <span data-count="50">X</span> (T T_OR) -&gt; simple_token "or"
+  | <span data-count="0">X</span> (T T_OBJECT) -&gt; simple_token "object"
+  | <span data-count="0">X</span> (T T_NULL) -&gt; simple_token "null"
+  | <span data-count="0">X</span> (T T_NUM_DOT_ID) -&gt; simple_token "num.id"
+  | <span data-count="0">X</span> (T T_NOT) -&gt; simple_token "not"
+  | <span data-count="50">X</span> (T T_NEQOP) -&gt; binop "!="
+  | <span data-count="0">X</span> (T T_NAT) -&gt; "&lt;nat&gt;", "0"
+  | <span data-count="50">X</span> (T T_MULOP) -&gt; binop "*"
+  | <span data-count="50">X</span> (T T_MULASSIGN) -&gt; binassign "*="
+  | <span data-count="0">X</span> (T T_MODULE) -&gt; simple_token "module"
+  | <span data-count="0">X</span> (T T_INCLUDE) -&gt; simple_token "include"
+  | <span data-count="0">X</span> (T T_MIXIN) -&gt; simple_token "mixin"
+  | <span data-count="50">X</span> (T T_MODOP) -&gt; binop "%"
+  | <span data-count="50">X</span> (T T_MODASSIGN) -&gt; binassign "%="
+  | <span data-count="50">X</span> (T T_MINUSASSIGN) -&gt; unassign "-="
+  | <span data-count="50">X</span> (T T_LTOP) -&gt; relop " &lt; "
+  | <span data-count="0">X</span> (T T_LT) -&gt; simple_token "&lt;"
+  | <span data-count="0">X</span> (T T_LPAR) -&gt; simple_token "("
+  | <span data-count="0">X</span> (T T_LOOP) -&gt; simple_token "loop"
+  | <span data-count="0">X</span> (T T_LET) -&gt; simple_token "let"
+  | <span data-count="50">X</span> (T T_LEOP) -&gt; relop "&lt;="
+  | <span data-count="0">X</span> (T T_LCURLY) -&gt; simple_token "{"
+  | <span data-count="50">X</span> (T T_LBRACKET) -&gt; simple_token "["
+  | <span data-count="0">X</span> (T T_LABEL) -&gt; simple_token "label"
+  | <span data-count="0">X</span> (T T_IN) -&gt; simple_token "in"
+  | <span data-count="0">X</span> (T T_IMPORT) -&gt; simple_token "import"
+  | <span data-count="0">X</span> (T T_IMPLICIT) -&gt; simple_token "implicit"
+  | <span data-count="0">X</span> (T T_IGNORE) -&gt; simple_token "ignore"
+  | <span data-count="0">X</span> (T T_IF) -&gt; simple_token "if"
+  | <span data-count="50">X</span> (T T_ID) -&gt; simple_token "&lt;id&gt;"
+  | <span data-count="50">X</span> (T T_HASH) -&gt; binop "#"
+  | <span data-count="50">X</span> (T T_GTOP) -&gt; relop " &gt; "
+  | <span data-count="0">X</span> (T T_GT) -&gt; simple_token "&gt;"
+  | <span data-count="50">X</span> (T T_GEOP) -&gt; relop "&gt;="
+  | <span data-count="0">X</span> (T T_FUNC) -&gt; simple_token "func"
+  | <span data-count="0">X</span> (T T_FOR) -&gt; simple_token "for"
+  | <span data-count="0">X</span> (T T_FLEXIBLE) -&gt; simple_token "flexible"
+  | <span data-count="0">X</span> (T T_FLOAT) -&gt; simple_token "&lt;float&gt;"
+  | <span data-count="50">X</span> (T T_EQOP) -&gt; relop "=="
+  | <span data-count="0">X</span> (T T_EQ) -&gt; simple_token "="
+  | <span data-count="6">X</span> (T T_EOF) -&gt; simple_token "&lt;eof&gt;"
+  | <span data-count="1">X</span> (T T_ELSE) -&gt; simple_token "else"
+  | <span data-count="50">X</span> (T T_DOT_NUM) -&gt; ".&lt;nat&gt;", ".1"
+  | <span data-count="50">X</span> (T T_DOT) -&gt; simple_token "."
+  | <span data-count="0">X</span> (T T_DO) -&gt; simple_token "do"
+  | <span data-count="50">X</span> (T T_DIVOP) -&gt; binop "/"
+  | <span data-count="50">X</span> (T T_DIVASSIGN) -&gt; binassign "/="
+  | <span data-count="0">X</span> (T T_DISALLOWED) -&gt; simple_token "&lt;disallowed&gt;"
+  | <span data-count="0">X</span> (T T_DEBUG_SHOW) -&gt; simple_token "debug_show"
+  | <span data-count="0">X</span> (T T_TO_CANDID) -&gt; simple_token "to_candid"
+  | <span data-count="0">X</span> (T T_FROM_CANDID) -&gt; simple_token "from_candid"
+  | <span data-count="0">X</span> (T T_DEBUG) -&gt; simple_token "debug"
+  | <span data-count="0">X</span> (T T_CONTINUE) -&gt; simple_token "continue"
+  | <span data-count="2">X</span> (T T_COMMA) -&gt; simple_token ","
+  | <span data-count="0">X</span> (T T_COMPOSITE) -&gt; simple_token "composite"
+  | <span data-count="50">X</span> (T T_COLON) -&gt; simple_token ":"
+  | <span data-count="0">X</span> (T T_CLASS) -&gt; simple_token "class"
+  | <span data-count="0">X</span> (T T_CHAR) -&gt;  "&lt;char&gt;", "'c'"
+  | <span data-count="0">X</span> (T T_CATCH) -&gt; simple_token "catch"
+  | <span data-count="50">X</span> (T T_CATASSIGN) -&gt; binassign "@="
+  | <span data-count="0">X</span> (T T_CASE) -&gt; simple_token "case"
+  | <span data-count="0">X</span> (T T_BREAK) -&gt; simple_token "break"
+  | <span data-count="0">X</span> (T T_BOOL) -&gt; simple_token "&lt;bool&gt;"
+  | <span data-count="0">X</span> (T T_AWAIT) -&gt; simple_token "await"
+  | <span data-count="0">X</span> (T T_AWAITSTAR) -&gt; simple_token "await*"
+  | <span data-count="0">X</span> (T T_AWAITQUEST) -&gt; simple_token "await?"
+  | <span data-count="2">X</span> (T T_ASYNC) -&gt; simple_token "async"
+  | <span data-count="0">X</span> (T T_ASYNCSTAR) -&gt; simple_token "async*"
+  | <span data-count="50">X</span> (T T_ASSIGN) -&gt; simple_token ":="
+  | <span data-count="0">X</span> (T T_ASSERT) -&gt; simple_token "assert"
+  | <span data-count="0">X</span> (T T_ARROW) -&gt; simple_token "-&gt;"
+  | <span data-count="50">X</span> (T T_ANDOP) -&gt; binop "&amp;"
+  | <span data-count="50">X</span> (T T_ANDASSIGN) -&gt; binassign "&amp;="
+  | <span data-count="50">X</span> (T T_AND) -&gt; simple_token "and"
+  | <span data-count="50">X</span> (T T_ADDOP) -&gt; unop "+"
+  | <span data-count="0">X</span> (T T_ACTOR) -&gt; simple_token "actor"
+  | <span data-count="50">X</span> (T T_PIPE) -&gt; simple_token "|&gt;"
+  | <span data-count="0">X</span> (T T_WEAK) -&gt; simple_token "weak"
+  (* non-terminals *)
+  | <span data-count="0">X</span> (N N_bl) -&gt; "&lt;bl&gt;", "&lt;bl&gt;"
+  | <span data-count="0">X</span> (N N_case) -&gt; "&lt;case&gt;", eg_case
+  | <span data-count="0">X</span> (N N_catch) -&gt; "&lt;catch&gt;", "catch " ^ eg_pat ^ " {}"
+  | <span data-count="0">X</span> (N N_class_body) -&gt; "&lt;class_body&gt;", "= {}"
+  | <span data-count="0">X</span> (N N_dec) -&gt; "&lt;dec&gt;", eg_dec
+  | <span data-count="0">X</span> (N N_dec_field) -&gt; "&lt;dec_field&gt;", eg_dec_field
+  | <span data-count="0">X</span> (N N_dec_nonvar) -&gt; "&lt;dec_nonvar&gt;", eg_dec
+  | <span data-count="0">X</span> (N N_dec_var) -&gt; "&lt;dec_var&gt;", "var x : Int = 0"
+  | <span data-count="0">X</span> (N N_exp_bl_) -&gt; "&lt;exp(bl)&gt;", eg_exp
+  | <span data-count="1000">X</span> (N N_exp_ob_) -&gt; "&lt;exp(ob)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_bin_bl_) -&gt; "&lt;exp_bin(bl)&gt;", eg_exp
+  | <span data-count="1353">X</span> (N N_exp_bin_ob_) -&gt; "&lt;exp_bin(ob)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_obj) -&gt; "&lt;exp_obj&gt;", eg_exp_obj
+  | <span data-count="3">X</span> (N N_exp_nest) -&gt; "&lt;exp_nest&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_block) -&gt; "&lt;block&gt;", "{}"
+  | <span data-count="0">X</span> (N N_exp_field) -&gt; "&lt;exp_field&gt;", eg_exp_field
+  | <span data-count="0">X</span> (N N_exp_nondec_bl_) -&gt; "&lt;exp_nondec(bl)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_nondec_ob_) -&gt; "&lt;exp_nondec(ob)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_nonvar_bl_) -&gt; "&lt;exp_nonvar(bl)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_nonvar_ob_) -&gt; "&lt;exp_nonvar(ob)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_nullary_bl_) -&gt; "&lt;exp_nullary(bl)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_nullary_ob_) -&gt; "&lt;exp_nullary(ob)&gt;", eg_exp
+  | <span data-count="102">X</span> (N N_exp_arg) -&gt; "&lt;exp_nullary(ob)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_exp_plain) -&gt; "&lt;exp_plain&gt;", "true"
+  | <span data-count="0">X</span> (N N_exp_post_bl_) -&gt; "&lt;exp_post(bl)&gt;", eg_exp
+  | <span data-count="2">X</span> (N N_exp_post_ob_) -&gt; "&lt;exp_post(ob)&gt;", eg_exp
+  | <span data-count="2">X</span> (N N_obj_or_class_dec) -&gt; "&lt;obj_or_class_dec&gt;", "object " ^ eg_pat ^ " = {}"
+  | <span data-count="0">X</span> (N N_option_exp_post_ob__) -&gt; "&lt;exp_post(ob)&gt;?", eg_exp
+  | <span data-count="0">X</span> (N N_exp_un_bl_) -&gt; "&lt;exp_un(bl)&gt;", eg_exp
+  | <span data-count="1">X</span> (N N_exp_un_ob_) -&gt; "&lt;exp_un(ob)&gt;", eg_exp
+  | <span data-count="0">X</span> (N N_func_body) -&gt; "&lt;func_body&gt;", "{}"
+  | <span data-count="0">X</span> (N N_func_pat) -&gt; "&lt;func_pat&gt;", "f(x : Int)"
+  | <span data-count="0">X</span> (N N_imp) -&gt; "&lt;imp&gt;", eg_imp
+  | <span data-count="0">X</span> (N N_import_list) -&gt; "&lt;import_list&gt;", eg_imp
+  | <span data-count="52">X</span> (N N_inst) -&gt; "&lt;inst&gt;", "&lt;" ^ eg_typ ^ "&gt;"
+  | <span data-count="0">X</span> (N N_lit) -&gt; "&lt;lit&gt;", "true"
+  | <span data-count="0">X</span> (N N_ob) -&gt; "&lt;ob&gt;", eg_exp_obj
+  | <span data-count="0">X</span> (N N_obj_body) -&gt; "&lt;obj_body&gt;", "{}"
+  | <span data-count="0">X</span> (N N_option_EQ_) -&gt; "=?", "=?"
+  | <span data-count="0">X</span> (N N_option_exp_nullary_ob__) -&gt; "&lt;exp_nullary(ob)&gt;?", eg_exp
+  | <span data-count="0">X</span> (N N_option_typ_args_) -&gt; "&lt;typ_args&gt;?", eg_typ_args
+  | <span data-count="0">X</span> (N N_option_query_) -&gt; "&lt;query&gt;?", "query"
+  | <span data-count="0">X</span> (N N_parse_module_header) -&gt; entry_point "&lt;parse_module_header&gt;"
+  | <span data-count="0">X</span> (N N_parse_prog) -&gt; entry_point "&lt;parse_prog&gt;"
+  | <span data-count="0">X</span> (N N_parse_prog_interactive) -&gt; entry_point "&lt;parse_prog_interactive&gt;"
+  | <span data-count="0">X</span> (N N_parse_stab_sig) -&gt; entry_point "&lt;parse_stab_sig&gt;"
+  | <span data-count="0">X</span> (N N_pat) -&gt; "&lt;pat&gt;", eg_pat
+  | <span data-count="0">X</span> (N N_pat_bin) -&gt; "&lt;pat_bin&gt;", eg_pat
+  | <span data-count="0">X</span> (N N_pat_field) -&gt; "&lt;pat_field&gt;", eg_pat ^ " " ^ eg_pat
+  | <span data-count="0">X</span> (N N_pat_nullary) -&gt; "&lt;pat_nullary&gt;", eg_pat
+  | <span data-count="0">X</span> (N N_pat_plain) -&gt; "&lt;pat_plain&gt;", eg_pat
+  | <span data-count="0">X</span> (N N_pat_un) -&gt; "&lt;pat_un&gt;", eg_pat
+  | <span data-count="0">X</span> (N N_path) -&gt; "&lt;path&gt;", "A.B.C"
+  | <span data-count="0">X</span> (N N_annot_opt) -&gt; "&lt;annot_opt&gt;", eg_annot
+  | <span data-count="0">X</span> (N N_seplist_case_semicolon_) -&gt; seplist ("&lt;case&gt;", eg_case) semi
+  | <span data-count="0">X</span> (N N_seplist_dec_SEMICOLON_) -&gt; seplist ("&lt;dec&gt;", eg_dec) semi2
+  | <span data-count="103">X</span> (N N_seplist_dec_semicolon_) -&gt; seplist ("&lt;dec&gt;", eg_dec) semi
+  | <span data-count="0">X</span> (N N_seplist_typ_dec_semicolon_) -&gt; seplist ("&lt;typ_dec&gt;", eg_typ_dec) semi
+  | <span data-count="0">X</span> (N N_seplist_dec_field_semicolon_) -&gt; seplist ("&lt;dec_field&gt;", eg_dec_field) semi
+  | <span data-count="1">X</span> (N N_seplist_exp_ob__COMMA_) -&gt; seplist ("&lt;exp(ob)&gt;", eg_exp) comma
+  | <span data-count="3">X</span> (N N_seplist_exp_field_semicolon_) -&gt; seplist ("&lt;exp_field&gt;", eg_exp_field) semi
+  | <span data-count="1">X</span> (N N_seplist1_exp_field_semicolon_) -&gt; "seplist1(&lt;exp_field&gt;,&lt;semicolon&gt;)", eg_exp_field
+  | <span data-count="0">X</span> (N N_separated_nonempty_list_AND_exp_post_ob__) -&gt; "seplist+(&lt;exp_post(ob)&gt;,and)", eg_exp
+  | <span data-count="1">X</span> (N N_seplist_exp_nonvar_ob__COMMA_) -&gt; seplist ("&lt;exp_nonvar(ob)&gt;", eg_exp) comma
+  | <span data-count="0">X</span> (N N_seplist_imp_SEMICOLON_) -&gt; seplist ("&lt;imp&gt;", eg_imp) semi2
+  | <span data-count="1">X</span> (N N_seplist_imp_semicolon_) -&gt; seplist ("&lt;imp&gt;", eg_imp) semi
+  | <span data-count="0">X</span> (N N_seplist_pat_bin_COMMA_) -&gt; seplist ("&lt;pat_bin&gt;", eg_pat) comma
+  | <span data-count="0">X</span> (N N_seplist_pat_field_semicolon_) -&gt; seplist ("&lt;pat_field", eg_pat) semi
+  | <span data-count="0">X</span> (N N_seplist_typ_COMMA_) -&gt; seplist ("&lt;typ&gt;", eg_typ) comma
+  | <span data-count="0">X</span> (N N_list_preceded_COMMA_typ__) -&gt; "(, &lt;typ&gt;)*", ", " ^ eg_typ
+  | <span data-count="0">X</span> (N N_seplist_typ_bind_COMMA_) -&gt; seplist ("&lt;typ_bind&gt;", eg_upat) comma
+  | <span data-count="0">X</span> (N N_list_preceded_COMMA_typ_bind__) -&gt; "(, &lt;typ_bind&gt;)*", ", " ^ eg_upat
+  | <span data-count="0">X</span> (N N_seplist_typ_field_semicolon_) -&gt; seplist ("typ_field", eg_typ_dec) semi
+  | <span data-count="0">X</span> (N N_seplist_stab_field_semicolon_) -&gt; seplist ("typ_field", eg_stab_field) semi
+  | <span data-count="0">X</span> (N N_seplist_pre_stab_field_semicolon_) -&gt; seplist ("typ_field", eg_pre_stab_field) semi
+  | <span data-count="0">X</span> (N N_seplist_typ_item_COMMA_) -&gt; seplist ("&lt;typ_item&gt;", eg_typ) comma
+  | <span data-count="0">X</span> (N N_seplist_typ_tag_semicolon_) -&gt; seplist ("&lt;typ_tag&gt;", eg_typ_tag) semi
+  | <span data-count="0">X</span> (N N_seplist1_typ_tag_semicolon_) -&gt; "seplist1(&lt;typ_tag&gt;,&lt;semicolon&gt;)", eg_typ_tag
+  | <span data-count="0">X</span> (N N_pat_opt) -&gt; "&lt;pat_opt&gt;", eg_pat
+  | <span data-count="0">X</span> (N N_typ) -&gt; "&lt;typ&gt;", eg_typ
+  | <span data-count="0">X</span> (N N_typ_dec) -&gt; "&lt;typ_dec&gt;", eg_typ_dec
+  | <span data-count="0">X</span> (N N_typ_args) -&gt; "&lt;typ_args&gt;", eg_typ_args
+  | <span data-count="0">X</span> (N N_typ_bind) -&gt; "&lt;typ_bind&gt;", eg_upat
+  | <span data-count="0">X</span> (N N_typ_field) -&gt; "&lt;typ_field&gt;", eg_typ_dec
+  | <span data-count="0">X</span> (N N_typ_item) -&gt; "&lt;typ_item&gt;", eg_typ
+  | <span data-count="50">X</span> (N N_typ_nobin) -&gt; "&lt;typ_nobin&gt;", eg_typ
+  | <span data-count="0">X</span> (N N_typ_nullary) -&gt; "&lt;typ_nullary&gt;", eg_typ
+  | <span data-count="0">X</span> (N N_typ_obj) -&gt; "&lt;typ_obj&gt;", "{}"
+  | <span data-count="0">X</span> (N N_typ_pre) -&gt; "&lt;typ_pre&gt;", eg_typ
+  | <span data-count="0">X</span> (N N_typ_tag) -&gt; "&lt;typ_tag&gt;", eg_typ_tag
+  | <span data-count="0">X</span> (N N_typ_un) -&gt; "&lt;typ_un&gt;", eg_typ
+  | <span data-count="0">X</span> (N N_typ_variant) -&gt; "&lt;typ_variant&gt;", "{ " ^ eg_typ_tag ^ " }"
+  | <span data-count="0">X</span> (N N_vis) -&gt; "&lt;vis&gt;", "public"
+  | <span data-count="0">X</span> (N N_stab) -&gt; "&lt;stab&gt;", ""
+  | <span data-count="0">X</span> (N N_stab_field) -&gt; "&lt;stab_field&gt;", eg_stab_field
+  | <span data-count="0">X</span> (N N_pre_stab_field) -&gt; "&lt;pre_stab_field&gt;", eg_pre_stab_field
+  | <span data-count="0">X</span> (N N_start) -&gt; entry_point "&lt;start&gt;" (* dummy non-terminal, don't display *)
+
+(* In order to print a view of the stack that includes semantic values,
+   we need an element printer. (If we don't need this feature, then
+   [print_symbol] above suffices.) *)
+
+(* The public functions. *)
+
+
+let string_of_symbol s = <span data-count="5494">f</span>st (repr_of_symbo<span data-count="5494">l</span> s)
+let example_of_symbol s = <span data-count="0">s</span>nd (repr_of_symbo<span data-count="0">l</span> s)
+
+let buff :string list ref = ref []
+let print s = <span data-count="0">b</span>uff := s::!buff
+let print_symbol s = <span data-count="0">p</span>rint (string_of_symbo<span data-count="0">l</span> s)
+let print_element = None
+let to_string() = <span data-count="0">l</span>et s = String.concat "" (List.re<span data-count="0">v</span> (!buff)) in
+                  <span data-count="0">b</span>uff := [];
+                  s
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

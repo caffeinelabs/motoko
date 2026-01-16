@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/List.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/List.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#corelist" id="toc-corelist">core/List</a>
+<ul>
+<li><a href="#type-list" id="toc-type-list">Type
+<code>List</code></a></li>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-singleton" id="toc-function-singleton">Function
+<code>singleton</code></a></li>
+<li><a href="#function-repeat" id="toc-function-repeat">Function
+<code>repeat</code></a></li>
+<li><a href="#function-fill" id="toc-function-fill">Function
+<code>fill</code></a></li>
+<li><a href="#function-topure" id="toc-function-topure">Function
+<code>toPure</code></a></li>
+<li><a href="#function-frompure" id="toc-function-frompure">Function
+<code>fromPure</code></a></li>
+<li><a href="#function-addrepeat" id="toc-function-addrepeat">Function
+<code>addRepeat</code></a></li>
+<li><a href="#function-truncate" id="toc-function-truncate">Function
+<code>truncate</code></a></li>
+<li><a href="#function-clear" id="toc-function-clear">Function
+<code>clear</code></a></li>
+<li><a href="#function-tabulate" id="toc-function-tabulate">Function
+<code>tabulate</code></a></li>
+<li><a href="#function-flatten" id="toc-function-flatten">Function
+<code>flatten</code></a></li>
+<li><a href="#function-join" id="toc-function-join">Function
+<code>join</code></a></li>
+<li><a href="#function-clone" id="toc-function-clone">Function
+<code>clone</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-mapinplace" id="toc-function-mapinplace">Function
+<code>mapInPlace</code></a></li>
+<li><a href="#function-mapentries" id="toc-function-mapentries">Function
+<code>mapEntries</code></a></li>
+<li><a href="#function-mapresult" id="toc-function-mapresult">Function
+<code>mapResult</code></a></li>
+<li><a href="#function-filter" id="toc-function-filter">Function
+<code>filter</code></a></li>
+<li><a href="#function-retain" id="toc-function-retain">Function
+<code>retain</code></a></li>
+<li><a href="#function-filtermap" id="toc-function-filtermap">Function
+<code>filterMap</code></a></li>
+<li><a href="#function-flatmap" id="toc-function-flatmap">Function
+<code>flatMap</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-add" id="toc-function-add">Function
+<code>add</code></a></li>
+<li><a href="#function-removelast" id="toc-function-removelast">Function
+<code>removeLast</code></a></li>
+<li><a href="#function-at" id="toc-function-at">Function
+<code>at</code></a></li>
+<li><a href="#function-get" id="toc-function-get">Function
+<code>get</code></a></li>
+<li><a href="#function-put" id="toc-function-put">Function
+<code>put</code></a></li>
+<li><a href="#function-sortinplace"
+id="toc-function-sortinplace">Function <code>sortInPlace</code></a></li>
+<li><a href="#function-sort" id="toc-function-sort">Function
+<code>sort</code></a></li>
+<li><a href="#function-issorted" id="toc-function-issorted">Function
+<code>isSorted</code></a></li>
+<li><a href="#function-deduplicate"
+id="toc-function-deduplicate">Function <code>deduplicate</code></a></li>
+<li><a href="#function-indexof" id="toc-function-indexof">Function
+<code>indexOf</code></a></li>
+<li><a href="#function-nextindexof"
+id="toc-function-nextindexof">Function <code>nextIndexOf</code></a></li>
+<li><a href="#function-lastindexof"
+id="toc-function-lastindexof">Function <code>lastIndexOf</code></a></li>
+<li><a href="#function-previndexof"
+id="toc-function-previndexof">Function <code>prevIndexOf</code></a></li>
+<li><a href="#function-find" id="toc-function-find">Function
+<code>find</code></a></li>
+<li><a href="#function-findindex" id="toc-function-findindex">Function
+<code>findIndex</code></a></li>
+<li><a href="#function-findlastindex"
+id="toc-function-findlastindex">Function
+<code>findLastIndex</code></a></li>
+<li><a href="#function-binarysearch"
+id="toc-function-binarysearch">Function
+<code>binarySearch</code></a></li>
+<li><a href="#function-all" id="toc-function-all">Function
+<code>all</code></a></li>
+<li><a href="#function-any" id="toc-function-any">Function
+<code>any</code></a></li>
+<li><a href="#function-values" id="toc-function-values">Function
+<code>values</code></a></li>
+<li><a href="#function-enumerate" id="toc-function-enumerate">Function
+<code>enumerate</code></a></li>
+<li><a href="#function-reversevalues"
+id="toc-function-reversevalues">Function
+<code>reverseValues</code></a></li>
+<li><a href="#function-reverseenumerate"
+id="toc-function-reverseenumerate">Function
+<code>reverseEnumerate</code></a></li>
+<li><a href="#function-keys" id="toc-function-keys">Function
+<code>keys</code></a></li>
+<li><a href="#function-fromiter" id="toc-function-fromiter">Function
+<code>fromIter</code></a></li>
+<li><a href="#function-tolist" id="toc-function-tolist">Function
+<code>toList</code></a></li>
+<li><a href="#function-append" id="toc-function-append">Function
+<code>append</code></a></li>
+<li><a href="#function-addall" id="toc-function-addall">Function
+<code>addAll</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-first" id="toc-function-first">Function
+<code>first</code></a></li>
+<li><a href="#function-last" id="toc-function-last">Function
+<code>last</code></a></li>
+<li><a href="#function-foreach" id="toc-function-foreach">Function
+<code>forEach</code></a></li>
+<li><a href="#function-foreachentry"
+id="toc-function-foreachentry">Function
+<code>forEachEntry</code></a></li>
+<li><a href="#function-range" id="toc-function-range">Function
+<code>range</code></a></li>
+<li><a href="#function-slicetoarray"
+id="toc-function-slicetoarray">Function
+<code>sliceToArray</code></a></li>
+<li><a href="#function-slicetovararray"
+id="toc-function-slicetovararray">Function
+<code>sliceToVarArray</code></a></li>
+<li><a href="#function-reverseforeachentry"
+id="toc-function-reverseforeachentry">Function
+<code>reverseForEachEntry</code></a></li>
+<li><a href="#function-reverseforeach"
+id="toc-function-reverseforeach">Function
+<code>reverseForEach</code></a></li>
+<li><a href="#function-foreachinrange"
+id="toc-function-foreachinrange">Function
+<code>forEachInRange</code></a></li>
+<li><a href="#function-contains" id="toc-function-contains">Function
+<code>contains</code></a></li>
+<li><a href="#function-max" id="toc-function-max">Function
+<code>max</code></a></li>
+<li><a href="#function-min" id="toc-function-min">Function
+<code>min</code></a></li>
+<li><a href="#function-equal" id="toc-function-equal">Function
+<code>equal</code></a></li>
+<li><a href="#function-compare" id="toc-function-compare">Function
+<code>compare</code></a></li>
+<li><a href="#function-totext" id="toc-function-totext">Function
+<code>toText</code></a></li>
+<li><a href="#function-foldleft" id="toc-function-foldleft">Function
+<code>foldLeft</code></a></li>
+<li><a href="#function-foldright" id="toc-function-foldright">Function
+<code>foldRight</code></a></li>
+<li><a href="#function-reverseinplace"
+id="toc-function-reverseinplace">Function
+<code>reverseInPlace</code></a></li>
+<li><a href="#function-reverse" id="toc-function-reverse">Function
+<code>reverse</code></a></li>
+<li><a href="#function-isempty" id="toc-function-isempty">Function
+<code>isEmpty</code></a></li>
+<li><a href="#function-reader" id="toc-function-reader">Function
+<code>reader</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="corelist">core/List</h1>
+<p>A mutable growable array data structure with efficient random access
+and dynamic resizing. <code>List</code> provides O(1) access time and
+O(sqrt(n)) memory overhead. In contrast, <code>pure/List</code> is a
+purely functional linked list. Can be declared <code>stable</code> for
+orthogonal persistence.</p>
+<p>This implementation is adapted with permission from the
+<code>vector</code> Mops package created by Research AG.</p>
+<p>Copyright: 2023 MR Research AG Main author: Andrii Stepanov
+(AStepanov25) Contributors: Timo Hanke (timohanke), Andy Gura
+(andygura), react0r-com</p>
+<pre class="motoko"><code>import List &quot;mo:core/List&quot;;</code></pre>
+<h2 id="type-list">Type <code>List</code></h2>
+<pre class="motoko"><code>type List&lt;T&gt; = Types.List&lt;T&gt;</code></pre>
+<p><code>List&lt;T&gt;</code> provides a mutable list of elements of
+type <code>T</code>. Based on the paper "Resizable Arrays in Optimal
+Time and Space" by Brodnik, Carlsson, Demaine, Munro and Sedgewick
+(1999). Since this is internally a two-dimensional array the access
+times for put and get operations will naturally be 2x slower than Buffer
+and Array. However, Array is not resizable and Buffer has
+<code>O(size)</code> memory waste.</p>
+<p>The maximum number of elements in a <code>List</code> is 2^32.</p>
+<h2 id="function-empty">Function <code>empty</code></h2>
+<pre class="motoko"><code>func empty&lt;T&gt;() : List&lt;T&gt;</code></pre>
+<p>Creates a new empty List for elements of type T.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;(); // Creates a new List</code></pre>
+<h2 id="function-singleton">Function <code>singleton</code></h2>
+<pre class="motoko"><code>func singleton&lt;T&gt;(element : T) : List&lt;T&gt;</code></pre>
+<p>Returns a new list with capacity and size 1, containing
+<code>element</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.singleton&lt;Nat&gt;(1);
+assert List.toText&lt;Nat&gt;(list, Nat.toText) == &quot;List[1]&quot;;</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-repeat">Function <code>repeat</code></h2>
+<pre class="motoko"><code>func repeat&lt;T&gt;(initValue : T, size : Nat) : List&lt;T&gt;</code></pre>
+<p>Creates a new List with <code>size</code> copies of the initial
+value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.repeat&lt;Nat&gt;(2, 4);
+assert List.toArray(list) == [2, 2, 2, 2];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<h2 id="function-fill">Function <code>fill</code></h2>
+<pre class="motoko"><code>func fill&lt;T&gt;(self : List&lt;T&gt;, value : T)</code></pre>
+<p>Fills all elements in the list with the given value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+List.fill(list, 0); // fills the list with 0
+assert List.toArray(list) == [0, 0, 0];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-topure">Function <code>toPure</code></h2>
+<pre class="motoko"><code>func toPure&lt;T&gt;(self : List&lt;T&gt;) : PureList.List&lt;T&gt;</code></pre>
+<p>Converts a mutable <code>List</code> to a purely functional
+<code>PureList</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+let pureList = List.toPure&lt;Nat&gt;(list); // converts to immutable PureList</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code> @deprecated M0235</p>
+<h2 id="function-frompure">Function <code>fromPure</code></h2>
+<pre class="motoko"><code>func fromPure&lt;T&gt;(pure : PureList.List&lt;T&gt;) : List&lt;T&gt;</code></pre>
+<p>Converts a purely functional <code>PureList</code> to a
+<code>List</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import PureList &quot;mo:core/pure/List&quot;;
+
+let pureList = PureList.fromArray&lt;Nat&gt;([1, 2, 3]);
+let list = List.fromPure&lt;Nat&gt;(pureList); // converts to List</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code> @deprecated M0235</p>
+<h2 id="function-addrepeat">Function <code>addRepeat</code></h2>
+<pre class="motoko"><code>func addRepeat&lt;T&gt;(self : List&lt;T&gt;, initValue : T, count : Nat)</code></pre>
+<p>Add to list <code>count</code> copies of the initial value.</p>
+<pre class="motoko"><code>let list = List.repeat&lt;Nat&gt;(2, 4); // [2, 2, 2, 2]
+List.addRepeat(list, 2, 1); // [2, 2, 2, 2, 1, 1]</code></pre>
+<p>The maximum number of elements in a <code>List</code> is 2^32.</p>
+<p>Runtime: <code>O(count)</code></p>
+<h2 id="function-truncate">Function <code>truncate</code></h2>
+<pre class="motoko"><code>func truncate&lt;T&gt;(self : List&lt;T&gt;, newSize : Nat)</code></pre>
+<p>Truncates the list to the specified size. If the new size is larger
+than the current size, it will do nothing. If the new size is equal to
+the current list size, after the operation list will be equal to cloned
+version of itself.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4, 5]);
+List.truncate(list, 3); // list is now [1, 2, 3]
+assert List.toArray(list) == [1, 2, 3];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-clear">Function <code>clear</code></h2>
+<pre class="motoko"><code>func clear&lt;T&gt;(self : List&lt;T&gt;)</code></pre>
+<p>Resets the list to size 0, de-referencing all elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+List.add(list, 12);
+List.clear(list); // list is now empty
+assert List.toArray(list) == [];</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<h2 id="function-tabulate">Function <code>tabulate</code></h2>
+<pre class="motoko"><code>func tabulate&lt;T&gt;(size : Nat, generator : Nat -&gt; T) : List&lt;T&gt;</code></pre>
+<p>Creates a list of size <code>size</code>. Each element at index i is
+created by applying <code>generator</code> to i.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.tabulate&lt;Nat&gt;(4, func i = i * 2);
+assert List.toArray(list) == [0, 2, 4, 6];</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>generator</code> runs in O(1)
+time and space.</p>
+<h2 id="function-flatten">Function <code>flatten</code></h2>
+<pre class="motoko"><code>func flatten&lt;T&gt;(self : List&lt;List&lt;T&gt;&gt;) : List&lt;T&gt;</code></pre>
+<p>Combines a list of lists into a single list. Retains the original
+ordering of the elements.</p>
+<p>This has better performance compared to <code>List.join()</code>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let lists = List.fromArray&lt;List.List&lt;Nat&gt;&gt;([
+  List.fromArray&lt;Nat&gt;([0, 1, 2]), List.fromArray&lt;Nat&gt;([2, 3]), List.fromArray&lt;Nat&gt;([]), List.fromArray&lt;Nat&gt;([4])
+]);
+let flatList = List.flatten&lt;Nat&gt;(lists);
+assert List.equal&lt;Nat&gt;(flatList, List.fromArray&lt;Nat&gt;([0, 1, 2, 2, 3, 4]), Nat.equal);</code></pre>
+<p>Runtime: O(number of elements in list)</p>
+<p>Space: O(number of elements in list)</p>
+<h2 id="function-join">Function <code>join</code></h2>
+<pre class="motoko"><code>func join&lt;T&gt;(self : Types.Iter&lt;List&lt;T&gt;&gt;) : List&lt;T&gt;</code></pre>
+<p>Combines an iterator of lists into a single list. Retains the
+original ordering of the elements.</p>
+<p>Consider using <code>List.flatten()</code> for better
+performance.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let lists = [List.fromArray&lt;Nat&gt;([0, 1, 2]), List.fromArray&lt;Nat&gt;([2, 3]), List.fromArray&lt;Nat&gt;([]), List.fromArray&lt;Nat&gt;([4])];
+let joinedList = List.join&lt;Nat&gt;(lists.vals());
+assert List.equal&lt;Nat&gt;(joinedList, List.fromArray&lt;Nat&gt;([0, 1, 2, 2, 3, 4]), Nat.equal);</code></pre>
+<p>Runtime: O(number of elements in list)</p>
+<p>Space: O(number of elements in list)</p>
+<h2 id="function-clone">Function <code>clone</code></h2>
+<pre class="motoko"><code>func clone&lt;T&gt;(self : List&lt;T&gt;) : List&lt;T&gt;</code></pre>
+<p>Returns a copy of a List, with the same size.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 1);
+
+let clone = List.clone(list);
+assert List.toArray(clone) == [1];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;T, R&gt;(self : List&lt;T&gt;, f : T -&gt; R) : List&lt;R&gt;</code></pre>
+<p>Creates a new list by applying the provided function to each element
+in the input list. The resulting list has the same size as the input
+list.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.singleton&lt;Nat&gt;(123);
+let textList = List.map&lt;Nat, Text&gt;(list, Nat.toText);
+assert List.toArray(textList) == [&quot;123&quot;];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-mapinplace">Function <code>mapInPlace</code></h2>
+<pre class="motoko"><code>func mapInPlace&lt;T&gt;(self : List&lt;T&gt;, f : T -&gt; T)</code></pre>
+<p>Applies <code>f</code> to each element of <code>list</code> in place,
+retaining the original ordering of elements. This modifies the original
+list.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([0, 1, 2, 3]);
+List.mapInPlace&lt;Nat&gt;(list, func x = x * 3);
+assert List.equal(list, List.fromArray&lt;Nat&gt;([0, 3, 6, 9]), Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-mapentries">Function <code>mapEntries</code></h2>
+<pre class="motoko"><code>func mapEntries&lt;T, R&gt;(self : List&lt;T&gt;, f : (T, Nat) -&gt; R) : List&lt;R&gt;</code></pre>
+<p>Creates a new list by applying <code>f</code> to each element in
+<code>list</code> and its index. Retains original ordering of
+elements.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([10, 10, 10, 10]);
+let newList = List.mapEntries&lt;Nat, Nat&gt;(list, func (x, i) = i * x);
+assert List.equal(newList, List.fromArray&lt;Nat&gt;([0, 10, 20, 30]), Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-mapresult">Function <code>mapResult</code></h2>
+<pre class="motoko"><code>func mapResult&lt;T, R, E&gt;(self : List&lt;T&gt;, f : T -&gt; Types.Result&lt;R, E&gt;) : Types.Result&lt;List&lt;R&gt;, E&gt;</code></pre>
+<p>Creates a new list by applying <code>f</code> to each element in
+<code>list</code>. If any invocation of <code>f</code> produces an
+<code>#err</code>, returns an <code>#err</code>. Otherwise returns an
+<code>#ok</code> containing the new list.</p>
+<pre class="motoko"><code>import Result &quot;mo:core/Result&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([4, 3, 2, 1, 0]);
+// divide 100 by every element in the list
+let result = List.mapResult&lt;Nat, Nat, Text&gt;(list, func x {
+  if (x &gt; 0) {
+    #ok(100 / x)
+  } else {
+    #err &quot;Cannot divide by zero&quot;
+  }
+});
+assert Result.isErr(result);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size)</p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-filter">Function <code>filter</code></h2>
+<pre class="motoko"><code>func filter&lt;T&gt;(self : List&lt;T&gt;, predicate : T -&gt; Bool) : List&lt;T&gt;</code></pre>
+<p>Returns a new list containing only the elements from
+<code>list</code> for which the predicate returns true.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4]);
+let evenNumbers = List.filter&lt;Nat&gt;(list, func x = x % 2 == 0);
+assert List.toArray(evenNumbers) == [2, 4];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in
+<code>O(1)</code> time and space.</p>
+<h2 id="function-retain">Function <code>retain</code></h2>
+<pre class="motoko"><code>func retain&lt;T&gt;(self : List&lt;T&gt;, predicate : T -&gt; Bool)</code></pre>
+<p>Retains only the elements in <code>list</code> for which the
+predicate returns true. Modifies the original list in place.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4]);
+List.retain&lt;Nat&gt;(list, func x = x % 2 == 0);
+assert List.toArray(list) == [2, 4];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(sqrt(size))</code> if <code>list</code> was truncated
+otherwise <code>O(1)</code></p>
+<h2 id="function-filtermap">Function <code>filterMap</code></h2>
+<pre class="motoko"><code>func filterMap&lt;T, R&gt;(self : List&lt;T&gt;, f : T -&gt; ?R) : List&lt;R&gt;</code></pre>
+<p>Returns a new list containing all elements from <code>list</code> for
+which the function returns ?element. Discards all elements for which the
+function returns null.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4]);
+let doubled = List.filterMap&lt;Nat, Nat&gt;(list, func x = if (x % 2 == 0) ?(x * 2) else null);
+assert List.toArray(doubled) == [4, 8];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>f</code> runs in
+<code>O(1)</code> time and space.</p>
+<h2 id="function-flatmap">Function <code>flatMap</code></h2>
+<pre class="motoko"><code>func flatMap&lt;T, R&gt;(self : List&lt;T&gt;, k : T -&gt; Types.Iter&lt;R&gt;) : List&lt;R&gt;</code></pre>
+<p>Creates a new list by applying <code>k</code> to each element in
+<code>list</code>, and concatenating the resulting iterators in
+order.</p>
+<pre class="motoko"><code>import Int &quot;mo:core/Int&quot;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4]);
+let newList = List.flatMap&lt;Nat, Int&gt;(list, func x = [x, -x].vals());
+assert List.equal(newList, List.fromArray&lt;Int&gt;([1, -1, 2, -2, 3, -3, 4, -4]), Int.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(size) *Runtime and space assumes that <code>k</code> runs in
+O(1) time and space.</p>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size&lt;T&gt;(self : List&lt;T&gt;) : Nat</code></pre>
+<p>Returns the current number of elements in the list.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+assert List.size(list) == 0</code></pre>
+<p>Runtime: <code>O(1)</code> (with some internal calculations)</p>
+<h2 id="function-add">Function <code>add</code></h2>
+<pre class="motoko"><code>func add&lt;T&gt;(self : List&lt;T&gt;, element : T)</code></pre>
+<p>Adds a single element to the end of a List, allocating a new internal
+data block if needed, and resizing the internal index block if
+needed.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 0); // add 0 to list
+List.add(list, 1);
+List.add(list, 2);
+List.add(list, 3);
+assert List.toArray(list) == [0, 1, 2, 3];</code></pre>
+<p>The maximum number of elements in a <code>List</code> is 2^32.</p>
+<p>Amortized Runtime: <code>O(1)</code>, Worst Case Runtime:
+<code>O(sqrt(n))</code></p>
+<h2 id="function-removelast">Function <code>removeLast</code></h2>
+<pre class="motoko"><code>func removeLast&lt;T&gt;(self : List&lt;T&gt;) : ?T</code></pre>
+<p>Removes and returns the last item in the list or <code>null</code> if
+the list is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+assert List.removeLast(list) == ?11;
+assert List.removeLast(list) == ?10;
+assert List.removeLast(list) == null;</code></pre>
+<p>Amortized Runtime: <code>O(1)</code>, Worst Case Runtime:
+<code>O(sqrt(n))</code></p>
+<p>Amortized Space: <code>O(1)</code>, Worst Case Space:
+<code>O(sqrt(n))</code></p>
+<h2 id="function-at">Function <code>at</code></h2>
+<pre class="motoko"><code>func at&lt;T&gt;(self : List&lt;T&gt;, index : Nat) : T</code></pre>
+<p>Returns the element at index <code>index</code>. Indexing is
+zero-based. Traps if <code>index &gt;= size</code>, error message may
+not be descriptive.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+assert List.at(list, 0) == 10;</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<h2 id="function-get">Function <code>get</code></h2>
+<pre class="motoko"><code>func get&lt;T&gt;(self : List&lt;T&gt;, index : Nat) : ?T</code></pre>
+<p>Returns the element at index <code>index</code> as an option. Returns
+<code>null</code> when <code>index &gt;= size</code>. Indexing is
+zero-based.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+assert List.get(list, 0) == ?10;
+assert List.get(list, 2) == null;</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<p>Space: <code>O(1)</code> @deprecated M0235</p>
+<h2 id="function-put">Function <code>put</code></h2>
+<pre class="motoko"><code>func put&lt;T&gt;(self : List&lt;T&gt;, index : Nat, value : T)</code></pre>
+<p>Overwrites the current element at <code>index</code> with
+<code>element</code>. Traps if <code>index</code> &gt;= size, error
+message may not be descriptive. Indexing is zero-based.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.put(list, 0, 20); // overwrites 10 at index 0 with 20
+assert List.toArray(list) == [20];</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<h2 id="function-sortinplace">Function <code>sortInPlace</code></h2>
+<pre class="motoko"><code>func sortInPlace&lt;T&gt;(self : List&lt;T&gt;, compare : (implicit : (T, T) -&gt; Types.Order))</code></pre>
+<p>Sorts the elements in the list according to <code>compare</code>.
+Sort is deterministic, stable, and in-place.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 3);
+List.add(list, 1);
+List.add(list, 2);
+List.sortInPlace(list, Nat.compare);
+assert List.toArray(list) == [1, 2, 3];</code></pre>
+<p>Runtime: O(size * log(size))</p>
+<p>Space: O(size) *Runtime and space assumes that <code>compare</code>
+runs in O(1) time and space.</p>
+<h2 id="function-sort">Function <code>sort</code></h2>
+<pre class="motoko"><code>func sort&lt;T&gt;(self : List&lt;T&gt;, compare : (implicit : (T, T) -&gt; Types.Order)) : List&lt;T&gt;</code></pre>
+<p>Sorts the elements in the list according to <code>compare</code>.
+Sort is deterministic, stable, and in-place.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 3);
+List.add(list, 1);
+List.add(list, 2);
+let sorted = List.sort(list, Nat.compare);
+assert List.toArray(sorted) == [1, 2, 3];</code></pre>
+<p>Runtime: O(size * log(size))</p>
+<p>Space: O(size) *Runtime and space assumes that <code>compare</code>
+runs in O(1) time and space.</p>
+<h2 id="function-issorted">Function <code>isSorted</code></h2>
+<pre class="motoko"><code>func isSorted&lt;T&gt;(self : List&lt;T&gt;, compare : (implicit : (T, T) -&gt; Types.Order)) : Bool</code></pre>
+<p>Checks whether the <code>list</code> is sorted.</p>
+<p>Example:</p>
+<pre><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+assert List.isSorted(list, Nat.compare);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<h2 id="function-deduplicate">Function <code>deduplicate</code></h2>
+<pre class="motoko"><code>func deduplicate&lt;T&gt;(self : List&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool))</code></pre>
+<p>Remove adjacent duplicates from the <code>list</code>, if the
+<code>list</code> is sorted all elements will be unique.</p>
+<p>Example:</p>
+<pre><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 1, 2, 2, 3]);
+List.deduplicate(list, Nat.equal);
+assert List.equal(list, List.fromArray&lt;Nat&gt;([1, 2, 3]), Nat.equal);</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<h2 id="function-indexof">Function <code>indexOf</code></h2>
+<pre class="motoko"><code>func indexOf&lt;T&gt;(self : List&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), element : T) : ?Nat</code></pre>
+<p>Finds the first index of <code>element</code> in <code>list</code>
+using equality of elements defined by <code>equal</code>. Returns
+<code>null</code> if <code>element</code> is not found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 1);
+List.add(list, 2);
+List.add(list, 3);
+List.add(list, 4);
+
+assert List.indexOf&lt;Nat&gt;(list, Nat.equal, 3) == ?2;
+assert List.indexOf&lt;Nat&gt;(list, Nat.equal, 5) == null;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>equal</code> runs in
+<code>O(1)</code> time and space.</p>
+<h2 id="function-nextindexof">Function <code>nextIndexOf</code></h2>
+<pre class="motoko"><code>func nextIndexOf&lt;T&gt;(self : List&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), element : T, fromInclusive : Nat) : ?Nat</code></pre>
+<p>Returns the index of the next occurence of <code>element</code> in
+the <code>list</code> starting from the <code>from</code> index
+(inclusive).</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;
+let list = List.fromArray&lt;Char&gt;([&#39;c&#39;, &#39;o&#39;, &#39;f&#39;, &#39;f&#39;, &#39;e&#39;, &#39;e&#39;]);
+assert List.nextIndexOf&lt;Char&gt;(list, Char.equal, &#39;c&#39;, 0) == ?0;
+assert List.nextIndexOf&lt;Char&gt;(list, Char.equal, &#39;f&#39;, 0) == ?2;
+assert List.nextIndexOf&lt;Char&gt;(list, Char.equal, &#39;f&#39;, 2) == ?2;
+assert List.nextIndexOf&lt;Char&gt;(list, Char.equal, &#39;f&#39;, 3) == ?3;
+assert List.nextIndexOf&lt;Char&gt;(list, Char.equal, &#39;f&#39;, 4) == null;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>equal</code> runs in O(1) time
+and space.</p>
+<h2 id="function-lastindexof">Function <code>lastIndexOf</code></h2>
+<pre class="motoko"><code>func lastIndexOf&lt;T&gt;(self : List&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), element : T) : ?Nat</code></pre>
+<p>Finds the last index of <code>element</code> in <code>list</code>
+using equality of elements defined by <code>equal</code>. Returns
+<code>null</code> if <code>element</code> is not found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4, 2, 2]);
+
+assert List.lastIndexOf&lt;Nat&gt;(list, Nat.equal, 2) == ?5;
+assert List.lastIndexOf&lt;Nat&gt;(list, Nat.equal, 5) == null;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>equal</code> runs in
+<code>O(1)</code> time and space.</p>
+<h2 id="function-previndexof">Function <code>prevIndexOf</code></h2>
+<pre class="motoko"><code>func prevIndexOf&lt;T&gt;(self : List&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), element : T, fromExclusive : Nat) : ?Nat</code></pre>
+<p>Returns the index of the previous occurence of <code>element</code>
+in the <code>list</code> starting from the <code>from</code> index
+(exclusive).</p>
+<pre class="motoko"><code>import Char &quot;mo:core/Char&quot;;
+let list = List.fromArray&lt;Char&gt;([&#39;c&#39;, &#39;o&#39;, &#39;f&#39;, &#39;f&#39;, &#39;e&#39;, &#39;e&#39;]);
+assert List.prevIndexOf&lt;Char&gt;(list, Char.equal, &#39;c&#39;, List.size(list)) == ?0;
+assert List.prevIndexOf&lt;Char&gt;(list, Char.equal, &#39;e&#39;, List.size(list)) == ?5;
+assert List.prevIndexOf&lt;Char&gt;(list, Char.equal, &#39;e&#39;, 5) == ?4;
+assert List.prevIndexOf&lt;Char&gt;(list, Char.equal, &#39;e&#39;, 4) == null;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<h2 id="function-find">Function <code>find</code></h2>
+<pre class="motoko"><code>func find&lt;T&gt;(self : List&lt;T&gt;, predicate : T -&gt; Bool) : ?T</code></pre>
+<p>Returns the first value in <code>list</code> for which
+<code>predicate</code> returns true. If no element satisfies the
+predicate, returns null.</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 9, 4, 8]);
+let found = List.find&lt;Nat&gt;(list, func(x) { x &gt; 8 });
+assert found == ?9;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-findindex">Function <code>findIndex</code></h2>
+<pre class="motoko"><code>func findIndex&lt;T&gt;(self : List&lt;T&gt;, predicate : T -&gt; Bool) : ?Nat</code></pre>
+<p>Finds the index of the first element in <code>list</code> for which
+<code>predicate</code> is true. Returns <code>null</code> if no such
+element is found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 1);
+List.add(list, 2);
+List.add(list, 3);
+List.add(list, 4);
+
+assert List.findIndex&lt;Nat&gt;(list, func(i) { i % 2 == 0 }) == ?1;
+assert List.findIndex&lt;Nat&gt;(list, func(i) { i &gt; 5 }) == null;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in
+<code>O(1)</code> time and space.</p>
+<h2 id="function-findlastindex">Function <code>findLastIndex</code></h2>
+<pre class="motoko"><code>func findLastIndex&lt;T&gt;(self : List&lt;T&gt;, predicate : T -&gt; Bool) : ?Nat</code></pre>
+<p>Finds the index of the last element in <code>list</code> for which
+<code>predicate</code> is true. Returns <code>null</code> if no such
+element is found.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 1);
+List.add(list, 2);
+List.add(list, 3);
+List.add(list, 4);
+
+assert List.findLastIndex&lt;Nat&gt;(list, func(i) { i % 2 == 0 }) == ?3;
+assert List.findLastIndex&lt;Nat&gt;(list, func(i) { i &gt; 5 }) == null;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in
+<code>O(1)</code> time and space.</p>
+<h2 id="function-binarysearch">Function <code>binarySearch</code></h2>
+<pre class="motoko"><code>func binarySearch&lt;T&gt;(self : List&lt;T&gt;, compare : (implicit : (T, T) -&gt; Types.Order), element : T) : {#found : Nat; #insertionIndex : Nat}</code></pre>
+<p>Performs binary search on a sorted list to find the index of the
+<code>element</code>. Returns <code>#found(index)</code> if the element
+is found, or <code>#insertionIndex(index)</code> with the index where
+the element would be inserted according to the ordering if not
+found.</p>
+<p>If there are multiple equal elements, no guarantee is made about
+which index is returned. The list must be sorted in ascending order
+according to the <code>compare</code> function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 3, 5, 7, 9, 11]);
+assert List.binarySearch&lt;Nat&gt;(list, Nat.compare, 5) == #found(2);
+assert List.binarySearch&lt;Nat&gt;(list, Nat.compare, 6) == #insertionIndex(3);</code></pre>
+<p>Runtime: <code>O(log(size))</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>compare</code> runs in
+<code>O(1)</code> time and space.</p>
+<h2 id="function-all">Function <code>all</code></h2>
+<pre class="motoko"><code>func all&lt;T&gt;(self : List&lt;T&gt;, predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Returns true iff every element in <code>list</code> satisfies
+<code>predicate</code>. In particular, if <code>list</code> is empty the
+function returns <code>true</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 2);
+List.add(list, 3);
+List.add(list, 4);
+
+assert List.all&lt;Nat&gt;(list, func x { x &gt; 1 });</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-any">Function <code>any</code></h2>
+<pre class="motoko"><code>func any&lt;T&gt;(self : List&lt;T&gt;, predicate : T -&gt; Bool) : Bool</code></pre>
+<p>Returns true iff some element in <code>list</code> satisfies
+<code>predicate</code>. In particular, if <code>list</code> is empty the
+function returns <code>false</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 2);
+List.add(list, 3);
+List.add(list, 4);
+
+assert List.any&lt;Nat&gt;(list, func x { x &gt; 3 });</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-values">Function <code>values</code></h2>
+<pre class="motoko"><code>func values&lt;T&gt;(self : List&lt;T&gt;) : Types.Iter&lt;T&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the elements of a List.
+Iterator provides a single method <code>next()</code>, which returns
+elements in order, or <code>null</code> when out of elements to iterate
+over.</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+List.add(list, 12);
+
+var sum = 0;
+for (element in List.values(list)) {
+  sum += element;
+};
+assert sum == 33;</code></pre>
+<p>Note: This does not create a snapshot. If the returned iterator is
+not consumed at once, and instead the consumption of the iterator is
+interleaved with other operations on the List, then this may lead to
+unexpected results.</p>
+<p>Runtime: <code>O(1)</code></p>
+<h2 id="function-enumerate">Function <code>enumerate</code></h2>
+<pre class="motoko"><code>func enumerate&lt;T&gt;(self : List&lt;T&gt;) : Types.Iter&lt;(Nat, T)&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the items (index-value
+pairs) in the list. Each item is a tuple of <code>(index, value)</code>.
+The iterator provides a single method <code>next()</code> which returns
+elements in order, or <code>null</code> when out of elements.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+List.add(list, 12);
+assert Iter.toArray(List.enumerate(list)) == [(0, 10), (1, 11), (2, 12)];</code></pre>
+<p>Note: This does not create a snapshot. If the returned iterator is
+not consumed at once, and instead the consumption of the iterator is
+interleaved with other operations on the List, then this may lead to
+unexpected results.</p>
+<p>Runtime: <code>O(1)</code></p>
+<p>Warning: Allocates memory on the heap to store ?(Nat, T).</p>
+<h2 id="function-reversevalues">Function <code>reverseValues</code></h2>
+<pre class="motoko"><code>func reverseValues&lt;T&gt;(self : List&lt;T&gt;) : Types.Iter&lt;T&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the elements of the list
+in reverse order. The iterator provides a single method
+<code>next()</code> which returns elements from last to first, or
+<code>null</code> when out of elements.</p>
+<pre class="motoko"><code>let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+List.add(list, 12);
+
+var sum = 0;
+for (element in List.reverseValues(list)) {
+  sum += element;
+};
+assert sum == 33;</code></pre>
+<p>Note: This does not create a snapshot. If the returned iterator is
+not consumed at once, and instead the consumption of the iterator is
+interleaved with other operations on the List, then this may lead to
+unexpected results.</p>
+<p>Runtime: <code>O(1)</code></p>
+<h2 id="function-reverseenumerate">Function
+<code>reverseEnumerate</code></h2>
+<pre class="motoko"><code>func reverseEnumerate&lt;T&gt;(self : List&lt;T&gt;) : Types.Iter&lt;(Nat, T)&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the items in reverse
+order, i.e. pairs of index and value. Iterator provides a single method
+<code>next()</code>, which returns elements in reverse order, or
+<code>null</code> when out of elements to iterate over.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 10);
+List.add(list, 11);
+List.add(list, 12);
+assert Iter.toArray(List.reverseEnumerate(list)) == [(2, 12), (1, 11), (0, 10)];</code></pre>
+<p>Note: This does not create a snapshot. If the returned iterator is
+not consumed at once, and instead the consumption of the iterator is
+interleaved with other operations on the List, then this may lead to
+unexpected results.</p>
+<p>Runtime: <code>O(1)</code></p>
+<p>Warning: Allocates memory on the heap to store ?(T, Nat).</p>
+<h2 id="function-keys">Function <code>keys</code></h2>
+<pre class="motoko"><code>func keys&lt;T&gt;(self : List&lt;T&gt;) : Types.Iter&lt;Nat&gt;</code></pre>
+<p>Returns an Iterator (<code>Iter</code>) over the indices (keys) of
+the list. The iterator provides a single method <code>next()</code>
+which returns indices from 0 to size-1, or <code>null</code> when out of
+elements.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+
+let list = List.empty&lt;Text&gt;();
+List.add(list, &quot;A&quot;);
+List.add(list, &quot;B&quot;);
+List.add(list, &quot;C&quot;);
+Iter.toArray(List.keys(list)) // [0, 1, 2]</code></pre>
+<p>Note: This does not create a snapshot. If the returned iterator is
+not consumed at once, and instead the consumption of the iterator is
+interleaved with other operations on the List, then this may lead to
+unexpected results.</p>
+<p>Runtime: <code>O(1)</code></p>
+<h2 id="function-fromiter">Function <code>fromIter</code></h2>
+<pre class="motoko"><code>func fromIter&lt;T&gt;(iter : Types.Iter&lt;T&gt;) : List&lt;T&gt;</code></pre>
+<p>Creates a new List containing all elements from the provided
+iterator. Elements are added in the order they are returned by the
+iterator.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+let array = [1, 1, 1];
+let iter = array.vals();
+
+let list = List.fromIter&lt;Nat&gt;(iter);
+assert Iter.toArray(List.values(list)) == [1, 1, 1];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-tolist">Function <code>toList</code></h2>
+<pre class="motoko"><code>func toList&lt;T&gt;(self : Types.Iter&lt;T&gt;) : List&lt;T&gt;</code></pre>
+<p>Convert an iterator to a new mutable List. Elements are added in the
+order they are returned by the iterator.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+let array = [1, 1, 1];
+let iter = array.vals();
+
+let list = iter.toList&lt;Nat&gt;();
+assert Iter.toArray(List.values(list)) == [1, 1, 1];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-append">Function <code>append</code></h2>
+<pre class="motoko"><code>func append&lt;T&gt;(self : List&lt;T&gt;, added : List&lt;T&gt;)</code></pre>
+<p>Appends all elements from <code>added</code> to the end of
+<code>list</code>. Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2]);
+let added = List.fromArray&lt;Nat&gt;([3, 4]);
+List.append&lt;Nat&gt;(list, added);
+assert List.toArray(list) == [1, 2, 3, 4];</code></pre>
+<p>Runtime: <code>O(size(added))</code></p>
+<p>Space: <code>O(size(added))</code></p>
+<h2 id="function-addall">Function <code>addAll</code></h2>
+<pre class="motoko"><code>func addAll&lt;T&gt;(self : List&lt;T&gt;, iter : Types.Iter&lt;T&gt;)</code></pre>
+<p>Adds all elements from the provided iterator to the end of the list.
+Elements are added in the order they are returned by the iterator.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+let array = [1, 1, 1];
+let iter = array.vals();
+let list = List.repeat&lt;Nat&gt;(2, 1);
+
+List.addAll&lt;Nat&gt;(list, iter);
+assert Iter.toArray(List.values(list)) == [2, 1, 1, 1];</code></pre>
+<p>The maximum number of elements in a <code>List</code> is 2^32.</p>
+<p>Runtime: <code>O(size)</code>, where n is the size of iter.</p>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray&lt;T&gt;(self : List&lt;T&gt;) : [T]</code></pre>
+<p>Creates a new immutable array containing all elements from the list.
+Elements appear in the same order as in the list.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+
+assert List.toArray&lt;Nat&gt;(list) == [1, 2, 3];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray&lt;T&gt;(array : [T]) : List&lt;T&gt;</code></pre>
+<p>Creates a List containing elements from an Array.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+let array = [2, 3];
+let list = List.fromArray&lt;Nat&gt;(array);
+assert Iter.toArray(List.values(list)) == [2, 3];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-tovararray">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray&lt;T&gt;(self : List&lt;T&gt;) : [var T]</code></pre>
+<p>Creates a new mutable array containing all elements from the list.
+Elements appear in the same order as in the list.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Array &quot;mo:core/Array&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+
+let varArray = List.toVarArray&lt;Nat&gt;(list);
+assert Array.fromVarArray(varArray) == [1, 2, 3];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray&lt;T&gt;(array : [var T]) : List&lt;T&gt;</code></pre>
+<p>Creates a new List containing all elements from the mutable array.
+Elements appear in the same order as in the array.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+let array = [var 2, 3];
+let list = List.fromVarArray&lt;Nat&gt;(array);
+assert Iter.toArray(List.values(list)) == [2, 3];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<h2 id="function-first">Function <code>first</code></h2>
+<pre class="motoko"><code>func first&lt;T&gt;(self : List&lt;T&gt;) : ?T</code></pre>
+<p>Returns the first element of <code>list</code>, or <code>null</code>
+if the list is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert List.first(List.fromArray&lt;Nat&gt;([1, 2, 3])) == ?1;
+assert List.first(List.empty&lt;Nat&gt;()) == null;</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-last">Function <code>last</code></h2>
+<pre class="motoko"><code>func last&lt;T&gt;(self : List&lt;T&gt;) : ?T</code></pre>
+<p>Returns the last element of <code>list</code>, or <code>null</code>
+if the list is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>assert List.last(List.fromArray&lt;Nat&gt;([1, 2, 3])) == ?3;
+assert List.last(List.empty&lt;Nat&gt;()) == null;</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-foreach">Function <code>forEach</code></h2>
+<pre class="motoko"><code>func forEach&lt;T&gt;(self : List&lt;T&gt;, f : T -&gt; ())</code></pre>
+<p>Applies <code>f</code> to each element in <code>list</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+
+List.forEach&lt;Nat&gt;(list, func(x) {
+  Debug.print(Nat.toText(x)); // prints each element in list
+});</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-foreachentry">Function <code>forEachEntry</code></h2>
+<pre class="motoko"><code>func forEachEntry&lt;T&gt;(self : List&lt;T&gt;, f : (Nat, T) -&gt; ())</code></pre>
+<p>Applies <code>f</code> to each item <code>(i, x)</code> in
+<code>list</code> where <code>i</code> is the key and <code>x</code> is
+the value.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+
+List.forEachEntry&lt;Nat&gt;(list, func (i,x) {
+  // prints each item (i,x) in list
+  Debug.print(Nat.toText(i) # Nat.toText(x));
+});</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-range">Function <code>range</code></h2>
+<pre class="motoko"><code>func range&lt;T&gt;(self : List&lt;T&gt;, fromInclusive : Int, toExclusive : Int) : Types.Iter&lt;T&gt;</code></pre>
+<p>Returns an iterator over a slice of <code>list</code> starting at
+<code>fromInclusive</code> up to (but not including)
+<code>toExclusive</code>.</p>
+<p>Negative indices are relative to the end of the list. For example,
+<code>-1</code> corresponds to the last element in the list.</p>
+<p>If the indices are out of bounds, they are clamped to the list
+bounds. If the first index is greater than the second, the function
+returns an empty iterator.</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4, 5]);
+let iter1 = List.range&lt;Nat&gt;(list, 3, List.size(list));
+assert iter1.next() == ?4;
+assert iter1.next() == ?5;
+assert iter1.next() == null;
+
+let iter2 = List.range&lt;Nat&gt;(list, 3, -1);
+assert iter2.next() == ?4;
+assert iter2.next() == null;
+
+let iter3 = List.range&lt;Nat&gt;(list, 0, 0);
+assert iter3.next() == null;</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-slicetoarray">Function <code>sliceToArray</code></h2>
+<pre class="motoko"><code>func sliceToArray&lt;T&gt;(self : List&lt;T&gt;, fromInclusive : Int, toExclusive : Int) : [T]</code></pre>
+<p>Returns a new array containing elements from <code>list</code>
+starting at index <code>fromInclusive</code> up to (but not including)
+index <code>toExclusive</code>. If the indices are out of bounds, they
+are clamped to the array bounds.</p>
+<pre class="motoko"><code>let array = List.fromArray&lt;Nat&gt;([1, 2, 3, 4, 5]);
+
+let slice1 = List.sliceToArray&lt;Nat&gt;(array, 1, 4);
+assert slice1 == [2, 3, 4];
+
+let slice2 = List.sliceToArray&lt;Nat&gt;(array, 1, -1);
+assert slice2 == [2, 3, 4];</code></pre>
+<p>Runtime: O(toExclusive - fromInclusive)</p>
+<p>Space: O(toExclusive - fromInclusive)</p>
+<h2 id="function-slicetovararray">Function
+<code>sliceToVarArray</code></h2>
+<pre class="motoko"><code>func sliceToVarArray&lt;T&gt;(self : List&lt;T&gt;, fromInclusive : Int, toExclusive : Int) : [var T]</code></pre>
+<p>Returns a new var array containing elements from <code>list</code>
+starting at index <code>fromInclusive</code> up to (but not including)
+index <code>toExclusive</code>. If the indices are out of bounds, they
+are clamped to the array bounds.</p>
+<pre class="motoko"><code>import VarArray &quot;mo:core/VarArray&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let array = List.fromArray&lt;Nat&gt;([1, 2, 3, 4, 5]);
+
+let slice1 = List.sliceToVarArray&lt;Nat&gt;(array, 1, 4);
+assert VarArray.equal(slice1, [var 2, 3, 4], Nat.equal);
+
+let slice2 = List.sliceToVarArray&lt;Nat&gt;(array, 1, -1);
+assert VarArray.equal(slice2, [var 2, 3, 4], Nat.equal);</code></pre>
+<p>Runtime: O(toExclusive - fromInclusive)</p>
+<p>Space: O(toExclusive - fromInclusive)</p>
+<h2 id="function-reverseforeachentry">Function
+<code>reverseForEachEntry</code></h2>
+<pre class="motoko"><code>func reverseForEachEntry&lt;T&gt;(self : List&lt;T&gt;, f : (Nat, T) -&gt; ())</code></pre>
+<p>Like <code>forEachEntryRev</code> but iterates through the list in
+reverse order, from end to beginning.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+
+List.reverseForEachEntry&lt;Nat&gt;(list, func (i,x) {
+  // prints each item (i,x) in list
+  Debug.print(Nat.toText(i) # Nat.toText(x));
+});</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-reverseforeach">Function
+<code>reverseForEach</code></h2>
+<pre class="motoko"><code>func reverseForEach&lt;T&gt;(self : List&lt;T&gt;, f : T -&gt; ())</code></pre>
+<p>Applies <code>f</code> to each element in <code>list</code> in
+reverse order.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3]);
+
+List.reverseForEach&lt;Nat&gt;(list, func (x) {
+  Debug.print(Nat.toText(x)); // prints each element in list in reverse order
+});</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>f</code> runs in O(1) time and
+space.</p>
+<h2 id="function-foreachinrange">Function
+<code>forEachInRange</code></h2>
+<pre class="motoko"><code>func forEachInRange&lt;T&gt;(self : List&lt;T&gt;, f : T -&gt; (), fromInclusive : Nat, toExclusive : Nat)</code></pre>
+<p>Executes the closure over a slice of <code>list</code> starting at
+<code>fromInclusive</code> up to (but not including)
+<code>toExclusive</code>.</p>
+<pre class="motoko"><code>import Debug &quot;mo:core/Debug&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4, 5]);
+List.forEachInRange&lt;Nat&gt;(list, func x = Debug.print(Nat.toText(x)), 1, 2); // prints 2 and 3</code></pre>
+<p>Runtime: <code>O(toExclusive - fromExclusive)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-contains">Function <code>contains</code></h2>
+<pre class="motoko"><code>func contains&lt;T&gt;(self : List&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), element : T) : Bool</code></pre>
+<p>Returns true if the list contains the specified element according to
+the provided equality function. Uses the provided <code>equal</code>
+function to compare elements.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 2);
+List.add(list, 0);
+List.add(list, 3);
+
+assert List.contains&lt;Nat&gt;(list, Nat.equal, 2);</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>equal</code> runs in O(1) time
+and space.</p>
+<h2 id="function-max">Function <code>max</code></h2>
+<pre class="motoko"><code>func max&lt;T&gt;(self : List&lt;T&gt;, compare : (implicit : (T, T) -&gt; Types.Order)) : ?T</code></pre>
+<p>Returns the greatest element in the list according to the ordering
+defined by <code>compare</code>. Returns <code>null</code> if the list
+is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 1);
+List.add(list, 2);
+
+assert List.max&lt;Nat&gt;(list, Nat.compare) == ?2;
+assert List.max&lt;Nat&gt;(List.empty&lt;Nat&gt;(), Nat.compare) == null;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>compare</code> runs in O(1)
+time and space.</p>
+<h2 id="function-min">Function <code>min</code></h2>
+<pre class="motoko"><code>func min&lt;T&gt;(self : List&lt;T&gt;, compare : (implicit : (T, T) -&gt; Types.Order)) : ?T</code></pre>
+<p>Returns the least element in the list according to the ordering
+defined by <code>compare</code>. Returns <code>null</code> if the list
+is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.empty&lt;Nat&gt;();
+List.add(list, 1);
+List.add(list, 2);
+
+assert List.min&lt;Nat&gt;(list, Nat.compare) == ?1;
+assert List.min&lt;Nat&gt;(List.empty&lt;Nat&gt;(), Nat.compare) == null;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>compare</code> runs in O(1)
+time and space.</p>
+<h2 id="function-equal">Function <code>equal</code></h2>
+<pre class="motoko"><code>func equal&lt;T&gt;(self : List&lt;T&gt;, other : List&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool)) : Bool</code></pre>
+<p>Tests if two lists are equal by comparing their elements using the
+provided <code>equal</code> function. Returns true if and only if both
+lists have the same size and all corresponding elements are equal
+according to the provided function.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list1 = List.fromArray&lt;Nat&gt;([1,2]);
+let list2 = List.empty&lt;Nat&gt;();
+List.add(list2, 1);
+List.add(list2, 2);
+
+assert List.equal&lt;Nat&gt;(list1, list2, Nat.equal);</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>equal</code> runs in O(1) time
+and space.</p>
+<h2 id="function-compare">Function <code>compare</code></h2>
+<pre class="motoko"><code>func compare&lt;T&gt;(self : List&lt;T&gt;, other : List&lt;T&gt;, compare : (implicit : (T, T) -&gt; Types.Order)) : Types.Order</code></pre>
+<p>Compares two lists lexicographically using the provided
+<code>compare</code> function. Elements are compared pairwise until a
+difference is found or one list ends. If all elements compare equal, the
+shorter list is considered less than the longer list.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list1 = List.fromArray&lt;Nat&gt;([0, 1]);
+let list2 = List.fromArray&lt;Nat&gt;([2]);
+let list3 = List.fromArray&lt;Nat&gt;([0, 1, 2]);
+
+assert List.compare&lt;Nat&gt;(list1, list2, Nat.compare) == #less;
+assert List.compare&lt;Nat&gt;(list1, list3, Nat.compare) == #less;
+assert List.compare&lt;Nat&gt;(list2, list3, Nat.compare) == #greater;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>compare</code> runs in O(1)
+time and space.</p>
+<h2 id="function-totext">Function <code>toText</code></h2>
+<pre class="motoko"><code>func toText&lt;T&gt;(self : List&lt;T&gt;, toText : (implicit : T -&gt; Text)) : Text</code></pre>
+<p>Creates a textual representation of <code>list</code>, using
+<code>toText</code> to recursively convert the elements into Text.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1,2,3,4]);
+
+assert List.toText&lt;Nat&gt;(list, Nat.toText) == &quot;List[1, 2, 3, 4]&quot;;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(size)</code></p>
+<p>*Runtime and space assumes that <code>toText</code> runs in O(1) time
+and space.</p>
+<h2 id="function-foldleft">Function <code>foldLeft</code></h2>
+<pre class="motoko"><code>func foldLeft&lt;A, T&gt;(self : List&lt;T&gt;, base : A, combine : (A, T) -&gt; A) : A</code></pre>
+<p>Collapses the elements in <code>list</code> into a single value by
+starting with <code>base</code> and progessively combining elements into
+<code>base</code> with <code>combine</code>. Iteration runs left to
+right.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1,2,3]);
+
+assert List.foldLeft&lt;Text, Nat&gt;(list, &quot;&quot;, func (acc, x) { acc # Nat.toText(x)}) == &quot;123&quot;;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>combine</code> runs in O(1)`
+time and space.</p>
+<h2 id="function-foldright">Function <code>foldRight</code></h2>
+<pre class="motoko"><code>func foldRight&lt;T, A&gt;(self : List&lt;T&gt;, base : A, combine : (T, A) -&gt; A) : A</code></pre>
+<p>Collapses the elements in <code>list</code> into a single value by
+starting with <code>base</code> and progessively combining elements into
+<code>base</code> with <code>combine</code>. Iteration runs right to
+left.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1,2,3]);
+
+assert List.foldRight&lt;Nat, Text&gt;(list, &quot;&quot;, func (x, acc) { Nat.toText(x) # acc }) == &quot;123&quot;;</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<p>*Runtime and space assumes that <code>combine</code> runs in O(1)`
+time and space.</p>
+<h2 id="function-reverseinplace">Function
+<code>reverseInPlace</code></h2>
+<pre class="motoko"><code>func reverseInPlace&lt;T&gt;(self : List&lt;T&gt;)</code></pre>
+<p>Reverses the order of elements in <code>list</code> by overwriting in
+place.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1,2,3]);
+
+List.reverseInPlace&lt;Nat&gt;(list);
+assert Iter.toArray(List.values(list)) == [3, 2, 1];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-reverse">Function <code>reverse</code></h2>
+<pre class="motoko"><code>func reverse&lt;T&gt;(self : List&lt;T&gt;) : List&lt;T&gt;</code></pre>
+<p>Returns a new List with the elements from <code>list</code> in
+reverse order.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+import Iter &quot;mo:core/Iter&quot;;
+
+let list = List.fromArray&lt;Nat&gt;([1,2,3]);
+
+let rlist = List.reverse&lt;Nat&gt;(list);
+assert Iter.toArray(List.values(rlist)) == [3, 2, 1];</code></pre>
+<p>Runtime: <code>O(size)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-isempty">Function <code>isEmpty</code></h2>
+<pre class="motoko"><code>func isEmpty&lt;T&gt;(self : List&lt;T&gt;) : Bool</code></pre>
+<p>Returns true if and only if the list is empty.</p>
+<p>Example:</p>
+<pre class="motoko"><code>let list = List.fromArray&lt;Nat&gt;([2,0,3]);
+assert not List.isEmpty&lt;Nat&gt;(list);
+assert List.isEmpty&lt;Nat&gt;(List.empty&lt;Nat&gt;());</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<p>Space: <code>O(1)</code></p>
+<h2 id="function-reader">Function <code>reader</code></h2>
+<pre class="motoko"><code>func reader&lt;T&gt;(self : List&lt;T&gt;, start : Nat) : () -&gt; T</code></pre>
+<p>Unsafe iterator starting from <code>start</code>.</p>
+<p>Example:</p>
+<pre><code>let list = List.fromArray&lt;Nat&gt;([1, 2, 3, 4, 5]);
+let reader = List.reader&lt;Nat&gt;(list, 2);
+assert reader() == 3;
+assert reader() == 4;
+assert reader() == 5;</code></pre>
+<p>Runtime: <code>O(1)</code></p>
+<p>Space: <code>O(1)</code></p>
+</body>
+</html>

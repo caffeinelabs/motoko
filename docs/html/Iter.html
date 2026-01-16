@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Iter.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Iter.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coreiter" id="toc-coreiter">core/Iter</a>
+<ul>
+<li><a href="#type-iter" id="toc-type-iter">Type
+<code>Iter</code></a></li>
+<li><a href="#function-empty" id="toc-function-empty">Function
+<code>empty</code></a></li>
+<li><a href="#function-singleton" id="toc-function-singleton">Function
+<code>singleton</code></a></li>
+<li><a href="#function-foreach" id="toc-function-foreach">Function
+<code>forEach</code></a></li>
+<li><a href="#function-enumerate" id="toc-function-enumerate">Function
+<code>enumerate</code></a></li>
+<li><a href="#function-step" id="toc-function-step">Function
+<code>step</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-map" id="toc-function-map">Function
+<code>map</code></a></li>
+<li><a href="#function-filter" id="toc-function-filter">Function
+<code>filter</code></a></li>
+<li><a href="#function-filtermap" id="toc-function-filtermap">Function
+<code>filterMap</code></a></li>
+<li><a href="#function-flatten" id="toc-function-flatten">Function
+<code>flatten</code></a></li>
+<li><a href="#function-flatmap" id="toc-function-flatmap">Function
+<code>flatMap</code></a></li>
+<li><a href="#function-take" id="toc-function-take">Function
+<code>take</code></a></li>
+<li><a href="#function-takewhile" id="toc-function-takewhile">Function
+<code>takeWhile</code></a></li>
+<li><a href="#function-drop" id="toc-function-drop">Function
+<code>drop</code></a></li>
+<li><a href="#function-dropwhile" id="toc-function-dropwhile">Function
+<code>dropWhile</code></a></li>
+<li><a href="#function-zip" id="toc-function-zip">Function
+<code>zip</code></a></li>
+<li><a href="#function-zip3" id="toc-function-zip3">Function
+<code>zip3</code></a></li>
+<li><a href="#function-zipwith" id="toc-function-zipwith">Function
+<code>zipWith</code></a></li>
+<li><a href="#function-zipwith3" id="toc-function-zipwith3">Function
+<code>zipWith3</code></a></li>
+<li><a href="#function-all" id="toc-function-all">Function
+<code>all</code></a></li>
+<li><a href="#function-any" id="toc-function-any">Function
+<code>any</code></a></li>
+<li><a href="#function-find" id="toc-function-find">Function
+<code>find</code></a></li>
+<li><a href="#function-findindex" id="toc-function-findindex">Function
+<code>findIndex</code></a></li>
+<li><a href="#function-contains" id="toc-function-contains">Function
+<code>contains</code></a></li>
+<li><a href="#function-foldleft" id="toc-function-foldleft">Function
+<code>foldLeft</code></a></li>
+<li><a href="#function-foldright" id="toc-function-foldright">Function
+<code>foldRight</code></a></li>
+<li><a href="#function-reduce" id="toc-function-reduce">Function
+<code>reduce</code></a></li>
+<li><a href="#function-scanleft" id="toc-function-scanleft">Function
+<code>scanLeft</code></a></li>
+<li><a href="#function-scanright" id="toc-function-scanright">Function
+<code>scanRight</code></a></li>
+<li><a href="#function-unfold" id="toc-function-unfold">Function
+<code>unfold</code></a></li>
+<li><a href="#function-max" id="toc-function-max">Function
+<code>max</code></a></li>
+<li><a href="#function-min" id="toc-function-min">Function
+<code>min</code></a></li>
+<li><a href="#function-infinite" id="toc-function-infinite">Function
+<code>infinite</code></a></li>
+<li><a href="#function-concat" id="toc-function-concat">Function
+<code>concat</code></a></li>
+<li><a href="#function-fromarray" id="toc-function-fromarray">Function
+<code>fromArray</code></a></li>
+<li><a href="#function-fromvararray"
+id="toc-function-fromvararray">Function
+<code>fromVarArray</code></a></li>
+<li><a href="#function-toarray" id="toc-function-toarray">Function
+<code>toArray</code></a></li>
+<li><a href="#function-tovararray" id="toc-function-tovararray">Function
+<code>toVarArray</code></a></li>
+<li><a href="#function-sort" id="toc-function-sort">Function
+<code>sort</code></a></li>
+<li><a href="#function-repeat" id="toc-function-repeat">Function
+<code>repeat</code></a></li>
+<li><a href="#function-reverse" id="toc-function-reverse">Function
+<code>reverse</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coreiter">core/Iter</h1>
+<p>Utilities for <code>Iter</code> (iterator) values.</p>
+<p>Iterators are a way to represent sequences of values that can be
+lazily produced. They can be used to:</p>
+<ul>
+<li>Iterate over collections.</li>
+<li>Represent collections that are too large to fit in memory or that
+are produced incrementally.</li>
+<li>Transform collections without creating intermediate
+collections.</li>
+</ul>
+<p>Iterators are inherently stateful. Calling <code>next</code>
+"consumes" a value from the Iterator that cannot be put back, so keep
+that in mind when sharing iterators between consumers.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;</code></pre>
+<p>An iterator can be iterated over using a <code>for</code> loop:</p>
+<pre class="motoko"><code>let iter = [1, 2, 3].values();
+for (x in iter) {
+  // do something with x...
+}</code></pre>
+<p>Iterators can be:</p>
+<ul>
+<li>created from other collections (e.g. using <code>values</code> or
+<code>keys</code> function on a <code>Map</code>) or from scratch (e.g.
+using <code>empty</code> or <code>singleton</code>).</li>
+<li>transformed using <code>map</code>, <code>filter</code>,
+<code>concat</code>, etc. Which can be used to compose several
+transformations together without materializing intermediate
+collections.</li>
+<li>consumed using <code>forEach</code>, <code>size</code>,
+<code>toArray</code>, etc.</li>
+<li>combined using <code>concat</code>.</li>
+</ul>
+<h2 id="type-iter">Type <code>Iter</code></h2>
+<pre class="motoko"><code>type Iter&lt;T&gt; = Types.Iter&lt;T&gt;</code></pre>
+<p>An iterator that produces values of type <code>T</code>. Calling
+<code>next</code> returns <code>null</code> when iteration is
+finished.</p>
+<p>Iterators are inherently stateful. Calling <code>next</code>
+"consumes" a value from the Iterator that cannot be put back, so keep
+that in mind when sharing iterators between consumers.</p>
+<p>An iterator <code>i</code> can be iterated over using</p>
+<pre class="motoko"><code>let iter = [1, 2, 3].values();
+for (x in iter) {
+  // do something with x...
+}</code></pre>
+<h2 id="function-empty">Function <code>empty</code></h2>
+<pre class="motoko"><code>func empty&lt;T&gt;() : Iter&lt;T&gt;</code></pre>
+<p>Creates an empty iterator.</p>
+<pre class="motoko"><code>for (x in Iter.empty&lt;Nat&gt;())
+  assert false; // This loop body will never run</code></pre>
+<h2 id="function-singleton">Function <code>singleton</code></h2>
+<pre class="motoko"><code>func singleton&lt;T&gt;(value : T) : Iter&lt;T&gt;</code></pre>
+<p>Creates an iterator that produces a single value.</p>
+<pre class="motoko"><code>var sum = 0;
+for (x in Iter.singleton(3))
+  sum += x;
+assert sum == 3;</code></pre>
+<h2 id="function-foreach">Function <code>forEach</code></h2>
+<pre class="motoko"><code>func forEach&lt;T&gt;(self : Iter&lt;T&gt;, f : (T) -&gt; ())</code></pre>
+<p>Calls a function <code>f</code> on every value produced by an
+iterator and discards the results. If you're looking to keep these
+results use <code>map</code> instead.</p>
+<pre class="motoko"><code>var sum = 0;
+Iter.forEach&lt;Nat&gt;([1, 2, 3].values(), func(x) {
+  sum += x;
+});
+assert sum == 6;</code></pre>
+<h2 id="function-enumerate">Function <code>enumerate</code></h2>
+<pre class="motoko"><code>func enumerate&lt;T&gt;(self : Iter&lt;T&gt;) : Iter&lt;(Nat, T)&gt;</code></pre>
+<p>Takes an iterator and returns a new iterator that pairs each element
+with its index. The index starts at 0 and increments by 1 for each
+element.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([&quot;A&quot;, &quot;B&quot;, &quot;C&quot;]);
+let enumerated = Iter.enumerate(iter);
+let result = Iter.toArray(enumerated);
+assert result == [(0, &quot;A&quot;), (1, &quot;B&quot;), (2, &quot;C&quot;)];</code></pre>
+<h2 id="function-step">Function <code>step</code></h2>
+<pre class="motoko"><code>func step&lt;T&gt;(self : Iter&lt;T&gt;, n : Nat) : Iter&lt;T&gt;</code></pre>
+<p>Creates a new iterator that yields every nth element from the
+original iterator. If <code>interval</code> is 0, returns an empty
+iterator. If <code>interval</code> is 1, returns the original iterator.
+For any other positive interval, returns an iterator that skips
+<code>interval - 1</code> elements after each yielded element.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3, 4, 5, 6]);
+let steppedIter = Iter.step(iter, 2); // Take every 2nd element
+assert ?1 == steppedIter.next();
+assert ?3 == steppedIter.next();
+assert ?5 == steppedIter.next();
+assert null == steppedIter.next();</code></pre>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size&lt;T&gt;(self : Iter&lt;T&gt;) : Nat</code></pre>
+<p>Consumes an iterator and counts how many elements were produced
+(discarding them in the process).</p>
+<pre class="motoko"><code>let iter = [1, 2, 3].values();
+assert 3 == Iter.size(iter);</code></pre>
+<h2 id="function-map">Function <code>map</code></h2>
+<pre class="motoko"><code>func map&lt;T, R&gt;(self : Iter&lt;T&gt;, f : T -&gt; R) : Iter&lt;R&gt;</code></pre>
+<p>Takes a function and an iterator and returns a new iterator that
+lazily applies the function to every element produced by the argument
+iterator.</p>
+<pre class="motoko"><code>let iter = [1, 2, 3].values();
+let mappedIter = Iter.map&lt;Nat, Nat&gt;(iter, func (x) = x * 2);
+let result = Iter.toArray(mappedIter);
+assert result == [2, 4, 6];</code></pre>
+<h2 id="function-filter">Function <code>filter</code></h2>
+<pre class="motoko"><code>func filter&lt;T&gt;(self : Iter&lt;T&gt;, f : T -&gt; Bool) : Iter&lt;T&gt;</code></pre>
+<p>Creates a new iterator that only includes elements from the original
+iterator for which the predicate function returns true.</p>
+<pre class="motoko"><code>let iter = [1, 2, 3, 4, 5].values();
+let evenNumbers = Iter.filter&lt;Nat&gt;(iter, func (x) = x % 2 == 0);
+let result = Iter.toArray(evenNumbers);
+assert result == [2, 4];</code></pre>
+<h2 id="function-filtermap">Function <code>filterMap</code></h2>
+<pre class="motoko"><code>func filterMap&lt;T, R&gt;(self : Iter&lt;T&gt;, f : T -&gt; ?R) : Iter&lt;R&gt;</code></pre>
+<p>Creates a new iterator by applying a transformation function to each
+element of the original iterator. Elements for which the function
+returns null are excluded from the result.</p>
+<pre class="motoko"><code>let iter = [1, 2, 3].values();
+let evenNumbers = Iter.filterMap&lt;Nat, Nat&gt;(iter, func (x) = if (x % 2 == 0) ?x else null);
+let result = Iter.toArray(evenNumbers);
+assert result == [2];</code></pre>
+<h2 id="function-flatten">Function <code>flatten</code></h2>
+<pre class="motoko"><code>func flatten&lt;T&gt;(self : Iter&lt;Iter&lt;T&gt;&gt;) : Iter&lt;T&gt;</code></pre>
+<p>Flattens an iterator of iterators into a single iterator by
+concatenating the inner iterators.</p>
+<p>Possible optimization: Use <code>flatMap</code> when you need to
+transform elements before calling <code>flatten</code>. Example: use
+<code>flatMap(...)</code> instead of <code>flatten(map(...))</code>.</p>
+<pre class="motoko"><code>let iter = Iter.flatten([[1, 2].values(), [3].values(), [4, 5, 6].values()].values());
+let result = Iter.toArray(iter);
+assert result == [1, 2, 3, 4, 5, 6];</code></pre>
+<h2 id="function-flatmap">Function <code>flatMap</code></h2>
+<pre class="motoko"><code>func flatMap&lt;T, R&gt;(self : Iter&lt;T&gt;, f : T -&gt; Iter&lt;R&gt;) : Iter&lt;R&gt;</code></pre>
+<p>Transforms every element of an iterator into an iterator and
+concatenates the results.</p>
+<pre class="motoko"><code>let iter = Iter.flatMap&lt;Nat, Nat&gt;([1, 3, 5].values(), func (x) = [x, x + 1].values());
+let result = Iter.toArray(iter);
+assert result == [1, 2, 3, 4, 5, 6];</code></pre>
+<h2 id="function-take">Function <code>take</code></h2>
+<pre class="motoko"><code>func take&lt;T&gt;(self : Iter&lt;T&gt;, n : Nat) : Iter&lt;T&gt;</code></pre>
+<p>Returns a new iterator that yields at most, first <code>n</code>
+elements from the original iterator. After <code>n</code> elements have
+been produced or the original iterator is exhausted, subsequent calls to
+<code>next()</code> will return <code>null</code>.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3, 4, 5]);
+let first3 = Iter.take(iter, 3);
+let result = Iter.toArray(first3);
+assert result == [1, 2, 3];</code></pre>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3]);
+let first5 = Iter.take(iter, 5);
+let result = Iter.toArray(first5);
+assert result == [1, 2, 3]; // only 3 elements in the original iterator</code></pre>
+<h2 id="function-takewhile">Function <code>takeWhile</code></h2>
+<pre class="motoko"><code>func takeWhile&lt;T&gt;(self : Iter&lt;T&gt;, f : T -&gt; Bool) : Iter&lt;T&gt;</code></pre>
+<p>Returns a new iterator that yields elements from the original
+iterator until the predicate function returns false. The first element
+for which the predicate returns false is not included in the result.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3, 4, 5, 4, 3, 2, 1]);
+let result = Iter.takeWhile&lt;Nat&gt;(iter, func (x) = x &lt; 4);
+let array = Iter.toArray(result);
+assert array == [1, 2, 3]; // note the difference between `takeWhile` and `filter`</code></pre>
+<h2 id="function-drop">Function <code>drop</code></h2>
+<pre class="motoko"><code>func drop&lt;T&gt;(self : Iter&lt;T&gt;, n : Nat) : Iter&lt;T&gt;</code></pre>
+<p>Returns a new iterator that skips the first <code>n</code> elements
+from the original iterator. If the original iterator has fewer than
+<code>n</code> elements, the result will be an empty iterator.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3, 4, 5]);
+let skipped = Iter.drop(iter, 3);
+let result = Iter.toArray(skipped);
+assert result == [4, 5];</code></pre>
+<h2 id="function-dropwhile">Function <code>dropWhile</code></h2>
+<pre class="motoko"><code>func dropWhile&lt;T&gt;(self : Iter&lt;T&gt;, f : T -&gt; Bool) : Iter&lt;T&gt;</code></pre>
+<p>Returns a new iterator that skips elements from the original iterator
+until the predicate function returns false. The first element for which
+the predicate returns false is the first element produced by the new
+iterator.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3, 4, 5, 4, 3, 2, 1]);
+let result = Iter.dropWhile&lt;Nat&gt;(iter, func (x) = x &lt; 4);
+let array = Iter.toArray(result);
+assert array == [4, 5, 4, 3, 2, 1]; // notice that `takeWhile` and `dropWhile` are complementary</code></pre>
+<h2 id="function-zip">Function <code>zip</code></h2>
+<pre class="motoko"><code>func zip&lt;A, B&gt;(self : Iter&lt;A&gt;, other : Iter&lt;B&gt;) : Iter&lt;(A, B)&gt;</code></pre>
+<p>Zips two iterators into a single iterator that produces pairs of
+elements. The resulting iterator will stop producing elements when
+either of the input iterators is exhausted.</p>
+<pre class="motoko"><code>let iter1 = [1, 2, 3].values();
+let iter2 = [&quot;A&quot;, &quot;B&quot;].values();
+let zipped = Iter.zip(iter1, iter2);
+let result = Iter.toArray(zipped);
+assert result == [(1, &quot;A&quot;), (2, &quot;B&quot;)]; // note that the third element from iter1 is not included, because iter2 is exhausted</code></pre>
+<h2 id="function-zip3">Function <code>zip3</code></h2>
+<pre class="motoko"><code>func zip3&lt;A, B, C&gt;(self : Iter&lt;A&gt;, other1 : Iter&lt;B&gt;, other2 : Iter&lt;C&gt;) : Iter&lt;(A, B, C)&gt;</code></pre>
+<p>Zips three iterators into a single iterator that produces triples of
+elements. The resulting iterator will stop producing elements when any
+of the input iterators is exhausted.</p>
+<pre class="motoko"><code>let iter1 = [&quot;A&quot;, &quot;B&quot;].values();
+let iter2 = [&quot;1&quot;, &quot;2&quot;, &quot;3&quot;].values();
+let iter3 = [&quot;x&quot;, &quot;y&quot;, &quot;z&quot;, &quot;xd&quot;].values();
+let zipped = Iter.zip3(iter1, iter2, iter3);
+let result = Iter.toArray(zipped);
+assert result == [(&quot;A&quot;, &quot;1&quot;, &quot;x&quot;), (&quot;B&quot;, &quot;2&quot;, &quot;y&quot;)]; // note that the unmatched elements from iter2 and iter3 are not included</code></pre>
+<h2 id="function-zipwith">Function <code>zipWith</code></h2>
+<pre class="motoko"><code>func zipWith&lt;A, B, R&gt;(self : Iter&lt;A&gt;, other : Iter&lt;B&gt;, f : (A, B) -&gt; R) : Iter&lt;R&gt;</code></pre>
+<p>Zips two iterators into a single iterator by applying a function to
+zipped pairs of elements. The resulting iterator will stop producing
+elements when either of the input iterators is exhausted.</p>
+<pre class="motoko"><code>let iter1 = [&quot;A&quot;, &quot;B&quot;].values();
+let iter2 = [&quot;1&quot;, &quot;2&quot;, &quot;3&quot;].values();
+let zipped = Iter.zipWith&lt;Text, Text, Text&gt;(iter1, iter2, func (a, b) = a # b);
+let result = Iter.toArray(zipped);
+assert result == [&quot;A1&quot;, &quot;B2&quot;]; // note that the third element from iter2 is not included, because iter1 is exhausted</code></pre>
+<h2 id="function-zipwith3">Function <code>zipWith3</code></h2>
+<pre class="motoko"><code>func zipWith3&lt;A, B, C, R&gt;(self : Iter&lt;A&gt;, other1 : Iter&lt;B&gt;, other2 : Iter&lt;C&gt;, f : (A, B, C) -&gt; R) : Iter&lt;R&gt;</code></pre>
+<p>Zips three iterators into a single iterator by applying a function to
+zipped triples of elements. The resulting iterator will stop producing
+elements when any of the input iterators is exhausted.</p>
+<pre class="motoko"><code>let iter1 = [&quot;A&quot;, &quot;B&quot;].values();
+let iter2 = [&quot;1&quot;, &quot;2&quot;, &quot;3&quot;].values();
+let iter3 = [&quot;x&quot;, &quot;y&quot;, &quot;z&quot;, &quot;xd&quot;].values();
+let zipped = Iter.zipWith3&lt;Text, Text, Text, Text&gt;(iter1, iter2, iter3, func (a, b, c) = a # b # c);
+let result = Iter.toArray(zipped);
+assert result == [&quot;A1x&quot;, &quot;B2y&quot;]; // note that the unmatched elements from iter2 and iter3 are not included</code></pre>
+<h2 id="function-all">Function <code>all</code></h2>
+<pre class="motoko"><code>func all&lt;T&gt;(self : Iter&lt;T&gt;, f : T -&gt; Bool) : Bool</code></pre>
+<p>Checks if a predicate function is true for all elements produced by
+an iterator. It stops consuming elements from the original iterator as
+soon as the predicate returns false.</p>
+<pre class="motoko"><code>assert Iter.all&lt;Nat&gt;([1, 2, 3].values(), func (x) = x &lt; 4);
+assert not Iter.all&lt;Nat&gt;([1, 2, 3].values(), func (x) = x &lt; 3);</code></pre>
+<h2 id="function-any">Function <code>any</code></h2>
+<pre class="motoko"><code>func any&lt;T&gt;(self : Iter&lt;T&gt;, f : T -&gt; Bool) : Bool</code></pre>
+<p>Checks if a predicate function is true for any element produced by an
+iterator. It stops consuming elements from the original iterator as soon
+as the predicate returns true.</p>
+<pre class="motoko"><code>assert Iter.any&lt;Nat&gt;([1, 2, 3].values(), func (x) = x == 2);
+assert not Iter.any&lt;Nat&gt;([1, 2, 3].values(), func (x) = x == 4);</code></pre>
+<h2 id="function-find">Function <code>find</code></h2>
+<pre class="motoko"><code>func find&lt;T&gt;(self : Iter&lt;T&gt;, f : T -&gt; Bool) : ?T</code></pre>
+<p>Finds the first element produced by an iterator for which a predicate
+function returns true. Returns <code>null</code> if no such element is
+found. It stops consuming elements from the original iterator as soon as
+the predicate returns true.</p>
+<pre class="motoko"><code>let iter = [1, 2, 3, 4].values();
+assert ?2 == Iter.find&lt;Nat&gt;(iter, func (x) = x % 2 == 0);</code></pre>
+<h2 id="function-findindex">Function <code>findIndex</code></h2>
+<pre class="motoko"><code>func findIndex&lt;T&gt;(self : Iter&lt;T&gt;, predicate : T -&gt; Bool) : ?Nat</code></pre>
+<p>Returns the first index in <code>array</code> for which
+<code>predicate</code> returns true. If no element satisfies the
+predicate, returns null.</p>
+<pre class="motoko"><code>let iter = [&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;D&#39;].values();
+let found = Iter.findIndex&lt;Char&gt;(iter, func(x) { x == &#39;C&#39; });
+assert found == ?2;</code></pre>
+<p>Runtime: O(size)</p>
+<p>Space: O(1)</p>
+<p>*Runtime and space assumes that <code>predicate</code> runs in O(1)
+time and space.</p>
+<h2 id="function-contains">Function <code>contains</code></h2>
+<pre class="motoko"><code>func contains&lt;T&gt;(self : Iter&lt;T&gt;, equal : (implicit : (T, T) -&gt; Bool), value : T) : Bool</code></pre>
+<p>Checks if an element is produced by an iterator. It stops consuming
+elements from the original iterator as soon as the predicate returns
+true.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let iter = [1, 2, 3, 4].values();
+assert Iter.contains&lt;Nat&gt;(iter, Nat.equal, 2);</code></pre>
+<h2 id="function-foldleft">Function <code>foldLeft</code></h2>
+<pre class="motoko"><code>func foldLeft&lt;T, R&gt;(self : Iter&lt;T&gt;, initial : R, combine : (R, T) -&gt; R) : R</code></pre>
+<p>Reduces an iterator to a single value by applying a function to each
+element and an accumulator. The accumulator is initialized with the
+<code>initial</code> value. It starts applying the <code>combine</code>
+function starting from the <code>initial</code> accumulator value and
+the first elements produced by the iterator.</p>
+<pre class="motoko"><code>let iter = [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;].values();
+let result = Iter.foldLeft&lt;Text, Text&gt;(iter, &quot;S&quot;, func (acc, x) = &quot;(&quot; # acc # x # &quot;)&quot;);
+assert result == &quot;(((SA)B)C)&quot;;</code></pre>
+<h2 id="function-foldright">Function <code>foldRight</code></h2>
+<pre class="motoko"><code>func foldRight&lt;T, R&gt;(self : Iter&lt;T&gt;, initial : R, combine : (T, R) -&gt; R) : R</code></pre>
+<p>Reduces an iterator to a single value by applying a function to each
+element in reverse order and an accumulator. The accumulator is
+initialized with the <code>initial</code> value and it is first combined
+with the last element produced by the iterator. It starts applying the
+<code>combine</code> function starting from the last elements produced
+by the iterator.</p>
+<p><strong>Performance note</strong>: Since this function needs to
+consume the entire iterator to reverse it, it has to materialize the
+entire iterator in memory to get to the last element to start applying
+the <code>combine</code> function. <strong>Use <code>foldLeft</code> or
+<code>reduce</code> when possible to avoid the extra memory
+overhead</strong>.</p>
+<pre class="motoko"><code>let iter = [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;].values();
+let result = Iter.foldRight&lt;Text, Text&gt;(iter, &quot;S&quot;, func (x, acc) = &quot;(&quot; # x # acc # &quot;)&quot;);
+assert result == &quot;(A(B(CS)))&quot;;</code></pre>
+<h2 id="function-reduce">Function <code>reduce</code></h2>
+<pre class="motoko"><code>func reduce&lt;T&gt;(self : Iter&lt;T&gt;, combine : (T, T) -&gt; T) : ?T</code></pre>
+<p>Reduces an iterator to a single value by applying a function to each
+element, starting with the first elements. The accumulator is
+initialized with the first element produced by the iterator. When the
+iterator is empty, it returns <code>null</code>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let iter = [1, 2, 3].values();
+assert ?6 == Iter.reduce&lt;Nat&gt;(iter, Nat.add);</code></pre>
+<h2 id="function-scanleft">Function <code>scanLeft</code></h2>
+<pre class="motoko"><code>func scanLeft&lt;T, R&gt;(self : Iter&lt;T&gt;, initial : R, combine : (R, T) -&gt; R) : Iter&lt;R&gt;</code></pre>
+<p>Produces an iterator containing cumulative results of applying the
+<code>combine</code> operator going left to right, including the
+<code>initial</code> value.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let iter = [1, 2, 3].values();
+let scanned = Iter.scanLeft&lt;Nat, Nat&gt;(iter, 0, Nat.add);
+let result = Iter.toArray(scanned);
+assert result == [0, 1, 3, 6];</code></pre>
+<h2 id="function-scanright">Function <code>scanRight</code></h2>
+<pre class="motoko"><code>func scanRight&lt;T, R&gt;(self : Iter&lt;T&gt;, initial : R, combine : (T, R) -&gt; R) : Iter&lt;R&gt;</code></pre>
+<p>Produces an iterator containing cumulative results of applying the
+<code>combine</code> operator going right to left, including the
+<code>initial</code> value.</p>
+<p><strong>Performance note</strong>: Since this function needs to
+consume the entire iterator to reverse it, it has to materialize the
+entire iterator in memory to get to the last element to start applying
+the <code>combine</code> function. <strong>Use <code>scanLeft</code>
+when possible to avoid the extra memory overhead</strong>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let iter = [1, 2, 3].values();
+let scanned = Iter.scanRight&lt;Nat, Nat&gt;(iter, 0, Nat.add);
+let result = Iter.toArray(scanned);
+assert result == [0, 3, 5, 6];</code></pre>
+<h2 id="function-unfold">Function <code>unfold</code></h2>
+<pre class="motoko"><code>func unfold&lt;T, S&gt;(initial : S, step : S -&gt; ?(T, S)) : Iter&lt;T&gt;</code></pre>
+<p>Creates an iterator that produces elements using the
+<code>step</code> function starting from the <code>initial</code> value.
+The <code>step</code> function takes the current state and returns the
+next element and the next state, or <code>null</code> if the iteration
+is finished.</p>
+<pre class="motoko"><code>let iter = Iter.unfold&lt;Nat, Nat&gt;(1, func (x) = if (x &lt;= 3) ?(x, x + 1) else null);
+let result = Iter.toArray(iter);
+assert result == [1, 2, 3];</code></pre>
+<h2 id="function-max">Function <code>max</code></h2>
+<pre class="motoko"><code>func max&lt;T&gt;(self : Iter&lt;T&gt;, compare : (implicit : (T, T) -&gt; Order.Order)) : ?T</code></pre>
+<p>Consumes an iterator and returns the first maximum element produced
+by the iterator. If the iterator is empty, it returns
+<code>null</code>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let iter = [1, 2, 3].values();
+assert ?3 == Iter.max&lt;Nat&gt;(iter, Nat.compare);</code></pre>
+<h2 id="function-min">Function <code>min</code></h2>
+<pre class="motoko"><code>func min&lt;T&gt;(self : Iter&lt;T&gt;, compare : (implicit : (T, T) -&gt; Order.Order)) : ?T</code></pre>
+<p>Consumes an iterator and returns the first minimum element produced
+by the iterator. If the iterator is empty, it returns
+<code>null</code>.</p>
+<pre class="motoko"><code>import Nat &quot;mo:core/Nat&quot;;
+
+let iter = [1, 2, 3].values();
+assert ?1 == Iter.min&lt;Nat&gt;(iter, Nat.compare);</code></pre>
+<h2 id="function-infinite">Function <code>infinite</code></h2>
+<pre class="motoko"><code>func infinite&lt;T&gt;(item : T) : Iter&lt;T&gt;</code></pre>
+<p>Creates an iterator that produces an infinite sequence of
+<code>x</code>.</p>
+<pre class="motoko"><code>let iter = Iter.infinite(10);
+assert ?10 == iter.next();
+assert ?10 == iter.next();
+assert ?10 == iter.next();
+// ...</code></pre>
+<h2 id="function-concat">Function <code>concat</code></h2>
+<pre class="motoko"><code>func concat&lt;T&gt;(self : Iter&lt;T&gt;, other : Iter&lt;T&gt;) : Iter&lt;T&gt;</code></pre>
+<p>Takes two iterators and returns a new iterator that produces elements
+from the original iterators sequentally.</p>
+<pre class="motoko"><code>let iter1 = [1, 2].values();
+let iter2 = [5, 6, 7].values();
+let concatenatedIter = Iter.concat(iter1, iter2);
+let result = Iter.toArray(concatenatedIter);
+assert result == [1, 2, 5, 6, 7];</code></pre>
+<h2 id="function-fromarray">Function <code>fromArray</code></h2>
+<pre class="motoko"><code>func fromArray&lt;T&gt;(array : [T]) : Iter&lt;T&gt;</code></pre>
+<p>Creates an iterator that produces the elements of an Array in
+ascending index order.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3]);
+assert ?1 == iter.next();
+assert ?2 == iter.next();
+assert ?3 == iter.next();
+assert null == iter.next();</code></pre>
+<h2 id="function-fromvararray">Function <code>fromVarArray</code></h2>
+<pre class="motoko"><code>func fromVarArray&lt;T&gt;(array : [var T]) : Iter&lt;T&gt;</code></pre>
+<p>Like <code>fromArray</code> but for Arrays with mutable elements.
+Captures the elements of the Array at the time the iterator is created,
+so further modifications won't be reflected in the iterator.</p>
+<h2 id="function-toarray">Function <code>toArray</code></h2>
+<pre class="motoko"><code>func toArray&lt;T&gt;(self : Iter&lt;T&gt;) : [T]</code></pre>
+<p>Consumes an iterator and collects its produced elements in an
+Array.</p>
+<pre class="motoko"><code>let iter = [1, 2, 3].values();
+assert [1, 2, 3] == Iter.toArray(iter);</code></pre>
+<h2 id="function-tovararray">Function <code>toVarArray</code></h2>
+<pre class="motoko"><code>func toVarArray&lt;T&gt;(self : Iter&lt;T&gt;) : [var T]</code></pre>
+<p>Like <code>toArray</code> but for Arrays with mutable elements.</p>
+<h2 id="function-sort">Function <code>sort</code></h2>
+<pre class="motoko"><code>func sort&lt;T&gt;(self : Iter&lt;T&gt;, compare : (implicit : (T, T) -&gt; Order.Order)) : Iter&lt;T&gt;</code></pre>
+<p>Sorted iterator. Will iterate over <em>all</em> elements to sort
+them, necessarily.</p>
+<h2 id="function-repeat">Function <code>repeat</code></h2>
+<pre class="motoko"><code>func repeat&lt;T&gt;(item : T, count : Nat) : Iter&lt;T&gt;</code></pre>
+<p>Creates an iterator that produces a given item a specified number of
+times.</p>
+<pre class="motoko"><code>let iter = Iter.repeat&lt;Nat&gt;(3, 2);
+assert ?3 == iter.next();
+assert ?3 == iter.next();
+assert null == iter.next();</code></pre>
+<p>Runtime: O(1)</p>
+<p>Space: O(1)</p>
+<h2 id="function-reverse">Function <code>reverse</code></h2>
+<pre class="motoko"><code>func reverse&lt;T&gt;(self : Iter&lt;T&gt;) : Iter&lt;T&gt;</code></pre>
+<p>Creates a new iterator that produces elements from the original
+iterator in reverse order. Note: This function needs to consume the
+entire iterator to reverse it.</p>
+<pre class="motoko"><code>let iter = Iter.fromArray([1, 2, 3]);
+let reversed = Iter.reverse(iter);
+assert ?3 == reversed.next();
+assert ?2 == reversed.next();
+assert ?1 == reversed.next();
+assert null == reversed.next();</code></pre>
+<p>Runtime: O(n) where n is the number of elements in the iterator</p>
+<p>Space: O(n) where n is the number of elements in the iterator</p>
+</body>
+</html>

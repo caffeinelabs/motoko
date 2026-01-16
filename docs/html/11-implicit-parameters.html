@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/fundamentals/11-implicit-parameters.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/fundamentals/11-implicit-parameters.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#implicit-parameters" id="toc-implicit-parameters">Implicit
+parameters</a>
+<ul>
+<li><a href="#overview" id="toc-overview">Overview</a></li>
+<li><a href="#basic-usage" id="toc-basic-usage">Basic usage</a>
+<ul>
+<li><a href="#declaring-implicit-parameters"
+id="toc-declaring-implicit-parameters">Declaring implicit
+parameters</a></li>
+<li><a href="#calling-functions-with-implicit-arguments"
+id="toc-calling-functions-with-implicit-arguments">Calling functions
+with implicit arguments</a></li>
+<li><a href="#contextual-dot-notation"
+id="toc-contextual-dot-notation">Contextual dot notation</a></li>
+</ul></li>
+<li><a href="#working-with-ordered-collections"
+id="toc-working-with-ordered-collections">Working with ordered
+collections</a>
+<ul>
+<li><a href="#map-example" id="toc-map-example">Map Example</a></li>
+<li><a href="#set-example" id="toc-set-example">Set example</a></li>
+<li><a href="#building-collections-incrementally"
+id="toc-building-collections-incrementally">Building collections
+incrementally</a></li>
+</ul></li>
+<li><a href="#how-inference-works" id="toc-how-inference-works">How
+inference works</a>
+<ul>
+<li><a href="#supported-types" id="toc-supported-types">Supported
+types</a></li>
+</ul></li>
+<li><a href="#explicitly-providing-implicit-arguments"
+id="toc-explicitly-providing-implicit-arguments">Explicitly providing
+implicit arguments</a></li>
+<li><a href="#custom-types" id="toc-custom-types">Custom types</a></li>
+<li><a href="#best-practices" id="toc-best-practices">Best
+practices</a></li>
+<li><a href="#migration-from-explicit-arguments"
+id="toc-migration-from-explicit-arguments">Migration from explicit
+arguments</a></li>
+<li><a href="#performance-considerations"
+id="toc-performance-considerations">Performance considerations</a></li>
+<li><a href="#see-also" id="toc-see-also">See also</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="implicit-parameters">Implicit parameters</h1>
+<h2 id="overview">Overview</h2>
+<p>Implicit parameters allow you to omit frequently-used function
+arguments at call sites when the compiler can infer them from context.
+This feature is particularly useful when working with ordered
+collections like <code>Map</code> and <code>Set</code> from the
+<code>core</code> library, which require comparison functions but where
+the comparison logic is usually obvious from the key type. Other exampes
+are <code>equal</code> and <code>toText</code> functions.</p>
+<h2 id="basic-usage">Basic usage</h2>
+<h3 id="declaring-implicit-parameters">Declaring implicit
+parameters</h3>
+<p>When declaring a function, any function parameter can be declared
+implicit using the <code>implicit</code> type constructor:</p>
+<p>For example, the core Map library, declares a function:</p>
+<pre class="motoko"><code>public func add&lt;K, V&gt;(self: Map&lt;K, V&gt;, compare : (implicit : (K, K) -&gt; Order), key : K, value : V) {
+  // ...
+}</code></pre>
+<p>The <code>implicit</code> marker on the type of parameter
+<code>compare</code> indicates the call-site can omit it the
+<code>compare</code> argument, provided it can be inferred the call
+site.</p>
+<p>A function can declare more than on implicit parameter, even of the
+same name.</p>
+<pre class="motoko"><code>func show&lt;T, U&gt;(
+    self: (T, U),
+    toTextT : (implicit : (toText : T -&gt; Text)),
+    toTextU : (implicit : (toText : U -&gt; Text))) : Text {
+  &quot;(&quot; # toTextT(self.0) # &quot;,&quot; # toTextU(self.1) # &quot;)&quot;
+}</code></pre>
+<p>In these cases, you can add an inner name to indicate the external
+names of the implicit parameters (both <code>toText</code>) and
+distinguish them from the names used with the function body,
+<code>toTextT</code> and <code>toTextU</code>: these need to be distinct
+so that the body can call them. The inner name (under
+<code>implicit</code>) overrides the local name of the parameter in the
+body.</p>
+<h3 id="calling-functions-with-implicit-arguments">Calling functions
+with implicit arguments</h3>
+<p>When calling a function with implicit parameters, you can omit the
+implicit arguments if the compiler can infer them:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let map = Map.empty&lt;Nat, Text&gt;();
+
+// Without implicits - must provide compare function explicitly
+Map.add(map, Nat.compare, 5, &quot;five&quot;);
+
+// With implicits - compare function inferred from key type
+Map.add(map, 5, &quot;five&quot;);</code></pre>
+<p>The compiler automatically finds an appropriate comparison function
+based on the type of the key argument.</p>
+<p>The availabe candidates are:</p>
+<ul>
+<li>Any value named <code>compare</code> whose type matches the
+parameter type.</li>
+</ul>
+<p>If there is no such value,</p>
+<ul>
+<li>Any field named <code>M.compare</code> declared in some module
+available <code>M</code>.</li>
+<li>If there is more than one such field, none of which is more specific
+than all the others, the call is ambiguous.</li>
+</ul>
+<p>An ambiguous call can always be disambiguated by supplying the
+explicit arguments for all implicit parameters.</p>
+<h3 id="contextual-dot-notation">Contextual dot notation</h3>
+<p>Implicit parameters dovetail nicely with the <a
+href="contextual-dot">contextual dot notation</a>. The dot notation and
+implicit arguments can be used in conjunction to shorten code.</p>
+<p>For example, since the first parameter of <code>Map.add</code> is
+called <code>self</code>, we can both use <code>map</code> as the
+receiver of <code>add</code> "method" calls and omit the tedious
+<code>compare</code> argument:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let map = Map.empty&lt;Nat, Text&gt;();
+
+// Using contextual dot notation, without implicits - must provide compare function explicitly
+map.add(Nat.compare, 5, &quot;five&quot;);
+
+// Using contextual dot nation together with implicits - compare function inferred from key type
+map.add(5, &quot;five&quot;);</code></pre>
+<h2 id="working-with-ordered-collections">Working with ordered
+collections</h2>
+<p>The primary use case for implicit arguments is simplifying code that
+uses maps and sets from the <code>core</code> library.</p>
+<h3 id="map-example">Map Example</h3>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let inventory = Map.empty&lt;Nat, Text&gt;();
+
+// Old style: explicitly pass Nat.compare
+Map.add(inventory, Nat.compare, 101, &quot;Widget&quot;);
+Map.add(inventory, Nat.compare, 102, &quot;Gadget&quot;);
+Map.add(inventory, Nat.compare, 103, &quot;Doohickey&quot;);
+
+let item1 = Map.get(inventory, Nat.compare, 102);
+
+// With contextual dots and implicits: compare function inferred
+inventory.add(101, &quot;Widget&quot;);
+inventory.add(102, &quot;Gadget&quot;);
+inventory.add(103, &quot;Doohickey&quot;);
+
+let item2 = inventory.get(102);</code></pre>
+<h3 id="set-example">Set example</h3>
+<p>The core <code>Set</code> type also takes advantage of implicit
+<code>compare</code> parameters.</p>
+<pre class="motoko"><code>import Set &quot;mo:core/Set&quot;;
+import Text &quot;mo:core/Text&quot;;
+
+let tags = Set.empty&lt;Text&gt;();
+
+// Old style
+Set.add(tags, Text.compare, &quot;urgent&quot;);
+Set.add(tags, Text.compare, &quot;reviewed&quot;);
+let hasTag1 = Set.contains(tags, Text.compare, &quot;urgent&quot;);
+
+// With implicits
+tags.add(&quot;urgent&quot;);
+tags.add(&quot;reviewed&quot;);
+let hasTag2 = tags.contains(&quot;urgent&quot;);</code></pre>
+<h3 id="building-collections-incrementally">Building collections
+incrementally</h3>
+<p>Implicit arguments make imperative collection operations much
+cleaner:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Text &quot;mo:core/Text&quot;;
+
+let scores = Map.empty&lt;Text, Nat&gt;();
+
+// Add player scores
+scores.add(&quot;Alice&quot;, 100);
+scores.add(&quot;Bob&quot;, 85);
+scores.add( &quot;Charlie&quot;, 92);
+
+// Update a score
+scores.add(&quot;Bob&quot;, 95);
+
+// Check and remove
+if (scores.containsKey(&quot;Alice&quot;)) {
+  scores.remove(&quot;Alice&quot;);
+};
+
+// Get size
+let playerCount = scores.size()</code></pre>
+<h2 id="how-inference-works">How inference works</h2>
+<p>The compiler infers an implicit argument by:</p>
+<ol type="1">
+<li>Examining the types of the explicit arguments provided.</li>
+<li>Looking for all candidate values for the implicit argument in the
+current scope that match the required type and name.</li>
+<li>From these, selecting the best unique candidate based on type
+specifity.</li>
+</ol>
+<p>If there is no unique best candidate the compiler rejects the call as
+ambiguous.</p>
+<p>If a callee takes several implicits parameter, either all implicit
+arguments must be omitted, or all explicit and implicit arguments must
+be provided at the call site, in their declared order.</p>
+<h3 id="supported-types">Supported types</h3>
+<p>The core library provides comparison functions for common types:</p>
+<ul>
+<li><code>Nat.compare</code> for <code>Nat</code></li>
+<li><code>Int.compare</code> for <code>Int</code></li>
+<li><code>Text.compare</code> for <code>Text</code></li>
+<li><code>Char.compare</code> for <code>Char</code></li>
+<li><code>Bool.compare</code> for <code>Bool</code></li>
+<li><code>Principal.compare</code> for <code>Principal</code></li>
+<li>etc.</li>
+</ul>
+<p>Other implicit parameters declared by the core library are
+<code>equals : (implicit : (T, T) -&gt; Bool)</code> and
+<code>toText: (implicit : T -&gt; Text)</code>.</p>
+<h2 id="explicitly-providing-implicit-arguments">Explicitly providing
+implicit arguments</h2>
+<p>You can always provide implicit arguments explicitly when needed:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+import {type Order} &quot;mo:core/Order&quot;;
+
+// Custom comparison function for reverse ordering
+func reverseCompare(a : Nat, b : Nat) : Order {
+  Nat.compare(b, a)
+};
+
+let reversedMap = Map.empty&lt;Nat, Text&gt;();
+// Explicitly provide the comparison function
+reversedMap.add(reverseCompare, 5, &quot;five&quot;);
+reversedMap.add(reverseCompare, 3, &quot;three&quot;);</code></pre>
+<p>This is useful when:</p>
+<ul>
+<li>Using custom comparison logic</li>
+<li>Working with custom types that have multiple possible orderings</li>
+<li>Improving code clarity in complex scenarios</li>
+</ul>
+<h2 id="custom-types">Custom types</h2>
+<p>To use implicit arguments with your own custom types, define a
+comparison function:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Text &quot;mo:core/Text&quot;;
+import {type Order} &quot;mo:core/Order&quot;;
+
+type Person = {
+  name : Text;
+  age : Nat;
+};
+
+module Person {
+  public func compare(a : Person, b : Person) : Order {
+    Text.compare(a.name, b.name)
+  };
+};
+
+// Now works with implicits
+let directory = Map.empty&lt;Person, Text&gt;();
+directory.add({ name = &quot;Alice&quot;; age = 30 }, &quot;alice@example.com&quot;);
+directory.add({ name = &quot;Bob&quot;; age = 25 }, &quot;bob@example.com&quot;);
+
+let email = directory.get({ name = &quot;Alice&quot;; age = 30 });</code></pre>
+<h2 id="best-practices">Best practices</h2>
+<ol type="1">
+<li><p><strong>Use implicits for standard types</strong>: When working
+with <code>Nat</code>, <code>Text</code>, <code>Int</code>,
+<code>Principal</code>, and other primitive types, let the compiler
+infer the comparison function.</p></li>
+<li><p><strong>Be explicit with custom logic</strong>: When using
+non-standard comparison logic, explicitly provide the comparison
+function for clarity.</p></li>
+<li><p><strong>Name comparison functions consistently</strong>: Follow
+the convention of <code>ModuleName.compare</code> to ensure proper
+inference.</p></li>
+<li><p><strong>Consider readability</strong>: While implicits reduce
+boilerplate, explicit arguments may be clearer in some contexts,
+especially when teaching or documenting code.</p></li>
+<li><p><strong>Collections benefit most</strong>: The repeated
+operations on <code>Map</code> and <code>Set</code> from
+<code>core</code> particularly benefit from implicit arguments since you
+call these functions frequently.</p></li>
+<li><p>Don't go wild with implicit parameters. Use them
+sparingly.</p></li>
+</ol>
+<h2 id="migration-from-explicit-arguments">Migration from explicit
+arguments</h2>
+<p>Existing code with explicit comparison functions will continue to
+work. You can adopt implicit arguments gradually:</p>
+<pre class="motoko"><code>import Map &quot;mo:core/Map&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+let data = Map.empty&lt;Nat, Text&gt;();
+
+// Both styles work simultaneously
+Map.add(data, Nat.compare, 1, &quot;one&quot;);  // Explicit
+Map.add(data, 2, &quot;two&quot;);                // Implicit
+Map.add(data, 3, &quot;three&quot;);              // Implicit</code></pre>
+<p>There is no need to update existing code unless you want to take
+advantage of the cleaner syntax.</p>
+<h2 id="performance-considerations">Performance considerations</h2>
+<p>Implicit arguments have no runtime overhead. The comparison function
+is resolved at compile time, so there is no performance difference
+between using implicit and explicit arguments. The resulting code is
+identical.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../language-manual#function-calls">Language
+reference</a></li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Principal">Principal</a></li></li><li><li><a href="#fromActor">fromActor</a></li></li><li><li><a href="#toLedgerAccount">toLedgerAccount</a></li></li><li><li><a href="#toBlob">toBlob</a></li></li><li><li><a href="#fromBlob">fromBlob</a></li></li><li><li><a href="#toText">toText</a></li></li><li><li><a href="#fromText">fromText</a></li></li><li><li><a href="#isAnonymous">isAnonymous</a></li></li><li><li><a href="#isController">isController</a></li></li><li><li><a href="#hash">hash</a></li></li><li><li><a href="#compare">compare</a></li></li><li><li><a href="#equal">equal</a></li></li><li><li><a href="#notEqual">notEqual</a></li></li><li><li><a href="#less">less</a></li></li><li><li><a href="#lessOrEqual">lessOrEqual</a></li></li><li><li><a href="#greater">greater</a></li></li><li><li><a href="#greaterOrEqual">greaterOrEqual</a></li></li></ul></nav><div class="documentation"><h1>Principal</h1><p>Module for interacting with Principals (users, canisters, or other entities).</p>
+<p>Principals are used to identify entities that can interact with the Internet
+Computer including users or canisters.</p>
+<p>Example textual representation of Principals:</p>
+<p><code>un4fu-tqaaa-aaaab-qadjq-cai</code></p>
+<p>In Motoko, there is a primitive Principal type called <code>Principal</code>. As an example
+of where you might see Principals, you can access the Principal of the
+caller of your shared function.</p>
+<pre><code>motoko no-repl
+shared(msg) func foo() {
+ let caller : Principal = msg.caller;
+};</code></pre>
+
+<p>Then, you can use this module to work with the <code>Principal</code>.</p>
+<p>:::note Comparison usage</p>
+<p>These functions are defined in this library in addition to the existing comparison operators so that they can be passed as function values to higher-order functions. It is currently not possible to use operators such as <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, or <code>&gt;=</code> as function values directly.
+:::</p>
+<p>Import from the base library to use this module.</p>
+<pre><code>motoko name=import
+import Principal &quot;mo:base/Principal&quot;;</code></pre><div class="declaration"><h4 class="type-declaration" id="type.Principal"><span class="keyword">type </span><span class="type">Principal</span> = <span class="type">Prim.Types.Principal</span></h4><p></p></div><div class="declaration"><h4 class="function" id="fromActor"><code><span class="keyword">public func </span><span class="fnname">fromActor</span>(<span class="parameter">a</span> : <span class="keyword">actor </span>{  }) : <a href="#type.Principal"><span class="type">Principal</span></a></code></h4><p><p>Get the <code>Principal</code> identifier of an actor.</p>
+<p>Example:</p>
+<pre><code>motoko include=import no-repl
+actor MyCanister {
+  func getPrincipal() : Principal {
+    let principal = Principal.fromActor(MyCanister);
+  }
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="toLedgerAccount"><code><span class="keyword">public func </span><span class="fnname">toLedgerAccount</span>(<span class="parameter">principal</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">subAccount</span> : ?<span class="type">Blob</span>) : <span class="type">Blob</span></code></h4><p><p>Compute the Ledger account identifier of a principal. Optionally specify a sub-account.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let subAccount : Blob = &quot;\4A\8D\3F\2B\6E\01\C8\7D\9E\03\B4\56\7C\F8\9A\01\D2\34\56\78\9A\BC\DE\F0\12\34\56\78\9A\BC\DE\F0&quot;;
+let account = Principal.toLedgerAccount(principal, ?subAccount); // =&gt; \8C\5C\20\C6\15\3F\7F\51\E2\0D\0F\0F\B5\08\51\5B\47\65\63\A9\62\B4\A9\91\5F\4F\02\70\8A\ED\4F\82</code></pre></p></div><div class="declaration"><h4 class="function" id="toBlob"><code><span class="keyword">public func </span><span class="fnname">toBlob</span>(<span class="parameter">p</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Blob</span></code></h4><p><p>Convert a <code>Principal</code> to its <code>Blob</code> (bytes) representation.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let blob = Principal.toBlob(principal); // =&gt; \00\00\00\00\00\30\00\D3\01\01</code></pre></p></div><div class="declaration"><h4 class="function" id="fromBlob"><code><span class="keyword">public func </span><span class="fnname">fromBlob</span>(<span class="parameter">b</span> : <span class="type">Blob</span>) : <a href="#type.Principal"><span class="type">Principal</span></a></code></h4><p><p>Converts a <code>Blob</code> (bytes) representation of a <code>Principal</code> to a <code>Principal</code> value.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob = &quot;\00\00\00\00\00\30\00\D3\01\01&quot; : Blob;
+let principal = Principal.fromBlob(blob);
+Principal.toText(principal) // =&gt; &quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="toText"><code><span class="keyword">public func </span><span class="fnname">toText</span>(<span class="parameter">p</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Text</span></code></h4><p><p>Converts a <code>Principal</code> to its <code>Text</code> representation.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+Principal.toText(principal) // =&gt; &quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="fromText"><code><span class="keyword">public func </span><span class="fnname">fromText</span>(<span class="parameter">t</span> : <span class="type">Text</span>) : <a href="#type.Principal"><span class="type">Principal</span></a></code></h4><p><p>Converts a <code>Text</code> representation of a <code>Principal</code> to a <code>Principal</code> value.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+Principal.toText(principal) // =&gt; &quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="isAnonymous"><code><span class="keyword">public func </span><span class="fnname">isAnonymous</span>(<span class="parameter">p</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>Checks if the given principal represents an anonymous user.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+Principal.isAnonymous(principal) // =&gt; false</code></pre></p></div><div class="declaration"><h4 class="function" id="isController"><code><span class="keyword">public func </span><span class="fnname">isController</span>(<span class="parameter">p</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>Checks if the given principal can control this canister.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+Principal.isController(principal) // =&gt; false</code></pre></p></div><div class="declaration"><h4 class="function" id="hash"><code><span class="keyword">public func </span><span class="fnname">hash</span>(<span class="parameter">principal</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a></code></h4><p><p>Hashes the given principal by hashing its <code>Blob</code> representation.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+Principal.hash(principal) // =&gt; 2_742_573_646</code></pre></p></div><div class="declaration"><h4 class="function" id="compare"><code><span class="keyword">public func </span><span class="fnname">compare</span>(<span class="parameter">principal1</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">principal2</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : {#less; #equal; #greater}</code></h4><p><p>General purpose comparison function for <code>Principal</code>. Returns the <code>Order</code> (
+either <code>#less</code>, <code>#equal</code>, or <code>#greater</code>) of comparing <code>principal1</code> with
+<code>principal2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+Principal.compare(principal1, principal2) // =&gt; #equal</code></pre></p></div><div class="declaration"><h4 class="function" id="equal"><code><span class="keyword">public func </span><span class="fnname">equal</span>(<span class="parameter">principal1</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">principal2</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>Equality function for Principal types.
+This is equivalent to <code>principal1 == principal2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.equal(principal1, principal2);
+principal1 == principal2 // =&gt; true</code></pre>
+
+<p>Example:</p>
+<pre><code>motoko include=import
+import Buffer &quot;mo:base/Buffer&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Principal&gt;(3);
+let buffer2 = Buffer.Buffer&lt;Principal&gt;(3);
+Buffer.equal(buffer1, buffer2, Principal.equal) // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="notEqual"><code><span class="keyword">public func </span><span class="fnname">notEqual</span>(<span class="parameter">principal1</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">principal2</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>Inequality function for Principal types.
+This is equivalent to <code>principal1 != principal2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.notEqual(principal1, principal2);
+principal1 != principal2 // =&gt; false</code></pre></p></div><div class="declaration"><h4 class="function" id="less"><code><span class="keyword">public func </span><span class="fnname">less</span>(<span class="parameter">principal1</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">principal2</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Less than&quot; function for Principal types.
+This is equivalent to <code>principal1 &lt; principal2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.less(principal1, principal2);
+principal1 &lt; principal2 // =&gt; false</code></pre></p></div><div class="declaration"><h4 class="function" id="lessOrEqual"><code><span class="keyword">public func </span><span class="fnname">lessOrEqual</span>(<span class="parameter">principal1</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">principal2</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Less than or equal to&quot; function for Principal types.
+This is equivalent to <code>principal1 &lt;= principal2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.lessOrEqual(principal1, principal2);
+principal1 &lt;= principal2 // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="greater"><code><span class="keyword">public func </span><span class="fnname">greater</span>(<span class="parameter">principal1</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">principal2</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Greater than&quot; function for Principal types.
+This is equivalent to <code>principal1 &gt; principal2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.greater(principal1, principal2);
+principal1 &gt; principal2 // =&gt; false</code></pre></p></div><div class="declaration"><h4 class="function" id="greaterOrEqual"><code><span class="keyword">public func </span><span class="fnname">greaterOrEqual</span>(<span class="parameter">principal1</span> : <a href="#type.Principal"><span class="type">Principal</span></a>, <span class="parameter">principal2</span> : <a href="#type.Principal"><span class="type">Principal</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Greater than or equal to&quot; function for Principal types.
+This is equivalent to <code>principal1 &gt;= principal2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let principal1 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+let principal2 = Principal.fromText(&quot;un4fu-tqaaa-aaaab-qadjq-cai&quot;);
+ignore Principal.greaterOrEqual(principal1, principal2);
+principal1 &gt;= principal2 // =&gt; true</code></pre></p></div></div></body></html>

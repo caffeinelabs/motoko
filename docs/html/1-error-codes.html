@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/reference/1-error-codes.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/reference/1-error-codes.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#error-code-reference" id="toc-error-code-reference">Error
+code reference</a></li>
+</ul>
+</nav>
+<h1 id="error-code-reference">Error code reference</h1>
+<!-- needs updating or better: autogeneration -->
+
+<table>
+<thead>
+<tr>
+<th>Error Code</th>
+<th>Description</th>
+<th>Example</th>
+<th>Explanation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M0001</td>
+<td>Parsing errors.</td>
+<td><code>let x = 5 + ;</code></td>
+<td>Syntax error - missing operand after the <code>+</code>
+operator.</td>
+</tr>
+<tr>
+<td>M0003</td>
+<td>Module tried to import itself.</td>
+<td><code>import Self "self.mo"</code></td>
+<td>A module cannot import itself, creating a circular dependency.</td>
+</tr>
+<tr>
+<td>M0009</td>
+<td>File not found for import.</td>
+<td><code>import Lib "wrong/path_to_file.mo"</code></td>
+<td>The specified file path in the import statement doesn't exist.</td>
+</tr>
+<tr>
+<td>M0010</td>
+<td>Imported package was not defined.</td>
+<td><code>import { undefined_module } from "mo:package"</code></td>
+<td>The imported module doesn't exist in the specified package.</td>
+</tr>
+<tr>
+<td>M0014</td>
+<td>Non-static expression in library or module.</td>
+<td><code>module { let x = Random.blob(); }</code></td>
+<td>Modules can only contain static definitions, not runtime
+expressions.</td>
+</tr>
+<tr>
+<td>M0029</td>
+<td>Unbound type.</td>
+<td><code>func transform(x : UnknownType) { ... }</code></td>
+<td>The type <code>UnknownType</code> is referenced but hasn't been
+defined.</td>
+</tr>
+<tr>
+<td>M0030</td>
+<td>Type field does not exist in type.</td>
+<td><code>type Person = { name : Text }; func getName(p : Person) : Nat { p.age }</code></td>
+<td>The field <code>age</code> doesn't exist in the <code>Person</code>
+type.</td>
+</tr>
+<tr>
+<td>M0031</td>
+<td>Shared function has non-shared parameter type.</td>
+<td><code>public shared func process(obj : { var count : Nat }) { ... }</code></td>
+<td>Shared functions cannot have mutable types as parameters.</td>
+</tr>
+<tr>
+<td>M0032</td>
+<td>Shared function has non-shared return type.</td>
+<td><code>public shared func getData() : { var data : [Nat] } { ... }</code></td>
+<td>Shared functions cannot return mutable types.</td>
+</tr>
+<tr>
+<td>M0033</td>
+<td>Async has non-shared content type.</td>
+<td><code>async { var counter = 0 }</code></td>
+<td>Async blocks cannot contain mutable <a
+href="../fundamentals/2-actors/2-state.md">state</a>.</td>
+</tr>
+<tr>
+<td>M0036</td>
+<td>Invalid return type for shared query function.</td>
+<td><code>public shared query func getUsers() : async [User] { ... }</code></td>
+<td>Query functions cannot return async types.</td>
+</tr>
+<tr>
+<td>M0038</td>
+<td>Misplaced await.</td>
+<td><code>func compute() { let x = await promise; }</code></td>
+<td><code>await</code> can only be used in an async function or
+block.</td>
+</tr>
+<tr>
+<td>M0045</td>
+<td>Wrong number of type arguments.</td>
+<td><code>func process&lt;T&gt;(x : Array&lt;T, Nat&gt;) { ... }</code></td>
+<td><code>Array</code> type expects one type parameter, not two.</td>
+</tr>
+<tr>
+<td>M0047</td>
+<td>Send capability required.</td>
+<td><code>actor { public func send() { IC.call(...); } }</code></td>
+<td>Functions calling IC management require explicit capability
+declarations.</td>
+</tr>
+<tr>
+<td>M0050</td>
+<td>Literal does not have expected type.</td>
+<td><code>let x : Text = 42;</code></td>
+<td>Cannot assign a number literal to a variable of type <a
+href="../core/Text.md"><code>Text</code></a>.</td>
+</tr>
+<tr>
+<td>M0055</td>
+<td>Cannot infer type of forward variable.</td>
+<td><code>func process() { x := 10; var x = 0; }</code></td>
+<td>Variable <code>x</code> is used before its declaration.</td>
+</tr>
+<tr>
+<td>M0057</td>
+<td>Unbound variable.</td>
+<td><code>func calculate() { return result; }</code></td>
+<td>The variable <code>result</code> is used but hasn't been
+defined.</td>
+</tr>
+<tr>
+<td>M0060</td>
+<td>Operator is not defined for operand types.</td>
+<td><code>let result = "text" - 5;</code></td>
+<td>The subtraction operator isn't defined for <a
+href="../core/Text.md"><code>Text</code></a> and <a
+href="../core/Nat.md"><code>Nat</code></a> types.</td>
+</tr>
+<tr>
+<td>M0064</td>
+<td>Misplaced '!' without enclosing do block</td>
+<td><code>func test() { someFunction!(); }</code></td>
+<td>The <code>!</code> operator must be used within a <code>do</code>
+block.</td>
+</tr>
+<tr>
+<td>M0070</td>
+<td>Expected object type.</td>
+<td><code>let name = person.name;</code> (where <code>person</code> is
+not an object)</td>
+<td>Trying to access a field on a non-object type.</td>
+</tr>
+<tr>
+<td>M0072</td>
+<td>Field does not exist in type.</td>
+<td><code>type User = { id : Nat }; func getName(u : User) { u.name }</code></td>
+<td>The field <code>name</code> doesn't exist in the <code>User</code>
+type.</td>
+</tr>
+<tr>
+<td>M0073</td>
+<td>Expected mutable assignment target.</td>
+<td><code>let x = 5; x := 10;</code></td>
+<td>Cannot reassign to an immutable variable declared with
+<code>let</code>.</td>
+</tr>
+<tr>
+<td>M0082</td>
+<td>Expected iterable type.</td>
+<td><code>for (item in 42) { ... }</code></td>
+<td>The value <code>42</code> is not an iterable type for a
+for-loop.</td>
+</tr>
+<tr>
+<td>M0088</td>
+<td>Expected async type.</td>
+<td><code>let result = await 42;</code></td>
+<td>Cannot <code>await</code> on a non-async value.</td>
+</tr>
+<tr>
+<td>M0089</td>
+<td>Redundant ignore.</td>
+<td><code>ignore (5);</code></td>
+<td>The <code>ignore</code> is unnecessary for a value that doesn't need
+to be ignored.</td>
+</tr>
+<tr>
+<td>M0090</td>
+<td>Actor reference must have an <a
+href="../fundamentals/2-actors/1-actors-async.md">actor</a> type .</td>
+<td><code>let a = actor { ... }; a.someMethod();</code></td>
+<td>The variable <code>a</code> must have an explicit <a
+href="../fundamentals/2-actors/1-actors-async.md">actor</a> type to call
+its methods.</td>
+</tr>
+<tr>
+<td>M0096</td>
+<td>Expression can't produce expected type.</td>
+<td><code>func getValue() : Bool { return "true"; }</code></td>
+<td>String cannot be returned where a <a
+href="../core/Bool.md"><code>Bool</code></a> is expected.</td>
+</tr>
+<tr>
+<td>M0097</td>
+<td>Expected function type.</td>
+<td><code>let x = 5; x();</code></td>
+<td>Cannot call a non-function value.</td>
+</tr>
+<tr>
+<td>M0098</td>
+<td>Cannot instantiate function type.</td>
+<td><code>type Func = (Nat) -&gt; Nat; let f = Func();</code></td>
+<td>Function types cannot be instantiated directly.</td>
+</tr>
+<tr>
+<td>M0112</td>
+<td>Tuple pattern cannot consume type.</td>
+<td><code>let (x, y) = { a = 1; b = 2 };</code></td>
+<td>Cannot destructure an object using tuple pattern.</td>
+</tr>
+<tr>
+<td>M0116</td>
+<td>Variant pattern cannot consume type.</td>
+<td><code>switch (value) { case (#ok(x)) { ... } };</code> (where
+<code>value</code> is not a variant)</td>
+<td>Cannot match a non-variant value with variant patterns.</td>
+</tr>
+<tr>
+<td>M0126</td>
+<td>Shared function cannot be private.</td>
+<td><code>actor { private shared func publicAPI() { ... } }</code></td>
+<td>Shared functions must be public in actors.</td>
+</tr>
+<tr>
+<td>M0137</td>
+<td>A type or class was declared that explicitly or implicitly
+references an outer type parameter.</td>
+<td><code>class Container&lt;T&gt;() { class Inner() { var value : T = ... } }</code></td>
+<td>Inner classes cannot reference type parameters from outer
+classes.</td>
+</tr>
+<tr>
+<td>M0139</td>
+<td>Inner actor classes are not supported.</td>
+<td><code>class Outer() { actor class Inner() { ... } }</code></td>
+<td>Actor classes cannot be nested inside other classes.</td>
+</tr>
+<tr>
+<td>M0141</td>
+<td>Forbidden declaration in program.</td>
+<td><code>import Prim "mo:prim";</code></td>
+<td>Certain imports/declarations are not allowed in normal user
+code.</td>
+</tr>
+<tr>
+<td>M0145</td>
+<td>Pattern does not cover value.</td>
+<td><code>switch (option) { case (null) { ... } };</code> (missing
+<code>?some</code> case)</td>
+<td>Switch statement doesn't handle all possible values.</td>
+</tr>
+<tr>
+<td>M0149</td>
+<td>An immutable <a
+href="../fundamentals/3-types/5-records.md">record</a> field (declared
+without <code>var</code>) was supplied where a mutable <a
+href="../fundamentals/3-types/5-records.md">record</a> field (specified
+with <code>var</code>), was expected.</td>
+<td><code>type Mutable = { var x : Nat }; func set(r : Mutable) { ... }; set({ x = 10 });</code></td>
+<td>Immutable <a href="../fundamentals/3-types/5-records.md">record</a>
+provided where mutable was expected.</td>
+</tr>
+<tr>
+<td>M0150</td>
+<td>A mutable <a href="../fundamentals/3-types/5-records.md">record</a>
+field (declared with <code>var</code>) was supplied where an immutable
+<a href="../fundamentals/3-types/5-records.md">record</a> field
+(specified without <code>var</code>) was expected.</td>
+<td><code>type Immutable = { x : Nat }; let record : Immutable = { var x = 10 };</code></td>
+<td>Mutable field provided where immutable was expected.</td>
+</tr>
+<tr>
+<td>M0151</td>
+<td>A object literal is missing some fields.</td>
+<td><code>type Person = { name : Text; age : Nat }; let p : Person = { name = "John" };</code></td>
+<td>The <code>age</code> field is missing from the object literal.</td>
+</tr>
+<tr>
+<td>M0153</td>
+<td>An imported Candid file (.did) mentions types that cannot be
+represented in Motoko.</td>
+<td><code>import Types from "types.did";</code> (where
+<code>types.did</code> contains incompatible types)</td>
+<td>The imported Candid file contains types that don't map to Motoko
+types.</td>
+</tr>
+<tr>
+<td>M0154</td>
+<td>Deprecation annotation.</td>
+<td><code>@deprecated("Use newFunction instead") func oldFunction() { ... }</code></td>
+<td>Using a deprecated function or feature that has been marked with
+<code>@deprecated</code>.</td>
+</tr>
+<tr>
+<td>M0155</td>
+<td>Inferred type <a href="../core/Nat.md"><code>Nat</code></a> for
+subtraction.</td>
+<td><code>let x = 5 - 10;</code></td>
+<td>Subtraction with natural numbers can underflow without type
+annotation.</td>
+</tr>
+<tr>
+<td>M0156</td>
+<td>A parameterized type definition, or set of type definitions, is too
+complicated for Motoko to accept.</td>
+<td><code>type Complex&lt;A,B,C,D,E,F&gt; = ... (extremely nested recursive types)</code></td>
+<td>Type definition too complex for the compiler to process.</td>
+</tr>
+<tr>
+<td>M0157</td>
+<td>A type definition, or set of type definitions, is ill-defined.</td>
+<td><code>type RecursiveType = RecursiveType;</code></td>
+<td>A type directly references itself without proper indirection.</td>
+</tr>
+<tr>
+<td>M0158</td>
+<td>A public class was declared without providing it with a name.</td>
+<td><code>public class&lt;T&gt;() { ... }</code></td>
+<td>Public parameterized classes must be named explicitly.</td>
+</tr>
+<tr>
+<td>M0194</td>
+<td>An identifier was defined without referencing it later.</td>
+<td><code>func process() { let unused = computeValue(); }</code></td>
+<td>The variable <code>unused</code> is defined but never used.</td>
+</tr>
+<tr>
+<td>M0195</td>
+<td>A function that demands elevated (system) capabilities was called
+without manifestly passing the capability.</td>
+<td><code>func splitCycles() { let amount = ExperimentalCycles.balance() / 2; ExperimentalCycles.add(amount);}}</code></td>
+<td>System capability function called without proper capability
+passing.</td>
+</tr>
+<tr>
+<td>M0197</td>
+<td>A function that requires (system) capabilities was called in a
+context that does not provide them.</td>
+<td><code>func invalidCycleAddition(): () { ExperimentalCycles.add(1000);}</code></td>
+<td>Calling a function requiring system capabilities from a context
+without them.</td>
+</tr>
+<tr>
+<td>M0198</td>
+<td>A field identifier was specified in an object pattern without
+referencing this identifier later.</td>
+<td><code>func process(obj) { let { id } = obj; }</code></td>
+<td>The extracted <code>id</code> field is never used in the function
+body.</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

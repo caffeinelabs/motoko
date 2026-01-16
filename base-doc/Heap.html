@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Tree">Tree</a></li></li><li><li><a href="#type.Heap">Heap</a></li></li><li><li><a href="#fromIter">fromIter</a></li></li></ul></nav><div class="documentation"><h1>Heap</h1><p>Class <code>Heap&lt;X&gt;</code> provides a priority queue of elements of type <code>X</code>.</p>
+<p>The class wraps a purely-functional implementation based on a leftist heap.</p>
+<p>:::note Constructor details
+The constructor takes in a comparison function <code>compare</code> that defines the ordering between elements of type <code>X</code>. Most primitive types have a default version of this comparison function defined in their modules (e.g. <code>Nat.compare</code>). The runtime analysis in this documentation assumes that the <code>compare</code> function runs in <code>O(1)</code> time and space.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko name=initialize
+import Heap &quot;mo:base/Heap&quot;;
+import Text &quot;mo:base/Text&quot;;
+
+let heap = Heap.Heap&lt;Text&gt;(Text.compare);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code>    | <code>O(1)</code>    |</p>
+<div class="declaration"><h4 class="type-declaration" id="type.Tree"><span class="keyword">type </span><span class="type">Tree</span>&lt;<span class="type">X</span>&gt; = ?(<span class="type">Int</span>, <span class="type">X</span>, <a href="#type.Tree"><span class="type">Tree</span></a>&lt;<span class="type">X</span>&gt;, <a href="#type.Tree"><span class="type">Tree</span></a>&lt;<span class="type">X</span>&gt;)</h4><p></p></div><div class="declaration"><h4 class="class-declaration" id="type.Heap"><span class="keyword">class </span><span class="classname">Heap</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="Order.html#type.Order"><span class="type">O.Order</span></a>)</h4><div class="declaration"><h4 class="function" id="Heap.put"><code><span class="keyword">public func </span><span class="fnname">put</span>(<span class="parameter">x</span> : <span class="type">X</span>)</code></h4><p><p>Inserts an element into the heap.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+heap.put(&quot;apple&quot;);
+heap.peekMin() // =&gt; ?&quot;apple&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code>    | <code>O(1)</code>    |</p>
+</p></div><div class="declaration"><h4 class="function" id="Heap.peekMin"><code><span class="keyword">public func </span><span class="fnname">peekMin</span>() : ?<span class="type">X</span></code></h4><p><p>Return the minimal element in the heap, or <code>null</code> if the heap is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+heap.put(&quot;apple&quot;);
+heap.put(&quot;banana&quot;);
+heap.put(&quot;cantaloupe&quot;);
+heap.peekMin() // =&gt; ?&quot;apple&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code>    | <code>O(1)</code>    |</p>
+</p></div><div class="declaration"><h4 class="function" id="Heap.deleteMin"><code><span class="keyword">public func </span><span class="fnname">deleteMin</span>()</code></h4><p><p>Delete the minimal element in the heap, if it exists.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+heap.put(&quot;apple&quot;);
+heap.put(&quot;banana&quot;);
+heap.put(&quot;cantaloupe&quot;);
+heap.deleteMin();
+heap.peekMin(); // =&gt; ?&quot;banana&quot;</code></pre>
+
+<p>| Runtime      | Space       |
+|--------------|-------------|
+| <code>O(log(n))</code>  | <code>O(log(n))</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Heap.removeMin"><code><span class="keyword">public func </span><span class="fnname">removeMin</span>() : (<span class="parameter">minElement</span> : ?<span class="type">X</span>)</code></h4><p><p>Delete and return the minimal element in the heap, if it exists.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+heap.put(&quot;apple&quot;);
+heap.put(&quot;banana&quot;);
+heap.put(&quot;cantaloupe&quot;);
+heap.removeMin(); // =&gt; ?&quot;apple&quot;</code></pre>
+
+<p>| Runtime      | Space       |
+|--------------|-------------|
+| <code>O(log(n))</code>  | <code>O(log(n))</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Heap.share"><code><span class="keyword">public func </span><span class="fnname">share</span>() : <a href="#type.Tree"><span class="type">Tree</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Return a snapshot of the internal functional tree representation as sharable data.
+The returned tree representation is not affected by subsequent changes of the <code>Heap</code> instance.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+heap.put(&quot;banana&quot;);
+heap.share();</code></pre>
+
+<p>Useful for storing the heap as a stable variable, pretty-printing, and sharing it across async function calls,
+i.e. passing it in async arguments or async results.</p>
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code>    | <code>O(1)</code>    |</p>
+</p></div><div class="declaration"><h4 class="function" id="Heap.unsafeUnshare"><code><span class="keyword">public func </span><span class="fnname">unsafeUnshare</span>(<span class="parameter">tree</span> : <a href="#type.Tree"><span class="type">Tree</span></a>&lt;<span class="type">X</span>&gt;)</code></h4><p><p>Rewraps a snapshot of a heap (obtained by <code>share()</code>) in a <code>Heap</code> instance.
+The wrapping instance must be initialized with the same <code>compare</code>
+function that created the snapshot.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+heap.put(&quot;apple&quot;);
+heap.put(&quot;banana&quot;);
+let snapshot = heap.share();
+let heapCopy = Heap.Heap&lt;Text&gt;(Text.compare);
+heapCopy.unsafeUnshare(snapshot);
+heapCopy.peekMin() // =&gt; ?&quot;apple&quot;</code></pre>
+
+<p>Useful for loading a stored heap from a stable variable or accesing a heap
+snapshot passed from an async function call.</p>
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code>    | <code>O(1)</code>    |</p>
+</p></div><p></p></div><div class="declaration"><h4 class="function" id="fromIter"><code><span class="keyword">public func </span><span class="fnname">fromIter</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">iter</span> : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="Order.html#type.Order"><span class="type">O.Order</span></a>) : <a href="#type.Heap"><span class="type">Heap</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns a new <code>Heap</code>, containing all entries given by the iterator <code>iter</code>.
+The new map is initialized with the provided <code>compare</code> function.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+let entries = [&quot;banana&quot;, &quot;apple&quot;, &quot;cantaloupe&quot;];
+let iter = entries.vals();
+
+let newHeap = Heap.fromIter&lt;Text&gt;(iter, Text.compare);
+newHeap.peekMin() // =&gt; ?&quot;apple&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div></div></body></html>

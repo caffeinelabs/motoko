@@ -1,0 +1,31 @@
+name: Update niv dependencies (weekly)
+on:
+  # Manual override, one can start the workflow by running:
+  # curl -H "Accept: application/vnd.github.everest-preview+json" \
+  #  -H "Authorization: token <your-token-here>" \
+  #  --request POST \
+  #  --data '{"event_type": "niv-updater-nudge", "client_payload": {}}' \
+  #  https://api.github.com/repos/dfinity-lab/motoko/dispatches
+  # https://help.github.com/en/actions/reference/events-that-trigger-workflows#external-events-repository_dispatch
+  repository_dispatch:
+    types: niv-updater-nudge
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    # Run every monday
+    - cron:  '0 0 * * 1'
+jobs:
+  niv-updater:
+    name: 'Check for updates'
+    timeout-minutes: 2 # if this takes more than 2 minutes then something's wrong
+    runs-on: ubuntu-latest
+    steps:
+      - name: niv-updater-action
+        uses: knl/niv-updater-action@v10
+        with:
+          # might be too noisy
+          whitelist: 'ic-ref,musl-wasi'
+          labels: |
+            automerge-squash
+          keep_updating: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.NIV_UPDATER_TOKEN }}

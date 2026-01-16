@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/fundamentals/7-modules-imports.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/fundamentals/7-modules-imports.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#modules-and-imports" id="toc-modules-and-imports">Modules
+and imports</a>
+<ul>
+<li><a href="#importing-from-the-core-package"
+id="toc-importing-from-the-core-package">Importing from the core
+package</a></li>
+<li><a href="#importing-from-another-file"
+id="toc-importing-from-another-file">Importing from another
+file</a></li>
+<li><a href="#importing-from-another-package-or-directory"
+id="toc-importing-from-another-package-or-directory">Importing from
+another package or directory</a></li>
+<li><a href="#importing-packages-from-a-package-manager"
+id="toc-importing-packages-from-a-package-manager">Importing packages
+from a package manager</a>
+<ul>
+<li><a href="#configuring-the-package-manager-in-dfxjson"
+id="toc-configuring-the-package-manager-in-dfxjson">Configuring the
+package manager in <code>dfx.json</code></a></li>
+<li><a href="#installing-a-package-with-a-package-manager"
+id="toc-installing-a-package-with-a-package-manager">Installing a
+package with a package manager</a></li>
+</ul></li>
+<li><a href="#naming-imported-modules"
+id="toc-naming-imported-modules">Naming imported modules</a></li>
+<li><a href="#importing-from-another-canister"
+id="toc-importing-from-another-canister">Importing from another
+canister</a></li>
+<li><a href="#importing-actor-classes"
+id="toc-importing-actor-classes">Importing actor classes</a></li>
+<li><a href="#importing-blob-values"
+id="toc-importing-blob-values">Importing <code>Blob</code>
+values</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="modules-and-imports">Modules and imports</h1>
+<p>Motoko minimizes built-in types and operations, relying on a core
+package of modules to provide essential functionality. This modular
+approach keeps the language simple.</p>
+<p>The examples in this section show how to use the <code>module</code>
+and <code>import</code> keywords in different scenarios.</p>
+<p>:::caution</p>
+<p>The core package is actively maintained and updates may introduce
+breaking changes. Developers should review the latest Motoko migration
+guide when updating dependencies.</p>
+<p>:::</p>
+<h2 id="importing-from-the-core-package">Importing from the core
+package</h2>
+<p>The Motoko core package includes common utilities for working with
+data structures, debugging, and other functionality. To import from the
+core package, use the <code>import</code> keyword, followed by the
+<code>mo:core/&lt;name&gt;</code> module path.</p>
+<pre class="motoko"><code>import Debug &quot;mo:core/Debug&quot;;
+
+Debug.print(&quot;Hello, world!&quot;);</code></pre>
+<p>The <code>mo:</code> prefix identifies a Motoko module. The
+declaration does not include the <code>.mo</code> file extension.</p>
+<p>You can also selectively import and rename a subset of named values
+and types from a module by using the object pattern syntax:</p>
+<pre class="motoko"><code>import { type List; get; foldLeft = fold } &quot;mo:core/List&quot;;</code></pre>
+<h2 id="importing-from-another-file">Importing from another file</h2>
+<p>Projects may split code into multiple files for better organization,
+such as:</p>
+<pre><code>src/project_backend
+ ├── main.mo   // Contains the main actor
+ ├── types.mo  // Stores type definitions
+ ├── utils.mo  // Contains helper functions</code></pre>
+<p>In this scenario, you might place all three files in the same
+directory and use a local import to make the functions available where
+they are needed.</p>
+<p>For example, the <code>main.mo</code> contains the following lines to
+reference the modules in the same directory:</p>
+<pre class="motoko"><code>import Types &quot;types&quot;;
+import Utils &quot;utils&quot;;</code></pre>
+<p>These lines import modules from the local project instead of the
+Motoko library and don’t use the <code>mo:</code> prefix. In this
+example, both the <code>types.mo</code> and <code>utils.mo</code> files
+are in the same directory as the <code>main.mo</code> file.</p>
+<h2 id="importing-from-another-package-or-directory">Importing from
+another package or directory</h2>
+<p>You can also import modules from other packages or from directories
+other than the local directory.</p>
+<p>For example, the following lines import modules from a
+<code>redraw</code> package that is defined as a dependency:</p>
+<pre class="motoko"><code>import Render &quot;mo:redraw/Render&quot;;
+import Mono5x5 &quot;mo:redraw/glyph/Mono5x5&quot;;</code></pre>
+<p>You can define dependencies for a project using a package manager or
+in the project <code>dfx.json</code> configuration file.</p>
+<p>In this example, the <code>Render</code> module is in the default
+location for source code in the <code>redraw</code> package and the
+<code>Mono5x5</code> module is in a <code>redraw</code> package
+subdirectory called <code>glyph</code>.</p>
+<h2 id="importing-packages-from-a-package-manager">Importing packages
+from a package manager</h2>
+<p>Modules can also be imported from other packages, such as those
+imported from a package manager.</p>
+<p>Dependencies are managed using a package manager or defined in the
+project's <code>dfx.json</code> file. Motoko supports package managers
+like <a href="https://mops.one/">Mops</a> to install third-party
+libraries.</p>
+<h3 id="configuring-the-package-manager-in-dfxjson">Configuring the
+package manager in <code>dfx.json</code></h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;defaults&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;build&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;packtool&quot;</span><span class="fu">:</span> <span class="st">&quot;mops sources&quot;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<h3 id="installing-a-package-with-a-package-manager">Installing a
+package with a package manager</h3>
+<p>With <a href="https://mops.one/">Mops</a>, add the package to your
+project's dependencies with <code>mops add</code>.</p>
+<p>Then import the package into your Motoko code:</p>
+<pre class="motoko"><code>import Vec &quot;mo:vector&quot;;</code></pre>
+<h2 id="naming-imported-modules">Naming imported modules</h2>
+<p>While the imported module name usually matches the file name, custom
+names can be used to avoid conflicts or simplify references.</p>
+<pre class="motoko"><code>import List &quot;mo:core/List&quot;;
+import L &quot;mo:core/List&quot;;
+import PureList &quot;mo:core/pure/List&quot;;</code></pre>
+<h2 id="importing-from-another-canister">Importing from another
+canister</h2>
+<p>Actors and their functions can be imported from other <a
+href="https://internetcomputer.org/docs/building-apps/essentials/canisters">canisters</a>
+using the <code>canister:</code> prefix.</p>
+<pre class="motoko"><code>import BigMap &quot;canister:BigMap&quot;;
+import Connectd &quot;canister:Connectd&quot;;</code></pre>
+<p><code>BigMap</code> and <code>Connectd</code> are separate canisters
+defined in <code>dfx.json</code>. Canister functions are shared and may
+require <code>await</code> to call them.</p>
+<p>Unlike a Motoko module, an imported canister:</p>
+<ul>
+<li>Can be implemented in any language that emits a Candid
+interface.</li>
+<li>Has its type derived from a <code>.did</code> file, not from Motoko
+itself.</li>
+</ul>
+<p>:::danger When importing from another canister, the canister must be
+listed as a dependency in the importing canister's
+<code>dfx.json</code>. These must both:</p>
+<ol type="1">
+<li>Be listed in the <code>dependencies</code> array of
+<code>my_canister</code>.</li>
+<li>Have their own canister definitions specified elsewhere in the same
+file.</li>
+</ol>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;canisters&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;my_canister&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;main&quot;</span><span class="fu">:</span> <span class="st">&quot;src/my_canister/main.mo&quot;</span><span class="fu">,</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;type&quot;</span><span class="fu">:</span> <span class="st">&quot;motoko&quot;</span><span class="fu">,</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;dependencies&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;BigMap&quot;</span><span class="ot">,</span> <span class="st">&quot;Connectd&quot;</span><span class="ot">]</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>:::</p>
+<h2 id="importing-actor-classes">Importing actor classes</h2>
+<p>When imported, an <a
+href="../fundamentals/2-actors/1-actors-async.md">actor</a> class
+provides a type definition describing the class interface and a function
+that returns an instance of the class.</p>
+<p>For example, if you define the following actor class:</p>
+<pre class="motoko"><code>persistent actor class Counter(init : Nat) {
+  var count = init;
+
+  public func inc() : async () { count += 1 };
+
+  public func read() : async Nat { count };
+
+  public func bump() : async Nat {
+    count += 1;
+    count;
+  };
+};</code></pre>
+<p>It can be imported into another file:</p>
+<pre class="motoko"><code>import Counters &quot;Counters&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+import Nat &quot;mo:core/Nat&quot;;
+
+persistent actor CountToTen {
+  public func countToTen() : async () {
+    let counterActor = await Counters.Counter(1);
+    while ((await counterActor.read()) &lt; 10) {
+      Debug.print(Nat.toText(await counterActor.read()));
+      await counterActor.inc();
+    };
+  }
+};</code></pre>
+<p><code>Counters.Counter(1)</code> installs a new counter on the
+network. Installation is <a
+href="../fundamentals/2-actors/1-actors-async.md#async--await">asynchronous</a>,
+so the result is awaited. If the actor class is not named, it will
+result in a bad import error because actor class imports cannot be
+anonymous.</p>
+<h2 id="importing-blob-values">Importing <code>Blob</code> values</h2>
+<p>The <code>import</code> syntax can also be used with the
+<code>blob:file:</code> URI scheme to import raw <code>Blob</code>
+values:</p>
+<pre class="motoko"><code>import pub = &quot;blob:file:./keys/id_ed25519.pub&quot;;
+
+actor {
+    func checkSig(key : Blob, cyphertext : Text) { ... };
+
+    public func verify(cyphertext : Text) : async () {
+        checkSig(pub, cyphertext);
+    };
+};</code></pre>
+<p>This use case also caters for the import of externally-built Wasm
+<code>Blob</code>s for low-level installation and upgrade by means of
+the management canister.</p>
+</body>
+</html>

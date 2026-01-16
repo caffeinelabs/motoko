@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>flags.ml &mdash; Coverage report</title>
+    <meta name="description" content="100.00% coverage in mo_config/flags.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_config/</span>flags.ml
+        </a>
+      </h1>
+      <h2>100.00%</h2>
+    </div>
+    <div id="navbar">
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span > </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span > </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span > </span>
+<a id="L29"></a><span > </span>
+<a id="L30"></a><span > </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span > </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span > </span>
+<a id="L36"></a><span > </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span > </span>
+<a id="L39"></a><span > </span>
+<a id="L40"></a><span > </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span > </span>
+<a id="L43"></a><span > </span>
+<a id="L44"></a><span > </span>
+<a id="L45"></a><span > </span>
+<a id="L46"></a><span > </span>
+<a id="L47"></a><span > </span>
+<a id="L48"></a><span > </span>
+<a id="L49"></a><span > </span>
+<a id="L50"></a><span > </span>
+<a id="L51"></a><span > </span>
+<a id="L52"></a><span > </span>
+<a id="L53"></a><span > </span>
+<a id="L54"></a><span > </span>
+<a id="L55"></a><span > </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span > </span>
+<a id="L58"></a><span > </span>
+<a id="L59"></a><span > </span>
+<a id="L60"></a><span > </span>
+<a id="L61"></a><span > </span>
+<a id="L62"></a><span > </span>
+<a id="L63"></a><span > </span>
+<a id="L64"></a><span > </span>
+<a id="L65"></a><span > </span>
+<a id="L66"></a><span > </span>
+<a id="L67"></a><span > </span>
+<a id="L68"></a><span > </span>
+<a id="L69"></a><span > </span>
+<a id="L70"></a><span > </span>
+<a id="L71"></a><span > </span>
+<a id="L72"></a><span > </span>
+<a id="L73"></a><span > </span>
+<a id="L74"></a><span > </span>
+<a id="L75"></a><span > </span>
+<a id="L76"></a><span class="visited"> </span>
+<a id="L77"></a><span class="visited"> </span>
+<a id="L78"></a><span class="visited"> </span>
+<a id="L79"></a><span > </span>
+<a id="L80"></a><span > </span>
+<a id="L81"></a><span > </span>
+<a id="L82"></a><span > </span>
+<a id="L83"></a><span > </span>
+<a id="L84"></a><span > </span>
+<a id="L85"></a><span > </span>
+<a id="L86"></a><span > </span>
+<a id="L87"></a><span > </span>
+<a id="L88"></a><span class="visited"> </span>
+<a id="L89"></a><span class="visited"> </span>
+<a id="L90"></a><span class="visited"> </span>
+<a id="L91"></a><span > </span>
+<a id="L92"></a><span > </span>
+<a id="L93"></a><span > </span>
+<a id="L94"></a><span > </span>
+<a id="L95"></a><span class="visited"> </span>
+<a id="L96"></a><span > </span>
+<a id="L97"></a><span > </span>
+<a id="L98"></a><span class="visited"> </span>
+<a id="L99"></a><span class="visited"> </span>
+<a id="L100"></a><span class="visited"> </span>
+<a id="L101"></a><span > </span>
+<a id="L102"></a><span class="visited"> </span>
+<a id="L103"></a><span class="visited"> </span>
+<a id="L104"></a><span > </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1">  1</a>
+<a href="#L2">  2</a>
+<a href="#L3">  3</a>
+<a href="#L4">  4</a>
+<a href="#L5">  5</a>
+<a href="#L6">  6</a>
+<a href="#L7">  7</a>
+<a href="#L8">  8</a>
+<a href="#L9">  9</a>
+<a href="#L10"> 10</a>
+<a href="#L11"> 11</a>
+<a href="#L12"> 12</a>
+<a href="#L13"> 13</a>
+<a href="#L14"> 14</a>
+<a href="#L15"> 15</a>
+<a href="#L16"> 16</a>
+<a href="#L17"> 17</a>
+<a href="#L18"> 18</a>
+<a href="#L19"> 19</a>
+<a href="#L20"> 20</a>
+<a href="#L21"> 21</a>
+<a href="#L22"> 22</a>
+<a href="#L23"> 23</a>
+<a href="#L24"> 24</a>
+<a href="#L25"> 25</a>
+<a href="#L26"> 26</a>
+<a href="#L27"> 27</a>
+<a href="#L28"> 28</a>
+<a href="#L29"> 29</a>
+<a href="#L30"> 30</a>
+<a href="#L31"> 31</a>
+<a href="#L32"> 32</a>
+<a href="#L33"> 33</a>
+<a href="#L34"> 34</a>
+<a href="#L35"> 35</a>
+<a href="#L36"> 36</a>
+<a href="#L37"> 37</a>
+<a href="#L38"> 38</a>
+<a href="#L39"> 39</a>
+<a href="#L40"> 40</a>
+<a href="#L41"> 41</a>
+<a href="#L42"> 42</a>
+<a href="#L43"> 43</a>
+<a href="#L44"> 44</a>
+<a href="#L45"> 45</a>
+<a href="#L46"> 46</a>
+<a href="#L47"> 47</a>
+<a href="#L48"> 48</a>
+<a href="#L49"> 49</a>
+<a href="#L50"> 50</a>
+<a href="#L51"> 51</a>
+<a href="#L52"> 52</a>
+<a href="#L53"> 53</a>
+<a href="#L54"> 54</a>
+<a href="#L55"> 55</a>
+<a href="#L56"> 56</a>
+<a href="#L57"> 57</a>
+<a href="#L58"> 58</a>
+<a href="#L59"> 59</a>
+<a href="#L60"> 60</a>
+<a href="#L61"> 61</a>
+<a href="#L62"> 62</a>
+<a href="#L63"> 63</a>
+<a href="#L64"> 64</a>
+<a href="#L65"> 65</a>
+<a href="#L66"> 66</a>
+<a href="#L67"> 67</a>
+<a href="#L68"> 68</a>
+<a href="#L69"> 69</a>
+<a href="#L70"> 70</a>
+<a href="#L71"> 71</a>
+<a href="#L72"> 72</a>
+<a href="#L73"> 73</a>
+<a href="#L74"> 74</a>
+<a href="#L75"> 75</a>
+<a href="#L76"> 76</a>
+<a href="#L77"> 77</a>
+<a href="#L78"> 78</a>
+<a href="#L79"> 79</a>
+<a href="#L80"> 80</a>
+<a href="#L81"> 81</a>
+<a href="#L82"> 82</a>
+<a href="#L83"> 83</a>
+<a href="#L84"> 84</a>
+<a href="#L85"> 85</a>
+<a href="#L86"> 86</a>
+<a href="#L87"> 87</a>
+<a href="#L88"> 88</a>
+<a href="#L89"> 89</a>
+<a href="#L90"> 90</a>
+<a href="#L91"> 91</a>
+<a href="#L92"> 92</a>
+<a href="#L93"> 93</a>
+<a href="#L94"> 94</a>
+<a href="#L95"> 95</a>
+<a href="#L96"> 96</a>
+<a href="#L97"> 97</a>
+<a href="#L98"> 98</a>
+<a href="#L99"> 99</a>
+<a href="#L100">100</a>
+<a href="#L101">101</a>
+<a href="#L102">102</a>
+<a href="#L103">103</a>
+<a href="#L104">104</a>
+</pre>
+<pre><code class="ocaml">(* common flags for the moc compiler *)
+
+module M = Map.Make(String)
+module S = Set.Make(String)
+
+type compile_mode = WasmMode | ICMode | RefMode | WASIMode
+
+type gc_strategy = Default | MarkCompact | Copying | Generational | Incremental
+
+type instruction_limits = {
+  upgrade: Int64.t;
+  update_call: Int64.t;
+}
+
+type actors = LegacyActors | RequirePersistentActors | DefaultPersistentActors
+
+type lint_level = Allow | Warn | Error
+
+let ai_errors = ref false
+let trace = ref false
+let verbose = ref false
+let print_warnings = ref true
+let warnings_are_errors = ref false
+let print_source_on_error = ref false
+let print_depth = ref 2
+let release_mode = ref false
+let compile_mode = ref ICMode
+let debug_info = ref false
+let multi_value = ref false
+let await_lowering = ref true
+let async_lowering = ref true
+let dump_parse = ref false
+let dump_tc = ref false
+let dump_lowering = ref false
+let check_ir = ref true
+let package_urls : string M.t ref = ref M.empty
+let implicit_package : string option ref = ref None
+let actor_aliases : string M.t ref = ref M.empty
+let actor_idl_path : string option ref = ref None
+let max_stable_pages_default = 65536
+let max_stable_pages : int ref = ref max_stable_pages_default
+let measure_rts_stack = ref false
+let actors = ref RequirePersistentActors
+let pre_ref : string option ref = ref None
+let post_ref : string option ref = ref None
+let profile = ref false
+let profile_verbose = ref false
+let profile_file = ref "profiling-counters.csv"
+let profile_line_prefix = ref ""
+let profile_field_names : string list ref = ref []
+let public_metadata_names : string list ref = ref []
+let omit_metadata_names : string list ref = ref []
+let compiled = ref false
+let error_detail = ref 2
+let error_recovery = ref false (* multiple syntax errors *)
+let sanity = ref false
+let gc_strategy = ref Default
+let force_gc = ref false
+let global_timer = ref true
+let experimental_field_aliasing = ref false
+let ocaml_js = ref false
+let rts_stack_pages_default = 32 (* 2MB *)
+let rts_stack_pages : int option ref = ref None
+let rtti = ref false
+let trap_on_call_error = ref false
+let use_stable_regions = ref false
+let enhanced_orthogonal_persistence = ref true
+let explicit_enhanced_orthogonal_persistence = ref false
+let share_code = ref false
+let stabilization_instruction_limit_default = {
+  upgrade = 180_000_000_000L; (* 200 billion limit with 10% reserve *)
+  update_call = 18_000_000_000L; (* 20 billion limit with 10% reserve *)
+}
+let stabilization_instruction_limit = ref stabilization_instruction_limit_default
+let stable_memory_access_limit_default =
+  let gigabyte = Int64.of_int (1024 * 1024 * 1024) in <span data-count="1933">{</span>
+  upgrade = Int64.mu<span data-count="1933">l</span> 6L gigabyte; (* 8 GB limit with 2 GB reserves *)
+  update_call = Int64.mu<span data-count="1933">l</span> 1L gigabyte; (* 2 GB limit with 1 GB reserve *)
+}
+let stable_memory_access_limit = ref stable_memory_access_limit_default
+let experimental_stable_memory_default = 0 (* _ &lt; 0: error; _ = 0: warn, _ &gt; 0: allow *)
+let experimental_stable_memory = ref experimental_stable_memory_default
+let typechecker_combine_srcs = ref false (* useful for the language server *)
+let blob_import_placeholders = ref false (* when enabled, blob:file imports resolve as empty blobs *)
+
+let default_warning_levels = M.empty
+  |&gt; M.add "M0223" Allow (* don't report redundant instantions *)
+  |&gt; <span data-count="1933">M</span>.add "M0235" Allow (* don't deprecate for non-caffeine *)
+  |&gt; <span data-count="1933">M</span>.add "M0236" Allow (* don't suggest contextual dot notation *)
+  |&gt; <span data-count="1933">M</span>.ad<span data-count="1933">d</span> "M0237" Allow (* don't report redundant explicit arguments *)
+
+let warning_levels = ref default_warning_levels
+
+let set_warning_level code level =
+  <span data-count="28">w</span>arning_levels := M.ad<span data-count="28">d</span> code level !warning_levels
+
+let get_warning_level code =
+  <span data-count="1151325">m</span>atch M.find_opt code !warning_levels with
+  | <span data-count="21175">N</span>one -&gt; Warn
+  | <span data-count="1130150">S</span>ome level -&gt; level
+
+let is_warning_disabled code = <span data-count="21038">g</span>et_warning_leve<span data-count="21038">l</span> code = Allow
+let is_warning_enabled code = <span data-count="6811">n</span>ot (is_warning_disable<span data-count="6811">d</span> code)
+
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

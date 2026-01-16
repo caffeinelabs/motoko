@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#init">init</a></li></li><li><li><a href="#tabulate">tabulate</a></li></li><li><li><a href="#tabulateVar">tabulateVar</a></li></li><li><li><a href="#freeze">freeze</a></li></li><li><li><a href="#thaw">thaw</a></li></li><li><li><a href="#equal">equal</a></li></li><li><li><a href="#find">find</a></li></li><li><li><a href="#append">append</a></li></li><li><li><a href="#sort">sort</a></li></li><li><li><a href="#sortInPlace">sortInPlace</a></li></li><li><li><a href="#reverse">reverse</a></li></li><li><li><a href="#map">map</a></li></li><li><li><a href="#filter">filter</a></li></li><li><li><a href="#mapEntries">mapEntries</a></li></li><li><li><a href="#mapFilter">mapFilter</a></li></li><li><li><a href="#mapResult">mapResult</a></li></li><li><li><a href="#chain">chain</a></li></li><li><li><a href="#foldLeft">foldLeft</a></li></li><li><li><a href="#foldRight">foldRight</a></li></li><li><li><a href="#flatten">flatten</a></li></li><li><li><a href="#make">make</a></li></li><li><li><a href="#vals">vals</a></li></li><li><li><a href="#keys">keys</a></li></li><li><li><a href="#size">size</a></li></li><li><li><a href="#subArray">subArray</a></li></li><li><li><a href="#indexOf">indexOf</a></li></li><li><li><a href="#nextIndexOf">nextIndexOf</a></li></li><li><li><a href="#lastIndexOf">lastIndexOf</a></li></li><li><li><a href="#prevIndexOf">prevIndexOf</a></li></li><li><li><a href="#slice">slice</a></li></li><li><li><a href="#take">take</a></li></li></ul></nav><div class="documentation"><h1>Array</h1><p>Provides extended utility functions on Arrays.</p>
+<p>:::warning</p>
+<p>If you are looking for a list that can grow and shrink in size,
+it is recommended you use either the <code>Buffer</code> or <code>List</code> data structure for
+those purposes.</p>
+<p>:::</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>generator</code>, <code>equal</code>, and other functions execute in <code>O(1)</code> time and space.
+:::</p>
+<p>Import from the base library to use this module.</p>
+<pre><code>motoko name=import
+import Array &quot;mo:base/Array&quot;;</code></pre><div class="declaration"><h4 class="function" id="init"><code><span class="keyword">public func </span><span class="fnname">init</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">size</span> : <span class="type">Nat</span>, <span class="parameter">initValue</span> : <span class="type">X</span>) : [<span class="keyword">var </span><span class="type">X</span>]</code></h4><p><p>Create a mutable array with <code>size</code> copies of the initial value.</p>
+<pre><code>motoko include=import
+let array = Array.init&lt;Nat&gt;(4, 2);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="tabulate"><code><span class="keyword">public func </span><span class="fnname">tabulate</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">size</span> : <span class="type">Nat</span>, <span class="parameter">generator</span> : <span class="type">Nat</span> -&gt; <span class="type">X</span>) : [<span class="type">X</span>]</code></h4><p><p>Create an immutable array of size <code>size</code>. Each element at index i
+is created by applying <code>generator</code> to i.</p>
+<pre><code>motoko include=import
+let array : [Nat] = Array.tabulate&lt;Nat&gt;(4, func i = i * 2);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="tabulateVar"><code><span class="keyword">public func </span><span class="fnname">tabulateVar</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">size</span> : <span class="type">Nat</span>, <span class="parameter">generator</span> : <span class="type">Nat</span> -&gt; <span class="type">X</span>) : [<span class="keyword">var </span><span class="type">X</span>]</code></h4><p><p>Create a mutable array of size <code>size</code>. Each element at index i
+is created by applying <code>generator</code> to i.</p>
+<pre><code>motoko include=import
+let array : [var Nat] = Array.tabulateVar&lt;Nat&gt;(4, func i = i * 2);
+array[2] := 0;
+array</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="freeze"><code><span class="keyword">public func </span><span class="fnname">freeze</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">varArray</span> : [<span class="keyword">var </span><span class="type">X</span>]) : [<span class="type">X</span>]</code></h4><p><p>Transforms a mutable array into an immutable array.</p>
+<pre><code>motoko include=import
+
+let varArray = [var 0, 1, 2];
+varArray[2] := 3;
+let array = Array.freeze&lt;Nat&gt;(varArray);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="thaw"><code><span class="keyword">public func </span><span class="fnname">thaw</span>&lt;<span class="type">A</span>&gt;(<span class="parameter">array</span> : [<span class="type">A</span>]) : [<span class="keyword">var </span><span class="type">A</span>]</code></h4><p><p>Transforms an immutable array into a mutable array.</p>
+<pre><code>motoko include=import
+
+let array = [0, 1, 2];
+let varArray = Array.thaw&lt;Nat&gt;(array);
+varArray[2] := 3;
+varArray</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="equal"><code><span class="keyword">public func </span><span class="fnname">equal</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">array1</span> : [<span class="type">X</span>], <br/>  <span class="parameter">array2</span> : [<span class="type">X</span>], <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Tests if two arrays contain equal values (i.e. they represent the same
+list of elements). Uses <code>equal</code> to compare elements in the arrays.</p>
+<pre><code>motoko include=import
+// Use the equal function from the Nat module to compare Nats
+import {equal} &quot;mo:base/Nat&quot;;
+
+let array1 = [0, 1, 2, 3];
+let array2 = [0, 1, 2, 3];
+Array.equal(array1, array2, equal)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size1 + size2)</code> | <code>O(size1 + size2)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="find"><code><span class="keyword">public func </span><span class="fnname">find</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : ?<span class="type">X</span></code></h4><p><p>Returns the first value in <code>array</code> for which <code>predicate</code> returns true.
+If no element satisfies the predicate, returns null.</p>
+<pre><code>motoko include=import
+let array = [1, 9, 4, 8];
+Array.find&lt;Nat&gt;(array, func x = x &gt; 8)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="append"><code><span class="keyword">public func </span><span class="fnname">append</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array1</span> : [<span class="type">X</span>], <span class="parameter">array2</span> : [<span class="type">X</span>]) : [<span class="type">X</span>]</code></h4><p><p>Create a new array by appending the values of <code>array1</code> and <code>array2</code>.</p>
+<p>:::note Efficient appending</p>
+<p><code>Array.append</code> copies its arguments and runs in linear time.
+For better performance in loops, consider using <code>Buffer</code> and <code>Buffer.append</code> instead.</p>
+<p>:::</p>
+<pre><code>motoko include=import
+let array1 = [1, 2, 3];
+let array2 = [4, 5, 6];
+Array.append&lt;Nat&gt;(array1, array2)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size1 + size2)</code> | <code>O(size1 + size2)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="sort"><code><span class="keyword">public func </span><span class="fnname">sort</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="Order.html#type.Order"><span class="type">Order.Order</span></a>) : [<span class="type">X</span>]</code></h4><p><p>Sorts the elements in the array according to <code>compare</code>.
+Sort is deterministic and stable.</p>
+<pre><code>motoko include=import
+import Nat &quot;mo:base/Nat&quot;;
+
+let array = [4, 2, 6];
+Array.sort(array, Nat.compare).</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="sortInPlace"><code><span class="keyword">public func </span><span class="fnname">sortInPlace</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="keyword">var </span><span class="type">X</span>], <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="Order.html#type.Order"><span class="type">Order.Order</span></a>)</code></h4><p><p>Sorts the elements in the array, <strong>in place</strong>, according to <code>compare</code>.
+Sort is deterministic, stable, and in-place.</p>
+<pre><code>motoko include=import
+import {compare} &quot;mo:base/Nat&quot;;
+let array = [var 4, 2, 6];
+Array.sortInPlace(array, compare);
+array</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="reverse"><code><span class="keyword">public func </span><span class="fnname">reverse</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>]) : [<span class="type">X</span>]</code></h4><p><p>Creates a new array by reversing the order of elements in <code>array</code>.</p>
+<pre><code>motoko include=import
+let array = [10, 11, 12];
+Array.reverse(array)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="map"><code><span class="keyword">public func </span><span class="fnname">map</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">f</span> : <span class="type">X</span> -&gt; <span class="type">Y</span>) : [<span class="type">Y</span>]</code></h4><p><p>Creates a new array by applying <code>f</code> to each element in <code>array</code>. <code>f</code> &quot;maps&quot;
+each element it is applied to of type <code>X</code> to an element of type <code>Y</code>.
+Retains original ordering of elements.</p>
+<pre><code>motoko include=import
+let array = [0, 1, 2, 3];
+Array.map&lt;Nat, Nat&gt;(array, func x = x * 3)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="filter"><code><span class="keyword">public func </span><span class="fnname">filter</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : [<span class="type">X</span>]</code></h4><p><p>Creates a new array by applying <code>predicate</code> to every element
+in <code>array</code>, retaining the elements for which <code>predicate</code> returns true.</p>
+<pre><code>motoko include=import
+let array = [4, 2, 6, 1, 5];
+let evenElements = Array.filter&lt;Nat&gt;(array, func x = x % 2 == 0);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapEntries"><code><span class="keyword">public func </span><span class="fnname">mapEntries</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">f</span> : (<span class="type">X</span>, <span class="type">Nat</span>) -&gt; <span class="type">Y</span>) : [<span class="type">Y</span>]</code></h4><p><p>Creates a new array by applying <code>f</code> to each element in <code>array</code> and its index.
+Retains original ordering of elements.</p>
+<pre><code>motoko include=import
+let array = [10, 10, 10, 10];
+Array.mapEntries&lt;Nat, Nat&gt;(array, func (x, i) = i * x)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapFilter"><code><span class="keyword">public func </span><span class="fnname">mapFilter</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">f</span> : <span class="type">X</span> -&gt; ?<span class="type">Y</span>) : [<span class="type">Y</span>]</code></h4><p><p>Creates a new array by applying <code>f</code> to each element in <code>array</code>,
+and keeping all non-null elements. The ordering is retained.</p>
+<pre><code>motoko include=import
+import {toText} &quot;mo:base/Nat&quot;;
+
+let array = [4, 2, 0, 1];
+let newArray =
+ Array.mapFilter&lt;Nat, Text&gt;( // mapping from Nat to Text values
+   array,
+   func x = if (x == 0) { null } else { ?toText(100 / x) } // can't divide by 0, so return null
+ );</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapResult"><code><span class="keyword">public func </span><span class="fnname">mapResult</span>&lt;<span class="type">X</span>, <span class="type">Y</span>, <span class="type">E</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">f</span> : <span class="type">X</span> -&gt; <a href="Result.html#type.Result"><span class="type">Result.Result</span></a>&lt;<span class="type">Y</span>, <span class="type">E</span>&gt;) : <a href="Result.html#type.Result"><span class="type">Result.Result</span></a>&lt;[<span class="type">Y</span>], <span class="type">E</span>&gt;</code></h4><p><p>Creates a new array by applying <code>f</code> to each element in <code>array</code>.
+If any invocation of <code>f</code> produces an <code>#err</code>, returns an <code>#err</code>. Otherwise
+returns an <code>#ok</code> containing the new array.</p>
+<pre><code>motoko include=import
+let array = [4, 3, 2, 1, 0];
+// divide 100 by every element in the array
+Array.mapResult&lt;Nat, Nat, Text&gt;(array, func x {
+  if (x &gt; 0) {
+    #ok(100 / x)
+  } else {
+    #err &quot;Cannot divide by zero&quot;
+  }
+})</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="chain"><code><span class="keyword">public func </span><span class="fnname">chain</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>], <span class="parameter">k</span> : <span class="type">X</span> -&gt; [<span class="type">Y</span>]) : [<span class="type">Y</span>]</code></h4><p><p>Creates a new array by applying <code>k</code> to each element in <code>array</code>,
+and concatenating the resulting arrays in order. This operation
+is similar to what in other functional languages is known as monadic bind.</p>
+<pre><code>motoko include=import
+import Nat &quot;mo:base/Nat&quot;;
+
+let array = [1, 2, 3, 4];
+Array.chain&lt;Nat, Int&gt;(array, func x = [x, -x])
+
+</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="foldLeft"><code><span class="keyword">public func </span><span class="fnname">foldLeft</span>&lt;<span class="type">X</span>, <span class="type">A</span>&gt;(<br/>  <span class="parameter">array</span> : [<span class="type">X</span>], <br/>  <span class="parameter">base</span> : <span class="type">A</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">A</span>, <span class="type">X</span>) -&gt; <span class="type">A</span><br/>) : <span class="type">A</span></code></h4><p><p>Collapses the elements in <code>array</code> into a single value by starting with <code>base</code>
+and progessively combining elements into <code>base</code> with <code>combine</code>. Iteration runs
+left to right.</p>
+<pre><code>motoko include=import
+import {add} &quot;mo:base/Nat&quot;;
+
+let array = [4, 2, 0, 1];
+let sum =
+ Array.foldLeft&lt;Nat, Nat&gt;(
+   array,
+   0, // start the sum at 0
+   func(sumSoFar, x) = sumSoFar + x // this entire function can be replaced with `add`!
+ );</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="foldRight"><code><span class="keyword">public func </span><span class="fnname">foldRight</span>&lt;<span class="type">X</span>, <span class="type">A</span>&gt;(<br/>  <span class="parameter">array</span> : [<span class="type">X</span>], <br/>  <span class="parameter">base</span> : <span class="type">A</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">X</span>, <span class="type">A</span>) -&gt; <span class="type">A</span><br/>) : <span class="type">A</span></code></h4><p><p>Collapses the elements in <code>array</code> into a single value by starting with <code>base</code>
+and progessively combining elements into <code>base</code> with <code>combine</code>. Iteration runs
+right to left.</p>
+<pre><code>motoko include=import
+import {toText} &quot;mo:base/Nat&quot;;
+
+let array = [1, 9, 4, 8];
+let bookTitle = Array.foldRight&lt;Nat, Text&gt;(array, &quot;&quot;, func(x, acc) = toText(x) # acc);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="flatten"><code><span class="keyword">public func </span><span class="fnname">flatten</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">arrays</span> : [[<span class="type">X</span>]]) : [<span class="type">X</span>]</code></h4><p><p>Flattens the array of arrays into a single array. Retains the original
+ordering of the elements.</p>
+<pre><code>motoko include=import
+let arrays = [[0, 1, 2], [2, 3], [], [4]];
+Array.flatten&lt;Nat&gt;(arrays)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(n)</code> | <code>O(n)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="make"><code><span class="keyword">public func </span><span class="fnname">make</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">element</span> : <span class="type">X</span>) : [<span class="type">X</span>]</code></h4><p><p>Create an array containing a single value.</p>
+<pre><code>motoko include=import
+Array.make(2)</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="vals"><code><span class="keyword">public func </span><span class="fnname">vals</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>]) : <a href="IterType.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns an Iterator (<code>Iter</code>) over the elements of <code>array</code>.
+Iterator provides a single method <code>next()</code>, which returns
+elements in order, or <code>null</code> when out of elements to iterate over.</p>
+<p>:::note Alternative approach</p>
+<p>Alternatively, you can use <code>array.size()</code> to achieve the same result. See the example below.
+:::</p>
+<pre><code>motoko include=import
+let array = [10, 11, 12];
+var sum = 0;
+for (element in array.vals()) {
+ sum += element;
+};
+sum</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="keys"><code><span class="keyword">public func </span><span class="fnname">keys</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>]) : <a href="IterType.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">Nat</span>&gt;</code></h4><p><p>Returns an Iterator (<code>Iter</code>) over the indices of <code>array</code>.
+Iterator provides a single method <code>next()</code>, which returns
+indices in order, or <code>null</code> when out of index to iterate over.</p>
+<p>:::note Alternative approach
+You can also use <code>array.keys()</code> instead of this function. See example
+below.</p>
+<p>:::</p>
+<pre><code>motoko include=import
+let array = [10, 11, 12];
+var sum = 0;
+for (element in array.keys()) {
+ sum += element;
+};
+sum</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="size"><code><span class="keyword">public func </span><span class="fnname">size</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>]) : <span class="type">Nat</span></code></h4><p><p>Returns the size of <code>array</code>.</p>
+<p>:::note Alternative approach</p>
+<p>Alternatively, you can use <code>array.size()</code> to achieve the same result. See the example below.
+:::</p>
+<pre><code>motoko include=import
+let array = [10, 11, 12];
+let size = Array.size(array);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="subArray"><code><span class="keyword">public func </span><span class="fnname">subArray</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">array</span> : [<span class="type">X</span>], <br/>  <span class="parameter">start</span> : <span class="type">Nat</span>, <br/>  <span class="parameter">length</span> : <span class="type">Nat</span><br/>) : [<span class="type">X</span>]</code></h4><p><p>Returns a new subarray from the given array provided the start index and length of elements in the subarray.</p>
+<p>:::note Limitations
+Traps if the start index + length is greater than the size of the array.
+:::</p>
+<pre><code>motoko include=import
+let array = [1,2,3,4,5];
+let subArray = Array.subArray&lt;Nat&gt;(array, 2, 3);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(length)</code> | <code>O(length)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="indexOf"><code><span class="keyword">public func </span><span class="fnname">indexOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">element</span> : <span class="type">X</span>, <br/>  <span class="parameter">array</span> : [<span class="type">X</span>], <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Returns the index of the first <code>element</code> in the <code>array</code>.</p>
+<pre><code>motoko include=import
+import Char &quot;mo:base/Char&quot;;
+let array = ['c', 'o', 'f', 'f', 'e', 'e'];
+assert Array.indexOf&lt;Char&gt;('c', array, Char.equal) == ?0;
+assert Array.indexOf&lt;Char&gt;('f', array, Char.equal) == ?2;
+assert Array.indexOf&lt;Char&gt;('g', array, Char.equal) == null;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(array.size())</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="nextIndexOf"><code><span class="keyword">public func </span><span class="fnname">nextIndexOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">element</span> : <span class="type">X</span>, <br/>  <span class="parameter">array</span> : [<span class="type">X</span>], <br/>  <span class="parameter">fromInclusive</span> : <span class="type">Nat</span>, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Returns the index of the next occurrence of <code>element</code> in the <code>array</code> starting from the <code>from</code> index (inclusive).</p>
+<pre><code>motoko include=import
+import Char &quot;mo:base/Char&quot;;
+let array = ['c', 'o', 'f', 'f', 'e', 'e'];
+assert Array.nextIndexOf&lt;Char&gt;('c', array, 0, Char.equal) == ?0;
+assert Array.nextIndexOf&lt;Char&gt;('f', array, 0, Char.equal) == ?2;
+assert Array.nextIndexOf&lt;Char&gt;('f', array, 2, Char.equal) == ?2;
+assert Array.nextIndexOf&lt;Char&gt;('f', array, 3, Char.equal) == ?3;
+assert Array.nextIndexOf&lt;Char&gt;('f', array, 4, Char.equal) == null;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(array.size())</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="lastIndexOf"><code><span class="keyword">public func </span><span class="fnname">lastIndexOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">element</span> : <span class="type">X</span>, <br/>  <span class="parameter">array</span> : [<span class="type">X</span>], <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Returns the index of the last <code>element</code> in the <code>array</code>.</p>
+<pre><code>motoko include=import
+import Char &quot;mo:base/Char&quot;;
+let array = ['c', 'o', 'f', 'f', 'e', 'e'];
+assert Array.lastIndexOf&lt;Char&gt;('c', array, Char.equal) == ?0;
+assert Array.lastIndexOf&lt;Char&gt;('f', array, Char.equal) == ?3;
+assert Array.lastIndexOf&lt;Char&gt;('e', array, Char.equal) == ?5;
+assert Array.lastIndexOf&lt;Char&gt;('g', array, Char.equal) == null;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(array.size())</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="prevIndexOf"><code><span class="keyword">public func </span><span class="fnname">prevIndexOf</span>&lt;<span class="type">T</span>&gt;(<br/>  <span class="parameter">element</span> : <span class="type">T</span>, <br/>  <span class="parameter">array</span> : [<span class="type">T</span>], <br/>  <span class="parameter">fromExclusive</span> : <span class="type">Nat</span>, <br/>  <span class="parameter">equal</span> : (<span class="type">T</span>, <span class="type">T</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Returns the index of the previous occurrence of <code>element</code> in the <code>array</code> starting from the <code>from</code> index (exclusive).</p>
+<pre><code>motoko include=import
+import Char &quot;mo:base/Char&quot;;
+let array = ['c', 'o', 'f', 'f', 'e', 'e'];
+assert Array.prevIndexOf&lt;Char&gt;('c', array, array.size(), Char.equal) == ?0;
+assert Array.prevIndexOf&lt;Char&gt;('e', array, array.size(), Char.equal) == ?5;
+assert Array.prevIndexOf&lt;Char&gt;('e', array, 5, Char.equal) == ?4;
+assert Array.prevIndexOf&lt;Char&gt;('e', array, 4, Char.equal) == null;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(array.size())</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="slice"><code><span class="keyword">public func </span><span class="fnname">slice</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">array</span> : [<span class="type">X</span>], <br/>  <span class="parameter">fromInclusive</span> : <span class="type">Nat</span>, <br/>  <span class="parameter">toExclusive</span> : <span class="type">Nat</span><br/>) : <a href="IterType.html#type.Iter"><span class="type">I.Iter</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns an iterator over a slice of the given array.</p>
+<pre><code>motoko include=import
+let array = [1, 2, 3, 4, 5];
+let s = Array.slice&lt;Nat&gt;(array, 3, array.size());
+assert s.next() == ?4;
+assert s.next() == ?5;
+assert s.next() == null;
+
+let s = Array.slice&lt;Nat&gt;(array, 0, 0);
+assert s.next() == null;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="take"><code><span class="keyword">public func </span><span class="fnname">take</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">array</span> : [<span class="type">T</span>], <span class="parameter">length</span> : <span class="type">Int</span>) : [<span class="type">T</span>]</code></h4><p><p>Returns a new subarray of given length from the beginning or end of the given array.</p>
+<p>Returns the entire array if the length is greater than the size of the array.</p>
+<pre><code>motoko include=import
+let array = [1, 2, 3, 4, 5];
+assert Array.take(array, 2) == [1, 2];
+assert Array.take(array, -2) == [4, 5];
+assert Array.take(array, 10) == [1, 2, 3, 4, 5];
+assert Array.take(array, -99) == [1, 2, 3, 4, 5];</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(length)</code> | <code>O(length)</code> |</p>
+</p></div></div></body></html>

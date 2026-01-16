@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/core/Region.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/core/Region.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#coreregion" id="toc-coreregion">core/Region</a>
+<ul>
+<li><a href="#type-region" id="toc-type-region">Type
+<code>Region</code></a></li>
+<li><a href="#function-new" id="toc-function-new">Function
+<code>new</code></a></li>
+<li><a href="#function-id" id="toc-function-id">Function
+<code>id</code></a></li>
+<li><a href="#function-size" id="toc-function-size">Function
+<code>size</code></a></li>
+<li><a href="#function-grow" id="toc-function-grow">Function
+<code>grow</code></a></li>
+<li><a href="#function-loadnat8" id="toc-function-loadnat8">Function
+<code>loadNat8</code></a></li>
+<li><a href="#function-storenat8" id="toc-function-storenat8">Function
+<code>storeNat8</code></a></li>
+<li><a href="#function-loadnat16" id="toc-function-loadnat16">Function
+<code>loadNat16</code></a></li>
+<li><a href="#function-storenat16" id="toc-function-storenat16">Function
+<code>storeNat16</code></a></li>
+<li><a href="#function-loadnat32" id="toc-function-loadnat32">Function
+<code>loadNat32</code></a></li>
+<li><a href="#function-storenat32" id="toc-function-storenat32">Function
+<code>storeNat32</code></a></li>
+<li><a href="#function-loadnat64" id="toc-function-loadnat64">Function
+<code>loadNat64</code></a></li>
+<li><a href="#function-storenat64" id="toc-function-storenat64">Function
+<code>storeNat64</code></a></li>
+<li><a href="#function-loadint8" id="toc-function-loadint8">Function
+<code>loadInt8</code></a></li>
+<li><a href="#function-storeint8" id="toc-function-storeint8">Function
+<code>storeInt8</code></a></li>
+<li><a href="#function-loadint16" id="toc-function-loadint16">Function
+<code>loadInt16</code></a></li>
+<li><a href="#function-storeint16" id="toc-function-storeint16">Function
+<code>storeInt16</code></a></li>
+<li><a href="#function-loadint32" id="toc-function-loadint32">Function
+<code>loadInt32</code></a></li>
+<li><a href="#function-storeint32" id="toc-function-storeint32">Function
+<code>storeInt32</code></a></li>
+<li><a href="#function-loadint64" id="toc-function-loadint64">Function
+<code>loadInt64</code></a></li>
+<li><a href="#function-storeint64" id="toc-function-storeint64">Function
+<code>storeInt64</code></a></li>
+<li><a href="#function-loadfloat" id="toc-function-loadfloat">Function
+<code>loadFloat</code></a></li>
+<li><a href="#function-storefloat" id="toc-function-storefloat">Function
+<code>storeFloat</code></a></li>
+<li><a href="#function-loadblob" id="toc-function-loadblob">Function
+<code>loadBlob</code></a></li>
+<li><a href="#function-storeblob" id="toc-function-storeblob">Function
+<code>storeBlob</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="coreregion">core/Region</h1>
+<p>Byte-level access to isolated, virtual stable memory regions.</p>
+<p>This is a moderately lightweight abstraction over IC <em>stable
+memory</em> and supports persisting regions of binary data across Motoko
+upgrades. Use of this module is fully compatible with Motoko's use of
+<em>stable variables</em>, whose persistence mechanism also uses (real)
+IC stable memory internally, but does not interfere with this API. It is
+also fully compatible with existing uses of the
+<code>ExperimentalStableMemory</code> library, which has a similar
+interface, but, only supported a single memory region, without isolation
+between different applications.</p>
+<p>The <code>Region</code> type is stable and can be used in stable data
+structures.</p>
+<p>A new, empty <code>Region</code> is allocated using function
+<code>new()</code>.</p>
+<p>Regions are stateful objects and can be distinguished by the numeric
+identifier returned by function <code>id(region)</code>. Every region
+owns an initially empty, but growable sequence of virtual IC stable
+memory pages. The current size, in pages, of a region is returned by
+function <code>size(region)</code>. The size of a region determines the
+range, [ 0, ..., size(region)*2^16 ), of valid byte-offsets into the
+region; these offsets are used as the source and destination of
+<code>load</code>/<code>store</code> operations on the region.</p>
+<p>Memory is allocated to a region, using function
+<code>grow(region, pages)</code>, sequentially and on demand, in units
+of 64KiB logical pages, starting with 0 allocated pages. A call to
+<code>grow</code> may succeed, returning the previous size of the
+region, or fail, returning a sentinel value. New pages are zero
+initialized.</p>
+<p>A size of a region can only grow and never shrink. In addition, the
+stable memory pages allocated to a region will <em>not</em> be reclaimed
+by garbage collection, even if the region object itself becomes
+unreachable.</p>
+<p>Growth is capped by a soft limit on physical page count controlled by
+compile-time flag <code>--max-stable-pages &lt;n&gt;</code> (the default
+is 65536, or 4GiB).</p>
+<p>Each <code>load</code> operation loads from region relative byte
+address <code>offset</code> in little-endian format using the natural
+bit-width of the type in question. The operation traps if attempting to
+read beyond the current region size.</p>
+<p>Each <code>store</code> operation stores to region relative byte
+address <code>offset</code> in little-endian format using the natural
+bit-width of the type in question. The operation traps if attempting to
+write beyond the current region size.</p>
+<p>Text values can be handled by using <code>Text.decodeUtf8</code> and
+<code>Text.encodeUtf8</code>, in conjunction with <code>loadBlob</code>
+and <code>storeBlob</code>.</p>
+<p>The current region allocation and region contents are preserved
+across upgrades.</p>
+<p>NB: The IC's actual stable memory size (<code>ic0.stable_size</code>)
+may exceed the total page size reported by summing all regions sizes.
+This (and the cap on growth) are to accommodate Motoko's stable
+variables and bookkeeping for regions. Applications that plan to use
+Motoko stable variables sparingly or not at all can increase
+<code>--max-stable-pages</code> as desired, approaching the IC maximum
+(initially 8GiB, then 32Gib, currently 64Gib). All applications should
+reserve at least one page for stable variable data, even when no stable
+variables are used.</p>
+<p>Usage:</p>
+<pre class="motoko"><code>import Region &quot;mo:core/Region&quot;;</code></pre>
+<h2 id="type-region">Type <code>Region</code></h2>
+<pre class="motoko"><code>type Region = Prim.Types.Region</code></pre>
+<p>A stateful handle to an isolated region of IC stable memory.
+<code>Region</code> is a stable type and regions can be stored in stable
+variables. @deprecated M0235</p>
+<h2 id="function-new">Function <code>new</code></h2>
+<pre class="motoko"><code>func new() : Region</code></pre>
+<p>Allocate a new, isolated Region of size 0.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    assert Region.size(region) == 0;
+  }
+}</code></pre>
+<h2 id="function-id">Function <code>id</code></h2>
+<pre class="motoko"><code>func id(self : Region) : Nat</code></pre>
+<p>Return a Nat identifying the given region. May be used for equality,
+comparison and hashing. NB: Regions returned by <code>new()</code> are
+numbered from 16 (regions 0..15 are currently reserved for internal
+use). Allocate a new, isolated Region of size 0.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    assert Region.id(region) == 16;
+  }
+}</code></pre>
+<h2 id="function-size">Function <code>size</code></h2>
+<pre class="motoko"><code>func size(self : Region) : (pages : Nat64)</code></pre>
+<p>Current size of <code>region</code>, in pages. Each page is 64KiB
+(65536 bytes). Initially <code>0</code>. Preserved across upgrades,
+together with contents of allocated stable memory.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let beforeSize = Region.size(region);
+    ignore Region.grow(region, 10);
+    let afterSize = Region.size(region);
+    assert afterSize - beforeSize == 10;
+  }
+}</code></pre>
+<h2 id="function-grow">Function <code>grow</code></h2>
+<pre class="motoko"><code>func grow(self : Region, newPages : Nat64) : (oldPages : Nat64)</code></pre>
+<p>Grow current <code>size</code> of <code>region</code> by the given
+number of pages. Each page is 64KiB (65536 bytes). Returns the previous
+<code>size</code> when able to grow. Returns
+<code>0xFFFF_FFFF_FFFF_FFFF</code> if remaining pages insufficient.
+Every new page is zero-initialized, containing byte 0x00 at every
+offset. Function <code>grow</code> is capped by a soft limit on
+<code>size</code> controlled by compile-time flag
+<code>--max-stable-pages &lt;n&gt;</code> (the default is 65536, or
+4GiB).</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Error &quot;mo:core/Error&quot;;
+
+persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let beforeSize = Region.grow(region, 10);
+    if (beforeSize == 0xFFFF_FFFF_FFFF_FFFF) {
+      throw Error.reject(&quot;Out of memory&quot;);
+    };
+    let afterSize = Region.size(region);
+    assert afterSize - beforeSize == 10;
+  }
+}</code></pre>
+<h2 id="function-loadnat8">Function <code>loadNat8</code></h2>
+<pre class="motoko"><code>func loadNat8(self : Region, offset : Nat64) : Nat8</code></pre>
+<p>Within <code>region</code>, load a <code>Nat8</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat8 = 123;
+    Region.storeNat8(region, offset, value);
+    assert Region.loadNat8(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storenat8">Function <code>storeNat8</code></h2>
+<pre class="motoko"><code>func storeNat8(self : Region, offset : Nat64, value : Nat8) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Nat8</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat8 = 123;
+    Region.storeNat8(region, offset, value);
+    assert Region.loadNat8(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadnat16">Function <code>loadNat16</code></h2>
+<pre class="motoko"><code>func loadNat16(self : Region, offset : Nat64) : Nat16</code></pre>
+<p>Within <code>region</code>, load a <code>Nat16</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat16 = 123;
+    Region.storeNat16(region, offset, value);
+    assert Region.loadNat16(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storenat16">Function <code>storeNat16</code></h2>
+<pre class="motoko"><code>func storeNat16(self : Region, offset : Nat64, value : Nat16) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Nat16</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat16 = 123;
+    Region.storeNat16(region, offset, value);
+    assert Region.loadNat16(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadnat32">Function <code>loadNat32</code></h2>
+<pre class="motoko"><code>func loadNat32(self : Region, offset : Nat64) : Nat32</code></pre>
+<p>Within <code>region</code>, load a <code>Nat32</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat32 = 123;
+    Region.storeNat32(region, offset, value);
+    assert Region.loadNat32(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storenat32">Function <code>storeNat32</code></h2>
+<pre class="motoko"><code>func storeNat32(self : Region, offset : Nat64, value : Nat32) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Nat32</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat32 = 123;
+    Region.storeNat32(region, offset, value);
+    assert Region.loadNat32(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadnat64">Function <code>loadNat64</code></h2>
+<pre class="motoko"><code>func loadNat64(self : Region, offset : Nat64) : Nat64</code></pre>
+<p>Within <code>region</code>, load a <code>Nat64</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat64 = 123;
+    Region.storeNat64(region, offset, value);
+    assert Region.loadNat64(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storenat64">Function <code>storeNat64</code></h2>
+<pre class="motoko"><code>func storeNat64(self : Region, offset : Nat64, value : Nat64) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Nat64</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Nat64 = 123;
+    Region.storeNat64(region, offset, value);
+    assert Region.loadNat64(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadint8">Function <code>loadInt8</code></h2>
+<pre class="motoko"><code>func loadInt8(self : Region, offset : Nat64) : Int8</code></pre>
+<p>Within <code>region</code>, load a <code>Int8</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int8 = 123;
+    Region.storeInt8(region, offset, value);
+    assert Region.loadInt8(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storeint8">Function <code>storeInt8</code></h2>
+<pre class="motoko"><code>func storeInt8(self : Region, offset : Nat64, value : Int8) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Int8</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int8 = 123;
+    Region.storeInt8(region, offset, value);
+    assert Region.loadInt8(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadint16">Function <code>loadInt16</code></h2>
+<pre class="motoko"><code>func loadInt16(self : Region, offset : Nat64) : Int16</code></pre>
+<p>Within <code>region</code>, load a <code>Int16</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int16 = 123;
+    Region.storeInt16(region, offset, value);
+    assert Region.loadInt16(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storeint16">Function <code>storeInt16</code></h2>
+<pre class="motoko"><code>func storeInt16(self : Region, offset : Nat64, value : Int16) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Int16</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int16 = 123;
+    Region.storeInt16(region, offset, value);
+    assert Region.loadInt16(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadint32">Function <code>loadInt32</code></h2>
+<pre class="motoko"><code>func loadInt32(self : Region, offset : Nat64) : Int32</code></pre>
+<p>Within <code>region</code>, load a <code>Int32</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int32 = 123;
+    Region.storeInt32(region, offset, value);
+    assert Region.loadInt32(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storeint32">Function <code>storeInt32</code></h2>
+<pre class="motoko"><code>func storeInt32(self : Region, offset : Nat64, value : Int32) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Int32</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int32 = 123;
+    Region.storeInt32(region, offset, value);
+    assert Region.loadInt32(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadint64">Function <code>loadInt64</code></h2>
+<pre class="motoko"><code>func loadInt64(self : Region, offset : Nat64) : Int64</code></pre>
+<p>Within <code>region</code>, load a <code>Int64</code> value from
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int64 = 123;
+    Region.storeInt64(region, offset, value);
+    assert Region.loadInt64(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-storeint64">Function <code>storeInt64</code></h2>
+<pre class="motoko"><code>func storeInt64(self : Region, offset : Nat64, value : Int64) : ()</code></pre>
+<p>Within <code>region</code>, store a <code>Int64</code> value at
+<code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value : Int64 = 123;
+    Region.storeInt64(region, offset, value);
+    assert Region.loadInt64(region, offset) == 123;
+  }
+}</code></pre>
+<h2 id="function-loadfloat">Function <code>loadFloat</code></h2>
+<pre class="motoko"><code>func loadFloat(self : Region, offset : Nat64) : Float</code></pre>
+<p>Within <code>region</code>, loads a <code>Float</code> value from the
+given <code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value = 1.25;
+    Region.storeFloat(region, offset, value);
+    assert Region.loadFloat(region, offset) == 1.25;
+  }
+}</code></pre>
+<h2 id="function-storefloat">Function <code>storeFloat</code></h2>
+<pre class="motoko"><code>func storeFloat(self : Region, offset : Nat64, value : Float) : ()</code></pre>
+<p>Within <code>region</code>, store float <code>value</code> at the
+given <code>offset</code>. Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value = 1.25;
+    Region.storeFloat(region, offset, value);
+    assert Region.loadFloat(region, offset) == 1.25;
+  }
+}</code></pre>
+<h2 id="function-loadblob">Function <code>loadBlob</code></h2>
+<pre class="motoko"><code>func loadBlob(self : Region, offset : Nat64, size : Nat) : Blob</code></pre>
+<p>Within <code>region,</code> load <code>size</code> bytes starting
+from <code>offset</code> as a <code>Blob</code>. Traps on an
+out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Blob &quot;mo:core/Blob&quot;;
+
+persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value = Blob.fromArray([1, 2, 3]);
+    let size = value.size();
+    Region.storeBlob(region, offset, value);
+    assert Blob.toArray(Region.loadBlob(region, offset, size)) == [1, 2, 3];
+  }
+}</code></pre>
+<h2 id="function-storeblob">Function <code>storeBlob</code></h2>
+<pre class="motoko"><code>func storeBlob(self : Region, offset : Nat64, value : Blob) : ()</code></pre>
+<p>Within
+<code>region, write </code>blob.size()<code>bytes of</code>blob<code>beginning at</code>offset`.
+Traps on an out-of-bounds access.</p>
+<p>Example:</p>
+<pre class="motoko"><code>import Blob &quot;mo:core/Blob&quot;;
+
+persistent actor {
+  public func example() : async () {
+    let region = Region.new();
+    let offset : Nat64 = 0;
+    let value = Blob.fromArray([1, 2, 3]);
+    let size = value.size();
+    Region.storeBlob(region, offset, value);
+    assert Blob.toArray(Region.loadBlob(region, offset, size)) == [1, 2, 3];
+  }
+}</code></pre>
+</body>
+</html>

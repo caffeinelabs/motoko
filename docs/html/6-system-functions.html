@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/icp-features/6-system-functions.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/icp-features/6-system-functions.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#system-functions" id="toc-system-functions">System
+functions</a>
+<ul>
+<li><a href="#timer" id="toc-timer"><code>timer()</code></a></li>
+<li><a href="#preupgrade"
+id="toc-preupgrade"><code>preupgrade()</code></a></li>
+<li><a href="#postupgrade"
+id="toc-postupgrade"><code>postupgrade()</code></a></li>
+<li><a href="#lowmemory"
+id="toc-lowmemory"><code>lowmemory()</code></a></li>
+<li><a href="#inspect" id="toc-inspect"><code>inspect()</code></a></li>
+<li><a href="#heartbeat"
+id="toc-heartbeat"><code>heartbeat()</code></a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="system-functions">System functions</h1>
+<p>ICP supports five system functions that canisters can call to
+interact with the ICP runtime environment:</p>
+<ul>
+<li><a
+href="https://internetcomputer.org/docs/references/ic-interface-spec#global-timer"><code>timer</code></a></li>
+<li><a href="#preupgrade"><code>preupgrade</code></a></li>
+<li><a href="#postupgrade"><code>postupgrade</code></a></li>
+<li><a href="#lowmemory"><code>lowmemory</code></a></li>
+<li><a
+href="https://internetcomputer.org/docs/references/ic-interface-spec#system-api-inspect-message"><code>inspect</code></a></li>
+<li><a
+href="https://internetcomputer.org/docs/references/ic-interface-spec#heartbeat"><code>heartbeat</code></a></li>
+</ul>
+<p>Declaring any other system function will result in an error.
+Canisters can use these functions to efficiently manage state
+transitions, automate tasks, or handle system-level operations.</p>
+<h2 id="timer"><code>timer()</code></h2>
+<p>The <a
+href="https://internetcomputer.org/docs/building-apps/network-features/periodic-tasks-timers#timers"><code>timer()</code>
+system function</a> lets canisters schedule a task to execute after a
+specified delay. To make the timer repeat, the function must explicitly
+call <code>setGlobalTimer()</code> within its body to reset the timer.
+It accepts a single argument to set the global timer and returns
+<code>async ()</code>.</p>
+<p>Unlike <code>heartbeat()</code>, which runs automatically every
+subnet round, <code>timer()</code> requires manual rescheduling after
+each execution. This design gives canisters precise control over whether
+the timer runs once or continuously, depending on if and when
+<code>setGlobalTimer()</code> is called again.</p>
+<p>In the following example, <code>timer()</code> runs once immediately
+after deployment, then stops.</p>
+<pre class="motoko"><code>import Debug &quot;mo:core/Debug&quot;;
+
+system func timer(setGlobalTimer : Nat64 -&gt; ()) : async () {
+  Debug.print(&quot;Timer triggered!&quot;);
+  // No call to setGlobalTimer() → the timer does not repeat.
+}</code></pre>
+<p>To run the timer every 20 seconds, it must be explicitly
+rescheduled.</p>
+<pre class="motoko"><code>import Time &quot;mo:core/Time&quot;;
+import Debug &quot;mo:core/Debug&quot;;
+
+system func timer(setGlobalTimer : Nat64 -&gt; ()) : async () {
+  let next = Nat64.fromIntWrap(Time.now()) + 20_000_000_000; // 20 seconds
+  setGlobalTimer(next); // Reschedule for next execution
+  Debug.print(&quot;Repeating Timer Triggered!&quot;);
+}</code></pre>
+<h2 id="preupgrade"><code>preupgrade()</code></h2>
+<p>The preupgrade() system function is invoked immediately before a
+canister upgrade to prepare for state migration. Its primary role is to
+save critical data, typically non-stable variables, into stable storage,
+ensuring that important state information is preserved across the
+upgrade. This function executes before the new Wasm module is installed,
+making it the last opportunity to capture any necessary state from the
+current canister version.</p>
+<p>Any failure, such as a trap or exceeding computation limits prevents
+the upgrade from succeeding, potentially leaving the canister in an
+unrecoverable state. As a result, <strong>using
+<code>preupgrade()</code> is discouraged unless necessary</strong>.</p>
+<p>The following example saves a <code>HashMap</code> of user balances
+into a stable variable before upgrading.</p>
+<p><code>balances</code> is a non-stable <code>HashMap</code> that would
+normally be lost during an upgrade. Before upgrading,
+<code>preupgrade()</code> stores the key-value pairs in a stable array
+(<code>savedBalances</code>).</p>
+<p>After upgrading, the <code>postupgrade()</code> function
+(#postupgrade) can restore the saved state.</p>
+<pre class="motoko"><code>import Iter &quot;mo:core/Iter&quot;;
+import HashMap &quot;mo:base/HashMap&quot;; // Data structure from original standard library
+
+persistent actor Token {
+
+  transient var balances = HashMap.HashMap&lt;Text, Nat&gt;(10, Text.equal, Text.hash); // Non-stable
+  var savedBalances : [(Text, Nat)] = []; // Implicit stable storage
+
+  system func preupgrade() {
+    savedBalances := Iter.toArray(balances.entries()); // Save state before upgrade
+  }
+}</code></pre>
+<h2 id="postupgrade"><code>postupgrade()</code></h2>
+<p>The <code>postupgrade()</code> system function is called immediately
+after a canister upgrade, allowing a canister to restore state or
+execute initialization logic. Unlike <code>preupgrade()</code>,
+<strong>it is not required</strong>, as most of its effects can be
+achieved using actor initialization expressions (<code>let</code>
+bindings and expression statements). However, <code>postupgrade()</code>
+is useful for reconstructing data structures or running migration
+logic.</p>
+<p>This example restores the <code>balances</code> <code>HashMap</code>
+using the data that was saved by <code>preupgrade()</code>.</p>
+<pre class="motoko"><code>import HashMap &quot;mo:base/HashMap&quot;; // Data structure from original standard library
+
+persistent actor Token {
+
+  transient var balances = HashMap.HashMap&lt;Text, Nat&gt;(10, Text.equal, Text.hash);
+  var savedBalances : [(Text, Nat)] = [];
+
+  system func postupgrade() {
+    balances := HashMap.fromIter(savedBalances.vals(), 10, Text.equal, Text.hash);
+  }
+}</code></pre>
+<p>The <strong>use of upgrade hooks is not recommended</strong> as they
+can fail and cause the program to enter an unrecoverable state. With
+advancements in orthogonal persistence, these hooks are expected to be
+deprecated.</p>
+<p>In many cases, stable variables or actor initialization expressions
+can replace <code>postupgrade()</code>. Complex transformations increase
+the risk of errors and failures.</p>
+<h2 id="lowmemory"><code>lowmemory()</code></h2>
+<p>The IC allows to implement a low memory hook, which is a warning
+trigger when main memory is becoming scarce.</p>
+<p>For this purpose, a Motoko actor or actor class instance can
+implement the system function <code>lowmemory()</code>. This system
+function is scheduled when canister's free main memory space has fallen
+below the defined threshold <code>wasm_memory_threshold</code>, that is
+is part of the canister settings. In Motoko, <code>lowmemory()</code>
+implements the <code>canister_on_low_wasm_memory</code> hook defined in
+the IC specification.</p>
+<p>Example of using the low memory hook:</p>
+<pre><code>actor {
+    system func lowmemory() : async* () {
+        Debug.print(&quot;Low memory!&quot;);
+    }
+}</code></pre>
+<p>The following properties apply to the low memory hook:</p>
+<ul>
+<li>The execution of <code>lowmemory</code> happens with a certain
+delay, as it is scheduled as a separate asynchronous message that runs
+after the message in which the threshold was crossed.</li>
+<li>Once executed, <code>lowmemory</code> is only triggered again when
+the main memory free space first exceeds and then falls below the
+threshold.</li>
+<li>Traps or unhandled errors in <code>lowmemory</code> are ignored.
+Traps only revert the changes done in <code>lowmemory</code>.</li>
+<li>Due to its <code>async*</code> return type, the
+<code>lowmemory</code> function may send further messages and
+<code>await</code> results.</li>
+</ul>
+<h2 id="inspect"><code>inspect()</code></h2>
+<p>The <a
+href="https://internetcomputer.org/docs/references/ic-interface-spec#system-api-inspect-message"><code>inspect()</code>
+system function</a> allows a canister to inspect ingress messages before
+execution, determining whether to accept or reject them. The function
+receives a record of message attributes, including the caller’s
+principal, the raw argument <code>Blob</code>, and a variant identifying
+the target function.</p>
+<p>It returns a <code>Bool</code>, where <code>true</code> permits
+execution and <code>false</code> rejects the message. Similar to a <a
+href="https://internetcomputer.org/docs/building-apps/essentials/message-execution">query</a>,
+any side effects are discarded. If <code>inspect()</code> traps, it is
+equivalent to returning <code>false</code>. Unlike other system
+functions, the argument type of <code>inspect()</code> depends on the
+actor's exposed interface, meaning it can selectively handle different
+methods or ignore unnecessary fields.</p>
+<p>However, <code>inspect()</code> should not be used for definitive
+access control because it runs on a single replica without going through
+consensus, making it susceptible to boundary node spoofing.
+Additionally, <code>inspect()</code> only applies to <a
+href="https://internetcomputer.org/docs/building-apps/essentials/message-execution">ingress
+messages</a>, not <a
+href="https://internetcomputer.org/docs/references/async-code">inter-canister
+calls</a>, meaning secure access control must still be enforced within
+shared functions.</p>
+<p>The following actor defines an inspect function that blocks anonymous
+callers, limits message size, and rejects specific argument values.</p>
+<pre class="motoko"><code>import Principal &quot;mo:core/Principal&quot;;
+
+persistent actor Counter {
+  
+  var c = 0;
+
+  public func inc() : async () { c += 1 };
+  public func set(n : Nat) : async () { c := n };
+  public query func read() : async Nat { c };
+  public func reset() : () { c := 0 }; // One way function
+
+  system func inspect(
+    {
+      caller : Principal;
+      arg : Blob;
+      msg : {
+        #inc : () -&gt; ();
+        #set : () -&gt; Nat;
+        #read : () -&gt; ();
+        #reset : () -&gt; ();
+      }
+    }) : Bool {
+
+    if (Principal.isAnonymous(caller)) return false; // Reject anonymous calls
+    if (arg.size() &gt; 512) return false; // Reject messages larger than 512 bytes
+
+    switch (msg) {
+      case (#inc _) { true };   // Allow increment
+      case (#set n) { n() != 13 }; // Reject setting counter to 13
+      case (#read _) { true };  // Allow reading the counter
+      case (#reset _) { false }; // Reject reset calls
+    }
+  }
+}</code></pre>
+<h2 id="heartbeat"><code>heartbeat()</code></h2>
+<p>:::caution Heartbeats are computationally expensive for both the
+network and user, and instead you should use a timer if possible.
+:::</p>
+<p>Canisters can opt to receive <a
+href="https://internetcomputer.org/docs/building-apps/network-features/periodic-tasks-timers#heartbeats">heartbeat
+messages</a> by exposing a <code>canister_heartbeat</code> function. In
+Motoko, this is achieved by declaring the system function
+<code>heartbeat</code>, which takes no arguments and returns an
+asynchronous unit type (<code>async ()</code>).</p>
+<p>Since <code>heartbeat()</code> is async, it can invoke other
+asynchronous functions and await their results. This function executes
+on every <strong>subnet heartbeat</strong>, enabling periodic task
+execution without requiring external triggers. Since subnet heartbeats
+operate at the protocol level, their timing is not precise and depends
+on network conditions and execution load. As a result, using heartbeats
+for high-frequency or time-sensitive operations should be done
+cautiously, as there is no guarantee of real-time execution.</p>
+<p>Every async call in Motoko causes a context switch, which means the
+actual execution of the heartbeat function may be delayed relative to
+when the subnet triggers it. The function’s result is ignored, so any
+errors or traps during execution do not impact future heartbeat
+calls.</p>
+<p>If a canister exports a function named
+<code>canister_heartbeat</code>, it must have the type
+<code>() -&gt; ()</code>, ensuring it adheres to the expected <a
+href="https://internetcomputer.org/docs/references/ic-interface-spec#heartbeat">system
+function signature</a>.</p>
+<p>Heartbeats should be considered deprecated as they have been
+superseded by timers.</p>
+</body>
+</html>

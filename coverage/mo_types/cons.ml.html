@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>cons.ml &mdash; Coverage report</title>
+    <meta name="description" content="97.06% coverage in mo_types/cons.ml">
+    <link rel="stylesheet" href="../coverage.css"/>
+    <script src="../highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+  </head>
+  <body>
+    <div id="header">
+      <h1>
+        <a href="../index.html">
+          <span class="dirname">mo_types/</span>cons.ml
+        </a>
+      </h1>
+      <h2>97.06%</h2>
+    </div>
+    <div id="navbar">
+      <span class="unvisited" style="bottom:5.13%"></span>
+    </div>
+    <div id="report">
+      <div id="lines-layer">
+        <pre>
+<a id="L1"></a><span > </span>
+<a id="L2"></a><span > </span>
+<a id="L3"></a><span > </span>
+<a id="L4"></a><span > </span>
+<a id="L5"></a><span > </span>
+<a id="L6"></a><span > </span>
+<a id="L7"></a><span > </span>
+<a id="L8"></a><span > </span>
+<a id="L9"></a><span > </span>
+<a id="L10"></a><span > </span>
+<a id="L11"></a><span > </span>
+<a id="L12"></a><span > </span>
+<a id="L13"></a><span > </span>
+<a id="L14"></a><span > </span>
+<a id="L15"></a><span > </span>
+<a id="L16"></a><span > </span>
+<a id="L17"></a><span > </span>
+<a id="L18"></a><span > </span>
+<a id="L19"></a><span > </span>
+<a id="L20"></a><span > </span>
+<a id="L21"></a><span > </span>
+<a id="L22"></a><span > </span>
+<a id="L23"></a><span > </span>
+<a id="L24"></a><span > </span>
+<a id="L25"></a><span > </span>
+<a id="L26"></a><span > </span>
+<a id="L27"></a><span > </span>
+<a id="L28"></a><span > </span>
+<a id="L29"></a><span > </span>
+<a id="L30"></a><span > </span>
+<a id="L31"></a><span > </span>
+<a id="L32"></a><span > </span>
+<a id="L33"></a><span class="visited"> </span>
+<a id="L34"></a><span > </span>
+<a id="L35"></a><span class="visited"> </span>
+<a id="L36"></a><span > </span>
+<a id="L37"></a><span > </span>
+<a id="L38"></a><span class="visited"> </span>
+<a id="L39"></a><span class="visited"> </span>
+<a id="L40"></a><span class="visited"> </span>
+<a id="L41"></a><span > </span>
+<a id="L42"></a><span > </span>
+<a id="L43"></a><span class="visited"> </span>
+<a id="L44"></a><span > </span>
+<a id="L45"></a><span > </span>
+<a id="L46"></a><span class="visited"> </span>
+<a id="L47"></a><span class="visited"> </span>
+<a id="L48"></a><span class="visited"> </span>
+<a id="L49"></a><span > </span>
+<a id="L50"></a><span > </span>
+<a id="L51"></a><span class="visited"> </span>
+<a id="L52"></a><span > </span>
+<a id="L53"></a><span class="visited"> </span>
+<a id="L54"></a><span > </span>
+<a id="L55"></a><span class="visited"> </span>
+<a id="L56"></a><span > </span>
+<a id="L57"></a><span > </span>
+<a id="L58"></a><span class="visited"> </span>
+<a id="L59"></a><span class="visited"> </span>
+<a id="L60"></a><span > </span>
+<a id="L61"></a><span class="visited"> </span>
+<a id="L62"></a><span > </span>
+<a id="L63"></a><span > </span>
+<a id="L64"></a><span class="visited"> </span>
+<a id="L65"></a><span class="visited"> </span>
+<a id="L66"></a><span > </span>
+<a id="L67"></a><span > </span>
+<a id="L68"></a><span class="visited"> </span>
+<a id="L69"></a><span class="visited"> </span>
+<a id="L70"></a><span class="visited"> </span>
+<a id="L71"></a><span class="visited"> </span>
+<a id="L72"></a><span class="visited"> </span>
+<a id="L73"></a><span class="visited"> </span>
+<a id="L74"></a><span class="unvisited"> </span>
+<a id="L75"></a><span class="visited"> </span>
+<a id="L76"></a><span class="visited"> </span>
+<a id="L77"></a><span > </span>
+<a id="L78"></a><span class="visited"> </span>
+</pre>
+      </div>
+      <div id="text-layer">
+        <pre id="line-numbers">
+<a href="#L1"> 1</a>
+<a href="#L2"> 2</a>
+<a href="#L3"> 3</a>
+<a href="#L4"> 4</a>
+<a href="#L5"> 5</a>
+<a href="#L6"> 6</a>
+<a href="#L7"> 7</a>
+<a href="#L8"> 8</a>
+<a href="#L9"> 9</a>
+<a href="#L10">10</a>
+<a href="#L11">11</a>
+<a href="#L12">12</a>
+<a href="#L13">13</a>
+<a href="#L14">14</a>
+<a href="#L15">15</a>
+<a href="#L16">16</a>
+<a href="#L17">17</a>
+<a href="#L18">18</a>
+<a href="#L19">19</a>
+<a href="#L20">20</a>
+<a href="#L21">21</a>
+<a href="#L22">22</a>
+<a href="#L23">23</a>
+<a href="#L24">24</a>
+<a href="#L25">25</a>
+<a href="#L26">26</a>
+<a href="#L27">27</a>
+<a href="#L28">28</a>
+<a href="#L29">29</a>
+<a href="#L30">30</a>
+<a href="#L31">31</a>
+<a href="#L32">32</a>
+<a href="#L33">33</a>
+<a href="#L34">34</a>
+<a href="#L35">35</a>
+<a href="#L36">36</a>
+<a href="#L37">37</a>
+<a href="#L38">38</a>
+<a href="#L39">39</a>
+<a href="#L40">40</a>
+<a href="#L41">41</a>
+<a href="#L42">42</a>
+<a href="#L43">43</a>
+<a href="#L44">44</a>
+<a href="#L45">45</a>
+<a href="#L46">46</a>
+<a href="#L47">47</a>
+<a href="#L48">48</a>
+<a href="#L49">49</a>
+<a href="#L50">50</a>
+<a href="#L51">51</a>
+<a href="#L52">52</a>
+<a href="#L53">53</a>
+<a href="#L54">54</a>
+<a href="#L55">55</a>
+<a href="#L56">56</a>
+<a href="#L57">57</a>
+<a href="#L58">58</a>
+<a href="#L59">59</a>
+<a href="#L60">60</a>
+<a href="#L61">61</a>
+<a href="#L62">62</a>
+<a href="#L63">63</a>
+<a href="#L64">64</a>
+<a href="#L65">65</a>
+<a href="#L66">66</a>
+<a href="#L67">67</a>
+<a href="#L68">68</a>
+<a href="#L69">69</a>
+<a href="#L70">70</a>
+<a href="#L71">71</a>
+<a href="#L72">72</a>
+<a href="#L73">73</a>
+<a href="#L74">74</a>
+<a href="#L75">75</a>
+<a href="#L76">76</a>
+<a href="#L77">77</a>
+<a href="#L78">78</a>
+</pre>
+<pre><code class="ocaml">(*
+The kind field is a reference to break the recursion in open_binds,
+and to allow the multiple passes in typing. These go through Type.set_kind
+with additional safeguards.
+
+Besides these two use-cases, the kind should not be mutated, and treated like
+immutable data.
+
+This module interface guarantees that constructors with the same stamp have the
+same ref.
+*)
+
+type scope = string
+
+type 'a con = {name : string;
+               stamp : int * scope option;
+               hash: int; (* hash of name, stamp *)
+               kind : 'a ref}
+
+type 'a t = 'a con
+
+module Stamps = Env.Make (struct
+  type t = string * scope option
+
+  let compare = Stdlib.compare
+end)
+
+type stamps = {stamps : int Stamps.t; scope : scope option}
+
+let stamps : stamps ref = ref {stamps = Stamps.empty; scope = None}
+
+let session ?scope f =
+  <span data-count="15381">l</span>et original = !stamps in
+  stamps := {!stamps with scope};
+  Fun.protect ~finally:(fun _ -&gt; <span data-count="15380">s</span>tamps := original) f
+
+let fresh_stamp name =
+  <span data-count="1640928">l</span>et scope = !stamps.scope in
+  let n = Lib.Option.get (Stamps.find_op<span data-count="1640928">t</span> (name, scope) !stamps.stamps) 0 in
+  <span data-count="1640928">s</span>tamps := {!stamps with stamps = Stamps.ad<span data-count="1640928">d</span> (name, scope) (n + 1) !stamps.stamps};
+  n, scope
+
+let hash name stamp = <span data-count="1640928">H</span>ashtbl.hash (name, stamp)
+
+let fresh name k =
+  <span data-count="1550669">l</span>et stamp = fresh_stamp name in
+  <span data-count="1550669">{</span>name; stamp;
+   hash = has<span data-count="1550669">h</span> name stamp;
+   kind = ref k}
+let clone c k =
+  <span data-count="90259">l</span>et name = c.name in
+  let stamp = fresh_stamp c.name in
+  <span data-count="90259">{</span>name;
+   stamp;
+   hash = has<span data-count="90259">h</span> name stamp;
+   kind = ref k}
+
+let kind c = <span data-count="58866318">!</span>(c.kind)
+let unsafe_set_kind c k = <span data-count="1635693">c</span>.kind := k
+
+let name c = <span data-count="1797342">c</span>.name
+
+let to_string show_stamps sep c =
+  <span data-count="48688">i</span>f not show_stamp<span data-count="48332">s</span> || c.stamp = (0, Some "prelude"<span data-count="175">)</span>
+  then <span data-count="48507">c</span>.name else <span data-count="181">P</span>rintf.sprintf "%s%s%i" c.name sep c.hash
+
+let compare c1 c2 =
+  <span data-count="387638074">m</span>atch Int.compare c1.hash c2.hash with
+  | <span data-count="213979865">0</span> -&gt;
+    (match Int.compare (fs<span data-count="213979865">t</span> c1.stamp) (fs<span data-count="213979865">t</span> c2.stamp) with
+     | <span data-count="213979863">0</span> -&gt;
+       (match Option.compare String.compare (sn<span data-count="213979863">d</span> c1.stamp) (sn<span data-count="213979863">d</span> c2.stamp) with
+        | <span data-count="213979863">0</span> -&gt; String.compare c1.name c2.name
+        | <span data-count="0">o</span>rd -&gt; ord)
+     | <span data-count="2">o</span>rd -&gt; ord)
+  | <span data-count="173658209">o</span>rd -&gt; ord
+
+let eq c1 c2 = <span data-count="647395">c</span>ompar<span data-count="647395">e</span> c1 c2 = 0
+</code></pre>
+      </div>
+    </div>
+    <script src="../coverage.js"></script>
+  </body>
+</html>

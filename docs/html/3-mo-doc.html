@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>md/motoko-tooling/3-mo-doc.md</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">md/motoko-tooling/3-mo-doc.md</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#generating-motoko-documentation"
+id="toc-generating-motoko-documentation">Generating Motoko
+documentation</a>
+<ul>
+<li><a href="#generate-in-html-format-default"
+id="toc-generate-in-html-format-default">Generate in HTML format
+(default)</a></li>
+<li><a href="#generate-in-markdown-format"
+id="toc-generate-in-markdown-format">Generate in Markdown
+format</a></li>
+<li><a href="#generate-in-asciidoc-format"
+id="toc-generate-in-asciidoc-format">Generate in AsciiDoc
+format</a></li>
+<li><a href="#use-a-custom-source-code-directory-defaults-to-src"
+id="toc-use-a-custom-source-code-directory-defaults-to-src">Use a custom
+source code directory (defaults to <code>src</code>)</a></li>
+<li><a href="#use-a-custom-output-directory-defaults-to-docs"
+id="toc-use-a-custom-output-directory-defaults-to-docs">Use a custom
+output directory (defaults to <code>docs</code>)</a></li>
+<li><a href="#options" id="toc-options">Options</a></li>
+<li><a href="#examples" id="toc-examples">Examples</a></li>
+<li><a href="#writing-doc-comments"
+id="toc-writing-doc-comments">Writing doc comments</a></li>
+<li><a href="#resources" id="toc-resources">Resources</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="generating-motoko-documentation">Generating Motoko
+documentation</h1>
+<p><code>mo-doc</code> is a command-line tool for generating
+documentation for Motoko source code. It processes source files and
+generates documentation in various formats.</p>
+<p>Download <code>mo-doc</code> from Motoko's <a
+href="https://github.com/dfinity/motoko/releases">GitHub releases
+page</a> or simply use the binary included in your <a
+href="https://github.com/dfinity/sdk">dfx</a> installation:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">$(</span><span class="ex">dfx</span> cache show<span class="va">)</span><span class="ex">/mo-doc</span> <span class="pp">[</span><span class="ss">options</span><span class="pp">]</span></span></code></pre></div>
+<h3 id="generate-in-html-format-default">Generate in HTML format
+(default)</h3>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">$(</span><span class="ex">dfx</span> cache show<span class="va">)</span><span class="ex">/mo-doc</span></span></code></pre></div>
+<h3 id="generate-in-markdown-format">Generate in Markdown format</h3>
+<pre><code>$(dfx cache show)/mo-doc --format plain</code></pre>
+<h3 id="generate-in-asciidoc-format">Generate in AsciiDoc format</h3>
+<pre><code>$(dfx cache show)/mo-doc --format adoc</code></pre>
+<h3 id="use-a-custom-source-code-directory-defaults-to-src">Use a custom
+source code directory (defaults to <code>src</code>)</h3>
+<pre><code>$(dfx cache show)/mo-doc --src path/to/motoko/files</code></pre>
+<h3 id="use-a-custom-output-directory-defaults-to-docs">Use a custom
+output directory (defaults to <code>docs</code>)</h3>
+<pre><code>$(dfx cache show)/mo-doc --output path/to/custom/output</code></pre>
+<h2 id="options">Options</h2>
+<ul>
+<li><p><code>--source &lt;path&gt;</code>: Specifies the directory to
+search for Motoko source files. Defaults to <code>src</code>.</p></li>
+<li><p><code>--output &lt;path&gt;</code>: Specifies the directory where
+the documentation will be generated. Defaults to
+<code>docs</code>.</p></li>
+<li><p><code>--format &lt;format&gt;</code>: Specifies the generated
+format. Should be one of the following:</p>
+<ul>
+<li><code>html</code>: Generates HTML format documentation.</li>
+<li><code>adoc</code>: Generates AsciiDoc format documentation.</li>
+<li><code>plain</code>: Generates Markdown documentation.</li>
+</ul>
+<p>Defaults to <code>html</code>.</p></li>
+<li><p><code>--help</code>: Shows usage information.</p></li>
+</ul>
+<h2 id="examples">Examples</h2>
+<ol type="1">
+<li><p>Generate HTML documentation from the default source directory
+(<code>src</code>) and place it in the default output directory
+(<code>docs</code>):</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mo-doc</span></span></code></pre></div></li>
+<li><p>Generate AsciiDoc documentation from a specific source
+directory:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mo-doc</span> <span class="at">--format</span> plain <span class="at">--source</span> ./motoko-code</span></code></pre></div></li>
+<li><p>Generate Markdown documentation in a custom output directory:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mo-doc</span> <span class="at">--format</span> adoc <span class="at">--output</span> ./public</span></code></pre></div></li>
+</ol>
+<h2 id="writing-doc-comments">Writing doc comments</h2>
+<p><code>mo-doc</code> supports documenting your Motoko code using
+special block comments (<code>/** */</code>) and line comments
+(<code>///</code>).</p>
+<p>Doc comments can be used to provide explanations for functions,
+classes, types, modules, variables, and more. They can span multiple
+lines and may contain rich Markdown formatting:</p>
+<pre class="motoko"><code>/// Calculate the factorial of a given positive integer.
+///
+/// Example:
+/// ```motoko
+/// factorial(0); // =&gt; null
+/// factorial(3); // =&gt; ?6
+/// ```
+func factorial(n : Nat) : ?Nat {
+    // ...
+}</code></pre>
+<h2 id="resources">Resources</h2>
+<p>Check out Motoko's <a
+href="https://github.com/dfinity/motoko-core/tree/main/src">core package
+source code</a> for additional examples and best practices.</p>
+<p>The source code for <code>mo-doc</code> is available in the <a
+href="https://github.com/dfinity/motoko/tree/master/src/docs">dfinity/motoko</a>
+GitHub repository. Contributions are welcome!</p>
+</body>
+</html>
