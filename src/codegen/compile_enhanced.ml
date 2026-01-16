@@ -497,6 +497,9 @@ module E = struct
     (* Counter for deriving a unique id per constant function. *)
     constant_functions : int32 ref;
     dedup : (unit -> int32) option ref;
+    
+    (* A raw HTTP handler, should skip Candid de/serialization. *)
+    compiling_raw_handler : bool ref;
   }
 
 
@@ -532,6 +535,7 @@ module E = struct
     global_type_descriptor = ref None;
     constant_functions = ref 0l;
     dedup = ref None;
+    compiling_raw_handler = ref false;
   }
 
   (* This wraps Mo_types.Hash.hash to also record which labels we have seen,
@@ -9651,38 +9655,101 @@ module FuncDec = struct
       (G.nop)
       (message_cleanup env (Type.Shared Type.Write))
 
-  let compile_const_message outer_env outer_ae sort control args mk_body ret_tys at : E.func_with_names =
+  let compile_const_message outer_env outer_ae sort control args mk_body ret_tys at exported_name_opt : E.func_with_names =
     let ae0 = VarEnv.mk_fun_ae outer_ae in
+    
+    (* Check if this is a raw HTTP handler method *)
+    let is_raw_http_handler = match exported_name_opt with
+      | Some name when (name = "http_request_v2" || name = "http_request_update_v2") ->
+        (* Validate signature: must be (Blob|[Nat8]) -> async (Blob|[Nat8]) *)
+        (match args with
+         | [arg] ->
+           let arg_type = Type.normalize arg.note in
+           let unwrapped_type = Type.as_immut arg_type in
+           (match unwrapped_type with
+            | Type.Array elem_type ->
+              (match Type.normalize elem_type with
+               | Type.Prim Type.Nat8 -> true
+               | _ -> false)
+            | Type.Prim Type.Blob -> true
+            | _ -> false)
+         | _ -> false)
+      | _ -> false
+    in
+    
     Func.of_body outer_env [] [] (fun env -> G.with_region at (
       message_start env sort ^^
       (* cycles *)
       Internals.reset_cycles env outer_ae ^^
       Internals.reset_refund env outer_ae ^^
-      (* reply early for a oneway *)
-      (if control = Type.Returns
-       then
-         Tuple.compile_unit env ^^
-         Serialization.serialize env [] ^^
-         IC.reply_with_data env
-       else G.nop) ^^
-      (* Deserialize argument and add params to the environment *)
-      let arg_list = List.map (fun a -> (a.it, a.note)) args in
-      let arg_names = List.map (fun a -> a.it) args in
-      let arg_tys = List.map (fun a -> a.note) args in
-      let ae1 = VarEnv.add_argument_locals env ae0 arg_list in
-      Serialization.deserialize env arg_tys ^^
-      G.concat_map (Var.set_val_vanilla_from_stack env ae1) (List.rev arg_names) ^^
-      mk_body env ae1 ^^
-      message_cleanup env sort
+      
+      if is_raw_http_handler then begin
+        (* RAW HTTP HANDLER PATH - Skip Candid deserialization on input *)
+        let arg = List.hd args in
+        let arg_ty = arg.note in
+        let arg_name = arg.it in
+        
+        let arg_is_array = 
+          let unwrapped = Type.as_immut (Type.normalize arg_ty) in
+          match unwrapped with
+          | Type.Array elem_type ->
+            (match Type.normalize elem_type with
+             | Type.Prim Type.Nat8 -> true
+             | _ -> false)
+          | _ -> false
+        in
+        
+        let ae1 = VarEnv.add_argument_locals env ae0 [(arg_name, arg_ty)] in
+        
+        (* Mark this context as a raw HTTP handler so ICReplyPrim can skip serialization *)
+        let old_raw_handler = !E.(env.compiling_raw_handler) in
+        E.(env.compiling_raw_handler := true);
+        
+        (* Get raw IC argument data (no Candid deserialization) *)
+        let code = 
+          IC.arg_data env ^^
+          (if arg_is_array then Arr.ofBlob env Tagged.I else G.nop) ^^
+          Var.set_val_vanilla_from_stack env ae1 arg_name ^^
+          
+          (* Execute function body *)
+          (* For async functions, the reply happens via ICReplyPrim which will
+             check the raw_handler flag and skip serialization *)
+          mk_body env ae1 ^^
+          
+          message_cleanup env sort
+        in
+        
+        (* Restore the flag *)
+        E.(env.compiling_raw_handler := old_raw_handler);
+        code
+      end else begin
+        (* Regular path -- old code with Candid de/serialization. *)
+        (* reply early for a oneway *)
+        (if control = Type.Returns
+         then
+           Tuple.compile_unit env ^^
+           Serialization.serialize env [] ^^
+           IC.reply_with_data env
+         else G.nop) ^^
+        (* Deserialize argument and add params to the environment *)
+        let arg_list = List.map (fun a -> (a.it, a.note)) args in
+        let arg_names = List.map (fun a -> a.it) args in
+        let arg_tys = List.map (fun a -> a.note) args in
+        let ae1 = VarEnv.add_argument_locals env ae0 arg_list in
+        Serialization.deserialize env arg_tys ^^
+        G.concat_map (Var.set_val_vanilla_from_stack env ae1) (List.rev arg_names) ^^
+        mk_body env ae1 ^^
+        message_cleanup env sort
+      end
     ))
 
   (* Compile a closed function declaration (captures no local variables) *)
-  let closed pre_env sort control name args mk_body fun_rhs ret_tys at =
+  let closed pre_env sort control name args mk_body fun_rhs ret_tys at exported_name_opt =
     if Type.is_shared_sort sort
     then begin
       let (fi, fill) = E.reserve_fun pre_env name in
       ( Const.Message fi, fun env ae ->
-        fill (compile_const_message env ae sort control args mk_body ret_tys at)
+        fill (compile_const_message env ae sort control args mk_body ret_tys at exported_name_opt)
       )
     end else begin
       assert (control = Type.Returns);
@@ -9768,7 +9835,7 @@ module FuncDec = struct
 
     if captured = []
     then
-      let (ct, fill) = closed env sort control name args mk_body Const.Complicated ret_tys at in
+      let (ct, fill) = closed env sort control name args mk_body Const.Complicated ret_tys at None in
       fill env ae;
       (SR.Const ct, G.nop)
     else closure env ae sort control name captured args mk_body ret_tys at
@@ -12777,9 +12844,25 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.unit, begin match E.mode env with
     | Flags.ICMode | Flags.RefMode ->
       compile_exp_vanilla env ae e ^^
-      (* TODO: We can try to avoid the boxing and pass the arguments to
-        serialize individually *)
-      Serialization.serialize env ts ^^
+      (* For raw HTTP handlers, skip Candid serialization *)
+      (if !(E.(env.compiling_raw_handler)) then
+        (* Raw mode: convert [Nat8] to Blob if needed, then send directly *)
+        let needs_conversion = match ts with
+         | [t] ->
+           let unwrapped = Type.as_immut (Type.normalize t) in
+           (match unwrapped with
+            | Type.Array elem_type ->
+              (match Type.normalize elem_type with
+               | Type.Prim Type.Nat8 -> true
+               | _ -> false)
+            | _ -> false)
+         | _ -> false
+        in
+        (if needs_conversion then Arr.toBlob env else G.nop) ^^
+        Blob.as_ptr_len env
+       else
+        (* Normal mode: serialize to Candid *)
+        Serialization.serialize env ts) ^^
       IC.reply_with_data env
     | _ ->
       E.trap_with env "cannot reply when running locally"
@@ -12932,7 +13015,7 @@ and simplify_cases e (cs : Ir.case list) =
 and compile_exp_with_hint (env : E.t) ae sr_hint exp =
   (fun (sr,code) -> (sr, G.with_region exp.at code)) @@
   if exp.note.Note.const
-  then let (c, fill) = compile_const_exp env ae exp in fill env ae; (SR.Const c, G.nop)
+  then let (c, fill) = compile_const_exp env ae exp None in fill env ae; (SR.Const c, G.nop)
   else match exp.it with
   | PrimE (p, es) when List.exists (fun e -> Type.is_non e.note.Note.typ) es ->
     (* Handle dead code separately, so that we can rely on useful type
@@ -13388,11 +13471,12 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
   (* A special case for public methods *)
   (* This relies on the fact that in the top-level mutually recursive group, no shadowing happens. *)
   | LetD ({it = VarP v; _}, e) when E.NameEnv.mem v v2en ->
-    let (const, fill) = compile_const_exp env pre_ae e in
+    let exported_name = E.NameEnv.find v v2en in
+    let (const, fill) = compile_const_exp env pre_ae e (Some exported_name) in
     let fi = match const with
       | Const.Message fi -> fi
       | _ -> assert false in
-    let pre_ae1 = VarEnv.add_local_public_method pre_ae v (fi, (E.NameEnv.find v v2en)) e.note.Note.typ in
+    let pre_ae1 = VarEnv.add_local_public_method pre_ae v (fi, exported_name) e.note.Note.typ in
     G.( pre_ae1, nop, (fun ae -> fill env ae; nop), unmodified)
 
   (* A special case for constant expressions *)
@@ -13460,7 +13544,7 @@ and compile_decs env ae decs captured_in_body : VarEnv.t * scope_wrap =
 (* This compiles expressions determined to be const as per the analysis in
    ir_passes/const.ml. See there for more details.
 *)
-and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
+and compile_const_exp env pre_ae exp exported_name_opt : Const.v * (E.t -> VarEnv.t -> unit) =
   match exp.it with
   | FuncE (name, sort, control, typ_binds, args, res_tys, e) ->
     let fun_rhs =
@@ -13492,11 +13576,11 @@ and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
         then fatal "internal error: const \"%s\": captures \"%s\", not found in static environment\n" name v
       ) (Freevars.M.keys (Freevars.exp e));
       compile_exp_as env ae (StackRep.of_arity (List.length return_tys)) e in
-    FuncDec.closed env sort control name args mk_body fun_rhs return_tys exp.at
+    FuncDec.closed env sort control name args mk_body fun_rhs return_tys exp.at exported_name_opt
   | BlockE (decs, e) ->
     let (extend, fill1) = compile_const_decs env pre_ae decs in
     let ae' = extend pre_ae in
-    let (c, fill2) = compile_const_exp env ae' e in
+    let (c, fill2) = compile_const_exp env ae' e None in
     (c, fun env ae ->
       let ae' = extend ae in
       fill1 env ae';
@@ -13518,14 +13602,14 @@ and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
     in
     (Const.Obj static_fs), fun _ _ -> ()
   | PrimE (DotPrim name, [e]) ->
-    let (object_ct, fill) = compile_const_exp env pre_ae e in
+    let (object_ct, fill) = compile_const_exp env pre_ae e None in
     let fs = match object_ct with
       | Const.Obj fs -> fs
       | _ -> fatal "compile_const_exp/DotE: not a static object" in
     let member_ct = List.assoc name fs in
     (member_ct, fill)
   | PrimE (ProjPrim i, [e]) ->
-    let (object_ct, fill) = compile_const_exp env pre_ae e in
+    let (object_ct, fill) = compile_const_exp env pre_ae e None in
     let cs = match object_ct with
       | Const.Tuple cs -> cs
       | _ -> fatal "compile_const_exp/ProjE: not a static tuple" in
@@ -13533,19 +13617,19 @@ and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
   | LitE l -> Const.(Lit (const_lit_of_lit l)), (fun _ _ -> ())
   | PrimE (TupPrim, []) -> Const.Unit, (fun _ _ -> ())
   | PrimE (ArrayPrim (Const, _), es) ->
-    let (cs, fills) = List.split (List.map (compile_const_exp env pre_ae) es) in
+    let (cs, fills) = List.split (List.map (fun e -> compile_const_exp env pre_ae e None) es) in
     (Const.Array cs),
     (fun env ae -> List.iter (fun fill -> fill env ae) fills)
   | PrimE (TupPrim, es) ->
-    let (cs, fills) = List.split (List.map (compile_const_exp env pre_ae) es) in
+    let (cs, fills) = List.split (List.map (fun e -> compile_const_exp env pre_ae e None) es) in
     (Const.Tuple cs),
     (fun env ae -> List.iter (fun fill -> fill env ae) fills)
   | PrimE (TagPrim i, [e]) ->
-    let (arg_ct, fill) = compile_const_exp env pre_ae e in
+    let (arg_ct, fill) = compile_const_exp env pre_ae e None in
     (Const.Tag (i, arg_ct)),
     fill
   | PrimE (OptPrim, [e]) ->
-    let (arg_ct, fill) = compile_const_exp env pre_ae e in
+    let (arg_ct, fill) = compile_const_exp env pre_ae e None in
     (Const.Opt arg_ct),
     fill
 
@@ -13565,7 +13649,7 @@ and compile_const_decs env pre_ae decs : (VarEnv.t -> VarEnv.t) * (E.t -> VarEnv
 
 and const_exp_matches_pat env ae pat exp : bool =
   assert exp.note.Note.const;
-  let c, _ = compile_const_exp env ae exp in
+  let c, _ = compile_const_exp env ae exp None in
   match destruct_const_pat VarEnv.empty_ae pat c with Some _ -> true | _ -> false
 
 and destruct_const_pat ae pat const : VarEnv.t option = match pat.it with
@@ -13614,7 +13698,7 @@ and compile_const_dec env pre_ae dec : (VarEnv.t -> VarEnv.t) * (E.t -> VarEnv.t
   match dec.it with
   (* This should only contain constants (cf. is_const_exp) *)
   | LetD (p, e) ->
-    let (const, fill) = compile_const_exp env pre_ae e in
+    let (const, fill) = compile_const_exp env pre_ae e None in
     (fun ae -> match destruct_const_pat ae p const with Some ae -> ae | _ -> assert false),
     (fun env ae -> fill env ae)
   | VarD _ | RefD _ -> fatal "compile_const_dec: Unexpected VarD/RefD"
