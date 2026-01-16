@@ -1,0 +1,2 @@
+issue-5555.mo:8.8-8.14: warning [M0155], operator may trap for inferred type
+  Nat
