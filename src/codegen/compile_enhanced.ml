@@ -4208,7 +4208,6 @@ module Object = struct
   let field_lower_bound env obj_type s =
     let open Type in
     let _, fields = as_obj_sub [s] obj_type in
-    List.iter (function {typ = Typ _; _} -> assert false | _ -> ()) fields;
     let sorted_by_hash =
       List.sort
         (fun (h1, _) (h2, _) -> compare_uint64 h1 h2)
@@ -6514,7 +6513,7 @@ module StackRep = struct
     | Prim ((Nat8 | Nat16 | Nat32 | Nat64 | Int8 | Int16 | Int32 | Int64 | Char) as pty) -> UnboxedWord64 pty
     | Prim (Text | Blob | Principal) -> Vanilla
     | Prim Float -> UnboxedFloat64
-    | Obj (Actor, _) -> Vanilla
+    | Obj (Actor, _, _) -> Vanilla
     | Func (Shared _, _, _, _, _) -> Vanilla
     | p -> todo "StackRep.of_type" (Arrange_ir.typ p) Vanilla
 
@@ -7369,7 +7368,7 @@ module Serialization = struct
           idx := TM.add t (Int32.of_int i) !idx;
           match t with
           | Tup ts -> List.iter go ts
-          | Obj (_, fs) ->
+          | Obj (_, fs, _) ->
             List.iter (fun f -> go f.typ) fs
           | Array (Mut t) -> go (Array t)
           | Array t -> go t
@@ -7451,7 +7450,7 @@ module Serialization = struct
           add_leb128 i;
           add_idx t;
         ) ts
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         add_sleb128 idl_record;
         add_leb128 (List.length fs);
         List.iter (fun (h, f) ->
@@ -7489,7 +7488,7 @@ module Serialization = struct
             add_leb128 1; add_u8 3; (* composite *)
           | _ -> assert false
         end
-      | Obj (Actor, fs) ->
+      | Obj (Actor, fs, _) ->
         add_sleb128 idl_service;
         add_leb128 (List.length fs);
         List.iter (fun f ->
@@ -7650,7 +7649,7 @@ module Serialization = struct
           get_x ^^ Tuple.load_n env (Int64.of_int i) ^^
           size env t
           ) ts
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         G.concat_map (fun (_h, f) ->
           get_x ^^ Object.load_idx_raw env f.Type.lab ^^
           size env f.typ
@@ -7691,9 +7690,9 @@ module Serialization = struct
           ( E.trap_with env "buffer_size: unexpected variant" )
       | Func _ ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
-        get_x ^^ Arr.load_field env 0L ^^ size env (Obj (Actor, [])) ^^
+        get_x ^^ Arr.load_field env 0L ^^ size env (Obj (Actor, [], [])) ^^
         get_x ^^ Arr.load_field env 1L ^^ size env (Prim Text)
-      | Obj (Actor, _) | Prim Principal ->
+      | Obj (Actor, _, _) | Prim Principal ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
         get_x ^^ size env blob
       | Non ->
@@ -7824,7 +7823,7 @@ module Serialization = struct
           get_x ^^ Tuple.load_n env (Int64.of_int i) ^^
           write env t
         ) ts
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         G.concat_map (fun (_h, f) ->
           get_x ^^ Object.load_idx_raw env f.Type.lab ^^
           write env f.typ
@@ -7871,9 +7870,9 @@ module Serialization = struct
         write_text env get_data_buf get_x
       | Func _ ->
         write_byte env get_data_buf compile_unboxed_one ^^
-        get_x ^^ Arr.load_field env 0L ^^ write env (Obj (Actor, [])) ^^
+        get_x ^^ Arr.load_field env 0L ^^ write env (Obj (Actor, [], [])) ^^
         get_x ^^ Arr.load_field env 1L ^^ write env (Prim Text)
-      | Obj (Actor, _) | Prim Principal ->
+      | Obj (Actor, _, _) | Prim Principal ->
         write_byte env get_data_buf compile_unboxed_one ^^
         get_x ^^ write env blob
       | Non ->
@@ -8472,7 +8471,7 @@ module Serialization = struct
 
           Tuple.from_stack env (List.length ts)
         )
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         with_record_typ (fun get_typ_buf get_n_ptr ->
           let (set_val, get_val) = new_local env "val" in
 
@@ -8664,7 +8663,7 @@ module Serialization = struct
               ]))
           (skip get_idltyp ^^
            coercion_failed "IDL error: incompatible function type")
-      | Obj (Actor, _) ->
+      | Obj (Actor, _, _) ->
         (* See Note [Candid subtype checks] *)
         get_rel_buf_opt ^^
         E.if1 I64Type
@@ -11370,7 +11369,7 @@ let compile_eq env =
   let open Type in
   function
   | Prim Text -> Text.compare env Operator.EqOp
-  | Prim (Blob|Principal) | Obj (Actor, _) -> Blob.compare env (Some Operator.EqOp)
+  | Prim (Blob|Principal) | Obj (Actor, _, _) -> Blob.compare env (Some Operator.EqOp)
   | Func (Shared _, _, _, _, _) -> FuncDec.equate_msgref env
   | Prim (Nat | Int) -> BigNum.compile_eq env
   | Prim (Bool | Int8 | Nat8 | Int16 | Nat16 | Int32 | Nat32 | Int64 | Nat64 | Char) ->

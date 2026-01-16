@@ -117,9 +117,9 @@ module Make (Cfg : Config) = struct
           (js_string (Type.string_of_con c) :: List.map typ_js ts
           |> Array.of_list)
     | Prim p -> to_js_object "Prim" [| prim_js p |]
-    | Obj (s, tfs) ->
+    | Obj (s, fs, tfs) ->
         to_js_object "Obj"
-          ([ obj_sort_js s ] @ List.map field_js tfs |> Array.of_list)
+          ([ obj_sort_js s ] @ List.map typ_field_js tfs @ List.map field_js fs |> Array.of_list)
     | Array t -> to_js_object "Array" [| typ_js t |]
     | Opt t -> to_js_object "Opt" [| typ_js t |]
     | Variant tfs ->
@@ -142,12 +142,15 @@ module Make (Cfg : Config) = struct
     | Any -> js_string "Any"
     | Non -> js_string "Non"
     | Pre -> js_string "Pre"
-    | Typ c -> to_js_object "Typ" [| Type.string_of_con c |> js_string |]
     | Named (n, t) -> to_js_object "Name" [| js_string n; typ_js t |]
     | Weak t -> to_js_object "Weak" [| typ_js t |]
 
   and field_js { Type.lab; typ = t; src = s } =
     to_js_object lab (typ_js t :: src s |> Array.of_list)
+
+  and typ_field_js { Type.lab; typ = t; src = s } =
+    let con = to_js_object "Typ" [| Type.string_of_con t |> js_string |] in
+    to_js_object lab (con :: src s |> Array.of_list)
 
   and src ({ Type.depr; track_region; region = r } : Type.src) :
       Js.Unsafe.any list =

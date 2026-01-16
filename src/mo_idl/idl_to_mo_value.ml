@@ -63,7 +63,7 @@ let rec value v t =
   | BlobV b, T.Array _ ->
     brackets_comma (List.of_seq (Seq.map (fun c -> Printf.sprintf "%d" (Char.code c)) (String.to_seq b)))
   | TextV s, _ -> text_lit s
-  | RecordV fs, T.(Obj (Object, tfs)) ->
+  | RecordV fs, T.(Obj (Object, tfs, [])) ->
     "{" ^ String.concat "; " (List.map (fun f ->
       Idl_to_mo.check_label (fst f.it) ^ " = " ^ value (snd f.it) (find_typ ~infer:infer_typ tfs f)
     ) fs) ^ "}"
@@ -99,7 +99,7 @@ and is_defaultable t =
      | Prim Null | Opt _ | Any -> true
      | _ -> false)
 and enrich t v = match t, v.it with
-  | T.(Obj (Object, tfs)), RecordV vfs ->
+  | T.(Obj (Object, tfs, _)), RecordV vfs ->
     let diff tfs vls = List.filter (fun T.{lab; typ; _} -> is_defaultable typ && not (List.mem lab vls)) tfs in
     let defaultable = diff tfs (List.map (fun {it; _} -> Idl_to_mo.check_label (fst it)) vfs) in
     let defaulted = List.map (fun T.{lab; _} -> { v with it = { v with it = Id (Idllib.Escape.unescape_hash lab) }, { v with it = NullV } }) defaultable in

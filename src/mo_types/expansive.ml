@@ -120,12 +120,9 @@ let edges_typ cs c (es : EdgeSet.t) t : EdgeSet.t =
       let es2 = go_typs i1 exp1 VertexSet.empty es1 ts1
       in
       go_typs i1 exp1 VertexSet.empty es2 ts2
-    | (Obj (_, fs) | Variant fs) ->
+    | (Obj (_, fs, _) | Variant fs) ->
       go_typs i (VertexSet.union exp non) VertexSet.empty es
         (List.map (fun f -> f.typ) fs)
-    | Typ c ->
-      (* Since constructors must be closed, no further edges possible *)
-       es
     | Named (n, t1) ->
        go_typ i exp non es t1 (* TBR *)
   in

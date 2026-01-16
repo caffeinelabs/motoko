@@ -78,10 +78,10 @@ module Make (Cfg : Config) = struct
     | Var (s, i)             -> "Var" $$ [Atom s; Atom (string_of_int i)]
     | Con (c, ts)            -> "Con" $$ (con c::List.map typ ts)
     | Prim p                 -> "Prim" $$ [prim p]
-    | Obj (s, tfs)           -> "Obj" $$ [obj_sort s] @ List.map typ_field tfs
+    | Obj (s, fs, tfs)           -> "Obj" $$ [obj_sort s] @ List.map field fs @ List.map typ_field tfs
     | Array t                -> "Array" $$ [typ t]
     | Opt t                  -> "Opt" $$ [typ t]
-    | Variant tfs            -> "Variant" $$ List.map typ_field tfs
+    | Variant tfs            -> "Variant" $$ List.map field tfs
     | Tup ts                 -> "Tup" $$ List.map typ ts
     | Func (s, c, tbs, at, rt) ->
       "Func" $$ [Atom (func_sort s); Atom (control c)] @
@@ -92,15 +92,16 @@ module Make (Cfg : Config) = struct
     | Any                    -> Atom "Any"
     | Non                    -> Atom "Non"
     | Pre                    -> Atom "Pre"
-    | Typ c                  -> "Typ" $$ [con c]
     | Named (n, t)           -> "Name" $$ [Atom n; typ t]
     | Weak t                 -> "Weak" $$ [ typ t]
 
   and typ_bind (tb : Type.bind) =
     tb.var $$ [typ tb.bound]
 
-  and typ_field ({lab; typ = t; src = s} : Type.field) =
+  and field ({lab; typ = t; src = s} : Type.field) =
     lab $$ typ t :: src s
+  and typ_field ({lab; typ = c; src = s} : Type.typ_field) =
+    lab $$ ("Typ" $$ [con c]) :: src s
 end
 
 module type S = module type of Make (Default)

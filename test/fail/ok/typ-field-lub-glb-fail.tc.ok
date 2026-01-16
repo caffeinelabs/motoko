@@ -2,7 +2,7 @@ typ-field-lub-glb-fail.mo:14.31-14.35: type error [M0096], expression of type
   Cx = {x : Nat}
 cannot produce expected type
   {type T = Int; x : Nat}
-because expected field `T` is missing from type 
+because expected type field `T` is missing from type 
   {x : Nat}
 typ-field-lub-glb-fail.mo:15.31-15.35: type error [M0096], expression of type
   Ct = {type T = Int}

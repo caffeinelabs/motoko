@@ -108,8 +108,8 @@ let rec go = function
      this is useful for stable serialization *)
   | Mut t -> ((Unary, "M"), [t])
 
-  | Obj (s, fs) ->
-    ( ( Labeled (List.map (fun f -> f.lab ^ if is_mut f.typ then "!" else "") fs),
+  | Obj (s, fs, tfs) ->
+    ( ( Labeled (List.map (fun f -> f.lab ^ if is_mut f.typ then "!" else "") fs @ List.map (fun f -> f.lab) tfs),
         (match s with Object -> "r" | Module -> "rm" | Memory -> "rs" | Actor -> "ra" | Mixin -> "rx")
       )
     , List.map (fun f -> as_immut f.typ) fs
@@ -135,7 +135,6 @@ let rec go = function
   | Named _ as t -> go (normalize t)
   | Pre -> assert false
   | Var _ -> assert false
-  | Typ _ -> assert false
 
 let paren xs = "(" ^ String.concat "" xs ^ ")"
 

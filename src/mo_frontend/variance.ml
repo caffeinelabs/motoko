@@ -63,14 +63,13 @@ let update ?(start = Covariant) env t =
         go Invariant t1;
         go p t2
       | Tup ts -> List.iter (go p) ts
-      | Obj (_, fs) | Variant fs -> List.iter (fun f -> go p f.typ) fs
+      | Obj (_, fs, _) | Variant fs -> List.iter (fun f -> go p f.typ) fs
       | Func (s, c, tbs, ts1, ts2) ->
         let ts = open_binds tbs in
         List.iter (fun tb ->
           go Invariant (open_ ts tb.bound)) tbs; (* bounds are invariant *)
         List.iter (go (flip p)) (List.map (open_ ts) ts1);
         List.iter (go p) (List.map (open_ ts) ts2)
-      | Typ c -> () (* TBR  assumed closed *)
       | Named (n, t) -> go p t
     end
   in

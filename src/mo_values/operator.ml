@@ -170,7 +170,7 @@ let structural_equality t =
   let rec go t =
     match t with
     | T.Var _ | T.Pre | T.Non | T.Async _ | T.Mut _ | T.Weak _ -> assert false
-    | T.Any | T.Typ _ -> fun v1 v2 -> Bool true
+    | T.Any -> fun v1 v2 -> Bool true
     | T.Prim T.Error
     | T.Prim T.Region -> assert false
     | T.Prim p -> eq_prim p
@@ -208,7 +208,7 @@ let structural_equality t =
             | _ -> assert false
           in
           Bool (go_inner ts v1 v2)
-    | T.Obj (s, fs) -> (
+    | T.Obj (s, fs, _) -> (
         match s with
         | T.Actor ->
             fun v1 v2 ->
@@ -223,7 +223,7 @@ let structural_equality t =
               Bool
                 (List.for_all
                    (fun f -> as_bool (go f.T.typ (Env.find f.T.lab v1) (Env.find f.T.lab v2)))
-                   (T.val_fields fs)))
+                   fs))
     | T.Variant fs ->
         fun v1 v2 ->
           let l1, v1 = as_variant v1 in

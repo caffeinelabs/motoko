@@ -132,7 +132,7 @@ module SS = Set.Make (OrdPair)
 (* Types that are denotable (ranged over) by type variables *)
 let denotable t =
   let t' = normalize t in
-  not (is_mut t' || is_typ t')
+  not (is_mut t')
 
 let bound c = match Cons.kind c with
   | Abs ([], t) -> t
@@ -322,9 +322,11 @@ let bi_match_typs ctx =
       Some inst
     | Prim p1, Prim p2 when rel != eq ->
       if p1 = Nat && p2 = Int then Some inst else None
-    | Obj (s1, tfs1), Obj (s2, tfs2) ->
+    | Obj (s1, fs1, tfs1), Obj (s2, fs2, tfs2) ->
       if s1 = s2 then
-        bi_match_fields rel eq inst any tfs1 tfs2
+        match bi_match_fields rel eq inst any fs1 fs2 with
+        | None -> None
+        | Some inst -> bi_match_typ_fields rel eq inst any tfs1 tfs2
       else None
     | Array t1', Array t2' ->
       bi_match_typ rel eq inst any t1' t2'
@@ -363,9 +365,6 @@ let bi_match_typs ctx =
       else None
     | Mut t1', Mut t2' ->
       bi_equate_typ rel eq inst any t1' t2'
-    | Typ c1, Typ c2 ->
-      (* NB: we assume c1, c2 closed *)
-      if Type.eq t1 t2 then Some inst else None
     | _, _ -> None
     end
 
@@ -379,6 +378,18 @@ let bi_match_typs ctx =
       | None -> None
       | Some inst -> match fs with
         | Lib.Both(tf1, tf2) -> bi_match_typ rel eq inst any tf1.typ tf2.typ
+        | Lib.This(_) -> if rel != eq then Some inst else None
+        | Lib.That(_) -> None) (Some inst)
+
+  and bi_match_typ_fields rel eq inst any tfs1 tfs2 =
+    (* Assume that tfs1 and tfs2 are sorted. *)
+    align_fields tfs1 tfs2 |>
+    Seq.fold_left (fun inst fs -> match inst with
+      | None -> None
+      | Some inst -> match fs with
+        | Lib.Both(tf1, tf2) ->
+          (* NB: we assume c1, c2 closed *)
+          if eq_con tf1.typ tf2.typ then Some inst else None
         | Lib.This(_) -> if rel != eq then Some inst else None
         | Lib.That(_) -> None) (Some inst)
 
