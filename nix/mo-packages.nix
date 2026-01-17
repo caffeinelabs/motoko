@@ -16,7 +16,7 @@ let
         then "release-static"
         else "release";
       is_dyn_static =
-        is_static && pkgs.system == "aarch64-linux";
+        is_static && pkgs.stdenv.hostPlatform.system == "aarch64-linux";
     in
     staticpkgs.stdenv.mkDerivation {
       inherit name;
@@ -48,7 +48,7 @@ let
       '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
         # there are references to darwin system libraries
         # in the binaries. But curiously, we can remove them
-        # an the binaries still work. They are essentially static otherwise.
+        # and the binaries still work. They are essentially static otherwise.
         remove-references-to \
           -t ${pkgs.libiconv} \
           $out/bin/*

@@ -1,7 +1,7 @@
 { self, pkgs }:
 let
   common = import ./release-files-common.nix { inherit pkgs; };
-  packages = self.packages.${pkgs.system};
+  packages = self.packages.${pkgs.stdenv.hostPlatform.system};
 in
 pkgs.runCommandNoCC "motoko-release-${common.releaseVersion}" { } ''
   mkdir $out

@@ -11,14 +11,14 @@
       # Additional ocaml packages
       ocamlPackages = super.ocamlPackages // rec {
 
-        # downgrade wasm until we have support for 2.0.1
+        # downgrade wasm until we have support for 2.0.2
         # (https://github.com/dfinity/motoko/pull/3364)
         wasm_1 = super.ocamlPackages.wasm.overrideAttrs {
           version = "1.1.1";
           src = self.sources.wasm-spec-src;
           patchPhase = ''
-            substituteInPlace ./interpreter/Makefile \
-              --replace-fail "+a-4-27-42-44-45" "+a-4-27-42-44-45-70"
+            # substituteInPlace ./interpreter/Makefile \
+            #   --replace-fail "+a-4-27-42-44-45" "+a-4-27-42-44-45-70"
           '';
         };
 
