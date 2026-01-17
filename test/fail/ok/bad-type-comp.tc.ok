@@ -17,6 +17,8 @@ bad-type-comp.mo:7.73-7.74: type error [M0018], duplicate type field name T in o
 bad-type-comp.mo:11.15-11.16: type error [M0029], unbound type T
 Did you mean type Text?
 bad-type-comp.mo:17.15-17.16: type error [M0029], unbound type U
+bad-type-comp.mo:18.15-18.16: type error [M0029], unbound type T
+Did you mean type Text?
 bad-type-comp.mo:24.17-24.27: type error [M0137], type T = A references type parameter A from an outer scope
 bad-type-comp.mo:29.23-29.33: type error [M0137], type T = A references type parameter A from an outer scope
 bad-type-comp.mo:35.25-35.26: type error [M0029], unbound type T
