@@ -1,0 +1,25 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+debug.print: Version 0
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {one = [var 1, 2, 3, 4]; two = [var "1", "2", "3", "4"]; zero = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {migration = {new = {three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}; old = {one = [var 1, 2, 3, 4]; two = [var "1", "2", "3", "4"]; zero = 0}}}
+debug.print: "Migration1"
+debug.print: {migration = {new = {four = "4"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}; old = {three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}}}
+debug.print: "Migration2"
+debug.print: {migration = {new = {five = "5"; four = "4"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}; old = {four = "4"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}}}
+debug.print: "Migration3"
+debug.print: {migration = {new = {five = "5"; four = "4"; six = "54"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}; old = {five = "5"; four = "4"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}}}
+debug.print: "Migration4"
+debug.print: "Migration5"
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {five = "5"; four = "4"; six = "54"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}
+ingress Completed: Reply: 0x4449444c0000
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'Migration already performed: multi-migration/Migration5.mo:5.3-14.4'.
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+debug.print: {five = "5"; four = "4"; six = "54"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: "Migration6"
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {five = "5"; four = "4"; six = "54"; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}
+ingress Completed: Reply: 0x4449444c0000

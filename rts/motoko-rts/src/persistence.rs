@@ -63,6 +63,10 @@ struct PersistentMetadata {
     /// We keep a pointer to this here so that we can keep if alive across upgrades.
     /// To keep the dedup table live, we need to add it to roots as well.
     dedup_table: Value,
+    /// Migration function hashes array. This stores an array of the the hashes (strings) of the migration functions.
+    /// This is for the purpose of multi-migration tracking such that a single migration function
+    /// cannot be executed multiple times, removing the risk of data loss.
+    migration_functions: Value,
 }
 
 /// Location of the persistent metadata. Prereserved and fixed forever.
@@ -113,6 +117,8 @@ impl PersistentMetadata {
         (*self).weak_ref_registry = NULL_POINTER;
         // Initialize the dedup table as the null pointer.
         (*self).dedup_table = NULL_POINTER;
+        // Initialize the migration functions array as the null pointer.
+        (*self).migration_functions = NULL_POINTER;
     }
 }
 
@@ -135,6 +141,12 @@ pub unsafe fn initialize_memory<M: Memory>() {
             // This is the first upgrade from a version of the RTS without dedup table support.
             // We need to initialize the dedup table to NULL_POINTER.
             (*metadata).dedup_table = NULL_POINTER;
+        }
+        // Explicit migration from a version of the RTS without migration functions support.
+        if (*metadata).migration_functions.get_raw() == 0 {
+            // This is the first upgrade from a version of the RTS without migration functions support.
+            // We need to initialize the migration functions array to NULL_POINTER.
+            (*metadata).migration_functions = NULL_POINTER;
         }
     } else {
         metadata.initialize::<M>();
@@ -361,4 +373,30 @@ pub(crate) unsafe fn set_dedup_table_ptr<M: Memory>(mem: &mut M, dedup_table: Va
     let metadata = PersistentMetadata::get();
     // Use barrier in case the dedup table is set during a GC phase.
     write_with_barrier(mem, &mut (*metadata).dedup_table, dedup_table);
+}
+
+/// Accessor method for the migration functions array.
+pub(crate) unsafe fn get_migration_functions_ptr() -> &'static mut Value {
+    let metadata = PersistentMetadata::get();
+    &mut (*metadata).migration_functions
+}
+
+/// Setter method for the migration functions array.
+pub(crate) unsafe fn set_migration_functions_ptr<M: Memory>(
+    mem: &mut M,
+    migration_functions: Value,
+) {
+    let metadata = PersistentMetadata::get();
+    // Use barrier in case the migration functions array is set during a GC phase.
+    write_with_barrier(
+        mem,
+        &mut (*metadata).migration_functions,
+        migration_functions,
+    );
+}
+
+/// Check if the migration functions array is NULL_POINTER.
+pub(crate) unsafe fn is_migration_functions_null() -> bool {
+    let metadata = PersistentMetadata::get();
+    (*metadata).migration_functions == NULL_POINTER
 }

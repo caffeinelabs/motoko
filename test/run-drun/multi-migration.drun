@@ -1,0 +1,11 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+install $ID multi-migration/version0.mo ""
+ingress $ID check "DIDL\x00\x00"
+upgrade $ID multi-migration/version1.mo ""
+ingress $ID check "DIDL\x00\x00"
+# this should fail because it repeats a migration.
+upgrade $ID multi-migration/version2.mo "" 
+ingress $ID check "DIDL\x00\x00"
+# this works because it removes the duplicate migration.
+upgrade $ID multi-migration/version3.mo "" 
+ingress $ID check "DIDL\x00\x00"
