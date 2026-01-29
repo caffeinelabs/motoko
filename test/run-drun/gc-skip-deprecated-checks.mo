@@ -1,6 +1,6 @@
 //NO-SKIP-GC-DEPRECATION-WARNING
 //CLASSICAL-PERSISTENCE-ONLY
-//MOC-FLAG --generational-gc
+//GENERATIONAL-GC-ONLY
 actor {
   let _ = 5;
 };
@@ -8,4 +8,3 @@ actor {
 //SKIP run-low
 //SKIP run-ir
 //SKIP run
-//SKIP comp

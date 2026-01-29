@@ -315,6 +315,14 @@ do
         continue
       fi
     fi
+    if grep -q "//GENERATIONAL-GC-ONLY" $base.mo
+    then
+      if [[ $EXTRA_MOC_ARGS != *"--generational-gc"* ]]
+      then
+        $ECHO " Skipped (not applicable to generational gc)"
+        continue
+      fi
+    fi
     if grep -q "//SKIP-SANITY-CHECKS" $base.mo
     then
       if [[ $EXTRA_MOC_ARGS == *"--sanity-checks"* ]]
