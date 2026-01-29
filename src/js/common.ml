@@ -379,20 +379,19 @@ let gc_flags option =
   | _ -> raise (Invalid_argument "gc_flags: Unexpected flag")
 
 let js_resolve_dot_candidates scope raw_exp =
-  let scope = (Obj.magic scope : Mo_frontend.Scope.t) in
+  let open Mo_frontend in
+  let scope = (Obj.magic scope : Scope.t) in
   let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
   let receiver_ty = exp.note.Mo_def.Syntax.note_typ in
-  let vals = scope.Mo_frontend.Scope.val_env in
-  let libs = scope.Mo_frontend.Scope.lib_env in
-  (* assert (Mo_types.Type.Env.cardinal libs > 0);
-  assert (Mo_types.Type.Env.cardinal vals > 0); *)
-  let candidates = Mo_frontend.Typing.resolve_dot_candidates libs vals receiver_ty in
+  let vals = scope.Scope.val_env in
+  let libs = scope.Scope.lib_env in
+  let candidates = Typing.resolve_dot_candidates libs vals receiver_ty in
 
   let js_candidates = List.map (fun (name, c) ->
     object%js
       val name = Js.string name
-      val type_ = Js.string (Mo_types.Type.string_of_typ c.Mo_frontend.Typing.func_ty)
-      val moduleName = Js.Optdef.option (Option.map Js.string c.Mo_frontend.Typing.module_name)
+      val type_ = Js.string (Mo_types.Type.string_of_typ c.Typing.func_ty)
+      val moduleName = Js.Optdef.option (Option.map (fun p -> Js.string (Suggest.module_name_as_url p)) c.Typing.module_name)
     end
   ) candidates in
   Js.array (Array.of_list js_candidates)
