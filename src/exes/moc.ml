@@ -390,11 +390,12 @@ let () =
     eprintf "moc: --hide-warnings and -Werror together do not make sense"; exit 1
   end;
 
-  if not !Flags.skip_gc_deprecation_warning then begin
-  match !Flags.gc_strategy with
-  | Mo_config.Flags.Copying | Mo_config.Flags.MarkCompact | Mo_config.Flags.Generational ->
-      eprintf "moc: --%s-gc is deprecated and will be removed in the future. Use --incremental-gc instead.\n" (Flags.gc_strategy_to_str !Flags.gc_strategy); 
-    | _ -> ();
+  if not !Flags.skip_gc_deprecation_warning 
+  then begin
+    match !Flags.gc_strategy with
+    | Mo_config.Flags.Copying | Mo_config.Flags.MarkCompact | Mo_config.Flags.Generational ->
+        eprintf "moc: --%s-gc is deprecated and will be removed in the future. Use --incremental-gc instead.\n" (Flags.gc_strategy_to_str !Flags.gc_strategy); 
+      | _ -> ();
   end;
 
   process_profiler_flags ();
