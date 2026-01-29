@@ -1,5 +1,6 @@
 (** Maintenance note:
     Update of the expected values could be done via [dune runtest --auto-promote].
+    e.g. ~/motoko/src $ dune runtest mo_frontend --auto-promote
 *)
 module Parser = Mo_frontend.Parser
 module Lexer = Mo_frontend.Lexer
@@ -51,6 +52,19 @@ let _parse_test input (expected : string) =
     true
   else
     (Printf.printf "\nExpected:\n  %s\nbut got:\n  %s\n" (expected) (show actual); false)
+
+let parse_and_typecheck_with_recovery s =
+  match parse_from_string s with
+  | Ok (prog, _) ->
+    let open Mo_frontend in
+    let async_cap = Pipeline.async_cap_of_prog prog in
+    (match Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog with
+    | Ok (_, msgs) -> Ok (prog, msgs)
+    | Error msgs -> Error msgs)
+  | Error msgs -> Error msgs
+
+let print_typed_ast s =
+  Printf.printf "%s" @@ show_with_types (parse_and_typecheck_with_recovery s)
 
 let%expect_test "test1" =
   let s = "actor {
@@ -689,4 +703,36 @@ let%expect_test "test type recovery 5" =
   | Error _ as r -> Printf.printf "%s" @@ show r;
   [%expect.unreachable]
 
+let%expect_test "test type recovery: DotE receiver should be typed (LetD case)" =
+  print_typed_ast "let arr = [1]; let _ = arr.va"; (* TODO: make sure the [arr] in the [DotE] is typed as [Nat] not [???] *)
+  [%expect {|
+    Ok: (Prog
+      (LetD
+        (: (VarP (ID arr)) [Nat])
+        (: (ArrayE Const (: (LitE (PreLit 1 Nat)) ???)) ???)
+      )
+      (LetD (: WildP ???) (: (DotE (: (VarE (ID arr)) ???) (ID va)) ???))
+    )
 
+     with errors:
+    (unknown location): type error [M0072], field va does not exist in type:
+      [Nat]
+    Did you mean field vals or values?
+  |}]
+
+let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" =
+  print_typed_ast "let arr = [1]; arr.va";
+  [%expect {|
+    Ok: (Prog
+      (LetD
+        (: (VarP (ID arr)) [Nat])
+        (: (ArrayE Const (: (LitE (NatLit 1)) Nat)) [Nat])
+      )
+      (ExpD (: (DotE (: (VarE (ID arr)) [Nat]) (ID va)) ???))
+    )
+
+     with errors:
+    (unknown location): type error [M0072], field va does not exist in type:
+      [Nat]
+    Did you mean field vals or values?
+  |}]
