@@ -30,7 +30,7 @@ SKIP_RUNNING=${SKIP_RUNNING:-no}
 SKIP_VALIDATE=${SKIP_VALIDATE:-no}
 ONLY_TYPECHECK=no
 ECHO=echo
-MOC_ARGS="--legacy-persistence --legacy-actors"
+MOC_ARGS="--legacy-persistence --legacy-actors --skip-gc-deprecation-warning"
 
 export WASMTIME_NEW_CLI=1
 
