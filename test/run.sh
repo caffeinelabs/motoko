@@ -323,6 +323,11 @@ do
         continue
       fi
     fi
+    if grep -q "//NO-SKIP-GC-DEPRECATION-WARNING" $base.mo
+    then
+      # Remove the --skip-gc-deprecation-warning flag from the MOC_ARGS variable.
+      MOC_ARGS=$(echo $MOC_ARGS | sed 's/--skip-gc-deprecation-warning//g')
+    fi
     if [[ $moc_extra_flags == *"-measure-rts-stack"* ]]
     then
       if [[ $(uname -m) != "x86_64" ]]
