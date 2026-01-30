@@ -599,10 +599,10 @@ let _x = M.
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
         Ok: (Prog
-          (LetD (: (VarP (ID M)) module {}) (: (ObjBlockE _ Module _) ???))
+          (LetD (: (VarP (ID M)) module {}) (: (ObjBlockE _ Module _) module {}))
           (LetD
-            (: (VarP (ID _x)) ???)
-            (: (DotE (: (VarE (ID M)) ???) (ID __error_recovery_var__)) ???)
+            (: (VarP (ID _x)) None)
+            (: (DotE (: (VarE (ID M)) module {}) (ID __error_recovery_var__)) ???)
           )
         )
 
@@ -709,9 +709,9 @@ let%expect_test "test type recovery: DotE receiver should be typed (LetD case)" 
     Ok: (Prog
       (LetD
         (: (VarP (ID arr)) [Nat])
-        (: (ArrayE Const (: (LitE (PreLit 1 Nat)) ???)) ???)
+        (: (ArrayE Const (: (LitE (NatLit 1)) Nat)) [Nat])
       )
-      (LetD (: WildP ???) (: (DotE (: (VarE (ID arr)) ???) (ID va)) ???))
+      (LetD (: WildP None) (: (DotE (: (VarE (ID arr)) [Nat]) (ID va)) ???))
     )
 
      with errors:
