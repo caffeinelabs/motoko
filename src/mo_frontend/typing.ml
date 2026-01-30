@@ -1580,15 +1580,20 @@ type 'a context_dot_error =
   | DotSuggestions of (env -> string list)
   | DotAmbiguous of (env -> 'a)
 
+module CtxDot = struct
+  let is_matching_func func_ty receiver_ty =
+    match T.normalize func_ty with
+    | T.Func (_, _, tbs, T.Named("self", first_arg)::_, _) as func_ty ->
+      (match permissive_sub receiver_ty (tbs, first_arg) with
+        | Some inst -> Some (T.open_ inst first_arg, func_ty, inst)
+        | _ -> None)
+    | _ -> None
+end
+
 let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_error) Result.t =
   let is_matching_func n t =
     if not (String.equal n name.it) then None
-    else match T.normalize t with
-    | T.Func (_, _, tbs, T.Named("self", first_arg)::_, _) as typ ->
-      (match permissive_sub receiver_ty (tbs, first_arg) with
-        | Some inst -> Some (T.open_ inst first_arg, typ, inst)
-        | _ -> None)
-    | _ -> None in
+    else CtxDot.is_matching_func t receiver_ty in
   let find_candidate in_libs (module_name, (module_ty, fs)) =
     List.find_map (fun fld -> is_matching_func fld.T.lab fld.T.typ) fs |>
       Option.map (fun (arg_ty, func_ty, inst) ->
@@ -1642,60 +1647,23 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
          let modules =  (List.filter_map (fun c -> c.module_name) cs) in
          error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it (String.concat ", " modules))))
 
-let resolve_dot_candidates libs vals receiver_ty =
-  let is_matching_func t =
-    match T.normalize t with
-    | T.Func (_, _, tbs, T.Named("self", first_arg)::_, _) as typ ->
-      (match permissive_sub receiver_ty (tbs, first_arg) with
-        | Some inst -> Some (T.open_ inst first_arg, typ, inst)
-        | _ -> None)
-    | _ -> None
+type contextual_dot_suggestion =
+  { module_url : T.lab;
+    func_name : T.lab;
+    func_ty : T.typ;
+  }
+let contextual_dot_suggestions libs receiver_ty =
+  let find_candidate (module_path, (module_ty, fs)) =
+    List.to_seq fs |>
+    Seq.filter_map (fun fld ->
+      CtxDot.is_matching_func fld.T.typ receiver_ty |>
+      Option.map (fun (_, func_ty, inst) ->
+        { module_url = Suggest.module_name_as_url module_path; func_name = fld.T.lab; func_ty }))
   in
-  let find_candidate in_libs (module_name, (module_ty, fs)) =
-    List.filter_map (fun fld ->
-      match is_matching_func fld.T.typ with
-      | Some (arg_ty, func_ty, inst) ->
-         let name = fld.T.lab in
-         let name_exp = { it = name; at = no_region; note = () } in
-         let path = {
-           it = DotE({
-               it = module_exp in_libs module_name;
-               at = no_region;
-               note = empty_typ_note
-             }, name_exp, ref None);
-           at = no_region;
-           note = empty_typ_note }
-         in
-         Some (name, { module_name = Some module_name; path; func_ty; arg_ty; inst })
-      | None -> None
-    ) fs
-  in
-
-  let candidates in_libs xs f =
-    T.Env.to_seq xs |>
-      Seq.filter_map f |>
-      Seq.map (find_candidate in_libs) |>
-      List.of_seq |>
-      List.flatten
-  in
-
-  let local_candidates =
-    T.Env.fold (fun name (t, _, _) acc ->
-       match is_matching_func t with
-       | Some (arg_ty, func_ty, inst) ->
-          let path = {
-            it = VarE { it = name; at = no_region; note = (Const, None) };
-            at = no_region;
-            note = empty_typ_note } in
-          (name, { module_name = None; path; func_ty; arg_ty; inst }) :: acc
-       | None -> acc
-    ) vals []
-  in
-
-  let lib_candidates = candidates true libs is_lib_module in
-  let val_candidates = candidates false vals (fun (n, (t, _, _)) -> is_lib_module (n, t)) in
-
-  local_candidates @ val_candidates @ lib_candidates
+  T.Env.to_seq libs |>
+    Seq.filter_map is_lib_module |>
+    Seq.flat_map find_candidate |>
+    List.of_seq
 
 let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
   if not env.pre then

@@ -19,12 +19,10 @@ val check_actors : ?check_actors:bool -> scope -> Syntax.prog list -> unit Diag.
 
 val check_stab_sig : scope -> Syntax.stab_sig -> Type.stab_sig Diag.result
 
-type ctx_dot_candidate =
-  { module_name : lab option;
-    path : Syntax.exp;
-    arg_ty : typ;
+type contextual_dot_suggestion =
+  { module_url : lab;
+    func_name : lab;
     func_ty : typ;
-    inst : typ list;
   }
 
-val resolve_dot_candidates : lib_env -> val_env -> typ -> (string * ctx_dot_candidate) list
+val contextual_dot_suggestions : lib_env -> typ -> contextual_dot_suggestion list

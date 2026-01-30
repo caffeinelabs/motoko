@@ -378,20 +378,18 @@ let gc_flags option =
   | "classicOP" -> Flags.enhanced_orthogonal_persistence := false
   | _ -> raise (Invalid_argument "gc_flags: Unexpected flag")
 
-let js_resolve_dot_candidates scope raw_exp =
+let js_contextual_dot_suggestions scope raw_exp =
   let open Mo_frontend in
   let scope = (Obj.magic scope : Scope.t) in
   let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
   let receiver_ty = exp.note.Mo_def.Syntax.note_typ in
-  let vals = scope.Scope.val_env in
   let libs = scope.Scope.lib_env in
-  let candidates = Typing.resolve_dot_candidates libs vals receiver_ty in
-
-  let js_candidates = List.map (fun (name, c) ->
+  let open Typing in
+  let suggestions = Typing.contextual_dot_suggestions libs receiver_ty in
+  Js.array (Array.of_list (List.map (fun suggestion ->
     object%js
-      val name = Js.string name
-      val type_ = Js.string (Mo_types.Type.string_of_typ c.Typing.func_ty)
-      val moduleName = Js.Optdef.option (Option.map (fun p -> Js.string (Suggest.module_name_as_url p)) c.Typing.module_name)
+      val moduleUrl = Js.string suggestion.module_url
+      val funcName = Js.string suggestion.func_name
+      val funcType = Js.string (Mo_types.Type.string_of_typ suggestion.func_ty)
     end
-  ) candidates in
-  Js.array (Array.of_list js_candidates)
+  ) suggestions))

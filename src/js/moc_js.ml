@@ -42,6 +42,6 @@ let () =
          New versions of tooling should use [parseMotokoTypedWithScopeCache]. *)
       method parseMotokoTyped paths = js_parse_motoko_typed paths
       method parseMotokoTypedWithScopeCache enableRecovery paths scopeCache = js_parse_motoko_typed_with_scope_cache enableRecovery paths scopeCache
-      method resolveDotCandidates scope rawExp = js_resolve_dot_candidates scope rawExp
+      method contextualDotSuggestions scope rawExp = js_contextual_dot_suggestions scope rawExp
       method printDeps file = print_deps file
      end);
