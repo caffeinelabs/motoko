@@ -3774,10 +3774,11 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     end;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope tfs dec_fields;
-    let stab_tfs = check_stab env obj_sort scope dec_fields in
-    check_migration env stab_tfs exp_opt
-  end;
-  t
+    let stab_tfs, viewer_tfs = check_stab env obj_sort scope dec_fields in
+    check_migration env stab_tfs exp_opt;
+    T.Obj(s, List.sort T.compare_field (tfs @ viewer_tfs))
+    end
+  else t
 
 and check_parenthetical env typ_opt = function
   | None -> ()
@@ -4041,47 +4042,64 @@ and check_stab env sort scope dec_fields =
           "variable %s is declared stable but has non-stable type%a" id
           display_typ t1;
   in
-  let idss = List.map (fun df ->
+  let idvws = List.filter_map (fun df ->
     match sort.it, df.it.stab, df.it.dec.it with
-    | (T.Object | T.Module), None, _ -> []
+    | (T.Object | T.Module), None, _ -> None
     | (T.Object | T.Module), Some stab, _ ->
       local_error env stab.at "M0132"
         "misplaced stability declaration on field of non-actor";
-      []
-    | (T.Actor | T.Mixin), _ , IncludeD _ -> []
+      None
+    | (T.Actor | T.Mixin), _ , IncludeD _ -> None
     | (T.Actor | T.Mixin), Some {it = Stable view; _}, VarD (id, _) ->
       check_stable id.it id.at;
-      infer_viewer env scope Var id view;
-      [id]
+      let viewer_typ_opt = infer_viewer env scope Var id view
+      in
+      Some (id, viewer_typ_opt)
     | (T.Actor | T.Mixin), Some {it = Stable view; _}, LetD (pat, _, _) when stable_pat pat ->
-      let ids = T.Env.keys (gather_pat env Scope.empty pat).Scope.val_env in
-      List.iter (fun id -> check_stable id pat.at) ids;
-      infer_viewer env scope Const (stable_id pat) view;
-      List.map (fun id -> {it = id; at = pat.at; note = ()}) ids;
-    | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
+      let id = stable_id pat in
+      check_stable id.it pat.at;
+      let viewer_typ_opt = infer_viewer env scope Const (stable_id pat) view
+      in
+      Some (id, viewer_typ_opt)
+    | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> None
     | (T.Actor | T.Mixin), Some stab, _ ->
       local_error env stab.at "M0133"
         "misplaced stability modifier: allowed on var or simple let declarations only";
-      []
-    | _ -> []) dec_fields
+      None
+    | _ -> None) dec_fields
   in
-  let ids = List.concat idss in
+  let ids = List.map fst idvws in
   check_ids env "actor type" "stable variable" ids;
   check_stable_defaults env sort dec_fields;
-  List.sort T.compare_field
-    (List.map
-      (fun id ->
-         let typ, _, _ = T.Env.find id.it scope.Scope.val_env in
-         Field_sources.add_src env.srcs id.at;
-         T.{ lab = id.it;
-             typ;
-             src = {depr = None; track_region = id.at; region = id.at}})
-      ids)
+  let stab_tfs =
+    List.sort T.compare_field
+      (List.map
+         (fun id ->
+           let typ, _, _ = T.Env.find id.it scope.Scope.val_env in
+           Field_sources.add_src env.srcs id.at;
+           T.{ lab = id.it;
+               typ;
+               src = {depr = None; track_region = id.at; region = id.at}})
+         ids)
+  in
+  let viewer_tfs =
+    List.sort T.compare_field
+      (List.filter_map
+         (function
+            (id, None)  -> None
+          | (id, Some viewer_typ) ->
+             Some (T.{ lab = id.it;
+                       typ = viewer_typ;
+                       src = {depr = None; track_region = id.at; region = id.at}}))
+         idvws)
+  in
+  (stab_tfs, viewer_tfs)
+
 
 and infer_viewer env scope mut id viewer =
   assert (!viewer = None);
   match Diag.with_message_store (recover_opt (fun msgs ->
-    let env = {env with msgs} in (* don't record errors in outer env *) 
+    let env = {env with msgs} in (* don't record errors in outer env *)
     let env = adjoin env scope in
     let note() = empty_typ_note in
     let at = id.at in
@@ -4102,7 +4120,7 @@ and infer_viewer env scope mut id viewer =
     (match T.normalize viewer_typ with
      | T.Func(T.Local, T.Returns, [], ts1, ts2) ->
         if List.for_all T.shared ts1 && List.for_all T.shared ts2
-        then exp
+        then (exp, T.(Func (Shared Query, Promises, [scope_bind], ts1, ts2)))
         else error env id.at "M0XXX" "viewer '%s.view()' has non-shared type" id.it
      | _ -> error env id.at "M0XXX" "viewer '%s.view()' is not a function" id.it)))
   with
@@ -4112,14 +4130,16 @@ and infer_viewer env scope mut id viewer =
      | Some (typ, _, _)  ->
         let typ = T.as_immut typ in
         if T.shared typ then
-          viewer := Some {it = VarE {it = id.it; at = id.at ; note = (mut, None)};
+          (viewer := Some {it = VarE {it = id.it; at = id.at ; note = (mut, None)};
                           at = id.at;
-                          note = { empty_typ_note with note_typ = typ }}
+                          note = { empty_typ_note with note_typ = typ }};
+           Some (T.(Func (Shared Query, Promises, [scope_bind], [], [typ]))))
+        else None
      | None -> assert false)
-  | Ok (exp, _) ->
+  | Ok ((exp, viewer_typ), _) ->
      (* info env id.at "viewer found for %s" id.it; *)
      viewer := Some exp;
-     ()
+     Some viewer_typ
 
 
 (* Blocks and Declarations *)

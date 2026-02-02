@@ -659,11 +659,18 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let ids = List.concat idss in
   let triples = List.map2 view stabs ds in
   let view_ds = List.concat_map (fun (ds, _, _) -> ds) triples in
-  let view_fields = List.concat_map (fun (_, flds, _) -> flds) triples in
+  let _view_fields = List.concat_map (fun (_, flds, _) -> flds) triples in
   let view_fs = List.concat_map (fun (_, _, fs) -> fs) triples in
   let (sort, tfs0) = T.as_obj obj_typ0 in
-  let obj_typ = T.Obj(sort, List.sort T.compare_field (tfs0@view_fields)) in
-  let fs = fs0@view_fs in
+  let obj_typ = T.Obj(sort, List.sort T.compare_field (tfs0(*@view_fields*))) in
+  let fs =
+    List.map
+      (fun (f:I.field) ->
+        match List.find_opt (fun (f':I.field) -> f.it.I.name = f'.it.I.name) view_fs with
+        | Some f' -> f'
+        | None -> f) fs0
+  in
+  (*  let fs = fs0(* @view_fs *)in *)
   let stab_fields = List.sort T.compare_field
     (List.map (fun (i, t) -> T.{lab = i; typ = t; src = empty_src}) ids)
   in
