@@ -257,3 +257,13 @@ assert.deepStrictEqual(Motoko.run([], "blob.mo"), {
   stderr: "blob.mo:1.1-1.43: execution error, blob import placeholder\n",
   result: { error: {} },
 });
+
+Motoko.setExtraFlags(["-W=M0223"]);
+assert.throws(
+  () => Motoko.setExtraFlags(["--invalid-flag"]),
+  /unknown option/
+);
+assert.throws(
+  () => Motoko.setExtraFlags(["-W=MMM"]),
+  /invalid warning code: MMM/
+);

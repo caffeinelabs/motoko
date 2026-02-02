@@ -1,3 +1,7 @@
+(** Exception for argument parsing errors.
+    Raised instead of calling exit, allowing different handling in moc vs moc.js *)
+exception Arg_error of string
+
 (** suppress documentation *)
 val _UNDOCUMENTED_ : string -> string
 

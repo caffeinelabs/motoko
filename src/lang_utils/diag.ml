@@ -132,5 +132,9 @@ let flush_messages : 'a result -> 'a option = function
     else Some x
 
 let run r = match flush_messages r with
-  | None -> exit 1
+  | None ->
+    if !Flags.ocaml_js then
+      raise (Mo_config.Args.Arg_error "Diag.run failed")
+    else
+      exit 1
   | Some x -> x
