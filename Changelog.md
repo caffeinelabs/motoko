@@ -5,6 +5,7 @@
   * Allow `break` and `continue` in loops without labels (#5702).
   * Report a better error for labeled `continue` targeting a non-loop (#5800).
   * Deprecate older garbage collectors: generational, copying and compating GCs (#5806).
+  * Fix contextual dot type note, this should fix the hover hint in the vscode extension, showing the correct function type instead of `()` (#5809).
 
 ## 1.1.0 (2026-01-16)
 
