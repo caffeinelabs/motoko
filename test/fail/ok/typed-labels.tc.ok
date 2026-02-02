@@ -10,11 +10,11 @@ typed-labels.mo:12.24-12.64: type error [M0096], expression of type
   ()
 cannot produce expected type
   Nat
-typed-labels.mo:15.42-15.43: type error [M0083], unbound label c
-typed-labels.mo:16.42-16.43: type error [M0083], unbound label c
-typed-labels.mo:17.48-17.49: type error [M0083], unbound label c
-typed-labels.mo:18.63-18.64: type error [M0083], unbound label c
-typed-labels.mo:19.35-19.36: type error [M0083], unbound label c
+typed-labels.mo:15.33-15.43: type error [M0238], continue outside of loop
+typed-labels.mo:16.33-16.43: type error [M0238], continue outside of loop
+typed-labels.mo:17.39-17.49: type error [M0238], continue outside of loop
+typed-labels.mo:18.54-18.64: type error [M0238], continue outside of loop
+typed-labels.mo:19.26-19.36: type error [M0238], continue outside of loop
 typed-labels.mo:22.24-22.54: type error [M0096], expression of type
   ()
 cannot produce expected type
@@ -27,4 +27,4 @@ typed-labels.mo:24.24-24.64: type error [M0096], expression of type
   ()
 cannot produce expected type
   Nat
-typed-labels.mo:25.33-25.34: type error [M0083], unbound label c
+typed-labels.mo:25.24-25.34: type error [M0238], continue outside of loop

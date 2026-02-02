@@ -193,7 +193,7 @@ let show_for : T.typ -> Ir.dec * T.typ list = fun t ->
       define_show t (invoke_text_of_array t' (varE (show_var_for t')) (argE t)),
       [t']
     end
-  | T.Obj (T.Object, fs) ->
+  | T.Obj (T.Object, fs, _) ->
     define_show t (
       cat_list (list_build
         (textE "{") (fun () -> textE "; ") (textE "}")

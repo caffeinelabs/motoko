@@ -30,7 +30,7 @@ SKIP_RUNNING=${SKIP_RUNNING:-no}
 SKIP_VALIDATE=${SKIP_VALIDATE:-no}
 ONLY_TYPECHECK=no
 ECHO=echo
-MOC_ARGS="--legacy-persistence --legacy-actors"
+MOC_ARGS="--legacy-persistence --legacy-actors --skip-gc-deprecation-warning"
 
 export WASMTIME_NEW_CLI=1
 
@@ -315,6 +315,14 @@ do
         continue
       fi
     fi
+    if grep -q "//GENERATIONAL-GC-ONLY" $base.mo
+    then
+      if [[ $EXTRA_MOC_ARGS != *"--generational-gc"* ]]
+      then
+        $ECHO " Skipped (not applicable to generational gc)"
+        continue
+      fi
+    fi
     if grep -q "//SKIP-SANITY-CHECKS" $base.mo
     then
       if [[ $EXTRA_MOC_ARGS == *"--sanity-checks"* ]]
@@ -322,6 +330,11 @@ do
         $ECHO " Skipped (not applicable to --sanity-checks)"
         continue
       fi
+    fi
+    if grep -q "//NO-SKIP-GC-DEPRECATION-WARNING" $base.mo
+    then
+      # Remove the --skip-gc-deprecation-warning flag from the MOC_ARGS variable.
+      MOC_ARGS=$(echo $MOC_ARGS | sed 's/--skip-gc-deprecation-warning//g')
     fi
     if [[ $moc_extra_flags == *"-measure-rts-stack"* ]]
     then

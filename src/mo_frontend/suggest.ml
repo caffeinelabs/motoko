@@ -43,7 +43,7 @@ let search_obj desc path ty ty1 ty2 =
   else begin
     seen := S.add ty (!seen);
     match promote ty with
-    | Obj(_, tfs) ->
+    | Obj(_, tfs, _) ->
       tfs |>
       List.iter (fun {lab;typ;_} ->
         match normalize typ with
@@ -52,7 +52,7 @@ let search_obj desc path ty ty1 ty2 =
            String.starts_with ~prefix:"from" lab) &&
            sub typ (Func(Local, Returns,  [], [ty1], [ty2])) ->
           suggestions := Printf.sprintf "`%s.%s(_)`%s" path lab desc :: !suggestions
-        | Obj(_, tfs) as ty1  ->
+        | Obj(_, tfs, _) as ty1  ->
           go (path^"."^lab) ty1
         | _ -> ())
     | _ -> ()

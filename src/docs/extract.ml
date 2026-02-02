@@ -89,7 +89,7 @@ module PosTable = Trivia.PosHashtbl
 
 type extracted = {
   module_comment : string option;
-  lookup_type : Syntax.path -> Xref.t option;
+  lookup_type : Syntax.typ_path -> Xref.t option;
   docs : doc list;
 }
 
@@ -104,7 +104,7 @@ struct
     let module_ns = Namespace.from_module Env.all_decs in
     Namespace.shadow import_ns module_ns
 
-  let lookup_type : Syntax.path -> Xref.t option =
+  let lookup_type : Syntax.typ_path -> Xref.t option =
     Namespace.lookup_type namespace
 
   let rec extract_args = function

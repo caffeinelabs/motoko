@@ -6,7 +6,7 @@ type render_input = {
   current_path : string;  (** The path for the current module *)
   module_comment : string option;
       (** The top-level module comment for the current module *)
-  lookup_type : Syntax.path -> Xref.t option;
+  lookup_type : Syntax.typ_path -> Xref.t option;
       (** How to look up references to types in the current module *)
   declarations : Extract.doc list;  (** The list of declarations to process *)
 }

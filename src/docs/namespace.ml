@@ -111,17 +111,15 @@ let shadow : t -> t -> t =
     types = StringMap.union (fun _ x1 x2 -> Some x2) n1.types n2.types;
   }
 
-let rec split_path : Syntax.path -> string list * string =
- fun path ->
-  match path.Source.it with
+let rec split_path : Syntax.path' -> string list * string = function
   | Syntax.IdH id -> ([], id.Source.it)
   | Syntax.DotH (path, id) ->
-      let xs, x = split_path path in
+      let xs, x = split_path path.Source.it in
       (List.append xs [ x ], id.Source.it)
 
-let lookup_type : t -> Syntax.path -> Xref.t option =
+let lookup_type : t -> Syntax.typ_path -> Xref.t option =
  fun ns path ->
-  match split_path path with
+  match split_path path.Source.it with
   | [], id -> StringMap.find_opt id ns.types
   | x :: xs, id -> (
       match StringMap.find_opt x ns.values with

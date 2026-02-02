@@ -72,7 +72,7 @@ let rec check_typ' env occs t =
        M.Tup (List.map (fun (f : typ_field) -> check_typ' env occs f.it.typ) fs)
      else
        let fs = List.map (check_field env occs) fs in
-       M.Obj (M.Object, List.sort M.compare_field fs)
+       M.Obj (M.Object, List.sort M.compare_field fs, [])
   | VariantT fs ->
      let fs = List.map (check_variant_field env occs) fs in
      M.Variant (List.sort M.compare_field fs)
@@ -81,7 +81,7 @@ let rec check_typ' env occs t =
      M.Func (M.Shared s, c, [M.scope_bind], check_arg_typs env occs ts1, check_arg_typs env occs ts2)
   | ServT ms ->
      let fs = List.map (check_meth env occs) ms in
-     M.Obj (M.Actor, List.sort M.compare_field fs)
+     M.Obj (M.Actor, List.sort M.compare_field fs, [])
   | ClassT _ -> raise (UnsupportedCandidFeature
      (Diag.error_message t.at "M0162" "import" "Candid service constructor type not supported as Motoko type"))
   | PreT -> assert false
@@ -112,7 +112,7 @@ let check_prog (env: typ I.Env.t) actor : M.typ =
       begin
         let t' = check_typ' env occs t in
         match M.normalize t' with
-        | M.Obj (M.Actor, fs) ->
+        | M.Obj (M.Actor, fs, _) ->
           Diag.print_messages [Diag.warning_message at "M0185" "import"
             "importing Candid service constructor as instantiated service"];
           fs
@@ -123,14 +123,12 @@ let check_prog (env: typ I.Env.t) actor : M.typ =
   (* TODO: why do we only check and include the mentioned types (occs),
      and not all of the .did declared ones (available to the caller), if not mentioned here? *)
   in
-  let fs1 = M.Env.fold (fun id t fs ->
+  let tfs = M.Env.fold (fun id t fs ->
        match t with
        | M.Con (c, _) ->
-          (* TODO: consider adding deprecation as types can disappear even
-             across compatible .dids *)
-          M.{lab = id; typ = M.Typ c; src = empty_src}::fs
-       | _ -> assert false) !occs fs in
-  M.Obj (M.Actor, List.sort M.compare_field fs1)
+          M.{lab = id; typ = c; src = empty_src}::fs
+       | _ -> assert false) !occs [] in
+  M.Obj(M.Actor, List.sort M.compare_field fs, List.sort M.compare_field tfs)
 
 let check_typ env t = check_typ' env (ref M.Env.empty) t
 let check_typs env t = check_typs' env (ref M.Env.empty) t

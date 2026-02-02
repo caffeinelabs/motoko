@@ -2,7 +2,7 @@ open Extract
 open Printf
 open Mo_def
 
-type env = { lookup_type : Syntax.path -> Xref.t option }
+type env = { lookup_type : Syntax.typ_path -> Xref.t option }
 
 let surround : Buffer.t -> string -> (unit -> unit) -> unit =
  fun buf s inner ->
@@ -30,7 +30,7 @@ let adoc_link : Xref.t -> string -> string =
   let link = string_of_xref true xref in
   if link = "" then adoc_text else sprintf "xref:%s[%s]" link adoc_text
 
-let adoc_render_path : env -> Syntax.path -> string =
+let adoc_render_path : env -> Syntax.typ_path -> string =
  fun env path ->
   match env.lookup_type path with
   | None -> Plain.string_of_path path
