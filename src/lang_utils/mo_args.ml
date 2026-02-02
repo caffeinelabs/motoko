@@ -1,5 +1,4 @@
 open Mo_config
-open Exit
 
 include Args
 

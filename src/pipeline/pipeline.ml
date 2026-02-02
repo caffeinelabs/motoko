@@ -7,7 +7,6 @@ open Ir_def
 open Ir_interpreter
 open Ir_passes
 open Mo_config
-open Exit
 
 open Printf
 
