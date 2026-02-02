@@ -2167,14 +2167,14 @@ and infer_exp'' env exp : T.typ =
     (match T.Env.find_opt id.it env.labs with
     | Some t ->
       if not env.pre then check_exp env t exp1
-    | None ->
-      let name =
-        match String.split_on_char ' ' id.it with
-        | ["continue"; name] -> name
-        | _ -> id.it
-      in local_error env id.at "M0083" "unbound label %s%a%s" name
-         display_labs env.labs
-         (Suggest.suggest_id "label" id.it (T.Env.keys env.labs))
+    | None -> match Lib.String.chop_prefix "continue " id.it with
+      | Some name when T.Env.mem name env.labs ->
+        local_error env exp.at "M0238" "continue outside of loop"
+      | name ->
+        local_error env id.at "M0083" "unbound label %s%a%s"
+           (Option.value ~default:id.it name)
+           display_labs env.labs
+           (Suggest.suggest_id "label" id.it (T.Env.keys env.labs))
     );
     T.Non
   | RetE exp1 ->
@@ -2835,7 +2835,7 @@ and infer_callee env exp =
         if not env.pre then begin
           check_exp env func_ty path;
           let note_eff = A.infer_effect_exp exp in
-          exp.note <- {note_typ = exp.note.note_typ; note_eff}
+          exp.note <- {note_typ = func_ty; note_eff}
         end;
         func_ty, Some (exp1, t1, id.it, inst)
      end

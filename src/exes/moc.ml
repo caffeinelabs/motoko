@@ -163,7 +163,8 @@ let argspec =
 
   "--generational-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Generational),
-  " use generational GC (only available with legacy/classical persistence)";
+  " use generational GC (only available with legacy/classical persistence)\n\
+  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
 
   "--incremental-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Incremental),
@@ -171,11 +172,13 @@ let argspec =
 
   "--compacting-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.MarkCompact),
-  " use compacting GC (only available with legacy/classical persistence)";
+  " use compacting GC (only available with legacy/classical persistence)\n\
+  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
 
   "--copying-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Copying),
-  " use copying GC (only available with legacy/classical persistence)";
+  " use copying GC (only available with legacy/classical persistence)\n\
+  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
 
   "--force-gc",
   Arg.Unit (fun () -> Flags.force_gc := true),
@@ -250,7 +253,11 @@ let argspec =
 
   "-fshared-code",
   Arg.Unit (fun () -> Flags.share_code := true),
-  " do share low-level utility code: smaller code size but increased cycle consumption"
+  " do share low-level utility code: smaller code size but increased cycle consumption";
+
+  "--skip-gc-deprecation-warning",
+  Arg.Unit (fun () -> Flags.skip_gc_deprecation_warning := true),
+  " skip the deprecation warning for the GC strategy flags"
 
   ]
 
@@ -391,6 +398,14 @@ let () =
   if !Flags.enhanced_migration && not !Flags.enhanced_orthogonal_persistence
   then begin
     eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
+  end;    
+  
+  if not !Flags.skip_gc_deprecation_warning 
+  then begin
+    match !Flags.gc_strategy with
+    | Mo_config.Flags.Copying | Mo_config.Flags.MarkCompact | Mo_config.Flags.Generational ->
+        eprintf "moc: --%s-gc is deprecated and will be removed in the future. Use --incremental-gc instead.\n" (Flags.gc_strategy_to_str !Flags.gc_strategy); 
+      | _ -> ();
   end;
 
   process_profiler_flags ();
