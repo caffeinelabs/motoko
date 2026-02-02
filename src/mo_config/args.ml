@@ -1,9 +1,6 @@
 (* This module contains some argument parsing that is common between
 multiple executables *)
-
-(** Exception for argument parsing errors.
-    Raised instead of calling exit, allowing different handling in moc vs moc.js *)
-exception Arg_error of string
+open Exit
 
 (** suppress documentation *)
 let _UNDOCUMENTED_ doc = "" (* TODO: enable with developer env var? *)
@@ -16,7 +13,7 @@ let string_map flag r desc =
     Arg.String (fun value ->
       let key = !key_ref in
       if Flags.M.mem key !r
-      then raise (Arg_error (Printf.sprintf "duplicate %s %s" flag key))
+      then (Printf.eprintf "duplicate %s %s" flag key ; exit 1)
       else r := Flags.M.add key value !r
     )
   ],

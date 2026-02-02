@@ -262,5 +262,5 @@ assert.throws(
 );
 assert.throws(
   () => Motoko.setExtraFlags(["-W=MMM"]),
-  /invalid warning code: MMM/
+  /Fatal error (exit 1)/
 );
