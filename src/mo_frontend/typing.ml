@@ -3720,7 +3720,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
   let _, scope = infer_block env decs at false in
   let t = object_of_scope env s dec_fields scope at in
   leave_scope env (private_identifiers scope.Scope.val_env) initial_usage;
-  let (_, fs) = T.as_obj t in
+  let (_, fs, tfs) = T.as_obj' t in
   if not env.pre then begin
     if s = T.Actor || s = T.Mixin then begin
       List.iter (fun T.{lab; typ; _} ->
@@ -3749,7 +3749,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     check_system_fields env s scope fs dec_fields;
     let stab_tfs, viewer_tfs = check_stab env obj_sort scope dec_fields in
     check_migration env stab_tfs exp_opt;
-    T.Obj(s, List.sort T.compare_field (fs @ viewer_tfs), [])
+    T.Obj(s, List.sort T.compare_field (fs @ viewer_tfs), tfs)
     end
   else t
 
