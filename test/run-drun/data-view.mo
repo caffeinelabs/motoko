@@ -1,4 +1,4 @@
-//MOC-FLAG --package core /home/crusso/motoko-core/src
+//MOC-FLAG --package core $MOTOKO_CORE
 import Map "mo:core/Map";
 import Set "mo:core/Set";
 import Nat "mo:core/Nat";
