@@ -736,3 +736,61 @@ let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" 
       [Nat]
     Did you mean field vals or values?
   |}]
+
+let%expect_test "context dot function type on callee" =
+  print_typed_ast "func foo(self : [Nat]) : Text { \"foo\" };
+let ar = [1];
+ar.foo();";
+  [%expect {|
+    Ok: (Prog
+      (LetD
+        (: (VarP (ID foo)) (self : [Nat]) -> Text)
+        (:
+          (FuncE
+            (self : [Nat]) -> Text
+            Local
+            foo
+            (:
+              (ParP
+                (:
+                  (AnnotP
+                    (: (VarP (ID self)) [Nat])
+                    (: (ArrayT Const (: (PathT (IdH (ID Nat))) Nat)) [Nat])
+                  )
+                  [Nat]
+                )
+              )
+              [Nat]
+            )
+            (: (PathT (IdH (ID Text))) Text)
+
+            (: (BlockE (ExpD (: (LitE (TextLit foo)) Text))) Text)
+          )
+          (self : [Nat]) -> Text
+        )
+      )
+      (LetD
+        (: (VarP (ID ar)) [Nat])
+        (: (ArrayE Const (: (LitE (NatLit 1)) Nat)) [Nat])
+      )
+      (ExpD
+        (:
+          (CallE
+            _
+            (:
+              (DotE
+                (: (VarE (ID ar)) [Nat])
+                (: (VarE (ID foo)) (self : [Nat]) -> Text)
+              )
+              (self : [Nat]) -> Text
+            )
+            (: (TupE) ())
+          )
+          Text
+        )
+      )
+    )
+
+     with errors:
+    (unknown location): warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
+  |}]
