@@ -1,5 +1,6 @@
 (** Maintenance note:
     Update of the expected values could be done via [dune runtest --auto-promote].
+    e.g. ~/motoko/src $ dune runtest mo_frontend --auto-promote
 *)
 module Parser = Mo_frontend.Parser
 module Lexer = Mo_frontend.Lexer
@@ -51,6 +52,19 @@ let _parse_test input (expected : string) =
     true
   else
     (Printf.printf "\nExpected:\n  %s\nbut got:\n  %s\n" (expected) (show actual); false)
+
+let parse_and_typecheck_with_recovery s =
+  match parse_from_string s with
+  | Ok (prog, _) ->
+    let open Mo_frontend in
+    let async_cap = Pipeline.async_cap_of_prog prog in
+    (match Typing.infer_prog ~enable_type_recovery:true Pipeline.initial_stat_env None async_cap prog with
+    | Ok (_, msgs) -> Ok (prog, msgs)
+    | Error msgs -> Error msgs)
+  | Error msgs -> Error msgs
+
+let print_typed_ast s =
+  Printf.printf "%s" @@ show_with_types (parse_and_typecheck_with_recovery s)
 
 let%expect_test "test1" =
   let s = "actor {
@@ -689,4 +703,60 @@ let%expect_test "test type recovery 5" =
   | Error _ as r -> Printf.printf "%s" @@ show r;
   [%expect.unreachable]
 
+let%expect_test "context dot callee function type should not be ???" =
+  print_typed_ast "func foo(self : [Nat]) : Text { \"foo\" };
+let ar = [1];
+ar.foo();";
+  [%expect {|
+    Ok: (Prog
+      (LetD
+        (: (VarP (ID foo)) (self : [Nat]) -> Text)
+        (:
+          (FuncE
+            (self : [Nat]) -> Text
+            Local
+            foo
+            (:
+              (ParP
+                (:
+                  (AnnotP
+                    (: (VarP (ID self)) [Nat])
+                    (: (ArrayT Const (: (PathT (IdH (ID Nat))) Nat)) [Nat])
+                  )
+                  [Nat]
+                )
+              )
+              [Nat]
+            )
+            (: (PathT (IdH (ID Text))) Text)
 
+            (: (BlockE (ExpD (: (LitE (TextLit foo)) Text))) Text)
+          )
+          (self : [Nat]) -> Text
+        )
+      )
+      (LetD
+        (: (VarP (ID ar)) [Nat])
+        (: (ArrayE Const (: (LitE (NatLit 1)) Nat)) [Nat])
+      )
+      (ExpD
+        (:
+          (CallE
+            _
+            (:
+              (DotE
+                (: (VarE (ID ar)) [Nat])
+                (: (VarE (ID foo)) (self : [Nat]) -> Text)
+              )
+              (self : [Nat]) -> Text
+            )
+            (: (TupE) ())
+          )
+          Text
+        )
+      )
+    )
+
+     with errors:
+    (unknown location): warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
+  |}]
