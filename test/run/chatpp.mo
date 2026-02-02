@@ -44,9 +44,9 @@ actor class Server() = {
 	if (not c.revoked) { // inlined call to broadcast(c.id,message)
 	  let id = c.id;
 	  var next = clients;
-	  label sends loop {
+	  loop {
 	    switch next {
-	      case null { break sends };
+	      case null { break };
 	      case (?n) {
 		if (n.head.id != id) n.head.client.send(message);
 		next := n.tail;

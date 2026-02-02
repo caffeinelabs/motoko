@@ -46,6 +46,18 @@ let typed_phrase' f x =
 
 let is_empty_tup e = e.it = S.TupE []
 
+let unit_typ at = { it = S.TupT []; at; note = T.unit }
+
+let desugar_loop_flags at note body flags with_body =
+  let { has_break; has_continue } = flags in
+  let body = if not has_continue then body else
+    let () = flags.has_continue <- false in
+    { body with it = S.LabelE (S.auto_continue_s @@ body.at, unit_typ body.at, body) }
+  in
+  if not has_break then `Body body else
+  let () = flags.has_break <- false in
+  `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
+
 let rec exps es = List.map exp es
 
 and exp e =
@@ -261,16 +273,29 @@ and exp' at note = function
     (blockE
        [ letD th thunk ]
        { e1 with it = I.TryE (exp e1, cases cs, Some (id_of_var th, typ_of_var th)); note }).it
-  | S.WhileE (e1, e2) -> (whileE (exp e1) (exp e2)).it
-  | S.LoopE (e1, None) -> I.LoopE (exp e1)
-  | S.LoopE (e1, Some e2) -> (loopWhileE (exp e1) (exp e2)).it
-  | S.ForE (p, {it=S.CallE (None, {it=S.DotE (arr, proj, _); _}, _, (_, e1)); _}, e2)
-      when T.is_array arr.note.S.note_typ && (proj.it = "vals" || proj.it = "values" || proj.it = "keys")
-    -> (transform_for_to_while p arr proj (!e1) e2).it
-  | S.ForE (p, e1, e2) -> (forE (pat p) (exp e1) (exp e2)).it
+  | S.WhileE (e1, e2, flags) ->
+    (match desugar_loop_flags at note e2 flags (fun e2 -> S.WhileE (e1, e2, flags)) with
+    | `Rec e -> exp' at note e
+    | `Body e2 -> (whileE (exp e1) (exp e2)).it)
+  | S.LoopE (e1, opt_e2, flags) ->
+    (match desugar_loop_flags at note e1 flags (fun e1 -> S.LoopE (e1, opt_e2, flags)) with
+    | `Rec e -> exp' at note e
+    | `Body e1 -> 
+      match opt_e2 with
+      | None -> I.LoopE (exp e1)
+      | Some e2 -> (loopWhileE (exp e1) (exp e2)).it)
+  | S.ForE (p, e1, e2, flags) ->
+    (match desugar_loop_flags at note e2 flags (fun e2 -> S.ForE (p, e1, e2, flags)) with
+    | `Rec e -> exp' at note e
+    | `Body e2 ->
+      match e1.it with
+      | S.CallE (None, {it=S.DotE (arr, proj, _); _}, _, (_, e1))
+        when T.is_array arr.note.S.note_typ && (proj.it = "vals" || proj.it = "values" || proj.it = "keys")
+        -> (transform_for_to_while p arr proj (!e1) e2).it
+      | _ -> (forE (pat p) (exp e1) (exp e2)).it)
   | S.DebugE e -> if !Mo_config.Flags.release_mode then (unitE ()).it else (exp e).it
   | S.LabelE (l, t, e) -> I.LabelE (l.it, t.Source.note, exp e)
-  | S.BreakE (l, e) -> (breakE l.it (exp e)).it
+  | S.BreakE (kind, id_opt, e) -> (breakE (S.break_label kind id_opt) (exp e)).it
   | S.RetE e -> (retE (exp e)).it
   | S.ThrowE e -> I.PrimE (I.ThrowPrim, [exp e])
   | S.AsyncE (par_opt, s, tb, e) ->

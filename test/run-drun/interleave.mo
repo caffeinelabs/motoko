@@ -26,14 +26,13 @@ actor a {
     let g = async {
         var i = 10;
         Prim.debugPrint "g-label\n";
-        label lp
         while (true) {
             if (i < 15) {
                 let _ = await f("g",i);
                 i += 1;
-                continue lp;
+                continue;
             } else {};
-            break lp;
+            break;
         };
         Prim.debugPrint "g-exit\n";
     };

@@ -2622,6 +2622,8 @@ The body, `<exp1>`, of the loop is implicitly enclosed in `label <id_continue> (
 
 ### Break
 
+The expression `break` (without an identifier) is equivalent to `break <id_break>`, where `<id_break>` is the implicitly declared label around the innermost loop.
+
 The expression `break <id>` is equivalent to `break <id> ()`.
 
 The expression `break <id> <exp>` has type `None` provided:
@@ -2633,6 +2635,8 @@ The expression `break <id> <exp>` has type `None` provided:
 The evaluation of `break <id> <exp>` evaluates `<exp>` to some result `r`. If `r` is `trap`, the result is `trap`. If `r` is a value `v`, the evaluation abandons the current computation up to the dynamically enclosing declaration `label <id> …​` using the value `v` as the result of that labelled expression.
 
 ### Continue
+
+The expression `continue` is equivalent to `continue <id_continue>`, where `<id_continue>` is the implicitly declared label around the body of the innermost loop.
 
 The expression `continue <id>` is equivalent to `break <id_continue>`, where `<id_continue>` is implicitly declared around the bodies of `<id>`-labelled looping constructs (see [labeled loops](#labeled-loops)).
 
