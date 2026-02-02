@@ -13,7 +13,7 @@ let string_map flag r desc =
     Arg.String (fun value ->
       let key = !key_ref in
       if Flags.M.mem key !r
-      then (Printf.eprintf "duplicate %s %s" flag key ; exit 1)
+      then fail "duplicate %s %s" flag key
       else r := Flags.M.add key value !r
     )
   ],

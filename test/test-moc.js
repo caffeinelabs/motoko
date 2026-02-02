@@ -262,5 +262,5 @@ assert.throws(
 );
 assert.throws(
   () => Motoko.setExtraFlags(["-W=MMM"]),
-  /Fatal error (exit 1)/
+  /moc: invalid warning code: MMM/
 );
