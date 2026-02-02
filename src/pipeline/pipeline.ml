@@ -249,7 +249,10 @@ let lib_of_prog f prog : Syntax.lib  =
 let builtin_error phase what (msgs : Diag.messages) =
   Printf.eprintf "%s %s failed\n" phase what;
   Diag.print_messages msgs;
-  exit 1
+  if !Flags.ocaml_js then
+    raise (Mo_config.Args.Arg_error (Printf.sprintf "%s %s failed" phase what))
+  else
+    exit 1
 
 let check_builtin what src senv0 : Syntax.prog * stat_env =
   let lexer = Lexing.from_string src in
@@ -330,7 +333,10 @@ let prim_name = "prim"
 let prim_error phase (msgs : Diag.messages) =
   Printf.eprintf "%s prim failed\n" phase;
   Diag.print_messages msgs;
-  exit 1
+  if !Flags.ocaml_js then
+    raise (Mo_config.Args.Arg_error (Printf.sprintf "%s prim failed" phase))
+  else
+    exit 1
 
 let check_prim () : Syntax.lib * stat_env =
   let lexer = Lexing.from_string (Prelude.prim_module ~timers:!Flags.global_timer) in

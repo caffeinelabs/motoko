@@ -381,7 +381,8 @@ let () =
   (useful for debugging infinite loops)
   *)
   Internal_error.setup_handler ();
-  Arg.parse_expand argspec add_arg usage;
+  (try Arg.parse_expand argspec add_arg usage
+   with Args.Arg_error msg -> eprintf "%s\n" msg; exit 1);
   if !mode = Default then mode := (if !args = [] then Interact else Compile);
   Flags.compiled := !mode = Compile;
 
