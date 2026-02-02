@@ -38,6 +38,7 @@ type func_sort = Type.func_sort Source.phrase
 type mut = mut' Source.phrase
 and mut' = Const | Var
 
+and typ_path = (path', Type.con option) Source.annotated_phrase
 and path = (path', Type.typ) Source.annotated_phrase
 and path' =
   | IdH  of id
@@ -48,7 +49,7 @@ and await_sort = Type.await_sort
 
 type typ = (typ', Type.typ) Source.annotated_phrase
 and typ' =
-  | PathT of path * typ list                       (* type path *)
+  | PathT of typ_path * typ list                   (* type path *)
   | PrimT of string                                (* primitive *)
   | ObjT of typ_obj_sort * typ_field list          (* object *)
   | ArrayT of mut * typ                            (* array *)
@@ -160,6 +161,22 @@ type sugar = bool (* Is the source of a function body a block `<block>`,
                      This flag is used to correctly desugar an actor's
                      public functions as oneway, shared functions *)
 
+type loop_flags = { mutable has_break : bool; mutable has_continue : bool }
+
+let new_loop_flags () : loop_flags = { has_break = false; has_continue = false }
+
+type control = Break | Continue
+
+let auto_s = "<>auto"
+let auto_continue_s = "continue <>auto"
+
+let break_label kind (id_opt : id option) =
+  match kind, id_opt with
+  | Break, None -> auto_s
+  | Continue, None -> auto_continue_s
+  | _, Some {Source.it; _} -> it
+
+
 type id_ref = (string, mut' * exp option) Source.annotated_phrase
 and stab = stab' Source.phrase
 and stab' = Stable of exp option ref | Flexible
@@ -197,11 +214,11 @@ and exp' =
   | OrE of exp * exp                           (* disjunction *)
   | IfE of exp * exp * exp                     (* conditional *)
   | SwitchE of exp * case list                 (* switch *)
-  | WhileE of exp * exp                        (* while-do loop *)
-  | LoopE of exp * exp option                  (* do-while loop *)
-  | ForE of pat * exp * exp                    (* iteration *)
+  | WhileE of exp * exp * loop_flags       (* while-do loop *)
+  | LoopE of exp * exp option * loop_flags (* do-while loop *)
+  | ForE of pat * exp * exp * loop_flags   (* iteration *)
   | LabelE of id * typ * exp                   (* label *)
-  | BreakE of id * exp                         (* break *)
+  | BreakE of control * id option * exp        (* break *)
   | RetE of exp                                (* return *)
   | DebugE of exp                              (* debugging *)
   | AsyncE of exp option * async_sort * typ_bind * exp (* future / computation *)
@@ -358,7 +375,7 @@ let is_any t =
   | _ -> false
 
 let scopeT at =
-  PathT (IdH {it = Type.default_scope_var; at; note = ()} @! at, []) @! at
+  PathT (IdH {it = Type.default_scope_var; at; note = ()} @= at, []) @! at
 
 
 (* Expressions *)

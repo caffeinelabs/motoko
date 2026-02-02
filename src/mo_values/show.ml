@@ -20,12 +20,11 @@ let can_show t =
       | Weak t'
       | Opt t' -> go t'
       | Array t' -> go (as_immut t')
-      | Obj (Object, fs) ->
+      | Obj (Object, fs, _) ->
         List.for_all (fun f -> go (as_immut f.typ)) fs
       | Variant cts ->
         List.for_all (fun f -> go f.typ) cts
       | Non -> true
-      | Typ _ -> true
       | _ -> false
     end
   in go t
@@ -75,10 +74,10 @@ let rec show_val t v =
   | T.Array t', Value.Array a ->
     Printf.sprintf "[%s]"
       (String.concat ", " (List.map (show_val t') (Array.to_list a)))
-  | T.Obj (_, fts), Value.Obj fs ->
+  | T.Obj (_, fts, _), Value.Obj fs ->
     Printf.sprintf "{%s}"
       (String.concat "; "
-         (List.map (show_field fs) (T.val_fields fts)))
+         (List.map (show_field fs) fts))
   | T.Variant fs, Value.Variant (l, v) ->
     begin match List.find_opt (fun {T.lab = l'; _} -> l = l') fs with
     | Some {T.typ = T.Tup []; _} -> Printf.sprintf "#%s" l

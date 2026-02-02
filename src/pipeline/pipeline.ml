@@ -46,7 +46,7 @@ let print_dyn_ve scope =
     let (t, _, _) = Env.find x scope.Scope.val_env in
     let t' = as_immut t in
     match normalize t' with
-    | Obj (Module, fs) ->
+    | Obj (Module, fs, _) ->
       Format.printf "@[<hv 2>%s %s : module {...}@]@."
         (if t == t' then "let" else "var") x
     | _ ->

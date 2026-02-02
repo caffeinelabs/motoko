@@ -134,7 +134,7 @@ let eq_for : T.typ -> Ir.dec * T.typ list = fun t ->
       define_eq t (array_eq_func_body t' (varE (eq_var_for t')) (arg1E t) (arg2E t)),
       [t']
     end
-  | T.Obj ((T.Object | T.Memory | T.Module), fs) ->
+  | T.Obj ((T.Object | T.Memory | T.Module), fs, _) ->
     define_eq t (
       conjE (List.map (fun f ->
         let t' = T.as_immut (T.normalize f.Type.typ) in

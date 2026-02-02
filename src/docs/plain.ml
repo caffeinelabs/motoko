@@ -8,7 +8,7 @@ open Common
 type level = int
 
 type render_functions = {
-  render_path : Syntax.path -> string;
+  render_path : Syntax.typ_path -> string;
   render_open_bracket : string;
   render_close_bracket : string;
 }
@@ -42,18 +42,17 @@ let sep_by' :
 let title : Buffer.t -> level -> string -> unit =
  fun buf level txt -> bprintf buf "\n%s %s" (String.make level '#') txt
 
-let rec plain_of_path : Buffer.t -> Syntax.path -> unit =
- fun buf path ->
-  match path.Source.it with
+let rec plain_of_path : Buffer.t -> Syntax.path' -> unit =
+ fun buf -> function
   | Syntax.IdH id -> Buffer.add_string buf id.it
   | Syntax.DotH (path, id) ->
-      plain_of_path buf path;
+      plain_of_path buf path.it;
       bprintf buf ".%s" id.it
 
-let string_of_path : Syntax.path -> string =
+let string_of_path : Syntax.typ_path -> string =
  fun path ->
   let buf = Buffer.create 8 in
-  plain_of_path buf path;
+  plain_of_path buf path.it;
   Buffer.contents buf
 
 let plain_render_functions : render_functions =

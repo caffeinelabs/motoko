@@ -207,7 +207,7 @@ let rec pp_val_nullary d ppf (t, v : T.typ * value) =
     | Text t -> pr ppf (string_of_string '\"' (Lib.Utf8.decode t) '\"')
     | Blob b ->
       (match t with
-         T.Obj (T.Actor, _) ->
+         T.Obj (T.Actor, _, _) ->
          pr ppf (string_of_string '`' (Lib.Utf8.decode (Ic.Url.encode_principal b)) '`')
        | _ -> pr ppf ("\"" ^ Blob.escape b ^ "\""))
     | Tup vs ->
@@ -220,7 +220,7 @@ let rec pp_val_nullary d ppf (t, v : T.typ * value) =
     | Obj ve ->
       if d = 0 then pr ppf "{...}" else
       let sort, lookup = match t with
-        | T.Obj (s, fs) ->
+        | T.Obj (s, fs, _) ->
           T.string_of_obj_sort s,
           fun lab -> T.lookup_val_field_opt lab fs
         | _ ->
