@@ -4189,7 +4189,11 @@ and infer_dec env dec : T.typ =
     let t_pat, ve = infer_pat_exhaustive error env args in
     let env' = adjoin_vals env ve in
     let obj_sort : obj_sort = { it = T.Mixin ; at = no_region; note = { it = true; at = no_region; note = () } }  in
-    let t' = infer_obj { env' with check_unused = false } obj_sort None dec_fields dec.at in
+    let t' = infer_obj {
+      env' with check_unused = false;
+      (* HACK? If/When we add type parameters to mixins we can use a non-top_cap scope here. *)
+      async = C.SystemCap C.top_cap;
+    } obj_sort None dec_fields dec.at in
     T.normalize t'
   | TypD _ ->
     T.unit
