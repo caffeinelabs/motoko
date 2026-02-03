@@ -13,7 +13,7 @@ let modify_warning_levels level s =
     if validate_warning_code code then
       Flags.set_warning_level code level
     else
-      raise (Args.Arg_error (Printf.sprintf "moc: invalid warning code: %s. Run 'moc --warn-help' to see available warning codes." code)))
+      fail "moc: invalid warning code: %s. Run 'moc --warn-help' to see available warning codes." code)
 
 let warning_args = [
   "--hide-warnings", Arg.Clear Flags.print_warnings, " hide warnings";
