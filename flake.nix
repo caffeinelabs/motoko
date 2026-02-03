@@ -165,7 +165,7 @@
       };
 
       tests = import ./nix/tests.nix {
-        inherit pkgs llvmEnv esm commonBuildInputs debugMoPackages test-runner;
+        inherit pkgs llvmEnv esm commonBuildInputs debugMoPackages test-runner core-src;
       };
 
       filterTests = type:

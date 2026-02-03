@@ -2741,7 +2741,7 @@ and infer_callee env exp =
         if not env.pre then begin
           check_exp env func_ty path;
           let note_eff = A.infer_effect_exp exp in
-          exp.note <- {note_typ = exp.note.note_typ; note_eff}
+          exp.note <- {note_typ = func_ty; note_eff}
         end;
         func_ty, Some (exp1, t1, id.it, inst)
      end

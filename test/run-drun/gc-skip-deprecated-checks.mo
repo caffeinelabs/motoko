@@ -1,0 +1,10 @@
+//NO-SKIP-GC-DEPRECATION-WARNING
+//CLASSICAL-PERSISTENCE-ONLY
+//GENERATIONAL-GC-ONLY
+actor {
+  let _ = 5;
+};
+
+//SKIP run-low
+//SKIP run-ir
+//SKIP run
