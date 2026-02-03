@@ -1,4 +1,5 @@
 open Mo_config
+module G = Grace
 
 type error_code = string
 type severity = Warning | Error | Info
@@ -7,13 +8,14 @@ type message = {
   code : error_code;
   at : Source.region;
   cat : string;
-  text : string
+  text : string;
+  notes: string list;
 }
 type messages = message list
 
-let info_message at cat text = {sev = Info; code = ""; at; cat; text}
-let warning_message at code cat text = {sev = Warning; code; at; cat; text}
-let error_message at code cat text = {sev = Error; code; at; cat; text}
+let info_message at cat text = {sev = Info; code = ""; at; cat; text; notes = []}
+let warning_message at code cat text = {sev = Warning; code; at; cat; text; notes = []}
+let error_message at code cat text = {sev = Error; code; at; cat; text; notes = []}
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
@@ -52,7 +54,7 @@ let rec fold : ('a -> 'b -> 'a result) -> 'a -> 'b list -> 'a result = fun f acc
   | x :: xs -> bind (f acc x) (fun y -> fold f y xs)
 
 type msg_store = messages ref
-let add_msg s m = 
+let add_msg s m =
   if m.sev = Warning && Flags.is_warning_disabled m.code then () else
   s := m :: !s
 let add_msgs s ms = List.iter (add_msg s) (List.rev ms)
@@ -61,21 +63,56 @@ let get_msgs s = List.rev !s
 let has_errors : messages -> bool =
   List.exists (fun msg -> msg.sev == Error)
 
+(* let string_of_message msg = *)
+(*   let code = match msg.sev, msg.code with *)
+(*     | Info, _ -> "" *)
+(*     | _, "" -> "" *)
+(*     | _, code -> Printf.sprintf " [%s]" code in *)
+(*   let label = match msg.sev with *)
+(*     | Error -> Printf.sprintf "%s error" msg.cat *)
+(*     | Warning -> "warning" *)
+(*     | Info -> "info" in *)
+(*   let src = if !Flags.print_source_on_error then *)
+(*     match Source.read_region_with_markers msg.at with *)
+(*     | Some(src) -> Printf.sprintf "> %s\n\n" src *)
+(*     | None -> "" *)
+(*   else "" in *)
+(*   Printf.sprintf "%s: %s%s, %s\n%s" (Source.string_of_region msg.at) label code msg.text src *)
+
+
+(*
+ Plan:
+
+ compact message -> Message header + all primary labels
+*)
+let pos_to_byte content pos =
+  let line_start = ref 0 in
+  for _ = 1 to pos.Source.line - 1 do
+    let prev = !line_start in
+    line_start := String.index_from content (prev + 1) '\n';
+  done;
+  !line_start + pos.Source.column + 1
+
 let string_of_message msg =
-  let code = match msg.sev, msg.code with
-    | Info, _ -> ""
-    | _, "" -> ""
-    | _, code -> Printf.sprintf " [%s]" code in
-  let label = match msg.sev with
-    | Error -> Printf.sprintf "%s error" msg.cat
-    | Warning -> "warning"
-    | Info -> "info" in
-  let src = if !Flags.print_source_on_error then
-    match Source.read_region_with_markers msg.at with
-    | Some(src) -> Printf.sprintf "> %s\n\n" src
-    | None -> ""
-  else "" in
-  Printf.sprintf "%s: %s%s, %s\n%s" (Source.string_of_region msg.at) label code msg.text src
+  let file = msg.at.Source.left.Source.file in
+  let source : G.Source.t = `File file in
+  let content = In_channel.with_open_bin file In_channel.input_all in
+  let range r =
+    G.Range.create ~source
+      (G.Byte_index.of_int (pos_to_byte content r.Source.left))
+      (G.Byte_index.of_int (pos_to_byte content r.Source.right))
+  in
+  let diag = G.Diagnostic.(
+    createf
+      ~labels: [
+        Label.primaryf ~range:(range msg.at) "";
+      ]
+      ~notes:(List.map (Message.createf "note: %s") msg.notes)
+      ~code:msg.code
+      G.Diagnostic.Severity.Error
+      "%s" msg.text) in
+    Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
+
 
 let is_warning_as_error msg =
   msg.sev = Warning && Flags.get_warning_level msg.code = Flags.Error

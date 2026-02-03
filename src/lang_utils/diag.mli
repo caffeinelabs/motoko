@@ -8,7 +8,8 @@ type message = {
   code : error_code;
   at : Source.region;
   cat : string;
-  text : string
+  text : string;
+  notes: string list;
 }
 
 type messages = message list

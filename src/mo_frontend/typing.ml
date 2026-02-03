@@ -158,6 +158,8 @@ let display_lab = Lib.Format.display T.pp_lab
 
 let display_typ = Lib.Format.display T.pp_typ
 
+let display_typ_inline = Lib.Format.display_inline T.pp_typ
+
 let display_typ_expand = Lib.Format.display T.pp_typ_expand
 
 let display_explanation t1 t2 ppf explanation =
@@ -237,6 +239,9 @@ let display_typs fmt typs =
 let type_error at code text : Diag.message =
   Diag.error_message at code "type" text
 
+let type_error' at code text notes : Diag.message =
+  Diag.{ (error_message at code "type" text) with notes }
+
 let type_warning at code text : Diag.message =
   Diag.warning_message at code "type" text
 
@@ -248,6 +253,14 @@ let error env at code fmt =
   Format.kasprintf (fun s ->
       T.clear_con_map ();
       Diag.add_msg env.msgs (type_error at code s);
+      raise Recover)
+    fmt
+
+let error' env at code notes fmt =
+  T.set_con_map (con_map env);
+  Format.kasprintf (fun s ->
+      T.clear_con_map ();
+      Diag.add_msg env.msgs (type_error' at code s notes);
       raise Recover)
     fmt
 
@@ -1535,20 +1548,18 @@ let resolve_hole env at hole_sort typ =
         (List.map suggestion_of_candidate lib_terms,
          List.map (fun candidate -> candidate.desc) explicit_terms,
          renaming_hints))))
-  | terms -> begin
+  | terms ->
      match disambiguate_holes terms with
      | Some term -> Ok term
      | None -> Error (HoleAmbiguous (fun env ->
        let terms = List.map (fun term -> term.desc) terms in
-       error env at "M0231" "ambiguous implicit argument %s of type%a.\nThe ambiguous implicit candidates are: %s%s."
+       let notes = Format.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " terms) ::
+         if explicit_terms = [] then [] else
+            [ "The other explicit candidates are: " ^ (String.concat ", " (List.map (fun oc -> oc.desc) explicit_terms)) ]
+       in
+       error' env at "M0231" notes "ambiguous implicit argument %s of type %a."
          (match hole_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
-         display_typ typ
-         (String.concat ", " terms)
-         (if explicit_terms = [] then ""
-          else
-            ".\nThe other explicit candidates are: "^
-              (String.concat ", " (List.map (fun oc -> oc.desc) explicit_terms)))))
-     end
+         display_typ typ))
 
 type ctx_dot_candidate =
   { module_name : T.lab option;
