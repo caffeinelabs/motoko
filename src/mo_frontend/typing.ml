@@ -3749,7 +3749,8 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     check_system_fields env s scope fs dec_fields;
     let stab_tfs, viewer_tfs = check_stab env obj_sort scope dec_fields in
     check_migration env stab_tfs exp_opt;
-    T.Obj(s, List.sort T.compare_field (fs @ viewer_tfs), tfs)
+    if s = T.Actor then T.Obj(s, List.sort T.compare_field (fs @ viewer_tfs), tfs)
+    else T.Obj(s, List.sort T.compare_field fs, tfs)
     end
   else t
 
