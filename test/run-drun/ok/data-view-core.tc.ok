@@ -1,0 +1,4 @@
+data-view-core.mo:88.7-88.22: warning [M0194], unused identifier invisible_array (delete or rename to wildcard `_` or `_invisible_array`)
+data-view-core.mo:91.7-91.19: warning [M0194], unused identifier some_variant (delete or rename to wildcard `_` or `_some_variant`)
+data-view-core.mo:92.7-92.18: warning [M0194], unused identifier some_record (delete or rename to wildcard `_` or `_some_record`)
+data-view-core.mo:95.7-95.26: warning [M0194], unused identifier some_mutable_record (delete or rename to wildcard `_` or `_some_mutable_record`)
