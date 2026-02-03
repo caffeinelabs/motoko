@@ -68,7 +68,7 @@ let
         mkdir -p $out/share
         cp -v ${dir}/ok/*.ok $out/share
       '';
-    } // pkgs.lib.optionalAttrs (builtins.elem test-runner core-src deps) {
+    } // pkgs.lib.optionalAttrs (builtins.elem test-runner deps) {
       POCKET_IC_BIN = "${pkgs.pocket-ic.server}/bin/pocket-ic-server";
       SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
       MOTOKO_CORE = "${core-src}";
