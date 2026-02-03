@@ -85,7 +85,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::test_runner::TestCommand;
     use crate::test_runner::parse_commands;
     use pocket_ic::PocketIcBuilder;
