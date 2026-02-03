@@ -177,8 +177,6 @@ module Imports = struct
     func_imports, ni', remapping
 end
 
-type backend_arch = Wasm32 | Wasm64
-
 module Make_Ptr_Logic (S : sig
   type t
   val ty : value_type
