@@ -1,4 +1,4 @@
-{ pkgs, llvmEnv, esm, commonBuildInputs, debugMoPackages, test-runner }:
+{ pkgs, llvmEnv, esm, commonBuildInputs, debugMoPackages, test-runner, core-src }:
 with debugMoPackages;
 let
   # The following were previously arguments to default.nix but flakes don't accept options yet.
@@ -68,9 +68,10 @@ let
         mkdir -p $out/share
         cp -v ${dir}/ok/*.ok $out/share
       '';
-    } // pkgs.lib.optionalAttrs (builtins.elem test-runner deps) {
+    } // pkgs.lib.optionalAttrs (builtins.elem test-runner core-src deps) {
       POCKET_IC_BIN = "${pkgs.pocket-ic.server}/bin/pocket-ic-server";
       SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      MOTOKO_CORE = "${core-src}";
     });
 
   test_subdir = dir: deps: acceptable_subdir false dir deps;
