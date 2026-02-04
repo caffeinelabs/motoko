@@ -253,7 +253,7 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
     else Pipeline.parse_file
   in
   let load_result =
-  Mo_types.Cons.session (fun () ->
+    Mo_types.Cons.session (fun () ->
       Pipeline.load_progs_cached ~enable_type_recovery:recovery_enabled
         parse_fn paths Pipeline.initial_stat_env scope_cache)
   in
