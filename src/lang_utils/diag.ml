@@ -3,19 +3,26 @@ module G = Grace
 
 type error_code = string
 type severity = Warning | Error | Info
+type span_type = Primary | Secondary
+type span = {
+  ty : span_type;
+  at_span : Source.region;
+  text : string;
+}
 type message = {
   sev : severity;
   code : error_code;
   at : Source.region;
   cat : string;
   text : string;
+  spans : span list;
   notes: string list;
 }
 type messages = message list
 
-let info_message at cat text = {sev = Info; code = ""; at; cat; text; notes = []}
-let warning_message at code cat text = {sev = Warning; code; at; cat; text; notes = []}
-let error_message at code cat text = {sev = Error; code; at; cat; text; notes = []}
+let info_message at cat ?(spans = []) ?(notes = []) text = {sev = Info; code = ""; at; cat; text; spans; notes}
+let warning_message at code cat ?(spans = []) ?(notes = []) text = {sev = Warning; code; at; cat; text; spans; notes}
+let error_message at code cat ?(spans = []) ?(notes = []) text = {sev = Error; code; at; cat; text; spans; notes}
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
@@ -102,14 +109,26 @@ let string_of_message msg =
       (G.Byte_index.of_int (pos_to_byte content r.Source.left))
       (G.Byte_index.of_int (pos_to_byte content r.Source.right))
   in
+  let mk_span span =
+    let priority = match span.ty with
+      | Primary -> G.Diagnostic.Priority.Primary
+      | Secondary -> G.Diagnostic.Priority.Secondary in
+    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.text in
+  let labels =
+    if msg.spans = [] then
+      [G.Diagnostic.Label.primaryf ~range:(range msg.at) ""]
+    else
+      List.map mk_span msg.spans in
+  let severity = match msg.sev with
+    | Error -> G.Diagnostic.Severity.Error
+    | Warning -> G.Diagnostic.Severity.Warning
+    | Info -> G.Diagnostic.Severity.Help in
   let diag = G.Diagnostic.(
     createf
-      ~labels: [
-        Label.primaryf ~range:(range msg.at) "";
-      ]
+      ~labels: labels
       ~notes:(List.map (Message.createf "note: %s") msg.notes)
-      ~code:msg.code
-      G.Diagnostic.Severity.Error
+      ?code:(if msg.code = "" then None else Some(msg.code))
+      severity
       "%s" msg.text) in
     Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
 

@@ -236,46 +236,35 @@ let display_typs fmt typs =
   else
     Format.fprintf fmt ""
 
-let type_error at code text : Diag.message =
-  Diag.error_message at code "type" text
+let type_error at code text notes spans : Diag.message =
+  Diag.error_message at code "type" text ~notes ~spans
 
-let type_error' at code text notes : Diag.message =
-  Diag.{ (error_message at code "type" text) with notes }
-
-let type_warning at code text : Diag.message =
-  Diag.warning_message at code "type" text
+let type_warning at code text notes spans : Diag.message =
+  Diag.warning_message at code "type" text ~notes ~spans
 
 let type_info at text : Diag.message =
   Diag.info_message at "type" text
 
-let error env at code fmt =
+let error ?(notes = []) ?(spans = []) env at code fmt =
   T.set_con_map (con_map env);
   Format.kasprintf (fun s ->
       T.clear_con_map ();
-      Diag.add_msg env.msgs (type_error at code s);
+      Diag.add_msg env.msgs (type_error at code s notes spans);
       raise Recover)
     fmt
 
-let error' env at code notes fmt =
+let local_error ?(notes = []) ?(spans = []) env at code fmt =
   T.set_con_map (con_map env);
   Format.kasprintf (fun s ->
       T.clear_con_map ();
-      Diag.add_msg env.msgs (type_error' at code s notes);
-      raise Recover)
+      Diag.add_msg env.msgs (type_error at code s notes spans))
     fmt
 
-let local_error env at code fmt =
+let warn ?(notes = []) ?(spans = []) env at code fmt =
   T.set_con_map (con_map env);
   Format.kasprintf (fun s ->
       T.clear_con_map ();
-      Diag.add_msg env.msgs (type_error at code s))
-    fmt
-
-let warn env at code fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
-      T.clear_con_map ();
-      if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s))
+      if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s notes spans))
     fmt
 
 let info env at fmt =
@@ -296,7 +285,7 @@ let check_deprecation env at desc id depr =
       (match compare !Flags.experimental_stable_memory 0 with
        | -1 -> error
        | 0 -> warn
-       | _ -> fun _ _ _ _ -> ())
+       | _ -> fun ?(notes = []) ?(spans = []) _ _ _ _ -> ())
        env at code
        "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
@@ -311,7 +300,7 @@ let flag_of_compile_mode mode =
   | Flags.WasmMode -> " and flag -no-system-api"
   | Flags.RefMode -> " and flag -ref-system-api"
 
-let diag_in type_diag modes env at code fmt =
+let diag_in type_diag modes env at code notes spans fmt =
   let mode = !Flags.compile_mode in
   if !Flags.compiled && List.mem mode modes then
     begin
@@ -322,13 +311,13 @@ let diag_in type_diag modes env at code fmt =
             s
             (flag_of_compile_mode mode)
           in
-          Diag.add_msg env.msgs (type_diag at code s)) fmt;
+          Diag.add_msg env.msgs (type_diag at code s notes spans)) fmt;
       true
     end
   else false
 
-let error_in modes env at code fmt =
-  if diag_in type_error modes env at code fmt then
+let error_in modes env at code ?(notes=[]) ?(spans=[]) fmt =
+  if diag_in type_error modes env at code notes spans fmt then
     raise Recover
 
 let plural cs = if T.ConSet.cardinal cs = 1 then "" else "s"
@@ -342,8 +331,8 @@ let warn_lossy_bind_type env at bind t1 t2 =
       display_typ_expand t2
 
 (* Currently unused *)
-let _warn_in modes env at code fmt =
-  ignore (diag_in type_warning modes env at code fmt)
+let _warn_in modes env at code notes spans fmt =
+  ignore (diag_in type_warning modes env at code notes spans fmt)
 
 (* Unused identifier detection *)
 
@@ -458,7 +447,7 @@ let coverage' warnOrError category env f x t at =
   let uncovered, unreached = f x t in
   List.iter (fun at -> warn env at "M0146" "this pattern is never matched") unreached;
   if uncovered <> [] then
-    warnOrError env at "M0145"
+    warnOrError ?notes:None ?spans:None env at "M0145"
       ("this %s of type%a\ndoes not cover value\n  %s" : (_, _, _, _) format4 )
       category
       display_typ_expand t
@@ -630,7 +619,7 @@ let error_shared env t at code fmt =
         display_typ_expand t
         display_typ_expand t1
     in
-    Format.kasprintf (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s)); raise Recover) fmt
+    Format.kasprintf (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] []); raise Recover) fmt
 
 let as_domT t =
   match t.Source.it with
@@ -1557,9 +1546,9 @@ let resolve_hole env at hole_sort typ =
          if explicit_terms = [] then [] else
             [ "The other explicit candidates are: " ^ (String.concat ", " (List.map (fun oc -> oc.desc) explicit_terms)) ]
        in
-       error' env at "M0231" notes "ambiguous implicit argument %s of type %a."
+       error env at "M0231" ~notes "ambiguous implicit argument %s of type %a."
          (match hole_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
-         display_typ typ))
+         display_typ_inline typ))
 
 type ctx_dot_candidate =
   { module_name : T.lab option;
@@ -2266,7 +2255,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
         type_error exp.at "M0070"
           (Format.asprintf
              "expected object type, but expression produces type%a"
-             display_typ_expand t0))
+             display_typ_expand t0) [] [])
   in
   match fields with
   | Error e -> Error e
@@ -2290,7 +2279,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
              id.it
              display_obj t0
              desc
-             (suggest ())))
+             (suggest ())) [] [])
     | exception Invalid_argument _ ->
       Error(t1, fun () ->
         type_error id.at "M0072"
@@ -2298,7 +2287,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
              id.it
              display_obj t0
              (Suggest.suggest_id "field" id.it
-                (List.map (fun f -> f.T.lab) fs))))
+                (List.map (fun f -> f.T.lab) fs))) [] [])
     end
 
 and infer_exp_field env rf =
@@ -2403,24 +2392,23 @@ and check_exp' env0 t exp : T.typ =
       let (import_suggestions, explicit_suggestions, renaming_hints) = mk_suggestions env in
       (* TODO: move this logic into mk_suggestions *)
       if not env.pre then begin
+        let explicit_sug =
+          if explicit_suggestions = [] then []
+          else [Format.sprintf "Did you mean to explicitly use %s?" (String.concat " or " explicit_suggestions)]
+        in
         let import_sug =
           if import_suggestions = [] then
             let desc = match s with Named id -> " named " ^ quote id | _ -> "" in
             Format.sprintf
-             "\nHint: If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
+             "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
              desc desc
-          else Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions)
-        in
-        let explicit_sug =
-          if explicit_suggestions = [] then ""
-          else Format.sprintf "\nHint: Did you mean to explicitly use %s?" (String.concat " or " explicit_suggestions)
+          else Format.sprintf "Did you mean to import %s?" (String.concat " or " import_suggestions)
         in
         renaming_hints env;
-        local_error env exp.at "M0230" "Cannot determine implicit argument %s of type%a%s%s"
+        let notes = import_sug::explicit_sug in
+        local_error ~notes env exp.at "M0230" "Cannot determine implicit argument %s of type%a"
           (desc s)
           display_typ t
-          import_sug
-          explicit_sug
       end;
       t
   end
