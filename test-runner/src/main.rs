@@ -1,6 +1,8 @@
 mod test_runner;
 use crate::test_runner::SubnetType;
 use inquire::MultiSelect;
+use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
 use std::env;
 use std::io::Read;
 use std::process::Command;
@@ -46,6 +48,12 @@ fn run_interactive_mode() {
         return;
     }
 
+    // Set max 8 threads for now.
+    ThreadPoolBuilder::new()
+        .num_threads(8)
+        .build_global()
+        .expect("Failed to initialize global thread pool");
+
     let test_dirs = ["test/run-drun", "test/run", "test/fail"];
 
     let mut tests: Vec<String> = Vec::new();
@@ -71,7 +79,7 @@ fn run_interactive_mode() {
         std::process::exit(1);
     };
     let start_time = Instant::now();
-    let test_results = selection.into_iter().map(run_single_test).collect();
+    let test_results = selection.into_par_iter().map(run_single_test).collect();
     let duration = start_time.elapsed();
     print_summary(test_results, duration);
 }
