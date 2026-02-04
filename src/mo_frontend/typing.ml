@@ -243,32 +243,37 @@ let type_warning at code text : Diag.message =
 let type_info at text : Diag.message =
   Diag.info_message at "type" text
 
-let error env at code fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
+module Format = struct
+  let with_con_map env k =
+    T.set_con_map (con_map env);
+    fun x ->
       T.clear_con_map ();
+      k x
+
+  let kasprintf env k = Format.kasprintf (with_con_map env k)
+  let asprintf env = with_con_map env Format.asprintf
+  let sprintf env = with_con_map env Format.sprintf
+  let fprintf env = with_con_map env Format.fprintf
+end
+
+let error env at code fmt =
+  Format.kasprintf env (fun s ->
       Diag.add_msg env.msgs (type_error at code s);
       raise Recover)
     fmt
 
 let local_error env at code fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
-      T.clear_con_map ();
+  Format.kasprintf env (fun s ->
       Diag.add_msg env.msgs (type_error at code s))
     fmt
 
 let warn env at code fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
-      T.clear_con_map ();
+  Format.kasprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s))
     fmt
 
 let info env at fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
-      T.clear_con_map ();
+  Format.kasprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_info at s))
     fmt
 
@@ -613,11 +618,11 @@ let error_shared env t at code fmt =
   | None -> error env at code fmt
   | Some t1 ->
     let s =
-      Format.asprintf "\ntype%a\nis or contains non-shared type%a"
+      Format.asprintf env "\ntype%a\nis or contains non-shared type%a"
         display_typ_expand t
         display_typ_expand t1
     in
-    Format.kasprintf (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s)); raise Recover) fmt
+    Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s)); raise Recover) fmt
 
 let as_domT t =
   match t.Source.it with
@@ -664,10 +669,10 @@ let string_of_region r =
 let associated_region env at ppf typ =
   match region_of_scope env typ with
   | Some r ->
-    Format.fprintf ppf "\n  scope %a is %s" T.pp_typ typ (string_of_region r);
+    Format.fprintf env ppf "\n  scope %a is %s" T.pp_typ typ (string_of_region r);
   | None ->
     if eq env at typ (T.Con(C.top_cap,[])) then
-      Format.fprintf ppf "\n  scope %a is the global scope" T.pp_typ typ
+      Format.fprintf env ppf "\n  scope %a is the global scope" T.pp_typ typ
     else ()
 
 let scope_info env typ at =
@@ -1754,7 +1759,7 @@ and infer_exp'' env exp : T.typ =
         let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
         error env id.at "M0057" "unbound variable %s%a%s" id.it
           display_vals env.vals
-          (Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions))
+          (Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions))
       | [] ->
         error env id.at "M0057" "unbound variable %s%a%s" id.it
           display_vals env.vals
@@ -2253,7 +2258,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     try Ok(text_obj (T.as_prim_sub T.Text t1)) with Invalid_argument _ ->
       Error(t1, fun () ->
         type_error exp.at "M0070"
-          (Format.asprintf
+          (Format.asprintf env
              "expected object type, but expression produces type%a"
              display_typ_expand t0))
   in
@@ -2275,7 +2280,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     | t (* when not (pred t) *) ->
       Error(t1, fun () ->
         type_error id.at "M0234"
-          (Format.asprintf "field %s does exist in %a\nbut is not %s.\n%s"
+          (Format.asprintf env "field %s does exist in %a\nbut is not %s.\n%s"
              id.it
              display_obj t0
              desc
@@ -2283,7 +2288,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     | exception Invalid_argument _ ->
       Error(t1, fun () ->
         type_error id.at "M0072"
-          (Format.asprintf "field %s does not exist in %a%s"
+          (Format.asprintf env "field %s does not exist in %a%s"
              id.it
              display_obj t0
              (Suggest.suggest_id "field" id.it
@@ -2395,14 +2400,14 @@ and check_exp' env0 t exp : T.typ =
         let import_sug =
           if import_suggestions = [] then
             let desc = match s with Named id -> " named " ^ quote id | _ -> "" in
-            Format.sprintf
+            Stdlib.Format.sprintf
              "\nHint: If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
              desc desc
-          else Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions)
+          else Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions)
         in
         let explicit_sug =
           if explicit_suggestions = [] then ""
-          else Format.sprintf "\nHint: Did you mean to explicitly use %s?" (String.concat " or " explicit_suggestions)
+          else Stdlib.Format.sprintf "\nHint: Did you mean to explicitly use %s?" (String.concat " or " explicit_suggestions)
         in
         renaming_hints env;
         local_error env exp.at "M0230" "Cannot determine implicit argument %s of type%a%s%s"
@@ -2731,7 +2736,7 @@ and infer_callee env exp =
           then e
           else Diag.{e with text =
             e.text ^
-            Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " suggestions)}
+            Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " suggestions)}
         in
         Diag.add_msg env.msgs e1; raise Recover
       | Error (DotAmbiguous mk_error) ->
@@ -3132,7 +3137,7 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
       message
       (match hint with
        | None -> ""
-       | Some hint -> Format.asprintf "\n%s" hint)
+       | Some hint -> Stdlib.Format.asprintf "\n%s" hint)
 
 and is_redundant_instantiation ts env infer_instantiation =
   assert env.pre;
