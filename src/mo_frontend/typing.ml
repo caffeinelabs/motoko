@@ -1912,6 +1912,7 @@ and infer_exp'' env exp : T.typ =
     (match try_infer_dot_exp env exp.at exp1 id ("", (fun dot_typ -> true))  with
     | Ok t -> t
     | Error (_, mk_e) ->
+      if env.pre && env.type_recovery then T.Non else
       let e = mk_e() in
       Diag.add_msg env.msgs e;
       raise Recover)
@@ -2725,6 +2726,7 @@ and infer_callee env exp =
     | Error (t1, mk_e) ->
       match contextual_dot env id t1 with
       | Error (DotSuggestions mk_suggestions) ->
+        if env.pre && env.type_recovery then T.Non, None else
         (* TODO: move this logic into mk_suggestions *)
         let suggestions = mk_suggestions env in
         let e = mk_e () in
@@ -4509,12 +4511,6 @@ and is_import d =
   | LetD (_, {it = ImportE _; _}, None) -> true
   | _ -> false
 
-and infer_exp_recovering env exp =
-  if env.type_recovery then
-    recover_with T.Non (fun () -> infer_exp env exp) ()
-  else
-    infer_exp env exp
-
 and infer_dec_valdecs env dec : Scope.t =
   match dec.it with
   | IncludeD(i, _, n) -> Scope.empty
@@ -4538,7 +4534,7 @@ and infer_dec_valdecs env dec : Scope.t =
     let _ve = check_pat env obj_typ pat in
     Scope.{empty with val_env = singleton id obj_typ}
   | LetD (pat, exp, fail) ->
-     let t = infer_exp_recovering {env with pre = true; check_unused = false} exp in
+     let t = infer_exp {env with pre = true; check_unused = false} exp in
      let ve' = match fail with
        | None -> check_pat_exhaustive (if is_import dec then local_error else warn) env t pat
        | Some _ ->
@@ -4549,7 +4545,7 @@ and infer_dec_valdecs env dec : Scope.t =
      in
      Scope.{empty with val_env = ve'}
   | VarD (id, exp) ->
-    let t = infer_exp_recovering {env with pre = true} exp in
+    let t = infer_exp {env with pre = true} exp in
     Scope.{empty with val_env = singleton id (T.Mut t)}
   | TypD (id, _, _) ->
     let c = Option.get id.note in
@@ -4598,7 +4594,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     fun f y -> recover_with (Some (T.unit, Scope.empty)) (fun y -> Some (f y)) y;
     else recover_opt;
   in
-  let result = Diag.with_message_store ~allow_errors:enable_type_recovery
+  Diag.with_message_store ~allow_errors:enable_type_recovery
     (fun msgs ->
       recovery_fn
         (fun prog ->
@@ -4611,8 +4607,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
           t, {sscope with Scope.fld_src_env}
         ) prog
-    ) in
-  if enable_type_recovery then Diag.dedup_messages result else result
+    )
 
 let is_actor_dec d =
   match d.it with
