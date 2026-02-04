@@ -70,28 +70,25 @@ let get_msgs s = List.rev !s
 let has_errors : messages -> bool =
   List.exists (fun msg -> msg.sev == Error)
 
-(* let string_of_message msg = *)
-(*   let code = match msg.sev, msg.code with *)
-(*     | Info, _ -> "" *)
-(*     | _, "" -> "" *)
-(*     | _, code -> Printf.sprintf " [%s]" code in *)
-(*   let label = match msg.sev with *)
-(*     | Error -> Printf.sprintf "%s error" msg.cat *)
-(*     | Warning -> "warning" *)
-(*     | Info -> "info" in *)
-(*   let src = if !Flags.print_source_on_error then *)
-(*     match Source.read_region_with_markers msg.at with *)
-(*     | Some(src) -> Printf.sprintf "> %s\n\n" src *)
-(*     | None -> "" *)
-(*   else "" in *)
-(*   Printf.sprintf "%s: %s%s, %s\n%s" (Source.string_of_region msg.at) label code msg.text src *)
+let plain_of_message msg =
+  let code = match msg.sev, msg.code with
+    | Info, _ -> ""
+    | _, "" -> ""
+    | _, code -> Printf.sprintf " [%s]" code in
+  let label = match msg.sev with
+    | Error -> Printf.sprintf "%s error" msg.cat
+    | Warning -> "warning"
+    | Info -> "info" in
+  let spans =
+    if msg.spans <> [] then
+      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.text) msg.spans)
+    else "" in
+  let notes =
+    if msg.notes <> [] then
+      "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
+    else "" in
+  Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
 
-
-(*
- Plan:
-
- compact message -> Message header + all primary labels
-*)
 let pos_to_byte content pos =
   let line_start = ref 0 in
   for _ = 1 to pos.Source.line - 1 do
@@ -100,7 +97,7 @@ let pos_to_byte content pos =
   done;
   !line_start + pos.Source.column + 1
 
-let string_of_message msg =
+let fancy_of_message msg =
   let file = msg.at.Source.left.Source.file in
   let source : G.Source.t = `File file in
   let content = In_channel.with_open_bin file In_channel.input_all in
@@ -132,6 +129,11 @@ let string_of_message msg =
       "%s" msg.text) in
     Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
 
+let string_of_message msg =
+  if !Flags.print_source_on_error then
+    fancy_of_message msg
+  else
+    plain_of_message msg
 
 let is_warning_as_error msg =
   msg.sev = Warning && Flags.get_warning_level msg.code = Flags.Error
