@@ -63,6 +63,7 @@ type env =
     shared_pat_regions : Source.region list ref;
     reported_stable_memory : bool ref;
     errors_only : bool;
+    type_recovery : bool;
     srcs : Field_sources.t;
     closest_loop : (Syntax.loop_flags * T.typ) option;
   }
@@ -94,6 +95,7 @@ let env_of_scope msgs scope =
     shared_pat_regions = ref [];
     reported_stable_memory = ref false;
     errors_only = false;
+    type_recovery = false;
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
     closest_loop = None;
   }
@@ -1413,7 +1415,7 @@ let is_lib_module (n, t) =
 let is_val_module (n, ((t, _, _, _) : val_info)) =
   is_lib_module (n, t)
 
-let module_exp in_libs env module_name =
+let module_exp in_libs module_name =
   if not in_libs then
     VarE {it = module_name; at = no_region; note = (Const, None)}
   else
@@ -1451,7 +1453,7 @@ let resolve_hole env at hole_sort typ =
       List.map (fun (lab, typ, region)->
           let path =
             { it = DotE(
-                { it = module_exp in_libs env module_name;
+                { it = module_exp in_libs module_name;
                   at = Source.no_region;
                   note = empty_typ_note
                 },
@@ -1594,7 +1596,7 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
       Option.map (fun (arg_ty, func_ty, inst) ->
         let path = {
           it = DotE({
-              it = module_exp in_libs env module_name;
+              it = module_exp in_libs module_name;
               at = name.at;
               note = empty_typ_note
             }, name, ref None);
@@ -4507,6 +4509,12 @@ and is_import d =
   | LetD (_, {it = ImportE _; _}, None) -> true
   | _ -> false
 
+and infer_exp_recovering env exp =
+  if env.type_recovery then
+    recover_with T.Non (fun () -> infer_exp env exp) ()
+  else
+    infer_exp env exp
+
 and infer_dec_valdecs env dec : Scope.t =
   match dec.it with
   | IncludeD(i, _, n) -> Scope.empty
@@ -4530,7 +4538,7 @@ and infer_dec_valdecs env dec : Scope.t =
     let _ve = check_pat env obj_typ pat in
     Scope.{empty with val_env = singleton id obj_typ}
   | LetD (pat, exp, fail) ->
-     let t = infer_exp {env with pre = true; check_unused = false} exp in
+     let t = infer_exp_recovering {env with pre = true; check_unused = false} exp in
      let ve' = match fail with
        | None -> check_pat_exhaustive (if is_import dec then local_error else warn) env t pat
        | Some _ ->
@@ -4541,7 +4549,7 @@ and infer_dec_valdecs env dec : Scope.t =
      in
      Scope.{empty with val_env = ve'}
   | VarD (id, exp) ->
-    let t = infer_exp {env with pre = true} exp in
+    let t = infer_exp_recovering {env with pre = true} exp in
     Scope.{empty with val_env = singleton id (T.Mut t)}
   | TypD (id, _, _) ->
     let c = Option.get id.note in
@@ -4590,20 +4598,21 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     fun f y -> recover_with (Some (T.unit, Scope.empty)) (fun y -> Some (f y)) y;
     else recover_opt;
   in
-  Diag.with_message_store ~allow_errors:enable_type_recovery
+  let result = Diag.with_message_store ~allow_errors:enable_type_recovery
     (fun msgs ->
       recovery_fn
         (fun prog ->
           let env0 = env_of_scope msgs scope in
           let env = {
-             env0 with async = async_cap;
+             env0 with async = async_cap; type_recovery = enable_type_recovery;
           } in
           let t, sscope = infer_block env prog.it prog.at true in
           if pkg_opt = None && Diag.is_error_free msgs then emit_unused_warnings env;
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
           t, {sscope with Scope.fld_src_env}
         ) prog
-    )
+    ) in
+  if enable_type_recovery then Diag.dedup_messages result else result
 
 let is_actor_dec d =
   match d.it with
