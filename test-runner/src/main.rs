@@ -105,8 +105,24 @@ struct SingleTestResult {
 }
 
 fn run_single_test(test_name: String) -> SingleTestResult {
+    let test_arg_selector = || {
+        if test_name.contains("/run/") {
+            " "
+        } else if test_name.contains("/run-drun/") {
+            "-d"
+        } else if test_name.contains("/fail/") {
+            "-t"
+        } else {
+            " "
+        }
+    };
     let running_test = Command::new("test/run.sh")
-        .arg("-d")
+        // If the arg selector outputs empty string (" "), we don't give any args.
+        .args(if test_arg_selector().eq(" ") {
+            None
+        } else {
+            Some(test_arg_selector())
+        })
         .arg(test_name.clone())
         .output()
         .unwrap_or_else(|_| {
