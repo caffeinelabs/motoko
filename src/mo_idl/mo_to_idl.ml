@@ -227,8 +227,8 @@ module MakeState() = struct
          (match df.it.stab with
           | Some { it = Stable exp_ref; _} ->
              (match !exp_ref with
-                None -> gather_views acc dfs
-              | Some (exp, field) -> gather_views (field::acc) dfs1)
+                None -> gather_views acc dfs1
+              | Some {viewer_field;_} -> gather_views (viewer_field::acc) dfs1)
           | _ ->
              gather_views acc dfs1))
 
