@@ -233,6 +233,7 @@ module MakeState() = struct
              gather_views acc dfs1))
 
   let extend_obj t tfs =
+    if tfs = [] then t else
     match normalize t with
     | Obj(s, tfs1, tfs2) ->
       Obj(s, List.sort compare_field (tfs1 @ tfs), tfs2)
@@ -252,11 +253,9 @@ module MakeState() = struct
         | Func (Local, Returns, [tb], ts1, [t2]) ->
           let args = List.map arg_typ (List.map (open_ [Non]) ts1) in
           let (_, _, actor_typ) = as_async (normalize (open_ [Non] t2)) in
-(*          let viewer_tfs = gather_views [] dfs in
+          let viewer_tfs = gather_views [] dfs in
           let extended_actor_typ = extend_obj actor_typ viewer_tfs in
           let actor = typ extended_actor_typ in
- *)
-          let actor = typ actor_typ in
           Some (I.ClassT (args, actor) @@ cub.at)
         | _ -> assert false
        )
