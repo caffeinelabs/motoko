@@ -27,10 +27,6 @@ let map f = function
   | Stdlib.Error msgs -> Stdlib.Error msgs
   | Ok (x, msgs) -> Ok (f x, msgs)
 
-let map_messages f = function
-  | Stdlib.Error msgs -> Stdlib.Error (f msgs)
-  | Ok (x, msgs) -> Ok (x, f msgs)
-
 let bind x f = match x with
   | Stdlib.Error msgs -> Stdlib.Error msgs
   | Ok (y, msgs1) -> match f y with
@@ -109,16 +105,6 @@ let with_message_store ?(allow_errors = false) f =
   match r with
   | Some x when allow_errors || not (has_errors msgs) -> Ok (x, msgs)
   | _ -> Error msgs
-
-let dedup msgs =
-  let seen = Hashtbl.create 16 in
-  List.filter (fun msg ->
-    let key = (msg.at, msg.code) in
-    if Hashtbl.mem seen key then false
-    else (Hashtbl.add seen key (); true)
-  ) msgs
-
-let dedup_messages r = map_messages dedup r
 
 let flush_messages : 'a result -> 'a option = function
   | Stdlib.Error msgs ->
