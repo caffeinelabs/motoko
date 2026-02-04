@@ -5,7 +5,7 @@ aritybug.mo:17.25-22.2: type error [M0092], async at scope
   $bogus
 cannot produce expected scope
   $
-  scope $ is the global scope
+  scope $top-level is the global scope
 aritybug.mo:18.14-18.27: type error [M0038], misplaced await
 aritybug.mo:18.20-18.27: type error [M0047], send capability required, but not available
  (need an enclosing async expression or function body)
