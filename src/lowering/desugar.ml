@@ -615,10 +615,10 @@ and export_runtime_information self_id =
   )],
    [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
-and export_view exp_opt id =
-  match exp_opt with
+and export_view exp_typ_opt id =
+  match exp_typ_opt with
   | None -> ([], [], [])
-  | Some view_exp ->
+  | Some (view_exp, field) ->
      let open T in
      let view_e = exp view_exp in
      let ts1, ts2, mk_body =

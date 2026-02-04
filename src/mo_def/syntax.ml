@@ -179,7 +179,7 @@ let break_label kind (id_opt : id option) =
 
 type id_ref = (string, mut' * exp option) Source.annotated_phrase
 and stab = stab' Source.phrase
-and stab' = Stable of exp option ref | Flexible
+and stab' = Stable of (exp * Type.field) option ref | Flexible
 and hole_sort = Named of string | Anon of int
 and exp = (exp', typ_note) Source.annotated_phrase
 and exp' =

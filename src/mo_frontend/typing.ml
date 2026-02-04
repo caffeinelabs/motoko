@@ -4075,7 +4075,10 @@ and infer_viewer env scope mut id viewer =
     (match T.normalize viewer_typ with
      | T.Func(T.Local, T.Returns, [], ts1, ts2) ->
         if List.for_all T.shared ts1 && List.for_all T.shared ts2
-        then exp
+        then (exp,
+              T.{ lab = id.it;
+                  typ = Func (Shared Query, Promises, [scope_bind], ts1, ts2);
+                  src = empty_src })
         else error env id.at "M0XXX" "viewer '%s.view()' has non-shared type" id.it
      | _ -> error env id.at "M0XXX" "viewer '%s.view()' is not a function" id.it)))
   with
@@ -4085,13 +4088,17 @@ and infer_viewer env scope mut id viewer =
      | Some (typ, _, _)  ->
         let typ = T.as_immut typ in
         if T.shared typ then
-          viewer := Some {it = VarE {it = id.it; at = id.at ; note = (mut, None)};
-                          at = id.at;
-                          note = { empty_typ_note with note_typ = typ }}
+          viewer := Some ({it = VarE {it = id.it; at = id.at ; note = (mut, None)};
+                           at = id.at;
+                           note = { empty_typ_note with note_typ = typ }},
+                         T.{ lab = id.it;
+                             typ = Func (Shared Query, Promises, [scope_bind], [], [typ]);
+                             src = empty_src })
+
      | None -> assert false)
-  | Ok (exp, _) ->
+  | Ok (exp_typ, _) ->
      (* info env id.at "viewer found for %s" id.it; *)
-     viewer := Some exp;
+     viewer := Some exp_typ;
      ()
 
 
