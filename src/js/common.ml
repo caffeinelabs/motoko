@@ -388,8 +388,18 @@ let js_contextual_dot_suggestions scope raw_exp =
   let suggestions = Typing.contextual_dot_suggestions libs receiver_ty in
   Js.array (Array.of_list (List.map (fun suggestion ->
     object%js
-      val moduleUrl = Js.string suggestion.module_url
+      val moduleUri = Js.string suggestion.module_url
       val funcName = Js.string suggestion.func_name
       val funcType = Js.string (Mo_types.Type.string_of_typ suggestion.func_ty)
     end
   ) suggestions))
+
+let js_contextual_dot_module raw_exp =
+  let open Mo_frontend in
+  let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
+  match Typing.contextual_dot_module exp with
+  | Some (module_name_or_uri, func_name) -> Js.Opt.return (object%js
+      val moduleNameOrUri = Js.string module_name_or_uri
+      val funcName = Js.string func_name
+    end)
+  | None -> Js.Opt.empty

@@ -26,3 +26,5 @@ type contextual_dot_suggestion =
   }
 
 val contextual_dot_suggestions : lib_env -> typ -> contextual_dot_suggestion list
+
+val contextual_dot_module : Syntax.exp -> (string * string) option
