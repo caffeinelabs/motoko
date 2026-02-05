@@ -163,10 +163,7 @@ for (const ast of [
   Motoko.parseMotoko(/*enable_recovery=*/true, astFile),
   Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/true, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports }], cache] }
 ]) {
-  const astString = JSON.stringify(ast, (key, value) =>
-    // Avoid circular references in JSON serialization
-    (key === 'rawExp' || key === 'sscope' || key === 'prog') ? undefined : value
-  );
+  const astString = JSON.stringify(ast);
 
   // Check doc comments
   assert.match(

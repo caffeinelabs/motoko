@@ -187,7 +187,12 @@ module Make (Cfg : Config) = struct
     else it
 
   let add_raw_exp (exp : Syntax.exp) (it : Js.Unsafe.any) : Js.Unsafe.any =
-    Js.Unsafe.set it (js_string "rawExp") (Js.Unsafe.inject exp);
+    (* Use Object.defineProperty to make rawExp non-enumerable, hiding it from JSON.stringify *)
+    let descriptor = Js.Unsafe.obj [|
+      ("value", Js.Unsafe.inject exp);
+      ("enumerable", Js.Unsafe.inject Js._false);
+    |] in
+    ignore (Js.Unsafe.global##.Object##defineProperty it (Js.string "rawExp") descriptor);
     it
 
   let add_trivia (at : Source.region) (it : Js.Unsafe.any) : Js.Unsafe.any =
