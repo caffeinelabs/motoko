@@ -63,6 +63,7 @@ type env =
     shared_pat_regions : Source.region list ref;
     reported_stable_memory : bool ref;
     errors_only : bool;
+    type_recovery : bool;
     srcs : Field_sources.t;
     closest_loop : (Syntax.loop_flags * T.typ) option;
   }
@@ -94,6 +95,7 @@ let env_of_scope msgs scope =
     shared_pat_regions = ref [];
     reported_stable_memory = ref false;
     errors_only = false;
+    type_recovery = false;
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
     closest_loop = None;
   }
@@ -243,32 +245,37 @@ let type_warning at code text : Diag.message =
 let type_info at text : Diag.message =
   Diag.info_message at "type" text
 
-let error env at code fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
+module Format = struct
+  let with_con_map env k =
+    T.set_con_map (con_map env);
+    fun x ->
       T.clear_con_map ();
+      k x
+
+  let kasprintf env k = Format.kasprintf (with_con_map env k)
+  let asprintf env = with_con_map env Format.asprintf
+  let sprintf env = with_con_map env Format.sprintf
+  let fprintf env = with_con_map env Format.fprintf
+end
+
+let error env at code fmt =
+  Format.kasprintf env (fun s ->
       Diag.add_msg env.msgs (type_error at code s);
       raise Recover)
     fmt
 
 let local_error env at code fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
-      T.clear_con_map ();
+  Format.kasprintf env (fun s ->
       Diag.add_msg env.msgs (type_error at code s))
     fmt
 
 let warn env at code fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
-      T.clear_con_map ();
+  Format.kasprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s))
     fmt
 
 let info env at fmt =
-  T.set_con_map (con_map env);
-  Format.kasprintf (fun s ->
-      T.clear_con_map ();
+  Format.kasprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_info at s))
     fmt
 
@@ -613,11 +620,11 @@ let error_shared env t at code fmt =
   | None -> error env at code fmt
   | Some t1 ->
     let s =
-      Format.asprintf "\ntype%a\nis or contains non-shared type%a"
+      Format.asprintf env "\ntype%a\nis or contains non-shared type%a"
         display_typ_expand t
         display_typ_expand t1
     in
-    Format.kasprintf (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s)); raise Recover) fmt
+    Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s)); raise Recover) fmt
 
 let as_domT t =
   match t.Source.it with
@@ -664,10 +671,10 @@ let string_of_region r =
 let associated_region env at ppf typ =
   match region_of_scope env typ with
   | Some r ->
-    Format.fprintf ppf "\n  scope %a is %s" T.pp_typ typ (string_of_region r);
+    Format.fprintf env ppf "\n  scope %a is %s" T.pp_typ typ (string_of_region r);
   | None ->
     if eq env at typ (T.Con(C.top_cap,[])) then
-      Format.fprintf ppf "\n  scope %a is the global scope" T.pp_typ typ
+      Format.fprintf env ppf "\n  scope %a is the global scope" T.pp_typ typ
     else ()
 
 let scope_info env typ at =
@@ -1413,7 +1420,7 @@ let is_lib_module (n, t) =
 let is_val_module (n, ((t, _, _, _) : val_info)) =
   is_lib_module (n, t)
 
-let module_exp in_libs env module_name =
+let module_exp in_libs module_name =
   if not in_libs then
     VarE {it = module_name; at = no_region; note = (Const, None)}
   else
@@ -1451,7 +1458,7 @@ let resolve_hole env at hole_sort typ =
       List.map (fun (lab, typ, region)->
           let path =
             { it = DotE(
-                { it = module_exp in_libs env module_name;
+                { it = module_exp in_libs module_name;
                   at = Source.no_region;
                   note = empty_typ_note
                 },
@@ -1594,7 +1601,7 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
       Option.map (fun (arg_ty, func_ty, inst) ->
         let path = {
           it = DotE({
-              it = module_exp in_libs env module_name;
+              it = module_exp in_libs module_name;
               at = name.at;
               note = empty_typ_note
             }, name, ref None);
@@ -1754,7 +1761,7 @@ and infer_exp'' env exp : T.typ =
         let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
         error env id.at "M0057" "unbound variable %s%a%s" id.it
           display_vals env.vals
-          (Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions))
+          (Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions))
       | [] ->
         error env id.at "M0057" "unbound variable %s%a%s" id.it
           display_vals env.vals
@@ -1910,6 +1917,7 @@ and infer_exp'' env exp : T.typ =
     (match try_infer_dot_exp env exp.at exp1 id ("", (fun dot_typ -> true))  with
     | Ok t -> t
     | Error (_, mk_e) ->
+      if env.pre && env.type_recovery then T.Non else
       let e = mk_e() in
       Diag.add_msg env.msgs e;
       raise Recover)
@@ -2253,7 +2261,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     try Ok(text_obj (T.as_prim_sub T.Text t1)) with Invalid_argument _ ->
       Error(t1, fun () ->
         type_error exp.at "M0070"
-          (Format.asprintf
+          (Format.asprintf env
              "expected object type, but expression produces type%a"
              display_typ_expand t0))
   in
@@ -2275,7 +2283,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     | t (* when not (pred t) *) ->
       Error(t1, fun () ->
         type_error id.at "M0234"
-          (Format.asprintf "field %s does exist in %a\nbut is not %s.\n%s"
+          (Format.asprintf env "field %s does exist in %a\nbut is not %s.\n%s"
              id.it
              display_obj t0
              desc
@@ -2283,7 +2291,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     | exception Invalid_argument _ ->
       Error(t1, fun () ->
         type_error id.at "M0072"
-          (Format.asprintf "field %s does not exist in %a%s"
+          (Format.asprintf env "field %s does not exist in %a%s"
              id.it
              display_obj t0
              (Suggest.suggest_id "field" id.it
@@ -2395,14 +2403,14 @@ and check_exp' env0 t exp : T.typ =
         let import_sug =
           if import_suggestions = [] then
             let desc = match s with Named id -> " named " ^ quote id | _ -> "" in
-            Format.sprintf
+            Stdlib.Format.sprintf
              "\nHint: If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
              desc desc
-          else Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions)
+          else Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions)
         in
         let explicit_sug =
           if explicit_suggestions = [] then ""
-          else Format.sprintf "\nHint: Did you mean to explicitly use %s?" (String.concat " or " explicit_suggestions)
+          else Stdlib.Format.sprintf "\nHint: Did you mean to explicitly use %s?" (String.concat " or " explicit_suggestions)
         in
         renaming_hints env;
         local_error env exp.at "M0230" "Cannot determine implicit argument %s of type%a%s%s"
@@ -2723,6 +2731,7 @@ and infer_callee env exp =
     | Error (t1, mk_e) ->
       match contextual_dot env id t1 with
       | Error (DotSuggestions mk_suggestions) ->
+        if env.pre && env.type_recovery then T.Non, None else
         (* TODO: move this logic into mk_suggestions *)
         let suggestions = mk_suggestions env in
         let e = mk_e () in
@@ -2731,7 +2740,7 @@ and infer_callee env exp =
           then e
           else Diag.{e with text =
             e.text ^
-            Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " suggestions)}
+            Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " suggestions)}
         in
         Diag.add_msg env.msgs e1; raise Recover
       | Error (DotAmbiguous mk_error) ->
@@ -3132,7 +3141,7 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
       message
       (match hint with
        | None -> ""
-       | Some hint -> Format.asprintf "\n%s" hint)
+       | Some hint -> Stdlib.Format.asprintf "\n%s" hint)
 
 and is_redundant_instantiation ts env infer_instantiation =
   assert env.pre;
@@ -4596,7 +4605,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
         (fun prog ->
           let env0 = env_of_scope msgs scope in
           let env = {
-             env0 with async = async_cap;
+             env0 with async = async_cap; type_recovery = enable_type_recovery;
           } in
           let t, sscope = infer_block env prog.it prog.at true in
           if pkg_opt = None && Diag.is_error_free msgs then emit_unused_warnings env;
