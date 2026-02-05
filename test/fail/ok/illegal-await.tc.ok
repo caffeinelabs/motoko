@@ -1,31 +1,31 @@
 illegal-await.mo:3.36-3.37: type error [M0087], ill-scoped await: expected async type from current scope $, found async type from other scope $top-level
-  scope $ is illegal-await.mo:3.22-3.40
+  scope $@anon-async-3.22 is illegal-await.mo:3.22-3.40
   scope $top-level is the global scope
 illegal-await.mo:3.22: info, start of scope $@anon-async-3.22 mentioned in error at illegal-await.mo:3.30-3.37
 illegal-await.mo:3.39: info, end of scope $@anon-async-3.22 mentioned in error at illegal-await.mo:3.30-3.37
 illegal-await.mo:12.39-12.41: type error [M0087], ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-11.10
-  scope $ is illegal-await.mo:12.25-12.44
+  scope $@anon-async-12.25 is illegal-await.mo:12.25-12.44
   scope $@anon-async-11.10 is illegal-await.mo:11.10-15.4
 illegal-await.mo:12.25: info, start of scope $@anon-async-12.25 mentioned in error at illegal-await.mo:12.33-12.41
 illegal-await.mo:12.43: info, end of scope $@anon-async-12.25 mentioned in error at illegal-await.mo:12.33-12.41
 illegal-await.mo:11.10: info, start of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:12.33-12.41
 illegal-await.mo:15.3: info, end of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:12.33-12.41
 illegal-await.mo:13.39-13.41: type error [M0087], ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-11.10
-  scope $ is illegal-await.mo:13.25-13.44
+  scope $@anon-async-13.25 is illegal-await.mo:13.25-13.44
   scope $@anon-async-11.10 is illegal-await.mo:11.10-15.4
 illegal-await.mo:13.25: info, start of scope $@anon-async-13.25 mentioned in error at illegal-await.mo:13.33-13.41
 illegal-await.mo:13.43: info, end of scope $@anon-async-13.25 mentioned in error at illegal-await.mo:13.33-13.41
 illegal-await.mo:11.10: info, start of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:13.33-13.41
 illegal-await.mo:15.3: info, end of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:13.33-13.41
 illegal-await.mo:25.13-25.14: type error [M0087], ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-22.10
-  scope $ is illegal-await.mo:24.11-26.6
+  scope $@anon-async-24.11 is illegal-await.mo:24.11-26.6
   scope $@anon-async-22.10 is illegal-await.mo:22.10-27.4
 illegal-await.mo:24.11: info, start of scope $@anon-async-24.11 mentioned in error at illegal-await.mo:25.7-25.14
 illegal-await.mo:26.5: info, end of scope $@anon-async-24.11 mentioned in error at illegal-await.mo:25.7-25.14
 illegal-await.mo:22.10: info, start of scope $@anon-async-22.10 mentioned in error at illegal-await.mo:25.7-25.14
 illegal-await.mo:27.3: info, end of scope $@anon-async-22.10 mentioned in error at illegal-await.mo:25.7-25.14
 illegal-await.mo:35.11-35.12: type error [M0087], ill-scoped await: expected async type from current scope $, found async type from other scope $
-  scope $ is illegal-await.mo:33.44-40.2
+  scope $Rec is illegal-await.mo:33.44-40.2
   scope $ is illegal-await.mo:33.1-40.2
 illegal-await.mo:33.44: info, start of scope $Rec mentioned in error at illegal-await.mo:35.5-35.12
 illegal-await.mo:40.1: info, end of scope $Rec mentioned in error at illegal-await.mo:35.5-35.12
