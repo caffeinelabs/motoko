@@ -704,7 +704,7 @@ let%expect_test "test type recovery 5" =
   [%expect.unreachable]
 
 let%expect_test "test type recovery: DotE receiver should be typed (LetD case)" =
-  print_typed_ast "let arr = [1]; let _ = arr.va"; (* TODO: make sure the [arr] in the [DotE] is typed as [Nat] not [???] *)
+  print_typed_ast "let arr = [1]; let _ = arr.va";
   [%expect {|
     Ok: (Prog
       (LetD
@@ -737,7 +737,7 @@ let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" 
     Did you mean field vals or values?
   |}]
 
-let%expect_test "context dot function type on callee" =
+let%expect_test "context dot callee function type should not be ???" =
   print_typed_ast "func foo(self : [Nat]) : Text { \"foo\" };
 let ar = [1];
 ar.foo();";
