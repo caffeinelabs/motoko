@@ -158,10 +158,10 @@ assert.deepStrictEqual(Motoko.run([], "actor.mo"), {
 const astFile = Motoko.readFile("ast.mo");
 for (const ast of [
   Motoko.parseMotoko(/*enable_recovery=*/false, astFile),
-  Motoko.parseMotokoTyped(["ast.mo"]).code[0].ast,
-  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/false, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports }], cache] }
+  Motoko.parseMotokoTyped(["ast.mo"]).code[0].ast, // { diagnostics; code: [{ ast; scope }] }
+  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/false, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports; scope }], cache] }
   Motoko.parseMotoko(/*enable_recovery=*/true, astFile),
-  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/true, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports }], cache] }
+  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/true, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports; scope }], cache] }
 ]) {
   const astString = JSON.stringify(ast);
 
@@ -234,6 +234,14 @@ assert.deepStrictEqual(Motoko.candid("ast.mo"), {
   ],
   code: candid,
 });
+
+// Check that parseMotokoTyped exposes scope
+const typedResult = Motoko.parseMotokoTyped(["ast.mo"]);
+assert(typedResult.code[0].scope != null);
+
+// Check that parseMotokoTypedWithScopeCache exposes scope
+const typedWithCacheResult = Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/true, ["ast.mo"], new Map());
+assert(typedWithCacheResult.code[0][0].scope != null);
 
 // Check error recovery
 const badAstFile = Motoko.readFile("bad.mo");

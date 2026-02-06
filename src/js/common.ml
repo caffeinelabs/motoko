@@ -258,6 +258,7 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
         parse_fn paths Pipeline.initial_stat_env scope_cache)
   in
   match load_result with
+  (* senv: accumulated scope from prelude and all transitive imports *)
   | Ok ((_libs, progs, senv, scope_cache), msgs) ->
     let progs =
       progs |> List.map (fun (prog, immediate_imports, sscope) ->
@@ -307,10 +308,11 @@ let js_parse_motoko_typed paths =
   let result = js_parse_motoko_typed_with_scope_cache_impl Js.Opt.empty paths Js.Opt.empty in
   js_result result (fun (progs, _scope_cache) ->
     let progs =
-      progs |> Array.map (fun (ast, _immediate_imports, _) ->
+      progs |> Array.map (fun (ast, _immediate_imports, senv) ->
         object%js
           val ast = ast
           (* val typ = typ *)
+          val scope = Js.Unsafe.inject senv
         end)
       |> Js.array
     in
