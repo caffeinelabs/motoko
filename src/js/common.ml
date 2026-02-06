@@ -385,7 +385,7 @@ let js_contextual_dot_suggestions scope raw_exp =
   let receiver_ty = exp.note.Mo_def.Syntax.note_typ in
   let libs = scope.Scope.lib_env in
   let open Typing in
-  let suggestions = Typing.contextual_dot_suggestions libs receiver_ty in
+  let suggestions = contextual_dot_suggestions libs receiver_ty in
   Js.array (Array.of_list (List.map (fun suggestion ->
     object%js
       val moduleUri = Js.string suggestion.module_url
