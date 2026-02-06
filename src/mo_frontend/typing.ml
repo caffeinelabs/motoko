@@ -520,11 +520,7 @@ let check_closed env id k at =
 (* Imports *)
 
 let is_mixin_import env = function
-  | ImportE (_, ri) ->
-     (match !ri with
-     | LibPath {path; _} ->
-        T.Env.find_opt path env.mixins
-     | _ -> None)
+  | ImportE (_, {contents = LibPath {path; _}}) -> T.Env.find_opt path env.mixins
   | _ -> None
 
 let check_import env at f ri =
