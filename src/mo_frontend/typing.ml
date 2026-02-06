@@ -3365,7 +3365,7 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     let s, fs =
       try T.as_obj_sub (List.filter_map (fun pf ->
         match pf.it with
-        | TypPF(_) -> None
+        | TypPF _ -> None
         | ValPF(id, _) -> Some(id.it)) pfs') t
       with Invalid_argument _ ->
         error env pat.at "M0113" "object pattern cannot consume expected type%a"
