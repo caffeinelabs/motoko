@@ -1,13 +1,13 @@
 // top-level actor objects are supported
 actor Counter {
 
-    flexible shared func bad_private_shared() { }; // unsupported private shared
+    flexible shared func bad_private_shared() : () { }; // unsupported private shared
 
     public func ok_actorarg(a:actor{}) : async () {};
 
     public func ok_functionarg(f:shared()->async ()) : async () {};
 
-    public func ok_oneway(){}; // supported oneway
+    public func ok_oneway() : (){}; // supported oneway
 
     public func ok() : async () {};
 
@@ -33,7 +33,7 @@ actor Counter {
     public func misc_unsupported () : async () {
 
         do {
-          shared func bad_shared() { }; // unsupported non actor-member
+          shared func bad_shared() : () { }; // unsupported non actor-member
         };
 
         do {

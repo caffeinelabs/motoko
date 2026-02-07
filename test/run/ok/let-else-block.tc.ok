@@ -1,0 +1,2 @@
+let-else-block.mo:3.7-3.8: warning [M0243], this pattern will always match, so the else clause is useless. Consider removing the else clause
+let-else-block.mo:9.7-9.13: warning [M0243], this pattern will always match, so the else clause is useless. Consider removing the else clause

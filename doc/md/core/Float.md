@@ -201,7 +201,7 @@ func nearest(x : Float) : Float
 ```
 
 Returns the nearest integral float to `x`.
-A decimal place of exactly .5 is rounded up for `x > 0`
+A decimal place of exactly .5 is rounded to the nearest even integral float.
 and rounded down for `x < 0`
 
 Special cases:
@@ -211,6 +211,7 @@ nearest(-inf) => -inf
 nearest(NaN)  => NaN
 nearest(0.0)  => 0.0
 nearest(-0.0) => -0.0
+nearest(14.5) => 14.0
 ```
 
 Example:

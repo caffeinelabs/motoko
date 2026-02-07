@@ -1,7 +1,7 @@
 do { actor class C() {
-  public func m() {};
-  public func n() {};
-  public func m() {};  // Illegal!
+  public func m() : () {};
+  public func n() : () {};
+  public func m() : () {};  // Illegal!
 }; };
 
 do {
@@ -29,7 +29,7 @@ ignore(object {public func foo() = (); public func nxnnbkddcv() = ()});
 };
 
 do {
-ignore(actor {public func foo() {}; public func nxnnbkddcv() {}});
+ignore(actor {public func foo() : () {}; public func nxnnbkddcv() : () {}});
 };
 
 do {

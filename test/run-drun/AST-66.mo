@@ -1,6 +1,6 @@
 // test cps conversion of async blocks with type decs
 actor a {
-  public func go(){
+  public func go() : (){
     ignore async{
       type T = Null;
       await { async (null:T) };

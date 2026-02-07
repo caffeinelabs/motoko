@@ -15,7 +15,7 @@ actor a {
     ignore(Prim.Array_init<()>(length, ())); 
     await runGC();
   };
-  public func check_A() {
+  public func check_A() : () {
     Prim.debugPrint("Ignore Diff: Reclaimed: " # debug_show Prim.rts_reclaimed());
     assert (Prim.rts_reclaimed() > 8 * length);
     // Generational GC has additional remembered set that is discarded on each GC run
@@ -30,7 +30,7 @@ actor a {
     v := Prim.Array_init<()>(length, ()); // larger amount to trigger incremental GC
     await runGC();
   };
-  public func check_B() {
+  public func check_B() : () {
     Prim.debugPrint("Ignore Diff: Reclaimed: " # debug_show Prim.rts_reclaimed());
     assert (Prim.rts_reclaimed() > 8 * length);
     // Generational GC has additional remembered set that is discarded on each GC run

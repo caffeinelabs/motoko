@@ -107,7 +107,7 @@ assert Int8.toInt16(123) == (+123 : Int16);
 
 ## Function `fromInt32`
 ``` motoko no-repl
-func fromInt32(self : Int32) : Int8
+func fromInt32(x : Int32) : Int8
 ```
 
 Converts a 32-bit signed integer to an 8-bit signed integer.

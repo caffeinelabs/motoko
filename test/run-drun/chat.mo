@@ -6,7 +6,7 @@ type Post = shared Text -> ();
 actor class Server() = {
   flexible var clients : List<Client> = null;
 
-  public func broadcast(message : Text) {
+  public func broadcast(message : Text) : () {
     var next = clients;
     loop {
       switch next {
@@ -32,7 +32,7 @@ actor class Client() = this {
   flexible var name : Text = "";
   flexible var server : ?Server  = null;
 
-  public func go(n : Text, s : Server) {
+  public func go(n : Text, s : Server) : () {
     name := n;
     server := ?s;
     ignore(async {
@@ -42,7 +42,7 @@ actor class Client() = this {
     });
   };
 
-  public func send(msg : Text) {
+  public func send(msg : Text) : () {
     Prim.debugPrint(name # " received " # msg);
   };
 };

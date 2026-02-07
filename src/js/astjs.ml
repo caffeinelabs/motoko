@@ -117,9 +117,9 @@ module Make (Cfg : Config) = struct
           (js_string (Type.string_of_con c) :: List.map typ_js ts
           |> Array.of_list)
     | Prim p -> to_js_object "Prim" [| prim_js p |]
-    | Obj (s, tfs) ->
+    | Obj (s, fs, tfs) ->
         to_js_object "Obj"
-          ([ obj_sort_js s ] @ List.map field_js tfs |> Array.of_list)
+          ([ obj_sort_js s ] @ List.map typ_field_js tfs @ List.map field_js fs |> Array.of_list)
     | Array t -> to_js_object "Array" [| typ_js t |]
     | Opt t -> to_js_object "Opt" [| typ_js t |]
     | Variant tfs ->
@@ -142,12 +142,15 @@ module Make (Cfg : Config) = struct
     | Any -> js_string "Any"
     | Non -> js_string "Non"
     | Pre -> js_string "Pre"
-    | Typ c -> to_js_object "Typ" [| Type.string_of_con c |> js_string |]
     | Named (n, t) -> to_js_object "Name" [| js_string n; typ_js t |]
     | Weak t -> to_js_object "Weak" [| typ_js t |]
 
   and field_js { Type.lab; typ = t; src = s } =
     to_js_object lab (typ_js t :: src s |> Array.of_list)
+
+  and typ_field_js { Type.lab; typ = t; src = s } =
+    let con = to_js_object "Typ" [| Type.string_of_con t |> js_string |] in
+    to_js_object lab (con :: src s |> Array.of_list)
 
   and src ({ Type.depr; track_region; region = r } : Type.src) :
       Js.Unsafe.any list =
@@ -204,9 +207,9 @@ module Make (Cfg : Config) = struct
   let rec path p =
     let open Source in
     let open Syntax in
-    match p.it with
+    match p with
     | IdH i -> to_js_object "IdH" [| id i |]
-    | DotH (p, i) -> to_js_object "DotH" [| path p; id i |]
+    | DotH (p, i) -> to_js_object "DotH" [| path p.it; id i |]
 
   let lit_js =
     let open Syntax in
@@ -381,15 +384,16 @@ module Make (Cfg : Config) = struct
     | SwitchE (e, cs) ->
         to_js_object "SwitchE"
           ([ exp_js e ] @ List.map case_js cs |> Array.of_list)
-    | WhileE (e1, e2) -> to_js_object "WhileE" [| exp_js e1; exp_js e2 |]
-    | LoopE (e1, None) -> to_js_object "LoopE" [| exp_js e1 |]
-    | LoopE (e1, Some e2) -> to_js_object "LoopE" [| exp_js e1; exp_js e2 |]
-    | ForE (p, e1, e2) ->
+    | WhileE (e1, e2, _) -> to_js_object "WhileE" [| exp_js e1; exp_js e2 |]
+    | LoopE (e1, None, _) -> to_js_object "LoopE" [| exp_js e1 |]
+    | LoopE (e1, Some e2, _) -> to_js_object "LoopE" [| exp_js e1; exp_js e2 |]
+    | ForE (p, e1, e2, _) ->
         to_js_object "ForE" [| pat_js p; exp_js e1; exp_js e2 |]
     | LabelE (i, t, e) ->
         to_js_object "LabelE" [| id i; syntax_typ_js t; exp_js e |]
     | DebugE e -> to_js_object "DebugE" [| exp_js e |]
-    | BreakE (i, e) -> to_js_object "BreakE" [| id i; exp_js e |]
+    | BreakE (_, Some i, e) -> to_js_object "BreakE" [| id i; exp_js e |]
+    | BreakE (_, None, e) -> to_js_object "BreakE" [| exp_js e |]
     | RetE e -> to_js_object "RetE" [| exp_js e |]
     | AsyncE (par_opt, Type.Fut, tb, e) ->
         to_js_object "AsyncE"
@@ -450,7 +454,7 @@ module Make (Cfg : Config) = struct
     function
     | PathT (p, ts) ->
         to_js_object "PathT"
-          ([ path p ] @ List.map syntax_typ_js ts |> Array.of_list)
+          ([ path p.it ] @ List.map syntax_typ_js ts |> Array.of_list)
     | PrimT p -> to_js_object "PrimT" [| js_string p |]
     | ObjT (s, ts) ->
         to_js_object "ObjT"

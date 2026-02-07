@@ -2,7 +2,7 @@ bad-type-comp.mo:5.10-5.19: type error [M0096], expression of type
   module {}
 cannot produce expected type
   module {type T = Null}
-because expected field `T` is missing from type 
+because expected type field `T` is missing from type 
   module {}
 bad-type-comp.mo:6.10-6.39: type error [M0096], expression of type
   module {type T = Int}

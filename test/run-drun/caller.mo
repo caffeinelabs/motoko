@@ -51,6 +51,8 @@ actor a {
       (Prim.blobOfPrincipal caller).values().next();
   };
 
+  public shared ({ caller }) func unusedCaller() : async () {};
+  public shared ({ caller = c }) func unusedCaller2() : async () {};
 };
 
 ignore a.c1(); //OR-CALL ingress c1 0x4449444C0000

@@ -6,7 +6,7 @@ actor control {
 
   flexible func condition() : Bool = false;
 
-  public func testBlock() {
+  public func testBlock() : () {
     label l1 {
       break l1
     };
@@ -16,44 +16,44 @@ actor control {
     let (x, y, z) = label l3 : (Int, Bool, Text) (break l3(2, true, ""));
   };
 
-  public func testWhile() {
+  public func testWhile() : () {
     label l while (condition()) {
       if true break l
       else continue l;
     };
   };
 
-  public func testLoop() {
+  public func testLoop() : () {
     label l loop {
       if true break l
       else continue l;
     };
   };
 
-  public func testLoopWhile() {
+  public func testLoopWhile() : () {
     label l loop {
       if true break l
       else continue l;
     } while (condition());
   };
 
-  public func testLoopWhile2() {
+  public func testLoopWhile2() : () {
     loop { } while (false);
   };
 
-  public func testLoopWhile3() {
+  public func testLoopWhile3() : () {
     label l {
       loop { }
       while (false and true)
     };
   };
 
-  public func testLoopWhile4() {
+  public func testLoopWhile4() : () {
     label l loop {
     } while (true and false);
   };
 
-  public func testNestedWhile() {
+  public func testNestedWhile() : () {
     label l while (condition()) {
       if true break l
       else continue l;

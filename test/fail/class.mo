@@ -28,7 +28,7 @@ class D<A, B>() : C<B> {
 type A = actor {m : () -> ()};
 
 actor class AA() : async A {
-  public func m() {};
+  public func m() : () {};
 };
 
 

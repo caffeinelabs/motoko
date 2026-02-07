@@ -9,7 +9,7 @@ actor {
 */
   stable var c = 1;
   stable var b = true;
-  public func inc() { c += 1; };
+  public func inc() : () { c += 1; };
   public query func check(n : Int) : async () {
     assert (c == n);
 //    assert (always10 == 10);

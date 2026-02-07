@@ -34,5 +34,9 @@ M0235 (A) Deprecate for caffeine
 M0236 (A) Suggest contextual dot notation
 M0237 (A) Suggest redundant explicit arguments
 M0239 (W) Avoid binding a unit `()` result
+M0240 (W) Unused identifier in shared pattern warning
+M0241 (W) Unused field in shared pattern warning
+M0242 (W) Implicit oneway declaration
+M0243 (W) Unreachable else in let-else
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)

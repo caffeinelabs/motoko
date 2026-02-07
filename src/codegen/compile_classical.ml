@@ -1413,7 +1413,7 @@ module Stack = struct
   | None -> assert false (* Already resolved by `pipeline.ml` *)
   | Some pages -> pages
 
-  let end_ () = 
+  let end_ () =
     Int32.mul (Int32.of_int (rts_stack_pages ())) page_size
 
   let register_globals env =
@@ -3566,7 +3566,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
     try_unbox I32Type (fun _ -> match n with
         | 32 | 64 -> G.i Drop ^^ Bool.lit true
         | 8 | 16 ->
-          (* use shifting to test that the payload including the tag fits the desired bit width. 
+          (* use shifting to test that the payload including the tag fits the desired bit width.
               E.g. this is now n + 2 for Type.Int. *)
           compile_bitand_const Int32.(shift_left minus_one (n + (32 - BitTagged.ubits_of Type.Int))) ^^
           G.i (Test (Wasm.Values.I32 I32Op.Eqz))
@@ -4011,15 +4011,15 @@ module Object = struct
 
     The field2_data for immutable fields is a vanilla word.
 
-    The field1_data for mutable fields are pointers to a MutBox. This indirection 
-    is a consequence of how we compile object literals with `await` instructions, 
+    The field1_data for mutable fields are pointers to a MutBox. This indirection
+    is a consequence of how we compile object literals with `await` instructions,
     as these mutable fields need to be able to alias local mutable variables, e.g.
     `{ public let f = 1; await async (); public let var v = 2}`.
-    Other use cases are object constructors with public and private mutable fields, 
+    Other use cases are object constructors with public and private mutable fields,
     where the physical record only wraps the public fields.
-    Moreover, closures can selectively capture the individual fields instead of 
+    Moreover, closures can selectively capture the individual fields instead of
     the containing object.
-    Finally, Candid stabilization/destabilization also relies on the indirection 
+    Finally, Candid stabilization/destabilization also relies on the indirection
     of mutable fields, to reserve and store alias information in those locations.
 
     We could alternatively switch to an allocate-first approach in the
@@ -4159,7 +4159,6 @@ module Object = struct
   let field_lower_bound env obj_type s =
     let open Type in
     let _, fields = as_obj_sub [s] obj_type in
-    List.iter (function {typ = Typ _; _} -> assert false | _ -> ()) fields;
     let sorted_by_hash =
       List.sort
         (fun (h1, _) (h2, _) -> Lib.Uint32.compare h1 h2)
@@ -6020,7 +6019,7 @@ module StableMem = struct
       ))
 
   let read_and_clear_word32 env =
-      read_and_clear env "word32" I32Type 4l (compile_unboxed_const 0l) 
+      read_and_clear env "word32" I32Type 4l (compile_unboxed_const 0l)
       load_unskewed_ptr store_unskewed_ptr
   let read_and_clear_word64 env =
     read_and_clear env "word64" I64Type 8l (compile_const_64 0L)
@@ -6983,7 +6982,7 @@ module MakeSerialization (Strm : Stream) = struct
           typs := !typs @ [ t ];
           match t with
           | Tup ts -> List.iter go ts
-          | Obj (_, fs) ->
+          | Obj (_, fs, _) ->
             List.iter (fun f -> go f.typ) fs
           | Array (Mut t) -> go (Array t)
           | Array t -> go t
@@ -7061,7 +7060,7 @@ module MakeSerialization (Strm : Stream) = struct
           add_leb128 i;
           add_idx t;
         ) ts
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         add_sleb128 idl_record;
         add_leb128 (List.length fs);
         List.iter (fun (h, f) ->
@@ -7099,7 +7098,7 @@ module MakeSerialization (Strm : Stream) = struct
             add_leb128 1; add_u8 3; (* composite *)
           | _ -> assert false
         end
-      | Obj (Actor, fs) ->
+      | Obj (Actor, fs, _) ->
         add_sleb128 idl_service;
         add_leb128 (List.length fs);
         List.iter (fun f ->
@@ -7245,7 +7244,7 @@ module MakeSerialization (Strm : Stream) = struct
           get_x ^^ Tuple.load_n env (Int32.of_int i) ^^
           size env t
           ) ts
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         G.concat_map (fun (_h, f) ->
           get_x ^^ Object.load_idx_raw env f.Type.lab ^^
           size env f.typ
@@ -7286,9 +7285,9 @@ module MakeSerialization (Strm : Stream) = struct
           ( E.trap_with env "buffer_size: unexpected variant" )
       | Func _ ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
-        get_x ^^ Arr.load_field env 0l ^^ size env (Obj (Actor, [])) ^^
+        get_x ^^ Arr.load_field env 0l ^^ size env (Obj (Actor, [], [])) ^^
         get_x ^^ Arr.load_field env 1l ^^ size env (Prim Text)
-      | Obj (Actor, _) | Prim Principal ->
+      | Obj (Actor, _, _) | Prim Principal ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
         get_x ^^ size env blob
       | Non ->
@@ -7409,7 +7408,7 @@ module MakeSerialization (Strm : Stream) = struct
           get_x ^^ Tuple.load_n env (Int32.of_int i) ^^
           write env t
         ) ts
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         G.concat_map (fun (_h, f) ->
           get_x ^^ Object.load_idx_raw env f.Type.lab ^^
           write env f.typ
@@ -7456,9 +7455,9 @@ module MakeSerialization (Strm : Stream) = struct
         write_text env get_data_buf get_x
       | Func _ ->
         write_byte env get_data_buf compile_unboxed_one ^^
-        get_x ^^ Arr.load_field env 0l ^^ write env (Obj (Actor, [])) ^^
+        get_x ^^ Arr.load_field env 0l ^^ write env (Obj (Actor, [], [])) ^^
         get_x ^^ Arr.load_field env 1l ^^ write env (Prim Text)
-      | Obj (Actor, _) | Prim Principal ->
+      | Obj (Actor, _, _) | Prim Principal ->
         write_byte env get_data_buf compile_unboxed_one ^^
         get_x ^^ write env blob
       | Non ->
@@ -8004,7 +8003,7 @@ module MakeSerialization (Strm : Stream) = struct
 
           Tuple.from_stack env (List.length ts)
         )
-      | Obj ((Object | Memory), fs) ->
+      | Obj ((Object | Memory), fs, _) ->
         with_record_typ (fun get_typ_buf get_n_ptr ->
           let (set_val, get_val) = new_local env "val" in
 
@@ -8199,7 +8198,7 @@ module MakeSerialization (Strm : Stream) = struct
               ]))
           (skip get_idltyp ^^
            coercion_failed "IDL error: incompatible function type")
-      | Obj (Actor, _) ->
+      | Obj (Actor, _, _) ->
         (* See Note [Candid subtype checks] *)
         get_rel_buf_opt ^^
         G.if1 I32Type
@@ -8860,12 +8859,12 @@ module Stabilization = struct
     match E.mode env with
     | Flags.ICMode | Flags.RefMode ->
       let (set_instructions, get_instructions) = new_local64 env "instructions" in
-      let handle_missing_instructions = 
+      let handle_missing_instructions =
         get_instructions ^^
         compile_eq64_const 0L ^^
         (G.if0
         begin
-          (* Default to -1 if no upgrade instructions were recorded, i.e. 
+          (* Default to -1 if no upgrade instructions were recorded, i.e.
              because the record space was lacking or was zero padding. *)
           compile_const_64 (-1L) ^^
           set_instructions
@@ -9044,7 +9043,7 @@ module Stabilization = struct
           (* return val *)
           get_val
         end ^^
-        (* Record the total upgrade instructions if defined. 
+        (* Record the total upgrade instructions if defined.
            If stabilization costs were missing due to upgrades from old Motoko programs,
            the costs are defaulted to 0xFFFF_FFFF_FFFF_FFFF. *)
         get_instructions ^^
@@ -9104,7 +9103,7 @@ module StackRep = struct
     | Prim ((Nat8 | Nat16 | Int8 | Int16 | Char) as pty) -> UnboxedWord32 pty
     | Prim (Text | Blob | Principal) -> Vanilla
     | Prim Float -> UnboxedFloat64
-    | Obj (Actor, _) -> Vanilla
+    | Obj (Actor, _, _) -> Vanilla
     | Func (Shared _, _, _, _, _) -> Vanilla
     | p -> todo "StackRep.of_type" (Arrange_ir.typ p) Vanilla
 
@@ -9602,9 +9601,9 @@ module FuncDec = struct
       | Type.(Shared Query) ->
         Lifecycle.(trans env PostQuery)
       | Type.(Shared Composite) ->
-        (* Stay in composite query state such that callbacks of 
-        composite queries can also use the memory reserve. 
-        The state is isolated since memory changes of queries 
+        (* Stay in composite query state such that callbacks of
+        composite queries can also use the memory reserve.
+        The state is isolated since memory changes of queries
         are rolled back by the IC runtime system. *)
         Lifecycle.(trans env InComposite)
       | _ -> assert false
@@ -9620,7 +9619,7 @@ module FuncDec = struct
     G.if0
       (G.nop)
       (message_cleanup env Type.(Shared Write))
-  
+
   let compile_const_message outer_env outer_ae sort control args mk_body ret_tys at : E.func_with_names =
     let ae0 = VarEnv.mk_fun_ae outer_ae in
     Func.of_body outer_env [] [] (fun env -> G.with_region at (
@@ -10343,7 +10342,7 @@ module Cost = struct
           Cycles.from_word128_ptr env
         )
       )
-  
+
   let sign_with_ecdsa env =
     Func.share_code2 Func.Always env "cost_sign_with_ecdsa"
       (("key_name", IC.i), ("curve", I32Type))
@@ -10976,7 +10975,7 @@ let compile_eq env =
   let open Type in
   function
   | Prim Text -> Text.compare env Operator.EqOp
-  | Prim (Blob|Principal) | Obj (Actor, _) -> Blob.compare env (Some Operator.EqOp)
+  | Prim (Blob|Principal) | Obj (Actor, _, _) -> Blob.compare env (Some Operator.EqOp)
   | Func (Shared _, _, _, _, _) -> FuncDec.equate_msgref env
   | Prim (Nat | Int) -> BigNum.compile_eq env
   | Prim (Int64 | Nat64) -> G.i (Compare (Wasm.Values.I64 I64Op.Eq))
@@ -11911,22 +11910,22 @@ and compile_prim_invocation (env : E.t) ae p es at =
   (* Weak refs are disallowed in classical mode *)
   (* The compiler will exit with an error if it encounters a related call *)
   | OtherPrim "alloc_weak_ref", [target] ->
-    let msg = Diag.error_message Source.no_region "alloc_weak_ref" "classical" 
+    let msg = Diag.error_message Source.no_region "alloc_weak_ref" "classical"
       "Weak references are not supported in classical mode."
     in
     Diag.print_messages [msg];
     exit 0
 
   | OtherPrim "weak_get", [weak_ref] ->
-    let msg = Diag.error_message Source.no_region "weak_get" "classical" 
-      "Weak references are not supported in classical mode." 
+    let msg = Diag.error_message Source.no_region "weak_get" "classical"
+      "Weak references are not supported in classical mode."
     in
     Diag.print_messages [msg];
     exit 0
 
   | OtherPrim "weak_ref_is_live", [weak_ref] ->
-    let msg = Diag.error_message Source.no_region "weak_ref_is_live" "classical" 
-      "Weak references are not supported in classical mode." 
+    let msg = Diag.error_message Source.no_region "weak_ref_is_live" "classical"
+      "Weak references are not supported in classical mode."
     in
     Diag.print_messages [msg];
     exit 0
@@ -13522,7 +13521,7 @@ and conclude_module env set_serialization_globals start_fi_o =
     let open Wasm_exts.CustomModule in
     { module_;
       dylink0 = [];
-      name = { empty_name_section with 
+      name = { empty_name_section with
         function_names = List.mapi (fun i (f,n,_) -> Int32.(add ni (of_int i), n)) funcs;
         locals_names = List.mapi (fun i (f,_,ln) -> Int32.(add ni (of_int i), ln)) funcs;
       };

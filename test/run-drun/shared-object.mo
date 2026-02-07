@@ -11,7 +11,7 @@ actor a {
     case {a; b = {c = ?c}} (a + c)
   });
 
-  public func go() {
+  public func go() : () {
     let b = await (baz foo);
     assert (b == 42);
   };

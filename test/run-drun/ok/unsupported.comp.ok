@@ -1,4 +1,4 @@
-unsupported.mo:36.36-36.39: type error [M0077], a shared function is only allowed as a public field of an actor
+unsupported.mo:36.41-36.44: type error [M0077], a shared function is only allowed as a public field of an actor
   (This is a limitation of the current version.)
 unsupported.mo:50.11-50.43: type error [M0139], inner actor classes are not supported yet; any actor class must come last in your program
   (This is a limitation of the current version.)
@@ -12,5 +12,5 @@ unsupported.mo:72.44-72.47: type error [M0077], a shared function is only allowe
   (This is a limitation of the current version.)
 unsupported.mo:73.44-73.47: type error [M0077], a shared function is only allowed as a public field of an actor
   (This is a limitation of the current version.)
-unsupported.mo:4.14-4.50: type error [M0126], a shared function cannot be private
+unsupported.mo:4.14-4.55: type error [M0126], a shared function cannot be private
   (This is a limitation of the current version.)

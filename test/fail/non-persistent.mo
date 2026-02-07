@@ -8,5 +8,5 @@ actor {
   module _M = {};
   object _O = {}; // error
   func f(){};
-  public /*shared*/ func g(){};
+  public /*shared*/ func g() : (){};
 }

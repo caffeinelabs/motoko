@@ -20,7 +20,7 @@ actor {
       case (?r) r;
       }
   };
-  public func sanityTest() {
+  public func sanityTest() : () {
     P.debugPrint("sanity check. n=" # debug_show n);
     if (n > 0) { P.debugPrint(debug_show Region.id(unwrap(0, regions[0]))) };
     if (n > 1) { P.debugPrint(debug_show Region.id(unwrap(1, regions[1]))) };

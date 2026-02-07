@@ -4,7 +4,7 @@ actor {
   stable let c : Text = do { assert false; loop {}};
   stable var i : Nat = do { assert false; loop {}};
   var j = i; // cached state
-  public func inc() { j += 1; };
+  public func inc() : () { j += 1; };
   public query func check(n : Int) : async () {
     assert (c.size() == 3);
     assert (j == n);

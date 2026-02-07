@@ -46,7 +46,7 @@ let print_dyn_ve scope =
     let (t, _, _) = Env.find x scope.Scope.val_env in
     let t' = as_immut t in
     match normalize t' with
-    | Obj (Module, fs) ->
+    | Obj (Module, fs, _) ->
       Format.printf "@[<hv 2>%s %s : module {...}@]@."
         (if t == t' then "let" else "var") x
     | _ ->
@@ -164,6 +164,7 @@ let print_deps (file : string) : unit =
   let (prog, _) =  Diag.run (parse_file Source.no_region file) in
   let imports = Diag.run (ResolveImport.collect_imports prog file) in
   List.iter (fun (url, path) ->
+      if String.starts_with ~prefix:"blob:" url then () else
       match path with
       | None -> Printf.printf "%s\n" url
       | Some path -> Printf.printf "%s %s\n" url path

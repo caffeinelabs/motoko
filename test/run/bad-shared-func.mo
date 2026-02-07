@@ -1,1 +1,1 @@
-shared func g () {}; // unsupported when compiling to standalone wasm.
+shared func g() : () {}; // unsupported when compiling to standalone wasm.

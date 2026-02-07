@@ -3,7 +3,7 @@ actor {
   public type Query = shared query () -> async ?Func;
   public type Oneway = shared () -> ();
 
-  public func oneway() {};
+  public func oneway() : () {};
   public query func fun() : async ?Func { null };
   public query func fun2(arg : ?Func) : async () { };
   public query func fun3() : async Query { fun };

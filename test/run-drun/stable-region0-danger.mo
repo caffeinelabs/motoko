@@ -17,7 +17,7 @@ actor {
   system func preupgrade() {
   };
 
-  public func sanityTest() {
+  public func sanityTest() : () {
     // test that r01 correctly aliases r0, even after upgrade.
     let r01 = Region.region0();
     P.debugPrint(debug_show {s0 = Region.size(r0);  s01 = Region.size(r01)});

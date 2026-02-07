@@ -8,7 +8,7 @@ actor a {
     }
   };
 
-  public func go() {
+  public func go() : () {
     ignore await opt();
   };
 }

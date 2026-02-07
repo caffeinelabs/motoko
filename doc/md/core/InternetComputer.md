@@ -35,7 +35,7 @@ persistent actor {
 }
 ```
 
-[Learn more about Candid serialization](https://internetcomputer.org/docs/current/motoko/main/reference/language-manual#candid-serialization)
+[Learn more about Candid serialization](https://internetcomputer.org/docs/motoko/language-manual#candid-serialization)
 
 ## Function `isReplicated`
 ``` motoko no-repl

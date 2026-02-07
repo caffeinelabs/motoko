@@ -196,10 +196,10 @@ fn contains_icp_private_custom_section(wasm_binary: &[u8], name: &str) -> Result
     let icp_section_name = format!("icp:private {}", name);
     let parser = Parser::new(0);
     for payload in parser.parse_all(wasm_binary) {
-        if let CustomSection(reader) = payload.map_err(|e| format!("Wasm parsing error: {}", e))? {
-            if reader.name() == icp_section_name {
-                return Ok(true);
-            }
+        if let CustomSection(reader) = payload.map_err(|e| format!("Wasm parsing error: {}", e))?
+            && reader.name() == icp_section_name
+        {
+            return Ok(true);
         }
     }
     Ok(false)
@@ -214,7 +214,7 @@ trait ResultExtractor {
 impl ResultExtractor for () {
     fn extract(&self, command: TestCommand) -> String {
         match command {
-            TestCommand::Ingress { .. }
+            | TestCommand::Ingress { .. }
             | TestCommand::Reinstall { .. }
             | TestCommand::Upgrade { .. }
             | TestCommand::Install { .. } => "ingress Completed: Reply: 0x4449444c0000".to_string(),
@@ -229,7 +229,7 @@ impl ResultExtractor for Vec<u8> {
     fn extract(&self, command: TestCommand) -> String {
         let hex_str: String = self.iter().map(|b| format!("{:02x}", b)).collect();
         match command {
-            TestCommand::Ingress { .. }
+            | TestCommand::Ingress { .. }
             | TestCommand::Reinstall { .. }
             | TestCommand::Upgrade { .. }
             | TestCommand::Install { .. } => {
@@ -242,30 +242,18 @@ impl ResultExtractor for Vec<u8> {
 
 impl TestCommand {
     fn principal_from_text(text: &str) -> Result<Principal, std::io::Error> {
-        Principal::from_text(text).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to parse canister id: {}", e),
-            )
-        })
+        Principal::from_text(text)
+            .map_err(|e| std::io::Error::other(format!("Failed to parse canister id: {}", e)))
     }
 
     fn read_wasm_file(wasm_path: &PathBuf) -> Result<Vec<u8>, std::io::Error> {
-        std::fs::read(wasm_path).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to read wasm file: {}", e),
-            )
-        })
+        std::fs::read(wasm_path)
+            .map_err(|e| std::io::Error::other(format!("Failed to read wasm file: {}", e)))
     }
 
     fn parse_args(input_str: &str) -> Result<Vec<u8>, std::io::Error> {
-        parse_str_args(input_str).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to parse args: {}", e),
-            )
-        })
+        parse_str_args(input_str)
+            .map_err(|e| std::io::Error::other(format!("Failed to parse args: {}", e)))
     }
 
     fn create_canister(&self, server: &mut PocketIc, canister_id: &str) -> std::io::Result<()> {
@@ -282,10 +270,10 @@ impl TestCommand {
         server.add_cycles(canister_principal, 1_000_000_000_000_000);
 
         if let Err(e) = result {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to create canister: {:?}", e),
-            ));
+            return Err(std::io::Error::other(format!(
+                "Failed to create canister: {:?}",
+                e
+            )));
         } else {
             println!(
                 "ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101"
@@ -456,10 +444,7 @@ impl TestCommand {
                         payload,
                     )
                     .map_err(|e| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Failed to submit call: {:?}", e),
-                        )
+                        std::io::Error::other(format!("Failed to submit call: {:?}", e))
                     })?;
                 while server.ingress_status(res.clone()).is_none() {
                     server.tick();
@@ -526,113 +511,103 @@ impl TestCommand {
     }
 }
 
-pub struct TestCommands {
-    content: String,
-}
+fn parse_commands(content: &str) -> std::io::Result<Vec<TestCommand>> {
+    let mut commands = Vec::new();
 
-impl TestCommands {
-    pub fn new(content: String) -> Self {
-        Self { content }
-    }
+    for line in content.lines() {
+        let line = line.trim();
 
-    pub fn parse(&self) -> std::io::Result<Vec<TestCommand>> {
-        let mut commands = Vec::new();
-
-        for line in self.content.lines() {
-            let line = line.trim();
-
-            // Skip empty lines and comments
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-
-            // Parse commands
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.is_empty() {
-                continue;
-            }
-
-            let command = match parts[0] {
-                // if we encounter a create, just ignore it.
-                "create" => continue,
-                "install" => {
-                    if parts.len() != 4 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "install command requires 3 arguments",
-                        ));
-                    }
-                    TestCommand::Install {
-                        canister_id: parts[1].to_string(),
-                        wasm_path: PathBuf::from(parts[2]),
-                        init_args: parts[3].to_string(),
-                    }
-                }
-                "reinstall" => {
-                    if parts.len() != 4 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "reinstall command requires 3 arguments",
-                        ));
-                    }
-                    TestCommand::Reinstall {
-                        canister_id: parts[1].to_string(),
-                        wasm_path: PathBuf::from(parts[2]),
-                        init_args: parts[3].to_string(),
-                    }
-                }
-                "upgrade" => {
-                    if parts.len() != 4 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "upgrade command requires 3 arguments",
-                        ));
-                    }
-                    TestCommand::Upgrade {
-                        canister_id: parts[1].to_string(),
-                        wasm_path: PathBuf::from(parts[2]),
-                        upgrade_args: parts[3].to_string(),
-                    }
-                }
-                "ingress" => {
-                    if parts.len() != 4 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "ingress command requires 3 arguments",
-                        ));
-                    }
-                    TestCommand::Ingress {
-                        canister_id: parts[1].to_string(),
-                        method_name: parts[2].to_string(),
-                        args: parts[3].to_string(),
-                    }
-                }
-                "query" => {
-                    if parts.len() != 4 {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "query command requires 3 arguments",
-                        ));
-                    }
-                    TestCommand::Query {
-                        canister_id: parts[1].to_string(),
-                        method_name: parts[2].to_string(),
-                        args: parts[3].to_string(),
-                    }
-                }
-                _ => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        format!("Unknown command: {}", parts[0]),
-                    ));
-                }
-            };
-
-            commands.push(command);
+        // Skip empty lines and comments
+        if line.is_empty() || line.starts_with('#') {
+            continue;
         }
 
-        Ok(commands)
+        // Parse commands
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.is_empty() {
+            continue;
+        }
+
+        let command = match parts[0] {
+            // if we encounter a create, just ignore it.
+            "create" => continue,
+            "install" => {
+                if parts.len() != 4 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "install command requires 3 arguments",
+                    ));
+                }
+                TestCommand::Install {
+                    canister_id: parts[1].to_string(),
+                    wasm_path: PathBuf::from(parts[2]),
+                    init_args: parts[3].to_string(),
+                }
+            }
+            "reinstall" => {
+                if parts.len() != 4 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "reinstall command requires 3 arguments",
+                    ));
+                }
+                TestCommand::Reinstall {
+                    canister_id: parts[1].to_string(),
+                    wasm_path: PathBuf::from(parts[2]),
+                    init_args: parts[3].to_string(),
+                }
+            }
+            "upgrade" => {
+                if parts.len() != 4 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "upgrade command requires 3 arguments",
+                    ));
+                }
+                TestCommand::Upgrade {
+                    canister_id: parts[1].to_string(),
+                    wasm_path: PathBuf::from(parts[2]),
+                    upgrade_args: parts[3].to_string(),
+                }
+            }
+            "ingress" => {
+                if parts.len() != 4 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "ingress command requires 3 arguments",
+                    ));
+                }
+                TestCommand::Ingress {
+                    canister_id: parts[1].to_string(),
+                    method_name: parts[2].to_string(),
+                    args: parts[3].to_string(),
+                }
+            }
+            "query" => {
+                if parts.len() != 4 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "query command requires 3 arguments",
+                    ));
+                }
+                TestCommand::Query {
+                    canister_id: parts[1].to_string(),
+                    method_name: parts[2].to_string(),
+                    args: parts[3].to_string(),
+                }
+            }
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Unknown command: {}", parts[0]),
+                ));
+            }
+        };
+
+        commands.push(command);
     }
+
+    Ok(commands)
 }
 
 pub struct TestRunner {
@@ -713,8 +688,7 @@ fn main() {
     let mut buffer = String::new();
     let _ = stdin.read_to_string(&mut buffer);
 
-    let commands = TestCommands::new(buffer).parse();
-    match commands {
+    match parse_commands(&buffer) {
         Ok(commands) => {
             let test_runner = TestRunner::new(commands, subnet_type);
             let _ = test_runner.run();
@@ -735,7 +709,7 @@ mod tests {
     #[test]
     fn test_read_wasm_file() {
         let wasm_path = PathBuf::from("invalid/wasm/path.wasm");
-        assert_eq!(true, TestCommand::read_wasm_file(&wasm_path).is_err());
+        assert!(TestCommand::read_wasm_file(&wasm_path).is_err());
     }
 
     #[test]
@@ -746,15 +720,15 @@ mod tests {
             wasm_path: PathBuf::from("invalid/wasm/path.wasm"),
             init_args: "".to_string(),
         };
-        assert_eq!(true, command.execute(&mut server).is_err());
+        assert!(command.execute(&mut server).is_err());
     }
 
     #[test]
     fn execute_install_drun_string() {
         let mut server = PocketIcBuilder::new().with_application_subnet().build();
         let drun_str = "install aaaaa-aa invalid/wasm/path.wasm \"\"";
-        let commands = TestCommands::new(drun_str.to_string()).parse();
-        assert_eq!(true, commands.is_ok());
-        assert_eq!(true, commands.unwrap()[0].execute(&mut server).is_err());
+        let commands = parse_commands(drun_str);
+        assert!(commands.is_ok());
+        assert!(commands.unwrap()[0].execute(&mut server).is_err());
     }
 }

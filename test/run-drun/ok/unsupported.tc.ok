@@ -1,4 +1,4 @@
-unsupported.mo:62.11-62.37: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+unsupported.mo:62.11-62.34: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
 unsupported.mo:4.26-4.44: warning [M0194], unused identifier bad_private_shared (delete or rename to wildcard `_` or `_bad_private_shared`)
 unsupported.mo:6.29-6.30: warning [M0194], unused identifier a (delete or rename to wildcard `_` or `_a`)
 unsupported.mo:8.32-8.33: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)

@@ -16,6 +16,11 @@ on:
         default: test-draft-release
         type: string
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -154,10 +159,17 @@ jobs:
           echo "Contents of release-assets directory:"
           find release-assets -type f -ls || true
 
+      - name: Create GitHub App Token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.GENERIC_CI_RW_APP_ID }}
+          private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
+
       - name: Upload Release Assets
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ steps.app-token.outputs.token }}
           tag: ${{ github.event_name == 'workflow_dispatch' && steps.rewrite_draft_assets.outputs.tag || github.ref_name }}
           file: release-assets/*
           file_glob: true

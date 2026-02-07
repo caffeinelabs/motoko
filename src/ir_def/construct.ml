@@ -789,9 +789,8 @@ let objE sort typ_flds flds =
       blockE
         (List.rev ds)
         (newObjE sort fields
-           (T.obj sort
-              (List.map (fun (id, c) -> (id, T.Typ c)) typ_flds
-               @ fld_tys)))
+           (T.obj' sort fld_tys typ_flds))
+
     | (lab, exp)::flds ->
       let v, ds = match exp.it with
         | VarE (Const, v) -> var v (typ exp), ds
@@ -816,7 +815,7 @@ let objectE sort flds (tfs : T.field list) =
       blockE
         (List.rev ds)
         (newObjE sort fields
-          (T.Obj (sort, List.sort T.compare_field tfs)))
+          (T.Obj (sort, List.sort T.compare_field tfs, [])))
     | (lab, exp)::flds ->
        let v, typ, ds =
          match T.lookup_val_field_opt lab tfs with

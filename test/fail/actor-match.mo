@@ -1,6 +1,6 @@
 let a : actor {f : () -> (); g : () -> ()} = actor {
-  public func f() {};
-  public func g() {}
+  public func f() : () {};
+  public func g() : () {}
 };
 
 func foo() = switch a {

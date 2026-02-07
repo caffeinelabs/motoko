@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 actor a {
-  public func go() {
+  public func go() : () {
     // Time should be constant within the function execution
     // (drun currently returns 0 anyways)
     assert(Prim.time() == Prim.time());
