@@ -82,8 +82,10 @@ let string_of_severity (sev : severity) = match sev with
   | Warning -> "warning"
   | Info -> "info"
 
+(* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message msg =
   let at = msg.at in
+  (* TODO: what if [at] is empty? [no_region] *)
   let { Source.file; line = line_start; column = column_start } = at.Source.left in
   let { Source.line = line_end; column = column_end; _ } = at.Source.right in
   let span = `Assoc [
@@ -97,7 +99,6 @@ let json_string_of_message msg =
     "message", `String msg.text;
     "code", `String msg.code;
     "level", `String (string_of_severity msg.sev);
-    "category", `String msg.cat;
     "spans", `List [span];
   ] in
   Yojson.Basic.to_string json
