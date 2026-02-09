@@ -4,6 +4,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use inquire::MultiSelect;
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
+use regex::Regex;
+use std::cell::RefCell;
 use std::env;
 use std::io::Read;
 use std::process::Command;
@@ -72,8 +74,50 @@ fn run_interactive_mode() {
         tests.extend(local_tests);
     }
 
+    // Cache regex compilation, otherwise filtering is slow.
+    thread_local! {
+        static CACHED_REGEX: RefCell<(String, Option<Regex>)> = const { RefCell::new((String::new(), None)) };
+    }
+
+    let try_match = |input: &str, string_value: &str| {
+        // Cache the regex compilation so that it's not computed for every item in the list.
+        CACHED_REGEX.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if cache.0 != input {
+                cache.0 = input.to_string();
+                // If the user tries to do pattern matching, let them do it.
+                // If not, do strict word checks.
+                let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
+                let pattern = if is_regex {
+                    input.to_string()
+                } else {
+                    format!(r"\b{}\b", regex::escape(input))
+                };
+                cache.1 = Regex::new(&pattern).ok();
+            }
+            match &cache.1 {
+                Some(re) => {
+                    if re.is_match(string_value) {
+                        Some(0)
+                    } else {
+                        None
+                    }
+                }
+                // Fallback: if the regex is mid-typing/invalid,
+                // just do a basic case-insensitive check.
+                None => {
+                    if string_value.to_lowercase().contains(&input.to_lowercase()) {
+                        Some(0)
+                    } else {
+                        None
+                    }
+                }
+            }
+        })
+    };
+
     let Ok(selection) = MultiSelect::new(
-        "Chose a motoko test to run.\nYou can filter by name or navigate.\nFilter:",
+        "Chose a motoko test to run.\nYou can filter by name, navigate, or even provide regex.\nFilter:",
         tests,
     )
     .with_formatter(&|tests| {
@@ -89,6 +133,12 @@ fn run_interactive_mode() {
         } else {
             format!("{first_ten}.")
         }
+    })
+    .with_scorer(&|input, _option, string_value, _idx| {
+        if input.is_empty() {
+            return Some(0);
+        }
+        try_match(input, string_value)
     })
     .prompt() else {
         println!("Error selecting tests.");
