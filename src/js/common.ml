@@ -233,19 +233,37 @@ module Map_conversion (Map : Map.S) = struct
   let to_ocaml = from_js
 end
 
+(* Scope cache conversion between JS Maps and OCaml Type.Env.
+   The data of the map has TypeScript [type Scope = unknown], and such
+   scopes are always produced by the compiler. The language server takes
+   scopes as outputs and gives them as inputs without touching them at
+   all. Hence, the use of [Obj.magic] is legitimate here. *)
+module ScopeCacheConversion = Map_conversion (Mo_types.Type.Env)
+
+let scope_cache_from_js js_cache =
+  ScopeCacheConversion.from_js js_cache Js.to_string Obj.magic
+
+let scope_cache_to_js cache =
+  ScopeCacheConversion.to_js
+    cache
+    (fun k -> Js.Unsafe.inject (Js.string k))
+    Obj.magic
+
+let load_progs_cached_js
+    ~enable_type_recovery
+    parse_fn
+    paths
+    scope_cache =
+  Mo_types.Cons.session (fun () ->
+    Pipeline.load_progs_cached ~enable_type_recovery
+      parse_fn paths Pipeline.initial_stat_env scope_cache)
+
 let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cache =
   let paths = paths |> Js.to_array |> Array.to_list |> List.map Js.to_string in
-  let module String_map_conversion = Map_conversion (Mo_types.Type.Env) in
   let scope_cache =
-    Js.Opt.case
-      scope_cache
+    Js.Opt.case scope_cache
       (fun () -> Mo_types.Type.Env.empty)
-      (fun scope_cache ->
-        (* The data of the map has TypeScript [type Scope = unknown], and such
-           scopes are always produced by the compiler. The language server takes
-           scopes as outputs and gives them as inputs without touching them at
-           all. Hence, the use of [Obj.magic] is legitimate here. *)
-        String_map_conversion.from_js scope_cache Js.to_string Obj.magic)
+      scope_cache_from_js
   in
   let recovery_enabled = Js.Opt.get enable_recovery (fun () -> false) in
   let parse_fn = if recovery_enabled
@@ -253,9 +271,8 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
     else Pipeline.parse_file
   in
   let load_result =
-    Mo_types.Cons.session (fun () ->
-      Pipeline.load_progs_cached ~enable_type_recovery:recovery_enabled
-        parse_fn paths Pipeline.initial_stat_env scope_cache)
+    load_progs_cached_js ~enable_type_recovery:recovery_enabled
+      parse_fn paths scope_cache
   in
   match load_result with
   | Ok ((_libs, progs, _senv, scope_cache), msgs) ->
@@ -276,13 +293,7 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
         , immediate_imports |> List.map Js.string |> Array.of_list |> Js.array )
       ) |> Array.of_list
     in
-    let scope_cache =
-      String_map_conversion.to_js
-        scope_cache
-        (fun k -> Js.Unsafe.inject (Js.string k))
-        Obj.magic (* See above the JS -> OCaml conversion. *)
-    in
-    Ok ((progs, scope_cache), msgs)
+    Ok ((progs, scope_cache_to_js scope_cache), msgs)
   | Error msgs -> Error msgs
 
 let js_parse_motoko_typed_with_scope_cache enable_recovery paths scope_cache =
@@ -313,6 +324,25 @@ let js_parse_motoko_typed paths =
       |> Js.array
     in
     Js.some (Js.Unsafe.inject progs))
+
+let js_check_with_scope_cache source scope_cache =
+  let load_result =
+    load_progs_cached_js
+      ~enable_type_recovery:true
+      Pipeline.parse_file_with_recovery
+      [Js.to_string source]
+      (scope_cache_from_js scope_cache)
+  in
+  let msgs, scope_cache_js = match load_result with
+    | Ok ((_libs, _progs, _senv, scope_cache), msgs) ->
+      msgs, Js.some (scope_cache_to_js scope_cache)
+    | Error msgs ->
+      msgs, Js.null
+  in
+  object%js
+    val diagnostics = Js.array (diagnostics_of_msgs msgs)
+    val scopeCache = scope_cache_js
+  end
 
 let js_save_file filename content =
   let filename = Js.to_string filename in
