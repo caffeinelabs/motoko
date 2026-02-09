@@ -2,6 +2,9 @@ mod test_runner;
 use crate::test_runner::SubnetType;
 use indicatif::{ProgressBar, ProgressStyle};
 use inquire::MultiSelect;
+use nucleo_picker::Picker;
+use nucleo_picker::PickerOptions;
+use nucleo_picker::render::StrRenderer;
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use std::env;
@@ -72,28 +75,11 @@ fn run_interactive_mode() {
         tests.extend(local_tests);
     }
 
-    let Ok(selection) = MultiSelect::new(
-        "Chose a motoko test to run.\nYou can filter by name or navigate.\nFilter:",
-        tests,
-    )
-    .with_formatter(&|tests| {
-        let first_ten = tests
-            .iter()
-            .take(10)
-            .map(|t| t.value.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        if tests.len() > 10 {
-            let others = tests.len() - 10;
-            format!("{first_ten}, ... (+{others} more).")
-        } else {
-            format!("{first_ten}.")
-        }
-    })
-    .prompt() else {
-        println!("Error selecting tests.");
-        std::process::exit(1);
-    };
+    let mut picker = PickerOptions::default().query("'").picker(StrRenderer);
+    let injector = picker.injector();
+    injector.extend_exact(tests);
+    let selection: Vec<String> =
+        picker.pick_multi().expect("Error selecting tests").iter().cloned().collect();
 
     let pb = ProgressBar::new(selection.len() as u64);
     pb.set_style(
