@@ -154,6 +154,20 @@ let recover_with (x : 'a) (f : 'b -> 'a) (y : 'b) = try f y with Recover -> x
 let recover_opt f y = recover_with None (fun y -> Some (f y)) y
 let recover f y = recover_with () f y
 
+let try_both f x y =
+  match recover_opt f x, recover_opt f y with
+  | Some x, Some y -> x, y
+  | _ -> raise Recover
+
+let try_all f xs =
+  let errored = ref false in
+  let res = List.filter_map (fun x ->
+    try Some(f x)
+    with Recover ->
+      errored := true;
+      None) xs in
+  if !errored then raise Recover else res
+
 let quote s = "`"^s^"`"
 
 let display_lab = Lib.Format.display T.pp_lab
@@ -520,11 +534,7 @@ let check_closed env id k at =
 (* Imports *)
 
 let is_mixin_import env = function
-  | ImportE (_, ri) ->
-     (match !ri with
-     | LibPath {path; _} ->
-        T.Env.find_opt path env.mixins
-     | _ -> None)
+  | ImportE (_, {contents = LibPath {path; _}}) -> T.Env.find_opt path env.mixins
   | _ -> None
 
 let check_import env at f ri =
@@ -812,14 +822,13 @@ and check_typ' env typ : T.typ =
     let t = check_typ env typ in
     T.Array (infer_mut mut t)
   | TupT typ_items ->
-    T.Tup (List.map (check_typ_item env) typ_items)
+    T.Tup (try_all (check_typ_item env) typ_items)
   | FuncT (sort, binds, typ1, typ2) ->
     let cs, tbs, te, ce = check_typ_binds env binds in
     let env' = infer_async_cap (adjoin_typs env te ce) sort.it cs tbs None typ.at in
     let typs1 = as_domT typ1 in
     let c, typs2 = as_codomT sort.it typ2 in
-    let ts1 = List.map (check_typ_item env') typs1 in
-    let ts2 = List.map (check_typ_item env') typs2 in
+    let ts1, ts2 = try_both (try_all (check_typ_item env')) typs1 typs2 in
     check_shared_return env typ2.at sort.it c ts2;
     if not env.pre && Type.is_shared_sort sort.it then begin
       check_shared_binds env typ.at tbs;
@@ -866,11 +875,11 @@ and check_typ' env typ : T.typ =
       (List.filter_map (fun (field : typ_field) ->
         match field.it with TypF (x, _, _) -> Some x | _ -> None
       ) fields);
-    let fs, tfs = List.partition_map (check_typ_field env sort.it) fields in
+    let all_fields = try_all (check_typ_field env sort.it) fields in
+    let fs, tfs = List.partition_map Fun.id all_fields in
     T.Obj (sort.it, List.sort T.compare_field fs, List.sort T.compare_field tfs)
   | AndT (typ1, typ2) ->
-    let t1 = check_typ env typ1 in
-    let t2 = check_typ env typ2 in
+    let t1, t2 = try_both (check_typ env) typ1 typ2 in
     let t = try T.glb ~src_fields:env.srcs t1 t2 with T.PreEncountered ->
       error env typ2.at "M0168"
         "cannot compute intersection of types containing recursive or forward references to other type definitions"
@@ -883,8 +892,7 @@ and check_typ' env typ : T.typ =
         display_typ_expand t2;
     t
   | OrT (typ1, typ2) ->
-    let t1 = check_typ env typ1 in
-    let t2 = check_typ env typ2 in
+    let t1, t2 = try_both (check_typ env) typ1 typ2 in
     let t = try T.lub ~src_fields:env.srcs t1 t2 with T.PreEncountered ->
       error env typ2.at "M0168"
         "cannot compute union of types containing recursive or forward references to other type definitions"
@@ -1880,11 +1888,11 @@ and infer_exp'' env exp : T.typ =
   | ObjBlockE (exp_opt, obj_sort, typ_opt, dec_fields) as e ->
     let _typ_opt = infer_migration env obj_sort exp_opt in
     if obj_sort.it = T.Actor then begin
-      error_in [Flags.WASIMode; Flags.WasmMode] env exp.at "M0068"
+      error_in Flags.[WASIMode; WasmMode] env exp.at "M0068"
         "actors are not supported";
       match context with
       | (AsyncE _ :: AwaitE _ :: _ :: _ ) ->
-         error_in [Flags.ICMode; Flags.RefMode] env exp.at "M0069"
+         error_in Flags.[ICMode; RefMode] env exp.at "M0069"
            "non-toplevel actor; an actor can only be declared at the toplevel of a program"
       | _ -> ()
       end;
@@ -1956,10 +1964,10 @@ and infer_exp'' env exp : T.typ =
     end
   | FuncE (_, shared_pat, typ_binds, pat, typ_opt, _sugar, exp1) ->
     if not env.pre && not in_actor && T.is_shared_sort shared_pat.it then begin
-      error_in [Flags.WASIMode; Flags.WasmMode] env exp1.at "M0076"
+      error_in Flags.[WASIMode; WasmMode] env exp1.at "M0076"
         "shared functions are not supported";
       if not in_actor then
-        error_in [Flags.ICMode; Flags.RefMode] env exp1.at "M0077"
+        error_in Flags.[ICMode; RefMode] env exp1.at "M0077"
           "a shared function is only allowed as a public field of an actor";
     end;
     if not env.pre && T.is_shared_sort shared_pat.it && Option.is_none typ_opt then
@@ -2648,7 +2656,7 @@ and check_exp_field env (ef : exp_field) fts =
 and check_func_step in_actor env (shared_pat, pat, typ_opt, exp) (s, c, ts1, ts2) : env * T.typ * T.typ =
   let sort, ve = check_shared_pat env shared_pat in
   if not env.pre && not in_actor && T.is_shared_sort sort then
-    error_in [Flags.ICMode; Flags.RefMode] env exp.at "M0077"
+    error_in Flags.[ICMode; RefMode] env exp.at "M0077"
       "a shared function is only allowed as a public field of an actor";
   let ve1 = check_pat_exhaustive (if T.is_shared_sort sort then local_error else warn) env (T.seq ts1) pat in
   let ve2 = T.Env.adjoin ve ve1 in
@@ -3289,7 +3297,7 @@ and check_shared_pat env shared_pat : T.func_sort * Scope.val_env =
   | T.Local -> T.Local, T.Env.empty
   | T.Shared (ss, pat) ->
     if pat.it <> WildP then
-      error_in [Flags.WASIMode; Flags.WasmMode] env pat.at "M0106" "shared function cannot take a context pattern";
+      error_in Flags.[WASIMode; WasmMode] env pat.at "M0106" "shared function cannot take a context pattern";
     env.shared_pat_regions := pat.at :: !(env.shared_pat_regions);
     T.Shared ss, check_pat_exhaustive local_error env T.ctxt pat
 
@@ -3302,7 +3310,7 @@ and check_class_shared_pat env shared_pat obj_sort : Scope.val_env =
     if sort <> T.Actor then
       error env pat.at "M0107" "non-actor class cannot take a context pattern";
     if pat.it <> WildP then
-      error_in [Flags.WASIMode; Flags.WasmMode] env pat.at "M0108" "actor class cannot take a context pattern";
+      error_in Flags.[WASIMode; WasmMode] env pat.at "M0108" "actor class cannot take a context pattern";
     if mode = T.Query then
       error env shared_pat.at "M0109" "class cannot be a query";
     env.shared_pat_regions := pat.at :: !(env.shared_pat_regions);
@@ -3366,7 +3374,7 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     let s, fs =
       try T.as_obj_sub (List.filter_map (fun pf ->
         match pf.it with
-        | TypPF(_) -> None
+        | TypPF _ -> None
         | ValPF(id, _) -> Some(id.it)) pfs') t
       with Invalid_argument _ ->
         error env pat.at "M0113" "object pattern cannot consume expected type%a"
@@ -3464,7 +3472,7 @@ and check_pats env ts pats ve at : Scope.val_env =
 and check_pat_fields env t fs pfs ve at : Scope.val_env =
   let cmp (tf : T.field) (id, _, _) = String.compare tf.T.lab id.it in
   let value_pfs = List.filter_map (fun pf -> match pf.it with
-    | TypPF(id) ->
+    | TypPF id ->
       (* NOTE(Christoph): We check the note to see if we were able to
          resolve this type field in the "types-only" pass. *)
       if Option.is_none id.note then
@@ -3545,8 +3553,8 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   (* Assumes fs, tfs, and pfs are sorted *)
   let typ_pfs, val_pfs = List.partition_map (fun pf -> match pf.it with
     | ValPF(id, p) -> Either.Right(id, p)
-    | TypPF(id) -> Either.Left(id, pf.at)) pfs in
-  let cmp = fun tf (id, _) -> String.compare id.it tf.T.lab in
+    | TypPF id -> Either.Left(id, pf.at)) pfs in
+  let cmp tf (id, _) = String.compare tf.T.lab id.it in
   (* Collect types in nested patterns *)
   let te = Lib.List.align cmp fs val_pfs |>
     Seq.fold_left (fun te -> function
@@ -3559,7 +3567,7 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   Lib.List.align cmp tfs typ_pfs |>
     Seq.fold_left (fun te -> function
       | Lib.Both(T.{ lab; typ; src }, (id, at)) ->
-        if String.equal !last_field id.it then
+        if !last_field = id.it then
           error env at "M0121" "duplicate type field %s in object pattern" id.it
         else
           last_field := lab;
@@ -3747,7 +3755,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
       ) dec_fields;
       List.iter (fun df ->
         if df.it.vis.it = Syntax.Private && is_actor_method df.it.dec then
-          error_in [Flags.ICMode; Flags.RefMode] env df.it.dec.at "M0126"
+          error_in Flags.[ICMode; RefMode] env df.it.dec.at "M0126"
             "a shared function cannot be private"
       ) dec_fields;
     end;
@@ -4639,7 +4647,7 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
             if ds <> [] || ds' <> [] then begin
               report (List.rev ds);
               report ds';
-              error_in [Flags.ICMode; Flags.RefMode] env d.at "M0141"
+              error_in Flags.[ICMode; RefMode] env d.at "M0141"
                 "an actor or actor class must be the only non-imported declaration in a program"
             end
           | (d::ds') when is_import d -> go ds ds'
