@@ -15,5 +15,6 @@ unused-actor-fields.mo:25.47-25.57: warning [M0194], unused identifier parameter
 unused-actor-fields.mo:26.13-26.22: warning [M0194], unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
 unused-actor-fields.mo:28.13-28.22: warning [M0194], unused identifier variable4 (delete or rename to wildcard `_` or `_variable4`)
 unused-actor-fields.mo:31.17-31.30: warning [M0194], unused identifier localFunction (delete or rename to wildcard `_` or `_localFunction`)
-unused-actor-fields.mo:38.22-38.28: warning [M0241], unused field caller in shared pattern (delete or rewrite as `caller = _`)
+unused-actor-fields.mo:38.22-38.28: warning [M0241], unused field caller in shared pattern
+note: delete or rewrite as `caller = _`
 unused-actor-fields.mo:39.42-39.58: warning [M0194], unused identifier unusedParameter2 (delete or rename to wildcard `_` or `_unusedParameter2`)

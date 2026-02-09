@@ -3,9 +3,9 @@ module G = Grace
 
 type error_code = string
 type severity = Warning | Error | Info
-type span_type = Primary | Secondary
+type priority = Primary | Secondary
 type span = {
-  ty : span_type;
+  prio : priority;
   at_span : Source.region;
   text : string;
 }
@@ -80,8 +80,9 @@ let plain_of_message msg =
     | Warning -> "warning"
     | Info -> "info" in
   let spans =
-    if msg.spans <> [] then
-      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.text) msg.spans)
+    let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
+    if primary_spans <> [] then
+      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.text) primary_spans)
     else "" in
   let notes =
     if msg.notes <> [] then
@@ -107,7 +108,7 @@ let fancy_of_message msg =
       (G.Byte_index.of_int (pos_to_byte content r.Source.right))
   in
   let mk_span span =
-    let priority = match span.ty with
+    let priority = match span.prio with
       | Primary -> G.Diagnostic.Priority.Primary
       | Secondary -> G.Diagnostic.Priority.Secondary in
     G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.text in

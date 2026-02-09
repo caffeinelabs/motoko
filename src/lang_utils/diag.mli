@@ -2,9 +2,9 @@
 
 type severity
 type error_code = string
-type span_type = Primary | Secondary
+type priority = Primary | Secondary
 type span = {
-  ty : span_type;
+  prio : priority;
   at_span : Source.region;
   text : string;
 }

@@ -343,8 +343,14 @@ let emit_unused_warnings env =
   let emit (id, region, kind) =
     if is_in_shared_pat region.left then
       match kind with
-      | Scope.Declaration -> warn env region "M0240" "unused identifier %s in shared pattern (delete or rename to wildcard `_` or `_%s`)" id id
-      | Scope.FieldReference -> warn env region "M0241" "unused field %s in shared pattern (delete or rewrite as `%s = _`)" id id
+      | Scope.Declaration ->
+         warn env region "M0240"
+           ~spans:[{ prio = Secondary; at_span = region; text = "if this is intentional, prefix it with an underscore: `_%s`" }]
+           "unused identifier %s in shared pattern" id
+      | Scope.FieldReference ->
+         warn env region "M0241"
+           ~notes:[Format.sprintf "delete or rewrite as `%s = _`" id]
+           "unused field %s in shared pattern" id
     else
       match kind with
       | Scope.Declaration -> warn env region "M0194" "unused identifier %s (delete or rename to wildcard `_` or `_%s`)" id id
@@ -2263,16 +2269,16 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     let suggest () =
       Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs)
     in
-    match T.lookup_val_field id.it fs with
-    | T.Pre ->
+    match T.lookup_val_field_opt id.it fs with
+    | Some(T.Pre) ->
       error env at "M0071"
         "cannot infer type of forward field reference %s"
         id.it
-    | t when pred (T.as_immut t) ->
+    | Some(t) when pred (T.as_immut t) ->
       if not env.pre then
         check_deprecation env at "field" id.it (T.lookup_val_deprecation id.it fs);
       Ok(t)
-    | t (* when not (pred t) *) ->
+    | Some(t) (* when not (pred t) *) ->
       Error(t1, fun () ->
         type_error id.at "M0234"
           (Format.asprintf "field %s does exist in %a\nbut is not %s.\n%s"
@@ -2280,7 +2286,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
              display_obj t0
              desc
              (suggest ())) [] [])
-    | exception Invalid_argument _ ->
+    | None ->
       Error(t1, fun () ->
         type_error id.at "M0072"
           (Format.asprintf "field %s does not exist in %a%s"
