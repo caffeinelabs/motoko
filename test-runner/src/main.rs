@@ -181,8 +181,8 @@ fn print_summary(test_results: Vec<SingleTestResult>, duration: Duration) {
 
     for test_result in failed {
         println!("Test {:?} failed.", test_result.test_name);
-        println!("Stderr: {:?}", test_result.stderr);
-        println!("Stdout: {:?}", test_result.stdout);
+        println!("Stderr: {}", test_result.stderr);
+        println!("Stdout: {}", test_result.stdout);
     }
 }
 
