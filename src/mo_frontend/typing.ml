@@ -154,6 +154,20 @@ let recover_with (x : 'a) (f : 'b -> 'a) (y : 'b) = try f y with Recover -> x
 let recover_opt f y = recover_with None (fun y -> Some (f y)) y
 let recover f y = recover_with () f y
 
+let try_both f x y =
+  match recover_opt f x, recover_opt f y with
+  | Some x, Some y -> x, y
+  | _ -> raise Recover
+
+let try_all f xs =
+  let errored = ref false in
+  let res = List.filter_map (fun x ->
+    try Some(f x)
+    with Recover ->
+      errored := true;
+      None) xs in
+  if !errored then raise Recover else res
+
 let quote s = "`"^s^"`"
 
 let display_lab = Lib.Format.display T.pp_lab
@@ -812,14 +826,13 @@ and check_typ' env typ : T.typ =
     let t = check_typ env typ in
     T.Array (infer_mut mut t)
   | TupT typ_items ->
-    T.Tup (List.map (check_typ_item env) typ_items)
+    T.Tup (try_all (check_typ_item env) typ_items)
   | FuncT (sort, binds, typ1, typ2) ->
     let cs, tbs, te, ce = check_typ_binds env binds in
     let env' = infer_async_cap (adjoin_typs env te ce) sort.it cs tbs None typ.at in
     let typs1 = as_domT typ1 in
     let c, typs2 = as_codomT sort.it typ2 in
-    let ts1 = List.map (check_typ_item env') typs1 in
-    let ts2 = List.map (check_typ_item env') typs2 in
+    let ts1, ts2 = try_both (try_all (check_typ_item env')) typs1 typs2 in
     check_shared_return env typ2.at sort.it c ts2;
     if not env.pre && Type.is_shared_sort sort.it then begin
       check_shared_binds env typ.at tbs;
@@ -866,11 +879,11 @@ and check_typ' env typ : T.typ =
       (List.filter_map (fun (field : typ_field) ->
         match field.it with TypF (x, _, _) -> Some x | _ -> None
       ) fields);
-    let fs, tfs = List.partition_map (check_typ_field env sort.it) fields in
+    let all_fields = try_all (check_typ_field env sort.it) fields in
+    let fs, tfs = List.partition_map Fun.id all_fields in
     T.Obj (sort.it, List.sort T.compare_field fs, List.sort T.compare_field tfs)
   | AndT (typ1, typ2) ->
-    let t1 = check_typ env typ1 in
-    let t2 = check_typ env typ2 in
+    let t1, t2 = try_both (check_typ env) typ1 typ2 in
     let t = try T.glb ~src_fields:env.srcs t1 t2 with T.PreEncountered ->
       error env typ2.at "M0168"
         "cannot compute intersection of types containing recursive or forward references to other type definitions"
@@ -883,8 +896,7 @@ and check_typ' env typ : T.typ =
         display_typ_expand t2;
     t
   | OrT (typ1, typ2) ->
-    let t1 = check_typ env typ1 in
-    let t2 = check_typ env typ2 in
+    let t1, t2 = try_both (check_typ env) typ1 typ2 in
     let t = try T.lub ~src_fields:env.srcs t1 t2 with T.PreEncountered ->
       error env typ2.at "M0168"
         "cannot compute union of types containing recursive or forward references to other type definitions"
