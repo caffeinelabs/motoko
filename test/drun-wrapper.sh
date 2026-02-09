@@ -55,7 +55,7 @@ then
   # work around different IDs in ic-ref-run and drun
   ( echo "create"
     LANG=C perl -npe 's,\$ID,'$ID',g; s,\$PRINCIPAL,'$PRINCIPAL',g' $1
-  ) | test-runner -c "$CONFIG" $EXTRA_DRUN_ARGS /dev/stdin
+  ) | test-runner --run -c "$CONFIG" $EXTRA_DRUN_ARGS /dev/stdin
 else
   ( echo "create"
     echo "install $ID $1 0x"
@@ -63,5 +63,5 @@ else
     then
       LANG=C perl -ne 'print "$1 '$ID' $2\n" if m,^//CALL (ingress|query) (.*),;print "upgrade '$ID' '"$1"' 0x\n" if m,^//CALL upgrade,; ' $2
     fi
-  ) | test-runner -c "$CONFIG" $EXTRA_DRUN_ARGS /dev/stdin
+  ) | test-runner --run -c "$CONFIG" $EXTRA_DRUN_ARGS /dev/stdin
 fi
