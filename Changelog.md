@@ -11,6 +11,7 @@
   * Deprecate older garbage collectors: generational, copying and compating GCs (#5806).
   * Fix contextual dot type note, this should fix the hover hint in the vscode extension, showing the correct function type instead of `()` (#5809).
   * bugfix: Avoid `moc.js` crashing when passing invalid flags (#5811).
+  * bugfix: Sometimes `import { type X } = "mo:./X"` didn't work, with a confusing error message (#5826).
   * Improved type recovery for `let` and `var` declarations (enabled only with a type recovery flag for the IDE) (#5819).
   * Add `checkWithScopeCache` function to `moc.js` -- a cached version of `check` (#5820).
   * Add `--error-format json` flag to `moc` for machine-readable diagnostic output on stdout in JSON Lines format (#5829).
