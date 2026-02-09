@@ -2,6 +2,10 @@
 
 * motoko (`moc`)
 
+  * Report multiple type errors for compound types at once (#5790).
+
+    This means code like ``` type T = (Na, In)``` will fail with errors for both the misspelled `Na` and `In` types at once, so they can be fixed in one go, rather than having to re-run the compiler after fixing the first one.
+
   * Allow `break` and `continue` in loops without labels (#5702).
   * Report a better error for labeled `continue` targeting a non-loop (#5800).
   * Deprecate older garbage collectors: generational, copying and compating GCs (#5806).
