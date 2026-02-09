@@ -1,674 +1,21 @@
-use candid::{CandidType, Principal};
-use hex::decode;
-use ic_management_canister_types::CanisterSettings;
-use pocket_ic::common::rest::IcpConfig;
-use pocket_ic::common::rest::IcpConfigFlag;
-use pocket_ic::common::rest::RawEffectivePrincipal;
-use pocket_ic::{PocketIc, PocketIcBuilder, RejectResponse, call_candid_as};
-use serde::Serialize;
+mod test_runner;
+use crate::test_runner::SubnetType;
+use indicatif::{ProgressBar, ProgressStyle};
+use inquire::MultiSelect;
+use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
+use regex::Regex;
+use std::cell::RefCell;
+use std::env;
 use std::io::Read;
-use std::path::PathBuf;
-use std::str::Chars;
-use std::time::Duration;
-
-// Canister Management Commands:
-// 1. install <canister_id> <wasm_path> <init_args>
-//    - Creates and installs a new canister with the given WASM
-//    - init_args can be empty ("") or DIDL-encoded
-//
-// 2. reinstall <canister_id> <wasm_path> <init_args>
-//    - Reinstalls an existing canister with new WASM
-//    - Completely resets the canister state
-//    - init_args can be empty ("") or DIDL-encoded
-//
-// 3. upgrade <canister_id> <wasm_path> <upgrade_args>
-//    - Upgrades an existing canister with new WASM
-//    - Preserves canister state
-//    - upgrade_args can be empty ("") or DIDL-encoded
-//
-// Canister Interaction Commands:
-// 1. ingress <canister_id> <method_name> <args>
-//    - Makes an ingress call to a canister method
-//    - args can be empty ("") or DIDL-encoded
-//    - Returns the response or error
-//    - Special case: __motoko_stabilize_before_upgrade is a special ingress call
-//      used for stabilization before upgrade
-//
-// 2. query <canister_id> <method_name> <args>
-//    - Makes a query call to a canister method
-//    - args can be empty ("") or DIDL-encoded
-//    - Returns the response or error
-
-#[derive(Debug, Clone, Copy)]
-pub enum SubnetType {
-    Application,
-    System,
-}
-
-#[derive(Debug, Clone)]
-pub enum TestCommand {
-    Install {
-        canister_id: String,
-        wasm_path: PathBuf,
-        init_args: String,
-    },
-    Reinstall {
-        canister_id: String,
-        wasm_path: PathBuf,
-        init_args: String,
-    },
-    Upgrade {
-        canister_id: String,
-        wasm_path: PathBuf,
-        upgrade_args: String,
-    },
-    Ingress {
-        canister_id: String,
-        method_name: String,
-        args: String,
-    },
-    Query {
-        canister_id: String,
-        method_name: String,
-        args: String,
-    },
-}
-
-#[derive(CandidType, Serialize, Debug, PartialEq)]
-pub enum WasmMemoryPersistence {
-    /// Preserve heap memory.
-    #[serde(rename = "keep")]
-    Keep,
-    /// Clear heap memory.
-    #[serde(rename = "replace")]
-    Replace,
-}
-#[derive(CandidType, Serialize, Debug, PartialEq)]
-pub struct UpgradeFlags {
-    pub skip_pre_upgrade: Option<bool>,
-    pub wasm_memory_persistence: Option<WasmMemoryPersistence>,
-}
-
-#[derive(CandidType, Serialize, Debug, PartialEq)]
-pub enum CanisterInstallModeV2 {
-    #[serde(rename = "install")]
-    Install,
-    #[serde(rename = "reinstall")]
-    Reinstall,
-    #[serde(rename = "upgrade")]
-    Upgrade(Option<UpgradeFlags>),
-}
-
-#[derive(CandidType, Serialize, Debug, PartialEq)]
-pub struct InstallCodeArgument {
-    pub mode: CanisterInstallModeV2,
-    pub canister_id: Principal,
-    pub wasm_module: Vec<u8>,
-    pub arg: Vec<u8>,
-}
-
-#[derive(Debug)]
-enum Radix {
-    Bin = 2,
-    Hex = 16,
-}
-
-fn parse_escape(chars: &mut Chars<'_>, radix: Radix) -> Result<u8, String> {
-    let len = match radix {
-        Radix::Bin => 8,
-        Radix::Hex => 2,
-    };
-    let s = chars.take(len).collect::<String>();
-    if s.len() >= len {
-        u8::from_str_radix(&s, radix as u32).map_err(|e| e.to_string())
-    } else {
-        Err(format!(
-            "Escape sequence for radix {:?} too short: {}",
-            radix, s
-        ))
-    }
-}
-
-fn parse_quoted(quoted_str: &str) -> Result<Vec<u8>, String> {
-    if !quoted_str.is_ascii() {
-        return Err("Only ASCII strings are allowed.".to_string());
-    }
-
-    let mut chars = quoted_str.chars();
-    let mut res: Vec<u8> = Vec::new();
-    let mut escaped = false;
-
-    if Some('"') != chars.next() {
-        return Err("Double-quoted string must be enclosed in double quotes.".to_string());
-    }
-
-    let mut c = chars.next();
-    while let Some(cur) = c {
-        if escaped {
-            let b = match cur {
-                'x' => parse_escape(&mut chars, Radix::Hex)?,
-                'b' => parse_escape(&mut chars, Radix::Bin)?,
-                '"' => b'"',
-                '\\' => b'\\',
-                _ => return Err(format!("Illegal escape sequence {}", cur)),
-            };
-            res.push(b);
-            escaped = false;
-        } else {
-            match cur {
-                '\\' => escaped = true,
-                '"' => {
-                    chars.next(); // consume '"'
-                    break;
-                }
-                _ => res.push(cur as u8),
-            }
-        }
-        c = chars.next();
-    }
-
-    if chars.next().is_some() {
-        return Err("Trailing characters after string terminator.".to_string());
-    }
-
-    Ok(res)
-}
-
-fn parse_hex(s: &str) -> Result<Vec<u8>, String> {
-    if let Some(s) = s.strip_prefix("0x") {
-        decode(s).map_err(|e| e.to_string())
-    } else {
-        Err(format!("Illegal hex character sequence {}.", s))
-    }
-}
-
-fn parse_str_args(input_str: &str) -> Result<Vec<u8>, String> {
-    if input_str.starts_with('"') {
-        parse_quoted(input_str)
-    } else {
-        parse_hex(input_str)
-    }
-}
-
-fn contains_icp_private_custom_section(wasm_binary: &[u8], name: &str) -> Result<bool, String> {
-    use wasmparser::{Parser, Payload::CustomSection};
-
-    let icp_section_name = format!("icp:private {}", name);
-    let parser = Parser::new(0);
-    for payload in parser.parse_all(wasm_binary) {
-        if let CustomSection(reader) = payload.map_err(|e| format!("Wasm parsing error: {}", e))?
-            && reader.name() == icp_section_name
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-trait ResultExtractor {
-    fn extract(&self, command: TestCommand) -> String;
-}
-
-// For ingress messages (ingress, reinstall, upgrade, install), the output prepends always "ingress Completed: Reply"
-// For query messages, the output prepends always "Ok: Reply".
-impl ResultExtractor for () {
-    fn extract(&self, command: TestCommand) -> String {
-        match command {
-            | TestCommand::Ingress { .. }
-            | TestCommand::Reinstall { .. }
-            | TestCommand::Upgrade { .. }
-            | TestCommand::Install { .. } => "ingress Completed: Reply: 0x4449444c0000".to_string(),
-            TestCommand::Query { .. } => "Ok: Reply: 0x4449444c0000".to_string(),
-        }
-    }
-}
-
-// For ingress messages (ingress, reinstall, upgrade, install), the output prepends always "ingress Completed: Reply"
-// For query messages, the output prepends always "Ok: Reply".
-impl ResultExtractor for Vec<u8> {
-    fn extract(&self, command: TestCommand) -> String {
-        let hex_str: String = self.iter().map(|b| format!("{:02x}", b)).collect();
-        match command {
-            | TestCommand::Ingress { .. }
-            | TestCommand::Reinstall { .. }
-            | TestCommand::Upgrade { .. }
-            | TestCommand::Install { .. } => {
-                format!("ingress Completed: Reply: 0x{}", hex_str)
-            }
-            TestCommand::Query { .. } => format!("Ok: Reply: 0x{}", hex_str),
-        }
-    }
-}
-
-impl TestCommand {
-    fn principal_from_text(text: &str) -> Result<Principal, std::io::Error> {
-        Principal::from_text(text)
-            .map_err(|e| std::io::Error::other(format!("Failed to parse canister id: {}", e)))
-    }
-
-    fn read_wasm_file(wasm_path: &PathBuf) -> Result<Vec<u8>, std::io::Error> {
-        std::fs::read(wasm_path)
-            .map_err(|e| std::io::Error::other(format!("Failed to read wasm file: {}", e)))
-    }
-
-    fn parse_args(input_str: &str) -> Result<Vec<u8>, std::io::Error> {
-        parse_str_args(input_str)
-            .map_err(|e| std::io::Error::other(format!("Failed to parse args: {}", e)))
-    }
-
-    fn create_canister(&self, server: &mut PocketIc, canister_id: &str) -> std::io::Result<()> {
-        let canister_principal = Self::principal_from_text(canister_id)?;
-        let sender = Principal::anonymous();
-        let result = server.create_canister_with_id(
-            Some(sender),
-            Some(CanisterSettings {
-                controllers: Some(vec![sender, canister_principal]),
-                ..Default::default()
-            }),
-            canister_principal,
-        );
-        server.add_cycles(canister_principal, 1_000_000_000_000_000);
-
-        if let Err(e) = result {
-            return Err(std::io::Error::other(format!(
-                "Failed to create canister: {:?}",
-                e
-            )));
-        } else {
-            println!(
-                "ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101"
-            );
-        }
-        Ok(())
-    }
-
-    fn install_command(
-        &self,
-        server: &mut PocketIc,
-        canister_id: &str,
-        wasm_path: &PathBuf,
-        init_args: &str,
-    ) -> std::io::Result<()> {
-        let wasm_bytes = Self::read_wasm_file(wasm_path)?;
-        let args = Self::parse_args(init_args)?;
-        let canister_principal = Self::principal_from_text(canister_id)?;
-        // server.install_canister(canister_principal, wasm_bytes, args, None);
-        // Use the call_candid_as method instead of install_canister because install_canister unwraps() and
-        // for some of our tests this leads to a panic.
-        // Therefore we need to catch the error and print it.
-        let res: Result<(), _> = call_candid_as(
-            server,
-            Principal::management_canister(),
-            RawEffectivePrincipal::CanisterId(canister_principal.as_slice().to_vec()),
-            Principal::anonymous(),
-            "install_code",
-            (InstallCodeArgument {
-                mode: CanisterInstallModeV2::Install,
-                canister_id: canister_principal,
-                wasm_module: wasm_bytes,
-                arg: args,
-            },),
-        );
-        println!("{}", self.handle_result_and_get_response(res));
-        Ok(())
-    }
-
-    // Checks if the result is an error or a proper response.
-    // A response can be of type () or Vev<u8>.
-    // The error is always a RejectResponse.
-    fn handle_result_and_get_response<T: ResultExtractor>(
-        &self,
-        res: Result<T, RejectResponse>,
-    ) -> String {
-        match res {
-            Ok(t) => t.extract(self.clone()),
-            Err(e) => {
-                // For ingress messages (ingress, reinstall, upgrade, install), the output prepends always "ingress Completed: Reply"
-                // For query messages, the output prepends always "Ok: Reply".
-                match &self {
-                    TestCommand::Ingress { .. }
-                    | TestCommand::Reinstall { .. }
-                    | TestCommand::Upgrade { .. }
-                    | TestCommand::Install { .. } => {
-                        format!("ingress Err: {}: {}", e.error_code, e.reject_message)
-                    }
-                    TestCommand::Query { .. } => {
-                        format!("Err: {}: {}", e.error_code, e.reject_message)
-                    }
-                }
-            }
-        }
-    }
-
-    fn reinstall_command(
-        &self,
-        server: &mut PocketIc,
-        canister_id: &str,
-        wasm_path: &PathBuf,
-        init_args: &str,
-    ) -> std::io::Result<()> {
-        let canister_principal = Self::principal_from_text(canister_id)?;
-        let wasm_bytes = Self::read_wasm_file(wasm_path)?;
-        let args = Self::parse_args(init_args)?;
-        let res = server.reinstall_canister(canister_principal, wasm_bytes, args, None);
-        println!("{}", self.handle_result_and_get_response(res));
-        Ok(())
-    }
-
-    fn upgrade_command(
-        &self,
-        server: &mut PocketIc,
-        canister_id: &str,
-        wasm_path: &PathBuf,
-        upgrade_args: &str,
-    ) -> std::io::Result<()> {
-        let canister_principal = Self::principal_from_text(canister_id)?;
-        let wasm_bytes = Self::read_wasm_file(wasm_path)?;
-        let args = Self::parse_args(upgrade_args)?;
-
-        // Use the call_candid_as method instead of upgrade_canister.
-        // This is important because it will allow us to specify whether the wasm memory
-        // can be kept or not.
-        let wasm_memory_persistence = if contains_icp_private_custom_section(
-            wasm_bytes.as_ref(),
-            "enhanced-orthogonal-persistence",
-        )
-        .unwrap_or(false)
-        {
-            Some(UpgradeFlags {
-                skip_pre_upgrade: Some(false),
-                wasm_memory_persistence: Some(WasmMemoryPersistence::Keep),
-            })
-        } else {
-            Some(UpgradeFlags {
-                skip_pre_upgrade: Some(false),
-                wasm_memory_persistence: None,
-            })
-        };
-        let arg = InstallCodeArgument {
-            mode: CanisterInstallModeV2::Upgrade(wasm_memory_persistence),
-            canister_id: canister_principal,
-            wasm_module: wasm_bytes,
-            arg: args,
-        };
-        let res: Result<(), _> = call_candid_as(
-            server,
-            Principal::management_canister(),
-            RawEffectivePrincipal::CanisterId(canister_principal.as_slice().to_vec()),
-            Principal::anonymous(),
-            "install_code",
-            (arg,),
-        );
-        println!("{}", self.handle_result_and_get_response(res));
-        Ok(())
-    }
-
-    fn ingress_command(
-        &self,
-        server: &mut PocketIc,
-        canister_id: &str,
-        method_name: &str,
-        args: &str,
-    ) -> std::io::Result<()> {
-        let canister_principal = Self::principal_from_text(canister_id)?;
-        let payload = Self::parse_args(args)?;
-
-        let res = match method_name {
-            "__motoko_stabilize_before_upgrade" => server.update_call(
-                canister_principal,
-                Principal::anonymous(),
-                method_name,
-                payload,
-            ),
-            "stop_canister" => {
-                let principal_bytes = &payload[payload.len() - 10..];
-                let principal = Principal::from_slice(principal_bytes);
-                let _ = server.stop_canister(principal, None);
-                Ok(vec![0x44, 0x49, 0x44, 0x4c, 0x00, 0x00])
-            }
-            "start_canister" => {
-                let principal_bytes = &payload[payload.len() - 10..];
-                let principal = Principal::from_slice(principal_bytes);
-                let _ = server.start_canister(principal, None);
-                Ok(vec![0x44, 0x49, 0x44, 0x4c, 0x00, 0x00])
-            }
-            _ => {
-                // Certain tests are of form await (with_timeout = X) and we need to wait
-                // for the call either to be completed or to timeout.
-                // We do this by submitting the call and then polling its status.
-                let res = server
-                    .submit_call(
-                        canister_principal,
-                        Principal::anonymous(),
-                        method_name,
-                        payload,
-                    )
-                    .map_err(|e| {
-                        std::io::Error::other(format!("Failed to submit call: {:?}", e))
-                    })?;
-                while server.ingress_status(res.clone()).is_none() {
-                    server.tick();
-                    server.advance_time(Duration::from_secs(1));
-                }
-                // Safe to unwrap because we know that the status is not none.
-                server.ingress_status(res.clone()).unwrap()
-            }
-        };
-
-        println!("{}", self.handle_result_and_get_response(res));
-        Ok(())
-    }
-
-    fn query_command(
-        &self,
-        server: &mut PocketIc,
-        canister_id: &str,
-        method_name: &str,
-        args: &str,
-    ) -> std::io::Result<()> {
-        let canister_principal = Self::principal_from_text(canister_id)?;
-        let payload = Self::parse_args(args)?;
-
-        let res = server.query_call(
-            canister_principal,
-            Principal::anonymous(),
-            method_name,
-            payload,
-        );
-        println!("{}", self.handle_result_and_get_response(res));
-        Ok(())
-    }
-
-    pub fn execute(&self, server: &mut PocketIc) -> std::io::Result<()> {
-        match self {
-            TestCommand::Install {
-                canister_id,
-                wasm_path,
-                init_args,
-            } => self.install_command(server, canister_id, wasm_path, init_args),
-            TestCommand::Reinstall {
-                canister_id,
-                wasm_path,
-                init_args,
-            } => self.reinstall_command(server, canister_id, wasm_path, init_args),
-            TestCommand::Upgrade {
-                canister_id,
-                wasm_path,
-                upgrade_args,
-            } => self.upgrade_command(server, canister_id, wasm_path, upgrade_args),
-            TestCommand::Ingress {
-                canister_id,
-                method_name,
-                args,
-            } => self.ingress_command(server, canister_id, method_name, args),
-            TestCommand::Query {
-                canister_id,
-                method_name,
-                args,
-            } => self.query_command(server, canister_id, method_name, args),
-        }?;
-        Ok(())
-    }
-}
-
-fn parse_commands(content: &str) -> std::io::Result<Vec<TestCommand>> {
-    let mut commands = Vec::new();
-
-    for line in content.lines() {
-        let line = line.trim();
-
-        // Skip empty lines and comments
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-
-        // Parse commands
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.is_empty() {
-            continue;
-        }
-
-        let command = match parts[0] {
-            // if we encounter a create, just ignore it.
-            "create" => continue,
-            "install" => {
-                if parts.len() != 4 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "install command requires 3 arguments",
-                    ));
-                }
-                TestCommand::Install {
-                    canister_id: parts[1].to_string(),
-                    wasm_path: PathBuf::from(parts[2]),
-                    init_args: parts[3].to_string(),
-                }
-            }
-            "reinstall" => {
-                if parts.len() != 4 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "reinstall command requires 3 arguments",
-                    ));
-                }
-                TestCommand::Reinstall {
-                    canister_id: parts[1].to_string(),
-                    wasm_path: PathBuf::from(parts[2]),
-                    init_args: parts[3].to_string(),
-                }
-            }
-            "upgrade" => {
-                if parts.len() != 4 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "upgrade command requires 3 arguments",
-                    ));
-                }
-                TestCommand::Upgrade {
-                    canister_id: parts[1].to_string(),
-                    wasm_path: PathBuf::from(parts[2]),
-                    upgrade_args: parts[3].to_string(),
-                }
-            }
-            "ingress" => {
-                if parts.len() != 4 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "ingress command requires 3 arguments",
-                    ));
-                }
-                TestCommand::Ingress {
-                    canister_id: parts[1].to_string(),
-                    method_name: parts[2].to_string(),
-                    args: parts[3].to_string(),
-                }
-            }
-            "query" => {
-                if parts.len() != 4 {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "query command requires 3 arguments",
-                    ));
-                }
-                TestCommand::Query {
-                    canister_id: parts[1].to_string(),
-                    method_name: parts[2].to_string(),
-                    args: parts[3].to_string(),
-                }
-            }
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("Unknown command: {}", parts[0]),
-                ));
-            }
-        };
-
-        commands.push(command);
-    }
-
-    Ok(commands)
-}
-
-pub struct TestRunner {
-    commands: Vec<TestCommand>,
-    subnet_type: SubnetType,
-}
-
-impl TestRunner {
-    pub fn new(commands: Vec<TestCommand>, subnet_type: SubnetType) -> Self {
-        Self {
-            commands,
-            subnet_type,
-        }
-    }
-
-    pub fn run(&self) -> std::io::Result<()> {
-        let ic_config = IcpConfig {
-            canister_backtrace: Some(IcpConfigFlag::Disabled),
-            beta_features: Some(IcpConfigFlag::Enabled),
-            ..Default::default()
-        };
-        let mut server = match self.subnet_type {
-            SubnetType::Application => PocketIcBuilder::new().with_application_subnet(),
-            SubnetType::System => PocketIcBuilder::new()
-                .with_system_subnet()
-                .with_nns_subnet(),
-        }
-        .with_icp_config(ic_config)
-        .build();
-
-        // Get the first canister id found in the commands.
-        let canister_id = self.commands.iter().find_map(|command| match command {
-            TestCommand::Install { canister_id, .. }
-            | TestCommand::Reinstall { canister_id, .. }
-            | TestCommand::Upgrade { canister_id, .. } => Some(canister_id),
-            _ => None,
-        });
-        if let Some(canister_id) = canister_id {
-            self.commands[0].create_canister(&mut server, canister_id)?;
-        }
-        for command in &self.commands {
-            // command: {:?}", command);
-            command.execute(&mut server)?;
-        }
-        Ok(())
-    }
-}
+use std::process::Command;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use walkdir::WalkDir;
 
 /// The program reads stdin where the .drun file contents are piped in.
 /// It then runs the commands in the .drun file and writes the output to stdout.
-fn main() {
-    // Parse command line arguments.
-    let args = std::env::args().collect::<Vec<String>>();
-
-    // Check if user asked for --help.
-    if args.contains(&"--help".to_string()) {
-        println!("Usage: test-runner [--subnet-type application]");
-        println!("Pipe to stdin the .drun or .mo file contents.");
-        std::process::exit(0);
-    }
-
+fn run_legacy_mode(args: Vec<String>) {
     // Go through the arguments and check for "--subnet-type application".
     // These are two elements in the args vector.
     // Check first for "--subnet-type" index and then check for subnet type and the next index.
@@ -683,26 +30,237 @@ fn main() {
                 }
             });
 
-    // Read stdin.
     let mut stdin = std::io::stdin();
     let mut buffer = String::new();
     let _ = stdin.read_to_string(&mut buffer);
 
-    match parse_commands(&buffer) {
-        Ok(commands) => {
-            let test_runner = TestRunner::new(commands, subnet_type);
-            let _ = test_runner.run();
+    test_runner::run_cmdline_test(buffer, subnet_type);
+}
+
+/// The program offers the user a list of tests to choose from.
+/// A summary of the results of the tests is then printed out.
+fn run_interactive_mode(pre_filled_input: &str) {
+    let Ok(path) = env::current_dir() else {
+        println!("Could not determine current directory. Aborting.");
+        return;
+    };
+    if !path.ends_with("motoko") {
+        println!("Current path: {:?}", path.display());
+        println!(
+            "test-runner --interactive should be run in the top-level motoko/ main repo directory only."
+        );
+        return;
+    }
+
+    // Set max 8 threads for now.
+    ThreadPoolBuilder::new()
+        .num_threads(8)
+        .build_global()
+        .expect("Failed to initialize global thread pool");
+
+    let test_dirs = ["test/run-drun", "test/run", "test/fail"];
+
+    let mut tests: Vec<String> = Vec::new();
+    for test_dir in test_dirs {
+        let local_tests: Vec<String> = WalkDir::new(test_dir)
+            .max_depth(1) // Top-level directory only because that's where our tests are.
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|f| f.file_type().is_file())
+            .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+            .filter(|f| f.ends_with(".mo") || f.ends_with(".drun"))
+            .collect();
+
+        tests.extend(local_tests);
+    }
+
+    // Cache regex compilation, otherwise filtering is slow.
+    thread_local! {
+        static CACHED_REGEX: RefCell<(String, Option<Regex>)> = const { RefCell::new((String::new(), None)) };
+    }
+
+    let try_match = |input: &str, string_value: &str| {
+        // Cache the regex compilation so that it's not computed for every item in the list.
+        CACHED_REGEX.with(|cache| {
+            let mut cache = cache.borrow_mut();
+            if cache.0 != input {
+                cache.0 = input.to_string();
+                // If the user tries to do pattern matching, let them do it.
+                // If not, do strict word checks.
+                let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
+                let pattern = if is_regex {
+                    input.to_string()
+                } else {
+                    format!(r"\b{}\b", regex::escape(input))
+                };
+                cache.1 = Regex::new(&pattern).ok();
+            }
+            match &cache.1 {
+                Some(re) => {
+                    if re.is_match(string_value) {
+                        Some(0)
+                    } else {
+                        None
+                    }
+                }
+                // Fallback: if the regex is mid-typing/invalid,
+                // just do a basic case-insensitive check.
+                None => {
+                    if string_value.to_lowercase().contains(&input.to_lowercase()) {
+                        Some(0)
+                    } else {
+                        None
+                    }
+                }
+            }
+        })
+    };
+
+    let Ok(selection) = MultiSelect::new(
+        "Chose a motoko test to run.\nYou can filter by name, navigate, or even provide regex.\nFilter:",
+        tests,
+    )
+    .with_starting_filter_input(pre_filled_input)
+    .with_formatter(&|tests| {
+        let first_ten = tests
+            .iter()
+            .take(10)
+            .map(|t| t.value.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        if tests.len() > 10 {
+            let others = tests.len() - 10;
+            format!("{first_ten}, ... (+{others} more).")
+        } else {
+            format!("{first_ten}.")
         }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
+    })
+    .with_scorer(&|input, _option, string_value, _idx| {
+        if input.is_empty() {
+            return Some(0);
         }
+        try_match(input, string_value)
+    })
+    .prompt() else {
+        println!("Error selecting tests.");
+        std::process::exit(1);
+    };
+
+    let pb = ProgressBar::new(selection.len() as u64);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} tests finished ({msg})",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+    let pb_arc = Arc::new(pb);
+
+    let start_time = Instant::now();
+    let test_results = selection
+        .into_par_iter()
+        .map(|test_path| {
+            let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
+
+            pb_clone.set_message(format!("Running {test_path}"));
+            let result = run_single_test(test_path);
+
+            pb_clone.inc(1);
+            result
+        })
+        .collect();
+    let duration = start_time.elapsed();
+    pb_arc.finish_and_clear();
+    print_summary(test_results, duration);
+}
+
+fn print_summary(test_results: Vec<SingleTestResult>, duration: Duration) {
+    println!("You ran {:?} tests in {:?}", test_results.len(), duration);
+    let failed: Vec<&SingleTestResult> = test_results.iter().filter(|t| !t.success).collect();
+    let successful_no = test_results.len() - failed.len();
+    println!("\t --> {successful_no} tests ran successfully.");
+
+    for test_result in failed {
+        println!("Test {:?} failed.", test_result.test_name);
+        println!("Stderr: {}", test_result.stderr);
+        println!("Stdout: {}", test_result.stdout);
+    }
+}
+
+struct SingleTestResult {
+    success: bool,
+    stdout: String,
+    stderr: String,
+    test_name: String,
+}
+
+fn run_single_test(test_name: String) -> SingleTestResult {
+    let test_arg_selector = || {
+        if test_name.contains("/run/") {
+            " "
+        } else if test_name.contains("/run-drun/") {
+            "-d"
+        } else if test_name.contains("/fail/") {
+            "-t"
+        } else {
+            " "
+        }
+    };
+    let running_test = Command::new("test/run.sh")
+        // If the arg selector outputs empty string (" "), we don't give any args.
+        .args(if test_arg_selector().eq(" ") {
+            None
+        } else {
+            Some(test_arg_selector())
+        })
+        .arg(test_name.clone())
+        .output()
+        .unwrap_or_else(|_| {
+            panic!(
+                "OS-related error. Failed to run test: {:?}.",
+                test_name.as_str()
+            )
+        });
+
+    SingleTestResult {
+        success: running_test.clone().status.success(),
+        stdout: String::from_utf8_lossy(&running_test.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&running_test.stderr).to_string(),
+        test_name: test_name.clone(),
+    }
+}
+
+fn main() {
+    // Parse command line arguments.
+    let args = std::env::args().collect::<Vec<String>>();
+
+    // Check if user asked for --help.
+    if args.contains(&"--help".to_string()) {
+        println!(" -------------- test-runner ----------------");
+
+        println!("Usage: test-runner --run [--subnet-type application]");
+        println!("Pipe to stdin the .drun or .mo file contents.");
+        println!("This runs a .drun or .mo test piped through stdin.");
+
+        println!("Usage: test-runner [test / pattern]");
+        println!(
+            "Allows the user to enter interactive mode: find/pattern-match tests and run them in parallel."
+        );
+
+        std::process::exit(0);
+    } else if args.contains(&"--run".to_string()) {
+        run_legacy_mode(args);
+    } else {
+        run_interactive_mode(args[1..].join("").as_str());
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::test_runner::TestCommand;
+    use crate::test_runner::parse_commands;
+    use pocket_ic::PocketIcBuilder;
+    use std::path::PathBuf;
 
     // TODO: Add more tests to cover all possible commands and their error cases.
 
