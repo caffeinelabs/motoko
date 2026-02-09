@@ -59,7 +59,7 @@ fn run_interactive_mode() {
     let mut tests: Vec<String> = Vec::new();
     for test_dir in test_dirs {
         let local_tests: Vec<String> = WalkDir::new(test_dir)
-            .max_depth(1)
+            .max_depth(1) // Top-level directory only because that's where our tests are.
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|f| f.file_type().is_file())
@@ -152,8 +152,8 @@ fn main() {
         println!("Pipe to stdin the .drun or .mo file contents.");
         println!("This runs a .drun or .mo test piped through stdin.");
 
-        println!("Usage: test-runner --interactive [test-name].");
-        println!("Finds a test named [test-name] in the test directory and runs it.");
+        println!("Usage: test-runner --interactive.");
+        println!("Allows the user to find tests and run them in parallel.");
 
         std::process::exit(0);
     } else if args.contains(&"--run".to_string()) {
