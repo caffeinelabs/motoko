@@ -1,11 +1,13 @@
 mod test_runner;
 use crate::test_runner::SubnetType;
+use indicatif::{ProgressBar, ProgressStyle};
 use inquire::MultiSelect;
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 use std::env;
 use std::io::Read;
 use std::process::Command;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use walkdir::WalkDir;
 
@@ -74,13 +76,50 @@ fn run_interactive_mode() {
         "Chose a motoko test to run.\nYou can filter by name or navigate.\nFilter:",
         tests,
     )
+    .with_formatter(&|tests| {
+        let first_ten = tests
+            .iter()
+            .take(10)
+            .map(|t| t.value.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        if tests.len() > 10 {
+            let others = tests.len() - 10;
+            format!("{first_ten}, ... (+{others} more).")
+        } else {
+            format!("{first_ten}.")
+        }
+    })
     .prompt() else {
         println!("Error selecting tests.");
         std::process::exit(1);
     };
+
+    let pb = ProgressBar::new(selection.len() as u64);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} tests finished ({msg})",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+    let pb_arc = Arc::new(pb);
+
     let start_time = Instant::now();
-    let test_results = selection.into_par_iter().map(run_single_test).collect();
+    let test_results = selection
+        .into_par_iter()
+        .map(|test_path| {
+            let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
+
+            pb_clone.set_message(format!("Running {test_path}"));
+            let result = run_single_test(test_path);
+
+            pb_clone.inc(1);
+            result
+        })
+        .collect();
     let duration = start_time.elapsed();
+    pb_arc.finish_and_clear();
     print_summary(test_results, duration);
 }
 
