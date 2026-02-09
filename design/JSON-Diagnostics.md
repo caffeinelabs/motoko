@@ -44,9 +44,7 @@ Each line on stderr is a JSON object with the following structure:
     */
     "spans": [
         {
-            /* File path as passed to the compiler.
-               May be relative or absolute. May be empty for diagnostics without a known source location.
-            */
+            /* File path as passed to the compiler. May be relative or absolute. */
             "file": "myfile.mo",
             /* First line of the span (1-based, inclusive). */
             "line_start": 7,

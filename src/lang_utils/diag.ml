@@ -85,7 +85,6 @@ let string_of_severity (sev : severity) = match sev with
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message msg =
   let at = msg.at in
-  (* TODO: what if [at] is empty? [no_region] *)
   let { Source.file; line = line_start; column = column_start } = at.Source.left in
   let { Source.line = line_end; column = column_end; _ } = at.Source.right in
   let span = `Assoc [
