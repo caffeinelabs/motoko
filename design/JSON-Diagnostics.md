@@ -1,9 +1,8 @@
 JSON Diagnostic Output
 ======================
 
-When `--error-format json` is passed to `moc`, diagnostics are emitted as
-JSON to stderr. Each diagnostic is printed as a single line of JSON (one JSON
-object per line, also known as [JSON Lines](https://jsonlines.org/)).
+When `--error-format json` is passed to `moc`, diagnostics are emitted as JSON to stdout.
+Each diagnostic is printed as a single line of JSON (one JSON object per line, also known as [JSON Lines](https://jsonlines.org/)).
 
 This format is intended for machine consumption by IDEs, build tools, and
 other tooling that needs structured access to compiler diagnostics.
@@ -15,7 +14,7 @@ but simplified to match Motoko's diagnostic model.
 Format
 ------
 
-Each line on stderr is a JSON object with the following structure:
+Each line on stdout is a JSON object with the following structure:
 
 ```javascript
 {

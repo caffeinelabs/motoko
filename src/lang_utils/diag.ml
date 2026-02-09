@@ -119,7 +119,7 @@ let print_message msg =
   then ()
   else match !Flags.error_format with
   | Flags.Classic -> Printf.eprintf "%s%!" (string_of_message msg)
-  | Flags.Json -> Printf.eprintf "%s\n%!" (json_string_of_message msg)
+  | Flags.Json -> Printf.printf "%s\n%!" (json_string_of_message msg)
 
 let print_messages = List.iter print_message
 
