@@ -39,7 +39,7 @@ fn run_legacy_mode(args: Vec<String>) {
 
 /// The program offers the user a list of tests to choose from.
 /// A summary of the results of the tests is then printed out.
-fn run_interactive_mode() {
+fn run_interactive_mode(pre_filled_input: &str) {
     let Ok(path) = env::current_dir() else {
         println!("Could not determine current directory. Aborting.");
         return;
@@ -120,6 +120,7 @@ fn run_interactive_mode() {
         "Chose a motoko test to run.\nYou can filter by name, navigate, or even provide regex.\nFilter:",
         tests,
     )
+    .with_starting_filter_input(pre_filled_input)
     .with_formatter(&|tests| {
         let first_ten = tests
             .iter()
@@ -241,14 +242,16 @@ fn main() {
         println!("Pipe to stdin the .drun or .mo file contents.");
         println!("This runs a .drun or .mo test piped through stdin.");
 
-        println!("Usage: test-runner --interactive.");
-        println!("Allows the user to find tests and run them in parallel.");
+        println!("Usage: test-runner [test / pattern]");
+        println!(
+            "Allows the user to enter interactive mode: find/pattern-match tests and run them in parallel."
+        );
 
         std::process::exit(0);
     } else if args.contains(&"--run".to_string()) {
         run_legacy_mode(args);
-    } else if args.contains(&"--interactive".to_string()) {
-        run_interactive_mode();
+    } else {
+        run_interactive_mode(args[1..].join("").as_str());
     }
 }
 
