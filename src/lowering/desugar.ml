@@ -615,33 +615,31 @@ and export_runtime_information self_id =
   )],
    [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
-and export_view exp_opt id =
-  match exp_opt with
+and export_view viewer_opt =
+  match viewer_opt with
   | None -> ([], [], [])
-  | Some view_exp ->
+  | Some {viewer_body; viewer_field} ->
      let open T in
-     let view_e = exp view_exp in
      let ts1, ts2, mk_body =
-       match T.normalize view_exp.note.note_typ with
-       | T.Func(T.Local, _, tbs, ts1, ts2) ->
-          assert (tbs = []);
+       match (viewer_body, T.normalize viewer_field.typ) with
+       | DotViewV view_exp, T.Func(Shared Query, _, [_], ts1, ts2) ->
           (* id.view() available *)
-          ts1, ts2, fun vs -> (callE view_e [] (tupE (List.map varE vs)))
-      | t ->
+          ts1, ts2, fun vs -> callE (exp view_exp) [] (tupE (List.map varE vs))
+       | DefaultV view_exp, T.Func(Shared Query, _, [_], [], [t]) ->
          (* id, t shared *)
           assert (T.shared t);
-          [], [t], fun _vs -> view_e
+          [], [t], fun _vs -> exp view_exp
+       | _ -> assert false
      in
-
      let vs = fresh_vars "param" ts1 in
      let args = List.map arg_of_var vs in
-     let lab = id in (* we can just re-use id as lab since no other member can *)
-     let v = "$"^lab in
+     let lab = viewer_field.lab in
+     let v = fresh_id ("$"^lab) () in
      let scope_con1 = Cons.fresh "T1" (Abs ([], scope_bound)) in
      let scope_con2 = Cons.fresh "T2" (Abs ([], Any)) in
      let bind1 = typ_arg scope_con1 Scope scope_bound in
      let bind2 = typ_arg scope_con2 Scope scope_bound in
-     let typ = T.Func (Shared Query, Promises, [scope_bind], ts1, ts2) in
+     let typ = viewer_field.typ in
      let caller = fresh_var "caller" caller in
      ([ letD (var v typ) (
             funcE v (Shared Query) Promises [bind1] args ts2 (
@@ -681,7 +679,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
-  let triples = List.map2 view stabs ds in
+  let triples = List.map view stabs in
   let view_ds = List.concat_map (fun (ds, _, _) -> ds) triples in
   let view_fields = List.concat_map (fun (_, flds, _) -> flds) triples in
   let view_fs = List.concat_map (fun (_, _, fs) -> fs) triples in
@@ -878,18 +876,14 @@ and stabilize stab_opt d =
   | (S.Stable viewer, I.LetD _) ->
      assert false
 
-and view stab_opt d =
-  let s = match stab_opt with None -> S.Flexible | Some s -> s.it  in
-  match s, d.it with
-  | (S.Flexible, _) ->
-    ([], [], [])
-  | (S.Stable viewer, I.VarD(i, t, e)) ->
-    export_view (!viewer) i
-  | (S.Stable viewer, I.RefD _) -> assert false (* RefD cannot come from user code *)
-  | (S.Stable viewer, I.LetD({it = I.VarP i; _}, e)) ->
-    export_view (!viewer) i
-  | (S.Stable viewer, I.LetD _) ->
-    assert false
+and view stab_opt =
+  match stab_opt with
+  | None -> ([], [], [])
+  | Some stab ->
+    match stab.it with
+    | S.Flexible -> ([], [], [])
+    | S.Stable viewer ->
+      export_view (!viewer)
 
 and build_obj at s self_id dfs obj_typ =
   let fs = build_fields obj_typ in

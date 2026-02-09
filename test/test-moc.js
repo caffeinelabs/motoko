@@ -192,6 +192,7 @@ type T = nat;
 service : {
   /// Function comment
   main: () -> (T) query;
+  x: () -> (T) query;
 }
 `.trim() + "\n";
 assert.deepStrictEqual(Motoko.candid("ast.mo"), {
