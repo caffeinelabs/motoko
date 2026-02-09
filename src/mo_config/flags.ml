@@ -14,8 +14,11 @@ type instruction_limits = {
 
 type actors = LegacyActors | RequirePersistentActors | DefaultPersistentActors
 
+type error_format = Classic | Json
+
 type lint_level = Allow | Warn | Error
 
+let error_format = ref Classic
 let ai_errors = ref false
 let trace = ref false
 let verbose = ref false
