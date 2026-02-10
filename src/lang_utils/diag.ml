@@ -90,6 +90,11 @@ let plain_of_message msg =
     else "" in
   Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
 
+(** Converts a line/column based position to a byte offset.
+
+    NOTE(Christoph): This is rather inefficient. If at some point find this needs to be sped up,
+    we could maintain a datastructure like https://crates.io/crates/line-index
+*)
 let pos_to_byte content pos =
   let line_start = ref 0 in
   for _ = 1 to pos.Source.line - 1 do
