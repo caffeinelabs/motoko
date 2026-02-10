@@ -26,7 +26,7 @@ pub struct TestRunnerArgs {
         help = "Allows user pipe to stdin the contend of a .mo or .drun file preprocessed by run.sh."
     )]
     pub run: bool,
-    #[arg(long, requires = "run", default_value = "application")]
+    #[arg(long, requires = "run", default_value = "system")]
     pub subnet_type: SubnetType,
     #[arg(
         conflicts_with = "run",
