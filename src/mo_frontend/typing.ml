@@ -2822,9 +2822,11 @@ and insert_holes at ts es =
 and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax_args =
     if Flags.get_warning_level "M0237" <> Flags.Allow then
       if List.length syntax_args = saturated_arity && implicits_arity < saturated_arity then
-        let _, explicit_implicits = List.fold_right2
-          (fun typ arg (pos, acc) ->
-             pos + 1,
+        let n = List.length arg_typs in
+        let _, _, explicit_implicits = List.fold_right2
+          (fun typ arg (pos, next_arg, acc) ->
+             pos - 1,
+             Some arg,
              match as_implicit typ with
              | None -> acc
              | Some name ->
@@ -2835,19 +2837,22 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
                    | VarE {it = id0; _},
                      VarE {it = id1; note = (Const, _); _}
                         when id0 = id1 ->
-                      (id1, arg) :: acc
+                      (id1, arg, next_arg) :: acc
                    | DotE ({ it = VarE {it = mod_id0; _};_ },
                            { it = id0; _},
                            _),
                      DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ },
                            { it = id1; _},
                            _) when mod_id0 = mod_id1 && id0 = id1 ->
-                      (mod_id1 ^ "." ^ id1, arg) :: acc
+                      (mod_id1 ^ "." ^ id1, arg, next_arg) :: acc
                    | _ -> acc)
-          arg_typs syntax_args (0, [])
+          arg_typs syntax_args (n - 1, None, [])
         in
         if (List.length explicit_implicits) = saturated_arity - implicits_arity then
-          List.iter (fun (name, exp) -> warn env exp.at "M0237" "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name)  explicit_implicits
+          List.iter (fun (name, exp, next_arg) -> 
+            let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
+            let edits = ["" @@ to_remove] in (* remove the argument until the next one *)
+            warn' ~edits env exp.at "M0237" "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) explicit_implicits
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in

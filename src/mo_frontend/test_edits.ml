@@ -67,7 +67,8 @@ let%expect_test "M0236: multi-arg with implicit" =
     5.7-5.33 [M0236]:
       `Map` ~> `m` (5.7-5.10)
       `m, ` ~> `` (5.15-5.18)
-    5.18-5.29 [M0237]: |}]
+    5.18-5.29 [M0237]:
+      `Nat.compare, ` ~> `` (5.18-5.31) |}]
 
 let%expect_test "M0236: multi-arg without implicit" =
   print_edits "m0236_multi_arg.mo";
@@ -84,7 +85,9 @@ let%expect_test "M0236: multi-arg multiline" =
       `Map` ~> `m` (5.0-5.3)
       `m,
       ` ~> `` (6.2-7.2)
-    7.2-7.13 [M0237]: |}]
+    7.2-7.13 [M0237]:
+      `Nat.compare,
+      ` ~> `` (7.2-8.2) |}]
 
 let%expect_test "M0236: complex receiver" =
   print_edits "m0236_complex_receiver.mo";
@@ -101,11 +104,16 @@ let%expect_test "M0223: redundant instantiation" =
 
 let%expect_test "M0237: single-line" =
   print_edits "m0237_single_line.mo";
-  [%expect {| 5.13-5.24 [M0237]: |}]
+  [%expect {|
+    5.13-5.24 [M0237]:
+      `Nat.compare, ` ~> `` (5.13-5.26) |}]
 
 let%expect_test "M0237: multi-line" =
   print_edits "m0237_multiline.mo";
-  [%expect {| 6.2-6.13 [M0237]: |}]
+  [%expect {|
+    6.2-6.13 [M0237]:
+      `Nat.compare,
+      ` ~> `` (6.2-7.2) |}]
 
 let%expect_test "M0223 + M0236 + M0237: redundant type instantiation + dot + implicit" =
   print_edits "mix.mo";
@@ -117,4 +125,6 @@ let%expect_test "M0223 + M0236 + M0237: redundant type instantiation + dot + imp
       `Map.empty<Nat, Text>(),
       ` ~> `` (5.2-6.2)
     6.2-6.13 [M0237]:
+      `Nat.compare,
+      ` ~> `` (6.2-7.2)
     4.0-4.8 [M0239]: |}]
