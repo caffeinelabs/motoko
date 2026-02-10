@@ -5,5 +5,4 @@ redundant-ignore.mo:6.1-6.9: warning [M0089], redundant ignore, operand already 
 redundant-ignore.mo:11.3-11.12: warning [M0089], redundant ignore, operand already has type ()
 redundant-ignore.mo:12.3-12.13: warning [M0089], redundant ignore, operand already has type ()
 redundant-ignore.mo:13.3-13.11: warning [M0089], redundant ignore, operand already has type ()
-redundant-ignore.mo:10.6-10.7: warning [M0194], unused identifier g
-note: delete or rename to wildcard `_` or `_g`
+redundant-ignore.mo:10.6-10.7: warning [M0194], unused identifier g (delete or rename to wildcard `_` or `_g`)

@@ -1,20 +1,10 @@
-unused-class.mo:1.7-1.22: warning [M0194], unused identifier UnusedTestClass
-note: delete or rename to wildcard `_` or `_UnusedTestClass`
-unused-class.mo:2.9-2.14: warning [M0194], unused identifier field
-note: delete or rename to wildcard `_` or `_field`
-unused-class.mo:5.21-5.36: warning [M0194], unused identifier classParameter1
-note: delete or rename to wildcard `_` or `_classParameter1`
-unused-class.mo:5.44-5.59: warning [M0194], unused identifier classParameter2
-note: delete or rename to wildcard `_` or `_classParameter2`
-unused-class.mo:8.9-8.15: warning [M0194], unused identifier field3
-note: delete or rename to wildcard `_` or `_field3`
-unused-class.mo:9.9-9.15: warning [M0194], unused identifier field4
-note: delete or rename to wildcard `_` or `_field4`
-unused-class.mo:11.10-11.22: warning [M0194], unused identifier unusedMethod
-note: delete or rename to wildcard `_` or `_unusedMethod`
-unused-class.mo:11.23-11.38: warning [M0194], unused identifier unusedParameter
-note: delete or rename to wildcard `_` or `_unusedParameter`
-unused-class.mo:13.13-13.19: warning [M0194], unused identifier local2
-note: delete or rename to wildcard `_` or `_local2`
-unused-class.mo:18.5-18.11: warning [M0194], unused identifier result
-note: delete or rename to wildcard `_` or `_result`
+unused-class.mo:1.7-1.22: warning [M0194], unused identifier UnusedTestClass (delete or rename to wildcard `_` or `_UnusedTestClass`)
+unused-class.mo:2.9-2.14: warning [M0194], unused identifier field (delete or rename to wildcard `_` or `_field`)
+unused-class.mo:5.21-5.36: warning [M0194], unused identifier classParameter1 (delete or rename to wildcard `_` or `_classParameter1`)
+unused-class.mo:5.44-5.59: warning [M0194], unused identifier classParameter2 (delete or rename to wildcard `_` or `_classParameter2`)
+unused-class.mo:8.9-8.15: warning [M0194], unused identifier field3 (delete or rename to wildcard `_` or `_field3`)
+unused-class.mo:9.9-9.15: warning [M0194], unused identifier field4 (delete or rename to wildcard `_` or `_field4`)
+unused-class.mo:11.10-11.22: warning [M0194], unused identifier unusedMethod (delete or rename to wildcard `_` or `_unusedMethod`)
+unused-class.mo:11.23-11.38: warning [M0194], unused identifier unusedParameter (delete or rename to wildcard `_` or `_unusedParameter`)
+unused-class.mo:13.13-13.19: warning [M0194], unused identifier local2 (delete or rename to wildcard `_` or `_local2`)
+unused-class.mo:18.5-18.11: warning [M0194], unused identifier result (delete or rename to wildcard `_` or `_result`)

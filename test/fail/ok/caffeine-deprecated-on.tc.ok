@@ -6,7 +6,5 @@ caffeine-deprecated-on.mo:20.8-20.11: warning [M0235], field f is deprecated for
 caffeine-deprecated-on.mo:22.13-22.16: warning [M0235], type field T is deprecated for caffeine
 caffeine-deprecated-on.mo:24.11-24.12: warning [M0235], field f is deprecated for caffeine
 caffeine-deprecated-on.mo:25.11-25.16: warning [M0235], field f is deprecated for caffeine
-caffeine-deprecated-on.mo:24.11-24.12: warning [M0198], unused field f in object pattern
-note: delete or rewrite as `f = _`
-caffeine-deprecated-on.mo:25.15-25.16: warning [M0194], unused identifier x
-note: delete or rename to wildcard `_` or `_x`
+caffeine-deprecated-on.mo:24.11-24.12: warning [M0198], unused field f in object pattern (delete or rewrite as `f = _`)
+caffeine-deprecated-on.mo:25.15-25.16: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
