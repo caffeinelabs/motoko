@@ -35,14 +35,13 @@ pub struct TestRunnerArgs {
     pub filter: Option<String>,
     #[arg(
         long,
-        help = "Allows user to filter via pattern matching in the contents of the test output file.",
-        default_value = "false"
+        help = "Allows user to filter via pattern matching in the contents of the test output file."
     )]
     pub in_file: bool,
     #[arg(
         long,
         conflicts_with = "run",
-        help = "Just run type checking on tests.",
+        help = "Just run type checking on tests."
     )]
     pub just_tc: bool,
 }
@@ -80,6 +79,31 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
 
     let test_dirs = ["test/run-drun", "test/run", "test/fail"];
 
+    let load_output_files = |path: &String| {
+        let ok_file_content = if search_in_file {
+            let file_path = std::path::Path::new(&path);
+            if let (Some(parent), Some(file_name)) = (file_path.parent(), file_path.file_name()) {
+                let possible_extensions = ["tc.ok", "drun-run.ok", "run.ok"];
+                let mut final_output = String::new();
+                for ext in possible_extensions {
+                    let fp = parent.join("ok").join(file_name).with_extension(ext);
+                    let crnt = std::fs::read_to_string(fp).unwrap_or("".to_string());
+                    final_output.push_str(crnt.as_str());
+                    final_output.push_str("\n\n");
+                }
+                final_output
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+        TestFile {
+            path: path.to_string(),
+            content: ok_file_content,
+        }
+    };
+
     let mut tests: Vec<TestFile> = Vec::new();
     for test_dir in test_dirs {
         let local_tests: Vec<TestFile> = WalkDir::new(test_dir)
@@ -89,28 +113,7 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
             .filter(|f| f.file_type().is_file())
             .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
             .filter(|f| f.ends_with(".mo") || f.ends_with(".drun"))
-            .map(|path| {
-                let file_path = std::path::Path::new(&path);
-                let ok_file_content = if let (Some(parent), Some(file_name)) =
-                    (file_path.parent(), file_path.file_name())
-                {
-                    let possible_extensions = ["tc.ok", "drun-run.ok", "run.ok"];
-                    let mut final_output = String::new();
-                    for ext in possible_extensions {
-                        let fp = parent.join("ok").join(file_name).with_extension(ext);
-                        let crnt = std::fs::read_to_string(fp).unwrap_or("".to_string());
-                        final_output.push_str(crnt.as_str());
-                        final_output.push_str("\n\n");
-                    }
-                    final_output
-                } else {
-                    "".to_string()
-                };
-                TestFile {
-                    path,
-                    content: ok_file_content,
-                }
-            })
+            .map(|s| load_output_files(&s))
             .collect();
 
         tests.extend(local_tests);
