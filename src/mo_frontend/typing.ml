@@ -345,7 +345,7 @@ let emit_unused_warnings env =
       match kind with
       | Scope.Declaration ->
          warn env region "M0240"
-           ~spans:[{ prio = Secondary; at_span = region; text = "if this is intentional, prefix it with an underscore: `_%s`" }]
+           ~notes:[Format.sprintf "if this is intentional, prefix it with an underscore: `_%s`" id]
            "unused identifier %s in shared pattern" id
       | Scope.FieldReference ->
          warn env region "M0241"
@@ -353,8 +353,14 @@ let emit_unused_warnings env =
            "unused field %s in shared pattern" id
     else
       match kind with
-      | Scope.Declaration -> warn env region "M0194" "unused identifier %s (delete or rename to wildcard `_` or `_%s`)" id id
-      | Scope.FieldReference -> warn env region "M0198" "unused field %s in object pattern (delete or rewrite as `%s = _`)" id id
+      | Scope.Declaration ->
+        warn env region  "M0194"
+          ~notes:[Format.sprintf "delete or rename to wildcard `_` or `_%s`" id]
+          "unused identifier %s" id
+      | Scope.FieldReference ->
+        warn env region "M0198"
+          ~notes:[Format.sprintf "delete or rewrite as `%s = _`" id]
+          "unused field %s in object pattern" id
   in
   let list = sorted_unused_warnings !(env.unused_warnings) in
   List.iter emit list
