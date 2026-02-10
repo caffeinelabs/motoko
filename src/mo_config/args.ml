@@ -28,7 +28,12 @@ let package_args = [
 
 let error_args = [
   "--error-detail", Arg.Set_int Flags.error_detail, "<n>  set error message detail for syntax errors, n in [0..3] (default 2)";
-  "--error-recovery", Arg.Set Flags.error_recovery, " report multiple syntax errors"
+  "--error-recovery", Arg.Set Flags.error_recovery, " report multiple syntax errors";
+  "--error-format",     Arg.Symbol (["classic"; "json"], fun s ->
+      Flags.error_format := (match s with
+        | "json" -> Flags.Json
+        | _ -> Flags.Classic)),
+    " set error output format"
   (* TODO move --hide-warnings here? *)
   ]
 
