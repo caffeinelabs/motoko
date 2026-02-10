@@ -38,7 +38,7 @@ use std::time::Duration;
 //    - args can be empty ("") or DIDL-encoded
 //    - Returns the response or error
 
-#[derive(Debug, Clone, Copy)]
+#[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum SubnetType {
     Application,
     System,
