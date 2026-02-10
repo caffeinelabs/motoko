@@ -39,6 +39,13 @@ pub struct TestRunnerArgs {
         default_value = "false"
     )]
     pub in_file: bool,
+    #[arg(
+        long,
+        conflicts_with = "run",
+        help = "Just run type checking on tests.",
+        default_value = "false"
+    )]
+    pub just_tc: bool,
 }
 
 /// The program reads stdin where the .drun file contents are piped in.
@@ -53,7 +60,7 @@ fn run_legacy_mode(subnet_type: SubnetType) {
 
 /// The program offers the user a list of tests to choose from.
 /// A summary of the results of the tests is then printed out.
-fn run_interactive_mode(input_str: &str, search_in_file: bool) {
+fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
     let Ok(path) = env::current_dir() else {
         println!("Could not determine current directory. Aborting.");
         return;
@@ -205,7 +212,7 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool) {
             let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
 
             pb_clone.set_message(format!("Running {test_path}"));
-            let result = run_single_test(test_path.path);
+            let result = run_single_test(test_path.path, just_tc);
 
             pb_clone.inc(1);
             result
@@ -247,9 +254,11 @@ struct SingleTestResult {
     test_name: String,
 }
 
-fn run_single_test(test_name: String) -> SingleTestResult {
+fn run_single_test(test_name: String, just_tc: bool) -> SingleTestResult {
     let test_arg_selector = || {
-        if test_name.contains("/run/") {
+        if just_tc {
+            "-t"
+        } else if test_name.contains("/run/") {
             " "
         } else if test_name.contains("/run-drun/") {
             "-d"
@@ -289,7 +298,11 @@ fn main() {
     if args.run {
         run_legacy_mode(args.subnet_type);
     } else {
-        run_interactive_mode(args.filter.as_deref().unwrap_or(""), args.in_file);
+        run_interactive_mode(
+            args.filter.as_deref().unwrap_or(""),
+            args.in_file,
+            args.just_tc,
+        );
     }
 }
 
