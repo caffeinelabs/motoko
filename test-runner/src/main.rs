@@ -288,7 +288,7 @@ fn main() {
         if !path.ends_with("motoko") {
             println!("Current path: {:?}", path.display());
             println!(
-                "test-runner --interactive should be run in the top-level motoko/ main repo directory only."
+                "test-runner should be run in the top-level motoko/ main repo directory only in interactive mode."
             );
             return;
         }
