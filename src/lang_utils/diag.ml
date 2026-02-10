@@ -141,6 +141,31 @@ let string_of_message msg =
   else
     plain_of_message msg
 
+let string_of_severity (sev : severity) = match sev with
+  | Error -> "error"
+  | Warning -> "warning"
+  | Info -> "info"
+
+(* Keep in sync with [design/JSON-Diagnostics.md] *)
+let json_string_of_message msg =
+  let at = msg.at in
+  let { Source.file; line = line_start; column = column_start } = at.Source.left in
+  let { Source.line = line_end; column = column_end; _ } = at.Source.right in
+  let span = `Assoc [
+    "file", `String file;
+    "line_start", `Int line_start;
+    "column_start", `Int (column_start + 1);
+    "line_end", `Int line_end;
+    "column_end", `Int (column_end + 1);
+  ] in
+  let json = `Assoc [
+    "message", `String msg.text;
+    "code", `String msg.code;
+    "level", `String (string_of_severity msg.sev);
+    "spans", `List [span];
+  ] in
+  Yojson.Basic.to_string json
+
 let is_warning_as_error msg =
   msg.sev = Warning && Flags.get_warning_level msg.code = Flags.Error
 
@@ -156,7 +181,9 @@ let print_message msg =
   let msg = normalize_severity msg in
   if msg.sev <> Error && not !Flags.print_warnings
   then ()
-  else Printf.eprintf "%s%!" (string_of_message msg)
+  else match !Flags.error_format with
+  | Flags.Classic -> Printf.eprintf "%s%!" (string_of_message msg)
+  | Flags.Json -> Printf.printf "%s\n%!" (json_string_of_message msg)
 
 let print_messages = List.iter print_message
 
