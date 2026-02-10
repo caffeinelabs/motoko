@@ -418,13 +418,13 @@ let js_contextual_dot_suggestions scope raw_exp =
   let libs = scope.Scope.lib_env in
   let open Typing in
   let suggestions = contextual_dot_suggestions libs receiver_ty in
-  Js.array (Array.of_list (List.map (fun suggestion ->
+  Js.array (Array.of_seq (Seq.map (fun suggestion ->
     object%js
       val moduleUri = Js.string suggestion.module_url
       val funcName = Js.string suggestion.func_name
       val funcType = Js.string (Mo_types.Type.string_of_typ suggestion.func_ty)
     end
-  ) suggestions))
+  ) (List.to_seq suggestions)))
 
 let js_contextual_dot_module raw_exp =
   let open Mo_frontend in
