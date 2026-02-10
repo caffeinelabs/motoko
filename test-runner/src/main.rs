@@ -43,7 +43,6 @@ pub struct TestRunnerArgs {
         long,
         conflicts_with = "run",
         help = "Just run type checking on tests.",
-        default_value = "false"
     )]
     pub just_tc: bool,
 }
