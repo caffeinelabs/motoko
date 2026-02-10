@@ -59,27 +59,9 @@ fn run_legacy_mode(subnet_type: SubnetType) {
 /// The program offers the user a list of tests to choose from.
 /// A summary of the results of the tests is then printed out.
 fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
-    let Ok(path) = env::current_dir() else {
-        println!("Could not determine current directory. Aborting.");
-        return;
-    };
-    if !path.ends_with("motoko") {
-        println!("Current path: {:?}", path.display());
-        println!(
-            "test-runner --interactive should be run in the top-level motoko/ main repo directory only."
-        );
-        return;
-    }
-
-    // Set max 8 threads for now.
-    ThreadPoolBuilder::new()
-        .num_threads(8)
-        .build_global()
-        .expect("Failed to initialize global thread pool");
-
     let test_dirs = ["test/run-drun", "test/run", "test/fail"];
 
-    let load_output_files = |path: &String| {
+    let load_file_contents = |path: &String| {
         let ok_file_content = if search_in_file {
             let file_path = std::path::Path::new(&path);
             if let (Some(parent), Some(file_name)) = (file_path.parent(), file_path.file_name()) {
@@ -113,7 +95,7 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
             .filter(|f| f.file_type().is_file())
             .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
             .filter(|f| f.ends_with(".mo") || f.ends_with(".drun"))
-            .map(|s| load_output_files(&s))
+            .map(|s| load_file_contents(&s))
             .collect();
 
         tests.extend(local_tests);
@@ -295,11 +277,28 @@ fn run_single_test(test_name: String, just_tc: bool) -> SingleTestResult {
 }
 
 fn main() {
-    // Parse command line arguments.
     let args = TestRunnerArgs::parse();
     if args.run {
         run_legacy_mode(args.subnet_type);
     } else {
+        let Ok(path) = env::current_dir() else {
+            println!("Could not determine current directory. Aborting.");
+            return;
+        };
+        if !path.ends_with("motoko") {
+            println!("Current path: {:?}", path.display());
+            println!(
+                "test-runner --interactive should be run in the top-level motoko/ main repo directory only."
+            );
+            return;
+        }
+
+        // Set max 8 threads for now.
+        ThreadPoolBuilder::new()
+            .num_threads(8)
+            .build_global()
+            .expect("Failed to initialize global thread pool");
+
         run_interactive_mode(
             args.filter.as_deref().unwrap_or(""),
             args.in_file,
