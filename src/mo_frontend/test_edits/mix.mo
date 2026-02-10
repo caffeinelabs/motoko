@@ -1,7 +1,7 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
 
-Map.add(
+let _ = Map.add<Nat, Text>(
   Map.empty<Nat, Text>(),
   Nat.compare,
   1,

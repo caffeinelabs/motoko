@@ -95,7 +95,9 @@ let%expect_test "M0236: complex receiver" =
 
 let%expect_test "M0223: redundant instantiation" =
   print_edits "m0223.mo";
-  [%expect {| 4.21-4.26 [M0223]: |}]
+  [%expect {|
+    4.21-4.26 [M0223]:
+      `<Nat>` ~> `` (4.21-4.26) |}]
 
 let%expect_test "M0237: single-line" =
   print_edits "m0237_single_line.mo";
@@ -105,11 +107,14 @@ let%expect_test "M0237: multi-line" =
   print_edits "m0237_multiline.mo";
   [%expect {| 6.2-6.13 [M0237]: |}]
 
-let%expect_test "M0236 + M0237: dot + implicit" =
-  print_edits "mix_m0236_m0237.mo";
+let%expect_test "M0223 + M0236 + M0237: redundant type instantiation + dot + implicit" =
+  print_edits "mix.mo";
   [%expect {|
-    4.0-9.1 [M0236]:
-      `Map` ~> `Map.empty<Nat, Text>()` (4.0-4.3)
+    4.15-4.26 [M0223]:
+      `<Nat, Text>` ~> `` (4.15-4.26)
+    4.8-9.1 [M0236]:
+      `Map` ~> `Map.empty<Nat, Text>()` (4.8-4.11)
       `Map.empty<Nat, Text>(),
       ` ~> `` (5.2-6.2)
-    6.2-6.13 [M0237]: |}]
+    6.2-6.13 [M0237]:
+    4.0-4.8 [M0239]: |}]
