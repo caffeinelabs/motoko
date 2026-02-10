@@ -253,8 +253,8 @@ let display_typs fmt typs =
 let type_error at code text : Diag.message =
   Diag.error_message at code "type" text
 
-let type_warning at code text : Diag.message =
-  Diag.warning_message at code "type" text
+let type_warning ?(edits=[]) at code text : Diag.message =
+  Diag.warning_message ~edits at code "type" text
 
 let type_info at text : Diag.message =
   Diag.info_message at "type" text
@@ -287,6 +287,11 @@ let warn env at code fmt =
   Format.kasprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s))
     fmt
+
+let warn' ~edits env at code =
+  Format.kasprintf env (fun s ->
+    if not env.errors_only then
+      Diag.add_msg env.msgs (type_warning ~edits at code s))
 
 let info env at fmt =
   Format.kasprintf env (fun s ->
@@ -351,7 +356,7 @@ let warn_lossy_bind_type env at bind t1 t2 =
 
 (* Currently unused *)
 let _warn_in modes env at code fmt =
-  ignore (diag_in type_warning modes env at code fmt)
+  ignore (diag_in (type_warning ~edits:[]) modes env at code fmt)
 
 (* Unused identifier detection *)
 
@@ -1683,11 +1688,18 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
              | DotE ({ it = VarE {it = mod_id0; _};_ },
                      { it = id0; _},
                     _),
-               DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ },
+               DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                      { it = id1; _},
                      _)  when mod_id0 = mod_id1 && id0 = id1 ->
-                warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-                  (quote e)
+                let receiver_text = quote e in
+                let replace_receiver = receiver_text @@ old_receiver.at in
+                let remove_old_receiver = "" @@ match es with
+                  | [] -> e.at
+                  | next :: _ -> { left = e.at.left; right = next.at.left }
+                in
+                let edits = [replace_receiver; remove_old_receiver] in
+                warn' env at "M0236" ~edits "You can use the dot notation `%s.%s(...)` here"
+                  receiver_text
                   id.it
              | _ -> ())
       end

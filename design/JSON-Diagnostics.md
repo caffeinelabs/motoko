@@ -38,8 +38,8 @@ Each line on stdout is a JSON object with the following structure:
     "level": "error",
 
     /* An array of source locations associated with the diagnostic.
-       Currently each diagnostic produces exactly one span.
-       The array format is used for forward-compatibility with potential multi-span diagnostics in the future.
+       The first span is the primary diagnostic location.
+       Additional spans, if present, carry suggested text replacements.
     */
     "spans": [
         {
@@ -52,7 +52,11 @@ Each line on stdout is a JSON object with the following structure:
             /* Last line of the span (1-based, inclusive). */
             "line_end": 7,
             /* Last column of the span (1-based, exclusive). */
-            "column_end": 22
+            "column_end": 22,
+            /* An optional string of a suggested replacement for this span.
+               When present, tools may replace the contents of the span with this text.
+            */
+            "suggested_replacement": null
         }
     ]
 }
@@ -63,6 +67,6 @@ Example output
 --------------
 
 ```
-{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"example.mo","line_start":2,"column_start":7,"line_end":2,"column_end":11}]}
-{"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"example.mo","line_start":5,"column_start":15,"line_end":5,"column_end":22}]}
+{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"example.mo","line_start":2,"column_start":7,"line_end":2,"column_end":11,"suggested_replacement":null}]}
+{"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"example.mo","line_start":5,"column_start":15,"line_end":5,"column_end":22,"suggested_replacement":null}]}
 ```

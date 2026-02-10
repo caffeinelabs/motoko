@@ -2,18 +2,20 @@ open Mo_config
 
 type error_code = string
 type severity = Warning | Error | Info
+type text_edit = string Source.phrase
 type message = {
   sev : severity;
   code : error_code;
   at : Source.region;
   cat : string;
-  text : string
+  text : string;
+  edits : text_edit list;
 }
 type messages = message list
 
-let info_message at cat text = {sev = Info; code = ""; at; cat; text}
-let warning_message at code cat text = {sev = Warning; code; at; cat; text}
-let error_message at code cat text = {sev = Error; code; at; cat; text}
+let info_message at cat text = {sev = Info; code = ""; at; cat; text; edits = []}
+let warning_message ?(edits=[]) at code cat text = {sev = Warning; code; at; cat; text; edits}
+let error_message at code cat text = {sev = Error; code; at; cat; text; edits = []}
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
@@ -82,23 +84,30 @@ let string_of_severity (sev : severity) = match sev with
   | Warning -> "warning"
   | Info -> "info"
 
-(* Keep in sync with [design/JSON-Diagnostics.md] *)
-let json_string_of_message msg =
-  let at = msg.at in
+let json_span ?suggested_replacement at =
   let { Source.file; line = line_start; column = column_start } = at.Source.left in
   let { Source.line = line_end; column = column_end; _ } = at.Source.right in
-  let span = `Assoc [
+  `Assoc [
     "file", `String file;
     "line_start", `Int line_start;
     "column_start", `Int (column_start + 1);
     "line_end", `Int line_end;
     "column_end", `Int (column_end + 1);
-  ] in
+    "suggested_replacement", match suggested_replacement with None -> `Null | Some s -> `String s;
+  ]
+
+let json_spans_of_message (msg : message) =
+  let edit_span (e : text_edit) = json_span ~suggested_replacement:e.Source.it e.Source.at in
+  json_span msg.at :: List.map edit_span msg.edits
+
+(* Keep in sync with [design/JSON-Diagnostics.md] *)
+let json_string_of_message (msg : message) =
+  let spans = json_spans_of_message msg in
   let json = `Assoc [
     "message", `String msg.text;
     "code", `String msg.code;
     "level", `String (string_of_severity msg.sev);
-    "spans", `List [span];
+    "spans", `List spans;
   ] in
   Yojson.Basic.to_string json
 
