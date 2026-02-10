@@ -18,8 +18,10 @@ implicit.mo:65.1-65.9: type error [M0230], Cannot determine implicit argument `b
   (Nat, Nat) -> Order
 note: If you're trying to omit an implicit argument named `bogus` you need to have a matching declaration named `bogus` in scope.
 note: Did you mean to explicitly use `explicit1` or `M.aardvark` or `M.ambiguous` or `M.c` or `N.ambiguous`?
-implicit.mo:75.1-75.9: type error [M0231], ambiguous implicit argument named `ambiguous` of type (Nat, Nat) -> Order.
+implicit.mo:75.1-75.9: type error [M0231], ambiguous implicit argument named `ambiguous` of type 
+  (Nat, Nat) -> Order.
 note: The ambiguous implicit candidates are: `M.ambiguous`, `N.ambiguous`.
 note: The other explicit candidates are: `explicit1`, `M.aardvark`, `M.c`
-implicit.mo:92.27-92.29: type error [M0231], ambiguous implicit argument named `zero` of type {x : Nat}.
+implicit.mo:92.27-92.29: type error [M0231], ambiguous implicit argument named `zero` of type 
+  {x : Nat}.
 note: The ambiguous implicit candidates are: `XY.zero`, `XZ.zero`.

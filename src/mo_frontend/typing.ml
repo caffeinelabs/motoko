@@ -174,8 +174,6 @@ let display_lab = Lib.Format.display T.pp_lab
 
 let display_typ = Lib.Format.display T.pp_typ
 
-let display_typ_inline = Lib.Format.display_inline T.pp_typ
-
 let display_typ_expand = Lib.Format.display T.pp_typ_expand
 
 let display_explanation t1 t2 ppf explanation =
@@ -1574,7 +1572,7 @@ let resolve_hole env at hole_sort typ =
        in
        error env at "M0231" ~notes "ambiguous implicit argument %s of type %a."
          (match hole_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
-         display_typ_inline typ))
+         display_typ typ))
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
