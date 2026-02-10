@@ -4,4 +4,4 @@ do {
   let true = true;
 };
 
-let _ : Nat = "hello";
+let _ : Nat = "abc";
