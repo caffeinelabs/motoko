@@ -15,6 +15,7 @@
   * Improved type recovery for `let` and `var` declarations (enabled only with a type recovery flag for the IDE) (#5819).
   * Add `checkWithScopeCache` function to `moc.js` -- a cached version of `check` (#5820).
   * Add `--error-format json` flag to `moc` for machine-readable diagnostic output on stdout in JSON Lines format (#5829).
+  * Expose contextual dot resolution in `moc.js` via two new functions: `contextualDotSuggestions` returns matching context-dot functions for a receiver type, and `contextualDotModule` returns the module reference for a resolved context-dot expression. AST expression nodes now carry non-enumerable `rawExp` references, and the root AST node exposes the accumulated `scope` (including all transitive imports) to support these APIs (#5797).
 
 ## 1.1.0 (2026-01-16)
 
