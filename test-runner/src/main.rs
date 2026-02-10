@@ -1,5 +1,6 @@
 mod test_runner;
 use crate::test_runner::SubnetType;
+use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use inquire::MultiSelect;
 use rayon::ThreadPoolBuilder;
@@ -13,23 +14,36 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use walkdir::WalkDir;
 
+#[derive(Parser)]
+#[command(
+    version,
+    about = "Motoko test-runner tool.",
+    long_about = "Motoko test-runner tool. Allows the user to enter interactive mode: find/pattern-match tests and run them in parallel."
+)]
+pub struct TestRunnerArgs {
+    #[arg(
+        long,
+        help = "Allows user pipe to stdin the contend of a .mo or .drun file preprocessed by run.sh."
+    )]
+    pub run: bool,
+    #[arg(long, requires = "run", default_value = "application")]
+    pub subnet_type: SubnetType,
+    #[arg(
+        conflicts_with = "run",
+        help = "Allows user to filter and pattern match tests and run them in parallel."
+    )]
+    pub filter: Option<String>,
+    #[arg(
+        long,
+        help = "Allows user to filter via pattern matching in the contents of the test output file.",
+        default_value = "false"
+    )]
+    pub in_file: bool,
+}
+
 /// The program reads stdin where the .drun file contents are piped in.
 /// It then runs the commands in the .drun file and writes the output to stdout.
-fn run_legacy_mode(args: Vec<String>) {
-    // Go through the arguments and check for "--subnet-type application".
-    // These are two elements in the args vector.
-    // Check first for "--subnet-type" index and then check for subnet type and the next index.
-    let subnet_type =
-        args.iter()
-            .position(|arg| arg == "--subnet-type")
-            .map_or(SubnetType::System, |index| {
-                if args[index + 1] == "application" {
-                    SubnetType::Application
-                } else {
-                    SubnetType::System
-                }
-            });
-
+fn run_legacy_mode(subnet_type: SubnetType) {
     let mut stdin = std::io::stdin();
     let mut buffer = String::new();
     let _ = stdin.read_to_string(&mut buffer);
@@ -39,7 +53,7 @@ fn run_legacy_mode(args: Vec<String>) {
 
 /// The program offers the user a list of tests to choose from.
 /// A summary of the results of the tests is then printed out.
-fn run_interactive_mode(pre_filled_input: &str) {
+fn run_interactive_mode(input_str: &str, search_in_file: bool) {
     let Ok(path) = env::current_dir() else {
         println!("Could not determine current directory. Aborting.");
         return;
@@ -60,15 +74,37 @@ fn run_interactive_mode(pre_filled_input: &str) {
 
     let test_dirs = ["test/run-drun", "test/run", "test/fail"];
 
-    let mut tests: Vec<String> = Vec::new();
+    let mut tests: Vec<TestFile> = Vec::new();
     for test_dir in test_dirs {
-        let local_tests: Vec<String> = WalkDir::new(test_dir)
+        let local_tests: Vec<TestFile> = WalkDir::new(test_dir)
             .max_depth(1) // Top-level directory only because that's where our tests are.
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|f| f.file_type().is_file())
             .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
             .filter(|f| f.ends_with(".mo") || f.ends_with(".drun"))
+            .map(|path| {
+                let file_path = std::path::Path::new(&path);
+                let ok_file_content = if let (Some(parent), Some(file_name)) =
+                    (file_path.parent(), file_path.file_name())
+                {
+                    let possible_extensions = ["tc.ok", "drun-run.ok", "run.ok"];
+                    let mut final_output = String::new();
+                    for ext in possible_extensions {
+                        let fp = parent.join("ok").join(file_name).with_extension(ext);
+                        let crnt = std::fs::read_to_string(fp).unwrap_or("".to_string());
+                        final_output.push_str(crnt.as_str());
+                        final_output.push_str("\n\n");
+                    }
+                    final_output
+                } else {
+                    "".to_string()
+                };
+                TestFile {
+                    path,
+                    content: ok_file_content,
+                }
+            })
             .collect();
 
         tests.extend(local_tests);
@@ -79,7 +115,7 @@ fn run_interactive_mode(pre_filled_input: &str) {
         static CACHED_REGEX: RefCell<(String, Option<Regex>)> = const { RefCell::new((String::new(), None)) };
     }
 
-    let try_match = |input: &str, string_value: &str| {
+    let try_match = |input: &str, string_value: &str, test_file: &TestFile| {
         // Cache the regex compilation so that it's not computed for every item in the list.
         CACHED_REGEX.with(|cache| {
             let mut cache = cache.borrow_mut();
@@ -95,9 +131,15 @@ fn run_interactive_mode(pre_filled_input: &str) {
                 };
                 cache.1 = Regex::new(&pattern).ok();
             }
+            // If the user wants to search through file contents, do that.
+            let haystack = if search_in_file {
+                test_file.content.as_str()
+            } else {
+                string_value
+            };
             match &cache.1 {
                 Some(re) => {
-                    if re.is_match(string_value) {
+                    if re.is_match(haystack) {
                         Some(0)
                     } else {
                         None
@@ -106,7 +148,7 @@ fn run_interactive_mode(pre_filled_input: &str) {
                 // Fallback: if the regex is mid-typing/invalid,
                 // just do a basic case-insensitive check.
                 None => {
-                    if string_value.to_lowercase().contains(&input.to_lowercase()) {
+                    if haystack.to_lowercase().contains(&input.to_lowercase()) {
                         Some(0)
                     } else {
                         None
@@ -120,12 +162,12 @@ fn run_interactive_mode(pre_filled_input: &str) {
         "Chose a motoko test to run.\nYou can filter by name, navigate, or even provide regex.\nFilter:",
         tests,
     )
-    .with_starting_filter_input(pre_filled_input)
+    .with_starting_filter_input(input_str)
     .with_formatter(&|tests| {
         let first_ten = tests
             .iter()
             .take(10)
-            .map(|t| t.value.as_str())
+            .map(|t| t.value.path.as_str())
             .collect::<Vec<_>>()
             .join(", ");
         if tests.len() > 10 {
@@ -135,11 +177,11 @@ fn run_interactive_mode(pre_filled_input: &str) {
             format!("{first_ten}.")
         }
     })
-    .with_scorer(&|input, _option, string_value, _idx| {
+    .with_scorer(&|input, test_file, string_value, _idx| {
         if input.is_empty() {
             return Some(0);
         }
-        try_match(input, string_value)
+        try_match(input, string_value, test_file)
     })
     .prompt() else {
         println!("Error selecting tests.");
@@ -163,7 +205,7 @@ fn run_interactive_mode(pre_filled_input: &str) {
             let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
 
             pb_clone.set_message(format!("Running {test_path}"));
-            let result = run_single_test(test_path);
+            let result = run_single_test(test_path.path);
 
             pb_clone.inc(1);
             result
@@ -184,6 +226,17 @@ fn print_summary(test_results: Vec<SingleTestResult>, duration: Duration) {
         println!("Test {:?} failed.", test_result.test_name);
         println!("Stderr: {}", test_result.stderr);
         println!("Stdout: {}", test_result.stdout);
+    }
+}
+
+struct TestFile {
+    path: String,
+    content: String,
+}
+
+impl std::fmt::Display for TestFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.path)
     }
 }
 
@@ -232,26 +285,11 @@ fn run_single_test(test_name: String) -> SingleTestResult {
 
 fn main() {
     // Parse command line arguments.
-    let args = std::env::args().collect::<Vec<String>>();
-
-    // Check if user asked for --help.
-    if args.contains(&"--help".to_string()) {
-        println!(" -------------- test-runner ----------------");
-
-        println!("Usage: test-runner --run [--subnet-type application]");
-        println!("Pipe to stdin the .drun or .mo file contents.");
-        println!("This runs a .drun or .mo test piped through stdin.");
-
-        println!("Usage: test-runner [test / pattern]");
-        println!(
-            "Allows the user to enter interactive mode: find/pattern-match tests and run them in parallel."
-        );
-
-        std::process::exit(0);
-    } else if args.contains(&"--run".to_string()) {
-        run_legacy_mode(args);
+    let args = TestRunnerArgs::parse();
+    if args.run {
+        run_legacy_mode(args.subnet_type);
     } else {
-        run_interactive_mode(args[1..].join("").as_str());
+        run_interactive_mode(args.filter.as_deref().unwrap_or(""), args.in_file);
     }
 }
 
