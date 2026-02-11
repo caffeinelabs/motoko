@@ -38,5 +38,6 @@ M0240 (W) Unused identifier in shared pattern warning
 M0241 (W) Unused field in shared pattern warning
 M0242 (W) Implicit oneway declaration
 M0243 (W) Unreachable else in let-else
+M0244 (W) Mutable variable is never reassigned
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)

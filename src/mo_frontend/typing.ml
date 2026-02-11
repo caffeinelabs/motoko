@@ -368,11 +368,13 @@ let emit_unused_warnings env =
       | Scope.Declaration -> warn env region "M0240" "unused identifier %s in shared pattern (delete or rename to wildcard `_` or `_%s`)" id id
       | Scope.FieldReference -> warn env region "M0241" "unused field %s in shared pattern (delete or rewrite as `%s = _`)" id id
       | Scope.MutableNotAssigned -> warn env region "M0244" "variable %s is never reassigned, consider using `let`" id
+      | Scope.MixinIncluded -> ()
     else
       match kind with
       | Scope.Declaration -> warn env region "M0194" "unused identifier %s (delete or rename to wildcard `_` or `_%s`)" id id
       | Scope.FieldReference -> warn env region "M0198" "unused field %s in object pattern (delete or rewrite as `%s = _`)" id id
       | Scope.MutableNotAssigned -> warn env region "M0244" "variable %s is never reassigned, consider using `let`" id
+      | Scope.MixinIncluded -> ()
   in
   UWSet.iter emit !(env.unused_warnings)
 
@@ -3655,11 +3657,11 @@ and vis_val_id src id (xs, ys) : visibility_env =
 
 (* Object/Scope transformations *)
 
-and scope_of_object env fs tfs =
+and scope_of_object val_kind env fs tfs =
   let typ_env = List.fold_left (fun te tf ->
     T.Env.add tf.T.lab tf.T.typ te) T.Env.empty tfs in
   let val_env = List.fold_left (fun te f ->
-    T.Env.add f.T.lab (f.T.typ, Source.no_region, Scope.FieldReference) te) T.Env.empty fs in
+    T.Env.add f.T.lab (f.T.typ, Source.no_region, val_kind) te) T.Env.empty fs in
   Scope.{ empty with typ_env; val_env }
 
 (* TODO: remove by merging conenv and valenv or by separating typ_fields *)
@@ -4372,7 +4374,7 @@ and gather_dec env scope dec : Scope.t =
       ) scope.typ_env tfs in
       let val_env = List.fold_left (fun ve T.{ lab; typ; _ } ->
         if T.Env.mem lab ve then error_duplicate env "" { it = lab; at = i.at; note = () };
-        T.Env.add lab (typ, Source.no_region, Scope.Declaration) ve
+        T.Env.add lab (typ, Source.no_region, Scope.MixinIncluded) ve
       ) scope.val_env fs in
       { scope with typ_env; val_env }
     end
@@ -4433,9 +4435,7 @@ and infer_dec_typdecs env dec : Scope.t =
       let open Scope in
       n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs });
       let (_, fs, tfs) = T.as_obj' mix.typ in
-      let scope = scope_of_object env fs tfs in
-      (* Mark all included idents as used to avoid spurious warnings *)
-      T.Env.iter (fun i _ -> use_identifier env i) scope.val_env;
+      let scope = scope_of_object Scope.MixinIncluded env fs tfs in
       scope
     end
   (* TODO: generalize beyond let <id> = <obje> *)
