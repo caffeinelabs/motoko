@@ -118,7 +118,7 @@ let print_message msg =
   if msg.sev <> Error && not !Flags.print_warnings
   then ()
   else match !Flags.error_format with
-  | Flags.Classic -> Printf.eprintf "%s%!" (string_of_message msg)
+  | Flags.Plain -> Printf.eprintf "%s%!" (string_of_message msg)
   | Flags.Json -> Printf.printf "%s\n%!" (json_string_of_message msg)
 
 let print_messages = List.iter print_message
