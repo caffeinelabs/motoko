@@ -11,7 +11,6 @@ module A = Effect
 module C = Async_cap
 
 module S = Set.Make(String)
-module UM = Map.Make(String)
 type usage = { assigned : bool }
 
 (* Contexts *)
@@ -63,7 +62,7 @@ type env =
     msgs : Diag.msg_store;
     scopes : Source.region T.ConEnv.t;
     check_unused : bool;
-    used_identifiers : usage UM.t ref;
+    used_identifiers : usage T.Env.t ref;
     unused_warnings : UWSet.t ref;
     shared_pat_regions : Source.region list ref;
     reported_stable_memory : bool ref;
@@ -95,7 +94,7 @@ let env_of_scope msgs scope =
     msgs;
     scopes = T.ConEnv.empty;
     check_unused = true;
-    used_identifiers = ref UM.empty;
+    used_identifiers = ref T.Env.empty;
     unused_warnings = ref UWSet.empty;
     shared_pat_regions = ref [];
     reported_stable_memory = ref false;
@@ -106,22 +105,22 @@ let env_of_scope msgs scope =
   }
 
 let use_identifier env id =
-  env.used_identifiers := UM.update id (function
+  env.used_identifiers := T.Env.update id (function
     | Some u -> Some u
     | None -> Some { assigned = false }
   ) !(env.used_identifiers)
 
 let assign_identifier env id =
-  env.used_identifiers := UM.update id (function
+  env.used_identifiers := T.Env.update id (function
     | Some _ -> Some { assigned = true }
     | None -> Some { assigned = true }
   ) !(env.used_identifiers)
 
 let is_unused_identifier env id =
-  not (UM.mem id !(env.used_identifiers))
+  not (T.Env.mem id !(env.used_identifiers))
 
 let is_unassigned_identifier env id =
-  match UM.find_opt id !(env.used_identifiers) with
+  match T.Env.find_opt id !(env.used_identifiers) with
   | Some { assigned = false } -> true
   | _ -> false
 
@@ -392,14 +391,14 @@ let detect_unused env inner_identifiers =
       end
     ) inner_identifiers
 
-let enter_scope env : usage UM.t =
+let enter_scope env : usage T.Env.t =
   !(env.used_identifiers)
 
 let leave_scope env inner_identifiers initial_usage =
   detect_unused env inner_identifiers;
   let inner_ids = get_identifiers inner_identifiers in
-  let unshadowed_usage = UM.filter (fun id _ -> not (S.mem id inner_ids)) !(env.used_identifiers) in
-  let final_usage = UM.union (fun _ u1 u2 ->
+  let unshadowed_usage = T.Env.filter (fun id _ -> not (S.mem id inner_ids)) !(env.used_identifiers) in
+  let final_usage = T.Env.union (fun _ u1 u2 ->
     Some { assigned = u1.assigned || u2.assigned }
   ) initial_usage unshadowed_usage in
   env.used_identifiers := final_usage
