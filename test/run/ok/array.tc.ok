@@ -3,4 +3,9 @@ array.mo:109.27-109.64: warning [M0074], this array has type
 because elements have inconsistent types
 array.mo:2.5-2.7: warning [M0194], unused identifier aa (delete or rename to wildcard `_` or `_aa`)
 array.mo:15.5-15.7: warning [M0194], unused identifier bb (delete or rename to wildcard `_` or `_bb`)
+array.mo:38.5-38.12: warning [M0244], variable emptyit is never reassigned, consider using `let`
+array.mo:41.5-41.7: warning [M0244], variable it is never reassigned, consider using `let`
+array.mo:47.5-47.13: warning [M0244], variable it_again is never reassigned, consider using `let`
+array.mo:53.5-53.8: warning [M0244], variable it2 is never reassigned, consider using `let`
+array.mo:59.5-59.8: warning [M0244], variable it3 is never reassigned, consider using `let`
 array.mo:109.5-109.18: warning [M0194], unused identifier heterogeneous (delete or rename to wildcard `_` or `_heterogeneous`)
