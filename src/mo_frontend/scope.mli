@@ -1,6 +1,6 @@
 open Mo_types.Type
 
-type val_kind = Declaration | FieldReference
+type val_kind = Declaration | FieldReference | MutableNotAssigned
 type val_env = (typ * Source.region * val_kind) Env.t
 type lib_env = Mo_types.Type.typ Env.t
 type typ_env = con Env.t

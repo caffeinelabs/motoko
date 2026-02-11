@@ -251,6 +251,7 @@ let warning_codes = [
   "M0241", None, "Unused field in shared pattern warning";
   "M0242", None, "Implicit oneway declaration";
   "M0243", None, "Unreachable else in let-else";
+  "M0244", None, "Mutable variable is never reassigned";
   ]
 
 let try_find_explanation code =

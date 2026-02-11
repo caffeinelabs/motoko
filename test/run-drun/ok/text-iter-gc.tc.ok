@@ -1,1 +1,2 @@
 text-iter-gc.mo:6.8-6.13: warning [M0194], unused identifier array (delete or rename to wildcard `_` or `_array`)
+text-iter-gc.mo:8.8-8.12: warning [M0244], variable text is never reassigned, consider using `let`
