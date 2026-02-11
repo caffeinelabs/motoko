@@ -9,7 +9,6 @@ type message = {
   at : Source.region;
   cat : string;
   text : string;
-  (* TODO: only compute edits when json output is enabled *)
   edits : text_edit list;
 }
 type messages = message list
