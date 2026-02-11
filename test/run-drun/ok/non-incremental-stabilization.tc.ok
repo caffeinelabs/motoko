@@ -1,0 +1,3 @@
+non-incremental-stabilization.mo:5.16-5.25: warning [M0244], variable stableNat is never reassigned, consider using `let`
+non-incremental-stabilization.mo:6.16-6.25: warning [M0244], variable stableInt is never reassigned, consider using `let`
+non-incremental-stabilization.mo:7.16-7.26: warning [M0244], variable stableText is never reassigned, consider using `let`
