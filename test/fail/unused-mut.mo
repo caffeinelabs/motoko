@@ -22,6 +22,20 @@ do {
   ignore _w;
 };
 
+// var assigned with += (should not warn)
+do {
+  var a = 0;
+  a += 1;
+  ignore a;
+};
+
+// var assigned with -= (should not warn)
+do {
+  var b : Int = 5;
+  b -= 1;
+  ignore b;
+};
+
 // let binding (should not warn M0244)
 do {
   let v = 0;
