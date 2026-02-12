@@ -159,6 +159,60 @@ Finally, it would sometimes be desirable to have extended syntax for multi-line 
 The Motoko type system has a number of known gaps that stand in the way of certain forms of abstraction and composition.
 
 
+#### Newtypes
+
+Motoko supports `newtype` declarations that introduce a nominal wrapper around an existing type.
+Unlike `type` aliases (which are structurally transparent), a `newtype` is fully opaque: no implicit conversion exists between the newtype and its underlying representation.
+
+```
+newtype Time = Int;
+let t : Time = Time(123);    // explicit wrapping via constructor
+let n : Int = t.unwrap;      // explicit unwrapping via .unwrap
+```
+
+The declaration introduces both a type `Time` and a value `Time` — the constructor function of type `Int -> Time`.
+
+Newtypes can have type parameters.
+Variance of each type parameter is computed from its usage in the right-hand side, consistent with how `type` aliases work:
+
+```
+newtype Map<K, V> = MapInternals<K, V>;
+let m : Map<Text, Nat> = Map<Text, Nat>(internal);
+let i = m.unwrap;  // : MapInternals<Text, Nat>
+```
+
+##### Semantics
+
+- **Opacity.** A newtype `T` and its underlying type `U` are distinct for subtyping and equality. `T </: U` and `U </: T`. Values must be explicitly wrapped/unwrapped.
+- **Zero-cost.** At runtime, newtype values have the same representation as the underlying type. The constructor and `.unwrap` are identity operations.
+- **Nominal.** Two newtypes with the same underlying type are distinct: `newtype A = Int` and `newtype B = Int` produce incompatible types.
+- **Constructor.** The newtype name is bound as both a type and a value (the constructor function). For `newtype T<A> = U<A>`, the constructor has type `<A>(U<A>) -> T<A>`.
+- **Unwrap.** Values of newtype are given a virtual `.unwrap` field (analogous to how arrays have `.size`). For a value `v : T<A>`, `v.unwrap : U<A>`.
+
+##### Candid Serialization
+
+Newtypes are a Motoko-only concept. When serializing to Candid, newtypes are transparent: `Time` serializes as `Int`, `Map<K, V>` serializes as its underlying record type.
+
+##### Stable Storage and Migrations
+
+For `.most` files (stable type signatures), newtypes are treated like type aliases. This allows users to freely add, rename, or remove newtypes across upgrades without breaking migration compatibility.
+
+Newtypes are preserved in error messages (e.g., `Time` rather than `Int`) for better diagnostics.
+
+##### Implementation
+
+The `newtype` declaration introduces a new type constructor kind `Newtype(binds, body)` alongside the existing `Def` (transparent alias) and `Abs` (abstract/parameter). Key design choices:
+
+- **`normalize`** does *not* expand `Newtype`, preserving opacity during type checking. This is the fundamental difference from `Def`.
+- **`promote`** does *not* expand `Newtype`, preventing implicit promotion in subtyping contexts.
+- **Lowering.** During desugaring, `Newtype` kinds are mutated to `Def`, making them transparent for downstream IR passes and codegen. The constructor is emitted as an identity function binding.
+
+##### Future Work
+
+- Pattern matching on newtypes.
+- Methods on newtypes.
+
+
 #### Type Fields ([#760](https://github.com/dfinity/motoko/issues/760))
 
 Motoko allows type members in objects and modules:
