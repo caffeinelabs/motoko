@@ -5,7 +5,7 @@ module {
   public type Order = { #less; #equal; #greater };
   public type Result<T, E> = { #ok : T; #err : E };
 
-  public module Map {
+  public module MapT {
     public type Node<K, V> = {
       #leaf : Leaf<K, V>;
       #internal : Internal<K, V>
@@ -25,11 +25,11 @@ module {
       data : Data<K, V>
     };
 
-    public type Map<K, V> = {
+    public type MapInternals<K, V> = {
       var root : Node<K, V>;
       var size_ : Nat
     }
   };
 
-  public type Map<K, V> = Map.Map<K, V>;
+  // public newtype Map<K, V> = MapT.MapInternals<K, V>;
 }

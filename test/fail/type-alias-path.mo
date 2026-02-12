@@ -1,5 +1,6 @@
 //MOC-FLAG --package core ../core-stub/src
 import MyMap "mo:core/Map";
+import { MapT } "mo:core/Types";
 
 // Have 2 files with the same import name, but different paths.
 import IM1 "type-alias-path/importM1";
@@ -14,11 +15,11 @@ module M1 {
 module Main {
   func inv<T>(t : T) : T -> () = func(_ : T) = ();
   func check<T>(t : T, _ : T -> ()) {};
-  func showRecord(r : {m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text>}) {
+  func showRecord(r : {m1 : M1.Map<Nat, Text>; m2 : MapT.MapInternals<Nat, Text>}) {
     let _ : {m2 : M1.Map<Nat, Text> } = r;
   };
-  func showBimatch(r : {m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text>}) {
-    check(r.m1, func(m : MyMap.Map<Nat, Text>) = ());
+  func showBimatch(r : {m1 : M1.Map<Nat, Text>; m2 : MapT.MapInternals<Nat, Text>}) {
+    check(r.m1, func(m : MapT.MapInternals<Nat, Text>) = ());
   };
   func showTransitiveImport() {
     let _ : () -> () = MyMap.get // the error message mentions `Types.Order` that is NOT imported here

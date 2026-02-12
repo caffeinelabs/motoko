@@ -3,15 +3,12 @@
 import Types "Types";
 
 module {
-  public type Map<K, V> = Types.Map<K, V>;
-
-  type Node<K, V> = Types.Map.Node<K, V>;
-  type Data<K, V> = Types.Map.Data<K, V>;
-  type Internal<K, V> = Types.Map.Internal<K, V>;
-  type Leaf<K, V> = Types.Map.Leaf<K, V>;
+  public newtype Map<K, V> = Types.MapT.MapInternals<K, V>;
+  // public type Map<K, V> = Types.Map<K, V>;
 
   public func empty<K, V>() : Map<K, V> {
-    {
+    // TODO: when `Map` is a type alias for a Map newtype, `Map` cannot be used here, as there is no value constructor called `Map`, the type alias is not introducing a constructor.
+    Map<K, V>({
       var root = #leaf({
         data = {
           kvs = [var null];
@@ -19,12 +16,12 @@ module {
         }
       });
       var size_ = 0
-    }
+    })
   };
 
 
   public func get<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Types.Order), key : K) : ?V {
-    switch (self.root) {
+    switch (self.unwrap.root) {
       case (#internal _) { null };
       case (#leaf(leafNode)) {
         let ?x = leafNode.data.kvs[0] else return null;
@@ -35,7 +32,7 @@ module {
 
 
   public func add<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Types.Order), key : K, value : V) {
-    switch (self.root) {
+    switch (self.unwrap.root) {
       case (#internal _) { };
       case (#leaf(leafNode)) {
         switch (leafNode.data.kvs[0]) {
