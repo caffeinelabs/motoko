@@ -979,19 +979,7 @@ and block force_unit ds =
   | _, _ ->
     (decs ds, tupE [])
 
-and decs ds =
-  let ir_decs = List.concat_map dec ds in
-  (* Mutate Newtype kinds to Def after all expressions are desugared,
-     so that DotE can still detect Newtype for .unwrap during desugaring. *)
-  List.iter (fun d -> match d.it with
-    | S.NewtypeD (id, _, _) ->
-      let c = Option.get id.note in
-      (match Cons.kind c with
-      | T.Newtype (tbs, t) -> Cons.unsafe_set_kind c (T.Def (tbs, t))
-      | _ -> ())
-    | _ -> ()
-  ) ds;
-  ir_decs
+and decs ds = List.concat_map dec ds
 
 and dec d = List.map (fun ir_dec -> { it = ir_dec; at = d.at; note = () }) (dec' d)
 
@@ -1018,10 +1006,14 @@ and dec' d =
     | T.Newtype (_, t) -> t
     | T.Def (_, t) -> t (* already mutated in a prior pass *)
     | _ -> assert false) in
+    (* Mutate Newtype kind to Def so downstream IR/codegen sees a transparent alias.
+       This is the point where we desugar newtypes to their underlying type. *)
+    (match Cons.kind c with
+    | T.Newtype (tbs, t) -> Cons.unsafe_set_kind c (T.Def (tbs, t))
+    | _ -> ());
     (* Produce an identity function binding for the newtype constructor.
        inner_t is the underlying type (e.g. Int).
-       The constructor is just the identity function: fun (x : T) : T = x
-       Note: kind mutation to Def happens in [decs], after all expressions are desugared. *)
+       The constructor is just the identity function: fun (x : T) : T = x *)
     let newtype_typ = T.Con (c, []) in
     let ctor_typ = T.Func (T.Local, T.Returns, [], [inner_t], [newtype_typ]) in
     let arg_var = fresh_var "x" inner_t in
