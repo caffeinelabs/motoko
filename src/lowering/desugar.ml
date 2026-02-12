@@ -1000,27 +1000,28 @@ and dec' d =
     end
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
-  | S.NewtypeD (id, _, _) ->
+  | S.NewtypeD (id, binds, _) ->
     let c = Option.get id.note in
-    let inner_t = (match Cons.kind c with
-    | T.Newtype (_, t) -> t
-    | T.Def (_, t) -> t (* already mutated in a prior pass *)
-    | _ -> assert false) in
-    (* Mutate Newtype kind to Def so downstream IR/codegen sees a transparent alias.
-       This is the point where we desugar newtypes to their underlying type. *)
-    (match Cons.kind c with
-    | T.Newtype (tbs, t) -> Cons.unsafe_set_kind c (T.Def (tbs, t))
-    | _ -> ());
-    (* Produce an identity function binding for the newtype constructor.
-       inner_t is the underlying type (e.g. Int).
-       The constructor is just the identity function: fun (x : T) : T = x *)
-    let newtype_typ = T.Con (c, []) in
-    let ctor_typ = T.Func (T.Local, T.Returns, [], [inner_t], [newtype_typ]) in
+    let tbs_closed, t_body_closed = match Cons.kind c with
+    | T.Newtype (tbs, t) ->
+      (* Mutate Newtype kind to Def so downstream IR/codegen sees a transparent alias *)
+      Cons.unsafe_set_kind c (T.Def (tbs, t));
+      tbs, t
+    | _ -> assert false
+    in
+    (* Build polymorphic identity function type for the newtype constructor *)
+    let tbs' = typ_binds binds in
+    let vars = List.map (fun (tb : I.typ_bind) -> T.Con (tb.it.I.con, [])) tbs' in
+    let inner_t = T.open_ vars t_body_closed in
+    let newtype_ret = T.Con (c, vars) in
+    let type_var_args = List.mapi (fun i tb -> T.Var (tb.T.var, i)) tbs_closed in
+    let ctor_typ = T.Func (T.Local, T.Returns, tbs_closed, [t_body_closed], [T.Con (c, type_var_args)]) in
+    (* Build identity function binding for the newtype constructor *)
     let arg_var = fresh_var "x" inner_t in
     let arg = { it = id_of_var arg_var; at = no_region; note = inner_t } in
     let ctor_body = varE arg_var in
     let ctor_func =
-      { it = I.FuncE (id.it, T.Local, T.Returns, [], [arg], [newtype_typ], ctor_body);
+      { it = I.FuncE (id.it, T.Local, T.Returns, tbs', [arg], [newtype_ret], ctor_body);
         at = no_region;
         note = Note.{ def with typ = ctor_typ } }
     in

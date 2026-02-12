@@ -4622,12 +4622,13 @@ and infer_dec_valdecs env dec : Scope.t =
     }
   | NewtypeD (id, _, _) ->
     let c = Option.get id.note in
-    let newtype_typ = T.Con (c, []) in
-    let inner_t = (match Cons.kind c with
-      | T.Newtype (_, t) -> t
-      | _ -> assert false)
+    let tbs, t_body = match Cons.kind c with
+      | T.Newtype (tbs, t) -> tbs, t
+      | _ -> assert false
     in
-    let ctor_typ = T.Func (T.Local, T.Returns, [], [inner_t], [newtype_typ]) in
+    let type_args = List.mapi (fun i tb -> T.Var (tb.T.var, i)) tbs in
+    let newtype_typ = T.Con (c, type_args) in
+    let ctor_typ = T.Func (T.Local, T.Returns, tbs, [t_body], [newtype_typ]) in
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = T.ConSet.singleton c;
