@@ -285,11 +285,10 @@ fn main() {
             println!("Could not determine current directory. Aborting.");
             return;
         };
-        if !path.ends_with("motoko") {
+        let required = ["test/run.sh", "test/run-drun", "test/run", "test/fail"];
+        if let Some(missing) = required.iter().find(|p| !path.join(p).exists()) {
             println!("Current path: {:?}", path.display());
-            println!(
-                "test-runner should be run in the top-level motoko/ main repo directory only in interactive mode."
-            );
+            println!("test-runner should be run from the top-level repo directory (missing {missing}).");
             return;
         }
 

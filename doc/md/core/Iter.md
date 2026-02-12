@@ -587,6 +587,7 @@ assert ?2 == iter.next();
 assert ?3 == iter.next();
 assert null == iter.next();
 ```
+@deprecated M0235
 
 ## Function `fromVarArray`
 ``` motoko no-repl
@@ -596,6 +597,7 @@ func fromVarArray<T>(array : [var T]) : Iter<T>
 Like `fromArray` but for Arrays with mutable elements. Captures
 the elements of the Array at the time the iterator is created, so
 further modifications won't be reflected in the iterator.
+@deprecated M0235
 
 ## Function `toArray`
 ``` motoko no-repl
