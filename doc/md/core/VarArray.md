@@ -581,6 +581,7 @@ assert varArray.size() == 3;
 Runtime: O(size)
 
 Space: O(1)
+@deprecated M0235
 
 ## Function `fromIter`
 ``` motoko no-repl

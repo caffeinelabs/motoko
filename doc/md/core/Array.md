@@ -82,6 +82,7 @@ assert array == [0, 1, 3];
 Runtime: O(size)
 
 Space: O(1)
+@deprecated M0235
 
 ## Function `toVarArray`
 ``` motoko no-repl
@@ -500,6 +501,7 @@ func fromIter<T>(iter : Types.Iter<T>) : [T]
 ```
 
 Converts an iterator to an array.
+@deprecated M0235
 
 ## Function `keys`
 ``` motoko no-repl
