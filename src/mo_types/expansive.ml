@@ -130,7 +130,8 @@ let edges_typ cs c (es : EdgeSet.t) t : EdgeSet.t =
 
 let edges_con cs c es : EdgeSet.t =
   match Cons.kind c with
-  | Def (tbs, t) ->
+  | Def (tbs, t)
+  | Newtype (tbs, t) ->
     (* It's not clear we actually need to consider parameters bounds, since, unlike
        function type parameters, they don't introduce new subgoals during subtyping.
        But let's be conservative and consider them, until we find out that that's undesirable
@@ -148,7 +149,8 @@ let vertices cs =
   ConSet.fold
     (fun c vs ->
       match Cons.kind c with
-      | Def (tbs, t) ->
+      | Def (tbs, t)
+      | Newtype (tbs, t) ->
         let ws = List.mapi (fun i _tb -> (c, i)) tbs in
         List.fold_left (fun vs v -> VertexSet.add v vs) vs ws
       | Abs (tbs, t) ->
@@ -193,9 +195,9 @@ let is_expansive cs =
     (* Construct an error messages with optional debug info *)
     let op, sbs, st = Pretty.strings_of_kind (Cons.kind c) in
     let def = Printf.sprintf "type %s%s %s %s" (Cons.name c) sbs op st in
-    let x = match Cons.kind c with Def(tbs, _) | Abs(tbs, _) ->
+    let x = match Cons.kind c with Def(tbs, _) | Abs(tbs, _) | Newtype(tbs, _) ->
       (List.nth tbs i).var in
-    let dys = match Cons.kind d with Def(tbs, _) | Abs(tbs, _) ->
+    let dys = match Cons.kind d with Def(tbs, _) | Abs(tbs, _) | Newtype(tbs, _) ->
       Printf.sprintf "%s<%s>" (Cons.name d)
         (String.concat "," (List.mapi (fun k _ ->
           if i = k then "-" ^ x ^"-" else "_") tbs))

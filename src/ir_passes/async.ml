@@ -221,6 +221,8 @@ let transform prog =
       Abs (t_binds typ_binds, t_typ typ)
     | Def (typ_binds,typ) ->
       Def (t_binds typ_binds, t_typ typ)
+    | Newtype (typ_binds,typ) ->
+      Newtype (t_binds typ_binds, t_typ typ)
 
   and t_con c =
     match Cons.kind c with

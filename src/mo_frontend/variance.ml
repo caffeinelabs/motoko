@@ -56,7 +56,8 @@ let update ?(start = Covariant) env t =
       | Con (c, ts) ->
         (match Cons.kind c with
         | Abs _ -> ()
-        | Def (_, t) -> go p (open_ ts t)) (* TBR this may fail to terminate *)
+        | Def (_, t)
+        | Newtype (_, t) -> go p (open_ ts t)) (* TBR this may fail to terminate *)
       | Array t | Opt t | Weak t (*TBR*) -> go p t
       | Mut t -> go Invariant t
       | Async (s, t1, t2) ->

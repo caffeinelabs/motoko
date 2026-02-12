@@ -69,6 +69,7 @@ and con = kind Cons.t
 and kind =
   | Def of bind list * typ
   | Abs of bind list * typ
+  | Newtype of bind list * typ
 
 val empty_src : src
 
@@ -166,6 +167,7 @@ val as_prim_sub : prim -> typ -> unit
 val as_obj_sub : string list -> typ -> obj_sort * field list
 val as_variant_sub : string -> typ -> field list
 val as_array_sub : typ -> typ
+val as_newtype_sub : typ -> typ
 val as_opt_sub : typ -> typ
 val as_tup_sub : int -> typ -> typ list
 val as_unit_sub : typ -> unit

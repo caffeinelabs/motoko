@@ -541,6 +541,10 @@ module Make (Cfg : Config) = struct
         to_js_object "TypD"
           ([ id x ] @ List.map typ_bind_js tp @ [ syntax_typ_js t ]
           |> Array.of_list)
+    | NewtypeD (x, tp, t) ->
+        to_js_object "NewtypeD"
+          ([ id x ] @ List.map typ_bind_js tp @ [ syntax_typ_js t ]
+          |> Array.of_list)
     | ClassD (eo, sp, s, x, tp, p, rt, i, dfs) ->
         to_js_object "ClassD"
           (parenthetical eo

@@ -616,7 +616,7 @@ and export_runtime_information self_id =
   [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
-  | S.TypD _ -> []
+  | S.TypD _ | S.NewtypeD _ -> []
   | S.MixinD _ -> assert false
   | S.IncludeD(_, arg, note) ->
     (* TODO: This is ugly. It would be a lot nicer if we didn't have to split
@@ -998,6 +998,13 @@ and dec' d =
     end
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
+  | S.NewtypeD (id, _, _) ->
+    (* Mutate Newtype kind to Def so downstream IR/codegen sees a transparent alias *)
+    let c = Option.get id.note in
+    (match Cons.kind c with
+    | T.Newtype (tbs, t) -> Cons.unsafe_set_kind c (T.Def (tbs, t))
+    | _ -> ());
+    []
   | S.MixinD _ -> []
   | S.IncludeD(_, args, note) ->
     let { imports = is; pat = p; decs } = Option.get !note in

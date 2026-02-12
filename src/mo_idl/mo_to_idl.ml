@@ -34,7 +34,7 @@ module MakeState() = struct
   let monomorphize_con vs c =
     let name = normalize_name (Cons.name c) in
     match Cons.kind c with
-    | Def _ ->
+    | Def _ | Newtype _ ->
       let id = (c, vs) in
       let (k, n) =
         match TypeMap.find_opt id !type_map with
@@ -92,7 +92,8 @@ module MakeState() = struct
     | Var (s, i) -> assert false
     | Con (c, ts) ->
       (match Cons.kind c with
-       | Def (_, t) ->
+       | Def (_, t)
+       | Newtype (_, t) ->
          I.(match open_ ts t with
             | Prim p -> prim p
             | Any -> PrimT Reserved

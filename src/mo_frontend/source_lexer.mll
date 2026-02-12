@@ -256,6 +256,7 @@ rule token mode = parse
   | "throw" { THROW }
   | "to_candid" { TO_CANDID }
   | "true" { BOOL true }
+  | "newtype" { NEWTYPE }
   | "type" { TYPE }
   | "var" { VAR }
   | "weak" { WEAK }

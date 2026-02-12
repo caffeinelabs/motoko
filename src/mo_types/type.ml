@@ -78,6 +78,7 @@ and con = kind Cons.t
 and kind =
   | Def of bind list * typ
   | Abs of bind list * typ
+  | Newtype of bind list * typ
 
 let empty_src = {depr = None; track_region = Source.no_region; region = Source.no_region}
 
@@ -599,9 +600,10 @@ let rec normalize = function
   | t -> t
 
 let rec promote = function
-  | Con (con, ts) ->
-    let Def (tbs, t) | Abs (tbs, t) = Cons.kind con
-    in promote (reduce tbs t ts)
+  | Con (con, ts) as t ->
+    (match Cons.kind con with
+    | Def (tbs, t) | Abs (tbs, t) -> promote (reduce tbs t ts)
+    | Newtype _ -> t)
   | Named (_, t) -> promote t
   | t -> t
 
@@ -673,6 +675,12 @@ let as_array_sub t = match promote t with
   | Array t -> t
   | Non -> Non
   | _ -> invalid "as_array_sub"
+let as_newtype_sub t = match t with
+  | Con (c, ts) ->
+    (match Cons.kind c with
+    | Newtype (_, t_body) -> open_ ts t_body
+    | _ -> invalid "as_newtype_sub")
+  | _ -> invalid "as_newtype_sub"
 let as_opt_sub t = match promote t with
   | Opt t -> t
   | Prim Null -> Non
@@ -823,7 +831,8 @@ and cons_typ_field inTyp {typ = c; _} cs =
 and cons_kind' inTyp k cs =
   match k with
   | Def (tbs, t)
-  | Abs (tbs, t) ->
+  | Abs (tbs, t)
+  | Newtype (tbs, t) ->
     cons' inTyp t (List.fold_right (cons_bind inTyp) tbs cs)
 
 let cons t = cons' true t ConSet.empty
@@ -853,7 +862,8 @@ let concrete t =
       | Con (c, ts) ->
         (match Cons.kind c with
         | Abs _ -> false
-        | Def (_, t) -> go (open_ ts t) (* TBR this may fail to terminate *)
+        | Def (_, t)
+        | Newtype (_, t) -> go (open_ ts t) (* TBR this may fail to terminate *)
         )
       | Array t | Opt t | Mut t -> go t
       | Async (s, t1, t2) -> go t2 (* t1 is a phantom type *)
@@ -898,8 +908,9 @@ let paths p t =
         List.iter (fun f -> go (DotP (p, f.lab)) f.typ) fs
       | Con (c, ts) ->
         (match Cons.kind c with
-        | Abs (_, t) -> go p (open_ ts t)
-        | Def (_, t) -> go p (open_ ts t)
+        | Abs (_, t)
+        | Def (_, t)
+        | Newtype (_, t) -> go p (open_ ts t) (* TODO: correct? *)
         )
       (* explicit match in case we add a constructor later *)
       | Var _ | Pre
@@ -937,7 +948,8 @@ let serializable allow_mut t =
       | Con (c, ts) ->
         (match Cons.kind c with
         | Abs _ -> false
-        | Def (_, t) -> go (open_ ts t) (* TBR this may fail to terminate *)
+        | Def (_, t)
+        | Newtype (_, t) -> go (open_ ts t) (* TBR this may fail to terminate *)
         )
       | Array t | Opt t -> go t
       | Tup ts -> List.for_all go ts
@@ -967,7 +979,8 @@ let find_unshared t =
       | Con (c, ts) ->
         (match Cons.kind c with
         | Abs _ -> None
-        | Def (_, t) -> go (open_ ts t) (* TBR this may fail to terminate *)
+        | Def (_, t)
+        | Newtype (_, t) -> go (open_ ts t) (* TBR this may fail to terminate *)
         )
       | Array t | Opt t -> go t
       | Tup ts -> List.find_map go ts
@@ -1358,7 +1371,8 @@ and eq_typ d rel eq t1 t2 = rel_typ d eq eq t1 t2
 and eq_kind' eq k1 k2 : bool =
   match k1, k2 with
   | Def (tbs1, t1), Def (tbs2, t2)
-  | Abs (tbs1, t1), Abs (tbs2, t2) ->
+  | Abs (tbs1, t1), Abs (tbs2, t2)
+  | Newtype (tbs1, t1), Newtype (tbs2, t2) ->
     (match rel_binds (RelArg.sub []) eq eq tbs1 tbs2 with
     | Some ts -> eq_typ (RelArg.sub []) eq eq (open_ ts t1) (open_ ts t2)
     | None -> false
@@ -1369,7 +1383,8 @@ and eq_con' d eq c1 c2 =
   match Cons.kind c1, Cons.kind c2 with
   | (Def (tbs1, t1)) as k1, (Def (tbs2, t2) as k2) ->
     eq_kind' eq k1 k2
-  | Abs _, Abs _ ->
+  | Abs _, Abs _
+  | Newtype _, Newtype _ ->
     Cons.eq c1 c2
   | Def (tbs1, t1), Abs (tbs2, t2)
   | Abs (tbs2, t2), Def (tbs1, t1) ->
@@ -1377,6 +1392,9 @@ and eq_con' d eq c1 c2 =
     | Some ts -> eq_typ d eq eq (open_ ts t1) (Con (c2, ts))
     | None -> false
     )
+  | Newtype _, (Def _ | Abs _)
+  | (Def _ | Abs _), Newtype _ ->
+    false
 
 let eq_binds ?(src_fields = empty_srcs_tbl ()) tbs1 tbs2 =
   with_src_field_updates_predicate src_fields (fun () ->
@@ -1497,7 +1515,8 @@ let rec inhabited_typ co t =
   | Var _ -> true  (* TODO(rossberg): consider bound *)
   | Con (c, ts) ->
     (match Cons.kind c with
-    | Def (tbs, t') -> (* TBR this may fail to terminate *)
+    | Def (tbs, t')
+    | Newtype (tbs, t') -> (* TBR this may fail to terminate *)
       inhabited_typ co (open_ ts t')
     | Abs (tbs, t') ->
       inhabited_typ co t')
@@ -1551,6 +1570,9 @@ let rec has_no_subtypes_or_supertypes m co = function
         s := S.add t !s;
         has_no_subtypes_or_supertypes m co (reduce tbs def ts)
       end
+    | Newtype _ ->
+      (* Newtypes are nominal; no implicit sub/supertypes *)
+      true
     )
   | Mut _ -> true
   | Named (_, t) -> has_no_subtypes_or_supertypes m co t
@@ -2273,7 +2295,8 @@ and pp_binds vs vs' ppf = function
 and pps_of_kind' vs k =
   let op, tbs, t =
     match k with
-    | Def (tbs, t) -> "=", tbs, t
+    | Def (tbs, t)
+    | Newtype (tbs, t) -> "=", tbs, t
     | Abs (tbs, t) -> "<:", tbs, t
   in
   let vs' = vars_of_binds vs tbs in
@@ -2313,7 +2336,7 @@ and pp_stab_sig ppf sig_ =
       | Def ([], Prim p) when string_of_con c = string_of_prim p -> false
       | Def ([], Any) when string_of_con c = "Any" -> false
       | Def ([], Non) when string_of_con c = "None" -> false
-      | Def _ -> true
+      | Def _ | Newtype _ -> true
       | Abs _ -> false) cs in
     ConSet.elements cs' in
   let tfs =
@@ -2345,12 +2368,13 @@ let rec pp_typ_expand' vs ppf t =
   | Con (c, ts) ->
     (match Cons.kind c with
     | Abs _ -> pp_typ' vs ppf t
-    | Def _ ->
-      match normalize t with
+    | Def (_, t_body) | Newtype (_, t_body) ->
+      let t' = open_ ts t_body in
+      (match t' with
       | Prim _ | Any | Non -> pp_typ' vs ppf t
-      | t' -> fprintf ppf "%a = %a"
+      | _ -> fprintf ppf "%a = %a"
         (pp_typ' vs) t
-        (pp_typ_expand' vs) t'
+        (pp_typ_expand' vs) t')
     )
   | _ -> pp_typ' vs ppf t
 

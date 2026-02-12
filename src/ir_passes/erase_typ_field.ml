@@ -68,6 +68,8 @@ let transform prog =
       T.Abs (t_binds typ_binds, t_typ typ)
     | T.Def (typ_binds,typ) ->
       T.Def (t_binds typ_binds, t_typ typ)
+    | T.Newtype (typ_binds,typ) ->
+      T.Newtype (t_binds typ_binds, t_typ typ)
 
   and t_con c =
     match Cons.kind c with

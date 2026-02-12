@@ -147,7 +147,7 @@ and infer_effect_dec dec =
   | LetD (_, e, None)
   | VarD (_, e) ->
     effect_exp e
-  | TypD _
+  | TypD _ | NewtypeD _
   | ClassD _
   | MixinD _
   | IncludeD _ ->

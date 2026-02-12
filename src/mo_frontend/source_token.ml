@@ -125,6 +125,7 @@ type token =
   | PRIM
   | PIPE
   | UNDERSCORE
+  | NEWTYPE
   | WEAK
   | COMPOSITE
   (* Trivia *)
@@ -261,6 +262,7 @@ let to_parser_token :
   | UNDERSCORE -> Ok Parser.UNDERSCORE
   | COMPOSITE -> Ok Parser.COMPOSITE
   | PIPE -> Ok Parser.PIPE
+  | NEWTYPE -> Ok Parser.NEWTYPE
   | WEAK -> Ok Parser.WEAK
   (*Trivia *)
   | SINGLESPACE -> Error (Space 1)
@@ -399,6 +401,7 @@ let string_of_parser_token = function
   | Parser.UNDERSCORE -> "UNDERSCORE"
   | Parser.COMPOSITE -> "COMPOSITE"
   | Parser.PIPE -> "PIPE"
+  | Parser.NEWTYPE -> "NEWTYPE"
   | Parser.WEAK -> "WEAK"
 
 let is_lineless_trivia : token -> void trivia option = function

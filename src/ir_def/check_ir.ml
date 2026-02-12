@@ -197,7 +197,8 @@ let rec check_typ env typ : unit =
     List.iter (check_typ env) typs;
     begin
       match Cons.kind c with
-      | T.Def (tbs,_) ->
+      | T.Def (tbs,_)
+      | T.Newtype (tbs,_) ->
         check_con env c;
         check_typ_bounds env tbs typs no_region
       | T.Abs (tbs, _) ->
@@ -288,7 +289,7 @@ and check_con env c =
   else
   begin
     env.seen := T.ConSet.add c !(env.seen);
-    let T.Abs (binds,typ) | T.Def (binds, typ) = Cons.kind c in
+    let T.Abs (binds,typ) | T.Def (binds, typ) | T.Newtype (binds, typ) = Cons.kind c in
     check env no_region (not (T.is_mut typ)) "type constructor RHS is_mut";
     let cs, ce = check_typ_binds env binds in
     let ts = List.map (fun c -> T.Con (c, [])) cs in

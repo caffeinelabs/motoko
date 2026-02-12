@@ -37,7 +37,8 @@ let non_productive cs =
         | Param n ->
           begin
           match Cons.kind d with
-          | Def (tbs, t) ->
+          | Def (tbs, t)
+          | Newtype (tbs, t) ->
             assert (n < List.length tbs); (* assume types are arity-correct *)
             rhs cs (List.nth ts n)
           | Abs (tbs, t) ->
@@ -60,7 +61,8 @@ let non_productive cs =
           Nonproductive
         else
           let t = match Cons.kind c with
-            | Def (_, t) -> t
+            | Def (_, t)
+            | Newtype (_, t) -> t
             | _ -> assert false
           in
           rhs (ConSet.add c cs) t

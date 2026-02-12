@@ -54,7 +54,8 @@ let from_module =
                   (StringMap.of_seq (List.to_seq bound_names))
                   acc.values;
             }
-        | Syntax.TypD (id, _, _) ->
+        | Syntax.TypD (id, _, _)
+        | Syntax.NewtypeD (id, _, _) ->
             {
               acc with
               types = StringMap.add id.it (mk_xref (Xref.XType id.it)) acc.types;

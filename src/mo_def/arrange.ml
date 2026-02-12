@@ -284,6 +284,8 @@ module Make (Cfg : Config) = struct
     | VarD (x, e) -> "VarD" $$ [id x; exp e]
     | TypD (x, tp, t) ->
       "TypD" $$ [id x] @ List.map typ_bind tp @ [typ t]
+    | NewtypeD (x, tp, t) ->
+      "NewtypeD" $$ [id x] @ List.map typ_bind tp @ [typ t]
     | ClassD (eo, sp, s, x, tp, p, rt, i, dfs) ->
       "ClassD" $$
         parenthetical eo

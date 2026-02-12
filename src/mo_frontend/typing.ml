@@ -518,6 +518,7 @@ let check_closed env id k at =
   let is_typ_param c =
     match Cons.kind c with
     | T.Def _
+    | T.Newtype _
     | T.Abs( _, T.Pre) -> false (* an approximated type constructor *)
     | T.Abs( _, _) -> true in
   let typ_params = T.ConSet.filter is_typ_param env.cons in
@@ -808,7 +809,7 @@ and check_typ' env typ : T.typ =
   | PathT (path, typs) ->
     let c = check_typ_path env path in
     let ts = List.map (check_typ env) typs in
-    let T.Def (tbs, _) | T.Abs (tbs, _) = Cons.kind c in
+    let T.Def (tbs, _) | T.Abs (tbs, _) | T.Newtype (tbs, _) = Cons.kind c in
     let tbs' = List.map (fun tb -> { tb with T.bound = T.open_ ts tb.T.bound }) tbs in
     check_typ_bounds env tbs' ts (List.map (fun typ -> typ.at) typs) typ.at;
     T.Con (c, ts)
@@ -1177,7 +1178,7 @@ let rec is_explicit_exp e =
 and is_explicit_dec d =
   match d.it with
   | ExpD e | LetD (_, e, _) | VarD (_, e) -> is_explicit_exp e
-  | TypD _ -> true
+  | TypD _ | NewtypeD _ -> true
   | ClassD (_, _, _, _, _, p, _, _, dfs) ->
     is_explicit_pat p &&
     List.for_all (fun (df : dec_field) -> is_explicit_dec df.it.dec) dfs
@@ -1315,6 +1316,10 @@ let text_obj () =
   [ {lab = "chars"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Char)]); src = empty_src};
     {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
   ]
+
+let newtype_obj t =
+  T.Object,
+  [ T.{lab = "unwrap"; typ = t; src = empty_src} ]
 
 
 (* Expressions *)
@@ -2263,6 +2268,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
   let t0, t1 = infer_exp_and_promote env exp in
   let fields =
     try Ok(T.as_obj_sub [id.it] t1) with Invalid_argument _ ->
+    try Ok(newtype_obj (T.as_newtype_sub t1)) with Invalid_argument _ ->
     try Ok(array_obj (T.as_array_sub t1)) with Invalid_argument _ ->
     try Ok(blob_obj (T.as_prim_sub T.Blob t1)) with Invalid_argument _ ->
     try Ok(text_obj (T.as_prim_sub T.Text t1)) with Invalid_argument _ ->
@@ -3610,6 +3616,7 @@ and vis_dec src dec xs : visibility_env =
   | ExpD _ -> xs
   | LetD (pat, _, _) -> vis_pat src pat xs
   | VarD (id, _) -> vis_val_id src id xs
+  | NewtypeD (id, _, _)
   | ClassD (_, _, _, id, _, _, _, _, _) ->
     vis_val_id src {id with note = ()} (vis_typ_id src id xs)
   | TypD (id, _, _) -> vis_typ_id src id xs
@@ -4205,7 +4212,7 @@ and infer_dec env dec : T.typ =
     let obj_sort : obj_sort = { it = T.Mixin ; at = no_region; note = { it = true; at = no_region; note = () } }  in
     let t' = infer_obj { env' with check_unused = false } obj_sort None dec_fields dec.at in
     T.normalize t'
-  | TypD _ ->
+  | TypD _ | NewtypeD _ ->
     T.unit
   in
   let eff = A.infer_effect_dec dec in
@@ -4312,7 +4319,7 @@ and gather_dec env scope dec : Scope.t =
       | _ -> error env pat.at "M0229" "mixins may only be imported by binding to a name"
   )
   | VarD (id, _) -> Scope.adjoin_val_env scope (gather_id env scope.Scope.val_env id Scope.Declaration)
-  | TypD (id, binds, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
+  | TypD (id, binds, _) | NewtypeD (id, binds, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
     let open Scope in
     if T.Env.mem id.it scope.typ_env then
       error_duplicate env "type " id;
@@ -4333,6 +4340,7 @@ and gather_dec env scope dec : Scope.t =
       | Some c -> c
     in
     let val_env = match dec.it with
+      | NewtypeD _
       | ClassD _ ->
         if T.Env.mem id.it scope.val_env then
           error_duplicate env "" id;
@@ -4474,6 +4482,17 @@ and infer_dec_typdecs env dec : Scope.t =
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
     }
+  | NewtypeD (id, binds, typ) ->
+    let c = T.Env.find id.it env.typs in
+    let cs, tbs, te, ce = check_typ_binds {env with pre = true} binds in
+    let env' = adjoin_typs env te ce in
+    let t = check_typ env' typ in
+    let k = T.Newtype (T.close_binds cs tbs, T.close cs t) in
+    check_closed env id k dec.at;
+    Scope.{ empty with
+      typ_env = T.Env.singleton id.it c;
+      con_env = infer_id_typdecs env dec.at id c k;
+    }
   | ClassD (exp_opt, shared_pat, obj_sort, id, binds, pat, _typ_opt, self_id, dec_fields) ->
      (*TODO exp_opt *)
     let c = T.Env.find id.it env.typs in
@@ -4562,6 +4581,19 @@ and infer_dec_valdecs env dec : Scope.t =
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = T.ConSet.singleton c;
+    }
+  | NewtypeD (id, _, _) ->
+    let c = Option.get id.note in
+    let newtype_typ = T.Con (c, []) in
+    let inner_t = (match Cons.kind c with
+      | T.Newtype (_, t) -> t
+      | _ -> assert false)
+    in
+    let ctor_typ = T.Func (T.Local, T.Returns, [], [inner_t], [newtype_typ]) in
+    Scope.{ empty with
+      typ_env = T.Env.singleton id.it c;
+      con_env = T.ConSet.singleton c;
+      val_env = singleton id ctor_typ;
     }
   | MixinD (_, _) -> Scope.empty
   | ClassD (_exp_opt, _shared_pat, obj_sort, id, typ_binds, pat, _, _, _) ->

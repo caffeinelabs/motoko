@@ -177,7 +177,8 @@ let structural_equality t =
     | T.Con (c, ts) -> (
         match Mo_types.Cons.kind c with
         | T.Abs _ -> assert false
-        | T.Def (_, t) -> go (T.open_ ts t) (* TBR this may fail to terminate *)
+        | T.Def (_, t)
+        | T.Newtype (_, t) -> go (T.open_ ts t) (* TBR this may fail to terminate *)
         )
     | T.Array t ->
         fun v1 v2 ->

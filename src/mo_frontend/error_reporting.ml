@@ -138,4 +138,5 @@ let terminal2token (type a) (symbol : a terminal) : token =
       | T_WRAPMULASSIGN -> WRAPMULASSIGN
       | T_WRAPPOWASSIGN -> WRAPPOWASSIGN
       | T_PIPE -> PIPE
+      | T_NEWTYPE -> NEWTYPE
       | T_WEAK -> WEAK

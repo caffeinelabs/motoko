@@ -168,6 +168,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (T T_ADDOP) -> unop "+"
   | X (T T_ACTOR) -> simple_token "actor"
   | X (T T_PIPE) -> simple_token "|>"
+  | X (T T_NEWTYPE) -> simple_token "newtype"
   | X (T T_WEAK) -> simple_token "weak"
   (* non-terminals *)
   | X (N N_bl) -> "<bl>", "<bl>"
