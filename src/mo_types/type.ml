@@ -607,6 +607,13 @@ let rec promote = function
   | Named (_, t) -> promote t
   | t -> t
 
+let rec eliminate_con = function
+  | Con (con, ts) ->
+    (match Cons.kind con with
+    | Def (tbs, t) | Abs (tbs, t) | Newtype (tbs, t) -> eliminate_con (reduce tbs t ts))
+  | Named (_, t) -> eliminate_con t
+  | t -> t
+
 (* Projections *)
 
 let is_non = function Non -> true | _ -> false
@@ -764,10 +771,7 @@ let lookup_typ_deprecation l tfs =
 
 let rec span = function
   | Var _ | Pre -> assert false
-  | Con (con, ts) as t ->
-    (match Cons.kind con with
-    | Newtype (tbs, t) -> span (open_ ts t)
-    | _ -> span (promote t))
+  | Con _ as t -> span (eliminate_con t)
   | Prim Null -> Some 1
   | Prim Bool -> Some 2
   | Prim (Nat | Int | Float | Text | Blob | Error | Principal | Region) -> None

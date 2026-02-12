@@ -1,0 +1,34 @@
+newtype.mo:7.31-7.34: type error [M0050], literal of type
+  Nat
+does not have expected type
+  Time = Int
+newtype.mo:10.30-10.37: type error [M0096], expression of type
+  Time = Int
+cannot produce expected type
+  Int
+because the type 
+  Time
+ is not compatible with type 
+  Int
+newtype.mo:13.35-13.42: type error [M0096], expression of type
+  Time = Int
+cannot produce expected type
+  Duration = Int
+because the type 
+  Time
+ is not compatible with type 
+  Duration
+newtype.mo:16.31-16.42: type error [M0096], expression of type
+  Duration = Int
+cannot produce expected type
+  Time = Int
+because the type 
+  Duration
+ is not compatible with type 
+  Time
+newtype.mo:19.24-19.41: type error [M0060], operator is not defined for operand types
+  Time = Int
+and
+  Time = Int
+newtype.mo:22.25-22.33: type error [M0070], expected object type, but expression produces type
+  Int
