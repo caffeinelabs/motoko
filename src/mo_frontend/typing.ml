@@ -3870,16 +3870,38 @@ and infer_migration env obj_sort exp_opt =
     exp_opt
 
 (* Validate the enhanced migration chain from --enhanced-migration directory.
-   Checks: (1) each run type is a function, (2) chain composes, (3) last output matches actor. *)
+   Checks: (1) each run type is a valid local function, (2) input/output are stable object types,
+   (3) chain composes, (4) last output matches actor, (5) no unexpected fields, (6) data loss warnings. *)
 and validate_enhanced_migration_chain env stab_tfs at =
   let chain = !T.migration_chain in
   if chain = [] then () else
-  (* Decompose each run type into (file, input, output) *)
+  let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
+  (* Check that a type is a stable object; return its fields *)
+  let check_fields file desc typ =
+    match typ with
+    | T.Obj(T.Object, fs, _) ->
+      if not (T.stable typ) then
+        local_error env at "M0201"
+          "expected stable type, but migration %s %s non-stable type%a"
+          file desc
+          display_typ_expand typ;
+      fs
+    | _ ->
+      local_error env at "M0202"
+        "expected object type, but migration %s %s non-object type%a"
+        file desc
+        display_typ_expand typ;
+      []
+  in
+  (* Decompose each run type into (file, dom_fields, rng_fields, input, output) *)
   let decomposed = List.filter_map (fun (file, _mod_typ, typ) ->
     try
       let sort, tbs, t_args, t_rng = T.as_func_sub T.Local 0 typ in
       if sort <> T.Local || tbs <> [] then raise (Invalid_argument "");
-      Some (file, T.seq t_args, t_rng)
+      let t_dom = T.seq t_args in
+      let dom_tfs = check_fields file "consumes" (T.normalize t_dom) in
+      let rng_tfs = check_fields file "produces" (T.promote t_rng) in
+      Some (file, dom_tfs, rng_tfs, t_dom, t_rng)
     with Invalid_argument _ ->
       local_error env at "M0251"
         "migration module %s: `run` is not a valid function type" file;
@@ -3888,7 +3910,7 @@ and validate_enhanced_migration_chain env stab_tfs at =
   (* Check chain composition: output[i] compatible with input[i+1] *)
   let rec check_pairs = function
     | [] | [_] -> ()
-    | (file1, _, output1) :: ((file2, input2, _) :: _ as rest) ->
+    | (file1, _, _, _, output1) :: ((file2, _, _, input2, _) :: _ as rest) ->
       if not (T.sub (T.promote output1) (T.normalize input2)) then
         local_error env at "M0251"
           "migration chain broken: output of %s is not compatible with input of %s"
@@ -3896,22 +3918,20 @@ and validate_enhanced_migration_chain env stab_tfs at =
       check_pairs rest
   in
   check_pairs decomposed;
-  (* Check last output matches actor stable fields *)
+  (* Check last migration against actor *)
   (match List.rev decomposed with
   | [] -> ()
-  | (file, _, last_output) :: _ ->
-    let rng_tfs = match T.promote last_output with
-      | T.Obj(T.Object, fs, _) -> fs
-      | _ ->
-        local_error env at "M0251"
-          "migration module %s: `run` output is not an object type" file;
-        []
-    in
+  | (file, dom_tfs, rng_tfs, _, last_output) :: _ ->
+    (* Check output is an object type *)
+    (match T.promote last_output with
+    | T.Obj(T.Object, _, _) -> ()
+    | _ ->
+      local_error env at "M0251"
+        "migration module %s: `run` output is not an object type" file);
     (* Every stable field in the actor must be produced by the last migration *)
     List.iter (fun tf ->
       match T.lookup_val_field_opt tf.T.lab rng_tfs with
       | Some typ ->
-        (* Check type compatibility *)
         let context = [T.StableVariable tf.T.lab] in
         let imm_typ = T.as_immut typ in
         let imm_expected = T.as_immut tf.T.typ in
@@ -3928,7 +3948,39 @@ and validate_enhanced_migration_chain env stab_tfs at =
         local_error env at "M0251"
           "migration chain: last migration %s does not produce stable field `%s`"
           file tf.T.lab
-    ) stab_tfs)
+    ) stab_tfs;
+    (* Reject any field produced by the last migration that the actor doesn't declare *)
+    List.iter (fun T.{lab;typ;_} ->
+      match T.lookup_val_field_opt lab stab_tfs with
+      | Some _ -> ()
+      | None ->
+        local_error env at "M0205"
+          "migration expression produces unexpected field `%s` of type%a\n%s\n%s"
+          lab
+          display_typ_expand typ
+          (Suggest.suggest_id "field" lab stab_ids)
+          "The actor should declare a corresponding `stable` field."
+    ) rng_tfs;
+    (* Warn about any field consumed by last migration but not produced by it *)
+    List.iter (fun T.{lab;typ;_} ->
+      match T.lookup_val_field_opt lab rng_tfs with
+      | Some _ -> ()
+      | None ->
+        if List.mem lab stab_ids then
+          warn env at "M0206"
+            "migration expression consumes field `%s` of type%a\nbut does not produce it, yet the field is declared in the actor.\n%s\n%s"
+            lab
+            display_typ_expand typ
+            "The field will retain its value from the previous migration state."
+            "If this is unintended, add it to the result of the migration function."
+        else
+          warn env at "M0207"
+            "migration expression consumes field `%s` of type%a\nbut does not produce it. The field is not declared in the actor.\n%s\n%s"
+            lab
+            display_typ_expand typ
+            "This field will be removed from the actor."
+            "If this removal is unintended, declare the field in the actor and add it to the result of the migration function."
+    ) dom_tfs)
 
 and check_migration env (stab_tfs : T.field list) exp_opt =
   match exp_opt with
