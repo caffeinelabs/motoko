@@ -554,7 +554,9 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     interpret_exp env exp1 (fun v1 -> k V.(Tup [v1; Text id.it]))
   | DotE (exp1, id, _) ->
     interpret_exp env exp1 (fun v1 ->
-      match v1 with
+      if id.it = "unwrap" && T.is_con exp1.note.note_typ then (* TODO: same as desugaring *)
+        k v1 (* newtype .unwrap is identity *)
+      else match v1 with
       | V.Obj fs ->
         k (find id.it fs)
       | V.Array vs ->
@@ -580,8 +582,6 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
           | "vals" | "values" -> blob_vals
           | s -> assert false
         in k (f b exp.at)
-      | v when id.it = "unwrap" && T.is_con exp1.note.note_typ -> (* TODO: same as desugaring *)
-        k v (* newtype .unwrap is identity *)
       | _ -> assert false
     )
   | AssignE (exp1, exp2) ->
