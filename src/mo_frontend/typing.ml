@@ -1447,6 +1447,12 @@ let dot_module_exp module_exp name =
     note = empty_typ_note
   }, name, ref None)
 
+let module_ref_of_dot_module_exp (path : exp) =
+  match path.it with
+  | DotE ({ it = VarE { it = module_name; _ }; _ }, _, _) -> Some module_name
+  | DotE ({ it = ImplicitLibE module_path; _ }, _, _) -> Some module_path
+  | _ -> None
+
 (** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
     Returns [Ok(candidate)] when a single resolution is
     found, [Error(file_paths)] when no resolution was found, but a
@@ -1598,15 +1604,20 @@ type 'a context_dot_error =
   | DotSuggestions of (env -> string list)
   | DotAmbiguous of (env -> 'a)
 
+module CtxDot = struct
+  let is_matching_func func_ty receiver_ty =
+    match T.normalize func_ty with
+    | T.Func (_, _, tbs, T.Named("self", first_arg)::_, _) as func_ty ->
+      (match permissive_sub receiver_ty (tbs, first_arg) with
+        | Some inst -> Some (T.open_ inst first_arg, func_ty, inst)
+        | _ -> None)
+    | _ -> None
+end
+
 let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_error) Result.t =
   let is_matching_func n t =
     if not (String.equal n name.it) then None
-    else match T.normalize t with
-    | T.Func (_, _, tbs, T.Named("self", first_arg)::_, _) as typ ->
-      (match permissive_sub receiver_ty (tbs, first_arg) with
-        | Some inst -> Some (T.open_ inst first_arg, typ, inst)
-        | _ -> None)
-    | _ -> None in
+    else CtxDot.is_matching_func t receiver_ty in
   let find_candidate in_libs (module_ref, (module_ty, fs)) =
     List.find_map (fun fld -> is_matching_func fld.T.lab fld.T.typ) fs |>
       Option.map (fun (arg_ty, func_ty, inst) ->
@@ -1655,6 +1666,33 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
       | None -> Error (DotAmbiguous (fun env ->
          let modules =  (List.filter_map (fun c -> c.module_ref) cs) in
          error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it (String.concat ", " modules))))
+
+type contextual_dot_suggestion =
+  { module_url : T.lab;
+    func_name : T.lab;
+    func_ty : T.typ;
+  }
+let contextual_dot_suggestions libs receiver_ty =
+  let find_candidate (module_path, (module_ty, fs)) =
+    List.to_seq fs |>
+    Seq.filter_map (fun fld ->
+      CtxDot.is_matching_func fld.T.typ receiver_ty |>
+      Option.map (fun (_, func_ty, inst) ->
+        { module_url = Suggest.module_name_as_url module_path; func_name = fld.T.lab; func_ty }))
+  in
+  T.Env.to_seq libs |>
+    Seq.filter_map is_lib_module |>
+    Seq.flat_map find_candidate |>
+    List.of_seq
+
+let contextual_dot_module (exp : Syntax.exp) =
+  match exp.it with
+  | DotE (_, id, note) ->
+    let open Lib.Option.Syntax in
+    let* path = !note in
+    let* module_ref = module_ref_of_dot_module_exp path in
+    Some (Suggest.module_name_as_url module_ref, id.it)
+  | _ -> None
 
 let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
   if not env.pre then

@@ -158,10 +158,10 @@ assert.deepStrictEqual(Motoko.run([], "actor.mo"), {
 const astFile = Motoko.readFile("ast.mo");
 for (const ast of [
   Motoko.parseMotoko(/*enable_recovery=*/false, astFile),
-  Motoko.parseMotokoTyped(["ast.mo"]).code[0].ast,
-  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/false, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports }], cache] }
+  Motoko.parseMotokoTyped(["ast.mo"]).code[0].ast, // { diagnostics; code: [{ ast; scope }] }
+  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/false, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports; scope }], cache] }
   Motoko.parseMotoko(/*enable_recovery=*/true, astFile),
-  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/true, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports }], cache] }
+  Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/true, ["ast.mo"], new Map()).code[0][0].ast, // { diagnostics; code: [[{ ast; immediateImports; scope }], cache] }
 ]) {
   const astString = JSON.stringify(ast);
 
@@ -234,6 +234,57 @@ assert.deepStrictEqual(Motoko.candid("ast.mo"), {
   ],
   code: candid,
 });
+
+// Check that parseMotokoTyped exposes scope
+const typedResult = Motoko.parseMotokoTyped(["ast.mo"]);
+assert(typedResult.code[0].scope != null);
+
+// Check that parseMotokoTypedWithScopeCache exposes scope
+const typedWithCacheResult = Motoko.parseMotokoTypedWithScopeCache(/*enable_recovery=*/true, ["ast.mo"], new Map());
+assert(typedWithCacheResult.code[0][0].scope != null);
+
+// Test contextualDotSuggestions and contextualDotModule
+Motoko.saveFile(
+  "lib.mo",
+  'module { public func foo(self : Text) { ignore self }; public func bar(self : Text, n : Nat) : Nat { n } }'
+);
+Motoko.saveFile(
+  "dot.mo",
+  'import Lib "lib"; let t = "world"; t.foo()'
+);
+const dotResult = Motoko.parseMotokoTypedWithScopeCache(
+  /*enable_recovery=*/true, ["dot.mo"], new Map()
+);
+assert(dotResult.code != null, "dot.mo should parse successfully");
+const dotAst = dotResult.code[0][0].ast;
+const dotScope = dotResult.code[0][0].scope;
+
+// Navigate: Prog -> last decl(@) -> ExpD -> call(@:) -> CallE -> DotE(@:)
+const expD = dotAst.args[2].args[2];
+assert.equal(expD.name, "ExpD");
+const callE = expD.args[0].args[2].args[0];
+assert.equal(callE.name, "CallE");
+const dotE = callE.args[0].args[2].args[0];
+assert.equal(dotE.name, "DotE");
+
+// contextualDotModule: t.foo resolves to the lib module
+assert(dotE.rawExp != null);
+const dotModule = Motoko.contextualDotModule(dotE.rawExp);
+assert(dotModule != null, "contextualDotModule should resolve for contextual dot");
+assert.equal(dotModule.funcName, "foo");
+assert.equal(dotModule.moduleNameOrUri, "Lib");
+
+// contextualDotModule returns null for non-DotE expressions
+const varE = dotE.args[0].args[2].args[0];
+assert.equal(varE.name, "VarE");
+assert.equal(Motoko.contextualDotModule(varE.rawExp), null);
+
+// contextualDotSuggestions: receiver of DotE (VarE "t" : Text) should suggest foo
+const suggestions = Motoko.contextualDotSuggestions(dotScope, varE.rawExp);
+assert.deepStrictEqual(suggestions, [
+  { moduleUri: "lib.mo", funcName: "bar", funcType: "(self : Text, n : Nat) -> Nat" },
+  { moduleUri: "lib.mo", funcName: "foo", funcType: "(self : Text) -> ()" },
+]);
 
 // Check error recovery
 const badAstFile = Motoko.readFile("bad.mo");
