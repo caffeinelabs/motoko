@@ -52,6 +52,7 @@ s/VAR/\'var\'/g
 s/SHROP/\' >>\'/g
 s/SHRASSIGN/\'>>=\'/g
 s/UNDERSCORE/\'_\'/g
+s/NEWTYPE/\'newtype\'/g
 s/TYPE/\'type\'/g
 s/TRANSIENT/\'transient\'/g
 s/TRY/\'try\'/g
