@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
+
 ## 1.2.0 (2026-02-12)
 
 * motoko (`moc`)
