@@ -764,7 +764,10 @@ let lookup_typ_deprecation l tfs =
 
 let rec span = function
   | Var _ | Pre -> assert false
-  | Con _ as t -> span (promote t)
+  | Con (con, ts) as t ->
+    (match Cons.kind con with
+    | Newtype (tbs, t) -> span (open_ ts t)
+    | _ -> span (promote t))
   | Prim Null -> Some 1
   | Prim Bool -> Some 2
   | Prim (Nat | Int | Float | Text | Blob | Error | Principal | Region) -> None
