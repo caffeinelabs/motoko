@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.2.0 (2026-02-12)
+
 * motoko (`moc`)
 
   * Report multiple type errors for compound types at once (#5790).
