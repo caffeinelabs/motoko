@@ -225,6 +225,8 @@ val paths : path -> typ -> path ConEnv.t
 
 val shared : typ -> bool
 val find_unshared : typ -> typ option
+val orderable_prim : prim -> bool
+val orderable : typ -> bool
 
 val is_shared_func : typ -> bool
 val is_local_async_func : typ -> bool

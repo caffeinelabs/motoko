@@ -760,6 +760,9 @@ let show_translation =
 let eq_translation =
   transform_if "Translate polymorphic equality" Eq.transform
 
+let compare_translation =
+  transform_if "Translate polymorphic comparison" Compare.transform
+
 let analyze analysis_name analysis prog name =
   phase analysis_name name;
   analysis prog;
@@ -772,6 +775,7 @@ let ir_passes mode prog_ir name =
   (* translations that extend the progam and must be done before await/cps conversion *)
   let prog_ir = show_translation true prog_ir name in
   let prog_ir = eq_translation true prog_ir name in
+  let prog_ir = compare_translation true prog_ir name in
   (* cps conversion and local transformations *)
   let prog_ir = await_lowering !Flags.await_lowering prog_ir name in
   let prog_ir = async_lowering mode !Flags.async_lowering prog_ir name in

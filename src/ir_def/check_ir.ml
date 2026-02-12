@@ -178,6 +178,15 @@ let has_prim_eq t =
   | Obj (Actor, _, _) | Func (Shared _, _, _, _, _) -> true
   | _ -> false
 
+let has_prim_compare t =
+  (* Which types have primitive comparison implemented in the backend? *)
+  (* Keep in sync with Compile.compile_comparison_op *)
+  let open T in
+  match normalize t with
+  | Prim p -> orderable_prim p
+  | Non -> true
+  | _ -> false
+
 let check_field_hashes env what at fields =
   Lib.List.iter_pairs
     (fun x y ->
@@ -468,6 +477,12 @@ let rec check_exp env (exp:Ir.exp) : unit =
       check false "negation operator should be desugared away in IR"
     | RelPrim (ot,  Operator.EqOp), [exp1; exp2] when (not env.flavor.has_poly_eq) ->
       check (has_prim_eq ot) "primitive equality is not defined for operand type";
+      typ exp1 <: ot;
+      typ exp2 <: ot;
+      T.bool <: t
+    | RelPrim (ot, (Operator.LtOp | Operator.GtOp | Operator.LeOp | Operator.GeOp)),
+      [exp1; exp2] when (not env.flavor.has_poly_compare) ->
+      check (has_prim_compare ot) "primitive comparison is not defined for operand type";
       typ exp1 <: ot;
       typ exp2 <: ot;
       T.bool <: t

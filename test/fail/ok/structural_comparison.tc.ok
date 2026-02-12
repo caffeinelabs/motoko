@@ -1,0 +1,16 @@
+structural_comparison.mo:3.3-3.58: type error [M0060], operator is not defined for operand types
+  (x : Nat) -> Nat
+and
+  (x : Nat) -> Nat
+structural_comparison.mo:8.3-8.34: type error [M0060], operator is not defined for operand types
+  {var x : Nat}
+and
+  {var x : Nat}
+structural_comparison.mo:14.3-14.12: type error [M0060], operator is not defined for operand types
+  {inner : () -> Nat}
+and
+  {inner : () -> Nat}
+structural_comparison.mo:19.39-19.44: warning [M0061], comparing abstract type
+  A
+to itself at supertype
+  Any

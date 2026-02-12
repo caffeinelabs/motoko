@@ -165,6 +165,114 @@ let eq_relop fnat fint fwords ffloat fchar ftext fblob fnull fbool = function
 let eq_prim =
   eq_relop Nat.eq  Int.eq (Nat8.eq, Nat16.eq, Nat32.eq, Nat64.eq, Int_8.eq, Int_16.eq, Int_32.eq, Int_64.eq) Float.eq (=) (=) (=) (=) (=)
 
+(* Primitive comparison returning int trichotomy (-1, 0, +1) *)
+let num_compare fnat fint (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, fint64) ffloat = function
+  | T.Nat -> fun v1 v2 -> fnat (as_int v1) (as_int v2)
+  | T.Nat8 -> fun v1 v2 -> fnat8 (as_nat8 v1) (as_nat8 v2)
+  | T.Nat16 -> fun v1 v2 -> fnat16 (as_nat16 v1) (as_nat16 v2)
+  | T.Nat32 -> fun v1 v2 -> fnat32 (as_nat32 v1) (as_nat32 v2)
+  | T.Nat64 -> fun v1 v2 -> fnat64 (as_nat64 v1) (as_nat64 v2)
+  | T.Int -> fun v1 v2 -> fint (as_int v1) (as_int v2)
+  | T.Int8 -> fun v1 v2 -> fint8 (as_int8 v1) (as_int8 v2)
+  | T.Int16 -> fun v1 v2 -> fint16 (as_int16 v1) (as_int16 v2)
+  | T.Int32 -> fun v1 v2 -> fint32 (as_int32 v1) (as_int32 v2)
+  | T.Int64 -> fun v1 v2 -> fint64 (as_int64 v1) (as_int64 v2)
+  | T.Float -> fun v1 v2 -> ffloat (as_float v1) (as_float v2)
+  | _ -> raise (Invalid_argument "compare")
+
+let float_compare f1 f2 =
+  if Float.lt f1 f2 then -1
+  else if Float.eq f1 f2 then 0
+  else 1
+
+let prim_compare = function
+  | T.Null -> fun _ _ -> 0
+  | T.Bool -> fun v1 v2 -> Stdlib.compare (as_bool v1) (as_bool v2)
+  | T.Char -> fun v1 v2 -> Stdlib.compare (as_char v1) (as_char v2)
+  | T.Text -> fun v1 v2 -> String.compare (as_text v1) (as_text v2)
+  | T.Blob | T.Principal -> fun v1 v2 -> String.compare (as_blob v1) (as_blob v2)
+  | t -> num_compare Nat.compare Int.compare
+    (Nat8.compare, Nat16.compare, Nat32.compare, Nat64.compare,
+     Int_8.compare, Int_16.compare, Int_32.compare, Int_64.compare)
+    float_compare t
+
+(* Follows the structure of `orderable` in mo_types/type.ml *)
+let structural_comparison t =
+  let rec go t =
+    match t with
+    | T.Var _ | T.Pre | T.Non | T.Async _ | T.Mut _ | T.Weak _ -> assert false
+    | T.Any -> fun _ _ -> 0
+    | T.Prim T.Error
+    | T.Prim T.Region -> assert false
+    | T.Prim p -> prim_compare p
+    | T.Con (c, ts) -> (
+        match Mo_types.Cons.kind c with
+        | T.Abs _ -> assert false
+        | T.Def (_, t) -> go (T.open_ ts t)
+        )
+    | T.Array t ->
+        fun v1 v2 ->
+          let cmp_elem = go t in
+          let a1 = as_array v1 in
+          let a2 = as_array v2 in
+          let len1 = Array.length a1 in
+          let len2 = Array.length a2 in
+          let len = min len1 len2 in
+          let rec loop i =
+            if i >= len then Stdlib.compare len1 len2
+            else match cmp_elem a1.(i) a2.(i) with
+              | 0 -> loop (i + 1)
+              | c -> c
+          in loop 0
+    | T.Opt t -> (
+        fun v1 v2 ->
+          match (v1, v2) with
+          | Null, Null -> 0
+          | Null, Opt _ -> -1
+          | Opt _, Null -> 1
+          | Opt v1, Opt v2 -> go t v1 v2
+          | _, _ -> assert false )
+    | T.Tup ts ->
+        fun v1 v2 ->
+          let v1 = as_tup v1 in
+          let v2 = as_tup v2 in
+          let rec go_inner ts v1 v2 =
+            match (ts, v1, v2) with
+            | [], [], [] -> 0
+            | t :: ts, v1 :: v1s, v2 :: v2s ->
+                (match go t v1 v2 with
+                 | 0 -> go_inner ts v1s v2s
+                 | c -> c)
+            | _ -> assert false
+          in
+          go_inner ts v1 v2
+    | T.Obj (s, fs, _) -> (
+        match s with
+        | T.Actor | T.Module | T.Mixin | T.Memory -> assert false
+        | T.Object ->
+            fun v1 v2 ->
+              let v1 = as_obj v1 in
+              let v2 = as_obj v2 in
+              let rec go_fields = function
+                | [] -> 0
+                | f :: fs ->
+                  match go f.T.typ (Env.find f.T.lab v1) (Env.find f.T.lab v2) with
+                  | 0 -> go_fields fs
+                  | c -> c
+              in
+              go_fields (List.sort T.compare_field fs))
+    | T.Variant fs ->
+        fun v1 v2 ->
+          let l1, v1 = as_variant v1 in
+          let l2, v2 = as_variant v2 in
+          (match String.compare l1 l2 with
+           | 0 -> go (List.find (fun f -> f.T.lab = l1) fs).T.typ v1 v2
+           | c -> c)
+    | T.Func _ -> assert false
+    | T.Named (_, t1) -> go t1
+  in
+  go t
+
 (* Follows the structure of `shared` in mo_type/type.ml *)
 let structural_equality t =
   let rec go t =
@@ -259,6 +367,14 @@ let relop op t =
     structural_equality t
   | t when op = NeqOp && T.shared t ->
     fun v1 v2 -> Bool (not (as_bool (structural_equality t v1 v2)))
+  | t when op = LtOp && T.orderable t ->
+    fun v1 v2 -> Bool (structural_comparison t v1 v2 < 0)
+  | t when op = GtOp && T.orderable t ->
+    fun v1 v2 -> Bool (structural_comparison t v1 v2 > 0)
+  | t when op = LeOp && T.orderable t ->
+    fun v1 v2 -> Bool (structural_comparison t v1 v2 <= 0)
+  | t when op = GeOp && T.orderable t ->
+    fun v1 v2 -> Bool (structural_comparison t v1 v2 >= 0)
   | _ -> raise (Invalid_argument "relop")
 
 

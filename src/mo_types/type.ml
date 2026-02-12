@@ -1006,6 +1006,43 @@ let is_local_async_func typ =
 let shared t = serializable false t
 let stable t = serializable true t
 
+(* Does this primitive type support ordering? *)
+let orderable_prim = function
+  | Nat | Nat8 | Nat16 | Nat32 | Nat64
+  | Int | Int8 | Int16 | Int32 | Int64
+  | Float | Char | Text | Blob | Principal -> true
+  | Null | Bool | Error | Region -> false
+
+(* Orderable types: shared types minus shared functions and actors *)
+let orderable t =
+  let seen = ref S.empty in
+  let rec go t =
+    S.mem t !seen ||
+    begin
+      seen := S.add t !seen;
+      match t with
+      | Var _ | Pre -> assert false
+      | Prim p -> orderable_prim p
+      | Any | Non -> true
+      | Async _ | Mut _ | Weak _ -> false
+      | Con (c, ts) ->
+        (match Cons.kind c with
+        | Abs _ -> false
+        | Def (_, t) -> go (open_ ts t)
+        )
+      | Array t | Opt t -> go t
+      | Tup ts -> List.for_all go ts
+      | Obj (s, fs, _) ->
+        (match s with
+         | Actor -> false
+         | Module | Mixin -> false
+         | Object | Memory -> List.for_all (fun f -> go f.typ) fs)
+      | Variant fs -> List.for_all (fun f -> go f.typ) fs
+      | Func _ -> false
+      | Named (n, t) -> go t
+    end
+  in go t
+
 
 (* Forward declare
    TODO: haul string_of_typ before the lub/glb business, if possible *)

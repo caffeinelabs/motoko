@@ -13621,6 +13621,7 @@ and compile_const_dec env pre_ae dec : (VarEnv.t -> VarEnv.t) * (E.t -> VarEnv.t
 and compile_init_func mod_env ((cu, flavor) : Ir.prog) =
   assert (not flavor.has_typ_field);
   assert (not flavor.has_poly_eq);
+  assert (not flavor.has_poly_compare);
   assert (not flavor.has_show);
   assert (not flavor.has_await);
   assert (not flavor.has_async_typ);

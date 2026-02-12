@@ -261,6 +261,21 @@ func @equal_array<T>(eq : (T, T) -> Bool, a : [T], b : [T]) : Bool {
   return true;
 };
 
+func @compare_array<T>(cmp : (T, T) -> Int, a : [T], b : [T]) : Int {
+  let sa = a.size();
+  let sb = b.size();
+  let s = if (sa < sb) { sa } else { sb };
+  var i = 0;
+  while (i < s) {
+    let c = cmp(a[i], b[i]);
+    if (c != 0) {
+      return c;
+    };
+    i += 1;
+  };
+  if (sa < sb) { -1 } else if (sa > sb) { +1 } else { 0 };
+};
+
 type @CleanCont = () -> ();
 type @BailCont = @CleanCont;
 type @Cont<T> = T -> ();

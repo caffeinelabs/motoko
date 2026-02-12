@@ -232,6 +232,7 @@ type flavor = {
   has_await : bool; (* AwaitE and AsyncE *)
   has_show : bool; (* ShowE *)
   has_poly_eq : bool; (* Polymorphic equality *)
+  has_poly_compare : bool; (* Polymorphic comparison *)
 }
 
 let full_flavor () : flavor = {
@@ -240,6 +241,7 @@ let full_flavor () : flavor = {
   has_async_typ = true;
   has_show = true;
   has_poly_eq = true;
+  has_poly_compare = true;
 }
 
 type actor_type = {
