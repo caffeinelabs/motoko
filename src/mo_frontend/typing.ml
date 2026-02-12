@@ -4251,11 +4251,11 @@ and infer_dec env dec : T.typ =
          if not env.in_actor then
            error env exp.at "M0250"
              "variables without initializers are only allowed in actors with --enhanced-migration flag"
-       | _ ->
-         if !Flags.typechecker_combine_srcs then
-           combine_id_srcs env t id;
-         if T.is_unit (T.normalize t) then
-           warn_unit_binding `Var env dec exp);
+       | _ -> ());
+      if !Flags.typechecker_combine_srcs then
+        combine_id_srcs env t id;
+      if T.is_unit (T.normalize t) then
+        warn_unit_binding `Var env dec exp;
     end;
     T.unit
   | ClassD (exp_opt, shared_pat, obj_sort, id, typ_binds, pat, typ_opt, self_id, dec_fields) ->
