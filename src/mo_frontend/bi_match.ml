@@ -296,6 +296,8 @@ let bi_match_typs ctx =
         bi_match_typ rel eq inst any (open_ ts1 t) t2
       | _, Def (tbs, t) -> (* TBR this may fail to terminate *)
         bi_match_typ rel eq inst any t1 (open_ ts2 t)
+      | Newtype _, Newtype _ when Cons.eq con1 con2 ->
+        bi_match_list bi_equate_typ rel eq inst any ts1 ts2
       | _ when Cons.eq con1 con2 ->
         assert (ts1 = []);
         assert (ts2 = []);
