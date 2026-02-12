@@ -121,6 +121,8 @@ and exp' at note = function
     (blob_dotE x.it (exp e)).it
   | S.DotE (e, x, _) when T.is_prim T.Text e.note.S.note_typ ->
     (text_dotE x.it (exp e)).it
+  | S.DotE (e, x, _) when x.it = "unwrap" && T.is_con e.note.S.note_typ -> (* TODO: the kind changed to Def in this T.Con, extract `is_newtype` function and document this *)
+    (exp e).it (* Newtype .unwrap is identity *)
   | S.DotE (e, x, _) ->
     begin match T.as_obj_sub [x.it] e.note.S.note_typ with
     | T.Actor, _ -> I.PrimE (I.ActorDotPrim x.it, [exp e])
@@ -977,7 +979,19 @@ and block force_unit ds =
   | _, _ ->
     (decs ds, tupE [])
 
-and decs ds = List.concat_map dec ds
+and decs ds =
+  let ir_decs = List.concat_map dec ds in
+  (* Mutate Newtype kinds to Def after all expressions are desugared,
+     so that DotE can still detect Newtype for .unwrap during desugaring. *)
+  List.iter (fun d -> match d.it with
+    | S.NewtypeD (id, _, _) ->
+      let c = Option.get id.note in
+      (match Cons.kind c with
+      | T.Newtype (tbs, t) -> Cons.unsafe_set_kind c (T.Def (tbs, t))
+      | _ -> ())
+    | _ -> ()
+  ) ds;
+  ir_decs
 
 and dec d = List.map (fun ir_dec -> { it = ir_dec; at = d.at; note = () }) (dec' d)
 
@@ -999,12 +1013,27 @@ and dec' d =
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
   | S.NewtypeD (id, _, _) ->
-    (* Mutate Newtype kind to Def so downstream IR/codegen sees a transparent alias *)
     let c = Option.get id.note in
-    (match Cons.kind c with
-    | T.Newtype (tbs, t) -> Cons.unsafe_set_kind c (T.Def (tbs, t))
-    | _ -> ());
-    []
+    let inner_t = (match Cons.kind c with
+    | T.Newtype (_, t) -> t
+    | T.Def (_, t) -> t (* already mutated in a prior pass *)
+    | _ -> assert false) in
+    (* Produce an identity function binding for the newtype constructor.
+       inner_t is the underlying type (e.g. Int).
+       The constructor is just the identity function: fun (x : T) : T = x
+       Note: kind mutation to Def happens in [decs], after all expressions are desugared. *)
+    let newtype_typ = T.Con (c, []) in
+    let ctor_typ = T.Func (T.Local, T.Returns, [], [inner_t], [newtype_typ]) in
+    let arg_var = fresh_var "x" inner_t in
+    let arg = { it = id_of_var arg_var; at = no_region; note = inner_t } in
+    let ctor_body = varE arg_var in
+    let ctor_func =
+      { it = I.FuncE (id.it, T.Local, T.Returns, [], [arg], [newtype_typ], ctor_body);
+        at = no_region;
+        note = Note.{ def with typ = ctor_typ } }
+    in
+    let ctor_pat = { it = I.VarP id.it; at = no_region; note = ctor_typ } in
+    [I.LetD (ctor_pat, ctor_func)]
   | S.MixinD _ -> []
   | S.IncludeD(_, args, note) ->
     let { imports = is; pat = p; decs } = Option.get !note in

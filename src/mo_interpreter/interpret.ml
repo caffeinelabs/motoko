@@ -580,6 +580,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
           | "vals" | "values" -> blob_vals
           | s -> assert false
         in k (f b exp.at)
+      | v when id.it = "unwrap" && T.is_con exp1.note.note_typ -> (* TODO: same as desugaring *)
+        k v (* newtype .unwrap is identity *)
       | _ -> assert false
     )
   | AssignE (exp1, exp2) ->
@@ -1015,14 +1017,14 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
-  | NewtypeD _
   | MixinD (_) -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
     assert false
   | LetD (pat, _, _) -> declare_pat pat
   | VarD (id, _) -> declare_id id
-  | ClassD (_eo, _, _, id, _, _, _, _, _) -> declare_id {id with note = ()}
+  | NewtypeD (id, _, _)
+  | ClassD (_, _, _, id, _, _, _, _, _) -> declare_id {id with note = ()}
 
 and declare_decs decs ve : val_env =
   match decs with
@@ -1050,7 +1052,12 @@ and interpret_dec env dec (k : V.value V.cont) =
       define_id env id (V.Mut (ref v));
       k V.unit
     )
-  | TypD _ | NewtypeD _ ->
+  | TypD _ ->
+    k V.unit
+  | NewtypeD (id, _, _) ->
+    (* Bind the constructor as an identity function: fun (x) = x *)
+    let v = V.local_func 1 1 (fun _ctxt v k -> k v) in
+    define_id env {id with note = ()} v;
     k V.unit
   | MixinD _ -> k V.unit
   | IncludeD (_, _arg, _note) ->
