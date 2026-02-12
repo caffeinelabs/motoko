@@ -2223,7 +2223,14 @@ and infer_exp'' env exp : T.typ =
     T.unit
   | AnnotE (exp1, typ) ->
     let t = check_typ env typ in
-    if not env.pre then check_exp_strong env t exp1;
+    if not env.pre then
+      (* If exp1 is TupE [] (placeholder for no initializer) and --enhanced-migration is enabled, *)
+      (* allow it without type checking (it's used for stable variables without initializers) *)
+      (match exp1.it, !Flags.enhanced_migration with
+       | TupE [], Some _ ->
+         exp1.note <- {exp1.note with note_typ = t}
+       | _ ->
+         check_exp_strong env t exp1);
     t
   | IgnoreE exp1 ->
     if not env.pre then begin
@@ -3762,7 +3769,20 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in
-    check_migration env stab_tfs exp_opt
+    check_migration env stab_tfs exp_opt;
+    if s = T.Actor then begin
+      let has_enhanced = !T.migration_chain <> [] in
+      let has_inline = match exp_opt with
+        | Some {it = ObjE(_, flds); _} ->
+          List.exists (fun ({it = {id; _}; _} : exp_field) -> id.it = T.migration_lab) flds
+        | _ -> false
+      in
+      if has_enhanced && has_inline then
+        local_error env at "M0252"
+          "cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other."
+      else
+        validate_enhanced_migration_chain env stab_tfs at
+    end
   end;
   t
 
@@ -3848,6 +3868,67 @@ and infer_migration env obj_sort exp_opt =
           "misplaced actor migration expression on module or object";
       infer_exp_promote { env with async = C.NullCap; rets = NoRet; labs = T.Env.empty } exp)
     exp_opt
+
+(* Validate the enhanced migration chain from --enhanced-migration directory.
+   Checks: (1) each run type is a function, (2) chain composes, (3) last output matches actor. *)
+and validate_enhanced_migration_chain env stab_tfs at =
+  let chain = !T.migration_chain in
+  if chain = [] then () else
+  (* Decompose each run type into (file, input, output) *)
+  let decomposed = List.filter_map (fun (file, _mod_typ, typ) ->
+    try
+      let sort, tbs, t_args, t_rng = T.as_func_sub T.Local 0 typ in
+      if sort <> T.Local || tbs <> [] then raise (Invalid_argument "");
+      Some (file, T.seq t_args, t_rng)
+    with Invalid_argument _ ->
+      local_error env at "M0251"
+        "migration module %s: `run` is not a valid function type" file;
+      None
+  ) chain in
+  (* Check chain composition: output[i] compatible with input[i+1] *)
+  let rec check_pairs = function
+    | [] | [_] -> ()
+    | (file1, _, output1) :: ((file2, input2, _) :: _ as rest) ->
+      if not (T.sub (T.promote output1) (T.normalize input2)) then
+        local_error env at "M0251"
+          "migration chain broken: output of %s is not compatible with input of %s"
+          file1 file2;
+      check_pairs rest
+  in
+  check_pairs decomposed;
+  (* Check last output matches actor stable fields *)
+  (match List.rev decomposed with
+  | [] -> ()
+  | (file, _, last_output) :: _ ->
+    let rng_tfs = match T.promote last_output with
+      | T.Obj(T.Object, fs, _) -> fs
+      | _ ->
+        local_error env at "M0251"
+          "migration module %s: `run` output is not an object type" file;
+        []
+    in
+    (* Every stable field in the actor must be produced by the last migration *)
+    List.iter (fun tf ->
+      match T.lookup_val_field_opt tf.T.lab rng_tfs with
+      | Some typ ->
+        (* Check type compatibility *)
+        let context = [T.StableVariable tf.T.lab] in
+        let imm_typ = T.as_immut typ in
+        let imm_expected = T.as_immut tf.T.typ in
+        (match T.stable_sub_explained ~src_fields:env.srcs context imm_typ imm_expected with
+        | T.Compatible -> ()
+        | T.Incompatible explanation ->
+          local_error env at "M0251"
+            "migration chain: last migration %s produces field `%s` of type%a\n, not the expected type%a%a"
+            file tf.T.lab
+            display_typ_expand typ
+            display_typ_expand tf.T.typ
+            (display_explanation imm_typ imm_expected) explanation)
+      | None ->
+        local_error env at "M0251"
+          "migration chain: last migration %s does not produce stable field `%s`"
+          file tf.T.lab
+    ) stab_tfs)
 
 and check_migration env (stab_tfs : T.field list) exp_opt =
   match exp_opt with
@@ -3977,7 +4058,21 @@ and check_migration env (stab_tfs : T.field list) exp_opt =
 
 
 and check_stable_defaults env sort dec_fields =
-  if sort.it <> T.Actor then () else
+  if sort.it <> T.Actor then () else begin
+  (* With --enhanced-migration, stable variables must not have initializers *)
+  if Option.is_some !Flags.enhanced_migration then begin
+    List.iter (fun dec_field ->
+      match dec_field.it.stab, dec_field.it.dec.it with
+      | Some {it = Stable; _}, LetD (_, exp, _) 
+      | Some {it = Stable; _}, VarD (_, exp) ->
+        (match exp.it with
+         | AnnotE ({it = TupE []; _}, _) -> () (* placeholder for no initializer -- OK *)
+         | _ ->
+           local_error env exp.at "M0250"
+             "stable variables must not have initializers with --enhanced-migration; use migration functions instead.")
+      | _ -> ())
+    dec_fields
+  end;
   let declared_persistent = sort.note.it in
   if declared_persistent then
     begin
@@ -4008,6 +4103,7 @@ and check_stable_defaults env sort dec_fields =
     in
     if not has_implicit_flexible then
       local_error env sort.at "M0220" "this actor or actor class should be declared `persistent`"
+  end
 
 and check_stab env sort scope dec_fields =
   let check_stable id at =
@@ -4132,6 +4228,15 @@ and infer_dec env dec : T.typ =
         check_exp env T.Non fail
     );
     let t = infer_exp env exp in
+    (* Check if this is a placeholder for no initializer *)
+    if not env.pre then begin
+      match exp.it with
+      | AnnotE ({it = TupE []; _}, _) when Option.is_some !Flags.enhanced_migration ->
+        if not env.in_actor then
+          error env exp.at "M0250"
+            "variables without initializers are only allowed in actors with --enhanced-migration flag"
+      | _ -> ()
+    end;
     if !Flags.typechecker_combine_srcs then
       combine_pat_srcs env t pat;
     if not env.pre && T.is_unit (T.normalize t) then
@@ -4140,10 +4245,17 @@ and infer_dec env dec : T.typ =
   | VarD (id, exp) ->
     if not env.pre then begin
       let t = infer_exp env exp in
-      if !Flags.typechecker_combine_srcs then
-        combine_id_srcs env t id;
-      if T.is_unit (T.normalize t) then
-        warn_unit_binding `Var env dec exp;
+      (* Check if this is a placeholder for no initializer *)
+      (match exp.it with
+       | AnnotE ({it = TupE []; _}, _) when Option.is_some !Flags.enhanced_migration ->
+         if not env.in_actor then
+           error env exp.at "M0250"
+             "variables without initializers are only allowed in actors with --enhanced-migration flag"
+       | _ ->
+         if !Flags.typechecker_combine_srcs then
+           combine_id_srcs env t id;
+         if T.is_unit (T.normalize t) then
+           warn_unit_binding `Var env dec exp);
     end;
     T.unit
   | ClassD (exp_opt, shared_pat, obj_sort, id, typ_binds, pat, typ_opt, self_id, dec_fields) ->

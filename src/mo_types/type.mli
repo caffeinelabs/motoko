@@ -340,6 +340,7 @@ val motoko_runtime_information_type : typ
 
 val cycles_lab : lab
 val migration_lab : lab
+val multi_migration_lab : lab
 val timeout_lab : lab
 
 (* Well-known fields *)
@@ -405,3 +406,5 @@ module ElideStampsAndHashes : PrettyConfig
 module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
+
+val migration_chain : (string * typ * typ) list ref

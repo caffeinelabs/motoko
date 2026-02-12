@@ -872,11 +872,13 @@ and compile_progs mode do_link libs progs : Wasm_exts.CustomModule.extended_modu
   let u = CompUnit.comp_unit_of_prog false prog in
   compile_unit mode do_link imports u
 
-let compile_files mode do_link files : compile_result =
+let compile_files mode do_link ?(migration_libs=[]) files : compile_result =
   let open Diag.Syntax in
   let* libs, progs, senv = load_progs ~check_actors:true parse_file files initial_stat_env in
   let idl = Mo_idl.Mo_to_idl.prog (progs, senv) in
-  let* ext_module = compile_progs mode do_link libs progs in
+  (* Shove in the migration_libs in the regular libs list. *)
+  let all_libs = libs @ migration_libs in
+  let* ext_module = compile_progs mode do_link all_libs progs in
   (* validate any stable type signature, as a sanity check *)
   let* () =
     match Wasm_exts.CustomModule.(ext_module.motoko.stable_types) with
@@ -918,3 +920,77 @@ let interpret_ir_files files =
   Diag.flush_messages (Diag.bind
     (load_progs parse_file files initial_stat_env)
     (fun (libs, progs, _) -> interpret_ir_progs libs progs))
+
+(* Get the migration files, filter by .mo extension and sort lexicographically. *)
+let get_migration_files (dir : string) : string list =
+  if not (Sys.is_directory dir) then
+    begin
+      eprintf "The enhanced migration directory is not a directory.\n"; exit 1
+    end
+  else
+    Sys.readdir dir 
+    |> Array.to_list 
+    |> List.sort String.compare
+    |> List.filter (fun fname -> Filename.check_suffix fname ".mo")
+    |> List.map (Filename.concat dir)
+
+
+(* Migration function is always called "run". Returns (module_type, run_type) if found. *)
+let get_migration_type (file : string) (scope : Scope.scope) : (Type.typ * Type.typ) option =
+  match Type.Env.find_opt file scope.Scope.lib_env with
+  | Some module_typ ->
+    (match Type.normalize module_typ with
+     | Type.Obj (_, fields, _) ->
+       (match Type.lookup_val_field_opt "run" fields with
+        | Some run_typ -> Some (module_typ, run_typ)
+        | None -> None)
+     | _ -> None)
+  | None -> None
+
+(* 
+  Parse and typecheck the migration files.
+  if the migration files contain .mo files which 
+  are not modules and don't contain a run() function
+  they will be excluded.
+*)
+let load_migration_modules (files : string list) : ((string * Type.typ * Type.typ) list * Syntax.lib list) Diag.result = 
+  let open Diag.Syntax in
+  let senv = ref initial_stat_env in
+  Diag.traverse (fun file -> 
+    let* prog, base = parse_file Source.no_region file in
+    let cu = CompUnit.comp_unit_of_prog true prog in
+    match cu.Source.it.Syntax.body.Source.it with
+    (* Module or not module? *)
+    | Syntax.ModuleU _ ->
+      let* prog', libs = resolve_prog (prog, base) in 
+      let* libs, senv' = chase_imports parse_file !senv libs in
+      senv := senv';
+      let lib = lib_of_prog file prog' in
+      let* sscope = check_lib !senv None lib in
+      senv := Scope.adjoin !senv sscope;
+      (match get_migration_type file sscope with
+       | Some (mod_typ, run_typ) -> Diag.return (Some (file, mod_typ, run_typ), Some lib)
+       | None ->
+         let file_region = { Source.left = { Source.file; line = 1; column = 0 };
+                             Source.right = { Source.file; line = 1; column = 0 } } in
+         let* () = Diag.warn file_region "M0251" "compile"
+           "migration module does not export a `run` function, skipping" in
+         Diag.return (None, None))
+    | _ ->
+      let file_region = { Source.left = { Source.file; line = 1; column = 0 };
+                          Source.right = { Source.file; line = 1; column = 0 } } in
+      let* () = Diag.warn file_region "M0251" "compile"
+        "not a module, skipping" in
+      Diag.return (None, None)
+  ) files
+  |> fun result ->
+    let open Diag.Syntax in
+    let* pairs = result in
+    let types = List.filter_map fst pairs in
+    let libs = List.filter_map snd pairs in
+    if types = [] || libs = [] then
+      Diag.error Source.no_region "M0251"
+        "compile"
+        "--enhanced-migration: no valid migration modules found (migration modules must export a public `run` function)"
+    else
+      Diag.return (types, libs)

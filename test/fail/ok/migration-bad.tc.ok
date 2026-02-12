@@ -1,7 +1,9 @@
 migration-bad.mo:3.7-3.21: type error [M0203], expected non-generic, local function type, but migration expression produces type
   ()
+(for multi_migration, each tuple element must be a function)
 migration-bad.mo:7.7-7.40: type error [M0203], expected non-generic, local function type, but migration expression produces type
   <T>(x : T) -> T
+(for multi_migration, each tuple element must be a function)
 migration-bad.mo:11.7-11.36: type error [M0202], expected object type, but migration expression consumes non-object type
   ()
 migration-bad.mo:15.7-15.36: type error [M0202], expected object type, but migration expression produces non-object type
@@ -30,12 +32,13 @@ because promoting
 migration-bad.mo:28.41-28.43: type error [M0136], empty block cannot produce expected type
   {} -> {}
 migration-bad.mo:28.19-28.47: type error [M0014], non-static expression in library, module or migration expression
-migration-bad.mo:33.1-33.18: type error [M0208], expected expression with field `migration`, but expression has type
+migration-bad.mo:33.1-33.18: type error [M0208], expected expression with field `migration` or `multi_migration`, but expression has type
   {other : ()}
-migration-bad.mo:37.1-37.21: type error [M0208], expected expression with field `migration`, but expression has type
+migration-bad.mo:37.1-37.21: type error [M0208], expected expression with field `migration` or `multi_migration`, but expression has type
   {other : ()}
 migration-bad.mo:41.7-41.21: type error [M0203], expected non-generic, local function type, but migration expression produces type
   ()
+(for multi_migration, each tuple element must be a function)
 migration-bad.mo:41.1-42.18: warning [M0212], unrecognised attribute extra in parenthetical note
 migration-bad.mo:46.1-46.39: type error [M0209], misplaced actor migration expression on module or object
 migration-bad.mo:50.1-50.39: type error [M0209], misplaced actor migration expression on module or object

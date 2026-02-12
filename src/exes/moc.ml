@@ -218,6 +218,11 @@ let argspec =
   Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := false),
   " use legacy (classical) persistence. This also enables the usage of --copying-gc, --compacting-gc, and --generational-gc. Deprecated in favor of the new enhanced orthogonal persistence, which is default. Legacy persistence will be removed in the future.";
 
+  (* migration *)
+  "--enhanced-migration",
+  Arg.String (fun s -> Flags.enhanced_migration := Some s),
+  " enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence.";
+
   "-unguarded-enhanced-orthogonal-persistence",
   Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := true; Flags.explicit_enhanced_orthogonal_persistence := false),
   Args._UNDOCUMENTED_ "  (internal testing only)";
@@ -294,9 +299,18 @@ let process_files files : unit =
       | _ -> assert false
     end
   | Compile ->
+    (* Get the migration files from the directory, if any. *)
+    let migration_libs = 
+      if Option.is_some !Flags.enhanced_migration then
+        let lst = Pipeline.get_migration_files (Option.get !Flags.enhanced_migration) in
+        let (migration_mods, migration_libs) = Diag.run (Pipeline.load_migration_modules lst) in
+        Mo_types.Type.migration_chain := migration_mods;
+        migration_libs
+      else [] (* Should not happen, we check against it and error in get_migration_files(). *)
+    in
     set_out_file files ".wasm";
     let source_map_file = !out_file ^ ".map" in
-    let (idl_prog, module_) = Diag.run Pipeline.(compile_files !Flags.compile_mode !link files) in
+    let (idl_prog, module_) = Diag.run Pipeline.(compile_files !Flags.compile_mode !link ~migration_libs files) in
     let module_ = CustomModule.{ module_ with
       source_mapping_url =
         if !gen_source_map
@@ -387,6 +401,11 @@ let () =
   if !Flags.warnings_are_errors && (not !Flags.print_warnings)
   then fail "moc: --hide-warnings and -Werror together do not make sense";
 
+  if Option.is_some !Flags.enhanced_migration && not !Flags.enhanced_orthogonal_persistence
+  then begin
+    eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
+  end;
+  
   if not !Flags.skip_gc_deprecation_warning 
   then begin
     match !Flags.gc_strategy with

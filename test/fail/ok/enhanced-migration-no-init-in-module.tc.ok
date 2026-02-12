@@ -1,0 +1,2 @@
+enhanced-migration-no-init-in-module.mo:7.20-7.23: type error [M0250], variables without initializers are only allowed in actors with --enhanced-migration flag
+enhanced-migration-no-init-in-module.mo:8.16-8.23: type error [M0250], variables without initializers are only allowed in actors with --enhanced-migration flag

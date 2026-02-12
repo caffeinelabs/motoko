@@ -137,6 +137,8 @@ let primE prim es =
     | OtherPrim "weak_ref_is_live" -> T.bool
     | OtherPrim "env_var_names" ->  T.Array T.text
     | OtherPrim "env_var" -> T.text
+    | OtherPrim "register_migration" -> T.unit
+    | OtherPrim "was_migration_performed" -> T.bool
     | _ -> assert false (* implement more as needed *)
   in
   let eff = map_max_effs eff es in

@@ -136,3 +136,126 @@ pub unsafe fn set_dedup_table<M: Memory>(mem: &mut M, dedup_table: Value) {
     }
     set_dedup_table_ptr(mem, dedup_table);
 }
+
+#[enhanced_orthogonal_persistence]
+#[cfg(feature = "ic")]
+struct PersistentArray {}
+#[enhanced_orthogonal_persistence]
+#[cfg(feature = "ic")]
+impl PersistentArray {
+    // We allow maximum 10K migrations.
+    const MIGRATION_FUNCTIONS_ARRAY_SIZE: usize = 10_000;
+    pub unsafe fn new<M: Memory>(mem: &mut M) -> Value {
+        let array = alloc_array(mem, TAG_ARRAY_M, Self::MIGRATION_FUNCTIONS_ARRAY_SIZE);
+        if !array.is_non_null_ptr() {
+            crate::rts_trap_with("Failed to allocate migration functions array.");
+        }
+        // Fill the array with NULL_POINTER.
+        let array_obj = array.as_array() as *mut Array;
+        for i in 0..array_obj.len() {
+            array_obj.set(i, NULL_POINTER, mem);
+        }
+        array
+    }
+    pub unsafe fn add_migration_function_hash<M: Memory>(mem: &mut M, array: Value, hash: Value) {
+        let array_obj = array.as_array() as *mut Array;
+        let mut index = 0;
+        // Find first NULL_POINTER index.
+        while index < array_obj.len() {
+            let crnt_value = array_obj.get(index);
+            if !crnt_value.is_non_null_ptr() {
+                break;
+            }
+            index += 1;
+        }
+        let max_size = array_obj.len();
+        if index >= max_size {
+            crate::rts_trap_with(
+                "Migration functions array is full. This is a bug, report to the Motoko team.",
+            );
+        }
+        array_obj.set(index, hash, mem);
+    }
+    unsafe fn compare_blobs(blob1: *const Blob, blob2: *const Blob) -> bool {
+        let len1 = blob1.len();
+        let len2 = blob2.len();
+        if len1 != len2 {
+            return false;
+        }
+        for i in 0..len1.as_usize() {
+            if blob1.get(i) != blob2.get(i) {
+                return false;
+            }
+        }
+        true
+    }
+    pub unsafe fn is_migration_function_hash_present(array: Value, hash: Value) -> bool {
+        let array_obj = array.as_array() as *mut Array;
+        let arr_size = array_obj.len();
+        let target_hash = hash.as_blob() as *const Blob;
+        for i in 0..arr_size {
+            let crnt_hash = array_obj.get(i);
+            if !crnt_hash.is_non_null_ptr() {
+                break;
+            }
+            let crnt_hash_obj = crnt_hash.as_blob();
+            let is_equal = Self::compare_blobs(target_hash, crnt_hash_obj);
+            if is_equal {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+/// Register a migration function hash.
+#[enhanced_orthogonal_persistence]
+#[ic_mem_fn]
+#[cfg(feature = "ic")]
+pub unsafe fn register_migration<M: Memory>(mem: &mut M, hash: Value) {
+    use crate::persistence::{
+        get_migration_functions_ptr, is_migration_functions_null, set_migration_functions_ptr,
+    };
+    if !hash.is_blob() {
+        crate::rts_trap_with(
+            "register_migration: Invalid hash. This is a bug, report to the Motoko team.",
+        );
+    }
+    let migration_functions = if is_migration_functions_null() {
+        let new_migration_functions = PersistentArray::new(mem);
+        set_migration_functions_ptr(mem, new_migration_functions);
+        if is_migration_functions_null() {
+            crate::rts_trap_with(
+                "register_migration: Failed to set migration functions pointer. This is a bug, report to the Motoko team.",
+            );
+        }
+        new_migration_functions
+    } else {
+        *get_migration_functions_ptr()
+    };
+    if !PersistentArray::is_migration_function_hash_present(migration_functions, hash) {
+        PersistentArray::add_migration_function_hash(mem, migration_functions, hash);
+    }
+}
+
+/// Register a migration function hash.
+#[enhanced_orthogonal_persistence]
+#[ic_mem_fn]
+#[cfg(feature = "ic")]
+pub unsafe fn was_migration_performed<M: Memory>(_mem: &mut M, hash: Value) -> bool {
+    use crate::persistence::{get_migration_functions_ptr, is_migration_functions_null};
+    if !hash.is_blob() {
+        crate::rts_trap_with(
+            "register_migration: Invalid hash. This is a bug, report to the Motoko team.",
+        );
+    }
+
+    if is_migration_functions_null() {
+        // This can happen if the migration functions array is not initialized.
+        // This could be because the canister is being upgraded for the first time.
+        return false;
+    }
+    let migration_functions = *get_migration_functions_ptr();
+
+    PersistentArray::is_migration_function_hash_present(migration_functions, hash)
+}

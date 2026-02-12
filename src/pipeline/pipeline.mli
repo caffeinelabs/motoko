@@ -34,7 +34,7 @@ val run_files_and_stdin : string list -> unit option
 type compile_result =
   (Idllib.Syntax.prog * Wasm_exts.CustomModule.extended_module) Diag.result
 
-val compile_files : Flags.compile_mode -> bool -> string list -> compile_result
+val compile_files : Flags.compile_mode -> bool -> ?migration_libs:Syntax.lib list -> string list -> compile_result
 
 val resolve_flags : (* package_opt *) string option -> ResolveImport.flags
 val resolved_import_name : Syntax.resolved_import Source.phrase -> string
@@ -65,3 +65,6 @@ type load_result =
   (Syntax.lib list * Syntax.prog list * Scope.scope) Diag.result
 
 val load_progs : ?check_actors:bool -> parse_fn -> string list -> Scope.scope -> load_result
+
+val get_migration_files : string -> string list
+val load_migration_modules : string list -> ((string * Type.typ * Type.typ) list * Syntax.lib list) Diag.result

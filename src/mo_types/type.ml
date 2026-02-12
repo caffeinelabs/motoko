@@ -1876,6 +1876,7 @@ let install_typ ts actor_typ =
 
 let cycles_lab = "cycles"
 let migration_lab = "migration"
+let multi_migration_lab = "multi_migration"
 let timeout_lab = "timeout"
 
 let cycles_fld = { lab = cycles_lab; typ = nat; src = empty_src }
@@ -2557,3 +2558,7 @@ let string_of_stab_sig stab_sig : string =
   | Single _ -> "// Version: 1.0.0\n"
   | PrePost _ -> "// Version: 3.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
+
+(* The migration chain passed from pipeline to typing. *)
+(* Migration chain from --enhanced-migration directory: (filename, module_type, run_type) triples in order *)
+let migration_chain : (string * typ * typ) list ref = ref []

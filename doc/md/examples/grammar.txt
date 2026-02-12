@@ -331,9 +331,11 @@
 
 <dec_var> ::= 
     'var' <id> (':' <typ>)? '=' <exp>
+    'var' <id> (':' <typ>)?
 
 <dec_nonvar> ::= 
     'let' <pat> '=' <exp>
+    'let' <pat>
     'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
     <parenthetical>? <obj_or_class_dec>

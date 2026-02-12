@@ -207,6 +207,9 @@ let error_codes : (string * string option) list =
     "M0233", None; (* Wrong number of arguments *)
     "M0234", None; (* Field exists but is not a function *)
     "M0238", None; (* Misplaced break or continue *)
+    "M0250", None; (* Variables without initializers only allowed in actors with --enhanced-migration flag *)
+    "M0251", None; (* Enhanced migration chain validation error (bad run type, chain broken, output mismatch) *)
+    "M0252", None; (* Cannot combine (with migration = ...) with --enhanced-migration *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
