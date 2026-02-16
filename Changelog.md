@@ -3,6 +3,7 @@
 * motoko (`moc`)
 
   * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
+  * Adds `--error-format human` option to print pretty errors with code snippets and labels (#5816).
 
 ## 1.2.0 (2026-02-12)
 
