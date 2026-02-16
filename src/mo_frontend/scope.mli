@@ -1,6 +1,10 @@
 open Mo_types.Type
 
-type val_kind = Declaration | FieldReference
+(* For improved warning messages during unused detection:
+   - An identifier of a declaration can be renamed, e.g. prefixed by '_'.
+   - The field identifier in a field pattern cannot be renamed but can be bound to a new pattern.
+   - An identifier introduced via mixin inclusion should not generate unused warnings *)
+type val_kind = Declaration | FieldReference | MixinIncluded | MutableNotAssigned
 type val_env = (typ * Source.region * val_kind) Env.t
 type lib_env = Mo_types.Type.typ Env.t
 type typ_env = con Env.t

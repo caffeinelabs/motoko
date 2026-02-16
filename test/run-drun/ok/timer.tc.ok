@@ -1,4 +1,5 @@
 timer.mo:18.21-18.35: warning [M0194], unused identifier setGlobalTimer (delete or rename to wildcard `_` or `_setGlobalTimer`)
+timer.mo:23.7-23.10: warning [M0244], variable max is never reassigned, consider using `let`
 timer.mo:31.10-31.13: warning [M0194], unused identifier id1 (delete or rename to wildcard `_` or `_id1`)
 timer.mo:32.10-32.13: warning [M0194], unused identifier id2 (delete or rename to wildcard `_` or `_id2`)
 timer.mo:33.10-33.13: warning [M0194], unused identifier id3 (delete or rename to wildcard `_` or `_id3`)

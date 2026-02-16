@@ -1,0 +1,2 @@
+unused-mut.mo:3.7-3.8: warning [M0244], variable x is never reassigned, consider using `let`
+unused-mut.mo:16.7-16.8: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)

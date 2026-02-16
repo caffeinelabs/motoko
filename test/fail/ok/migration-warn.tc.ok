@@ -3,3 +3,6 @@ migration-warn.mo:4.7-8.5: warning [M0206], migration expression consumes field 
 but does not produce it, yet the field is declared in the actor.
 The declaration in the actor will be reinitialized, discarding its consumed value.
 If reinitialization is unintended, and you want to preserve the consumed value, either remove this field from the parameter of the migration function or add it to the result of the migration function.
+migration-warn.mo:11.15-11.19: warning [M0244], variable data is never reassigned, consider using `let`
+migration-warn.mo:24.15-24.19: warning [M0244], variable data is never reassigned, consider using `let`
+migration-warn.mo:37.15-37.19: warning [M0244], variable data is never reassigned, consider using `let`

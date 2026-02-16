@@ -11,6 +11,7 @@ module A = Effect
 module C = Async_cap
 
 module S = Set.Make(String)
+type usage = { assigned : bool }
 
 (* Contexts *)
 
@@ -34,7 +35,10 @@ let initial_scope =
     Scope.con_env = T.ConSet.singleton C.top_cap;
   }
 
-type unused_warnings = (string * Source.region * Scope.val_kind) List.t
+module UWSet = Set.Make(struct
+  type t = string * Source.region * Scope.val_kind
+  let compare (_, r1, _) (_, r2, _) = Region_ord.compare r1 r2
+end)
 
 type env =
   { vals : val_env;
@@ -58,8 +62,8 @@ type env =
     msgs : Diag.msg_store;
     scopes : Source.region T.ConEnv.t;
     check_unused : bool;
-    used_identifiers : S.t ref;
-    unused_warnings : unused_warnings ref;
+    used_identifiers : usage T.Env.t ref;
+    unused_warnings : UWSet.t ref;
     shared_pat_regions : Source.region list ref;
     reported_stable_memory : bool ref;
     errors_only : bool;
@@ -90,8 +94,8 @@ let env_of_scope msgs scope =
     msgs;
     scopes = T.ConEnv.empty;
     check_unused = true;
-    used_identifiers = ref S.empty;
-    unused_warnings = ref [];
+    used_identifiers = ref T.Env.empty;
+    unused_warnings = ref UWSet.empty;
     shared_pat_regions = ref [];
     reported_stable_memory = ref false;
     errors_only = false;
@@ -101,32 +105,27 @@ let env_of_scope msgs scope =
   }
 
 let use_identifier env id =
-  env.used_identifiers := S.add id !(env.used_identifiers)
+  env.used_identifiers := T.Env.update id (function
+    | Some u -> Some u
+    | None -> Some { assigned = false }
+  ) !(env.used_identifiers)
+
+let assign_identifier env id =
+  env.used_identifiers := T.Env.add id { assigned = true } !(env.used_identifiers)
 
 let is_unused_identifier env id =
-  not (S.mem id !(env.used_identifiers))
+  not (T.Env.mem id !(env.used_identifiers))
+
+let is_unassigned_identifier env id =
+  match T.Env.find_opt id !(env.used_identifiers) with
+  | Some { assigned = false } -> true
+  | _ -> false
 
 let get_identifiers identifiers =
   T.Env.fold (fun id _ set -> S.add id set) identifiers S.empty
 
-let equal_unused_warning first second = first = second
-
 let add_unused_warning env warning =
-  if List.find_opt (equal_unused_warning warning) !(env.unused_warnings) = None then
-    env.unused_warnings := warning::!(env.unused_warnings)
-  else ()
-
-let compare_unused_warning first second =
-  let (first_id, {left = first_left; right = first_right}, _) = first in
-  let (second_id, {left = second_left; right = second_right}, _) = second in
-  match compare first_left second_left with
-  | 0 ->
-    (match compare first_right second_right with
-     | 0 -> compare first_id second_id
-     | other -> other)
-  | other -> other
-
-let sorted_unused_warnings list = List.sort compare_unused_warning list
+  env.unused_warnings := UWSet.add warning !(env.unused_warnings)
 
 let kind_of_field_pattern pf = match pf.it with
   | ValPF(id, { it = VarP pat_id; _ }) when id = pat_id -> Scope.FieldReference
@@ -368,6 +367,9 @@ let emit_unused_warnings env =
       | Scope.FieldReference ->
          warn env region "M0241"
            "unused field %s in shared pattern (delete or rewrite as `%s = _`)" id id
+      | Scope.MutableNotAssigned ->
+         warn env region "M0244" "variable %s is never reassigned, consider using `let`" id
+      | Scope.MixinIncluded -> ()
     else
       match kind with
       | Scope.Declaration ->
@@ -376,28 +378,36 @@ let emit_unused_warnings env =
       | Scope.FieldReference ->
         warn env region "M0198"
           "unused field %s in object pattern (delete or rewrite as `%s = _`)" id id
+      | Scope.MutableNotAssigned ->
+         warn env region "M0244" "variable %s is never reassigned, consider using `let`" id
+      | Scope.MixinIncluded -> ()
   in
-  let list = sorted_unused_warnings !(env.unused_warnings) in
-  List.iter emit list
+  UWSet.iter emit !(env.unused_warnings)
 
 let ignore_warning_for_id id =
   Syntax.(is_underscored id || is_privileged id)
 
 let detect_unused env inner_identifiers =
   if not env.pre && env.check_unused then
-    T.Env.iter (fun id (_, at, kind) ->
-      if (not (ignore_warning_for_id id)) && (is_unused_identifier env id) then
-        add_unused_warning env (id, at, kind)
+    T.Env.iter (fun id (typ, at, kind) ->
+      if not (ignore_warning_for_id id) then begin
+        if is_unused_identifier env id then
+          add_unused_warning env (id, at, kind)
+        else if T.is_mut typ && is_unassigned_identifier env id then
+          add_unused_warning env (id, at, Scope.MutableNotAssigned)
+      end
     ) inner_identifiers
 
-let enter_scope env : S.t =
+let enter_scope env : usage T.Env.t =
   !(env.used_identifiers)
 
 let leave_scope env inner_identifiers initial_usage =
   detect_unused env inner_identifiers;
-  let inner_identifiers = get_identifiers inner_identifiers in
-  let unshadowed_usage = S.diff !(env.used_identifiers) inner_identifiers in
-  let final_usage = S.union initial_usage unshadowed_usage in
+  let inner_ids = get_identifiers inner_identifiers in
+  let unshadowed_usage = T.Env.filter (fun id _ -> not (S.mem id inner_ids)) !(env.used_identifiers) in
+  let final_usage = T.Env.union (fun _ u1 u2 ->
+    Some { assigned = u1.assigned || u2.assigned }
+  ) initial_usage unshadowed_usage in
   env.used_identifiers := final_usage
 
 (* Value environments *)
@@ -1974,6 +1984,9 @@ and infer_exp'' env exp : T.typ =
       raise Recover)
   | AssignE (exp1, exp2) ->
     if not env.pre then begin
+      (match exp1.it with
+       | VarE id -> assign_identifier env id.it
+       | _ -> ());
       let t1 = infer_exp_mut env exp1 in
       try
         let t2 = T.as_mut t1 in
@@ -3685,11 +3698,11 @@ and vis_val_id src id (xs, ys) : visibility_env =
 
 (* Object/Scope transformations *)
 
-and scope_of_object env fs tfs =
+and scope_of_object val_kind env fs tfs =
   let typ_env = List.fold_left (fun te tf ->
     T.Env.add tf.T.lab tf.T.typ te) T.Env.empty tfs in
   let val_env = List.fold_left (fun te f ->
-    T.Env.add f.T.lab (f.T.typ, Source.no_region, Scope.FieldReference) te) T.Env.empty fs in
+    T.Env.add f.T.lab (f.T.typ, Source.no_region, val_kind) te) T.Env.empty fs in
   Scope.{ empty with typ_env; val_env }
 
 (* TODO: remove by merging conenv and valenv or by separating typ_fields *)
@@ -4402,7 +4415,7 @@ and gather_dec env scope dec : Scope.t =
       ) scope.typ_env tfs in
       let val_env = List.fold_left (fun ve T.{ lab; typ; _ } ->
         if T.Env.mem lab ve then error_duplicate env "" { it = lab; at = i.at; note = () };
-        T.Env.add lab (typ, Source.no_region, Scope.Declaration) ve
+        T.Env.add lab (typ, Source.no_region, Scope.MixinIncluded) ve
       ) scope.val_env fs in
       { scope with typ_env; val_env }
     end
@@ -4463,9 +4476,7 @@ and infer_dec_typdecs env dec : Scope.t =
       let open Scope in
       n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs });
       let (_, fs, tfs) = T.as_obj' mix.typ in
-      let scope = scope_of_object env fs tfs in
-      (* Mark all included idents as used to avoid spurious warnings *)
-      T.Env.iter (fun i _ -> use_identifier env i) scope.val_env;
+      let scope = scope_of_object Scope.MixinIncluded env fs tfs in
       scope
     end
   (* TODO: generalize beyond let <id> = <obje> *)

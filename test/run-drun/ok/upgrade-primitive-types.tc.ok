@@ -1,0 +1,7 @@
+upgrade-primitive-types.mo:11.16-11.27: warning [M0244], variable intVariable is never reassigned, consider using `let`
+upgrade-primitive-types.mo:12.16-12.28: warning [M0244], variable int8Variable is never reassigned, consider using `let`
+upgrade-primitive-types.mo:13.16-13.29: warning [M0244], variable int16Variable is never reassigned, consider using `let`
+upgrade-primitive-types.mo:14.16-14.29: warning [M0244], variable int32Variable is never reassigned, consider using `let`
+upgrade-primitive-types.mo:15.16-15.29: warning [M0244], variable int64Variable is never reassigned, consider using `let`
+upgrade-primitive-types.mo:19.16-19.28: warning [M0244], variable blobVariable is never reassigned, consider using `let`
+upgrade-primitive-types.mo:20.16-20.33: warning [M0244], variable principalVariable is never reassigned, consider using `let`

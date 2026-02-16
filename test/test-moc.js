@@ -215,6 +215,23 @@ assert.deepStrictEqual(Motoko.candid("ast.mo"), {
       source: "ast.mo",
     },
     {
+      category: 'type',
+      code: 'M0244',
+      message: 'variable x is never reassigned, consider using `let`',
+      range: {
+        end: {
+          character: 9,
+          line: 9
+        },
+        start: {
+          character: 8,
+          line: 9
+        }
+      },
+      severity: 2,
+      source: 'ast.mo'
+    },
+    {
       category: "type",
       code: "M0194",
       message: "unused identifier M (delete or rename to wildcard `_` or `_M`)",

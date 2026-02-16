@@ -1,3 +1,5 @@
 sha256/List.mo:67.22-67.23: warning [M0194], unused identifier t (delete or rename to wildcard `_` or `_t`)
 sha256/List.mo:204.16-204.17: warning [M0194], unused identifier h (delete or rename to wildcard `_` or `_h`)
 sha256/Iter.mo:194.29-194.31: warning [M0194], unused identifier ix (delete or rename to wildcard `_` or `_ix`)
+sha256/SHA256.mo:116.11-116.12: warning [M0244], variable t is never reassigned, consider using `let`
+sha256/SHA256.mo:147.11-147.12: warning [M0244], variable w is never reassigned, consider using `let`
