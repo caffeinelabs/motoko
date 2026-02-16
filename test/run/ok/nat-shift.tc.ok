@@ -1,3 +1,2 @@
-nat-shift.mo:43.35-43.43: warning [M0155], operator may trap for inferred type
+nat-shift.mo:44.35-44.43: warning [M0155], operator may trap for inferred type
   Nat
-nat-shift.mo:1.10-1.20: warning [M0198], unused field debugPrint in object pattern (delete or rewrite as `debugPrint = _`)

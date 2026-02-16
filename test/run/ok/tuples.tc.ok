@@ -1,2 +1,0 @@
-tuples.mo:19.6-19.7: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
-tuples.mo:19.22-19.23: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)

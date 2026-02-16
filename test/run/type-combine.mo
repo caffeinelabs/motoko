@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 func bot() : None { bot() };
 
 // Any

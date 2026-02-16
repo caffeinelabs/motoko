@@ -1,15 +1,10 @@
-objects1.mo:26.8-26.24: warning [M0146], this pattern is never matched
-objects1.mo:27.8-27.11: warning [M0146], this pattern is never matched
-objects1.mo:36.23-39.2: warning [M0145], this switch of type
+objects1.mo:27.8-27.24: warning [M0146], this pattern is never matched
+objects1.mo:28.8-28.11: warning [M0146], this pattern is never matched
+objects1.mo:37.23-40.2: warning [M0145], this switch of type
   {a : Int; b : Nat}
 does not cover value
   {a = 0 or 1 or _; b = 0 or 1 or _}
-objects1.mo:47.21-49.2: warning [M0145], this switch of type
+objects1.mo:48.21-50.2: warning [M0145], this switch of type
   (Nat, Int, {c : Char; d : Text})
 does not cover value
   (_, 0 or 1 or _, _)
-objects1.mo:7.6-7.12: warning [M0194], unused identifier nonrec (delete or rename to wildcard `_` or `_nonrec`)
-objects1.mo:11.5-11.7: warning [M0194], unused identifier oo (delete or rename to wildcard `_` or `_oo`)
-objects1.mo:18.9-18.10: warning [M0194], unused identifier C (delete or rename to wildcard `_` or `_C`)
-objects1.mo:55.6-55.9: warning [M0194], unused identifier baz (delete or rename to wildcard `_` or `_baz`)
-objects1.mo:59.6-59.15: warning [M0194], unused identifier full_name (delete or rename to wildcard `_` or `_full_name`)

@@ -1,2 +1,1 @@
-variants.mo:27.1-27.11: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-variants.mo:27.5-27.8: warning [M0194], unused identifier ts3 (delete or rename to wildcard `_` or `_ts3`)
+variants.mo:28.1-28.11: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

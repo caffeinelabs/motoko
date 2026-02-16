@@ -1,2 +1,0 @@
-import-module-explicit.mo:4.5-4.6: warning [M0194], unused identifier s (delete or rename to wildcard `_` or `_s`)
-import-module-explicit.mo:5.5-5.6: warning [M0194], unused identifier u (delete or rename to wildcard `_` or `_u`)

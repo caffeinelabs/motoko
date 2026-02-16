@@ -1,7 +1,0 @@
-object-extend-type.mo:15.5-15.8: warning [M0194], unused identifier ac1 (delete or rename to wildcard `_` or `_ac1`)
-object-extend-type.mo:18.5-18.7: warning [M0194], unused identifier ab (delete or rename to wildcard `_` or `_ab`)
-object-extend-type.mo:21.5-21.7: warning [M0194], unused identifier am (delete or rename to wildcard `_` or `_am`)
-object-extend-type.mo:22.5-22.7: warning [M0194], unused identifier bm (delete or rename to wildcard `_` or `_bm`)
-object-extend-type.mo:24.5-24.7: warning [M0194], unused identifier aM (delete or rename to wildcard `_` or `_aM`)
-object-extend-type.mo:25.5-25.7: warning [M0194], unused identifier bM (delete or rename to wildcard `_` or `_bM`)
-object-extend-type.mo:36.5-36.7: warning [M0194], unused identifier r2 (delete or rename to wildcard `_` or `_r2`)

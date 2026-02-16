@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 func foo_0_0 () : () = ();
 
 func foo_0_1 () : (Int) = 1;

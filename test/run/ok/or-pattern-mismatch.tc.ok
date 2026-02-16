@@ -1,30 +1,25 @@
-or-pattern-mismatch.mo:2.5-2.23: warning [M0190], pattern variable a1 has larger type
+or-pattern-mismatch.mo:3.5-3.23: warning [M0190], pattern variable a1 has larger type
   Any
 because its types in the pattern alternatives are unrelated smaller types:
 type in left pattern is
   Nat
 type in right pattern is
   Char
-or-pattern-mismatch.mo:4.5-4.20: warning [M0146], this pattern is never matched
-or-pattern-mismatch.mo:4.6-4.19: warning [M0146], this pattern is never matched
-or-pattern-mismatch.mo:5.5-5.32: warning [M0190], pattern variable a4 has larger type
+or-pattern-mismatch.mo:5.5-5.20: warning [M0146], this pattern is never matched
+or-pattern-mismatch.mo:5.6-5.19: warning [M0146], this pattern is never matched
+or-pattern-mismatch.mo:6.5-6.32: warning [M0190], pattern variable a4 has larger type
   Any
 because its types in the pattern alternatives are unrelated smaller types:
 type in left pattern is
   Char
 type in right pattern is
   Int
-or-pattern-mismatch.mo:6.5-6.32: warning [M0190], pattern variable a5 has larger type
+or-pattern-mismatch.mo:7.5-7.32: warning [M0190], pattern variable a5 has larger type
   Any
 because its types in the pattern alternatives are unrelated smaller types:
 type in left pattern is
   Char
 type in right pattern is
   Int
-or-pattern-mismatch.mo:6.5-6.21: warning [M0146], this pattern is never matched
-or-pattern-mismatch.mo:6.6-6.20: warning [M0146], this pattern is never matched
-or-pattern-mismatch.mo:2.9-2.11: warning [M0194], unused identifier a1 (delete or rename to wildcard `_` or `_a1`)
-or-pattern-mismatch.mo:3.10-3.12: warning [M0194], unused identifier a2 (delete or rename to wildcard `_` or `_a2`)
-or-pattern-mismatch.mo:4.10-4.12: warning [M0194], unused identifier a3 (delete or rename to wildcard `_` or `_a3`)
-or-pattern-mismatch.mo:5.10-5.12: warning [M0194], unused identifier a4 (delete or rename to wildcard `_` or `_a4`)
-or-pattern-mismatch.mo:6.10-6.12: warning [M0194], unused identifier a5 (delete or rename to wildcard `_` or `_a5`)
+or-pattern-mismatch.mo:7.5-7.21: warning [M0146], this pattern is never matched
+or-pattern-mismatch.mo:7.6-7.20: warning [M0146], this pattern is never matched
