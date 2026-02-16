@@ -1,3 +1,4 @@
+mod review;
 mod test_runner;
 use crate::test_runner::SubnetType;
 use clap::Parser;
@@ -44,6 +45,18 @@ pub struct TestRunnerArgs {
         help = "Just run type checking on tests."
     )]
     pub just_tc: bool,
+    #[arg(
+        long,
+        conflicts_with = "run",
+        help = "Review and accept changed test outputs."
+    )]
+    pub review: bool,
+    #[arg(
+        long,
+        requires = "review",
+        help = "Test directory to review (e.g. test/fail). Can be repeated. If omitted, all test dirs are scanned."
+    )]
+    pub dir: Vec<String>,
 }
 
 /// The program reads stdin where the .drun file contents are piped in.
@@ -289,6 +302,22 @@ fn main() {
         if let Some(missing) = required.iter().find(|p| !path.join(p).exists()) {
             println!("Current path: {:?}", path.display());
             println!("test-runner should be run from the top-level repo directory (missing {missing}).");
+            return;
+        }
+
+        if args.review {
+            let default_dirs = vec![
+                "test/run-drun".to_string(),
+                "test/run".to_string(),
+                "test/fail".to_string(),
+            ];
+            let dirs = if args.dir.is_empty() {
+                &default_dirs
+            } else {
+                &args.dir
+            };
+            let dir_refs: Vec<&str> = dirs.iter().map(|s| s.as_str()).collect();
+            review::run_review(&dir_refs);
             return;
         }
 
