@@ -71,7 +71,7 @@ fn run_legacy_mode(subnet_type: SubnetType) {
 
 /// The program offers the user a list of tests to choose from.
 /// A summary of the results of the tests is then printed out.
-fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
+fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do_review: bool) {
     let test_dirs = ["test/run-drun", "test/run", "test/fail"];
 
     let load_file_contents = |path: &String| {
@@ -203,7 +203,7 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
     let pb_arc = Arc::new(pb);
 
     let start_time = Instant::now();
-    let test_results = selection
+    let test_results: Vec<SingleTestResult> = selection
         .into_par_iter()
         .map(|test_path| {
             let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
@@ -217,10 +217,21 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool) {
         .collect();
     let duration = start_time.elapsed();
     pb_arc.finish_and_clear();
-    print_summary(test_results, duration);
+    print_summary(&test_results, duration);
+
+    if do_review {
+        let failed_paths: Vec<String> = test_results
+            .iter()
+            .filter(|t| !t.success)
+            .map(|t| t.test_name.clone())
+            .collect();
+        if !failed_paths.is_empty() {
+            review::run_review_for_tests(&failed_paths);
+        }
+    }
 }
 
-fn print_summary(test_results: Vec<SingleTestResult>, duration: Duration) {
+fn print_summary(test_results: &[SingleTestResult], duration: Duration) {
     println!("You ran {:?} tests in {:?}", test_results.len(), duration);
     let failed: Vec<&SingleTestResult> = test_results.iter().filter(|t| !t.success).collect();
     let successful_no = test_results.len() - failed.len();
@@ -305,18 +316,8 @@ fn main() {
             return;
         }
 
-        if args.review {
-            let default_dirs = vec![
-                "test/run-drun".to_string(),
-                "test/run".to_string(),
-                "test/fail".to_string(),
-            ];
-            let dirs = if args.dir.is_empty() {
-                &default_dirs
-            } else {
-                &args.dir
-            };
-            let dir_refs: Vec<&str> = dirs.iter().map(|s| s.as_str()).collect();
+        if args.review && !args.dir.is_empty() {
+            let dir_refs: Vec<&str> = args.dir.iter().map(|s| s.as_str()).collect();
             review::run_review(&dir_refs);
             return;
         }
@@ -331,6 +332,7 @@ fn main() {
             args.filter.as_deref().unwrap_or(""),
             args.in_file,
             args.just_tc,
+            args.review,
         );
     }
 }

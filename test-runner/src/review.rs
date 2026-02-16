@@ -1,5 +1,5 @@
 use similar::{ChangeTag, TextDiff};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -46,7 +46,7 @@ fn extract_phase(test_name: &str, out_filename: &str) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-fn discover_diffs(dir: &Path) -> Vec<TestDiff> {
+fn discover_diffs(dir: &Path, filter: Option<&HashSet<String>>) -> Vec<TestDiff> {
     let out_dir = dir.join("_out");
     let ok_dir = dir.join("ok");
 
@@ -71,6 +71,11 @@ fn discover_diffs(dir: &Path) -> Vec<TestDiff> {
     let mut results = Vec::new();
 
     for (test_name, source_file) in &source_files {
+        if let Some(filter) = filter {
+            if !filter.contains(test_name.as_str()) {
+                continue;
+            }
+        }
         let mut phase_diffs = Vec::new();
 
         // Scan _out/ for files belonging to this test
@@ -183,34 +188,20 @@ fn accept_test(diff: &TestDiff) {
     }
 }
 
-pub fn run_review(dirs: &[&str]) {
-    let mut all_diffs: Vec<TestDiff> = Vec::new();
-    for dir in dirs {
-        let path = Path::new(dir);
-        if !path.exists() {
-            eprintln!("Warning: directory {dir} does not exist, skipping.");
-            continue;
-        }
-        all_diffs.extend(discover_diffs(path));
-    }
-
+fn review_diffs(all_diffs: Vec<TestDiff>) {
     if all_diffs.is_empty() {
         println!("No changes found between _out/ and ok/.");
         return;
     }
 
-    println!(
-        "Found changes in {} test(s).\n",
-        all_diffs.len()
-    );
+    println!("Found changes in {} test(s).\n", all_diffs.len());
 
     for (i, diff) in all_diffs.iter().enumerate() {
         print_diff(diff);
         println!();
 
         let options = vec!["Accept", "Accept All", "Skip", "Quit"];
-        let answer = inquire::Select::new("What do you want to do?", options)
-            .prompt();
+        let answer = inquire::Select::new("What do you want to do?", options).prompt();
 
         match answer {
             Ok("Accept") => {
@@ -222,7 +213,10 @@ pub fn run_review(dirs: &[&str]) {
                 println!("\x1b[32mAccepted changes for {}.\x1b[0m", diff.test_name);
                 for remaining in &all_diffs[i + 1..] {
                     accept_test(remaining);
-                    println!("\x1b[32mAccepted changes for {}.\x1b[0m", remaining.test_name);
+                    println!(
+                        "\x1b[32mAccepted changes for {}.\x1b[0m",
+                        remaining.test_name
+                    );
                 }
                 break;
             }
@@ -238,4 +232,45 @@ pub fn run_review(dirs: &[&str]) {
     }
 
     println!("\nReview complete.");
+}
+
+pub fn run_review(dirs: &[&str]) {
+    let mut all_diffs: Vec<TestDiff> = Vec::new();
+    for dir in dirs {
+        let path = Path::new(dir);
+        if !path.exists() {
+            eprintln!("Warning: directory {dir} does not exist, skipping.");
+            continue;
+        }
+        all_diffs.extend(discover_diffs(path, None));
+    }
+    review_diffs(all_diffs);
+}
+
+/// Review diffs for specific test file paths (e.g. "test/fail/M0026.mo").
+/// Groups by directory and only shows diffs for the named tests.
+pub fn run_review_for_tests(test_paths: &[String]) {
+    let mut dir_tests: HashMap<String, HashSet<String>> = HashMap::new();
+    for path in test_paths {
+        let p = Path::new(path);
+        if let (Some(dir), Some(filename)) = (p.parent(), p.file_name()) {
+            let fname = filename.to_string_lossy();
+            if let Some(name) = test_name_from_source(&fname) {
+                dir_tests
+                    .entry(dir.to_string_lossy().to_string())
+                    .or_default()
+                    .insert(name.to_string());
+            }
+        }
+    }
+
+    let mut all_diffs: Vec<TestDiff> = Vec::new();
+    for (dir, tests) in &dir_tests {
+        let path = Path::new(dir);
+        if path.exists() {
+            all_diffs.extend(discover_diffs(path, Some(tests)));
+        }
+    }
+    all_diffs.sort_by(|a, b| a.test_name.cmp(&b.test_name));
+    review_diffs(all_diffs);
 }
