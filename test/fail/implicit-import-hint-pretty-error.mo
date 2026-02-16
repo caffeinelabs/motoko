@@ -1,6 +1,6 @@
 //MOC-FLAG --ai-errors
 //MOC-FLAG --package core ../core-stub/src
-//MOC-FLAG --print-source-on-error
+//MOC-FLAG --error-format human
 
 import Map "mo:core/Map";
 

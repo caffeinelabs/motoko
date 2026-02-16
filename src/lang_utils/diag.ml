@@ -70,7 +70,7 @@ let get_msgs s = List.rev !s
 let has_errors : messages -> bool =
   List.exists (fun msg -> msg.sev == Error)
 
-let plain_of_message msg =
+let string_of_message msg =
   let code = match msg.sev, msg.code with
     | Info, _ -> ""
     | _, "" -> ""
@@ -135,12 +135,6 @@ let fancy_of_message msg =
       "%s" msg.text) in
     Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
 
-let string_of_message msg =
-  if !Flags.print_source_on_error then
-    fancy_of_message msg
-  else
-    plain_of_message msg
-
 let string_of_severity (sev : severity) = match sev with
   | Error -> "error"
   | Warning -> "warning"
@@ -183,6 +177,7 @@ let print_message msg =
   then ()
   else match !Flags.error_format with
   | Flags.Classic -> Printf.eprintf "%s%!" (string_of_message msg)
+  | Flags.Human -> Printf.eprintf "%s%!" (fancy_of_message msg)
   | Flags.Json -> Printf.printf "%s\n%!" (json_string_of_message msg)
 
 let print_messages = List.iter print_message
