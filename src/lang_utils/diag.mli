@@ -6,7 +6,7 @@ type priority = Primary | Secondary
 type span = {
   prio : priority;
   at_span : Source.region;
-  text : string;
+  label : string;
 }
 type message = {
   sev : severity;

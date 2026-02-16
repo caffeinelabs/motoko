@@ -7,7 +7,7 @@ type priority = Primary | Secondary
 type span = {
   prio : priority;
   at_span : Source.region;
-  text : string;
+  label : string;
 }
 type message = {
   sev : severity;
@@ -82,7 +82,7 @@ let string_of_message msg =
   let spans =
     let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
     if primary_spans <> [] then
-      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.text) primary_spans)
+      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.label) primary_spans)
     else "" in
   let notes =
     if msg.notes <> [] then
@@ -116,7 +116,7 @@ let fancy_of_message msg =
     let priority = match span.prio with
       | Primary -> G.Diagnostic.Priority.Primary
       | Secondary -> G.Diagnostic.Priority.Secondary in
-    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.text in
+    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
   let labels =
     if msg.spans = [] then
       [G.Diagnostic.Label.primaryf ~range:(range msg.at) ""]
