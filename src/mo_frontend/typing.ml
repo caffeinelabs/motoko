@@ -111,10 +111,7 @@ let use_identifier env id =
   ) !(env.used_identifiers)
 
 let assign_identifier env id =
-  env.used_identifiers := T.Env.update id (function
-    | Some _ -> Some { assigned = true }
-    | None -> Some { assigned = true }
-  ) !(env.used_identifiers)
+  env.used_identifiers := T.Env.add id { assigned = true } !(env.used_identifiers)
 
 let is_unused_identifier env id =
   not (T.Env.mem id !(env.used_identifiers))
