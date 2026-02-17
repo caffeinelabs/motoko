@@ -1,6 +1,5 @@
-OOPS! You've triggered a compiler bug.
-Please report this at https://github.com/dfinity/motoko/issues/new with the following details:
-
-Motoko (source XXX)
-
-Fatal error: exception Invalid_argument("range beyond end of source; stop = 111 > 96 = eos")
+error[M0072]: field g does not exist in type:
+  module {f : () -> ()}
+    ┌─ modexp1.mo:8:15
+  8 │  let wrong = X.g;
+    │                ^ 

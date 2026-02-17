@@ -1,6 +1,4 @@
-OOPS! You've triggered a compiler bug.
-Please report this at https://github.com/dfinity/motoko/issues/new with the following details:
-
-Motoko (source XXX)
-
-Fatal error: exception Invalid_argument("range beyond end of source; stop = 134 > 122 = eos")
+error[M0055]: cannot infer type of forward variable Foo
+    ┌─ nested-class-rec-fail.mo:7:13
+  7 │    let foo = Foo(g, g);
+    │              ^^^ 
