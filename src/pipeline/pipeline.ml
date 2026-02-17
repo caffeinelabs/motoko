@@ -856,7 +856,7 @@ and compile_unit mode do_link imports u : Wasm_exts.CustomModule.extended_module
     adjust_flags ();
     let rts = if do_link then Some (load_as_rts ()) else None in
     Diag.return (if !Flags.enhanced_orthogonal_persistence then
-      Codegen.Compile_enhanced.compile mode rts prog_ir
+      Codegen.Compile_enhanced_64.compile mode rts prog_ir
     else
       Codegen.Compile_classical.compile mode rts prog_ir))
 
