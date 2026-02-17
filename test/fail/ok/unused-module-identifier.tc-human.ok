@@ -1,4 +1,4 @@
-warning[M0194]: unused identifier UnusedSubModule (delete or rename to wildcard `_` or `_UnusedSubModule`)
+warning[M0194]: unused identifier: `UnusedSubModule`
     ┌─ unused-module-identifier.mo:8:12
   8 │      module UnusedSubModule {};
-    │             ^^^^^^^^^^^^^^^ 
+    │             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_UnusedSubModule`

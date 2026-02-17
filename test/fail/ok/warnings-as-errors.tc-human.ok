@@ -2,7 +2,7 @@ error[M0089]: redundant ignore, operand already has type ()
     ┌─ warnings-as-errors.mo:4:1
   4 │  ignore main(1);
     │  ^^^^^^^^^^^^^^ 
-error[M0194]: unused identifier x (delete or rename to wildcard `_` or `_x`)
+error[M0194]: unused identifier: `x`
     ┌─ warnings-as-errors.mo:3:11
   3 │  func main(x : Int) {};
-    │            ^ 
+    │            ^ help: if this is intentional, prefix it with an underscore: `_x`

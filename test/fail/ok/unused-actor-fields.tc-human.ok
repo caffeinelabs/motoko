@@ -1,92 +1,92 @@
-warning[M0194]: unused identifier TestClass (delete or rename to wildcard `_` or `_TestClass`)
+warning[M0194]: unused identifier: `TestClass`
     ┌─ unused-actor-fields.mo:5:11
   5 │      class TestClass(classParameter1 : Nat, classParameter2 : Int) {
-    │            ^^^^^^^^^ 
-warning[M0194]: unused identifier classParameter1 (delete or rename to wildcard `_` or `_classParameter1`)
+    │            ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_TestClass`
+warning[M0194]: unused identifier: `classParameter1`
     ┌─ unused-actor-fields.mo:5:21
   5 │      class TestClass(classParameter1 : Nat, classParameter2 : Int) {
-    │                      ^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier classParameter2 (delete or rename to wildcard `_` or `_classParameter2`)
+    │                      ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_classParameter1`
+warning[M0194]: unused identifier: `classParameter2`
     ┌─ unused-actor-fields.mo:5:44
   5 │      class TestClass(classParameter1 : Nat, classParameter2 : Int) {
-    │                                             ^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier field1 (delete or rename to wildcard `_` or `_field1`)
+    │                                             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_classParameter2`
+warning[M0194]: unused identifier: `field1`
     ┌─ unused-actor-fields.mo:6:13
   6 │          let field1 = 1;
-    │              ^^^^^^ 
+    │              ^^^^^^ help: if this is intentional, prefix it with an underscore: `_field1`
 warning[M0244]: variable field2 is never reassigned, consider using `let`
     ┌─ unused-actor-fields.mo:7:13
   7 │          var field2 = 2;
     │              ^^^^^^ 
-warning[M0194]: unused identifier field3 (delete or rename to wildcard `_` or `_field3`)
+warning[M0194]: unused identifier: `field3`
     ┌─ unused-actor-fields.mo:8:13
   8 │          var field3 = field2;
-    │              ^^^^^^ 
-warning[M0194]: unused identifier unusedMethod (delete or rename to wildcard `_` or `_unusedMethod`)
+    │              ^^^^^^ help: if this is intentional, prefix it with an underscore: `_field3`
+warning[M0194]: unused identifier: `unusedMethod`
     ┌─ unused-actor-fields.mo:10:14
  10 │          func unusedMethod(unusedParameter1 : Any) {
-    │               ^^^^^^^^^^^^ 
-warning[M0194]: unused identifier unusedParameter1 (delete or rename to wildcard `_` or `_unusedParameter1`)
+    │               ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedMethod`
+warning[M0194]: unused identifier: `unusedParameter1`
     ┌─ unused-actor-fields.mo:10:27
  10 │          func unusedMethod(unusedParameter1 : Any) {
-    │                            ^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier local1 (delete or rename to wildcard `_` or `_local1`)
+    │                            ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedParameter1`
+warning[M0194]: unused identifier: `local1`
     ┌─ unused-actor-fields.mo:11:17
  11 │              let local1 = 0;
-    │                  ^^^^^^ 
-warning[M0194]: unused identifier TestObject (delete or rename to wildcard `_` or `_TestObject`)
+    │                  ^^^^^^ help: if this is intentional, prefix it with an underscore: `_local1`
+warning[M0194]: unused identifier: `TestObject`
     ┌─ unused-actor-fields.mo:15:12
  15 │      object TestObject {
-    │             ^^^^^^^^^^ 
+    │             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_TestObject`
 warning[M0244]: variable objectField2 is never reassigned, consider using `let`
     ┌─ unused-actor-fields.mo:17:13
  17 │          var objectField2 = 2;
     │              ^^^^^^^^^^^^ 
-warning[M0194]: unused identifier objectField3 (delete or rename to wildcard `_` or `_objectField3`)
+warning[M0194]: unused identifier: `objectField3`
     ┌─ unused-actor-fields.mo:18:13
  18 │          let objectField3 = objectField1;
-    │              ^^^^^^^^^^^^ 
-warning[M0194]: unused identifier objectField4 (delete or rename to wildcard `_` or `_objectField4`)
+    │              ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_objectField3`
+warning[M0194]: unused identifier: `objectField4`
     ┌─ unused-actor-fields.mo:19:13
  19 │          var objectField4 = objectField2;
-    │              ^^^^^^^^^^^^ 
+    │              ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_objectField4`
 warning[M0244]: variable variable1 is never reassigned, consider using `let`
     ┌─ unused-actor-fields.mo:22:9
  22 │      var variable1 = 0;
     │          ^^^^^^^^^ 
-warning[M0194]: unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
+warning[M0194]: unused identifier: `variable2`
     ┌─ unused-actor-fields.mo:23:9
  23 │      var variable2 = "TEST";
-    │          ^^^^^^^^^ 
-warning[M0194]: unused identifier testUnusedFunction (delete or rename to wildcard `_` or `_testUnusedFunction`)
+    │          ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_variable2`
+warning[M0194]: unused identifier: `testUnusedFunction`
     ┌─ unused-actor-fields.mo:25:10
  25 │      func testUnusedFunction(parameter1 : Nat, parameter2 : Int) {
-    │           ^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier parameter2 (delete or rename to wildcard `_` or `_parameter2`)
+    │           ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_testUnusedFunction`
+warning[M0194]: unused identifier: `parameter2`
     ┌─ unused-actor-fields.mo:25:47
  25 │      func testUnusedFunction(parameter1 : Nat, parameter2 : Int) {
-    │                                                ^^^^^^^^^^ 
-warning[M0194]: unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
+    │                                                ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parameter2`
+warning[M0194]: unused identifier: `variable2`
     ┌─ unused-actor-fields.mo:26:13
  26 │          var variable2 = 2;
-    │              ^^^^^^^^^ 
+    │              ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_variable2`
 warning[M0244]: variable variable3 is never reassigned, consider using `let`
     ┌─ unused-actor-fields.mo:27:13
  27 │          var variable3 = 3;
     │              ^^^^^^^^^ 
-warning[M0194]: unused identifier variable4 (delete or rename to wildcard `_` or `_variable4`)
+warning[M0194]: unused identifier: `variable4`
     ┌─ unused-actor-fields.mo:28:13
  28 │          let variable4 = 4;
-    │              ^^^^^^^^^ 
-warning[M0194]: unused identifier localFunction (delete or rename to wildcard `_` or `_localFunction`)
+    │              ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_variable4`
+warning[M0194]: unused identifier: `localFunction`
     ┌─ unused-actor-fields.mo:31:17
  31 │              let localFunction = func() {
-    │                  ^^^^^^^^^^^^^ 
-warning[M0241]: unused field caller in shared pattern (delete or rewrite as `caller = _`)
+    │                  ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_localFunction`
+warning[M0241]: unused field in pattern: `caller`
     ┌─ unused-actor-fields.mo:38:22
  38 │      public shared ({ caller }) func publicActorFunction() : async () {};
-    │                       ^^^^^^ 
-warning[M0194]: unused identifier unusedParameter2 (delete or rename to wildcard `_` or `_unusedParameter2`)
+    │                       ^^^^^^ help: if this is intentional, delete or rewrite as `caller = _`
+warning[M0194]: unused identifier: `unusedParameter2`
     ┌─ unused-actor-fields.mo:39:42
  39 │      public func otherPublicActorFunction(unusedParameter2 : Text) : () {};
-    │                                           ^^^^^^^^^^^^^^^^ 
+    │                                           ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedParameter2`
