@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // test legacy syntax works too
 import {debugPrint} "mo:prim";
 

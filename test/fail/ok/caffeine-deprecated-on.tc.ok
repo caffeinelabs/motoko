@@ -1,10 +1,8 @@
-caffeine-deprecated-on.mo:15.9-15.14: warning [M0235], field foo is deprecated for caffeine
 caffeine-deprecated-on.mo:16.9-16.14: warning [M0235], field foo is deprecated for caffeine
-caffeine-deprecated-on.mo:18.8-18.11: warning [M0235], field f is deprecated for caffeine
+caffeine-deprecated-on.mo:17.9-17.14: warning [M0235], field foo is deprecated for caffeine
 caffeine-deprecated-on.mo:19.8-19.11: warning [M0235], field f is deprecated for caffeine
 caffeine-deprecated-on.mo:20.8-20.11: warning [M0235], field f is deprecated for caffeine
-caffeine-deprecated-on.mo:22.13-22.16: warning [M0235], type field T is deprecated for caffeine
-caffeine-deprecated-on.mo:24.11-24.12: warning [M0235], field f is deprecated for caffeine
-caffeine-deprecated-on.mo:25.11-25.16: warning [M0235], field f is deprecated for caffeine
-caffeine-deprecated-on.mo:24.11-24.12: warning [M0198], unused field f in object pattern (delete or rewrite as `f = _`)
-caffeine-deprecated-on.mo:25.15-25.16: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
+caffeine-deprecated-on.mo:21.8-21.11: warning [M0235], field f is deprecated for caffeine
+caffeine-deprecated-on.mo:23.13-23.16: warning [M0235], type field T is deprecated for caffeine
+caffeine-deprecated-on.mo:25.11-25.12: warning [M0235], field f is deprecated for caffeine
+caffeine-deprecated-on.mo:26.11-26.16: warning [M0235], field f is deprecated for caffeine

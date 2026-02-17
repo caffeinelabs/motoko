@@ -1,4 +1,5 @@
 //MOC-FLAG -W M0235
+//MOC-FLAG -A=M0194,M0198
 module A {
   /// @deprecated M0235
   public let foo = 5;
