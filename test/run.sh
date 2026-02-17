@@ -573,12 +573,33 @@ do
         run $mo_base.$runner.comp moc $MOC_ARGS $EXTRA_MOC_ARGS ${!flags_var_name} $moc_extra_flags --hide-warnings -c $mo_file -o $out/$base/$mo_base.$runner.wasm
       done
 
-      # mangle drun script
-      LANG=C perl -npe "s,$base/([^\s]+)\.mo,$out/$base/\$1.$runner.wasm," < $base.drun > $out/$base/$base.$runner.drun
+      # check for missing wasm files (compilation failures)
+      missing_wasm=false
+      for mo_file in $mo_files
+      do
+        mo_base=$(basename $mo_file .mo)
+        wasm_path="$out/$base/$mo_base.$runner.wasm"
+        if [ ! -f "$wasm_path" ]; then
+          missing_wasm=true
+          break
+        fi
+      done
 
-      # run wrapper
-      wrap_var_name="WRAP_${runner//-/_}"
-      run $runner ${!wrap_var_name} $out/$base/$base.$runner.drun $EXTRA_DRUN_ARGS
+      if [ "$missing_wasm" = true ]; then
+        $ECHO -n " [$runner]"
+        echo "Error: compilation failed, wasm output not produced" > $out/$base.$runner
+        echo "Return code 1" > $out/$base.$runner.ret
+        normalize $out/$base.$runner
+        diff_files="$diff_files $base.$runner.ret"
+        diff_files="$diff_files $base.$runner"
+      else
+        # mangle drun script
+        LANG=C perl -npe "s,$base/([^\s]+)\.mo,$out/$base/\$1.$runner.wasm," < $base.drun > $out/$base/$base.$runner.drun
+
+        # run wrapper
+        wrap_var_name="WRAP_${runner//-/_}"
+        run $runner ${!wrap_var_name} $out/$base/$base.$runner.drun $EXTRA_DRUN_ARGS
+      fi
       # clear EXTRA_DRUN_ARGS.
       EXTRA_DRUN_ARGS=""
     done
