@@ -898,7 +898,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         mem_fields
       in
       T.Single stab_fields,
-      I.{pre = any_enhanced_mem_ty; post = mem_ty},
+      I.{pre = enhanced_mem_ty; post = mem_ty},
       blockE [letD final_state stepped_expr] projected
     end
     else match exp_opt with
