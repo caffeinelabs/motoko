@@ -1,2 +1,4 @@
 stable-mem/StableMemory.mo:5.21-5.42: warning [M0199], this code is (or uses) the deprecated library `ExperimentalStableMemory`.
 Please use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message.
+stable-regions-stabilization.mo:11.14-11.16: warning [M0244], variable r1 is never reassigned, consider using `let`
+stable-regions-stabilization.mo:12.14-12.16: warning [M0244], variable r2 is never reassigned, consider using `let`

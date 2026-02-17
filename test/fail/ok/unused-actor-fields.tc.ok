@@ -2,17 +2,21 @@ unused-actor-fields.mo:5.11-5.20: warning [M0194], unused identifier TestClass (
 unused-actor-fields.mo:5.21-5.36: warning [M0194], unused identifier classParameter1 (delete or rename to wildcard `_` or `_classParameter1`)
 unused-actor-fields.mo:5.44-5.59: warning [M0194], unused identifier classParameter2 (delete or rename to wildcard `_` or `_classParameter2`)
 unused-actor-fields.mo:6.13-6.19: warning [M0194], unused identifier field1 (delete or rename to wildcard `_` or `_field1`)
+unused-actor-fields.mo:7.13-7.19: warning [M0244], variable field2 is never reassigned, consider using `let`
 unused-actor-fields.mo:8.13-8.19: warning [M0194], unused identifier field3 (delete or rename to wildcard `_` or `_field3`)
 unused-actor-fields.mo:10.14-10.26: warning [M0194], unused identifier unusedMethod (delete or rename to wildcard `_` or `_unusedMethod`)
 unused-actor-fields.mo:10.27-10.43: warning [M0194], unused identifier unusedParameter1 (delete or rename to wildcard `_` or `_unusedParameter1`)
 unused-actor-fields.mo:11.17-11.23: warning [M0194], unused identifier local1 (delete or rename to wildcard `_` or `_local1`)
 unused-actor-fields.mo:15.12-15.22: warning [M0194], unused identifier TestObject (delete or rename to wildcard `_` or `_TestObject`)
+unused-actor-fields.mo:17.13-17.25: warning [M0244], variable objectField2 is never reassigned, consider using `let`
 unused-actor-fields.mo:18.13-18.25: warning [M0194], unused identifier objectField3 (delete or rename to wildcard `_` or `_objectField3`)
 unused-actor-fields.mo:19.13-19.25: warning [M0194], unused identifier objectField4 (delete or rename to wildcard `_` or `_objectField4`)
+unused-actor-fields.mo:22.9-22.18: warning [M0244], variable variable1 is never reassigned, consider using `let`
 unused-actor-fields.mo:23.9-23.18: warning [M0194], unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
 unused-actor-fields.mo:25.10-25.28: warning [M0194], unused identifier testUnusedFunction (delete or rename to wildcard `_` or `_testUnusedFunction`)
 unused-actor-fields.mo:25.47-25.57: warning [M0194], unused identifier parameter2 (delete or rename to wildcard `_` or `_parameter2`)
 unused-actor-fields.mo:26.13-26.22: warning [M0194], unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
+unused-actor-fields.mo:27.13-27.22: warning [M0244], variable variable3 is never reassigned, consider using `let`
 unused-actor-fields.mo:28.13-28.22: warning [M0194], unused identifier variable4 (delete or rename to wildcard `_` or `_variable4`)
 unused-actor-fields.mo:31.17-31.30: warning [M0194], unused identifier localFunction (delete or rename to wildcard `_` or `_localFunction`)
 unused-actor-fields.mo:38.22-38.28: warning [M0241], unused field caller in shared pattern (delete or rewrite as `caller = _`)

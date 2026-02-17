@@ -2,3 +2,5 @@ stable-mem/StableMemory.mo:5.21-5.42: warning [M0199], this code is (or uses) th
 Please use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message.
 stable-mem-grow.mo:10.14-10.15: warning [M0194], unused identifier c (delete or rename to wildcard `_` or `_c`)
 stable-mem-grow.mo:14.9-14.10: warning [M0194], unused identifier m (delete or rename to wildcard `_` or `_m`)
+stable-mem-grow.mo:32.11-32.14: warning [M0244], variable pre is never reassigned, consider using `let`
+stable-mem-grow.mo:33.11-33.15: warning [M0244], variable post is never reassigned, consider using `let`

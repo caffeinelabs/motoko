@@ -1,5 +1,6 @@
 unused-object.mo:1.8-1.24: warning [M0194], unused identifier UnusedTestObject (delete or rename to wildcard `_` or `_UnusedTestObject`)
 unused-object.mo:2.9-2.14: warning [M0194], unused identifier field (delete or rename to wildcard `_` or `_field`)
+unused-object.mo:7.9-7.15: warning [M0244], variable field2 is never reassigned, consider using `let`
 unused-object.mo:8.9-8.15: warning [M0194], unused identifier field3 (delete or rename to wildcard `_` or `_field3`)
 unused-object.mo:9.9-9.15: warning [M0194], unused identifier field4 (delete or rename to wildcard `_` or `_field4`)
 unused-object.mo:11.10-11.22: warning [M0194], unused identifier unusedMethod (delete or rename to wildcard `_` or `_unusedMethod`)
