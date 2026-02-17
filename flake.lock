@@ -71,17 +71,17 @@
     "grace-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1763657263,
-        "narHash": "sha256-3WeaCgVXVG8bJvvQl8u/a8rtRoQLdpi1vKQILAKjfBU=",
+        "lastModified": 1771098024,
+        "narHash": "sha256-V5K9RGk47K/R+q4wS1FU02kMi1uWSCgdUjKHk7uXuGw=",
         "owner": "johnyob",
         "repo": "grace",
-        "rev": "65a32e107de81aa7e5e8adc59477c910e302ec31",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
         "type": "github"
       },
       "original": {
         "owner": "johnyob",
         "repo": "grace",
-        "rev": "65a32e107de81aa7e5e8adc59477c910e302ec31",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
         "type": "github"
       }
     },

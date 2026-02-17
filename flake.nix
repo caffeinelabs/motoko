@@ -50,7 +50,7 @@
       flake = false;
     };
     grace-src = {
-      url = "github:johnyob/grace/65a32e107de81aa7e5e8adc59477c910e302ec31";
+      url = "github:johnyob/grace/15251666a11a780dfd09f23e1b0c1e6b0e366dcf";
       flake = false;
     };
     ocaml-recovery-parser-src = {

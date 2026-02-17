@@ -36,7 +36,7 @@
 
         grace = super.ocamlPackages.buildDunePackage {
           pname = "grace";
-          version = "0.2.0";
+          version = "0.3.0";
           src = self.sources.grace-src;
           buildInputs = with super.ocamlPackages; [
             dedent
