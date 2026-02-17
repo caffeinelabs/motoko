@@ -4,7 +4,7 @@ import Prim "mo:prim";
 
 (with migration = (func(_ : {}) : { var field2 : Nat } { { var field2 = 121 } }))
 actor {
-    var field2 : Nat;
+    let field2 : Nat;
 
     public func check() : async () {
         Prim.debugPrint(debug_show field2);
