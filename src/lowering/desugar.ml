@@ -760,22 +760,44 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
   in
   let sig_, stable_type, migration =
     if !T.migration_chain <> [] then begin
-      (* --enhanced-migration: per-step migration with a common full_state type.
-         1. Compute enhanced_mem_ty = union of all fields from all migrations + actor
-         2. Each step: if was_performed -> identity; else extract, run, merge, register
-         3. Project final state to actor's mem_ty *)
+      (* --enhanced-migration: per-step migration with CastPrim + ?Any.
+         Fields may change type across migrations. To keep the fold accumulator
+         type-consistent, we use ?Any for all intermediate field types and
+         CastPrim (a representational noop) to cast between ?Any and concrete
+         types at each boundary.
+
+         Why ?Any: The fold's ifE requires both branches (skip vs run) to
+         return the same type. With concrete field types, a type-changing field
+         makes this impossible. With ?Any, the accumulator type is uniform.
+
+         Why CastPrim: Check_ir validates CastPrim(t1,t2) by checking
+         typ(e) <: t1 and t2 <: expected -- no relationship between t1 and t2
+         is required. At Wasm level it compiles to nothing (noop).
+
+         IMPORTANT: We must NOT pass ?Any fields to ICStableRead, because
+         compile_enhanced.ml's load_old_field drops Opt Any values. Instead,
+         we read at concrete types first, then cast to ?Any.
+
+         Pipeline:
+           1. Compute enhanced_mem_ty (concrete types) for ICStableRead
+           2. Compute any_enhanced_mem_ty (?Any fields) for the fold
+           3. ICStableRead at concrete types, then cast each field to ?Any
+           4. Fold through migrations with ?Any accumulator:
+              - Skip: pass through unchanged (?Any -> ?Any)
+              - Run: CastPrim(?Any, ?T_dom) to extract, call run,
+                     CastPrim(?T_rng, ?Any) to merge back
+           5. Final projection: CastPrim(?Any, ?T_actor) for each actor field *)
       let chain = !T.migration_chain in
-      (* Step 1: compute enhanced mem type (union of all migration fields + actor fields) *)
+
+      (* Step 1: compute concrete enhanced mem type (for ICStableRead) *)
       let all_fields_tbl = Hashtbl.create 32 in
       List.iter (fun (_file, _mod_typ, run_typ) ->
         let dom_i, rng_i = T.as_mono_func_sub run_typ in
         let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
         let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
-        (* Add dom fields first, then rng fields (later overrides for same field name) *)
         List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) dom_fields_i;
         List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) rng_fields_i
       ) chain;
-      (* Actor's stab_fields take final precedence *)
       List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) stab_fields;
       let enhanced_stab_fields =
         Hashtbl.fold (fun _k tf acc -> tf :: acc) all_fields_tbl []
@@ -785,7 +807,30 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         List.map (fun tf -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) enhanced_stab_fields
       in
       let enhanced_mem_ty = T.Obj (T.Memory, enhanced_mem_fields, []) in
-      (* Step 2: generate per-step IR, threading state of type enhanced_mem_ty *)
+
+      (* Step 2: compute ?Any enhanced mem type (for the fold accumulator) *)
+      let any_enhanced_mem_fields =
+        List.map (fun tf -> {tf with T.typ = T.Opt T.Any}) enhanced_stab_fields
+      in
+      let any_enhanced_mem_ty = T.Obj (T.Memory, any_enhanced_mem_fields, []) in
+
+      (* Step 3: ICStableRead at concrete types, then cast each field to ?Any *)
+      let concrete_state = fresh_var "concrete_state" enhanced_mem_ty in
+      let initial_any_state =
+        objectE T.Memory
+          (List.map (fun tf ->
+            tf.T.lab,
+            primE (I.CastPrim (tf.T.typ, T.Opt T.Any))
+              [dotE (varE concrete_state) tf.T.lab tf.T.typ])
+          enhanced_mem_fields)
+        any_enhanced_mem_fields
+      in
+      let initial_expr =
+        blockE [letD concrete_state (primE (I.ICStableRead enhanced_mem_ty) [])]
+          initial_any_state
+      in
+
+      (* Step 4: fold through migrations with ?Any accumulator *)
       let stepped_expr = List.fold_left (fun acc_state_expr (file, mod_typ, run_typ) ->
         let dom_i, rng_i = T.as_mono_func_sub run_typ in
         let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
@@ -793,18 +838,21 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         let migration_hash = Digest.to_hex (Digest.string (Filename.basename file)) in
         let was_performed = rts_was_migration_performed migration_hash in
         let rts_register = rts_register_migration migration_hash in
-        let cur_state = fresh_var "cur_state" enhanced_mem_ty in
+        let cur_state = fresh_var "cur_state" any_enhanced_mem_ty in
         let v_dom = fresh_var "v_dom" dom_i in
         let v_rng = fresh_var "v_rng" rng_i in
         let mod_expr = varE (var (id_of_full_path file) mod_typ) in
         let run_expr = dotE mod_expr "run" run_typ in
-        (* Extract input fields from current state *)
+        (* Extract input: cast ?Any -> ?T_dom, then unwrap *)
         let extract_dom =
           objectE T.Object
             (List.map (fun T.{lab=i;typ=t;_} ->
+              let opt_dom_ty = T.Opt (T.as_immut t) in
               let vi = fresh_var ("v_"^i) (T.as_immut t) in
               (i,
-               switch_optE (dotE (varE cur_state) i (T.Opt (T.as_immut t)))
+               switch_optE
+                 (primE (I.CastPrim (T.Opt T.Any, opt_dom_ty))
+                   [dotE (varE cur_state) i (T.Opt T.Any)])
                  (primE (Ir.OtherPrim "trap")
                    [textE (Printf.sprintf
                      "migration %s: field `%s` expected but not found in state"
@@ -814,22 +862,21 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
             dom_fields_i)
           dom_fields_i
         in
-        (* Merge migration output back into enhanced_mem_ty *)
+        (* Merge output: cast ?T_rng -> ?Any for produced fields *)
         let merge_result =
           objectE T.Memory
-            (List.map (fun T.{lab=i;typ=t;_} ->
+            (List.map (fun T.{lab=i;_} ->
               i,
               match T.lookup_val_field_opt i rng_fields_i with
               | Some rt ->
-                (* Produced by this migration: wrap in Some *)
-                optE (dotE (varE v_rng) i (T.as_immut rt))
+                let opt_rng_ty = T.Opt (T.as_immut rt) in
+                primE (I.CastPrim (opt_rng_ty, T.Opt T.Any))
+                  [optE (dotE (varE v_rng) i (T.as_immut rt))]
               | None ->
-                (* Not produced: keep from current state *)
-                dotE (varE cur_state) i t)
-            enhanced_mem_fields)
-          enhanced_mem_fields
+                dotE (varE cur_state) i (T.Opt T.Any))
+            any_enhanced_mem_fields)
+          any_enhanced_mem_fields
         in
-        (* if was_performed: identity (same type); else: extract, run, merge, register *)
         blockE [letD cur_state acc_state_expr]
           (ifE was_performed
             (varE cur_state)
@@ -838,18 +885,20 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
               letD v_rng (callE run_expr [] (varE v_dom));
               expD rts_register]
             merge_result))
-      ) (primE (I.ICStableRead enhanced_mem_ty) []) chain in
-      (* Step 3: project from enhanced state to actor's mem_ty *)
-      let final_state = fresh_var "final_state" enhanced_mem_ty in
+      ) initial_expr chain in
+
+      (* Step 5: project from ?Any state to actor's mem_ty *)
+      let final_state = fresh_var "final_state" any_enhanced_mem_ty in
       let projected =
         objectE T.Memory
           (List.map (fun T.{lab=i;typ=t;_} ->
-            i, dotE (varE final_state) i t)
+            i, primE (I.CastPrim (T.Opt T.Any, t))
+                 [dotE (varE final_state) i (T.Opt T.Any)])
           mem_fields)
         mem_fields
       in
       T.Single stab_fields,
-      I.{pre = enhanced_mem_ty; post = mem_ty},
+      I.{pre = any_enhanced_mem_ty; post = mem_ty},
       blockE [letD final_state stepped_expr] projected
     end
     else match exp_opt with

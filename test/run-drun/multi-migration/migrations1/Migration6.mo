@@ -7,10 +7,16 @@ module {
     var three : [var (Nat, Text)];
     var four : Text;
     var five : Text;
-    var six : Text;
+    var six : [Text];
   } {
     Prim.debugPrint(debug_show "Migration6");
-    old;
+    {
+      zero = old.zero;
+      var three = old.three;
+      var four = old.four;
+      var five = old.five;
+      var six = [old.six];
+    };
   }
 
 };

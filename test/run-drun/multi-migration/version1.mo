@@ -12,7 +12,7 @@ actor {
 
   var five : Text;
 
-  var six : Text;
+  var six : [Text];
 
   public func check() : async () {
     assert zero == 0; // Checks here if the Init.mo in migrations1 dir was skipped because of its name.
