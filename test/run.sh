@@ -125,10 +125,11 @@ function run () {
 
   $ECHO -n " [$ext]"
   $ECHO "$@" >& $out/$base.$ext
-  set -o pipefail
-  "$@" |& ${FILTER:-cat} > $out/$base.$ext
+  "$@" >& $out/$base.$ext
   local ret=$?
-  set +o pipefail
+  if [[ -n "${FILTER:-}" ]]; then
+    $FILTER < $out/$base.$ext > $out/$base.$ext.tmp && mv $out/$base.$ext.tmp $out/$base.$ext
+  fi
 
   if [ $ret != 0 ]
   then echo "Return code $ret" >> $out/$base.$ext.ret
