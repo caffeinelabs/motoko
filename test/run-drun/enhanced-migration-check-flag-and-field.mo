@@ -15,5 +15,6 @@ actor {
 //SKIP run-ir
 //SKIP run-low
 //SKIP wasm-run
+//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 
 //CALL ingress check "DIDL\x00\x00"
