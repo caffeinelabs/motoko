@@ -737,7 +737,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
     I.{pre = mem_ty_pre; post = mem_ty},
     ifE (primE (I.OtherPrim "rts_in_upgrade") [])
       (blockE [
-          letD v (primE (I.ICStableRead mem_ty_pre) []);
+          letD v (primE (I.ICStableRead (mem_ty_pre, false)) []);
           letD v_dom
             (objectE T.Object
               (List.map
@@ -756,7 +756,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           letD v_rng (callE e [] (varE v_dom))
         ]
         (build_mem_result ()))
-      (primE (I.ICStableRead mem_ty) [])
+      (primE (I.ICStableRead (mem_ty, false)) [])
   in
   let sig_, stable_type, migration =
     if !T.migration_chain <> [] then begin
@@ -826,7 +826,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         any_enhanced_mem_fields
       in
       let initial_expr =
-        blockE [letD concrete_state (primE (I.ICStableRead enhanced_mem_ty) [])]
+        blockE [letD concrete_state (primE (I.ICStableRead (enhanced_mem_ty, true)) [])]
           initial_any_state
       in
 
@@ -905,7 +905,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
     | None ->
       T.Single stab_fields,
       I.{pre = mem_ty; post = mem_ty},
-      primE (I.ICStableRead mem_ty) []
+      primE (I.ICStableRead (mem_ty, false)) []
     | Some exp0 ->
       (* Regular (with migration = fn) *)
       let _, tfs = T.as_obj_sub [T.migration_lab] exp0.note.Note.typ in

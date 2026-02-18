@@ -14,5 +14,5 @@ debug.print: "Migration4"
 debug.print: "Migration5"
 debug.print: "Migration6"
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {five = "5"; four = "4"; six = ["54"]; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = 0}
+debug.print: {five = "5"; four = "4"; six = ["54"]; three = [var (1, "1"), (2, "2"), (3, "3"), (4, "4")]; zero = [0]}
 ingress Completed: Reply: 0x4449444c0000

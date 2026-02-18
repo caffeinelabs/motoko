@@ -3,7 +3,7 @@ import Prim "mo:prim";
 module {
 
   public func run(old : { zero : Nat; var three : [var (Nat, Text)]; var four : Text; var five : Text; var six : Text }) : {
-    zero : Nat;
+    zero : [Nat];
     var three : [var (Nat, Text)];
     var four : Text;
     var five : Text;
@@ -11,7 +11,7 @@ module {
   } {
     Prim.debugPrint(debug_show "Migration6");
     {
-      zero = old.zero;
+      zero = [old.zero];
       var three = old.three;
       var four = old.four;
       var five = old.five;

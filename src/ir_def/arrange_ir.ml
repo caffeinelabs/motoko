@@ -125,7 +125,7 @@ and prim = function
   | ICMethodNamePrim  -> Atom "ICMethodNamePrim"
   | ICReplyDeadlinePrim  -> Atom "ICReplyDeadlinePrim"
   | ICStableWrite t   -> "ICStableWrite" $$ [typ t]
-  | ICStableRead t    -> "ICStableRead" $$ [typ t]
+  | ICStableRead (t, _) -> "ICStableRead" $$ [typ t]
 
 and mut = function
   | Const -> Atom "Const"
