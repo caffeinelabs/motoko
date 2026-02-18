@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // x is mutable. Will it be heap allocated or local?
 var x = 1;
 // used eager and lazy

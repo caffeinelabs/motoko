@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // status.mo
 type Status = {
   failed_ : Nat;

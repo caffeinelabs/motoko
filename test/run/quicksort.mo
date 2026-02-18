@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 class QS<T>(cmp : (T, T) -> Int) {
   public func quicksort(a : [var T], lo : Nat, hi : Nat) {
    	if (lo < hi) {

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 module Int {
   public func eq(self : Int, other : Int) : Bool { assert false; self == other };
 };
