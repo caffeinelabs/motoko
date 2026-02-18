@@ -599,10 +599,10 @@ let _x = M.
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
         Ok: (Prog
-          (LetD (: (VarP (ID M)) module {}) (: (ObjBlockE _ Module _) ???))
+          (LetD (: (VarP (ID M)) module {}) (: (ObjBlockE _ Module _) module {}))
           (LetD
-            (: (VarP (ID _x)) ???)
-            (: (DotE (: (VarE (ID M)) ???) (ID __error_recovery_var__)) ???)
+            (: (VarP (ID _x)) None)
+            (: (DotE (: (VarE (ID M)) module {}) (ID __error_recovery_var__)) ???)
           )
         )
 
@@ -702,6 +702,40 @@ let%expect_test "test type recovery 5" =
     end
   | Error _ as r -> Printf.printf "%s" @@ show r;
   [%expect.unreachable]
+
+let%expect_test "test type recovery: DotE receiver should be typed (LetD case)" =
+  print_typed_ast "let arr = [1]; let _ = arr.va";
+  [%expect {|
+    Ok: (Prog
+      (LetD
+        (: (VarP (ID arr)) [Nat])
+        (: (ArrayE Const (: (LitE (NatLit 1)) Nat)) [Nat])
+      )
+      (LetD (: WildP None) (: (DotE (: (VarE (ID arr)) [Nat]) (ID va)) ???))
+    )
+
+     with errors:
+    (unknown location): type error [M0072], field va does not exist in type:
+      [Nat]
+    Did you mean field vals or values?
+  |}]
+
+let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" =
+  print_typed_ast "let arr = [1]; arr.va";
+  [%expect {|
+    Ok: (Prog
+      (LetD
+        (: (VarP (ID arr)) [Nat])
+        (: (ArrayE Const (: (LitE (NatLit 1)) Nat)) [Nat])
+      )
+      (ExpD (: (DotE (: (VarE (ID arr)) [Nat]) (ID va)) ???))
+    )
+
+     with errors:
+    (unknown location): type error [M0072], field va does not exist in type:
+      [Nat]
+    Did you mean field vals or values?
+  |}]
 
 let%expect_test "context dot callee function type should not be ???" =
   print_typed_ast "func foo(self : [Nat]) : Text { \"foo\" };

@@ -1,6 +1,6 @@
 (library
   (name lang_utils)
-  (libraries lib mo_config)
+  (libraries lib mo_config yojson)
   (wrapped false)
 
   (preprocess (pps ppx_blob))
