@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 let a : Int8 = 1;
 let b = a + 1;
 let c = 1 + a;

@@ -1,6 +1,2 @@
-module1.mo:59.1-59.9: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
 module1.mo:60.1-60.9: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-module1.mo:8.5-8.6: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-module1.mo:9.5-9.6: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-module1.mo:21.5-21.6: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-module1.mo:38.5-38.6: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
+module1.mo:61.1-61.9: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

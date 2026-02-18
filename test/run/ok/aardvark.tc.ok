@@ -1,4 +1,0 @@
-aardvark.mo:4.10-4.11: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)
-aardvark.mo:4.20-4.21: warning [M0194], unused identifier b (delete or rename to wildcard `_` or `_b`)
-aardvark.mo:4.29-4.30: warning [M0194], unused identifier t (delete or rename to wildcard `_` or `_t`)
-aardvark.mo:22.7-22.11: warning [M0194], unused identifier ints (delete or rename to wildcard `_` or `_ints`)

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 class CO4() {
     public type b = Nat;
     public let a : b = 25;
