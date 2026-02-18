@@ -1,44 +1,44 @@
-warning[M0194]: unused identifier UnusedTestClass (delete or rename to wildcard `_` or `_UnusedTestClass`)
+warning[M0194]: unused identifier: `UnusedTestClass`
     ┌─ unused-class.mo:1:7
   1 │  class UnusedTestClass() {
-    │        ^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier field (delete or rename to wildcard `_` or `_field`)
+    │        ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_UnusedTestClass`
+warning[M0194]: unused identifier: `field`
     ┌─ unused-class.mo:2:9
   2 │      let field = 0;
-    │          ^^^^^ 
-warning[M0194]: unused identifier classParameter1 (delete or rename to wildcard `_` or `_classParameter1`)
+    │          ^^^^^ help: if this is intentional, prefix it with an underscore: `_field`
+warning[M0194]: unused identifier: `classParameter1`
     ┌─ unused-class.mo:5:21
   5 │  class UsedTestClass(classParameter1 : Nat, classParameter2 : Int) {
-    │                      ^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier classParameter2 (delete or rename to wildcard `_` or `_classParameter2`)
+    │                      ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_classParameter1`
+warning[M0194]: unused identifier: `classParameter2`
     ┌─ unused-class.mo:5:44
   5 │  class UsedTestClass(classParameter1 : Nat, classParameter2 : Int) {
-    │                                             ^^^^^^^^^^^^^^^ 
+    │                                             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_classParameter2`
 warning[M0244]: variable field2 is never reassigned, consider using `let`
     ┌─ unused-class.mo:7:9
   7 │      var field2 = 2;
     │          ^^^^^^ 
-warning[M0194]: unused identifier field3 (delete or rename to wildcard `_` or `_field3`)
+warning[M0194]: unused identifier: `field3`
     ┌─ unused-class.mo:8:9
   8 │      let field3 = field1;
-    │          ^^^^^^ 
-warning[M0194]: unused identifier field4 (delete or rename to wildcard `_` or `_field4`)
+    │          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_field3`
+warning[M0194]: unused identifier: `field4`
     ┌─ unused-class.mo:9:9
   9 │      var field4 = field2;
-    │          ^^^^^^ 
-warning[M0194]: unused identifier unusedMethod (delete or rename to wildcard `_` or `_unusedMethod`)
+    │          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_field4`
+warning[M0194]: unused identifier: `unusedMethod`
     ┌─ unused-class.mo:11:10
  11 │      func unusedMethod(unusedParameter : Any) {
-    │           ^^^^^^^^^^^^ 
-warning[M0194]: unused identifier unusedParameter (delete or rename to wildcard `_` or `_unusedParameter`)
+    │           ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedMethod`
+warning[M0194]: unused identifier: `unusedParameter`
     ┌─ unused-class.mo:11:23
  11 │      func unusedMethod(unusedParameter : Any) {
-    │                        ^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier local2 (delete or rename to wildcard `_` or `_local2`)
+    │                        ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedParameter`
+warning[M0194]: unused identifier: `local2`
     ┌─ unused-class.mo:13:13
  13 │          let local2 = local1;
-    │              ^^^^^^ 
-warning[M0194]: unused identifier result (delete or rename to wildcard `_` or `_result`)
+    │              ^^^^^^ help: if this is intentional, prefix it with an underscore: `_local2`
+warning[M0194]: unused identifier: `result`
     ┌─ unused-class.mo:18:5
  18 │  let result = test.field1;
-    │      ^^^^^^ 
+    │      ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`

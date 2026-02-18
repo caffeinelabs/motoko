@@ -1,4 +1,4 @@
-warning[M0198]: unused field field2 in object pattern (delete or rewrite as `field2 = _`)
+warning[M0198]: unused field in pattern: `field2`
     ┌─ unused-field-pattern.mo:2:15
   2 │  let { field1; field2; field3 = _; field4 = _field4 } = {
-    │                ^^^^^^ 
+    │                ^^^^^^ help: if this is intentional, delete or rewrite as `field2 = _`

@@ -1,12 +1,12 @@
-warning[M0194]: unused identifier unusedModuleVariable1 (delete or rename to wildcard `_` or `_unusedModuleVariable1`)
+warning[M0194]: unused identifier: `unusedModuleVariable1`
     ┌─ unused-module/test-module.mo:2:9
   2 │      let unusedModuleVariable1 = 1;
-    │          ^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier localModuleFunction (delete or rename to wildcard `_` or `_localModuleFunction`)
+    │          ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedModuleVariable1`
+warning[M0194]: unused identifier: `localModuleFunction`
     ┌─ unused-module/test-module.mo:4:10
   4 │      func localModuleFunction() {
-    │           ^^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier localObject (delete or rename to wildcard `_` or `_localObject`)
+    │           ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_localModuleFunction`
+warning[M0194]: unused identifier: `localObject`
     ┌─ unused-module/test-module.mo:16:12
  16 │      object localObject {
-    │             ^^^^^^^^^^^ 
+    │             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_localObject`

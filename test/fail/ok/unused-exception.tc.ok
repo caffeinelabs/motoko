@@ -1,1 +1,2 @@
-unused-exception.mo:3.24-3.33: warning [M0194], unused identifier exception (delete or rename to wildcard `_` or `_exception`)
+unused-exception.mo:3.24-3.33: warning [M0194], unused identifier: `exception`
+help: if this is intentional, prefix it with an underscore: `_exception`

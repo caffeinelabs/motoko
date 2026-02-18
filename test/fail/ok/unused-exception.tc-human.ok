@@ -1,4 +1,4 @@
-warning[M0194]: unused identifier exception (delete or rename to wildcard `_` or `_exception`)
+warning[M0194]: unused identifier: `exception`
     ┌─ unused-exception.mo:3:24
   3 │          try { } catch (exception) {};
-    │                         ^^^^^^^^^ 
+    │                         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exception`

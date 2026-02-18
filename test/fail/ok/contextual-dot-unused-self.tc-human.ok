@@ -1,4 +1,4 @@
-warning[M0194]: unused identifier self (delete or rename to wildcard `_` or `_self`)
+warning[M0194]: unused identifier: `self`
     ┌─ contextual-dot-unused-self.mo:3:16
   3 │   public func g(self: Nat) {}; // warn unusued self
-    │                 ^^^^ 
+    │                 ^^^^ help: if this is intentional, prefix it with an underscore: `_self`
