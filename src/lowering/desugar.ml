@@ -647,8 +647,12 @@ and export_view viewer_opt =
                    (blockE [
                         (* authentication, self or controller only *)
                         letD caller (primE I.ICCallerPrim []);
-(*                        expD (assertE (orE (primE (I.RelPrim (principal, Operator.EqOp)) [varE caller; selfRefE principal])
-                                           (primE (I.OtherPrim "is_controller") [varE caller]))); *)
+                        expD (ifE (orE
+                                     (primE (I.RelPrim (principal, Operator.EqOp)) [varE caller; selfRefE principal])
+                                     (primE (I.OtherPrim "is_controller") [varE caller]))
+                                (unitE())
+                                (primE (Ir.OtherPrim "trap")
+                                   [textE "Unauthorized caller (caller must be self or some controller)"]))
                       ]
                       (mk_body vs))
                    (Con (scope_con1, []))))
