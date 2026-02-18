@@ -1,0 +1,8 @@
+error[M0118]: tuple pattern has 0 components but expected type has 2
+    ┌─ issue2281.mo:2:7
+  2 │    let () = (true, false);
+    │        ^^ 
+error[M0118]: tuple pattern has 2 components but expected type has 3
+    ┌─ issue2281.mo:5:7
+  5 │    let (_,_) = (true, false, true);
+    │        ^^^^^ 

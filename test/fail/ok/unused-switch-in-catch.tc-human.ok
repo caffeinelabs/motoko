@@ -1,0 +1,4 @@
+warning[M0194]: unused identifier unused (delete or rename to wildcard `_` or `_unused`)
+    ┌─ unused-switch-in-catch.mo:5:22
+  5 │                  case unused {
+    │                       ^^^^^^ 

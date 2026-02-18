@@ -1,0 +1,35 @@
+error[M0145]: this pattern of type
+  Bool
+does not cover value
+  false
+    ┌─ shared-nonexhaustive.mo:3:19
+  3 │  shared func wrong1(true : Bool) : async () {};
+    │                    ^^^^^^^^^^^^^ 
+error[M0145]: this pattern of type
+  Bool
+does not cover value
+  false
+    ┌─ shared-nonexhaustive.mo:5:21
+  5 │  ((shared func wrong2(true : Bool) : async () {}) : shared Bool -> async ());
+    │                      ^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  shared Bool -> async ()
+cannot produce expected type
+  ()
+    ┌─ shared-nonexhaustive.mo:5:2
+  5 │  ((shared func wrong2(true : Bool) : async () {}) : shared Bool -> async ());
+    │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0145]: this pattern of type
+  Bool
+does not cover value
+  false
+    ┌─ shared-nonexhaustive.mo:7:19
+  7 │  shared func wrong2(true : Bool) : () {};
+    │                    ^^^^^^^^^^^^^ 
+error[M0145]: this pattern of type
+  Bool
+does not cover value
+  false
+    ┌─ shared-nonexhaustive.mo:9:21
+  9 │  ((shared func wrong2(true : Bool) : () {}) : shared Bool -> ());
+    │                      ^^^^^^^^^^^^^ 

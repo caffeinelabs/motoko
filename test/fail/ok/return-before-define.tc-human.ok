@@ -1,0 +1,4 @@
+error[M0016]: cannot use g before x has been defined
+    ┌─ return-before-define.mo:7:5
+  7 │      return (func() : Int{ g(); }); // early exit omits definition of x
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

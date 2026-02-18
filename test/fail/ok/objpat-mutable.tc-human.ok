@@ -1,0 +1,4 @@
+error[M0120]: cannot pattern match mutable field x
+    ┌─ objpat-mutable.mo:10:12
+ 10 │      case { x } { Prim.debugPrintInt x }
+    │             ^ 

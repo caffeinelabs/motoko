@@ -1,0 +1,5 @@
+error[M0057]: unbound variable Map
+Hint: Did you mean to import mo:core/Map or mo:core/pure/Map?
+    ┌─ implicit-import-var.mo:8:8
+  8 │  ignore Map.empty<Text, Nat>(); // suggest core/Map or core/pure/Map
+    │         ^^^ 

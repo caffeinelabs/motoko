@@ -1,0 +1,4 @@
+error[M0016]: cannot use Self before Self has been defined
+    ┌─ issue1464b.mo:3:10
+  3 │    public let mean : Mean = ?Self.mean;
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,0 +1,43 @@
+M0005 (W) Case mismatch between import and filename
+M0061 (W) Comparing abstract type to itself at supertype
+M0062 (W) Comparing incompatible type at common supertype
+M0074 (W) Array elements have inconsistent types
+M0081 (W) If branches have inconsistent types
+M0089 (E) Redundant ignore
+M0101 (W) Switch with inconsistent branch types
+M0128 (W) Function with system function name but wrong visibility
+M0135 (W) Actor class has non-async return type
+M0142 (W) An imported library should be a module or named actor class
+M0145 (W) Pattern does not cover value
+M0146 (W) Pattern is never matched
+M0154 (W) Deprecation annotation
+M0155 (W) Inferred type Nat for subtraction
+M0166 (W) Type intersection results in abstract type
+M0167 (W) Type union results in bottom type
+M0190 (W) Types inconsistent for alternative pattern variables, losing information
+M0191 (W) Code requires Wasm features ... to execute
+M0194 (E) Unused identifier warning
+M0195 (W) warn that `system` capability is implicitly supplied
+M0198 (W) Unused field pattern warning
+M0199 (W) Deprecate experimental stable memory
+M0206 (W) Migration consumes, but does not produce, a declared field
+M0207 (W) Migration consumes, but does not produce, an un-declared field
+M0210 (W) Parenthetical note must be applied to a message send
+M0211 (W) Parenthetical note has no attributes
+M0212 (W) Unrecognised attribute in parenthetical note
+M0215 (W) Field is lost in record used at supertype
+M0217 (W) Redundant `persistent`
+M0218 (A) Redundant `stable`
+M0222 (A) Ignored `async*`
+M0223 (A) Redundant type instantiation
+M0235 (A) Deprecate for caffeine
+M0236 (A) Suggest contextual dot notation
+M0237 (A) Suggest redundant explicit arguments
+M0239 (W) Avoid binding a unit `()` result
+M0240 (W) Unused identifier in shared pattern warning
+M0241 (W) Unused field in shared pattern warning
+M0242 (W) Implicit oneway declaration
+M0243 (W) Unreachable else in let-else
+M0244 (W) Mutable variable is never reassigned
+
+Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)

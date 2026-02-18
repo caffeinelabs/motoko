@@ -1,0 +1,24 @@
+warning[M0194]: unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
+    ┌─ unused-shadowing.mo:2:5
+  2 │  var variable2 = 2;
+    │      ^^^^^^^^^ 
+warning[M0194]: unused identifier testUnusedFunction (delete or rename to wildcard `_` or `_testUnusedFunction`)
+    ┌─ unused-shadowing.mo:4:6
+  4 │  func testUnusedFunction(parameter1 : Nat, parameter2 : Int) {
+    │       ^^^^^^^^^^^^^^^^^^ 
+warning[M0194]: unused identifier parameter2 (delete or rename to wildcard `_` or `_parameter2`)
+    ┌─ unused-shadowing.mo:4:43
+  4 │  func testUnusedFunction(parameter1 : Nat, parameter2 : Int) {
+    │                                            ^^^^^^^^^^ 
+warning[M0194]: unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
+    ┌─ unused-shadowing.mo:5:9
+  5 │      var variable2 = 2;
+    │          ^^^^^^^^^ 
+warning[M0194]: unused identifier variable4 (delete or rename to wildcard `_` or `_variable4`)
+    ┌─ unused-shadowing.mo:7:9
+  7 │      var variable4 = 4;
+    │          ^^^^^^^^^ 
+warning[M0194]: unused identifier localFunction (delete or rename to wildcard `_` or `_localFunction`)
+    ┌─ unused-shadowing.mo:10:13
+ 10 │          let localFunction = func() {
+    │              ^^^^^^^^^^^^^ 

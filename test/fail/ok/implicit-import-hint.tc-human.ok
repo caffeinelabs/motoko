@@ -1,0 +1,6 @@
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Text, Text) -> Order
+    ┌─ implicit-import-hint.mo:11:1
+ 11 │  map.add("abc", 3)
+    │  ^^^^^^^^^^^^^^^^^ 
+    = note: Did you mean to import mo:core/Text?

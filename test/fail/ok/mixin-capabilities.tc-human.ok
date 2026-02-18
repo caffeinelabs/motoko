@@ -1,0 +1,13 @@
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ mixins/MixinCap.mo:4:4
+  4 │     f<system>(); // rejected, but maybe could be accepted? Safe for now at least
+    │     ^^^^^^^^^^^ 
+error[M0038]: misplaced await
+    ┌─ mixins/MixinCap.mo:5:4
+  5 │     await(async {}); // correctly rejected
+    │     ^^^^^^^^^^^^^^^ 
+error[M0037]: misplaced async expression; try enclosing in an async function
+    ┌─ mixins/MixinCap.mo:5:10
+  5 │     await(async {}); // correctly rejected
+    │           ^^^^^^^^ 

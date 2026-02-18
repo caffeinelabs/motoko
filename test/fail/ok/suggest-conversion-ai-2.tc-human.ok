@@ -1,0 +1,24 @@
+error[M0096]: expression of type
+  Nat8
+cannot produce expected type
+  Nat
+Maybe try conversion:
+  `Nat8.toNat(_)`,
+  `Nat8.fromNat8(_)`,
+  `Nat8.Outer.Inner.toNat(_)` or
+  `Nat8.Outer.Inner.fromNat8(_)`?
+    ┌─ suggest-conversion-ai-2.mo:8:3
+  8 │  f(n8);
+    │    ^^ 
+error[M0096]: expression of type
+  Nat16
+cannot produce expected type
+  Nat
+Maybe try conversion:
+  `Nat16.toNat(_)` after adding `import Nat16 = "mo:conv/Nat16"`,
+  `Nat16.fromNat16(_)` after adding `import Nat16 = "mo:conv/Nat16"`,
+  `Nat16.Outer.Inner.toNat(_)` after adding `import Nat16 = "mo:conv/Nat16"` or
+  `Nat16.Outer.Inner.fromNat16(_)` after adding `import Nat16 = "mo:conv/Nat16"`?
+    ┌─ suggest-conversion-ai-2.mo:9:3
+  9 │  f(n16);
+    │    ^^^ 

@@ -1,0 +1,239 @@
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:4:9
+  4 │    case (-1) {};  // redundant
+    │          ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:8:9
+  8 │    case (-1 : Int) {};  // redundant
+    │          ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:13:13
+ 13 │    case ((1, -2) : (Int, Int)) {};  // redundant
+    │              ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:17:18
+ 17 │    case (1 : Int, -2 : Int) {};  // redundant
+    │                   ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:22:21
+ 22 │    case ({a = 1; b = -2} : {a : Int; b : Int}) {};  // redundant
+    │                      ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:26:26
+ 26 │    case {a = 1 : Int; b = -2 : Int} {};  // redundant
+    │                           ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:31:11
+ 31 │    case (? -1) {};  // redundant
+    │            ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:35:11
+ 35 │    case (? -1 : ?Int) {};  // redundant
+    │            ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:39:11
+ 39 │    case (?(-1 : Int)) {};  // redundant
+    │            ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:44:12
+ 44 │    case (#A(-1)) {};  // redundant
+    │             ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:48:12
+ 48 │    case (#A(-1 : Int)) {};  // redundant
+    │             ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:52:12
+ 52 │    case (#A(-1) : {#A : Int; #B}) {};  // redundant
+    │             ^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:57:9
+ 57 │    case (n : Nat) {};
+    │          ^^^^^^^ 
+error[M0117]: pattern of type
+  (Nat, Nat)
+cannot consume expected type
+  (Int, Int)
+    ┌─ pat-subtyping-fail.mo:61:9
+ 61 │    case (p : (Nat, Nat)) {};
+    │          ^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  (Nat, Nat)
+cannot consume expected type
+  (Int, Int)
+    ┌─ pat-subtyping-fail.mo:64:9
+ 64 │    case ((x, y) : (Nat, Nat)) {};
+    │          ^^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:67:9
+ 67 │    case (x : Nat, y : Nat) {};
+    │          ^^^^^^^ 
+error[M0117]: pattern of type
+  {a : Nat; b : Nat}
+cannot consume expected type
+  {a : Int; b : Int}
+    ┌─ pat-subtyping-fail.mo:71:9
+ 71 │    case (r : {a : Nat; b : Nat}) {};
+    │          ^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  {a : Nat; b : Nat}
+cannot consume expected type
+  {a : Int; b : Int}
+    ┌─ pat-subtyping-fail.mo:74:9
+ 74 │    case ({a; b} : {a : Nat; b : Nat}) {};
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:77:13
+ 77 │    case {a = _ : Nat; b = _ : Nat} {};
+    │              ^^^^^^^ 
+error[M0117]: pattern of type
+  {a : Nat; b : Nat}
+cannot consume expected type
+  {a : Nat}
+    ┌─ pat-subtyping-fail.mo:80:9
+ 80 │    case (r : {a : Nat; b : Nat}) {};
+    │          ^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  {a : Nat; b : Nat}
+cannot consume expected type
+  {a : Nat}
+    ┌─ pat-subtyping-fail.mo:83:9
+ 83 │    case ({a; b} : {a : Nat; b : Nat}) {};
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  {a : Nat; b : Nat}
+cannot consume expected type
+  {}
+    ┌─ pat-subtyping-fail.mo:86:9
+ 86 │    case (r : {a : Nat; b : Nat}) {};
+    │          ^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  {a : Nat; b : Nat}
+cannot consume expected type
+  {}
+    ┌─ pat-subtyping-fail.mo:89:9
+ 89 │    case ({a; b} : {a : Nat; b : Nat}) {};
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:94:8
+ 94 │    case (? _) {};
+    │         ^^^^^ 
+error[M0117]: pattern of type
+  Null
+cannot consume expected type
+  ?Nat
+    ┌─ pat-subtyping-fail.mo:97:9
+ 97 │    case (null : Null) {};
+    │          ^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  ?Nat
+cannot consume expected type
+  ?Int
+    ┌─ pat-subtyping-fail.mo:101:9
+101 │    case (?n : ?Nat) {};
+    │          ^^^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:105:11
+105 │    case (?(_ : Nat)) {};
+    │            ^^^^^^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:110:8
+110 │    case (#A _ : {#A : Nat; #B}) {};  // redundant
+    │         ^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  {#A : Nat}
+cannot consume expected type
+  {#A : Nat; #B}
+    ┌─ pat-subtyping-fail.mo:113:9
+113 │    case (#A _ : {#A : Nat}) {};
+    │          ^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  {#B}
+cannot consume expected type
+  {#A : Nat; #B}
+    ┌─ pat-subtyping-fail.mo:117:9
+117 │    case (#B : {#B}) {};
+    │          ^^^^^^^^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:123:8
+123 │    case true {};
+    │         ^^^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-subtyping-fail.mo:124:8
+124 │    case 1 {};
+    │         ^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:132:10
+132 │    func f(x : Nat : Int) {};
+    │           ^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:135:10
+135 │    func f(x : Nat : Int : Nat) {};
+    │           ^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:138:10
+138 │    func f(x : Int : Nat : Int) {};
+    │           ^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:144:16
+144 │    ignore (func(x : Nat) {}) : (Int -> ());
+    │                 ^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:147:16
+147 │    ignore (func(x : Nat : Int) {}) : (Nat -> ());
+    │                 ^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:150:16
+150 │    ignore (func(x : Int : Nat) {}) : (Int -> ());
+    │                 ^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  (x : Nat) -> ()
+cannot produce expected type
+  Int -> ()
+    ┌─ pat-subtyping-fail.mo:156:11
+156 │    ignore (func f(x : Nat) {}) : (Int -> ());
+    │            ^^^^^^^^^^^^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ pat-subtyping-fail.mo:159:18
+159 │    ignore (func f(x : Nat : Int) {}) : (Nat -> ());
+    │                   ^^^^^^^ 
+error[M0096]: expression of type
+  Nat -> ()
+cannot produce expected type
+  Int -> ()
+    ┌─ pat-subtyping-fail.mo:162:11
+162 │    ignore (func f(x : Int : Nat) {}) : (Int -> ());
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^ 
