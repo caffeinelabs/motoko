@@ -1,7 +1,0 @@
-stable-sig.mo:6.14-6.15: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)
-stable-sig.mo:7.14-7.16: warning [M0194], unused identifier vn (delete or rename to wildcard `_` or `_vn`)
-stable-sig.mo:9.14-9.16: warning [M0194], unused identifier ns (delete or rename to wildcard `_` or `_ns`)
-stable-sig.mo:10.14-10.16: warning [M0194], unused identifier ln (delete or rename to wildcard `_` or `_ln`)
-stable-sig.mo:11.14-11.16: warning [M0194], unused identifier lt (delete or rename to wildcard `_` or `_lt`)
-stable-sig.mo:12.14-12.18: warning [M0194], unused identifier lnon (delete or rename to wildcard `_` or `_lnon`)
-stable-sig.mo:13.14-13.18: warning [M0194], unused identifier lany (delete or rename to wildcard `_` or `_lany`)

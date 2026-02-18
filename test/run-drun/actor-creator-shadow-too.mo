@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0240
 shared(c) actor class C() = c {
 
   public shared ctxt func c1 () : async actor {} {

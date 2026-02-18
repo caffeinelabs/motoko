@@ -1,7 +1,6 @@
 stable-mem/StableMemory.mo:5.21-5.42: warning [M0199], this code is (or uses) the deprecated library `ExperimentalStableMemory`.
 Please use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message.
-stable-mem-rts-stats.mo:9.7-9.8: warning [M0145], this pattern of type
+stable-mem-rts-stats.mo:10.7-10.8: warning [M0145], this pattern of type
   Nat64
 does not cover value
   1 or 2 or _
-stable-mem-rts-stats.mo:10.14-10.15: warning [M0194], unused identifier v (delete or rename to wildcard `_` or `_v`)

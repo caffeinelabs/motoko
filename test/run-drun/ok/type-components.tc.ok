@@ -1,4 +1,0 @@
-type-components.mo:14.7-14.10: warning [M0194], unused identifier eqC (delete or rename to wildcard `_` or `_eqC`)
-type-components.mo:15.7-15.10: warning [M0194], unused identifier eqD (delete or rename to wildcard `_` or `_eqD`)
-type-components.mo:22.17-22.18: warning [M0194], unused identifier c (delete or rename to wildcard `_` or `_c`)
-type-components.mo:24.17-24.18: warning [M0194], unused identifier d (delete or rename to wildcard `_` or `_d`)

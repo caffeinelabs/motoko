@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // test endpoints taking a single arg that is a tuple
 actor class TestAPI() {
   public func endpoint1(x: (Nat, Nat)) : async () {}; // compiler bug

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 // This file only exercises local throws that don't cross function boundaries.
 // In principle, it should run on all targets.

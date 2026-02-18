@@ -1,8 +1,7 @@
-par.mo:16.30-16.36: warning [M0211], redundant empty parenthetical note
-par.mo:51.11-51.55: warning [M0212], unrecognised attribute yeah in parenthetical
-par.mo:79.11-79.41: warning [M0212], unrecognised attribute moot in parenthetical
-par.mo:126.15-126.26: warning [M0211], redundant empty parenthetical note
-par.mo:128.15-128.26: warning [M0211], redundant empty parenthetical note
-par.mo:144.16-144.76: warning [M0210], misplaced parenthetical (`async*` calls cannot be modified)
-par.mo:119.13-119.16: warning [M0244], variable env is never reassigned, consider using `let`
-par.mo:123.39-123.45: warning [M0194], unused identifier cycles (delete or rename to wildcard `_` or `_cycles`)
+par.mo:17.30-17.36: warning [M0211], redundant empty parenthetical note
+par.mo:52.11-52.55: warning [M0212], unrecognised attribute yeah in parenthetical
+par.mo:80.11-80.41: warning [M0212], unrecognised attribute moot in parenthetical
+par.mo:127.15-127.26: warning [M0211], redundant empty parenthetical note
+par.mo:129.15-129.26: warning [M0211], redundant empty parenthetical note
+par.mo:145.16-145.76: warning [M0210], misplaced parenthetical (`async*` calls cannot be modified)
+par.mo:120.13-120.16: warning [M0244], variable env is never reassigned, consider using `let`

@@ -1,11 +1,10 @@
-typtbl.mo:8.7-8.16: warning [M0145], this pattern of type
+typtbl.mo:9.7-9.16: warning [M0145], this pattern of type
   ?()
 does not cover value
   null
-typtbl.mo:13.7-13.9: warning [M0145], this pattern of type
+typtbl.mo:14.7-14.9: warning [M0145], this pattern of type
   ?()
 does not cover value
   null
-typtbl.mo:5.3-5.47: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
-typtbl.mo:11.3-11.47: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
-typtbl.mo:8.8-8.16: warning [M0194], unused identifier contents (delete or rename to wildcard `_` or `_contents`)
+typtbl.mo:6.3-6.47: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+typtbl.mo:12.3-12.47: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
