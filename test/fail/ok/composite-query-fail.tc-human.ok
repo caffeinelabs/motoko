@@ -1,0 +1,72 @@
+error[M0188]: send capability required, but not available
+  (cannot call a `shared` function from a `query` function)
+    ┌─ composite-query-fail.mo:30:6
+ 30 │     public composite query func cqm() : async () {
+    │       ^^^^ 
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:34:6
+ 34 │     public composite query func cqo() : async () {
+    │       ^^^ 
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:36:6
+ 35 │         o(); // reject oneway call
+ 36 │       };
+    │ ╭───────^
+ 37 │ │  
+ 38 │ │     public composite query func cqf() : async () {
+    │ ╰──^ 
+ 39 │         ignore f(); // reject local async call
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:42:6
+ 42 │     public composite query func cqs() : async () {
+    │       ^^^ 
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:46:6
+ 46 │     public composite query func cqa() : async () {
+    │       ^^^ 
+error[M0037]: misplaced async expression; a composite query cannot contain an async expression
+    ┌─ composite-query-fail.mo:50:6
+ 50 │     public composite query func cqas() : async () {
+    │       ^^^^^^^^ 
+error[M0037]: misplaced async expression; a composite query cannot contain an async expression
+    ┌─ composite-query-fail.mo:55:6
+ 55 │     // bad update
+    │       ^^^^^^^^^ 
+warning[M0222]: ignored argument of `async*` type has no effect
+    ┌─ composite-query-fail.mo:53:6
+ 52 │         ignore async* {};
+ 53 │       };
+    │ ╭───────^
+ 54 │ │  
+ 55 │ │     // bad update
+    │ ╰───────────────^ 
+ 56 │       public func n() : async() {
+error[M0186]: composite send capability required, but not available
+  (cannot call a `composite query` function from a non-`composite query` function)
+    ┌─ composite-query-fail.mo:60:7
+ 60 │     // bad oneway
+    │        ^^^^ 
+error[M0186]: composite send capability required, but not available
+  (cannot call a `composite query` function from a non-`composite query` function)
+    ┌─ composite-query-fail.mo:63:14
+ 63 │        ignore async { cq() }; // reject
+    │               ^^^^ 
+error[M0186]: composite send capability required, but not available
+  (cannot call a `composite query` function from a non-`composite query` function)
+    ┌─ composite-query-fail.mo:66:15
+ 65 │    
+ 66 │       // bad query
+    │ ╭────────────────^
+ 67 │ │     public query func r() : async () {
+    │ ╰───^ 
+ 68 │          ignore cq(); // reject
+OOPS! You've triggered a compiler bug.
+Please report this at https://github.com/dfinity/motoko/issues/new with the following details:
+
+Motoko (source XXX)
+
+Fatal error: exception Invalid_argument("range beyond end of source; stop = 1346 > 1338 = eos")

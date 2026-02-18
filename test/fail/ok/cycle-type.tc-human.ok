@@ -1,0 +1,33 @@
+error[M0050]: literal of type
+  Char
+does not have expected type
+  Nat
+    ┌─ cycle-type.mo:4:39
+  4 │          await (defaults with cycles = 'C') a.foo();
+    │                                        ^^^ 
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ cycle-type.mo:5:39
+  5 │          await (defaults with cycles = "Can't") async ();
+    │                                        ^^^^^^^ 
+warning[M0210]: misplaced parenthetical (this call does not send a message)
+    ┌─ cycle-type.mo:7:16
+  7 │          ignore (with) nonSend();
+    │                 ^^^^^^ 
+warning[M0211]: redundant empty parenthetical note
+    ┌─ cycle-type.mo:7:16
+  7 │          ignore (with) nonSend();
+    │                 ^^^^^^ 
+warning[M0211]: redundant empty parenthetical note
+    ┌─ cycle-type.mo:9:9
+  9 │          ({} with) a.oneway();
+    │          ^^^^^^^^^ 
+error[M0050]: literal of type
+  Char
+does not have expected type
+  Nat32
+    ┌─ cycle-type.mo:10:31
+ 10 │          await (with timeout = 'T') a.foo();
+    │                                ^^^ 

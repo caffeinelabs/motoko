@@ -1,0 +1,4 @@
+error[M0058]: no type can be inferred for actor reference
+    ┌─ actor-reference-infer.mo:3:9
+  3 │  let _ = actor "bfozs-kwa73-7nadi";  // cannot infer
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^ 

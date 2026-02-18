@@ -1,0 +1,4 @@
+error[M0071]: cannot infer type of forward field reference bar
+    ┌─ issue-874-b.mo:5:14
+  5 │       let _ = m.X.bar();
+    │               ^^^^^^^ 

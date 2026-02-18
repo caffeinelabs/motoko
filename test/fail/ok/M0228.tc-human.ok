@@ -1,0 +1,4 @@
+error[M0228]: mixins may only be declared at the top-level
+    ┌─ M0228.mo:2:3
+  2 │    mixin() {};
+    │    ^^^^^^^^^^ 

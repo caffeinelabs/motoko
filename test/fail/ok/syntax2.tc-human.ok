@@ -1,0 +1,24 @@
+error[M0001]: unexpected token 'let', expected one of token or <phrase> sequence:
+  <eof>
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  else <exp_nest>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ syntax2.mo:2:1
+  2 │  let y = 2;
+    │  ^^^ 

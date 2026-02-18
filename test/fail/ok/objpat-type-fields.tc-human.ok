@@ -1,0 +1,32 @@
+error[M0045]: wrong number of type arguments: expected 2 but got 1
+    ┌─ objpat-type-fields.mo:8:13
+  8 │    let _r2 : Result<Nat> = #ok(3); // Wrong number of type parameters
+    │              ^^^^^^^^^^^ 
+error[M0046]: type argument
+  Result<Float, Text> = {#err : Text; #ok : Float}
+does not match parameter bound
+  Result<Int, Text> = {#err : Text; #ok : Int}
+    ┌─ objpat-type-fields.mo:14:25
+ 14 │    type BWrong = Bounded<Result<Float, Text>>;
+    │                          ^^^^^^^^^^^^^^^^^^^ 
+error[M0189]: mismatched types for type N in patterns
+    ┌─ objpat-type-fields.mo:32:8
+ 32 │    let (#left{ type N } or #right { type N }) = x else {
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0051]: duplicate definition for type N in block
+    ┌─ objpat-type-fields.mo:40:22
+ 40 │    let { type N; type N } = x;
+    │                       ^ 
+error[M0119]: object type field U is not contained in expected type
+  module {type N = Nat; Z : Nat}
+    ┌─ objpat-type-fields.mo:45:9
+ 45 │    let { type U } = x;
+    │          ^^^^^^ 
+error[M0189]: mismatched types for type N in patterns
+    ┌─ objpat-type-fields.mo:54:8
+ 54 │    let (#left{ type N } or #right { type N }) = x else {
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0189]: different set of type bindings in pattern alternatives
+    ┌─ objpat-type-fields.mo:62:8
+ 62 │    let (#left{ type N } or #right { }) = x else {
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

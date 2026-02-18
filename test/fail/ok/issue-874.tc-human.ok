@@ -1,0 +1,4 @@
+error[M0071]: cannot infer type of forward field reference foo
+    ┌─ issue-874.mo:4:11
+  4 │    let _ = a.foo();
+    │            ^^^^^ 

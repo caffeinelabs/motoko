@@ -1,0 +1,4 @@
+error[M0055]: cannot infer type of forward variable Foo
+    ┌─ unboundclass.mo:8:12
+  8 │    private func g(n:Int) : Int = n + 1;
+    │             ^^^ 

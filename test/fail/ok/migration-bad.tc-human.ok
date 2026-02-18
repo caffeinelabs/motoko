@@ -1,0 +1,98 @@
+error[M0203]: expected non-generic, local function type, but migration expression produces type
+  ()
+    ┌─ migration-bad.mo:3:7
+  3 │  (with migration = ()) // reject, not a function
+    │        ^^^^^^^^^^^^^^ 
+error[M0203]: expected non-generic, local function type, but migration expression produces type
+  <T>(x : T) -> T
+    ┌─ migration-bad.mo:7:7
+  7 │  (with migration = func <T>(x:T) : T {x}) // reject, a generic function
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0202]: expected object type, but migration expression consumes non-object type
+  ()
+    ┌─ migration-bad.mo:11:7
+ 11 │  (with migration = func () : {} {{}}) // reject, domain is not a record
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0202]: expected object type, but migration expression produces non-object type
+  ()
+    ┌─ migration-bad.mo:15:7
+ 15 │  (with migration = func ({}) : () {}) // reject, co-domain is not a record
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0202]: expected object type, but migration expression produces non-object type
+  ()
+    ┌─ migration-bad.mo:19:7
+ 19 │  (with migration = func ({f:()->()}) : () {}) // reject domain is unstable
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0201]: expected stable type, but migration expression consumes non-stable type
+  {f : () -> ()}
+    ┌─ migration-bad.mo:19:7
+ 19 │  (with migration = func ({f:()->()}) : () {}) // reject domain is unstable
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0207]: migration expression consumes field `f` of type
+  () -> ()
+but does not produce it. The field is not declared in the actor.
+This field will be removed from the actor, discarding its consumed value.
+If this removal is unintended, declare the field in the actor and either remove the field from the parameter of the migration function or add it to the result of the migration function.
+    ┌─ migration-bad.mo:19:7
+ 19 │  (with migration = func ({f:()->()}) : () {}) // reject domain is unstable
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0201]: expected stable type, but migration expression produces non-stable type
+  {f : () -> ()}
+    ┌─ migration-bad.mo:23:7
+ 23 │  (with migration = func () : {f:()->()}{ {f = func(){}} }) // reject, co-domain is unstable
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0202]: expected object type, but migration expression consumes non-object type
+  ()
+    ┌─ migration-bad.mo:23:7
+ 23 │  (with migration = func () : {f:()->()}{ {f = func(){}} }) // reject, co-domain is unstable
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0204]: migration expression produces field `f` of type
+  () -> ()
+, not the expected type
+  Any
+because promoting 
+  () -> ()
+ to `Any` loses data
+ in `f`
+    ┌─ migration-bad.mo:23:7
+ 23 │  (with migration = func () : {f:()->()}{ {f = func(){}} }) // reject, co-domain is unstable
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0136]: empty block cannot produce expected type
+  {} -> {}
+    ┌─ migration-bad.mo:28:41
+ 28 │  (with migration = (func () : ({} -> {}) {}) ()) // reject, not static
+    │                                          ^^ 
+error[M0014]: non-static expression in library, module or migration expression
+    ┌─ migration-bad.mo:28:19
+ 28 │  (with migration = (func () : ({} -> {}) {}) ()) // reject, not static
+    │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0208]: expected expression with field `migration`, but expression has type
+  {other : ()}
+    ┌─ migration-bad.mo:33:1
+ 33 │  (with other = ()) // reject, no migration field
+    │  ^^^^^^^^^^^^^^^^^ 
+error[M0208]: expected expression with field `migration`, but expression has type
+  {other : ()}
+    ┌─ migration-bad.mo:37:1
+ 37 │  ({} with other = ())
+    │  ^^^^^^^^^^^^^^^^^^^^ 
+error[M0203]: expected non-generic, local function type, but migration expression produces type
+  ()
+    ┌─ migration-bad.mo:41:7
+ 41 │  (with migration = ();
+    │        ^^^^^^^^^^^^^^ 
+warning[M0212]: unrecognised attribute extra in parenthetical note
+    ┌─ migration-bad.mo:41:1
+ 40 │    
+ 41 │ ╭  (with migration = ();
+ 42 │ │        extra = ()) // future: warn, unexpected field
+    │ ╰──────────────────^ 
+ 43 │    actor j {
+error[M0209]: misplaced actor migration expression on module or object
+    ┌─ migration-bad.mo:46:1
+ 46 │  (with migration = func ({}) : {}{{}};) // error, unexpected module
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0209]: misplaced actor migration expression on module or object
+    ┌─ migration-bad.mo:50:1
+ 50 │  (with migration = func ({}) : {}{{}};) // error, unexpected object
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

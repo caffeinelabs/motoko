@@ -1,0 +1,28 @@
+warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
+    ┌─ redundant-ignore.mo:4:1
+  4 │  let u = ();
+    │  ^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ redundant-ignore.mo:5:1
+  5 │  ignore (); // redundant
+    │  ^^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ redundant-ignore.mo:6:1
+  6 │  ignore f(); // redundant
+    │  ^^^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ redundant-ignore.mo:7:1
+  7 │  ignore u; // redundant
+    │  ^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ redundant-ignore.mo:12:3
+ 12 │    ignore (); // redundant
+    │    ^^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ redundant-ignore.mo:13:3
+ 13 │    ignore f(); // redundant
+    │    ^^^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ redundant-ignore.mo:14:3
+ 14 │    ignore u; // redundant
+    │    ^^^^^^^^ 

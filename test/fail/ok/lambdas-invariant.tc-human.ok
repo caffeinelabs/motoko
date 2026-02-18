@@ -1,0 +1,116 @@
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> C<U>) -> [var U]
+to argument of type
+  ([var Nat], Nat -> C<U>)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, Int>
+    ┌─ lambdas-invariant.mo:35:11
+ 35 │    let _ = VarArray.mapC(va, func x = c<Int>(x)); // Int -> ()
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, Nat>
+    ┌─ lambdas-invariant.mo:51:11
+ 51 │    let _ = VarArray.map(va, func x = x); // Nat
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, Null>
+    ┌─ lambdas-invariant.mo:54:11
+ 54 │    let _ = VarArray.map(va, func x = null); // Null
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, ?Nat>
+    ┌─ lambdas-invariant.mo:57:11
+ 57 │    let _ = VarArray.map(va, func x = ?x); // ?Nat
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, [Nat]>
+    ┌─ lambdas-invariant.mo:60:11
+ 60 │    let _ = VarArray.map(va, func x = [x]); // [Nat]
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, {x : Nat}>
+    ┌─ lambdas-invariant.mo:63:11
+ 63 │    let _ = VarArray.map(va, func x = { x }); // { x : Nat }
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, {#c : Nat}>
+    ┌─ lambdas-invariant.mo:66:11
+ 66 │    let _ = VarArray.map(va, func x = #c(x)); // { #c : Nat }
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, Er>
+    ┌─ lambdas-invariant.mo:79:11
+ 79 │    let _ = VarArray.map(va, func _ = t); // Er, should still fail because [var Er] =/= [var Text]
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, Er>
+    ┌─ lambdas-invariant.mo:83:11
+ 83 │    let _ = VarArray.map(va, func _ = t); // Er, should fail
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U1, U2>([var T], T -> (U1, U2)) -> [var (U1, U2)]
+to argument of type
+  ([var Nat], Nat -> (U1, U2))
+because there is no "best" choice for type parameters `U2`, `U1`.
+Hint: Add explicit type instantiation, e.g. <Nat, Nat, Null>
+    ┌─ lambdas-invariant.mo:87:11
+ 87 │    let _ = VarArray.map2(va, func x = (x, null)); // (Nat, Null)
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, {var age : Nat; var name : Text}>
+    ┌─ lambdas-invariant.mo:99:13
+ 99 │      let _ = VarArray.map(va, func x = user);
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>([var T], T -> U) -> [var U]
+to argument of type
+  ([var Nat], Nat -> U)
+because there is no "best" choice for type parameter `U`.
+Hint: Add explicit type instantiation, e.g. <Nat, [User]>
+    ┌─ lambdas-invariant.mo:102:13
+102 │      let _ = VarArray.map(va, func x = users);
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>(T -> (), T -> U) -> [var T]
+to argument of type
+  ((x : Int) -> (), T -> U)
+because there is no "best" choice for type parameter `T`.
+    ┌─ lambdas-invariant.mo:110:11
+110 │    let _ = VarArray.invariantFirstRound(onInt, func x = x); // fails when solving `T`, before solving `U`
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

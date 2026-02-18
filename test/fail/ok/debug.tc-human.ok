@@ -1,0 +1,7 @@
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  ()
+    ┌─ debug.mo:1:10
+  1 │  debug { 42 }; // error: result Int
+    │           ^^ 
