@@ -618,7 +618,7 @@ and export_runtime_information self_id =
 and export_view viewer_opt =
   match viewer_opt with
   | None -> ([], [], [])
-  | Some {viewer_body; viewer_field} ->
+  | Some {viewer_body; viewer_field; viewer_isAdmin_available} ->
      let open T in
      let ts1, ts2, mk_body =
        match (viewer_body, T.normalize viewer_field.typ) with
@@ -641,18 +641,28 @@ and export_view viewer_opt =
      let bind2 = typ_arg scope_con2 Scope scope_bound in
      let typ = viewer_field.typ in
      let caller = fresh_var "caller" caller in
+     let is_self_or_controller =
+       orE (primE (I.RelPrim (principal, Operator.EqOp)) [varE caller; selfRefE principal])
+         (primE (I.OtherPrim "is_controller") [varE caller])
+     in
+     let access_control =
+       if viewer_isAdmin_available then
+         let isAdmin = var "isAdmin" T.(Func(Local, Returns, [], [principal], [bool]))
+         in
+         orE is_self_or_controller
+           (callE (varE isAdmin) [] (varE caller))
+       else is_self_or_controller
+     in
      ([ letD (var v typ) (
             funcE v (Shared Query) Promises [bind1] args ts2 (
                 (asyncE T.Fut bind2
                    (blockE [
                         (* authentication, self or controller only *)
                         letD caller (primE I.ICCallerPrim []);
-                        expD (ifE (orE
-                                     (primE (I.RelPrim (principal, Operator.EqOp)) [varE caller; selfRefE principal])
-                                     (primE (I.OtherPrim "is_controller") [varE caller]))
+                        expD (ifE access_control
                                 (unitE())
                                 (primE (Ir.OtherPrim "trap")
-                                   [textE "Unauthorized caller (caller must be self or some controller)"]))
+                                   [textE "Unauthorized caller (caller must be self, some controller or isAdmin(caller))"]))
                       ]
                       (mk_body vs))
                    (Con (scope_con1, []))))

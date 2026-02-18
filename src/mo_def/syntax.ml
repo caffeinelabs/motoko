@@ -179,7 +179,11 @@ let break_label kind (id_opt : id option) =
 
 type id_ref = (string, mut' * exp option) Source.annotated_phrase
 and viewer_body = DotViewV of exp | DefaultV of exp
-and viewer = {viewer_body : viewer_body; viewer_field : Type.field}
+and viewer = {
+    viewer_body : viewer_body;
+    viewer_field : Type.field;
+    viewer_isAdmin_available : bool;
+  }
 and stab = stab' Source.phrase
 and stab' = Stable of viewer option ref | Flexible
 and hole_sort = Named of string | Anon of int

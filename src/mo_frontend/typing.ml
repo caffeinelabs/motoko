@@ -4053,8 +4053,13 @@ and check_stab env sort scope dec_fields =
 
 and infer_viewer env scope mut id viewer =
   assert (!viewer = None);
+  let viewer_isAdmin_available =
+    (match T.Env.find_opt "isAdmin" env.vals with
+     | Some (t, _, _, _) -> T.sub t (T.Func(T.Local, T.Returns, [], [T.principal], [T.bool]))
+     | _ -> false)
+  in
   match Diag.with_message_store (recover_opt (fun msgs ->
-    let env = {env with msgs} in (* don't record errors in outer env *) 
+    let env = {env with msgs} in (* don't record errors in outer env *)
     let env = adjoin env scope in
     let note() = empty_typ_note in
     let at = id.at in
@@ -4080,6 +4085,7 @@ and infer_viewer env scope mut id viewer =
                T.{ lab = id.it;
                    typ = Func (Shared Query, Promises, [scope_bind], ts1, ts2);
                    src = empty_src };
+               viewer_isAdmin_available
              }
         else error env id.at "M0XXX" "viewer '%s.view()' has non-shared type" id.it
      | _ -> error env id.at "M0XXX" "viewer '%s.view()' is not a function" id.it)))
@@ -4097,7 +4103,8 @@ and infer_viewer env scope mut id viewer =
                             viewer_field =
                              T.{ lab = id.it;
                                  typ = Func (Shared Query, Promises, [scope_bind], [], [typ]);
-                                 src = empty_src } }
+                                 src = empty_src };
+                            viewer_isAdmin_available}
      | None -> assert false)
   | Ok (exp_typ, _) ->
      (* info env id.at "viewer found for %s" id.it; *)
