@@ -1,0 +1,25 @@
+error[M0096]: expression of type
+  {#B}
+cannot produce expected type
+  {#A}
+because case `#B` is missing from expected type 
+  {#A}
+    ┌─ pipe-ill-typed.mo:7:33
+  7 │    let (#A, #B) = #B |> f2<A, B>(_, #B); // type error
+    │                                  ^ 
+error[M0096]: expression of type
+  {#A}
+cannot produce expected type
+  {#B}
+because case `#A` is missing from expected type 
+  {#B}
+    ┌─ pipe-ill-typed.mo:11:37
+ 11 │    let (#A, #B) = #A |> f2<A, B>(#A, _); // type error
+    │                                      ^ 
+error[M0096]: expression of type
+  {#A}
+cannot produce expected type
+  (x1 : A, x2 : B)
+    ┌─ pipe-ill-typed.mo:16:33
+ 16 │    let (#A, #B) = #A |> f2<A, B> _; // type error
+    │                                  ^ 

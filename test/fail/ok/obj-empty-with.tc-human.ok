@@ -1,0 +1,5 @@
+error[M0001]: unexpected token '}', expected one of token or <phrase> sequence:
+  seplist1(<exp_field>,<semicolon>) }
+    ┌─ obj-empty-with.mo:5:22
+  5 │  let wrong = { b with }; // syntax error
+    │                       ^ 

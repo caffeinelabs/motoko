@@ -1,0 +1,36 @@
+error[M0113]: object pattern cannot consume expected type
+  {#A}
+    ┌─ pat-inconsistent.mo:42:9
+ 42 │    case ({B = _}) {};
+    │          ^^^^^^^ 
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  Bool
+    ┌─ pat-inconsistent.mo:49:8
+ 49 │    case 1 {};
+    │         ^ 
+error[M0116]: variant pattern cannot consume expected type
+  Bool
+    ┌─ pat-inconsistent.mo:54:9
+ 54 │    case (#geese) {};
+    │          ^^^^^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ pat-inconsistent.mo:59:9
+ 59 │    case (#geese) {};
+    │          ^^^^^^ 
+warning[M0145]: this switch of type
+  {#sparrows}
+does not cover value
+  #sparrows
+    ┌─ pat-inconsistent.mo:58:1
+ 57 │    // Coverage check for disjoint variants
+ 58 │ ╭  switch (#sparrows : { #sparrows }) {
+ 59 │ │    case (#geese) {};
+ 60 │ │  };
+    │ ╰──^ 
+ 61 │    
+warning[M0146]: this pattern is never matched
+    ┌─ pat-inconsistent.mo:64:10
+ 64 │      case (#geese) {};
+    │           ^^^^^^^^ 

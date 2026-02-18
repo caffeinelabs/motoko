@@ -1,0 +1,38 @@
+error[M0096]: expression of type
+  {m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text>}
+cannot produce expected type
+  {m2 : M1.Map<Nat, Text>}
+because expected field `map` is missing from type 
+  {var root : Node<Nat, Text>; var size_ : Nat}
+ of `M1.Map` (used by `m2`)
+    ┌─ type-alias-path.mo:18:41
+ 18 │      let _ : {m2 : M1.Map<Nat, Text> } = r;
+    │                                          ^ 
+error[M0096]: expression of type
+  (m : MyMap.Map<Nat, Text>) -> ()
+cannot produce expected type
+  M1.Map<Nat, Text> -> ()
+    ┌─ type-alias-path.mo:21:17
+ 21 │      check(r.m1, func(m : MyMap.Map<Nat, Text>) = ());
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  <K, V>(self : MyMap.Map<K, V>, compare : (implicit : (K, K) -> Order),
+         key : K) ->
+    ?V
+cannot produce expected type
+  () -> ()
+    ┌─ type-alias-path.mo:24:24
+ 24 │      let _ : () -> () = MyMap.get // the error message mentions `Types.Order` that is NOT imported here
+    │                         ^^^^^^^^^ 
+error[M0096]: expression of type
+  {x : MyType}
+cannot produce expected type
+  {x : MyType}
+because the type 
+  Text
+ is not compatible with type 
+  var Nat
+ in `x` (used by `MyType` in `x`)
+    ┌─ type-alias-path.mo:29:10
+ 29 │      r := r2; // Known issue: `M.MyType` cannot produce `M.MyType`. Since we can freely rename modules, such conflicts are inevitable.
+    │           ^^ 

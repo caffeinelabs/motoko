@@ -1,0 +1,11 @@
+error[M0200]: cannot decide type constructor equality
+    ┌─ issue-3057.mo:2:10
+  1 │    module {
+  2 │      public class Id<A>(x : A) {
+    │ ╭───────────^
+  3 │ │      public func map<B>(f : A -> B) : Id<B> {
+  4 │ │        Id(f(x));
+  5 │ │      };
+  6 │ │    };
+    │ ╰────^ 
+  7 │    };

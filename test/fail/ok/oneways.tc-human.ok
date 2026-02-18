@@ -1,0 +1,49 @@
+error[M0078]: shared function with () result type has unexpected body:
+  the body must either be of sugared form '{ ... }' 
+  or explicit form '= ignore ((async ...) : async ())'
+    ┌─ oneways.mo:8:30
+  8 │   public func wrong1() : () = ();
+    │                               ^^ 
+error[M0078]: shared function with () result type has unexpected body:
+  the body must either be of sugared form '{ ... }' 
+  or explicit form '= ignore ((async ...) : async ())'
+    ┌─ oneways.mo:9:30
+  9 │   public func wrong2() : () = ignore async ();
+    │                               ^^^^^^^^^^^^^^^ 
+warning[M0242]: this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+    ┌─ oneways.mo:12:21
+ 12 │  shared func warn1() {};
+    │                      ^^ 
+warning[M0242]: this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+    ┌─ oneways.mo:13:23
+ 13 │  shared func warn2() = ignore ((async ()) : async ()) ;
+    │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0242]: this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+    ┌─ oneways.mo:14:23
+ 14 │  shared func warn3() = ignore ((async return) : async ()) ;
+    │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0242]: this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+    ┌─ oneways.mo:18:24
+ 18 │  shared func wrong1() = ();
+    │                         ^^ 
+error[M0078]: shared function with () result type has unexpected body:
+  the body must either be of sugared form '{ ... }' 
+  or explicit form '= ignore ((async ...) : async ())'
+    ┌─ oneways.mo:18:24
+ 18 │  shared func wrong1() = ();
+    │                         ^^ 
+warning[M0242]: this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+    ┌─ oneways.mo:19:24
+ 19 │  shared func wrong2() = ignore async ();
+    │                         ^^^^^^^^^^^^^^^ 
+error[M0078]: shared function with () result type has unexpected body:
+  the body must either be of sugared form '{ ... }' 
+  or explicit form '= ignore ((async ...) : async ())'
+    ┌─ oneways.mo:19:24
+ 19 │  shared func wrong2() = ignore async ();
+    │                         ^^^^^^^^^^^^^^^ 

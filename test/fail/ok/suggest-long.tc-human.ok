@@ -1,0 +1,5 @@
+error[M0072]: field stableM does not exist in module.
+Did you mean field stableMemoryGrow, stableMemorySize, stableMemoryLoadBlob, stableMemoryLoadInt8, stableMemoryLoadNat8, stableMemoryLoadFloat, stableMemoryLoadInt16, stableMemoryLoadInt32, stableMemoryLoadInt64, stableMemoryLoadNat16, stableMemoryLoadNat32, stableMemoryLoadNat64, stableMemoryStoreBlob, stableMemoryStoreInt8, stableMemoryStoreNat8, stableMemoryStoreFloat, stableMemoryStoreInt16, stableMemoryStoreInt32, stableMemoryStoreInt64, stableMemoryStoreNat16, stableMemoryStoreNat32 or stableMemoryStoreNat64?
+    ┌─ suggest-long.mo:3:6
+  3 │  Prim.stableM;
+    │       ^^^^^^^ 

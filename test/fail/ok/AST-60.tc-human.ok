@@ -1,0 +1,4 @@
+error[M0051]: duplicate definition for test in block
+    ┌─ AST-60.mo:2:5
+  2 │  let test = ();
+    │      ^^^^ 

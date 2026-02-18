@@ -1,0 +1,5 @@
+error[M0091]: immutable array expression cannot produce expected type
+  [var Nat]
+    ┌─ var-const-array.mo:1:22
+  1 │  let a : [var Nat] = [];
+    │                       ^^ 

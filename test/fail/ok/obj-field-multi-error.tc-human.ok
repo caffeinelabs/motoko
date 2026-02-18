@@ -1,0 +1,60 @@
+error[M0030]: type field MissingA does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:5:11
+  5 │      a : A.MissingA;
+    │            ^^^^^^^^ 
+error[M0030]: type field MissingB does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:6:11
+  6 │      b : B.MissingB;
+    │            ^^^^^^^^ 
+error[M0030]: type field MissingA does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:13:19
+ 13 │    type MyTup = (A.MissingA, B.MissingB);
+    │                    ^^^^^^^^ 
+error[M0030]: type field MissingB does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:13:31
+ 13 │    type MyTup = (A.MissingA, B.MissingB);
+    │                                ^^^^^^^^ 
+error[M0030]: type field MissingA does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:19:18
+ 19 │    type MyAnd = A.MissingA and B.MissingB;
+    │                   ^^^^^^^^ 
+error[M0030]: type field MissingB does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:19:33
+ 19 │    type MyAnd = A.MissingA and B.MissingB;
+    │                                  ^^^^^^^^ 
+error[M0030]: type field MissingA does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:25:17
+ 25 │    type MyOr = A.MissingA or B.MissingB;
+    │                  ^^^^^^^^ 
+error[M0030]: type field MissingB does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:25:31
+ 25 │    type MyOr = A.MissingA or B.MissingB;
+    │                                ^^^^^^^^ 
+error[M0030]: type field MissingA does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:31:20
+ 31 │    type MyFunc = (A.MissingA, B.MissingB) -> (A.MissingA, B.MissingB)
+    │                     ^^^^^^^^ 
+error[M0030]: type field MissingB does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:31:32
+ 31 │    type MyFunc = (A.MissingA, B.MissingB) -> (A.MissingA, B.MissingB)
+    │                                 ^^^^^^^^ 
+error[M0030]: type field MissingA does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:31:48
+ 31 │    type MyFunc = (A.MissingA, B.MissingB) -> (A.MissingA, B.MissingB)
+    │                                                 ^^^^^^^^ 
+error[M0030]: type field MissingB does not exist in type:
+  module {type T = ()}
+    ┌─ obj-field-multi-error.mo:31:60
+ 31 │    type MyFunc = (A.MissingA, B.MissingB) -> (A.MissingA, B.MissingB)
+    │                                                             ^^^^^^^^ 
