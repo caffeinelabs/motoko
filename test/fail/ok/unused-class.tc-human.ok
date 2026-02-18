@@ -1,7 +1,7 @@
 warning[M0194]: unused identifier UnusedTestClass (delete or rename to wildcard `_` or `_UnusedTestClass`)
-    ┌─ unused-class.mo:1:8
+    ┌─ unused-class.mo:1:7
   1 │  class UnusedTestClass() {
-    │         ^^^^^^^^^^^^^^^ 
+    │        ^^^^^^^^^^^^^^^ 
 warning[M0194]: unused identifier field (delete or rename to wildcard `_` or `_field`)
     ┌─ unused-class.mo:2:9
   2 │      let field = 0;

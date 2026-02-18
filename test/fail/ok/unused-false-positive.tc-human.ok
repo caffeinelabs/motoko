@@ -1,6 +1,4 @@
-OOPS! You've triggered a compiler bug.
-Please report this at https://github.com/dfinity/motoko/issues/new with the following details:
-
-Motoko (source XXX)
-
-Fatal error: exception Invalid_argument("range beyond end of source; stop = 69 > 64 = eos")
+error[M0057]: unbound variable d
+    ┌─ unused-false-positive.mo:4:16
+  4 │    case (a,b) { d # a # b };
+    │                 ^ 

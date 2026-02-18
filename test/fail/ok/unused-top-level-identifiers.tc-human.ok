@@ -1,7 +1,7 @@
 warning[M0194]: unused identifier unusedVariable (delete or rename to wildcard `_` or `_unusedVariable`)
-    ┌─ unused-top-level-identifiers.mo:1:6
+    ┌─ unused-top-level-identifiers.mo:1:5
   1 │  let unusedVariable = 0;
-    │       ^^^^^^^^^^^^^^ 
+    │      ^^^^^^^^^^^^^^ 
 warning[M0194]: unused identifier unusedVariable2 (delete or rename to wildcard `_` or `_unusedVariable2`)
     ┌─ unused-top-level-identifiers.mo:2:5
   2 │  var unusedVariable2 = 1;

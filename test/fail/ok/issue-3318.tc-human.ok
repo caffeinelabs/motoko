@@ -7,8 +7,8 @@ because the type
  is not compatible with type 
   (Int, Int)
  in results
-    ┌─ issue-3318.mo:7:24
-  7 │  h<(Nat,Nat),(Int,Int)>(g); // accept
+    ┌─ issue-3318.mo:6:24
+  6 │  h<(Nat,Nat),(Int,Int)>(f); // reject
     │                         ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> (Nat, Nat)
@@ -19,9 +19,9 @@ because the type
  is not compatible with type 
   (Nat, Nat)
  in results
-    ┌─ issue-3318.mo:18:3
- 18 │           : ((Nat, Nat)) -> (Nat, Nat) = f; // reject
-    │    ^ 
+    ┌─ issue-3318.mo:15:41
+ 15 │           : (Nat, Nat) -> ((Nat, Nat)) = f; // reject
+    │                                          ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> (Nat, Nat)
 cannot produce expected type
@@ -31,9 +31,9 @@ because the type
  is not compatible with type 
   Nat
  in arguments
-    ┌─ issue-3318.mo:21:3
- 21 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // reject
-    │    ^ 
+    ┌─ issue-3318.mo:18:41
+ 18 │           : ((Nat, Nat)) -> (Nat, Nat) = f; // reject
+    │                                          ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> (Nat, Nat)
 cannot produce expected type
@@ -43,9 +43,9 @@ because the type
  is not compatible with type 
   Nat
  in arguments
-    ┌─ issue-3318.mo:24:3
- 24 │           : (Nat, Nat) -> (Nat, Nat) = f; // reject
-    │    ^ 
+    ┌─ issue-3318.mo:21:43
+ 21 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // reject
+    │                                            ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> ((Nat, Nat))
 cannot produce expected type
@@ -55,9 +55,9 @@ because the type
  is not compatible with type 
   Nat
  in results
-    ┌─ issue-3318.mo:26:38
- 26 │  func t5(f: (Nat, Nat) -> ((Nat, Nat)))
-    │                                       ^ 
+    ┌─ issue-3318.mo:24:39
+ 24 │           : (Nat, Nat) -> (Nat, Nat) = f; // reject
+    │                                        ^ 
 error[M0096]: expression of type
   (Nat, Nat) -> ((Nat, Nat))
 cannot produce expected type
@@ -67,6 +67,6 @@ because the type
  is not compatible with type 
   Nat
  in arguments
-    ┌─ issue-3318.mo:36:1
- 36 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // accept
-    │  ^ 
+    ┌─ issue-3318.mo:33:43
+ 33 │           : ((Nat, Nat)) -> ((Nat, Nat)) = f; // reject
+    │                                            ^ 

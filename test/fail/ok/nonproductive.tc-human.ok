@@ -1,7 +1,6 @@
 error[M0157]: block contains non-productive definition C
-    ┌─ nonproductive.mo:1:2
-  1 │    do { // reject
-    │ ╭───^
+    ┌─ nonproductive.mo:1:1
+  1 │ ╭  do { // reject
   2 │ │    type C<T> = C<T>;
   3 │ │  };
     │ ╰──^ 

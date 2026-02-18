@@ -2,6 +2,6 @@ error[M0095]: function return type
   ()
 does not match expected return type
   Bool
-    ┌─ M0095.mo:1:16
+    ┌─ M0095.mo:1:15
   1 │  (func () : () {}) : () -> Bool
-    │                 ^^ 
+    │                ^^ 

@@ -2,6 +2,6 @@ error[M0001]: unexpected token '*', expected one of token or <phrase> sequence:
   <eof>
   seplist(<dec>,<semicolon>) <eof>
   seplist(<imp>,<semicolon>) seplist(<dec>,<semicolon>) <eof>
-    ┌─ syntax4.mo:1:2
+    ┌─ syntax4.mo:1:1
   1 │  *
-    │   ^ 
+    │  ^ 

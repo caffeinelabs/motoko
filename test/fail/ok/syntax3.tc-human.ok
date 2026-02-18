@@ -18,6 +18,6 @@ error[M0001]: unexpected token ';', expected one of token or <phrase> sequence:
   <unop> <exp_bin(ob)>
   <inst> <exp_nullary(ob)>
   [ <exp(ob)> ]
-    ┌─ syntax3.mo:1:4
+    ┌─ syntax3.mo:1:3
   1 │  [1;2;3];
-    │     ^ 
+    │    ^ 

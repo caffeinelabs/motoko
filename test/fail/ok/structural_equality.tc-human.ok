@@ -2,9 +2,9 @@ error[M0060]: operator is not defined for operand types
   (x : Nat) -> Nat
 and
   (x : Nat) -> Nat
-    ┌─ structural_equality.mo:1:2
+    ┌─ structural_equality.mo:1:1
   1 │  (func (x : Nat) : Nat = x) == (func (x : Nat) : Nat = x);
-    │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0060]: operator is not defined for operand types
   {var x : Nat}
 and
