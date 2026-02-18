@@ -1,8 +1,8 @@
 error[M0059]: operator is not defined for operand type
   Int
-    ┌─ bad-unops.mo:1:10
+    ┌─ bad-unops.mo:1:9
   1 │  let a = ^3; // type error, operator is not defined for operand type
-    │           ^^ 
+    │          ^^ 
 error[M0059]: operator is not defined for operand type
   Int
     ┌─ bad-unops.mo:2:9

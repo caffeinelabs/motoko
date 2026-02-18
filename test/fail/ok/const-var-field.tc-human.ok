@@ -7,6 +7,6 @@ because the type
  is not compatible with type 
   Nat
  in `x`
-    ┌─ const-var-field.mo:1:22
+    ┌─ const-var-field.mo:1:21
   1 │  let o : {x : Nat} = object { public var x = 0 };
-    │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -2,6 +2,6 @@ error[M0117]: pattern of type
   Nat
 cannot consume expected type
   Int
-    ┌─ switch-type.mo:1:30
+    ┌─ switch-type.mo:1:29
   1 │  let x = switch (-5) { case (x : Nat) x };
-    │                               ^^^^^^^ 
+    │                              ^^^^^^^ 

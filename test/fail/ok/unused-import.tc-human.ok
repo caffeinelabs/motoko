@@ -1,7 +1,7 @@
 warning[M0194]: unused identifier actorClassParameter1 (delete or rename to wildcard `_` or `_actorClassParameter1`)
-    ┌─ unused-actor-class/test-actor-class.mo:1:29
+    ┌─ unused-actor-class/test-actor-class.mo:1:28
   1 │  actor class TestActorClass(actorClassParameter1 : Nat) {
-    │                              ^^^^^^^^^^^^^^^^^^^^ 
+    │                             ^^^^^^^^^^^^^^^^^^^^ 
 warning[M0194]: unused identifier actorClassVariable2 (delete or rename to wildcard `_` or `_actorClassVariable2`)
     ┌─ unused-actor-class/test-actor-class.mo:3:9
   3 │      var actorClassVariable2 = "TEST";
@@ -31,9 +31,9 @@ warning[M0194]: unused identifier localObject (delete or rename to wildcard `_` 
  16 │      object localObject {
     │             ^^^^^^^^^^^ 
 warning[M0194]: unused identifier TestActor (delete or rename to wildcard `_` or `_TestActor`)
-    ┌─ unused-import.mo:1:9
+    ┌─ unused-import.mo:1:8
   1 │  import TestActor "unused-actor-class/test-actor-class";
-    │          ^^^^^^^^^ 
+    │         ^^^^^^^^^ 
 warning[M0194]: unused identifier UnusedTestModule (delete or rename to wildcard `_` or `_UnusedTestModule`)
     ┌─ unused-import.mo:2:8
   2 │  import UnusedTestModule "unused-module/test-module";

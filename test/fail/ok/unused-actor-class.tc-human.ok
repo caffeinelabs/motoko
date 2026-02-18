@@ -1,7 +1,7 @@
 warning[M0194]: unused identifier actorClassParameter1 (delete or rename to wildcard `_` or `_actorClassParameter1`)
-    ┌─ unused-actor-class/test-actor-class.mo:1:29
+    ┌─ unused-actor-class/test-actor-class.mo:1:28
   1 │  actor class TestActorClass(actorClassParameter1 : Nat) {
-    │                              ^^^^^^^^^^^^^^^^^^^^ 
+    │                             ^^^^^^^^^^^^^^^^^^^^ 
 warning[M0194]: unused identifier actorClassVariable2 (delete or rename to wildcard `_` or `_actorClassVariable2`)
     ┌─ unused-actor-class/test-actor-class.mo:3:9
   3 │      var actorClassVariable2 = "TEST";

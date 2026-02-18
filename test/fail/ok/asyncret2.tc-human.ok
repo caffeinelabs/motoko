@@ -6,6 +6,6 @@ because the type
   async<$> Int
  is not compatible with type 
   Int
-    ┌─ asyncret2.mo:1:55
+    ┌─ asyncret2.mo:1:54
   1 │  func call3(f : shared () -> async Int) : async Int { f(); };
-    │                                                        ^^^ 
+    │                                                       ^^^ 
