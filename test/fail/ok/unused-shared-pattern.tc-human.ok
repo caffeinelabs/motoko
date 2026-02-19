@@ -1,0 +1,8 @@
+warning[M0240]: unused identifier caller in shared pattern (delete or rename to wildcard `_` or `_caller`)
+    ┌─ unused-shared-pattern.mo:2:18
+  2 │    public shared (caller) func f() : () {};
+    │                   ^^^^^^ 
+warning[M0241]: unused field caller in shared pattern (delete or rewrite as `caller = _`)
+    ┌─ unused-shared-pattern.mo:3:19
+  3 │    public shared ({caller}) func g() : () {};
+    │                    ^^^^^^ 

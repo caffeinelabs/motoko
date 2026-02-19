@@ -1,0 +1,8 @@
+warning[M0243]: this pattern will always match, so the else clause is useless. Consider removing the else clause
+    ┌─ let-else-definedness.mo:1:5
+  1 │  let x = 4 else { ignore x; loop () }
+    │      ^ 
+error[M0016]: cannot use x before x has been defined
+    ┌─ let-else-definedness.mo:1:1
+  1 │  let x = 4 else { ignore x; loop () }
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

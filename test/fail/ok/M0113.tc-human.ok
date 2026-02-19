@@ -1,0 +1,5 @@
+error[M0113]: object pattern cannot consume expected type
+  Bool
+    ┌─ M0113.mo:1:5
+  1 │  let {foo} = true
+    │      ^^^^^ 

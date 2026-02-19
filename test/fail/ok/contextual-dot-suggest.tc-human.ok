@@ -1,0 +1,28 @@
+warning[M0236]: You can use the dot notation `(#odd).equal(...)` here
+    ┌─ contextual-dot-suggest.mo:82:10
+ 82 │    ignore Odd.equal(#odd); // warn non-binary
+    │           ^^^^^^^^^^^^^^^ 
+warning[M0236]: You can use the dot notation `(#odd).compare(...)` here
+    ┌─ contextual-dot-suggest.mo:83:10
+ 83 │    ignore Odd.compare(#odd, #odd, #odd); // warn non-binary
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
+    ┌─ contextual-dot-suggest.mo:86:10
+ 86 │    ignore Map.get(peopleMap, Nat.compare, 1); // warn
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
+    ┌─ contextual-dot-suggest.mo:87:10
+ 87 │    ignore Map.get(peopleMap, 1); // warn
+    │           ^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0236]: You can use the dot notation `peopleMap.size(...)` here
+    ┌─ contextual-dot-suggest.mo:88:10
+ 88 │    ignore Map.size(peopleMap); // warn
+    │           ^^^^^^^^^^^^^^^^^^^ 
+warning[M0236]: You can use the dot notation `peopleMap.clone(...)` here
+    ┌─ contextual-dot-suggest.mo:90:18
+ 90 │    ignore Map.get(Map.clone(peopleMap), Nat.compare, 1); // warn x 2
+    │                   ^^^^^^^^^^^^^^^^^^^^ 
+warning[M0236]: You can use the dot notation `Map.clone(peopleMap).get(...)` here
+    ┌─ contextual-dot-suggest.mo:90:10
+ 90 │    ignore Map.get(Map.clone(peopleMap), Nat.compare, 1); // warn x 2
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

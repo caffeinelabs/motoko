@@ -96,7 +96,7 @@ let string_of_message msg =
     we could maintain a datastructure like https://crates.io/crates/line-index
 *)
 let pos_to_byte content pos =
-  let line_start = ref 0 in
+  let line_start = ref (-1) in
   for _ = 1 to pos.Source.line - 1 do
     let prev = !line_start in
     line_start := String.index_from content (prev + 1) '\n';

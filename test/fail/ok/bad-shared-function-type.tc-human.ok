@@ -1,0 +1,4 @@
+error[M0035]: shared function must have syntactic return type '()' or 'async <typ>'
+    ┌─ bad-shared-function-type.mo:1:22
+  1 │  type t = shared() -> async* (); // reject (shared function can't return async*)
+    │                       ^^^^^^^^^ 

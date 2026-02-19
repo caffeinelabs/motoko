@@ -1,0 +1,4 @@
+error[M0004]: file bad-actor-import1/lg264-qjkae.did does not define a service
+    ┌─ bad-actor-import1.mo:4:1
+  4 │  import imported1 "ic:lg264-qjkae";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

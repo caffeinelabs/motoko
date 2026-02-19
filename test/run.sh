@@ -355,6 +355,12 @@ do
     run tc $moc_with_flags --check $base.mo
     tc_succeeded=$?
     normalize $out/$base.tc
+    if [ "$ONLY_TYPECHECK" = "true" ]
+    then
+        run tc-human $moc_with_flags --check --error-format human $base.mo
+        tc_succeeded=$?
+        normalize $out/$base.tc-human
+    fi
 
     if [ "$tc_succeeded" -eq 0 -a "$ONLY_TYPECHECK" = "no" ]
     then
@@ -549,7 +555,7 @@ do
         # set drun args to use application subnet
         EXTRA_DRUN_ARGS="--subnet-type application"
       fi
-      
+
       have_var_name="HAVE_${runner//-/_}"
       if [ ${!have_var_name} != yes ]
       then

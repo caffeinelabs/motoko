@@ -1,0 +1,5 @@
+error[M0091]: mutable array expression cannot produce expected type
+  [Nat]
+    ┌─ const-var-array.mo:1:17
+  1 │  let a : [Nat] = [var];
+    │                  ^^^^^ 

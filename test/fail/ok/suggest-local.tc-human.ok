@@ -1,0 +1,5 @@
+error[M0057]: unbound variable x
+Did you mean variable xxx?
+    ┌─ suggest-local.mo:2:1
+  2 │  x;
+    │  ^ 

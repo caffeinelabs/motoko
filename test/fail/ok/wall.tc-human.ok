@@ -1,0 +1,13 @@
+warning[M0145]: this pattern of type
+  Bool
+does not cover value
+  false
+    ┌─ wall.mo:6:6
+  6 │   let true = true;
+    │       ^^^^ 
+warning[M0074]: this array has type
+  [Any]
+because elements have inconsistent types
+    ┌─ wall.mo:10:9
+ 10 │   ignore [true, 1];
+    │          ^^^^^^^^^ 

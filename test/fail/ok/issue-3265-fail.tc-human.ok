@@ -1,0 +1,42 @@
+error[M0096]: expression of type
+  Int
+cannot produce expected type
+  Nat
+    ┌─ issue-3265-fail.mo:2:41
+  2 │  let rec1 : { var x : Nat } = { var x = (0 : Int)}; // reject
+    │                                          ^^^^^^^ 
+error[M0149]: expected mutable 'var' field x of type
+  Int
+but found immutable field (insert 'var'?)
+    ┌─ issue-3265-fail.mo:3:33
+  3 │  let rec1a : { var x : Int } = { x = (0 : Nat)}; // reject
+    │                                  ^^^^^^^^^^^^^ 
+error[M0150]: expected immutable field x of type
+  Int
+but found mutable 'var' field (delete 'var'?)
+    ┌─ issue-3265-fail.mo:4:29
+  4 │  let rec1b : { x : Int } = { var x = (0 : Nat)}; // reject
+    │                              ^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  List<Nat> = ?(Nat, List<Nat>)
+cannot produce expected type
+  ?(None, List<None>)
+because the type 
+  Nat
+ is not compatible with type 
+  None
+    ┌─ issue-3265-fail.mo:10:57
+ 10 │  let rec2 : { var myList : List<None> } = { var myList = nil<Nat>() }; // reject
+    │                                                          ^^^^^^^^^^ 
+error[M0150]: expected immutable field myList of type
+  List<Nat>
+but found mutable 'var' field (delete 'var'?)
+    ┌─ issue-3265-fail.mo:11:40
+ 11 │  let rec2a : { myList : List<Nat> } = { var myList = nil<None>() }; // reject
+    │                                         ^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0149]: expected mutable 'var' field myList of type
+  List<Nat>
+but found immutable field (insert 'var'?)
+    ┌─ issue-3265-fail.mo:12:44
+ 12 │  let rec2b : { var myList : List<Nat> } = { myList = nil<None>() }; // reject
+    │                                             ^^^^^^^^^^^^^^^^^^^^ 

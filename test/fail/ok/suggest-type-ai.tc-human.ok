@@ -1,0 +1,28 @@
+error[M0030]: type field Num does not exist in type:
+  module {
+    type Any = Any;
+    type Blob = Blob;
+    type Bool = Bool;
+    type Char = Char;
+    type Error = Error;
+    type Float = Float;
+    type Int = Int;
+    type Int16 = Int16;
+    type Int32 = Int32;
+    type Int64 = Int64;
+    type Int8 = Int8;
+    type Nat = Nat;
+    type Nat16 = Nat16;
+    type Nat32 = Nat32;
+    type Nat64 = Nat64;
+    type Nat8 = Nat8;
+    type None = None;
+    type Null = Null;
+    type Principal = Principal;
+    type Region = Region;
+    type Text = Text
+  }
+The type field Num is not available. Try something else?
+    ┌─ suggest-type-ai.mo:4:21
+  4 │  type T = Prim.Types.Num;
+    │                      ^^^ 

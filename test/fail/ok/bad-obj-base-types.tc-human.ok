@@ -1,0 +1,18 @@
+help: type field also present in base, here
+    ┌─ bad-obj-base-types.mo:8:16
+  8 │  let _ : {} = { o1 and o2 }; // reject
+    │                 ^^ 
+error[M0177]: ambiguous type field in base
+  t
+    ┌─ bad-obj-base-types.mo:8:23
+  8 │  let _ : {} = { o1 and o2 }; // reject
+    │                        ^^ 
+help: type field also present in base, here
+    ┌─ bad-obj-base-types.mo:12:16
+ 12 │  let _ : {} = { o3 and o4 }; // reject
+    │                 ^^ 
+error[M0177]: ambiguous type field in base
+  t
+    ┌─ bad-obj-base-types.mo:12:23
+ 12 │  let _ : {} = { o3 and o4 }; // reject
+    │                        ^^ 

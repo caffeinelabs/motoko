@@ -1,0 +1,52 @@
+error[M0096]: expression of type
+  module {}
+cannot produce expected type
+  module {type T = Null}
+because expected type field `T` is missing from type 
+  module {}
+    ┌─ bad-type-comp.mo:5:10
+  5 │  ignore ((module {}) : module { type T = Null });
+    │           ^^^^^^^^^ 
+error[M0096]: expression of type
+  module {type T = Int}
+cannot produce expected type
+  module {type T = Null}
+because the type 
+  type T = Int
+ is not compatible with type 
+  type T = Null
+ in `T`
+    ┌─ bad-type-comp.mo:6:10
+  6 │  ignore ((module { public type T = Int}) : module { type T = Null });
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0018]: duplicate type field name T in object type
+    ┌─ bad-type-comp.mo:7:73
+  7 │  ignore ((module { public type T = Null}) : module { type T = Null; type T = Null });
+    │                                                                          ^ 
+error[M0029]: unbound type T
+Did you mean type Text?
+    ┌─ bad-type-comp.mo:11:15
+ 11 │      type T = ?T // not actually recursive, so reject.
+    │                ^ 
+error[M0029]: unbound type U
+    ┌─ bad-type-comp.mo:17:15
+ 17 │      type T = ?U; // not actually mutually recursive, so reject;
+    │                ^ 
+error[M0029]: unbound type T
+Did you mean type Text?
+    ┌─ bad-type-comp.mo:18:15
+ 18 │      type U = ?T
+    │                ^ 
+error[M0137]: type T = A references type parameter A from an outer scope
+    ┌─ bad-type-comp.mo:24:17
+ 24 │    type F = <A>{ type T = A } -> (); // open type, reject
+    │                  ^^^^^^^^^^ 
+error[M0137]: type T = A references type parameter A from an outer scope
+    ┌─ bad-type-comp.mo:29:23
+ 29 │    type F = <A>() -> { type T = A }; // open type, reject
+    │                        ^^^^^^^^^^ 
+error[M0029]: unbound type T
+Did you mean type Text?
+    ┌─ bad-type-comp.mo:35:25
+ 35 │      type T = { type U = T; } // not actually recursive, reject.
+    │                          ^ 

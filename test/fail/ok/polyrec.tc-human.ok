@@ -1,0 +1,11 @@
+error[M0200]: cannot decide type constructor equality
+    ┌─ polyrec.mo:4:10
+  3 │    
+  4 │      public class Iter<T>({next = n : () -> ?T}) = this {
+    │ ╭───────────^
+  5 │ │  
+    · │  
+ 10 │ │      };
+ 11 │ │    }
+    │ ╰────^ 
+ 12 │    

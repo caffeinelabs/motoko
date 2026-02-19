@@ -1,0 +1,5 @@
+error[M0029]: unbound type Fo
+Did you mean type Foo?
+    ┌─ suggest-local-type.mo:2:13
+  2 │  type Zap = [Fo];
+    │              ^^ 

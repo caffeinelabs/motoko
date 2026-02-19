@@ -1,0 +1,24 @@
+warning[M0194]: unused identifier unusedVariable (delete or rename to wildcard `_` or `_unusedVariable`)
+    ┌─ unused-top-level-identifiers.mo:1:5
+  1 │  let unusedVariable = 0;
+    │      ^^^^^^^^^^^^^^ 
+warning[M0194]: unused identifier unusedVariable2 (delete or rename to wildcard `_` or `_unusedVariable2`)
+    ┌─ unused-top-level-identifiers.mo:2:5
+  2 │  var unusedVariable2 = 1;
+    │      ^^^^^^^^^^^^^^^ 
+warning[M0194]: unused identifier unusedVariable3 (delete or rename to wildcard `_` or `_unusedVariable3`)
+    ┌─ unused-top-level-identifiers.mo:4:6
+  4 │  let (unusedVariable3, unusedVariable4) = (1, 2);
+    │       ^^^^^^^^^^^^^^^ 
+warning[M0194]: unused identifier unusedVariable4 (delete or rename to wildcard `_` or `_unusedVariable4`)
+    ┌─ unused-top-level-identifiers.mo:4:23
+  4 │  let (unusedVariable3, unusedVariable4) = (1, 2);
+    │                        ^^^^^^^^^^^^^^^ 
+warning[M0194]: unused identifier unusedFunction (delete or rename to wildcard `_` or `_unusedFunction`)
+    ┌─ unused-top-level-identifiers.mo:6:6
+  6 │  func unusedFunction() {
+    │       ^^^^^^^^^^^^^^ 
+warning[M0194]: unused identifier UnusedObject (delete or rename to wildcard `_` or `_UnusedObject`)
+    ┌─ unused-top-level-identifiers.mo:10:8
+ 10 │  object UnusedObject {
+    │         ^^^^^^^^^^^^ 

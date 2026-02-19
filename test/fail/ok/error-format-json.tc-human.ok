@@ -1,0 +1,14 @@
+warning[M0145]: this pattern of type
+  Bool
+does not cover value
+  false
+    ┌─ error-format-json.mo:4:7
+  4 │    let true = true;
+    │        ^^^^ 
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ error-format-json.mo:7:15
+  7 │  let _ : Nat = "abc";
+    │                ^^^^^ 

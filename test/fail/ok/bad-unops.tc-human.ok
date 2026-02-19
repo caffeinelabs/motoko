@@ -1,0 +1,38 @@
+error[M0059]: operator is not defined for operand type
+  Int
+    ┌─ bad-unops.mo:1:9
+  1 │  let a = ^3; // type error, operator is not defined for operand type
+    │          ^^ 
+error[M0059]: operator is not defined for operand type
+  Int
+    ┌─ bad-unops.mo:2:9
+  2 │  let b = ^-5; // type error, operator is not defined for operand type
+    │          ^^^ 
+error[M0050]: literal of type
+  Int
+does not have expected type
+  Nat
+    ┌─ bad-unops.mo:3:15
+  3 │  let c : Nat = +3; // literal type mismatch
+    │                ^^ 
+error[M0050]: literal of type
+  Int
+does not have expected type
+  Nat
+    ┌─ bad-unops.mo:4:15
+  4 │  let d : Nat = -3; // literal type mismatch
+    │                ^^ 
+error[M0111]: operator pattern cannot consume expected type
+  Nat
+    ┌─ bad-unops.mo:6:20
+  6 │  switch (1) { case (^1) { ignore "hmmm" }; case _ { ignore "unexpected" } }; // type error, operator cannot consume expected type
+    │                     ^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ bad-unops.mo:8:20
+  8 │  switch (1) { case (-1) { ignore "hmmm" }; case _ { ignore "unexpected" } }; // ok, redundant
+    │                     ^^ 
+error[M0111]: operator pattern cannot consume expected type
+  Int
+    ┌─ bad-unops.mo:10:21
+ 10 │  switch (-1) { case (^1) { ignore "hmmm" }; case _ { ignore "unexpected" } }; // type error, operator cannot consume expected type
+    │                      ^^ 

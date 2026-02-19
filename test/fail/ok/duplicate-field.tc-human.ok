@@ -1,0 +1,36 @@
+error[M0051]: duplicate definition for m in block
+    ┌─ duplicate-field.mo:4:15
+  4 │    public func m() : () {};  // Illegal!
+    │                ^ 
+error[M0018]: duplicate field name foo in object type
+    ┌─ duplicate-field.mo:8:22
+  8 │  type T = {foo : Int; foo: Bool}
+    │                       ^^^ 
+error[M0019]: field names foo and nxnnbkddcv in object type have colliding hashes
+    ┌─ duplicate-field.mo:12:22
+ 12 │  type T = {foo : Int; nxnnbkddcv: Bool}
+    │                       ^^^^^^^^^^ 
+error[M0019]: tag names foo and nxnnbkddcv in variant type have colliding hashes
+    ┌─ duplicate-field.mo:16:24
+ 16 │  type T = {#foo : Int; #nxnnbkddcv: Bool}
+    │                         ^^^^^^^^^^ 
+error[M0018]: duplicate field name foo in object
+    ┌─ duplicate-field.mo:20:18
+ 20 │  ignore({foo = 5; foo = true});
+    │                   ^^^ 
+error[M0019]: field names foo and nxnnbkddcv in object have colliding hashes
+    ┌─ duplicate-field.mo:24:18
+ 24 │  ignore({foo = 5; nxnnbkddcv = true});
+    │                   ^^^^^^^^^^ 
+error[M0122]: field names nxnnbkddcv and foo in object type have colliding hashes
+    ┌─ duplicate-field.mo:28:8
+ 28 │  ignore(object {public func foo() = (); public func nxnnbkddcv() = ()});
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0122]: field names nxnnbkddcv and foo in actor object type have colliding hashes
+    ┌─ duplicate-field.mo:32:8
+ 32 │  ignore(actor {public func foo() : () {}; public func nxnnbkddcv() : () {}});
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0122]: field names nxnnbkddcv and foo in module object type have colliding hashes
+    ┌─ duplicate-field.mo:36:8
+ 36 │  ignore(module {public func foo() = (); public func nxnnbkddcv() = ()});
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
