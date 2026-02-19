@@ -56,8 +56,8 @@ Each line on stdout is a JSON object with the following structure:
                Non-primary spans provide additional context.
             */
             "is_primary": true,
-            /* A label describing this span, may be empty. */
-            "label": "",
+            /* An optional label describing this span. */
+            "label": null,
             /* An optional string of a suggested replacement for this span.
                When present, tools may replace the contents of the span with this text.
             */
@@ -67,7 +67,8 @@ Each line on stdout is a JSON object with the following structure:
 
                Possible values may be:
                - "MachineApplicable": The suggestion is definitely what the user intended.
-                 This suggestion should be automatically applied.
+                 This suggestion should be automatically applied together with
+                 all other machine-applicable suggestions in this diagnostic.
                - "Unspecified": The applicability is unknown.
             */
             "suggestion_applicability": null
@@ -84,6 +85,6 @@ Example output
 --------------
 
 ```
-{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"example.mo","line_start":2,"column_start":7,"line_end":2,"column_end":11,"is_primary":true,"label":"","suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
-{"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"example.mo","line_start":5,"column_start":15,"line_end":5,"column_end":22,"is_primary":true,"label":"","suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
+{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"example.mo","line_start":2,"column_start":7,"line_end":2,"column_end":11,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
+{"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"example.mo","line_start":5,"column_start":15,"line_end":5,"column_end":22,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
 ```

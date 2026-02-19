@@ -7,7 +7,7 @@ type priority = Primary | Secondary
 type span = {
   prio : priority;
   at_span : Source.region;
-  label : string;
+  label : string option;
   suggested_replacement : string option;
 }
 type message = {
@@ -80,15 +80,9 @@ let string_of_message msg =
     | Error -> Printf.sprintf "%s error" msg.cat
     | Warning -> "warning"
     | Info -> "info" in
-  let spans =
-    let labels = List.filter_map (fun span -> if span.prio <> Primary || span.label = "" then None else Some span.label) msg.spans in
-    if labels <> [] then
-      "\n" ^ String.concat "\n" labels
-    else "" in
-  let notes =
-    if msg.notes <> [] then
-      "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
-    else "" in
+  let concat xs = if xs = [] then "" else "\n" ^ String.concat "\n" xs in
+  let spans = concat (List.filter_map (fun span -> span.label) msg.spans) in
+  let notes = concat (List.map (fun note -> "note: " ^ note) msg.notes) in
   Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
 
 (** Converts a line/column based position to a byte offset.
@@ -104,13 +98,19 @@ let pos_to_byte content pos =
   done;
   !line_start + pos.Source.column + 1
 
-let primary_span at = { prio = Primary; at_span = at; label = ""; suggested_replacement = None }
+let primary_span at = { prio = Primary; at_span = at; label = None; suggested_replacement = None }
 
 (** Adds a primary span to the message if it doesn't have one.
     The `message` type always has an implicit primary span that is not always explicitly added *)
 let ensure_primary_span msg =
   if List.exists (fun s -> s.prio = Primary) msg.spans then msg.spans
   else primary_span msg.at :: msg.spans
+
+let fancy_label span =
+  match span.prio with
+  (* Primary spans are always visible *)
+  | Primary -> Some (Option.value ~default:"" span.label)
+  | Secondary -> span.label
 
 let fancy_of_message msg =
   let file = msg.at.Source.left.Source.file in
@@ -121,14 +121,13 @@ let fancy_of_message msg =
       (G.Byte_index.of_int (pos_to_byte content r.Source.left))
       (G.Byte_index.of_int (pos_to_byte content r.Source.right))
   in
-  let mk_span span =
-    let priority = match span.prio with
-      | Primary -> G.Diagnostic.Priority.Primary
-      | Secondary -> G.Diagnostic.Priority.Secondary in
-    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
-  let spans = ensure_primary_span msg in
-  let visible_spans = List.filter (fun span -> span.prio = Primary || span.label <> "") spans in
-  let labels = List.map mk_span visible_spans in
+  let labels = ensure_primary_span msg |> List.filter_map (fun span ->
+    fancy_label span |> Option.map (fun label ->
+      let priority = match span.prio with
+        | Primary -> G.Diagnostic.Priority.Primary
+        | Secondary -> G.Diagnostic.Priority.Secondary in
+      G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" label))
+  in
   let severity = match msg.sev with
     | Error -> G.Diagnostic.Severity.Error
     | Warning -> G.Diagnostic.Severity.Warning
@@ -159,7 +158,7 @@ let json_string_of_message msg =
       "line_end", `Int line_end;
       "column_end", `Int (column_end + 1);
       "is_primary", `Bool (prio = Primary);
-      "label", `String label;
+      "label", (match label with None -> `Null | Some l -> `String l);
       "suggested_replacement", (match suggested_replacement with
         | None -> `Null
         | Some s -> `String s);

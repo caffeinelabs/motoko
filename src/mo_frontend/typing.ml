@@ -293,13 +293,13 @@ let info env at fmt =
     fmt
 
 let primary env at fmt =
-  Format.kasprintf env (fun s -> Diag.{ prio = Primary; at_span = at; label = s; suggested_replacement = None }) fmt
+  Format.kasprintf env (fun s -> Diag.{ prio = Primary; at_span = at; label = Some s; suggested_replacement = None }) fmt
 
 let secondary env at fmt =
-  Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s; suggested_replacement = None }) fmt
+  Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = Some s; suggested_replacement = None }) fmt
 
 let suggestion at replacement : Diag.span =
-  Diag.{ prio = Secondary; at_span = at; label = ""; suggested_replacement = Some replacement }
+  Diag.{ prio = Secondary; at_span = at; label = None; suggested_replacement = Some replacement }
 
 let check_deprecation env at desc id depr =
   match depr with
