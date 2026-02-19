@@ -3771,7 +3771,6 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
   let initial_usage = enter_scope env in
   let _, scope = infer_block env decs at false in
   let t = object_of_scope env s dec_fields scope at in
-  leave_scope env (private_identifiers scope.Scope.val_env) initial_usage;
   let (_, fs, _) = T.as_obj' t in
   if not env.pre then begin
     if s = T.Actor || s = T.Mixin then begin
@@ -3802,6 +3801,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     let stab_tfs = check_stab env obj_sort scope dec_fields in
     check_migration env stab_tfs exp_opt
   end;
+  leave_scope env (private_identifiers scope.Scope.val_env) initial_usage;
   t
 
 and check_parenthetical env typ_opt = function
@@ -4105,11 +4105,19 @@ and check_stab env sort scope dec_fields =
 
 and infer_viewer env scope mut id viewer =
   assert (!viewer = None);
-  let viewer_isAdmin_available =
-    (match T.Env.find_opt "isAdmin" env.vals with
-     | Some (t, _, _, _) -> T.sub t (T.Func(T.Local, T.Returns, [], [T.principal], [T.bool]))
-     | _ -> false)
+  let isAdmin_available ()  =
+    let isAdmin = "isAdmin" in
+    let env1 = adjoin env scope in
+    let available =
+      match T.Env.find_opt isAdmin env1.vals with
+      | Some (t, _, _, _) ->
+        T.sub t (T.Func(T.Local, T.Returns, [], [T.principal], [T.bool]))
+      | _ -> false
+    in
+    if available then use_identifier env1 isAdmin;
+    available
   in
+  let lab = "__" ^ id.it in
   match Diag.with_message_store (recover_opt (fun msgs ->
     let env = {env with msgs} in (* don't record errors in outer env *)
     let env = adjoin env scope in
@@ -4132,15 +4140,16 @@ and infer_viewer env scope mut id viewer =
     (match T.normalize viewer_typ with
      | T.Func(T.Local, T.Returns, [], ts1, ts2) ->
         if List.for_all T.shared ts1 && List.for_all T.shared ts2
-        then { viewer_body = DotViewV exp;
+        then
+            { viewer_body = DotViewV exp;
                viewer_field =
-               T.{ lab = id.it;
+               T.{ lab;
                    typ = Func (Shared Query, Promises, [scope_bind], ts1, ts2);
                    src = empty_src };
-               viewer_isAdmin_available
+               viewer_isAdmin_available = isAdmin_available();
              }
-        else error env id.at "M0XXX" "viewer '%s.view()' has non-shared type" id.it
-     | _ -> error env id.at "M0XXX" "viewer '%s.view()' is not a function" id.it)))
+        else raise Recover
+     | _ -> raise Recover)))
   with
   | Error _ ->
      (* info env id.at "viewer not found for %s" id.it; *)
@@ -4153,10 +4162,10 @@ and infer_viewer env scope mut id viewer =
                               at = id.at;
                               note = { empty_typ_note with note_typ = typ }};
                             viewer_field =
-                             T.{ lab = id.it;
+                             T.{ lab;
                                  typ = Func (Shared Query, Promises, [scope_bind], [], [typ]);
                                  src = empty_src };
-                            viewer_isAdmin_available}
+                            viewer_isAdmin_available = isAdmin_available() }
      | None -> assert false)
   | Ok (exp_typ, _) ->
      (* info env id.at "viewer found for %s" id.it; *)
