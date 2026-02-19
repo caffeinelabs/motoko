@@ -292,6 +292,12 @@ let info env at fmt =
       if not env.errors_only then Diag.add_msg env.msgs (type_info at s))
     fmt
 
+let primary env at fmt =
+  Format.kasprintf env (fun s -> Diag.{ prio = Primary; at_span = at; label = s }) fmt
+
+let secondary env at fmt =
+  Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s }) fmt
+
 let check_deprecation env at desc id depr =
   match depr with
   | Some ("M0235" as code) ->
@@ -359,28 +365,21 @@ let emit_unused_warnings env =
     compare region.left pos <= 0 && compare pos region.right <= 0)
   in
   let emit (id, region, kind) =
-    if is_in_shared_pat region.left then
-      match kind with
-      | Scope.Declaration ->
-         warn env region "M0240"
-           "unused identifier %s in shared pattern (delete or rename to wildcard `_` or `_%s`)" id id
-      | Scope.FieldReference ->
-         warn env region "M0241"
-           "unused field %s in shared pattern (delete or rewrite as `%s = _`)" id id
-      | Scope.MutableNotAssigned ->
-         warn env region "M0244" "variable %s is never reassigned, consider using `let`" id
-      | Scope.MixinIncluded -> ()
-    else
-      match kind with
-      | Scope.Declaration ->
-        warn env region  "M0194"
-          "unused identifier %s (delete or rename to wildcard `_` or `_%s`)" id id
-      | Scope.FieldReference ->
-        warn env region "M0198"
-          "unused field %s in object pattern (delete or rewrite as `%s = _`)" id id
-      | Scope.MutableNotAssigned ->
-         warn env region "M0244" "variable %s is never reassigned, consider using `let`" id
-      | Scope.MixinIncluded -> ()
+    match kind with
+    | Scope.Declaration ->
+      (* NOTE: Emitting special error codes for bindings in shared patterns for easier detection for Caffeine *)
+      let err_code = if is_in_shared_pat region.left then "M0240" else "M0194" in
+      warn env region err_code
+        ~spans: [primary env region  "help: if this is intentional, prefix it with an underscore: `_%s`" id]
+        "unused identifier: `%s`" id
+    | Scope.FieldReference ->
+      let err_code = if is_in_shared_pat region.left then "M0241" else "M0198" in
+      warn env region err_code
+        ~spans: [primary env region  "help: if this is intentional, delete or rewrite as `%s = _`" id]
+        "unused field in pattern: `%s`" id
+    | Scope.MutableNotAssigned ->
+      warn env region "M0244" "variable %s is never reassigned, consider using `let`" id
+    | Scope.MixinIncluded -> ()
   in
   UWSet.iter emit !(env.unused_warnings)
 

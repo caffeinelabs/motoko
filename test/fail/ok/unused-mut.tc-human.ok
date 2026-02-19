@@ -2,7 +2,7 @@ warning[M0244]: variable x is never reassigned, consider using `let`
     ┌─ unused-mut.mo:3:7
   3 │    var x = 0;
     │        ^ 
-warning[M0194]: unused identifier z (delete or rename to wildcard `_` or `_z`)
+warning[M0194]: unused identifier: `z`
     ┌─ unused-mut.mo:16:7
  16 │    var z = 0;
-    │        ^ 
+    │        ^ help: if this is intentional, prefix it with an underscore: `_z`
