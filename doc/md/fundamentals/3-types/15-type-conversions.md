@@ -154,7 +154,7 @@ import Array "mo:core/Array";
 import Nat "mo:core/Nat";
 
 func arrayOfNatToText(arr : [Nat]) : Text {
-  Text.join(" ", Array.map<Nat, Text>(arr, Nat.toText).values())
+  Text.join(Array.map<Nat, Text>(arr, Nat.toText).values(), " ")
 };
 
 assert arrayOfNatToText([1, 2, 3]) == "1 2 3";
@@ -165,16 +165,16 @@ assert arrayOfNatToText([1, 2, 3]) == "1 2 3";
 Motoko lacks support for dynamic objects, so an array of tuples is converted into a [record](../3-types/5-records.md) or a structured representation.
 
 ```motoko no-repl
-import HashMap "mo:core/HashMap";
+import Map "mo:core/Map";
 import Text "mo:core/Text";
 
 persistent actor MapConverter {
-  func arrayToMap(arr : [(Text, Nat)]) : HashMap.HashMap<Text, Nat> {
-    let map = HashMap.HashMap<Text, Nat>(arr.size(), Text.equal, Text.hash);
-      for ((key, value) in arr.vals()) {
-          map.put(key, value)
-      };
-      map
+  func arrayToMap(arr : [(Text, Nat)]) : Map.Map<Text, Nat> {
+    let map = Map.empty<Text, Nat>();
+    for ((key, value) in arr.values()) {
+      Map.add(map, Text.compare, key, value);
+    };
+    map
   }
 };
 

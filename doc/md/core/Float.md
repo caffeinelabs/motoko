@@ -464,7 +464,7 @@ assert Float.equal(Float.log(Float.e), 1.0, epsilon);
 func format(self : Float, fmt : {#fix : Nat8; #exp : Nat8; #gen : Nat8; #exact}) : Text
 ```
 
-Formatting. `format(fmt, x)` formats `x` to `Text` according to the
+Formatting. `format(self, fmt)` (or `x.format(fmt)`) formats the float to `Text` according to the
 formatting directive `fmt`, which can take one of the following forms:
 
 * `#fix prec` as fixed-point format with `prec` digits
@@ -482,7 +482,7 @@ differently, i.e. "NaN" or "nan", potentially omitting the `NaN` sign.
 
 Example:
 ```motoko include=import no-validate
-assert Float.format(#exp 3, 123.0) == "1.230e+02";
+assert Float.format(123.0, #exp 3) == "1.230e+02";
 ```
 
 ## Function `toText`
@@ -490,7 +490,7 @@ assert Float.format(#exp 3, 123.0) == "1.230e+02";
 func toText(self : Float) : Text
 ```
 
-Conversion to Text. Use `format(fmt, x)` for more detailed control.
+Conversion to Text. Use `format(self, fmt)` or `x.format(fmt)` for more detailed control.
 
 `-0.0` is formatted with negative sign bit.
 Positive infinity is formatted as `inf`.

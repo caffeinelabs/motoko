@@ -103,12 +103,37 @@ Space: O(1)
 
 *Runtime and space assumes that `equal` runs in O(1) time and space.
 
+## Function `at`
+``` motoko no-repl
+func at<T>(self : List<T>, n : Nat) : T
+```
+
+Access any item in a list by index (zero-based). Traps if the index is out of bounds.
+
+NOTE: Indexing into a list is a linear operation, and usually an
+indication that a list might not be the best data structure
+to use.
+
+Example:
+```motoko
+import List "mo:core/pure/List";
+
+persistent actor {
+  let list = ?(0, ?(1, null));
+  assert List.at(list, 1) == 1;
+}
+```
+
+Runtime: O(size)
+
+Space: O(1)
+
 ## Function `get`
 ``` motoko no-repl
 func get<T>(self : List<T>, n : Nat) : ?T
 ```
 
-Access any item in a list, zero-based.
+Optional access to any item in a list by index (zero-based). Returns `null` if the index is out of bounds.
 
 NOTE: Indexing into a list is a linear operation, and usually an
 indication that a list might not be the best data structure
@@ -1017,7 +1042,7 @@ Example:
 import List "mo:core/pure/List";
 
 persistent actor {
-  let list = List.fromIter([0, 1, 2, 3, 4].vals());
+  let list = List.fromIter([0, 1, 2, 3, 4].values());
   assert list == ?(0, ?(1, ?(2, ?(3, ?(4, null)))));
 }
 ```
@@ -1037,7 +1062,7 @@ Example:
 import List "mo:core/pure/List";
 
 persistent actor {
-  transient let iter = [0, 1, 2, 3, 4].vals();
+  transient let iter = [0, 1, 2, 3, 4].values();
 
   let list = iter.toList();
 

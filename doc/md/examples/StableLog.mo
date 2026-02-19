@@ -4,7 +4,8 @@ import Text "mo:core/Text";
 import Array "mo:core/Array";
 import VarArray "mo:core/VarArray";
 
-import StableMemory "mo:base/ExperimentalStableMemory"; // deprecated
+// Low-level stable memory: core has no direct replacement; base ExperimentalStableMemory is deprecated but still used here for this example.
+import StableMemory "mo:base/ExperimentalStableMemory";
 
 persistent actor StableLog {
 

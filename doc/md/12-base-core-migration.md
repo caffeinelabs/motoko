@@ -126,7 +126,7 @@ The `core` package brings significant changes to data structures, making a clear
 - `append()` → `concat()`
 - `chain()` → `flatMap()`
 - `freeze()` → `fromVarArray()`
-- `init()` → `repeat()` with reversed argument order
+- `init(n, f)` (mutable, from generator) → use `VarArray.tabulate(n, f)` for mutable arrays; for a repeated value use `Array.repeat(value, n)` (reversed argument order from base).
 - `make()` → `singleton()`
 - `mapFilter()` → `filterMap()`
 - `slice()` → `range()`
@@ -201,6 +201,9 @@ The `core` package brings significant changes to data structures, making a clear
 - `equal()` - Now requires epsilon parameter
 - `notEqual()` - Now requires epsilon parameter
 
+#### Parameter order changes
+- `format(fmt, x)` → `format(x, fmt)` or `x.format(fmt)` (value first, then format)
+
 #### Removed functions
 - `equalWithin()`, `notEqualWithin()` - Use `equal()` and `notEqual()` with epsilon
 
@@ -209,8 +212,8 @@ The `core` package brings significant changes to data structures, making a clear
 `Iter.range()` has been removed in favor of type-specific range functions such as `Nat.range()`, `Int.range()`, `Nat32.range()`, etc. These functions have an **exclusive upper bound**, in contrast to the original inclusive upper bound of `Iter.range()`. 
 
 ```motoko no-repl
-import Int "mo:base/Int";
-import Debug "mo:base/Debug";
+import Int "mo:core/Int";
+import Debug "mo:core/Debug";
 
 persistent actor {
   // Iterate through -3, -2, -1, 0, 1, 2 (exclusive upper bound)
@@ -265,6 +268,9 @@ Helper functions have been added, such as `allValues()`, for each finite type in
 - `maximumValue` → `maxValue`
 - `minimumValue` → `minValue`
 
+#### Breaking changes
+- `fromInt32(self, x)` → `fromInt32(x)` (no `self` parameter in `Int8`, `Int16`, `Int64`)
+
 #### New functions
 - `allValues()` - Iterator over all values in range
 - `range()`, `rangeInclusive()` - Range iterators (replaces `Iter.range()`)
@@ -283,6 +289,17 @@ Helper functions have been added, such as `allValues()`, for each finite type in
 #### Removed functions
 - `assertNull()` - Removed in favor of pattern matching
 - `assertSome()` - Removed in favor of pattern matching
+
+### [`pure/List`](./core/pure/List)
+
+#### Renamed functions
+- `get()` → `at()` - Indexed access; traps if out of bounds
+- `getOpt()` → `get()` - Optional indexed access (returns `?T`)
+
+### [`Map`](./core/Map)
+
+#### Renamed functions
+- `replaceIfExists()` → `replace()` - Replace value for an existing key; returns previous value or `null`
 
 ### [`Order`](./core/Order)
 
@@ -338,6 +355,9 @@ persistent actor {
 - `fromBool()` - Create Result from boolean
 
 ### [`Text`](./core/Text)
+
+#### Parameter order changes
+- `join(sep, iter)` → `join(iter, sep)` (iterator first, then separator)
 
 #### Renamed functions
 - `toLowercase()` → `toLower()`
@@ -583,7 +603,7 @@ import Iter "mo:core/Iter";
   ) : {
     map : Map.Map<Text, Nat>;
   } = {
-    map = Map.fromIter(state.mapEntries.vals(), Text.compare);
+    map = Map.fromIter(state.mapEntries.values(), Text.compare);
   }
 )
 persistent actor{
@@ -927,7 +947,7 @@ import TrieSet "mo:base/TrieSet";
   ) : {
     set : Set.Set<Text>;
   } = {
-    set = Set.fromIter(TrieSet.toArray(state.set).vals(), Text.compare);
+    set = Set.fromIter(TrieSet.toArray(state.set).values(), Text.compare);
   }
 )
 persistent actorApp {

@@ -9,7 +9,7 @@ import Set "mo:core/Set";
 import Nat "mo:core/Nat";
 
 persistent actor {
-  let set = Set.fromIter([3, 1, 2, 3].vals(), Nat.compare);
+  let set = Set.fromIter([3, 1, 2, 3].values(), Nat.compare);
   assert Set.size(set) == 3;
   assert not Set.contains(set, Nat.compare, 4);
   let diff = Set.difference(set, set, Nat.compare);

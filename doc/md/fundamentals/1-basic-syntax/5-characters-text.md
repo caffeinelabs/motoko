@@ -65,7 +65,7 @@ persistent actor Alternator {
       transformedText;
     });
 
-    return Text.join("", modified);
+    return Text.join(modified, "");
   };
 };
 ```

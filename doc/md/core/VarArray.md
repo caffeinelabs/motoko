@@ -430,7 +430,7 @@ and concatenating the resulting arrays in order.
 import Int "mo:core/Int"
 
 let array = [var 1, 2, 3, 4];
-let newArray = VarArray.flatMap<Nat, Int>(array, func x = [x, -x].vals());
+let newArray = VarArray.flatMap<Nat, Int>(array, func x = [x, -x].values());
 assert VarArray.equal(newArray, [var 1, -1, 2, -2, 3, -3, 4, -4], Int.equal);
 ```
 Runtime: O(size)
@@ -503,7 +503,7 @@ Consider using `VarArray.flatten()` for better performance.
 import Nat "mo:core/Nat";
 
 let arrays : [[var Nat]] = [[var 0, 1, 2], [var 2, 3], [var], [var 4]];
-let joinedArray = VarArray.join<Nat>(arrays.vals());
+let joinedArray = VarArray.join<Nat>(arrays.values());
 assert VarArray.equal(joinedArray, [var 0, 1, 2, 2, 3, 4], Nat.equal);
 ```
 
