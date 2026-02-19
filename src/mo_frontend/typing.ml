@@ -503,8 +503,13 @@ let coverage_pat_is_exhaustive pat t =
 
 let check_ids env kind member ids = Lib.List.iter_pairs
   (fun x y ->
-    if x.it = y.it
-    then error env y.at "M0018" "duplicate %s name %s in %s" member y.it kind;
+    (if x.it = y.it
+    then
+      let spans = [
+        secondary env x.at "first use of %s" x.it;
+        secondary env y.at "used more than once";
+      ] in
+      error env y.at "M0018" ~spans "duplicate %s name %s in %s" member y.it kind);
     if Hash.hash x.it = Hash.hash y.it
     then error env y.at "M0019" "%s names %s and %s in %s have colliding hashes" member x.it y.it kind;
   ) ids
