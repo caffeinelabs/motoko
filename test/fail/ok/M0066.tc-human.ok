@@ -1,0 +1,5 @@
+error[M0066]: tuple projection 1 is out of bounds for type
+  ()
+    ┌─ M0066.mo:1:8
+  1 │  ignore ().1
+    │         ^^^^ 

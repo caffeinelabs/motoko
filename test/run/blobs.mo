@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import { debugPrint } = "mo:⛔";
 
 debugPrint (debug_show ("" : Blob));

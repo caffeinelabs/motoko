@@ -5,8 +5,8 @@ open Arrange_idl
 (* Environments *)
 module FieldEnv = Env.Make(Lib.Uint32)
 module Env = Env.Make(String)
-module TS = Set.Make(String)           
-           
+module TS = Set.Make(String)
+
 (* Error recovery *)
 
 exception Recover
@@ -39,8 +39,8 @@ let env_of_scope msgs scope =
 
 (* Error bookkeeping *)
 
-let type_error at : string -> Diag.message = Diag.error_message at "" "type"
-let type_warning at : string -> Diag.message = Diag.warning_message at "" "type"
+let type_error at : string -> Diag.message = Diag.error_message at "" "type" ~spans:[] ~notes:[]
+let type_warning at : string -> Diag.message = Diag.warning_message at "" "type" ~spans:[] ~notes:[]
 
 let _local_error env at fmt =
   Printf.ksprintf (fun s -> Diag.add_msg env.msgs (type_error at s)) fmt
@@ -172,9 +172,9 @@ and check_meths env meths =
           (TS.add meth.it.var.it name_env, meth'::meths)
       ) (TS.empty, []) meths
   in meths
-  
+
 (* Declarations *)
-                    
+
 and check_def env dec =
   match dec.it with
   | TypD (id, t) ->
@@ -196,7 +196,7 @@ and check_decs env decs =
   let env = env_of_scope env.msgs te in
   check_cycle env;
   check_defs {env with pre = false} decs
-    
+
 and gather_decs env decs =
   List.fold_left (fun te dec ->
       match dec.it with

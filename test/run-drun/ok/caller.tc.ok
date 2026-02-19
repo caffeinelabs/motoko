@@ -1,6 +1,0 @@
-caller.mo:5.9-5.10: warning [M0194], unused identifier c (delete or rename to wildcard `_` or `_c`)
-caller.mo:10.9-10.11: warning [M0194], unused identifier c1 (delete or rename to wildcard `_` or `_c1`)
-caller.mo:22.9-22.11: warning [M0194], unused identifier c1 (delete or rename to wildcard `_` or `_c1`)
-caller.mo:27.9-27.11: warning [M0194], unused identifier c1 (delete or rename to wildcard `_` or `_c1`)
-caller.mo:54.20-54.26: warning [M0241], unused field caller in shared pattern (delete or rewrite as `caller = _`)
-caller.mo:55.29-55.30: warning [M0240], unused identifier c in shared pattern (delete or rename to wildcard `_` or `_c`)

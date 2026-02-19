@@ -1,0 +1,36 @@
+error[M0031]: shared function has non-shared parameter type
+  () -> Nat
+type
+  () -> Nat
+is or contains non-shared type
+  () -> Nat
+    ┌─ issue103.mo:3:29
+  3 │    func invalid1 (f : shared (() -> Nat) -> ()) {
+    │                              ^^^^^^^^^^^ 
+error[M0031]: shared function has non-shared parameter type
+  {foo : () -> Nat}
+type
+  {foo : () -> Nat}
+is or contains non-shared type
+  () -> Nat
+    ┌─ issue103.mo:10:29
+ 10 │    func invalid2 (f : shared {foo : () -> Nat} -> ()) {
+    │                              ^^^^^^^^^^^^^^^^^ 
+error[M0033]: async has non-shared content type
+  () -> Nat
+type
+  () -> Nat
+is or contains non-shared type
+  () -> Nat
+    ┌─ issue103.mo:17:29
+ 17 │    func invalid3 () : (async (() -> Nat)) {
+    │                              ^^^^^^^^^^^ 
+error[M0033]: async has non-shared content type
+  {foo : () -> Nat}
+type
+  {foo : () -> Nat}
+is or contains non-shared type
+  () -> Nat
+    ┌─ issue103.mo:24:29
+ 24 │    func invalid4 () : (async ({foo : () -> Nat})) {
+    │                              ^^^^^^^^^^^^^^^^^^^ 

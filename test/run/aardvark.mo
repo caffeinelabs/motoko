@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 func id<T>(x:T):T { x }; // used to suppress const optimization
 

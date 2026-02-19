@@ -1,0 +1,4 @@
+error[M0016]: cannot use g before x has been defined
+    ┌─ branch-before-define.mo:8:7
+  8 │        break exit (func() : Int{ g(); }); // early exit omits definition of x
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,21 +1,29 @@
 open Mo_config
+module G = Grace
 
 type error_code = string
 type severity = Warning | Error | Info
-type text_edit = string Source.phrase
+type priority = Primary | Secondary
+type span = {
+  prio : priority;
+  at_span : Source.region;
+  label : string;
+  suggested_replacement : string option;
+}
 type message = {
   sev : severity;
   code : error_code;
   at : Source.region;
   cat : string;
   text : string;
-  edits : text_edit list;
+  spans : span list;
+  notes: string list;
 }
 type messages = message list
 
-let info_message at cat text = {sev = Info; code = ""; at; cat; text; edits = []}
-let warning_message ?(edits=[]) at code cat text = {sev = Warning; code; at; cat; text; edits}
-let error_message at code cat text = {sev = Error; code; at; cat; text; edits = []}
+let info_message at cat ?(spans = []) ?(notes = []) text = {sev = Info; code = ""; at; cat; text; spans; notes}
+let warning_message at code cat ?(spans = []) ?(notes = []) text = {sev = Warning; code; at; cat; text; spans; notes}
+let error_message at code cat ?(spans = []) ?(notes = []) text = {sev = Error; code; at; cat; text; spans; notes}
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
@@ -54,7 +62,7 @@ let rec fold : ('a -> 'b -> 'a result) -> 'a -> 'b list -> 'a result = fun f acc
   | x :: xs -> bind (f acc x) (fun y -> fold f y xs)
 
 type msg_store = messages ref
-let add_msg s m = 
+let add_msg s m =
   if m.sev = Warning && Flags.is_warning_disabled m.code then () else
   s := m :: !s
 let add_msgs s ms = List.iter (add_msg s) (List.rev ms)
@@ -72,19 +80,69 @@ let string_of_message msg =
     | Error -> Printf.sprintf "%s error" msg.cat
     | Warning -> "warning"
     | Info -> "info" in
-  let src = if !Flags.print_source_on_error then
-    match Source.read_region_with_markers msg.at with
-    | Some(src) -> Printf.sprintf "> %s\n\n" src
-    | None -> ""
-  else "" in
-  Printf.sprintf "%s: %s%s, %s\n%s" (Source.string_of_region msg.at) label code msg.text src
+  let spans =
+    let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
+    if primary_spans <> [] then
+      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.label) primary_spans)
+    else "" in
+  let notes =
+    if msg.notes <> [] then
+      "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
+    else "" in
+  Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
+
+(** Converts a line/column based position to a byte offset.
+
+    NOTE(Christoph): This is rather inefficient. If at some point find this needs to be sped up,
+    we could maintain a datastructure like https://crates.io/crates/line-index
+*)
+let pos_to_byte content pos =
+  let line_start = ref (-1) in
+  for _ = 1 to pos.Source.line - 1 do
+    let prev = !line_start in
+    line_start := String.index_from content (prev + 1) '\n';
+  done;
+  !line_start + pos.Source.column + 1
+
+let fancy_of_message msg =
+  let file = msg.at.Source.left.Source.file in
+  let source : G.Source.t = `File file in
+  let content = In_channel.with_open_bin file In_channel.input_all in
+  let range r =
+    G.Range.create ~source
+      (G.Byte_index.of_int (pos_to_byte content r.Source.left))
+      (G.Byte_index.of_int (pos_to_byte content r.Source.right))
+  in
+  let mk_span span =
+    let priority = match span.prio with
+      | Primary -> G.Diagnostic.Priority.Primary
+      | Secondary -> G.Diagnostic.Priority.Secondary in
+    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
+  let labels =
+    if msg.spans = [] then
+      [G.Diagnostic.Label.primaryf ~range:(range msg.at) ""]
+    else
+      List.map mk_span msg.spans in
+  let severity = match msg.sev with
+    | Error -> G.Diagnostic.Severity.Error
+    | Warning -> G.Diagnostic.Severity.Warning
+    | Info -> G.Diagnostic.Severity.Help in
+  let diag = G.Diagnostic.(
+    createf
+      ~labels: labels
+      ~notes:(List.map (Message.createf "note: %s") msg.notes)
+      ?code:(if msg.code = "" then None else Some(msg.code))
+      severity
+      "%s" msg.text) in
+    Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
 
 let string_of_severity (sev : severity) = match sev with
   | Error -> "error"
   | Warning -> "warning"
   | Info -> "info"
 
-let json_span ?suggested_replacement at =
+let json_of_span (span : span) =
+  let at = span.at_span in
   let { Source.file; line = line_start; column = column_start } = at.Source.left in
   let { Source.line = line_end; column = column_end; _ } = at.Source.right in
   `Assoc [
@@ -93,12 +151,12 @@ let json_span ?suggested_replacement at =
     "column_start", `Int (column_start + 1);
     "line_end", `Int line_end;
     "column_end", `Int (column_end + 1);
-    "suggested_replacement", match suggested_replacement with None -> `Null | Some s -> `String s;
+    "suggested_replacement", match span.suggested_replacement with None -> `Null | Some s -> `String s;
   ]
 
 let json_spans_of_message (msg : message) =
-  let edit_span (e : text_edit) = json_span ~suggested_replacement:e.Source.it e.Source.at in
-  json_span msg.at :: List.map edit_span msg.edits
+  let primary_span = { prio = Primary; at_span = msg.at; label = ""; suggested_replacement = None } in
+  json_of_span primary_span :: List.map json_of_span msg.spans
 
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message (msg : message) =
@@ -128,6 +186,7 @@ let print_message msg =
   then ()
   else match !Flags.error_format with
   | Flags.Plain -> Printf.eprintf "%s%!" (string_of_message msg)
+  | Flags.Human -> Printf.eprintf "%s%!" (fancy_of_message msg)
   | Flags.Json -> Printf.printf "%s\n%!" (json_string_of_message msg)
 
 let print_messages = List.iter print_message

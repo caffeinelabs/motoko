@@ -1,8 +1,0 @@
-sort-record-fields.mo:2.6-2.9: warning [M0194], unused identifier bad (delete or rename to wildcard `_` or `_bad`)
-sort-record-fields.mo:2.12-2.16: warning [M0194], unused identifier name (delete or rename to wildcard `_` or `_name`)
-sort-record-fields.mo:2.25-2.28: warning [M0194], unused identifier age (delete or rename to wildcard `_` or `_age`)
-sort-record-fields.mo:3.6-3.8: warning [M0194], unused identifier ok (delete or rename to wildcard `_` or `_ok`)
-sort-record-fields.mo:3.11-3.14: warning [M0194], unused identifier age (delete or rename to wildcard `_` or `_age`)
-sort-record-fields.mo:3.22-3.26: warning [M0194], unused identifier name (delete or rename to wildcard `_` or `_name`)
-sort-record-fields.mo:4.11-4.15: warning [M0198], unused field name in object pattern (delete or rewrite as `name = _`)
-sort-record-fields.mo:4.17-4.20: warning [M0198], unused field age in object pattern (delete or rewrite as `age = _`)

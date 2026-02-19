@@ -1,2 +1,1 @@
-use-before-define6.mo:3.9-3.13: warning [M0194], unused identifier bomb (delete or rename to wildcard `_` or `_bomb`)
-use-before-define6.mo:6.3-6.20: definedness error [M0016], cannot use g before g has been defined
+use-before-define6.mo:7.3-7.20: definedness error [M0016], cannot use g before g has been defined

@@ -68,6 +68,23 @@
         "type": "github"
       }
     },
+    "grace-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771098024,
+        "narHash": "sha256-V5K9RGk47K/R+q4wS1FU02kMi1uWSCgdUjKHk7uXuGw=",
+        "owner": "johnyob",
+        "repo": "grace",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "johnyob",
+        "repo": "grace",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
+        "type": "github"
+      }
+    },
     "ic-wasm-src": {
       "flake": false,
       "locked": {
@@ -227,6 +244,7 @@
         "candid-src": "candid-src",
         "esm": "esm",
         "flake-utils": "flake-utils",
+        "grace-src": "grace-src",
         "ic-wasm-src": "ic-wasm-src",
         "libtommath-src": "libtommath-src",
         "motoko-base-src": "motoko-base-src",

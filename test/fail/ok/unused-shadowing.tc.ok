@@ -1,6 +1,12 @@
-unused-shadowing.mo:2.5-2.14: warning [M0194], unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
-unused-shadowing.mo:4.6-4.24: warning [M0194], unused identifier testUnusedFunction (delete or rename to wildcard `_` or `_testUnusedFunction`)
-unused-shadowing.mo:4.43-4.53: warning [M0194], unused identifier parameter2 (delete or rename to wildcard `_` or `_parameter2`)
-unused-shadowing.mo:5.9-5.18: warning [M0194], unused identifier variable2 (delete or rename to wildcard `_` or `_variable2`)
-unused-shadowing.mo:7.9-7.18: warning [M0194], unused identifier variable4 (delete or rename to wildcard `_` or `_variable4`)
-unused-shadowing.mo:10.13-10.26: warning [M0194], unused identifier localFunction (delete or rename to wildcard `_` or `_localFunction`)
+unused-shadowing.mo:2.5-2.14: warning [M0194], unused identifier: `variable2`
+help: if this is intentional, prefix it with an underscore: `_variable2`
+unused-shadowing.mo:4.6-4.24: warning [M0194], unused identifier: `testUnusedFunction`
+help: if this is intentional, prefix it with an underscore: `_testUnusedFunction`
+unused-shadowing.mo:4.43-4.53: warning [M0194], unused identifier: `parameter2`
+help: if this is intentional, prefix it with an underscore: `_parameter2`
+unused-shadowing.mo:5.9-5.18: warning [M0194], unused identifier: `variable2`
+help: if this is intentional, prefix it with an underscore: `_variable2`
+unused-shadowing.mo:7.9-7.18: warning [M0194], unused identifier: `variable4`
+help: if this is intentional, prefix it with an underscore: `_variable4`
+unused-shadowing.mo:10.13-10.26: warning [M0194], unused identifier: `localFunction`
+help: if this is intentional, prefix it with an underscore: `_localFunction`

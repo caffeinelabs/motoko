@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // simplest example of failure
 let rec1 : { var x : Int } = { var x = (0 : Nat)};
 

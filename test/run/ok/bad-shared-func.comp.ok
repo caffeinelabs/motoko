@@ -1,2 +1,2 @@
-bad-shared-func.mo:1.22-1.24: type error [M0076], shared functions are not supported
+bad-shared-func.mo:2.22-2.24: type error [M0076], shared functions are not supported
   (This is a limitation of the current version and flag -wasi-system-api.)

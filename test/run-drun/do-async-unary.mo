@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import P "mo:prim";
 // test unary async compilation, using null as token value
 actor a {

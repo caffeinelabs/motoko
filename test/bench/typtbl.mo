@@ -1,4 +1,4 @@
-import { debugPrint; performanceCounter; getCandidTypeLimits; setCandidTypeLimits } = "mo:⛔";
+import { debugPrint; performanceCounter; getCandidTypeLimits; } = "mo:⛔";
 
 // various sizes
 import msg256x1 = "blob:file:messages/msg256x1.bin";

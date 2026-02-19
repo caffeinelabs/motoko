@@ -1,0 +1,6 @@
+error[M0029]: unbound type Fo in type environment:
+  {type Foo = Int; type Zap <: ???}
+The type Fo is not available. Try something else?
+    ┌─ suggest-local-type-ai.mo:3:13
+  3 │  type Zap = [Fo];
+    │              ^^ 

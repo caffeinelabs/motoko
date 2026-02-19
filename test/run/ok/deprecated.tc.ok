@@ -1,18 +1,16 @@
-deprecated.mo:14.9-14.14: warning [M0154], field foo is deprecated:
-do not use foo anymore
 deprecated.mo:15.9-15.14: warning [M0154], field foo is deprecated:
 do not use foo anymore
-deprecated.mo:17.8-17.11: warning [M0154], field f is deprecated:
-deprecated function
+deprecated.mo:16.9-16.14: warning [M0154], field foo is deprecated:
+do not use foo anymore
 deprecated.mo:18.8-18.11: warning [M0154], field f is deprecated:
 deprecated function
 deprecated.mo:19.8-19.11: warning [M0154], field f is deprecated:
 deprecated function
-deprecated.mo:21.13-21.16: warning [M0154], type field T is deprecated:
+deprecated.mo:20.8-20.11: warning [M0154], field f is deprecated:
+deprecated function
+deprecated.mo:22.13-22.16: warning [M0154], type field T is deprecated:
 also types
-deprecated.mo:23.11-23.12: warning [M0154], field f is deprecated:
+deprecated.mo:24.11-24.12: warning [M0154], field f is deprecated:
 deprecated function
-deprecated.mo:24.11-24.16: warning [M0154], field f is deprecated:
+deprecated.mo:25.11-25.16: warning [M0154], field f is deprecated:
 deprecated function
-deprecated.mo:23.11-23.12: warning [M0198], unused field f in object pattern (delete or rewrite as `f = _`)
-deprecated.mo:24.15-24.16: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)

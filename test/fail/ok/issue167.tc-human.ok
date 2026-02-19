@@ -1,0 +1,4 @@
+error[M0045]: wrong number of type arguments: expected 0 but got 1
+    ┌─ issue167.mo:1:13
+  1 │  type F<A> = A<Int>;
+    │              ^^^^^^ 

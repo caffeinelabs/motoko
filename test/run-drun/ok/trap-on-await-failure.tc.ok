@@ -1,0 +1,2 @@
+trap-on-await-failure.mo:19.9-19.10: warning [M0244], variable a is never reassigned, consider using `let`
+trap-on-await-failure.mo:32.11-32.12: warning [M0244], variable a is never reassigned, consider using `let`

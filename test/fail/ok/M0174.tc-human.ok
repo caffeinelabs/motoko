@@ -1,0 +1,5 @@
+error[M0174]: from_candid produces an optional shared type, not type
+  Nat
+    ┌─ M0174.mo:1:1
+  1 │  from_candid (to_candid (1)) : Nat
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

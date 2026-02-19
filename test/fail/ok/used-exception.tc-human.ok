@@ -1,0 +1,8 @@
+warning[M0239]: Avoid binding a unit `()` result; remove `var` and keep the expression
+    ┌─ used-exception.mo:3:9
+  3 │          var x = try {} catch (exception) {
+    │          ^^^^^^^^ 
+warning[M0244]: variable x is never reassigned, consider using `let`
+    ┌─ used-exception.mo:3:13
+  3 │          var x = try {} catch (exception) {
+    │              ^ 

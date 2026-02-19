@@ -1,0 +1,5 @@
+error[M0093]: expected object type, but expression produces type
+  Text
+    ┌─ object-ext-pseudo.mo:1:16
+  1 │  let tb_bad = { "Text base" with bar = 42 };
+    │                 ^^^^^^^^^^^ 

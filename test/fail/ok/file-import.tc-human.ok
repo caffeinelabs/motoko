@@ -1,0 +1,7 @@
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Blob
+    ┌─ file-import.mo:1:9
+  1 │  import (f : Nat) = "blob:file:../index.html";
+    │          ^^^^^^^ 

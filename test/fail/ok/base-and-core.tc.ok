@@ -1,2 +1,0 @@
-base-and-core.mo:2.8-2.9: warning [M0194], unused identifier A (delete or rename to wildcard `_` or `_A`)
-base-and-core.mo:3.8-3.9: warning [M0194], unused identifier B (delete or rename to wildcard `_` or `_B`)

@@ -1,2 +1,0 @@
-inspect_message.mo:14.8-14.14: warning [M0194], unused identifier caller (delete or rename to wildcard `_` or `_caller`)
-inspect_message.mo:26.20-26.21: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)

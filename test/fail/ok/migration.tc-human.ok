@@ -1,0 +1,87 @@
+warning[M0215]: field `unused` is provided but not expected in record of type
+  {var three : Text; unstable2 : () -> (); var versoin : ()}
+    ┌─ migration.mo:10:7
+ 10 │        var unused = ();
+    │        ^^^^^^^^^^^^^^^ 
+error[M0201]: expected stable type, but migration expression produces non-stable type
+  {var three : Text; unstable2 : () -> (); var versoin : ()}
+    ┌─ migration.mo:3:7
+  2 │    
+  3 │    (with migration =
+    │ ╭────────^
+  4 │ │    func({unstable1 : () -> () }) :
+    · │  
+ 12 │ │        unstable2 = func () {};
+ 13 │ │      }})
+    │ ╰───────^ 
+ 14 │    actor {
+error[M0201]: expected stable type, but migration expression consumes non-stable type
+  {unstable1 : () -> ()}
+    ┌─ migration.mo:3:7
+  2 │    
+  3 │    (with migration =
+    │ ╭────────^
+  4 │ │    func({unstable1 : () -> () }) :
+    · │  
+ 12 │ │        unstable2 = func () {};
+ 13 │ │      }})
+    │ ╰───────^ 
+ 14 │    actor {
+error[M0204]: migration expression produces field `three` of type
+  var Text
+, not the expected type
+  var [var (Nat, Text)]
+    ┌─ migration.mo:3:7
+  2 │    
+  3 │    (with migration =
+    │ ╭────────^
+  4 │ │    func({unstable1 : () -> () }) :
+    · │  
+ 12 │ │        unstable2 = func () {};
+ 13 │ │      }})
+    │ ╰───────^ 
+ 14 │    actor {
+error[M0205]: migration expression produces unexpected field `unstable2` of type
+  () -> ()
+
+The actor should declare a corresponding `stable` field.
+    ┌─ migration.mo:3:7
+  2 │    
+  3 │    (with migration =
+    │ ╭────────^
+  4 │ │    func({unstable1 : () -> () }) :
+    · │  
+ 12 │ │        unstable2 = func () {};
+ 13 │ │      }})
+    │ ╰───────^ 
+ 14 │    actor {
+error[M0205]: migration expression produces unexpected field `versoin` of type
+  var ()
+
+Did you mean field version?
+The actor should declare a corresponding `stable` field.
+    ┌─ migration.mo:3:7
+  2 │    
+  3 │    (with migration =
+    │ ╭────────^
+  4 │ │    func({unstable1 : () -> () }) :
+    · │  
+ 12 │ │        unstable2 = func () {};
+ 13 │ │      }})
+    │ ╰───────^ 
+ 14 │    actor {
+warning[M0207]: migration expression consumes field `unstable1` of type
+  () -> ()
+but does not produce it. The field is not declared in the actor.
+This field will be removed from the actor, discarding its consumed value.
+If this removal is unintended, declare the field in the actor and either remove the field from the parameter of the migration function or add it to the result of the migration function.
+    ┌─ migration.mo:3:7
+  2 │    
+  3 │    (with migration =
+    │ ╭────────^
+  4 │ │    func({unstable1 : () -> () }) :
+    · │  
+ 12 │ │        unstable2 = func () {};
+ 13 │ │      }})
+    │ ╰───────^ 
+ 14 │    actor {

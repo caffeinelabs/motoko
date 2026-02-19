@@ -1,0 +1,9 @@
+help: field also present in base, here (consider overwriting)
+    ┌─ issue-3426.mo:3:13
+  3 │    let r2 = {r1 and r1 with x = 1};
+    │              ^^ 
+error[M0177]: ambiguous field in base
+  y
+    ┌─ issue-3426.mo:3:20
+  3 │    let r2 = {r1 and r1 with x = 1};
+    │                     ^^ 

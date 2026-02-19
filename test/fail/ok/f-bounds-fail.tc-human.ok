@@ -1,0 +1,480 @@
+error[M0046]: type argument
+  A
+does not match parameter bound
+  C
+    ┌─ f-bounds-fail.mo:13:42
+ 13 │  type T1< A <: B, B /* <: C */, C> = Cast<A,C>;
+    │                                           ^ 
+error[M0046]: type argument
+  A
+does not match parameter bound
+  C
+    ┌─ f-bounds-fail.mo:14:42
+ 14 │  type T2< B /* <: C */, A <: B, C> = Cast<A,C>;
+    │                                           ^ 
+error[M0046]: type argument
+  A
+does not match parameter bound
+  C
+    ┌─ f-bounds-fail.mo:15:42
+ 15 │  type T3< C, B /* <: C */, A <: B> = Cast<A,C>;
+    │                                           ^ 
+error[M0046]: type argument
+  Int
+does not match parameter bound
+  Nat
+    ┌─ f-bounds-fail.mo:3:38
+  3 │  let f = (func(x:Int):Nat = 0) : Cast<Int,Nat>;
+    │                                       ^^^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:9:53
+  9 │  func f3a< A <: B, B /* <: C */ , C> ( x : A ) : C = x;
+    │                                                      ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:10:52
+ 10 │  func f3b< B /* <: C */, A <: B, C> ( x : A ) : C = x;
+    │                                                     ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:11:52
+ 11 │  func f3c< C, B /* <: C */, A <: B> ( x : A ) : C = x;
+    │                                                     ^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> A
+    ┌─ f-bounds-fail.mo:45:23
+ 45 │   let u0 : T1<A,A,A> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> B
+    ┌─ f-bounds-fail.mo:46:23
+ 46 │   let u1 : T1<A,A,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> B
+    ┌─ f-bounds-fail.mo:47:23
+ 47 │   let u2 : T1<A,B,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> B
+    ┌─ f-bounds-fail.mo:48:23
+ 48 │   let u3 : T1<B,B,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> C
+    ┌─ f-bounds-fail.mo:49:23
+ 49 │   let u4 : T1<B,B,C> = ();
+    │                        ^^ 
+error[M0046]: type argument
+  B
+does not match parameter bound
+  C
+    ┌─ f-bounds-fail.mo:50:14
+ 50 │   let u5 : T1<B,C,C> = ();
+    │               ^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> C
+    ┌─ f-bounds-fail.mo:50:23
+ 50 │   let u5 : T1<B,C,C> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  C -> C
+    ┌─ f-bounds-fail.mo:51:23
+ 51 │   let u6 : T1<C,C,C> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> A
+    ┌─ f-bounds-fail.mo:53:23
+ 53 │   let v0 : T2<A,A,A> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> B
+    ┌─ f-bounds-fail.mo:54:23
+ 54 │   let v1 : T2<A,A,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> B
+    ┌─ f-bounds-fail.mo:55:23
+ 55 │   let v2 : T2<B,A,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> B
+    ┌─ f-bounds-fail.mo:56:23
+ 56 │   let v3 : T2<B,B,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> C
+    ┌─ f-bounds-fail.mo:57:23
+ 57 │   let v4 : T2<B,B,C> = ();
+    │                        ^^ 
+error[M0046]: type argument
+  B
+does not match parameter bound
+  C
+    ┌─ f-bounds-fail.mo:58:16
+ 58 │   let v5 : T2<C,B,C> = ();
+    │                 ^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> C
+    ┌─ f-bounds-fail.mo:58:23
+ 58 │   let v5 : T2<C,B,C> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  C -> C
+    ┌─ f-bounds-fail.mo:59:23
+ 59 │   let v6 : T2<C,C,C> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> A
+    ┌─ f-bounds-fail.mo:61:23
+ 61 │   let w0 : T3<A,A,A> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> B
+    ┌─ f-bounds-fail.mo:62:23
+ 62 │   let w1 : T3<B,A,A> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  A -> B
+    ┌─ f-bounds-fail.mo:63:23
+ 63 │   let w2 : T3<B,B,A> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> B
+    ┌─ f-bounds-fail.mo:64:23
+ 64 │   let w3 : T3<B,B,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> C
+    ┌─ f-bounds-fail.mo:65:23
+ 65 │   let w4 : T3<C,B,B> = ();
+    │                        ^^ 
+error[M0046]: type argument
+  B
+does not match parameter bound
+  C
+    ┌─ f-bounds-fail.mo:66:18
+ 66 │   let w5 : T3<C,C,B> = ();
+    │                   ^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  B -> C
+    ┌─ f-bounds-fail.mo:66:23
+ 66 │   let w5 : T3<C,C,B> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  C -> C
+    ┌─ f-bounds-fail.mo:67:23
+ 67 │   let w6 : T3<C,C,C> = ();
+    │                        ^^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:70:27
+ 70 │      case 0 { g<A,B,C>(a,a,a,n) };
+    │                            ^ 
+error[M0096]: expression of type
+  B
+cannot produce expected type
+  C
+because type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:71:27
+ 71 │      case 1 { g<A,B,C>(a,b,b,n) };
+    │                            ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:74:27
+ 74 │      case 3 { g<B,B,C>(a,a,a,n) };
+    │                            ^ 
+error[M0096]: expression of type
+  B
+cannot produce expected type
+  C
+because type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:75:27
+ 75 │      case 4 { g<B,B,C>(a,b,b,n) };
+    │                            ^ 
+error[M0096]: expression of type
+  B
+cannot produce expected type
+  C
+because type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:77:27
+ 77 │      case 6 { g<B,B,C>(b,b,b,n) };
+    │                            ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:80:23
+ 80 │      case 8 { g<C,C,C>(a,a,a,n) };
+    │                        ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:80:25
+ 80 │      case 8 { g<C,C,C>(a,a,a,n) };
+    │                          ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:80:27
+ 80 │      case 8 { g<C,C,C>(a,a,a,n) };
+    │                            ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:81:23
+ 81 │      case 9 { g<C,C,C>(a,a,b,n) };
+    │                        ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:81:25
+ 81 │      case 9 { g<C,C,C>(a,a,b,n) };
+    │                          ^ 
+error[M0096]: expression of type
+  B
+cannot produce expected type
+  C
+because type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:81:27
+ 81 │      case 9 { g<C,C,C>(a,a,b,n) };
+    │                            ^ 
+error[M0096]: expression of type
+  A
+cannot produce expected type
+  C
+because type variable 
+  A
+ was promoted to its bound 
+  B
+ and type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:82:24
+ 82 │      case 10 { g<C,C,C>(a,b,c,n) };
+    │                         ^ 
+error[M0096]: expression of type
+  B
+cannot produce expected type
+  C
+because type variable 
+  B
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  C
+    ┌─ f-bounds-fail.mo:82:26
+ 82 │      case 10 { g<C,C,C>(a,b,c,n) };
+    │                           ^ 

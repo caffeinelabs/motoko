@@ -1,0 +1,26 @@
+error[M0018]: duplicate type field name T in object type
+    ┌─ type-comp.mo:3:42
+  3 │    type MT = module { type T = Null; type T<A> = A }; // reject
+    │                                           ^ 
+error[M0046]: type argument
+  P2
+does not match parameter bound
+  {}
+    ┌─ type-comp.mo:13:49
+ 13 │    type B2 = module { type T<P2 <: Null> = Upper<P2> }; // reject
+    │                                                  ^^ 
+error[M0046]: type argument
+  P3
+does not match parameter bound
+  {}
+    ┌─ type-comp.mo:14:41
+ 14 │    type B3 = module { type T<P3> = Upper<P3> }; // reject
+    │                                          ^^ 
+error[M0029]: unbound type Bogus
+    ┌─ type-comp.mo:20:38
+ 20 │    type R2 = module { type Bogus<A> = Bogus<A> }; // reject (non-recursive, refers to nothing)
+    │                                       ^^^^^ 
+error[M0137]: type Open<B> = (A, B) references type parameter A from an outer scope
+    ┌─ type-comp.mo:28:28
+ 28 │    type Outer<A> = module { type Open<B> = (A, B) }; // reject (open type definition)
+    │                             ^^^^^^^^^^^^^^^^^^^^^ 

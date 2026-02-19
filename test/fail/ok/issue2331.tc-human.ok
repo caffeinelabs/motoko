@@ -1,0 +1,10 @@
+error[M0151]: missing field 'bar' from expected type
+  {bar : Nat}
+    ┌─ issue2331.mo:1:9
+  1 │  ignore ({foo = 0} : { bar : Nat });
+    │          ^^^^^^^^^ 
+error[M0151]: missing fields 'bar', 'qux' from expected type
+  {bar : Nat; qux : Float}
+    ┌─ issue2331.mo:2:9
+  2 │  ignore ({foo = 0} : { bar : Nat; qux : Float });
+    │          ^^^^^^^^^ 
