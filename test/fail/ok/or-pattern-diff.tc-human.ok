@@ -1,0 +1,4 @@
+error[M0189]: different set of bindings in pattern alternatives
+    ┌─ or-pattern-diff.mo:1:5
+  1 │  let (#a a) or (#b b) = #a 5;
+    │      ^^^^^^^^^^^^^^^^ 

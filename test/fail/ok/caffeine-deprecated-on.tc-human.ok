@@ -1,0 +1,32 @@
+warning[M0235]: field foo is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:16:9
+ 16 │  ignore (A.foo);
+    │          ^^^^^ 
+warning[M0235]: field foo is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:17:9
+ 17 │  assert (A.foo == 5);
+    │          ^^^^^ 
+warning[M0235]: field f is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:19:8
+ 19 │  ignore(A.f);
+    │         ^^^ 
+warning[M0235]: field f is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:20:8
+ 20 │  ignore(A.f(5));
+    │         ^^^ 
+warning[M0235]: field f is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:21:8
+ 21 │  assert(A.f(5) == 5);
+    │         ^^^ 
+warning[M0235]: type field T is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:23:13
+ 23 │  ignore (5 : A.T);
+    │              ^^^ 
+warning[M0235]: field f is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:25:11
+ 25 │  do { let {f} = A; };
+    │            ^ 
+warning[M0235]: field f is deprecated for caffeine
+    ┌─ caffeine-deprecated-on.mo:26:11
+ 26 │  do { let {f = x} = A; };
+    │            ^^^^^ 

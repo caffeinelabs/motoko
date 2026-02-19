@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 // This is like local-throw.as, just not local
 // (Using `await async { … }` around relevant parts

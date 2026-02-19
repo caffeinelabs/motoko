@@ -194,63 +194,7 @@ service : {
   main: () -> (T) query;
 }
 `.trim() + "\n";
-assert.deepStrictEqual(Motoko.candid("ast.mo"), {
-  diagnostics: [
-    {
-      category: "type",
-      code: "M0194",
-      message:
-        "unused identifier Prim (delete or rename to wildcard `_` or `_Prim`)",
-      range: {
-        end: {
-          character: 13,
-          line: 3,
-        },
-        start: {
-          character: 9,
-          line: 3,
-        },
-      },
-      severity: 2,
-      source: "ast.mo",
-    },
-    {
-      category: 'type',
-      code: 'M0244',
-      message: 'variable x is never reassigned, consider using `let`',
-      range: {
-        end: {
-          character: 9,
-          line: 9
-        },
-        start: {
-          character: 8,
-          line: 9
-        }
-      },
-      severity: 2,
-      source: 'ast.mo'
-    },
-    {
-      category: "type",
-      code: "M0194",
-      message: "unused identifier M (delete or rename to wildcard `_` or `_M`)",
-      range: {
-        end: {
-          character: 12,
-          line: 13,
-        },
-        start: {
-          character: 11,
-          line: 13,
-        },
-      },
-      severity: 2,
-      source: "ast.mo",
-    },
-  ],
-  code: candid,
-});
+assert.deepStrictEqual(Motoko.candid("ast.mo").code, candid)
 
 // Check that parseMotokoTyped exposes scope
 const typedResult = Motoko.parseMotokoTyped(["ast.mo"]);

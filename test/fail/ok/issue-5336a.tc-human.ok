@@ -1,0 +1,8 @@
+warning[M0217]: with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed
+    ┌─ issue-5336a/actor.mo:1:1
+  1 │  persistent actor class Actor() {};
+    │  ^^^^^^^^^^ 
+warning[M0217]: with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed
+    ┌─ issue-5336a.mo:5:1
+  5 │  persistent actor class Main() {};
+    │  ^^^^^^^^^^ 

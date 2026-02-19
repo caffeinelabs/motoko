@@ -1,9 +1,5 @@
-async-obj-mut.mo:6.7-6.15: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-async-obj-mut.mo:8.7-8.16: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-async-obj-mut.mo:9.7-9.15: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-async-obj-mut.mo:11.7-11.15: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+async-obj-mut.mo:7.7-7.15: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+async-obj-mut.mo:9.7-9.16: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+async-obj-mut.mo:10.7-10.15: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
 async-obj-mut.mo:12.7-12.15: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-async-obj-mut.mo:8.11-8.12: warning [M0194], unused identifier b (delete or rename to wildcard `_` or `_b`)
-async-obj-mut.mo:9.11-9.12: warning [M0194], unused identifier c (delete or rename to wildcard `_` or `_c`)
-async-obj-mut.mo:11.11-11.12: warning [M0194], unused identifier e (delete or rename to wildcard `_` or `_e`)
-async-obj-mut.mo:12.11-12.12: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
+async-obj-mut.mo:13.7-13.15: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

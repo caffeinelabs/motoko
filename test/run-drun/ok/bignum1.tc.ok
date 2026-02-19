@@ -1,2 +1,1 @@
-bignum1.mo:2.7-2.8: warning [M0244], variable x is never reassigned, consider using `let`
-bignum1.mo:4.8-4.9: warning [M0194], unused identifier b (delete or rename to wildcard `_` or `_b`)
+bignum1.mo:3.7-3.8: warning [M0244], variable x is never reassigned, consider using `let`

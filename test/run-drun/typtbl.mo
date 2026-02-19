@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import { getCandidTypeLimits; setCandidTypeLimits; debugPrint } = "mo:⛔";
 
 actor {

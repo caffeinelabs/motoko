@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // NB: inspect cannot be tested in drun.
 //     (requires dfx or playground for HTTP interface)
 actor {

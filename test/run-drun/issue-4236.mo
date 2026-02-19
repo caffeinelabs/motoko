@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // crashes in renaming of or-pattern
 // (NB: renaming itself only forced by actor class (to avoid capture when class arg binds parameters)
 actor class () {

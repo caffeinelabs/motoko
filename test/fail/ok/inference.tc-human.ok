@@ -1,0 +1,162 @@
+error[M0096]: expression of type
+  (x : None) -> Any
+cannot produce expected type
+  None -> None
+    ┌─ inference.mo:61:14
+ 61 │  tricky<None>(func f(x : None) : Any { f(x);}); // correctly rejected
+    │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  (x : None) -> Any
+cannot produce expected type
+  Any -> Any
+    ┌─ inference.mo:62:13
+ 62 │  tricky<Any>(func f(x : None) : Any { f(x);}); // correctly rejected
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>(f : T -> T) -> ()
+to argument of type
+  (x : None) -> Any
+because there is no way to satisfy subtyping
+  (x : None) -> Any  <:  T -> T  (for argument `f`) 
+    ┌─ inference.mo:67:1
+ 67 │  tricky(func f(x : None) : Any { f(x);}); // fails, inconsistent instantiation required.
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0146]: this pattern is never matched
+    ┌─ inference.mo:87:20
+ 87 │  contra<None>(func (x : Nat, y : Bool) {});
+    │                     ^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: U, U>(x : T, y : T) -> (U, U)
+to argument of type
+  (Nat, Nat)
+because type parameter `T` has a bound 
+  U
+involving another type parameter. Please provide an explicit instantiation.
+    ┌─ inference.mo:94:8
+ 94 │  ignore coswap(1, 2); // rejected due to open bounds
+    │         ^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: U, U>(x : T, y : T) -> (U, U)
+to argument of type
+  (Nat, Int)
+because type parameter `T` has a bound 
+  U
+involving another type parameter. Please provide an explicit instantiation.
+    ┌─ inference.mo:95:8
+ 95 │  ignore coswap(1, 2 : Int); // rejected due to open bounds
+    │         ^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: U, U>(x : T, y : T) -> (U, U)
+to argument of type
+  (Nat, Bool)
+because type parameter `T` has a bound 
+  U
+involving another type parameter. Please provide an explicit instantiation.
+    ┌─ inference.mo:96:8
+ 96 │  ignore coswap(1, true); // rejected due to open bounds
+    │         ^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: Int>(x : T) -> T
+to argument of type
+  Bool
+because there is no way to satisfy subtyping
+  Bool  <:  T  (for argument `x`) 
+    ┌─ inference.mo:111:8
+111 │  ignore bnd(true); // reject, overconstrained
+    │         ^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: Int>(x : T) -> T
+to argument of type
+  Bool
+because there is no way to satisfy subtyping
+  Bool  <:  T  (for argument `x`) 
+    ┌─ inference.mo:112:1
+112 │  bnd(true); // reject, overconstrained
+    │  ^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>(f : <U>T -> U) -> ()
+to argument of type
+  <V>(x : V) -> V
+because there is no way to satisfy subtyping
+  <V>(x : V) -> V  <:  <U>T -> U  (for argument `f`) 
+    ┌─ inference.mo:116:1
+116 │  scopeco(func<V>(x:V):V{x}); // reject due to scope violation
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>(f : <U>U -> T) -> ()
+to argument of type
+  <V>(x : V) -> V
+because there is no way to satisfy subtyping
+  <V>(x : V) -> V  <:  <U>U -> T  (for argument `f`) 
+    ┌─ inference.mo:118:1
+118 │  scopecontra(func<V>(x:V):V{x}); // reject due to scope violation
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>(x : [T]) -> T
+to argument of type
+  [var Nat]
+because there is no way to satisfy subtyping
+  [var Nat]  <:  [T]  (for argument `x`) 
+    ┌─ inference.mo:127:8
+127 │  ignore sub([var 1]); // reject
+    │         ^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>(x : [var T]) -> T
+to argument of type
+  [Nat]
+because there is no way to satisfy subtyping
+  [Nat]  <:  [var T]  (for argument `x`) 
+    ┌─ inference.mo:130:1
+130 │  sub_mut([1]); // reject
+    │  ^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>(x : [var T]) -> T
+to argument of type
+  [var Nat]
+because there is no way to satisfy subtyping
+  [var Nat]  <:  [var T]  (for argument `x`) 
+    ┌─ inference.mo:132:1
+132 │  sub_mut([var 1]); // reject
+    │  ^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <U <: {}>(y : U) -> ()
+to argument of type
+  T
+because there is no way to satisfy subtyping
+  T  <:  U  (for argument `y`) 
+    ┌─ inference.mo:137:4
+137 │     f(x); // reject, overconstrained U
+    │     ^^^^ 
+error[M0098]: cannot apply function of type
+  <U <: T>(y : U) -> U
+to argument of type
+  T
+because there is no way to satisfy subtyping
+  T  <:  U  (for argument `y`) 
+    ┌─ inference.mo:152:11
+152 │     ignore f(x) : None; // fail (overconstrained)
+    │            ^^^^ 
+error[M0096]: expression of type
+  [var Int]
+cannot produce expected type
+  [var Nat]
+    ┌─ inference.mo:172:40
+172 │  ignore choose_var(true, [var (1:Nat)], [var (1:Int)]); // rejected as overconstrained (variance not applicable)
+    │                                         ^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>(o : {x : T}) -> T
+to argument of type
+  {type x = Nat}
+because there is no way to satisfy subtyping
+  {type x = Nat}  <:  {x : T}  (for argument `o`) 
+    ┌─ inference.mo:177:8
+177 │  ignore select(object {public type x = Nat}); // reject
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0045]: wrong number of type arguments: expected 2 but got 0
+    ┌─ inference.mo:183:8
+183 │  ignore fst<>((1, 2)); // reject
+    │         ^^^^^^^^^^^^^ 
+error[M0045]: wrong number of type arguments: expected 1 but got 0
+    ┌─ inference.mo:186:8
+186 │  ignore nil<>() : List<Nat>; // reject
+    │         ^^^^^^^ 

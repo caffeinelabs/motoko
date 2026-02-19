@@ -1,2 +1,0 @@
-do-async-unary.mo:10.16-10.22: warning [M0194], unused identifier doText (delete or rename to wildcard `_` or `_doText`)
-do-async-unary.mo:11.9-11.10: warning [M0194], unused identifier t (delete or rename to wildcard `_` or `_t`)

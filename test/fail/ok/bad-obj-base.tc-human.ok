@@ -1,0 +1,18 @@
+error[M0093]: expected object type, but expression produces type
+  Bool
+    ┌─ bad-obj-base.mo:1:3
+  1 │  { true with a = 3 };
+    │    ^^^^ 
+error[M0178]: actors cannot serve as bases in record extensions
+    ┌─ bad-obj-base.mo:3:3
+  3 │  { act with a = 3 };
+    │    ^^^ 
+help: field also present in base, here (consider overwriting)
+    ┌─ bad-obj-base.mo:4:26
+  4 │  { { y = 3; z = "H" } and { zx = 3 : Nat64 } and { zx = 3 : Nat64 } with y = -25 };
+    │                           ^^^^^^^^^^^^^^^^^^ 
+error[M0177]: ambiguous field in base
+  zx
+    ┌─ bad-obj-base.mo:4:49
+  4 │  { { y = 3; z = "H" } and { zx = 3 : Nat64 } and { zx = 3 : Nat64 } with y = -25 };
+    │                                                  ^^^^^^^^^^^^^^^^^^ 

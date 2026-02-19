@@ -1,2 +1,0 @@
-prelude.mo:5.20-5.21: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-prelude.mo:5.27-5.28: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)

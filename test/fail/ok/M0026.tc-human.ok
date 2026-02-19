@@ -1,0 +1,4 @@
+error[M0026]: unbound variable A
+    ┌─ M0026.mo:1:9
+  1 │  let _ : A.Foo = ();
+    │          ^ 

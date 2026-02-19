@@ -1,0 +1,4 @@
+error[M0035]: shared function must have syntactic return type '()' or 'async <typ>'
+    ┌─ bad-shared-async-star.mo:3:24
+  3 │    public func bad()  : async* Nat { // reject (shared function can't return async*)
+    │                         ^^^^^^^^^^ 

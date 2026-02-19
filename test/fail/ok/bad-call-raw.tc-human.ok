@@ -1,0 +1,5 @@
+error[M0047]: send capability required, but not available
+ (need an enclosing async expression or function body)
+    ┌─ bad-call-raw.mo:4:11
+  4 │    let a = P.call_raw(P.principalOfBlob(""),"foo",""); // reject, send capability required
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

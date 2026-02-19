@@ -1,3 +1,1 @@
-inline.mo:4.9-4.11: warning [M0194], unused identifier t1 (delete or rename to wildcard `_` or `_t1`)
-inline.mo:5.9-5.10: warning [M0244], variable p is never reassigned, consider using `let`
-inline.mo:6.9-6.11: warning [M0194], unused identifier t2 (delete or rename to wildcard `_` or `_t2`)
+inline.mo:6.9-6.10: warning [M0244], variable p is never reassigned, consider using `let`

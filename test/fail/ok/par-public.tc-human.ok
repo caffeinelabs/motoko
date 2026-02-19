@@ -1,0 +1,8 @@
+error[M0213]: parenthetical notes aren't allowed on shared functions
+    ┌─ par-public.mo:2:34
+  2 │    public func baz() : async () = (with) async { }
+    │                                   ^^^^^^ 
+warning[M0211]: redundant empty parenthetical note
+    ┌─ par-public.mo:2:34
+  2 │    public func baz() : async () = (with) async { }
+    │                                   ^^^^^^ 

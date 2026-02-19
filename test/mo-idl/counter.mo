@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // A simple Counter actor.
 actor class (i : Int, step : Nat) {
   flexible var c = i;

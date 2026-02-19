@@ -1,2 +1,0 @@
-caffeine-deprecated-off.mo:23.11-23.12: warning [M0198], unused field f in object pattern (delete or rewrite as `f = _`)
-caffeine-deprecated-off.mo:24.15-24.16: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)

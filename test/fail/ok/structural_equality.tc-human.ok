@@ -1,0 +1,55 @@
+error[M0060]: operator is not defined for operand types
+  (x : Nat) -> Nat
+and
+  (x : Nat) -> Nat
+    ┌─ structural_equality.mo:1:1
+  1 │  (func (x : Nat) : Nat = x) == (func (x : Nat) : Nat = x);
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0060]: operator is not defined for operand types
+  {var x : Nat}
+and
+  {var x : Nat}
+    ┌─ structural_equality.mo:3:1
+  3 │  { var x = 10 } == { var x = 10 };
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0060]: operator is not defined for operand types
+  {inner : () -> Nat}
+and
+  {inner : () -> Nat}
+    ┌─ structural_equality.mo:6:1
+  6 │  A() == A();
+    │  ^^^^^^^^^^ 
+warning[M0062]: comparing incompatible types
+  {x : Nat}
+and
+  {var x : Nat}
+at common supertype
+  {}
+    ┌─ structural_equality.mo:8:9
+  8 │  ignore ({ x = 10 } == { var x = 10 });
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0062]: comparing incompatible types
+  Nat
+and
+  Text
+at common supertype
+  Any
+    ┌─ structural_equality.mo:10:8
+ 10 │  assert(10 == "hi");
+    │         ^^^^^^^^^^ 
+warning[M0061]: comparing abstract type
+  A
+to itself at supertype
+  Any
+    ┌─ structural_equality.mo:12:37
+ 12 │  func myEq<A>(x : A, y : A) : Bool = x == y;
+    │                                      ^^^^^^ 
+warning[M0062]: comparing incompatible types
+  A
+and
+  B
+at common supertype
+  Any
+    ┌─ structural_equality.mo:13:41
+ 13 │  func myEq2<A, B>(x : A, y : B) : Bool = x == y;
+    │                                          ^^^^^^ 

@@ -1,0 +1,7 @@
+error[M0050]: literal of type
+  Int
+does not have expected type
+  Nat
+    ┌─ lambdas-no-variables-in-error.mo:3:28
+  3 │  let r : Int = app(func j = -1, 1);
+    │                             ^^ 

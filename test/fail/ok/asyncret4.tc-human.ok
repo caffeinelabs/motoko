@@ -1,0 +1,4 @@
+error[M0036]: shared query function must have syntactic return type 'async <typ>'
+    ┌─ asyncret4.mo:1:45
+  1 │  func call3<C <: Any>(f : shared query () -> C) : C { f (); };
+    │                                              ^ 

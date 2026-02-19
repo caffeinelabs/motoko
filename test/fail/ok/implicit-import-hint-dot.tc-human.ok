@@ -1,0 +1,20 @@
+error[M0233]: wrong number of arguments: expected 1 but got 0
+Expected 1 argument of type:
+  (key : Text)
+But got no arguments
+    ┌─ implicit-import-hint-dot.mo:13:10
+ 13 │    map.get()
+    │           ^^ 
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Text, Text) -> Order
+    ┌─ implicit-import-hint-dot.mo:17:12
+ 17 │    let ?x = map.get("abc") else return;
+    │             ^^^^^^^^^^^^^^ 
+    = note: Did you mean to import mo:core/Text?
+error[M0072]: field compare does not exist in type:
+  Text
+The field compare is not available. Try something else?
+Hint: Did you mean to import mo:core/Text?
+    ┌─ implicit-import-hint-dot.mo:18:5
+ 18 │    x.compare("v12")
+    │      ^^^^^^^ 

@@ -1,0 +1,13 @@
+error[M0097]: expected function type, but expression produces type
+  Bool
+    ┌─ verification-implies.mo:2:1
+  2 │  true implies true;
+    │  ^^^^ 
+help: this looks like an unintended function call, perhaps a missing ';'?
+    ┌─ verification-implies.mo:2:5
+  2 │  true implies true;
+    │      ^ 
+error[M0057]: unbound variable implies
+    ┌─ verification-implies.mo:2:6
+  2 │  true implies true;
+    │       ^^^^^^^ 

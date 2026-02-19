@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // test handling of type components appearing in types of stable variables
 // (used to crash a sanity check in the compiler which could emit but not parse
 // type components in signature (.most) files)

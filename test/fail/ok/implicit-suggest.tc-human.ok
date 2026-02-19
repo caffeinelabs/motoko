@@ -1,0 +1,22 @@
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ implicit-suggest.mo:41:32
+ 41 │       ignore Map.get(peopleMap, Nat.compare, 1); // warn
+    │                                 ^^^^^^^^^^^ 
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ implicit-suggest.mo:44:27
+ 44 │       ignore peopleMap.get(Nat.compare, 1); // warn
+    │                            ^^^^^^^^^^^ 
+warning[M0237]: The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ implicit-suggest.mo:52:32
+ 52 │       ignore Map.get(peopleMap, compare, 1); // warn
+    │                                 ^^^^^^^ 
+warning[M0237]: The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ implicit-suggest.mo:56:27
+ 56 │       ignore peopleMap.get(compare, 1); // warn
+    │                            ^^^^^^^ 
+error[M0231]: ambiguous implicit argument named `compare` of type 
+  (Amb1.T, Amb1.T) -> Order.
+    ┌─ implicit-suggest.mo:74:12
+ 74 │      ignore Map.get(ambMap, #amb); // reject // ambiguous
+    │             ^^^^^^^^^^^^^^^^^^^^^ 
+    = note: The ambiguous implicit candidates are: `Amb1.compare`, `_Amb2.compare`.

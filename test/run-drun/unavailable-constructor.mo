@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0240
 actor class C() {
 
   let _ : Any = C;

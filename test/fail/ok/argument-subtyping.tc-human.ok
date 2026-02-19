@@ -1,0 +1,12 @@
+error[M0096]: expression of type
+  shared Nat -> ()
+cannot produce expected type
+  shared Text -> ()
+because the type 
+  Text
+ is not compatible with type 
+  Nat
+ in arguments
+    ┌─ argument-subtyping.mo:12:61
+ 12 │  do { func foo(h : shared Nat -> ()) : (shared Text -> ()) = h };
+    │                                                              ^ 
