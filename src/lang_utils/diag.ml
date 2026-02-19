@@ -104,6 +104,14 @@ let pos_to_byte content pos =
   done;
   !line_start + pos.Source.column + 1
 
+let primary_span at = { prio = Primary; at_span = at; label = ""; suggested_replacement = None }
+
+(** Adds a primary span to the message if it doesn't have one.
+    The `message` type always has an implicit primary span that is not always explicitly added *)
+let ensure_primary_span msg =
+  if List.exists (fun s -> s.prio = Primary) msg.spans then msg.spans
+  else primary_span msg.at :: msg.spans
+
 let fancy_of_message msg =
   let file = msg.at.Source.left.Source.file in
   let source : G.Source.t = `File file in
@@ -118,12 +126,9 @@ let fancy_of_message msg =
       | Primary -> G.Diagnostic.Priority.Primary
       | Secondary -> G.Diagnostic.Priority.Secondary in
     G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
-  let labels =
-    if msg.spans = [] then
-      [G.Diagnostic.Label.primaryf ~range:(range msg.at) ""]
-    else
-      let visible_spans = List.filter (fun span -> span.prio = Primary || span.label <> "") msg.spans in
-      List.map mk_span visible_spans in
+  let spans = ensure_primary_span msg in
+  let visible_spans = List.filter (fun span -> span.prio = Primary || span.label <> "") spans in
+  let labels = List.map mk_span visible_spans in
   let severity = match msg.sev with
     | Error -> G.Diagnostic.Severity.Error
     | Warning -> G.Diagnostic.Severity.Warning
@@ -144,16 +149,16 @@ let string_of_severity (sev : severity) = match sev with
 
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message msg =
-  let json_of_span region ~is_primary ~label ~suggested_replacement =
-    let { Source.file; line = line_start; column = column_start } = region.Source.left in
-    let { Source.line = line_end; column = column_end; _ } = region.Source.right in
+  let json_of_span { prio; at_span; label; suggested_replacement } =
+    let { Source.file; line = line_start; column = column_start } = at_span.Source.left in
+    let { Source.line = line_end; column = column_end; _ } = at_span.Source.right in
     `Assoc [
       "file", `String file;
       "line_start", `Int line_start;
       "column_start", `Int (column_start + 1);
       "line_end", `Int line_end;
       "column_end", `Int (column_end + 1);
-      "is_primary", `Bool is_primary;
+      "is_primary", `Bool (prio = Primary);
       "label", `String label;
       "suggested_replacement", (match suggested_replacement with
         | None -> `Null
@@ -162,11 +167,7 @@ let json_string_of_message msg =
         | None -> `Null
         | Some _ -> `String "MachineApplicable");
     ] in
-  let spans = match msg.spans with
-    | [] -> [json_of_span msg.at ~is_primary:true ~label:"" ~suggested_replacement:None]
-    | spans -> List.map (fun s ->
-        json_of_span s.at_span ~is_primary:(s.prio = Primary) ~label:s.label ~suggested_replacement:s.suggested_replacement
-      ) spans in
+  let spans = ensure_primary_span msg |> List.map json_of_span in
   let json = `Assoc [
     "message", `String msg.text;
     "code", `String msg.code;

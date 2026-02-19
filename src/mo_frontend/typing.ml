@@ -287,18 +287,6 @@ let warn ?(notes = []) ?(spans = []) env at code fmt =
       if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s notes spans))
     fmt
 
-let edits_to_spans edits =
-  List.map (fun (e : string Source.phrase) ->
-    Diag.{ prio = Secondary; at_span = e.at; label = ""; suggested_replacement = Some e.it }
-  ) edits
-
-let warn' ~edits env at code =
-  let primary = Diag.{ prio = Primary; at_span = at; label = ""; suggested_replacement = None } in
-  let spans = primary :: edits_to_spans edits in
-  Format.kasprintf env (fun s ->
-    if not env.errors_only then
-      Diag.add_msg env.msgs (type_warning at code s [] spans))
-
 let info env at fmt =
   Format.kasprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_info at s))
@@ -309,6 +297,9 @@ let primary env at fmt =
 
 let secondary env at fmt =
   Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s; suggested_replacement = None }) fmt
+
+let suggestion at replacement : Diag.span =
+  Diag.{ prio = Secondary; at_span = at; label = ""; suggested_replacement = Some replacement }
 
 let check_deprecation env at desc id depr =
   match depr with
@@ -1757,8 +1748,11 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
                   | [] -> e.at
                   | next :: _ -> { left = e.at.left; right = next.at.left }
                 in
-                let edits = [replace_receiver; remove_old_receiver] in
-                warn' env at "M0236" ~edits "You can use the dot notation `%s.%s(...)` here"
+                warn env at "M0236"
+                  ~spans:[
+                    suggestion replace_receiver.at replace_receiver.it;
+                    suggestion remove_old_receiver.at remove_old_receiver.it]
+                  "You can use the dot notation `%s.%s(...)` here"
                   receiver_text
                   id.it
              | _ -> ())
@@ -2913,8 +2907,9 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
         if (List.length explicit_implicits) = saturated_arity - implicits_arity then
           List.iter (fun (name, exp, next_arg) -> 
             let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
-            let edits = ["" @@ to_remove] in (* remove the argument until the next one *)
-            warn' ~edits env exp.at "M0237" "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) explicit_implicits
+            warn env exp.at "M0237"
+              ~spans:[suggestion to_remove ""]
+              "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) explicit_implicits
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -2982,8 +2977,9 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
       else if typs <> [] && Flags.is_warning_enabled "M0223" &&
         is_redundant_instantiation ts env (fun env' ->
           infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems) then begin
-            let edits = ["" @@ inst.at] in
-            warn' ~edits env inst.at "M0223" "redundant type instantiation"
+            warn env inst.at "M0223"
+              ~spans:[suggestion inst.at ""]
+              "redundant type instantiation"
           end;
       ts, t_arg', t_ret'
     | _::_, None -> (* implicit, infer *)
