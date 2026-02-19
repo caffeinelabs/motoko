@@ -1,9 +1,17 @@
-unused-object.mo:1.8-1.24: warning [M0194], unused identifier UnusedTestObject (delete or rename to wildcard `_` or `_UnusedTestObject`)
-unused-object.mo:2.9-2.14: warning [M0194], unused identifier field (delete or rename to wildcard `_` or `_field`)
+unused-object.mo:1.8-1.24: warning [M0194], unused identifier: `UnusedTestObject`
+help: if this is intentional, prefix it with an underscore: `_UnusedTestObject`
+unused-object.mo:2.9-2.14: warning [M0194], unused identifier: `field`
+help: if this is intentional, prefix it with an underscore: `_field`
 unused-object.mo:7.9-7.15: warning [M0244], variable field2 is never reassigned, consider using `let`
-unused-object.mo:8.9-8.15: warning [M0194], unused identifier field3 (delete or rename to wildcard `_` or `_field3`)
-unused-object.mo:9.9-9.15: warning [M0194], unused identifier field4 (delete or rename to wildcard `_` or `_field4`)
-unused-object.mo:11.10-11.22: warning [M0194], unused identifier unusedMethod (delete or rename to wildcard `_` or `_unusedMethod`)
-unused-object.mo:11.23-11.38: warning [M0194], unused identifier unusedParameter (delete or rename to wildcard `_` or `_unusedParameter`)
-unused-object.mo:13.13-13.19: warning [M0194], unused identifier local2 (delete or rename to wildcard `_` or `_local2`)
-unused-object.mo:17.5-17.11: warning [M0194], unused identifier result (delete or rename to wildcard `_` or `_result`)
+unused-object.mo:8.9-8.15: warning [M0194], unused identifier: `field3`
+help: if this is intentional, prefix it with an underscore: `_field3`
+unused-object.mo:9.9-9.15: warning [M0194], unused identifier: `field4`
+help: if this is intentional, prefix it with an underscore: `_field4`
+unused-object.mo:11.10-11.22: warning [M0194], unused identifier: `unusedMethod`
+help: if this is intentional, prefix it with an underscore: `_unusedMethod`
+unused-object.mo:11.23-11.38: warning [M0194], unused identifier: `unusedParameter`
+help: if this is intentional, prefix it with an underscore: `_unusedParameter`
+unused-object.mo:13.13-13.19: warning [M0194], unused identifier: `local2`
+help: if this is intentional, prefix it with an underscore: `_local2`
+unused-object.mo:17.5-17.11: warning [M0194], unused identifier: `result`
+help: if this is intentional, prefix it with an underscore: `_result`

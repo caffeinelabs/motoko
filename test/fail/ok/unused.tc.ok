@@ -1,11 +1,22 @@
-pkg/unused4.mo:4.7-4.14: warning [M0194], unused identifier unused4 (delete or rename to wildcard `_` or `_unused4`)
-pkg/unused2.mo:7.7-7.14: warning [M0194], unused identifier unused2 (delete or rename to wildcard `_` or `_unused2`)
-unused.mo:7.6-7.9: warning [M0194], unused identifier rec (delete or rename to wildcard `_` or `_rec`)
-unused.mo:9.9-9.15: warning [M0194], unused identifier unused (delete or rename to wildcard `_` or `_unused`)
-unused.mo:11.6-11.7: warning [M0194], unused identifier g (delete or rename to wildcard `_` or `_g`)
-unused.mo:11.8-11.9: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-unused.mo:15.5-15.8: warning [M0194], unused identifier hmm (delete or rename to wildcard `_` or `_hmm`)
-unused.mo:23.10-23.11: warning [M0194], unused identifier u (delete or rename to wildcard `_` or `_u`)
-unused.mo:24.8-24.9: warning [M0194], unused identifier o (delete or rename to wildcard `_` or `_o`)
-unused.mo:32.5-32.6: warning [M0194], unused identifier r (delete or rename to wildcard `_` or `_r`)
-unused.mo:32.29-32.30: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
+pkg/unused4.mo:4.7-4.14: warning [M0194], unused identifier: `unused4`
+help: if this is intentional, prefix it with an underscore: `_unused4`
+pkg/unused2.mo:7.7-7.14: warning [M0194], unused identifier: `unused2`
+help: if this is intentional, prefix it with an underscore: `_unused2`
+unused.mo:7.6-7.9: warning [M0194], unused identifier: `rec`
+help: if this is intentional, prefix it with an underscore: `_rec`
+unused.mo:9.9-9.15: warning [M0194], unused identifier: `unused`
+help: if this is intentional, prefix it with an underscore: `_unused`
+unused.mo:11.6-11.7: warning [M0194], unused identifier: `g`
+help: if this is intentional, prefix it with an underscore: `_g`
+unused.mo:11.8-11.9: warning [M0194], unused identifier: `x`
+help: if this is intentional, prefix it with an underscore: `_x`
+unused.mo:15.5-15.8: warning [M0194], unused identifier: `hmm`
+help: if this is intentional, prefix it with an underscore: `_hmm`
+unused.mo:23.10-23.11: warning [M0194], unused identifier: `u`
+help: if this is intentional, prefix it with an underscore: `_u`
+unused.mo:24.8-24.9: warning [M0194], unused identifier: `o`
+help: if this is intentional, prefix it with an underscore: `_o`
+unused.mo:32.5-32.6: warning [M0194], unused identifier: `r`
+help: if this is intentional, prefix it with an underscore: `_r`
+unused.mo:32.29-32.30: warning [M0194], unused identifier: `f`
+help: if this is intentional, prefix it with an underscore: `_f`

@@ -1,44 +1,44 @@
-warning[M0194]: unused identifier actorClassParameter1 (delete or rename to wildcard `_` or `_actorClassParameter1`)
+warning[M0194]: unused identifier: `actorClassParameter1`
     ┌─ unused-actor-class/test-actor-class.mo:1:28
   1 │  actor class TestActorClass(actorClassParameter1 : Nat) {
-    │                             ^^^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier actorClassVariable2 (delete or rename to wildcard `_` or `_actorClassVariable2`)
+    │                             ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_actorClassParameter1`
+warning[M0194]: unused identifier: `actorClassVariable2`
     ┌─ unused-actor-class/test-actor-class.mo:3:9
   3 │      var actorClassVariable2 = "TEST";
-    │          ^^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier unusedActorClassMethod (delete or rename to wildcard `_` or `_unusedActorClassMethod`)
+    │          ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_actorClassVariable2`
+warning[M0194]: unused identifier: `unusedActorClassMethod`
     ┌─ unused-actor-class/test-actor-class.mo:5:10
   5 │      func unusedActorClassMethod(parameter1 : Nat, parameter2 : Int) {
-    │           ^^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier parameter1 (delete or rename to wildcard `_` or `_parameter1`)
+    │           ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedActorClassMethod`
+warning[M0194]: unused identifier: `parameter1`
     ┌─ unused-actor-class/test-actor-class.mo:5:33
   5 │      func unusedActorClassMethod(parameter1 : Nat, parameter2 : Int) {
-    │                                  ^^^^^^^^^^ 
-warning[M0194]: unused identifier parameter2 (delete or rename to wildcard `_` or `_parameter2`)
+    │                                  ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parameter1`
+warning[M0194]: unused identifier: `parameter2`
     ┌─ unused-actor-class/test-actor-class.mo:5:51
   5 │      func unusedActorClassMethod(parameter1 : Nat, parameter2 : Int) {
-    │                                                    ^^^^^^^^^^ 
-warning[M0194]: unused identifier unusedModuleVariable1 (delete or rename to wildcard `_` or `_unusedModuleVariable1`)
+    │                                                    ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parameter2`
+warning[M0194]: unused identifier: `unusedModuleVariable1`
     ┌─ unused-module/test-module.mo:2:9
   2 │      let unusedModuleVariable1 = 1;
-    │          ^^^^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier localModuleFunction (delete or rename to wildcard `_` or `_localModuleFunction`)
+    │          ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unusedModuleVariable1`
+warning[M0194]: unused identifier: `localModuleFunction`
     ┌─ unused-module/test-module.mo:4:10
   4 │      func localModuleFunction() {
-    │           ^^^^^^^^^^^^^^^^^^^ 
-warning[M0194]: unused identifier localObject (delete or rename to wildcard `_` or `_localObject`)
+    │           ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_localModuleFunction`
+warning[M0194]: unused identifier: `localObject`
     ┌─ unused-module/test-module.mo:16:12
  16 │      object localObject {
-    │             ^^^^^^^^^^^ 
-warning[M0194]: unused identifier TestActor (delete or rename to wildcard `_` or `_TestActor`)
+    │             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_localObject`
+warning[M0194]: unused identifier: `TestActor`
     ┌─ unused-import.mo:1:8
   1 │  import TestActor "unused-actor-class/test-actor-class";
-    │         ^^^^^^^^^ 
-warning[M0194]: unused identifier UnusedTestModule (delete or rename to wildcard `_` or `_UnusedTestModule`)
+    │         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_TestActor`
+warning[M0194]: unused identifier: `UnusedTestModule`
     ┌─ unused-import.mo:2:8
   2 │  import UnusedTestModule "unused-module/test-module";
-    │         ^^^^^^^^^^^^^^^^ 
-warning[M0198]: unused field Array_init in object pattern (delete or rewrite as `Array_init = _`)
+    │         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_UnusedTestModule`
+warning[M0198]: unused field in pattern: `Array_init`
     ┌─ unused-import.mo:3:22
   3 │  import { debugPrint; Array_init } = "mo:prim";
-    │                       ^^^^^^^^^^ 
+    │                       ^^^^^^^^^^ help: if this is intentional, delete or rewrite as `Array_init = _`

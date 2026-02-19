@@ -1,2 +1,4 @@
-unused-shared-pattern.mo:2.18-2.24: warning [M0240], unused identifier caller in shared pattern (delete or rename to wildcard `_` or `_caller`)
-unused-shared-pattern.mo:3.19-3.25: warning [M0241], unused field caller in shared pattern (delete or rewrite as `caller = _`)
+unused-shared-pattern.mo:2.18-2.24: warning [M0240], unused identifier: `caller`
+help: if this is intentional, prefix it with an underscore: `_caller`
+unused-shared-pattern.mo:3.19-3.25: warning [M0241], unused field in pattern: `caller`
+help: if this is intentional, delete or rewrite as `caller = _`

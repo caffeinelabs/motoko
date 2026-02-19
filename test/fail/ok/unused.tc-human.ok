@@ -1,44 +1,44 @@
-warning[M0194]: unused identifier unused4 (delete or rename to wildcard `_` or `_unused4`)
+warning[M0194]: unused identifier: `unused4`
     ┌─ pkg/unused4.mo:4:7
   4 │    let unused4 = 1;
-    │        ^^^^^^^ 
-warning[M0194]: unused identifier unused2 (delete or rename to wildcard `_` or `_unused2`)
+    │        ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unused4`
+warning[M0194]: unused identifier: `unused2`
     ┌─ pkg/unused2.mo:7:7
   7 │    let unused2 = 1;
-    │        ^^^^^^^ 
-warning[M0194]: unused identifier rec (delete or rename to wildcard `_` or `_rec`)
+    │        ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_unused2`
+warning[M0194]: unused identifier: `rec`
     ┌─ unused.mo:7:6
   7 │  func rec() { }; //reject ok
-    │       ^^^ 
-warning[M0194]: unused identifier unused (delete or rename to wildcard `_` or `_unused`)
+    │       ^^^ help: if this is intentional, prefix it with an underscore: `_rec`
+warning[M0194]: unused identifier: `unused`
     ┌─ unused.mo:9:9
   9 │  do {let unused = 1 };
-    │          ^^^^^^ 
-warning[M0194]: unused identifier g (delete or rename to wildcard `_` or `_g`)
+    │          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_unused`
+warning[M0194]: unused identifier: `g`
     ┌─ unused.mo:11:6
  11 │  func g(x : ()) {};
-    │       ^ 
-warning[M0194]: unused identifier x (delete or rename to wildcard `_` or `_x`)
+    │       ^ help: if this is intentional, prefix it with an underscore: `_g`
+warning[M0194]: unused identifier: `x`
     ┌─ unused.mo:11:8
  11 │  func g(x : ()) {};
-    │         ^ 
-warning[M0194]: unused identifier hmm (delete or rename to wildcard `_` or `_hmm`)
+    │         ^ help: if this is intentional, prefix it with an underscore: `_x`
+warning[M0194]: unused identifier: `hmm`
     ┌─ unused.mo:15:5
  15 │  let hmm = _ok; // should we warn about the use of a silenced identifier? OCaml doesn't actually, so perhaps not
-    │      ^^^ 
-warning[M0194]: unused identifier u (delete or rename to wildcard `_` or `_u`)
+    │      ^^^ help: if this is intentional, prefix it with an underscore: `_hmm`
+warning[M0194]: unused identifier: `u`
     ┌─ unused.mo:23:10
  23 │    case (?u) {}; //unused u
-    │           ^ 
-warning[M0194]: unused identifier o (delete or rename to wildcard `_` or `_o`)
+    │           ^ help: if this is intentional, prefix it with an underscore: `_u`
+warning[M0194]: unused identifier: `o`
     ┌─ unused.mo:24:8
  24 │    case o {}; //unused 0
-    │         ^ 
-warning[M0194]: unused identifier r (delete or rename to wildcard `_` or `_r`)
+    │         ^ help: if this is intentional, prefix it with an underscore: `_o`
+warning[M0194]: unused identifier: `r`
     ┌─ unused.mo:32:5
  32 │  let r = object {private let f = 0; public let x = 0};
-    │      ^ 
-warning[M0194]: unused identifier f (delete or rename to wildcard `_` or `_f`)
+    │      ^ help: if this is intentional, prefix it with an underscore: `_r`
+warning[M0194]: unused identifier: `f`
     ┌─ unused.mo:32:29
  32 │  let r = object {private let f = 0; public let x = 0};
-    │                              ^ 
+    │                              ^ help: if this is intentional, prefix it with an underscore: `_f`
