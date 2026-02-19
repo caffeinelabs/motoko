@@ -11,8 +11,3 @@ suggest-conversion.mo:8.3-8.6: type error [M0096], expression of type
   Nat16
 cannot produce expected type
   Nat
-Maybe try conversion:
-  `Nat16.toNat(_)` after adding `import Nat16 = "mo:conv/Nat16"`,
-  `Nat16.fromNat16(_)` after adding `import Nat16 = "mo:conv/Nat16"`,
-  `Nat16.Outer.Inner.toNat(_)` after adding `import Nat16 = "mo:conv/Nat16"` or
-  `Nat16.Outer.Inner.fromNat16(_)` after adding `import Nat16 = "mo:conv/Nat16"`?

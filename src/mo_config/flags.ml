@@ -20,6 +20,7 @@ type lint_level = Allow | Warn | Error
 
 let error_format = ref Plain
 let ai_errors = ref false
+let packages_preload = ref true
 let trace = ref false
 let verbose = ref false
 let print_warnings = ref true

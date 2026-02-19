@@ -34,7 +34,8 @@ let error_args = [
         | "json" -> Flags.Json
         | "human" -> Flags.Human
         | _ -> Flags.Plain)),
-    " set error output format"
+    " set error output format";
+  "--no-packages-preload", Arg.Clear Flags.packages_preload, " don't preload all library files from packages (disables hints about non-imported items in diagnostics)"
   (* TODO move --hide-warnings here? *)
   ]
 
