@@ -289,11 +289,12 @@ let warn ?(notes = []) ?(spans = []) env at code fmt =
 
 let edits_to_spans edits =
   List.map (fun (e : string Source.phrase) ->
-    Diag.{ prio = Primary; at_span = e.at; label = ""; suggested_replacement = Some e.it }
+    Diag.{ prio = Secondary; at_span = e.at; label = ""; suggested_replacement = Some e.it }
   ) edits
 
 let warn' ~edits env at code =
-  let spans = edits_to_spans edits in
+  let primary = Diag.{ prio = Primary; at_span = at; label = ""; suggested_replacement = None } in
+  let spans = primary :: edits_to_spans edits in
   Format.kasprintf env (fun s ->
     if not env.errors_only then
       Diag.add_msg env.msgs (type_warning at code s [] spans))

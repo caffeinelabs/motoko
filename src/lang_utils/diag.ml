@@ -81,9 +81,9 @@ let string_of_message msg =
     | Warning -> "warning"
     | Info -> "info" in
   let spans =
-    let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
-    if primary_spans <> [] then
-      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.label) primary_spans)
+    let labels = List.filter_map (fun span -> if span.prio <> Primary || span.label = "" then None else Some span.label) msg.spans in
+    if labels <> [] then
+      "\n" ^ String.concat "\n" labels
     else "" in
   let notes =
     if msg.notes <> [] then
@@ -122,7 +122,8 @@ let fancy_of_message msg =
     if msg.spans = [] then
       [G.Diagnostic.Label.primaryf ~range:(range msg.at) ""]
     else
-      List.map mk_span msg.spans in
+      let visible_spans = List.filter (fun span -> span.prio = Primary || span.label <> "") msg.spans in
+      List.map mk_span visible_spans in
   let severity = match msg.sev with
     | Error -> G.Diagnostic.Severity.Error
     | Warning -> G.Diagnostic.Severity.Warning
@@ -141,31 +142,37 @@ let string_of_severity (sev : severity) = match sev with
   | Warning -> "warning"
   | Info -> "info"
 
-let json_of_span (span : span) =
-  let at = span.at_span in
-  let { Source.file; line = line_start; column = column_start } = at.Source.left in
-  let { Source.line = line_end; column = column_end; _ } = at.Source.right in
-  `Assoc [
-    "file", `String file;
-    "line_start", `Int line_start;
-    "column_start", `Int (column_start + 1);
-    "line_end", `Int line_end;
-    "column_end", `Int (column_end + 1);
-    "suggested_replacement", match span.suggested_replacement with None -> `Null | Some s -> `String s;
-  ]
-
-let json_spans_of_message (msg : message) =
-  let primary_span = { prio = Primary; at_span = msg.at; label = ""; suggested_replacement = None } in
-  json_of_span primary_span :: List.map json_of_span msg.spans
-
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
-let json_string_of_message (msg : message) =
-  let spans = json_spans_of_message msg in
+let json_string_of_message msg =
+  let json_of_span region ~is_primary ~label ~suggested_replacement =
+    let { Source.file; line = line_start; column = column_start } = region.Source.left in
+    let { Source.line = line_end; column = column_end; _ } = region.Source.right in
+    `Assoc [
+      "file", `String file;
+      "line_start", `Int line_start;
+      "column_start", `Int (column_start + 1);
+      "line_end", `Int line_end;
+      "column_end", `Int (column_end + 1);
+      "is_primary", `Bool is_primary;
+      "label", `String label;
+      "suggested_replacement", (match suggested_replacement with
+        | None -> `Null
+        | Some s -> `String s);
+      "suggestion_applicability", (match suggested_replacement with
+        | None -> `Null
+        | Some _ -> `String "MachineApplicable");
+    ] in
+  let spans = match msg.spans with
+    | [] -> [json_of_span msg.at ~is_primary:true ~label:"" ~suggested_replacement:None]
+    | spans -> List.map (fun s ->
+        json_of_span s.at_span ~is_primary:(s.prio = Primary) ~label:s.label ~suggested_replacement:s.suggested_replacement
+      ) spans in
   let json = `Assoc [
     "message", `String msg.text;
     "code", `String msg.code;
     "level", `String (string_of_severity msg.sev);
     "spans", `List spans;
+    "notes", `List (List.map (fun n -> `String n) msg.notes);
   ] in
   Yojson.Basic.to_string json
 
