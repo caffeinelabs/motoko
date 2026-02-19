@@ -474,13 +474,15 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         k env.caller
       | ICReplyDeadlinePrim, [] ->
         k (V.Nat64 Numerics.Nat64.zero)
-      | ICStableRead (t, _), [] ->
+      | ICStableRead t, [] ->
         let (_, tfs) = T.as_obj t in
         let ve = List.fold_left
           (fun ve' tf -> V.Env.add tf.T.lab V.Null ve')
           V.Env.empty tfs
         in
         k (V.Obj ve)
+      | ICStableStore _, [] ->
+        k V.unit
       | SelfRef _, [] ->
         k (context env)
       | SystemTimePrim, [] ->

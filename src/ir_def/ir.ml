@@ -183,8 +183,9 @@ and prim =
   | ICReplyDeadlinePrim
   | ICArgDataPrim
   | ICStableWrite of Type.typ          (* serialize value of stable type to stable memory *)
-  | ICStableRead of Type.typ * bool    (* deserialize value of stable type from stable memory; bool = skip RTS compatibility check *)
+  | ICStableRead of Type.typ            (* deserialize value of stable type from stable memory *)
   | ICStableSize of Type.typ
+  | ICStableStore of Type.typ          (* assign_stable_type: store type descriptor without check *)
 
 (* Declarations *)
 
@@ -333,5 +334,6 @@ let map_prim t_typ t_lab p =
   | ICMethodNamePrim
   | ICReplyDeadlinePrim -> p
   | ICStableWrite t -> ICStableWrite (t_typ t)
-  | ICStableRead (t, skip) -> ICStableRead (t_typ t, skip)
+  | ICStableRead t -> ICStableRead (t_typ t)
   | ICStableSize t -> ICStableSize (t_typ t)
+  | ICStableStore t -> ICStableStore (t_typ t)

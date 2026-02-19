@@ -667,13 +667,17 @@ let rec check_exp env (exp:Ir.exp) : unit =
       T.text <: t
     | ICReplyDeadlinePrim, [] ->
       T.nat64 <: t
-    | ICStableRead (t1, _skip), [] ->
+    | ICStableRead t1, [] ->
       check_typ env t1;
       check (store_typ t1) "Invalid type argument to ICStableRead";
       t1 <: t
     | ICStableWrite t1, [] ->
       check_typ env t1;
       check (store_typ t1) "Invalid type argument to ICStableWrite";
+      T.unit <: t
+    | ICStableStore t1, [] ->
+      check_typ env t1;
+      check (store_typ t1) "Invalid type argument to ICStableStore";
       T.unit <: t
     | NumConvWrapPrim (p1, p2), [e] ->
       (* we should check if this conversion is supported *)

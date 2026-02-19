@@ -9520,8 +9520,8 @@ module EnhancedOrthogonalPersistence = struct
     NewStableMemory.backup env ^^
     UpgradeStatistics.set_instructions env
 
-  let load env actor_type ~skip_check =
-    (if skip_check then assign_stable_type else register_stable_type) env actor_type ^^
+  let load env actor_type =
+    register_stable_type env actor_type ^^
     load_stable_actor env ^^
     compile_test I64Op.Eqz ^^
     (E.if1 I64Type
@@ -10441,10 +10441,10 @@ module Persistence = struct
         Lifecycle.trans env Lifecycle.Idle
       end
 
-  let load env actor_type ~skip_check =
+  let load env actor_type =
     use_enhanced_orthogonal_persistence env ^^
     (E.if1 I64Type
-      (EnhancedOrthogonalPersistence.load env actor_type ~skip_check)
+      (EnhancedOrthogonalPersistence.load env actor_type)
       begin
         use_graph_destabilization env ^^
         E.if1 I64Type
@@ -12847,12 +12847,15 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | ICReplyDeadlinePrim, [] ->
     SR.UnboxedWord64 Type.Nat64, IC.deadline env
 
-  | ICStableRead (ty, skip_check), [] ->
+  | ICStableRead ty, [] ->
     SR.Vanilla,
-    Persistence.load env ty ~skip_check
+    Persistence.load env ty
   | ICStableWrite ty, [] ->
     SR.unit,
     Persistence.save env ty
+  | ICStableStore ty, [] ->
+    SR.unit,
+    EnhancedOrthogonalPersistence.assign_stable_type env ty
 
   (* Cycles *)
   | SystemCyclesBalancePrim, [] ->
