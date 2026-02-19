@@ -693,71 +693,6 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let state = fresh_var "state" (T.Mut (T.Opt mem_ty)) in
   let get_state = fresh_var "getState" (T.Func(T.Local, T.Returns, [], [], [mem_ty])) in
   let ds = List.map (fun mk_d -> mk_d get_state) mk_ds in
-  (* Helper: given a migration function expression, its dom/rng types, and the surrounding
-     stable fields, build the (sig_, stable_type, migration) triple.
-     Migration only runs on upgrade; fresh deploy reads a record of nulls. *)
-  let build_migration_ir e dom rng =
-    let (_dom_sort, dom_fields) = T.as_obj (T.normalize dom) in
-    let (_rng_sort, rng_fields) = T.as_obj (T.promote rng) in
-    let stab_fields_pre =
-      List.sort (fun (_r1, tf1) (_r2, tf2) -> T.compare_field tf1 tf2)
-        ((List.map (fun tf -> (true, tf)) dom_fields) @
-          (List.filter_map
-            (fun tf ->
-              match T.lookup_val_field_opt tf.T.lab dom_fields,
-                    T.lookup_val_field_opt tf.T.lab rng_fields with
-              | Some _, _ | _, Some _ -> None
-              | None, None -> Some (false, tf))
-            stab_fields))
-    in
-    let mem_fields_pre =
-      List.map
-        (fun (_is_required, tf) -> { tf with T.typ = T.Opt (T.as_immut tf.T.typ) })
-        stab_fields_pre
-    in
-    let mem_ty_pre = T.Obj (T.Memory, mem_fields_pre, []) in
-    let v = fresh_var "v" mem_ty_pre in
-    let v_dom = fresh_var "v_dom" dom in
-    let v_rng = fresh_var "v_rng" rng in
-    let build_mem_result () =
-      objectE T.Memory
-        (List.map
-          (fun T.{lab=i;typ=t;_} ->
-           i,
-           match T.lookup_val_field_opt i rng_fields with
-           | Some t -> optE (dotE (varE v_rng) i (T.as_immut t))
-           | None ->
-             match T.lookup_val_field_opt i dom_fields with
-             | Some _t -> nullE()
-             | None -> dotE (varE v) i t)
-          mem_fields)
-        mem_fields
-    in
-    T.PrePost (stab_fields_pre, stab_fields),
-    I.{pre = mem_ty_pre; post = mem_ty},
-    ifE (primE (I.OtherPrim "rts_in_upgrade") [])
-      (blockE [
-          letD v (primE (I.ICStableRead mem_ty_pre) []);
-          letD v_dom
-            (objectE T.Object
-              (List.map
-                (fun T.{lab=i;typ=t;_} ->
-                  let vi = fresh_var ("v_"^i) (T.as_immut t) in
-                  (i,
-                   switch_optE (dotE (varE v) i (T.Opt (T.as_immut t)))
-                     (primE (Ir.OtherPrim "trap")
-                       [textE (Printf.sprintf
-                         "stable variable `%s` of type `%s` expected but not found"
-                         i (T.string_of_typ t))])
-                     (varP vi) (varE vi)
-                     (T.as_immut t)))
-                dom_fields)
-              dom_fields);
-          letD v_rng (callE e [] (varE v_dom))
-        ]
-        (build_mem_result ()))
-      (primE (I.ICStableRead mem_ty) [])
-  in
   let sig_, stable_type, migration =
     if !T.migration_chain <> [] then begin
       (* --enhanced-migration: generates upgrade-time IR for the migration chain.
@@ -963,7 +898,63 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       let typ = T.lookup_val_field T.migration_lab tfs in
       let e = dotE exp0 T.migration_lab typ in
       let dom, rng = T.as_mono_func_sub typ in
-      build_migration_ir e dom rng
+      let (_dom_sort, dom_fields) = T.as_obj (T.normalize dom) in
+      let (_rng_sort, rng_fields) = T.as_obj (T.promote rng) in
+      let stab_fields_pre =
+        List.sort (fun (_r1, tf1) (_r2, tf2) -> T.compare_field tf1 tf2)
+          ((List.map (fun tf -> (true, tf)) dom_fields) @
+            (List.filter_map
+              (fun tf ->
+                match T.lookup_val_field_opt tf.T.lab dom_fields,
+                      T.lookup_val_field_opt tf.T.lab rng_fields with
+                | Some _, _ | _, Some _ -> None
+                | None, None -> Some (false, tf))
+              stab_fields))
+      in
+      let mem_fields_pre =
+        List.map
+          (fun (_is_required, tf) -> { tf with T.typ = T.Opt (T.as_immut tf.T.typ) })
+          stab_fields_pre
+      in
+      let mem_ty_pre = T.Obj (T.Memory, mem_fields_pre, []) in
+      let v = fresh_var "v" mem_ty_pre in
+      let v_dom = fresh_var "v_dom" dom in
+      let v_rng = fresh_var "v_rng" rng in
+      T.PrePost (stab_fields_pre, stab_fields),
+      I.{pre = mem_ty_pre; post = mem_ty},
+      ifE (primE (I.OtherPrim "rts_in_upgrade") [])
+        (blockE [
+            letD v (primE (I.ICStableRead mem_ty_pre) []);
+            letD v_dom
+              (objectE T.Object
+                (List.map
+                  (fun T.{lab=i;typ=t;_} ->
+                    let vi = fresh_var ("v_"^i) (T.as_immut t) in
+                    (i,
+                     switch_optE (dotE (varE v) i (T.Opt (T.as_immut t)))
+                       (primE (Ir.OtherPrim "trap")
+                         [textE (Printf.sprintf
+                           "stable variable `%s` of type `%s` expected but not found"
+                           i (T.string_of_typ t))])
+                       (varP vi) (varE vi)
+                       (T.as_immut t)))
+                  dom_fields)
+                dom_fields);
+            letD v_rng (callE e [] (varE v_dom))
+          ]
+          (objectE T.Memory
+            (List.map
+              (fun T.{lab=i;typ=t;_} ->
+               i,
+               match T.lookup_val_field_opt i rng_fields with
+               | Some t -> optE (dotE (varE v_rng) i (T.as_immut t))
+               | None ->
+                 match T.lookup_val_field_opt i dom_fields with
+                 | Some _t -> nullE()
+                 | None -> dotE (varE v) i t)
+              mem_fields)
+            mem_fields))
+        (primE (I.ICStableRead mem_ty) [])
   in
   let ds =
     varD state (optE migration)
