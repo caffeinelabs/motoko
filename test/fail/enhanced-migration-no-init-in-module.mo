@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration multi-migration/migrations
+//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration ../run-drun/multi-migration/migrations
 
 // Test that uninitialized variables are rejected in modules
 // even with --enhanced-migration flag
