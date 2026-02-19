@@ -44,17 +44,14 @@ let print_edits filename =
   List.iter (fun (m : Diag.message) ->
     assert_file filename m.at;
     Printf.printf "%s [%s]:\n" (short_region m.at) m.code;
-    List.iter (fun (span : Diag.span) ->
-      match span.suggested_replacement with
-      | None -> ()
-      | Some replacement ->
-        assert_file filename span.at_span;
-        let before = match Source.read_region span.at_span with
-          | Some s -> s
-          | None -> "???"
-        in
-        Printf.printf "  `%s` ~> `%s` (%s)\n" before replacement (short_region span.at_span)
-    ) m.spans
+    List.iter (fun (edit : Diag.edit) ->
+      assert_file filename edit.at_edit;
+      let before = match Source.read_region edit.at_edit with
+        | Some s -> s
+        | None -> "???"
+      in
+      Printf.printf "  `%s` ~> `%s` (%s)\n" before edit.suggested_replacement (short_region edit.at_edit)
+    ) m.edits
   ) msgs
 
 let%expect_test "M0236: single-arg" =

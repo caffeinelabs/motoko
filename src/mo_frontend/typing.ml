@@ -249,11 +249,11 @@ let display_typs fmt typs =
   else
     Format.fprintf fmt ""
 
-let type_error at code text notes spans : Diag.message =
-  Diag.error_message at code "type" text ~notes ~spans
+let type_error at code text notes spans edits : Diag.message =
+  Diag.error_message at code "type" text ~notes ~spans ~edits
 
-let type_warning at code text notes spans : Diag.message =
-  Diag.warning_message at code "type" text ~notes ~spans
+let type_warning at code text notes spans edits : Diag.message =
+  Diag.warning_message at code "type" text ~notes ~spans ~edits
 
 let type_info at text : Diag.message =
   Diag.info_message at "type" text
@@ -271,20 +271,20 @@ module Format = struct
   let fprintf env = with_con_map env Format.fprintf
 end
 
-let error ?(notes = []) ?(spans = []) env at code fmt =
+let error ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
   Format.kasprintf env (fun s ->
-      Diag.add_msg env.msgs (type_error at code s notes spans);
+      Diag.add_msg env.msgs (type_error at code s notes spans edits);
       raise Recover)
     fmt
 
-let local_error ?(notes = []) ?(spans = []) env at code fmt =
+let local_error ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
   Format.kasprintf env (fun s ->
-      Diag.add_msg env.msgs (type_error at code s notes spans))
+      Diag.add_msg env.msgs (type_error at code s notes spans edits))
     fmt
 
-let warn ?(notes = []) ?(spans = []) env at code fmt =
+let warn ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
   Format.kasprintf env (fun s ->
-      if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s notes spans))
+      if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s notes spans edits))
     fmt
 
 let info env at fmt =
@@ -293,13 +293,13 @@ let info env at fmt =
     fmt
 
 let primary env at fmt =
-  Format.kasprintf env (fun s -> Diag.{ prio = Primary; at_span = at; label = Some s; suggested_replacement = None }) fmt
+  Format.kasprintf env (fun s -> Diag.{ prio = Primary; at_span = at; label = s }) fmt
 
 let secondary env at fmt =
-  Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = Some s; suggested_replacement = None }) fmt
+  Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s }) fmt
 
-let suggestion at replacement : Diag.span =
-  Diag.{ prio = Secondary; at_span = at; label = None; suggested_replacement = Some replacement }
+let edit at replacement : Diag.edit =
+  Diag.{ at_edit = at; suggested_replacement = replacement }
 
 let check_deprecation env at desc id depr =
   match depr with
@@ -312,7 +312,7 @@ let check_deprecation env at desc id depr =
       (match compare !Flags.experimental_stable_memory 0 with
        | -1 -> error
        | 0 -> warn
-       | _ -> fun ?(notes = []) ?(spans = []) _ _ _ _ -> ())
+       | _ -> fun ?(notes = []) ?(spans = []) ?(edits = []) _ _ _ _ -> ())
        env at code
        "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
@@ -327,7 +327,7 @@ let flag_of_compile_mode mode =
   | Flags.WasmMode -> " and flag -no-system-api"
   | Flags.RefMode -> " and flag -ref-system-api"
 
-let diag_in type_diag modes env at code notes spans fmt =
+let diag_in type_diag modes env at code notes spans edits fmt =
   let mode = !Flags.compile_mode in
   if !Flags.compiled && List.mem mode modes then
     begin
@@ -338,13 +338,13 @@ let diag_in type_diag modes env at code notes spans fmt =
             s
             (flag_of_compile_mode mode)
           in
-          Diag.add_msg env.msgs (type_diag at code s notes spans)) fmt;
+          Diag.add_msg env.msgs (type_diag at code s notes spans edits)) fmt;
       true
     end
   else false
 
-let error_in modes env at code ?(notes=[]) ?(spans=[]) fmt =
-  if diag_in type_error modes env at code notes spans fmt then
+let error_in modes env at code ?(notes=[]) ?(spans=[]) ?(edits=[]) fmt =
+  if diag_in type_error modes env at code notes spans edits fmt then
     raise Recover
 
 let plural cs = if T.ConSet.cardinal cs = 1 then "" else "s"
@@ -358,8 +358,8 @@ let warn_lossy_bind_type env at bind t1 t2 =
       display_typ_expand t2
 
 (* Currently unused *)
-let _warn_in modes env at code notes spans fmt =
-  ignore (diag_in type_warning modes env at code notes spans fmt)
+let _warn_in modes env at code notes spans edits fmt =
+  ignore (diag_in type_warning modes env at code notes spans edits fmt)
 
 (* Unused identifier detection *)
 
@@ -486,7 +486,7 @@ let coverage' warnOrError category env f x t at =
   let uncovered, unreached = f x t in
   List.iter (fun at -> warn env at "M0146" "this pattern is never matched") unreached;
   if uncovered <> [] then
-    warnOrError ?notes:None ?spans:None env at "M0145"
+    warnOrError ?notes:None ?spans:None ?edits:None env at "M0145"
       ("this %s of type%a\ndoes not cover value\n  %s" : (_, _, _, _) format4 )
       category
       display_typ_expand t
@@ -654,7 +654,7 @@ let error_shared env t at code fmt =
         display_typ_expand t
         display_typ_expand t1
     in
-    Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] []); raise Recover) fmt
+    Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] [] []); raise Recover) fmt
 
 let as_domT t =
   match t.Source.it with
@@ -1749,9 +1749,9 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
                   | next :: _ -> { left = e.at.left; right = next.at.left }
                 in
                 warn env at "M0236"
-                  ~spans:[
-                    suggestion replace_receiver.at replace_receiver.it;
-                    suggestion remove_old_receiver.at remove_old_receiver.it]
+                  ~edits:[
+                    edit replace_receiver.at replace_receiver.it;
+                    edit remove_old_receiver.at remove_old_receiver.it]
                   "You can use the dot notation `%s.%s(...)` here"
                   receiver_text
                   id.it
@@ -2339,7 +2339,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
         type_error exp.at "M0070"
           (Format.asprintf env
              "expected object type, but expression produces type%a"
-             display_typ_expand t0) [] [])
+             display_typ_expand t0) [] [] [])
   in
   match fields with
   | Error e -> Error e
@@ -2363,7 +2363,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
              id.it
              display_obj t0
              desc
-             (suggest ())) [] [])
+             (suggest ())) [] [] [])
     | None ->
       Error(t1, fun () ->
         type_error id.at "M0072"
@@ -2371,7 +2371,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
              id.it
              display_obj t0
              (Suggest.suggest_id "field" id.it
-                (List.map (fun f -> f.T.lab) fs))) [] [])
+                (List.map (fun f -> f.T.lab) fs))) [] [] [])
     end
 
 and infer_exp_field env rf =
@@ -2908,7 +2908,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
           List.iter (fun (name, exp, next_arg) -> 
             let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
             warn env exp.at "M0237"
-              ~spans:[suggestion to_remove ""]
+              ~edits:[edit to_remove ""]
               "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) explicit_implicits
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
@@ -2978,7 +2978,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
         is_redundant_instantiation ts env (fun env' ->
           infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems) then begin
             warn env inst.at "M0223"
-              ~spans:[suggestion inst.at ""]
+              ~edits:[edit inst.at ""]
               "redundant type instantiation"
           end;
       ts, t_arg', t_ret'
