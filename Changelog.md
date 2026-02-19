@@ -7,7 +7,7 @@
 
   * Preload all library files from packages by default, enabling hints about non-imported items in diagnostics (#5861).
 
-    This is a potential breaking change: it may surface errors in previously unused broken library files. Use `--no-packages-preload` as a temporary workaround.
+    This is a potential breaking change: it may surface errors in previously unused broken library files. Use `--no-packages-preload` as a temporary workaround (may be removed in a future major release).
 
 ## 1.2.0 (2026-02-12)
 
