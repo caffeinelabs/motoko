@@ -4,7 +4,10 @@
 
   * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
   * Adds `--error-format human` option to print pretty errors with code snippets and labels (#5816).
-  * Preload all library files from packages by default, enabling hints about non-imported items in diagnostics. Use `--no-packages-preload` to disable (#5861).
+
+  * Preload all library files from packages by default, enabling hints about non-imported items in diagnostics (#5861).
+
+    This is a potential breaking change: it may surface errors in previously unused broken library files. Use `--no-packages-preload` as a temporary workaround.
 
 ## 1.2.0 (2026-02-12)
 
