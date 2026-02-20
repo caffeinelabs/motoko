@@ -706,8 +706,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          type (for pre-migration adoption) or enhanced_mem_ty (no migrations).
 
          Each level has its own type (type_k = accumulated Memory type after
-         k migrations), so no ?Any accumulator or mutable state is needed.
-         CastPrim bridges type differences for carried fields across levels.
+         k migrations).
 
          After the nesting, ICStableStore(mem_ty) updates the stored metadata,
          and a final projection maps type_n to the actor's mem_ty.
@@ -746,10 +745,14 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       let enhanced_mem_ty = T.Obj (T.Memory, enhanced_mem_fields, []) in
 
       (* Step 2: compute intermediate_types = [type_1, ..., type_n].
-         type_k is the accumulated Memory object type after k migrations,
+         type_k is the union of all fields touched by migrations 1..k,
          built by last-writer-wins over each migration's dom/rng fields.
-         It represents the stored type on the heap if exactly k migrations
-         were applied. Used to select the correct ICStableRead type at runtime. *)
+         Note: this is a superset of the actual stored type on the heap
+         (which is the actor's mem_ty from ICStableStore). Dom-only fields
+         (consumed but not produced) persist here as ghosts; the RTS check
+         in ICStableRead tolerates extra optional fields via null defaults.
+         Used to select the correct ICStableRead type at runtime and as the
+         result type for the nested if-expression at each level. *)
       let intermediate_types =
         let accum_tbl = Hashtbl.create 32 in
         List.map (fun (_file, _mod_typ, run_typ) ->
