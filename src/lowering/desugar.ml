@@ -703,10 +703,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
              with carried fields to produce a properly typed state_k.
 
          Base case (k=0): ICStableRead(type_0) where type_0 is Init's domain
-         type (for pre-migration adoption) or enhanced_mem_ty (no migrations).
+         type (for pre-migration adoption).
 
-         Each level has its own type (type_k = accumulated Memory type after
-         k migrations).
+         Each level has its own type (type_k = precise Memory type at boundary
+         k, computed by reverse-folding from the actor's mem_ty).
 
          After the nesting, ICStableStore(mem_ty) updates the stored metadata,
          and a final projection maps type_n to the actor's mem_ty.
@@ -744,30 +744,36 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       in
       let enhanced_mem_ty = T.Obj (T.Memory, enhanced_mem_fields, []) in
 
-      (* Step 2: compute intermediate_types = [type_1, ..., type_n].
-         type_k is the union of all fields touched by migrations 1..k,
-         built by last-writer-wins over each migration's dom/rng fields.
-         Note: this is a superset of the actual stored type on the heap
-         (which is the actor's mem_ty from ICStableStore). Dom-only fields
-         (consumed but not produced) persist here as ghosts; the RTS check
-         in ICStableRead tolerates extra optional fields via null defaults.
-         Used to select the correct ICStableRead type at runtime and as the
-         result type for the nested if-expression at each level. *)
+      (* Step 2: compute intermediate_types = [type_1, ..., type_n] by
+         reverse-folding from type_n = actor's mem_ty. Each step undoes one
+         migration: range-only fields are removed (introduced by that migration),
+         domain fields are restored with their domain types, and carried fields
+         are kept unchanged. This mirrors the stab_fields_pre calculation in the
+         old (with migration = fn) syntax and gives precise types at each
+         boundary — no ghost fields from dropped-and-never-reintroduced fields. *)
       let intermediate_types =
-        let accum_tbl = Hashtbl.create 32 in
-        List.map (fun (_file, _mod_typ, run_typ) ->
-          let (_, _, dom_fields_i, rng_fields_i) = decompose_run run_typ in
-          List.iter (fun tf -> Hashtbl.replace accum_tbl tf.T.lab tf) dom_fields_i;
-          List.iter (fun tf -> Hashtbl.replace accum_tbl tf.T.lab tf) rng_fields_i;
-          let accum_fields =
-            Hashtbl.fold (fun _k tf acc -> tf :: acc) accum_tbl []
-            |> List.sort T.compare_field
-          in
-          let accum_mem_fields =
-            List.map (fun tf -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) accum_fields
-          in
-          T.Obj (T.Memory, accum_mem_fields, [])
-        ) chain
+        let undo_migration next_fields (_file, _mod_typ, run_typ) =
+          let (_, _, dom_fields_k, rng_fields_k) = decompose_run run_typ in
+          let prev_tbl = Hashtbl.create 32 in
+          List.iter (fun tf ->
+            if not (List.exists (fun rf -> rf.T.lab = tf.T.lab) rng_fields_k) then
+              Hashtbl.replace prev_tbl tf.T.lab tf
+          ) next_fields;
+          List.iter (fun tf ->
+            Hashtbl.replace prev_tbl tf.T.lab
+              {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}
+          ) dom_fields_k;
+          Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
+          |> List.sort T.compare_field
+        in
+        let (types, _) =
+          List.fold_right (fun entry (acc, next_fields) ->
+            let next_ty = T.Obj (T.Memory, next_fields, []) in
+            let prev_fields = undo_migration next_fields entry in
+            (next_ty :: acc, prev_fields)
+          ) chain ([], mem_fields)
+        in
+        types
       in
 
       let n = List.length chain in
