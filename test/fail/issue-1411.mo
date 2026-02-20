@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import M "lib/M";
 
 let Z1 : M.F = M.F();

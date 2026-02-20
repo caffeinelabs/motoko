@@ -44,6 +44,7 @@
 * [WeakReference](WeakReference.md) Module that implements a weak reference to an object.
 * [internal/BTreeHelper](internal/BTreeHelper.md) 
 * [internal/PRNG](internal/PRNG.md) Collection of pseudo-random number generators
+* [internal/SortHelper](internal/SortHelper.md) 
 * [pure/List](pure/List.md) Purely-functional, singly-linked list data structure.
 * [pure/Map](pure/Map.md) Immutable, ordered key-value maps.
 * [pure/Queue](pure/Queue.md) Double-ended queue of a generic element type `T`.

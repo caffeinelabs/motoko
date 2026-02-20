@@ -1,5 +1,6 @@
 (* This module contains some argument parsing that is common between
 multiple executables *)
+open Exit
 
 (** suppress documentation *)
 let _UNDOCUMENTED_ doc = "" (* TODO: enable with developer env var? *)
@@ -12,7 +13,7 @@ let string_map flag r desc =
     Arg.String (fun value ->
       let key = !key_ref in
       if Flags.M.mem key !r
-      then (Printf.eprintf "duplicate %s %s" flag key ; exit 1)
+      then fail "duplicate %s %s" flag key
       else r := Flags.M.add key value !r
     )
   ],
@@ -27,7 +28,13 @@ let package_args = [
 
 let error_args = [
   "--error-detail", Arg.Set_int Flags.error_detail, "<n>  set error message detail for syntax errors, n in [0..3] (default 2)";
-  "--error-recovery", Arg.Set Flags.error_recovery, " report multiple syntax errors"
+  "--error-recovery", Arg.Set Flags.error_recovery, " report multiple syntax errors";
+  "--error-format",     Arg.Symbol (["plain"; "human"; "json"], fun s ->
+      Flags.error_format := (match s with
+        | "json" -> Flags.Json
+        | "human" -> Flags.Human
+        | _ -> Flags.Plain)),
+    " set error output format"
   (* TODO move --hide-warnings here? *)
   ]
 

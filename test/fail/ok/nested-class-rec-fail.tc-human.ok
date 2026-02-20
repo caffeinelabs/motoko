@@ -1,0 +1,4 @@
+error[M0055]: cannot infer type of forward variable Foo
+    ┌─ nested-class-rec-fail.mo:7:13
+  7 │    let foo = Foo(g, g);
+    │              ^^^ 

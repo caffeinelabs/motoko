@@ -1,0 +1,5 @@
+error[M0115]: option pattern cannot consume expected type
+  Bool
+    ┌─ M0115.mo:1:5
+  1 │  let ?foo = true
+    │      ^^^^ 

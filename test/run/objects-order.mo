@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 var x : Int = 0;
 assert (x == 0);
 

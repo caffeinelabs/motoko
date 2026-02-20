@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0240
 shared({caller = creator}) actor class C() {
 
   let c : Principal = creator;

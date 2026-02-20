@@ -1,2 +1,0 @@
-const-func-unused.mo:1.6-1.9: warning [M0194], unused identifier bar (delete or rename to wildcard `_` or `_bar`)
-const-func-unused.mo:2.6-2.9: warning [M0194], unused identifier foo (delete or rename to wildcard `_` or `_foo`)

@@ -1,0 +1,4 @@
+error[M0193]: actor class has non-async return type
+    ┌─ actor-class-star.mo:1:1
+  1 │  actor class C() : async* actor {} = {}
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

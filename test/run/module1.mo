@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 do {
 module X = {
   public type T = Int;

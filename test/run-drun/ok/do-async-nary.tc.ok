@@ -1,3 +1,1 @@
-do-async-nary.mo:6.5-6.13: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-do-async-nary.mo:10.16-10.22: warning [M0194], unused identifier doText (delete or rename to wildcard `_` or `_doText`)
-do-async-nary.mo:11.9-11.10: warning [M0194], unused identifier t (delete or rename to wildcard `_` or `_t`)
+do-async-nary.mo:7.5-7.13: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

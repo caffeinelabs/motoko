@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 class Ctx() {
   public type T = Int;
   public let x = 0;

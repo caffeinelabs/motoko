@@ -1,0 +1,4 @@
+error[M0002]: invalid utf8 in character literal
+    ┌─ bad-char-lit3.mo:2:8
+  2 │  ignore('\ff')
+    │         ^^^^^ 

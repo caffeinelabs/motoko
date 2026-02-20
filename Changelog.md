@@ -2,10 +2,27 @@
 
 * motoko (`moc`)
 
+  * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
+  * Adds `--error-format human` option to print pretty errors with code snippets and labels (#5816).
+
+## 1.2.0 (2026-02-12)
+
+* motoko (`moc`)
+
+  * Report multiple type errors for compound types at once (#5790).
+
+    This means code like ``` type T = (Na, In)``` will fail with errors for both the misspelled `Na` and `In` types at once, so they can be fixed in one go, rather than having to re-run the compiler after fixing the first one.
+
   * Allow `break` and `continue` in loops without labels (#5702).
   * Report a better error for labeled `continue` targeting a non-loop (#5800).
   * Deprecate older garbage collectors: generational, copying and compating GCs (#5806).
   * Fix contextual dot type note, this should fix the hover hint in the vscode extension, showing the correct function type instead of `()` (#5809).
+  * bugfix: Avoid `moc.js` crashing when passing invalid flags (#5811).
+  * bugfix: Sometimes `import { type X } = "mo:./X"` didn't work, with a confusing error message (#5826).
+  * Improved type recovery for `let` and `var` declarations (enabled only with a type recovery flag for the IDE) (#5819).
+  * Add `checkWithScopeCache` function to `moc.js` -- a cached version of `check` (#5820).
+  * Add `--error-format json` flag to `moc` for machine-readable diagnostic output on stdout in JSON Lines format (#5829).
+  * Expose contextual dot resolution in `moc.js` via two new functions: `contextualDotSuggestions` returns matching context-dot functions for a receiver type, and `contextualDotModule` returns the module reference for a resolved context-dot expression. AST expression nodes now carry non-enumerable `rawExp` references, and the root AST node exposes the accumulated `scope` (including all transitive imports) to support these APIs (#5797).
 
 ## 1.1.0 (2026-01-16)
 

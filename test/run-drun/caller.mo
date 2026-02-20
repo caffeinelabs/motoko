@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194,M0240,M0241
 import Prim "mo:⛔";
 actor a {
 

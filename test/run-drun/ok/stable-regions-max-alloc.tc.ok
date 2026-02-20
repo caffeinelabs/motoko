@@ -1,0 +1,1 @@
+stable-regions-max-alloc.mo:9.9-9.10: warning [M0244], variable l is never reassigned, consider using `let`

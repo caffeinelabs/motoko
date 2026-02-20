@@ -1,3 +1,0 @@
-nested-class-rec.mo:2.11-2.13: warning [M0194], unused identifier f1 (delete or rename to wildcard `_` or `_f1`)
-nested-class-rec.mo:2.26-2.28: warning [M0194], unused identifier f2 (delete or rename to wildcard `_` or `_f2`)
-nested-class-rec.mo:4.7-4.10: warning [M0194], unused identifier Bar (delete or rename to wildcard `_` or `_Bar`)

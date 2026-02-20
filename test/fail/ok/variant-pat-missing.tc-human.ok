@@ -1,0 +1,5 @@
+error[M0112]: tuple pattern cannot consume expected type
+  Nat
+    ┌─ variant-pat-missing.mo:1:7
+  1 │  func (#variant : { #variant : Nat }) = ()
+    │        ^^^^^^^^ 

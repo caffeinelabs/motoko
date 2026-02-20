@@ -6,3 +6,4 @@ timer-default.mo:43.7-43.25: warning [M0195], this function call implicitly requ
 timer-default.mo:48.7-48.25: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
 timer-default.mo:53.14-53.64: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
 timer-default.mo:59.14-59.64: warning [M0195], this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+timer-default.mo:9.7-9.10: warning [M0244], variable max is never reassigned, consider using `let`

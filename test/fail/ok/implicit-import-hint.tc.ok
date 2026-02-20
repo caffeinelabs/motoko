@@ -1,3 +1,3 @@
 implicit-import-hint.mo:11.1-11.18: type error [M0230], Cannot determine implicit argument `compare` of type
   (Text, Text) -> Order
-Hint: Did you mean to import mo:core/Text?
+note: Did you mean to import mo:core/Text?

@@ -1,0 +1,9 @@
+help: overwrite field to resolve error
+    ┌─ object-ext-var-base.mo:13:11
+ 13 │  let _ = { has_var and no_var }
+    │            ^^^^^^^ 
+error[M0179]: base has non-aliasable var field
+  v
+    ┌─ object-ext-var-base.mo:13:11
+ 13 │  let _ = { has_var and no_var }
+    │            ^^^^^^^ 

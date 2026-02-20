@@ -1,7 +1,7 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
 debug.print: canister_reject:ball
-debug.print: canister_error:IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at error-codes.mo:11.33-11.50'.
+debug.print: canister_error:IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at error-codes.mo:12.33-12.50'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
 debug.print: destination_invalid:No route to canister bfozs-kwa73-7nadi
 ingress Completed: Reply: 0x4449444c0000

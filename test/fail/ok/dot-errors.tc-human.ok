@@ -1,0 +1,41 @@
+error[M0072]: field x does not exist in type:
+  {
+    a : {#a};
+    b : {#b};
+    c : {#c};
+    d : {#d};
+    e : {#e};
+    f : {#f};
+    g : {#g};
+    h : {#h}
+  }
+    ┌─ dot-errors.mo:14:28
+ 14 │  func f (r : R1) : {#x} { r.x }; // unfolds R1
+    │                             ^ 
+error[M0072]: field x does not exist in object.
+    ┌─ dot-errors.mo:16:28
+ 16 │  func g (r : R2) : {#x} { r.x }; // unfolds R2
+    │                             ^ 
+error[M0072]: field x does not exist in type:
+  R1 = {
+         a : {#a};
+         b : {#b};
+         c : {#c};
+         d : {#d};
+         e : {#e};
+         f : {#f};
+         g : {#g};
+         h : {#h}
+       }
+    ┌─ dot-errors.mo:18:33
+ 18 │  func h (r : [R1]) : {#x} { r[0].x }; // both R1 and unfolding
+    │                                  ^ 
+error[M0072]: field x does not exist in object.
+    ┌─ dot-errors.mo:20:33
+ 20 │  func i (r : [R2]) : {#x} { r[0].x }; // both R2 and unfolding
+    │                                  ^ 
+error[M0072]: field x does not exist in type:
+  [()]
+    ┌─ dot-errors.mo:22:30
+ 22 │  func j (a : [()]) : {#x} { a.x }; // just array type
+    │                               ^ 

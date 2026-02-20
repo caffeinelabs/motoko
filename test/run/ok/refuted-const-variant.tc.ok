@@ -1,5 +1,4 @@
-refuted-const-variant.mo:2.6-2.14: warning [M0145], this pattern of type
+refuted-const-variant.mo:3.6-3.14: warning [M0145], this pattern of type
   {#bummer}
 does not cover value
   #bummer
-refuted-const-variant.mo:2.13-2.14: warning [M0194], unused identifier b (delete or rename to wildcard `_` or `_b`)

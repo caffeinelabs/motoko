@@ -1,0 +1,5 @@
+error[M0001]: unexpected end of input, expected one of token or <phrase> sequence:
+  <exp_un(ob)>
+    ┌─ lexer-offset-1504.mo:11:1
+ 11 │  
+    │  ^ 

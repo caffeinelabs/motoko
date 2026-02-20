@@ -1,0 +1,9 @@
+error[M0098]: cannot apply function of type
+  <T, U>(_ar : [var T], _f : T -> U) -> [var U]
+to argument of type
+  ([Nat], _f : T -> U)
+because there is no way to satisfy subtyping
+  [Nat]  <:  [var T]  (for argument `_ar`) 
+    ┌─ lambdas-open-types.mo:6:9
+  6 │  let _ = varMap(ar, func x = x : Int);
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

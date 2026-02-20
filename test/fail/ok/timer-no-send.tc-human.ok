@@ -1,0 +1,21 @@
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ timer-no-send.mo:5:12
+  5 │      ignore setTimer(1_000_000, false, func () : async () { });
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0195]: this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+    ┌─ timer-no-send.mo:5:12
+  5 │      ignore setTimer(1_000_000, false, func () : async () { });
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0195]: this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system>` to suppress this warning)
+    ┌─ timer-no-send.mo:10:12
+ 10 │      ignore setTimer(1_000_000, false, func () : async () { });
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0196]: unexpected `system` capability (try deleting it)
+    ┌─ timer-no-send.mo:12:15
+ 12 │      debugPrint<system>("caveat"); // misplaced `<system>`
+    │                ^^^^^^^^ 
+error[M0037]: misplaced async expression; try enclosing in an async function
+    ┌─ timer-no-send.mo:14:12
+ 14 │      ignore async 42 // not allowed
+    │             ^^^^^^^^ 

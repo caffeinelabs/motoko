@@ -9,6 +9,20 @@ type T = {foo : Int; foo: Bool}
 };
 
 do {
+type T = {
+  foo : Int;
+  bar1 : Text;
+  bar2 : Text;
+  bar3 : Text;
+  bar4 : Text;
+  bar5 : Text;
+  bar6 : Text;
+  bar7 : Text;
+  foo: Bool;
+}
+};
+
+do {
 type T = {foo : Int; nxnnbkddcv: Bool}
 };
 

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // test that object extension happens at the type plane too
 
 object a { public type T = Int; public let x : T = 42 };

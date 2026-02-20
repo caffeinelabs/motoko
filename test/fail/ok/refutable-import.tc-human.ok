@@ -1,0 +1,7 @@
+error[M0145]: this pattern of type
+  module {why : Nat}
+does not cover value
+  {why = 0 or 1 or _}
+    ┌─ refutable-import.mo:1:8
+  1 │  import { why = 42 } = "nat-module";
+    │         ^^^^^^^^^^^^ 

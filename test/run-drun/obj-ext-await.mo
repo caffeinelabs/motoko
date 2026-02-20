@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 actor a {
     public func go() : async () {
         let r = async ({ b = 42 });
