@@ -884,29 +884,33 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
     | None ->
       T.Single stab_fields,
       I.{pre = mem_ty; post = mem_ty},
-      primE (I.ICStableRead mem_ty) []
+      primE (I.ICStableRead mem_ty) [] (* as before *)
     | Some exp0 ->
-      (* Regular (with migration = fn) *)
-      let _, tfs = T.as_obj_sub [T.migration_lab] exp0.note.Note.typ in
-      let typ = T.lookup_val_field T.migration_lab tfs in
+      let typ = let _, tfs = T.as_obj_sub [T.migration_lab] exp0.note.Note.typ in
+                T.lookup_val_field T.migration_lab tfs
+      in
       let e = dotE exp0 T.migration_lab typ in
       let dom, rng = T.as_mono_func_sub typ in
       let (_dom_sort, dom_fields) = T.as_obj (T.normalize dom) in
       let (_rng_sort, rng_fields) = T.as_obj (T.promote rng) in
       let stab_fields_pre =
-        List.sort (fun (_r1, tf1) (_r2, tf2) -> T.compare_field tf1 tf2)
-          ((List.map (fun tf -> (true, tf)) dom_fields) @
+        List.sort (fun (r1, tf1) (r2, tf2) -> T.compare_field tf1 tf2)
+          ((List.map (fun tf -> (true, tf)) dom_fields) (* required *) @
             (List.filter_map
               (fun tf ->
                 match T.lookup_val_field_opt tf.T.lab dom_fields,
                       T.lookup_val_field_opt tf.T.lab rng_fields with
-                | Some _, _ | _, Some _ -> None
-                | None, None -> Some (false, tf))
+                | Some _, _    (* ignore consumed (overridden) *)
+                | _, Some _ -> (* ignore produced (provided) *)
+                  None
+                | None, None ->
+                  (* retain others *)
+                  Some (false, tf)) (* optional *)
               stab_fields))
       in
       let mem_fields_pre =
         List.map
-          (fun (_is_required, tf) -> { tf with T.typ = T.Opt (T.as_immut tf.T.typ) })
+          (fun (is_required, tf) -> { tf with T.typ = T.Opt (T.as_immut tf.T.typ) })
           stab_fields_pre
       in
       let mem_ty_pre = T.Obj (T.Memory, mem_fields_pre, []) in
@@ -916,6 +920,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       T.PrePost (stab_fields_pre, stab_fields),
       I.{pre = mem_ty_pre; post = mem_ty},
       ifE (primE (I.OtherPrim "rts_in_upgrade") [])
+        (* in upgrade, apply migration *)
         (blockE [
             letD v (primE (I.ICStableRead mem_ty_pre) []);
             letD v_dom
@@ -929,8 +934,8 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
                          [textE (Printf.sprintf
                            "stable variable `%s` of type `%s` expected but not found"
                            i (T.string_of_typ t))])
-                       (varP vi) (varE vi)
-                       (T.as_immut t)))
+                         (varP vi) (varE vi)
+                         (T.as_immut t)))
                   dom_fields)
                 dom_fields);
             letD v_rng (callE e [] (varE v_dom))
@@ -940,13 +945,17 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
               (fun T.{lab=i;typ=t;_} ->
                i,
                match T.lookup_val_field_opt i rng_fields with
-               | Some t -> optE (dotE (varE v_rng) i (T.as_immut t))
-               | None ->
+               | Some t -> (* produced by migration *)
+                 optE (dotE (varE v_rng) i (T.as_immut t)) (* wrap in ?_*)
+               | None -> (* not produced by migration *)
                  match T.lookup_val_field_opt i dom_fields with
-                 | Some _t -> nullE()
+                 | Some t ->
+                   (* consumed by migration (not produced) *)
+                   nullE() (* TBR: could also reuse if compatible *)
                  | None -> dotE (varE v) i t)
               mem_fields)
             mem_fields))
+        (* not in upgrade, read record of nulls *)
         (primE (I.ICStableRead mem_ty) [])
   in
   let ds =
