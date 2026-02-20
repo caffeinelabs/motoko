@@ -715,15 +715,23 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          See doc/enhanced-multi-migration.md for the full design rationale. *)
       let chain = !T.migration_chain in
 
+      let decompose_run run_typ =
+        let dom_i, rng_i = T.as_mono_func_sub run_typ in
+        let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
+        let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
+        (dom_i, rng_i, dom_fields_i, rng_fields_i)
+      in
+      let migration_hash file =
+        Digest.to_hex (Digest.string (Filename.basename file))
+      in
+
       (* Step 1: compute enhanced_mem_ty — union of all migration fields + actor
          stab_fields (last-writer-wins, stab_fields merged last). In valid programs
          this equals type_n, but the explicit stab_fields merge guarantees the load
          type includes the actor's declared fields for the fresh-install fallback. *)
       let all_fields_tbl = Hashtbl.create 32 in
       List.iter (fun (_file, _mod_typ, run_typ) ->
-        let dom_i, rng_i = T.as_mono_func_sub run_typ in
-        let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
-        let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
+        let (_, _, dom_fields_i, rng_fields_i) = decompose_run run_typ in
         List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) dom_fields_i;
         List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) rng_fields_i
       ) chain;
@@ -745,9 +753,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       let intermediate_types =
         let accum_tbl = Hashtbl.create 32 in
         List.map (fun (_file, _mod_typ, run_typ) ->
-          let dom_i, rng_i = T.as_mono_func_sub run_typ in
-          let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
-          let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
+          let (_, _, dom_fields_i, rng_fields_i) = decompose_run run_typ in
           List.iter (fun tf -> Hashtbl.replace accum_tbl tf.T.lab tf) dom_fields_i;
           List.iter (fun tf -> Hashtbl.replace accum_tbl tf.T.lab tf) rng_fields_i;
           let accum_fields =
@@ -808,8 +814,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
             if idx = 0 then build_load_branch 0
             else
               let (file, _, _) = List.nth chain (idx - 1) in
-              let migration_hash = Digest.to_hex (Digest.string (Filename.basename file)) in
-              ifE (rts_was_migration_performed migration_hash)
+              ifE (rts_was_migration_performed (migration_hash file))
                 (build_load_branch idx)
                 (build (idx - 1))
           in
@@ -820,12 +825,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       let state_var = fresh_var "mig_state" (T.Mut any_enhanced_mem_ty) in
       let state_init = varD state_var initial_expr in
       let migration_decs = List.map (fun (file, mod_typ, run_typ) ->
-        let dom_i, rng_i = T.as_mono_func_sub run_typ in
-        let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
-        let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
-        let migration_hash = Digest.to_hex (Digest.string (Filename.basename file)) in
-        let was_performed = rts_was_migration_performed migration_hash in
-        let rts_register = rts_register_migration migration_hash in
+        let (dom_i, rng_i, dom_fields_i, rng_fields_i) = decompose_run run_typ in
+        let hash = migration_hash file in
+        let was_performed = rts_was_migration_performed hash in
+        let rts_register = rts_register_migration hash in
         let v_dom = fresh_var "v_dom" dom_i in
         let v_rng = fresh_var "v_rng" rng_i in
         let mod_expr = varE (var (id_of_full_path file) mod_typ) in

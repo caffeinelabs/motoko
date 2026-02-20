@@ -21,16 +21,18 @@ accumulated state.
 
 ### Accumulated composition
 
-Given migration chain `[m_0, m_1, ..., m_{n-1}]`:
+Given migration chain `[m_0, m_1, ..., m_n]`:
 
-The compiler checks `accumulated(m_0 .. m_i) <: input(m_{i+1})`.
+For **every** k from 1 to n, the compiler checks
+`accumulated(m_0 .. m_{k-1}) <: input(m_k)`.
 This is necessary because each migration has access
 to the full accumulated state (via merge semantics), not just the previous
 migration's output. A migration can reference a field produced by any earlier
 migration, not just the immediately preceding one.
 
-The accumulated type is built by last-writer-wins over each migration's range.
-Fields not overwritten by later migrations persist from earlier ones.
+The accumulated type is built incrementally by last-writer-wins over each
+migration's output (range). Fields not overwritten by later migrations persist
+from earlier ones. The first migration (k=0) is skipped — it has no predecessor.
 
 ### Last migration vs actor (mirrors old syntax)
 

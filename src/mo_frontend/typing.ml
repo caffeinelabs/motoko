@@ -4005,13 +4005,15 @@ and validate_enhanced_migration_chain env stab_tfs at =
     (* Last migration vs actor — mirrors (with migration = fn) semantics.
        accumulated_pre plays the role of the "stored heap state". *)
     let (file, dom_tfs, rng_tfs, _, _) = List.hd (List.rev decomposed) in
+    let field_compat tf typ =
+      let context = [T.StableVariable tf.T.lab] in
+      T.stable_sub_explained ~src_fields:env.srcs context
+        (T.as_immut typ) (T.as_immut tf.T.typ)
+    in
     List.iter (fun tf ->
       match T.lookup_val_field_opt tf.T.lab rng_tfs with
       | Some typ ->
-        let context = [T.StableVariable tf.T.lab] in
-        let imm_typ = T.as_immut typ in
-        let imm_expected = T.as_immut tf.T.typ in
-        (match T.stable_sub_explained ~src_fields:env.srcs context imm_typ imm_expected with
+        (match field_compat tf typ with
         | T.Compatible -> ()
         | T.Incompatible explanation ->
           local_error env at "M0251"
@@ -4019,14 +4021,11 @@ and validate_enhanced_migration_chain env stab_tfs at =
             file tf.T.lab
             display_typ_expand typ
             display_typ_expand tf.T.typ
-            (display_explanation imm_typ imm_expected) explanation)
+            (display_explanation (T.as_immut typ) (T.as_immut tf.T.typ)) explanation)
       | None ->
         (match List.find_opt (fun (_, acc_tf) -> acc_tf.T.lab = tf.T.lab) accumulated_pre with
         | Some (pre_file, acc_tf) ->
-          let context = [T.StableVariable tf.T.lab] in
-          let imm_typ = T.as_immut acc_tf.T.typ in
-          let imm_expected = T.as_immut tf.T.typ in
-          (match T.stable_sub_explained ~src_fields:env.srcs context imm_typ imm_expected with
+          (match field_compat tf acc_tf.T.typ with
           | T.Compatible -> ()
           | T.Incompatible explanation ->
             local_error env at "M0251"
@@ -4034,7 +4033,7 @@ and validate_enhanced_migration_chain env stab_tfs at =
               tf.T.lab pre_file
               display_typ_expand acc_tf.T.typ
               display_typ_expand tf.T.typ
-              (display_explanation imm_typ imm_expected) explanation)
+              (display_explanation (T.as_immut acc_tf.T.typ) (T.as_immut tf.T.typ)) explanation)
         | None ->
           local_error env at "M0251"
             "migration chain does not produce stable field `%s`"
