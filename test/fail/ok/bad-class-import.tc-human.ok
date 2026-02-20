@@ -1,0 +1,4 @@
+error[M0143]: bad import: imported actor class cannot be anonymous
+    ┌─ lib/anon_class.mo:1:1
+  1 │  actor class () {}; // import actor class must be named
+    │  ^^^^^^^^^^^^^^^^^ 

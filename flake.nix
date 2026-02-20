@@ -49,6 +49,10 @@
       url = "github:WebAssembly/spec/opam-1.1.1";
       flake = false;
     };
+    grace-src = {
+      url = "github:johnyob/grace/15251666a11a780dfd09f23e1b0c1e6b0e366dcf";
+      flake = false;
+    };
     ocaml-recovery-parser-src = {
       url = "github:serokell/ocaml-recovery-parser";
       flake = false;
@@ -70,6 +74,7 @@
     , motoko-matchers-src
     , ocaml-vlq-src
     , wasm-spec-src
+    , grace-src
     , ocaml-recovery-parser-src
     }: flake-utils.lib.eachDefaultSystem (system:
     let
@@ -85,7 +90,8 @@
             motoko-matchers-src
             ocaml-vlq-src
             wasm-spec-src
-            ocaml-recovery-parser-src;
+            ocaml-recovery-parser-src
+            grace-src;
         };
       };
 
@@ -115,7 +121,11 @@
         menhirLib
         menhirSdk
         ocaml-recovery-parser
+        grace
         cow
+        fmt
+        iter
+        sexplib
         num
         stdint
         wasm_1

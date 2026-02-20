@@ -1,2 +1,0 @@
-issue-2158/C.mo:4.23-4.24: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
-issue-2158.mo:4.8-4.9: warning [M0194], unused identifier T (delete or rename to wildcard `_` or `_T`)

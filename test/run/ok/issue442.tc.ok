@@ -1,12 +1,10 @@
-issue442.mo:1.11-1.24: warning [M0074], this array has type
+issue442.mo:2.11-2.24: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types
-issue442.mo:2.11-2.29: warning [M0081], this if has type
+issue442.mo:3.11-3.29: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   Nat
 false produces
   Text
-issue442.mo:1.5-1.8: warning [M0194], unused identifier foo (delete or rename to wildcard `_` or `_foo`)
-issue442.mo:2.5-2.8: warning [M0194], unused identifier bar (delete or rename to wildcard `_` or `_bar`)

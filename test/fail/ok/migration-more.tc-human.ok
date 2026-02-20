@@ -1,0 +1,10 @@
+error[M0202]: expected object type, but migration expression produces non-object type
+  Int
+    ┌─ migration-more.mo:1:7
+  1 │  (with migration = func(n:Nat) : Int {n}) // reject - expect function on records
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0202]: expected object type, but migration expression consumes non-object type
+  Nat
+    ┌─ migration-more.mo:1:7
+  1 │  (with migration = func(n:Nat) : Int {n}) // reject - expect function on records
+    │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

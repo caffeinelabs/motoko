@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import { call_raw; debugPrint; principalOfActor; replyDeadline; errorMessage; errorCode } = "mo:⛔";
 import Cycles = "cycles/cycles";
 

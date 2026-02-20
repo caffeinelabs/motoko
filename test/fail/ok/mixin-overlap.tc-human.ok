@@ -1,0 +1,16 @@
+error[M0051]: duplicate definition for increment in block
+    ┌─ mixin-overlap.mo:5:15
+  5 │    public func increment() : () { };
+    │                ^^^^^^^^^ 
+error[M0051]: duplicate definition for increment in block
+    ┌─ mixin-overlap.mo:10:11
+ 10 │    include CounterMixin(0);
+    │            ^^^^^^^^^^^^ 
+error[M0051]: duplicate definition for type T in block
+    ┌─ mixin-overlap.mo:15:11
+ 15 │    include CounterMixin(0);
+    │            ^^^^^^^^^^^^ 
+error[M0051]: duplicate definition for type T in block
+    ┌─ mixin-overlap.mo:20:8
+ 20 │    type T = Int;
+    │         ^ 

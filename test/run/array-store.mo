@@ -1,5 +1,3 @@
-import Prim "mo:prim";
-
 func storeConcreteElementWithBarrier<T>(a : [var Nat], v: Nat) { a[0] := v };
 storeConcreteElementWithBarrier([var 1], 123_456_789_000_000);
 

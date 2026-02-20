@@ -1,5 +1,0 @@
-control.mo:14.19-14.20: warning [M0194], unused identifier m (delete or rename to wildcard `_` or `_m`)
-control.mo:15.9-15.10: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)
-control.mo:16.10-16.11: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-control.mo:16.13-16.14: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-control.mo:16.16-16.17: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)

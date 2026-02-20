@@ -1,0 +1,45 @@
+error[M0098]: cannot apply function of type
+  <A>(g : A -> async ()) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  A -> async ()  (for argument `g`) 
+    ┌─ pretty_scoped.mo:2:1
+  2 │  (func f1<A>(g : A -> async ()) : () {}) 1;
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B>(g : (A, B) -> async ()) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  (A, B) -> async ()  (for argument `g`) 
+    ┌─ pretty_scoped.mo:4:1
+  4 │  (func f2<A, B>(g : (A, B) -> async ()) : () {}) 1;
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B, C>(g : (A, B, C) -> async ()) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  (A, B, C) -> async ()  (for argument `g`) 
+    ┌─ pretty_scoped.mo:6:1
+  6 │  (func f3<A, B, C>(g : (A, B, C) -> async ()) : () {}) 1;
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B, C>(g : <D>(A, B, C, D) -> async ()) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  <D>(A, B, C, D) -> async ()  (for argument `g`) 
+    ┌─ pretty_scoped.mo:8:1
+  8 │  (func f4<A, B, C>(g : <D>(A, B, C, D) -> async ()) : () {}) 1;
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B, C>(g : <D <: C, E <: D>(A, B, C, D, E) -> async ()) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  <D <: C, E <: D>(A, B, C, D, E) -> async ()  (for argument `g`) 
+    ┌─ pretty_scoped.mo:10:1
+ 10 │  (func f5<A, B, C>(g : <D <: C, E <: D>(A, B, C, D, E) -> async ()) : () {}) 1;
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

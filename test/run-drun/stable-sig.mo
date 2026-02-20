@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 actor {
 
   type Nats = ?(Nat,Nats);

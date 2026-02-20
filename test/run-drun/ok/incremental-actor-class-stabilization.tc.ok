@@ -1,0 +1,4 @@
+incremental-actor-class-stabilization/test-actor.mo:4.14-4.23: warning [M0244], variable stableNat is never reassigned, consider using `let`
+incremental-actor-class-stabilization/test-actor.mo:5.14-5.23: warning [M0244], variable stableInt is never reassigned, consider using `let`
+incremental-actor-class-stabilization/test-actor.mo:6.14-6.24: warning [M0244], variable stableText is never reassigned, consider using `let`
+incremental-actor-class-stabilization/test-actor.mo:7.14-7.25: warning [M0244], variable stableArray is never reassigned, consider using `let`

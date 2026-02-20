@@ -1,0 +1,5 @@
+error[M0114]: object pattern cannot consume actor type
+  actor {f : shared () -> (); g : shared () -> ()}
+    ┌─ actor-match.mo:7:8
+  7 │    case {f; g} { () }
+    │         ^^^^^^ 

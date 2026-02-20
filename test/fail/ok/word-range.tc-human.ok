@@ -1,0 +1,108 @@
+error[M0048]: literal out of range for type Nat8
+    ┌─ word-range.mo:46:16
+ 46 │  let _ : Nat8 = 256;
+    │                 ^^^ 
+error[M0048]: literal out of range for type Nat8
+    ┌─ word-range.mo:47:16
+ 47 │  let _ : Nat8 = 0x100;
+    │                 ^^^^^ 
+error[M0048]: literal out of range for type Int8
+    ┌─ word-range.mo:48:16
+ 48 │  let _ : Int8 = 128;
+    │                 ^^^ 
+error[M0048]: literal out of range for type Int8
+    ┌─ word-range.mo:49:16
+ 49 │  let _ : Int8 = 0x80;
+    │                 ^^^^ 
+error[M0048]: literal out of range for type Int8
+    ┌─ word-range.mo:50:16
+ 50 │  let _ : Int8 = +128;
+    │                 ^^^^ 
+error[M0048]: literal out of range for type Int8
+    ┌─ word-range.mo:51:16
+ 51 │  let _ : Int8 = +0x80;
+    │                 ^^^^^ 
+error[M0048]: literal out of range for type Int8
+    ┌─ word-range.mo:52:16
+ 52 │  let _ : Int8 = -129;
+    │                 ^^^^ 
+error[M0048]: literal out of range for type Nat16
+    ┌─ word-range.mo:55:17
+ 55 │  let _ : Nat16 = 65536;
+    │                  ^^^^^ 
+error[M0048]: literal out of range for type Nat16
+    ┌─ word-range.mo:56:17
+ 56 │  let _ : Nat16 = 0x10000;
+    │                  ^^^^^^^ 
+error[M0048]: literal out of range for type Int16
+    ┌─ word-range.mo:57:17
+ 57 │  let _ : Int16 = 32768;
+    │                  ^^^^^ 
+error[M0048]: literal out of range for type Int16
+    ┌─ word-range.mo:58:17
+ 58 │  let _ : Int16 = 0x8000;
+    │                  ^^^^^^ 
+error[M0048]: literal out of range for type Int16
+    ┌─ word-range.mo:59:17
+ 59 │  let _ : Int16 = +32768;
+    │                  ^^^^^^ 
+error[M0048]: literal out of range for type Int16
+    ┌─ word-range.mo:60:17
+ 60 │  let _ : Int16 = +0x8000;
+    │                  ^^^^^^^ 
+error[M0048]: literal out of range for type Int16
+    ┌─ word-range.mo:61:17
+ 61 │  let _ : Int16 = -32769;
+    │                  ^^^^^^ 
+error[M0048]: literal out of range for type Nat32
+    ┌─ word-range.mo:64:17
+ 64 │  let _ : Nat32 = 4294967296;
+    │                  ^^^^^^^^^^ 
+error[M0048]: literal out of range for type Nat32
+    ┌─ word-range.mo:65:17
+ 65 │  let _ : Nat32 = 0x100000000;
+    │                  ^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int32
+    ┌─ word-range.mo:66:17
+ 66 │  let _ : Int32 = 2147483648;
+    │                  ^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int32
+    ┌─ word-range.mo:67:17
+ 67 │  let _ : Int32 = 0x80000000;
+    │                  ^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int32
+    ┌─ word-range.mo:68:17
+ 68 │  let _ : Int32 = +2147483648;
+    │                  ^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int32
+    ┌─ word-range.mo:69:17
+ 69 │  let _ : Int32 = +0x80000000;
+    │                  ^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int32
+    ┌─ word-range.mo:70:17
+ 70 │  let _ : Int32 = -2147483649;
+    │                  ^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Nat64
+    ┌─ word-range.mo:73:17
+ 73 │  let _ : Nat64 = 18_446_744_074_709_551_615;
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int64
+    ┌─ word-range.mo:75:17
+ 75 │  let _ : Int64 = 9_223_372_036_854_775_808;
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int64
+    ┌─ word-range.mo:76:17
+ 76 │  let _ : Int64 = 0x8000000000000000;
+    │                  ^^^^^^^^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int64
+    ┌─ word-range.mo:77:17
+ 77 │  let _ : Int64 = +9_223_372_036_855_775_808;
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int64
+    ┌─ word-range.mo:78:17
+ 78 │  let _ : Int64 = +0x8000000000000000;
+    │                  ^^^^^^^^^^^^^^^^^^^ 
+error[M0048]: literal out of range for type Int64
+    ┌─ word-range.mo:79:17
+ 79 │  let _ : Int64 = -9_223_372_036_854_775_809;
+    │                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ 

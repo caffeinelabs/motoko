@@ -1,0 +1,14 @@
+error[M0192]: body of type
+  actor {}
+does not match expected type
+  Main = actor {beep : shared () -> async ()}
+because expected field `beep` is missing from type 
+  actor {}
+ of `Main`
+    ┌─ issue-4323.mo:4:1
+  3 │    // let-like annotation
+  4 │ ╭  actor Main : Main = {
+  5 │ │  
+  6 │ │  }
+    │ ╰──^ 
+  7 │    

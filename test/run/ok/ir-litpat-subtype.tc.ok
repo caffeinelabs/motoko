@@ -1,1 +1,0 @@
-ir-litpat-subtype.mo:1.6-1.9: warning [M0194], unused identifier bar (delete or rename to wildcard `_` or `_bar`)

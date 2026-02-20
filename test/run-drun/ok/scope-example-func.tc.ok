@@ -3,6 +3,6 @@ scope-example-func.mo:10.13-10.38: type error [M0092], async at scope
   $bogus
 cannot produce expected scope
   $
-  scope $ is scope-example-func.mo:5.60-21.4
+  scope $@anon-async-5.60 is scope-example-func.mo:5.60-21.4
 scope-example-func.mo:5.60: info, start of scope $@anon-async-5.60 mentioned in error at scope-example-func.mo:10.13-10.38
 scope-example-func.mo:21.3: info, end of scope $@anon-async-5.60 mentioned in error at scope-example-func.mo:10.13-10.38

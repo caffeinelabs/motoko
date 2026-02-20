@@ -1,0 +1,9 @@
+error[M0034]: shared constructor has non-shared parameter type
+  (f : () -> ())
+type
+  (f : () -> ())
+is or contains non-shared type
+  () -> ()
+    ┌─ actor-class-non-shared.mo:1:15
+  1 │  actor class C1(f:()->()) {}; // reject: non-shared parameter
+    │                ^^^^^^^^^^ 

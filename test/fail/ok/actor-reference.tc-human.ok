@@ -1,0 +1,11 @@
+error[M0090]: actor reference must have an actor type
+    ┌─ actor-reference.mo:3:9
+  3 │  ignore (actor "IC:bfozs-kwa73-7nadi" : ());  // must be actor type
+    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  Text
+    ┌─ actor-reference.mo:4:16
+  4 │  ignore (actor (45) : actor {});  // argument must be text type
+    │                 ^^ 

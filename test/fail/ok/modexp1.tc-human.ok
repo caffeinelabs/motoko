@@ -1,0 +1,5 @@
+error[M0072]: field g does not exist in type:
+  module {f : () -> ()}
+    ┌─ modexp1.mo:8:15
+  8 │  let wrong = X.g;
+    │                ^ 

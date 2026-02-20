@@ -1,3 +1,0 @@
-concat.mo:1.6-1.14: warning [M0194], unused identifier testText (delete or rename to wildcard `_` or `_testText`)
-concat.mo:2.7-2.11: warning [M0194], unused identifier cat1 (delete or rename to wildcard `_` or `_cat1`)
-concat.mo:3.7-3.11: warning [M0194], unused identifier cat2 (delete or rename to wildcard `_` or `_cat2`)

@@ -1,0 +1,5 @@
+error[M0075]: expected array type or Blob, but expression produces type
+  Bool
+    ┌─ M0075.mo:1:8
+  1 │  ignore true[0]
+    │         ^^^^ 

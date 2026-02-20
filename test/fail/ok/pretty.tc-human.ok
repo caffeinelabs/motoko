@@ -1,0 +1,605 @@
+error[M0096]: expression of type
+  {
+    aaaaaaaaaaaaaaaaaaa : Nat;
+    bbbbbbbbbbbbbbbbbbb : Nat;
+    ccccccccccccccccccc : Nat;
+    ddddddddddddddddddd : Nat;
+    eeeeeeeeeeeeeeeeeee : Nat
+  }
+cannot produce expected type
+  {
+    aaaaaaaaaaaaaaaaaaa : Nat;
+    bbbbbbbbbbbbbbbbbbb : Nat;
+    ccccccccccccccccccc : Nat;
+    ddddddddddddddddddd : Nat;
+    eeeeeeeeeeeeeeeeeee : Nat
+  } ->
+    {
+      aaaaaaaaaaaaaaaaaaa : Nat;
+      bbbbbbbbbbbbbbbbbbb : Nat;
+      ccccccccccccccccccc : Nat;
+      ddddddddddddddddddd : Nat;
+      eeeeeeeeeeeeeeeeeee : Nat
+    }
+    ┌─ pretty.mo:22:20
+ 22 │  func f(x : T): U { x }; // reject
+    │                     ^ 
+error[M0096]: expression of type
+  Int
+cannot produce expected type
+  Nat
+    ┌─ pretty.mo:24:25
+ 24 │  func g(x : Int) : Nat { x }; // reject
+    │                          ^ 
+error[M0096]: expression of type
+  Int
+cannot produce expected type
+  {
+    aaaaaaaaaaaaaaaaaaa : Nat;
+    bbbbbbbbbbbbbbbbbbb : Nat;
+    ccccccccccccccccccc : Nat;
+    ddddddddddddddddddd : Nat;
+    eeeeeeeeeeeeeeeeeee : Nat
+  }
+    ┌─ pretty.mo:26:23
+ 26 │  func h(x : Int) : T { x }; // reject
+    │                        ^ 
+error[M0096]: expression of type
+  {
+    aaaaaaaaaaaaaaaaaaa : Nat;
+    bbbbbbbbbbbbbbbbbbb : Nat;
+    ccccccccccccccccccc : Nat;
+    ddddddddddddddddddd : Nat;
+    eeeeeeeeeeeeeeeeeee : Nat
+  }
+cannot produce expected type
+  Nat
+    ┌─ pretty.mo:28:23
+ 28 │  func i(x : T) : Nat { x }; // reject
+    │                        ^ 
+error[M0072]: field foo does not exist in type:
+  module {
+    bar1 : Nat;
+    bar2 : Nat;
+    bar3 : Nat;
+    bar4 : Nat;
+    bar5 : Nat;
+    bar6 : Nat;
+    bar7 : Nat;
+    bar8 : Nat
+  }
+    ┌─ pretty.mo:40:13
+ 40 │  LargeModule.foo; // reject
+    │              ^^^ 
+error[M0096]: expression of type
+  (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat,
+   Nat, Nat, Nat, Nat)
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ pretty.mo:43:4
+ 43 │     (1,2,3,4,5,6,7,8,9,10,12,13,14,15,16,17,18,19,20) : (); // reject
+    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat,
+   (Nat, Nat, Nat, (Nat, Nat, Nat, Nat, Nat, Nat)))
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ pretty.mo:47:4
+ 47 │     (1,2,3,4,5,6,7,8,9,10,(12,13,14,(15,16,17,18,19,20))) : (); // reject
+    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ({#A}, {#B})
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ pretty.mo:53:4
+ 53 │     p1 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  (({#A}, {#B}), ({#A}, {#B}))
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ pretty.mo:55:4
+ 55 │     p2 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ pretty.mo:57:4
+ 57 │     p3 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  (((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
+   ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))))
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ pretty.mo:59:4
+ 59 │     p4 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ((((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
+    ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))),
+   (((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
+    ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))))
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ pretty.mo:61:4
+ 61 │     p5 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {A : {#A}; B : {#B}}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:67:4
+ 67 │     p1 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:69:4
+ 69 │     p2 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {
+    A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
+    B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:71:4
+ 71 │     p3 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {
+    A :
+      {
+        A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
+        B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+      };
+    B :
+      {
+        A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
+        B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+      }
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:73:4
+ 73 │     p4 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {
+    A :
+      {
+        A :
+          {
+            A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
+            B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+          };
+        B :
+          {
+            A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
+            B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+          }
+      };
+    B :
+      {
+        A :
+          {
+            A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
+            B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+          };
+        B :
+          {
+            A : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}};
+            B : {A : {A : {#A}; B : {#B}}; B : {A : {#A}; B : {#B}}}
+          }
+      }
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:75:4
+ 75 │     p5 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  module {A : {#A}; B : {#B}}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:81:4
+ 81 │     p1 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  module {A : module {A : {#A}; B : {#B}}; B : module {A : {#A}; B : {#B}}}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:83:4
+ 83 │     p2 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  module {
+    A :
+      module {
+        A : module {A : {#A}; B : {#B}};
+        B : module {A : {#A}; B : {#B}}
+      };
+    B :
+      module {
+        A : module {A : {#A}; B : {#B}};
+        B : module {A : {#A}; B : {#B}}
+      }
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:85:4
+ 85 │     p3 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  module {
+    A :
+      module {
+        A :
+          module {
+            A : module {A : {#A}; B : {#B}};
+            B : module {A : {#A}; B : {#B}}
+          };
+        B :
+          module {
+            A : module {A : {#A}; B : {#B}};
+            B : module {A : {#A}; B : {#B}}
+          }
+      };
+    B :
+      module {
+        A :
+          module {
+            A : module {A : {#A}; B : {#B}};
+            B : module {A : {#A}; B : {#B}}
+          };
+        B :
+          module {
+            A : module {A : {#A}; B : {#B}};
+            B : module {A : {#A}; B : {#B}}
+          }
+      }
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:87:4
+ 87 │     p4 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  module {
+    A :
+      module {
+        A :
+          module {
+            A :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              };
+            B :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              }
+          };
+        B :
+          module {
+            A :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              };
+            B :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              }
+          }
+      };
+    B :
+      module {
+        A :
+          module {
+            A :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              };
+            B :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              }
+          };
+        B :
+          module {
+            A :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              };
+            B :
+              module {
+                A : module {A : {#A}; B : {#B}};
+                B : module {A : {#A}; B : {#B}}
+              }
+          }
+      }
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:89:4
+ 89 │     p5 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ({#B} -> {#A}) -> {#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:95:4
+ 95 │     p1 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:97:4
+ 97 │     p2 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ((({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
+    (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:99:4
+ 99 │     p3 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  (((({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}) ->
+     (({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
+    ((({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
+      (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:101:4
+101 │     p4 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ((((({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
+      (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}) ->
+     ((({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}) ->
+       (({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
+    (((({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}) ->
+       (({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
+      ((({#B} -> {#A}) -> {#A} -> {#B}) -> ({#A} -> {#B}) -> {#B} -> {#A}) ->
+        (({#A} -> {#B}) -> {#B} -> {#A}) -> ({#B} -> {#A}) -> {#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:103:4
+103 │     p5 : (); // reject
+    │     ^^ 
+error[M0103]: cannot infer type of variable
+    ┌─ pretty.mo:107:62
+107 │     func p<T,U>(f : <V>T->U) : <W>(<X>U->T)->(<Y>T->U) { func g {f}; } ;
+    │                                                               ^ 
+error[M0096]: expression of type
+  <W>(<X>{#B} -> {#A}) -> <Y>{#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:109:4
+109 │     p1 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  <W>(<X>(<Y>{#A} -> {#B}) -> <X_1>{#B} -> {#A}) ->
+    <Y>(<X>{#B} -> {#A}) -> <Y_1>{#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:111:4
+111 │     p2 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  <W>(<X>(<Y>(<X_1>{#B} -> {#A}) -> <Y_1>{#A} -> {#B}) ->
+        <X_1>(<Y>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
+    <Y>(<X>(<Y_1>{#A} -> {#B}) -> <X_1>{#B} -> {#A}) ->
+      <Y_1>(<X>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:113:4
+113 │     p3 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  <W>(<X>(<Y>(<X_1>(<Y_1>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
+            <Y_1>(<X_1>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}) ->
+        <X_1>(<Y>(<X_2>{#B} -> {#A}) -> <Y_1>{#A} -> {#B}) ->
+          <X_2>(<Y>{#A} -> {#B}) -> <X_3>{#B} -> {#A}) ->
+    <Y>(<X>(<Y_1>(<X_1>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}) ->
+          <X_1>(<Y_1>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
+      <Y_1>(<X>(<Y_2>{#A} -> {#B}) -> <X_1>{#B} -> {#A}) ->
+        <Y_2>(<X>{#B} -> {#A}) -> <Y_3>{#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:115:4
+115 │     p4 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  <W>(<X>(<Y>(<X_1>(<Y_1>(<X_2>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}) ->
+                <X_2>(<Y_1>{#A} -> {#B}) -> <X_3>{#B} -> {#A}) ->
+            <Y_1>(<X_1>(<Y_2>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
+              <Y_2>(<X_1>{#B} -> {#A}) -> <Y_3>{#A} -> {#B}) ->
+        <X_1>(<Y>(<X_2>(<Y_1>{#A} -> {#B}) -> <X_3>{#B} -> {#A}) ->
+                <Y_1>(<X_2>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}) ->
+          <X_2>(<Y>(<X_3>{#B} -> {#A}) -> <Y_1>{#A} -> {#B}) ->
+            <X_3>(<Y>{#A} -> {#B}) -> <X_4>{#B} -> {#A}) ->
+    <Y>(<X>(<Y_1>(<X_1>(<Y_2>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
+              <Y_2>(<X_1>{#B} -> {#A}) -> <Y_3>{#A} -> {#B}) ->
+          <X_1>(<Y_1>(<X_2>{#B} -> {#A}) -> <Y_2>{#A} -> {#B}) ->
+            <X_2>(<Y_1>{#A} -> {#B}) -> <X_3>{#B} -> {#A}) ->
+      <Y_1>(<X>(<Y_2>(<X_1>{#B} -> {#A}) -> <Y_3>{#A} -> {#B}) ->
+              <X_1>(<Y_2>{#A} -> {#B}) -> <X_2>{#B} -> {#A}) ->
+        <Y_2>(<X>(<Y_3>{#A} -> {#B}) -> <X_1>{#B} -> {#A}) ->
+          <Y_3>(<X>{#B} -> {#A}) -> <Y_4>{#A} -> {#B}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:117:4
+117 │     p5 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ?(Nat, Nat)
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:123:4
+123 │     p1 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ?(?(Nat, Nat), ?(Nat, Nat))
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:125:4
+125 │     p2 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat)))
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:127:4
+127 │     p3 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ?(?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))),
+    ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))))
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:129:4
+129 │     p4 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  ?(?(?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))),
+      ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat)))),
+    ?(?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat))),
+      ?(?(?(Nat, Nat), ?(Nat, Nat)), ?(?(Nat, Nat), ?(Nat, Nat)))))
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:131:4
+131 │     p5 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {#A : {#Foo}; #B : {#Bar}}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:137:4
+137 │     p1 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}}
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:139:4
+139 │     p2 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {
+    #A : {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}};
+    #B : {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}}
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:141:4
+141 │     p3 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {
+    #A :
+      {
+        #A :
+          {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}};
+        #B :
+          {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}}
+      };
+    #B :
+      {
+        #A :
+          {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}};
+        #B :
+          {#A : {#A : {#Foo}; #B : {#Bar}}; #B : {#A : {#Foo}; #B : {#Bar}}}
+      }
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:143:4
+143 │     p4 : (); // reject
+    │     ^^ 
+error[M0096]: expression of type
+  {
+    #A :
+      {
+        #A :
+          {
+            #A :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              };
+            #B :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              }
+          };
+        #B :
+          {
+            #A :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              };
+            #B :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              }
+          }
+      };
+    #B :
+      {
+        #A :
+          {
+            #A :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              };
+            #B :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              }
+          };
+        #B :
+          {
+            #A :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              };
+            #B :
+              {
+                #A : {#A : {#Foo}; #B : {#Bar}};
+                #B : {#A : {#Foo}; #B : {#Bar}}
+              }
+          }
+      }
+  }
+cannot produce expected type
+  ()
+    ┌─ pretty.mo:145:4
+145 │     p5 : (); // reject
+    │     ^^ 

@@ -1,3 +1,0 @@
-query-footprint.mo:5.16-5.17: warning [M0194], unused identifier s (delete or rename to wildcard `_` or `_s`)
-query-footprint.mo:7.9-7.13: warning [M0194], unused identifier lost (delete or rename to wildcard `_` or `_lost`)
-query-footprint.mo:19.16-19.20: warning [M0194], unused identifier expl (delete or rename to wildcard `_` or `_expl`)

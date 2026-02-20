@@ -2,20 +2,27 @@
 
 type severity
 type error_code = string
-
+type priority = Primary | Secondary
+type span = {
+  prio : priority;
+  at_span : Source.region;
+  label : string;
+}
 type message = {
   sev : severity;
   code : error_code;
   at : Source.region;
   cat : string;
-  text : string
+  text : string;
+  spans : span list;
+  notes: string list;
 }
 
 type messages = message list
 
-val info_message : Source.region -> string -> string -> message
-val warning_message : Source.region -> error_code -> string -> string -> message
-val error_message : Source.region -> error_code -> string -> string -> message
+val info_message : Source.region -> string -> ?spans:span list -> ?notes:string list -> string -> message
+val warning_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> string -> message
+val error_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> string -> message
 
 val string_of_message : message -> string
 val is_treated_as_error : message -> bool

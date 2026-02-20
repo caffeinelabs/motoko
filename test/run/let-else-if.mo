@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 let x = if true 4 else 5 else { assert false; loop () };
 
 func foo() {

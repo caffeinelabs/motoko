@@ -1,11 +1,7 @@
-contextual-dot-suggest.mo:81.10-81.25: warning [M0236], You can use the dot notation `(#odd).equal(...)` here
-contextual-dot-suggest.mo:82.10-82.39: warning [M0236], You can use the dot notation `(#odd).compare(...)` here
-contextual-dot-suggest.mo:85.10-85.44: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-contextual-dot-suggest.mo:86.10-86.31: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
-contextual-dot-suggest.mo:87.10-87.29: warning [M0236], You can use the dot notation `peopleMap.size(...)` here
-contextual-dot-suggest.mo:89.18-89.38: warning [M0236], You can use the dot notation `peopleMap.clone(...)` here
-contextual-dot-suggest.mo:89.10-89.55: warning [M0236], You can use the dot notation `Map.clone(peopleMap).get(...)` here
-contextual-dot-suggest.mo:25.23-25.27: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
-contextual-dot-suggest.mo:26.21-26.25: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
-contextual-dot-suggest.mo:45.5-45.9: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
-contextual-dot-suggest.mo:63.26-63.30: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
+contextual-dot-suggest.mo:82.10-82.25: warning [M0236], You can use the dot notation `(#odd).equal(...)` here
+contextual-dot-suggest.mo:83.10-83.39: warning [M0236], You can use the dot notation `(#odd).compare(...)` here
+contextual-dot-suggest.mo:86.10-86.44: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+contextual-dot-suggest.mo:87.10-87.31: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+contextual-dot-suggest.mo:88.10-88.29: warning [M0236], You can use the dot notation `peopleMap.size(...)` here
+contextual-dot-suggest.mo:90.18-90.38: warning [M0236], You can use the dot notation `peopleMap.clone(...)` here
+contextual-dot-suggest.mo:90.10-90.55: warning [M0236], You can use the dot notation `Map.clone(peopleMap).get(...)` here

@@ -1,2 +1,1 @@
-branch-before-define.mo:18.5-18.10: warning [M0194], unused identifier wrong (delete or rename to wildcard `_` or `_wrong`)
-branch-before-define.mo:7.7-7.40: definedness error [M0016], cannot use g before x has been defined
+branch-before-define.mo:8.7-8.40: definedness error [M0016], cannot use g before x has been defined

@@ -17,9 +17,8 @@ let args = ref []
 let add_arg source = args := !args @ [source]
 
 let set_mode m () =
-  if !mode <> Default && !mode <> m then begin
-    eprintf "moc: multiple execution modes specified"; exit 1
-  end;
+  if !mode <> Default && !mode <> m then
+    fail "moc: multiple execution modes specified";
   mode := m
 
 let out_file = ref ""
@@ -264,7 +263,7 @@ let set_out_file files ext =
   if !out_file = "" then begin
     match files with
     | [n] -> out_file := Filename.remove_extension (Filename.basename n) ^ ext
-    | ns -> eprintf "moc: no output file specified"; exit 1
+    | ns -> fail "moc: no output file specified"
   end
 
 (* Main *)
@@ -386,9 +385,7 @@ let () =
   Flags.compiled := !mode = Compile;
 
   if !Flags.warnings_are_errors && (not !Flags.print_warnings)
-  then begin
-    eprintf "moc: --hide-warnings and -Werror together do not make sense"; exit 1
-  end;
+  then fail "moc: --hide-warnings and -Werror together do not make sense";
 
   if not !Flags.skip_gc_deprecation_warning 
   then begin

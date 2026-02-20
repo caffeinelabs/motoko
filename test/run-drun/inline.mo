@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 actor {
   func inline(t1: Text, t2 : Text) : Text = t1 # t2;
   func makecalls() : () {

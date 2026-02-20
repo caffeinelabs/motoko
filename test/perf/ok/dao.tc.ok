@@ -1,12 +1,2 @@
-assetstorage/List.mo:66.19-66.20: warning [M0194], unused identifier t (delete or rename to wildcard `_` or `_t`)
-assetstorage/List.mo:201.16-201.17: warning [M0194], unused identifier h (delete or rename to wildcard `_` or `_h`)
-assetstorage/Iter.mo:165.29-165.31: warning [M0194], unused identifier ix (delete or rename to wildcard `_` or `_ix`)
-assetstorage/AssocList.mo:158.20-158.22: warning [M0194], unused identifier v2 (delete or rename to wildcard `_` or `_v2`)
-assetstorage/AssocList.mo:313.20-313.22: warning [M0194], unused identifier v2 (delete or rename to wildcard `_` or `_v2`)
-assetstorage/Trie.mo:206.31-206.32: warning [M0194], unused identifier v (delete or rename to wildcard `_` or `_v`)
-assetstorage/Trie.mo:486.25-486.26: warning [M0194], unused identifier v (delete or rename to wildcard `_` or `_v`)
-assetstorage/Trie.mo:588.9-588.15: warning [M0194], unused identifier key_eq (delete or rename to wildcard `_` or `_key_eq`)
-assetstorage/Trie.mo:967.7-967.12: warning [M0194], unused identifier k3_eq (delete or rename to wildcard `_` or `_k3_eq`)
-assetstorage/Trie.mo:1568.5-1568.10: warning [M0194], unused identifier k1_eq (delete or rename to wildcard `_` or `_k1_eq`)
 dao/dao-types.mo:67.72-67.80: warning [M0154], field hash is deprecated:
 For large `Int` values consider using a bespoke hash function that considers all of the argument's bits.

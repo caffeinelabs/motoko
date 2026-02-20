@@ -1,8 +1,7 @@
-redundant-ignore.mo:3.1-3.9: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-redundant-ignore.mo:4.1-4.10: warning [M0089], redundant ignore, operand already has type ()
-redundant-ignore.mo:5.1-5.11: warning [M0089], redundant ignore, operand already has type ()
-redundant-ignore.mo:6.1-6.9: warning [M0089], redundant ignore, operand already has type ()
-redundant-ignore.mo:11.3-11.12: warning [M0089], redundant ignore, operand already has type ()
-redundant-ignore.mo:12.3-12.13: warning [M0089], redundant ignore, operand already has type ()
-redundant-ignore.mo:13.3-13.11: warning [M0089], redundant ignore, operand already has type ()
-redundant-ignore.mo:10.6-10.7: warning [M0194], unused identifier g (delete or rename to wildcard `_` or `_g`)
+redundant-ignore.mo:4.1-4.9: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+redundant-ignore.mo:5.1-5.10: warning [M0089], redundant ignore, operand already has type ()
+redundant-ignore.mo:6.1-6.11: warning [M0089], redundant ignore, operand already has type ()
+redundant-ignore.mo:7.1-7.9: warning [M0089], redundant ignore, operand already has type ()
+redundant-ignore.mo:12.3-12.12: warning [M0089], redundant ignore, operand already has type ()
+redundant-ignore.mo:13.3-13.13: warning [M0089], redundant ignore, operand already has type ()
+redundant-ignore.mo:14.3-14.11: warning [M0089], redundant ignore, operand already has type ()

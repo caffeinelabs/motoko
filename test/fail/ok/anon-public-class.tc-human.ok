@@ -1,0 +1,4 @@
+error[M0158]: a public class cannot be anonymous, please provide a name
+    ┌─ anon-public-class.mo:2:10
+  2 │    public class(){};
+    │           ^^^^^^^^^ 

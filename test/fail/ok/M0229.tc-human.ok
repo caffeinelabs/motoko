@@ -1,0 +1,4 @@
+error[M0229]: mixins may only be imported by binding to a name
+    ┌─ M0229.mo:1:8
+  1 │  import { increment } "mixins/Counter";
+    │         ^^^^^^^^^^^^^ 

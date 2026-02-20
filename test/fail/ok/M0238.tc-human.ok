@@ -1,0 +1,12 @@
+error[M0238]: break outside of loop
+    ┌─ M0238.mo:2:3
+  2 │    break;
+    │    ^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ M0238.mo:6:3
+  6 │    continue;
+    │    ^^^^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ M0238.mo:10:13
+ 10 │    label l { continue l };
+    │              ^^^^^^^^^^ 

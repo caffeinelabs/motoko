@@ -1,0 +1,12 @@
+error[M0096]: expression of type
+  {var x : Nat}
+cannot produce expected type
+  {x : Nat}
+because the type 
+  var Nat
+ is not compatible with type 
+  Nat
+ in `x`
+    ┌─ const-var-field.mo:1:21
+  1 │  let o : {x : Nat} = object { public var x = 0 };
+    │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
