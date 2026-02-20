@@ -4,6 +4,7 @@
 
   * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
   * Adds `--error-format human` option to print pretty errors with code snippets and labels (#5816).
+  * Emit machine-applicable code fixes in `--error-format json` diagnostics for warnings M0223 (redundant type instantiation), M0236 (use dot notation), and M0237 (omit explicit implicit argument). The JSON span format now includes `is_primary`, `label`, `suggested_replacement`, and `suggestion_applicability` fields, enabling IDEs and tooling to offer automatic fixes (#5831).
 
 ## 1.2.0 (2026-02-12)
 
