@@ -20,6 +20,8 @@ open Source
 
 open Compile_common
 
+open Compile_common.W32_Pointers
+
 module Wasm = struct
 include Wasm
   module Types = Wasm_exts.Types
@@ -631,7 +633,7 @@ module E = struct
   let add_mutable_static_bytes (env : t) data : int32 =
     let ptr = reserve_static_memory env (Int32.of_int (String.length data)) in
     env.static_memory := !(env.static_memory) @ [ (ptr, data) ];
-    Int32.(add ptr W32_Pointers.ptr_skew) (* Return a skewed pointer *)
+    Int32.(add ptr ptr_skew) (* Return a skewed pointer *)
 
   let add_fun_ptr (env : t) fi : int32 =
     match FunEnv.find_opt fi !(env.func_ptrs) with
@@ -668,7 +670,7 @@ module E = struct
     StringEnv.cardinal !(env.object_pool)
 
   let add_static_unskewed (env : t) (data : StaticBytes.t) : int32 =
-    Int32.add (add_static env data) W32_Pointers.ptr_unskew
+    Int32.add (add_static env data) ptr_unskew
 
   let get_end_of_static_memory env : int32 =
     env.static_memory_frozen := true;
@@ -1320,11 +1322,11 @@ module Heap = struct
     G.i (Load {ty = I32Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   let load_field (i : int32) : G.t =
-    let offset = Int32.(add (mul word_size i) W32_Pointers.ptr_unskew) in
+    let offset = Int32.(add (mul word_size i) ptr_unskew) in
     G.i (Load {ty = I32Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   let store_field (i : int32) : G.t =
-    let offset = Int32.(add (mul word_size i) W32_Pointers.ptr_unskew) in
+    let offset = Int32.(add (mul word_size i) ptr_unskew) in
     G.i (Store {ty = I32Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   (* Although we occasionally want to treat two consecutive
@@ -1336,21 +1338,21 @@ module Heap = struct
     G.i (Load {ty = I64Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   let load_field64 (i : int32) : G.t =
-    let offset = Int32.(add (mul word_size i) W32_Pointers.ptr_unskew) in
+    let offset = Int32.(add (mul word_size i) ptr_unskew) in
     G.i (Load {ty = I64Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   let store_field64 (i : int32) : G.t =
-    let offset = Int32.(add (mul word_size i) W32_Pointers.ptr_unskew) in
+    let offset = Int32.(add (mul word_size i) ptr_unskew) in
     G.i (Store {ty = I64Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   (* Or even as a single 64 bit float *)
 
   let load_field_float64 (i : int32) : G.t =
-    let offset = Int32.(add (mul word_size i) W32_Pointers.ptr_unskew) in
+    let offset = Int32.(add (mul word_size i) ptr_unskew) in
     G.i (Load {ty = F64Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   let store_field_float64 (i : int32) : G.t =
-    let offset = Int32.(add (mul word_size i) W32_Pointers.ptr_unskew) in
+    let offset = Int32.(add (mul word_size i) ptr_unskew) in
     G.i (Store {ty = F64Type; align = 2; offset = Int64.of_int32 offset; sz = None})
 
   (* Convenience functions related to memory *)
@@ -1611,7 +1613,7 @@ module BitTagged = struct
      We call `i-1` a *skewed* pointer, in a feeble attempt to avoid the term
      shifted, which may sound like a logical shift.
 
-     We use the constants W32_Pointers.ptr_skew and W32_Pointers.ptr_unskew to change a pointer as a
+     We use the constants ptr_skew and ptr_unskew to change a pointer as a
      signpost where we switch between raw pointers to skewed ones.
 
      This means we can store a small unboxed scalar x as (x `lsl` 1), and still
@@ -2123,7 +2125,7 @@ module Tagged = struct
         let set_object = G.setter_for get_object in
         (if unskewed then
           get_object ^^
-          compile_unboxed_const W32_Pointers.ptr_skew ^^
+          compile_unboxed_const ptr_skew ^^
           G.i (Binary (Wasm.Values.I32 I32Op.Add)) ^^
           set_object
         else G.nop) ^^
@@ -2134,7 +2136,7 @@ module Tagged = struct
         E.else_trap_with env "missing object forwarding" ^^
         get_object ^^
         (if unskewed then
-          compile_unboxed_const W32_Pointers.ptr_unskew ^^
+          compile_unboxed_const ptr_unskew ^^
           G.i (Binary (Wasm.Values.I32 I32Op.Add))
         else G.nop))
     else G.nop)
@@ -2210,7 +2212,7 @@ module Tagged = struct
       E.call_import env "rts" "write_with_barrier"
     ) (
       get_location ^^ get_value ^^
-      W32_Pointers.store_unskewed_ptr
+      store_unskewed_ptr
     )
 
   let obj env tag element_instructions : G.t =
@@ -2233,7 +2235,7 @@ module Tagged = struct
     let header_size = Int32.(mul Heap.word_size (header_size env)) in
     let size = Int32.(add header_size (Int32.of_int (String.length payload))) in
     let unskewed_ptr = E.reserve_static_memory env size in
-    let skewed_ptr = Int32.(add unskewed_ptr W32_Pointers.ptr_skew) in
+    let skewed_ptr = Int32.(add unskewed_ptr ptr_skew) in
     let tag = bytes_of_int32 (int_of_tag tag) in
     let forward = bytes_of_int32 skewed_ptr in (* forwarding pointer *)
     (if !Flags.gc_strategy = Flags.Incremental then
@@ -4095,13 +4097,13 @@ module Object = struct
 
       (* Linearly scan through the fields (binary search can come later) *)
       (* unskew h_ptr and advance both to low bound *)
-      compile_add_const Int32.(add W32_Pointers.ptr_unskew (mul Heap.word_size (of_int low_bound))) ^^
+      compile_add_const Int32.(add ptr_unskew (mul Heap.word_size (of_int low_bound))) ^^
       set_h_ptr ^^
       get_x ^^
       compile_add_const Int32.(mul Heap.word_size (add (header_size env) (of_int low_bound))) ^^
       set_x ^^
       G.loop0 (
-          get_h_ptr ^^ W32_Pointers.load_unskewed_ptr ^^
+          get_h_ptr ^^ load_unskewed_ptr ^^
           get_hash ^^ G.i (Compare (Wasm.Values.I32 I32Op.Eq)) ^^
           G.if0
             (get_x ^^ G.i Return)
@@ -4120,7 +4122,7 @@ module Object = struct
       Func.share_code2 Func.Never env name (("x", I32Type), ("hash", I32Type)) [I32Type] (fun env get_x get_hash ->
       get_x ^^ get_hash ^^
       idx_hash_raw env low_bound ^^
-      W32_Pointers.load_ptr ^^ Tagged.load_forwarding_pointer env ^^
+      load_ptr ^^ Tagged.load_forwarding_pointer env ^^
       compile_add_const (Int32.mul (MutBox.field env) Heap.word_size)
     )
     else idx_hash_raw env low_bound
@@ -4159,12 +4161,12 @@ module Object = struct
   (* load the value (or the mutbox) *)
   let load_idx_raw env f =
     idx_raw env f ^^
-    W32_Pointers.load_ptr
+    load_ptr
 
   (* load the actual value (dereferencing the mutbox) *)
   let load_idx env obj_type f =
     idx env obj_type f ^^
-    W32_Pointers.load_ptr
+    load_ptr
 
 end (* Object *)
 
@@ -4207,7 +4209,7 @@ module Blob = struct
   let lit env sort s = compile_unboxed_const (vanilla_lit env sort s)
 
   let lit_ptr_len env s =
-    compile_unboxed_const (Int32.add W32_Pointers.ptr_unskew (E.add_static env StaticBytes.[Bytes s])) ^^
+    compile_unboxed_const (Int32.add ptr_unskew (E.add_static env StaticBytes.[Bytes s])) ^^
     compile_unboxed_const (Int32.of_int (String.length s))
 
   let alloc env sort len =
@@ -4217,7 +4219,7 @@ module Blob = struct
     (* uninitialized blob payload is allowed by the barrier *)
     Tagged.allocation_barrier env
 
-  let unskewed_payload_offset env = Int32.(add W32_Pointers.ptr_unskew (mul Heap.word_size (header_size env)))
+  let unskewed_payload_offset env = Int32.(add ptr_unskew (mul Heap.word_size (header_size env)))
 
   let payload_ptr_unskewed env =
     Tagged.load_forwarding_pointer env ^^
@@ -4390,7 +4392,7 @@ module Blob = struct
       E.else_trap_with env "Blob index out of bounds" ^^
 
       get_idx ^^
-      compile_add_const Int32.(mul (header_size env) Heap.word_size |> add W32_Pointers.ptr_unskew) ^^
+      compile_add_const Int32.(mul (header_size env) Heap.word_size |> add ptr_unskew) ^^
       get_blob ^^
       Tagged.load_forwarding_pointer env ^^
       G.i (Binary (Wasm.Values.I32 I32Op.Add)) ^^
@@ -4433,7 +4435,7 @@ module Blob = struct
       from_0_to_n env (fun get_i ->
         get_ptr ^^
         compile_unboxed_const 0l ^^
-        W32_Pointers.store_unskewed_ptr ^^
+        store_unskewed_ptr ^^
         get_ptr ^^
         compile_add_const Heap.word_size ^^
         set_ptr))
@@ -4759,7 +4761,7 @@ module Arr = struct
     iterate env get_r (fun get_pointer ->
       get_pointer ^^
       get_x ^^
-      W32_Pointers.store_ptr
+      store_ptr
     ) ^^
 
     get_r ^^
@@ -4794,7 +4796,7 @@ module Arr = struct
       get_f ^^
       (* Call *)
       Closure.call_closure env 1 1 ^^
-      W32_Pointers.store_ptr ^^
+      store_ptr ^^
 
       (* Increment index *)
       get_i ^^
@@ -4821,7 +4823,7 @@ module Arr = struct
         G.i (Load {ty = I32Type; align = 0; offset = 0L; sz = Some Wasm.Types.(Pack8, ZX)}) ^^
         TaggedSmallWord.msb_adjust Type.Nat8 ^^
         TaggedSmallWord.tag env Type.Nat8 ^^
-        W32_Pointers.store_ptr
+        store_ptr
       ) ^^
       get_r ^^
       Tagged.allocation_barrier env
@@ -4840,7 +4842,7 @@ module Arr = struct
         get_r ^^ Blob.payload_ptr_unskewed env ^^
         get_i ^^ G.i (Binary (Wasm.Values.I32 I32Op.Add)) ^^
         get_a ^^ get_i ^^ unsafe_idx env ^^
-        W32_Pointers.load_ptr ^^
+        load_ptr ^^
         TaggedSmallWord.lsb_adjust Type.Nat8 ^^
         G.i (Store {ty = I32Type; align = 0; offset = 0L; sz = Some Wasm.Types.Pack8})
       ) ^^
@@ -4967,12 +4969,12 @@ module Lifecycle = struct
 
   let get env =
     compile_unboxed_const (ptr ()) ^^
-    W32_Pointers.load_unskewed_ptr
+    load_unskewed_ptr
 
   let set env new_state =
     compile_unboxed_const (ptr ()) ^^
     compile_unboxed_const (int_of_state new_state) ^^
-    W32_Pointers.store_unskewed_ptr
+    store_unskewed_ptr
 
   let trans env new_state =
     let name = "trans_state" ^ Int32.to_string (int_of_state new_state) in
@@ -5402,7 +5404,7 @@ let env_var_names env =
 
           get_array ^^ get_i ^^ Arr.unsafe_idx env ^^
           get_name ^^
-          W32_Pointers.store_ptr ^^
+          store_ptr ^^
 
           get_i ^^
           get_name ^^ Blob.payload_ptr_unskewed env ^^
@@ -5967,9 +5969,9 @@ module StableMem = struct
             stable64_write env))
 
   let _read_word32 env =
-    read env false "word32" I32Type 4l W32_Pointers.load_unskewed_ptr
+    read env false "word32" I32Type 4l load_unskewed_ptr
   let write_word32 env =
-    write env false "word32" I32Type 4l W32_Pointers.store_unskewed_ptr
+    write env false "word32" I32Type 4l store_unskewed_ptr
   let write_word64 env =
     write env false "word64" I64Type 8l (G.i (Store {ty = I64Type; align = 2; offset = 0L; sz = None}))
 
@@ -5999,7 +6001,7 @@ module StableMem = struct
 
   let read_and_clear_word32 env =
       read_and_clear env "word32" I32Type 4l (compile_unboxed_const 0l)
-      W32_Pointers.load_unskewed_ptr W32_Pointers.store_unskewed_ptr
+      load_unskewed_ptr store_unskewed_ptr
   let read_and_clear_word64 env =
     read_and_clear env "word64" I64Type 8l (compile_const_64 0L)
       (G.i (Load {ty = I64Type; align = 2; offset = 0L; sz = None}))
@@ -6103,21 +6105,21 @@ module StableMem = struct
             end)
 
   let load_word32 env =
-    read env true "word32" I32Type 4l W32_Pointers.load_unskewed_ptr
+    read env true "word32" I32Type 4l load_unskewed_ptr
   let store_word32 env =
-    write env true "word32" I32Type 4l W32_Pointers.store_unskewed_ptr
+    write env true "word32" I32Type 4l store_unskewed_ptr
 
   let load_word8 env =
     read env true "word8" I32Type 1l
       (G.i (Load {ty = I32Type; align = 0; offset = 0L; sz = Some Wasm.Types.(Pack8, ZX)}))
   let store_word8 env =
-    write env true "word8" I32Type 1l W32_Pointers.store_unskewed_ptr
+    write env true "word8" I32Type 1l store_unskewed_ptr
 
   let load_word16 env =
     read env true "word16" I32Type 2l
       (G.i (Load {ty = I32Type; align = 0; offset = 0L; sz = Some Wasm.Types.(Pack16, ZX)}))
   let store_word16 env =
-    write env true "word16" I32Type 2l W32_Pointers.store_unskewed_ptr
+    write env true "word16" I32Type 2l store_unskewed_ptr
 
   let load_word64 env =
     read env true "word64" I64Type 8l
@@ -7234,7 +7236,7 @@ module MakeSerialization (Strm : Stream) = struct
         size_word env (get_x ^^ Arr.len env) ^^
         get_x ^^ Arr.len env ^^
         from_0_to_n env (fun get_i ->
-          get_x ^^ get_i ^^ Arr.unsafe_idx env ^^ W32_Pointers.load_ptr ^^
+          get_x ^^ get_i ^^ Arr.unsafe_idx env ^^ load_ptr ^^
           size env t
         )
       | Prim Blob ->
@@ -7406,7 +7408,7 @@ module MakeSerialization (Strm : Stream) = struct
         write_word_leb env get_data_buf (get_x ^^ Arr.len env) ^^
         get_x ^^ Arr.len env ^^
         from_0_to_n env (fun get_i ->
-          get_x ^^ get_i ^^ Arr.unsafe_idx env ^^ W32_Pointers.load_ptr ^^
+          get_x ^^ get_i ^^ Arr.unsafe_idx env ^^ load_ptr ^^
           write env t
         )
       | Prim Null -> G.nop
@@ -7708,7 +7710,7 @@ module MakeSerialization (Strm : Stream) = struct
               get_typtbl ^^
               get_arg_typ ^^ compile_mul_const Heap.word_size ^^
               G.i (Binary (Wasm.Values.I32 I32Op.Add)) ^^
-              W32_Pointers.load_unskewed_ptr
+              load_unskewed_ptr
             ) ^^
             ReadBuf.set_end get_typ_buf (ReadBuf.get_end get_data_buf) ^^
             (* read sleb128 *)
@@ -7737,7 +7739,7 @@ module MakeSerialization (Strm : Stream) = struct
               get_typtbl ^^
               get_arg_typ ^^ compile_mul_const Heap.word_size ^^
               G.i (Binary (Wasm.Values.I32 I32Op.Add)) ^^
-              W32_Pointers.load_unskewed_ptr
+              load_unskewed_ptr
             ) ^^
             ReadBuf.set_end get_typ_buf (ReadBuf.get_end get_data_buf) ^^
             (* read sleb128 *)
@@ -7784,7 +7786,7 @@ module MakeSerialization (Strm : Stream) = struct
         Stack.with_words env "get_n_ptr" 1l (fun get_n_ptr ->
           get_n_ptr ^^
           ReadBuf.read_leb128 env get_typ_buf ^^
-          W32_Pointers.store_unskewed_ptr ^^
+          store_unskewed_ptr ^^
           f get_typ_buf get_n_ptr
         )
       ) in
@@ -7847,8 +7849,8 @@ module MakeSerialization (Strm : Stream) = struct
                We update the memo location here so that loops work
             *)
             get_thing ^^ set_result ^^
-            get_memo ^^ get_result ^^ W32_Pointers.store_unskewed_ptr ^^
-            get_memo ^^ compile_add_const 4l ^^ Blob.lit env Tagged.B (typ_hash t) ^^ W32_Pointers.store_unskewed_ptr
+            get_memo ^^ get_result ^^ store_unskewed_ptr ^^
+            get_memo ^^ compile_add_const 4l ^^ Blob.lit env Tagged.B (typ_hash t) ^^ store_unskewed_ptr
           )
           end begin
           (* Decoded before. Check type hash *)
@@ -8026,7 +8028,7 @@ module MakeSerialization (Strm : Stream) = struct
             get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
             get_arg_typ ^^ go env t ^^ set_val ^^
             remember_failure get_val ^^
-            get_val ^^ W32_Pointers.store_ptr
+            get_val ^^ store_ptr
           ) ^^
           get_x ^^
           Tagged.allocation_barrier env ^^
@@ -8071,7 +8073,7 @@ module MakeSerialization (Strm : Stream) = struct
           get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
           get_arg_typ ^^ go env t ^^ set_val ^^
           remember_failure get_val ^^
-          get_val ^^ W32_Pointers.store_ptr
+          get_val ^^ store_ptr
         ) ^^
         get_x ^^
         Tagged.allocation_barrier env)
@@ -8312,21 +8314,21 @@ module MakeSerialization (Strm : Stream) = struct
       E.call_import env "rts" "parse_idl_header" ^^
 
       (* Allocate memo table, if necessary *)
-      with_rel_buf_opt env extended (get_typtbl_size_ptr ^^ W32_Pointers.load_unskewed_ptr) (fun get_rel_buf_opt ->
+      with_rel_buf_opt env extended (get_typtbl_size_ptr ^^ load_unskewed_ptr) (fun get_rel_buf_opt ->
       begin
         (* set up invariant register arguments *)
         get_rel_buf_opt ^^ Registers.set_rel_buf_opt env ^^
         get_data_buf ^^ Registers.set_data_buf env ^^
         get_ref_buf ^^ Registers.set_ref_buf env ^^
-        get_typtbl_ptr ^^ W32_Pointers.load_unskewed_ptr ^^ Registers.set_typtbl env ^^
-        get_maintyps_ptr ^^ W32_Pointers.load_unskewed_ptr ^^ Registers.set_typtbl_end env ^^
-        get_typtbl_size_ptr ^^ W32_Pointers.load_unskewed_ptr ^^ Registers.set_typtbl_size env ^^
+        get_typtbl_ptr ^^ load_unskewed_ptr ^^ Registers.set_typtbl env ^^
+        get_maintyps_ptr ^^ load_unskewed_ptr ^^ Registers.set_typtbl_end env ^^
+        get_typtbl_size_ptr ^^ load_unskewed_ptr ^^ Registers.set_typtbl_size env ^^
         Registers.reset_value_limit env get_blob get_rel_buf_opt
       end ^^
 
       (* set up a dedicated read buffer for the list of main types *)
       ReadBuf.alloc env (fun get_main_typs_buf ->
-        ReadBuf.set_ptr get_main_typs_buf (get_maintyps_ptr ^^ W32_Pointers.load_unskewed_ptr) ^^
+        ReadBuf.set_ptr get_main_typs_buf (get_maintyps_ptr ^^ load_unskewed_ptr) ^^
         ReadBuf.set_end get_main_typs_buf (ReadBuf.get_end get_data_buf) ^^
         ReadBuf.read_leb128 env get_main_typs_buf ^^ set_arg_count ^^
 
@@ -8378,7 +8380,7 @@ module MakeSerialization (Strm : Stream) = struct
          (get_arg_count ^^ compile_rel_const I32Op.GtU 0l)
          begin
            get_data_buf ^^
-           get_typtbl_ptr ^^ W32_Pointers.load_unskewed_ptr ^^
+           get_typtbl_ptr ^^ load_unskewed_ptr ^^
            ReadBuf.read_sleb128 env get_main_typs_buf ^^
            compile_unboxed_const 0l ^^
            E.call_import env "rts" "skip_any" ^^
@@ -9396,13 +9398,13 @@ module Var = struct
       MutBox.store_field env ^^
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^ (* not needed for this GC, but only for forward pointer sanity checks *)
-      compile_add_const W32_Pointers.ptr_unskew ^^
+      compile_add_const ptr_unskew ^^
       compile_add_const (Int32.mul (MutBox.field env) Heap.word_size) ^^
       E.call_import env "rts" "post_write_barrier"
     | (Some ((HeapInd i), typ), Flags.Incremental) when potential_pointer typ ->
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const W32_Pointers.ptr_unskew ^^
+      compile_add_const ptr_unskew ^^
       compile_add_const (Int32.mul (MutBox.field env) Heap.word_size),
       SR.Vanilla,
       Tagged.write_with_barrier env
@@ -9416,13 +9418,13 @@ module Var = struct
       MutBox.store_field env ^^
       compile_unboxed_const ptr ^^
       Tagged.load_forwarding_pointer env ^^ (* not needed for this GC, but only for forward pointer sanity checks *)
-      compile_add_const W32_Pointers.ptr_unskew ^^
+      compile_add_const ptr_unskew ^^
       compile_add_const (Int32.mul (MutBox.field env) Heap.word_size) ^^
       E.call_import env "rts" "post_write_barrier"
     | (Some ((HeapStatic ptr), typ), Flags.Incremental) when potential_pointer typ ->
       compile_unboxed_const ptr ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const W32_Pointers.ptr_unskew ^^
+      compile_add_const ptr_unskew ^^
       compile_add_const (Int32.mul (MutBox.field env) Heap.word_size),
       SR.Vanilla,
       Tagged.write_with_barrier env
@@ -11019,19 +11021,19 @@ let rec compile_lexp (env : E.t) ae lexp : G.t * SR.t * G.t =
     set_field ^^ (* peepholes to tee *)
     get_field,
     SR.Vanilla,
-    W32_Pointers.store_ptr ^^
+    store_ptr ^^
     get_field ^^
-    compile_add_const W32_Pointers.ptr_unskew ^^
+    compile_add_const ptr_unskew ^^
     E.call_import env "rts" "post_write_barrier"
   | IdxLE (e1, e2), Flags.Incremental when potential_pointer (Arr.element_type env e1.note.Note.typ) ->
     compile_array_index env ae e1 e2 ^^
-    compile_add_const W32_Pointers.ptr_unskew,
+    compile_add_const ptr_unskew,
     SR.Vanilla,
     Tagged.write_with_barrier env
   | IdxLE (e1, e2), _ ->
     compile_array_index env ae e1 e2,
     SR.Vanilla,
-    W32_Pointers.store_ptr
+    store_ptr
   | DotLE (e, n), Flags.Generational when potential_pointer (Object.field_type env e.note.Note.typ n) ->
     let (set_field, get_field) = new_local env "field" in
     compile_exp_vanilla env ae e ^^
@@ -11039,15 +11041,15 @@ let rec compile_lexp (env : E.t) ae lexp : G.t * SR.t * G.t =
     set_field ^^ (* peepholes to tee *)
     get_field,
     SR.Vanilla,
-    W32_Pointers.store_ptr ^^
+    store_ptr ^^
     get_field ^^
-    compile_add_const W32_Pointers.ptr_unskew ^^
+    compile_add_const ptr_unskew ^^
     E.call_import env "rts" "post_write_barrier"
   | DotLE (e, n), Flags.Incremental when potential_pointer (Object.field_type env e.note.Note.typ n) ->
     compile_exp_vanilla env ae e ^^
     (* Only real objects have mutable fields, no need to branch on the tag *)
     Object.idx env e.note.Note.typ n ^^
-    compile_add_const W32_Pointers.ptr_unskew,
+    compile_add_const ptr_unskew,
     SR.Vanilla,
     Tagged.write_with_barrier env
   | DotLE (e, n), _ ->
@@ -11055,7 +11057,7 @@ let rec compile_lexp (env : E.t) ae lexp : G.t * SR.t * G.t =
     (* Only real objects have mutable fields, no need to branch on the tag *)
     Object.idx env e.note.Note.typ n,
     SR.Vanilla,
-    W32_Pointers.store_ptr
+    store_ptr
 
 (* Common code for a[e] as lexp and as exp.
 Traps or pushes the pointer to the element on the stack
@@ -11212,7 +11214,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | IdxPrim, [e1; e2] ->
     SR.Vanilla,
     compile_array_index env ae e1 e2 ^^
-    W32_Pointers.load_ptr
+    load_ptr
   (* NB: all these operations assume a valid array offset fits in a compact bignum *)
   | NextArrayOffset, [e] ->
     let one_untagged = Int32.shift_left 1l (32 - BitTagged.ubits_of Type.Int) in
