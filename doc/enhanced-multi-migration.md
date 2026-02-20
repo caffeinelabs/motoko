@@ -109,6 +109,31 @@ result = cast ?Any fields to actor's declared types // CastPrim
          (fields not declared by actor are dropped)
 ```
 
+### Generated IR (runtime) (alternative)
+
+```
+type_n state_{n} =
+if was_migration_performed(m_{n-1}):
+  ICStableRead(type_n)                      // check + load
+elif was_migration_performed(m_{n-2}):
+  { state_{n-1} =
+      if was_migration_performed(m_{n-3}) ...
+          .. type_1 state_1 =
+	       if wasm_migration_performed(m_0)
+	         ICStableRead(type_1)
+	       elif {
+	         let state_0 = {}
+	         let output = m_{0}.run(state_0)
+		 register_migration(m_0);
+		 merge(output, state_0)
+	       };
+    output = m_{n-1}.run(state_{n-1})
+    register_migration(m_{n-1});
+    merge(output, state_{n-1} }
+ICStableStore(mem_ty)                          // ICStableStore
+result = state_{n};
+```
+
 ### Why `?Any` for the state
 
 The mutable state variable must have a fixed type that accommodates all possible
