@@ -9,10 +9,48 @@ the actor as a migration chain. Each module exposes a
 
 ## Compile-Time Validation (`typing.ml`)
 
-- Each `run` must have stable object input/output types.
-- Chain composes: `output[i] <: input[i+1]`.
-- Final output covers all actor stable fields.
+The validation is designed to give each incremental step `v_i → m_{i+1} → v_{i+1}`
+the same semantics as the old `(with migration = fn)` syntax: each migration only
+needs to mention fields it transforms; everything else is retained from the
+accumulated state.
+
+### Per-migration checks
+
+- Each `run` must be a local function with stable object input/output types.
 - Mutually exclusive with the old `(with migration = fn)` syntax.
+
+### Accumulated composition
+
+Given migration chain `[m_0, m_1, ..., m_{n-1}]`:
+
+The compiler checks `accumulated(m_0 .. m_i) <: input(m_{i+1})`.
+This is necessary because each migration has access
+to the full accumulated state (via merge semantics), not just the previous
+migration's output. A migration can reference a field produced by any earlier
+migration, not just the immediately preceding one.
+
+The accumulated type is built by last-writer-wins over each migration's range.
+Fields not overwritten by later migrations persist from earlier ones.
+
+### Last migration vs actor (mirrors old syntax)
+
+The last migration `m_n` is checked against the current actor with the same
+semantics as `(with migration = fn)`. The accumulated state of `m_0 .. m_{n-1}`
+plays the role of the "stored heap state":
+
+- For each actor stable field `f`:
+  - If `f` is in `m_n`'s range → check type compatibility.
+  - If `f` is not in `m_n`'s range but in `accumulated_pre` → **retained**;
+    check type compatibility against the accumulated pre-state type.
+    (This is strictly more precise than the old syntax, which cannot type-check
+    retained fields at compile time.)
+  - If `f` is in neither → **error**: the chain does not produce this field.
+- **M0205**: fields in `m_n`'s range not declared in the actor → error.
+- **M0206**: `m_n` consumes a field but doesn't produce it, field is in actor → warning.
+- **M0207**: `m_n` consumes a field but doesn't produce it, field not in actor → warning (data loss).
+
+Fields from earlier migrations that are not in the current actor are silently
+tolerated — they are historical artifacts from field drops in earlier versions.
 
 ## Upgrade-Time Algorithm (`desugar.ml`)
 
@@ -104,13 +142,38 @@ sees the correct type, and no ghost fields persist in the metadata.
 - **Idempotency.** Already-applied migrations are skipped; redeploying is a no-op.
 - **Fast-forward.** v1 → v100 directly, or v1 → v50 → v100, or step-by-step.
 - **Type changes.** `CastPrim` + `?Any` handles field type changes transparently.
-- **Field drops.** Dropped fields persist as ghosts in the accumulated type but
-  are never accessed (chain composition prevents it) and are projected away at
-  the end. Re-introduction by a later migration creates the field fresh.
+- **Field drops.** Remove the field from the actor declaration. No migration
+  needed. The field persists as a ghost in the accumulated state but is projected
+  away at the end. Re-introduction by a later migration creates the field fresh.
+- **Partial migrations.** Each migration only mentions the fields it transforms.
+  Unmentioned fields are retained from the accumulated state (same as old syntax).
 - **Init migration required.** First deployment needs an init migration
   (`{} -> { initial fields }`).
 - **Split deployments safe.** `ICStableRead(type_k)` checks against the correct
   boundary type; `assign_stable_type(mem_ty)` updates metadata for the next deployment.
+
+### Example: full lifecycle
+
+```
+// v0: Init
+run : {} -> {a : Nat}                     actor { stable let a : Nat }
+
+// v1: Add field b
+run : {} -> {b : Nat}                     actor { stable let a : Nat; stable let b : Int }
+  // accumulated_pre = {a : Nat}; b : Nat <: Int ✓; a retained from pre ✓
+
+// v2: Change b's type
+run : {b : Int} -> {b : Bool}             actor { stable let a : Nat; stable let b : Bool }
+  // accumulated_pre = {a : Nat, b : Nat}; Nat <: Int for input ✓; a retained ✓
+
+// v3: Drop a
+run : {a : Nat} -> {}                     actor { stable let b : Bool }
+  // accumulated_pre = {a : Nat, b : Bool}; b retained ✓; a consumed, not produced → M0207 warning
+
+// v4: Reintroduce a with new type
+run : {} -> {a : Text}                    actor { stable let a : Text; stable let b : Bool }
+  // accumulated_pre = {a : Nat, b : Bool}; a : Text from m_4 ✓; b retained ✓
+```
 
 ## Usage
 

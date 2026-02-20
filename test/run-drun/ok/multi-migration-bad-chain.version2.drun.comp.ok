@@ -1,1 +1,1 @@
-multi-migration-bad-chain/version2.mo:5.1-19.2: type error [M0251], migration chain broken: output of multi-migration-bad-chain/bad-chain/Migration2.mo is not compatible with input of multi-migration-bad-chain/bad-chain/Migration4.mo
+multi-migration-bad-chain/version2.mo:5.1-19.2: type error [M0251], migration chain broken: accumulated state is not compatible with input of multi-migration-bad-chain/bad-chain/Migration4.mo
