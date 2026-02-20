@@ -806,7 +806,6 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           let type_k = type_at k in
           let (_, type_k_fields) = T.as_obj type_k in
           let type_prev = type_at (k - 1) in
-          let (_, type_prev_fields) = T.as_obj type_prev in
           let (file_k, mod_typ_k, run_typ_k) = List.nth chain (k - 1) in
           let (dom_k, rng_k, dom_fields_k, rng_fields_k) = decompose_run run_typ_k in
           let hash_k = migration_hash file_k in
@@ -819,12 +818,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
             objectE T.Object
               (List.map (fun T.{lab=i;typ=t;_} ->
                 let opt_dom_ty = T.Opt (T.as_immut t) in
-                let state_field_ty = T.lookup_val_field i type_prev_fields in
                 let vi = fresh_var ("v_"^i) (T.as_immut t) in
                 (i,
                  switch_optE
-                   (primE (I.CastPrim (state_field_ty, opt_dom_ty))
-                     [dotE (varE state_prev) i state_field_ty])
+                   (dotE (varE state_prev) i opt_dom_ty)
                    (primE (Ir.OtherPrim "trap")
                      [textE (Printf.sprintf
                        "migration %s: field `%s` expected but not found in state"
@@ -842,9 +839,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
                 | Some rt ->
                   optE (dotE (varE v_rng) i (T.as_immut rt))
                 | None ->
-                  let prev_ty = T.lookup_val_field i type_prev_fields in
-                  primE (I.CastPrim (prev_ty, t))
-                    [dotE (varE state_prev) i prev_ty])
+                  dotE (varE state_prev) i t)
               type_k_fields)
             type_k_fields
           in
@@ -871,11 +866,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           (List.map (fun T.{lab=i;typ=t;_} ->
             i,
             match T.lookup_val_field_opt i type_n_fields with
-            | Some tn ->
-              primE (I.CastPrim (tn, t))
-                [dotE (varE final_state) i tn]
+            | Some _tn ->
+              dotE (varE final_state) i t
             | None ->
-              primE (I.CastPrim (T.Prim T.Null, t)) [nullE ()])
+              nullE ())
           mem_fields)
         mem_fields
       in
