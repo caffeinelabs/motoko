@@ -1,0 +1,4 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+install $ID enhanced-migration-fast-forward/version0.mo ""
+
+ingress $ID check "DIDL\x00\x00"
