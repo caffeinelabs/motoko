@@ -4117,7 +4117,7 @@ and infer_viewer env scope mut id viewer =
     if available then use_identifier env1 isAdmin;
     available
   in
-  let lab = "__" ^ id.it in
+  let lab = "." ^ id.it in
   match Diag.with_message_store (recover_opt (fun msgs ->
     let env = {env with msgs} in (* don't record errors in outer env *)
     let env = adjoin env scope in
