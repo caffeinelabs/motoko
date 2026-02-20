@@ -1,7 +1,9 @@
 error[M0018]: duplicate type field name T in object type
     ┌─ type-comp.mo:3:42
   3 │    type MT = module { type T = Null; type T<A> = A }; // reject
-    │                                           ^ 
+    │                            -              - used more than once
+    │                            │
+    │                            first use of T
 error[M0046]: type argument
   P2
 does not match parameter bound

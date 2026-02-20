@@ -21,6 +21,8 @@ open Source
 
 open Compile_common
 
+open Compile_common.W64_Pointers
+
 (* WebAssembly pages are 64kb. *)
 let page_size = Int64.of_int (64 * 1024)
 let page_size_bits = 16
@@ -150,15 +152,6 @@ module TaggingScheme = struct
       | _ -> assert false)
 
 end
-
-(*
-Pointers are skewed (translated) -1 relative to the actual offset.
-See documentation of module BitTagged for more detail.
-*)
-let ptr_skew = -1L
-
-let ptr_unskew = 1L
-
 module StaticBytes = struct
   (* A very simple DSL to describe static memory *)
 
@@ -944,20 +937,6 @@ let from_m_to_n env m mk_body =
 
 (* Expects a number on the stack. Iterates from zero to below that number. *)
 let from_0_to_n env mk_body = from_m_to_n env 0L mk_body
-
-(* Pointer reference and dereference  *)
-
-let load_unskewed_ptr : G.t =
-  G.i (Load {ty = I64Type; align = 3; offset = 0L; sz = None})
-
-let store_unskewed_ptr : G.t =
-  G.i (Store {ty = I64Type; align = 3; offset = 0L; sz = None})
-
-let load_ptr : G.t =
-  G.i (Load {ty = I64Type; align = 3; offset = ptr_unskew; sz = None})
-
-let store_ptr : G.t =
-  G.i (Store {ty = I64Type; align = 3; offset = ptr_unskew; sz = None})
 
 let narrow_to_32 env get_value =
   get_value ^^

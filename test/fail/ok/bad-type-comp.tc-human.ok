@@ -22,7 +22,9 @@ because the type
 error[M0018]: duplicate type field name T in object type
     ┌─ bad-type-comp.mo:7:73
   7 │  ignore ((module { public type T = Null}) : module { type T = Null; type T = Null });
-    │                                                                          ^ 
+    │                                                           -              - used more than once
+    │                                                           │
+    │                                                           first use of T
 error[M0029]: unbound type T
 Did you mean type Text?
     ┌─ bad-type-comp.mo:11:15

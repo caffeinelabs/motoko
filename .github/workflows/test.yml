@@ -1,8 +1,9 @@
 name: "build"
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request: {}
+  merge_group: {}
 
 permissions:
   contents: write
@@ -13,7 +14,7 @@ jobs:
   common-tests:
     strategy:
       matrix:
-        os: [ ubuntu-24-large, arm64-linux-16 ]
+        os: [ubuntu-24-large, arm64-linux-16]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -30,7 +31,7 @@ jobs:
   gc-tests:
     strategy:
       matrix:
-        os: [ ubuntu-24-large, arm64-linux-16 ]
+        os: [ubuntu-24-large, arm64-linux-16]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -47,8 +48,8 @@ jobs:
   tests:
     strategy:
       matrix:
-        os: [ ubuntu-24-large, arm64-linux-16 ]
-        build_type: [ release, debug ]
+        os: [ubuntu-24-large, arm64-linux-16]
+        build_type: [release, debug]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -57,7 +58,7 @@ jobs:
           # fetch full history so that git merge-base works
           fetch-depth: 0
           # fetch PR commit, not predicted merge commit
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
@@ -111,7 +112,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'build_artifacts')
     strategy:
       matrix:
-        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest ]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -134,7 +135,7 @@ jobs:
 
   verify-common-gc:
     needs: [common-tests, gc-tests]
-    if: ${{ always() }}  # run even if dependencies failed/skipped/cancelled
+    if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
     runs-on: ubuntu-latest
     steps:
       - name: Show dependency results
@@ -153,7 +154,7 @@ jobs:
 
   verify-main-tests:
     needs: tests
-    if: ${{ always() }}  # run even if dependencies failed/skipped/cancelled
+    if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
     runs-on: ubuntu-latest
     steps:
       - name: Show dependency results
@@ -176,7 +177,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: 'master'
+          ref: "master"
       - name: Automatically closing successful trials
         env:
           GH_TOKEN: ${{ github.token }}
@@ -190,7 +191,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: 'master'
+          ref: "master"
       - name: Create GitHub App Token
         uses: actions/create-github-app-token@v2
         id: app-token-for-approvals

@@ -1,9 +1,10 @@
 duplicate-field.mo:4.15-4.16: type error [M0051], duplicate definition for m in block
 duplicate-field.mo:8.22-8.25: type error [M0018], duplicate field name foo in object type
-duplicate-field.mo:12.22-12.32: type error [M0019], field names foo and nxnnbkddcv in object type have colliding hashes
-duplicate-field.mo:16.24-16.34: type error [M0019], tag names foo and nxnnbkddcv in variant type have colliding hashes
-duplicate-field.mo:20.18-20.21: type error [M0018], duplicate field name foo in object
-duplicate-field.mo:24.18-24.28: type error [M0019], field names foo and nxnnbkddcv in object have colliding hashes
-duplicate-field.mo:28.8-28.70: type error [M0122], field names nxnnbkddcv and foo in object type have colliding hashes
-duplicate-field.mo:32.8-32.75: type error [M0122], field names nxnnbkddcv and foo in actor object type have colliding hashes
-duplicate-field.mo:36.8-36.70: type error [M0122], field names nxnnbkddcv and foo in module object type have colliding hashes
+duplicate-field.mo:21.3-21.6: type error [M0018], duplicate field name foo in object type
+duplicate-field.mo:26.22-26.32: type error [M0019], field names foo and nxnnbkddcv in object type have colliding hashes
+duplicate-field.mo:30.24-30.34: type error [M0019], tag names foo and nxnnbkddcv in variant type have colliding hashes
+duplicate-field.mo:34.18-34.21: type error [M0018], duplicate field name foo in object
+duplicate-field.mo:38.18-38.28: type error [M0019], field names foo and nxnnbkddcv in object have colliding hashes
+duplicate-field.mo:42.8-42.70: type error [M0122], field names nxnnbkddcv and foo in object type have colliding hashes
+duplicate-field.mo:46.8-46.75: type error [M0122], field names nxnnbkddcv and foo in actor object type have colliding hashes
+duplicate-field.mo:50.8-50.70: type error [M0122], field names nxnnbkddcv and foo in module object type have colliding hashes

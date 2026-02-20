@@ -20,6 +20,8 @@ open Source
 
 open Compile_common
 
+open Compile_common.W32_Pointers
+
 module Wasm = struct
 include Wasm
   module Types = Wasm_exts.Types
@@ -155,13 +157,6 @@ module TaggingScheme = struct
       | Nat8  | Int8  ->  8
       | _ -> assert false)
 end
-
-(*
-Pointers are skewed (translated) -1 relative to the actual offset.
-See documentation of module BitTagged for more detail.
-*)
-let ptr_skew = -1l
-let ptr_unskew = 1l
 
 module StaticBytes = struct
   (* A very simple DSL to describe static memory *)
@@ -874,20 +869,6 @@ let from_m_to_n env m mk_body =
 
 (* Expects a number on the stack. Iterates from zero to below that number. *)
 let from_0_to_n env mk_body = from_m_to_n env 0l mk_body
-
-(* Pointer reference and dereference  *)
-
-let load_unskewed_ptr : G.t =
-  G.i (Load {ty = I32Type; align = 2; offset = 0L; sz = None})
-
-let store_unskewed_ptr : G.t =
-  G.i (Store {ty = I32Type; align = 2; offset = 0L; sz = None})
-
-let load_ptr : G.t =
-  G.i (Load {ty = I32Type; align = 2; offset = Int64.of_int32 ptr_unskew; sz = None})
-
-let store_ptr : G.t =
-  G.i (Store {ty = I32Type; align = 2; offset = Int64.of_int32 ptr_unskew; sz = None})
 
 module FakeMultiVal = struct
   (* For some use-cases (e.g. processing the compiler output with analysis
