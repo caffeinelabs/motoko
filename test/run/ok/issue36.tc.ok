@@ -1,5 +1,0 @@
-issue36.mo:25.6-25.7: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
-issue36.mo:25.9-25.10: warning [M0194], unused identifier g (delete or rename to wildcard `_` or `_g`)
-issue36.mo:25.12-25.13: warning [M0194], unused identifier h (delete or rename to wildcard `_` or `_h`)
-issue36.mo:29.6-29.7: warning [M0194], unused identifier k (delete or rename to wildcard `_` or `_k`)
-issue36.mo:29.9-29.10: warning [M0194], unused identifier l (delete or rename to wildcard `_` or `_l`)

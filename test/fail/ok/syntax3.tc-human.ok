@@ -1,0 +1,23 @@
+error[M0001]: unexpected token ';', expected one of token or <phrase> sequence:
+  ]
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  , seplist(<exp_nonvar(ob)>,,)
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ syntax3.mo:1:3
+  1 │  [1;2;3];
+    │    ^ 

@@ -3,11 +3,11 @@
     "candid-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1770135221,
-        "narHash": "sha256-7/5G25Ms2JrFGpzubtRwPJBAHAExCibw0PZ+ict4rHU=",
+        "lastModified": 1770754485,
+        "narHash": "sha256-wDzcJlOV+h2g7hGAEv5WdDEj8I31dDkwVptWlK+AgvQ=",
         "owner": "dfinity",
         "repo": "candid",
-        "rev": "022ec7e7f9b8061ed9b8342113638ad9b39e8c01",
+        "rev": "cb5e687e9b93ca1f78494311be1111e79c56cd81",
         "type": "github"
       },
       "original": {
@@ -65,6 +65,23 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "grace-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771098024,
+        "narHash": "sha256-V5K9RGk47K/R+q4wS1FU02kMi1uWSCgdUjKHk7uXuGw=",
+        "owner": "johnyob",
+        "repo": "grace",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "johnyob",
+        "repo": "grace",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
         "type": "github"
       }
     },
@@ -227,6 +244,7 @@
         "candid-src": "candid-src",
         "esm": "esm",
         "flake-utils": "flake-utils",
+        "grace-src": "grace-src",
         "ic-wasm-src": "ic-wasm-src",
         "libtommath-src": "libtommath-src",
         "motoko-base-src": "motoko-base-src",

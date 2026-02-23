@@ -1,1 +1,0 @@
-import-named-module.mo:4.5-4.7: warning [M0194], unused identifier ts (delete or rename to wildcard `_` or `_ts`)

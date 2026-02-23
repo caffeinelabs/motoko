@@ -1,0 +1,4 @@
+error[M0137]: type U = T references type parameter T from an outer scope
+    ┌─ modexp5.mo:6:20
+  6 │  class Wrong1<T>(){ type U = T; };
+    │                     ^^^^^^^^^^ 

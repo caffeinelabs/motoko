@@ -1,0 +1,46 @@
+error[M0180]: shared function has unexpected type parameters
+    ┌─ abstract-msgs.mo:2:6
+  2 │  do { shared func foo<A <: Any>( x : A ) : () = (); };
+    │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0035]: shared function must have syntactic return type '()' or 'async <typ>'
+    ┌─ abstract-msgs.mo:3:36
+  3 │  do { shared func foo<A <: Any>() : ?A = null; };
+    │                                     ^^ 
+error[M0031]: shared function has non-shared parameter type
+  (x : A)
+    ┌─ abstract-msgs.mo:5:23
+  5 │    do { shared func bar( x : A ) : () = (); };
+    │                        ^^^^^^^^^ 
+error[M0032]: shared function has non-shared return type
+  ?A
+    ┌─ abstract-msgs.mo:6:28
+  6 │    do { shared func bar() : async ?A { null } };
+    │                             ^^^^^^^^ 
+error[M0031]: shared function has non-shared parameter type
+  A
+    ┌─ abstract-msgs.mo:10:37
+ 10 │  do { func foo<A <: Any>( f : shared A -> (), x : A )  = (f x); };
+    │                                      ^ 
+error[M0032]: shared function has non-shared return type
+  A
+    ┌─ abstract-msgs.mo:11:30
+ 11 │  do { func foo<A <: Any>( f : shared () -> async A ) : async A = async { await (f ())}; };
+    │                               ^^^^^^^^^^^^^^^^^^^^ 
+error[M0180]: shared function has unexpected type parameters
+    ┌─ abstract-msgs.mo:14:16
+ 14 │  do { let x : ?(shared <A <: Any>A -> ()) = null; };
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0180]: shared function has unexpected type parameters
+    ┌─ abstract-msgs.mo:15:16
+ 15 │  do { let x : ?(shared <A <: Any>() -> async A) = null; };
+    │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0031]: shared function has non-shared parameter type
+  A
+    ┌─ abstract-msgs.mo:16:34
+ 16 │  do { let x : ?(<A <: Any>(shared A -> ()) -> ()) = null; };
+    │                                   ^ 
+error[M0032]: shared function has non-shared return type
+  A
+    ┌─ abstract-msgs.mo:17:27
+ 17 │  do { let x : ?(<A <: Any>(shared () -> async A) -> ()) = null; };
+    │                            ^^^^^^^^^^^^^^^^^^^^ 

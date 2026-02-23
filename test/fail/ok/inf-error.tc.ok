@@ -4,21 +4,21 @@ cannot produce expected type
   Nat
 inf-error.mo:47.13-47.39: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
-Hint: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
 inf-error.mo:51.40-51.46: type error [M0096], expression of type
   Text
 cannot produce expected type
   Nat
 inf-error.mo:52.13-52.34: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
-Hint: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
 inf-error.mo:59.45-59.51: type error [M0096], expression of type
   Text
 cannot produce expected type
   Nat
 inf-error.mo:60.13-60.43: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
-Hint: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
 inf-error.mo:62.40-62.46: type error [M0096], expression of type
   Text
 cannot produce expected type
@@ -29,4 +29,4 @@ cannot produce expected type
   Nat
 inf-error.mo:65.13-65.38: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
-Hint: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.

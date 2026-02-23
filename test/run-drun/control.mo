@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // Nothing to run here (but do compile and validate)
 
 //SKIP drun-run

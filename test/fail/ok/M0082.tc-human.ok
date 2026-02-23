@@ -1,0 +1,5 @@
+error[M0082]: expected iterable type, but expression has type
+  Bool
+    ┌─ M0082.mo:1:11
+  1 │  for (x in true) {}
+    │            ^^^^ 

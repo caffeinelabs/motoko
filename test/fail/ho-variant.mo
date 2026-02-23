@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 
 type Term = {
  #id : Text;
@@ -45,4 +46,3 @@ func eval (env : Text -> Val, e:Term) : Val {
    }
  };
 };
-

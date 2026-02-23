@@ -1,4 +1,0 @@
-type-definition.mo:13.7-13.8: warning [M0194], unused identifier D (delete or rename to wildcard `_` or `_D`)
-type-definition.mo:13.24-13.25: warning [M0194], unused identifier r (delete or rename to wildcard `_` or `_r`)
-type-definition.mo:16.7-16.8: warning [M0194], unused identifier E (delete or rename to wildcard `_` or `_E`)
-type-definition.mo:16.27-16.28: warning [M0194], unused identifier r (delete or rename to wildcard `_` or `_r`)

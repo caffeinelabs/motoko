@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194,M0198
 import { type List; cons } = "lib/ListM";
 
 let { type C } : module { type A = Int; type B = Int; type C = Int } =

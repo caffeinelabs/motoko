@@ -1,23 +1,19 @@
-switch.mo:19.11-19.14: warning [M0155], operator may trap for inferred type
+switch.mo:20.11-20.14: warning [M0155], operator may trap for inferred type
   Nat
-switch.mo:75.11-77.2: warning [M0145], this switch of type
+switch.mo:76.11-78.2: warning [M0145], this switch of type
   ?Int
 does not cover value
   ?(_)
-switch.mo:81.3-81.14: warning [M0145], this switch of type
+switch.mo:82.3-82.14: warning [M0145], this switch of type
   Nat
 does not cover value
   _
-switch.mo:86.29-86.30: warning [M0146], this pattern is never matched
-switch.mo:92.11-94.2: warning [M0145], this switch of type
+switch.mo:87.29-87.30: warning [M0146], this pattern is never matched
+switch.mo:93.11-95.2: warning [M0145], this switch of type
   ?Nat
 does not cover value
   null
-switch.mo:97.11-99.2: warning [M0145], this switch of type
+switch.mo:98.11-100.2: warning [M0145], this switch of type
   ?Nat
 does not cover value
   ?(_)
-switch.mo:31.8-31.9: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-switch.mo:80.6-80.7: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
-switch.mo:90.6-90.7: warning [M0194], unused identifier g (delete or rename to wildcard `_` or `_g`)
-switch.mo:93.10-93.11: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)

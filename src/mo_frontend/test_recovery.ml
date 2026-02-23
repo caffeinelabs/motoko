@@ -792,5 +792,6 @@ ar.foo();";
     )
 
      with errors:
-    (unknown location): warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
+    (unknown location): warning [M0194], unused identifier: `self`
+    help: if this is intentional, prefix it with an underscore: `_self`
   |}]

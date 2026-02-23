@@ -1,0 +1,34 @@
+error[M0038]: misplaced await
+    ┌─ queries.mo:13:5
+ 13 │      await (loop {}); // can't await
+    │      ^^^^^^^^^^^^^^^ 
+error[M0188]: send capability required, but not available
+  (cannot call a `shared` function from a `query` function)
+    ┌─ queries.mo:17:5
+ 17 │      oneway(); // can't call a (oneway) shared method
+    │      ^^^^^^^^ 
+error[M0188]: send capability required, but not available
+  (cannot call a `shared` function from a `query` function)
+    ┌─ queries.mo:21:13
+ 21 │      ignore (request()); // can't call a shared method
+    │              ^^^^^^^^^ 
+error[M0038]: misplaced await
+    ┌─ queries.mo:22:5
+ 22 │      await request(); // can't wait its result
+    │      ^^^^^^^^^^^^^^^ 
+error[M0188]: send capability required, but not available
+  (cannot call a `shared` function from a `query` function)
+    ┌─ queries.mo:22:11
+ 22 │      await request(); // can't wait its result
+    │            ^^^^^^^^^ 
+error[M0037]: misplaced async expression; a query cannot contain an async expression
+    ┌─ queries.mo:26:5
+ 26 │      async { }; // can't enter an async expression
+    │      ^^^^^^^^^ 
+error[M0096]: expression of type
+  async<$bogus> ()
+cannot produce expected type
+  ()
+    ┌─ queries.mo:26:5
+ 26 │      async { }; // can't enter an async expression
+    │      ^^^^^^^^^ 

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194,M0198
 import { debugPrint; shiftLeft; shiftRight; nat32ToNat } = "mo:⛔"
 
 func checkShiftLeft(base : Nat, amount : Nat32) =

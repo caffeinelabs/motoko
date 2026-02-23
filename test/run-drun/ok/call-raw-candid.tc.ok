@@ -1,4 +1,1 @@
-call-raw-candid.mo:36.7-36.17: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-call-raw-candid.mo:24.30-24.31: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)
-call-raw-candid.mo:67.13-67.16: warning [M0194], unused identifier res (delete or rename to wildcard `_` or `_res`)
-call-raw-candid.mo:80.13-80.16: warning [M0194], unused identifier res (delete or rename to wildcard `_` or `_res`)
+call-raw-candid.mo:37.7-37.17: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

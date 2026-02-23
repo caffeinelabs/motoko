@@ -1,0 +1,5 @@
+error[M0112]: tuple pattern cannot consume expected type
+  module {}
+    ┌─ type-error-imports.mo:4:8
+  4 │  import (_, _) = "empty-module";
+    │         ^^^^^^ 

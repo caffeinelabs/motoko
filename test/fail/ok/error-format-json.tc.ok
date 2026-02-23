@@ -1,0 +1,2 @@
+{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"error-format-json.mo","line_start":4,"column_start":7,"line_end":4,"column_end":11}]}
+{"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"error-format-json.mo","line_start":7,"column_start":15,"line_end":7,"column_end":20}]}

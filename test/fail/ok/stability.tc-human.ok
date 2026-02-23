@@ -1,0 +1,68 @@
+error[M0132]: misplaced stability declaration on field of non-actor
+    ┌─ stability.mo:3:7
+  3 │        flexible let x = 1 //reject
+    │        ^^^^^^^^ 
+warning[M0239]: Avoid binding a unit `()` result; remove `var` and keep the expression
+    ┌─ stability.mo:25:11
+ 25 │     stable var foo = ();
+    │            ^^^^^^^^^^ 
+warning[M0239]: Avoid binding a unit `()` result; remove `var` and keep the expression
+    ┌─ stability.mo:26:11
+ 26 │     stable var nxnnbkddcv = (); // reject due to collision
+    │            ^^^^^^^^^^^^^^^^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:5:4
+  5 │     stable type T = Int;  // reject
+    │     ^^^^^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:6:4
+  6 │     flexible type U = Int; // reject
+    │     ^^^^^^^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:7:4
+  7 │     flexible ignore 666; // reject
+    │     ^^^^^^^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:8:4
+  8 │     flexible (); // reject
+    │     ^^^^^^^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:15:4
+ 15 │     stable let (p,q) = (1,2); // reject (for now, maybe forever)
+    │     ^^^^^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:16:4
+ 16 │     stable let (r,s) = if true (1,2) else (2,1); // reject forever, I suspect, as RHS non-canonical
+    │     ^^^^^^ 
+error[M0131]: variable f is declared stable but has non-stable type
+  () -> ()
+    ┌─ stability.mo:17:15
+ 17 │     stable let f = func(){}; // reject
+    │                ^ 
+error[M0131]: variable o6 is declared stable but has non-stable type
+  {f : () -> ()}
+    ┌─ stability.mo:39:18
+ 39 │     stable object o6 {public func f(){};}; // reject
+    │                   ^^ 
+error[M0131]: variable m3 is declared stable but has non-stable type
+  module {}
+    ┌─ stability.mo:43:18
+ 43 │     stable module m3 {}; // reject
+    │                   ^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:46:4
+ 46 │     flexible class C2(){}; // reject
+    │     ^^^^^^^^ 
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
+    ┌─ stability.mo:47:4
+ 47 │     stable class C3(){}; // reject
+    │     ^^^^^^ 
+error[M0131]: variable wrong is declared stable but has non-stable type
+  module {}
+    ┌─ stability.mo:50:15
+ 50 │     stable let wrong = module {}; // reject
+    │                ^^^^^ 
+error[M0019]: stable variable names foo and nxnnbkddcv in actor type have colliding hashes
+    ┌─ stability.mo:26:15
+ 26 │     stable var nxnnbkddcv = (); // reject due to collision
+    │                ^^^^^^^^^^ 

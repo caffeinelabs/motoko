@@ -1,0 +1,6 @@
+error[M0001]: unexpected token 'let', expected one of token or <phrase> sequence:
+  <eof>
+  ; seplist(<dec>,<semicolon>)
+    ┌─ syntax7.mo:32:1
+ 32 │  let a : [var Int] = [var 8, 8, 3, 9, 5, 2];
+    │  ^^^ 

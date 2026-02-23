@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 //CLASSICAL-PERSISTENCE-ONLY
 import { Array_tabulate; stableVarQuery } = "mo:⛔"
 

@@ -1,1 +1,0 @@
-typtbl.mo:1.63-1.82: warning [M0198], unused field setCandidTypeLimits in object pattern (delete or rewrite as `setCandidTypeLimits = _`)

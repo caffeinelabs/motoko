@@ -1,0 +1,7 @@
+stabilize-primitive-types.mo:12.16-12.27: warning [M0244], variable intVariable is never reassigned, consider using `let`
+stabilize-primitive-types.mo:13.16-13.28: warning [M0244], variable int8Variable is never reassigned, consider using `let`
+stabilize-primitive-types.mo:14.16-14.29: warning [M0244], variable int16Variable is never reassigned, consider using `let`
+stabilize-primitive-types.mo:15.16-15.29: warning [M0244], variable int32Variable is never reassigned, consider using `let`
+stabilize-primitive-types.mo:16.16-16.29: warning [M0244], variable int64Variable is never reassigned, consider using `let`
+stabilize-primitive-types.mo:20.16-20.28: warning [M0244], variable blobVariable is never reassigned, consider using `let`
+stabilize-primitive-types.mo:21.16-21.33: warning [M0244], variable principalVariable is never reassigned, consider using `let`

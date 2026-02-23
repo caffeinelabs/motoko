@@ -1,0 +1,4 @@
+error[M0009]: file "bad-actor-import4/lg264-qjkae.did" does not exist
+    ┌─ bad-actor-import4.mo:2:1
+  2 │  import imported1 "ic:lg264-qjkae";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

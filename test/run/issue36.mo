@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // AST-36: foo.bar.1.zap won't parse
 
 type Z = { zap : Nat };

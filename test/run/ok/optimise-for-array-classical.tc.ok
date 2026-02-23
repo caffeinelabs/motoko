@@ -1,0 +1,2 @@
+optimise-for-array-classical.mo:130.5-130.7: warning [M0244], variable c1 is never reassigned, consider using `let`
+optimise-for-array-classical.mo:145.5-145.7: warning [M0244], variable c2 is never reassigned, consider using `let`

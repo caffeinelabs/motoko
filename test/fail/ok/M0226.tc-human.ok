@@ -1,0 +1,4 @@
+error[M0226]: unknown mixin MissingMixin
+    ┌─ M0226.mo:2:11
+  2 │    include MissingMixin();
+    │            ^^^^^^^^^^^^ 

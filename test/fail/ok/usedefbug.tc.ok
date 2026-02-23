@@ -1,4 +1,1 @@
-usedefbug.mo:1.7-1.10: warning [M0194], unused identifier Bar (delete or rename to wildcard `_` or `_Bar`)
-usedefbug.mo:4.9-4.13: warning [M0194], unused identifier bomb (delete or rename to wildcard `_` or `_bomb`)
-usedefbug.mo:7.7-7.10: warning [M0194], unused identifier Bar (delete or rename to wildcard `_` or `_Bar`)
-usedefbug.mo:7.3-7.22: definedness error [M0016], cannot use g before g has been defined
+usedefbug.mo:8.3-8.22: definedness error [M0016], cannot use g before g has been defined

@@ -1,0 +1,5 @@
+error[M0110]: literal pattern cannot consume expected type
+  Any
+    ┌─ M0110.mo:1:5
+  1 │  let true : Any = true
+    │      ^^^^ 

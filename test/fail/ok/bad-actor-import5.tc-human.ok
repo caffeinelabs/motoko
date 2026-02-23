@@ -1,0 +1,4 @@
+error[M0011]: canister alias "foo" not defined
+    ┌─ bad-actor-import5.mo:2:1
+  2 │  import imported1 "canister:foo";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

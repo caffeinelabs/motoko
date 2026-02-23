@@ -1,2 +1,2 @@
-M0106.mo:1.24-1.27: type error [M0106], shared function cannot take a context pattern
+M0106.mo:2.24-2.27: type error [M0106], shared function cannot take a context pattern
   (This is a limitation of the current version and flag -wasi-system-api.)

@@ -1,0 +1,128 @@
+error[M0096]: expression of type
+  () -> ()
+cannot produce expected type
+  <A>() -> ()
+    ┌─ bounds-mismatch.mo:13:5
+ 13 │    f(func() {});  // error
+    │      ^^^^^^^^^ 
+error[M0096]: expression of type
+  <A>() -> ()
+cannot produce expected type
+  () -> ()
+    ┌─ bounds-mismatch.mo:18:5
+ 18 │    f(func<A>() {});  // error
+    │      ^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  <A <: Nat>() -> ()
+cannot produce expected type
+  <A>() -> ()
+    ┌─ bounds-mismatch.mo:23:5
+ 23 │    f(func<A <: Nat>() {});  // error
+    │      ^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  <A>() -> ()
+cannot produce expected type
+  <A <: Nat>() -> ()
+    ┌─ bounds-mismatch.mo:28:5
+ 28 │    f(func<A>() {});  // error
+    │      ^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  <A <: Nat>() -> ()
+cannot produce expected type
+  <A <: Int>() -> ()
+    ┌─ bounds-mismatch.mo:33:5
+ 33 │    f(func<A <: Nat>() {});  // error
+    │      ^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  <A <: Int>() -> ()
+cannot produce expected type
+  <A <: Nat>() -> ()
+    ┌─ bounds-mismatch.mo:38:5
+ 38 │    f(func<A <: Int>() {});  // error
+    │      ^^^^^^^^^^^^^^^^^^^ 
+warning[M0074]: this array has type
+  [Any]
+because elements have inconsistent types
+    ┌─ bounds-mismatch.mo:50:11
+ 50 │    let _ = [func() {}, func<A>() {}];  // warn
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0074]: this array has type
+  [Any]
+because elements have inconsistent types
+    ┌─ bounds-mismatch.mo:54:11
+ 54 │    let _ = [func<A>() {}, func<A <: Nat>() {}];  // warn
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0074]: this array has type
+  [Any]
+because elements have inconsistent types
+    ┌─ bounds-mismatch.mo:58:11
+ 58 │    let _ = [func<A <: Int>() {}, func<A <: Nat>() {}];  // warn
+    │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  <X>X -> X
+cannot produce expected type
+  <Y <: Nat>Y -> Y
+    ┌─ bounds-mismatch.mo:75:21
+ 75 │  func f(x : A) : B = x;
+    │                      ^ 
+error[M0096]: expression of type
+  <X <: Int, Y <: {}>X -> Y
+cannot produce expected type
+  <X <: Int, Y <: {x : Nat}>X -> Y
+    ┌─ bounds-mismatch.mo:81:21
+ 81 │  func f(x : A) : B = x;
+    │                      ^ 
+error[M0096]: expression of type
+  <X <: Nat, Y>X -> Y
+cannot produce expected type
+  <Y <: Nat, X <: Y>Y -> X
+    ┌─ bounds-mismatch.mo:87:21
+ 87 │  func f(x : A) : B = x;
+    │                      ^ 
+error[M0096]: expression of type
+  <X, Y>X -> X
+cannot produce expected type
+  <X <: Y, Y>X -> X
+    ┌─ bounds-mismatch.mo:93:21
+ 93 │  func f(x : A) : B = x;
+    │                      ^ 
+error[M0096]: expression of type
+  <X, Y, Z <: X>X -> X
+cannot produce expected type
+  <X, Y <: X, Z <: Y>X -> X
+    ┌─ bounds-mismatch.mo:99:21
+ 99 │  func f(x : A) : B = x;
+    │                      ^ 
+error[M0096]: expression of type
+  <X <: {x : Int}>X -> X
+cannot produce expected type
+  <X <: C>X -> X
+    ┌─ bounds-mismatch.mo:106:21
+106 │  func f(x : A) : B = x;
+    │                      ^ 
+error[M0096]: expression of type
+  <X, Y <: {f : () -> X}>X -> X
+cannot produce expected type
+  <X <: Nat, Y <: C<X>>X -> X
+    ┌─ bounds-mismatch.mo:113:21
+113 │  func f(x : A) : B = x;
+    │                      ^ 
+error[M0096]: expression of type
+  <X, Y <: {f : () -> Nat}>X -> X
+cannot produce expected type
+  <X <: Nat, Y <: C<X>>X -> X
+    ┌─ bounds-mismatch.mo:120:21
+120 │  func f(x : A) : B = x;
+    │                      ^ 
+warning[M0074]: this array has type
+  [Any]
+because elements have inconsistent types
+    ┌─ bounds-mismatch.mo:125:21
+124 │    do {
+125 │      let poly_funcs4 = [
+    │ ╭──────────────────────^
+126 │ │      func<A <: Int, B <: Nat> (as : [A], b : B) : A = as[0],
+127 │ │      func<B <: Nat, A <: Int> (bs : [B], a : A) : B = bs[0]
+128 │ │    ];
+    │ ╰────^ 
+129 │    };

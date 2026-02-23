@@ -1,2 +1,0 @@
-error-codes.mo:49.24-49.25: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)
-error-codes.mo:50.28-50.36: warning [M0194], unused identifier err_code (delete or rename to wildcard `_` or `_err_code`)

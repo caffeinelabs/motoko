@@ -1,0 +1,5 @@
+error[M0067]: expected tuple type, but expression produces type
+  Bool
+    ┌─ M0067.mo:1:8
+  1 │  ignore true.1
+    │         ^^^^ 
