@@ -149,7 +149,7 @@ let string_of_severity (sev : severity) = match sev with
   | Warning -> "warning"
   | Info -> "info"
 
-let json_span ?(is_primary=false) ?label ?suggested_replacement r =
+let json_span ?prio ?label ?suggested_replacement r =
   let { Source.file; line = line_start; column = column_start } = r.Source.left in
   let { Source.line = line_end; column = column_end; _ } = r.Source.right in
   `Assoc [
@@ -158,7 +158,7 @@ let json_span ?(is_primary=false) ?label ?suggested_replacement r =
     "column_start", `Int (column_start + 1);
     "line_end", `Int line_end;
     "column_end", `Int (column_end + 1);
-    "is_primary", `Bool is_primary;
+    "is_primary", `Bool (prio = Some Primary);
     "label", (match label with None -> `Null | Some label -> `String label);
     "suggested_replacement", (match suggested_replacement with None -> `Null | Some s -> `String s);
     "suggestion_applicability", (match suggested_replacement with
@@ -168,10 +168,10 @@ let json_span ?(is_primary=false) ?label ?suggested_replacement r =
 
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message msg =
-  let span_jsons = ensure_primary_span msg |> List.map (fun { prio; at_span; label } ->
-    json_span ~is_primary:(prio = Primary) ~label at_span) in
-  let edit_jsons = msg.edits |> List.map (fun { at_edit; suggested_replacement } ->
-    json_span at_edit ~suggested_replacement) in
+  let span_jsons = ensure_primary_span msg
+    |> List.map (fun { prio; at_span; label } -> json_span ~prio ~label at_span) in
+  let edit_jsons = msg.edits |>
+    List.map (fun { at_edit; suggested_replacement } -> json_span ~suggested_replacement at_edit) in
   let json = `Assoc [
     "message", `String msg.text;
     "code", `String msg.code;
