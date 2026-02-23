@@ -1,1 +1,1 @@
-enhanced-migration-bad-chain.mo:4.1-7.2: type error [M0251], migration chain does not produce stable field `a`
+enhanced-migration-bad-chain.mo:4.1-7.2: type error [M0251], migration chain does not produce stable field `a`.

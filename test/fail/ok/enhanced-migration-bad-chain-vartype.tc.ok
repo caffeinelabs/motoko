@@ -1,0 +1,4 @@
+enhanced-migration-bad-chain-vartype.mo:4.1-9.2: type error [M0251], migration chain: field `a` (from enhanced-migration/enh-mig-test2/m3.mo) of type
+  Float
+does not have expected type
+  Text

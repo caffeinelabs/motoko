@@ -4022,14 +4022,14 @@ and validate_enhanced_migration_chain env stab_tfs at =
         | T.Compatible -> ()
         | T.Incompatible explanation ->
           local_error env at "M0251"
-            "migration chain: field `%s` (from %s) has type%a\n, not the expected type%a%a"
+            "migration chain: field `%s` (from %s) of type%a\ndoes not have expected type%a%a"
             tf.T.lab from_file
             display_typ_expand acc_tf.T.typ
             display_typ_expand tf.T.typ
             (display_explanation (T.as_immut acc_tf.T.typ) (T.as_immut tf.T.typ)) explanation)
       | None ->
         local_error env at "M0251"
-          "migration chain does not produce stable field `%s`"
+          "migration chain does not produce stable field `%s`."
           tf.T.lab
     ) stab_tfs;
     let (_file, dom_tfs, rng_tfs, _, _) = List.hd (List.rev decomposed) in
