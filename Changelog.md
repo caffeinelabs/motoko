@@ -4,6 +4,7 @@
 
   * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
   * Adds `--error-format human` option to print pretty errors with code snippets and labels (#5816).
+  * Add `--all-libs` flag to load all library files from all packages, enabling better diagnostics, e.g. hinting at non-imported items (increases compilation time) (#5861).
 
 ## 1.2.0 (2026-02-12)
 

@@ -121,7 +121,13 @@ let fancy_of_message msg =
     if msg.spans = [] then
       [G.Diagnostic.Label.primaryf ~range:(range msg.at) ""]
     else
-      List.map mk_span msg.spans in
+      let spans = List.map mk_span msg.spans in
+      let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
+      if primary_spans = [] then
+        G.Diagnostic.Label.primaryf ~range:(range msg.at) "" :: spans
+      else
+        spans
+  in
   let severity = match msg.sev with
     | Error -> G.Diagnostic.Severity.Error
     | Warning -> G.Diagnostic.Severity.Warning
