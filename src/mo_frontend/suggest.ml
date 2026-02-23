@@ -33,7 +33,7 @@ let suggest_id desc id ids =
   in
   if suggestions = [] then ""
   else
-  Printf.sprintf "\nDid you mean %s %s?" desc (oneof ", " " or " suggestions)
+  Printf.sprintf "help: did you mean %s %s?" desc (oneof ", " " or " suggestions)
 
 let search_obj desc path ty ty1 ty2 =
   let suggestions = ref [] in

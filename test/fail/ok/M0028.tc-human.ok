@@ -1,5 +1,5 @@
 error[M0028]: field Y does not exist in type:
-  module {}
+  module {Ya : module {}}
     ┌─ M0028.mo:2:11
   2 │  let _ : X.Y.t = ();
-    │            ^ 
+    │            ^ help: did you mean field Ya?

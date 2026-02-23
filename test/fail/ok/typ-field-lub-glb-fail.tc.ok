@@ -12,5 +12,7 @@ because expected field `x` is missing from type
   {type T = Int}
 typ-field-lub-glb-fail.mo:21.29-21.30: type error [M0030], type field T does not exist in type:
   {x : Nat}
+
 typ-field-lub-glb-fail.mo:27.29-27.30: type error [M0030], type field T does not exist in type:
   {x : Nat}
+

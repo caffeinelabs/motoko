@@ -1,2 +1,3 @@
 modexp2.mo:11.16-11.17: type error [M0030], type field U does not exist in type:
   module {type T = U; f : ???}
+

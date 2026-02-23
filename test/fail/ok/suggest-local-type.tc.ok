@@ -1,2 +1,2 @@
 suggest-local-type.mo:2.13-2.15: type error [M0029], unbound type Fo
-Did you mean type Foo?
+help: did you mean type Foo?

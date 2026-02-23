@@ -12,5 +12,6 @@ check-record.mo:14.9-14.11: type error [M0151], missing field 'a' from expected 
 check-record.mo:16.18-16.23: warning [M0215], field `b` is provided but not expected in record of type
   {a : Nat}
 check-record.mo:21.30-21.31: type error [M0057], unbound variable c
+
 check-record.mo:24.9-24.27: type error [M0151], missing field 'b' from expected type
   {b : Nat}

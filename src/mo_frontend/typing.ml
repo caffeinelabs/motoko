@@ -602,9 +602,10 @@ and check_obj_path' env path : T.typ =
      | Some (t, _, _, Unavailable) ->
        error env id.at "M0025" "unavailable variable %s" id.it
      | None ->
-       error env id.at "M0026" "unbound variable %s%a%s" id.it
+       error env id.at "M0026"
+         ~spans:[primary env id.at "%s" (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals))]
+         "unbound variable %s%a" id.it
          display_vals env.vals
-         (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals))
     )
   | DotH (path', id) ->
     let s, fs, tfs = check_obj_path env path' in
@@ -613,11 +614,12 @@ and check_obj_path' env path : T.typ =
       error env id.at "M0027" "cannot infer type of forward field reference %s" id.it
     | t -> t
     | exception Invalid_argument _ ->
-      error env id.at "M0028" "field %s does not exist in %a%s"
+      error env id.at "M0028"
+        ~spans:[primary env id.at "%s"
+          (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))]
+        "field %s does not exist in %a"
         id.it
         display_obj (T.Obj(s, fs, tfs))
-        (Suggest.suggest_id "field" id.it
-          (List.map (fun f -> f.T.lab) fs))
 
 let rec check_typ_path env path : T.con =
   let c = check_typ_path' env path in
@@ -631,9 +633,11 @@ and check_typ_path' env path : T.con =
     (match T.Env.find_opt id.it env.typs with
     | Some c -> c
     | None ->
-      error env id.at "M0029" "unbound type %s%a%s" id.it
+      error env id.at "M0029"
+        ~spans:[primary env id.at "%s"
+          (Suggest.suggest_id "type" id.it (T.Env.keys env.typs))]
+        "unbound type %s%a" id.it
         display_typs env.typs
-        (Suggest.suggest_id "type" id.it (T.Env.keys env.typs))
     )
   | DotH (path', id) ->
     let s, fs, tfs = check_obj_path env path' in
@@ -642,11 +646,12 @@ and check_typ_path' env path : T.con =
         check_deprecation env path.at "type field" id.it (T.lookup_typ_deprecation id.it tfs);
         c
       | exception Invalid_argument _ ->
-        error env id.at "M0030" "type field %s does not exist in %a%s"
+        error env id.at "M0030"
+          ~spans:[primary env id.at "%s"
+            (Suggest.suggest_id "type field" id.it (List.map (fun f -> f.T.lab) fs))]
+          "type field %s does not exist in %a"
           id.it
           display_obj (T.Obj(s, fs, tfs))
-          (Suggest.suggest_id "type field" id.it
-             (List.map (fun f -> f.T.lab) fs))
 
 (* Type helpers *)
 
@@ -1830,13 +1835,17 @@ and infer_exp'' env exp : T.typ =
         typ
       | c1::c2::cs ->
         let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
-        error env id.at "M0057" "unbound variable %s%a%s" id.it
+        error env id.at "M0057"
+          ~spans:[primary env id.at "help: Did you mean to import %s?" (String.concat " or " import_suggestions)]
+          "unbound variable %s%a"
+          id.it
           display_vals env.vals
-          (Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " import_suggestions))
       | [] ->
-        error env id.at "M0057" "unbound variable %s%a%s" id.it
+        error env id.at "M0057"
+          ~spans:[primary env id.at "%s"
+            (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals))]
+          "unbound variable %s%a" id.it
           display_vals env.vals
-          (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals))
     )
   | LitE lit ->
     T.Prim (infer_lit env lit exp.at)

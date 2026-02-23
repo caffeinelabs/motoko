@@ -57,8 +57,7 @@ The actor should declare a corresponding `stable` field.
  14 │    actor {
 error[M0205]: migration expression produces unexpected field `versoin` of type
   var ()
-
-Did you mean field version?
+help: did you mean field version?
 The actor should declare a corresponding `stable` field.
     ┌─ migration.mo:3:7
   2 │    
