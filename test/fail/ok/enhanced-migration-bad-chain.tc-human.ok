@@ -1,0 +1,9 @@
+error[M0251]: migration chain does not produce stable field `a`
+    ┌─ enhanced-migration-bad-chain.mo:4:1
+  3 │    
+  4 │ ╭  actor {
+  5 │ │      let a : Float;
+  6 │ │      let b : Bool;
+  7 │ │  };
+    │ ╰──^ 
+  8 │    
