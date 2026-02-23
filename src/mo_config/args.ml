@@ -34,8 +34,7 @@ let error_args = [
         | "json" -> Flags.Json
         | "human" -> Flags.Human
         | _ -> Flags.Plain)),
-    " set error output format";
-  "--no-packages-preload", Arg.Clear Flags.packages_preload, " don't preload all library files from packages (disables hints about non-imported items in diagnostics). This is a temporary workaround and may be removed in a future major release"
+    " set error output format"
   (* TODO move --hide-warnings here? *)
   ]
 
@@ -51,6 +50,7 @@ let inclusion_args = [
 
 let ai_args = [
   "--ai-errors", Arg.Set Flags.ai_errors, " emit AI tailored errors";
+  "--all-libs", Arg.Set Flags.all_libs, " load all library files from all packages, enabling better diagnostics, e.g. hinting at non-imported items (increases compilation time)";
   "--implicit-package", Arg.String (fun s -> Flags.implicit_package := Some s), _UNDOCUMENTED_ " allow contextual dot and implicits resolution from all modules in the given package"
 ]
 

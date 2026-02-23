@@ -1,4 +1,4 @@
-//MOC-FLAG --package conv conv --no-packages-preload
+//MOC-FLAG --package conv conv
 // should report conversions from all imported libs, not all available libs
 import Nat8 = "mo:conv/Nat8"
 func f(n : Nat) {};

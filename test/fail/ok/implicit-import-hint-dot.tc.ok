@@ -7,5 +7,4 @@ implicit-import-hint-dot.mo:17.12-17.26: type error [M0230], Cannot determine im
 note: Did you mean to import mo:core/Text?
 implicit-import-hint-dot.mo:18.5-18.12: type error [M0072], field compare does not exist in type:
   Text
-The field compare is not available. Try something else?
 Hint: Did you mean to import mo:core/Text?
