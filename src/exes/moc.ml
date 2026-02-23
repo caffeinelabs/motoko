@@ -289,7 +289,15 @@ let process_files files : unit =
     printf "%s\n%!" banner;
     exit_on_none (Pipeline.run_files_and_stdin files)
   | Check ->
-    Diag.run (Pipeline.check_files files)
+    let migration_lib_files =
+      if Option.is_some !Flags.enhanced_migration then
+        let lst = Pipeline.get_migration_files (Option.get !Flags.enhanced_migration) in
+        let (_, _) = Diag.run (Pipeline.load_migration_modules lst) in
+        lst
+      else [] (* Should not happen, we check against it and error in get_migration_files(). *)
+    in
+    (* Add the migration lib files to the tc checks. *)
+    Diag.run (Pipeline.check_files (files @ migration_lib_files))
   | StableCompatible ->
     begin
       match (!Flags.pre_ref, !Flags.post_ref) with

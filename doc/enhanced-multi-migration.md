@@ -9,50 +9,44 @@ the actor as a migration chain. Each module exposes a
 
 ## Compile-Time Validation (`typing.ml`)
 
-The validation is designed to give each incremental step `v_i → m_{i+1} → v_{i+1}`
-the same semantics as the old `(with migration = fn)` syntax: each migration only
-needs to mention fields it transforms; everything else is retained from the
-accumulated state.
+Two-phase validation, designed to give the same semantics as the old
+`(with migration = fn)` syntax: consuming a field (dom-only) = dropping it.
 
 ### Per-migration checks
 
 - Each `run` must be a local function with stable object input/output types.
 - Mutually exclusive with the old `(with migration = fn)` syntax.
 
-### Accumulated composition
+### Phase 1: Accumulated composition
 
 Given migration chain `[m_0, m_1, ..., m_n]`:
 
 For **every** k from 1 to n, the compiler checks
 `accumulated(m_0 .. m_{k-1}) <: input(m_k)`.
-This is necessary because each migration has access
-to the full accumulated state (via merge semantics), not just the previous
-migration's output. A migration can reference a field produced by any earlier
-migration, not just the immediately preceding one.
+Each migration has access to the full accumulated state (via merge semantics),
+not just the previous migration's output. A migration can reference a field
+produced by any earlier migration, not just the immediately preceding one.
 
-The accumulated type is built incrementally by last-writer-wins over each
-migration's output (range). Fields not overwritten by later migrations persist
-from earlier ones. The first migration (k=0) is skipped — it has no predecessor.
+The accumulated type is built incrementally:
+- **Range fields** overwrite previous entries (last-writer-wins).
+- **Dom-only fields** (consumed but not produced) are **dropped** from
+  accumulated. This means a later migration cannot reference a field that
+  was consumed and dropped by an earlier migration.
+- **Fields in neither** dom nor range are carried through unchanged.
 
-### Last migration vs actor (mirrors old syntax)
+The first migration (k=0) is skipped — it has no predecessor.
 
-The last migration `m_n` is checked against the current actor with the same
-semantics as `(with migration = fn)`. The accumulated state of `m_0 .. m_{n-1}`
-plays the role of the "stored heap state":
+### Phase 2: Accumulated vs actor
 
-- For each actor stable field `f`:
-  - If `f` is in `m_n`'s range → check type compatibility.
-  - If `f` is not in `m_n`'s range but in `accumulated_pre` → **retained**;
-    check type compatibility against the accumulated pre-state type.
-    (This is strictly more precise than the old syntax, which cannot type-check
-    retained fields at compile time.)
-  - If `f` is in neither → **error**: the chain does not produce this field.
-- **M0205**: fields in `m_n`'s range not declared in the actor → error.
-- **M0206**: `m_n` consumes a field but doesn't produce it, field is in actor → warning.
-- **M0207**: `m_n` consumes a field but doesn't produce it, field not in actor → warning (data loss).
+After folding all migrations, the final accumulated state is checked against
+the actor's declared fields:
 
-Fields from earlier migrations that are not in the current actor are silently
-tolerated — they are historical artifacts from field drops in earlier versions.
+- For each actor field `f`:
+  - **found** in accumulated → check type compatibility (M0251).
+  - **not found** → error: the chain does not produce this field (M0251).
+- Fields in the last migration's range not declared in the actor → error (M0251).
+- Last migration consumes a field not in its range and not declared in the actor
+  → warning: potential data loss (M0251).
 
 ## Upgrade-Time Algorithm (`desugar.ml`)
 
@@ -136,9 +130,11 @@ sees the correct type.
 - **Fast-forward.** v1 → v100 directly, or v1 → v50 → v100, or step-by-step.
 - **Type changes.** Each level is strongly typed at `type_k`; type changes are
   handled naturally by the migration's `run` function.
-- **Field drops.** Remove the field from the actor declaration. No migration
-  needed. The reverse-fold removes such fields from earlier types; the final
-  projection drops fields the actor no longer declares.
+- **Field drops.** Two ways: (1) consume the field without producing it
+  (`{a : T} -> {}`), which drops it from the accumulated state and prevents
+  later migrations from referencing it; (2) simply remove the field from the
+  actor declaration — the final projection drops fields the actor no longer
+  declares.
 - **Partial migrations.** Each migration only mentions the fields it transforms.
   Unmentioned fields are carried through from the previous state (same as old syntax).
 - **Init migration required.** First deployment needs an init migration
@@ -150,23 +146,30 @@ sees the correct type.
 
 ```
 // v0: Init
-run : {} -> {a : Nat}                     actor { stable let a : Nat }
+run : {} -> {a : Nat}                     actor { let a : Nat }
+  // accumulated = {a : Nat}
 
 // v1: Add field b
-run : {} -> {b : Nat}                     actor { stable let a : Nat; stable let b : Int }
-  // accumulated_pre = {a : Nat}; b : Nat <: Int ✓; a retained from pre ✓
+run : {} -> {b : Nat}                     actor { let a : Nat; let b : Int }
+  // input check: {a : Nat} <: {} ✓
+  // accumulated = {a : Nat, b : Nat}; actor: a ✓, b : Nat <: Int ✓
 
 // v2: Change b's type
-run : {b : Int} -> {b : Bool}             actor { stable let a : Nat; stable let b : Bool }
-  // accumulated_pre = {a : Nat, b : Nat}; Nat <: Int for input ✓; a retained ✓
+run : {b : Int} -> {b : Bool}             actor { let a : Nat; let b : Bool }
+  // input check: {a : Nat, b : Nat} <: {b : Int} ✓ (Nat <: Int)
+  // accumulated = {a : Nat, b : Bool}; actor: a ✓, b ✓
 
 // v3: Drop a
-run : {a : Nat} -> {}                     actor { stable let b : Bool }
-  // accumulated_pre = {a : Nat, b : Bool}; b retained ✓; a consumed, not produced → M0207 warning
+run : {a : Nat} -> {}                     actor { let b : Bool }
+  // input check: {a : Nat, b : Bool} <: {a : Nat} ✓
+  // a consumed (dom-only) → dropped from accumulated
+  // accumulated = {b : Bool}; actor: b ✓
+  // warning: a consumed but not in actor → data loss
 
 // v4: Reintroduce a with new type
-run : {} -> {a : Text}                    actor { stable let a : Text; stable let b : Bool }
-  // accumulated_pre = {a : Nat, b : Bool}; a : Text from m_4 ✓; b retained ✓
+run : {} -> {a : Text}                    actor { let a : Text; let b : Bool }
+  // input check: {b : Bool} <: {} ✓ (a was dropped, not available)
+  // accumulated = {a : Text, b : Bool}; actor: a ✓, b ✓
 ```
 
 ## Usage
