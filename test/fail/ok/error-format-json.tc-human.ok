@@ -22,7 +22,10 @@ warning[M0236]: You can use the dot notation `map2.add(...)` here
     ┌─ error-format-json.mo:20:1
  20 │  Map.add(map2, Nat.compare, 1, 2);
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `map2`
+    = help: remove `map2, `
 warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
     ┌─ error-format-json.mo:20:15
  20 │  Map.add(map2, Nat.compare, 1, 2);
     │                ^^^^^^^^^^^ 
+    = help: remove `Nat.compare, `

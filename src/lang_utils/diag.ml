@@ -131,14 +131,31 @@ let fancy_of_message msg =
       | Secondary -> G.Diagnostic.Priority.Secondary in
     G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
   let labels = List.map mk_span (ensure_primary_span msg) in
+  let source_text r =
+    let start = pos_to_byte content r.Source.left in
+    let stop = pos_to_byte content r.Source.right in
+    String.sub content start (stop - start)
+  in
+  let edit_note edit =
+    let original = source_text edit.at_edit in
+    if edit.suggested_replacement = "" then
+      G.Diagnostic.Message.createf "help: remove `%s`" original
+    else if original = "" then
+      G.Diagnostic.Message.createf "help: insert `%s`" edit.suggested_replacement
+    else
+      G.Diagnostic.Message.createf "help: replace `%s` with `%s`" original edit.suggested_replacement
+  in
   let severity = match msg.sev with
     | Error -> G.Diagnostic.Severity.Error
     | Warning -> G.Diagnostic.Severity.Warning
     | Info -> G.Diagnostic.Severity.Help in
+  let notes =
+    List.map (G.Diagnostic.Message.createf "note: %s") msg.notes
+    @ List.map edit_note msg.edits in
   let diag = G.Diagnostic.(
     createf
       ~labels: labels
-      ~notes:(List.map (Message.createf "note: %s") msg.notes)
+      ~notes
       ?code:(if msg.code = "" then None else Some(msg.code))
       severity
       "%s" msg.text) in
