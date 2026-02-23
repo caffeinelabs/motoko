@@ -1,4 +1,0 @@
-verification-implies.mo:2.1-2.5: type error [M0097], expected function type, but expression produces type
-  Bool
-verification-implies.mo:2.5-2.6: info, this looks like an unintended function call, perhaps a missing ';'?
-verification-implies.mo:2.6-2.13: type error [M0057], unbound variable implies
