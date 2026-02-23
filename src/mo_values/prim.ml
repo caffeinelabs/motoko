@@ -191,14 +191,14 @@ let prim trap =
      fun _ v k ->
      let w, a = as_pair v
      in k (match w with
-           | Nat8  y -> Nat8  Nat8. (and_ y (shl (of_int 1) (as_nat8  a)))
-           | Nat16 y -> Nat16 Nat16.(and_ y (shl (of_int 1) (as_nat16 a)))
-           | Nat32 y -> Nat32 Nat32.(and_ y (shl (of_int 1) (as_nat32 a)))
-           | Nat64 y -> Nat64 Nat64.(and_ y (shl (of_int 1) (as_nat64 a)))
-           | Int8  y -> Int8  Int_8. (and_ y (shl (of_int 1) (as_int8  a)))
-           | Int16 y -> Int16 Int_16.(and_ y (shl (of_int 1) (as_int16 a)))
-           | Int32 y -> Int32 Int_32.(and_ y (shl (of_int 1) (as_int32 a)))
-           | Int64 y -> Int64 Int_64.(and_ y (shl (of_int 1) (as_int64 a)))
+           | Nat8  y -> Nat8  Nat8. (and_ y (shl one (as_nat8  a)))
+           | Nat16 y -> Nat16 Nat16.(and_ y (shl one (as_nat16 a)))
+           | Nat32 y -> Nat32 Nat32.(and_ y (shl one (as_nat32 a)))
+           | Nat64 y -> Nat64 Nat64.(and_ y (shl one (as_nat64 a)))
+           | Int8  y -> Int8  Int_8. (and_ y (shl one (as_int8  a)))
+           | Int16 y -> Int16 Int_16.(and_ y (shl one (as_int16 a)))
+           | Int32 y -> Int32 Int_32.(and_ y (shl one (as_int32 a)))
+           | Int64 y -> Int64 Int_64.(and_ y (shl one (as_int64 a)))
            | _ -> failwith "btst")
 
   | "lsh_Nat" -> fun _ v k ->

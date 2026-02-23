@@ -685,7 +685,7 @@ and t_timer_throw context exp =
     (blockE
        [expD (primE
                 (OtherPrim "global_timer_set")
-                [Mo_values.Numerics.Nat64.of_int 1 |> nat64E])]
+                [nat64E Mo_values.Numerics.Nat64.one])]
        (tupE[]))
 
 and t_prog (prog, flavor) =
