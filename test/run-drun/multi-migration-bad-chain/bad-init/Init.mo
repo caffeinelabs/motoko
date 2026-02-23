@@ -1,5 +1,3 @@
-import Prim "mo:prim";
-
 module {
 
   public func not_run(_ : {}) : {
