@@ -298,7 +298,7 @@ let primary env at fmt =
 let secondary env at fmt =
   Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s }) fmt
 
-let edit replacement at : Diag.edit =
+let edit at replacement : Diag.edit =
   Diag.{ at_edit = at; suggested_replacement = replacement }
 
 let check_deprecation env at desc id depr =
@@ -1748,10 +1748,10 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
                      { it = id1; _},
                      _)  when mod_id0 = mod_id1 && id0 = id1 ->
                 let receiver_text = quote e in
-                let replace_receiver = edit receiver_text old_receiver.at in
-                let remove_argument = edit "" (match es with
+                let replace_receiver = edit old_receiver.at receiver_text in
+                let remove_argument = edit (match es with
                   | [] -> e.at
-                  | next :: _ -> { left = e.at.left; right = next.at.left })
+                  | next :: _ -> { left = e.at.left; right = next.at.left }) ""
                 in
                 warn env at "M0236"
                   ~edits:[replace_receiver; remove_argument]
@@ -2911,7 +2911,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
           List.iter (fun (name, exp, next_arg) -> 
             let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
             warn env exp.at "M0237"
-              ~edits:[edit "" to_remove]
+              ~edits:[edit to_remove ""]
               "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) explicit_implicits
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
@@ -2981,7 +2981,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
         is_redundant_instantiation ts env (fun env' ->
           infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems) then begin
             warn env inst.at "M0223"
-              ~edits:[edit "" inst.at]
+              ~edits:[edit inst.at ""]
               "redundant type instantiation"
           end;
       ts, t_arg', t_ret'
