@@ -352,23 +352,23 @@ and neutral (op : (binop, binop) Either.t) : exp -> bool =
       let open Numerics in
       (match contents with
        | NatLit n | IntLit n when add_like op && Int.(eq n zero) -> true
-       | NatLit n | IntLit n when mul_like op && Int.(of_int 1 |> eq n) -> true
+       | NatLit n | IntLit n when mul_like op && Int.(eq n one) -> true
        | Nat8Lit n when add_like op && Nat8.(eq n zero) -> true
-       | Nat8Lit n when mul_like op && Nat8.(of_int 1 |> eq n) -> true
+       | Nat8Lit n when mul_like op && Nat8.(eq n one) -> true
        | Int8Lit n when add_like op && Int_8.(eq n zero) -> true
-       | Int8Lit n when mul_like op && Int_8.(of_int 1 |> eq n) -> true
+       | Int8Lit n when mul_like op && Int_8.(eq n one) -> true
        | Nat16Lit n when add_like op && Nat16.(eq n zero) -> true
-       | Nat16Lit n when mul_like op && Nat16.(of_int 1 |> eq n) -> true
+       | Nat16Lit n when mul_like op && Nat16.(eq n one) -> true
        | Int16Lit n when add_like op && Int_16.(eq n zero) -> true
-       | Int16Lit n when mul_like op && Int_16.(of_int 1 |> eq n) -> true
+       | Int16Lit n when mul_like op && Int_16.(eq n one) -> true
        | Nat32Lit n when add_like op && Nat32.(eq n zero) -> true
-       | Nat32Lit n when mul_like op && Nat32.(of_int 1 |> eq n) -> true
+       | Nat32Lit n when mul_like op && Nat32.(eq n one) -> true
        | Int32Lit n when add_like op && Int_32.(eq n zero) -> true
-       | Int32Lit n when mul_like op && Int_32.(of_int 1 |> eq n) -> true
+       | Int32Lit n when mul_like op && Int_32.(eq n one) -> true
        | Nat64Lit n when add_like op && Nat64.(eq n zero) -> true
-       | Nat64Lit n when mul_like op && Nat64.(of_int 1 |> eq n) -> true
+       | Nat64Lit n when mul_like op && Nat64.(eq n one) -> true
        | Int64Lit n when add_like op && Int_64.(eq n zero) -> true
-       | Int64Lit n when mul_like op && Int_64.(of_int 1 |> eq n) -> true
+       | Int64Lit n when mul_like op && Int_64.(eq n one) -> true
        | _ -> false)
     | _ -> false in
   examine
