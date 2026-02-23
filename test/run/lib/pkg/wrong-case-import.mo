@@ -1,1 +1,1 @@
-import P2 "pkg/other-Module";
+import P2 "other-Module";
