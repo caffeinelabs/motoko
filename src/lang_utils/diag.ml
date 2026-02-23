@@ -111,7 +111,7 @@ let pos_to_byte content pos =
   done;
   !line_start + pos.Source.column + 1
 
-let nonempty_spans msg = match msg.spans with
+let ensure_primary_span msg = match List.filter (fun span -> span.prio = Primary) msg.spans with
   | [] -> [{ prio = Primary; at_span = msg.at; label = "" }]
   | spans -> spans
 
@@ -129,7 +129,7 @@ let fancy_of_message msg =
       | Primary -> G.Diagnostic.Priority.Primary
       | Secondary -> G.Diagnostic.Priority.Secondary in
     G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
-  let labels = List.map mk_span (nonempty_spans msg) in
+  let labels = List.map mk_span (ensure_primary_span msg) in
   let severity = match msg.sev with
     | Error -> G.Diagnostic.Severity.Error
     | Warning -> G.Diagnostic.Severity.Warning
@@ -167,7 +167,7 @@ let json_span ?(is_primary=false) ?label ?suggested_replacement r =
 
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message msg =
-  let span_jsons = nonempty_spans msg |> List.map (fun { prio; at_span; label } ->
+  let span_jsons = ensure_primary_span msg |> List.map (fun { prio; at_span; label } ->
     json_span ~is_primary:(prio = Primary) ~label at_span) in
   let edit_jsons = msg.edits |> List.map (fun { at_edit; suggested_replacement } ->
     json_span at_edit ~suggested_replacement) in
