@@ -4118,6 +4118,9 @@ and infer_viewer env scope mut id viewer =
     available
   in
   let lab = "__" ^ id.it in
+  if T.(Env.mem lab (scope.Scope.val_env) || Lib.String.chop_prefix "__motoko" lab <> None)
+  then () (* avoid any clash with local or reserved `__motoko_XXX` members by omitting viewer *)
+  else
   match Diag.with_message_store (recover_opt (fun msgs ->
     let env = {env with msgs} in (* don't record errors in outer env *)
     let env = adjoin env scope in
