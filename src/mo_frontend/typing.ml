@@ -4104,6 +4104,8 @@ and check_stab env sort scope dec_fields =
       ids)
 
 and infer_viewer env scope mut id viewer =
+  if not !Flags.generate_view_queries then ()
+  else
   assert (!viewer = None);
   let isAdmin_available ()  =
     let isAdmin = "isAdmin" in
