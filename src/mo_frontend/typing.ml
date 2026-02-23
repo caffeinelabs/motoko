@@ -4032,30 +4032,16 @@ and validate_enhanced_migration_chain env stab_tfs at =
           "migration chain does not produce stable field `%s`."
           tf.T.lab
     ) stab_tfs;
-    let (_file, dom_tfs, rng_tfs, _, _) = List.hd (List.rev decomposed) in
-    (* M0251: reject fields in last migration's range not declared in actor *)
-    List.iter (fun T.{lab;typ;_} ->
-      match T.lookup_val_field_opt lab stab_tfs with
-      | Some _ -> ()
-      | None ->
+    (* M0251: every accumulated field must be declared in the actor.
+       Fields can only leave accumulated through explicit consumption
+       (dom-only migration), never through silent omission from the actor. *)
+    List.iter (fun (from_file, acc_tf) ->
+      if not (List.mem acc_tf.T.lab stab_ids) then
         local_error env at "M0251"
-          "migration chain: last migration produces unexpected field `%s` of type%a\n%s\n%s"
-          lab
-          display_typ_expand typ
-          (Suggest.suggest_id "field" lab stab_ids)
-          "The actor should declare a corresponding stable field."
-    ) rng_tfs;
-    (* M0251: warn about fields consumed by last migration but not produced
-       and not declared in the actor — potential data loss *)
-    List.iter (fun T.{lab;typ;_} ->
-      if T.lookup_val_field_opt lab rng_tfs = None
-         && not (List.mem lab stab_ids) then
-        warn env at "M0251"
-          "migration chain: last migration consumes field `%s` of type%a\nbut does not produce it and the field is not declared in the actor.\n%s"
-          lab
-          display_typ_expand typ
-          "This field will be dropped. If unintended, declare the field in the actor."
-    ) dom_tfs
+          "migration chain, data loss risk: field `%s` (from %s) is not declared in the actor.\n%s"
+          acc_tf.T.lab from_file
+          "Add a migration that consumes this field, or declare it in the actor."
+    ) accumulated
   end
 
 and check_migration env (stab_tfs : T.field list) exp_opt =
