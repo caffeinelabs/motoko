@@ -1,6 +1,6 @@
 //MOC-FLAG -W=M0223,M0236,M0237
 //MOC-FLAG --error-format json
-//MOC-FLAG --ai-errors
+//MOC-FLAG --all-libs
 //MOC-FLAG --package core ../core-stub/src
 
 import Map "mo:core/Map";

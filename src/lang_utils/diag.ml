@@ -111,9 +111,10 @@ let pos_to_byte content pos =
   done;
   !line_start + pos.Source.column + 1
 
-let ensure_primary_span msg = match List.filter (fun span -> span.prio = Primary) msg.spans with
-  | [] -> [{ prio = Primary; at_span = msg.at; label = "" }]
-  | spans -> spans
+let ensure_primary_span msg =
+  if List.exists (fun span -> span.prio = Primary) msg.spans
+  then msg.spans
+  else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
 
 let fancy_of_message msg =
   let file = msg.at.Source.left.Source.file in
