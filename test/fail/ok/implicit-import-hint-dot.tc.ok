@@ -8,3 +8,4 @@ note: Did you mean to import mo:core/Text?
 implicit-import-hint-dot.mo:18.5-18.12: type error [M0072], field compare does not exist in type:
   Text
 Hint: Did you mean to import mo:core/Text?
+

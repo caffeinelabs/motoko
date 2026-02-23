@@ -56,6 +56,7 @@ pretty.mo:40.13-40.16: type error [M0072], field foo does not exist in type:
     bar7 : Nat;
     bar8 : Nat
   }
+
 pretty.mo:43.4-43.53: type error [M0096], expression of type
   (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat,
    Nat, Nat, Nat, Nat)

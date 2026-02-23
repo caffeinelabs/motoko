@@ -2365,20 +2365,21 @@ and try_infer_dot_exp env at exp id (desc, pred) =
       Ok(t)
     | Some(t) (* when not (pred t) *) ->
       Error(t1, fun () ->
+        let spans = [primary env id.at "%s" (suggest ())] in
         type_error id.at "M0234"
-          (Format.asprintf env "field %s does exist in %a\nbut is not %s.\n%s"
+          (Format.asprintf env "field %s does exist in %a\nbut is not %s."
              id.it
              display_obj t0
-             desc
-             (suggest ())) [] [] [])
+             desc) [] spans [])
     | None ->
       Error(t1, fun () ->
+        let spans = [
+          primary env id.at "%s"
+            (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))] in
         type_error id.at "M0072"
-          (Format.asprintf env "field %s does not exist in %a%s"
+          (Format.asprintf env "field %s does not exist in %a"
              id.it
-             display_obj t0
-             (Suggest.suggest_id "field" id.it
-                (List.map (fun f -> f.T.lab) fs))) [] [] [])
+             display_obj t0) [] spans [])
     end
 
 and infer_exp_field env rf =
@@ -2912,7 +2913,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
           arg_typs syntax_args (n - 1, None, [])
         in
         if (List.length explicit_implicits) = saturated_arity - implicits_arity then
-          List.iter (fun (name, exp, next_arg) -> 
+          List.iter (fun (name, exp, next_arg) ->
             let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
             warn env exp.at "M0237"
               ~edits:[edit to_remove ""]
@@ -4026,10 +4027,10 @@ and check_migration env (stab_tfs : T.field list) exp_opt =
      | Some _ -> ()
      | None ->
        local_error env focus "M0205"
-         "migration expression produces unexpected field `%s` of type%a\n%s\n%s"
+         "migration expression produces unexpected field `%s` of type%a\n%s"
+         ~spans:[primary env focus "%s" (Suggest.suggest_id "field" lab stab_ids)]
           lab
           display_typ_expand typ
-          (Suggest.suggest_id "field" lab stab_ids)
          "The actor should declare a corresponding `stable` field.")
      rng_tfs;
    (* Warn about any field in domain, not in range, and declared stable in actor *)
