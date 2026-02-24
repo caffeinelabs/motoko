@@ -1,3 +1,4 @@
 suggest-label-ai.mo:3.9-3.11: type error [M0083], unbound label fo in label environment:
   {foo : ()}
+
 The label fo is not available. Try something else?

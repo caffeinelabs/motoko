@@ -2216,10 +2216,11 @@ and infer_exp'' env exp : T.typ =
       | Some name when T.Env.mem name env.labs ->
         local_error env exp.at "M0238" "continue outside of loop"
       | name ->
-        local_error env id.at "M0083" "unbound label %s%a%s"
+        local_error env id.at "M0083"
+          ~spans:(suggest_span env id.at (Suggest.suggest_id "label" id.it (T.Env.keys env.labs)))
+          "unbound label %s%a"
            (Option.value ~default:id.it name)
            display_labs env.labs
-           (Option.value ~default:"" (Suggest.suggest_id "label" id.it (T.Env.keys env.labs)))
     );
     T.Non
   | RetE exp1 ->
