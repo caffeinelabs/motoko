@@ -1724,42 +1724,37 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
   | Some _ -> () (* already dotted *)
   | None ->
     match exp.it, tys, es with
-    | (DotE(obj_exp, id, _), receiver_ty :: tys, e::es) ->
-      begin
-        if (id.it = "equal" || Lib.String.chop_prefix "compare" id.it <> None) && List.length tys = 1 then ()
-        else
-          let quote e =
-            if e.at.left.line <> e.at.right.line then "..." else
-            match Source.read_region e.at with
-            | None -> "..."
-            | Some s ->
-               match e.it with
-               | VarE _ | CallE _ | DotE _ -> s
-               | e -> "("^s^")"
+    | DotE(obj_exp, id, _), receiver_ty :: tys, e::es ->
+      if (id.it = "equal" || Lib.String.chop_prefix "compare" id.it <> None) && List.length tys = 1 then () else
+      (match contextual_dot env id receiver_ty with
+      | Error _ -> ()
+      | Ok {path;_} ->
+        match path.it, exp.it with
+        | DotE ({ it = VarE {it = mod_id0; _};_ },
+                { it = id0; _},
+              _),
+          DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
+                { it = id1; _},
+                _)  when mod_id0 = mod_id1 && id0 = id1 ->
+          let source =
+            if e.at.left.line <> e.at.right.line then None
+            else Source.read_region e.at
           in
-          match contextual_dot env id receiver_ty with
-          | Error _ -> ()
-          | Ok {path;_} ->
-            (match path.it, exp.it with
-             | DotE ({ it = VarE {it = mod_id0; _};_ },
-                     { it = id0; _},
-                    _),
-               DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
-                     { it = id1; _},
-                     _)  when mod_id0 = mod_id1 && id0 = id1 ->
-                let receiver_text = quote e in
-                let replace_receiver = edit old_receiver.at receiver_text in
-                let remove_argument = edit (match es with
-                  | [] -> e.at
-                  | next :: _ -> { left = e.at.left; right = next.at.left }) ""
-                in
-                warn env at "M0236"
-                  ~edits:[replace_receiver; remove_argument]
-                  "You can use the dot notation `%s.%s(...)` here"
-                  receiver_text
-                  id.it
-             | _ -> ())
-      end
+          let receiver_text, edits = match source with
+            | None -> "...", []
+            | Some receiver_text ->
+              if not (Syntax.is_postfix_exp e) then "(" ^ receiver_text ^ ")", [] else
+              let replace_receiver = edit old_receiver.at receiver_text in
+              let remove_argument = edit (match es with
+                | [] -> e.at
+                | next :: _ -> { left = e.at.left; right = next.at.left }) "" (* remove the argument + the comma *)
+              in receiver_text, [replace_receiver; remove_argument]
+          in
+          warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+            ~edits
+            receiver_text
+            id.it
+        | _ -> ())
     | _, _, _ -> ()
 
 
