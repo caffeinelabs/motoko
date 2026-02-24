@@ -1,5 +1,4 @@
 //MOC-FLAG --actor-idl issue-5824
-
 import { type T } = "ic:aaaaa-aa";
 
 actor {
