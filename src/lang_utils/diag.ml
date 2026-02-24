@@ -135,8 +135,11 @@ let fancy_of_message msg =
     let start = pos_to_byte content r.Source.left in
     let stop = pos_to_byte content r.Source.right in
     String.sub content start (stop - start)
+    |> Lib.String.strip_control_chars
+    |> String.trim
   in
   let edit_note edit =
+    (* Future work: merge the replacements and display a diff *)
     let original = source_text edit.at_edit in
     if edit.suggested_replacement = "" then
       G.Diagnostic.Message.createf "help: remove `%s`" original

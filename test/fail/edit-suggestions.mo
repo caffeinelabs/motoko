@@ -16,12 +16,13 @@ do {
 
 do {
   let m = Map.empty<Nat, Text>();
+  let m2 = Map.empty<Int, Text>();
 
   // single arg
   ignore Map.size(m); // warn M0236
 
   // multi arg, no implicit in scope -> M0230 error + M0236 warn
-  ignore Map.get(m, 1); // warn M0236
+  ignore Map.get(m2, 1); // warn M0236
 
   // multi arg with implicit -> M0236 + M0237
   ignore Map.get(m, Nat.compare, 1); // warn M0236 + M0237
