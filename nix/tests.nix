@@ -157,7 +157,6 @@ let
     checkPhase = ''
       cd src
       patchShebangs .
-      export MOTOKO_CORE="${core-src}"
       make DUNE_OPTS="--display=short" unit-tests
     '';
     installPhase = ''
