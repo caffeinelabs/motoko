@@ -11,7 +11,6 @@ migration.mo:3.7-13.7: type error [M0204], migration expression produces field `
 migration.mo:3.7-13.7: type error [M0205], migration expression produces unexpected field `unstable2` of type
   () -> ()
 The actor should declare a corresponding `stable` field.
-
 migration.mo:3.7-13.7: type error [M0205], migration expression produces unexpected field `versoin` of type
   var ()
 The actor should declare a corresponding `stable` field.

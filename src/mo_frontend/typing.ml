@@ -222,16 +222,12 @@ let display_vals fmt vals =
     in
     let ty = T.obj T.Object tfs in
     Format.fprintf fmt " in environment:%a" display_typ ty
-  else
-    Format.fprintf fmt ""
 
 let display_labs fmt labs =
   if !Flags.ai_errors then
     let tfs = List.of_seq (T.Env.to_seq labs) in
     let ty = T.obj T.Object tfs in
     Format.fprintf fmt " in label environment:%a" display_typ ty
-  else
-    Format.fprintf fmt ""
 
 let display_typs fmt typs =
   if !Flags.ai_errors then
@@ -246,8 +242,6 @@ let display_typs fmt typs =
     in
     let ty = T.obj' T.Object [] tfs in
     Format.fprintf fmt " in type environment:%a" display_typ ty
-  else
-    Format.fprintf fmt ""
 
 let type_error at code text notes spans edits : Diag.message =
   Diag.error_message at code "type" text ~notes ~spans ~edits
@@ -297,6 +291,10 @@ let primary env at fmt =
 
 let secondary env at fmt =
   Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s }) fmt
+
+let suggest_span env at = function
+  | None -> []
+  | Some s -> [primary env at "%s" s]
 
 let edit at replacement : Diag.edit =
   Diag.{ at_edit = at; suggested_replacement = replacement }
@@ -603,7 +601,7 @@ and check_obj_path' env path : T.typ =
        error env id.at "M0025" "unavailable variable %s" id.it
      | None ->
        error env id.at "M0026"
-         ~spans:[primary env id.at "%s" (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals))]
+         ~spans:(suggest_span env id.at (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals)))
          "unbound variable %s%a" id.it
          display_vals env.vals
     )
@@ -615,8 +613,8 @@ and check_obj_path' env path : T.typ =
     | t -> t
     | exception Invalid_argument _ ->
       error env id.at "M0028"
-        ~spans:[primary env id.at "%s"
-          (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))]
+        ~spans:(suggest_span env id.at
+          (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs)))
         "field %s does not exist in %a"
         id.it
         display_obj (T.Obj(s, fs, tfs))
@@ -634,8 +632,7 @@ and check_typ_path' env path : T.con =
     | Some c -> c
     | None ->
       error env id.at "M0029"
-        ~spans:[primary env id.at "%s"
-          (Suggest.suggest_id "type" id.it (T.Env.keys env.typs))]
+        ~spans:(suggest_span env id.at (Suggest.suggest_id "type" id.it (T.Env.keys env.typs)))
         "unbound type %s%a" id.it
         display_typs env.typs
     )
@@ -647,8 +644,8 @@ and check_typ_path' env path : T.con =
         c
       | exception Invalid_argument _ ->
         error env id.at "M0030"
-          ~spans:[primary env id.at "%s"
-            (Suggest.suggest_id "type field" id.it (List.map (fun f -> f.T.lab) fs))]
+          ~spans:(suggest_span env id.at
+            (Suggest.suggest_id "type field" id.it (List.map (fun f -> f.T.lab) fs)))
           "type field %s does not exist in %a"
           id.it
           display_obj (T.Obj(s, fs, tfs))
@@ -1842,8 +1839,8 @@ and infer_exp'' env exp : T.typ =
           display_vals env.vals
       | [] ->
         error env id.at "M0057"
-          ~spans:[primary env id.at "%s"
-            (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals))]
+          ~spans:(suggest_span env id.at
+            (Suggest.suggest_id "variable" id.it (T.Env.keys env.vals)))
           "unbound variable %s%a" id.it
           display_vals env.vals
     )
@@ -2222,7 +2219,7 @@ and infer_exp'' env exp : T.typ =
         local_error env id.at "M0083" "unbound label %s%a%s"
            (Option.value ~default:id.it name)
            display_labs env.labs
-           (Suggest.suggest_id "label" id.it (T.Env.keys env.labs))
+           (Option.value ~default:"" (Suggest.suggest_id "label" id.it (T.Env.keys env.labs)))
     );
     T.Non
   | RetE exp1 ->
@@ -2365,7 +2362,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
       Ok(t)
     | Some(t) (* when not (pred t) *) ->
       Error(t1, fun () ->
-        let spans = [primary env id.at "%s" (suggest ())] in
+        let spans = suggest_span env id.at (suggest ()) in
         type_error id.at "M0234"
           (Format.asprintf env "field %s does exist in %a\nbut is not %s."
              id.it
@@ -2373,9 +2370,8 @@ and try_infer_dot_exp env at exp id (desc, pred) =
              desc) [] spans [])
     | None ->
       Error(t1, fun () ->
-        let spans = [
-          primary env id.at "%s"
-            (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))] in
+        let spans = suggest_span env id.at
+          (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs)) in
         type_error id.at "M0072"
           (Format.asprintf env "field %s does not exist in %a"
              id.it
@@ -4028,7 +4024,7 @@ and check_migration env (stab_tfs : T.field list) exp_opt =
      | None ->
        local_error env focus "M0205"
          "migration expression produces unexpected field `%s` of type%a\n%s"
-         ~spans:[primary env focus "%s" (Suggest.suggest_id "field" lab stab_ids)]
+         ~spans:(suggest_span env focus (Suggest.suggest_id "field" lab stab_ids))
           lab
           display_typ_expand typ
          "The actor should declare a corresponding `stable` field.")

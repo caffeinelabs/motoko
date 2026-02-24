@@ -8,5 +8,4 @@ type-comp.mo:14.41-14.43: type error [M0046], type argument
 does not match parameter bound
   {}
 type-comp.mo:20.38-20.43: type error [M0029], unbound type Bogus
-
 type-comp.mo:28.28-28.49: type error [M0137], type Open<B> = (A, B) references type parameter A from an outer scope
