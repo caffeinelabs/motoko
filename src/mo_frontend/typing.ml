@@ -3446,17 +3446,18 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
     let pfs' = List.stable_sort compare_pat_field pfs in
+    let vpfs = List.filter_map (fun pf ->
+      match pf.it with
+      | TypPF _ -> None
+      | ValPF(id, _) -> Some(id.it)) pfs' in
     let s, fs =
-      try T.as_obj_sub (List.filter_map (fun pf ->
-        match pf.it with
-        | TypPF _ -> None
-        | ValPF(id, _) -> Some(id.it)) pfs') t
+      try T.as_obj_sub vpfs t
       with Invalid_argument _ ->
         error env pat.at "M0113" "object pattern cannot consume expected type%a"
           display_typ_expand t
     in
-    if not env.pre && s = T.Actor then
-      local_error env pat.at "M0114" "object pattern cannot consume actor type%a"
+    if not env.pre && s = T.Actor && vpfs <> [] then
+      local_error env pat.at "M0114" "object pattern cannot consume values from actor type%a"
         display_typ_expand t;
     check_pat_fields env t fs pfs' T.Env.empty pat.at
   | OptP pat1 ->
