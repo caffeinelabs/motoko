@@ -876,8 +876,16 @@ let compile_files mode do_link ?(migration_libs=[]) files : compile_result =
   let open Diag.Syntax in
   let* libs, progs, senv = load_progs ~check_actors:true parse_file files initial_stat_env in
   let idl = Mo_idl.Mo_to_idl.prog (progs, senv) in
-  (* Shove in the migration_libs in the regular libs list. *)
-  let all_libs = libs @ migration_libs in
+  (* Append migration libs, deduplicating by filename *)
+  let seen = Hashtbl.create 16 in
+  let dedup libs =
+    List.filter (fun l ->
+      let f = l.Source.note.Syntax.filename in
+      if Hashtbl.mem seen f then false
+      else (Hashtbl.replace seen f (); true)
+    ) libs
+  in
+  let all_libs = dedup (libs @ migration_libs) in
   let* ext_module = compile_progs mode do_link all_libs progs in
   (* validate any stable type signature, as a sanity check *)
   let* () =
@@ -962,32 +970,32 @@ let load_migration_modules (files : string list) : ((string * Type.typ * Type.ty
     match cu.Source.it.Syntax.body.Source.it with
     (* Module or not module? *)
     | Syntax.ModuleU _ ->
-      let* prog', libs = resolve_prog (prog, base) in 
-      let* libs, senv' = chase_imports parse_file !senv libs in
+      let* prog', imports = resolve_prog (prog, base) in 
+      let* dep_libs, senv' = chase_imports parse_file !senv imports in
       senv := senv';
       let lib = lib_of_prog file prog' in
       let* sscope = check_lib !senv None lib in
       senv := Scope.adjoin !senv sscope;
       (match get_migration_type file sscope with
-       | Some (mod_typ, run_typ) -> Diag.return (Some (file, mod_typ, run_typ), Some lib)
+       | Some (mod_typ, run_typ) -> Diag.return (Some (file, mod_typ, run_typ), dep_libs @ [lib])
        | None ->
          let file_region = { Source.left = { Source.file; line = 1; column = 0 };
                              Source.right = { Source.file; line = 1; column = 0 } } in
          let* () = Diag.warn file_region "M0251" "compile"
            "migration module does not export a `run` function, skipping" in
-         Diag.return (None, None))
+         Diag.return (None, dep_libs))
     | _ ->
       let file_region = { Source.left = { Source.file; line = 1; column = 0 };
                           Source.right = { Source.file; line = 1; column = 0 } } in
       let* () = Diag.warn file_region "M0251" "compile"
         "not a module, skipping" in
-      Diag.return (None, None)
+      Diag.return (None, [])
   ) files
   |> fun result ->
     let open Diag.Syntax in
     let* pairs = result in
     let types = List.filter_map fst pairs in
-    let libs = List.filter_map snd pairs in
+    let libs = List.concat_map snd pairs in
     if types = [] || libs = [] then
       Diag.error Source.no_region "M0251"
         "compile"
