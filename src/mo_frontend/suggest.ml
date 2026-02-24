@@ -16,11 +16,7 @@ let suggest_id desc id ids =
       ids
   in
   if !Flags.ai_errors then
-    Some(
-      Printf.sprintf
-        "\nThe %s %s is not available. Try something else?"
-        desc
-        id)
+    Some(Printf.sprintf "The %s %s is not available. Try something else?" desc id)
   else
   let suggestions =
     let limit = Lib.Int.log2 (String.length id) in

@@ -311,5 +311,4 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
     trap : (x : Text) -> None;
     weakGet : <T>(w : weak T) -> ?T
   }
-
 The field stableM is not available. Try something else?

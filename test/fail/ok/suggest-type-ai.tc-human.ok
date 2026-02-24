@@ -24,5 +24,4 @@ error[M0030]: type field Num does not exist in type:
   }
     ┌─ suggest-type-ai.mo:4:21
   4 │  type T = Prim.Types.Num;
-    │                      ^^^ 
-    │  The type field Num is not available. Try something else?
+    │                      ^^^ The type field Num is not available. Try something else?

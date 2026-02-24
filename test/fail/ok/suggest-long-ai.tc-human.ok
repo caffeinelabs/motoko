@@ -313,5 +313,4 @@ error[M0072]: field stableM does not exist in type:
   }
     ┌─ suggest-long-ai.mo:4:6
   4 │  Prim.stableM;
-    │       ^^^^^^^ 
-    │  The field stableM is not available. Try something else?
+    │       ^^^^^^^ The field stableM is not available. Try something else?

@@ -2,5 +2,4 @@ error[M0083]: unbound label fo in label environment:
   {foo : ()}
     ┌─ suggest-label-ai.mo:3:9
   3 │    break fo;
-    │          ^^ 
-    │  The label fo is not available. Try something else?
+    │          ^^ The label fo is not available. Try something else?

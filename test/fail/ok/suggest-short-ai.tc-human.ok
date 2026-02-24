@@ -313,5 +313,4 @@ error[M0072]: field s does not exist in type:
   }
     ┌─ suggest-short-ai.mo:4:6
   4 │  Prim.s;
-    │       ^ 
-    │  The field s is not available. Try something else?
+    │       ^ The field s is not available. Try something else?

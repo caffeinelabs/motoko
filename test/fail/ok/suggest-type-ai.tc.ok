@@ -22,5 +22,4 @@ suggest-type-ai.mo:4.21-4.24: type error [M0030], type field Num does not exist 
     type Region = Region;
     type Text = Text
   }
-
 The type field Num is not available. Try something else?
