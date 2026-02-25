@@ -9,6 +9,26 @@ open Source
 open Operator
 open Parser_lib
 
+let idl =
+  (*let open Idllib in*)
+  let phase heading name =
+    if !Idllib.Flags.verbose then Printf.printf "-- %s %s:\n%!" heading name in
+  let error at cat text =
+    (*Idllib.Parser.Error [Diag.error_message at "" cat text]*) failwith "ERROR" in
+  let _parse_with lexer parser name =
+  try
+    phase "Parsing" name;
+    lexer.Lexing.lex_curr_p <-
+      {lexer.Lexing.lex_curr_p with Lexing.pos_fname = name};
+    let prog = parser Idllib.Lexer.token lexer name in
+    prog
+  with
+    | Source.ParseError (at, msg) ->
+      error at "syntax" msg
+    | Idllib.Parser.Error ->
+      error (Idllib.Lexer.region lexer) "syntax" "unexpected token"
+  in Ok 42
+
 
 (* Position handling *)
 
@@ -464,6 +484,8 @@ typ_pre :
   | t=typ_un
     { t }
   | PRIM s=TEXT
+    { PrimT(s) @! at $sloc }
+  | PRIM FROM_CANDID s=TEXT
     { PrimT(s) @! at $sloc }
   | ASYNC t=typ_pre
     { AsyncT(Type.Fut, scopeT (at $sloc), t) @! at $sloc }

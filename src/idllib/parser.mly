@@ -210,7 +210,7 @@ parse_prog :
   | ds=seplist(def, SEMICOLON) actor=actor EOF
     {
       let trivia = Trivia.PosHashtbl.create 0 in
-      fun filename -> {it = {decs=ds; actor=actor}; at = at $sloc; note = {filename; trivia}} }
+      fun filename -> {it = {decs=ds; actor}; at = at $sloc; note = {filename; trivia}} }
 
 (* Values *)
 
