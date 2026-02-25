@@ -1,0 +1,2 @@
+candid-service.mo:1.6-1.9: warning [M0194], unused identifier: `foo`
+help: if this is intentional, prefix it with an underscore: `_foo`

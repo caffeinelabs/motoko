@@ -485,8 +485,8 @@ typ_pre :
     { t }
   | PRIM s=TEXT
     { PrimT(s) @! at $sloc }
-  | PRIM FROM_CANDID s=TEXT
-    { PrimT(s) @! at $sloc }
+  | FROM_CANDID s=TEXT
+    { ignore s; ObjT(Type.Actor @@ at $sloc, []) @! at $sloc }
   | ASYNC t=typ_pre
     { AsyncT(Type.Fut, scopeT (at $sloc), t) @! at $sloc }
   | ASYNCSTAR t=typ_pre
