@@ -10463,7 +10463,7 @@ module Persistence = struct
               OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
               EnhancedOrthogonalPersistence.initialize env actor_type
             else
-              E.trap_with env "Cannot upgrade from classical orthogonal persistenced with --enhanced-migration"
+              E.trap_with env "Cannot upgrade from classical orthogonal persistence with --enhanced-migration"
           end
       end) ^^
     StableMem.region_init env
