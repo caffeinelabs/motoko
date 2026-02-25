@@ -934,8 +934,38 @@ and check_typ' env typ : T.typ =
     T.Named (name.it, check_typ env typ)
   | WeakT typ ->
     T.Weak (check_typ env typ)
-  | FromCandidT _candid ->
-    check_typ env { typ with it = ObjT({ typ with it = T.Actor; note = () }, []) }
+  | FromCandidT candid ->
+     (*Idllib.Pipeline.parse_string candid;*)
+    let phase heading name =
+      if !Idllib.Flags.verbose then Printf.printf "-- %s %s:\n%!" heading name in
+    let error at cat text =
+      (*Idllib.Parser.Error [Diag.error_message at "" cat text]*) failwith "ERROR" in
+    let parse_with lexer parser name =
+      try
+        phase "Parsing" name;
+        lexer.Lexing.lex_curr_p <-
+          {lexer.Lexing.lex_curr_p with Lexing.pos_fname = name};
+        let prog = parser Idllib.Lexer.token lexer name in
+        prog
+      with
+      | Source.ParseError (at, msg) ->
+         error at "syntax" msg
+      | Idllib.Parser.Error ->
+         error (Idllib.Lexer.region lexer) "syntax" "unexpected token"
+    in
+
+    let lexer = Lexing.from_string candid in
+    let parser = Idllib.Parser.parse_prog in
+    let result = parse_with lexer parser "source1" in
+    match result with
+    | prog ->
+       (*let r = Mo_idl.Typing.check_prog Idllib.Typing.Env.empty prog in*)
+
+
+       match Idllib.Typing.check_prog Idllib.Typing.Env.empty prog with
+       | Ok ((s, Some t), _) -> Mo_idl.Idl_to_mo.check_typ s t
+       | _ -> failwith "ERROR"
+(*| Error e -> failwith "ERROR"*)
 
 and check_typ_def env at (id, typ_binds, typ) : T.kind =
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
