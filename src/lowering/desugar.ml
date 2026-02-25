@@ -724,14 +724,14 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         Digest.to_hex (Digest.string (Filename.basename file))
       in
 
-      (* Compute intermediate_types = [type_1, ..., type_n] by
+      (* Compute types = [type_0, type_1, ..., type_n] by
          reverse-folding from type_n = actor's mem_ty. Each step undoes one
          migration: range-only fields are removed (introduced by that migration),
          domain fields are restored with their domain types, and carried fields
          are kept unchanged. This mirrors the stab_fields_pre calculation in the
          old (with migration = fn) syntax and gives precise types at each
          boundary — no ghost fields from dropped-and-never-reintroduced fields. *)
-      let intermediate_types =
+      let types =
         let undo_migration next_fields (_file, _mod_typ, run_typ) =
           let (_, _, dom_fields_k, rng_fields_k) = decompose_run run_typ in
           let prev_tbl = Hashtbl.create 32 in
@@ -746,37 +746,20 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
           |> List.sort T.compare_field
         in
-        let (types, _) =
-          List.fold_right (fun entry (acc, next_fields) ->
+        let (fields_0, types) =
+          List.fold_right (fun entry (next_fields, types) ->
             let next_ty = T.Obj (T.Memory, next_fields, []) in
             let prev_fields = undo_migration next_fields entry in
-            (next_ty :: acc, prev_fields)
-          ) chain ([], mem_fields)
+            (prev_fields, next_ty :: types)
+          ) chain (mem_fields, [])
         in
-        types
+        T.Obj (T.Memory, fields_0, [])::types
       in
 
       let n = List.length chain in
       assert (n <> 0);
+      let type_at idx = List.nth types idx
 
-      (* type_0: base case for ICStableRead when no migrations were performed.
-         With migrations, use Init's domain — the pre-migration actor's expected
-         shape. On fresh install, ICStableRead returns defaults (all ?T fields
-         are None). On pre-migration upgrade, the RTS checks compatibility.
-         Without migrations, use enhanced_mem_ty (= actor's mem_ty). *)
-      let type_0 =
-
-          let (_file, _mod_typ, run_typ) = List.hd chain in
-          let (_, _, dom_fields_0, _) = decompose_run run_typ in
-          let pre_fields =
-            List.map (fun tf -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) dom_fields_0
-          in
-          T.Obj (T.Memory, List.sort T.compare_field pre_fields, [])
-      in
-
-      let type_at idx =
-        if idx = 0 then type_0
-        else List.nth intermediate_types (idx - 1)
       in
 
       (* Nested if-expression: each level k produces state_k : type_k.
