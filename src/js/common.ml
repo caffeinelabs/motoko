@@ -4,6 +4,7 @@ open Mo_config
 
 module Js = Js_of_ocaml.Js
 module Sys_js = Js_of_ocaml.Sys_js
+module Scope = Mo_idl.Scope
 
 (** Extra flags from the [moc] CLI *)
 let moc_args = Mo_args.inclusion_args
@@ -282,7 +283,7 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
         let open Mo_def in
         let module Arrange = Astjs.Make (struct
           let include_sources = true
-          let include_type_rep = Arrange.With_type_rep (Some sscope.Mo_frontend.Scope.fld_src_env)
+          let include_type_rep = Arrange.With_type_rep (Some sscope.Scope.fld_src_env)
           let include_types = true
           let include_docs = Some prog.note.Syntax.trivia
           let include_parenthetical = false
