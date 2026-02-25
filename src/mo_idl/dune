@@ -1,5 +1,5 @@
 (library
   (name mo_idl)
-  (libraries lib idllib lang_utils mo_types mo_frontend mo_def)
+  (libraries lib idllib lang_utils mo_types mo_def)
   (instrumentation (backend bisect_ppx --bisect-silent yes))
 )

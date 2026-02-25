@@ -8,8 +8,6 @@ module E = Syntax
 module I = Idllib.Syntax
 module Set = Idllib.Resolve_import.Set
 
-module Scope = Mo_frontend.Scope
-
 (* use a functor to allocate temporary shared state *)
 module MakeState() = struct
 

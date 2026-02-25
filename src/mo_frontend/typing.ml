@@ -6,6 +6,8 @@ module Flags = Mo_config.Flags
 open Syntax
 open Source
 
+module Scope = Mo_idl.Scope
+
 module T = Type
 module A = Effect
 module C = Async_cap

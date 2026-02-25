@@ -10,6 +10,7 @@ open Mo_config
 
 open Printf
 
+module Scope = Mo_idl.Scope
 module ResolveImport = Resolve_import
 
 type stat_env = Scope.t
