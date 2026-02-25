@@ -7,11 +7,11 @@ module Sys_js = Js_of_ocaml.Sys_js
 module Scope = Mo_idl.Scope
 
 (** Extra flags from the [moc] CLI *)
-let moc_args = Mo_args.inclusion_args
-  @ Mo_args.warning_args
-  @ Mo_args.error_args
-  @ Mo_args.ai_args
-  @ Mo_args.persistent_actors_args
+let moc_args = Mo_args.(inclusion_args
+  @ warning_args
+  @ error_args
+  @ ai_args
+  @ persistent_actors_args)
 
 let position_of_pos pos =
   object%js
