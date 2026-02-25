@@ -3,3 +3,4 @@ func foo() : async/*WHY NEEDED?*/ from_candid "type T = int; service B : { \"get
 }
 
 //SKIP run
+//SKIP comp
