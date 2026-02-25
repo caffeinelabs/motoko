@@ -724,27 +724,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         Digest.to_hex (Digest.string (Filename.basename file))
       in
 
-      (* Step 1: compute enhanced_mem_ty — union of all migration fields + actor
-         stab_fields (last-writer-wins, stab_fields merged last). In valid programs
-         this equals type_n, but the explicit stab_fields merge guarantees the load
-         type includes the actor's declared fields for the fresh-install fallback. *)
-      let all_fields_tbl = Hashtbl.create 32 in
-      List.iter (fun (_file, _mod_typ, run_typ) ->
-        let (_, _, dom_fields_i, rng_fields_i) = decompose_run run_typ in
-        List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) dom_fields_i;
-        List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) rng_fields_i
-      ) chain;
-      List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) stab_fields;
-      let enhanced_stab_fields =
-        Hashtbl.fold (fun _k tf acc -> tf :: acc) all_fields_tbl []
-        |> List.sort T.compare_field
-      in
-      let enhanced_mem_fields =
-        List.map (fun tf -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) enhanced_stab_fields
-      in
-      let enhanced_mem_ty = T.Obj (T.Memory, enhanced_mem_fields, []) in
-
-      (* Step 2: compute intermediate_types = [type_1, ..., type_n] by
+      (* Compute intermediate_types = [type_1, ..., type_n] by
          reverse-folding from type_n = actor's mem_ty. Each step undoes one
          migration: range-only fields are removed (introduced by that migration),
          domain fields are restored with their domain types, and carried fields
@@ -777,6 +757,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       in
 
       let n = List.length chain in
+      assert (n <> 0);
 
       (* type_0: base case for ICStableRead when no migrations were performed.
          With migrations, use Init's domain — the pre-migration actor's expected
@@ -784,8 +765,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          are None). On pre-migration upgrade, the RTS checks compatibility.
          Without migrations, use enhanced_mem_ty (= actor's mem_ty). *)
       let type_0 =
-        if n = 0 then enhanced_mem_ty
-        else
+
           let (_file, _mod_typ, run_typ) = List.hd chain in
           let (_, _, dom_fields_0, _) = decompose_run run_typ in
           let pre_fields =
@@ -880,7 +860,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         mem_fields
       in
       T.Single stab_fields,
-      I.{pre = enhanced_mem_ty; post = mem_ty},
+      I.{pre = type_at 0; post = mem_ty},
       blockE [
         letD final_state (build_nested n);
         expD (primE (I.ICStableStore mem_ty) []);
