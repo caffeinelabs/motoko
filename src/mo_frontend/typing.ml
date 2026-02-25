@@ -932,6 +932,8 @@ and check_typ' env typ : T.typ =
     T.Named (name.it, check_typ env typ)
   | WeakT typ ->
     T.Weak (check_typ env typ)
+  | FromCandidT _candid ->
+    check_typ env { typ with it = ObjT({ typ with it = T.Actor; note = () }, []) }
 
 and check_typ_def env at (id, typ_binds, typ) : T.kind =
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in

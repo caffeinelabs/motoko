@@ -158,6 +158,7 @@ let rec plain_of_typ : Buffer.t -> render_functions -> Syntax.typ -> unit =
       plain_of_typ buf rf arg;
       bprintf buf " -> ";
       plain_of_typ buf rf res
+  | Syntax.FromCandidT _ -> failwith "FIXME"
 
 and plain_of_typ_tag : Buffer.t -> render_functions -> Syntax.typ_tag -> unit =
  fun buf rf typ_tag ->

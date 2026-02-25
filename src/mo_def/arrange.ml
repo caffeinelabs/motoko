@@ -275,7 +275,8 @@ module Make (Cfg : Config) = struct
   | OrT (t1, t2) -> "OrT" $$ [typ t1; typ t2]
   | ParT t -> "ParT" $$ [typ t]
   | NamedT (id, t) -> "NamedT" $$ [Atom id.it; typ t]
-  | WeakT t -> "WeakT" $$ [typ t]))
+  | WeakT t -> "WeakT" $$ [typ t]
+  | FromCandidT candid -> "FromCandidT" $$ []))
 
   and dec d = trivia d.at (source d.at (match d.it with
     | ExpD e -> "ExpD" $$ [exp e]
