@@ -635,21 +635,10 @@ func getSelfPrincipal<system>() : Principal = (prim "canister_self" : () -> Prin
 // Untyped dynamic actor creation from blobs
 let createActor : (wasm : Blob, argument : Blob) -> async Principal = @create_actor_helper;
 
-func cyclesBalance() : Nat {
-  (prim "cyclesBalance" : () -> Nat)();
-};
-
-func cyclesAvailable() : Nat {
-  (prim "cyclesAvailable" : () -> Nat)();
-};
-
-func cyclesRefunded() : Nat {
-  @refund;
-};
-
-func cyclesAccept<system>(amount : Nat) : Nat {
-  (prim "cyclesAccept" : Nat -> Nat)(amount);
-};
+func cyclesBalance() : Nat = (prim "cyclesBalance" : () -> Nat)();
+func cyclesAvailable() : Nat = (prim "cyclesAvailable" : () -> Nat)();
+func cyclesRefunded() : Nat = @refund;
+func cyclesAccept<system>(amount : Nat) : Nat = (prim "cyclesAccept" : Nat -> Nat) amount;
 
 func cyclesAdd<system>(amount : Nat) : () {
   if (amount == 0) return;
@@ -660,9 +649,7 @@ func cyclesAdd<system>(amount : Nat) : () {
   };
 };
 
-func cyclesBurn<system>(amount : Nat) : Nat {
-  (prim "cyclesBurn" : Nat -> Nat) amount;
-};
+func cyclesBurn<system>(amount : Nat) : Nat = (prim "cyclesBurn" : Nat -> Nat) amount;
 
 func costCall(methodNameSize : Nat64, payloadSize : Nat64) : Nat = (prim "costCall" : (Nat64, Nat64) -> Nat)(methodNameSize, payloadSize);
 
