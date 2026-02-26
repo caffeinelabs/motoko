@@ -946,7 +946,7 @@ and check_typ' env typ : T.typ =
          Mo_idl.Idl_to_mo.check_typ s t
        | Ok ((s, None), msgs) ->
          Diag.add_msgs env.msgs msgs;
-         error env typ.at "M0X42"(*FIXME*) "imported `actor` type doesn't specify `service`"
+         error env typ.at "M0245" "imported `actor` type doesn't specify `service`"
 
 and check_typ_def env at (id, typ_binds, typ) : T.kind =
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
