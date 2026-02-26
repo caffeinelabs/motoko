@@ -2550,6 +2550,48 @@ let post = function
   | PrePost (_, tfs) -> tfs
   | Multi {chain; post} -> post
 
+
+let decompose_run run_typ =
+  let dom_i, rng_i = as_mono_func_sub run_typ in
+  let (_ds, dom_fields_i) = as_obj (normalize dom_i) in
+  let (_rs, rng_fields_i) = as_obj (promote rng_i) in
+  (dom_fields_i, rng_fields_i)
+
+let migration_tag file = Filename.basename file
+
+(* Compute types = [type_0, type_1, ..., type_n] by
+   reverse-folding from type_n = actor's mem_ty. Each step undoes one
+   migration: range-only fields are removed (introduced by that migration),
+   domain fields are restored with their domain types, and carried fields
+   are kept unchanged. This mirrors the stab_fields_pre calculation in the
+         old (with migration = fn) syntax and gives precise types at each
+         boundary — no ghost fields from dropped-and-never-reintroduced fields. *)
+
+let pres chain post lab =
+  let required = true in
+  let pre mig_field post =
+    let (dom_fields_k, rng_fields_k) = decompose_run mig_field.typ in
+    let prev_tbl = Hashtbl.create 32 in
+    List.iter (fun tf ->
+        if not (List.exists (fun rf -> rf.lab = tf.lab) rng_fields_k) then
+          Hashtbl.replace prev_tbl tf.lab (required, tf)
+      ) post;
+    List.iter (fun tf ->
+        Hashtbl.replace prev_tbl tf.lab
+          (required, {tf with typ = tf.typ})
+      ) dom_fields_k;
+    Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
+    |> List.sort (fun (_, tf1) (_, tf2) -> compare_field tf1 tf2)
+  in
+  let (pre0, pres) =
+    List.fold_right (fun mig_field (next_pre, pres) ->
+        let next_post = List.map snd next_pre in
+        let pre = pre mig_field next_post in
+        (pre, next_pre::pres)
+      ) chain (List.map (fun tf -> (required, tf)) post, [])
+  in
+  pre0::pres
+
 let rec match_stab_sig sig1 sig2 =
   let post_tfs1 = post sig1 in
   let pre_tfs2 = pre sig2 in
