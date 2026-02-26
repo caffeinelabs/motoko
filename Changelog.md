@@ -2,7 +2,7 @@
 
 * motoko (`moc`)
 
-  * feat: provide a polymorphic primitive `actorOfPrincipal` (#5882).
+  * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
 
 ## 1.3.0 (2026-02-24)
 
