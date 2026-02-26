@@ -147,7 +147,7 @@ fn print_diff(diff: &TestDiff) {
                     match change.tag() {
                         ChangeTag::Delete => print!("  \x1b[31m-{change}\x1b[0m"),
                         ChangeTag::Insert => print!("  \x1b[32m+{change}\x1b[0m"),
-                        ChangeTag::Equal => print!("  {change}"),
+                        ChangeTag::Equal => print!("   {change}"),
                     }
                 }
             }
