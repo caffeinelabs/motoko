@@ -2,13 +2,30 @@ warning[M0145]: this pattern of type
   Bool
 does not cover value
   false
-    ┌─ error-format-json.mo:4:7
-  4 │    let true = true;
+    ┌─ error-format-json.mo:10:7
+ 10 │    let true = true;
     │        ^^^^ 
 error[M0050]: literal of type
   Text
 does not have expected type
   Nat
-    ┌─ error-format-json.mo:7:15
-  7 │  let _ : Nat = "abc";
+    ┌─ error-format-json.mo:13:15
+ 13 │  let _ : Nat = "abc";
     │                ^^^^^ 
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Text, Text) -> Order
+    ┌─ error-format-json.mo:18:13
+ 18 │  func m1() { map.add("abc", 3) };
+    │              ^^^^^^^^^^^^^^^^^ 
+    = note: Did you mean to import mo:core/Text?
+warning[M0236]: You can use the dot notation `map2.add(...)` here
+    ┌─ error-format-json.mo:20:1
+ 20 │  Map.add(map2, Nat.compare, 1, 2);
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `map2`
+    = help: remove `map2,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ error-format-json.mo:20:15
+ 20 │  Map.add(map2, Nat.compare, 1, 2);
+    │                ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`

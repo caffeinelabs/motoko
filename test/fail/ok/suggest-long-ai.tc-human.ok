@@ -311,7 +311,6 @@ error[M0072]: field stableM does not exist in type:
     trap : (x : Text) -> None;
     weakGet : <T>(w : weak T) -> ?T
   }
-The field stableM is not available. Try something else?
     ┌─ suggest-long-ai.mo:4:6
   4 │  Prim.stableM;
-    │       ^^^^^^^ 
+    │       ^^^^^^^ The field stableM is not available. Try something else?

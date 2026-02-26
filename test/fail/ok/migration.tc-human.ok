@@ -43,7 +43,6 @@ error[M0204]: migration expression produces field `three` of type
  14 │    actor {
 error[M0205]: migration expression produces unexpected field `unstable2` of type
   () -> ()
-
 The actor should declare a corresponding `stable` field.
     ┌─ migration.mo:3:7
   2 │    
@@ -57,8 +56,6 @@ The actor should declare a corresponding `stable` field.
  14 │    actor {
 error[M0205]: migration expression produces unexpected field `versoin` of type
   var ()
-
-Did you mean field version?
 The actor should declare a corresponding `stable` field.
     ┌─ migration.mo:3:7
   2 │    
@@ -68,7 +65,7 @@ The actor should declare a corresponding `stable` field.
     · │  
  12 │ │        unstable2 = func () {};
  13 │ │      }})
-    │ ╰───────^ 
+    │ ╰───────^ help: did you mean field version?
  14 │    actor {
 warning[M0207]: migration expression consumes field `unstable1` of type
   () -> ()

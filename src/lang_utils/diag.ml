@@ -9,6 +9,10 @@ type span = {
   at_span : Source.region;
   label : string;
 }
+type edit = {
+  at_edit : Source.region;
+  suggested_replacement : string;
+}
 type message = {
   sev : severity;
   code : error_code;
@@ -17,12 +21,16 @@ type message = {
   text : string;
   spans : span list;
   notes: string list;
+  edits : edit list;
 }
 type messages = message list
 
-let info_message at cat ?(spans = []) ?(notes = []) text = {sev = Info; code = ""; at; cat; text; spans; notes}
-let warning_message at code cat ?(spans = []) ?(notes = []) text = {sev = Warning; code; at; cat; text; spans; notes}
-let error_message at code cat ?(spans = []) ?(notes = []) text = {sev = Error; code; at; cat; text; spans; notes}
+let info_message at cat ?(spans = []) ?(notes = []) ?(edits = []) text =
+  {sev = Info; code = ""; at; cat; text; spans; notes; edits}
+let warning_message at code cat ?(spans = []) ?(notes = []) ?(edits = []) text =
+  {sev = Warning; code; at; cat; text; spans; notes; edits}
+let error_message at code cat ?(spans = []) ?(notes = []) ?(edits = []) text =
+  {sev = Error; code; at; cat; text; spans; notes; edits}
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
@@ -103,6 +111,11 @@ let pos_to_byte content pos =
   done;
   !line_start + pos.Source.column + 1
 
+let ensure_primary_span msg =
+  if List.exists (fun span -> span.prio = Primary) msg.spans
+  then msg.spans
+  else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
+
 let fancy_of_message msg =
   let file = msg.at.Source.left.Source.file in
   let source : G.Source.t = `File file in
@@ -117,25 +130,35 @@ let fancy_of_message msg =
       | Primary -> G.Diagnostic.Priority.Primary
       | Secondary -> G.Diagnostic.Priority.Secondary in
     G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
-  let labels =
-    if msg.spans = [] then
-      [G.Diagnostic.Label.primaryf ~range:(range msg.at) ""]
+  let labels = List.map mk_span (ensure_primary_span msg) in
+  let source_text r =
+    let start = pos_to_byte content r.Source.left in
+    let stop = pos_to_byte content r.Source.right in
+    String.sub content start (stop - start)
+    |> Lib.String.strip_control_chars
+    |> String.trim
+  in
+  let edit_note edit =
+    (* Future work: merge the replacements and display a diff *)
+    let original = source_text edit.at_edit in
+    if edit.suggested_replacement = "" then
+      G.Diagnostic.Message.createf "help: remove `%s`" original
+    else if original = "" then
+      G.Diagnostic.Message.createf "help: insert `%s`" edit.suggested_replacement
     else
-      let spans = List.map mk_span msg.spans in
-      let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
-      if primary_spans = [] then
-        G.Diagnostic.Label.primaryf ~range:(range msg.at) "" :: spans
-      else
-        spans
+      G.Diagnostic.Message.createf "help: replace `%s` with `%s`" original edit.suggested_replacement
   in
   let severity = match msg.sev with
     | Error -> G.Diagnostic.Severity.Error
     | Warning -> G.Diagnostic.Severity.Warning
     | Info -> G.Diagnostic.Severity.Help in
+  let notes =
+    List.map (G.Diagnostic.Message.createf "note: %s") msg.notes
+    @ List.map edit_note msg.edits in
   let diag = G.Diagnostic.(
     createf
       ~labels: labels
-      ~notes:(List.map (Message.createf "note: %s") msg.notes)
+      ~notes
       ?code:(if msg.code = "" then None else Some(msg.code))
       severity
       "%s" msg.text) in
@@ -146,23 +169,35 @@ let string_of_severity (sev : severity) = match sev with
   | Warning -> "warning"
   | Info -> "info"
 
-(* Keep in sync with [design/JSON-Diagnostics.md] *)
-let json_string_of_message msg =
-  let at = msg.at in
-  let { Source.file; line = line_start; column = column_start } = at.Source.left in
-  let { Source.line = line_end; column = column_end; _ } = at.Source.right in
-  let span = `Assoc [
+let json_span ?prio ?label ?suggested_replacement r =
+  let { Source.file; line = line_start; column = column_start } = r.Source.left in
+  let { Source.line = line_end; column = column_end; _ } = r.Source.right in
+  `Assoc [
     "file", `String file;
     "line_start", `Int line_start;
     "column_start", `Int (column_start + 1);
     "line_end", `Int line_end;
     "column_end", `Int (column_end + 1);
-  ] in
+    "is_primary", `Bool (prio = Some Primary);
+    "label", (match label with None -> `Null | Some label -> `String label);
+    "suggested_replacement", (match suggested_replacement with None -> `Null | Some s -> `String s);
+    "suggestion_applicability", (match suggested_replacement with
+      | None -> `Null
+      | Some _ -> `String "MachineApplicable");
+  ]
+
+(* Keep in sync with [design/JSON-Diagnostics.md] *)
+let json_string_of_message msg =
+  let span_jsons = ensure_primary_span msg
+    |> List.map (fun { prio; at_span; label } -> json_span ~prio ~label at_span) in
+  let edit_jsons = msg.edits |>
+    List.map (fun { at_edit; suggested_replacement } -> json_span ~suggested_replacement at_edit) in
   let json = `Assoc [
     "message", `String msg.text;
     "code", `String msg.code;
     "level", `String (string_of_severity msg.sev);
-    "spans", `List [span];
+    "spans", `List (span_jsons @ edit_jsons);
+    "notes", `List (List.map (fun n -> `String n) msg.notes);
   ] in
   Yojson.Basic.to_string json
 

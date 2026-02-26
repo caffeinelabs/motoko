@@ -717,7 +717,7 @@ let%expect_test "test type recovery: DotE receiver should be typed (LetD case)" 
      with errors:
     (unknown location): type error [M0072], field va does not exist in type:
       [Nat]
-    Did you mean field vals or values?
+    help: did you mean field vals or values?
   |}]
 
 let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" =
@@ -734,7 +734,7 @@ let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" 
      with errors:
     (unknown location): type error [M0072], field va does not exist in type:
       [Nat]
-    Did you mean field vals or values?
+    help: did you mean field vals or values?
   |}]
 
 let%expect_test "context dot callee function type should not be ???" =
