@@ -934,16 +934,19 @@ and check_typ' env typ : T.typ =
     T.Named (name.it, check_typ env typ)
   | WeakT typ ->
     T.Weak (check_typ env typ)
-  | FromCandidT candid ->
-    match Idllib.Pipeline.parse_string ~left:typ.at.left candid with
+  | FromCandidT (start, candid) ->
+    match Idllib.Pipeline.parse_string ~left:start candid with
     | Error msgs -> Diag.add_msgs env.msgs msgs; raise Recover
-    | Ok ((prog, _wut), msgs) ->
-      (*Printf.eprintf "WUT: %s\n" wut;*)
+    | Ok ((prog, _), msgs) ->
       Diag.add_msgs env.msgs msgs;
       match Idllib.Typing.check_prog Idllib.Typing.Env.empty prog with
        | Error msgs -> Diag.add_msgs env.msgs msgs; raise Recover
-       | Ok ((s, Some t), _) -> Mo_idl.Idl_to_mo.check_typ s t
-       | Ok ((s, None), _) -> error env typ.at "M0X42" "imported `actor` type doesn't specify `service`"
+       | Ok ((s, Some t), msgs) ->
+         Diag.add_msgs env.msgs msgs;
+         Mo_idl.Idl_to_mo.check_typ s t
+       | Ok ((s, None), msgs) ->
+         Diag.add_msgs env.msgs msgs;
+         error env typ.at "M0X42"(*FIXME*) "imported `actor` type doesn't specify `service`"
 
 and check_typ_def env at (id, typ_binds, typ) : T.kind =
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in

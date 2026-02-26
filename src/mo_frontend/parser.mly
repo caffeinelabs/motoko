@@ -13,9 +13,17 @@ open Parser_lib
 (* Position handling *)
 
 let position_to_pos position =
-  { file = position.Lexing.pos_fname;
-    line = position.Lexing.pos_lnum;
-    column = position.Lexing.pos_cnum - position.Lexing.pos_bol
+  Lexing.
+  { file = position.pos_fname;
+    line = position.pos_lnum;
+    column = position.pos_cnum - position.pos_bol
+  }
+
+let position_to_pos' offs position =
+  Lexing.
+  { file = position.pos_fname;
+    line = position.pos_lnum;
+    column = offs + position.pos_cnum - position.pos_bol
   }
 
 let positions_to_region position1 position2 =
@@ -466,7 +474,7 @@ typ_pre :
   | PRIM s=TEXT
     { PrimT(s) @! at $sloc }
   | FROM_CANDID s=TEXT
-    { FromCandidT(s) @! at $sloc }
+    { FromCandidT(position_to_pos' 1 $startpos(s), s) @! at $sloc }
   | ASYNC t=typ_pre
     { AsyncT(Type.Fut, scopeT (at $sloc), t) @! at $sloc }
   | ASYNCSTAR t=typ_pre
