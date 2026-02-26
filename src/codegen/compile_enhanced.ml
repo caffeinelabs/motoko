@@ -12524,6 +12524,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
     const_sr SR.Vanilla (Blob.copy env Tagged.P Tagged.B)
   | OtherPrim "principalOfActor", e ->
     const_sr SR.Vanilla (Blob.copy env Tagged.A Tagged.P)
+  | OtherPrim "actorOfPrincipal", e ->
+    const_sr SR.Vanilla (Blob.copy env Tagged.P Tagged.A)
 
   | OtherPrim "blobToArray", e ->
     const_sr SR.Vanilla (Arr.ofBlob env Tagged.I)
