@@ -935,7 +935,7 @@ and check_typ' env typ : T.typ =
   | WeakT typ ->
     T.Weak (check_typ env typ)
   | FromCandidT candid ->
-    let result = Idllib.Pipeline.parse_string candid in (* TODO: pass (Some typ.at) in *)
+    let result = Idllib.Pipeline.parse_string ~left:(Some typ.at.left) candid in
     match result with
     | Ok ((prog, wut), msgs) ->
       (*Printf.eprintf "WUT: %s\n" wut;*)

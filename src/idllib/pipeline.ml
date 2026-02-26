@@ -50,12 +50,13 @@ let parse_file filename : parse_result =
      Diag.return (prog, filename)
   | Error e -> Error e
 
-let parse_string s : parse_result =
+let parse_string ?(left = None) s : parse_result =
   let lexer = Lexing.from_string s in
   let parser = Parser.parse_prog in
-  let result = parse_with lexer parser "source1" in
+  let source = Option.(value (map (fun p -> p.Source.file) left) ~default:"source") in
+  let result = parse_with lexer parser source in
   match result with
-  | Ok prog -> Diag.return (prog, "source2")
+  | Ok prog -> Diag.return (prog, source)
   | Error e -> Error e
 
 let parse_file filename : parse_result =
