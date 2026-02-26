@@ -935,7 +935,7 @@ and check_typ' env typ : T.typ =
   | WeakT typ ->
     T.Weak (check_typ env typ)
   | FromCandidT candid ->
-    match Idllib.Pipeline.parse_string ~left:(Some typ.at.left) candid with
+    match Idllib.Pipeline.parse_string ~left:typ.at.left candid with
     | Error msgs -> Diag.add_msgs env.msgs msgs; raise Recover
     | Ok ((prog, _wut), msgs) ->
       (*Printf.eprintf "WUT: %s\n" wut;*)
