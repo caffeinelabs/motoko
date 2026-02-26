@@ -616,7 +616,7 @@ func time() : Nat64 = (prim "time" : () -> Nat64)();
 
 func blobOfPrincipal(id : Principal) : Blob = (prim "blobOfPrincipal" : Principal -> Blob) id;
 func principalOfBlob(act : Blob) : Principal {
-  // TODO: better: check size in prim "principalOfBob" instead
+  // TODO: better: check size in prim "principalOfBlob" instead
   if (act.size() > 29) {
     trap("blob too long for principal");
   };
@@ -624,6 +624,7 @@ func principalOfBlob(act : Blob) : Principal {
 };
 
 func principalOfActor(act : actor {}) : Principal = (prim "principalOfActor" : (actor {}) -> Principal) act;
+func actorOfPrincipal<A <: actor {}>(p : Principal) : A = (prim "principalOfActor" : Principal -> A) p;
 func isController(p : Principal) : Bool = (prim "is_controller" : Principal -> Bool) p;
 func isReplicatedExecution() : Bool = (prim "replicated_execution" : () -> Bool)();
 func canisterVersion() : Nat64 = (prim "canister_version" : () -> Nat64)();
