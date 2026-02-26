@@ -85,6 +85,7 @@ let empty_src = {depr = None; track_region = Source.no_region; region = Source.n
 type stab_sig =
   | Single of field list
   | PrePost of ((* required *) bool * field) list * field list
+  | Multi of {chain: field list; post: field list}
 
 (* Efficient comparison *)
 let tag_prim = function
@@ -2296,10 +2297,15 @@ and pp_kind ppf k =
   let vs = vs_of_cs cs in
   pp_kind' vs ppf k
 
+and pp_mig_field vs ppf {lab; typ; src} =
+    (* TODO: escape on print, unescape on parse as in ML value *)
+    fprintf ppf "@[<2>\"%s\" :@ %a@]" lab (pp_typ' vs) typ
+
 and pp_stab_sig ppf sig_ =
   let all_fields = match sig_ with
     | Single tfs -> tfs
     | PrePost (pre, post) -> List.map snd pre @ post
+    | Multi {chain; post} -> chain @ post
   in
   let cs = List.fold_right
     (cons_field false)
@@ -2334,6 +2340,12 @@ and pp_stab_sig ppf sig_ =
         (string_of_obj_sort Actor)
         (pp_print_list ~pp_sep:semi (pp_pre_stab_field vs)) pre
         (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+    | Multi {chain; post} ->
+       fprintf ppf "@[<v 2>{@;<0 0>%a@;<0 -2>}@;%s {@;<0 0>%a@;<0 -2>}) @]"
+        (pp_print_list ~pp_sep:semi (pp_mig_field vs)) chain
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+
   in
   fprintf ppf "@[<v 0>%a%a%a;@]"
     (pp_print_list ~pp_sep:semi (pp_typ_field vs)) tfs
@@ -2530,10 +2542,13 @@ let pre = function
     (* all vars optional *)
     List.map (fun tf -> (false, tf)) tfs
   | PrePost (tfs, _) -> tfs
+  | Multi {chain; post} ->
+    List.map (fun tf -> (false, tf)) post (* TODO *)
 
 let post = function
   | Single tfs -> tfs
   | PrePost (_, tfs) -> tfs
+  | Multi {chain; post} -> post
 
 let rec match_stab_sig sig1 sig2 =
   let post_tfs1 = post sig1 in
@@ -2555,7 +2570,8 @@ let string_of_stab_sig stab_sig : string =
   let module Pretty = MakePretty(ParseableStamps) in
   (match stab_sig with
   | Single _ -> "// Version: 1.0.0\n"
-  | PrePost _ -> "// Version: 3.0.0\n") ^
+  | PrePost _ -> "// Version: 3.0.0\n"
+  | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
 (* The migration chain passed from pipeline to typing. *)

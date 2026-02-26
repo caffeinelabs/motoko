@@ -375,6 +375,13 @@
 <req> ::= 
     'stable'
     'in'
+
+<mig_tag> ::= 
+    <text>
+
+<mig_field> ::= 
+    <mig_tag> ':' <typ>
  ')'
+    <list(<typ_dec>, ';')> '{' <list(<mig_field>, ';')> '}' 'actor' '{' <list(<stab_field>, ';')> '}' ')'
 
 

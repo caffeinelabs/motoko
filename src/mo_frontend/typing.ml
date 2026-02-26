@@ -3986,6 +3986,7 @@ and validate_enhanced_migration_chain env stab_tfs at =
      Phase 2: check accumulated(0..n) against actor — every actor field must
        be in accumulated with a compatible type. *)
   if decomposed <> [] then begin
+    (* CRUSSO: future: do right to left as in desugar *)
     (* Fold: for each migration i, check accumulated(m_{0}, m_{1}, ..., m_{i-1}). <: input(m_{i}) (skip first),
        then update accumulated state. Dom-only fields (consumed but not
        produced) are dropped — consuming a field = dropping it, matching
@@ -3995,7 +3996,7 @@ and validate_enhanced_migration_chain env stab_tfs at =
       if acc <> [] then begin
         let acc_fields = List.sort T.compare_field (List.map snd acc) in
         let acc_typ = T.Obj(T.Object, acc_fields, []) in
-        if not (T.sub acc_typ (T.normalize input)) then
+        if not (T.sub acc_typ (T.normalize input)) then (* CRUSSO: THIS NEED FIXING *)
           local_error env at "M0251"
             "migration chain broken: accumulated state is not compatible with input of %s" file
       end;
@@ -4974,5 +4975,13 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
                          (fun (r1, tf1) (r2, tf2) -> T.compare_field tf1 tf2)
                          (List.combine reqs (check_fields pres)),
                        List.sort T.compare_field (check_fields post))
+          | Multi {chain=tags; post} ->
+             check_ids env "variant type" "tag"
+               (List.map (fun (tag : typ_tag) -> tag.it.tag) tags);
+             let fs = List.map (check_typ_tag env1) tags in
+             let chain = List.sort T.compare_field fs in
+             let post = List.sort T.compare_field (check_fields post) in
+             (* TODO: check consistency *)
+             T.Multi{chain; post}
         ) sig_.it
     )

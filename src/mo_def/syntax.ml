@@ -283,6 +283,7 @@ and stab_body = stab_body' Source.phrase    (* type declarations & stable actor 
 and stab_body' =
   | Single of typ_field list
   | PrePost of (req * typ_field) list * typ_field list
+  | Multi of {chain : typ_tag list; post : typ_field list}
 and req = bool Source.phrase
 
 (* Compilation units *)

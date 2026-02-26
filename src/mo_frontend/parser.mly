@@ -1097,6 +1097,11 @@ pre_stab_field :
   | STABLE { false @@ at $sloc }
   | IN { true @@ at $sloc }
 
+mig_tag : t=TEXT { t @@ at $sloc }
+mig_field :
+  | mt=mig_tag COLON t=typ
+    { {tag=mt; typ=t} @@ at $sloc }
+
 parse_stab_sig :
   | start ds=seplist(typ_dec, semicolon) ACTOR LCURLY sfs=seplist(stab_field, semicolon) RCURLY
     { let trivia = !triv_table in
@@ -1116,5 +1121,16 @@ parse_stab_sig :
           at = at $sloc;
           note = { filename; trivia } }
     }
+  | start ds=seplist(typ_dec, semicolon)
+    LCURLY chain = seplist(mig_field, semicolon) RCURLY
+    ACTOR LCURLY sfs_post=seplist(stab_field, semicolon) RCURLY  RPAR
+    { let trivia = !triv_table in
+      let sigs = Multi{chain;post=sfs_post} in
+      fun filename ->
+        { it = (ds, {it = sigs; at = at $sloc; note = ()});
+          at = at $sloc;
+          note = { filename; trivia } }
+    }
+
 
 %%

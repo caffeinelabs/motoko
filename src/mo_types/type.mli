@@ -326,6 +326,7 @@ val stable_sub_explained : ?src_fields : Field_sources.t -> context -> typ -> ty
 type stab_sig =
   | Single of field list
   | PrePost of (bool * field) list * field list
+  | Multi of {chain: field list; post: field list}
 
 val pre : stab_sig -> (bool * field) list
 val post : stab_sig -> field list

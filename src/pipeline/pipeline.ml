@@ -307,6 +307,7 @@ let stable_compatible pre post : unit Diag.result =
 (* basic sanity checking of emitted stable signatures *)
 let validate_stab_sig s : unit Diag.result =
   let open Diag.Syntax in
+  Printf.printf "stable sig %s" s;
   let name = "stable-types" in
   Cons.session ~scope:name (fun () ->
     let* p1 = parse_stab_sig s name in
@@ -320,6 +321,11 @@ let validate_stab_sig s : unit Diag.result =
     | PrePost (pre1, post1), PrePost (pre2, post2) ->
       (* check we can at least self-upgrade,
          with a possibly different or no migration function *)
+       Stability.match_stab_sig (Single post1) (Single post2)
+    | Multi {chain=c1; post=post1}, Multi {chain=c2;post=post2} ->
+      (* check we can at least self-upgrade,
+         with a possibly different or no migration function *)
+      (* TODO: do more checks *)
       Stability.match_stab_sig (Single post1) (Single post2)
     | _, _ -> assert false))
 
