@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
+
 ## 1.3.0 (2026-02-24)
 
 * motoko (`moc`)
