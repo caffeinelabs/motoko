@@ -56,6 +56,7 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
       };
     __getDedupTable : () -> ?[var __List];
     abs : (x : Int) -> Nat;
+    actorOfPrincipal : <A <: actor {}>(p : Principal) -> A;
     allocWeakRef : <T>(obj : T) -> weak T;
     arccos : (f : Float) -> Float;
     arcsin : (f : Float) -> Float;

@@ -340,7 +340,8 @@ let prim trap =
   | "cast"
   | "blobOfPrincipal"
   | "principalOfBlob"
-  | "principalOfActor" -> fun _ v k -> k v
+  | "principalOfActor"
+  | "actorOfPrincipal" -> fun _ v k -> k v
 
   | "blobToArray" -> fun _ v k ->
     k (Array (Array.of_seq (Seq.map (fun c ->
