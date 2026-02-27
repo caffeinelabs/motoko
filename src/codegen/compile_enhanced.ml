@@ -12519,11 +12519,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     IC.trap_text env
 
   | OtherPrim "principalOfBlob", e ->
-    const_sr SR.Vanilla (Blob.copy env Tagged.B Tagged.P)
+    const_sr SR.Vanilla Tagged.(Blob.copy env B P)
   | OtherPrim "blobOfPrincipal", e ->
-    const_sr SR.Vanilla (Blob.copy env Tagged.P Tagged.B)
+    const_sr SR.Vanilla Tagged.(Blob.copy env P B)
   | OtherPrim "principalOfActor", e ->
-    const_sr SR.Vanilla (Blob.copy env Tagged.A Tagged.P)
+    const_sr SR.Vanilla Tagged.(Blob.copy env A P)
+  | OtherPrim "actorOfPrincipal", e ->
+    const_sr SR.Vanilla Tagged.(Blob.copy env P A)
 
   | OtherPrim "blobToArray", e ->
     const_sr SR.Vanilla (Arr.ofBlob env Tagged.I)
