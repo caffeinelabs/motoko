@@ -60,9 +60,13 @@ let error_required s tf =
    - Lossy promotion to any or dropping record fields is rejected (stricter than subtyping to prevent data loss).
 *)
 let match_stab_sig sig1 sig2 : unit Diag.result =
-  let tfs1 = post sig1 in
-  let tfs2 = pre sig2 in
+  let tfs1, mig_lab_opt = post sig1 in
+  let tfs2 = pre mig_lab_opt sig2 in
   (* Assume that tfs1 and tfs2 are sorted. *)
+  Format.printf "version %s old:\n %s new \n%s\n"
+    (match mig_lab_opt with Some tag -> "Some" ^ tag | None -> "None")
+    (string_of_stab_sig (Single (List.map (fun tf -> {tf with typ = unit}) tfs1)))
+    (string_of_stab_sig (PrePost(List.map (fun (req,tf) -> (req,{tf with typ = unit})) tfs2,[])));
   let res = Diag.with_message_store (fun s ->
     let rec go tfs1 tfs2 = match tfs1, tfs2 with
       | [], _ ->

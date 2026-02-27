@@ -5,6 +5,7 @@ type id = string
 type lab = string
 type var = string
 type name = string
+type mig_lab = string
 
 type control =
   | Returns        (* regular local function or one-shot shared function *)
@@ -2537,19 +2538,6 @@ let stable_sub ?(src_fields = empty_srcs_tbl ()) t1 t2 =
   with_src_field_updates_predicate src_fields (fun () ->
     rel_typ (RelArg.stable_sub []) (ref SS.empty) (ref SS.empty) t1 t2)
 
-let pre = function
-  | Single tfs ->
-    (* all vars optional *)
-    List.map (fun tf -> (false, tf)) tfs
-  | PrePost (tfs, _) -> tfs
-  | Multi {chain; post} ->
-    List.map (fun tf -> (false, tf)) post (* TODO *)
-
-let post = function
-  | Single tfs -> tfs
-  | PrePost (_, tfs) -> tfs
-  | Multi {chain; post} -> post
-
 
 let decompose_run run_typ =
   let dom_i, rng_i = as_mono_func_sub run_typ in
@@ -2557,7 +2545,7 @@ let decompose_run run_typ =
   let (_rs, rng_fields_i) = as_obj (promote rng_i) in
   (dom_fields_i, rng_fields_i)
 
-let migration_tag file = Filename.basename file
+let migration_lab_of_filename file = Filename.basename file
 
 (* Compute types = [type_0, type_1, ..., type_n] by
    reverse-folding from type_n = actor's mem_ty. Each step undoes one
@@ -2567,11 +2555,11 @@ let migration_tag file = Filename.basename file
          old (with migration = fn) syntax and gives precise types at each
          boundary — no ghost fields from dropped-and-never-reintroduced fields. *)
 
-let pres chain post lab =
-  let required = true in
+let required = true
+let pres chain post =
   let pre mig_field post =
     let (dom_fields_k, rng_fields_k) = decompose_run mig_field.typ in
-    let prev_tbl = Hashtbl.create 32 in
+(*    let prev_tbl = Hashtbl.create 32 in
     List.iter (fun tf ->
         if not (List.exists (fun rf -> rf.lab = tf.lab) rng_fields_k) then
           Hashtbl.replace prev_tbl tf.lab (required, tf)
@@ -2582,19 +2570,65 @@ let pres chain post lab =
       ) dom_fields_k;
     Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
     |> List.sort (fun (_, tf1) (_, tf2) -> compare_field tf1 tf2)
+ *)
+    dom_fields_k @
+      List.filter_map (fun tf ->
+          match lookup_val_field_opt tf.lab dom_fields_k,
+                lookup_val_field_opt tf.lab rng_fields_k with
+          | Some _, _    (* ignore consumed (overridden) *)
+            | _, Some _ -> (* ignore produced (provided) *)
+             None
+          | None, None ->
+             (* retain others *)
+             Some tf
+          )
+        post
+    |> List.sort compare_field
+    |> List.map (fun tf -> (required, tf))
   in
   let (pre0, pres) =
     List.fold_right (fun mig_field (next_pre, pres) ->
         let next_post = List.map snd next_pre in
         let pre = pre mig_field next_post in
         (pre, next_pre::pres)
-      ) chain (List.map (fun tf -> (required, tf)) post, [])
+      ) chain (List.map (fun tf -> (false, tf)) post,
+               [List.map (fun tf -> (false, tf)) post])
   in
-  pre0::pres
+  (pre0, pres)
+
+let pre mig_tag_opt = function
+  | Single tfs ->
+    (* all vars optional *)
+    List.map (fun tf -> (false, tf)) tfs
+  | PrePost (tfs, _) -> tfs
+  | Multi {chain; post} ->
+    let subchain =
+      match mig_tag_opt with
+      | None -> chain
+      | Some mig_tag ->
+        let _, subchain =
+          List.fold_right (fun mig_field (found, subchain) ->
+              if found || mig_field.lab = mig_tag then
+                (found, subchain)
+              else (found, mig_field::subchain))
+            chain (false, [])
+        in
+        subchain
+    in
+    let pre, _ = pres subchain post in
+    pre
+
+let post = function
+  | Single tfs -> tfs, None
+  | PrePost (_, tfs) -> tfs, None
+  | Multi {chain; post} ->
+     assert (chain <> []);
+     post,
+     Some ((Lib.List.last chain).lab)
 
 let rec match_stab_sig sig1 sig2 =
-  let post_tfs1 = post sig1 in
-  let pre_tfs2 = pre sig2 in
+  let post_tfs1, mig_tag_opt = post sig1 in
+  let pre_tfs2 = pre mig_tag_opt sig2 in
   match_stab_fields post_tfs1 pre_tfs2
 
 and match_stab_fields tfs1 tfs2 =

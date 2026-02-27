@@ -4,6 +4,7 @@ type id = string
 type lab = string
 type var = string
 type name = string
+type mig_lab = string
 
 type control = Returns | Promises | Replies
 type obj_sort = Object | Actor | Mixin | Module | Memory
@@ -328,8 +329,10 @@ type stab_sig =
   | PrePost of (bool * field) list * field list
   | Multi of {chain: field list; post: field list}
 
-val pre : stab_sig -> (bool * field) list
-val post : stab_sig -> field list
+val migration_lab_of_filename : string -> mig_lab
+
+val pre : mig_lab option -> stab_sig -> (bool * field) list
+val post : stab_sig -> field list * mig_lab option
 
 val match_stab_sig : stab_sig -> stab_sig -> bool
 

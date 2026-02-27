@@ -843,7 +843,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         mem_fields
       in
       let chain_fields =
-        List.map (fun (lab, _, typ) -> T.{lab; typ; src = T.empty_src}) chain
+        List.map (fun (filename, _, typ) -> T.{lab=T.migration_lab_of_filename filename; typ; src = T.empty_src}) chain
       in
       T.Multi {chain = chain_fields; post = stab_fields},
       I.{pre = type_at 0; post = mem_ty},
