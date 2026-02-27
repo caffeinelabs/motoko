@@ -117,7 +117,7 @@ jobs:
     needs: [prepare, changelog, build]
     steps:
       - name: Download all release artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
           pattern: release-files-*
