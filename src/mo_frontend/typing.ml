@@ -940,18 +940,21 @@ and check_typ' env typ : T.typ =
   | WeakT typ ->
     T.Weak (check_typ env typ)
   | FromCandidT (start, candid) ->
+    let adorn = List.map (let open Diag in function
+                    | {cat="syntax" as cat; _} as msg -> { msg with cat = "candid " ^ cat; code = "M0246" }
+                    | {cat="type" as cat; _} as msg -> { msg with cat = "candid " ^ cat; code = "M0247" }
+                    | msg -> msg) in
     match Idllib.Pipeline.parse_string ~left:start candid with
-    | Error msgs -> Diag.add_msgs env.msgs msgs; raise Recover
+    | Error msgs -> adorn msgs |> Diag.add_msgs env.msgs; raise Recover
     | Ok ((prog, _), msgs) ->
-      Diag.add_msgs env.msgs msgs;
+      adorn msgs |> Diag.add_msgs env.msgs;
       match Idllib.Typing.check_prog Idllib.Typing.Env.empty prog with
-       | Error msgs -> Diag.add_msgs env.msgs msgs; raise Recover
-       | Ok ((s, Some t), msgs) ->
-         Diag.add_msgs env.msgs msgs;
-         Mo_idl.Idl_to_mo.check_typ s t
-       | Ok ((s, None), msgs) ->
-         Diag.add_msgs env.msgs msgs;
-         error env typ.at "M0245" "imported `actor` type doesn't specify `service`"
+       | Error msgs -> adorn msgs |> Diag.add_msgs env.msgs; raise Recover
+       | Ok ((s, t), msgs) ->
+         adorn msgs |> Diag.add_msgs env.msgs;
+         if t = None then
+           error env typ.at "M0245" "imported `actor` type doesn't specify `service`"
+         else Option.get t |> Mo_idl.Idl_to_mo.check_typ s
 
 and check_typ_def env at (id, typ_binds, typ) : T.kind =
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in

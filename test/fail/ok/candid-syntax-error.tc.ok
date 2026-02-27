@@ -1,1 +1,1 @@
-candid-syntax-error.mo:2.41-2.42: syntax error, malformed operator
+candid-syntax-error.mo:2.41-2.42: candid syntax error [M0246], malformed operator
