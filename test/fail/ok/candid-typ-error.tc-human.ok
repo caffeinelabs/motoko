@@ -1,0 +1,4 @@
+error: unbound type identifier YY
+    ┌─ candid-typ-error.mo:2:68
+  2 │  type TypErr = from_candid "type X = int; service : { foo : (X) -> (YY) }"
+    │                                                                     ^^ 
