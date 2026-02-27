@@ -127,7 +127,7 @@ jobs:
       # https://github.com/actions/upload-artifact/issues/92
       - run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
       - name: upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: moc-${{ matrix.os }}
           path: ${{ env.UPLOAD_PATH }}
