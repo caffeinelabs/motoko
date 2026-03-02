@@ -7,7 +7,7 @@ type priority = Primary | Secondary
 type span = {
   prio : priority;
   at_span : Source.region;
-  label : string;
+  label : Format.formatter -> unit;
 }
 type edit = {
   at_edit : Source.region;
@@ -78,25 +78,24 @@ let get_msgs s = List.rev !s
 let has_errors : messages -> bool =
   List.exists (fun msg -> msg.sev == Error)
 
-let string_of_message msg =
-  let code = match msg.sev, msg.code with
-    | Info, _ -> ""
-    | _, "" -> ""
-    | _, code -> Printf.sprintf " [%s]" code in
-  let label = match msg.sev with
-    | Error -> Printf.sprintf "%s error" msg.cat
-    | Warning -> "warning"
-    | Info -> "info" in
-  let spans =
-    let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
-    if primary_spans <> [] then
-      "\n" ^ String.concat "\n" (List.map (fun (span : span) -> span.label) primary_spans)
-    else "" in
-  let notes =
-    if msg.notes <> [] then
-      "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
-    else "" in
-  Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
+let pp_message f msg =
+  Format.fprintf f "%s: " (Source.string_of_region msg.at);
+  (match msg.sev with
+    | Error -> Format.fprintf f "%s error" msg.cat
+    | Warning -> Format.fprintf f "warning"
+    | Info -> Format.fprintf f "info");
+  (match msg.sev, msg.code with
+    | Info, _ -> ()
+    | _, "" -> ()
+    | _, code -> Format.fprintf f " [%s]" code);
+  Format.fprintf f ", %t" msg.text;
+  let primary_spans = List.filter (fun span -> span.prio = Primary) msg.spans in
+  if primary_spans <> [] then
+    Format.fprintf f "@\n%a" (Format.pp_print_list ~pp_sep:Format.pp_print_newline (fun f s -> (s.label) f)) primary_spans;
+  if msg.notes <> [] then
+    Format.fprintf f "@\n%a" (Format.pp_print_list ~pp_sep:Format.pp_print_newline (fun f n -> Format.fprintf f "note: %s" n)) msg.notes
+
+let string_of_message = Format.asprintf "%a\n" pp_message
 
 (** Converts a line/column based position to a byte offset.
 
@@ -114,7 +113,7 @@ let pos_to_byte content pos =
 let ensure_primary_span msg =
   if List.exists (fun span -> span.prio = Primary) msg.spans
   then msg.spans
-  else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
+  else { prio = Primary; at_span = msg.at; label = Format.dprintf ""; } :: msg.spans
 
 let fancy_of_message msg =
   let file = msg.at.Source.left.Source.file in
@@ -129,7 +128,7 @@ let fancy_of_message msg =
     let priority = match span.prio with
       | Primary -> G.Diagnostic.Priority.Primary
       | Secondary -> G.Diagnostic.Priority.Secondary in
-    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
+    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%t" span.label in
   let labels = List.map mk_span (ensure_primary_span msg) in
   let source_text r =
     let start = pos_to_byte content r.Source.left in
@@ -179,7 +178,7 @@ let json_span ?prio ?label ?suggested_replacement r =
     "line_end", `Int line_end;
     "column_end", `Int (column_end + 1);
     "is_primary", `Bool (prio = Some Primary);
-    "label", (match label with None -> `Null | Some label -> `String label);
+    "label", (match label with None -> `Null | Some label -> `String (Format.asprintf "%t" label));
     "suggested_replacement", (match suggested_replacement with None -> `Null | Some s -> `String s);
     "suggestion_applicability", (match suggested_replacement with
       | None -> `Null
@@ -189,7 +188,7 @@ let json_span ?prio ?label ?suggested_replacement r =
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message msg =
   let span_jsons = ensure_primary_span msg
-    |> List.map (fun { prio; at_span; label } -> json_span ~prio ~label at_span) in
+    |> List.map (fun { prio; at_span; label; _ } -> json_span ~prio ~label at_span) in
   let edit_jsons = msg.edits |>
     List.map (fun { at_edit; suggested_replacement } -> json_span ~suggested_replacement at_edit) in
   let json = `Assoc [

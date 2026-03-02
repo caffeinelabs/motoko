@@ -260,9 +260,11 @@ module Format = struct
       k x
 
   let kasprintf env k = Format.kasprintf (with_con_map env k)
+  let kdprintf env k = Format.kdprintf (with_con_map env k)
   let asprintf env = with_con_map env Format.asprintf
   let sprintf env = with_con_map env Format.sprintf
   let fprintf env = with_con_map env Format.fprintf
+  let dprintf env = with_con_map env Format.dprintf
 end
 
 let error ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
@@ -287,10 +289,10 @@ let info env at fmt =
     fmt
 
 let primary env at fmt =
-  Format.kasprintf env (fun s -> Diag.{ prio = Primary; at_span = at; label = s }) fmt
+  Format.kdprintf env (fun s -> Diag.{ prio = Primary; at_span = at; label = s }) fmt
 
 let secondary env at fmt =
-  Format.kasprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s }) fmt
+  Format.kdprintf env (fun s -> Diag.{ prio = Secondary; at_span = at; label = s }) fmt
 
 let suggest_span env at = function
   | None -> []

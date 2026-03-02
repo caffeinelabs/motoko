@@ -6,7 +6,7 @@ type priority = Primary | Secondary
 type span = {
   prio : priority;
   at_span : Source.region;
-  label : string;
+  label : Format.formatter -> unit;
 }
 type edit = {
   at_edit : Source.region;
