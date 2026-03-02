@@ -4946,6 +4946,38 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
           let env = env_of_scope msgs scope in
           let scope = infer_block_decs env decs sig_.at in
           let env1 = adjoin env scope in
+          let check_chain chain post =
+            let mfs = List.rev chain in
+            let rec check_mfs post mfs  =
+              match mfs with
+              | [] -> true
+              | mf::mfs1 ->
+                (* is this a migration function *)
+                T.is_migration mf.T.typ &&
+                (* does its output match post, treating rng fields as unrequired *)
+                let (dom_mf, rng_mf) = T.as_migration mf.T.typ in
+                let out =
+                  rng_mf @
+                    (List.filter (fun tf ->
+                       T.lookup_val_field_opt tf.T.lab dom_mf <> None &&
+                       T.lookup_val_field_opt tf.T.lab rng_mf = None) post)
+                  |> List.sort T.compare_field
+                in
+                T.match_stab_fields
+                  out
+                  (List.map (fun tf ->
+                    T.lookup_val_field_opt tf.T.lab rng_mf <> None, tf)
+                    post) &&
+                (* calculate the previous post and iterate *)
+                let pre = T.pre_fields mf.T.typ post in
+                let prev_post = List.map (fun (_required, tf) -> tf) pre in
+                check_mfs prev_post mfs1
+            in
+            (* at least one migration *)
+            chain <> [] &&
+            (* all migrations compose to produce post *)
+            check_mfs post mfs
+          in
           let check_fields sfs =
             check_ids env "object type" "field"
               (List.filter_map (fun (field : typ_field) ->
@@ -4971,16 +5003,18 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
           | PrePost (pre, post) ->
             let reqs = List.map (fun f -> (fst f).it) pre in
             let pres = List.map snd pre in
-            T.PrePost (List.sort
-                         (fun (r1, tf1) (r2, tf2) -> T.compare_field tf1 tf2)
-                         (List.combine reqs (check_fields pres)),
-                       List.sort T.compare_field (check_fields post))
+            T.PrePost
+              (List.sort
+                 (fun (r1, tf1) (r2, tf2) -> T.compare_field tf1 tf2)
+                 (List.combine reqs (check_fields pres)),
+               List.sort T.compare_field (check_fields post))
           | Multi {chain=tags; post} ->
              check_ids env "chain type" "tag"
                (List.map (fun (tag : typ_tag) -> tag.it.tag) tags);
              let fs = List.map (check_typ_tag env1) tags in
              let chain = List.sort T.compare_field fs in
              let post = List.sort T.compare_field (check_fields post) in
+             if not (check_chain chain post) then error env sfs.at "M0253" "inconsistent migration chain";
              (* TODO: check consistency *)
              T.Multi{chain; post}
         ) sig_.it

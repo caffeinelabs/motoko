@@ -2538,8 +2538,18 @@ let stable_sub ?(src_fields = empty_srcs_tbl ()) t1 t2 =
   with_src_field_updates_predicate src_fields (fun () ->
     rel_typ (RelArg.stable_sub []) (ref SS.empty) (ref SS.empty) t1 t2)
 
-let decompose_run run_typ =
-  let dom_i, rng_i = as_mono_func_sub run_typ in
+let is_migration typ =
+  match normalize typ with
+  | Func(Local, Returns, [], [t1], [t2]) ->
+    (match normalize t1, normalize t2 with
+     | Obj(Object, dom_tfs, _), Obj(Object, rng_tfs, _) ->
+       List.for_all (fun tf -> stable tf.typ) dom_tfs &&
+         List.for_all (fun tf -> stable tf.typ) rng_tfs
+     | _-> false)
+  | _ -> false
+
+let as_migration mig_typ =
+  let dom_i, rng_i = as_mono_func_sub mig_typ in
   let (_ds, dom_fields_i) = as_obj (normalize dom_i) in
   let (_rs, rng_fields_i) = as_obj (promote rng_i) in
   (dom_fields_i, rng_fields_i)
@@ -2548,7 +2558,7 @@ let decompose_run run_typ =
 let abstract_pre pre = List.map (fun (req,tf) -> (req, {tf with typ = unit})) pre
 let abstract_post post = List.map (fun tf -> {tf with typ = unit}) post
 let abstract_mig_typ typ =
-    let dom_fields, rng_fields = decompose_run typ in
+    let dom_fields, rng_fields = as_migration typ in
     Func(Local, Returns, [],
          [Obj(Object, List.map (fun tf -> {tf with typ = unit}) dom_fields, [])],
          [Obj(Object, List.map (fun tf -> {tf with typ = unit}) rng_fields, [])])
@@ -2567,8 +2577,8 @@ let abstract sig0 =
 
 let migration_lab_of_filename file = Filename.basename file |> Filename.chop_extension
 
-let pre_fields mig_field ?(initialized=true) post_fields =
-  let (dom_fields_k, rng_fields_k) = decompose_run mig_field.typ in
+let pre_fields mig_typ ?(initialized=true) post_fields =
+  let (dom_fields_k, rng_fields_k) = as_migration mig_typ in
   List.map (fun tf -> (true (* required *), tf)) dom_fields_k @
     List.filter_map (fun tf ->
         match lookup_val_field_opt tf.lab dom_fields_k,
@@ -2592,7 +2602,7 @@ let pres mig_lab_opt chain post =
       then (cur_pre_fields, acc)
       else
         let cur_post_fields = List.map snd cur_pre_fields in
-        let next_pre_fields = pre_fields mig_field cur_post_fields in
+        let next_pre_fields = pre_fields mig_field.typ cur_post_fields in
         go (next_pre_fields::acc) mfs1 next_pre_fields
   in
   let mfs = List.rev chain in

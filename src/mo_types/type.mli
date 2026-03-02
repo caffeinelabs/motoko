@@ -331,10 +331,14 @@ type stab_sig =
 
 val migration_lab_of_filename : string -> mig_lab
 
+val is_migration : typ -> bool
+val as_migration : typ -> (field list * field list)
+val pre_fields : typ -> ?initialized : bool -> field list -> (bool * field) list
 val pre : mig_lab option -> stab_sig -> (bool * field) list
 val post : stab_sig -> field list * mig_lab option
 
 val match_stab_sig : stab_sig -> stab_sig -> bool
+val match_stab_fields : field list -> (bool * field) list -> bool
 
 val string_of_stab_sig : stab_sig -> string
 
