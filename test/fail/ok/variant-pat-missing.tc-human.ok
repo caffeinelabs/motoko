@@ -1,4 +1,4 @@
 error[M0112]: tuple pattern cannot consume expected type
     ┌─ variant-pat-missing.mo:1:7
   1 │  func (#variant : { #variant : Nat }) = ()
-    │        ^^^^^^^^ expected `()`, got `Nat`
+    │        ^^^^^^^^ expected `Nat`, got `()`

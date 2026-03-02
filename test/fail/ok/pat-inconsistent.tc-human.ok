@@ -4,7 +4,7 @@ error[M0113]: object pattern cannot consume expected type
     │          --------- this expression has type `{#A}`
  41 │    case (#A) {};
  42 │    case ({B = _}) {};
-    │          ^^^^^^^ expected object type, got `{#A}`
+    │          ^^^^^^^ expected `{#A}`, got object type
 error[M0050]: literal of type
   Nat
 does not have expected type
@@ -17,7 +17,7 @@ error[M0116]: variant pattern cannot consume expected type
  53 │  switch (true : Bool) {
     │          ----------- this expression has type `Bool`
  54 │    case (#geese) {};
-    │          ^^^^^^ expected `{#geese : _}`, got `Bool`
+    │          ^^^^^^ expected `Bool`, got `{#geese : _}`
 warning[M0146]: this pattern is never matched
     ┌─ pat-inconsistent.mo:59:9
  59 │    case (#geese) {};
@@ -42,10 +42,10 @@ error[M0112]: tuple pattern cannot consume expected type
  68 │    let (_, _) = 10;
     │        ^^^^^^   -- this expression has type `Nat`
     │        │
-    │        expected `(_, _)`, got `Nat`
+    │        expected `Nat`, got `(_, _)`
 error[M0112]: tuple pattern cannot consume expected type
     ┌─ pat-inconsistent.mo:72:8
  72 │    let ((_, _), _) = (10, 20);
     │         ^^^^^^       -------- this expression has type `(Nat, Nat)`
     │         │
-    │         expected `(_, _)`, got `Nat`
+    │         expected `Nat`, got `(_, _)`

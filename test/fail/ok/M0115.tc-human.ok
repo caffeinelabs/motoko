@@ -3,4 +3,4 @@ error[M0115]: option pattern cannot consume expected type
   1 │  let ?foo = true
     │      ^^^^   ---- this expression has type `Bool`
     │      │
-    │      expected `?_`, got `Bool`
+    │      expected `Bool`, got `?_`

@@ -3,4 +3,4 @@ error[M0113]: object pattern cannot consume expected type
   1 │  let {foo} = true
     │      ^^^^^   ---- this expression has type `Bool`
     │      │
-    │      expected object type, got `Bool`
+    │      expected `Bool`, got object type

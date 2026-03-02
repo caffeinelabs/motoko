@@ -3459,7 +3459,7 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
       let tup_spine = match pats with
         | [] -> ""
         | _::xs -> List.fold_left (fun acc _ -> acc ^ ", _") "_" xs in
-      let spans = add_error_ctx [primary env pat.at "expected `(%s)`, got `%a`" tup_spine display_typ_expand_inline t] in
+      let spans = add_error_ctx [primary env pat.at "expected `%a`, got `(%s)`" display_typ_expand_inline t tup_spine] in
       error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type"
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
@@ -3471,7 +3471,7 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     let s, fs =
       try T.as_obj_sub vpfs t
       with Invalid_argument _ ->
-        let spans = add_error_ctx [primary env pat.at "expected object type, got `%a`" display_typ_expand_inline t] in
+        let spans = add_error_ctx [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
         error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
     in
     if not env.pre && s = T.Actor && vpfs <> [] then
@@ -3480,7 +3480,7 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     check_pat_fields env t fs pfs' T.Env.empty pat.at
   | OptP pat1 ->
     let t1 = try T.as_opt_sub t with Invalid_argument _ ->
-      let spans = add_error_ctx [primary env pat.at "expected `?_`, got `%a`" display_typ_expand_inline t] in
+      let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
       error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
@@ -3490,7 +3490,7 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
         | Some t1 -> t1
         | None -> T.Non
       with Invalid_argument _ ->
-        let spans = add_error_ctx [primary env pat.at "expected `{#%s : _}`, got `%a`" id.it display_typ_expand_inline t] in
+        let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
         error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
     in check_pat env t1 pat1
   | AltP (pat1, pat2) ->
