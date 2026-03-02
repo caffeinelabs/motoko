@@ -2588,21 +2588,9 @@ let migration_lab_of_filename file = Filename.basename file |> Filename.chop_ext
 
 let required = true
 
-let pres chain post =
-  let pre mig_field post =
+let required_fields mig_field post =
     let (dom_fields_k, rng_fields_k) = decompose_run mig_field.typ in
-(*    let prev_tbl = Hashtbl.create 32 in
-    List.iter (fun tf ->
-        if not (List.exists (fun rf -> rf.lab = tf.lab) rng_fields_k) then
-          Hashtbl.replace prev_tbl tf.lab (required, tf)
-      ) post;
-    List.iter (fun tf ->
-        Hashtbl.replace prev_tbl tf.lab
-          (required, {tf with typ = tf.typ})
-      ) dom_fields_k;
-    Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
-    |> List.sort (fun (_, tf1) (_, tf2) -> compare_field tf1 tf2)
- *) let result =
+(*    let result = *)
     dom_fields_k @
       List.filter_map (fun tf ->
           match lookup_val_field_opt tf.lab dom_fields_k,
@@ -2617,14 +2605,16 @@ let pres chain post =
         post
     |> List.sort compare_field
     |> List.map (fun tf -> (required, tf))
-    in
+(*    in
     (*    Format.printf "pre %s:\n  %s\n%s" mig_field.lab (string_of_typ (abstract_mig_typ mig_field.typ)) (string_of_abstract_stab_sig (PrePost(result, post))); *)
     result
-  in
+*)
+
+let pres chain post =
   let (pre0, pres) =
     List.fold_right (fun mig_field (next_pre, pres) ->
         let next_post = List.map snd next_pre in
-        let pre = pre mig_field next_post in
+        let pre = required_fields mig_field next_post in
         (pre, next_pre::pres)
       ) chain (List.map (fun tf -> (false, tf)) post,
                [List.map (fun tf -> (false, tf)) post])
