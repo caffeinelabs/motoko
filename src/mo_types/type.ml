@@ -2538,14 +2538,45 @@ let stable_sub ?(src_fields = empty_srcs_tbl ()) t1 t2 =
   with_src_field_updates_predicate src_fields (fun () ->
     rel_typ (RelArg.stable_sub []) (ref SS.empty) (ref SS.empty) t1 t2)
 
-
 let decompose_run run_typ =
   let dom_i, rng_i = as_mono_func_sub run_typ in
   let (_ds, dom_fields_i) = as_obj (normalize dom_i) in
   let (_rs, rng_fields_i) = as_obj (promote rng_i) in
   (dom_fields_i, rng_fields_i)
 
-let migration_lab_of_filename file = Filename.basename file
+let string_of_stab_sig stab_sig : string =
+  let module Pretty = MakePretty(ParseableStamps) in
+  (match stab_sig with
+  | Single _ -> "// Version: 1.0.0\n"
+  | PrePost _ -> "// Version: 3.0.0\n"
+  | Multi _ -> "// Version: 4.0.0\n") ^
+  Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
+
+
+let abstract_pre pre = List.map (fun (req,tf) -> (req, {tf with typ = unit})) pre
+let abstract_post post = List.map (fun tf -> {tf with typ = unit}) post
+let abstract_mig_typ typ =
+    let dom_fields, rng_fields = decompose_run typ in
+    Func(Local, Returns, [],
+         [Obj(Object, List.map (fun tf -> {tf with typ = unit}) dom_fields, [])],
+         [Obj(Object, List.map (fun tf -> {tf with typ = unit}) rng_fields, [])])
+
+let abstract sig0 =
+   match sig0 with
+   | Single post -> Single (abstract_post post)
+   | PrePost (pre, post) ->
+     PrePost(abstract_pre pre, abstract_post post)
+   | Multi {chain;post} ->
+      Multi {chain =
+               List.map (fun tf -> {tf with typ = abstract_mig_typ tf.typ})
+                 chain;
+             post = abstract_post post}
+
+let string_of_abstract_stab_sig stab_sig : string =
+  let module Pretty = MakePretty(ParseableStamps) in
+  Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) (abstract stab_sig)
+
+let migration_lab_of_filename file = Filename.basename file |> Filename.chop_extension
 
 (* Compute types = [type_0, type_1, ..., type_n] by
    reverse-folding from type_n = actor's mem_ty. Each step undoes one
@@ -2556,6 +2587,7 @@ let migration_lab_of_filename file = Filename.basename file
          boundary — no ghost fields from dropped-and-never-reintroduced fields. *)
 
 let required = true
+
 let pres chain post =
   let pre mig_field post =
     let (dom_fields_k, rng_fields_k) = decompose_run mig_field.typ in
@@ -2570,7 +2602,7 @@ let pres chain post =
       ) dom_fields_k;
     Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
     |> List.sort (fun (_, tf1) (_, tf2) -> compare_field tf1 tf2)
- *)
+ *) let result =
     dom_fields_k @
       List.filter_map (fun tf ->
           match lookup_val_field_opt tf.lab dom_fields_k,
@@ -2585,6 +2617,9 @@ let pres chain post =
         post
     |> List.sort compare_field
     |> List.map (fun tf -> (required, tf))
+    in
+    (*    Format.printf "pre %s:\n  %s\n%s" mig_field.lab (string_of_typ (abstract_mig_typ mig_field.typ)) (string_of_abstract_stab_sig (PrePost(result, post))); *)
+    result
   in
   let (pre0, pres) =
     List.fold_right (fun mig_field (next_pre, pres) ->
@@ -2606,15 +2641,18 @@ let pre mig_tag_opt = function
       match mig_tag_opt with
       | None -> chain
       | Some mig_tag ->
-        let _, subchain =
-          List.fold_right (fun mig_field (found, subchain) ->
-              if found || mig_field.lab = mig_tag then
-                (found, subchain)
-              else (found, mig_field::subchain))
-            chain (false, [])
-        in
-        subchain
+         let rec subchain acc mfs =
+           match mfs with
+           | [] -> acc
+           | mf :: mfs ->
+              if mf.lab = mig_tag then
+                acc
+              else
+                subchain (mf::acc) mfs
+         in subchain [] (List.rev chain)
     in
+(*    Format.printf "chain: %s" (string_of_typ (Variant chain));
+    Format.printf "subchain: %s" (string_of_typ (Variant subchain)); *)
     let pre, _ = pres subchain post in
     pre
 
@@ -2642,13 +2680,6 @@ and match_stab_fields tfs1 tfs2 =
       | Lib.That (required, _) -> not required
       | Lib.Both (tf1, (_, tf2)) -> stable_sub (as_immut tf1.typ) (as_immut tf2.typ))
 
-let string_of_stab_sig stab_sig : string =
-  let module Pretty = MakePretty(ParseableStamps) in
-  (match stab_sig with
-  | Single _ -> "// Version: 1.0.0\n"
-  | PrePost _ -> "// Version: 3.0.0\n"
-  | Multi _ -> "// Version: 4.0.0\n") ^
-  Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
 (* The migration chain passed from pipeline to typing. *)
 (* Migration chain from --enhanced-migration directory: (filename, module_type, run_type) triples in order *)

@@ -4976,7 +4976,7 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
                          (List.combine reqs (check_fields pres)),
                        List.sort T.compare_field (check_fields post))
           | Multi {chain=tags; post} ->
-             check_ids env "variant type" "tag"
+             check_ids env "chain type" "tag"
                (List.map (fun (tag : typ_tag) -> tag.it.tag) tags);
              let fs = List.map (check_typ_tag env1) tags in
              let chain = List.sort T.compare_field fs in
