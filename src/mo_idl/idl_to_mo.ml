@@ -20,7 +20,7 @@ let check_prim at p =
   | Nat32 -> M.Prim M.Nat32
   | Nat64 -> M.Prim M.Nat64
   | Float32 -> raise (UnsupportedCandidFeature
-     (Diag.error_message at "M0161" "import"
+     (Diag.error_message' at "M0161" "import"
        "Candid 'float32' type cannot be imported as a Motoko type"))
   | Float64 -> M.Prim M.Float
   | Text -> M.Prim M.Text
@@ -83,7 +83,7 @@ let rec check_typ' env occs t =
      let fs = List.map (check_meth env occs) ms in
      M.Obj (M.Actor, List.sort M.compare_field fs, [])
   | ClassT _ -> raise (UnsupportedCandidFeature
-     (Diag.error_message t.at "M0162" "import" "Candid service constructor type not supported as Motoko type"))
+     (Diag.error_message' t.at "M0162" "import" "Candid service constructor type not supported as Motoko type"))
   | PreT -> assert false
 and check_typs' env occs ts = List.map (check_typ' env occs) ts
 and check_arg_typ env occs (arg_typ : arg_typ) =
@@ -113,7 +113,7 @@ let check_prog (env: typ I.Env.t) actor : M.typ =
         let t' = check_typ' env occs t in
         match M.normalize t' with
         | M.Obj (M.Actor, fs, _) ->
-          Diag.print_messages [Diag.warning_message at "M0185" "import"
+          Diag.print_messages [Diag.warning_message' at "M0185" "import"
             "importing Candid service constructor as instantiated service"];
           fs
         | _ -> assert false

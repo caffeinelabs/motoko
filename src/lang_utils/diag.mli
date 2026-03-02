@@ -17,7 +17,7 @@ type message = {
   code : error_code;
   at : Source.region;
   cat : string;
-  text : string;
+  text : Format.formatter -> unit;
   spans : span list;
   notes: string list;
   edits : edit list;
@@ -25,9 +25,11 @@ type message = {
 
 type messages = message list
 
-val info_message : Source.region -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
-val warning_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
-val error_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
+val info_message : Source.region -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> (Format.formatter -> unit) -> message
+val warning_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> (Format.formatter -> unit) -> message
+val warning_message' : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
+val error_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> (Format.formatter -> unit) -> message
+val error_message' : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
 
 val string_of_message : message -> string
 val is_treated_as_error : message -> bool
@@ -40,9 +42,9 @@ Both success and failure can come with messages)
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
-val info : Source.region -> string -> string -> unit result
-val warn : Source.region -> error_code -> string -> string -> unit result
-val error : Source.region -> error_code -> string -> string -> 'a result
+val info : Source.region -> string -> (Format.formatter -> unit) -> unit result
+val warn : Source.region -> error_code -> string -> (Format.formatter -> unit) -> unit result
+val error : Source.region -> error_code -> string -> (Format.formatter -> unit) -> 'a result
 
 val return : 'a -> 'a result
 val bind : 'a result -> ('a -> 'b result) -> 'b result

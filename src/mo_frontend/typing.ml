@@ -268,23 +268,23 @@ module Format = struct
 end
 
 let error ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
-  Format.kasprintf env (fun s ->
+  Format.kdprintf env (fun s ->
       Diag.add_msg env.msgs (type_error at code s notes spans edits);
       raise Recover)
     fmt
 
 let local_error ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
-  Format.kasprintf env (fun s ->
+  Format.kdprintf env (fun s ->
       Diag.add_msg env.msgs (type_error at code s notes spans edits))
     fmt
 
 let warn ?(notes = []) ?(spans = []) ?(edits = []) env at code fmt =
-  Format.kasprintf env (fun s ->
+  Format.kdprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_warning at code s notes spans edits))
     fmt
 
 let info env at fmt =
-  Format.kasprintf env (fun s ->
+  Format.kdprintf env (fun s ->
       if not env.errors_only then Diag.add_msg env.msgs (type_info at s))
     fmt
 
@@ -331,12 +331,10 @@ let diag_in type_diag modes env at code notes spans edits fmt =
   let mode = !Flags.compile_mode in
   if !Flags.compiled && List.mem mode modes then
     begin
-      Printf.ksprintf
+      Format.kdprintf env
         (fun s ->
           let s =
-            Printf.sprintf "%s\n  (This is a limitation of the current version%s.)"
-            s
-            (flag_of_compile_mode mode)
+            Stdlib.Format.dprintf "%t\n  (This is a limitation of the current version%s.)" s (flag_of_compile_mode mode)
           in
           Diag.add_msg env.msgs (type_diag at code s notes spans edits)) fmt;
       true
@@ -659,11 +657,14 @@ let error_shared env t at code fmt =
   | None -> error env at code fmt
   | Some t1 ->
     let s =
-      Format.asprintf env "\ntype%a\nis or contains non-shared type%a"
+      Format.dprintf env "\ntype%a\nis or contains non-shared type%a"
         display_typ_expand t
         display_typ_expand t1
     in
-    Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] [] []); raise Recover) fmt
+    Format.kdprintf env (fun s1 ->
+      Diag.add_msg env.msgs (type_error at code (Stdlib.Format.dprintf "%t%t" s1 s) [] [] []);
+      raise Recover
+    ) fmt
 
 let as_domT t =
   match t.Source.it with
@@ -2344,7 +2345,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
     try Ok(text_obj (T.as_prim_sub T.Text t1)) with Invalid_argument _ ->
       Error(t1, fun () ->
         type_error exp.at "M0070"
-          (Format.asprintf env
+          (Format.dprintf env
              "expected object type, but expression produces type%a"
              display_typ_expand t0) [] [] [])
   in
@@ -2367,7 +2368,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
       Error(t1, fun () ->
         let spans = suggest_span env id.at (suggest ()) in
         type_error id.at "M0234"
-          (Format.asprintf env "field %s does exist in %a\nbut is not %s."
+          (Format.dprintf env "field %s does exist in %a\nbut is not %s."
              id.it
              display_obj t0
              desc) [] spans [])
@@ -2376,7 +2377,7 @@ and try_infer_dot_exp env at exp id (desc, pred) =
         let spans = suggest_span env id.at
           (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs)) in
         type_error id.at "M0072"
-          (Format.asprintf env "field %s does not exist in %a"
+          (Format.dprintf env "field %s does not exist in %a"
              id.it
              display_obj t0) [] spans [])
     end
@@ -2819,8 +2820,7 @@ and infer_callee env exp =
           if suggestions = []
           then e
           else Diag.{e with text =
-            e.text ^
-            Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " suggestions)}
+            Stdlib.Format.dprintf "%t\nHint: Did you mean to import %s?" e.text (String.concat " or " suggestions) }
         in
         Diag.add_msg env.msgs e1; raise Recover
       | Error (DotAmbiguous mk_error) ->

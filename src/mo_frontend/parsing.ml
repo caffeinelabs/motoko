@@ -132,23 +132,23 @@ let handle_error lexbuf error_detail message_store (start, end_) explanations =
   let msg =
     match error_detail with
     | 1 ->
-      Printf.sprintf
+      Format.dprintf
         "unexpected %s, expected one of token or <phrase>:\n  %s"
         token (abstract_symbols explanations)
     | 2 ->
-      Printf.sprintf
+      Format.dprintf
         "unexpected %s, expected one of token or <phrase> sequence:\n  %s"
         token (abstract_futures explanations)
     | 3 ->
-      Printf.sprintf
+      Format.dprintf
         "unexpected %s in position marked . of partially parsed item(s):\n%s"
         token (abstract_items explanations)
     | 4 ->
-      Printf.sprintf
+      Format.dprintf
         "unexpected %s, expected one of token or <phrase> sequence:\n  %s"
         token (abstract_futures_with_examples explanations)
     | _ ->
-      Printf.sprintf "unexpected %s" token
+      Format.dprintf "unexpected %s" token
   in
   Diag.add_msg message_store (Diag.error_message at "M0001" "syntax" msg)
 
@@ -179,4 +179,3 @@ let parse ?(recovery = false) mode error_detail start lexer lexbuf =
     else
       I.loop_handle_undo succ save_error_and_fail lexer start
   )
-

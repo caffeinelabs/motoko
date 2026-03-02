@@ -242,7 +242,7 @@ and group msgs (grp : group) : f =
                at
                "M0016"
                "definedness"
-               (Printf.sprintf "cannot use %s before %s has been defined" x y))
+               (Format.dprintf "cannot use %s before %s has been defined" x y))
       | None ->
         (* External variable, ok for now *)
         ()

@@ -97,7 +97,7 @@ let generic_parse_with ?(recovery=false) mode lexer parser name : _ Diag.result 
     try
       Parser_lib.triv_table := triv_table;
       Parsing.parse ~recovery mode (!Flags.error_detail) (parser lexer.Lexing.lex_curr_p) tokenizer lexer
-    with Lexer.Error (at, msg) -> Diag.error at"M0002" "syntax" msg
+    with Lexer.Error (at, msg) -> Diag.error at"M0002" "syntax" (Format.dprintf "%s" msg)
   in
   let phrase = mk_syntax name in
   Diag.return phrase
@@ -124,7 +124,7 @@ let parse_file' ?(recovery=false) mode at filename : (Syntax.prog * rel_path) Di
     let open Diag.Syntax in
     let* _ =
       Diag.traverse_
-        (Diag.warn at "M0005" "import")
+        (fun s -> Diag.warn at "M0005" "import" (Format.dprintf "%s" s))
         messages in
     let lexer = Lexing.from_channel ic in
     let parse = Parser.Incremental.parse_prog in
@@ -447,7 +447,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
           ri.Source.at
           "M0003"
           "import"
-          (Printf.sprintf "file %s must not depend on itself" f)
+          (Format.dprintf "file %s must not depend on itself" f)
       else begin
         pending := add it !pending;
         let* prog, base = parsefn ri.Source.at f in
@@ -477,7 +477,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
           ri.Source.at
           "M0004"
           "import"
-          (Printf.sprintf "file %s does not define a service" f)
+          (Format.dprintf "file %s does not define a service" f)
       else
         match Mo_idl.Idl_to_mo.check_prog idl_scope actor_opt with
         | exception Idllib.Exception.UnsupportedCandidFeature error_message ->
@@ -486,7 +486,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
               ri.Source.at
               "M0153"
               "import"
-              (Printf.sprintf "file %s uses Candid types without corresponding Motoko type" f);
+              (Format.dprintf "file %s uses Candid types without corresponding Motoko type" f);
             error_message ]
         | actor ->
           let sscope = Scope.lib f actor in
@@ -716,7 +716,7 @@ let desugar_unit imports u name : Ir.prog Diag.result =
   match u.Source.it.Syntax.body.Source.it with
   | Syntax.MixinU _ ->
     let at = u.Source.it.Syntax.body.Source.at in
-    Diag.error at "M0225" "compile" "A mixin cannot be used as an entry point. It needs to be included in an actor (class)"
+    Diag.error at "M0225" "compile" (Format.dprintf "A mixin cannot be used as an entry point. It needs to be included in an actor (class)")
   | _ ->
   phase "Desugaring" name;
   let open Lowering.Desugar in
@@ -885,7 +885,7 @@ let compile_files mode do_link files : compile_result =
   in
   let* () =
     if Wasm_exts.CustomModule.(ext_module.wasm_features) <> []
-    then Diag.warn Source.no_region "M0191" "compile" (Printf.sprintf "code requires Wasm features %s to execute" (String.concat "," Wasm_exts.CustomModule.(ext_module.wasm_features)))
+    then Diag.warn Source.no_region "M0191" "compile" (Format.dprintf "code requires Wasm features %s to execute" (String.concat "," Wasm_exts.CustomModule.(ext_module.wasm_features)))
     else Diag.return ()
   in
   Diag.return (idl, ext_module)

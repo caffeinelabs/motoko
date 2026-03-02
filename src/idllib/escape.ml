@@ -133,7 +133,7 @@ let escape_method at str =
   then if ends_with_underscore str then str ^ "_" else str
   else raise (Exception.UnsupportedCandidFeature
     (Diag.error_message at "M0160" "import"
-      (Printf.sprintf "Candid method name '%s' is not a valid Motoko identifier" str)))
+      (Format.dprintf "Candid method name '%s' is not a valid Motoko identifier" str)))
 
 (* Unescaping (used for Motoko → Candid) *)
 

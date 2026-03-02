@@ -22,7 +22,7 @@ let err m at =
        at
        "M0014"
        "type"
-       "non-static expression in library, module or migration expression")
+       (Format.dprintf "non-static expression in library, module or migration expression"))
 
 let pat_err m at =
   let open Diag in
@@ -31,7 +31,7 @@ let pat_err m at =
        at
        "M0015"
        "type"
-       "only trivial patterns allowed in static expressions")
+       (Format.dprintf "only trivial patterns allowed in static expressions"))
 
 let rec exp m e = match e.it with
   (* Plain values *)

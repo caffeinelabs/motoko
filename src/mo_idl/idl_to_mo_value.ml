@@ -39,7 +39,7 @@ let find_typ ?(infer=fun _ -> None) tfs f =
     | Some t -> t
     | _ ->
       raise (UnsupportedCandidFeature
-               (Diag.error_message f.at "M0164" "import" "unknown record or variant label in textual representation"))
+               (Diag.error_message' f.at "M0164" "import" "unknown record or variant label in textual representation"))
 
 let infer_typ = function
   | NullV -> Some (T.(Prim Null))
@@ -87,7 +87,7 @@ let rec value v t =
   | PrincipalV s, _ ->
     "_Prim.principalOfActor" ^ parens ("actor " ^ text_lit s ^ " : actor {}")
   | _ -> raise (UnsupportedCandidFeature
-    (Diag.error_message v.at "M0165" "import" "odd expected type"))
+    (Diag.error_message' v.at "M0165" "import" "odd expected type"))
 
 let rec args vs = function
   | ts when List.(compare_lengths vs.it ts < 0 && for_all is_defaultable (Lib.List.drop (length vs.it) ts)) ->

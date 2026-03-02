@@ -117,7 +117,8 @@ let lub env t1 t2 =
 
 exception CheckFailed of string
 
-let type_error at : string -> Diag.message = Diag.error_message at "M0000" "IR type" ~notes:[] ~spans:[] ~edits:[]
+let type_error at s : Diag.message =
+  Diag.error_message at "M0000" "IR type" ~notes:[] ~spans:[] ~edits:[] (Format.dprintf "%s" s)
 
 let error env at fmt =
     Printf.ksprintf (fun s -> raise (CheckFailed (Diag.string_of_message (type_error at s)))) fmt

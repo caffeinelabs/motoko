@@ -18,7 +18,7 @@ type message = {
   code : error_code;
   at : Source.region;
   cat : string;
-  text : string;
+  text : Format.formatter -> unit;
   spans : span list;
   notes: string list;
   edits : edit list;
@@ -29,8 +29,12 @@ let info_message at cat ?(spans = []) ?(notes = []) ?(edits = []) text =
   {sev = Info; code = ""; at; cat; text; spans; notes; edits}
 let warning_message at code cat ?(spans = []) ?(notes = []) ?(edits = []) text =
   {sev = Warning; code; at; cat; text; spans; notes; edits}
+let warning_message' at code cat ?(spans = []) ?(notes = []) ?(edits = []) text =
+  warning_message at code cat ~spans ~notes ~edits (Format.dprintf "%s" text)
 let error_message at code cat ?(spans = []) ?(notes = []) ?(edits = []) text =
   {sev = Error; code; at; cat; text; spans; notes; edits}
+let error_message' at code cat ?(spans = []) ?(notes = []) ?(edits = []) text =
+  error_message at code cat ~spans ~notes ~edits (Format.dprintf "%s" text)
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
@@ -160,7 +164,7 @@ let fancy_of_message msg =
       ~notes
       ?code:(if msg.code = "" then None else Some(msg.code))
       severity
-      "%s" msg.text) in
+      "%t" msg.text) in
     Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
 
 let string_of_severity (sev : severity) = match sev with
@@ -192,7 +196,7 @@ let json_string_of_message msg =
   let edit_jsons = msg.edits |>
     List.map (fun { at_edit; suggested_replacement } -> json_span ~suggested_replacement at_edit) in
   let json = `Assoc [
-    "message", `String msg.text;
+    "message", `String (Format.asprintf "%t" msg.text);
     "code", `String msg.code;
     "level", `String (string_of_severity msg.sev);
     "spans", `List (span_jsons @ edit_jsons);

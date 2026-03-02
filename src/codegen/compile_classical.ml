@@ -11892,21 +11892,21 @@ and compile_prim_invocation (env : E.t) ae p es at =
   (* The compiler will exit with an error if it encounters a related call *)
   | OtherPrim "alloc_weak_ref", [target] ->
     let msg = Diag.error_message Source.no_region "alloc_weak_ref" "classical"
-      "Weak references are not supported in classical mode."
+      (Format.dprintf "%s" "Weak references are not supported in classical mode.")
     in
     Diag.print_messages [msg];
     exit 0
 
   | OtherPrim "weak_get", [weak_ref] ->
     let msg = Diag.error_message Source.no_region "weak_get" "classical"
-      "Weak references are not supported in classical mode."
+      (Format.dprintf "%s" "Weak references are not supported in classical mode.")
     in
     Diag.print_messages [msg];
     exit 0
 
   | OtherPrim "weak_ref_is_live", [weak_ref] ->
     let msg = Diag.error_message Source.no_region "weak_ref_is_live" "classical"
-      "Weak references are not supported in classical mode."
+      (Format.dprintf "%s" "Weak references are not supported in classical mode.")
     in
     Diag.print_messages [msg];
     exit 0

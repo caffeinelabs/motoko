@@ -27,7 +27,7 @@ let at (startpos, endpos) = positions_to_region startpos endpos
 
 let syntax_error at code msg =
   Diag.add_msg (Option.get !msg_store)
-    (Diag.error_message at code "syntax" msg)
+    (Diag.error_message at code "syntax" (Format.dprintf "%s" msg))
 
 (* Helpers *)
 
