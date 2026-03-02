@@ -4,11 +4,12 @@ module {
   type BackendActor = from_candid "service : { increment : () -> (); get : () -> (nat) query }";
 
   public func Backend<system>() : BackendActor {
-    switch (envVar<system>("backend")) {
+    switch (envVar<system> "backend") {
       case (?backendText) {
-        let backendBlob = encodeUtf8(backendText);
-        let backendPrincipal = principalOfBlob(backendBlob);
-        actorOfPrincipal<BackendActor>(backendPrincipal)
+        backendText
+          |> encodeUtf8 _
+          |> principalOfBlob _
+          |> actorOfPrincipal<BackendActor> _
       };
       case null {
         trap("backend envvar not set")
