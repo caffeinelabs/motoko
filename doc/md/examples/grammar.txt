@@ -376,11 +376,11 @@
     'stable'
     'in'
 
-<mig_tag> ::= 
+<mig_lab> ::= 
     <text>
 
 <mig_field> ::= 
-    <mig_tag> ':' <typ>
+    <mig_lab> ':' <typ>
  ')'
     <list(<typ_dec>, ';')> '{' <list(<mig_field>, ';')> '}' 'actor' '{' <list(<stab_field>, ';')> '}' ')'
 

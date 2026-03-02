@@ -1097,9 +1097,9 @@ pre_stab_field :
   | STABLE { false @@ at $sloc }
   | IN { true @@ at $sloc }
 
-mig_tag : t=TEXT { t @@ at $sloc }
+mig_lab : t=TEXT { t @@ at $sloc }
 mig_field :
-  | mt=mig_tag COLON t=typ
+  | mt=mig_lab COLON t=typ
     { {tag=mt; typ=t} @@ at $sloc }
 
 parse_stab_sig :

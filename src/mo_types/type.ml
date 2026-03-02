@@ -2544,14 +2544,6 @@ let decompose_run run_typ =
   let (_rs, rng_fields_i) = as_obj (promote rng_i) in
   (dom_fields_i, rng_fields_i)
 
-let string_of_stab_sig stab_sig : string =
-  let module Pretty = MakePretty(ParseableStamps) in
-  (match stab_sig with
-  | Single _ -> "// Version: 1.0.0\n"
-  | PrePost _ -> "// Version: 3.0.0\n"
-  | Multi _ -> "// Version: 4.0.0\n") ^
-  Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
-
 (* For debugging, construct signatures with type info erased to ()
 let abstract_pre pre = List.map (fun (req,tf) -> (req, {tf with typ = unit})) pre
 let abstract_post post = List.map (fun tf -> {tf with typ = unit}) post
@@ -2607,13 +2599,13 @@ let pres mig_lab_opt chain post =
   let last_pre = List.map (fun tf -> (false, tf)) post in
   go [last_pre] mfs last_pre
 
-let pre mig_tag_opt = function
+let pre mig_lab_opt = function
   | Single tfs ->
     (* all vars optional *)
     List.map (fun tf -> (false, tf)) tfs
   | PrePost (tfs, _) -> tfs
   | Multi {chain; post} ->
-    let (pre, pres) = pres mig_tag_opt chain post in
+    let (pre, pres) = pres mig_lab_opt chain post in
     pre
 
 let post = function
@@ -2625,8 +2617,8 @@ let post = function
     Some ((Lib.List.last chain).lab)
 
 let rec match_stab_sig sig1 sig2 =
-  let post_tfs1, mig_tag_opt = post sig1 in
-  let pre_tfs2 = pre mig_tag_opt sig2 in
+  let post_tfs1, mig_lab_opt = post sig1 in
+  let pre_tfs2 = pre mig_lab_opt sig2 in
   match_stab_fields post_tfs1 pre_tfs2
 
 and match_stab_fields tfs1 tfs2 =
@@ -2640,7 +2632,15 @@ and match_stab_fields tfs1 tfs2 =
       | Lib.That (required, _) -> not required
       | Lib.Both (tf1, (_, tf2)) -> stable_sub (as_immut tf1.typ) (as_immut tf2.typ))
 
+let string_of_stab_sig stab_sig : string =
+  let module Pretty = MakePretty(ParseableStamps) in
+  (match stab_sig with
+  | Single _ -> "// Version: 1.0.0\n"
+  | PrePost _ -> "// Version: 3.0.0\n"
+  | Multi _ -> "// Version: 4.0.0\n") ^
+  Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
 (* The migration chain passed from pipeline to typing. *)
 (* Migration chain from --enhanced-migration directory: (filename, module_type, run_type) triples in order *)
 let migration_chain : (string * typ * typ) list ref = ref []
+

@@ -272,7 +272,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_pre_stab_field) -> "<pre_stab_field>", eg_pre_stab_field
   | X (N N_start) -> entry_point "<start>" (* dummy non-terminal, don't display *)
   | X (N N_seplist_mig_field_semicolon_) -> seplist ("<mig_field>", eg_mig_field) semi
-  | X (N N_mig_tag) -> "<mig_tag>", "\"<filename>\""
+  | X (N N_mig_lab) -> "<mig_lab>", "\"<filename>\""
   | X (N N_mig_field) -> "<mig_field>", eg_mig_field
 (* In order to print a view of the stack that includes semantic values,
    we need an element printer. (If we don't need this feature, then
