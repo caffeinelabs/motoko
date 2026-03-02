@@ -53,7 +53,6 @@ let error_required s tf =
         tf.lab
         migration_link))
 
-
 (*
    - Mutability of stable fields can be changed because they are never aliased.
    - Stable fields cannot be dropped.

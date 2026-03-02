@@ -337,7 +337,6 @@ val post : stab_sig -> field list * mig_lab option
 val match_stab_sig : stab_sig -> stab_sig -> bool
 
 val string_of_stab_sig : stab_sig -> string
-val string_of_abstract_stab_sig : stab_sig -> string
 
 val motoko_runtime_information_type : typ
 
