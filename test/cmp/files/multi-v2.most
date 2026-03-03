@@ -160,7 +160,7 @@ type Set__747087771<T> = Set__550133401<T>;
         loans : List__438045208<NewLoan__326242765>
       }
 }
-  actor  {
+actor  {
   stable books :
     {
       var root : Node__794705536<Nat, Book__482171688>;
@@ -189,4 +189,4 @@ type Set__747087771<T> = Set__550133401<T>;
       var root : Node__794705536<Principal, Member__5507525>;
       var size : Nat__744096560
     }
-}) ;
+};

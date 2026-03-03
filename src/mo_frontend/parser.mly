@@ -1123,7 +1123,7 @@ parse_stab_sig :
     }
   | start ds=seplist(typ_dec, semicolon)
     LCURLY chain = seplist(mig_field, semicolon) RCURLY
-    ACTOR LCURLY sfs_post=seplist(stab_field, semicolon) RCURLY  RPAR
+    ACTOR LCURLY sfs_post=seplist(stab_field, semicolon) RCURLY
     { let trivia = !triv_table in
       let sigs = Multi{chain;post=sfs_post} in
       fun filename ->

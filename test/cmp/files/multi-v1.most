@@ -69,7 +69,7 @@ type Set__747087771<T> = Set__550133401<T>;
   "20260224_120000_AddMembers" :
     {} -> {members : Map__829258118<Principal, Member__755942217>}
 }
-  actor  {
+actor  {
   stable books :
     {
       var root : Node__794705536<Nat, Book__174834140>;
@@ -89,4 +89,4 @@ type Set__747087771<T> = Set__550133401<T>;
       var root : Node__794705536<Principal, Member__755942217>;
       var size : Nat__744096560
     }
-}) ;
+};

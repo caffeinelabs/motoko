@@ -58,7 +58,7 @@ type Set__747087771<T> = Set__550133401<T>;
         loans : List__438045208<Loan__708682671>
       }
 }
-  actor  {
+actor  {
   stable books :
     {
       var root : Node__794705536<Nat, Book__1028650291>;
@@ -73,4 +73,4 @@ type Set__747087771<T> = Set__550133401<T>;
       var blocks : [var [var ?Loan__708682671]];
       var elementIndex : Nat__744096560
     }
-}) ;
+};
