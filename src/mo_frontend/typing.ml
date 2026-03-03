@@ -2013,7 +2013,8 @@ and infer_exp'' env exp : T.typ =
         let t2 = T.as_mut t1 in
         check_exp_strong env t2 exp2
       with Invalid_argument _ -> begin
-        let spans = Option.value ~default:[] (match exp1.it with
+        let s = primary env exp1.at "cannot assign to immutable value" in
+        let (spans, edits) = Option.value ~default:([], []) (match exp1.it with
           | VarE id ->
             let open Lib.Option.Syntax in
             let* (_, id_at, _, _) = T.Env.find_opt id.it env.vals in
@@ -2026,9 +2027,9 @@ and infer_exp'' env exp : T.typ =
                 (* The `let` token is the first three characters of the let-declaration *)
                 { dec_region.left with column = dec_region.left.column + 3 }
             } in
-            Some([secondary env let_tkn_range "help: change this `let` to `var`?"])
+            Some([secondary env let_tkn_range "help: consider making this binding mutable"], [edit let_tkn_range "var"])
           | _ -> None) in
-        error env exp.at ~spans "M0073" "expected mutable assignment target"
+        error env exp1.at ~spans:(s::spans) ~edits "M0073" "expected mutable assignment target"
       end
     end;
     T.unit

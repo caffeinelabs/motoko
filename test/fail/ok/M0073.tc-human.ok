@@ -5,14 +5,15 @@ warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expr
 error[M0073]: expected mutable assignment target
     ┌─ M0073.mo:3:3
   2 │    let x = ();
-    │    --- help: change this `let` to `var`?
+    │    --- help: consider making this binding mutable
   3 │    x := ();
-    │    ^^^^^^^ 
+    │    ^ cannot assign to immutable value
+    = help: replace `let` with `var`
 error[M0073]: expected mutable assignment target
     ┌─ M0073.mo:8:3
   8 │    xs[0] := 10;
-    │    ^^^^^^^^^^^ 
+    │    ^^^^^ cannot assign to immutable value
 error[M0073]: expected mutable assignment target
     ┌─ M0073.mo:13:3
  13 │    x := 10;
-    │    ^^^^^^^ 
+    │    ^ cannot assign to immutable value

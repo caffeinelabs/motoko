@@ -1,4 +1,7 @@
 M0073.mo:2.3-2.11: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-M0073.mo:3.3-3.10: type error [M0073], expected mutable assignment target
-M0073.mo:8.3-8.14: type error [M0073], expected mutable assignment target
-M0073.mo:13.3-13.10: type error [M0073], expected mutable assignment target
+M0073.mo:3.3-3.4: type error [M0073], expected mutable assignment target
+cannot assign to immutable value
+M0073.mo:8.3-8.8: type error [M0073], expected mutable assignment target
+cannot assign to immutable value
+M0073.mo:13.3-13.4: type error [M0073], expected mutable assignment target
+cannot assign to immutable value
