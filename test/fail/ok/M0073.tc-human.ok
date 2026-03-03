@@ -1,8 +1,18 @@
 warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
-    ┌─ M0073.mo:1:1
-  1 │  let x = ();
-    │  ^^^^^^^^ 
+    ┌─ M0073.mo:2:3
+  2 │    let x = ();
+    │    ^^^^^^^^ 
 error[M0073]: expected mutable assignment target
-    ┌─ M0073.mo:2:1
-  2 │  x := ()
-    │  ^^^^^^^ 
+    ┌─ M0073.mo:3:3
+  2 │    let x = ();
+    │    --- help: change this `let` to `var`?
+  3 │    x := ();
+    │    ^^^^^^^ 
+error[M0073]: expected mutable assignment target
+    ┌─ M0073.mo:8:3
+  8 │    xs[0] := 10;
+    │    ^^^^^^^^^^^ 
+error[M0073]: expected mutable assignment target
+    ┌─ M0073.mo:13:3
+ 13 │    x := 10;
+    │    ^^^^^^^ 

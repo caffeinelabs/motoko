@@ -71,13 +71,14 @@ type env =
     srcs : Field_sources.t;
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (Source.region * T.typ) option;
+    top_node : Zipper.t
   }
 and ret_env =
   | NoRet
   | Ret of T.typ
   | BimatchRet of (env -> exp -> unit)
 
-let env_of_scope msgs scope =
+let env_of_scope msgs scope top_node =
   { vals = available scope.Scope.val_env;
     libs = scope.Scope.lib_env;
     mixins = scope.Scope.mixin_env;
@@ -104,6 +105,7 @@ let env_of_scope msgs scope =
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
     closest_loop = None;
     closest_scrutinee = None;
+    top_node;
   }
 
 let use_identifier env id =
@@ -2010,8 +2012,24 @@ and infer_exp'' env exp : T.typ =
       try
         let t2 = T.as_mut t1 in
         check_exp_strong env t2 exp2
-      with Invalid_argument _ ->
-        error env exp.at "M0073" "expected mutable assignment target";
+      with Invalid_argument _ -> begin
+        let spans = Option.value ~default:[] (match exp1.it with
+          | VarE id ->
+            let open Lib.Option.Syntax in
+            let* (_, id_at, _, _) = T.Env.find_opt id.it env.vals in
+            let* focus = Zipper.focus_on_region id_at env.top_node in
+            if not (Zipper.is_let_bound_pat focus) then None else
+            let* let_dec = Zipper.parent focus in
+            let dec_region = Zipper.region_of_node let_dec in
+            let let_tkn_range = Source.{
+              dec_region with right =
+                (* The `let` token is the first three characters of the let-declaration *)
+                { dec_region.left with column = dec_region.left.column + 3 }
+            } in
+            Some([secondary env let_tkn_range "help: change this `let` to `var`?"])
+          | _ -> None) in
+        error env exp.at ~spans "M0073" "expected mutable assignment target"
+      end
     end;
     T.unit
   | ArrayE (mut, exps) ->
@@ -4700,7 +4718,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     (fun msgs ->
       recovery_fn
         (fun prog ->
-          let env0 = env_of_scope msgs scope in
+          let env0 = env_of_scope msgs scope (Zipper.of_prog prog) in
           let env = {
              env0 with async = async_cap; type_recovery = enable_type_recovery;
           } in
@@ -4725,7 +4743,7 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
     (fun msgs ->
       recover_opt (fun progs ->
         let prog = (CompUnit.combine_progs progs).it in
-        let env = env_of_scope msgs scope in
+        let env = env_of_scope msgs scope Zipper.empty in
         let report ds =
           match ds with
             [] -> ()
@@ -4754,7 +4772,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
     (fun msgs ->
       recover_opt
         (fun lib ->
-          let env = { (env_of_scope msgs scope) with errors_only = pkg_opt <> None } in
+          let env = { (env_of_scope msgs scope Zipper.empty) with errors_only = pkg_opt <> None } in
           let { imports; body = cub; _ } = lib.it in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_block env (imp_ds @ ds) lib.at false in
@@ -4810,7 +4828,7 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
     (fun msgs ->
       recover_opt
         (fun (decs, sfs) ->
-          let env = env_of_scope msgs scope in
+          let env = env_of_scope msgs scope Zipper.empty in
           let scope = infer_block_decs env decs sig_.at in
           let env1 = adjoin env scope in
           let check_fields sfs =
