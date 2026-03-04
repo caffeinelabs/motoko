@@ -209,7 +209,8 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
      resolve_ic bytes
   | Ok (Url.IcAlias alias) ->
     begin match M.find_opt alias aliases with
-    | Some bytes -> resolve_ic bytes
+    | Some (Either.Right bytes) -> resolve_ic bytes
+    | Some (Either.Left envvar) -> failwith "envvar"
     | None -> err_alias_not_defined msgs at alias
     end
   | Ok (Url.FileValue path) ->
@@ -228,16 +229,16 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   else (err_package_file_does_not_exist msgs f pname;"")
 
 (* Resolve the argument to `--actor-alias` and `--actor-env-alias`. Check eagerly for well-formedness *)
-let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar, url) Either.t) : blob =
+let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar, url) Either.t) : (envvar, blob) Either.t =
   match f with
   | Either.Left _ -> failwith "ENVVAR"
   | Either.Right f ->
-     match Url.decode_principal f with
+     Either.Right (match Url.decode_principal f with
      | Ok bytes ->
         if String.length bytes > 29 then
           (err_unrecognized_alias msgs alias f "Principal too long"; "")
         else bytes
-     | Error msg -> err_unrecognized_alias msgs alias f msg; ""
+     | Error msg -> err_unrecognized_alias msgs alias f msg; "")
 
 let prog_imports (p : prog): (url * resolved_import ref * region) list =
   let res = ref [] in
@@ -250,7 +251,7 @@ let prog_imports (p : prog): (url * resolved_import ref * region) list =
 type actor_idl_path = filepath option
 type package_urls = url M.t
 type actor_aliases = (envvar, url) Either.t M.t
-type aliases = blob M.t
+type aliases = (envvar, blob) Either.t M.t
 
 
 let resolve_packages : package_urls -> package_map Diag.result = fun purls ->

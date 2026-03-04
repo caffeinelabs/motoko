@@ -23,7 +23,8 @@ type flags = {
 
 type package_map = filepath Flags.M.t
 type blob = string
-type aliases = blob Flags.M.t
+type envvar = string
+type aliases = (envvar, blob) Either.t Flags.M.t
 type resolved_flags = {
   packages : package_map;
   aliases : aliases;
