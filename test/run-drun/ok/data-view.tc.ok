@@ -1,0 +1,8 @@
+data-view.mo:23.7-23.22: warning [M0194], unused identifier: `invisible_array`
+help: if this is intentional, prefix it with an underscore: `_invisible_array`
+data-view.mo:26.7-26.19: warning [M0194], unused identifier: `some_variant`
+help: if this is intentional, prefix it with an underscore: `_some_variant`
+data-view.mo:27.7-27.18: warning [M0194], unused identifier: `some_record`
+help: if this is intentional, prefix it with an underscore: `_some_record`
+data-view.mo:30.7-30.26: warning [M0194], unused identifier: `some_mutable_record`
+help: if this is intentional, prefix it with an underscore: `_some_mutable_record`
