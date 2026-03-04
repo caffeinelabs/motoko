@@ -16,6 +16,7 @@ It returns a list of all imported file names.
 
 type filepath = string
 type url = string
+type envvar = string
 type blob = string
 
 type resolved_imports = Syntax.resolved_import Source.phrase list
@@ -226,15 +227,17 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   then f
   else (err_package_file_does_not_exist msgs f pname;"")
 
-(* Resolve the argument to --actor-alias. Check eagerly for well-formedness *)
-let resolve_alias_principal (msgs:Diag.msg_store) (alias:string) (f:string) : blob =
-  match Url.decode_principal f with
-  | Ok bytes ->
-     if String.length bytes > 29 then
-       (err_unrecognized_alias msgs alias f "Principal too long"; "")
-     else bytes
-  | Error msg -> err_unrecognized_alias msgs alias f msg; ""
-
+(* Resolve the argument to `--actor-alias` and `--actor-env-alias`. Check eagerly for well-formedness *)
+let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar, url) Either.t) : blob =
+  match f with
+  | Either.Left _ -> failwith "ENVVAR"
+  | Either.Right f ->
+     match Url.decode_principal f with
+     | Ok bytes ->
+        if String.length bytes > 29 then
+          (err_unrecognized_alias msgs alias f "Principal too long"; "")
+        else bytes
+     | Error msg -> err_unrecognized_alias msgs alias f msg; ""
 
 let prog_imports (p : prog): (url * resolved_import ref * region) list =
   let res = ref [] in
@@ -246,7 +249,7 @@ let prog_imports (p : prog): (url * resolved_import ref * region) list =
 
 type actor_idl_path = filepath option
 type package_urls = url M.t
-type actor_aliases = url M.t
+type actor_aliases = (envvar, url) Either.t M.t
 type aliases = blob M.t
 
 
