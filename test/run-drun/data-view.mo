@@ -58,19 +58,19 @@ persistent actor Self {
     Prim.debugPrint(debug_show (await views.__some_record()));
     Prim.debugPrint(debug_show (await views.__override())); // calls user-defined method
     try {
-      await views.__invisible_array(); //fails with method not avialable
+      await views.__invisible_array(); //fails with method not available
       assert false;
     } catch (e) {
       Prim.debugPrint (Prim.errorMessage(e));
     };
     try {
-      await views.__some_mutable_record(); //fails with method not avialable
+      await views.__some_mutable_record(); //fails with method not available
       assert false;
     } catch (e) {
       Prim.debugPrint (Prim.errorMessage(e));
     };
     try {
-      await views.__motoko_xxx(); //fails with method not avialable
+      await views.__motoko_xxx(); //fails with method not available
       assert false;
     } catch (e) {
       Prim.debugPrint (Prim.errorMessage(e));

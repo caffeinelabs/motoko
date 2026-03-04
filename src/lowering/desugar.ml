@@ -696,7 +696,7 @@ and export_view viewer_opt =
                         expD (ifE access_control
                                 (unitE())
                                 (primE (Ir.OtherPrim "trap")
-                                   [textE "Unauthorized caller (caller must be self, some controller or isAdmin(caller))"]))
+                                   [textE "Unauthorized caller (caller must be self, some controller or satisfy isAdmin(caller))"]))
                       ]
                       (mk_body vs))
                    (Con (scope_con1, []))))
