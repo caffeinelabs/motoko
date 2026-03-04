@@ -148,11 +148,11 @@ let add_lib_import msgs imported ri_ref at lib_path =
   | Error err ->
     Diag.add_msg msgs err
 
-let add_idl_import msgs imported ri_ref at full_path bytes =
+let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
   if Sys.file_exists full_path
   then begin
-    ri_ref := IDLPath (full_path, bytes);
-    imported := RIM.add (IDLPath (full_path, bytes)) at !imported
+    ri_ref := IDLPath (full_path, envvar_or_bytes);
+    imported := RIM.add !ri_ref at !imported
   end else
     err_file_does_not_exist msgs at full_path
 
@@ -188,7 +188,13 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     | None -> err_actor_import_without_idl_path msgs at
     | Some actor_base ->
       let full_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
-      add_idl_import msgs imported ri_ref at full_path bytes
+      add_idl_import msgs imported ri_ref at full_path (Either.Right bytes)
+  in
+  let resolve_env envvar = match actor_idl_path with
+    | None -> err_actor_import_without_idl_path msgs at
+    | Some actor_base ->
+      let full_path = in_base actor_base envvar in
+      add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
@@ -210,7 +216,7 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
   | Ok (Url.IcAlias alias) ->
     begin match M.find_opt alias aliases with
     | Some (Either.Right bytes) -> resolve_ic bytes
-    | Some (Either.Left envvar) -> failwith "envvar"
+    | Some (Either.Left envvar) -> resolve_env envvar
     | None -> err_alias_not_defined msgs at alias
     end
   | Ok (Url.FileValue path) ->
