@@ -1,3 +1,1 @@
-M0128.mo:2.8-2.18: warning [M0128], this function has the name of a system method, but is declared without system visibility and will not be called by the system
-M0128.mo:2.8-2.18: warning [M0194], unused identifier preupgrade (delete or rename to wildcard `_` or `_preupgrade`)
-M0128.mo:2.19-2.22: warning [M0194], unused identifier foo (delete or rename to wildcard `_` or `_foo`)
+M0128.mo:3.8-3.18: warning [M0128], this function has the name of a system method, but is declared without system visibility and will not be called by the system

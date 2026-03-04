@@ -5,6 +5,7 @@ sig
   type t
   val signed : bool
   val zero : t
+  val one : t
   val abs : t -> t
   val neg : t -> t
   val add : t -> t -> t

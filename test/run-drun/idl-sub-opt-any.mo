@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 
 // test candid subtype test with optional argument extension

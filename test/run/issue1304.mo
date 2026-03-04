@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 class Pos() {
     public var x: Int = 100;
 };

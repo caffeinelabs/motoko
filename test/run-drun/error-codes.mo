@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import P = "mo:⛔";
 
 // TODO: test #system_fatal, #system_transient and #future somehow

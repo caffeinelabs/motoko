@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  Nat
+cannot produce expected type
+  Nat8
+    ┌─ variant-check.mo:6:23
+  6 │  func bar() : T = #exp why; // this should fail
+    │                        ^^^ 

@@ -1,0 +1,4 @@
+error[M0044]: duplicate type name A in type parameter list
+    ┌─ M0044.mo:1:13
+  1 │  func foo<A, A>() {}
+    │              ^ 

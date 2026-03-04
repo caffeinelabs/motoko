@@ -177,3 +177,32 @@ module Imports = struct
     func_imports, ni', remapping
 end
 
+module Make_Ptr_Logic (S : sig
+  type t
+  val ty : value_type
+  val align : int
+  val skew : t
+  val unskew : t
+end) = struct
+  (*
+  Pointers are skewed (translated) -1 relative to the actual offset.
+  See documentation of module BitTagged for more detail.
+  *)
+  let ptr_skew = S.skew
+  let ptr_unskew = S.unskew
+  (* Pointer reference and dereference  *)
+  let load_unskewed_ptr = G.i (Load {ty = S.ty; align = S.align; offset = 0L; sz = None})
+  let store_unskewed_ptr = G.i (Store {ty = S.ty; align = S.align; offset = 0L; sz = None})
+  let load_ptr = G.i (Load {ty = S.ty; align = S.align; offset = 1L; sz = None})
+  let store_ptr = G.i (Store {ty = S.ty; align = S.align; offset = 1L; sz = None})
+end
+
+module W32_Pointers = Make_Ptr_Logic (struct
+  type t = int32
+  let (ty, align, skew, unskew) = (I32Type, 2, -1l, 1l)
+end)
+
+module W64_Pointers = Make_Ptr_Logic (struct
+  type t = int64
+  let (ty, align, skew, unskew) = (I64Type, 3, -1L, 1L)
+end)

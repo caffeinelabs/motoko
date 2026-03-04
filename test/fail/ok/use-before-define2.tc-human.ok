@@ -1,0 +1,4 @@
+error[M0016]: cannot use x before x has been defined
+    ┌─ use-before-define2.mo:5:1
+  5 │  let f2 = do { let f3 = func ():Int = x;  f3 };
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

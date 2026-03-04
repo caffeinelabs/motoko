@@ -1,6 +1,8 @@
 (library
   (name lang_utils)
-  (libraries lib mo_config yojson)
+
+  (libraries lib mo_config yojson grace grace.ansi_renderer)
+
   (wrapped false)
 
   (preprocess (pps ppx_blob))

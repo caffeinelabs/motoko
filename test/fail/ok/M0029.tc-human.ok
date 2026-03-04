@@ -1,0 +1,4 @@
+error[M0029]: unbound type Foo
+    ┌─ M0029.mo:2:9
+  2 │  let _ : Foo = ();
+    │          ^^^ help: did you mean type Fo?

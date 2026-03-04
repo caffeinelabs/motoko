@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 type IntT = Int;
 type Arrow<T,U> = T->U;
 type Compose<T,U,V> = (T->U) -> (U->V) -> T -> V;

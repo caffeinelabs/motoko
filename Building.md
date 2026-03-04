@@ -160,13 +160,12 @@ Make sure that the very top of `Changelog.md` **exactly** matches the following 
 ### 2. Open a release PR
 
 Define a shell variable `NEXT_MOC_VERSION` with the next version number.
-The following command will automatically calculate a patch bump.
-Verify the version is correct. If you need a minor or major version bump, set the variable manually.
+The following command extracts it from the first heading in `Changelog.md` (which you just edited).
+Verify the version is correct.
 
 ```bash
-export LAST_MOC_VERSION=$(git describe --abbrev=0)
-export NEXT_MOC_VERSION=$(echo $LAST_MOC_VERSION | awk -F. -v OFS=. '{$3++; print}')
-echo "Last version: $LAST_MOC_VERSION"
+echo "Last version: $(git describe --abbrev=0)"
+export NEXT_MOC_VERSION=$(sed -nE 's/^## ([0-9]+\.[0-9]+\.[0-9]+) .*/\1/p' Changelog.md | head -1)
 echo "Next version: $NEXT_MOC_VERSION"
 ```
 

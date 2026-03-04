@@ -1,3 +1,0 @@
-rts-stack-pages.mo:8.12-8.33: warning [M0199], this code is (or uses) the deprecated library `ExperimentalStableMemory`.
-Please use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message.
-rts-stack-pages.mo:8.8-8.9: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)

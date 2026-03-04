@@ -1,0 +1,9 @@
+warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
+    ┌─ M0124.mo:2:10
+  2 │    public let foo = ()
+    │           ^^^^^^^^^^ 
+error[M0124]: public actor field foo has non-shared function type
+  ()
+    ┌─ M0124.mo:2:14
+  2 │    public let foo = ()
+    │               ^^^ 

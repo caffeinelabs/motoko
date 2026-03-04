@@ -1,1 +1,2 @@
-unused-field-pattern.mo:2.15-2.21: warning [M0198], unused field field2 in object pattern (delete or rewrite as `field2 = _`)
+unused-field-pattern.mo:2.15-2.21: warning [M0198], unused field in pattern: `field2`
+help: if this is intentional, delete or rewrite as `field2 = _`

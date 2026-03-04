@@ -1,18 +1,14 @@
-coverage.mo:4.7-4.8: warning [M0145], this pattern of type
+coverage.mo:5.7-5.8: warning [M0145], this pattern of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:5.13-5.14: warning [M0146], this pattern is never matched
-coverage.mo:5.8-5.14: warning [M0145], this pattern of type
+coverage.mo:6.13-6.14: warning [M0146], this pattern is never matched
+coverage.mo:6.8-6.14: warning [M0145], this pattern of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:7.13-7.14: warning [M0146], this pattern is never matched
 coverage.mo:8.13-8.14: warning [M0146], this pattern is never matched
-coverage.mo:9.7-9.9: warning [M0145], this pattern of type
-  ?Nat
-does not cover value
-  null
+coverage.mo:9.13-9.14: warning [M0146], this pattern is never matched
 coverage.mo:10.7-10.9: warning [M0145], this pattern of type
   ?Nat
 does not cover value
@@ -20,218 +16,172 @@ does not cover value
 coverage.mo:11.7-11.9: warning [M0145], this pattern of type
   ?Nat
 does not cover value
+  null
+coverage.mo:12.7-12.9: warning [M0145], this pattern of type
+  ?Nat
+does not cover value
   ?(0 or 1 or _) or
   null
-coverage.mo:15.10-15.13: warning [M0145], this pattern of type
+coverage.mo:16.10-16.13: warning [M0145], this pattern of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:18.16-18.17: warning [M0146], this pattern is never matched
-coverage.mo:19.17-19.18: warning [M0146], this pattern is never matched
-coverage.mo:23.3-23.25: warning [M0145], this switch of type
+coverage.mo:19.16-19.17: warning [M0146], this pattern is never matched
+coverage.mo:20.17-20.18: warning [M0146], this pattern is never matched
+coverage.mo:24.3-24.25: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:24.30-24.31: warning [M0146], this pattern is never matched
-coverage.mo:24.3-24.36: warning [M0145], this switch of type
+coverage.mo:25.30-25.31: warning [M0146], this pattern is never matched
+coverage.mo:25.3-25.36: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:27.30-27.31: warning [M0146], this pattern is never matched
 coverage.mo:28.30-28.31: warning [M0146], this pattern is never matched
 coverage.mo:29.30-29.31: warning [M0146], this pattern is never matched
 coverage.mo:30.30-30.31: warning [M0146], this pattern is never matched
 coverage.mo:31.30-31.31: warning [M0146], this pattern is never matched
-coverage.mo:32.43-32.44: warning [M0146], this pattern is never matched
-coverage.mo:32.3-32.50: warning [M0145], this switch of type
+coverage.mo:32.30-32.31: warning [M0146], this pattern is never matched
+coverage.mo:33.43-33.44: warning [M0146], this pattern is never matched
+coverage.mo:33.3-33.50: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:33.40-33.46: warning [M0146], this pattern is never matched
-coverage.mo:34.47-34.48: warning [M0146], this pattern is never matched
-coverage.mo:35.3-35.51: warning [M0145], this switch of type
+coverage.mo:34.40-34.46: warning [M0146], this pattern is never matched
+coverage.mo:35.47-35.48: warning [M0146], this pattern is never matched
+coverage.mo:36.3-36.51: warning [M0145], this switch of type
   (Nat, Nat)
 does not cover value
   (1 or 2 or _, 1 or 2 or _)
-coverage.mo:37.56-37.70: warning [M0146], this pattern is never matched
-coverage.mo:38.44-38.51: warning [M0146], this pattern is never matched
-coverage.mo:39.61-39.62: warning [M0146], this pattern is never matched
-coverage.mo:40.54-40.55: warning [M0146], this pattern is never matched
-coverage.mo:41.3-41.61: warning [M0145], this switch of type
+coverage.mo:38.56-38.70: warning [M0146], this pattern is never matched
+coverage.mo:39.44-39.51: warning [M0146], this pattern is never matched
+coverage.mo:40.61-40.62: warning [M0146], this pattern is never matched
+coverage.mo:41.54-41.55: warning [M0146], this pattern is never matched
+coverage.mo:42.3-42.61: warning [M0145], this switch of type
   {a : Nat; b : Nat}
 does not cover value
   {a = 1 or 2 or _; b = 1 or 2 or _}
-coverage.mo:45.3-45.74: warning [M0145], this switch of type
+coverage.mo:46.3-46.74: warning [M0145], this switch of type
   {#a : Nat; #b : Nat}
 does not cover value
   #b(0 or 1 or _)
-coverage.mo:46.63-46.69: warning [M0146], this pattern is never matched
-coverage.mo:47.3-47.58: warning [M0145], this switch of type
-  {#a : Nat; #b : Nat}
-does not cover value
-  #b(_)
+coverage.mo:47.63-47.69: warning [M0146], this pattern is never matched
 coverage.mo:48.3-48.58: warning [M0145], this switch of type
   {#a : Nat; #b : Nat}
 does not cover value
+  #b(_)
+coverage.mo:49.3-49.58: warning [M0145], this switch of type
+  {#a : Nat; #b : Nat}
+does not cover value
   #a(_)
-coverage.mo:49.3-49.62: warning [M0145], this switch of type
+coverage.mo:50.3-50.62: warning [M0145], this switch of type
   {#a : Nat; #b : Nat; #c}
 does not cover value
   #a(_) or #c
-coverage.mo:50.3-50.42: warning [M0145], this switch of type
+coverage.mo:51.3-51.42: warning [M0145], this switch of type
   {#a : Nat; #b : Nat}
 does not cover value
   _
-coverage.mo:61.27-61.28: warning [M0146], this pattern is never matched
-coverage.mo:62.33-62.34: warning [M0146], this pattern is never matched
-coverage.mo:63.49-63.50: warning [M0146], this pattern is never matched
-coverage.mo:64.48-64.49: warning [M0146], this pattern is never matched
-coverage.mo:65.41-65.42: warning [M0146], this pattern is never matched
-coverage.mo:66.40-66.41: warning [M0146], this pattern is never matched
-coverage.mo:77.10-77.27: warning [M0146], this pattern is never matched
-coverage.mo:74.3-78.4: warning [M0145], this switch of type
+coverage.mo:62.27-62.28: warning [M0146], this pattern is never matched
+coverage.mo:63.33-63.34: warning [M0146], this pattern is never matched
+coverage.mo:64.49-64.50: warning [M0146], this pattern is never matched
+coverage.mo:65.48-65.49: warning [M0146], this pattern is never matched
+coverage.mo:66.41-66.42: warning [M0146], this pattern is never matched
+coverage.mo:67.40-67.41: warning [M0146], this pattern is never matched
+coverage.mo:78.10-78.27: warning [M0146], this pattern is never matched
+coverage.mo:75.3-79.4: warning [M0145], this switch of type
   {#branch : (Tree, Tree); #leaf : Int}
 does not cover value
   #leaf(0 or 1 or _)
-coverage.mo:109.8-109.47: warning [M0146], this pattern is never matched
-coverage.mo:172.8-172.10: warning [M0146], this pattern is never matched
+coverage.mo:110.8-110.47: warning [M0146], this pattern is never matched
 coverage.mo:173.8-173.10: warning [M0146], this pattern is never matched
 coverage.mo:174.8-174.10: warning [M0146], this pattern is never matched
-coverage.mo:122.11-122.13: warning [M0146], this pattern is never matched
-coverage.mo:126.11-126.13: warning [M0146], this pattern is never matched
-coverage.mo:130.11-130.13: warning [M0146], this pattern is never matched
-coverage.mo:134.11-134.13: warning [M0146], this pattern is never matched
-coverage.mo:139.11-139.13: warning [M0146], this pattern is never matched
-coverage.mo:143.11-143.13: warning [M0146], this pattern is never matched
-coverage.mo:147.11-147.13: warning [M0146], this pattern is never matched
-coverage.mo:151.11-151.13: warning [M0146], this pattern is never matched
-coverage.mo:156.11-156.13: warning [M0146], this pattern is never matched
-coverage.mo:160.11-160.13: warning [M0146], this pattern is never matched
-coverage.mo:164.11-164.13: warning [M0146], this pattern is never matched
-coverage.mo:168.11-168.13: warning [M0146], this pattern is never matched
-coverage.mo:232.7-232.9: warning [M0145], this pattern of type
+coverage.mo:175.8-175.10: warning [M0146], this pattern is never matched
+coverage.mo:123.11-123.13: warning [M0146], this pattern is never matched
+coverage.mo:127.11-127.13: warning [M0146], this pattern is never matched
+coverage.mo:131.11-131.13: warning [M0146], this pattern is never matched
+coverage.mo:135.11-135.13: warning [M0146], this pattern is never matched
+coverage.mo:140.11-140.13: warning [M0146], this pattern is never matched
+coverage.mo:144.11-144.13: warning [M0146], this pattern is never matched
+coverage.mo:148.11-148.13: warning [M0146], this pattern is never matched
+coverage.mo:152.11-152.13: warning [M0146], this pattern is never matched
+coverage.mo:157.11-157.13: warning [M0146], this pattern is never matched
+coverage.mo:161.11-161.13: warning [M0146], this pattern is never matched
+coverage.mo:165.11-165.13: warning [M0146], this pattern is never matched
+coverage.mo:169.11-169.13: warning [M0146], this pattern is never matched
+coverage.mo:233.7-233.9: warning [M0145], this pattern of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:233.7-233.9: warning [M0145], this pattern of type
+coverage.mo:234.7-234.9: warning [M0145], this pattern of type
   Null
 does not cover value
   null
-coverage.mo:234.7-234.9: warning [M0145], this pattern of type
+coverage.mo:235.7-235.9: warning [M0145], this pattern of type
   {#b}
 does not cover value
   #b
-coverage.mo:180.10-180.14: warning [M0146], this pattern is never matched
-coverage.mo:183.10-183.21: warning [M0146], this pattern is never matched
-coverage.mo:186.10-186.27: warning [M0146], this pattern is never matched
-coverage.mo:189.10-189.20: warning [M0146], this pattern is never matched
-coverage.mo:194.11-194.13: warning [M0146], this pattern is never matched
-coverage.mo:193.3-195.4: warning [M0145], this switch of type
+coverage.mo:181.10-181.14: warning [M0146], this pattern is never matched
+coverage.mo:184.10-184.21: warning [M0146], this pattern is never matched
+coverage.mo:187.10-187.27: warning [M0146], this pattern is never matched
+coverage.mo:190.10-190.20: warning [M0146], this pattern is never matched
+coverage.mo:195.11-195.13: warning [M0146], this pattern is never matched
+coverage.mo:194.3-196.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:197.11-197.13: warning [M0146], this pattern is never matched
-coverage.mo:196.3-198.4: warning [M0145], this switch of type
+coverage.mo:198.11-198.13: warning [M0146], this pattern is never matched
+coverage.mo:197.3-199.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:200.11-200.13: warning [M0146], this pattern is never matched
-coverage.mo:199.3-201.4: warning [M0145], this switch of type
+coverage.mo:201.11-201.13: warning [M0146], this pattern is never matched
+coverage.mo:200.3-202.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:203.11-203.13: warning [M0146], this pattern is never matched
-coverage.mo:202.3-204.4: warning [M0145], this switch of type
+coverage.mo:204.11-204.13: warning [M0146], this pattern is never matched
+coverage.mo:203.3-205.4: warning [M0145], this switch of type
   Nat
 does not cover value
   0 or 1 or _
-coverage.mo:207.11-207.13: warning [M0146], this pattern is never matched
-coverage.mo:206.3-208.4: warning [M0145], this switch of type
+coverage.mo:208.11-208.13: warning [M0146], this pattern is never matched
+coverage.mo:207.3-209.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:210.11-210.13: warning [M0146], this pattern is never matched
-coverage.mo:209.3-211.4: warning [M0145], this switch of type
+coverage.mo:211.11-211.13: warning [M0146], this pattern is never matched
+coverage.mo:210.3-212.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:213.11-213.13: warning [M0146], this pattern is never matched
-coverage.mo:212.3-214.4: warning [M0145], this switch of type
+coverage.mo:214.11-214.13: warning [M0146], this pattern is never matched
+coverage.mo:213.3-215.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:216.11-216.13: warning [M0146], this pattern is never matched
-coverage.mo:215.3-217.4: warning [M0145], this switch of type
+coverage.mo:217.11-217.13: warning [M0146], this pattern is never matched
+coverage.mo:216.3-218.4: warning [M0145], this switch of type
   Null
 does not cover value
   null
-coverage.mo:220.11-220.13: warning [M0146], this pattern is never matched
-coverage.mo:219.3-221.4: warning [M0145], this switch of type
+coverage.mo:221.11-221.13: warning [M0146], this pattern is never matched
+coverage.mo:220.3-222.4: warning [M0145], this switch of type
   {#a}
 does not cover value
   #a
-coverage.mo:223.11-223.13: warning [M0146], this pattern is never matched
-coverage.mo:222.3-224.4: warning [M0145], this switch of type
+coverage.mo:224.11-224.13: warning [M0146], this pattern is never matched
+coverage.mo:223.3-225.4: warning [M0145], this switch of type
   {#a}
 does not cover value
   #a
-coverage.mo:226.11-226.13: warning [M0146], this pattern is never matched
-coverage.mo:225.3-227.4: warning [M0145], this switch of type
+coverage.mo:227.11-227.13: warning [M0146], this pattern is never matched
+coverage.mo:226.3-228.4: warning [M0145], this switch of type
   {#a}
 does not cover value
   #a
-coverage.mo:229.11-229.13: warning [M0146], this pattern is never matched
-coverage.mo:228.3-230.4: warning [M0145], this switch of type
+coverage.mo:230.11-230.13: warning [M0146], this pattern is never matched
+coverage.mo:229.3-231.4: warning [M0145], this switch of type
   {#a}
 does not cover value
   #a
-coverage.mo:1.6-1.7: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
-coverage.mo:3.7-3.8: warning [M0194], unused identifier a (delete or rename to wildcard `_` or `_a`)
-coverage.mo:9.8-9.9: warning [M0194], unused identifier b (delete or rename to wildcard `_` or `_b`)
-coverage.mo:13.8-13.10: warning [M0194], unused identifier f1 (delete or rename to wildcard `_` or `_f1`)
-coverage.mo:14.8-14.10: warning [M0194], unused identifier f2 (delete or rename to wildcard `_` or `_f2`)
-coverage.mo:14.11-14.12: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:15.8-15.10: warning [M0194], unused identifier f3 (delete or rename to wildcard `_` or `_f3`)
-coverage.mo:17.8-17.10: warning [M0194], unused identifier f5 (delete or rename to wildcard `_` or `_f5`)
-coverage.mo:18.8-18.10: warning [M0194], unused identifier f6 (delete or rename to wildcard `_` or `_f6`)
-coverage.mo:19.8-19.10: warning [M0194], unused identifier f7 (delete or rename to wildcard `_` or `_f7`)
-coverage.mo:22.19-22.20: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:26.30-26.31: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:28.30-28.31: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:29.19-29.20: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:30.19-30.20: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:30.30-30.31: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:100.13-100.14: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:101.14-101.15: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:101.21-101.22: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:102.14-102.15: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:102.22-102.23: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:102.25-102.26: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:103.14-103.15: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:103.22-103.23: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:103.25-103.26: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:104.19-104.20: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:104.22-104.23: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:104.26-104.27: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:105.19-105.20: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:105.22-105.23: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:105.26-105.27: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:106.13-106.14: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:106.20-106.21: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:106.23-106.24: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:106.26-106.27: warning [M0194], unused identifier v (delete or rename to wildcard `_` or `_v`)
-coverage.mo:106.30-106.31: warning [M0194], unused identifier w (delete or rename to wildcard `_` or `_w`)
-coverage.mo:107.14-107.15: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:107.21-107.22: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:107.24-107.25: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:107.27-107.28: warning [M0194], unused identifier v (delete or rename to wildcard `_` or `_v`)
-coverage.mo:108.13-108.14: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:108.16-108.17: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:108.24-108.25: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:108.27-108.28: warning [M0194], unused identifier v (delete or rename to wildcard `_` or `_v`)
-coverage.mo:109.24-109.25: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-coverage.mo:109.32-109.33: warning [M0194], unused identifier y (delete or rename to wildcard `_` or `_y`)
-coverage.mo:109.35-109.36: warning [M0194], unused identifier z (delete or rename to wildcard `_` or `_z`)
-coverage.mo:109.40-109.41: warning [M0194], unused identifier v (delete or rename to wildcard `_` or `_v`)
-coverage.mo:109.44-109.45: warning [M0194], unused identifier w (delete or rename to wildcard `_` or `_w`)
-coverage.mo:178.6-178.7: warning [M0194], unused identifier h (delete or rename to wildcard `_` or `_h`)

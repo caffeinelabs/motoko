@@ -1,0 +1,8 @@
+warning[M0240]: unused identifier: `caller`
+    ┌─ unused-shared-pattern.mo:2:18
+  2 │    public shared (caller) func f() : () {};
+    │                   ^^^^^^ help: if this is intentional, prefix it with an underscore: `_caller`
+warning[M0241]: unused field in pattern: `caller`
+    ┌─ unused-shared-pattern.mo:3:19
+  3 │    public shared ({caller}) func g() : () {};
+    │                    ^^^^^^ help: if this is intentional, delete or rewrite as `caller = _`

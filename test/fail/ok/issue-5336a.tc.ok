@@ -1,3 +1,2 @@
 issue-5336a/actor.mo:1.1-1.11: warning [M0217], with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed
-issue-5336a.mo:4.1-4.11: warning [M0217], with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed
-issue-5336a.mo:2.8-2.13: warning [M0194], unused identifier Actor (delete or rename to wildcard `_` or `_Actor`)
+issue-5336a.mo:5.1-5.11: warning [M0217], with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed

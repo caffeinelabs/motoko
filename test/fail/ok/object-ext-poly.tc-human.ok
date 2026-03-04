@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  {a : Int; b : Char; c : Text}
+cannot produce expected type
+  A
+    ┌─ object-ext-poly.mo:2:5
+  2 │      { a and b with c = "Nope" };
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

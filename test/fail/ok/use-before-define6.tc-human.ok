@@ -1,0 +1,4 @@
+error[M0016]: cannot use g before g has been defined
+    ┌─ use-before-define6.mo:7:3
+  7 │    let _ = Foo(g, g);
+    │    ^^^^^^^^^^^^^^^^^ 

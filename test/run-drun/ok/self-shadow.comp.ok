@@ -1,2 +1,2 @@
-self-shadow.mo:5.15-5.54: type error [M0069], non-toplevel actor; an actor can only be declared at the toplevel of a program
+self-shadow.mo:6.15-6.54: type error [M0069], non-toplevel actor; an actor can only be declared at the toplevel of a program
   (This is a limitation of the current version.)

@@ -1,1 +1,0 @@
-idl-record.mo:8.14-8.21: warning [M0194], unused identifier content (delete or rename to wildcard `_` or `_content`)

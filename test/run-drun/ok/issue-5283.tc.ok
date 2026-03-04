@@ -1,1 +1,0 @@
-issue-5283.mo:3.8-3.9: warning [M0194], unused identifier C (delete or rename to wildcard `_` or `_C`)

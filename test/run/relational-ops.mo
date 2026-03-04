@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // Relational operators
 
 func testInt(a : Int, b : Int) {

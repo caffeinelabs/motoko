@@ -1,0 +1,6 @@
+error[M0149]: expected mutable 'var' field x of type
+  Nat
+but found immutable field (insert 'var'?)
+    ┌─ var-const-field.mo:1:26
+  1 │  let o : {var x : Nat} = {x = 0};
+    │                           ^^^^^ 

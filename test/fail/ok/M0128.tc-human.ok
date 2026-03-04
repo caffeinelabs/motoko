@@ -1,0 +1,4 @@
+warning[M0128]: this function has the name of a system method, but is declared without system visibility and will not be called by the system
+    ┌─ M0128.mo:3:8
+  3 │    func preupgrade(foo : Bool) {}
+    │         ^^^^^^^^^^ 

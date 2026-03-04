@@ -1,0 +1,18 @@
+error[M0033]: async type has non-shared content type
+  {var l : Nat}
+type
+  {var l : Nat}
+is or contains non-shared type
+  var Nat
+    ┌─ issue-894-fail.mo:6:20
+  6 │        (await async o).l := await async 1; // type error (o mutable, not shared)
+    │                     ^ 
+error[M0033]: async type has non-shared content type
+  [var Nat]
+type
+  [var Nat]
+is or contains non-shared type
+  var Nat
+    ┌─ issue-894-fail.mo:13:20
+ 13 │        (await async a)[0] := await async 1; // type error (a mutable, not shared)
+    │                     ^ 

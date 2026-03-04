@@ -1,0 +1,5 @@
+error[M0063]: show is not defined for operand type
+  () -> ()
+    ┌─ M0063.mo:1:8
+  1 │  ignore debug_show (func () {})
+    │         ^^^^^^^^^^^^^^^^^^^^^^^ 

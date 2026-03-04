@@ -1,0 +1,4 @@
+error[M0002]: malformed operator
+    ┌─ bad-char-lit1.mo:1:8
+  1 │  ignore('\a')
+    │         ^ 

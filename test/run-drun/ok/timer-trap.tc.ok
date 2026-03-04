@@ -1,0 +1,1 @@
+timer-trap.mo:9.7-9.10: warning [M0244], variable max is never reassigned, consider using `let`

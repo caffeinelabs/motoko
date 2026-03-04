@@ -1,5 +1,20 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
+
+## 1.3.0 (2026-02-24)
+
+* motoko (`moc`)
+
+  * Allow destructuring `type` imports from `actor`-valued URIs (#5824).
+  * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
+  * Warn when a `var` binding is never reassigned, suggesting `let` instead (#5833).
+  * Adds `--error-format human` option to print pretty errors with code snippets and labels (#5816), with improved formatting for unused (#5864) and duplicate name (#5865) errors.
+  * Emit machine-applicable code fixes in `--error-format json` diagnostics for warnings M0223 (redundant type instantiation), M0236 (use dot notation), and M0237 (omit explicit implicit argument). The JSON span format now includes `is_primary`, `label`, `suggested_replacement`, and `suggestion_applicability` fields, enabling IDEs and tooling to offer automatic fixes (#5831).
+  * Add `--all-libs` flag to load all library files from all packages, enabling better diagnostics, e.g. hinting at non-imported items (increases compilation time) (#5861).
+
 ## 1.2.0 (2026-02-12)
 
 * motoko (`moc`)

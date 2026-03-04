@@ -1,6 +1,5 @@
 // test small scalar ops
 import {
-  Array_tabulate;
   performanceCounter;
   debugPrint;
   rts_heap_size;

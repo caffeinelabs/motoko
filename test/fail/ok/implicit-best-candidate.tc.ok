@@ -1,7 +1,7 @@
-implicit-best-candidate.mo:31.12-31.21: type error [M0231], ambiguous implicit argument named `cmp` of type
+implicit-best-candidate.mo:31.12-31.21: type error [M0231], ambiguous implicit argument named `cmp` of type 
   ({a : Int}, {a : Int}) -> Nat.
-The ambiguous implicit candidates are: `MA.cmp`, `MB1.cmp`, `MB2.cmp`.
-implicit-best-candidate.mo:55.22-55.24: type error [M0231], ambiguous implicit argument named `default` of type
+note: The ambiguous implicit candidates are: `MA.cmp`, `MB1.cmp`, `MB2.cmp`.
+implicit-best-candidate.mo:55.22-55.24: type error [M0231], ambiguous implicit argument named `default` of type 
   {a : Int}.
-The ambiguous implicit candidates are: `MB1.default`, `MB2.default`, `MC.default`.
-The other explicit candidates are: `b`, `c`.
+note: The ambiguous implicit candidates are: `MB1.default`, `MB2.default`, `MC.default`.
+note: The other explicit candidates are: `b`, `c`

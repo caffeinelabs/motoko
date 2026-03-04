@@ -1,0 +1,20 @@
+error[M0168]: cannot compute intersection of types containing recursive or forward references to other type definitions
+    ┌─ type-combine-forward.mo:2:18
+  2 │    type A = B and C;
+    │                   ^ 
+error[M0168]: cannot compute union of types containing recursive or forward references to other type definitions
+    ┌─ type-combine-forward.mo:8:17
+  8 │    type A = B or C;
+    │                  ^ 
+error[M0168]: cannot compute intersection of types containing recursive or forward references to other type definitions
+    ┌─ type-combine-forward.mo:14:42
+ 14 │    type A = (Int, {a : Nat; b : [B]}) and (Nat, {b : [C]; c : ()});
+    │                                           ^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0168]: cannot compute intersection of types containing recursive or forward references to other type definitions
+    ┌─ type-combine-forward.mo:27:18
+ 27 │    type B = A and (A, A);
+    │                   ^^^^^^ 
+error[M0168]: cannot compute intersection of types containing recursive or forward references to other type definitions
+    ┌─ type-combine-forward.mo:31:18
+ 31 │    type A = B and {};
+    │                   ^^ 
