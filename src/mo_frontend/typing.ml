@@ -4171,7 +4171,7 @@ and infer_viewer env scope mut id viewer =
     else
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->
-        let env = {env with msgs} in (* don't record errors in outer env *)
+        let env = {env with msgs; used_identifiers = ref T.Env.empty } in (* don't record errors in outer env *)
         let env = adjoin env scope in
         let note() = empty_typ_note in
         let at = id.at in
