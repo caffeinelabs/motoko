@@ -6,8 +6,6 @@ import Iter "mo:core/Iter";
 import Order "mo:core/Order";
 import Text "mo:core/Text";
 
-// curried version of data-view.mo
-
 persistent actor {
 
   module MapView {
@@ -28,10 +26,12 @@ persistent actor {
 
   let map : Map.Map<Nat, Text> = Map.empty();
 
-  public query func mapView(ko: ?Nat, count: Nat) : async [(Nat, Text)] {
+  /* generates:
+  public query func __map(ko: ?Nat, count: Nat) : async [(Nat, Text)] {
      map.view(/*Nat.compare*/)(ko, count);
   };
-
+  */
+  
   module SetView {
 
    public func view<K>(
@@ -54,9 +54,11 @@ persistent actor {
 
   let set : Set.Set<Nat> = Set.empty();
 
-  public query func setView(ko: ?Nat, count: Nat) : async [Nat] {
+  /* generates
+  public query func __set(ko: ?Nat, count: Nat) : async [Nat] {
      set.view(/*Nat.compare*/)(ko, count);
   };
+  */
 
   module ArrayView {
 
@@ -78,10 +80,11 @@ persistent actor {
 
   let array : [(Nat, Text)] = [];
 
-  public query func arrayView(ko: ?Nat, count: Nat) : async [(Nat, Text)] {
+  /* generates
+  public query func __array(ko: ?Nat, count: Nat) : async [(Nat, Text)] {
      array.view()(ko, count);
   };
-
+  */
 
   // here, [insible_array.view] produces a non-shared (mutable) type, omit viewer
   // later maybe approximate by shared type.
