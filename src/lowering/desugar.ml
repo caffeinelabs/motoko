@@ -714,51 +714,27 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          See doc/enhanced-multi-migration.md for the full design rationale. *)
       let chain = !T.migration_chain in
 
-      let decompose_run run_typ =
-        let dom_i, rng_i = T.as_mono_func_sub run_typ in
-        let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
-        let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
-        (dom_i, rng_i, dom_fields_i, rng_fields_i)
-      in
-      let migration_hash file =
-        Digest.to_hex (Digest.string (Filename.basename file))
-      in
+      (* Compute mem_typs = [mem_typ_0, mem_typ_1, ..., mem_typ_n] from
+         the stab_fields presignatures w.r.t chain. *)
 
-      (* Compute types = [type_0, type_1, ..., type_n] by
-         reverse-folding from type_n = actor's mem_ty. Each step undoes one
-         migration: range-only fields are removed (introduced by that migration),
-         domain fields are restored with their domain types, and carried fields
-         are kept unchanged. This mirrors the stab_fields_pre calculation in the
-         old (with migration = fn) syntax and gives precise types at each
-         boundary — no ghost fields from dropped-and-never-reintroduced fields. *)
-      let types =
-        let undo_migration next_fields (_file, _mod_typ, run_typ) =
-          let (_, _, dom_fields_k, rng_fields_k) = decompose_run run_typ in
-          let prev_tbl = Hashtbl.create 32 in
-          List.iter (fun tf ->
-            if not (List.exists (fun rf -> rf.T.lab = tf.T.lab) rng_fields_k) then
-              Hashtbl.replace prev_tbl tf.T.lab tf
-          ) next_fields;
-          List.iter (fun tf ->
-            Hashtbl.replace prev_tbl tf.T.lab
-              {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}
-          ) dom_fields_k;
-          Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
-          |> List.sort T.compare_field
-        in
-        let (fields_0, types) =
-          List.fold_right (fun entry (next_fields, types) ->
-            let next_ty = T.Obj (T.Memory, next_fields, []) in
-            let prev_fields = undo_migration next_fields entry in
-            (prev_fields, next_ty :: types)
-          ) chain (mem_fields, [])
-        in
-        T.Obj (T.Memory, fields_0, [])::types
-      in
+      (* TODO: move me to Type.ml *)
+      let mem_typ_of_pre pre =
+        T.Obj(T.Memory,
+              List.map (fun (required, tf) -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) pre,
+              []) in
+
+      let chain_typs =
+        List.map T.(fun (file, _mod_typ, typ) ->
+          { lab = migration_lab_of_filename file;
+            typ;
+            src = T.empty_src })
+          chain in
+      let (_, pres) = T.pres None chain_typs stab_fields in
+      let mem_typs = List.map mem_typ_of_pre pres in
 
       let n = List.length chain in
       assert (n <> 0);
-      let type_at idx = List.nth types idx
+      let mem_typ_at idx = List.nth mem_typs idx
 
       in
 
@@ -770,15 +746,17 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          or returns defaults on fresh install. *)
       let rec build_nested k =
         if k = 0 then
-          primE (I.ICStableRead (type_at 0)) []
+          primE (I.ICStableRead (mem_typ_at 0)) []
         else
-          let type_k = type_at k in
-          let (_, type_k_fields) = T.as_obj type_k in
-          let type_prev = type_at (k - 1) in
+          let mem_typ_k = mem_typ_at k in
+          let (_, mem_typ_k_fields) = T.as_obj mem_typ_k in
+          let mem_typ_prev = mem_typ_at (k - 1) in
           let (file_k, mod_typ_k, run_typ_k) = List.nth chain (k - 1) in
-          let (dom_k, rng_k, dom_fields_k, rng_fields_k) = decompose_run run_typ_k in
-          let hash_k = migration_hash file_k in
-          let state_prev = fresh_var "state" type_prev in
+          let (dom_fields_k, rng_fields_k) = T.as_migration run_typ_k in
+          let dom_k = T.Obj(T.Object, dom_fields_k, []) in
+          let rng_k = T.Obj(T.Object, rng_fields_k, []) in
+          let hash_k = T.migration_lab_of_filename file_k in
+          let state_prev = fresh_var "state" mem_typ_prev in
           let v_dom = fresh_var "v_dom" dom_k in
           let v_rng = fresh_var "v_rng" rng_k in
           let mod_expr = varE (var (id_of_full_path file_k) mod_typ_k) in
@@ -809,8 +787,8 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
                   optE (dotE (varE v_rng) i (T.as_immut rt))
                 | None ->
                   dotE (varE state_prev) i t)
-              type_k_fields)
-            type_k_fields
+              mem_typ_k_fields)
+            mem_typ_k_fields
           in
           let else_branch =
             blockE [
@@ -821,20 +799,21 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
             merge_result
           in
           ifE (rts_was_migration_performed hash_k)
-            (primE (I.ICStableRead type_k) [])
+            (primE (I.ICStableRead mem_typ_k) [])
             else_branch
       in
 
       (* Project from type_n to actor's mem_ty. Fields in type_n are carried;
          actor-only fields (not in any migration) default to None. *)
-      let type_n = type_at n in
-      let (_, type_n_fields) = T.as_obj type_n in
-      let final_state = fresh_var "mig_state" type_n in
+      let mem_typ_n = mem_typ_at n in
+      let (_, mem_typ_n_fields) = T.as_obj mem_typ_n in
+      let final_state = fresh_var "mig_state" mem_typ_n in
+      (* Is this redundant and not the same as final_state? *)
       let projected =
         objectE T.Memory
           (List.map (fun T.{lab=i;typ=t;_} ->
             i,
-            match T.lookup_val_field_opt i type_n_fields with
+            match T.lookup_val_field_opt i mem_typ_n_fields with
             | Some _tn ->
               dotE (varE final_state) i t
             | None ->
@@ -846,7 +825,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         List.map (fun (filename, _, typ) -> T.{lab=T.migration_lab_of_filename filename; typ; src = T.empty_src}) chain
       in
       T.Multi {chain = chain_fields; post = stab_fields},
-      I.{pre = type_at 0; post = mem_ty},
+      I.{pre = mem_typ_at 0; post = mem_ty},
       blockE [
         letD final_state (build_nested n);
         expD (primE (I.ICStableStore mem_ty) []);

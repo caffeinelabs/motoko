@@ -5015,7 +5015,6 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
              let chain = List.sort T.compare_field fs in
              let post = List.sort T.compare_field (check_fields post) in
              if not (check_chain chain post) then error env sfs.at "M0253" "inconsistent migration chain";
-             (* TODO: check consistency *)
              T.Multi{chain; post}
         ) sig_.it
     )
