@@ -47,11 +47,11 @@ let typed_phrase' f x =
 let is_empty_tup e = e.it = S.TupE []
 
 (* RTS migration tracking primitives *)
-let rts_was_migration_performed migration_hash =
-  primE (I.OtherPrim "was_migration_performed") [textE migration_hash]
+let rts_was_migration_performed mig_lab =
+  primE (I.OtherPrim "was_migration_performed") [textE mig_lab]
 
-let rts_register_migration migration_hash =
-  primE (I.OtherPrim "register_migration") [textE migration_hash]
+let rts_register_migration mig_lab =
+  primE (I.OtherPrim "register_migration") [textE mig_lab]
 
 
 let unit_typ at = { it = S.TupT []; at; note = T.unit }
@@ -748,7 +748,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           let (dom_fields_k, rng_fields_k) = T.as_migration run_typ_k in
           let dom_k = T.Obj(T.Object, dom_fields_k, []) in
           let rng_k = T.Obj(T.Object, rng_fields_k, []) in
-          let hash_k = T.migration_lab_of_filename file_k in
+          let mig_lab_k = T.migration_lab_of_filename file_k in
           let state_prev = fresh_var "state" mem_typ_prev in
           let v_dom = fresh_var "v_dom" dom_k in
           let v_rng = fresh_var "v_rng" rng_k in
@@ -788,10 +788,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
               letD state_prev (build_nested (k - 1));
               letD v_dom extract_dom;
               letD v_rng (callE run_expr [] (varE v_dom));
-              expD (rts_register_migration hash_k)]
+              expD (rts_register_migration mig_lab_k)]
             merge_result
           in
-          ifE (rts_was_migration_performed hash_k)
+          ifE (rts_was_migration_performed mig_lab_k)
             (primE (I.ICStableRead mem_typ_k) [])
             else_branch
       in
