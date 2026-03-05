@@ -717,12 +717,6 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       (* Compute mem_typs = [mem_typ_0, mem_typ_1, ..., mem_typ_n] from
          the stab_fields presignatures w.r.t chain. *)
 
-      (* TODO: move me to Type.ml *)
-      let mem_typ_of_pre pre =
-        T.Obj(T.Memory,
-              List.map (fun (required, tf) -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) pre,
-              []) in
-
       let chain_typs =
         List.map T.(fun (file, _mod_typ, typ) ->
           { lab = migration_lab_of_filename file;
@@ -730,7 +724,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
             src = T.empty_src })
           chain in
       let (_, pres) = T.pres None chain_typs stab_fields in
-      let mem_typs = List.map mem_typ_of_pre pres in
+      let mem_typs = List.map T.mem_typ_of_pre pres in
 
       let n = List.length chain in
       assert (n <> 0);
@@ -803,24 +797,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
             else_branch
       in
 
-      (* Project from type_n to actor's mem_ty. Fields in type_n are carried;
-         actor-only fields (not in any migration) default to None. *)
-      let mem_typ_n = mem_typ_at n in
-      let (_, mem_typ_n_fields) = T.as_obj mem_typ_n in
-      let final_state = fresh_var "mig_state" mem_typ_n in
-      (* Is this redundant and not the same as final_state? *)
-      let projected =
-        objectE T.Memory
-          (List.map (fun T.{lab=i;typ=t;_} ->
-            i,
-            match T.lookup_val_field_opt i mem_typ_n_fields with
-            | Some _tn ->
-              dotE (varE final_state) i t
-            | None ->
-              nullE ())
-          mem_fields)
-        mem_fields
-      in
+      let final_state = fresh_var "final_state" mem_ty in
       let chain_fields =
         List.map (fun (filename, _, typ) -> T.{lab=T.migration_lab_of_filename filename; typ; src = T.empty_src}) chain
       in
@@ -829,7 +806,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       blockE [
         letD final_state (build_nested n);
         expD (primE (I.ICStableStore mem_ty) []);
-      ] projected
+      ] (varE final_state)
     end
     else match exp_opt with
     | None ->
@@ -844,27 +821,8 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       let dom, rng = T.as_mono_func_sub typ in
       let (_dom_sort, dom_fields) = T.as_obj (T.normalize dom) in
       let (_rng_sort, rng_fields) = T.as_obj (T.promote rng) in
-      let stab_fields_pre =
-        List.sort (fun (r1, tf1) (r2, tf2) -> T.compare_field tf1 tf2)
-          ((List.map (fun tf -> (true, tf)) dom_fields) (* required *) @
-            (List.filter_map
-              (fun tf ->
-                match T.lookup_val_field_opt tf.T.lab dom_fields,
-                      T.lookup_val_field_opt tf.T.lab rng_fields with
-                | Some _, _    (* ignore consumed (overridden) *)
-                | _, Some _ -> (* ignore produced (provided) *)
-                  None
-                | None, None ->
-                  (* retain others *)
-                  Some (false, tf)) (* optional *)
-              stab_fields))
-      in
-      let mem_fields_pre =
-        List.map
-          (fun (is_required, tf) -> { tf with T.typ = T.Opt (T.as_immut tf.T.typ) })
-          stab_fields_pre
-      in
-      let mem_ty_pre = T.Obj (T.Memory, mem_fields_pre, []) in
+      let stab_fields_pre = T.pre_fields typ ~has_initializers:true stab_fields in
+      let mem_ty_pre = T.mem_typ_of_pre stab_fields_pre in
       let v = fresh_var "v" mem_ty_pre in
       let v_dom = fresh_var "v_dom" dom in
       let v_rng = fresh_var "v_rng" rng in

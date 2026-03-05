@@ -339,6 +339,8 @@ val pres : mig_lab option -> field list -> field list ->
 val pre : mig_lab option -> stab_sig -> (bool * field) list
 val post : stab_sig -> field list * mig_lab option
 
+val mem_typ_of_pre : (bool * field) list -> typ
+
 val match_stab_sig : stab_sig -> stab_sig -> bool
 val match_stab_fields : field list -> (bool * field) list -> bool
 

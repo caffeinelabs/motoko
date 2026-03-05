@@ -2577,7 +2577,7 @@ let abstract sig0 =
 
 let migration_lab_of_filename file = Filename.basename file |> Filename.chop_extension
 
-let pre_fields mig_typ ?(initialized=true) post_fields =
+let pre_fields mig_typ ?(has_initializers=true) post_fields =
   let (dom_fields_k, rng_fields_k) = as_migration mig_typ in
   List.map (fun tf -> (true (* required *), tf)) dom_fields_k @
     List.filter_map (fun tf ->
@@ -2588,7 +2588,7 @@ let pre_fields mig_typ ?(initialized=true) post_fields =
            None
         | None, None ->
            (* retain others *)
-           Some (not initialized, tf)
+           Some (not has_initializers, tf)
       )
       post_fields
   |> List.sort (fun (r1, tf1) (r2, tf2) -> compare_field tf1 tf2)
@@ -2602,7 +2602,7 @@ let pres mig_lab_opt chain post =
       then (cur_pre_fields, acc)
       else
         let cur_post_fields = List.map snd cur_pre_fields in
-        let next_pre_fields = pre_fields mig_field.typ  ~initialized:false cur_post_fields in
+        let next_pre_fields = pre_fields mig_field.typ  ~has_initializers:false cur_post_fields in
         go (next_pre_fields::acc) mfs1 next_pre_fields
   in
   let mfs = List.rev chain in
@@ -2625,6 +2625,11 @@ let post = function
     assert (chain <> []);
     post,
     Some ((Lib.List.last chain).lab)
+
+let mem_typ_of_pre pre =
+  Obj(Memory,
+      List.map (fun (required, tf) -> {tf with typ = Opt (as_immut tf.typ)}) pre,
+      [])
 
 let rec match_stab_sig sig1 sig2 =
   let post_tfs1, mig_lab_opt = post sig1 in
