@@ -744,11 +744,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           let mem_typ_k = mem_typ_at k in
           let (_, mem_typ_k_fields) = T.as_obj mem_typ_k in
           let mem_typ_prev = mem_typ_at (k - 1) in
-          let (file_k, mod_typ_k, run_typ_k) = List.nth chain (k - 1) in
+          let {lab = mig_lab_k; typ = run_typ_k; _} = List.nth chain_fields (k - 1) in
           let (dom_fields_k, rng_fields_k) = T.as_migration run_typ_k in
           let dom_k = T.Obj(T.Object, dom_fields_k, []) in
           let rng_k = T.Obj(T.Object, rng_fields_k, []) in
-          let mig_lab_k = T.migration_lab_of_filename file_k in
           let state_prev = fresh_var "state" mem_typ_prev in
           let v_dom = fresh_var "v_dom" dom_k in
           let v_rng = fresh_var "v_rng" rng_k in
