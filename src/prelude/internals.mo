@@ -860,3 +860,8 @@ func @dedup(b : Blob) : Blob {
 
   result;
 };
+
+// envvar-indirection for principals
+func @envvar_principal(envvar : Text) : Blob {
+    ""
+};
