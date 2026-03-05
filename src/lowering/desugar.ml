@@ -727,13 +727,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       in
       let (_, pres) = T.pres None chain_fields stab_fields in
       let mem_typs = List.map T.mem_typ_of_pre pres in
-
       let n = List.length chain in
       assert (n <> 0);
       let mem_typ_at idx = List.nth mem_typs idx
-
       in
-
       (* Nested if-expression: each level k produces state_k : type_k.
          If m_k was already performed, ICStableRead(type_k) loads the state.
          Otherwise, recursively build state_{k-1}, run m_k, and merge output
@@ -798,7 +795,6 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
             (primE (I.ICStableRead mem_typ_k) [])
             else_branch
       in
-
       let final_state = fresh_var "final_state" mem_ty in
       T.Multi {chain = chain_fields; post = stab_fields},
       I.{pre = mem_typ_at 0; post = mem_ty},
@@ -817,9 +813,9 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
                 T.lookup_val_field T.migration_lab tfs
       in
       let e = dotE exp0 T.migration_lab typ in
-      let dom, rng = T.as_mono_func_sub typ in
-      let (_dom_sort, dom_fields) = T.as_obj (T.normalize dom) in
-      let (_rng_sort, rng_fields) = T.as_obj (T.promote rng) in
+      let (dom_fields, rng_fields) = T.as_migration typ in
+      let dom = T.Obj(T.Object, dom_fields, []) in
+      let rng = T.Obj(T.Object, rng_fields, []) in
       let stab_fields_pre = T.pre_fields typ ~has_initializers:true stab_fields in
       let mem_ty_pre = T.mem_typ_of_pre stab_fields_pre in
       let v = fresh_var "v" mem_ty_pre in
