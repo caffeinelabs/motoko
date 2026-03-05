@@ -12727,7 +12727,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     const_sr SR.Vanilla (Text.to_blob env)
 
   (* textual to bytes *)
-  | BlobOfIcUrl, [_] ->
+  | (OtherPrim "decode_principal" | BlobOfIcUrl), [_] ->
     const_sr SR.Vanilla (E.call_import env "rts" "blob_of_principal")
   (* The other direction *)
   | IcUrlOfBlob, [_] ->

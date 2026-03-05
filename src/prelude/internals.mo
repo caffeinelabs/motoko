@@ -862,6 +862,8 @@ func @dedup(b : Blob) : Blob {
 };
 
 // envvar-indirection for principals
-func @envvar_principal(envvar : Text) : Blob {
-    ""
-};
+func @envvar_principal(envvar : Text) : Blob =
+  switch ((prim "env_var" : Text -> ?Text) envvar) {
+    case (?envvar) (prim "decode_principal" : Text -> Blob) envvar;
+    case _ (prim "trap" : Text -> None)("envvar not set")
+  };
