@@ -482,7 +482,7 @@ and call_system_func_opt name es obj_typ =
            let timer =
              blockE
                [ expD T.(callE (varE (var id.it note)) [Any]
-                   (varE (var "@set_global_timer" T.global_timer_set_type))) ]
+                   (varE (var "@set_global_timer" global_timer_set_type))) ]
                (unitE()) in
            { timer with at }
         | "heartbeat" ->
@@ -1275,7 +1275,7 @@ and transform_import (i : S.import) : Ir.dec list =
     | S.IDLPath (fp, Either.Right canister_id) ->
       primE (I.ActorOfIdBlob t) [blobE canister_id]
     | S.IDLPath (fp, Either.Left envvar) ->
-      primE (I.ActorOfIdBlob t) [blobE "FIXME"]
+      primE (I.ActorOfIdBlob t) [callE]
     | S.ImportedValuePath path ->
        if !Mo_config.Flags.blob_import_placeholders then
          raise (Invalid_argument ("blob import placeholder"))
