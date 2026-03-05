@@ -2018,8 +2018,8 @@ and infer_exp'' env exp : T.typ =
           | VarE id ->
             let open Lib.Option.Syntax in
             let* (_, id_at, _, _) = T.Env.find_opt id.it env.vals in
-            let* focus = Zipper.focus_on_region id_at env.top_node in
-            if not (Zipper.is_let_bound_pat focus) then None else
+            let* focus = Zipper.focus_on_region env.top_node id_at in
+            if not (Zipper.is_let_bound_var focus) then None else
             let* let_dec = Zipper.parent focus in
             let dec_region = Zipper.region_of_node let_dec in
             let let_tkn_range = Source.{

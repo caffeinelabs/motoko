@@ -1,21 +1,5 @@
-(** A zipper for navigating the Motoko AST with parent context.
-
-    NOTE: This module was AI-generated
-
-    This module provides a lightweight, read-only zipper over the heterogeneous
-    Motoko AST. Rather than encoding full one-hole contexts (which would require
-    hundreds of constructors), we use a simple "crumb trail" approach: each
-    crumb records the parent node and the child's position within it.
-
-    This is sufficient for read-only queries like "is this node the top-level
-    pattern of a let-binding?" without the complexity of reconstructing modified
-    trees. *)
-
 open Syntax
 
-(** {1 Unified AST Node Type} *)
-
-(** A single type that can hold any AST node we care about navigating through. *)
 type node =
   | ExpNode of exp
   | DecNode of dec
@@ -29,23 +13,17 @@ type node =
   | ProgNode of prog
   | CompUnitNode of comp_unit
 
-(** {1 Crumbs and Zipper} *)
-
-(** A breadcrumb recording where we came from: the parent node and
-    which child position (0-based) led to the current focus. *)
 type crumb = {
   parent : node;
   child_index : int;
 }
 
-(** The zipper: a focused node together with a trail of breadcrumbs
-    leading back to the root. The head of [context] is the immediate parent. *)
+(* The zipper: a focused node together with a trail of breadcrumbs
+   leading back to the root. The head of [context] is the immediate parent. *)
 type t = {
   focus : node;
   context : crumb list;
 }
-
-(** {1 Construction} *)
 
 let empty : t =
   let open Source in
@@ -57,28 +35,6 @@ let of_prog (p : prog) : t =
 
 let of_comp_unit (cu : comp_unit) : t =
   { focus = CompUnitNode cu; context = [] }
-
-(** {1 Navigation Helpers} *)
-
-(** Descend into a child node, pushing the current focus onto the context. *)
-let descend (z : t) (child_index : int) (child : node) : t =
-  { focus = child;
-    context = { parent = z.focus; child_index } :: z.context }
-
-(** Move up to the parent, if any. Returns [None] at the root. *)
-let up (z : t) : crumb option =
-  match z.context with
-  | [] -> None
-  | crumb :: _ -> Some crumb
-
-(** The full trail of ancestors from immediate parent to root. *)
-let ancestors (z : t) : crumb list = z.context
-
-(** The immediate parent node, if any. *)
-let parent (z : t) : node option =
-  match z.context with
-  | [] -> None
-  | { parent; _ } :: _ -> Some parent
 
 (** {1 Child Extraction}
 
@@ -147,11 +103,14 @@ let exp_children (e : exp) : (int * node) list =
     let offset = List.length bs in
     bs @ List.mapi (fun i ef -> (i + offset, ExpFieldNode ef)) efs
   | DotE (e1, _, _) -> [(0, ExpNode e1)]
-  | FuncE (_, _, tbs, p, _, _, e1) ->
+  | FuncE (_, _, tbs, p, ret_ty, _, e1) ->
     let children = List.mapi (fun i tb -> (i, TypBindNode tb)) tbs in
     let offset = List.length children in
-    children @ [(offset, PatNode p); (offset + 1, ExpNode e1)]
-  | CallE (e_opt, e1, _, (_, e2_ref)) ->
+    let arg = (offset, PatNode p) in
+    children @ arg :: (match ret_ty with
+      | Some ty -> [(offset + 1, TypNode ty); (offset + 2, ExpNode e1)]
+      | None -> [(offset + 1, ExpNode e1)])
+  | CallE (e_opt, e1, i, (_, e2_ref)) ->
     let base = match e_opt with
       | Some e0 -> [(0, ExpNode e0); (1, ExpNode e1)]
       | None -> [(0, ExpNode e1)]
@@ -238,8 +197,7 @@ let pat_field_children (pf : pat_field) : (int * node) list =
   | ValPF (_, p) -> [(0, PatNode p)]
   | TypPF _ -> []
 
-(** Return all children of a node as [(index, child_node)] pairs. *)
-let children (n : node) : (int * node) list =
+let children_of_node (n : node) : (int * node) list =
   match n with
   | ExpNode e -> exp_children e
   | DecNode d -> dec_children d
@@ -284,39 +242,52 @@ let children (n : node) : (int * node) list =
     (* We could include imports here if needed *)
     List.map (fun (i, n) -> (i + import_offset, n)) body_children
 
-(** {1 Traversal}
+let children' (z : t) : (int * node) list =
+  children_of_node z.focus
 
-    Depth-first traversal of the AST, calling a visitor function at each node
-    with the full zipper context available. *)
+let children (z : t) : node list =
+  List.map snd (children_of_node z.focus)
 
-(** Visit every node in the subtree rooted at [z], calling [f] on each.
-    Traversal is depth-first, pre-order. *)
+let child (z : t) (index : int) : node =
+  List.nth (children z) index
+
+let up (z : t) : t option =
+  match z.context with
+  | [] -> None
+  | crumb :: crumbs -> Some { focus = crumb.parent; context = crumbs }
+
+let down (z : t) (child_index : int) : t =
+  { focus = child z child_index;
+    context = { parent = z.focus; child_index } :: z.context }
+
+let descend (z : t) (child_index : int) (child : node) : t =
+  { focus = child;
+    context = { parent = z.focus; child_index } :: z.context }
+
+let focus (z : t) : node = z.focus
+
+let parent (z : t) : node option =
+  match z.context with
+  | [] -> None
+  | crumb :: _ -> Some crumb.parent
+
+let parent' (z : t) : crumb option = Lib.List.hd_opt z.context
+
+let ancestors (z : t) : crumb list = z.context
+
 let rec traverse (f : t -> unit) (z : t) : unit =
   f z;
-  let child_nodes = children z.focus in
   List.iter (fun (idx, child) ->
     traverse f (descend z idx child)
-  ) child_nodes
+  ) (children' z)
 
-(** Like {!traverse} but [f] can return [false] to prune the subtree
-    (skip children of the current node). *)
 let rec traverse_prune (f : t -> bool) (z : t) : unit =
   if f z then begin
-    let child_nodes = children z.focus in
     List.iter (fun (idx, child) ->
       traverse_prune f (descend z idx child)
-    ) child_nodes
+    ) (children' z)
   end
 
-(** Collect all nodes (with context) matching a predicate. *)
-let collect (pred : t -> bool) (z : t) : t list =
-  let acc = ref [] in
-  traverse (fun z -> if pred z then acc := z :: !acc) z;
-  List.rev !acc
-
-(** {1 Query Helpers} *)
-
-(** Extract the source region from a node. *)
 let region_of_node (n : node) : Source.region =
   match n with
   | ExpNode e -> e.Source.at
@@ -331,33 +302,24 @@ let region_of_node (n : node) : Source.region =
   | ProgNode p -> p.Source.at
   | CompUnitNode cu -> cu.Source.at
 
-(** The source region of the focused node. *)
 let region (z : t) : Source.region =
   region_of_node z.focus
-
-(** {1 Region Utilities} *)
 
 (** [pos_leq a b] is true when position [a] is at or before position [b]. *)
 let pos_leq (a : Source.pos) (b : Source.pos) : bool =
   Source.Pos_ord.compare a b <= 0
 
-(** [encloses outer inner] is true when region [outer] fully contains [inner],
-    i.e. outer.left <= inner.left and inner.right <= outer.right. *)
+(** [encloses outer inner] is true when region [outer] fully contains [inner] *)
 let encloses (outer : Source.region) (inner : Source.region) : bool =
   pos_leq outer.Source.left inner.Source.left
   && pos_leq inner.Source.right outer.Source.right
 
-(** Focus the zipper on the narrowest (deepest) node whose source region
-    fully encloses [target]. Traversal is depth-first: we descend into
-    children that enclose the target, and stop when no child does, leaving
-    us at the tightest enclosing node.
-
-    Returns [None] if not even the root encloses the target. *)
-let focus_on_region (target : Source.region) (z : t) : t option =
+let focus_on_region (z : t) (target : Source.region) : t option =
+  (* Never find a focus for `Source.no_region` *)
+  if Source.Region_ord.compare target Source.no_region = 0 then None else
   let rec go z =
-    (* Try to find a child whose region encloses the target *)
     let child_zippers =
-      children z.focus
+      children' z
       |> List.filter_map (fun (idx, child) ->
            let child_region = region_of_node child in
            if encloses child_region target
@@ -366,18 +328,16 @@ let focus_on_region (target : Source.region) (z : t) : t option =
     in
     match child_zippers with
     | [] ->
-      (* No child encloses the target; the current focus is the narrowest *)
       Some z
     | first :: rest ->
       (* Among children that enclose the target, pick the one with the
          tightest (smallest) region. In a well-formed AST there should
-         typically be at most one, but we handle ties gracefully. *)
+         typically be at most one, but we handle ties gracefully to account
+         for desugaring in the parser *)
       let best =
         List.fold_left (fun best cand ->
           let r_best = region best in
           let r_cand = region cand in
-          (* Prefer the candidate if it is strictly enclosed by the current best,
-             i.e. it's narrower *)
           if encloses r_best r_cand then cand else best
         ) first rest
       in
@@ -386,98 +346,10 @@ let focus_on_region (target : Source.region) (z : t) : t option =
   let root_region = region_of_node z.focus in
   if encloses root_region target then go z else None
 
-(** {1 Specific Queries}
-
-    Higher-level questions you can ask about a node's position in the tree. *)
-
-(** Is the focused pattern the top-level pattern of a [let]-binding?
-
-    This checks whether the current focus is a [PatNode] and its immediate
-    parent is a [DecNode] whose [dec'] is [LetD], with the pattern at
-    child index 0 (i.e. the binding pattern, not a pattern inside the
-    bound expression or fail block). *)
-let is_let_bound_pat (z : t) : bool =
-  match z.focus, z.context with
-  | PatNode _, { parent = DecNode d; child_index = 0 } :: _ ->
-    (match d.Source.it with
-     | LetD _ -> true
-     | _ -> false)
-  | _ -> false
-
-(** Is the focused node a [VarP] that is the top-level pattern of a
-    [let]-binding? i.e. [let x = ...] *)
 let is_let_bound_var (z : t) : bool =
-  match z.focus with
-  | PatNode p ->
-    (match p.Source.it with
-     | VarP _ -> is_let_bound_pat z
+  match z.focus, parent' z with
+  | PatNode p, Some { parent = DecNode d; child_index = 0 } ->
+    (match p.Source.it, d.Source.it with
+     | VarP _, LetD _ -> true
      | _ -> false)
   | _ -> false
-
-(** Is the focused pattern the top-level pattern of a [for] loop?
-    i.e. [for (p in ...) ...] *)
-let is_for_bound_pat (z : t) : bool =
-  match z.focus, z.context with
-  | PatNode _, { parent = ExpNode e; child_index = 0 } :: _ ->
-    (match e.Source.it with
-     | ForE _ -> true
-     | _ -> false)
-  | _ -> false
-
-(** Is the focused pattern the parameter pattern of a function? *)
-let is_func_param_pat (z : t) : bool =
-  match z.focus, z.context with
-  | PatNode _, { parent = ExpNode e; child_index } :: _ ->
-    (match e.Source.it with
-     | FuncE (_, _, tbs, _, _, _, _) ->
-       (* The parameter pattern is right after the type bindings *)
-       child_index = List.length tbs
-     | _ -> false)
-  | _ -> false
-
-(** Is the focused expression the body of a [let]-binding? *)
-let is_let_bound_exp (z : t) : bool =
-  match z.focus, z.context with
-  | ExpNode _, { parent = DecNode d; child_index = 1 } :: _ ->
-    (match d.Source.it with
-     | LetD _ -> true
-     | _ -> false)
-  | _ -> false
-
-(** Walk up the context looking for an ancestor matching a predicate.
-    Returns the first matching crumb, if any. *)
-let find_ancestor (pred : node -> bool) (z : t) : crumb option =
-  List.find_opt (fun c -> pred c.parent) z.context
-
-(** Is there an ancestor that is a function expression? *)
-let is_inside_func (z : t) : bool =
-  find_ancestor (fun n ->
-    match n with
-    | ExpNode e ->
-      (match e.Source.it with FuncE _ -> true | _ -> false)
-    | _ -> false
-  ) z <> None
-
-(** Is there an ancestor that is an async expression? *)
-let is_inside_async (z : t) : bool =
-  find_ancestor (fun n ->
-    match n with
-    | ExpNode e ->
-      (match e.Source.it with AsyncE _ -> true | _ -> false)
-    | _ -> false
-  ) z <> None
-
-(** Find all [VarP] nodes that are the top-level pattern of a [let]-binding
-    in the given program. *)
-let let_bound_vars (root : t) : (t * id) list =
-  let results = ref [] in
-  traverse (fun z ->
-    match z.focus with
-    | PatNode p ->
-      (match p.Source.it with
-       | VarP id when is_let_bound_pat z ->
-         results := (z, id) :: !results
-       | _ -> ())
-    | _ -> ()
-  ) root;
-  List.rev !results
