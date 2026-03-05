@@ -193,7 +193,7 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
   let resolve_env envvar = match actor_idl_path with
     | None -> err_actor_import_without_idl_path msgs at
     | Some actor_base ->
-      let full_path = in_base actor_base envvar in
+      let full_path = in_base actor_base (Url.idl_basename_of_envvar envvar) in
       add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
   in
   match Url.parse f with
@@ -236,15 +236,16 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
 
 (* Resolve the argument to `--actor-alias` and `--actor-env-alias`. Check eagerly for well-formedness *)
 let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar, url) Either.t) : (envvar, blob) Either.t =
-  match f with
-  | Either.Left _ -> failwith "ENVVAR"
-  | Either.Right f ->
-     Either.Right (match Url.decode_principal f with
-     | Ok bytes ->
-        if String.length bytes > 29 then
-          (err_unrecognized_alias msgs alias f "Principal too long"; "")
-        else bytes
-     | Error msg -> err_unrecognized_alias msgs alias f msg; "")
+  let open Either in match f with
+  | Left v ->
+    Left (if Lib.Utf8.is_valid v then v else failwith "FIXME")
+  | Right f ->
+    Right (match Url.decode_principal f with
+    | Ok bytes ->
+       if String.length bytes > 29 then
+         (err_unrecognized_alias msgs alias f "Principal too long"; "")
+       else bytes
+    | Error msg -> err_unrecognized_alias msgs alias f msg; "")
 
 let prog_imports (p : prog): (url * resolved_import ref * region) list =
   let res = ref [] in

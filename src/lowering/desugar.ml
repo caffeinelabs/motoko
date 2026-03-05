@@ -1275,7 +1275,7 @@ and transform_import (i : S.import) : Ir.dec list =
     | S.IDLPath (fp, Either.Right canister_id) ->
       primE (I.ActorOfIdBlob t) [blobE canister_id]
     | S.IDLPath (fp, Either.Left envvar) ->
-      failwith "IDLPath"
+      primE (I.ActorOfIdBlob t) [blobE "FIXME"]
     | S.ImportedValuePath path ->
        if !Mo_config.Flags.blob_import_placeholders then
          raise (Invalid_argument ("blob import placeholder"))
