@@ -24,8 +24,8 @@ let string_map inj flag r desc =
 let package_args = [
   string_map Fun.id "--package" Flags.package_urls "<package-name> <package-path> specify a <package-name> <package-path> pair, separated by a space";
   "--actor-idl", Arg.String (fun fp -> Flags.actor_idl_path := Some fp), "<idl-path>   path to actor IDL (Candid) files";
-  string_map (fun p -> Either.Right p) "--actor-alias" Flags.actor_aliases "<alias> <principal>  actor import alias";
-  string_map (fun e -> Either.Left e) "--actor-env-alias" Flags.actor_aliases "<alias> <envvar>  actor import via environment variable"
+  string_map Either.right "--actor-alias" Flags.actor_aliases "<alias> <principal>  actor import alias";
+  string_map Either.left "--actor-env-alias" Flags.actor_aliases "<alias> <envvar>  actor import via environment variable"
   ]
 
 let error_args = [
