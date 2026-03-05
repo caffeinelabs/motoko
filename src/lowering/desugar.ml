@@ -717,13 +717,15 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       (* Compute mem_typs = [mem_typ_0, mem_typ_1, ..., mem_typ_n] from
          the stab_fields presignatures w.r.t chain. *)
 
-      let chain_typs =
-        List.map T.(fun (file, _mod_typ, typ) ->
-          { lab = migration_lab_of_filename file;
-            typ;
-            src = T.empty_src })
-          chain in
-      let (_, pres) = T.pres None chain_typs stab_fields in
+      let chain_fields =
+        List.map
+          (fun (filename, _, typ) ->
+            T.{lab = T.migration_lab_of_filename filename;
+               typ;
+               src = T.empty_src})
+          chain
+      in
+      let (_, pres) = T.pres None chain_fields stab_fields in
       let mem_typs = List.map T.mem_typ_of_pre pres in
 
       let n = List.length chain in
@@ -798,9 +800,6 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       in
 
       let final_state = fresh_var "final_state" mem_ty in
-      let chain_fields =
-        List.map (fun (filename, _, typ) -> T.{lab=T.migration_lab_of_filename filename; typ; src = T.empty_src}) chain
-      in
       T.Multi {chain = chain_fields; post = stab_fields},
       I.{pre = mem_typ_at 0; post = mem_ty},
       blockE [
