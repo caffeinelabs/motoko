@@ -13,6 +13,9 @@ struct
   let display pp ppf x =
     Format.fprintf ppf "@\n@[<v 2>  %a@]" pp x
 
+  let display_inline pp ppf x =
+    Format.fprintf ppf "@[<v 2>%a@]" pp x
+
 end
 
 module Fun =
