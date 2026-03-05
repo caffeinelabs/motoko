@@ -305,15 +305,6 @@ let region_of_node (n : node) : Source.region =
 let region (z : t) : Source.region =
   region_of_node z.focus
 
-(** [pos_leq a b] is true when position [a] is at or before position [b]. *)
-let pos_leq (a : Source.pos) (b : Source.pos) : bool =
-  Source.Pos_ord.compare a b <= 0
-
-(** [encloses outer inner] is true when region [outer] fully contains [inner] *)
-let encloses (outer : Source.region) (inner : Source.region) : bool =
-  pos_leq outer.Source.left inner.Source.left
-  && pos_leq inner.Source.right outer.Source.right
-
 let focus_on_region (z : t) (target : Source.region) : t option =
   (* Never find a focus for `Source.no_region` *)
   if Source.Region_ord.compare target Source.no_region = 0 then None else
@@ -322,7 +313,7 @@ let focus_on_region (z : t) (target : Source.region) : t option =
       children' z
       |> List.filter_map (fun (idx, child) ->
            let child_region = region_of_node child in
-           if encloses child_region target
+           if Source.encloses child_region target
            then Some (descend z idx child)
            else None)
     in
@@ -338,13 +329,13 @@ let focus_on_region (z : t) (target : Source.region) : t option =
         List.fold_left (fun best cand ->
           let r_best = region best in
           let r_cand = region cand in
-          if encloses r_best r_cand then cand else best
+          if Source.encloses r_best r_cand then cand else best
         ) first rest
       in
       go best
   in
   let root_region = region_of_node z.focus in
-  if encloses root_region target then go z else None
+  if Source.encloses root_region target then go z else None
 
 let is_let_bound_var (z : t) : bool =
   match z.focus, parent' z with
