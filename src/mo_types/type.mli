@@ -333,7 +333,7 @@ val migration_lab_of_filename : string -> mig_lab
 
 val is_migration : typ -> bool
 val as_migration : typ -> (field list * field list)
-val pre_fields : typ -> ?initialized : bool -> field list -> (bool * field) list
+val pre_fields : typ -> ?has_initializers : bool -> field list -> (bool * field) list
 val pres : mig_lab option -> field list -> field list ->
            (bool * field) list * (bool * field) list list
 val pre : mig_lab option -> stab_sig -> (bool * field) list

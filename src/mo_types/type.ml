@@ -2602,8 +2602,7 @@ let pres mig_lab_opt chain post =
       then (cur_pre_fields, acc)
       else
         let cur_post_fields = List.map snd cur_pre_fields in
-        (*TODO: shouldn't we actually be passing ~initialized=false here?*)
-        let next_pre_fields = pre_fields mig_field.typ cur_post_fields in
+        let next_pre_fields = pre_fields mig_field.typ  ~initialized:false cur_post_fields in
         go (next_pre_fields::acc) mfs1 next_pre_fields
   in
   let mfs = List.rev chain in
