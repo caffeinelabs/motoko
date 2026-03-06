@@ -2,6 +2,7 @@
 
 * motoko (`moc`)
 
+  * feat: added `--actor-env-alias` to facilitate (installation-time) late binding of canister aliases via environment variables (#5890).
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
 
 ## 1.3.0 (2026-02-24)
