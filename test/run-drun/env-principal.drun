@@ -1,0 +1,6 @@
+# Install setup canister to set the management envvar before main canister init
+install $ID env-principal/setup.mo ""
+ingress $ID run "DIDL\x00\x00"
+# Upgrade to main canister; canister_post_upgrade runs with management envvar already set
+upgrade $ID env-principal/main.mo ""
+ingress $ID go "DIDL\x00\x00"
