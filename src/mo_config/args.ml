@@ -5,8 +5,9 @@ open Exit
 (** suppress documentation *)
 let _UNDOCUMENTED_ doc = "" (* TODO: enable with developer env var? *)
 
-let string_map inj flag r desc =
+let string_map ?err inj flag r desc =
   let key_ref = ref "DEADBEEF" in
+  let label = Option.value ~default:flag err in
   let open Arg in
   flag,
   Tuple [
@@ -14,7 +15,7 @@ let string_map inj flag r desc =
     String Flags.M.(fun value ->
       let key = !key_ref in
       if mem key !r
-      then fail "duplicate %s %s" flag key
+      then fail "duplicate %s %s" label key
       else r := add key (inj value) !r
     )
   ],
@@ -24,8 +25,8 @@ let string_map inj flag r desc =
 let package_args = [
   string_map Fun.id "--package" Flags.package_urls "<package-name> <package-path> specify a <package-name> <package-path> pair, separated by a space";
   "--actor-idl", Arg.String (fun fp -> Flags.actor_idl_path := Some fp), "<idl-path>   path to actor IDL (Candid) files";
-  string_map Either.right "--actor-alias" Flags.actor_aliases "<alias> <principal>  actor import alias";
-  string_map Either.left "--actor-env-alias" Flags.actor_aliases "<alias> <envvar>  actor import via environment variable"
+  string_map ~err:"actor alias" Either.right "--actor-alias" Flags.actor_aliases "<alias> <principal>  actor import alias";
+  string_map ~err:"actor alias" Either.left "--actor-env-alias" Flags.actor_aliases "<alias> <envvar>  actor import via environment variable"
   ]
 
 let error_args = [
