@@ -3071,7 +3071,6 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
         target_type
       | HoleE _, normalized_target ->
         deferred := (exp, target_type) :: !deferred;
-        must_solve := normalized_target :: !must_solve;
         target_type
       (* Future work: more cases to defer? *)
       | _ ->
