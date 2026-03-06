@@ -1,2 +1,2 @@
 variant-pat-missing.mo:1.7-1.15: type error [M0112], tuple pattern cannot consume expected type
-  Nat
+expected `Nat`, got `()`

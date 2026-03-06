@@ -70,6 +70,7 @@ type env =
     type_recovery : bool;
     srcs : Field_sources.t;
     closest_loop : (Syntax.loop_flags * T.typ) option;
+    closest_scrutinee : (Source.region * T.typ) option;
   }
 and ret_env =
   | NoRet
@@ -102,6 +103,7 @@ let env_of_scope msgs scope =
     type_recovery = false;
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
     closest_loop = None;
+    closest_scrutinee = None;
   }
 
 let use_identifier env id =
@@ -174,6 +176,7 @@ let display_lab = Lib.Format.display T.pp_lab
 let display_typ = Lib.Format.display T.pp_typ
 
 let display_typ_expand = Lib.Format.display T.pp_typ_expand
+let display_typ_expand_inline = Lib.Format.display_inline T.pp_typ_expand
 
 let display_explanation t1 t2 ppf explanation =
   if T.is_redundant_explanation t1 t2 explanation then () else
@@ -2625,7 +2628,8 @@ and check_exp' env0 t exp : T.typ =
     t
   | SwitchE (exp1, cases), _ ->
     let t1 = infer_exp_promote env exp1 in
-    check_cases env t1 t cases;
+    let env' = { env with closest_scrutinee = Some (exp1.at, t1) } in
+    check_cases env' t1 t cases;
     coverage_cases "switch" env cases t1 exp.at;
     t
   | TryE (exp1, cases, exp2_opt), _ ->
@@ -3418,6 +3422,10 @@ and check_pat_aux env t pat val_kind : Scope.val_env =
   ve
 
 and check_pat_aux' env t pat val_kind : Scope.val_env =
+  let add_error_ctx spans = match env.closest_scrutinee with
+    | Some (exp_at, exp_ty) ->
+      secondary env exp_at "this expression has type `%a`" display_typ_expand_inline exp_ty :: spans
+    | None -> spans in
   assert (t <> T.Pre);
   match pat.it with
   | WildP ->
@@ -3448,8 +3456,11 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     T.Env.empty
   | TupP pats ->
     let ts = try T.as_tup_sub (List.length pats) t with Invalid_argument _ ->
-      error env pat.at "M0112" "tuple pattern cannot consume expected type%a"
-         display_typ_expand t
+      let tup_spine = match pats with
+        | [] -> ""
+        | _::xs -> List.fold_left (fun acc _ -> acc ^ ", _") "_" xs in
+      let spans = add_error_ctx [primary env pat.at "expected `%a`, got `(%s)`" display_typ_expand_inline t tup_spine] in
+      error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type"
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
     let pfs' = List.stable_sort compare_pat_field pfs in
@@ -3460,8 +3471,8 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     let s, fs =
       try T.as_obj_sub vpfs t
       with Invalid_argument _ ->
-        error env pat.at "M0113" "object pattern cannot consume expected type%a"
-          display_typ_expand t
+        let spans = add_error_ctx [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
+        error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
     in
     if not env.pre && s = T.Actor && vpfs <> [] then
       local_error env pat.at "M0114" "object pattern cannot consume values from actor type%a"
@@ -3469,8 +3480,8 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
     check_pat_fields env t fs pfs' T.Env.empty pat.at
   | OptP pat1 ->
     let t1 = try T.as_opt_sub t with Invalid_argument _ ->
-      error env pat.at "M0115" "option pattern cannot consume expected type%a"
-        display_typ_expand t
+      let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
+      error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
     let t1 =
@@ -3479,8 +3490,8 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
         | Some t1 -> t1
         | None -> T.Non
       with Invalid_argument _ ->
-        error env pat.at "M0116" "variant pattern cannot consume expected type%a"
-          display_typ_expand t
+        let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
+        error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
     in check_pat env t1 pat1
   | AltP (pat1, pat2) ->
     let ve1 = check_pat env t pat1 in
@@ -4626,10 +4637,11 @@ and infer_dec_valdecs env dec : Scope.t =
     Scope.{empty with val_env = singleton id obj_typ}
   | LetD (pat, exp, fail) ->
      let t = infer_exp {env with pre = true; check_unused = false} exp in
+     let env' = { env with closest_scrutinee = if is_import dec then None else Some (exp.at, t) } in
      let ve' = match fail with
-       | None -> check_pat_exhaustive (if is_import dec then local_error else warn) env t pat
+       | None -> check_pat_exhaustive (if is_import dec then local_error else warn) env' t pat
        | Some _ ->
-          let ve = check_pat env t pat in
+          let ve = check_pat env' t pat in
           if not env.pre && coverage_pat_is_exhaustive pat t then
             warn env pat.at "M0243" "this pattern will always match, so the else clause is useless. Consider removing the else clause";
           ve
