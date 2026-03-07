@@ -14,3 +14,10 @@ func _mapViaIter() {
 func _mapViaIter2() {
   let _ = m.entries().map(func(k, v) { (k, v) }).toMap(Nat.compare); // Should compile
 };
+
+// Regression test case: implicits should not be checked before the last round of solving
+func trick<A, B>(a : A, equal : (implicit : (B, B) -> Bool), f : A -> B) : Bool { equal(f(a), f(a)) };
+func _trick() {
+  let v = { a = 1 };
+  assert trick(v, func (r) { r.a })
+}
