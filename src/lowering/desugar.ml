@@ -658,7 +658,7 @@ and export_view viewer_opt =
        match (viewer_body, T.normalize viewer_field.typ) with
        | DotViewV view_exp, T.Func(Shared Query, _, [_], ts1, ts2) ->
           (* id.view() available *)
-          ts1, ts2, fun vs -> callE (exp view_exp) [] (tupE (List.map varE vs))
+          ts1, ts2, fun vs -> callE (exp view_exp) [] (seqE (List.map varE vs))
        | DefaultV view_exp, T.Func(Shared Query, _, [_], [], [t]) ->
          (* id, t shared *)
           assert (T.shared t);
