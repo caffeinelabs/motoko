@@ -1,0 +1,12 @@
+lambdas-invariant-core.mo:9.11-9.39: type error [M0098], cannot apply function `.map` of type
+  <K, V1, V2>(project : (K, V1) -> V2) -> Map.Map<K, V2>
+to argument of type
+  (project : (Nat, Text) -> V2)
+because there is no "best" choice for type parameter `V2`.
+Hint: Add explicit type instantiation, e.g. <Nat, Text, (Nat, Text)>
+lambdas-invariant-core.mo:12.11-12.57: type error [M0098], cannot apply function `.toMap` of type
+  <K, V>(compare : (implicit : (K, K) -> Order)) -> Map.Map<K, V>
+to argument of type
+  (compare : (implicit : (Nat, Nat) -> Order))
+because there is no "best" choice for type parameter `K`.
+Hint: Add explicit type instantiation, e.g. <Nat, Text>

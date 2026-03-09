@@ -3071,7 +3071,6 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
         target_type
       | HoleE _, normalized_target ->
         deferred := (exp, target_type) :: !deferred;
-        must_solve := normalized_target :: !must_solve;
         target_type
       (* Future work: more cases to defer? *)
       | _ ->
@@ -3156,12 +3155,7 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
             (* We just have open [codom], we need to infer the body *)
             infer_body body_typ env' body;
         end
-      | HoleE _, typ ->
-         if not env.pre then begin
-           (* Check that all type variables in the type are fixed, fail otherwise *)
-           Bi_match.fail_when_types_are_not_closed remaining [typ];
-           check_exp env typ exp
-         end
+      | HoleE _, _ -> () (* check after the last round *)
       | _ ->
         (* Future work: Inferring will fail, we could report an explicit error instead *)
         subs := (infer_exp env exp, typ, exp.at) :: !subs
@@ -3176,6 +3170,11 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
          | _ -> ignore (infer_exp_wrapper (fun _ _ -> substitute t) T.as_immut env e)) in
       fix (T.open_ ts) to_fix;
       fix (T.open_ ts) deferred;
+      (* Check implicit arguments after all type variables are solved *)
+      deferred |> List.iter (fun (exp, typ) ->
+        match exp.it with
+        | HoleE _ -> check_exp env (T.open_ ts typ) exp
+        | _ -> ());
     end;
   (*
     if not env.pre then
