@@ -1,13 +1,13 @@
-error[M0251]: migration chain: field `a` (from enhanced-migration/enh-mig-test2/m3.mo) of type
+error[M0170]: the new type of stable variable `a` is not compatible with the previous version.
+ The previous type
   Float
-does not have expected type
+ is not a subtype of
   Text
-    ┌─ enhanced-migration-bad-chain-vartype.mo:4:1
-  3 │    
-  4 │ ╭  actor {
-  5 │ │      // a expected Text, but migrations make it Float.
-    · │  
-  8 │ │      var c : Nat;
-  9 │ │  };
-    │ ╰──^ 
- 10 │    
+ because the type 
+  Float
+ is not compatible with type 
+  Text.
+ Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+    ┌─ enhanced-migration/enh-mig-test2/m4.mo:1:1
+  1 │  module {
+    │  ^ 

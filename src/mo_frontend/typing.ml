@@ -3841,7 +3841,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
         local_error env at "M0252"
           "cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other."
       else
-        validate_enhanced_migration_chain env stab_tfs at
+        check_enhanced_migration_chain env stab_tfs at
     end
   end;
   t
@@ -3933,117 +3933,65 @@ and infer_migration env obj_sort exp_opt =
 
    Each incremental step v_i -> m_{i+1} -> v_{i+1} has the same semantics as
    the old (with migration = fn) syntax: a migration only needs to mention fields
-   it transforms; everything else is retained from the accumulated state.
+   it transforms (consumes and produces), everything else is inferred from final state.
+   Since stable fields of enhanced migrations can't have default initializers,
+   all remaining stable fields are deemed necessary and `required` from the previous version
+   (like the other inputs to migration functions).
 
-   Checks:
-   (1) each run type is a valid local function with stable object input/output,
-   (2) accumulated(m_0..m_i) <: input(m_{i+1}) — each migration can reference
-       any field from the accumulated state, not just the previous output,
-   (3) last migration vs actor — mirrors (with migration = fn):
-       - m_n's range fields type-checked against actor,
-       - retained fields (in accumulated_pre but not m_n's range) type-checked
-         against actor (more precise than old syntax which can't check these),
-       - fields in neither -> error,
-   (4) M0205/M0206/M0207 on last migration only. *)
-and validate_enhanced_migration_chain env stab_tfs at =
+   This code is deliberately similar to check_chain in check_stab_sig below but produces more
+   error messages.
+ *)
+
+and check_enhanced_migration_chain env stab_tfs at =
   let chain = !T.migration_chain in
   if chain = [] then () else
-  let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
   (* Check that a type is a stable object; return its fields *)
-  let check_fields file desc typ =
-    match typ with
-    | T.Obj(T.Object, fs, _) ->
-      if not (T.stable typ) then
+  let check_fields file desc fields =
+    List.iter (fun T.{lab; typ;_} ->
+      if not (T.stable (T.as_immut typ)) then
         local_error env at "M0201"
           "expected stable type, but migration %s %s non-stable type%a"
-          file desc
-          display_typ_expand typ;
-      fs
-    | _ ->
-      local_error env at "M0202"
-        "expected object type, but migration %s %s non-object type%a"
-        file desc
-        display_typ_expand typ;
-      []
-  in
-  (* Decompose each run type into (file, dom_fields, rng_fields, input, output) *)
-  let decomposed = List.filter_map (fun (file, _mod_typ, typ) ->
-    try
-      let sort, tbs, t_args, t_rng = T.as_func_sub T.Local 0 typ in
-      if sort <> T.Local || tbs <> [] then raise (Invalid_argument "");
-      let t_dom = T.seq t_args in
-      let dom_tfs = check_fields file "consumes" (T.normalize t_dom) in
-      let rng_tfs = check_fields file "produces" (T.promote t_rng) in
-      Some (file, dom_tfs, rng_tfs, t_dom, t_rng)
-    with Invalid_argument _ ->
-      local_error env at "M0251"
-        "migration module %s: `run` is not a valid function type" file;
-      None
-  ) chain in
-  (* Two-phase validation:
-     Phase 1 (fold): for each migration i, check accumulated(0..i-1) <: input(i).
-       Dom-only fields are dropped from accumulated (consuming = dropping).
-     Phase 2: check accumulated(0..n) against actor — every actor field must
-       be in accumulated with a compatible type. *)
-  if decomposed <> [] then begin
-    (* CRUSSO: future: do right to left as in desugar *)
-    (* Fold: for each migration i, check accumulated(m_{0}, m_{1}, ..., m_{i-1}). <: input(m_{i}) (skip first),
-       then update accumulated state. Dom-only fields (consumed but not
-       produced) are dropped — consuming a field = dropping it, matching
-       the old (with migration = fn) semantics. The result is the final
-       accumulated state after all migrations, used to check actor fields. *)
-    let accumulated = List.fold_left (fun acc (file, dom_tfs, rng_tfs, input, _) ->
-      if acc <> [] then begin
-        let acc_fields = List.sort T.compare_field (List.map snd acc) in
-        let acc_typ = T.Obj(T.Object, acc_fields, []) in
-        if not (T.sub acc_typ (T.normalize input)) then (* CRUSSO: THIS NEED FIXING *)
-          local_error env at "M0251"
-            "migration chain broken: accumulated state is not compatible with input of %s" file
-      end;
-      let rng_labs = List.map (fun tf -> tf.T.lab) rng_tfs in
-      let dom_labs = List.map (fun tf -> tf.T.lab) dom_tfs in
-      let kept = List.filter (fun (_, tf) ->
-        not (List.mem tf.T.lab rng_labs) && not (List.mem tf.T.lab dom_labs)
-      ) acc in
-      kept @ List.map (fun tf -> (file, tf)) rng_tfs
-    ) [] decomposed in
-    (* Check every actor field against accumulated(m_{0}, m_{1}, ..., m_{n}).
-       Each field is either:
-       - found: produced or retained by the chain — check type compat (M0251)
-       - not found: chain does not produce it (dropped or never introduced) — error (M0251) *)
-    let field_compat tf typ =
-      let context = [T.StableVariable tf.T.lab] in
-      T.stable_sub_explained ~src_fields:env.srcs context
-        (T.as_immut typ) (T.as_immut tf.T.typ)
-    in
-    List.iter (fun tf ->
-      match List.find_opt (fun (_, acc_tf) -> acc_tf.T.lab = tf.T.lab) accumulated with
-      | Some (from_file, acc_tf) ->
-        (match field_compat tf acc_tf.T.typ with
-        | T.Compatible -> ()
-        | T.Incompatible explanation ->
-          local_error env at "M0251"
-            "migration chain: field `%s` (from %s) of type%a\ndoes not have expected type%a%a"
-            tf.T.lab from_file
-            display_typ_expand acc_tf.T.typ
-            display_typ_expand tf.T.typ
-            (display_explanation (T.as_immut acc_tf.T.typ) (T.as_immut tf.T.typ)) explanation)
-      | None ->
-        local_error env at "M0251"
-          "migration chain does not produce stable field `%s`."
-          tf.T.lab
-    ) stab_tfs;
-    (* M0251: every accumulated field must be declared in the actor.
-       Fields can only leave accumulated through explicit consumption
-       (dom-only migration), never through silent omission from the actor. *)
-    List.iter (fun (from_file, acc_tf) ->
-      if not (List.mem acc_tf.T.lab stab_ids) then
-        local_error env at "M0251"
-          "migration chain, data loss risk: field `%s` (from %s) is not declared in the actor.\n%s"
-          acc_tf.T.lab from_file
-          "Add a migration that consumes this field, or declare it in the actor."
-    ) accumulated
-  end
+          lab desc
+          display_typ_expand typ;) fields
+ in
+ let check_chain chain post =
+   let mfs = List.rev chain in
+   let rec check_mfs at post mfs =
+     match mfs with
+     | [] -> ()
+     | (file, _, typ)::mfs1 ->
+        let file_at = let file_pos = { Source.no_pos with file = file} in {left = file_pos; right=file_pos} in
+        let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
+        (* is this a migration function *)
+        if not (T.is_migration mf.T.typ) then
+           local_error env file_at "M0251"
+             "migration module %s: `run` is not a valid function type" file
+        else
+          let (dom_mf, rng_mf) = T.as_migration mf.T.typ in
+          check_fields file "consumes" dom_mf;
+          check_fields file "produces" rng_mf;
+          let out =
+            rng_mf @
+              (List.filter (fun tf ->
+                 T.lookup_val_field_opt tf.T.lab dom_mf <> None &&
+                 T.lookup_val_field_opt tf.T.lab rng_mf = None) post)
+            |> List.sort T.compare_field
+          in
+          let _ = Stability.match_stab_fields env.msgs
+                    at
+                    out
+                    (List.map (fun tf ->
+                         T.lookup_val_field_opt tf.T.lab rng_mf <> None, tf)
+                       post) in
+          (* calculate the previous post and iterate *)
+          let pre = T.pre_fields mf.T.typ post in
+          let prev_post = List.map (fun (_required, tf) -> tf) pre in
+          check_mfs file_at prev_post mfs1
+   in
+   (* all migrations compose to produce post *)
+   check_mfs at post mfs
+ in
+   check_chain chain stab_tfs
 
 and check_migration env (stab_tfs : T.field list) exp_opt =
   match exp_opt with
@@ -4178,7 +4126,7 @@ and check_stable_defaults env sort dec_fields =
   if Option.is_some !Flags.enhanced_migration then begin
     List.iter (fun dec_field ->
       match dec_field.it.stab, dec_field.it.dec.it with
-      | Some {it = Stable; _}, LetD (_, exp, _) 
+      | Some {it = Stable; _}, LetD (_, exp, _)
       | Some {it = Stable; _}, VarD (_, exp) ->
         (match exp.it with
          | AnnotE ({it = TupE []; _}, _) -> () (* placeholder for no initializer -- OK *)
