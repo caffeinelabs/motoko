@@ -3,6 +3,7 @@
 * motoko (`moc`)
 
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
+  * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
 
 ## 1.3.0 (2026-02-24)
 
