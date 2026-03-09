@@ -6,7 +6,7 @@ ingress Completed: Reply: 0x4449444c0000
 debug.print: {rts_callback_table_count = 0}
 ingress Completed: Reply: 0x4449444c0000
 debug.print: trap in finally!
-ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally-trap.mo:8.7-8.19'
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at try-finally-trap.mo:8.7-8.19'.
 
 call_on_cleanup also failed:
 
