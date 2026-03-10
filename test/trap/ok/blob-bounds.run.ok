@@ -11,6 +11,7 @@ Last environment:
 @call_raw = <func>
 @call_succeeded = <func>
 @cancelTimer = <func>
+@checkLastMigration = <func>
 @cleanup = <func>
 @create_actor_helper = <func>
 @cycles = 0
@@ -46,6 +47,7 @@ Last environment:
 @refund = 0
 @reset_cycles = <func>
 @reset_refund = <func>
+@setLastMigration = <func>
 @setTimer = <func>
 @set_global_timer = <func>
 @text_chars = <func>
