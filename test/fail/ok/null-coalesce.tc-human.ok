@@ -1,0 +1,48 @@
+error[M0065]: expected option type, but expression produces type
+  T
+    ┌─ null-coalesce.mo:12:31
+ 12 │    func m4<T>(t : T) { let _ = t ?? 42 };
+    │                                ^ 
+error[M0245]: cannot find best common type for
+  Text
+and
+  Int
+    ┌─ null-coalesce.mo:15:23
+ 15 │    func m7() { let _ = stringOptNull ?? int };
+    │                        ^^^^^^^^^^^^^^^^^^^^ has type `Int`
+    │                        │                
+    │                        
+    │                        has type `Text`
+error[M0096]: expression of type
+  T
+cannot produce expected type
+  ?Int
+because type variable 
+  T
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  ?Int
+    ┌─ null-coalesce.mo:21:29
+ 21 │    func m3<T>(t : T) : Int { t ?? 42 };
+    │                              ^ 
+error[M0096]: expression of type
+  ?Int
+cannot produce expected type
+  ?Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
+    ┌─ null-coalesce.mo:24:22
+ 24 │    func m51() : Nat { intOptNull ?? 42 };
+    │                       ^^^^^^^^^^ 
+error[M0096]: expression of type
+  Int
+cannot produce expected type
+  Text
+    ┌─ null-coalesce.mo:26:40
+ 26 │    func m61() : Text { stringOptNull ?? int };
+    │                                         ^^^ 

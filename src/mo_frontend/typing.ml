@@ -375,8 +375,12 @@ let error_expected_type env at ~actual ~expected =
     display_typ_expand actual
     display_typ_expand expected
 
-let error_inconsistent_type env at t1 t2 =
-  error env at "M0240"
+let error_inconsistent_type env at at1 t1 at2 t2 =
+  error env at "M0245"
+    ~spans:[
+      secondary env at1 "has type `%a`" display_typ_expand_inline t1;
+      secondary env at2 "has type `%a`" display_typ_expand_inline t2;
+    ]
     "cannot find best common type for%a\nand%a"
     display_typ_expand t1
     display_typ_expand t2
@@ -2153,7 +2157,7 @@ and infer_exp'' env exp : T.typ =
     let t2 = infer_exp env e2 in
     let t = T.lub ~src_fields:env.srcs t_inner1 t2 in
     if not env.pre && inconsistent t [t_inner1; t2] then
-      error_inconsistent_type env exp.at t_inner1 t2;
+      error_inconsistent_type env exp.at e1.at t_inner1 e2.at t2;
     t
   | IfE (exp1, exp2, exp3) ->
     if not env.pre then check_exp_strong env T.bool exp1;

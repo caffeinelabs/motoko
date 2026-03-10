@@ -1,6 +1,6 @@
 null-coalesce.mo:12.31-12.32: type error [M0065], expected option type, but expression produces type
   T
-null-coalesce.mo:15.23-15.43: type error [M0240], cannot find best common type for
+null-coalesce.mo:15.23-15.43: type error [M0245], cannot find best common type for
   Text
 and
   Int
@@ -8,10 +8,22 @@ null-coalesce.mo:21.29-21.30: type error [M0096], expression of type
   T
 cannot produce expected type
   ?Int
+because type variable 
+  T
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  ?Int
 null-coalesce.mo:24.22-24.32: type error [M0096], expression of type
   ?Int
 cannot produce expected type
   ?Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
 null-coalesce.mo:26.40-26.43: type error [M0096], expression of type
   Int
 cannot produce expected type

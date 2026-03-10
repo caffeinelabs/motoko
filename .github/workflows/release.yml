@@ -82,7 +82,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        os: [ubuntu-latest, macos-15-intel, ubuntu-24.04-arm, macos-latest]
     concurrency:
       group: release-build-${{ matrix.os }}-${{ github.ref_name }}
       cancel-in-progress: true
