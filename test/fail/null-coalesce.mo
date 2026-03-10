@@ -13,6 +13,9 @@ module Infer {
   func m5() { let _ = myOpt ?? 42 };
   func m6() { let _ = intOptNull ?? 42 };
   func m7() { let _ = stringOptNull ?? int };
+  func m8() { let _ = 42 ?? 5 };
+  func m9() { let _ = "hello" ?? "world" };
+  func m10() { let _ = true ?? false };
 };
 
 module Check {
@@ -24,4 +27,6 @@ module Check {
   func m51() : Nat { intOptNull ?? 42 };
   func m6() : Any { stringOptNull ?? int };
   func m61() : Text { stringOptNull ?? int };
+  func m7() : Nat { 42 ?? 5 };
+  func m8<T>(t : T) : Nat { t ?? 42 };
 };

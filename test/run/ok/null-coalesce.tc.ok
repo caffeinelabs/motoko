@@ -1,0 +1,32 @@
+null-coalesce.mo:75.11-75.22: type error [M0096], expression of type
+  ?Nat
+cannot produce expected type
+  ?Bool
+because the type 
+  Nat
+ is not compatible with type 
+  Bool
+null-coalesce.mo:76.11-76.22: type error [M0096], expression of type
+  ?Nat
+cannot produce expected type
+  ?Bool
+because the type 
+  Nat
+ is not compatible with type 
+  Bool
+null-coalesce.mo:82.11-82.12: type error [M0096], expression of type
+  ?Nat
+cannot produce expected type
+  ?Bool
+because the type 
+  Nat
+ is not compatible with type 
+  Bool
+null-coalesce.mo:84.11-84.12: type error [M0096], expression of type
+  ?Nat
+cannot produce expected type
+  ?Bool
+because the type 
+  Nat
+ is not compatible with type 
+  Bool
