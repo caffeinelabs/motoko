@@ -7,6 +7,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -30,6 +31,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -53,6 +55,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -76,6 +79,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -99,6 +103,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -122,6 +127,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -145,6 +151,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -168,6 +175,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -191,6 +199,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -214,6 +223,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -243,6 +253,7 @@ error[M0001]: unexpected token 'with', expected one of token or <phrase> sequenc
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -266,6 +277,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -289,6 +301,7 @@ error[M0001]: unexpected token 'with', expected one of token or <phrase> sequenc
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -312,6 +325,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -335,6 +349,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -358,6 +373,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -381,6 +397,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -404,6 +421,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -427,6 +445,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -450,6 +469,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -473,6 +493,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -496,6 +517,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -519,6 +541,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -542,6 +565,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -565,6 +589,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -588,6 +613,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -611,6 +637,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -634,6 +661,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -657,6 +685,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -680,6 +709,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -703,6 +733,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -726,6 +757,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -749,6 +781,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -772,6 +805,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -795,6 +829,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -818,6 +853,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -841,6 +877,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -864,6 +901,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -887,6 +925,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -910,6 +949,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -933,6 +973,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -956,6 +997,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -979,6 +1021,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -1002,6 +1045,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -1025,6 +1069,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -1048,6 +1093,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -1071,6 +1117,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
