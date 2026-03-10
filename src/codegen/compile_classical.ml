@@ -10980,7 +10980,7 @@ let compile_comparison env t op =
   match t with
     | Nat | Int -> BigNum.compile_relop env bigintop
     | Nat64 -> G.i (Compare (Wasm.Values.I64 u64op))
-    | Nat8 | Nat16 | Nat32 | Char -> G.i (Compare (Wasm.Values.I32 u32op))
+    | Nat8 | Nat16 | Nat32 | Char | Bool -> G.i (Compare (Wasm.Values.I32 u32op))
     | Int64 -> G.i (Compare (Wasm.Values.I64 s64op))
     | Int8 | Int16 | Int32 -> G.i (Compare (Wasm.Values.I32 s32op))
     | _ -> todo_trap env "compile_comparison" (Arrange_type.prim t)
@@ -10993,7 +10993,7 @@ let compile_relop env t op =
   | Type.(Prim Text), _ -> Text.compare env op
   | Type.(Prim (Blob|Principal)), _ -> Blob.compare env (Some op)
   | _, EqOp -> compile_eq env t
-  | Type.(Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1)), op1 ->
+  | Type.(Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char | Bool as t1)), op1 ->
     compile_comparison env t1 op1
   | Type.(Prim Float), GtOp -> G.i (Compare (Wasm.Values.F64 F64Op.Gt))
   | Type.(Prim Float), GeOp -> G.i (Compare (Wasm.Values.F64 F64Op.Ge))

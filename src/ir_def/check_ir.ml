@@ -183,6 +183,7 @@ let has_prim_compare t =
   (* Keep in sync with Compile.compile_comparison_op *)
   let open T in
   match normalize t with
+  | Prim Null -> false (* Ir_passes.Compare handles singleton types *)
   | Prim p -> orderable_prim p
   | Non -> true
   | _ -> false

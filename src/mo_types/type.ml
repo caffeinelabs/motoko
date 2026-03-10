@@ -1010,8 +1010,9 @@ let stable t = serializable true t
 let orderable_prim = function
   | Nat | Nat8 | Nat16 | Nat32 | Nat64
   | Int | Int8 | Int16 | Int32 | Int64
-  | Float | Char | Text | Blob | Principal -> true
-  | Null | Bool | Error | Region -> false
+  | Float | Char | Text | Blob | Principal
+  | Null | Bool -> true
+  | Error | Region -> false
 
 (* Orderable types: shared types minus shared functions and actors *)
 let orderable t =

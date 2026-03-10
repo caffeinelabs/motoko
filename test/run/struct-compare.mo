@@ -45,6 +45,38 @@ assert((#err("x") : { #ok : Nat; #err : Text }) < #ok(0)); // "err" < "ok" alpha
 assert((1, [2, 3]) < (1, [2, 4]));
 assert({ x = ?1; y = [1] } < { x = ?2; y = [0] });
 
+// Bool comparison (false < true)
+assert(false < true);
+assert(not (true < false));
+assert(true >= false);
+assert(false <= true);
+assert(false <= false);
+assert(true >= true);
+
+// Bool inside structured types
+assert((false, 1) < (true, 0));
+assert((true, 1) > (false, 99));
+assert([false, true] < [true, false]);
+assert([false] < [true]);
+assert({ flag = false; val = 10 } < { flag = true; val = 0 });
+assert(?false < ?true);
+assert((#off : { #off; #on }) < #on);  // "off" < "on" alphabetically
+
+// Null comparison (singleton: always equal)
+assert((null : Null) <= (null : Null));
+assert((null : Null) >= (null : Null));
+assert(not ((null : Null) < (null : Null)));
+assert(not ((null : Null) > (null : Null)));
+
+// Null with subtyping via options (null < ?x)
+assert([?1, null] <= [?1, ?0]);
+assert([?1, null] < [?1, ?0]);
+assert([null, null] < [null, ?0]);
+assert([null] < [?0]);
+assert((?null : ??Nat) < ??0);
+assert(((null, null) : (?Nat, ?Nat)) < (null, ?1));
+assert(((null, ?5) : (?Nat, ?Nat)) < (?0, null));
+
 // Char comparison
 assert('a' < 'b');
 assert('z' > 'a');
