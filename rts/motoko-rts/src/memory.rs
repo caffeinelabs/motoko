@@ -137,7 +137,7 @@ pub unsafe fn set_dedup_table<M: Memory>(mem: &mut M, dedup_table: Value) {
     set_dedup_table_ptr(mem, dedup_table);
 }
 
-/// Get the dedup table.
+/// Get the migrations list.
 #[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 #[cfg(feature = "ic")]
@@ -146,7 +146,7 @@ pub unsafe fn get_migrations<M: Memory>(_mem: &mut M) -> Value {
     *get_migration_functions_ptr()
 }
 
-/// Set the dedup table.
+/// Set the migrations list.
 #[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 #[cfg(feature = "ic")]
