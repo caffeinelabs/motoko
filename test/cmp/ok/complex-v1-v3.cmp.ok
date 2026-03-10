@@ -3,7 +3,7 @@
   var {root : Tree<Text, Product>; size : Nat}
  is not a subtype of
   Map<Text, OldProduct> = {root : Tree<Text, OldProduct>; size : Nat}
- because: The type 
+ because the type 
   {
     acceptanceCriteria : [Text];
     dependencies : [Dependency];
@@ -19,6 +19,6 @@
   }
  is not compatible with type 
   (Text, Nat)
- of OldProduct (used by Tree in Map in products.root).
+ in `OldProduct` (used by `Tree` in `root` in `Map` in `products`).
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
 FALSE

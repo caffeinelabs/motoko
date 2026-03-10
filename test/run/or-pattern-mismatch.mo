@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // checking
 let (#a a1) or (#b a1) : { #a : Nat; #b : Char } = #a 5;
 let (#a (a2 : Nat)) or (#b a2) : { #a : Nat; #b : Int } = #b 5; // don't warn

@@ -1,0 +1,1 @@
+incomplete-self-reference.mo:4.9-4.15: warning [M0244], variable stored is never reassigned, consider using `let`

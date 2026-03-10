@@ -3,11 +3,11 @@ actor a {
   flexible let xs = [0, 1, 2, 3, 4];
   flexible let ys = [];
 
-  public func foo1() {
+  public func foo1() : () {
     ignore(xs[5]);
     Prim.debugPrint("Unreachable code reached");
   };
-  public func foo2() {
+  public func foo2() : () {
     ys[0];
     Prim.debugPrint("Unreachable code reached");
   };

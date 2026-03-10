@@ -3,7 +3,7 @@
   var {root : Tree<Text, Product>; size : Nat}
  is not a subtype of
   Map<Text, OldProduct> = {root : Tree<Text, OldProduct>; size : Nat}
- because: Missing tag `#caffeine` in type 
+ because case `#caffeine` is missing from expected type 
   {
     #crypto;
     #defi;
@@ -17,6 +17,6 @@
     #security;
     #storage
   }
- of OldTeam (used by OldProduct in Tree in Map in products.root.team).
+ of `OldTeam` (used by `team` in `OldProduct` in `Tree` in `root` in `Map` in `products`).
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
 FALSE

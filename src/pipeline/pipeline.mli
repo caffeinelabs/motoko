@@ -50,8 +50,11 @@ type load_result_cached =
     * scope_cache )
   Diag.result
 
+val async_cap_of_prog : Syntax.prog -> Async_cap.async_cap
+
 val load_progs_cached
   :  ?check_actors:bool
+  -> ?enable_type_recovery:bool
   -> parse_fn
   -> string list
   -> Scope.t

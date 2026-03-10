@@ -27,7 +27,7 @@ cannot produce expected type
   Bool
 inf-error-small.mo:53.25-53.46: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
-Hint: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
 inf-error-small.mo:54.32-54.53: type error [M0096], expression of type
   ?Text
 cannot produce expected type

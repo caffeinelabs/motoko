@@ -2,9 +2,13 @@ pipe-ill-typed.mo:7.33-7.34: type error [M0096], expression of type
   {#B}
 cannot produce expected type
   {#A}
+because case `#B` is missing from expected type 
+  {#A}
 pipe-ill-typed.mo:11.37-11.38: type error [M0096], expression of type
   {#A}
 cannot produce expected type
+  {#B}
+because case `#A` is missing from expected type 
   {#B}
 pipe-ill-typed.mo:16.33-16.34: type error [M0096], expression of type
   {#A}

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import P "mo:⛔";
 // test call-raw using candid serialization
 actor self {

@@ -1,1 +1,0 @@
-import-type-field.mo:1.21-1.25: warning [M0198], unused field cons in object pattern (delete or rewrite as `cons = _`)

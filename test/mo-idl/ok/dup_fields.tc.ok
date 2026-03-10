@@ -1,2 +1,0 @@
-dup_fields.mo:9.26-9.30: warning [M0194], unused identifier user (delete or rename to wildcard `_` or `_user`)
-dup_fields.mo:11.21-11.25: warning [M0194], unused identifier user (delete or rename to wildcard `_` or `_user`)

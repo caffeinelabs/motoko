@@ -1,88 +1,77 @@
-type-combine.mo:421.16-421.39: warning [M0166], this intersection results in type
+type-combine.mo:422.16-422.39: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [var Int]
-type-combine.mo:422.16-422.35: warning [M0166], this intersection results in type
+type-combine.mo:423.16-423.35: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [Nat]
-type-combine.mo:424.16-424.25: warning [M0166], this intersection results in type
+type-combine.mo:425.16-425.25: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   ()
 right operand is
   {}
-type-combine.mo:427.22-427.29: warning [M0166], this intersection results in type
+type-combine.mo:428.22-428.29: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   A
 right operand is
   B
-type-combine.mo:430.32-430.39: warning [M0166], this intersection results in type
+type-combine.mo:431.32-431.39: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   A
 right operand is
   B
-type-combine.mo:432.16-432.53: warning [M0166], this intersection results in type
+type-combine.mo:433.16-433.53: warning [M0166], this intersection results in type
   None
 because operand types are inconsistent,
 left operand is
   <A <: Nat>() -> ()
 right operand is
   <A <: Int>() -> ()
-type-combine.mo:447.16-447.38: warning [M0167], this union results in type
+type-combine.mo:448.16-448.38: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [var Int]
-type-combine.mo:448.16-448.34: warning [M0167], this union results in type
+type-combine.mo:449.16-449.34: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   [var Nat]
 right operand is
   [Nat]
-type-combine.mo:450.16-450.24: warning [M0167], this union results in type
+type-combine.mo:451.16-451.24: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   ()
 right operand is
   {}
-type-combine.mo:453.22-453.28: warning [M0167], this union results in type
+type-combine.mo:454.22-454.28: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   A
 right operand is
   B
-type-combine.mo:458.16-458.52: warning [M0167], this union results in type
+type-combine.mo:459.16-459.52: warning [M0167], this union results in type
   Any
 because operand types are inconsistent,
 left operand is
   <A <: Nat>() -> ()
 right operand is
   <A <: Int>() -> ()
-type-combine.mo:252.6-252.7: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
-type-combine.mo:426.44-426.45: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:427.50-427.51: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:428.56-428.57: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:429.68-429.69: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:430.70-430.71: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:452.43-452.44: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:453.49-453.50: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:454.55-454.56: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:455.67-455.68: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-type-combine.mo:456.69-456.70: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)

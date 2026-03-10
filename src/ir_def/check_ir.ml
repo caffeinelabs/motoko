@@ -117,7 +117,7 @@ let lub env t1 t2 =
 
 exception CheckFailed of string
 
-let type_error at : string -> Diag.message = Diag.error_message at "M0000" "IR type"
+let type_error at : string -> Diag.message = Diag.error_message at "M0000" "IR type" ~notes:[] ~spans:[] ~edits:[]
 
 let error env at fmt =
     Printf.ksprintf (fun s -> raise (CheckFailed (Diag.string_of_message (type_error at s)))) fmt
@@ -175,17 +175,16 @@ let has_prim_eq t =
   | Prim _ -> true (* all other prims are fine *)
   | Non -> true
   (* references are handled in the back-end: *)
-  | Obj (Actor, _) | Func (Shared _, _, _, _, _) -> true
+  | Obj (Actor, _, _) | Func (Shared _, _, _, _, _) -> true
   | _ -> false
 
-let check_field_hashes env what at =
+let check_field_hashes env what at fields =
   Lib.List.iter_pairs
     (fun x y ->
-      if not (T.is_typ x.T.typ) && not (T.is_typ y.T.typ) &&
-         Hash.hash x.T.lab = Hash.hash y.T.lab
+      if Hash.hash x.T.lab = Hash.hash y.T.lab
       then error env at "field names %s and %s in %s type have colliding hashes"
         x.T.lab y.T.lab what;
-    )
+    ) fields
 
 
 let rec check_typ env typ : unit =
@@ -258,7 +257,10 @@ let rec check_typ env typ : unit =
     check env no_region env.flavor.Ir.has_async_typ "async in non-async flavor";
     let t' = T.promote typ2 in
     check_shared env no_region t'
-  | T.Obj (sort, fields) ->
+  | T.Obj (sort, fields, typ_fields) ->
+    List.iter
+      (fun _ -> check env no_region env.flavor.Ir.has_typ_field "typ field in non-typ_field flavor")
+      typ_fields;
     List.iter (check_typ_field env (Some sort)) fields;
     check_field_hashes env "object" no_region fields;
     (* fields strictly sorted (and) distinct *)
@@ -271,8 +273,6 @@ let rec check_typ env typ : unit =
       error env no_region "variant type's fields are not distinct and sorted %s" (T.string_of_typ typ)
   | T.Mut typ ->
     error env no_region "unexpected T.Mut %s" (T.string_of_typ typ)
-  | T.Typ c ->
-    error env no_region "unexpected T.Typ"
   | T.Named (_, typ1) ->
     check env no_region env.flavor.Ir.has_typ_field
      "named type field in non-typ_field flavor";
@@ -290,7 +290,6 @@ and check_con env c =
     env.seen := T.ConSet.add c !(env.seen);
     let T.Abs (binds,typ) | T.Def (binds, typ) = Cons.kind c in
     check env no_region (not (T.is_mut typ)) "type constructor RHS is_mut";
-    check env no_region (not (T.is_typ typ)) "type constructor RHS is_typ";
     let cs, ce = check_typ_binds env binds in
     let ts = List.map (fun c -> T.Con (c, [])) cs in
     let env' = adjoin_cons env ce in
@@ -300,10 +299,6 @@ and check_con env c =
 and check_typ_field env s tf : unit =
   match tf.T.typ, s with
   | T.Mut t, Some (T.Object | T.Memory) -> check_typ env t
-  | T.Typ c, Some _ ->
-    check env no_region env.flavor.Ir.has_typ_field
-     "typ field in non-typ_field flavor";
-    check_con env c
   | t, Some T.Actor when not (T.is_shared_func t) ->
     error env no_region "actor field %s must have shared function type, found %s" tf.T.lab (T.string_of_typ t)
   | t, _ -> check_typ env t
@@ -396,7 +391,7 @@ let isAsyncE exp =
 let store_typ t  =
   T.stable t &&
   match t with
-  | T.Obj(T.Memory, fts) ->
+  | T.Obj(T.Memory, fts, _) ->
     List.for_all (fun f -> T.is_opt f.T.typ) fts
   | _ -> false
 
@@ -707,7 +702,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
       typ e <: T.blob;
       check_typ env actor_typ;
       begin match T.normalize actor_typ with
-      | T.Obj (T.Actor, _) -> ()
+      | T.Obj (T.Actor, _, _) -> ()
       | _ -> error env exp.at "ActorOfIdBlob cast to actor object type, not\n   %s"
            (T.string_of_typ_expand actor_typ)
       end;
@@ -886,8 +881,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
     typ stable_record <: stable_type.post;
     check (T.is_obj t0) "bad annotation (object type expected)";
     let (s0, tfs0) = T.as_obj t0 in
-    let val_tfs0 = List.filter (fun tf -> not (T.is_typ tf.T.typ)) tfs0 in
-    (type_obj env'' T.Actor fs) <: (T.Obj (s0, val_tfs0));
+    (type_obj env'' T.Actor fs) <: (T.Obj (s0, tfs0, []));
     t0 <: t;
   | NewObjE (s, fs, t0) ->
     (* check object *)
@@ -897,8 +891,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
     (* check annotation *)
     check (T.is_obj t0) "bad annotation (object type expected)";
     let (s0, tfs0) = T.as_obj t0 in
-    let val_tfs0 = List.filter (fun tf -> not (T.is_typ tf.T.typ)) tfs0 in
-    t1 <: T.Obj (s0, val_tfs0);
+    t1 <: T.Obj (s0, tfs0, []);
 
     t0 <: t
   end;
@@ -1105,7 +1098,7 @@ and check_pat_field env t (pf : pat_field) =
   let tf = T.{lab; typ = pf.it.pat.note; src = empty_src} in
   let s, tfs = T.as_obj_sub [lab] t in
   let (<:) = check_sub env pf.it.pat.at in
-  t <: T.Obj (s, [tf]);
+  t <: T.Obj (s, [tf], []);
   if T.is_mut (T.lookup_val_field lab tfs) then
     error env pf.it.pat.at "cannot match mutable field %s" lab
 
@@ -1119,7 +1112,7 @@ and check_pat_tag env t l pat =
 
 and type_obj env s fs : T.typ =
   let tfs = type_exp_fields env s fs in
-  T.Obj (s, tfs)
+  T.Obj (s, tfs, [])
 
 and type_exp_fields env s fs : T.field list =
   let tfs = List.map (type_exp_field env s) fs in
@@ -1133,10 +1126,8 @@ and type_exp_field env s f : T.field =
   in
   assert (t <> T.Pre);
   check_sub env f.at t f.note;
-  if not (T.is_typ t) then begin
-    check env f.at ((s = T.Actor) ==> T.is_shared_func t)
-      "public actor field must have shared function type";
-  end;
+  check env f.at ((s = T.Actor) ==> T.is_shared_func t)
+    "public actor field must have shared function type";
   T.{lab = name; typ = t; src = empty_src}
 
 (* Declarations *)
@@ -1241,8 +1232,7 @@ let check_comp_unit env = function
     typ stable_record <: stable_type.post;
     check (T.is_obj t0) "bad annotation (object type expected)";
     let (s0, tfs0) = T.as_obj t0 in
-    let val_tfs0 = List.filter (fun tf -> not (T.is_typ tf.T.typ)) tfs0 in
-    type_obj env'' T.Actor fs <: T.Obj (s0, val_tfs0);
+    type_obj env'' T.Actor fs <: T.Obj (s0, tfs0, []);
     () (* t0 <: t *)
 
 let check_prog verbose phase ((cu, flavor) as prog) : unit =

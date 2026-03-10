@@ -1,0 +1,4 @@
+error[M0016]: cannot use g before g has been defined
+    ┌─ usedefbug.mo:8:3
+  8 │    let Bar = Foo(g, g);
+    │    ^^^^^^^^^^^^^^^^^^^ 

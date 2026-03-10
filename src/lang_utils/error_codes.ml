@@ -206,7 +206,8 @@ let error_codes : (string * string option) list =
     "M0232", None; (* Cannot infer type of implicit argument *)
     "M0233", None; (* Wrong number of arguments *)
     "M0234", None; (* Field exists but is not a function *)
-    "M0240", None; (* Cannot find best common type (Inconsistent type) *)
+    "M0238", None; (* Misplaced break or continue *)
+    "M0245", None; (* Cannot find best common type (Inconsistent type) *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -247,6 +248,11 @@ let warning_codes = [
   "M0236", None, "Suggest contextual dot notation";
   "M0237", None, "Suggest redundant explicit arguments";
   "M0239", None, "Avoid binding a unit `()` result";
+  "M0240", None, "Unused identifier in shared pattern warning";
+  "M0241", None, "Unused field in shared pattern warning";
+  "M0242", None, "Implicit oneway declaration";
+  "M0243", None, "Unreachable else in let-else";
+  "M0244", None, "Mutable variable is never reassigned";
   ]
 
 let try_find_explanation code =

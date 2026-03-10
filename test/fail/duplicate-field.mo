@@ -1,11 +1,25 @@
 do { actor class C() {
-  public func m() {};
-  public func n() {};
-  public func m() {};  // Illegal!
+  public func m() : () {};
+  public func n() : () {};
+  public func m() : () {};  // Illegal!
 }; };
 
 do {
 type T = {foo : Int; foo: Bool}
+};
+
+do {
+type T = {
+  foo : Int;
+  bar1 : Text;
+  bar2 : Text;
+  bar3 : Text;
+  bar4 : Text;
+  bar5 : Text;
+  bar6 : Text;
+  bar7 : Text;
+  foo: Bool;
+}
 };
 
 do {
@@ -29,7 +43,7 @@ ignore(object {public func foo() = (); public func nxnnbkddcv() = ()});
 };
 
 do {
-ignore(actor {public func foo() {}; public func nxnnbkddcv() {}});
+ignore(actor {public func foo() : () {}; public func nxnnbkddcv() : () {}});
 };
 
 do {

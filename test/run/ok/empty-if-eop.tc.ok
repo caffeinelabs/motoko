@@ -1,0 +1,1 @@
+empty-if-eop.mo:2.5-2.6: warning [M0244], variable a is never reassigned, consider using `let`

@@ -1,0 +1,4 @@
+error[M0049]: string literal "FF byte: >\255<": is not valid utf8
+    ┌─ bad-utf8.mo:6:17
+  6 │  Prim.debugPrint("FF byte: >\ff<");
+    │                  ^^^^^^^^^^^^^^^^ 

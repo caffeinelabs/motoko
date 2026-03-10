@@ -20,5 +20,5 @@ do { let x : ?(<A <: Any>(shared () -> async A) -> ()) = null; };
 // Phantom parameters are fine
 do {
   type X<B <: Any> = shared () -> ();
-  func foo<A <: Any>() { shared func bar(f : X<A>) {}; () }
+  func foo<A <: Any>() { shared func bar(f : X<A>) : () {}; () }
 };

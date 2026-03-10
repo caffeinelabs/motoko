@@ -2,6 +2,59 @@
 
 * motoko (`moc`)
 
+  * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
+  * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
+
+## 1.3.0 (2026-02-24)
+
+* motoko (`moc`)
+
+  * Allow destructuring `type` imports from `actor`-valued URIs (#5824).
+  * perf: Optimise a few arithmetic/logic operations involving neutral elements (#5706).
+  * Warn when a `var` binding is never reassigned, suggesting `let` instead (#5833).
+  * Adds `--error-format human` option to print pretty errors with code snippets and labels (#5816), with improved formatting for unused (#5864) and duplicate name (#5865) errors.
+  * Emit machine-applicable code fixes in `--error-format json` diagnostics for warnings M0223 (redundant type instantiation), M0236 (use dot notation), and M0237 (omit explicit implicit argument). The JSON span format now includes `is_primary`, `label`, `suggested_replacement`, and `suggestion_applicability` fields, enabling IDEs and tooling to offer automatic fixes (#5831).
+  * Add `--all-libs` flag to load all library files from all packages, enabling better diagnostics, e.g. hinting at non-imported items (increases compilation time) (#5861).
+
+## 1.2.0 (2026-02-12)
+
+* motoko (`moc`)
+
+  * Report multiple type errors for compound types at once (#5790).
+
+    This means code like ``` type T = (Na, In)``` will fail with errors for both the misspelled `Na` and `In` types at once, so they can be fixed in one go, rather than having to re-run the compiler after fixing the first one.
+
+  * Allow `break` and `continue` in loops without labels (#5702).
+  * Report a better error for labeled `continue` targeting a non-loop (#5800).
+  * Deprecate older garbage collectors: generational, copying and compating GCs (#5806).
+  * Fix contextual dot type note, this should fix the hover hint in the vscode extension, showing the correct function type instead of `()` (#5809).
+  * bugfix: Avoid `moc.js` crashing when passing invalid flags (#5811).
+  * bugfix: Sometimes `import { type X } = "mo:./X"` didn't work, with a confusing error message (#5826).
+  * Improved type recovery for `let` and `var` declarations (enabled only with a type recovery flag for the IDE) (#5819).
+  * Add `checkWithScopeCache` function to `moc.js` -- a cached version of `check` (#5820).
+  * Add `--error-format json` flag to `moc` for machine-readable diagnostic output on stdout in JSON Lines format (#5829).
+  * Expose contextual dot resolution in `moc.js` via two new functions: `contextualDotSuggestions` returns matching context-dot functions for a receiver type, and `contextualDotModule` returns the module reference for a resolved context-dot expression. AST expression nodes now carry non-enumerable `rawExp` references, and the root AST node exposes the accumulated `scope` (including all transitive imports) to support these APIs (#5797).
+
+## 1.1.0 (2026-01-16)
+
+* motoko (`moc`)
+
+  * Warn on unreachable let-else (#5789).
+
+  * bugfix: The source region for `do { ... }` blocks now includes the `do` keyword too (#5785).
+
+  * Omit `blob:*` imports from `moc --print-deps` (#5781).
+
+  * Split unused identifier warnings into separate warnings for shared and non-shared contexts: `M0194` for general declarations, `M0240` for identifiers in shared pattern contexts (e.g. `c` in `shared({caller = c})`), `M0198` for unused fields in object patterns, and `M0241` for unused fields in shared patterns (e.g. `caller` in `shared({caller})`) (#5779). 
+
+  * Print type constructors using available type paths (#5698).
+
+  * Warn on implicit oneway declarations (#5787).
+
+  * Make the type checker more lenient and continue accumulating typing errors, and try to produce the typed AST even with errors. Enabled only with a type recovery flag for the IDE (Serokell Grant 2 Milestone 3) (#5776).
+
+  * Explain subtype failures (#5643).
+
   * Removes the Viper support (#5751).
 
   * Allows resolving local definitions for context-dot (#5731).

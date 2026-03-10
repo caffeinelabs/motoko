@@ -1,0 +1,4 @@
+error[M0055]: cannot infer type of forward variable Foo
+    ┌─ freeclass1.mo:8:13
+  8 │    let Bar = Foo(g, g)  ;
+    │              ^^^ 

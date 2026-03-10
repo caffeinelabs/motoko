@@ -1,0 +1,4 @@
+error[M0057]: unbound variable prim
+    ┌─ prim-in-source.mo:1:22
+  1 │  let x : Int -> Int = prim "aprim"; ()
+    │                       ^^^^ 

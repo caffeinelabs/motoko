@@ -14,6 +14,11 @@ variance.mo:44.10-44.15: type error [M0096], expression of type
   {put : (i : Nat) -> ()}
 cannot produce expected type
   {put : (i : Any) -> ()}
+because the type 
+  Any
+ is not compatible with type 
+  Nat
+ in `(i : _)` (used by arguments of `put`)
 variance.mo:48.3-48.8: type error [M0096], expression of type
   {put : (i : Nat) -> ()}
 cannot produce expected type
@@ -34,6 +39,11 @@ variance.mo:82.11-82.18: type error [M0096], expression of type
   {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   {get : () -> ?Any; put : (i : Any) -> ()}
+because the type 
+  Any
+ is not compatible with type 
+  Nat
+ in `(i : _)` (used by arguments of `put`)
 variance.mo:84.15-84.20: type error [M0098], cannot apply function of type
   <A>() -> Inv<A>
 to argument of type

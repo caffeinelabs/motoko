@@ -14,9 +14,13 @@ type instruction_limits = {
 
 type actors = LegacyActors | RequirePersistentActors | DefaultPersistentActors
 
+type error_format = Plain | Human | Json
+
 type lint_level = Allow | Warn | Error
 
+let error_format = ref Plain
 let ai_errors = ref false
+let all_libs = ref false
 let trace = ref false
 let verbose = ref false
 let print_warnings = ref true
@@ -102,3 +106,12 @@ let get_warning_level code =
 let is_warning_disabled code = get_warning_level code = Allow
 let is_warning_enabled code = not (is_warning_disabled code)
 
+let skip_gc_deprecation_warning = ref false
+
+let gc_strategy_to_str : gc_strategy -> string = fun gc_strategy ->
+  match gc_strategy with
+  | Copying -> "copying"
+  | MarkCompact -> "compacting"
+  | Generational -> "generational"
+  | Incremental -> "incremental"
+  | Default -> "default"

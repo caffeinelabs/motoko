@@ -1,0 +1,4 @@
+error[M0118]: tuple pattern has 2 components but expected type has 0
+    ┌─ M0118.mo:1:5
+  1 │  let (_, _) = ()
+    │      ^^^^^^ 

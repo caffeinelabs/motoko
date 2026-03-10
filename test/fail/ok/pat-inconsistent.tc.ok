@@ -1,14 +1,18 @@
 pat-inconsistent.mo:42.9-42.16: type error [M0113], object pattern cannot consume expected type
-  {#A}
+expected `{#A}`, got object type
 pat-inconsistent.mo:49.8-49.9: type error [M0050], literal of type
   Nat
 does not have expected type
   Bool
 pat-inconsistent.mo:54.9-54.15: type error [M0116], variant pattern cannot consume expected type
-  Bool
+expected `Bool`, got `{#geese : _}`
 pat-inconsistent.mo:59.9-59.15: warning [M0146], this pattern is never matched
 pat-inconsistent.mo:58.1-60.2: warning [M0145], this switch of type
   {#sparrows}
 does not cover value
   #sparrows
 pat-inconsistent.mo:64.10-64.18: warning [M0146], this pattern is never matched
+pat-inconsistent.mo:68.7-68.13: type error [M0112], tuple pattern cannot consume expected type
+expected `Nat`, got `(_, _)`
+pat-inconsistent.mo:72.8-72.14: type error [M0112], tuple pattern cannot consume expected type
+expected `Nat`, got `(_, _)`

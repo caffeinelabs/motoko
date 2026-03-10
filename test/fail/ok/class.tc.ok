@@ -1,5 +1,5 @@
 class.mo:38.15-38.16: warning [M0215], public type `T` is provided but not expected in object of type
-  {a : T}
+  {a : o.T}
 class.mo:43.1-43.26: type error [M0134], class body of type
   {}
 does not match expected type

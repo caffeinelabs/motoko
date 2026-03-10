@@ -1,22 +1,22 @@
 bad-async-sort.mo:3.12-3.15: type error [M0088], expected async* type, but expression has type
-  async<$f> Nat
+  async<$> Nat
 Use keyword 'await' or 'await?' (not 'await*') to consume this type.
 bad-async-sort.mo:7.10-7.13: type error [M0088], expected async type, but expression has type
-  async*<$g> Nat
+  async*<$> Nat
 Use keyword 'await*' (not 'await' or 'await?') to consume this type.
 bad-async-sort.mo:11.11-11.20: type error [M0088], expected async type, but expression has type
-  async*<$anon1> ()
+  async*<$> ()
 Use keyword 'await*' (not 'await' or 'await?') to consume this type.
 bad-async-sort.mo:12.12-12.21: type error [M0088], expected async type, but expression has type
-  async*<$anon1> ()
+  async*<$> ()
 Use keyword 'await*' (not 'await' or 'await?') to consume this type.
 bad-async-sort.mo:16.12-16.20: type error [M0088], expected async* type, but expression has type
-  async<$anon2> ()
+  async<$> ()
 Use keyword 'await' or 'await?' (not 'await*') to consume this type.
 bad-async-sort.mo:20.14-20.22: type error [M0183], async expression cannot produce expected async type 
-  async*<$anon3> ().
+  async*<$> ().
 Use keyword 'async*' (not 'async') to produce the expected type.
 bad-async-sort.mo:20.5-20.36: warning [M0222], ignored argument of `async*` type has no effect
 bad-async-sort.mo:24.14-24.23: type error [M0183], async expression cannot produce expected async type 
-  async<$anon4> ().
+  async<$> ().
 Use keyword 'async' (not 'async*') to produce the expected type.

@@ -3,10 +3,10 @@
   Text
  is not a subtype of
   Bool
- because: The type 
+ because the type 
   Text
  is not compatible with type 
   Bool
- in z.
+ in `z`.
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
 FALSE

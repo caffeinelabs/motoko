@@ -1,1 +1,2 @@
-contextual-dot-unused-self.mo:3.16-3.20: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
+contextual-dot-unused-self.mo:3.16-3.20: warning [M0194], unused identifier: `self`
+help: if this is intentional, prefix it with an underscore: `_self`

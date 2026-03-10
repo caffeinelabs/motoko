@@ -1,9 +1,9 @@
 wrong-call-args.mo:26.9-26.12: type error [M0096], expression of type
-  (Nat, (self : Text, t2 : Text) -> Order)
+  (Nat, (self : Text.Text, t2 : Text.Text) -> Types.Order)
 cannot produce expected type
   Nat
 wrong-call-args.mo:29.9-29.12: type error [M0096], expression of type
-  (Nat, (self : Text, t2 : Text) -> Order)
+  (Nat, (self : Text.Text, t2 : Text.Text) -> Types.Order)
 cannot produce expected type
   Nat
 wrong-call-args.mo:35.12-35.14: type error [M0233], wrong number of arguments: expected 1 but got 0
@@ -11,26 +11,27 @@ Expected 1 argument of type:
   (key : Text)
 But got no arguments
 wrong-call-args.mo:39.13-39.25: type error [M0096], expression of type
-  (self : Text, t2 : Text) -> Order
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
 cannot produce expected type
   Text
 wrong-call-args.mo:45.5-45.17: type error [M0098], cannot apply function of type
-  <K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Order), key : K) ->
+  <K, V>(self : Map.Map<K, V>, compare : (implicit : (K, K) -> Types.Order),
+         key : K) ->
     ?V
 to argument of type
-  {var root : Node<Text, Text>; var size_ : Nat}
+  {var root : Types.Map.Node<Text, Text>; var size_ : Nat}
 because there is no way to satisfy subtyping
   ?V  <:  ()  (for the expected return type) 
 wrong-call-args.mo:48.27-48.39: type error [M0096], expression of type
-  (self : Text, t2 : Text) -> Order
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
 cannot produce expected type
   ()
 wrong-call-args.mo:51.15-51.27: type error [M0096], expression of type
-  (self : Text, t2 : Text) -> Order
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
 cannot produce expected type
   ()
 wrong-call-args.mo:55.18-55.30: type error [M0096], expression of type
-  (self : Text, t2 : Text) -> Order
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
 cannot produce expected type
   Text
 wrong-call-args.mo:82.3-82.11: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
@@ -42,6 +43,7 @@ wrong-call-args.mo:108.7-108.13: type error [M0096], expression of type
   (Nat, Nat)
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 wrong-call-args.mo:110.5-110.10: type error [M0098], cannot apply function of type
   <A, B>((A, B)) -> ()
 to argument of type

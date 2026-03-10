@@ -28,7 +28,7 @@ actor {
     assert Region.size(r1) == Region.size(aliases[1]);
   };
 
-  public func sanityTest() {
+  public func sanityTest() : () {
   };
 }
 

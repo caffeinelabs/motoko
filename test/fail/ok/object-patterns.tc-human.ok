@@ -1,0 +1,14 @@
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ object-patterns.mo:6:13
+  6 │    case {a = 25 : Nat} 1;  // NOT OK: Nat cannot consume all Ints
+    │              ^^^^^^^^ 
+error[M0117]: pattern of type
+  Nat
+cannot consume expected type
+  Int
+    ┌─ object-patterns.mo:17:9
+ 17 │    case (a : Nat) ()   // NOT OK: Nat cannot consume all Ints
+    │          ^^^^^^^ 

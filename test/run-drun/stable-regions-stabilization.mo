@@ -34,7 +34,7 @@ actor {
     P.debugPrint("upgrading... n=" # debug_show n);
     n += 1;
   };
-  public func sanityTest() {
+  public func sanityTest() : () {
     P.debugPrint("sanity check. n=" # debug_show n);
     assert Region.id(r1) == 16;
     assert Region.id(r2) == 17;

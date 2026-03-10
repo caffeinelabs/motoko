@@ -1,0 +1,26 @@
+type-alias-path.mo:18.41-18.42: type error [M0096], expression of type
+  {m1 : M1.Map<Nat, Text>; m2 : MyMap.Map<Nat, Text>}
+cannot produce expected type
+  {m2 : M1.Map<Nat, Text>}
+because expected field `map` is missing from type 
+  {var root : Node<Nat, Text>; var size_ : Nat}
+ of `M1.Map` (used by `m2`)
+type-alias-path.mo:21.17-21.52: type error [M0096], expression of type
+  (m : MyMap.Map<Nat, Text>) -> ()
+cannot produce expected type
+  M1.Map<Nat, Text> -> ()
+type-alias-path.mo:24.24-24.33: type error [M0096], expression of type
+  <K, V>(self : MyMap.Map<K, V>, compare : (implicit : (K, K) -> Order),
+         key : K) ->
+    ?V
+cannot produce expected type
+  () -> ()
+type-alias-path.mo:29.10-29.12: type error [M0096], expression of type
+  {x : MyType}
+cannot produce expected type
+  {x : MyType}
+because the type 
+  Text
+ is not compatible with type 
+  var Nat
+ in `x` (used by `MyType` in `x`)

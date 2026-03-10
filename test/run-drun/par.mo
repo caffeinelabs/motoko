@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import { call_raw; debugPrint; principalOfActor; replyDeadline; errorMessage; errorCode } = "mo:⛔";
 import Cycles = "cycles/cycles";
 
@@ -21,7 +22,7 @@ actor A {
         debugPrint ("baz: " # debug_show(Cycles.available()));
     };*/
 
-    public func oneshot() {
+    public func oneshot() : () {
         debugPrint ("oneshot deadline set: " # debug_show(0 != replyDeadline()));
         debugPrint ("oneshot cycles: " # debug_show(Cycles.available()));
     };

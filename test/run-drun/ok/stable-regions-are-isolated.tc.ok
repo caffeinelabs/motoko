@@ -1,0 +1,3 @@
+stable-regions-are-isolated.mo:9.7-9.9: warning [M0244], variable r0 is never reassigned, consider using `let`
+stable-regions-are-isolated.mo:10.7-10.9: warning [M0244], variable r1 is never reassigned, consider using `let`
+stable-regions-are-isolated.mo:11.7-11.9: warning [M0244], variable r2 is never reassigned, consider using `let`

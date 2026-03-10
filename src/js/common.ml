@@ -233,31 +233,50 @@ module Map_conversion (Map : Map.S) = struct
   let to_ocaml = from_js
 end
 
+(* Scope cache conversion between JS Maps and OCaml Type.Env.
+   The data of the map has TypeScript [type Scope = unknown], and such
+   scopes are always produced by the compiler. The language server takes
+   scopes as outputs and gives them as inputs without touching them at
+   all. Hence, the use of [Obj.magic] is legitimate here. *)
+module ScopeCacheConversion = Map_conversion (Mo_types.Type.Env)
+
+let scope_cache_from_js js_cache =
+  ScopeCacheConversion.from_js js_cache Js.to_string Obj.magic
+
+let scope_cache_to_js cache =
+  ScopeCacheConversion.to_js
+    cache
+    (fun k -> Js.Unsafe.inject (Js.string k))
+    Obj.magic
+
+let load_progs_cached_js
+    ~enable_type_recovery
+    parse_fn
+    paths
+    scope_cache =
+  Mo_types.Cons.session (fun () ->
+    Pipeline.load_progs_cached ~enable_type_recovery
+      parse_fn paths Pipeline.initial_stat_env scope_cache)
+
 let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cache =
   let paths = paths |> Js.to_array |> Array.to_list |> List.map Js.to_string in
-  let module String_map_conversion = Map_conversion (Mo_types.Type.Env) in
   let scope_cache =
-    Js.Opt.case
-      scope_cache
+    Js.Opt.case scope_cache
       (fun () -> Mo_types.Type.Env.empty)
-      (fun scope_cache ->
-        (* The data of the map has TypeScript [type Scope = unknown], and such
-           scopes are always produced by the compiler. The language server takes
-           scopes as outputs and gives them as inputs without touching them at
-           all. Hence, the use of [Obj.magic] is legitimate here. *)
-        String_map_conversion.from_js scope_cache Js.to_string Obj.magic)
+      scope_cache_from_js
   in
-  let parse_fn = if Js.Opt.get enable_recovery (fun () -> false)
+  let recovery_enabled = Js.Opt.get enable_recovery (fun () -> false) in
+  let parse_fn = if recovery_enabled
     then Pipeline.parse_file_with_recovery
     else Pipeline.parse_file
   in
   let load_result =
-    Mo_types.Cons.session (fun () ->
-      Pipeline.load_progs_cached
-        parse_fn paths Pipeline.initial_stat_env scope_cache)
+    load_progs_cached_js ~enable_type_recovery:recovery_enabled
+      parse_fn paths scope_cache
   in
   match load_result with
-  | Ok ((_libs, progs, _senv, scope_cache), msgs) ->
+  (* senv: accumulated scope from prelude and all transitive imports *)
+  | Ok ((_libs, progs, senv, scope_cache), msgs) ->
     let progs =
       progs |> List.map (fun (prog, immediate_imports, sscope) ->
         let open Mo_def in
@@ -272,16 +291,11 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
         in
         ( Arrange.prog_js prog
         (* , js_of_sexpr (Arrange_sources_types.typ typ) *)
-        , immediate_imports |> List.map Js.string |> Array.of_list |> Js.array )
+        , immediate_imports |> List.map Js.string |> Array.of_list |> Js.array
+        , senv )
       ) |> Array.of_list
     in
-    let scope_cache =
-      String_map_conversion.to_js
-        scope_cache
-        (fun k -> Js.Unsafe.inject (Js.string k))
-        Obj.magic (* See above the JS -> OCaml conversion. *)
-    in
-    Ok ((progs, scope_cache), msgs)
+    Ok ((progs, scope_cache_to_js scope_cache), msgs)
   | Error msgs -> Error msgs
 
 let js_parse_motoko_typed_with_scope_cache enable_recovery paths scope_cache =
@@ -290,11 +304,12 @@ let js_parse_motoko_typed_with_scope_cache enable_recovery paths scope_cache =
   in
   js_result result (fun (progs, scope_cache) ->
     let progs =
-      progs |> Array.map (fun (ast, immediate_imports) ->
+      progs |> Array.map (fun (ast, immediate_imports, senv) ->
         object%js
           val ast = ast
           (* val typ = typ *)
           val immediateImports = immediate_imports
+          val scope = Js.Unsafe.inject senv
         end)
       |> Js.array
     in
@@ -304,14 +319,34 @@ let js_parse_motoko_typed paths =
   let result = js_parse_motoko_typed_with_scope_cache_impl Js.Opt.empty paths Js.Opt.empty in
   js_result result (fun (progs, _scope_cache) ->
     let progs =
-      progs |> Array.map (fun (ast, _immediate_imports) ->
+      progs |> Array.map (fun (ast, _immediate_imports, senv) ->
         object%js
           val ast = ast
           (* val typ = typ *)
+          val scope = Js.Unsafe.inject senv
         end)
       |> Js.array
     in
     Js.some (Js.Unsafe.inject progs))
+
+let js_check_with_scope_cache source scope_cache =
+  let load_result =
+    load_progs_cached_js
+      ~enable_type_recovery:true
+      Pipeline.parse_file_with_recovery
+      [Js.to_string source]
+      (scope_cache_from_js scope_cache)
+  in
+  let msgs, scope_cache_js = match load_result with
+    | Ok ((_libs, _progs, _senv, scope_cache), msgs) ->
+      msgs, Js.some (scope_cache_to_js scope_cache)
+    | Error msgs ->
+      msgs, Js.null
+  in
+  object%js
+    val diagnostics = Js.array (diagnostics_of_msgs msgs)
+    val scopeCache = scope_cache_js
+  end
 
 let js_save_file filename content =
   let filename = Js.to_string filename in
@@ -374,3 +409,29 @@ let gc_flags option =
   | "enhancedOP" -> Flags.enhanced_orthogonal_persistence := true
   | "classicOP" -> Flags.enhanced_orthogonal_persistence := false
   | _ -> raise (Invalid_argument "gc_flags: Unexpected flag")
+
+let js_contextual_dot_suggestions scope raw_exp =
+  let open Mo_frontend in
+  let scope = (Obj.magic scope : Scope.t) in
+  let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
+  let receiver_ty = exp.note.Mo_def.Syntax.note_typ in
+  let libs = scope.Scope.lib_env in
+  let open Typing in
+  let suggestions = contextual_dot_suggestions libs receiver_ty in
+  Js.array (Array.of_seq (Seq.map (fun suggestion ->
+    object%js
+      val moduleUri = Js.string suggestion.module_url
+      val funcName = Js.string suggestion.func_name
+      val funcType = Js.string (Mo_types.Type.string_of_typ suggestion.func_ty)
+    end
+  ) (List.to_seq suggestions)))
+
+let js_contextual_dot_module raw_exp =
+  let open Mo_frontend in
+  let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
+  match Typing.contextual_dot_module exp with
+  | Some (module_name_or_uri, func_name) -> Js.Opt.return (object%js
+      val moduleNameOrUri = Js.string module_name_or_uri
+      val funcName = Js.string func_name
+    end)
+  | None -> Js.Opt.empty

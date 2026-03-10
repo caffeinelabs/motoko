@@ -2,11 +2,11 @@ import CounterMixin "mixins/Counter";
 
 actor {
   include CounterMixin(0);
-  public func increment() { };
+  public func increment() : () { };
 };
 
 actor {
-  public func increment() { };
+  public func increment() : () { };
   include CounterMixin(0);
 };
 

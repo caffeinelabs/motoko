@@ -1,7 +1,7 @@
 import Prim "mo:⛔";
 
 actor test {
-  public func exported() {
+  public func exported() : () {
     Prim.debugPrint("exported()");
   };
   public let exported_too = exported;

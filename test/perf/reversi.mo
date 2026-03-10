@@ -81,7 +81,7 @@ actor {
   };
 
   // External interface to reset the board
-  public func reset() {
+  public func reset() : () {
     init();
   };
 

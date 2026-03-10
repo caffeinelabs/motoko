@@ -1,0 +1,37 @@
+error[M0149]: expected mutable 'var' field v of type
+  Nat
+but found immutable field (insert 'var'?)
+    ┌─ check-record.mo:8:11
+  8 │  ignore ({ v = 0 } : { var v : Nat }); // reject mutability mismatch
+    │            ^^^^^ 
+error[M0150]: expected immutable field a of type
+  Nat
+but found mutable 'var' field (delete 'var'?)
+    ┌─ check-record.mo:10:11
+ 10 │  ignore ({ var a = 0 } : { a : Nat }); // reject mutability mismatch
+    │            ^^^^^^^^^ 
+error[M0149]: expected mutable 'var' field a of type
+  Int
+but found immutable field (insert 'var'?)
+    ┌─ check-record.mo:12:11
+ 12 │  ignore ({ a = 0; var v = 0} : { var a : Int;  v : Int }); // reject, mutability mismatches
+    │            ^^^^^ 
+error[M0151]: missing field 'a' from expected type
+  {a : Nat}
+    ┌─ check-record.mo:14:9
+ 14 │  ignore ({} : { a : Nat }); // reject
+    │          ^^ 
+warning[M0215]: field `b` is provided but not expected in record of type
+  {a : Nat}
+    ┌─ check-record.mo:16:18
+ 16 │  ignore ({ a = 0; b = 1} : { a : Nat }); // accept (but warn in the future?)
+    │                   ^^^^^ 
+error[M0057]: unbound variable c
+    ┌─ check-record.mo:21:30
+ 21 │    { a = a; b = a; c = 1; d = c}; // reject (c not bound)
+    │                               ^ 
+error[M0151]: missing field 'b' from expected type
+  {b : Nat}
+    ┌─ check-record.mo:24:9
+ 24 │  ignore ({ {} with a = 1  } : { b : Nat }); // reject
+    │          ^^^^^^^^^^^^^^^^^^ 

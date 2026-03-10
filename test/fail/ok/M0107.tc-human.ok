@@ -1,0 +1,4 @@
+error[M0107]: non-actor class cannot take a context pattern
+    ┌─ M0107.mo:1:7
+  1 │  shared({}) class Foo() {}
+    │        ^^^^ 

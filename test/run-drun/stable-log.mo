@@ -13,7 +13,7 @@ actor {
 
   stable var base : Nat64 = 0;
 
-  public func log(t : Text) {
+  public func log(t : Text) : () {
     let blob = Prim.encodeUtf8(t);
     let size = Prim.natToNat64(blob.size());
     ensure(base + size + 4);

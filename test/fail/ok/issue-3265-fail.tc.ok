@@ -12,6 +12,10 @@ issue-3265-fail.mo:10.57-10.67: type error [M0096], expression of type
   List<Nat> = ?(Nat, List<Nat>)
 cannot produce expected type
   ?(None, List<None>)
+because the type 
+  Nat
+ is not compatible with type 
+  None
 issue-3265-fail.mo:11.40-11.64: type error [M0150], expected immutable field myList of type
   List<Nat>
 but found mutable 'var' field (delete 'var'?)

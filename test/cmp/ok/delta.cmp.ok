@@ -27,7 +27,7 @@
     var statsActor : [StatsActor];
     totalCredit : TotalCredit
   }
- because: Unsupported additional field `dailyMiningCount2` in type 
+ because expected field `dailyMiningCount2` is missing from type 
   actor {
     _appendReferee : shared (DID, Nat, AccountReferee, Nat) -> ();
     _childRewardTimeAndReferees :
@@ -44,6 +44,6 @@
     xfMobDid : shared (Text, Index, Text, Text) -> async Bool;
     xfMobErr : shared (Text, Text, Text) -> async Text
   }
- of Account (used by Account in AccountActor in AccountActorData in Buffer in SBuffer in CanisterMap.accountCanisters.elements.Actor).
+ of `Account` (used by `Account` in `AccountActor` in `Actor` in `AccountActorData` in `elements` in `Buffer` in `SBuffer` in `accountCanisters` in `CanisterMap`).
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
 FALSE

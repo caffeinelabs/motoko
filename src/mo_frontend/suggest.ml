@@ -16,10 +16,7 @@ let suggest_id desc id ids =
       ids
   in
   if !Flags.ai_errors then
-    Printf.sprintf
-      "\nThe %s %s is not available. Try something else?"
-      desc
-      id
+    Some(Printf.sprintf "The %s %s is not available. Try something else?" desc id)
   else
   let suggestions =
     let limit = Lib.Int.log2 (String.length id) in
@@ -31,9 +28,9 @@ let suggest_id desc id ids =
       else None) ids in
     List.sort compare weighted_ids |> List.map snd
   in
-  if suggestions = [] then ""
+  if suggestions = [] then None
   else
-  Printf.sprintf "\nDid you mean %s %s?" desc (oneof ", " " or " suggestions)
+  Some (Printf.sprintf "help: did you mean %s %s?" desc (oneof ", " " or " suggestions))
 
 let search_obj desc path ty ty1 ty2 =
   let suggestions = ref [] in
@@ -43,7 +40,7 @@ let search_obj desc path ty ty1 ty2 =
   else begin
     seen := S.add ty (!seen);
     match promote ty with
-    | Obj(_, tfs) ->
+    | Obj(_, tfs, _) ->
       tfs |>
       List.iter (fun {lab;typ;_} ->
         match normalize typ with
@@ -52,7 +49,7 @@ let search_obj desc path ty ty1 ty2 =
            String.starts_with ~prefix:"from" lab) &&
            sub typ (Func(Local, Returns,  [], [ty1], [ty2])) ->
           suggestions := Printf.sprintf "`%s.%s(_)`%s" path lab desc :: !suggestions
-        | Obj(_, tfs) as ty1  ->
+        | Obj(_, tfs, _) as ty1  ->
           go (path^"."^lab) ty1
         | _ -> ())
     | _ -> ()

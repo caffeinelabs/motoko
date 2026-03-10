@@ -3,8 +3,8 @@
   var {#v1 : [[Cell]]; #v2 : {bits : [Nat64]; size : Nat}}
  is not a subtype of
   var {#v1 : [[Cell]]}
- because: Missing tag `#v2` in type 
+ because case `#v2` is missing from expected type 
   {#v1 : [[Cell]]}
- of state.
+ of `state`.
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
 FALSE

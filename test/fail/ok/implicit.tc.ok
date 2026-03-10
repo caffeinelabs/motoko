@@ -1,9 +1,9 @@
 implicit.mo:58.1-58.15: type error [M0230], Cannot determine implicit argument `c` of type
   (Bool, Bool) -> Order
-Hint: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.
+note: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.
 implicit.mo:60.1-60.9: type error [M0230], Cannot determine implicit argument `d` of type
   Nat -> Order
-Hint: If you're trying to omit an implicit argument named `d` you need to have a matching declaration named `d` in scope.
+note: If you're trying to omit an implicit argument named `d` you need to have a matching declaration named `d` in scope.
 implicit.mo:3.6-3.15: info, Consider renaming ``explicit1`` to `<M>.bogus` in a new module `<M>`. Then it can serve as an implicit argument `bogus` in this call:
 implicit.mo:65.1-65.9: f4(1, 1)
 implicit.mo:8.3-8.59: info, Consider renaming ``M.aardvark`` to `M.bogus` in the existing module `M`. Then it can serve as an implicit argument `bogus` in this call:
@@ -16,12 +16,12 @@ implicit.mo:29.3-33.4: info, Consider renaming ``N.ambiguous`` to `N.bogus` in t
 implicit.mo:65.1-65.9: f4(1, 1)
 implicit.mo:65.1-65.9: type error [M0230], Cannot determine implicit argument `bogus` of type
   (Nat, Nat) -> Order
-Hint: If you're trying to omit an implicit argument named `bogus` you need to have a matching declaration named `bogus` in scope.
-Hint: Did you mean to explicitly use `explicit1` or `M.aardvark` or `M.ambiguous` or `M.c` or `N.ambiguous`?
-implicit.mo:75.1-75.9: type error [M0231], ambiguous implicit argument named `ambiguous` of type
+note: If you're trying to omit an implicit argument named `bogus` you need to have a matching declaration named `bogus` in scope.
+note: Did you mean to explicitly use `explicit1` or `M.aardvark` or `M.ambiguous` or `M.c` or `N.ambiguous`?
+implicit.mo:75.1-75.9: type error [M0231], ambiguous implicit argument named `ambiguous` of type 
   (Nat, Nat) -> Order.
-The ambiguous implicit candidates are: `M.ambiguous`, `N.ambiguous`.
-The other explicit candidates are: `explicit1`, `M.aardvark`, `M.c`.
-implicit.mo:92.27-92.29: type error [M0231], ambiguous implicit argument named `zero` of type
+note: The ambiguous implicit candidates are: `M.ambiguous`, `N.ambiguous`.
+note: The other explicit candidates are: `explicit1`, `M.aardvark`, `M.c`
+implicit.mo:92.27-92.29: type error [M0231], ambiguous implicit argument named `zero` of type 
   {x : Nat}.
-The ambiguous implicit candidates are: `XY.zero`, `XZ.zero`.
+note: The ambiguous implicit candidates are: `XY.zero`, `XZ.zero`.

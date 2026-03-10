@@ -1,2 +1,0 @@
-composite-inspect-message.mo:17.8-17.14: warning [M0194], unused identifier caller (delete or rename to wildcard `_` or `_caller`)
-composite-inspect-message.mo:29.20-29.21: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)

@@ -1,7 +1,8 @@
+//MOC-FLAG -A=M0194
 actor class Counter(i : Int) {
   flexible var j = i;
 
-  public func dec() {
+  public func dec() : () {
    showCounter(j);
    j -= 1;
   };
@@ -14,7 +15,7 @@ func showCounter(c : Int) {};
 let c = await Counter(10);
 
 actor Test {
-  public func go() {
+  public func go() : () {
     var i : Int = 10;
     while (i  > 0) {
       c.dec();

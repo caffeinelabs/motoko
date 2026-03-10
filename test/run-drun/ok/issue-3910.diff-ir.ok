@@ -4,5 +4,5 @@
  f0
  f1
  f2
--issue-3910.mo:17.10-17.35: execution error, argument value {trap = true} does not match parameter list
-+issue-3910.mo:17.10-17.35: execution error, value {trap = true} does not match pattern
+-issue-3910.mo:18.10-18.35: execution error, argument value {trap = true} does not match parameter list
++issue-3910.mo:18.10-18.35: execution error, value {trap = true} does not match pattern

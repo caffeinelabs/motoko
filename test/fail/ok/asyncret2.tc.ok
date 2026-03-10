@@ -1,4 +1,8 @@
 asyncret2.mo:1.54-1.57: type error [M0096], expression of type
-  async<$call3> Int
+  async<$> Int
 cannot produce expected type
+  Int
+because the type 
+  async<$> Int
+ is not compatible with type 
   Int

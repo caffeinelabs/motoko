@@ -1,0 +1,27 @@
+warning[M0206]: migration expression consumes field `data` of type
+  Nat
+but does not produce it, yet the field is declared in the actor.
+The declaration in the actor will be reinitialized, discarding its consumed value.
+If reinitialization is unintended, and you want to preserve the consumed value, either remove this field from the parameter of the migration function or add it to the result of the migration function.
+    ┌─ migration-warn.mo:4:7
+  3 │    // This may be intentional or a sign of data loss, hence just a warning.
+  4 │    (with migration =
+    │ ╭────────^
+  5 │ │    func({data : Nat}) : {} {
+  6 │ │      ignore data;
+  7 │ │      {}
+  8 │ │     })
+    │ ╰─────^ 
+  9 │    actor A {
+warning[M0244]: variable data is never reassigned, consider using `let`
+    ┌─ migration-warn.mo:11:15
+ 11 │     stable var data = 0;
+    │                ^^^^ 
+warning[M0244]: variable data is never reassigned, consider using `let`
+    ┌─ migration-warn.mo:24:15
+ 24 │     stable var data = 0;
+    │                ^^^^ 
+warning[M0244]: variable data is never reassigned, consider using `let`
+    ┌─ migration-warn.mo:37:15
+ 37 │     stable var data = 0;
+    │                ^^^^ 

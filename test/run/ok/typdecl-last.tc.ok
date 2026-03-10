@@ -1,1 +1,1 @@
-typdecl-last.mo:1.1-1.13: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+typdecl-last.mo:1.1-1.10: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

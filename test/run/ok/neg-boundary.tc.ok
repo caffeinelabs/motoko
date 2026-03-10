@@ -1,6 +1,0 @@
-neg-boundary.mo:7.10-7.13: warning [M0194], unused identifier foo (delete or rename to wildcard `_` or `_foo`)
-neg-boundary.mo:8.10-8.13: warning [M0194], unused identifier bar (delete or rename to wildcard `_` or `_bar`)
-neg-boundary.mo:12.10-12.13: warning [M0194], unused identifier foo (delete or rename to wildcard `_` or `_foo`)
-neg-boundary.mo:13.10-13.13: warning [M0194], unused identifier bar (delete or rename to wildcard `_` or `_bar`)
-neg-boundary.mo:17.10-17.13: warning [M0194], unused identifier foo (delete or rename to wildcard `_` or `_foo`)
-neg-boundary.mo:18.10-18.13: warning [M0194], unused identifier bar (delete or rename to wildcard `_` or `_bar`)

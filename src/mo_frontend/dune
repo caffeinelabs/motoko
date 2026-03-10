@@ -28,6 +28,6 @@
   (name test_recovery)
   (inline_tests)
   (modules test_recovery)
-  (libraries mo_frontend menhirLib lib lang_utils mo_config mo_def mo_types mo_values wasm_exts ocaml-recovery-parser.menhirRecoveryLib )
+  (libraries mo_frontend menhirLib lib lang_utils mo_config mo_def mo_types mo_values wasm_exts ocaml-recovery-parser.menhirRecoveryLib pipeline )
   (flags (:standard -w -40))
   (preprocess (pps ppx_inline_test ppx_expect)))

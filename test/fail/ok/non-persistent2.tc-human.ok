@@ -1,0 +1,4 @@
+error[M0220]: this actor or actor class should be declared `persistent`
+    ┌─ non-persistent2.mo:2:1
+  2 │  actor { // error
+    │  ^^^^^ 

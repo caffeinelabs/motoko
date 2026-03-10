@@ -3,10 +3,10 @@
   var [var (Text, Nat, Bool)]
  is not a subtype of
   var [var (Nat, Text)]
- because: The type 
+ because the type 
   Text
  is not compatible with type 
   Nat
- of Nat (used by four).
+ in `four`.
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
 FALSE

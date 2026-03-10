@@ -46,6 +46,18 @@ let typed_phrase' f x =
 
 let is_empty_tup e = e.it = S.TupE []
 
+let unit_typ at = { it = S.TupT []; at; note = T.unit }
+
+let desugar_loop_flags at note body flags with_body =
+  let { has_break; has_continue } = flags in
+  let body = if not has_continue then body else
+    let () = flags.has_continue <- false in
+    { body with it = S.LabelE (S.auto_continue_s @@ body.at, unit_typ body.at, body) }
+  in
+  if not has_break then `Body body else
+  let () = flags.has_break <- false in
+  `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
+
 let rec exps es = List.map exp es
 
 and exp e =
@@ -67,6 +79,10 @@ and exp' at note = function
   | S.LitE l -> I.LitE (lit !l)
   | S.UnE (ot, o, e) ->
     I.PrimE (I.UnPrim (!ot, o), [exp e])
+  | S.BinE (_ot, e1, op, e2) when neutral (Either.Left op) e1 ->
+    (exp e2).it
+  | S.BinE (_ot, e1, op, e2) when neutral (Either.Right op) e2 ->
+    (exp e1).it
   | S.BinE (ot, e1, o, e2) ->
     I.PrimE (I.BinPrim (!ot, o), [exp e1; exp e2])
   | S.RelE (ot, e1, Operator.NeqOp, e2) ->
@@ -267,16 +283,29 @@ and exp' at note = function
     (blockE
        [ letD th thunk ]
        { e1 with it = I.TryE (exp e1, cases cs, Some (id_of_var th, typ_of_var th)); note }).it
-  | S.WhileE (e1, e2) -> (whileE (exp e1) (exp e2)).it
-  | S.LoopE (e1, None) -> I.LoopE (exp e1)
-  | S.LoopE (e1, Some e2) -> (loopWhileE (exp e1) (exp e2)).it
-  | S.ForE (p, {it=S.CallE (None, {it=S.DotE (arr, proj, _); _}, _, (_, e1)); _}, e2)
-      when T.is_array arr.note.S.note_typ && (proj.it = "vals" || proj.it = "values" || proj.it = "keys")
-    -> (transform_for_to_while p arr proj (!e1) e2).it
-  | S.ForE (p, e1, e2) -> (forE (pat p) (exp e1) (exp e2)).it
+  | S.WhileE (e1, e2, flags) ->
+    (match desugar_loop_flags at note e2 flags (fun e2 -> S.WhileE (e1, e2, flags)) with
+    | `Rec e -> exp' at note e
+    | `Body e2 -> (whileE (exp e1) (exp e2)).it)
+  | S.LoopE (e1, opt_e2, flags) ->
+    (match desugar_loop_flags at note e1 flags (fun e1 -> S.LoopE (e1, opt_e2, flags)) with
+    | `Rec e -> exp' at note e
+    | `Body e1 -> 
+      match opt_e2 with
+      | None -> I.LoopE (exp e1)
+      | Some e2 -> (loopWhileE (exp e1) (exp e2)).it)
+  | S.ForE (p, e1, e2, flags) ->
+    (match desugar_loop_flags at note e2 flags (fun e2 -> S.ForE (p, e1, e2, flags)) with
+    | `Rec e -> exp' at note e
+    | `Body e2 ->
+      match e1.it with
+      | S.CallE (None, {it=S.DotE (arr, proj, _); _}, _, (_, e1))
+        when T.is_array arr.note.S.note_typ && (proj.it = "vals" || proj.it = "values" || proj.it = "keys")
+        -> (transform_for_to_while p arr proj (!e1) e2).it
+      | _ -> (forE (pat p) (exp e1) (exp e2)).it)
   | S.DebugE e -> if !Mo_config.Flags.release_mode then (unitE ()).it else (exp e).it
   | S.LabelE (l, t, e) -> I.LabelE (l.it, t.Source.note, exp e)
-  | S.BreakE (l, e) -> (breakE l.it (exp e)).it
+  | S.BreakE (kind, id_opt, e) -> (breakE (S.break_label kind id_opt) (exp e)).it
   | S.RetE e -> (retE (exp e)).it
   | S.ThrowE e -> I.PrimE (I.ThrowPrim, [exp e])
   | S.AsyncE (par_opt, s, tb, e) ->
@@ -303,11 +332,11 @@ and parenthetical send = function
   | Some par ->
     (* fishing for relevant attributes in the parenthetical based on its static type *)
     let cycles, clean_cycles =
-      if T.(sub par.note.note_typ (Obj (Object, [T.cycles_fld])))
+      if T.(sub par.note.note_typ (Obj (Object, [T.cycles_fld], [])))
       then [fun parV -> dotE parV T.cycles_lab T.nat |> assignVarE "@cycles" |> expD], []
       else [], [] in
     let timeout, clean_timeout =
-      if T.(sub par.note.note_typ (Obj (Object, [T.timeout_fld])))
+      if T.(sub par.note.note_typ (Obj (Object, [T.timeout_fld], [])))
       then [fun parV -> dotE parV T.timeout_lab T.nat32 |> optE |> assignVarE "@timeout" |> expD], []
       else [], [nullE () |> assignE (var "@timeout" T.(Mut (Opt nat32))) |> expD] in
     (* present attributes need to set variables, absent ones just clear out *)
@@ -319,6 +348,36 @@ and parenthetical send = function
       [letD parV (exp par)], List.map (fun attr -> attr (varE parV)) present @ absent
     (* if all attributes are absent, we still have to evaluate the parenthetical for side-effects *)
     else [expD (exp par)], absent
+
+and neutral (op : (binop, binop) Either.t) : exp -> bool =
+  let add_like = function Either.(Left (AddOp | OrOp) | Right (AddOp | OrOp | SubOp)) -> true | _ -> false in
+  let mul_like = function Either.(Left MulOp | Right (MulOp | DivOp)) -> true | _ -> false in
+  let rec examine e = match e.it with
+    | S.AnnotE (e, _) -> examine e
+    | S.LitE {contents} ->
+      let open Numerics in
+      (match contents with
+       | NatLit n | IntLit n when add_like op && Int.(eq n zero) -> true
+       | NatLit n | IntLit n when mul_like op && Int.(eq n one) -> true
+       | Nat8Lit n when add_like op && Nat8.(eq n zero) -> true
+       | Nat8Lit n when mul_like op && Nat8.(eq n one) -> true
+       | Int8Lit n when add_like op && Int_8.(eq n zero) -> true
+       | Int8Lit n when mul_like op && Int_8.(eq n one) -> true
+       | Nat16Lit n when add_like op && Nat16.(eq n zero) -> true
+       | Nat16Lit n when mul_like op && Nat16.(eq n one) -> true
+       | Int16Lit n when add_like op && Int_16.(eq n zero) -> true
+       | Int16Lit n when mul_like op && Int_16.(eq n one) -> true
+       | Nat32Lit n when add_like op && Nat32.(eq n zero) -> true
+       | Nat32Lit n when mul_like op && Nat32.(eq n one) -> true
+       | Int32Lit n when add_like op && Int_32.(eq n zero) -> true
+       | Int32Lit n when mul_like op && Int_32.(eq n one) -> true
+       | Nat64Lit n when add_like op && Nat64.(eq n zero) -> true
+       | Nat64Lit n when mul_like op && Nat64.(eq n one) -> true
+       | Int64Lit n when add_like op && Int_64.(eq n zero) -> true
+       | Int64Lit n when mul_like op && Int_64.(eq n one) -> true
+       | _ -> false)
+    | _ -> false in
+  examine
 
 and url e at =
     (* Set position explicitly *)
@@ -407,10 +466,9 @@ and build_field {T.lab; T.typ;_} =
 
 and build_fields obj_typ =
     match obj_typ with
-    | T.Obj (_, fields) ->
-      (* TBR: do we need to sort val_fields?*)
-      let val_fields = List.filter (fun {T.lab; T.typ; _} -> not (T.is_typ typ)) fields in
-      List.map build_field val_fields
+    | T.Obj (_, fields, _) ->
+      (* TBR: do we need to sort fields? *)
+      List.map build_field fields
     | _ -> assert false
 
 and with_self i typ decs =
@@ -443,12 +501,11 @@ and call_system_func_opt name es obj_typ =
           let arg = fresh_var "arg" T.blob in
           let msg_typ = T.decode_msg_typ tfs in
           let msg = fresh_var "msg" msg_typ in
-          let record_typ =
-            T.Obj (T.Object, List.sort T.compare_field
-             [{T.lab = "caller"; T.typ = typ_of_var caller; T.src = T.empty_src};
-               {T.lab = "arg"; T.typ = typ_of_var arg; T.src = T.empty_src};
-               {T.lab = "msg"; T.typ = typ_of_var msg; T.src = T.empty_src}])
-          in
+          let record_typ = T.obj T.Object [
+            ("caller", typ_of_var caller);
+            ("arg", typ_of_var arg);
+            ("msg", typ_of_var msg);
+          ] in
           let record = fresh_var "record" record_typ in
           let msg_variant =
             switch_textE (primE Ir.ICMethodNamePrim [])
@@ -514,7 +571,7 @@ and export_footprint self_id expr =
   let scope_con2 = Cons.fresh "T2" (Abs ([], Any)) in
   let bind1  = typ_arg scope_con1 Scope scope_bound in
   let bind2 = typ_arg scope_con2 Scope scope_bound in
-  let ret_typ = T.Obj(Object,[{lab = "size"; typ = T.nat64; src = empty_src}]) in
+  let ret_typ = T.(obj Object [("size", nat64)]) in
   let caller = fresh_var "caller" caller in
   ([ letD (var v typ) (
        funcE v (Shared Query) Promises [bind1] [] [ret_typ] (
@@ -630,7 +687,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
       (fun tf -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ) } )
       stab_fields in
   let mk_ds = List.map snd pairs in
-  let mem_ty = T.Obj (T.Memory, mem_fields) in
+  let mem_ty = T.Obj (T.Memory, mem_fields, []) in
   let state = fresh_var "state" (T.Mut (T.Opt mem_ty)) in
   let get_state = fresh_var "getState" (T.Func(T.Local, T.Returns, [], [], [mem_ty])) in
   let ds = List.map (fun mk_d -> mk_d get_state) mk_ds in
@@ -667,7 +724,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           (fun (is_required, tf) -> { tf with T.typ = T.Opt (T.as_immut tf.T.typ) })
           stab_fields_pre
       in
-      let mem_ty_pre = T.Obj (T.Memory, mem_fields_pre) in
+      let mem_ty_pre = T.Obj (T.Memory, mem_fields_pre, []) in
       let v = fresh_var "v" mem_ty_pre in
       let v_dom = fresh_var "v_dom" dom in
       let v_rng = fresh_var "v_rng" rng in
@@ -856,25 +913,26 @@ and obj obj_typ efs bases =
     let base_var = fresh_var "base" base_t in
     let base_dec = letD base_var base_exp in
     let pick l =
-      if exists (fun { T.lab; _ } -> lab = l) T.(promote base_t |> as_obj |> snd)
-      then [base_var] else [] in
+      let (_, fs) = T.as_obj (T.promote base_t) in
+      if Option.is_some (T.lookup_val_field_opt l fs) then
+        [base_var]
+      else
+        [] in
     base_dec, pick in
 
   let base_decs, pickers = map base_info bases |> split in
-  let gap T.{ lab; typ; _ } = match typ with
-    | T.Typ _ -> []
-    | _ ->
-      if exists (fun (ef : S.exp_field) -> ef.it.id.it = lab) efs then []
-      else
-        let id = fresh_var lab typ in
-        let [@warning "-8"] [base_var] = concat_map ((|>) lab) pickers in
-        let d =
-          if T.is_mut typ then
-            refD id { it = I.DotLE(varE base_var, lab); note = typ; at = no_region }
-          else
-            letD id (dotE (varE base_var) lab typ) in
-        let f = { it = I.{ name = lab; var = id_of_var id }; at = no_region; note = typ } in
-        [d, f] in
+  let gap T.{ lab; typ; _ } =
+    if exists (fun (ef : S.exp_field) -> ef.it.id.it = lab) efs then []
+    else
+      let id = fresh_var lab typ in
+      let [@warning "-8"] [base_var] = concat_map ((|>) lab) pickers in
+      let d =
+        if T.is_mut typ then
+          refD id { it = I.DotLE(varE base_var, lab); note = typ; at = no_region }
+        else
+          letD id (dotE (varE base_var) lab typ) in
+      let f = { it = I.{ name = lab; var = id_of_var id }; at = no_region; note = typ } in
+      [d, f] in
 
   let dss, fs = map (exp_field obj_typ) efs |> split in
   let ds', fs' = concat_map gap (T.as_obj obj_typ |> snd) |> split in
@@ -1212,7 +1270,7 @@ and transform_import (i : S.import) : Ir.dec list =
   let t = i.note in
   assert (t <> T.Pre);
   match t with
-  | T.Obj(T.Mixin, _) -> []
+  | T.Obj(T.Mixin, _, _) -> []
   | _ ->
   let rhs = match !ri with
     | S.Unresolved -> raise (Invalid_argument ("Unresolved import " ^ f))

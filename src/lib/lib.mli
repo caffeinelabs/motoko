@@ -8,6 +8,8 @@ sig
   (* Display input on newline vertically indented 2 spaces *)
   val display : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> unit
 
+  val display_inline : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> unit
+
 end
 
 module Fun :
@@ -17,6 +19,11 @@ sig
 
   val repeat : int -> ('a -> unit) -> 'a -> unit
 end
+
+type ('a, 'b) these =
+  | This of 'a
+  | That of 'b
+  | Both of 'a * 'b
 
 module List :
 sig
@@ -47,6 +54,9 @@ sig
   val iter_pairs : ('a -> 'a -> unit) -> 'a list -> unit
 
   val safe_map : ('a -> 'b) -> 'a list -> 'b list
+
+  (** Assumes the two lists have been sorted with respect to the comparison function *)
+  val align : ('a -> 'b -> int) -> 'a list -> 'b list -> ('a, 'b) these Seq.t
 end
 
 module List32 :
@@ -160,6 +170,7 @@ sig
   val chop_suffix : string -> string -> string option
   val lightweight_escaped : string -> string
   val levenshtein_distance : string -> string -> int
+  val strip_control_chars : string -> string
 end
 
 module CRC :

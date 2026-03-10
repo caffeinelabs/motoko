@@ -61,28 +61,34 @@ pretty.mo:43.4-43.53: type error [M0096], expression of type
    Nat, Nat, Nat, Nat)
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 pretty.mo:47.4-47.57: type error [M0096], expression of type
   (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat,
    (Nat, Nat, Nat, (Nat, Nat, Nat, Nat, Nat, Nat)))
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 pretty.mo:53.4-53.6: type error [M0096], expression of type
   ({#A}, {#B})
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 pretty.mo:55.4-55.6: type error [M0096], expression of type
   (({#A}, {#B}), ({#A}, {#B}))
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 pretty.mo:57.4-57.6: type error [M0096], expression of type
   ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 pretty.mo:59.4-59.6: type error [M0096], expression of type
   (((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
    ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))))
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 pretty.mo:61.4-61.6: type error [M0096], expression of type
   ((((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B}))),
     ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))),
@@ -90,6 +96,7 @@ pretty.mo:61.4-61.6: type error [M0096], expression of type
     ((({#A}, {#B}), ({#A}, {#B})), (({#A}, {#B}), ({#A}, {#B})))))
 cannot produce expected type
   ()
+because there are more tuple arguments than expected
 pretty.mo:67.4-67.6: type error [M0096], expression of type
   {A : {#A}; B : {#B}}
 cannot produce expected type

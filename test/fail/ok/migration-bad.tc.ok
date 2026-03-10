@@ -23,9 +23,10 @@ migration-bad.mo:23.7-23.57: type error [M0204], migration expression produces f
   () -> ()
 , not the expected type
   Any
-because: Converting 
+because promoting 
   () -> ()
- to `Any` is disallowed as it leads to data loss: f
+ to `Any` loses data
+ in `f`
 migration-bad.mo:28.41-28.43: type error [M0136], empty block cannot produce expected type
   {} -> {}
 migration-bad.mo:28.19-28.47: type error [M0014], non-static expression in library, module or migration expression

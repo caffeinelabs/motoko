@@ -8,20 +8,13 @@ migration.mo:3.7-13.7: type error [M0204], migration expression produces field `
   var Text
 , not the expected type
   var [var (Nat, Text)]
-because: The type 
-  Text
- is not compatible with type 
-  [var (Nat, Text)]
- of three
 migration.mo:3.7-13.7: type error [M0205], migration expression produces unexpected field `unstable2` of type
   () -> ()
-
 The actor should declare a corresponding `stable` field.
 migration.mo:3.7-13.7: type error [M0205], migration expression produces unexpected field `versoin` of type
   var ()
-
-Did you mean field version?
 The actor should declare a corresponding `stable` field.
+help: did you mean field version?
 migration.mo:3.7-13.7: warning [M0207], migration expression consumes field `unstable1` of type
   () -> ()
 but does not produce it. The field is not declared in the actor.

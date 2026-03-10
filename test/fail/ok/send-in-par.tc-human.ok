@@ -1,0 +1,8 @@
+error[M0038]: misplaced await
+    ┌─ send-in-par.mo:1:23
+  1 │  ignore (with cycles = await async 42) async 25
+    │                        ^^^^^^^^^^^^^^ 
+error[M0037]: misplaced async expression; try enclosing in an async function
+    ┌─ send-in-par.mo:1:29
+  1 │  ignore (with cycles = await async 42) async 25
+    │                              ^^^^^^^^ 

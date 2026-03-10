@@ -1,17 +1,17 @@
 inf-error-ctx-dot-partial-instantiation.mo:14.23-14.44: type error [M0098], cannot apply function `.map` of type
-  <K, V1, V2>(project : (K, V1) -> V2) -> Map<K, V2>
+  <K, V1, V2>(project : (K, V1) -> V2) -> Map.Map<K, V2>
 to argument of type
   Text
 because there is no way to satisfy subtyping
   Text  <:  (Nat, Text) -> V2  (for argument `project`) 
 inf-error-ctx-dot-partial-instantiation.mo:15.23-15.47: type error [M0098], cannot apply function `.map` of type
-  <K, V1, V2>(project : (K, V1) -> V2) -> Map<K, V2>
+  <K, V1, V2>(project : (K, V1) -> V2) -> Map.Map<K, V2>
 to argument of type
   {map : [(Nat, [var Text])]}
 because there is no way to satisfy subtyping
   {map : [(Nat, [var Text])]}  <:  (Nat, Text) -> V2  (for argument `project`) 
 inf-error-ctx-dot-partial-instantiation.mo:16.23-16.56: type error [M0098], cannot apply function `.map` of type
-  <K, V1, V2>(project : (K, V1) -> V2) -> Map<K, V2>
+  <K, V1, V2>(project : (K, V1) -> V2) -> Map.Map<K, V2>
 to argument of type
   (project : (Nat, Text) -> V2)
 because there is no "best" choice for type parameter `V2`.

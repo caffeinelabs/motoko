@@ -1,0 +1,4 @@
+error[M0130]: misplaced system visibility, did you mean private?
+    ┌─ mixins/Mixin1.mo:4:3
+  4 │    system func preugprade() {}; // reject system function in mixin
+    │    ^^^^^^ 

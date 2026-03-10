@@ -1,0 +1,59 @@
+error[M0096]: expression of type
+  Text
+cannot produce expected type
+  Nat
+    ┌─ inf-error.mo:46:45
+ 46 │       ignore Map.get(peopleMap, Nat.compare, "test"); // bad
+    │                                              ^^^^^^ 
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Any, Any) -> Order
+    ┌─ inf-error.mo:47:13
+ 47 │       ignore Map.get(peopleMap, "test"); // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+error[M0096]: expression of type
+  Text
+cannot produce expected type
+  Nat
+    ┌─ inf-error.mo:51:40
+ 51 │       ignore peopleMap.get(Nat.compare, "test"); // bad
+    │                                         ^^^^^^ 
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Any, Any) -> Order
+    ┌─ inf-error.mo:52:13
+ 52 │       ignore peopleMap.get("test"); // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+error[M0096]: expression of type
+  Text
+cannot produce expected type
+  Nat
+    ┌─ inf-error.mo:59:45
+ 59 │       ignore Map.set(peopleMap, Nat.compare, "test", ""); // bad
+    │                                              ^^^^^^ 
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Any, Any) -> Order
+    ┌─ inf-error.mo:60:13
+ 60 │       ignore Map.set(peopleMap, "test", ""); // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+error[M0096]: expression of type
+  Text
+cannot produce expected type
+  Nat
+    ┌─ inf-error.mo:62:40
+ 62 │       ignore peopleMap.set(Nat.compare, "test", ""); // ok
+    │                                         ^^^^^^ 
+error[M0096]: expression of type
+  Text
+cannot produce expected type
+  Nat
+    ┌─ inf-error.mo:64:40
+ 64 │       ignore peopleMap.set(Nat.compare, "test", ""); // bad
+    │                                         ^^^^^^ 
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Any, Any) -> Order
+    ┌─ inf-error.mo:65:13
+ 65 │       ignore peopleMap.set("test", ""); // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.

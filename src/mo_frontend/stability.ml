@@ -28,7 +28,7 @@ let error_discard s tf =
 let error_sub s tf1 tf2 explanation =
   Diag.add_msg s
     (Diag.error_message Source.no_region "M0170" cat
-      (Format.asprintf "the new type of stable variable `%s` is not compatible with the previous version.\n The previous type%a\n is not a subtype of%a\n because: %s.\n Write an explicit migration function, please see %s."
+      (Format.asprintf "the new type of stable variable `%s` is not compatible with the previous version.\n The previous type%a\n is not a subtype of%a\n because %s.\n Write an explicit migration function, please see %s."
         tf1.lab
         display_typ_expand tf1.typ
         display_typ_expand tf2.typ
@@ -39,7 +39,7 @@ let error_sub s tf1 tf2 explanation =
 let error_stable_sub s tf1 tf2 explanation =
   Diag.add_msg s
     (Diag.error_message Source.no_region "M0216" cat
-      (Format.asprintf "the new type of stable variable `%s` implicitly drops data of the previous version. \n The previous type%a\n is not a stable subtype of%a because: %s.\n The data can only be dropped by an explicit migration function, please see %s."
+      (Format.asprintf "the new type of stable variable `%s` implicitly drops data of the previous version. \n The previous type%a\n is not a stable subtype of%a\n because %s.\n The data can only be dropped by an explicit migration function, please see %s."
         tf1.lab
         display_typ_expand tf1.typ
         display_typ_expand tf2.typ

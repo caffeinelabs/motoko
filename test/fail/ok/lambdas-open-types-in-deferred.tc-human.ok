@@ -1,0 +1,22 @@
+error[M0098]: cannot apply function of type
+  <T, I>(t : T, f : I -> T) -> ()
+to argument of type
+  (Nat, f : I -> T)
+because `I` cannot be inferred.
+    ┌─ lambdas-open-types-in-deferred.mo:4:11
+  4 │    let _ = foo(1, func x = -1);
+    │            ^^^^^^^^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, I>(t : T, f : I -> T) -> ()
+to argument of type
+  (Nat, f : I -> T)
+because `I` cannot be inferred.
+    ┌─ lambdas-open-types-in-deferred.mo:8:11
+  7 │    func _main2() {
+  8 │      let _ = foo(1, func x {
+    │ ╭────────────^
+  9 │ │      let y = x + 1;
+ 10 │ │      y
+ 11 │ │    });
+    │ ╰─────^ 
+ 12 │    }

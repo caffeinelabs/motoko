@@ -273,11 +273,11 @@ label good do {let ?(null, 5) : ?(Null, Nat) = from_candid "DIDL\00\02\70\7D\05"
 label good do {let ?null : ?Null = from_candid "DIDL\00\01\70" else break good; assert false};
 
 
-public func go(null) {
+public func go(null) : () {
   assert false; // should never arrive here
 };
 
-public func go2(null, null) {
+public func go2(null, null) : () {
   assert false; // should never arrive here
 };
 

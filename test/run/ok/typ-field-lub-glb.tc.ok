@@ -1,4 +1,0 @@
-typ-field-lub-glb.mo:50.6-50.10: warning [M0194], unused identifier oktx (delete or rename to wildcard `_` or `_oktx`)
-typ-field-lub-glb.mo:50.35-50.36: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-typ-field-lub-glb.mo:56.6-56.9: warning [M0194], unused identifier okx (delete or rename to wildcard `_` or `_okx`)
-typ-field-lub-glb.mo:56.18-56.19: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)

@@ -1,0 +1,110 @@
+error[M0096]: expression of type
+  ?Text
+cannot produce expected type
+  Text
+    ┌─ inf-error-small.mo:43:13
+ 43 │       ignore peopleMap.get("text") : Text; // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ?Text
+cannot produce expected type
+  Text
+    ┌─ inf-error-small.mo:44:13
+ 44 │       ignore peopleMap.get(Nat.compare, "text") : Text; // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ?Text
+cannot produce expected type
+  Text
+    ┌─ inf-error-small.mo:46:13
+ 46 │       ignore peopleMap.get(peopleMap, "text") : Text; // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0233]: wrong number of arguments: expected 1 but got 3
+Expected 1 argument of type:
+  (n : Nat)
+But got 3 arguments of type:
+  {map : [(Nat, [var Text])]}
+  (n : Nat, m : Nat) -> Order
+  Text
+    ┌─ inf-error-small.mo:47:26
+ 47 │       ignore peopleMap.get(peopleMap, Nat.compare, "text") : Text; // bad
+    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ?Text
+cannot produce expected type
+  Text
+    ┌─ inf-error-small.mo:48:13
+ 48 │       ignore peopleMap.get(peopleMap, "text") : Text; // bad
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ?Text
+cannot produce expected type
+  Bool
+    ┌─ inf-error-small.mo:50:13
+ 50 │       ignore peopleMap.get(1) : Bool; // bad
+    │              ^^^^^^^^^^^^^^^^ 
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Any, Any) -> Order
+    ┌─ inf-error-small.mo:53:25
+ 53 │      func c0() { let _ = peopleMap.get("text") };
+    │                          ^^^^^^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+error[M0096]: expression of type
+  ?Text
+cannot produce expected type
+  Text
+    ┌─ inf-error-small.mo:54:32
+ 54 │      func c1() { let _ : Text = peopleMap.get("text") }; // wrong ret should be reported before wrong arg
+    │                                 ^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  (n : Text, m : Text) -> Order
+cannot produce expected type
+  (implicit : (Nat, Nat) -> Order)
+    ┌─ inf-error-small.mo:55:39
+ 55 │      func c2() { let _ = peopleMap.get(Text.compare, 1) }; // wrong 1nd arg
+    │                                        ^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  Text
+cannot produce expected type
+  Nat
+    ┌─ inf-error-small.mo:56:52
+ 56 │      func c3() { let _ = peopleMap.get(Nat.compare, "text") }; // wrong 2st arg
+    │                                                     ^^^^^^ 
+error[M0096]: expression of type
+  (n : Text, m : Text) -> Order
+cannot produce expected type
+  (implicit : (Nat, Nat) -> Order)
+    ┌─ inf-error-small.mo:57:39
+ 57 │      func c4() { let _ = peopleMap.get(Text.compare, "text") }; // wrong both args, should point to the first one
+    │                                        ^^^^^^^^^^^^ 
+error[M0233]: wrong number of arguments: expected 1 but got 0
+Expected 1 argument of type:
+  (n : Nat)
+But got no arguments
+    ┌─ inf-error-small.mo:59:38
+ 59 │      func x1() { let _ = peopleMap.get() };
+    │                                       ^^ 
+error[M0096]: expression of type
+  Text
+cannot produce expected type
+  Nat
+    ┌─ inf-error-small.mo:60:52
+ 60 │      func x2() { let _ = peopleMap.get(Nat.compare, "text") };
+    │                                                     ^^^^^^ 
+error[M0096]: expression of type
+  {map : [(Nat, [var Text])]}
+cannot produce expected type
+  (implicit : (Nat, Nat) -> Order)
+    ┌─ inf-error-small.mo:61:39
+ 61 │      func x3() { let _ = peopleMap.get(peopleMap, "text") };
+    │                                        ^^^^^^^^^ 
+error[M0233]: wrong number of arguments: expected 1 but got 3
+Expected 1 argument of type:
+  (n : Nat)
+But got 3 arguments of type:
+  {map : [(Nat, [var Text])]}
+  (n : Nat, m : Nat) -> Order
+  Text
+    ┌─ inf-error-small.mo:62:38
+ 62 │      func x4() { let _ = peopleMap.get(peopleMap, Nat.compare, "text") };
+    │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

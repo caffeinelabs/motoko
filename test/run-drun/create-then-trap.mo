@@ -1,8 +1,8 @@
 import Prim "mo:⛔";
 actor a {
-  public func go() {
+  public func go() : () {
     actor b {
-      public func bad() {
+      public func bad() : () {
         Prim.debugPrint ("b.bad() called (should not happen)");
       }
     };

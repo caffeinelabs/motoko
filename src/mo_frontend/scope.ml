@@ -4,10 +4,7 @@ module S = Mo_def.Syntax
 
 (* Scopes *)
 
-(* For improved warning messages during unused detection:
-   - An identifier of a declaration can be renamed, e.g. prefixed by '_'.
-   - The field identifier in a field pattern cannot be renamed but can be bound to a new pattern. *)
-type val_kind = Declaration | FieldReference
+type val_kind = Declaration | FieldReference | MixinIncluded | MutableNotAssigned
 
 type val_env = (T.typ * Source.region * val_kind) T.Env.t
 type lib_env = T.typ T.Env.t

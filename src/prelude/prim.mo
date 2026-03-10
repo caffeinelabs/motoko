@@ -616,7 +616,7 @@ func time() : Nat64 = (prim "time" : () -> Nat64)();
 
 func blobOfPrincipal(id : Principal) : Blob = (prim "blobOfPrincipal" : Principal -> Blob) id;
 func principalOfBlob(act : Blob) : Principal {
-  // TODO: better: check size in prim "principalOfBob" instead
+  // TODO: better: check size in prim "principalOfBlob" instead
   if (act.size() > 29) {
     trap("blob too long for principal");
   };
@@ -624,6 +624,7 @@ func principalOfBlob(act : Blob) : Principal {
 };
 
 func principalOfActor(act : actor {}) : Principal = (prim "principalOfActor" : (actor {}) -> Principal) act;
+func actorOfPrincipal<A <: actor {}>(p : Principal) : A = (prim "actorOfPrincipal" : Principal -> A) p;
 func isController(p : Principal) : Bool = (prim "is_controller" : Principal -> Bool) p;
 func isReplicatedExecution() : Bool = (prim "replicated_execution" : () -> Bool)();
 func canisterVersion() : Nat64 = (prim "canister_version" : () -> Nat64)();
@@ -634,21 +635,10 @@ func getSelfPrincipal<system>() : Principal = (prim "canister_self" : () -> Prin
 // Untyped dynamic actor creation from blobs
 let createActor : (wasm : Blob, argument : Blob) -> async Principal = @create_actor_helper;
 
-func cyclesBalance() : Nat {
-  (prim "cyclesBalance" : () -> Nat)();
-};
-
-func cyclesAvailable() : Nat {
-  (prim "cyclesAvailable" : () -> Nat)();
-};
-
-func cyclesRefunded() : Nat {
-  @refund;
-};
-
-func cyclesAccept<system>(amount : Nat) : Nat {
-  (prim "cyclesAccept" : Nat -> Nat)(amount);
-};
+func cyclesBalance() : Nat = (prim "cyclesBalance" : () -> Nat)();
+func cyclesAvailable() : Nat = (prim "cyclesAvailable" : () -> Nat)();
+func cyclesRefunded() : Nat = @refund;
+func cyclesAccept<system>(amount : Nat) : Nat = (prim "cyclesAccept" : Nat -> Nat) amount;
 
 func cyclesAdd<system>(amount : Nat) : () {
   if (amount == 0) return;
@@ -659,9 +649,7 @@ func cyclesAdd<system>(amount : Nat) : () {
   };
 };
 
-func cyclesBurn<system>(amount : Nat) : Nat {
-  (prim "cyclesBurn" : Nat -> Nat) amount;
-};
+func cyclesBurn<system>(amount : Nat) : Nat = (prim "cyclesBurn" : Nat -> Nat) amount;
 
 func costCall(methodNameSize : Nat64, payloadSize : Nat64) : Nat = (prim "costCall" : (Nat64, Nat64) -> Nat)(methodNameSize, payloadSize);
 

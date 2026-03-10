@@ -1,0 +1,4 @@
+error[M0057]: unbound variable d
+    ┌─ unused-false-positive.mo:4:16
+  4 │    case (a,b) { d # a # b };
+    │                 ^ 

@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 actor a {
-  public func go() {
+  public func go() : () {
     ignore(Prim.Array_init<()>(1200*1024/4, ()));
   };
 };

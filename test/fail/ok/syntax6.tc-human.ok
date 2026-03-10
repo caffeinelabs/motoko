@@ -1,0 +1,6 @@
+error[M0001]: unexpected token '}', expected one of token or <phrase> sequence:
+  <eof>
+  ; seplist(<dec>,<semicolon>)
+    ┌─ syntax6.mo:1:8
+  1 │  do {{}}}
+    │         ^ 

@@ -1,0 +1,8 @@
+warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
+    ┌─ issue1464.mo:7:10
+  7 │    public let field = ();
+    │           ^^^^^^^^^^^^ 
+error[M0016]: cannot use Self before Self has been defined
+    ┌─ issue1464.mo:6:10
+  6 │    public var foo : Foo = Foo(Self);
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^ 

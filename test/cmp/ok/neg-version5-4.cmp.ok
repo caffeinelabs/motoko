@@ -3,6 +3,7 @@
   var [var (Text, Nat, Bool)]
  is not a subtype of
   var [var (Text, Nat)]
- because: More tuple arguments in four than expected.
+ because there are more tuple arguments than expected
+ in `four`.
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
 FALSE

@@ -1,0 +1,66 @@
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ typed-labels.mo:10:24
+ 10 │  let b1 = label c : Nat loop { break c 42 } while true;
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ typed-labels.mo:11:24
+ 11 │  let c1 = label c : Nat while true { break c 42 };
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ typed-labels.mo:12:24
+ 12 │  let d1 = label c : Nat for (_ in "HEY!".chars()) { break c 42 };
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ typed-labels.mo:15:33
+ 15 │  let a2 = label c : Nat { loop { continue c }; 25 }; // c is not a continue label
+    │                                  ^^^^^^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ typed-labels.mo:16:33
+ 16 │  let b2 = label c : Nat { loop { continue c } while true; 25 }; // ditto
+    │                                  ^^^^^^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ typed-labels.mo:17:39
+ 17 │  let c2 = label c : Nat { while true { continue c }; 25 }; // ditto
+    │                                        ^^^^^^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ typed-labels.mo:18:54
+ 18 │  let d2 = label c : Nat { for (_ in "HEY!".chars()) { continue c }; 25 }; // ditto
+    │                                                       ^^^^^^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ typed-labels.mo:19:26
+ 19 │  let e2 = label c : Nat { continue c }; // ditto
+    │                           ^^^^^^^^^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ typed-labels.mo:22:24
+ 22 │  let b3 = label c : Nat loop { continue c } while true;
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ typed-labels.mo:23:24
+ 23 │  let c3 = label c : Nat while true { continue c };
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ typed-labels.mo:24:24
+ 24 │  let d3 = label c : Nat for (_ in "HEY!".chars()) { continue c };
+    │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0238]: continue outside of loop
+    ┌─ typed-labels.mo:25:24
+ 25 │  let e3 = label c : Nat continue c; // c is not a continue label
+    │                         ^^^^^^^^^^ 

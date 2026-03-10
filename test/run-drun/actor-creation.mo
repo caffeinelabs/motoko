@@ -1,12 +1,12 @@
 import Prim "mo:⛔";
 Prim.debugPrint ("main actor creating a");
 actor a {
-  public func foo() {
+  public func foo() : () {
     Prim.debugPrint ("a.foo() called");
 
     Prim.debugPrint ("a creating b");
     actor b {
-      public func foo() {
+      public func foo() : () {
       Prim.debugPrint ("b.foo() called");
     };
     Prim.debugPrint ("b created");
