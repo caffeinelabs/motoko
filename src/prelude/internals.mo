@@ -871,12 +871,8 @@ func @checkLastMigration(mId : Text) : Bool {
     next : ?MigrationsList;
   };
 
-  func getMigrationsObj() : ?MigrationsList {
-    (prim "get_migrations" : () -> ?MigrationsList)();
-  };
-
   // Get the migrations list from the RTS.
-  let ?list = getMigrationsObj() else {
+  let ?list = (prim "get_migrations" : () -> ?MigrationsList)() else {
     return false;
   };
   // Check the parameter against the last migration in the list.
@@ -893,17 +889,10 @@ func @setLastMigration(mId : Text) {
     next : ?MigrationsList;
   };
 
-  func getMigrationsObj() : ?MigrationsList {
-    (prim "get_migrations" : () -> ?MigrationsList)();
-  };
-  func setMigrationsObj(obj : MigrationsList) {
-    (prim "set_migrations" : (MigrationsList) -> ())(obj);
-  };
-
   // Add the new migration ID at the beginning of the list.
   let newList = {
     migrationId = mId;
-    next = getMigrationsObj();
+    next = (prim "get_migrations" : () -> ?MigrationsList)();
   };
-  setMigrationsObj(newList);
+  (prim "set_migrations" : (MigrationsList) -> ())(newList);
 };
