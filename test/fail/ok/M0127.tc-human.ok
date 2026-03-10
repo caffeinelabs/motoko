@@ -1,0 +1,7 @@
+error[M0127]: system function preupgrade is declared with type
+  <system>(foo : Bool) -> ()
+instead of expected type
+  <system>() -> ()
+    ┌─ M0127.mo:2:3
+  2 │    system func preupgrade(foo : Bool) {}
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

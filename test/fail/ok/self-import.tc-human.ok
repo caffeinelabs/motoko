@@ -1,0 +1,4 @@
+error[M0003]: file self-import.mo must not depend on itself
+    ┌─ self-import.mo:1:1
+  1 │  import _ = "self-import";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^ 

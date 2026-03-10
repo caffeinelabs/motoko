@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 let _ = (actor this {}) : Any;
 let _ = (actor {}) : Any;
 

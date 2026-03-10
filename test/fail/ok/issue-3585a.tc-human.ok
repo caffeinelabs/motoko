@@ -1,0 +1,4 @@
+error[M0014]: non-static expression in library, module or migration expression
+    ┌─ issue-3585/Record.mo:2:21
+  2 │    public let x =  { var v = 1 }; // was allowed, though impure, now reject as non-static!
+    │                      ^^^^^^^^^ 

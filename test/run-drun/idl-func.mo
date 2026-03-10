@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 actor {
   public type Func = shared Int -> async Func;
   public type Query = shared query () -> async ?Func;

@@ -1,0 +1,133 @@
+error[M0096]: expression of type
+  (Nat, (self : Text.Text, t2 : Text.Text) -> Types.Order)
+cannot produce expected type
+  Nat
+    ┌─ wrong-call-args.mo:26:9
+ 26 │      foo(arg);
+    │          ^^^ 
+error[M0096]: expression of type
+  (Nat, (self : Text.Text, t2 : Text.Text) -> Types.Order)
+cannot produce expected type
+  Nat
+    ┌─ wrong-call-args.mo:29:9
+ 29 │      foo arg;
+    │          ^^^ 
+error[M0233]: wrong number of arguments: expected 1 but got 0
+Expected 1 argument of type:
+  (key : Text)
+But got no arguments
+    ┌─ wrong-call-args.mo:35:12
+ 35 │      map.get(); // produces: hole <: (compare : (implicit : (K, K) -> Order)), key : K)
+    │             ^^ 
+error[M0096]: expression of type
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
+cannot produce expected type
+  Text
+    ┌─ wrong-call-args.mo:39:13
+ 39 │      map.add(Text.compare, key); // missing value, low priority issue: Text.compare should not appear
+    │              ^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <K, V>(self : Map.Map<K, V>, compare : (implicit : (K, K) -> Types.Order),
+         key : K) ->
+    ?V
+to argument of type
+  {var root : Types.Map.Node<Text, Text>; var size_ : Nat}
+because there is no way to satisfy subtyping
+  ?V  <:  ()  (for the expected return type) 
+    ┌─ wrong-call-args.mo:45:5
+ 45 │      Map.get(map); // here `map` is considered as a tuple of all arguments
+    │      ^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
+cannot produce expected type
+  ()
+    ┌─ wrong-call-args.mo:48:27
+ 48 │      Map.empty<Text, Text>(Text.compare);
+    │                            ^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
+cannot produce expected type
+  ()
+    ┌─ wrong-call-args.mo:51:15
+ 51 │      Map.empty(Text.compare);
+    │                ^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  (self : Text.Text, t2 : Text.Text) -> Types.Order
+cannot produce expected type
+  Text
+    ┌─ wrong-call-args.mo:55:18
+ 55 │      Map.add(map, Text.compare, key); // missing value, low priority issue: Text.compare should not appear
+    │                   ^^^^^^^^^^^^ 
+warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
+    ┌─ wrong-call-args.mo:82:3
+ 82 │    let u = ();
+    │    ^^^^^^^^ 
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  ()
+    ┌─ wrong-call-args.mo:107:8
+107 │      f0(1);
+    │         ^ 
+error[M0096]: expression of type
+  (Nat, Nat)
+cannot produce expected type
+  ()
+because there are more tuple arguments than expected
+    ┌─ wrong-call-args.mo:108:7
+108 │      f0(1, 2);
+    │        ^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B>((A, B)) -> ()
+to argument of type
+  ()
+because there is no way to satisfy subtyping
+  ()  <:  (A, B)
+    ┌─ wrong-call-args.mo:110:5
+110 │      f12();
+    │      ^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B>((A, B)) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  (A, B)
+    ┌─ wrong-call-args.mo:111:5
+111 │      f12(1);
+    │      ^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B>((A, B)) -> ()
+to argument of type
+  (Nat, Nat, Nat)
+because there is no way to satisfy subtyping
+  (Nat, Nat, Nat)  <:  (A, B)
+    ┌─ wrong-call-args.mo:112:5
+112 │      f12(1, 2, 3);
+    │      ^^^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B>(A, B) -> ()
+to argument of type
+  ()
+because there is no way to satisfy subtyping
+  ()  <:  (A, B)
+    ┌─ wrong-call-args.mo:114:5
+114 │      f2();
+    │      ^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B>(A, B) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  (A, B)
+    ┌─ wrong-call-args.mo:115:5
+115 │      f2(1);
+    │      ^^^^^ 
+error[M0098]: cannot apply function of type
+  <A, B>(A, B) -> ()
+to argument of type
+  (Nat, Nat, Nat)
+because there is no way to satisfy subtyping
+  (Nat, Nat, Nat)  <:  (A, B)
+    ┌─ wrong-call-args.mo:116:5
+116 │      f2(1, 2, 3);
+    │      ^^^^^^^^^^^ 

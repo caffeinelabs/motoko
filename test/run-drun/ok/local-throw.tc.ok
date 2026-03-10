@@ -1,3 +1,0 @@
-local-throw.mo:14.19-14.22: warning [M0194], unused identifier sys (delete or rename to wildcard `_` or `_sys`)
-local-throw.mo:32.17-32.20: warning [M0194], unused identifier sys (delete or rename to wildcard `_` or `_sys`)
-local-throw.mo:45.14-45.17: warning [M0194], unused identifier sys (delete or rename to wildcard `_` or `_sys`)

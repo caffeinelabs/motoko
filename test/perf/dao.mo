@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Trie "assetstorage/Trie";
 import Principal "assetstorage/Principal";
 import Option "assetstorage/Option";

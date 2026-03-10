@@ -1,2 +1,2 @@
-bad-async-func.mo:1.22-1.24: type error [M0086], async expressions are not supported
+bad-async-func.mo:2.22-2.24: type error [M0086], async expressions are not supported
   (This is a limitation of the current version and flag -wasi-system-api.)

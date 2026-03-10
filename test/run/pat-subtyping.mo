@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194,M0198
 func magic() : None = magic();
 
 if false {

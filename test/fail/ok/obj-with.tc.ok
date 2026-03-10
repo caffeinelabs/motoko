@@ -1,5 +1,0 @@
-obj-with.mo:1.8-1.12: warning [M0194], unused identifier Prim (delete or rename to wildcard `_` or `_Prim`)
-obj-with.mo:6.5-6.7: warning [M0194], unused identifier ba (delete or rename to wildcard `_` or `_ba`)
-obj-with.mo:7.5-7.12: warning [M0194], unused identifier ba_semi (delete or rename to wildcard `_` or `_ba_semi`)
-obj-with.mo:9.5-9.8: warning [M0194], unused identifier bac (delete or rename to wildcard `_` or `_bac`)
-obj-with.mo:10.5-10.13: warning [M0194], unused identifier bac_semi (delete or rename to wildcard `_` or `_bac_semi`)

@@ -1,0 +1,4 @@
+error[M0051]: duplicate definition for x in block
+    ┌─ nonlinear-pat.mo:1:11
+  1 │  let (x,(y,x)) = (1,(2,3));
+    │            ^ 

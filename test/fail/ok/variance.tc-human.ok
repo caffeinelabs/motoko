@@ -1,0 +1,82 @@
+error[M0096]: expression of type
+  {get : () -> ?None}
+cannot produce expected type
+  ()
+    ┌─ variance.mo:17:3
+ 17 │    co; // reject, so we can see the type
+    │    ^^ 
+error[M0096]: expression of type
+  {put : (i : Any) -> ()}
+cannot produce expected type
+  ()
+    ┌─ variance.mo:32:3
+ 32 │    contra; // reject, so we can see the type
+    │    ^^^^^^ 
+error[M0046]: type argument
+  Any
+does not match parameter bound
+  Nat
+    ┌─ variance.mo:44:24
+ 44 │    ignore bound : Bound<Any>; // reject
+    │                         ^^^ 
+error[M0096]: expression of type
+  {put : (i : Nat) -> ()}
+cannot produce expected type
+  {put : (i : Any) -> ()}
+because the type 
+  Any
+ is not compatible with type 
+  Nat
+ in `(i : _)` (used by arguments of `put`)
+    ┌─ variance.mo:44:10
+ 44 │    ignore bound : Bound<Any>; // reject
+    │           ^^^^^ 
+error[M0096]: expression of type
+  {put : (i : Nat) -> ()}
+cannot produce expected type
+  ()
+    ┌─ variance.mo:48:3
+ 48 │    bound; // reject, so we can see the type
+    │    ^^^^^ 
+error[M0096]: expression of type
+  {get : () -> ?Any; put : (i : Any) -> ()}
+cannot produce expected type
+  ()
+    ┌─ variance.mo:64:3
+ 64 │    non; // reject, so we can see the type
+    │    ^^^ 
+error[M0096]: expression of type
+  {get : () -> ?Nat; put : (i : Nat) -> ()}
+cannot produce expected type
+  ()
+    ┌─ variance.mo:80:3
+ 80 │    invNat1; // reject, so we can see the type
+    │    ^^^^^^^ 
+error[M0096]: expression of type
+  {get : () -> ?Nat; put : (i : Nat) -> ()}
+cannot produce expected type
+  ()
+    ┌─ variance.mo:81:3
+ 81 │    invNat2; // reject, so we can see the type
+    │    ^^^^^^^ 
+error[M0096]: expression of type
+  {get : () -> ?Nat; put : (i : Nat) -> ()}
+cannot produce expected type
+  {get : () -> ?Any; put : (i : Any) -> ()}
+because the type 
+  Any
+ is not compatible with type 
+  Nat
+ in `(i : _)` (used by arguments of `put`)
+    ┌─ variance.mo:82:11
+ 82 │    let _ = invNat1 : Inv<Any>; // reject due to invariance of Inv<_>.
+    │            ^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <A>() -> Inv<A>
+to argument of type
+  ()
+because there is no "best" choice for type parameter `A`.
+Hint: Add explicit type instantiation, e.g. <Any>
+    ┌─ variance.mo:84:15
+ 84 │      let inv = Inv();  // reject, A invariant and underconstrained
+    │                ^^^^^ 

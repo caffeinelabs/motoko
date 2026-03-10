@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 assert({ x = 10 } == { x = 10 });
 assert({ x = 10 } != { x = 9 });
 

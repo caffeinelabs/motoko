@@ -1,0 +1,12 @@
+error[M0180]: shared function has unexpected type parameters
+    ┌─ issue-3519b.mo:2:20
+  2 │  do { type wrong1 = shared <T>()-> async (); };
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0180]: shared function has unexpected type parameters
+    ┌─ issue-3519b.mo:3:20
+  3 │  do { type wrong2 = shared query <T>()-> async (); };
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0180]: shared function has unexpected type parameters
+    ┌─ issue-3519b.mo:4:20
+  4 │  do { type wrong3 = shared <T>()->(); };
+    │                     ^^^^^^^^^^^^^^^^ 

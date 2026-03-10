@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // Bit operators
 
 func testNat8(a : Nat8, b : Nat8) {

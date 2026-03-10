@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 // This test checks that the IDL decoder can
 // do the subtyping from received many-field record

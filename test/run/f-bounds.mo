@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 type Cast< A <: B, B> = A -> B;
 
 let f = (func(x :Nat):Int = x) : Cast<Nat,Int>;

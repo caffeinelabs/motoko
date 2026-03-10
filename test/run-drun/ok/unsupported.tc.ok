@@ -1,12 +1,1 @@
-unsupported.mo:62.11-62.34: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-unsupported.mo:4.26-4.44: warning [M0194], unused identifier bad_private_shared (delete or rename to wildcard `_` or `_bad_private_shared`)
-unsupported.mo:6.29-6.30: warning [M0194], unused identifier a (delete or rename to wildcard `_` or `_a`)
-unsupported.mo:8.32-8.33: warning [M0194], unused identifier f (delete or rename to wildcard `_` or `_f`)
-unsupported.mo:30.13-30.14: warning [M0194], unused identifier a (delete or rename to wildcard `_` or `_a`)
-unsupported.mo:36.23-36.33: warning [M0194], unused identifier bad_shared (delete or rename to wildcard `_` or `_bad_shared`)
-unsupported.mo:50.23-50.36: warning [M0194], unused identifier BadActorClass (delete or rename to wildcard `_` or `_BadActorClass`)
-unsupported.mo:54.23-54.36: warning [M0194], unused identifier BadActorClass (delete or rename to wildcard `_` or `_BadActorClass`)
-unsupported.mo:54.38-54.39: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
-unsupported.mo:58.14-58.31: warning [M0194], unused identifier bad_non_top_actor (delete or rename to wildcard `_` or `_bad_non_top_actor`)
-unsupported.mo:62.15-62.31: warning [M0194], unused identifier bad_nested_actor (delete or rename to wildcard `_` or `_bad_nested_actor`)
-unsupported.mo:67.16-67.30: warning [M0194], unused identifier implicit_async (delete or rename to wildcard `_` or `_implicit_async`)
+unsupported.mo:63.11-63.34: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

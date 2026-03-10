@@ -1,4 +1,4 @@
-//MOC-FLAG --trap-on-call-error
+//MOC-FLAG --trap-on-call-error -A=M0194
 // legacy: test trap on send failure
 import Prim "mo:⛔";
 

@@ -1,3 +1,0 @@
-n-ary.mo:7.6-7.19: warning [M0194], unused identifier foo_0_2_block (delete or rename to wildcard `_` or `_foo_0_2_block`)
-n-ary.mo:13.6-13.13: warning [M0194], unused identifier foo_1_1 (delete or rename to wildcard `_` or `_foo_1_1`)
-n-ary.mo:17.6-17.13: warning [M0194], unused identifier foo_2_2 (delete or rename to wildcard `_` or `_foo_2_2`)

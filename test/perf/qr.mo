@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 /*
 This is a snapshot of https://github.com/enzoh/qr
 at revision 3d4537cba3418f28a0b3ed53fe4485bbce3d10f8

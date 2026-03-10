@@ -1,0 +1,11 @@
+warning[M0243]: this pattern will always match, so the else clause is useless. Consider removing the else clause
+    ┌─ let-else-not-none.mo:1:5
+  1 │  let x = 4 else { 5 }
+    │      ^ 
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  None
+    ┌─ let-else-not-none.mo:1:18
+  1 │  let x = 4 else { 5 }
+    │                   ^ 

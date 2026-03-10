@@ -1,2 +1,0 @@
-issue-1411.mo:6.5-6.7: warning [M0194], unused identifier x1 (delete or rename to wildcard `_` or `_x1`)
-issue-1411.mo:11.5-11.7: warning [M0194], unused identifier x2 (delete or rename to wildcard `_` or `_x2`)

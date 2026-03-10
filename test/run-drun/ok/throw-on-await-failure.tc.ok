@@ -1,0 +1,2 @@
+throw-on-await-failure.mo:18.9-18.10: warning [M0244], variable a is never reassigned, consider using `let`
+throw-on-await-failure.mo:31.11-31.12: warning [M0244], variable a is never reassigned, consider using `let`

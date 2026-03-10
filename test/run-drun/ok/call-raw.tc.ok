@@ -1,2 +1,0 @@
-call-raw.mo:41.30-41.31: warning [M0194], unused identifier n (delete or rename to wildcard `_` or `_n`)
-call-raw.mo:89.13-89.16: warning [M0194], unused identifier res (delete or rename to wildcard `_` or `_res`)

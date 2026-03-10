@@ -1,0 +1,1087 @@
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:14:16
+ 14 │      case _ { x = 1 }; // ambiguous, block preferred, syntax error
+    │                 ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:15:16
+ 15 │      case _ { x = 1    // also missing '}'
+    │                 ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:21:16
+ 21 │      case _ { y = 2; z = 3; w = 4 }
+    │                 ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:21:23
+ 21 │      case _ { y = 2; z = 3; w = 4 }
+    │                        ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:21:30
+ 21 │      case _ { y = 2; z = 3; w = 4 }
+    │                               ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:26:27
+ 26 │      case _ { var x = 1; y = 2; z = 3; w = 4 }
+    │                            ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:26:34
+ 26 │      case _ { var x = 1; y = 2; z = 3; w = 4 }
+    │                                   ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:26:41
+ 26 │      case _ { var x = 1; y = 2; z = 3; w = 4 }
+    │                                          ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:31:38
+ 31 │      case _ { var x = 1; var y = 2; z = 3; w = 4 }
+    │                                       ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:31:45
+ 31 │      case _ { var x = 1; var y = 2; z = 3; w = 4 }
+    │                                              ^ 
+error[M0001]: unexpected token ';', expected one of token or <phrase> sequence:
+  }
+  seplist(<dec>,<semicolon>) }
+    ┌─ parse-block-or-record.mo:36:3
+ 36 │    ;
+    │    ^ 
+error[M0001]: unexpected token 'with', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:42:19
+ 42 │    let _b = do { r with x = 1 }; // syntax error
+    │                    ^^^^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:42:26
+ 42 │    let _b = do { r with x = 1 }; // syntax error
+    │                           ^ 
+error[M0001]: unexpected token 'with', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:44:16
+ 44 │      case _ { r with x = 1 } // ambiguous, block preferred, syntax error
+    │                 ^^^^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:44:23
+ 44 │      case _ { r with x = 1 } // ambiguous, block preferred, syntax error
+    │                        ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:50:26
+ 50 │    catch _ { var x = 1; y = 2; z = 3; w = 4 }
+    │                           ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:50:33
+ 50 │    catch _ { var x = 1; y = 2; z = 3; w = 4 }
+    │                                  ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:50:40
+ 50 │    catch _ { var x = 1; y = 2; z = 3; w = 4 }
+    │                                         ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:51:26
+ 51 │    finally { var x = 1; y = 2; z = 3; w = 4 };
+    │                           ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:51:33
+ 51 │    finally { var x = 1; y = 2; z = 3; w = 4 };
+    │                                  ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:51:40
+ 51 │    finally { var x = 1; y = 2; z = 3; w = 4 };
+    │                                         ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:53:24
+ 53 │    throw { var x = 1; y = 2; z = 3; w = 4 };
+    │                         ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:53:31
+ 53 │    throw { var x = 1; y = 2; z = 3; w = 4 };
+    │                                ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:53:38
+ 53 │    throw { var x = 1; y = 2; z = 3; w = 4 };
+    │                                       ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:57:35
+ 57 │    let ?x = ?1 else { var x = 1; y = 2; z = 3; w = 4 };
+    │                                    ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:57:42
+ 57 │    let ?x = ?1 else { var x = 1; y = 2; z = 3; w = 4 };
+    │                                           ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:57:49
+ 57 │    let ?x = ?1 else { var x = 1; y = 2; z = 3; w = 4 };
+    │                                                  ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:61:26
+ 61 │    if true { var x = 1; y = 2; z = 3; w = 4 }
+    │                           ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:61:33
+ 61 │    if true { var x = 1; y = 2; z = 3; w = 4 }
+    │                                  ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:61:40
+ 61 │    if true { var x = 1; y = 2; z = 3; w = 4 }
+    │                                         ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:62:23
+ 62 │    else { var x = 1; y = 2; z = 3; w = 4 };
+    │                        ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:62:30
+ 62 │    else { var x = 1; y = 2; z = 3; w = 4 };
+    │                               ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:62:37
+ 62 │    else { var x = 1; y = 2; z = 3; w = 4 };
+    │                                      ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:64:29
+ 64 │    while true { var x = 1; y = 2; z = 3; w = 4 };
+    │                              ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:64:36
+ 64 │    while true { var x = 1; y = 2; z = 3; w = 4 };
+    │                                     ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:64:43
+ 64 │    while true { var x = 1; y = 2; z = 3; w = 4 };
+    │                                            ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:66:23
+ 66 │    loop { var x = 1; y = 2; z = 3; w = 4 };
+    │                        ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:66:30
+ 66 │    loop { var x = 1; y = 2; z = 3; w = 4 };
+    │                               ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:66:37
+ 66 │    loop { var x = 1; y = 2; z = 3; w = 4 };
+    │                                      ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:70:25
+ 70 │    ignore { var x = 1; y = 2; z = 3; w = 4 };
+    │                          ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:70:32
+ 70 │    ignore { var x = 1; y = 2; z = 3; w = 4 };
+    │                                 ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:70:39
+ 70 │    ignore { var x = 1; y = 2; z = 3; w = 4 };
+    │                                        ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:71:24
+ 71 │    async { var x = 1; y = 2; z = 3; w = 4 };
+    │                         ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:71:31
+ 71 │    async { var x = 1; y = 2; z = 3; w = 4 };
+    │                                ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:71:38
+ 71 │    async { var x = 1; y = 2; z = 3; w = 4 };
+    │                                       ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:77:7
+ 77 │      x = 2;
+    │        ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:82:7
+ 82 │      x = 2;
+    │        ^ 
+error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
+  }
+  .<nat>
+  !
+  <exp_nullary(ob)>
+  <binop> <exp(ob)>
+  ; seplist(<dec>,<semicolon>)
+  |> <exp_bin(ob)>
+  or <exp_bin(ob)>
+  <unassign> <exp(ob)>
+  <relop> <exp_bin(ob)>
+  . <id>
+  : <typ_nobin>
+  := <exp(ob)>
+  <binop> <exp_bin(ob)>
+  <binassign> <exp(ob)>
+  and <exp_bin(ob)>
+  <unop> <exp_bin(ob)>
+  <inst> <exp_nullary(ob)>
+  [ <exp(ob)> ]
+    ┌─ parse-block-or-record.mo:86:7
+ 86 │      x = 2; // Missing let/var? Or assignment := operator? Or meant a record?
+    │        ^ 

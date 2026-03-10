@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 let n : Nat = 0;
 let i : Int = 0;
 let i1 : Int = -1;

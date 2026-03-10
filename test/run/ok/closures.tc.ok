@@ -1,0 +1,2 @@
+closures.mo:11.5-11.11: warning [M0244], variable answer is never reassigned, consider using `let`
+closures.mo:16.5-16.12: warning [M0244], variable answers is never reassigned, consider using `let`

@@ -8,6 +8,8 @@ sig
   (* Display input on newline vertically indented 2 spaces *)
   val display : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> unit
 
+  val display_inline : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a -> unit
+
 end
 
 module Fun :
@@ -168,6 +170,7 @@ sig
   val chop_suffix : string -> string -> string option
   val lightweight_escaped : string -> string
   val levenshtein_distance : string -> string -> int
+  val strip_control_chars : string -> string
 end
 
 module CRC :

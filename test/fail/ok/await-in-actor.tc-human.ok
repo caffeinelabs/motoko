@@ -1,0 +1,16 @@
+error[M0038]: misplaced await
+    ┌─ await-in-actor.mo:3:13
+  3 │      let x = await { async 1 };
+    │              ^^^^^^^^^^^^^^^^^ 
+error[M0037]: misplaced async expression; try enclosing in an async function
+    ┌─ await-in-actor.mo:3:21
+  3 │      let x = await { async 1 };
+    │                      ^^^^^^^ 
+error[M0038]: misplaced await
+    ┌─ await-in-actor.mo:3:13
+  3 │      let x = await { async 1 };
+    │              ^^^^^^^^^^^^^^^^^ 
+error[M0037]: misplaced async expression; try enclosing in an async function
+    ┌─ await-in-actor.mo:3:21
+  3 │      let x = await { async 1 };
+    │                      ^^^^^^^ 

@@ -1,0 +1,4 @@
+error[M0014]: non-static expression in library, module or migration expression
+    ┌─ issue-3585/Object.mo:2:27
+  2 │    public let x = object { var v = 1 }; // rejected as non-static
+    │                            ^^^^^^^^^ 

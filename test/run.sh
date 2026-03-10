@@ -83,6 +83,8 @@ function normalize () {
         -e 's/^\(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations
     sed -e 's/^  \(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations (later version)
     sed -e 's/wasm `unreachable` instruction executed/unreachable/g' | # cross-version normalisation
+    sed -e '/^Canister Backtrace:$/,/^\.\?$/d' | # strip canister backtraces
+    sed -e 's/\(Error from Canister .*[^.]\)$/\1./' | # restore trailing period on IC error lines
     sed -e 's/Ignore Diff:.*/Ignore Diff: (ignored)/ig' \
         -e 's/Motoko compiler (source .*)/Motoko compiler (source XXX)/ig' \
         -e 's/Motoko compiler [^ ]* (source .*)/Motoko compiler (source XXX)/ig' \
@@ -125,10 +127,11 @@ function run () {
 
   $ECHO -n " [$ext]"
   $ECHO "$@" >& $out/$base.$ext
-  set -o pipefail
-  "$@" |& ${FILTER:-cat} > $out/$base.$ext
+  "$@" >& $out/$base.$ext
   local ret=$?
-  set +o pipefail
+  if [[ -n "${FILTER:-}" ]]; then
+    $FILTER < $out/$base.$ext > $out/$base.$ext.tmp && mv $out/$base.$ext.tmp $out/$base.$ext
+  fi
 
   if [ $ret != 0 ]
   then echo "Return code $ret" >> $out/$base.$ext.ret
@@ -354,6 +357,12 @@ do
     run tc $moc_with_flags --check $base.mo
     tc_succeeded=$?
     normalize $out/$base.tc
+    if [ "$ONLY_TYPECHECK" = "true" ]
+    then
+        run tc-human $moc_with_flags --check --error-format human $base.mo
+        tc_succeeded=$?
+        normalize $out/$base.tc-human
+    fi
 
     if [ "$tc_succeeded" -eq 0 -a "$ONLY_TYPECHECK" = "no" ]
     then
@@ -548,7 +557,7 @@ do
         # set drun args to use application subnet
         EXTRA_DRUN_ARGS="--subnet-type application"
       fi
-      
+
       have_var_name="HAVE_${runner//-/_}"
       if [ ${!have_var_name} != yes ]
       then
@@ -573,12 +582,33 @@ do
         run $mo_base.$runner.comp moc $MOC_ARGS $EXTRA_MOC_ARGS ${!flags_var_name} $moc_extra_flags --hide-warnings -c $mo_file -o $out/$base/$mo_base.$runner.wasm
       done
 
-      # mangle drun script
-      LANG=C perl -npe "s,$base/([^\s]+)\.mo,$out/$base/\$1.$runner.wasm," < $base.drun > $out/$base/$base.$runner.drun
+      # check for missing wasm files (compilation failures)
+      missing_wasm=false
+      for mo_file in $mo_files
+      do
+        mo_base=$(basename $mo_file .mo)
+        wasm_path="$out/$base/$mo_base.$runner.wasm"
+        if [ ! -f "$wasm_path" ]; then
+          missing_wasm=true
+          break
+        fi
+      done
 
-      # run wrapper
-      wrap_var_name="WRAP_${runner//-/_}"
-      run $runner ${!wrap_var_name} $out/$base/$base.$runner.drun $EXTRA_DRUN_ARGS
+      if [ "$missing_wasm" = true ]; then
+        $ECHO -n " [$runner]"
+        echo "Error: compilation failed, wasm output not produced" > $out/$base.$runner
+        echo "Return code 1" > $out/$base.$runner.ret
+        normalize $out/$base.$runner
+        diff_files="$diff_files $base.$runner.ret"
+        diff_files="$diff_files $base.$runner"
+      else
+        # mangle drun script
+        LANG=C perl -npe "s,$base/([^\s]+)\.mo,$out/$base/\$1.$runner.wasm," < $base.drun > $out/$base/$base.$runner.drun
+
+        # run wrapper
+        wrap_var_name="WRAP_${runner//-/_}"
+        run $runner ${!wrap_var_name} $out/$base/$base.$runner.drun $EXTRA_DRUN_ARGS
+      fi
       # clear EXTRA_DRUN_ARGS.
       EXTRA_DRUN_ARGS=""
     done

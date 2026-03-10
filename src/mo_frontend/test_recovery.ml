@@ -717,7 +717,7 @@ let%expect_test "test type recovery: DotE receiver should be typed (LetD case)" 
      with errors:
     (unknown location): type error [M0072], field va does not exist in type:
       [Nat]
-    Did you mean field vals or values?
+    help: did you mean field vals or values?
   |}]
 
 let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" =
@@ -734,7 +734,7 @@ let%expect_test "test type recovery: DotE receiver should be typed (ExpD case)" 
      with errors:
     (unknown location): type error [M0072], field va does not exist in type:
       [Nat]
-    Did you mean field vals or values?
+    help: did you mean field vals or values?
   |}]
 
 let%expect_test "context dot callee function type should not be ???" =
@@ -792,5 +792,6 @@ ar.foo();";
     )
 
      with errors:
-    (unknown location): warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
+    (unknown location): warning [M0194], unused identifier: `self`
+    help: if this is intentional, prefix it with an underscore: `_self`
   |}]

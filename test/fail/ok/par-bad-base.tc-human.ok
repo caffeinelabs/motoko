@@ -1,0 +1,46 @@
+error[M0214]: field cycles in parenthetical is declared with type
+  Int
+instead of expected type
+  Nat
+    ┌─ par-bad-base.mo:6:11
+  6 │      await ({ cycles = -3 } with) async ();
+    │            ^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0214]: field cycles in parenthetical is declared with type
+  Text
+instead of expected type
+  Nat
+    ┌─ par-bad-base.mo:7:11
+  7 │      await ({ cycles = "" } with) async ();
+    │            ^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat
+    ┌─ par-bad-base.mo:8:26
+  8 │      await (with cycles = "") async ();
+    │                           ^^ 
+error[M0096]: expression of type
+  () -> ()
+cannot produce expected type
+  Nat
+    ┌─ par-bad-base.mo:10:17
+ 10 │      await (with cycles) async ();
+    │                  ^^^^^^ 
+error[M0050]: literal of type
+  Text
+does not have expected type
+  Nat32
+    ┌─ par-bad-base.mo:11:27
+ 11 │      await (with timeout = "") async ();
+    │                            ^^ 
+error[M0214]: field cycles in parenthetical is declared with type
+  () -> ()
+instead of expected type
+  Nat
+    ┌─ par-bad-base.mo:17:11
+ 17 │      await (base with) async ();
+    │            ^^^^^^^^^^^ 
+warning[M0212]: unrecognised attribute moot in parenthetical note
+    ┌─ par-bad-base.mo:3:1
+  3 │  (with migration; moot = "MOOT")
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,0 +1,26 @@
+warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
+    ┌─ unit-let-bindings.mo:8:3
+  8 │    let va2 = VarArray.sortInPlace(va); // warning
+    │    ^^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>[var T] -> ()
+to argument of type
+  ()
+because there is no way to satisfy subtyping
+  ()  <:  [var T]
+    ┌─ unit-let-bindings.mo:9:10
+  9 │    ignore VarArray.sortInPlace(va2);
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0239]: Avoid binding a unit `()` result; remove `var` and keep the expression
+    ┌─ unit-let-bindings.mo:13:3
+ 13 │    var _v = VarArray.sortInPlace(va); // warning
+    │    ^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T>[var T] -> ()
+to argument of type
+  ()
+because there is no way to satisfy subtyping
+  ()  <:  [var T]
+    ┌─ unit-let-bindings.mo:19:3
+ 19 │    VarArray.sortInPlace(VarArray.sortInPlace(va));
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

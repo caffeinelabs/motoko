@@ -1,0 +1,5 @@
+error[M0001]: unexpected token ';', expected one of token or <phrase> sequence:
+  <exp_bin(ob)>
+    ┌─ syntax1.mo:1:8
+  1 │  1 + 2 *;
+    │         ^ 

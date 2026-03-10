@@ -1,0 +1,3 @@
+unboxed-let.mo:73.6-73.7: warning [M0244], variable y is never reassigned, consider using `let`
+unboxed-let.mo:80.6-80.7: warning [M0244], variable y is never reassigned, consider using `let`
+unboxed-let.mo:87.6-87.7: warning [M0244], variable y is never reassigned, consider using `let`
