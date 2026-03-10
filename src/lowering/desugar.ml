@@ -47,11 +47,13 @@ let typed_phrase' f x =
 let is_empty_tup e = e.it = S.TupE []
 
 (* RTS migration tracking primitives *)
-let rts_was_migration_performed migration_hash =
-  primE (I.OtherPrim "was_migration_performed") [textE migration_hash]
+let rts_was_migration_performed migration_id =
+  let typ = T.Func (T.Local, T.Returns, [], [T.text], [T.bool]) in
+  callE (varE (var "@checkLastMigration" typ)) [] (textE migration_id)
 
-let rts_register_migration migration_hash =
-  primE (I.OtherPrim "register_migration") [textE migration_hash]
+let rts_register_migration migration_id =
+  let typ = T.Func (T.Local, T.Returns, [], [T.text], []) in
+  callE (varE (var "@setLastMigration" typ)) [] (textE migration_id)
 
 
 let unit_typ at = { it = S.TupT []; at; note = T.unit }
@@ -720,8 +722,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
         let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
         (dom_i, rng_i, dom_fields_i, rng_fields_i)
       in
-      let migration_hash file =
-        Digest.to_hex (Digest.string (Filename.basename file))
+      let get_migration_id file = Filename.basename file
       in
 
       (* Step 1: compute enhanced_mem_ty — union of all migration fields + actor
@@ -814,7 +815,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
           let type_prev = type_at (k - 1) in
           let (file_k, mod_typ_k, run_typ_k) = List.nth chain (k - 1) in
           let (dom_k, rng_k, dom_fields_k, rng_fields_k) = decompose_run run_typ_k in
-          let hash_k = migration_hash file_k in
+          let migration_id_k = get_migration_id file_k in
           let state_prev = fresh_var "state" type_prev in
           let v_dom = fresh_var "v_dom" dom_k in
           let v_rng = fresh_var "v_rng" rng_k in
@@ -854,10 +855,10 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
               letD state_prev (build_nested (k - 1));
               letD v_dom extract_dom;
               letD v_rng (callE run_expr [] (varE v_dom));
-              expD (rts_register_migration hash_k)]
+              expD (rts_register_migration migration_id_k)]
             merge_result
           in
-          ifE (rts_was_migration_performed hash_k)
+          ifE (rts_was_migration_performed migration_id_k)
             (primE (I.ICStableRead type_k) [])
             else_branch
       in

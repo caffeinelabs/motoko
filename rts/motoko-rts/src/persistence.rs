@@ -394,9 +394,3 @@ pub(crate) unsafe fn set_migration_functions_ptr<M: Memory>(
         migration_functions,
     );
 }
-
-/// Check if the migration functions array is NULL_POINTER.
-pub(crate) unsafe fn is_migration_functions_null() -> bool {
-    let metadata = PersistentMetadata::get();
-    (*metadata).migration_functions == NULL_POINTER
-}
