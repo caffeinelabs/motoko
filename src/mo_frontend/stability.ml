@@ -70,45 +70,33 @@ let error_required s at mig_lab_opt tf =
  *)
 
 let match_stab_fields s at mig_lab_opt tfs1 tfs2 =
-  let rec go tfs1 tfs2 = match tfs1, tfs2 with
-    | [], _ ->
-       List.iter (fun (required, tf) ->
-         if required then error_required s at mig_lab_opt tf)  tfs2;
-       Some () (* new fields ok *)
-    | tf1 :: tfs1', [] ->
-       (* dropped field rejected, recurse on tfs1' *)
-       error_discard s at mig_lab_opt tf1;
-       go tfs1' []
-      | tf1::tfs1', (is_required, tf2)::tfs2' ->
-         (match Type.compare_field tf1 tf2 with
-          | 0 ->
-             let context = [StableVariable tf2.lab] in
-             begin
-               match Type.sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
-               | Incompatible explanation -> error_sub s at mig_lab_opt tf1 tf2 explanation
-               | Compatible ->
-                  match Type.stable_sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
-                  | Incompatible explanation -> error_stable_sub s at mig_lab_opt tf1 tf2 explanation
-                  | Compatible -> ()
-             end;
-             go tfs1' tfs2'
-          | -1 ->
-             (* dropped field rejected, recurse on tfs1' *)
-             error_discard s at mig_lab_opt tf1;
-             go tfs1' tfs2
-          | _ ->
-             (if is_required then error_required s at mig_lab_opt tf2);
-             go tfs1 tfs2' (* new field ok, recurse on tfs2' *)
-         )
-  in
-  go tfs1 tfs2
+  (* Assume that tfs1 and tfs2 are sorted. *)
+  let cmp tf1 (_, tf2) = compare_field tf1 tf2 in
+  Lib.List.align cmp tfs1 tfs2
+    |> Seq.iter (function
+      (* no dropped fields *)
+      | Lib.This tf1 ->
+        error_discard s at mig_lab_opt tf1
+      (* new field ok *)
+      | Lib.That (required, tf) ->
+        if required then error_required s at mig_lab_opt tf
+      | Lib.Both (tf1, (_, tf2)) ->
+        let context = [StableVariable tf2.lab] in
+        begin
+          match Type.sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
+          | Incompatible explanation -> error_sub s at mig_lab_opt tf1 tf2 explanation
+          | Compatible ->
+             match Type.stable_sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
+             | Incompatible explanation -> error_stable_sub s at mig_lab_opt tf1 tf2 explanation
+             | Compatible -> ()
+        end)
 
 let match_stab_sig sig1 sig2 : unit Diag.result =
   let tfs1, mig_lab_opt = post sig1 in
   let tfs2 = pre mig_lab_opt sig2 in
   (* Assume that tfs1 and tfs2 are sorted. *)
   let res = Diag.with_message_store (fun s ->
-    match_stab_fields s Source.no_region None tfs1 tfs2)
+    Some (match_stab_fields s Source.no_region None tfs1 tfs2))
   in
   (* cross check with simpler definition *)
   match res with

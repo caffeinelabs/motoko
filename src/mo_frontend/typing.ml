@@ -3982,12 +3982,11 @@ and check_enhanced_migration_chain env stab_tfs at =
                    T.lookup_val_field_opt tf.T.lab rng_mf = None) post)
           |> List.sort T.compare_field
         in
-        let _ = Stability.match_stab_fields env.msgs
-                  at
-                  (Some mf.T.lab)
-                  out
-                  (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post)
-        in
+        Stability.match_stab_fields env.msgs
+          at
+          (Some mf.T.lab)
+          out
+          (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post);
         (* calculate the previous post and iterate *)
         let pre = T.pre_fields mf.T.typ post in
         let prev_post = List.map (fun (_required, tf) -> tf) pre in
