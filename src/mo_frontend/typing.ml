@@ -4005,90 +4005,95 @@ and check_migration env (stab_tfs : T.field list) exp_opt at =
      check_enhanced_migration_chain env stab_tfs at
   | Some exp ->
    let focus = match exp.it with
-    | ObjE(_, flds) ->
-       (match List.find_opt (fun ({it = {id; _}; _} : exp_field) -> id.it = T.migration_lab) flds with
-         | Some fld -> fld.at
-         | None -> exp.at)
-    | _ -> exp.at
-   in
-   Static.exp env.msgs exp; (* preclude side effects *)
-   let typ =
-    try
-      let s, fs = T.as_obj_sub [T.migration_lab] exp.note.note_typ in
-      if s = T.Actor then raise (Invalid_argument "");
-      T.lookup_val_field T.migration_lab fs;
-    with Invalid_argument _ ->
-      error env focus "M0208"
-        "expected expression with field `migration`, but expression has type%a"
-          display_typ_expand exp.note.note_typ
-   in
-   if !T.migration_chain <> [] then
-     error env at "M0252"
-       "cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other.";
-   let dom_tfs, rng_tfs = check_migration_function env typ focus in
-   List.iter
-     (fun tf ->
-      match T.lookup_val_field_opt tf.T.lab rng_tfs with
-      | None -> ()
-      | Some typ ->
+     | ObjE(_, flds) ->
+        (match List.find_opt (fun ({it = {id; _}; _} : exp_field) -> id.it = T.migration_lab) flds with
+          | Some fld -> fld.at
+          | None -> exp.at)
+     | _ -> exp.at
+    in
+    Static.exp env.msgs exp; (* preclude side effects *)
+    let typ =
+     try
+       let s, fs = T.as_obj_sub [T.migration_lab] exp.note.note_typ in
+       if s = T.Actor then raise (Invalid_argument "");
+       T.lookup_val_field T.migration_lab fs;
+     with Invalid_argument _ ->
+       error env focus "M0208"
+         "expected expression with field `migration`, but expression has type%a"
+           display_typ_expand exp.note.note_typ
+    in
+    if !T.migration_chain <> [] then
+      error env at "M0252"
+        "cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other.";
+    let dom_tfs, rng_tfs = check_migration_function env typ focus in
+    List.iter
+      (fun tf ->
+       match T.lookup_val_field_opt tf.T.lab rng_tfs with
+       | None -> ()
+       | Some typ ->
          let context = [T.StableVariable tf.T.lab] in
          let imm_typ = T.as_immut typ in
          let imm_expected = T.as_immut tf.T.typ in
          match T.stable_sub_explained ~src_fields:env.srcs context imm_typ imm_expected with
          | T.Compatible -> ()
          | T.Incompatible explanation ->
-            local_error env focus "M0204"
-              "migration expression produces field `%s` of type%a\n, not the expected type%a%a"
-              tf.T.lab
-              display_typ_expand typ
-              display_typ_expand tf.T.typ
-              (display_explanation imm_typ imm_expected) explanation
-     ) stab_tfs;
-   (* Construct the pre signature *)
-   let pre_tfs = List.map snd (T.pre_fields typ stab_tfs) in
-   (* Check for duplicates and hash collisions in pre-signature *)
-   let pre_ids = List.map (fun tf -> T.{it = tf.lab; at = tf.src.region; note = ()}) pre_tfs in
-   check_ids env "pre actor type" "stable variable" pre_ids;
-   (* Reject any fields in range not in post signature (unintended data loss) *)
-   let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
-   List.iter (fun T.{lab;typ;src} ->
-     match T.lookup_val_field_opt lab stab_tfs with
-     | Some _ -> ()
-     | None ->
-       local_error env focus "M0205"
-         "migration expression produces unexpected field `%s` of type%a\n%s\n%s"
-          lab
-          display_typ_expand typ
-          (Suggest.suggest_id "field" lab stab_ids)
-         "The actor should declare a corresponding `stable` field.")
-     rng_tfs;
-   (* Warn about any field in domain, not in range, and declared stable in actor *)
-   (* This may indicate unintentional data loss. *)
-   List.iter (fun T.{lab;typ;src} ->
-     match T.lookup_val_field_opt lab rng_tfs with
-     | Some _ -> ()
-     | None ->
-       if List.mem lab stab_ids then
-         (* re-initialized *)
-         warn env focus "M0206"
-           "migration expression consumes field `%s` of type%a\nbut does not produce it, yet the field is declared in the actor.\n%s\n%s"
+           local_error env focus "M0204"
+             "migration expression produces field `%s` of type%a\n, not the expected type%a%a"
+             tf.T.lab
+             display_typ_expand typ
+             display_typ_expand tf.T.typ
+             (display_explanation imm_typ imm_expected) explanation
+      ) stab_tfs;
+    (* Construct the pre signature *)
+    let pre_tfs = List.map snd (T.pre_fields typ stab_tfs) in
+    (* Check for duplicates and hash collisions in pre-signature *)
+    let pre_ids = List.map (fun tf -> T.{it = tf.lab; at = tf.src.region; note = ()}) pre_tfs in
+    check_ids env "pre actor type" "stable variable" pre_ids;
+    (* Reject any fields in range not in post signature (unintended data loss) *)
+    let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
+    List.iter (fun T.{lab;typ;src} ->
+      match T.lookup_val_field_opt lab stab_tfs with
+      | Some _ -> ()
+      | None ->
+        local_error env focus "M0205"
+          "migration expression produces unexpected field `%s` of type%a\n%s\n%s"
            lab
            display_typ_expand typ
-           "The declaration in the actor will be reinitialized, discarding its consumed value."
-           "If reinitialization is unintended, and you want to preserve the consumed value, either remove this field from the parameter of the migration function or add it to the result of the migration function."
-       else
-         (* dropped *)
-         warn env focus "M0207"
-           "migration expression consumes field `%s` of type%a\nbut does not produce it. The field is not declared in the actor.\n%s\n%s"
-           lab
-           display_typ_expand typ
-           "This field will be removed from the actor, discarding its consumed value."
-           "If this removal is unintended, declare the field in the actor and either remove the field from the parameter of the migration function or add it to the result of the migration function."
-   ) dom_tfs;
-   (* Warn the user about unrecognised attributes. *)
-   let [@warning "-8"] T.Object, attrs_flds = T.as_obj exp.note.note_typ in
-   let unrecognised = List.(filter (fun {T.lab; _} -> lab <> T.migration_lab) attrs_flds |> map (fun {T.lab; _} -> lab)) in
-   if unrecognised <> [] then warn env exp.at "M0212" "unrecognised attribute %s in parenthetical note" (List.hd unrecognised);
+           (Suggest.suggest_id "field" lab stab_ids)
+          "The actor should declare a corresponding `stable` field.")
+      rng_tfs;
+    (* Warn about any field in domain, not in range, and declared stable in actor *)
+    (* This may indicate unintentional data loss. *)
+    List.iter (fun T.{lab;typ;src} ->
+      match T.lookup_val_field_opt lab rng_tfs with
+      | Some _ -> ()
+      | None ->
+        if List.mem lab stab_ids then
+          (* re-initialized *)
+          warn env focus "M0206"
+            "migration expression consumes field `%s` of type%a\nbut does not produce it, yet the field is declared in the actor.\n%s\n%s"
+            lab
+            display_typ_expand typ
+            "The declaration in the actor will be reinitialized, discarding its consumed value."
+            "If reinitialization is unintended, and you want to preserve the consumed value, either remove this field from the parameter of the migration function or add it to the result of the migration function."
+        else
+          (* dropped *)
+          warn env focus "M0207"
+            "migration expression consumes field `%s` of type%a\nbut does not produce it. The field is not declared in the actor.\n%s\n%s"
+            lab
+            display_typ_expand typ
+            "This field will be removed from the actor, discarding its consumed value."
+            "If this removal is unintended, declare the field in the actor and either remove the field from the parameter of the migration function or add it to the result of the migration function."
+    ) dom_tfs;
+    (* Warn the user about unrecognised attributes. *)
+    let [@warning "-8"] T.Object, attrs_flds = T.as_obj exp.note.note_typ in
+    let unrecognised =
+      List.(filter (fun {T.lab; _} -> lab <> T.migration_lab) attrs_flds |>
+              map (fun {T.lab; _} -> lab))
+    in
+    if unrecognised <> [] then
+      warn env exp.at "M0212" "unrecognised attribute %s in parenthetical note"
+        (List.hd unrecognised);
 
 
 and check_stable_defaults env sort dec_fields =
