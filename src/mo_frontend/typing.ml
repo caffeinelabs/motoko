@@ -3963,7 +3963,13 @@ and check_enhanced_migration_chain env stab_tfs at =
    let mfs = List.rev chain in
    let rec check_mfs at post mfs =
      match mfs with
-     | [] -> ()
+     | [] ->
+       (* issue warnings if we infer the initial actor in the chain requires any fields *)
+       List.iter (fun tf ->
+         warn env at "M0254"
+           "initial actor requires field `%s` of type%a"
+           tf.T.lab display_typ tf.T.typ)
+         post
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { Source.no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
