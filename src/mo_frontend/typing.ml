@@ -3985,16 +3985,18 @@ and check_enhanced_migration_chain env stab_tfs at =
         let out =
           rng_mf @
             (List.filter (fun tf ->
-                 T.lookup_val_field_opt tf.T.lab dom_mf <> None &&
+                 T.lookup_val_field_opt tf.T.lab dom_mf = None &&
                    T.lookup_val_field_opt tf.T.lab rng_mf = None) post)
           |> List.sort T.compare_field
         in
         let _ = Stability.match_stab_fields env.msgs
                   at
                   out
+                  (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post)
+(*
                   (List.map (fun tf ->
                        T.lookup_val_field_opt tf.T.lab rng_mf <> None, tf)
-                     post) in
+                     post) *) in
         (* calculate the previous post and iterate *)
         let pre = T.pre_fields mf.T.typ post in
         let prev_post = List.map (fun (_required, tf) -> tf) pre in
@@ -4875,20 +4877,19 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
               | mf::mfs1 ->
                 (* is this a migration function *)
                 T.is_migration mf.T.typ &&
-                (* does its output match post, treating rng fields as unrequired *)
+                (* does its output match post, treating non-range fields as required *)
                 let (dom_mf, rng_mf) = T.as_migration mf.T.typ in
                 let out =
                   rng_mf @
                     (List.filter (fun tf ->
-                       T.lookup_val_field_opt tf.T.lab dom_mf <> None &&
+                       T.lookup_val_field_opt tf.T.lab dom_mf = None &&
                        T.lookup_val_field_opt tf.T.lab rng_mf = None) post)
                   |> List.sort T.compare_field
                 in
                 T.match_stab_fields
                   out
-                  (List.map (fun tf ->
-                    T.lookup_val_field_opt tf.T.lab rng_mf <> None, tf)
-                    post) &&
+                  (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post)
+                &&
                 (* calculate the previous post and iterate *)
                 let pre = T.pre_fields mf.T.typ post in
                 let prev_post = List.map (fun (_required, tf) -> tf) pre in
