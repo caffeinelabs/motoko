@@ -1,4 +1,4 @@
-error[M0170]: the new type of stable variable `a` is not compatible with the previous version.
+error[M0170]: the new type of stable variable `a` is not compatible with version `m3`.
  The previous type
   Float
  is not a subtype of

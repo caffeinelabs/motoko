@@ -1,4 +1,4 @@
-enhanced-migration/enh-mig-test2/m4.mo:0.1: Compatibility error [M0170], the new type of stable variable `a` is not compatible with the previous version.
+enhanced-migration/enh-mig-test2/m4.mo:0.1: Compatibility error [M0170], the new type of stable variable `a` is not compatible with version `m3`.
  The previous type
   Float
  is not a subtype of
