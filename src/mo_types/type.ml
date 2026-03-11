@@ -2655,7 +2655,3 @@ let string_of_stab_sig stab_sig : string =
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
-(* The migration chain passed from pipeline to typing. *)
-(* Migration chain from --enhanced-migration directory: (filename, module_type, run_type) triples in order *)
-let migration_chain : (string * typ * typ) list ref = ref []
-

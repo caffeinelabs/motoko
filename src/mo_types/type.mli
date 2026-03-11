@@ -417,5 +417,3 @@ module ElideStampsAndHashes : PrettyConfig
 module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
-
-val migration_chain : (string * typ * typ) list ref
