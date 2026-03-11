@@ -961,15 +961,15 @@ dec_var :
   | VAR x=id t=annot_opt
     (* No initializer - use unit expression () as placeholder *)
     (* Type checker will verify this is only allowed for stable variables with --enhanced-migration *)
-    { let unit_exp = TupE([]) @? at $sloc in
-      VarD(x, annot_exp unit_exp t) @? at $sloc }
+    { let init_exp = PrimE "_" @? at $sloc in
+      VarD(x, annot_exp init_exp t) @? at $sloc }
 
 dec_nonvar :
   | LET p=pat EQ e=exp(ob)
     { let p', e' = normalize_let p e in
       LetD (p', e', None) @? at $sloc }
   | LET p=pat
-    { let p', e' = normalize_let p (TupE([]) @? at $sloc) in
+    { let p', e' = normalize_let p (PrimE "_" @? at $sloc) in
       LetD (p', e', None) @? at $sloc }
   | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
     { TypD(x, tps, t) @? at $sloc }

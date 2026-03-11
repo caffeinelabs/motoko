@@ -2287,10 +2287,10 @@ and infer_exp'' env exp : T.typ =
   | AnnotE (exp1, typ) ->
     let t = check_typ env typ in
     if not env.pre then
-      (* If exp1 is TupE [] (placeholder for no initializer) and --enhanced-migration is enabled, *)
+      (* If exp1 is PrimE "_" (placeholder for no initializer) and --enhanced-migration is enabled, *)
       (* allow it without type checking (it's used for stable variables without initializers) *)
       (match exp1.it, !Flags.enhanced_migration with
-       | TupE [], Some _ ->
+       | PrimE "_", Some _ ->
          exp1.note <- {exp1.note with note_typ = t}
        | _ ->
          check_exp_strong env t exp1);
@@ -4140,7 +4140,7 @@ and check_stable_defaults env sort dec_fields =
       | Some {it = Stable; _}, LetD (_, exp, _)
       | Some {it = Stable; _}, VarD (_, exp) ->
         (match exp.it with
-         | AnnotE ({it = TupE []; _}, _) -> () (* placeholder for no initializer -- OK *)
+         | AnnotE ({it = PrimE "_"; _}, _) -> () (* placeholder for no initializer -- OK *)
          | _ ->
            local_error env exp.at "M0250"
              "stable variables must not have initializers with --enhanced-migration; use migration functions instead.")
@@ -4305,7 +4305,7 @@ and infer_dec env dec : T.typ =
     (* Check if this is a placeholder for no initializer *)
     if not env.pre then begin
       match exp.it with
-      | AnnotE ({it = TupE []; _}, _) when Option.is_some env.enhanced_migration ->
+      | AnnotE ({it = PrimE "_"; _}, _) when Option.is_some env.enhanced_migration ->
         if not env.in_actor then
           error env exp.at "M0250"
             "variables without initializers are only allowed in actors with --enhanced-migration flag"
@@ -4321,7 +4321,7 @@ and infer_dec env dec : T.typ =
       let t = infer_exp env exp in
       (* Check if this is a placeholder for no initializer *)
       (match exp.it with
-       | AnnotE ({it = TupE []; _}, _) when Option.is_some env.enhanced_migration ->
+       | AnnotE ({it = PrimE "_"; _}, _) when Option.is_some env.enhanced_migration ->
          if not env.in_actor then
            error env exp.at "M0250"
              "variables without initializers are only allowed in actors with --enhanced-migration flag"

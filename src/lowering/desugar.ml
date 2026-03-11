@@ -322,6 +322,8 @@ and exp' at note = function
   | S.AnnotE (e, _) -> assert false
   | S.ImportE (f, ir) -> raise (Invalid_argument (Printf.sprintf "Import expression found in unit body: %s" f))
   | S.ImplicitLibE lib -> (varE (var (id_of_full_path lib) note.Note.typ)).it
+  | S.PrimE "_" ->
+    (primE (Ir.OtherPrim "trap") [textE "missing initializer _"]).it
   | S.PrimE s -> raise (Invalid_argument ("Unapplied prim " ^ s))
   | S.IgnoreE e ->
     I.BlockE ([
