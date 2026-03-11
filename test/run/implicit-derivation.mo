@@ -49,17 +49,17 @@ module Array {
 };
 
 // --- Test 1: Basic derivation with [Nat] ---
-func sortedInsert(arr : [Nat], key : [Nat], compare : (implicit : ([Nat], [Nat]) -> Order)) : Order {
-  compare(arr, key);
+func compareNatArrays(a : [Nat], b : [Nat], compare : (implicit : ([Nat], [Nat]) -> Order)) : Order {
+  compare(a, b);
 };
 
 natCompareCalls := 0;
 arrayCompareCalls := 0;
-assert sortedInsert([1, 2, 3], [1, 2, 3]) == #equal;
+assert compareNatArrays([1, 2, 3], [1, 2, 3]) == #equal;
 assert arrayCompareCalls == 1;
 assert natCompareCalls == 3;
 
-assert sortedInsert([1, 2], [1, 3]) == #less;
+assert compareNatArrays([1, 2], [1, 3]) == #less;
 
 // --- Test 2: Derivation with [Int] ---
 func compareIntArrays(a : [Int], b : [Int], compare : (implicit : ([Int], [Int]) -> Order)) : Order {
@@ -76,7 +76,7 @@ assert intCompareCalls == 3;
 func myArrayCompare(a : [Nat], b : [Nat]) : Order {
   Array.compare<Nat>(a, b, Nat.compare);
 };
-assert sortedInsert([1, 2], [1, 3], myArrayCompare) == #less;
+assert compareNatArrays([1, 2], [1, 3], myArrayCompare) == #less;
 
 // --- Test 4: Derivation with [Text] ---
 func compareTextArrays(a : [Text], b : [Text], compare : (implicit : ([Text], [Text]) -> Order)) : Order {
@@ -93,7 +93,7 @@ do {
     #equal;
   };
 
-  assert sortedInsert([1, 2], [1, 3]) == #equal;
+  assert compareNatArrays([1, 2], [1, 3]) == #equal;
   assert localCalled;
 };
 
