@@ -165,7 +165,7 @@ do {
   assert localArrayCalled;
 };
 
-// --- Test 10: Zero non-implicit args ---
+// --- Test 10: Direct resolution with zero-non-implicit candidate in scope ---
 module Const {
   public func compare<T>(compare : (implicit : (T, T) -> Order)) : (T, T) -> Order {
     compare;
@@ -178,3 +178,31 @@ func needsConstCompare(compare : (implicit : (Nat, Nat) -> Order)) : (Nat, Nat) 
 
 let cmp = needsConstCompare();
 assert cmp(1, 2) == #less;
+
+// --- Test 11: Multiple type parameters with multiple inner implicits ---
+do {
+  module PairCmp {
+    public func compare<A, B>(
+      a : (A, B), b : (A, B),
+      cmpA : (implicit : (compare : (A, A) -> Order)),
+      cmpB : (implicit : (compare : (B, B) -> Order)),
+    ) : Order {
+      let c1 = cmpA(a.0, b.0);
+      switch (c1) {
+        case (#equal) { cmpB(a.1, b.1) };
+        case _ c1;
+      };
+    };
+  };
+
+  func compareMixedPairs(
+    a : (Nat, Int), b : (Nat, Int),
+    compare : (implicit : ((Nat, Int), (Nat, Int)) -> Order)
+  ) : Order {
+    compare(a, b);
+  };
+
+  assert compareMixedPairs((1, -2), (1, -3)) == #greater;
+  assert compareMixedPairs((1, -2), (1, -2)) == #equal;
+  assert compareMixedPairs((1, -2), (2, -2)) == #less;
+};

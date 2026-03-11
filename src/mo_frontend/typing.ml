@@ -1527,7 +1527,7 @@ and derivation_note = {
   inner_error : hole_error;
 }
 
-let synthesize_derived_wrapper at candidate_path inst cand_args resolved_paths =
+let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
   let mk e = { Source.it = e; at; note = empty_typ_note } in
   let param_counter = ref 0 in
   let fresh_name () =
@@ -1718,7 +1718,7 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
                   let resolved_paths = List.map (fun (_, _, r) ->
                     match r with Ok c -> (c : hole_candidate).path | Error _ -> assert false
                   ) inner_results in
-                  let wrapper = synthesize_derived_wrapper at candidate.path inst
+                  let wrapper = synthesize_derived_wrapper at candidate.path
                     cand_args resolved_paths in
                   Some { candidate with path = wrapper; typ }
                 else begin
@@ -1748,15 +1748,22 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
     (match disambiguate_holes derivable_terms with
     | Some term -> Ok term
     | None ->
+      match derivable_terms with
+      | _ :: _ :: _ ->
+        let info = {
+          ambiguous_candidates = derivable_terms;
+          explicit_candidates = explicit_terms;
+          ambiguity_at = at;
+          ambiguity_sort = hole_sort;
+          ambiguity_typ = typ;
+        } in
+        Error (HoleAmbiguous info)
+      | _ ->
       let (lib_terms, _) = candidates true env.libs is_lib_module in
-      let lib_derivable =
-        if Option.is_some !Flags.implicit_package then
-          try_derive_from_candidates
-            (all_named_candidates true env.libs is_lib_module)
-        else []
-      in
-      let all_lib = lib_terms @ lib_derivable in
-      (match if Option.is_some !Flags.implicit_package then disambiguate_holes all_lib else None with
+      let lib_resolved = Option.bind !Flags.implicit_package (fun _ ->
+        let lib_derivable = try_derive_from_candidates (all_named_candidates true env.libs is_lib_module) in
+        disambiguate_holes (lib_terms @ lib_derivable)) in
+      (match lib_resolved with
         | Some term -> Ok term
         | None -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, !derivation_failures))))
   | terms ->
