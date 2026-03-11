@@ -1,1 +1,0 @@
-enhanced-migration-imported-class/Class.mo:3.7-3.19: type error [M0250], stable variables must not have initializers with --enhanced-migration; use migration functions instead.

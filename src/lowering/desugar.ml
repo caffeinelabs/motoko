@@ -455,7 +455,7 @@ and obj_block at s exp_opt self_id dfs obj_typ =
   | T.Object | T.Module ->
     build_obj at s.it self_id dfs obj_typ
   | T.Actor ->
-    build_actor at [] exp_opt self_id dfs obj_typ
+    build_actor at s.note.note [] exp_opt self_id dfs obj_typ
   | T.Memory | T.Mixin -> assert false
 
 and build_field {T.lab; T.typ;_} =
@@ -673,7 +673,7 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
-and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
+and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let candid = build_candid ts obj_typ in
   let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
@@ -694,7 +694,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let get_state = fresh_var "getState" (T.Func(T.Local, T.Returns, [], [], [mem_ty])) in
   let ds = List.map (fun mk_d -> mk_d get_state) mk_ds in
   let sig_, stable_type, migration =
-    if !T.migration_chain <> [] then begin
+    if chain <> [] then begin
       (* --enhanced-migration: generates upgrade-time IR for the migration chain.
 
          Generated IR is a nested if-expression. Each level k either:
@@ -712,7 +712,6 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          and a final projection maps type_n to the actor's mem_ty.
 
          See doc/enhanced-multi-migration.md for the full design rationale. *)
-      let chain = !T.migration_chain in
 
       (* Compute mem_typs = [mem_typ_0, mem_typ_1, ..., mem_typ_n] from
          the stab_fields presignatures w.r.t chain. *)
@@ -1491,7 +1490,7 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
     I.LibU ([], {
       it = build_obj u.at T.Module self_id fields u.note.S.note_typ;
       at = u.at; note = typ_note u.note})
-  | S.ActorClassU (_persistence, exp_opt, sp, typ_id, _tbs, p, _, self_id, fields) ->
+  | S.ActorClassU (persistence, exp_opt, sp, typ_id, _tbs, p, _, self_id, fields) ->
     let fun_typ = u.note.S.note_typ in
     let op = match sp.it with
       | T.Local -> None
@@ -1507,7 +1506,8 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
         T.promote rng
       | _ -> assert false
     in
-    let actor_expression = build_actor u.at ts eo (Some self_id) fields obj_typ in
+    let chain = persistence.note in
+    let actor_expression = build_actor u.at chain ts eo (Some self_id) fields obj_typ in
     let e = wrap {
        it = actor_expression;
        at = no_region;
@@ -1521,7 +1521,7 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
   | S.ActorU (persistence, exp_opt, self_id, fields) ->
     let eo = Option.map exp exp_opt in
     let ty = u.note.S.note_typ in
-    let actor_expression = build_actor u.at [] eo self_id fields ty in
+    let actor_expression = build_actor u.at persistence.note [] eo self_id fields ty in
     begin match actor_expression with
     | I.ActorE (ds, fs, u, t) ->
        I.ActorU (None, ds, fs, u, t)

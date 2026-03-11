@@ -2,8 +2,9 @@
 //MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration enhanced-migration-imported-class/migrations
 import Class "enhanced-migration-imported-class/Class";
 actor {
-    transient let c = Class.Class();
-    let f : {#f};
+    let f : {#f}; // intialized by ../Migrations/version1.mo
+    ignore Class;
+    ignore f;
 };
 
 //SKIP run-ir
