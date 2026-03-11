@@ -174,6 +174,34 @@ If there is no unique best candidate the compiler rejects the call as ambiguous.
 If a callee takes several implicits parameter, either all implicit arguments must be omitted, or all explicit and implicit arguments must be provided at the call site,
 in their declared order.
 
+### Implicit derivation
+
+When no direct match exists, the compiler can **derive** an implicit argument from a function that itself has implicit parameters. This eliminates the need for boilerplate wrapper functions. The candidate function can be polymorphic (the compiler infers the type instantiation) or monomorphic.
+
+For example, suppose `Array.compare` is declared as:
+
+```motoko no-repl
+public func compare<T>(a : [T], b : [T], compare : (implicit : (T, T) -> Order)) : Order
+```
+
+and a function requires an implicit `compare : ([Nat], [Nat]) -> Order`. Without derivation, you would need to write a wrapper:
+
+```motoko no-repl
+module MyArray {
+  public func compare(a : [Nat], b : [Nat]) : Order {
+    Array.compare(a, b) // resolves inner `compare` to Nat.compare
+  };
+};
+```
+
+With derivation, the compiler handles this automatically. It recognizes that `Array.compare<Nat>`, after removing its implicit `compare` parameter and instantiating `T := Nat`, has the right type. It then recursively resolves the inner implicit (`Nat.compare`) and synthesizes the wrapper for you.
+
+This works transitively: a `compare` for `[[Nat]]` is derived via `Array.compare<[Nat]>`, which needs `[Nat]` compare, which is derived via `Array.compare<Nat>`, which needs `Nat.compare` — all resolved automatically.
+
+The resolution depth is bounded to guarantee termination. If you encounter a depth limit, you can increase it with `--implicit-derivation-depth` or provide the argument explicitly.
+
+When derivation is attempted but fails (for example, because an inner implicit can't be resolved), the compiler includes this context in the error message, telling you which candidate was tried and which inner implicit was missing.
+
 ### Supported types
 
 The core library provides comparison functions for common types:

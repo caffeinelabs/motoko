@@ -1,0 +1,6 @@
+error[M0230]: Cannot determine implicit argument `compare` of type
+  ([Nat], [Nat]) -> Order
+    ┌─ implicit-derivation-ambiguous.mo:30:8
+ 30 │  ignore needsCompare([1], [2]); // ambiguous head: Array1.compare and Array2.compare
+    │         ^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.

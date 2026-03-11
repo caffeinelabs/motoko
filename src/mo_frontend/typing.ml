@@ -1483,18 +1483,88 @@ let module_ref_of_dot_module_exp (path : exp) =
   | DotE ({ it = ImplicitLibE module_path; _ }, _, _) -> Some module_path
   | _ -> None
 
+(* Like [as_implicit] but also returns the inner type that needs to be resolved *)
+let as_implicit_with_type = function
+  | T.Named (_inf_arg_name, (T.Named ("implicit", T.Named (arg_name, t)))) ->
+    Some (arg_name, t)
+  | T.Named (inf_arg_name, (T.Named ("implicit", t))) ->
+    Some (inf_arg_name, t)
+  | _ -> None
+
+(* Partition a function's arg types into (non_implicit_args, (name, inner_type) list) *)
+let erase_implicits args =
+  List.partition_map (fun arg ->
+    match as_implicit_with_type arg with
+    | Some (name, inner_typ) -> Either.Right (name, inner_typ)
+    | None -> Either.Left arg
+  ) args
+
+type derivation_failure_reason = InnerMissing | InnerAmbiguous
+
+type derivation_note = {
+  candidate_desc : string;
+  inner_name : string;
+  inner_typ : T.typ;
+  reason : derivation_failure_reason;
+}
+
+type hole_error =
+  | HoleSuggestions of hole_candidate list * hole_candidate list * (env -> unit) * derivation_note list
+  | HoleAmbiguous of (env -> unit)
+
+let synthesize_derived_wrapper at candidate_path inst cand_args resolved_paths =
+  let mk e = { Source.it = e; at; note = empty_typ_note } in
+  let param_counter = ref 0 in
+  let fresh_name () =
+    let n = !param_counter in
+    incr param_counter;
+    Printf.sprintf "$impl_arg%d" n
+  in
+  let impl_queue = ref resolved_paths in
+  let param_names = ref [] in
+  let call_args = List.map (fun arg_typ ->
+    match as_implicit_with_type arg_typ with
+    | Some _ ->
+      let path = List.hd !impl_queue in
+      impl_queue := List.tl !impl_queue;
+      path
+    | None ->
+      let name = fresh_name () in
+      param_names := name :: !param_names;
+      mk (VarE { Source.it = name; at = Source.no_region; note = (Const, None) })
+  ) cand_args in
+  assert (!impl_queue = []);
+  let param_names = List.rev !param_names in
+  let mk_var_pat name =
+    { Source.it = VarP { Source.it = name; at = Source.no_region; note = () };
+      at = Source.no_region;
+      note = T.Pre }
+  in
+  let pat = match param_names with
+    | [name] -> mk_var_pat name
+    | _ -> { Source.it = TupP (List.map mk_var_pat param_names);
+             at = Source.no_region;
+             note = T.Pre }
+  in
+  let call_arg_exp = match call_args with
+    | [arg] -> arg
+    | args -> mk (TupE args)
+  in
+  let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
+  let call_body = mk (CallE (None, candidate_path, inst_node, (false, ref call_arg_exp))) in
+  let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
+  mk (FuncE ("$derived", sort_pat, [], pat, None, false, call_body))
+
 (** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
     Returns [Ok(candidate)] when a single resolution is
     found, [Error(file_paths)] when no resolution was found, but a
     matching module could be imported, and reports an ambiguity error
     when finding multiple resolutions.
+    When direct resolution fails, attempts implicit derivation from
+    polymorphic candidates whose inner implicits can be recursively resolved
+    (up to [Flags.implicit_derivation_depth]).
  *)
-
-type hole_error =
-  | HoleSuggestions of hole_candidate list * hole_candidate list * (env -> unit)
-  | HoleAmbiguous of (env -> unit)
-
-let resolve_hole env at hole_sort typ =
+let rec resolve_hole ?(depth=0) env at hole_sort typ =
   let is_matching_lab lab =
     match hole_sort with
     | Named lab1 -> lab = lab1
@@ -1503,22 +1573,21 @@ let resolve_hole env at hole_sort typ =
 
   let is_matching_typ typ1 = T.sub typ1 typ
   in
-  let has_matching_field_typ = function
-    | T.{ lab; typ = Mut t; _ } -> None
-    | T.{ lab = lab1; typ = typ1; src } ->
-       if is_matching_typ typ1
-       then Some (lab1, typ1, src.T.region)
-       else None
+  let make_field_candidate in_libs module_ref (lab1, typ1, region) =
+    let path =
+      { it = dot_module_exp (module_exp in_libs module_ref) ({ it = lab1; at = no_region; note = () });
+        at = Source.no_region;
+        note = empty_typ_note; }
+    in
+    ({ path; typ = typ1; module_ref_opt = Some module_ref; id = lab1; region } : hole_candidate)
   in
-  let find_candidate_fields in_libs (module_ref, (_, fs)) =
-    List.filter_map has_matching_field_typ fs |>
-      List.map (fun (lab, typ, region)->
-          let path =
-            { it = dot_module_exp (module_exp in_libs module_ref) ({ it = lab; at = no_region; note = () });
-              at = Source.no_region;
-              note = empty_typ_note; }
-          in
-          ({ path; typ; module_ref_opt = Some module_ref; id=lab; region } : hole_candidate))
+  let collect_field_candidates ?(type_filter=fun _ -> true) in_libs (module_ref, (_, fs)) =
+    List.filter_map (function
+      | T.{ lab = _; typ = Mut _; _ } -> None
+      | T.{ lab = lab1; typ = typ1; src } ->
+        if type_filter typ1 then Some (make_field_candidate in_libs module_ref (lab1, typ1, src.T.region))
+        else None
+    ) fs
   in
   let find_candidate_id = function
     (id, (t, region, _, _)) ->
@@ -1541,10 +1610,18 @@ let resolve_hole env at hole_sort typ =
   let candidates in_libs xs f =
     T.Env.to_seq xs |>
       Seq.filter_map f |>
-      Seq.map (find_candidate_fields in_libs) |>
+      Seq.map (collect_field_candidates ~type_filter:is_matching_typ in_libs) |>
       List.of_seq |>
       List.flatten |>
       List.partition (fun (desc : hole_candidate) -> is_matching_lab desc.id)
+  in
+  let all_named_candidates in_libs xs f =
+    T.Env.to_seq xs |>
+      Seq.filter_map f |>
+      Seq.map (collect_field_candidates in_libs) |>
+      List.of_seq |>
+      List.flatten |>
+      List.filter (fun (c : hole_candidate) -> is_matching_lab c.id)
   in
   let eligible_terms, explicit_terms  =
     match eligible_ids with
@@ -1582,13 +1659,94 @@ let resolve_hole env at hole_sort typ =
   (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
      If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
   let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ) in
+
+  let derivation_failures = ref [] in
+
+  let try_derive_from_candidates candidate_list =
+    if depth >= !(Flags.implicit_derivation_depth) then []
+    else
+      match T.promote typ with
+      | T.Func (req_sort, req_control, [], req_args, req_rets) when req_sort = T.Local ->
+        List.filter_map (fun (candidate : hole_candidate) ->
+          match T.promote candidate.typ with
+          | T.Func (cand_sort, cand_control, cand_tbs, cand_args, cand_rets)
+            when cand_sort = req_sort && cand_control = req_control ->
+            let (non_impl_args, impl_args) = erase_implicits cand_args in
+            if impl_args = [] then None
+            else if List.length non_impl_args <> List.length req_args then None
+            else if List.length cand_rets <> List.length req_rets then None
+            else begin
+              let arg_subs = List.map2 (fun ra ea -> (ra, ea, at)) req_args non_impl_args in
+              let ret_subs = List.map2 (fun cr rr -> (cr, rr, at)) cand_rets req_rets in
+              let inst_opt =
+                if cand_tbs = [] then
+                  let erased_typ = T.Func (cand_sort, cand_control, [], non_impl_args, cand_rets) in
+                  if T.sub erased_typ typ then Some [] else None
+                else
+                  try
+                    let must_solve = non_impl_args @ cand_rets in
+                    let (inst, c) = Bi_match.bi_match_subs None cand_tbs None (arg_subs @ ret_subs) ~must_solve in
+                    ignore (Bi_match.finalize inst c []);
+                    Some inst
+                  with _ -> None
+              in
+              match inst_opt with
+              | None -> None
+              | Some inst ->
+                let open_t = if inst = [] then Fun.id else T.open_ inst in
+                let inner_results = List.map (fun (name, inner_typ) ->
+                  let resolved_typ = open_t inner_typ in
+                  let result = resolve_hole ~depth:(depth + 1) env at (Named name) resolved_typ in
+                  (name, resolved_typ, result)
+                ) impl_args in
+                if List.for_all (fun (_, _, r) -> Result.is_ok r) inner_results then
+                  let resolved_paths = List.map (fun (_, _, r) ->
+                    match r with Ok c -> (c : hole_candidate).path | Error _ -> assert false
+                  ) inner_results in
+                  let wrapper = synthesize_derived_wrapper at candidate.path inst
+                    cand_args resolved_paths in
+                  Some { candidate with path = wrapper; typ }
+                else begin
+                  let failed = List.filter_map (fun (name, inner_typ, r) ->
+                    match r with
+                    | Error (HoleAmbiguous _) ->
+                      Some { candidate_desc = desc_of_candidate candidate;
+                             inner_name = name; inner_typ; reason = InnerAmbiguous }
+                    | Error (HoleSuggestions _) ->
+                      Some { candidate_desc = desc_of_candidate candidate;
+                             inner_name = name; inner_typ; reason = InnerMissing }
+                    | Ok _ -> None
+                  ) inner_results in
+                  derivation_failures := failed @ !derivation_failures;
+                  None
+                end
+            end
+          | _ -> None
+        ) candidate_list
+      | _ -> []
+  in
+
   match eligible_terms with
   | [term] -> Ok term
   | [] ->
-    let (lib_terms, _) = candidates true env.libs is_lib_module in
-    (match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else None with
-      | Some term -> Ok term
-      | None -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints)))
+    let derivable_terms =
+      try_derive_from_candidates
+        (all_named_candidates false env.vals is_val_module)
+    in
+    (match disambiguate_holes derivable_terms with
+    | Some term -> Ok term
+    | None ->
+      let (lib_terms, _) = candidates true env.libs is_lib_module in
+      let lib_derivable =
+        if Option.is_some !Flags.implicit_package then
+          try_derive_from_candidates
+            (all_named_candidates true env.libs is_lib_module)
+        else []
+      in
+      let all_lib = lib_terms @ lib_derivable in
+      (match if Option.is_some !Flags.implicit_package then disambiguate_holes all_lib else None with
+        | Some term -> Ok term
+        | None -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, !derivation_failures))))
   | terms ->
      match disambiguate_holes terms with
      | Some term -> Ok term
@@ -2480,11 +2638,21 @@ and check_exp' env0 t exp : T.typ =
     | Error (HoleAmbiguous mk_error) ->
       mk_error env;
       t
-    | Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints)) ->
+    | Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, derivation_notes)) ->
       if not env.pre then begin
         let explicit_sug =
           if explicit_terms = [] then []
           else [Printf.sprintf "Did you mean to explicitly use %s?" (String.concat " or " (List.map desc_of_candidate explicit_terms))]
+        in
+        let derivation_sug =
+          List.map (fun { candidate_desc; inner_name; inner_typ; reason } ->
+            let reason_text = match reason with
+              | InnerMissing -> "could not be resolved"
+              | InnerAmbiguous -> "is ambiguous (multiple candidates in scope)"
+            in
+            Stdlib.Format.asprintf "Derivation via %s was attempted, but inner implicit `%s` of type %a %s."
+              candidate_desc inner_name display_typ inner_typ reason_text
+          ) derivation_notes
         in
         let import_sug =
           if lib_terms = [] then
@@ -2495,7 +2663,7 @@ and check_exp' env0 t exp : T.typ =
           else Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))
         in
         renaming_hints env;
-        let notes = import_sug::explicit_sug in
+        let notes = import_sug :: derivation_sug @ explicit_sug in
         local_error ~notes env exp.at "M0230" "Cannot determine implicit argument %s of type%a"
           (desc s)
           display_typ t

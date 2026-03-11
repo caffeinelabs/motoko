@@ -1,0 +1,3 @@
+implicit-derivation-ambiguous.mo:30.8-30.30: type error [M0230], Cannot determine implicit argument `compare` of type
+  ([Nat], [Nat]) -> Order
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.

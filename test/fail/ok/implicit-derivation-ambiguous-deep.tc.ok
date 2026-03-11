@@ -1,0 +1,5 @@
+implicit-derivation-ambiguous-deep.mo:31.8-31.30: type error [M0230], Cannot determine implicit argument `compare` of type
+  ([Nat], [Nat]) -> Order
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
+  (Nat, Nat) -> Order is ambiguous (multiple candidates in scope).

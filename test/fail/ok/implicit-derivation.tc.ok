@@ -1,0 +1,8 @@
+implicit-derivation.mo:26.8-26.46: type error [M0230], Cannot determine implicit argument `compare` of type
+  ([Bool], [Bool]) -> Order
+note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
+  (Bool, Bool) -> Order could not be resolved.
+implicit-derivation.mo:33.8-33.25: type error [M0230], Cannot determine implicit argument `n` of type
+  Nat
+note: If you're trying to omit an implicit argument named `n` you need to have a matching declaration named `n` in scope.
