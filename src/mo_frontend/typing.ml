@@ -3978,6 +3978,7 @@ and check_enhanced_migration_chain env stab_tfs at =
         in
         let _ = Stability.match_stab_fields env.msgs
                   at
+                  (Some mf.T.lab)
                   out
                   (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post)
         in
