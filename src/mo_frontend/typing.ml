@@ -4744,6 +4744,55 @@ and infer_dec_valdecs env dec : Scope.t =
       con_env = T.ConSet.singleton c;
     }
 
+
+(* Migration function is always called "run". Returns (module_type, run_type) if found. *)
+let get_migration_type (file : string) (scope : Scope.scope) : (Type.typ * Type.typ) option =
+  match Type.Env.find_opt file scope.Scope.lib_env with
+  | Some module_typ ->
+    (match Type.normalize module_typ with
+     | Type.Obj (_, fields, _) ->
+       (match Type.lookup_val_field_opt "run" fields with
+        | Some run_typ -> Some (module_typ, run_typ)
+        | None -> None)
+     | _ -> None)
+  | None -> None
+
+let infer_migration_chain env at =
+  match !Flags.enhanced_migration with
+  | None -> []
+  | Some path ->
+     let norm_path = Lib.FilePath.normalise path in
+     let chain =
+       T.Env.fold (fun lib lib_typ acc ->
+           if Filename.dirname lib <> norm_path
+           then acc else
+           match Type.normalize lib_typ with
+             | T.Obj(T.Module, fields, _) as mod_typ ->
+               begin
+                 match Type.lookup_val_field_opt "run" fields with
+                 | Some run_typ -> (lib, mod_typ, run_typ) :: acc
+                 | None ->
+                    let file = lib ^ ".mo" in
+                    let file_region = { Source.left = { file; line = 1; column = 0 };
+                                        Source.right = { file; line = 1; column = 0 } }
+                    in
+                    warn env file_region "M0251" "migration module %s does not export a `run` function, skipping" file;
+                    acc
+               end
+             | _ ->
+                let file = lib ^ ".mo" in
+                let file_region = { Source.left = {file; line = 1; column = 0 };
+                                    Source.right = {file; line = 1; column = 0 } }
+                in
+                warn env file_region "M0251" "not a module, skipping";
+                acc) env.libs []
+       |> List.rev
+     in
+     if chain = [] then
+       local_error env at "M0251"
+        "--enhanced-migration: no valid migration modules found (migration modules must export a public `run` function)";
+     chain
+
 (* Programs *)
 let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     : (T.typ * Scope.t) Diag.result
@@ -4759,7 +4808,9 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
           let env0 = env_of_scope msgs scope in
           let env = {
              env0 with async = async_cap; type_recovery = enable_type_recovery;
-          } in
+            } in
+          let migration_chain = infer_migration_chain env prog.at in
+          T.migration_chain := migration_chain;
           let t, sscope = infer_block env prog.it prog.at true in
           if pkg_opt = None && Diag.is_error_free msgs then emit_unused_warnings env;
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
