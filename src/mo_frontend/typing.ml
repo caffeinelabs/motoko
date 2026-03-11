@@ -3829,20 +3829,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in
-    check_migration env stab_tfs exp_opt;
-    if s = T.Actor then begin
-      let has_enhanced = !T.migration_chain <> [] in
-      let has_inline = match exp_opt with
-        | Some {it = ObjE(_, flds); _} ->
-          List.exists (fun ({it = {id; _}; _} : exp_field) -> id.it = T.migration_lab) flds
-        | _ -> false
-      in
-      if has_enhanced && has_inline then
-        local_error env at "M0252"
-          "cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other."
-      else
-        check_enhanced_migration_chain env stab_tfs at
-    end
+    if s = T.Actor then check_migration env stab_tfs exp_opt at;
   end;
   t
 
@@ -3993,10 +3980,7 @@ and check_enhanced_migration_chain env stab_tfs at =
                   at
                   out
                   (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post)
-(*
-                  (List.map (fun tf ->
-                       T.lookup_val_field_opt tf.T.lab rng_mf <> None, tf)
-                     post) *) in
+        in
         (* calculate the previous post and iterate *)
         let pre = T.pre_fields mf.T.typ post in
         let prev_post = List.map (fun (_required, tf) -> tf) pre in
@@ -4007,9 +3991,11 @@ and check_enhanced_migration_chain env stab_tfs at =
  in
  check_chain chain stab_tfs
 
-and check_migration env (stab_tfs : T.field list) exp_opt =
+and check_migration env (stab_tfs : T.field list) exp_opt at =
   match exp_opt with
-  | None -> ()
+  | None ->
+     if !T.migration_chain <> [] then
+     check_enhanced_migration_chain env stab_tfs at
   | Some exp ->
    let focus = match exp.it with
     | ObjE(_, flds) ->
@@ -4023,12 +4009,15 @@ and check_migration env (stab_tfs : T.field list) exp_opt =
     try
       let s, fs = T.as_obj_sub [T.migration_lab] exp.note.note_typ in
       if s = T.Actor then raise (Invalid_argument "");
-      T.lookup_val_field T.migration_lab fs
+      T.lookup_val_field T.migration_lab fs;
     with Invalid_argument _ ->
       error env focus "M0208"
         "expected expression with field `migration`, but expression has type%a"
           display_typ_expand exp.note.note_typ
    in
+   if !T.migration_chain <> [] then
+     error env at "M0252"
+       "cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other.";
    let dom_tfs, rng_tfs = check_migration_function env typ focus in
    List.iter
      (fun tf ->
