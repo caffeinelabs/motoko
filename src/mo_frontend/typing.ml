@@ -1571,6 +1571,22 @@ let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
   let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
   mk (FuncE ("$derived", sort_pat, [], pat, None, false, call_body))
 
+(** Checks [args -> rets <: req_args -> req_rets] via subtyping or
+    bidirectional matching when [tbs] are present. Returns [Some inst] or [None]. *)
+let sub_or_bimatch_func tbs args rets req_args req_rets =
+  if tbs = [] then
+    if List.for_all2 (fun a b -> T.sub a b) req_args args
+    && List.for_all2 (fun a b -> T.sub a b) rets req_rets
+    then Some [] else None
+  else
+    let arg_subs = List.map2 (fun ra ea -> (ra, ea, no_region)) req_args args in
+    let ret_subs = List.map2 (fun cr rr -> (cr, rr, no_region)) rets req_rets in
+    try
+      let (inst, c) = Bi_match.bi_match_subs None tbs None (arg_subs @ ret_subs) ~must_solve:[] in
+      ignore (Bi_match.finalize inst c []);
+      Some inst
+    with _ -> None
+
 (** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
     Returns [Ok(candidate)] when a single resolution is
     found, [Error(file_paths)] when no resolution was found, but a
@@ -1580,7 +1596,7 @@ let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
     polymorphic candidates whose inner implicits can be recursively resolved
     (up to [Flags.implicit_derivation_depth]).
  *)
-let rec resolve_hole ?(depth=0) env at hole_sort typ =
+let rec resolve_hole ~depth env at hole_sort typ =
   let is_matching_lab lab =
     match hole_sort with
     | Named lab1 -> lab = lab1
@@ -1678,65 +1694,37 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
 
   let derivation_failures = ref [] in
 
-  let try_derive_from_candidates candidate_list =
-    if depth >= !(Flags.implicit_derivation_depth) then []
-    else
-      match T.promote typ with
-      | T.Func (req_sort, req_control, [], req_args, req_rets) when req_sort = T.Local ->
-        List.filter_map (fun (candidate : hole_candidate) ->
-          match T.promote candidate.typ with
-          | T.Func (cand_sort, cand_control, cand_tbs, cand_args, cand_rets)
-            when cand_sort = req_sort && cand_control = req_control ->
-            let (non_impl_args, impl_args) = erase_implicits cand_args in
-            if impl_args = [] then None
-            else if List.length non_impl_args <> List.length req_args then None
-            else if List.length cand_rets <> List.length req_rets then None
-            else begin
-              let arg_subs = List.map2 (fun ra ea -> (ra, ea, at)) req_args non_impl_args in
-              let ret_subs = List.map2 (fun cr rr -> (cr, rr, at)) cand_rets req_rets in
-              let inst_opt =
-                if cand_tbs = [] then
-                  let erased_typ = T.Func (cand_sort, cand_control, [], non_impl_args, cand_rets) in
-                  if T.sub erased_typ typ then Some [] else None
-                else
-                  try
-                    let must_solve = non_impl_args @ cand_rets in
-                    let (inst, c) = Bi_match.bi_match_subs None cand_tbs None (arg_subs @ ret_subs) ~must_solve in
-                    ignore (Bi_match.finalize inst c []);
-                    Some inst
-                  with _ -> None
-              in
-              match inst_opt with
-              | None -> None
-              | Some inst ->
-                let open_t = if inst = [] then Fun.id else T.open_ inst in
-                let inner_results = List.map (fun (name, inner_typ) ->
-                  let resolved_typ = open_t inner_typ in
-                  let result = resolve_hole ~depth:(depth + 1) env at (Named name) resolved_typ in
-                  (name, resolved_typ, result)
-                ) impl_args in
-                if List.for_all (fun (_, _, r) -> Result.is_ok r) inner_results then
-                  let resolved_paths = List.map (fun (_, _, r) ->
-                    match r with Ok c -> (c : hole_candidate).path | Error _ -> assert false
-                  ) inner_results in
-                  let wrapper = synthesize_derived_wrapper at candidate.path
-                    cand_args resolved_paths in
-                  Some { candidate with path = wrapper; typ }
-                else begin
-                  let failed = List.filter_map (fun (name, inner_typ, r) ->
-                    match r with
-                    | Error err ->
-                      Some { candidate_desc = desc_of_candidate candidate;
-                             inner_name = name; inner_typ; inner_error = err }
-                    | Ok _ -> None
-                  ) inner_results in
-                  derivation_failures := failed @ !derivation_failures;
-                  None
-                end
-            end
-          | _ -> None
-        ) candidate_list
-      | _ -> []
+  let try_derive_from_candidates ~depth candidate_list =
+    if depth >= !(Flags.implicit_derivation_depth) then [] else
+    match T.promote typ with
+    | T.Func (T.Local, T.Returns, [], req_args, req_rets) ->
+      candidate_list |> List.filter_map (fun (candidate : hole_candidate) ->
+        match T.promote candidate.typ with
+        | T.Func (T.Local, T.Returns, cand_tbs, cand_args, cand_rets) ->
+          let (explicit_args, implicit_args) = erase_implicits cand_args in
+          if implicit_args = [] then None
+          else if List.length explicit_args <> List.length req_args then None
+          else if List.length cand_rets <> List.length req_rets then None else
+          let open Lib.Option.Syntax in
+          let* inst = sub_or_bimatch_func cand_tbs explicit_args cand_rets req_args req_rets in
+          let failed, resolved = implicit_args |> List.partition_map (fun (name, inner_typ) ->
+            let inner_typ = T.open_ inst inner_typ in
+            match resolve_hole ~depth:(depth + 1) env at (Named name) inner_typ with
+            | Error err -> Either.Left (name, inner_typ, err)
+            | Ok ok -> Either.Right (name, inner_typ, ok)) in
+          if failed = [] then
+            let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
+            let wrapper = synthesize_derived_wrapper at candidate.path cand_args resolved_paths in
+            Some { candidate with path = wrapper; typ }
+          else begin
+            let failures = failed |> List.map (fun (inner_name, inner_typ, inner_error) ->
+              { candidate_desc = desc_of_candidate candidate; (* TODO: is this candidate here correct? there can be multiple failures for the same candidate *)
+                inner_name; inner_typ; inner_error }) in
+            derivation_failures := failures @ !derivation_failures;
+            None
+          end
+        | _ -> None)
+    | _ -> []
   in
 
   match disambiguate_holes eligible_terms with
@@ -1750,7 +1738,7 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
     })
   | `Empty ->
     (* No eligible direct candidates, try derivations *)
-    match disambiguate_holes (try_derive_from_candidates (all_named_candidates false env.vals is_val_module)) with
+    match disambiguate_holes (try_derive_from_candidates ~depth (all_named_candidates false env.vals is_val_module)) with
     | `Single term -> Ok term
     | `Many derivable_terms -> Error (HoleAmbiguous {
         ambiguous_candidates = derivable_terms;
@@ -1767,11 +1755,11 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
       (* TODO: should we report ambiguity on `Many? *)
       | `Many _ | `Empty ->
         (* Try derivations from lib candidates *)
-        let lib_derivable = try_derive_from_candidates (all_named_candidates true env.libs is_lib_module) in
+        let lib_derivable = try_derive_from_candidates ~depth (all_named_candidates true env.libs is_lib_module) in
         match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_derivable else `Empty with
         | `Single term -> Ok term
         (* TODO: should we report ambiguity on `Many? *)
-        | `Many _ | `Empty -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, !derivation_failures))
+        | `Many _ | `Empty -> Error (HoleSuggestions (lib_terms @ lib_derivable, explicit_terms, renaming_hints, !derivation_failures))
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
@@ -2640,7 +2628,7 @@ and check_exp' env0 t exp : T.typ =
       | Named id -> "`"^id^"`"
       | Anon idx -> "at position " ^ (Int.to_string idx)
     in
-    begin match resolve_hole env exp.at s t with
+    begin match resolve_hole ~depth:0 env exp.at s t with
     | Ok {path; _} ->
       e := path;
       check_exp env t path;
@@ -3067,7 +3055,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
              match as_implicit typ with
              | None -> acc
              | Some name ->
-                match resolve_hole env arg.at (match name with "_" -> Anon pos | id -> Named id) typ with
+                match resolve_hole ~depth:0 env arg.at (match name with "_" -> Anon pos | id -> Named id) typ with
                 | Error _ -> acc
                 | Ok {path;_} ->
                    match path.it, arg.it with
