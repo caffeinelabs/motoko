@@ -1453,8 +1453,9 @@ let disambiguate_resolutions (rel : 'candidate -> 'candidate -> bool) (candidate
     go frontiers
   in
   match List.fold_left add_candidate [] candidates with
-  | [dom] -> Some dom
-  | _ -> None
+  | [dom] -> `Single dom
+  | [] -> `Empty
+  | _ -> `Many candidates
 
 let is_lib_module (n, t) =
   match T.normalize t with
@@ -1738,46 +1739,39 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
       | _ -> []
   in
 
-  match eligible_terms with
-  | [term] -> Ok term
-  | [] ->
-    let derivable_terms =
-      try_derive_from_candidates
-        (all_named_candidates false env.vals is_val_module)
-    in
-    (match disambiguate_holes derivable_terms with
-    | Some term -> Ok term
-    | None ->
-      match derivable_terms with
-      | _ :: _ :: _ ->
-        let info = {
-          ambiguous_candidates = derivable_terms;
-          explicit_candidates = explicit_terms;
-          ambiguity_at = at;
-          ambiguity_sort = hole_sort;
-          ambiguity_typ = typ;
-        } in
-        Error (HoleAmbiguous info)
-      | _ ->
-      let (lib_terms, _) = candidates true env.libs is_lib_module in
-      let lib_resolved = Option.bind !Flags.implicit_package (fun _ ->
-        let lib_derivable = try_derive_from_candidates (all_named_candidates true env.libs is_lib_module) in
-        disambiguate_holes (lib_terms @ lib_derivable)) in
-      (match lib_resolved with
-        | Some term -> Ok term
-        | None -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, !derivation_failures))))
-  | terms ->
-    match disambiguate_holes terms with
-    | Some term -> Ok term
-    | None ->
-      let info = {
-        ambiguous_candidates = terms;
+  match disambiguate_holes eligible_terms with
+  | `Single term -> Ok term
+  | `Many _ -> Error (HoleAmbiguous {
+      ambiguous_candidates = eligible_terms;
+      explicit_candidates = explicit_terms;
+      ambiguity_at = at;
+      ambiguity_sort = hole_sort;
+      ambiguity_typ = typ;
+    })
+  | `Empty ->
+    (* No eligible direct candidates, try derivations *)
+    match disambiguate_holes (try_derive_from_candidates (all_named_candidates false env.vals is_val_module)) with
+    | `Single term -> Ok term
+    | `Many derivable_terms -> Error (HoleAmbiguous {
+        ambiguous_candidates = derivable_terms;
         explicit_candidates = explicit_terms;
         ambiguity_at = at;
         ambiguity_sort = hole_sort;
         ambiguity_typ = typ;
-      } in
-      Error (HoleAmbiguous info)
+      })
+    | `Empty ->
+      (* Try direct lib candidates *)
+      let (lib_terms, _) = candidates true env.libs is_lib_module in
+      match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else `Empty with
+      | `Single term -> Ok term
+      (* TODO: should we report ambiguity on `Many? *)
+      | `Many _ | `Empty ->
+        (* Try derivations from lib candidates *)
+        let lib_derivable = try_derive_from_candidates (all_named_candidates true env.libs is_lib_module) in
+        match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_derivable else `Empty with
+        | `Single term -> Ok term
+        (* TODO: should we report ambiguity on `Many? *)
+        | `Many _ | `Empty -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, !derivation_failures))
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
@@ -1857,20 +1851,17 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
   match local_candidate with
   | Some c -> Ok c
   | None ->
-    (match candidates false env.vals is_val_module with
-    | [c] -> Ok c
-    | [] ->
-      (match candidates true env.libs is_lib_module with
-      | [c] when Option.is_some !Flags.implicit_package -> Ok c
-      | lib_candidates ->
-        match if Option.is_some !Flags.implicit_package then disambiguate_candidates lib_candidates else None with
-        | Some c -> Ok c
-        | None ->  Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates)))
-    | cs -> match disambiguate_candidates cs with
-      | Some c -> Ok c
-      | None -> Error (DotAmbiguous (fun env ->
-         let modules =  (List.filter_map (fun c -> c.module_ref) cs) in
-         error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it (String.concat ", " modules))))
+    match disambiguate_candidates (candidates false env.vals is_val_module) with
+    | `Single c -> Ok c
+    | `Many cs -> Error (DotAmbiguous (fun env ->
+      let modules =  (List.filter_map (fun c -> c.module_ref) cs) in
+      error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it (String.concat ", " modules)))
+    | `Empty ->
+      let lib_candidates = candidates true env.libs is_lib_module in
+      match if Option.is_some !Flags.implicit_package then disambiguate_candidates lib_candidates else `Empty with
+      | `Single c -> Ok c
+      (* TODO: should we report ambiguity on `Many? *)
+      | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
 
 type contextual_dot_suggestion =
   { module_url : T.lab;
