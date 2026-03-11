@@ -5,4 +5,4 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     │         ^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
-                 (Nat, Nat) -> Order is ambiguous (multiple candidates in scope).
+                 (Nat, Nat) -> Order is ambiguous (candidates: `MyNat.compare`, `Nat.compare`).

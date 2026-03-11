@@ -1483,6 +1483,15 @@ let module_ref_of_dot_module_exp (path : exp) =
   | DotE ({ it = ImplicitLibE module_path; _ }, _, _) -> Some module_path
   | _ -> None
 
+let as_implicit = function
+  | T.Named (_inf_arg_name, (T.Named ("implicit", T.Named (arg_name, t)))) ->
+    (* override inferred arg_name *)
+    Some arg_name
+  | T.Named (inf_arg_name, (T.Named ("implicit", t))) ->
+    (* non-overriden, use inferred arg_name *)
+    Some inf_arg_name
+  | _ -> None
+
 (* Like [as_implicit] but also returns the inner type that needs to be resolved *)
 let as_implicit_with_type = function
   | T.Named (_inf_arg_name, (T.Named ("implicit", T.Named (arg_name, t)))) ->
@@ -1499,18 +1508,24 @@ let erase_implicits args =
     | None -> Either.Left arg
   ) args
 
-type derivation_failure_reason = InnerMissing | InnerAmbiguous
+type hole_error =
+  | HoleSuggestions of hole_candidate list * hole_candidate list * (env -> unit) * derivation_note list
+  | HoleAmbiguous of ambiguity_info
 
-type derivation_note = {
+and ambiguity_info = {
+  ambiguous_candidates : hole_candidate list;
+  explicit_candidates : hole_candidate list;
+  ambiguity_at : Source.region;
+  ambiguity_sort : hole_sort;
+  ambiguity_typ : T.typ;
+}
+
+and derivation_note = {
   candidate_desc : string;
   inner_name : string;
   inner_typ : T.typ;
-  reason : derivation_failure_reason;
+  inner_error : hole_error;
 }
-
-type hole_error =
-  | HoleSuggestions of hole_candidate list * hole_candidate list * (env -> unit) * derivation_note list
-  | HoleAmbiguous of (env -> unit)
 
 let synthesize_derived_wrapper at candidate_path inst cand_args resolved_paths =
   let mk e = { Source.it = e; at; note = empty_typ_note } in
@@ -1709,12 +1724,9 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
                 else begin
                   let failed = List.filter_map (fun (name, inner_typ, r) ->
                     match r with
-                    | Error (HoleAmbiguous _) ->
+                    | Error err ->
                       Some { candidate_desc = desc_of_candidate candidate;
-                             inner_name = name; inner_typ; reason = InnerAmbiguous }
-                    | Error (HoleSuggestions _) ->
-                      Some { candidate_desc = desc_of_candidate candidate;
-                             inner_name = name; inner_typ; reason = InnerMissing }
+                             inner_name = name; inner_typ; inner_error = err }
                     | Ok _ -> None
                   ) inner_results in
                   derivation_failures := failed @ !derivation_failures;
@@ -1748,17 +1760,17 @@ let rec resolve_hole ?(depth=0) env at hole_sort typ =
         | Some term -> Ok term
         | None -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, !derivation_failures))))
   | terms ->
-     match disambiguate_holes terms with
-     | Some term -> Ok term
-     | None -> Error (HoleAmbiguous (fun env ->
-       let terms = List.map desc_of_candidate terms in
-       let notes = Printf.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " terms) ::
-         if explicit_terms = [] then [] else
-            [ "The other explicit candidates are: " ^ (String.concat ", " (List.map desc_of_candidate explicit_terms)) ]
-       in
-       error env at "M0231" ~notes "ambiguous implicit argument %s of type %a."
-         (match hole_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
-         display_typ typ))
+    match disambiguate_holes terms with
+    | Some term -> Ok term
+    | None ->
+      let info = {
+        ambiguous_candidates = terms;
+        explicit_candidates = explicit_terms;
+        ambiguity_at = at;
+        ambiguity_sort = hole_sort;
+        ambiguity_typ = typ;
+      } in
+      Error (HoleAmbiguous info)
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
@@ -2635,9 +2647,15 @@ and check_exp' env0 t exp : T.typ =
       e := path;
       check_exp env t path;
       t
-    | Error (HoleAmbiguous mk_error) ->
-      mk_error env;
-      t
+    | Error (HoleAmbiguous { ambiguous_candidates; explicit_candidates; ambiguity_at; ambiguity_sort; ambiguity_typ }) ->
+      let descs = List.map desc_of_candidate ambiguous_candidates in
+      let notes = Printf.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " descs) ::
+        if explicit_candidates = [] then [] else
+          [ "The other explicit candidates are: " ^ (String.concat ", " (List.map desc_of_candidate explicit_candidates)) ]
+      in
+      error env ambiguity_at "M0231" ~notes "ambiguous implicit argument %s of type %a."
+        (match ambiguity_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
+        display_typ ambiguity_typ
     | Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, derivation_notes)) ->
       if not env.pre then begin
         let explicit_sug =
@@ -2645,10 +2663,11 @@ and check_exp' env0 t exp : T.typ =
           else [Printf.sprintf "Did you mean to explicitly use %s?" (String.concat " or " (List.map desc_of_candidate explicit_terms))]
         in
         let derivation_sug =
-          List.map (fun { candidate_desc; inner_name; inner_typ; reason } ->
-            let reason_text = match reason with
-              | InnerMissing -> "could not be resolved"
-              | InnerAmbiguous -> "is ambiguous (multiple candidates in scope)"
+          List.map (fun { candidate_desc; inner_name; inner_typ; inner_error } ->
+            let reason_text = match inner_error with
+              | HoleAmbiguous { ambiguous_candidates; _ } ->
+                Printf.sprintf "is ambiguous (candidates: %s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates))
+              | HoleSuggestions _ -> "could not be resolved"
             in
             Stdlib.Format.asprintf "Derivation via %s was attempted, but inner implicit `%s` of type %a %s."
               candidate_desc inner_name display_typ inner_typ reason_text
@@ -3006,19 +3025,6 @@ and infer_callee env exp =
      end
   | _ ->
      infer_exp_promote env exp, None
-and as_implicit = function
-(* disable wildcard patterns
-  | T.Named ("implicit", T.Named (arg_name, t)) ->
-    Some arg_name
-  | T.Named ("implicit", t) ->
-    Some "_" *)
-  | T.Named (_inf_arg_name, (T.Named ("implicit", T.Named (arg_name, t)))) ->
-    (* override inferred arg_name *)
-    Some arg_name
-  | T.Named (inf_arg_name, (T.Named ("implicit", t))) ->
-    (* non-overriden, use inferred arg_name *)
-    Some inf_arg_name
-  | _ -> None
 
 (** With implicits we can either fully specify all implicit arguments or none
   Saturated arity is the number of expected arguments when all arguments are fully specified
