@@ -1,0 +1,3 @@
+(library
+ (name stable_check)
+ (libraries lib lang_utils mo_def mo_config mo_types mo_frontend))
