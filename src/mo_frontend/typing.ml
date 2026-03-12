@@ -1510,15 +1510,12 @@ let erase_implicits args =
   ) args
 
 type hole_error =
-  | HoleSuggestions of hole_candidate list * hole_candidate list * (env -> unit) * derivation_note list
+  | HoleSuggestions of hole_candidate list * hole_candidate list * derivation_note list
   | HoleAmbiguous of ambiguity_info
 
 and ambiguity_info = {
   ambiguous_candidates : hole_candidate list;
   explicit_candidates : hole_candidate list;
-  ambiguity_at : Source.region;
-  ambiguity_sort : hole_sort;
-  ambiguity_typ : T.typ;
 }
 
 and derivation_note = {
@@ -1587,15 +1584,20 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
       Some inst
     with _ -> None
 
-module HoleCandidates = struct
+module ImplicitHoles = struct
   type ctx = {
     hole_sort : hole_sort;
     hole_typ : T.typ;
   }
+
   let is_matching_lab ctx lab =
     match ctx.hole_sort with
     | Named lab1 -> lab = lab1
     | Anon _ -> not (Syntax.is_privileged lab) (* fix from 5659 *)
+
+  let partition ctx seq =
+    let x, y = Seq.partition (fun (c : hole_candidate) -> is_matching_lab ctx c.id) seq in
+    (List.of_seq x, List.of_seq y)
 
   (* Candidates for implicits match the required type either directly ... *)
   let is_matching_typ ctx candidate_typ = T.sub candidate_typ ctx.hole_typ
@@ -1606,12 +1608,6 @@ module HoleCandidates = struct
     holes : (string * T.typ) list;
     func_without_holes : T.typ;
   }
-
-  (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
-  If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
-  let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ)
-  let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) -> 
-    T.sub x.func_without_holes y.func_without_holes)
 
   let is_matching_typ_with_holes ctx candidate_typ =
     match T.promote ctx.hole_typ, T.promote candidate_typ with
@@ -1631,25 +1627,25 @@ module HoleCandidates = struct
           { cand_args; holes; func_without_holes})
     | _ -> None
 
-  module type Source = sig
+  module type CandidateSource = sig
     type entry
     val get_typ : entry -> T.typ
     val make_ref_exp : string -> exp'
   end
 
-  module ValSource : Source with type entry = val_info = struct
+  module ValCandidateSource : CandidateSource with type entry = val_info = struct
     type entry = val_info
     let get_typ ((t, _, _, _) : val_info) = t
     let make_ref_exp r = VarE {it = r; at = no_region; note = (Const, None)}
   end
 
-  module LibSource : Source with type entry = T.typ = struct
+  module LibCandidateSource : CandidateSource with type entry = T.typ = struct
     type entry = T.typ
     let get_typ t = t
     let make_ref_exp r = ImplicitLibE r
   end
 
-  module MakeFromModule (M : Source) = struct
+  module MakeFromModule (M : CandidateSource) = struct
     let fields_from_module (n, entry) =
       match T.normalize (M.get_typ entry) with
       | T.Obj (T.Module, fs, _) -> Some (n, (M.get_typ entry, fs))
@@ -1672,10 +1668,6 @@ module HoleCandidates = struct
       in
       ({ path; typ; module_ref_opt = Some module_ref; id = lab; region = src.T.region} : hole_candidate)
 
-    let partition ctx seq =
-      let x, y = Seq.partition (fun (c : hole_candidate) -> is_matching_lab ctx c.id) seq in
-      (List.of_seq x, List.of_seq y)
-
     let matching_fields ctx xs = xs
       |> all_module_fields (fun module_ref field ->
         if not (T.sub field.T.typ ctx.hole_typ) then None else
@@ -1684,59 +1676,45 @@ module HoleCandidates = struct
 
     let matching_fields_with_holes ctx xs = xs
       |> all_module_fields (fun module_ref field ->
-        (* Prune the fields early by name *)
-        if not (is_matching_lab ctx field.T.lab) then None else
+        if not (is_matching_lab ctx field.T.lab) then None else (* Prune early by name *)
         is_matching_typ_with_holes ctx field.T.typ
         |> Option.map (fun holes -> holes, make_field_candidate module_ref field))
       |> List.of_seq
   end
 
-  module FromModuleVal = MakeFromModule(ValSource)
-  module FromModuleLib = MakeFromModule(LibSource)
+  let make_val_candidate id t region =
+    let path =
+      { it = VarE {it = id; at = no_region; note = (Const, None)};
+        at = Source.no_region;
+        note = empty_typ_note } in
+    { path; typ = t; module_ref_opt = None; id; region }
 
-end
+  let matching_vals ctx (vals : val_env) =
+    T.Env.to_seq vals
+    |> Seq.filter_map (fun (id, (t, region, _, _ : val_info)) ->
+      if not (T.sub t ctx.hole_typ) then None else
+      Some (make_val_candidate id t region))
+    |> partition ctx
+  
+  let matching_vals_with_holes ctx (vals : val_env) =
+    T.Env.to_seq vals
+    |> Seq.filter_map (fun (id, (t, region, _, _ : val_info)) ->
+      if not (is_matching_lab ctx id) then None else (* Prune early by name *)
+      is_matching_typ_with_holes ctx t
+      |> Option.map (fun holes -> holes, make_val_candidate id t region))
+    |> List.of_seq
 
-(** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
-    Returns [Ok(candidate)] when a single resolution is
-    found, [Error(file_paths)] when no resolution was found, but a
-    matching module could be imported, and reports an ambiguity error
-    when finding multiple resolutions.
-    When direct resolution fails, attempts implicit derivation from
-    polymorphic candidates whose inner implicits can be recursively resolved
-    (up to [Flags.implicit_derivation_depth]).
- *)
-let rec resolve_hole ~depth env at hole_sort hole_typ =
-  let open HoleCandidates in
-  let ctx = { hole_sort; hole_typ } in
-  let find_candidate_id = function
-    (id, (t, region, _, _)) ->
-    if is_matching_typ ctx t
-    then
-      let path =
-        { it = VarE {it = id; at = no_region; note = (Const, None)};
-          at = Source.no_region;
-          note = empty_typ_note }
-      in
-      Some { path; typ = t; module_ref_opt = None; id; region }
-    else None
-  in
-  let (eligible_ids, explicit_ids) =
-    T.Env.to_seq env.vals |>
-      Seq.filter_map find_candidate_id |>
-      List.of_seq |>
-      List.partition (fun (desc : hole_candidate) -> is_matching_lab ctx desc.id)
-  in
-  let eligible_terms, explicit_terms  =
-    (* TODO: with the derivation, should we also prioritize local matches first? I think we should stay consistent with the original behavior, just adding an additional logic that: 'direct' takes priority over 'derived' *)
-    match eligible_ids with
-    | [id] -> ([id], []) (* first look in local env, otherwise consider module entries *)
-    | _ ->
-       let (eligible_fields, explicit_fields) = FromModuleVal.matching_fields ctx env.vals in
-       (eligible_ids @ eligible_fields,
-        explicit_ids @ explicit_fields)
-  in
-  let renaming_hints env =
-    List.iter (fun candidate ->
+  module FromModuleVal = MakeFromModule(ValCandidateSource)
+  module FromModuleLib = MakeFromModule(LibCandidateSource)
+
+  (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
+  If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
+  let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ)
+  let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) -> 
+    T.sub x.func_without_holes y.func_without_holes)
+
+  let renaming_hints env at hole_sort explicit_terms =
+    explicit_terms |> List.iter (fun candidate ->
       if (candidate.region.left.file = at.left.file) then
         let call_region = Source.string_of_region at in
         let call_src = match Source.read_region at with Some s -> ": " ^ s | None -> "." in
@@ -1750,79 +1728,93 @@ let rec resolve_hole ~depth env at hole_sort hole_typ =
             | VarE _ | _ ->
               let mid = match Lib.String.chop_prefix id candidate.id with
                 | Some suffix when not (T.Env.mem suffix env.vals) ->
-                   suffix
+                  suffix
                 | _ -> "<M>"
               in
               ("a new", mid)
           in
             info env candidate.region
-             "Consider renaming `%s` to `%s.%s` in %s module `%s`. Then it can serve as an implicit argument `%s` in this call:\n%s%s"
-             (desc_of_candidate candidate) mid id mod_desc mid id call_region call_src)
-      explicit_terms
-  in
+            "Consider renaming `%s` to `%s.%s` in %s module `%s`. Then it can serve as an implicit argument `%s` in this call:\n%s%s"
+            (desc_of_candidate candidate) mid id mod_desc mid id call_region call_src)
 
-  let commit_derivation ~depth ((h : func_with_holes), (candidate : hole_candidate)) =
-    let failed, resolved = h.holes |> List.partition_map (fun (name, inner_typ) ->
-      match resolve_hole ~depth:(depth + 1) env at (Named name) inner_typ with
-      | Error err -> Either.Left (name, inner_typ, err)
-      | Ok ok -> Either.Right (name, inner_typ, ok)) in
-    if failed = [] then
-      let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
-      let wrapper = synthesize_derived_wrapper at candidate.path h.cand_args resolved_paths in
-      Ok { candidate with path = wrapper; typ = hole_typ }
-    else
-      let failures = failed |> List.map (fun (inner_name, inner_typ, inner_error) ->
-        { candidate_desc = desc_of_candidate candidate;
-          inner_name; inner_typ; inner_error }) in
-      Error failures
-  in
-  let try_derive ~depth get_candidate_list source =
-    if depth >= !(Flags.implicit_derivation_depth) then `Empty else
-    match disambiguate_func_with_holes (get_candidate_list source) with
-    | `Single x -> `Committed (commit_derivation ~depth x)
-    | `Many matches -> `Ambiguous (List.map (fun (_, c) -> c) matches)
-    | `Empty -> `Empty
-  in
+  (** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
+      Returns [Ok(candidate)] when a single resolution is
+      found, [Error(file_paths)] when no resolution was found, but a
+      matching module could be imported, and reports an ambiguity error
+      when finding multiple resolutions.
+      When direct resolution fails, attempts implicit derivation from
+      polymorphic candidates whose inner implicits can be recursively resolved
+      (up to [Flags.implicit_derivation_depth]).
+  *)
+  let rec resolve_hole ~depth env at hole_sort hole_typ =
 
-  match disambiguate_holes eligible_terms with
-  | `Single term -> Ok term
-  | `Many _ -> Error (HoleAmbiguous {
-      ambiguous_candidates = eligible_terms;
-      explicit_candidates = explicit_terms;
-      ambiguity_at = at;
-      ambiguity_sort = hole_sort;
-      ambiguity_typ = hole_typ;
-    })
-  | `Empty ->
-    (* Try direct lib candidates *)
-    let lib_terms, _ = FromModuleLib.matching_fields ctx env.libs in
-    match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else `Empty with
+    let commit_derivation ~depth ((h : func_with_holes), (candidate : hole_candidate)) =
+      let failed, resolved = h.holes |> List.partition_map (fun (name, inner_typ) ->
+        match resolve_hole ~depth:(depth + 1) env at (Named name) inner_typ with
+        | Error err -> Either.Left (name, inner_typ, err)
+        | Ok ok -> Either.Right (name, inner_typ, ok)) in
+      if failed = [] then
+        let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
+        let wrapper = synthesize_derived_wrapper at candidate.path h.cand_args resolved_paths in
+        Ok { candidate with path = wrapper; typ = hole_typ }
+      else
+        let failures = failed |> List.map (fun (inner_name, inner_typ, inner_error) ->
+          { candidate_desc = desc_of_candidate candidate;
+            inner_name; inner_typ; inner_error }) in
+        Error failures
+    in
+    let try_derive ~depth get_candidate_list source =
+      if depth >= !(Flags.implicit_derivation_depth) then `Empty else
+      match disambiguate_func_with_holes (get_candidate_list source) with
+      | `Single x -> `Committed (commit_derivation ~depth x)
+      | `Many matches -> `Ambiguous (List.map (fun (_, c) -> c) matches)
+      | `Empty -> `Empty
+    in
+
+    let ctx = { hole_sort; hole_typ } in
+
+    let (eligible_ids, explicit_ids) = matching_vals ctx env.vals in
+    let eligible_terms, explicit_terms  =
+      (* TODO: with the derivation, should we also prioritize local matches first? I think we should stay consistent with the original behavior, just adding an additional logic that: 'direct' takes priority over 'derived' *)
+      match eligible_ids with
+      | [id] -> ([id], []) (* first look in local env, otherwise consider module entries *)
+      | _ ->
+        let (eligible_fields, explicit_fields) = FromModuleVal.matching_fields ctx env.vals in
+        (eligible_ids @ eligible_fields,
+          explicit_ids @ explicit_fields)
+    in
+    
+    match disambiguate_holes eligible_terms with
     | `Single term -> Ok term
-    | `Many _ | `Empty ->
-      (* No eligible direct candidates, try derivations from local scope *)
-      match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx) env.vals with
-      | `Committed (Ok term) -> Ok term
-      | `Ambiguous derivable_terms -> Error (HoleAmbiguous {
-          ambiguous_candidates = derivable_terms;
-          explicit_candidates = explicit_terms;
-          ambiguity_at = at;
-          ambiguity_sort = hole_sort;
-          ambiguity_typ = hole_typ;
-        })
-      | `Committed (Error inner_failures) ->
-        Error (HoleSuggestions ([], explicit_terms, renaming_hints, inner_failures))
-      | `Empty ->
-        (* Try derivations from lib candidates *)
-        match
-          if Option.is_some !Flags.implicit_package
-          then try_derive ~depth (FromModuleLib.matching_fields_with_holes ctx) env.libs
-          else `Empty
-        with
+    | `Many _ -> Error (HoleAmbiguous {ambiguous_candidates = eligible_terms; explicit_candidates = explicit_terms})
+    | `Empty ->
+      (* Try direct lib candidates *)
+      let lib_terms, _ = FromModuleLib.matching_fields ctx env.libs in
+      match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else `Empty with
+      | `Single term -> Ok term
+      | `Many _ | `Empty ->
+        (* No eligible direct candidates, try derivations from local scope *)
+        match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx) env.vals with
         | `Committed (Ok term) -> Ok term
+        | `Ambiguous derivable_terms -> Error (HoleAmbiguous {ambiguous_candidates = derivable_terms; explicit_candidates = explicit_terms})
         | `Committed (Error inner_failures) ->
-          Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, inner_failures))
-        | `Ambiguous _ | `Empty ->
-          Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, []))
+          Error (HoleSuggestions ([], explicit_terms, inner_failures))
+        | `Empty ->
+          (* Try derivations from lib candidates *)
+          match
+            if Option.is_some !Flags.implicit_package
+            then try_derive ~depth (FromModuleLib.matching_fields_with_holes ctx) env.libs
+            else `Empty
+          with
+          | `Committed (Ok term) -> Ok term
+          | `Committed (Error inner_failures) ->
+            Error (HoleSuggestions (lib_terms, explicit_terms, inner_failures))
+          | `Ambiguous _ | `Empty ->
+            Error (HoleSuggestions (lib_terms, explicit_terms, []))
+
+end
+
+let resolve_hole env = ImplicitHoles.resolve_hole ~depth:0 env
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
@@ -2686,58 +2678,9 @@ and check_exp env t exp =
 and check_exp' env0 t exp : T.typ =
   let env = {env0 with in_prog = false; in_actor = false; context = exp.it :: env0.context } in
   match exp.it, t with
-  | HoleE (s, e), t ->
-    let desc = function
-      | Named id -> "`"^id^"`"
-      | Anon idx -> "at position " ^ (Int.to_string idx)
-    in
-    begin match resolve_hole ~depth:0 env exp.at s t with
-    | Ok {path; _} ->
-      e := path;
-      check_exp env t path;
-      t
-    | Error (HoleAmbiguous { ambiguous_candidates; explicit_candidates; ambiguity_at; ambiguity_sort; ambiguity_typ }) ->
-      let descs = List.map desc_of_candidate ambiguous_candidates in
-      let notes = Printf.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " descs) ::
-        if explicit_candidates = [] then [] else
-          [ "The other explicit candidates are: " ^ (String.concat ", " (List.map desc_of_candidate explicit_candidates)) ]
-      in
-      error env ambiguity_at "M0231" ~notes "ambiguous implicit argument %s of type %a."
-        (match ambiguity_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
-        display_typ ambiguity_typ
-    | Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, derivation_notes)) ->
-      if not env.pre then begin
-        let explicit_sug =
-          if explicit_terms = [] then []
-          else [Printf.sprintf "Did you mean to explicitly use %s?" (String.concat " or " (List.map desc_of_candidate explicit_terms))]
-        in
-        let derivation_sug =
-          List.map (fun { candidate_desc; inner_name; inner_typ; inner_error } ->
-            let reason_text = match inner_error with
-              | HoleAmbiguous { ambiguous_candidates; _ } ->
-                Printf.sprintf "is ambiguous (candidates: %s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates))
-              | HoleSuggestions _ -> "could not be resolved"
-            in
-            Stdlib.Format.asprintf "Derivation via %s was attempted, but inner implicit `%s` of type %a %s."
-              candidate_desc inner_name display_typ inner_typ reason_text
-          ) derivation_notes
-        in
-        let import_sug =
-          if lib_terms = [] then
-            let desc = match s with Named id -> " named " ^ quote id | _ -> "" in
-            Stdlib.Format.sprintf
-             "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
-             desc desc
-          else Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))
-        in
-        renaming_hints env;
-        let notes = import_sug :: derivation_sug @ explicit_sug in
-        local_error ~notes env exp.at "M0230" "Cannot determine implicit argument %s of type%a"
-          (desc s)
-          display_typ t
-      end;
-      t
-  end
+  | HoleE (hole_sort, exp_ref), hole_typ ->
+    check_hole env exp.at hole_sort hole_typ exp_ref;
+    t
   | PrimE s, T.Func _ ->
     t
   | LitE lit, _ ->
@@ -2910,6 +2853,56 @@ and check_exp' env0 t exp : T.typ =
   | _, _ ->
     let t' = infer_exp env0 exp in
     check_inferred env0 env t t' exp
+
+and check_hole env at hole_sort hole_typ exp_ref =
+  let desc = function
+    | Named id -> "`"^id^"`"
+    | Anon idx -> "at position " ^ (Int.to_string idx)
+  in
+  match resolve_hole env at hole_sort hole_typ with
+  | Ok {path; _} ->
+    exp_ref := path;
+    check_exp env hole_typ path
+  | Error (HoleAmbiguous { ambiguous_candidates; explicit_candidates }) ->
+    let descs = List.map desc_of_candidate ambiguous_candidates in
+    let notes = Printf.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " descs) ::
+      if explicit_candidates = [] then [] else
+        [ "The other explicit candidates are: " ^ (String.concat ", " (List.map desc_of_candidate explicit_candidates)) ]
+    in
+    error env at "M0231" ~notes "ambiguous implicit argument %s of type %a."
+      (match hole_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
+      display_typ hole_typ
+  | Error (HoleSuggestions (lib_terms, explicit_terms, derivation_notes)) ->
+    if not env.pre then begin
+      let explicit_sug =
+        if explicit_terms = [] then []
+        else [Printf.sprintf "Did you mean to explicitly use %s?" (String.concat " or " (List.map desc_of_candidate explicit_terms))]
+      in
+      let derivation_sug =
+        List.map (fun { candidate_desc; inner_name; inner_typ; inner_error } ->
+          let reason_text = match inner_error with
+            | HoleAmbiguous { ambiguous_candidates; _ } ->
+              Printf.sprintf "is ambiguous (candidates: %s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates))
+            | HoleSuggestions _ -> "could not be resolved"
+          in
+          Stdlib.Format.asprintf "Derivation via %s was attempted, but inner implicit `%s` of type %a %s."
+            candidate_desc inner_name display_typ inner_typ reason_text
+        ) derivation_notes
+      in
+      let import_sug =
+        if lib_terms = [] then
+          let desc = match hole_sort with Named id -> " named " ^ quote id | _ -> "" in
+          Stdlib.Format.sprintf
+            "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
+            desc desc
+        else Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))
+      in
+      ImplicitHoles.renaming_hints env at hole_sort explicit_terms;
+      let notes = import_sug :: derivation_sug @ explicit_sug in
+      local_error ~notes env at "M0230" "Cannot determine implicit argument %s of type%a"
+        (desc hole_sort)
+        display_typ hole_typ
+    end
 
 and check_inferred env0 env t t' exp =
   (match sub_explained env exp.at t' t with
@@ -3118,7 +3111,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
              match as_implicit typ with
              | None -> acc
              | Some name ->
-                match resolve_hole ~depth:0 env arg.at (match name with "_" -> Anon pos | id -> Named id) typ with
+                match resolve_hole env arg.at (match name with "_" -> Anon pos | id -> Named id) typ with
                 | Error _ -> acc
                 | Ok {path;_} ->
                    match path.it, arg.it with
