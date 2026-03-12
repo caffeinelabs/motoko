@@ -109,6 +109,7 @@ let tag_prim = function
   | Error -> 16
   | Principal -> 17
   | Region -> 18
+  (* next free: 20 *)
 
 let tag_func_sort = function
   | Local -> 0

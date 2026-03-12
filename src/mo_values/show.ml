@@ -15,8 +15,7 @@ let can_show t =
       | Prim (Nat16|Int16)
       | Prim (Nat32|Int32)
       | Prim (Nat64|Int64) -> true
-      | Prim Float -> true
-      | Prim Float32 -> true
+      | Prim (Float|Float32) -> true
       | Tup ts' -> List.for_all go ts'
       | Weak t'
       | Opt t' -> go t'
