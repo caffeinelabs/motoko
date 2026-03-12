@@ -4162,6 +4162,7 @@ and infer_viewer env scope mut id viewer =
   if not !Flags.generate_view_queries then ()
   else
   begin
+    let at = id.at in
     assert (!viewer = None);
     let isAdmin_available ()  =
       let isAdmin = "isAdmin" in
@@ -4176,64 +4177,44 @@ and infer_viewer env scope mut id viewer =
       available
     in
     let lab = "__" ^ id.it in
-    if T.(Env.mem lab (scope.Scope.val_env) || Lib.String.chop_prefix "__motoko" lab <> None)
+    if T.Env.mem lab scope.Scope.val_env || String.starts_with ~prefix:"__motoko" lab
     then () (* avoid any clash with local or reserved `__motoko_XXX` members by omitting viewer *)
     else
+      let varE = VarE {it = id.it; at; note = (mut, None)} @? at in
+      let viewer_field args ret =
+        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, ret); src = empty_src } in
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->
-        let env = {env with msgs; used_identifiers = ref T.Env.empty } in (* don't record errors in outer env *)
-        let env = adjoin env scope in
-        let note() = empty_typ_note in
-        let at = id.at in
-        let dot_exp =
-          { it = DotE
-                   ( {it = VarE {it = id.it; at ; note = (mut, None)};
-                      at;
-                      note = note()},
-                     {it = "view"; note = (); at},
-                     ref None);
-            at;
-            note = note()}
-        in
-        let arg_exp = (false, ref {it = TupE []; at; note = note()}) in
-        let inst = {it = None; at; note = []} in
-        let exp = {it = CallE(None, dot_exp, inst, arg_exp); at; note = note()} in
-        let viewer_typ = infer_exp env exp in
-        (match T.normalize viewer_typ with
-         | T.Func(T.Local, T.Returns, [], ts1, ts2) ->
-            if List.for_all T.shared ts1 && List.for_all T.shared ts2
-            then
+          let env = {env with msgs; used_identifiers = ref T.Env.empty } in (* don't record errors in outer env *)
+          let env = adjoin env scope in
+          let dot_exp = DotE(varE, "view" @@ at, ref None) @? at in
+          let arg_exp = (false, ref (TupE [] @? at)) in
+          let inst = {it = None; at; note = []} in
+          let exp = CallE(None, dot_exp, inst, arg_exp) @? at in
+          let viewer_typ = infer_exp env exp in
+          match T.normalize viewer_typ with
+           | T.Func(T.Local, T.Returns, [], ts1, ts2)
+             when List.for_all T.shared ts1 && List.for_all T.shared ts2 ->
               { viewer_body = DotViewV exp;
-                viewer_field =
-                  T.{ lab;
-                   typ = Func (Shared Query, Promises, [scope_bind], ts1, ts2);
-                   src = empty_src };
+                viewer_field = viewer_field ts1 ts2;
                 viewer_isAdmin_available = isAdmin_available();
               }
-            else raise Recover
-         | _ -> raise Recover)))
+           | _ -> raise Recover))
       in
       match infer_dot_view with
       | Ok (exp_typ, _) ->
-         (* info env id.at "viewer found for %s" id.it; *)
-         viewer := Some exp_typ;
-         ()
+         (* info env at "viewer found for %s" id.it; *)
+         viewer := Some exp_typ
       | Error _ ->
          (* info env id.at "viewer not found for %s" id.it; *)
-         (match T.Env.find_opt id.it scope.Scope.val_env with
-          | Some (typ, _, _)  ->
-             let typ = T.as_immut typ in
-             if T.shared typ then
-               viewer := Some { viewer_body = DefaultV
-                                                {it = VarE {it = id.it; at = id.at ; note = (mut, None)};
-                                                 at = id.at;
-                                                 note = { empty_typ_note with note_typ = typ }};
-                                viewer_field =
-                                  T.{ lab;
-                                      typ = Func (Shared Query, Promises, [scope_bind], [], [typ]);
-                                      src = empty_src };
-                                viewer_isAdmin_available = isAdmin_available() }
-          | None -> assert false)
+         let (typ, _, _) = T.Env.find id.it scope.Scope.val_env in
+         let typ = T.as_immut typ in
+         if T.shared typ then
+           viewer := Some
+             { viewer_body = DefaultV(varE);
+               viewer_field = viewer_field [] [typ];
+               viewer_isAdmin_available = isAdmin_available();
+             }
   end
 
 (* Blocks and Declarations *)
