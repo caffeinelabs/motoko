@@ -1762,37 +1762,39 @@ let rec resolve_hole ~depth env at hole_sort typ =
       ambiguity_typ = typ;
     })
   | `Empty ->
-    (* No eligible direct candidates, try derivations from local scope *)
-    (match try_derive ~depth (all_named_candidates false env.vals is_val_module) with
-    | `Committed (Ok term) -> Ok term
-    | `Ambiguous derivable_terms -> Error (HoleAmbiguous {
-        ambiguous_candidates = derivable_terms;
-        explicit_candidates = explicit_terms;
-        ambiguity_at = at;
-        ambiguity_sort = hole_sort;
-        ambiguity_typ = typ;
-      })
-    | `Committed (Error local_failures) ->
-      Error (HoleSuggestions ([], explicit_terms, renaming_hints, local_failures))
-    | `Empty ->
-      (* Try direct lib candidates *)
-      let (lib_terms, _) = candidates true env.libs is_lib_module in
-      match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else `Empty with
-      | `Single term -> Ok term
-      | `Many _ | `Empty ->
+    (* Try direct lib candidates *)
+    let lib_terms, _ = candidates true env.libs is_lib_module in
+    match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else `Empty with
+    | `Single term -> Ok term
+    | `Many _ | `Empty ->
+      (* No eligible direct candidates, try derivations from local scope *)
+      match try_derive ~depth (all_named_candidates false env.vals is_val_module) with
+      | `Committed (Ok term) -> Ok term
+      | `Ambiguous derivable_terms -> Error (HoleAmbiguous {
+          ambiguous_candidates = derivable_terms;
+          explicit_candidates = explicit_terms;
+          ambiguity_at = at;
+          ambiguity_sort = hole_sort;
+          ambiguity_typ = typ;
+        })
+      | `Committed (Error local_failures) ->
+        Error (HoleSuggestions ([], explicit_terms, renaming_hints, local_failures))
+      | `Empty ->
         (* Try derivations from lib candidates *)
-        let lib_derivation_failures = match
-          (if Option.is_some !Flags.implicit_package
-           then try_derive ~depth (all_named_candidates true env.libs is_lib_module)
-           else `Empty) with
-        | `Committed (Ok term) -> (Ok term)
-        | `Committed (Error failures) -> Error failures
-        | `Ambiguous _ | `Empty -> Error []
+        let lib_derivation_failures =
+          match
+            if Option.is_some !Flags.implicit_package
+            then try_derive ~depth (all_named_candidates true env.libs is_lib_module)
+            else `Empty
+          with
+          | `Committed (Ok term) -> (Ok term)
+          | `Committed (Error failures) -> Error failures
+          | `Ambiguous _ | `Empty -> Error []
         in
-        (match lib_derivation_failures with
+        match lib_derivation_failures with
         | Ok term -> Ok term
         | Error failures ->
-          Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, failures))))
+          Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, failures))
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
