@@ -50,7 +50,7 @@ let rec show_val t v =
   | T.(Prim Int32), Value.Int32 i -> Numerics.Int_32.(sign (gt i zero) (to_string i))
   | T.(Prim Int64), Value.Int64 i -> Numerics.Int_64.(sign (gt i zero) (to_string i))
   | T.(Prim Float), Value.Float i -> Numerics.Float.to_string i
-  | T.(Prim Float32), Value.Float32 i -> Numerics.Float32.to_string i ^ "f"
+  | T.(Prim Float32), Value.Float32 i -> Numerics.Float32.to_string i
   | T.(Prim Text), Value.Text s -> "\"" ^ s ^ "\""
   | T.(Prim Blob), Value.Blob s -> "\"" ^ Value.Blob.escape s ^ "\""
   | T.(Prim Char), Value.Char c -> "\'" ^ Lib.Utf8.encode [c] ^ "\'"
