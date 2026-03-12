@@ -21,4 +21,3 @@ debugPrint (debug_show f32);
 debugPrint "Float32 precision tests passed";
 
 //MOC_FLAG -dp
-//SKIP comp

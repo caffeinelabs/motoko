@@ -3072,6 +3072,13 @@ module ReadBuf = struct
     G.i (Load {ty = F64Type; align = 0; offset = 0L; sz = None}) ^^
     advance get_buf (compile_unboxed_const 8l)
 
+  let read_float32 env get_buf =
+    check_space env get_buf (compile_unboxed_const 4l) ^^
+    get_ptr get_buf ^^
+    G.i (Load {ty = F32Type; align = 0; offset = 0L; sz = None}) ^^
+    G.i (Convert (Wasm.Values.F64 F64Op.PromoteF32)) ^^
+    advance get_buf (compile_unboxed_const 4l)
+
   let read_blob env get_buf get_len =
     check_space env get_buf get_len ^^
     (* Already has destination address on the stack *)
@@ -6926,6 +6933,7 @@ module MakeSerialization (Strm : Stream) = struct
     | Prim Int16 -> Some 10l
     | Prim Int32 -> Some 11l
     | Prim Int64 -> Some 12l
+    | Prim Float32 -> Some 13l
     | Prim Float -> Some 14l
     | Prim Text -> Some 15l
     (* NB: Prim Blob does not map to a primitive IDL type *)
@@ -7362,6 +7370,11 @@ module MakeSerialization (Strm : Stream) = struct
         write_bignum_leb env get_data_buf get_x
       | Prim Int ->
         write_bignum_sleb env get_data_buf get_x
+      | Prim Float32 ->
+        reserve env get_data_buf 4l ^^
+        get_x ^^ Float.unbox env ^^
+        G.i (Convert (Wasm.Values.F32 F32Op.DemoteF64)) ^^
+        G.i (Store {ty = F32Type; align = 0; offset = 0L; sz = None})
       | Prim Float ->
         reserve env get_data_buf 8l ^^
         get_x ^^ Float.unbox env ^^
@@ -7888,6 +7901,12 @@ module MakeSerialization (Strm : Stream) = struct
               BigNum.compile_load_from_data_buf env get_data_buf true
             end
           end
+      | Prim Float32 ->
+        with_prim_typ t
+        begin
+          ReadBuf.read_float32 env get_data_buf ^^
+          Float.box env
+        end
       | Prim Float ->
         with_prim_typ t
         begin
@@ -9083,7 +9102,7 @@ module StackRep = struct
     | Prim ((Nat32 | Int32) as pty) -> UnboxedWord32 pty
     | Prim ((Nat8 | Nat16 | Int8 | Int16 | Char) as pty) -> UnboxedWord32 pty
     | Prim (Text | Blob | Principal) -> Vanilla
-    | Prim Float -> UnboxedFloat64
+    | Prim (Float | Float32) -> UnboxedFloat64
     | Obj (Actor, _, _) -> Vanilla
     | Func (Shared _, _, _, _, _) -> Vanilla
     | p -> todo "StackRep.of_type" (Arrange_ir.typ p) Vanilla
@@ -10197,7 +10216,7 @@ module AllocHow = struct
     | Prim ((Nat32 | Int32 | Nat16 | Int16 | Nat8 | Int8 | Char) as pty) ->
        SR.UnboxedWord32 pty
     | Prim ((Nat64 | Int64) as pty) -> SR.UnboxedWord64 pty
-    | Prim Float -> SR.UnboxedFloat64
+    | Prim (Float | Float32) -> SR.UnboxedFloat64
     | _ -> SR.Vanilla
 
   let dec lvl how_outer (seen, how0) dec =
@@ -11418,6 +11437,18 @@ and compile_prim_invocation (env : E.t) ae p es at =
       SR.UnboxedFloat64,
       compile_exp_as env ae (SR.UnboxedWord64 Int64) e ^^
       G.i (Convert (Wasm.Values.F64 F64Op.ConvertSI64))
+
+    | Float, Float32 ->
+      SR.UnboxedFloat64,
+      compile_exp_as env ae SR.UnboxedFloat64 e ^^
+      G.i (Convert (Wasm.Values.F32 F32Op.DemoteF64)) ^^
+      G.i (Convert (Wasm.Values.F64 F64Op.PromoteF32))
+
+    | Float32, Float ->
+      SR.UnboxedFloat64,
+      compile_exp_as env ae SR.UnboxedFloat64 e
+      (* Float32 already stored as UnboxedFloat64; no conversion needed *)
+
     | Nat8, Nat16 ->
       SR.UnboxedWord32 Nat16,
       compile_exp_as env ae (SR.UnboxedWord32 Nat8) e ^^

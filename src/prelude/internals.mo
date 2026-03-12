@@ -163,7 +163,8 @@ func @text_of_Int16(x : Int16) : Text = @text_of_Int(@int16ToInt x);
 func @text_of_Int32(x : Int32) : Text = @text_of_Int(@int32ToInt x);
 func @text_of_Int64(x : Int64) : Text = @text_of_Int(@int64ToInt x);
 func @text_of_Float(x : Float) : Text = (prim "Float->Text" : Float -> Text) x;
-func @text_of_Float32(x : Float32) : Text = (prim "Float32->Text" : Float32 -> Text) x;
+func @text_of_Float32(x : Float32) : Text =
+  @text_of_Float((prim "num_conv_Float32_Float" : Float32 -> Float) x) # "f";
 
 func @text_of_Bool(b : Bool) : Text {
   if (b) "true" else "false";
