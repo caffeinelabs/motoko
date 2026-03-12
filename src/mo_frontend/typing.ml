@@ -1587,28 +1587,34 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
       Some inst
     with _ -> None
 
-(** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
-    Returns [Ok(candidate)] when a single resolution is
-    found, [Error(file_paths)] when no resolution was found, but a
-    matching module could be imported, and reports an ambiguity error
-    when finding multiple resolutions.
-    When direct resolution fails, attempts implicit derivation from
-    polymorphic candidates whose inner implicits can be recursively resolved
-    (up to [Flags.implicit_derivation_depth]).
- *)
-let rec resolve_hole ~depth env at hole_sort typ =
-  let is_matching_lab lab =
-    match hole_sort with
+module HoleCandidates = struct
+  type ctx = {
+    hole_sort : hole_sort;
+    hole_typ : T.typ;
+  }
+  let is_matching_lab ctx lab =
+    match ctx.hole_sort with
     | Named lab1 -> lab = lab1
     | Anon _ -> not (Syntax.is_privileged lab) (* fix from 5659 *)
-  in
 
   (* Candidates for implicits match the required type either directly ... *)
-  let is_matching_typ candidate_typ = T.sub candidate_typ typ
-  in
+  let is_matching_typ ctx candidate_typ = T.sub candidate_typ ctx.hole_typ
+
   (* ... or by filling the implicit holes in the candidate type with recursively resolved implicits *)
-  let as_derivable_match candidate_typ =
-    match T.promote typ, T.promote candidate_typ with
+  type func_with_holes = {
+    cand_args : T.typ list; (* Not substituted! Use only to determine the argument name *)
+    holes : (string * T.typ) list;
+    func_without_holes : T.typ;
+  }
+
+  (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
+  If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
+  let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ)
+  let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) -> 
+    T.sub x.func_without_holes y.func_without_holes)
+
+  let is_matching_typ_with_holes ctx candidate_typ =
+    match T.promote ctx.hole_typ, T.promote candidate_typ with
     | T.Func (T.Local, T.Returns, [], req_args, req_rets),
       T.Func (T.Local, T.Returns, cand_tbs, cand_args, cand_rets) ->
       let (explicit_args, implicit_args) = erase_implicits cand_args in
@@ -1620,29 +1626,91 @@ let rec resolve_hole ~depth env at hole_sort typ =
         |> Option.map (fun inst ->
           let inst_args = List.map (T.open_ inst) explicit_args in
           let inst_rets = List.map (T.open_ inst) cand_rets in
-          (inst, implicit_args, cand_args,
-           T.Func (T.Local, T.Returns, [], inst_args, inst_rets)))
+          let func_without_holes = T.Func (T.Local, T.Returns, [], inst_args, inst_rets) in
+          let holes = List.map (fun (name, inner_typ) -> (name, T.open_ inst inner_typ)) implicit_args in
+          { cand_args; holes; func_without_holes})
     | _ -> None
-  in
-  let make_field_candidate in_libs module_ref (lab1, typ1, region) =
-    let path =
-      { it = dot_module_exp (module_exp in_libs module_ref) ({ it = lab1; at = no_region; note = () });
-        at = Source.no_region;
-        note = empty_typ_note; }
-    in
-    ({ path; typ = typ1; module_ref_opt = Some module_ref; id = lab1; region } : hole_candidate)
-  in
-  let collect_field_candidates ?(type_filter=fun _ -> true) in_libs (module_ref, (_, fs)) =
-    List.filter_map (function
-      | T.{ lab = _; typ = Mut _; _ } -> None
-      | T.{ lab = lab1; typ = typ1; src } ->
-        if type_filter typ1 then Some (make_field_candidate in_libs module_ref (lab1, typ1, src.T.region))
-        else None
-    ) fs
-  in
+
+  module type Source = sig
+    type entry
+    val get_typ : entry -> T.typ
+    val make_ref_exp : string -> exp'
+  end
+
+  module ValSource : Source with type entry = val_info = struct
+    type entry = val_info
+    let get_typ ((t, _, _, _) : val_info) = t
+    let make_ref_exp r = VarE {it = r; at = no_region; note = (Const, None)}
+  end
+
+  module LibSource : Source with type entry = T.typ = struct
+    type entry = T.typ
+    let get_typ t = t
+    let make_ref_exp r = ImplicitLibE r
+  end
+
+  module MakeFromModule (M : Source) = struct
+    let fields_from_module (n, entry) =
+      match T.normalize (M.get_typ entry) with
+      | T.Obj (T.Module, fs, _) -> Some (n, (M.get_typ entry, fs))
+      | _ -> None
+
+    let all_module_fields k (entries : M.entry T.Env.t) =
+      T.Env.to_seq entries
+      |> Seq.filter_map fields_from_module
+      |> Seq.flat_map (fun (module_ref, (_, fields)) ->
+        List.to_seq fields |>
+        Seq.filter_map (function
+          | T.{ lab = _; typ = Mut _; _ } -> None
+          | field -> k module_ref field))
+
+    let make_field_candidate module_ref T.{lab; typ; src} =
+      let path =
+        { it = dot_module_exp (M.make_ref_exp module_ref) ({ it = lab; at = no_region; note = () });
+          at = Source.no_region;
+          note = empty_typ_note; }
+      in
+      ({ path; typ; module_ref_opt = Some module_ref; id = lab; region = src.T.region} : hole_candidate)
+
+    let partition ctx seq =
+      let x, y = Seq.partition (fun (c : hole_candidate) -> is_matching_lab ctx c.id) seq in
+      (List.of_seq x, List.of_seq y)
+
+    let matching_fields ctx xs = xs
+      |> all_module_fields (fun module_ref field ->
+        if not (T.sub field.T.typ ctx.hole_typ) then None else
+        Some (make_field_candidate module_ref field))
+      |> partition ctx
+
+    let matching_fields_with_holes ctx xs = xs
+      |> all_module_fields (fun module_ref field ->
+        (* Prune the fields early by name *)
+        if not (is_matching_lab ctx field.T.lab) then None else
+        is_matching_typ_with_holes ctx field.T.typ
+        |> Option.map (fun holes -> holes, make_field_candidate module_ref field))
+      |> List.of_seq
+  end
+
+  module FromModuleVal = MakeFromModule(ValSource)
+  module FromModuleLib = MakeFromModule(LibSource)
+
+end
+
+(** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
+    Returns [Ok(candidate)] when a single resolution is
+    found, [Error(file_paths)] when no resolution was found, but a
+    matching module could be imported, and reports an ambiguity error
+    when finding multiple resolutions.
+    When direct resolution fails, attempts implicit derivation from
+    polymorphic candidates whose inner implicits can be recursively resolved
+    (up to [Flags.implicit_derivation_depth]).
+ *)
+let rec resolve_hole ~depth env at hole_sort hole_typ =
+  let open HoleCandidates in
+  let ctx = { hole_sort; hole_typ } in
   let find_candidate_id = function
     (id, (t, region, _, _)) ->
-    if is_matching_typ t
+    if is_matching_typ ctx t
     then
       let path =
         { it = VarE {it = id; at = no_region; note = (Const, None)};
@@ -1656,30 +1724,14 @@ let rec resolve_hole ~depth env at hole_sort typ =
     T.Env.to_seq env.vals |>
       Seq.filter_map find_candidate_id |>
       List.of_seq |>
-      List.partition (fun (desc : hole_candidate) -> is_matching_lab desc.id)
-  in
-  let candidates in_libs xs f =
-    T.Env.to_seq xs |>
-      Seq.filter_map f |>
-      Seq.map (collect_field_candidates ~type_filter:is_matching_typ in_libs) |>
-      List.of_seq |>
-      List.flatten |>
-      List.partition (fun (desc : hole_candidate) -> is_matching_lab desc.id)
-  in
-  let all_named_candidates in_libs xs f =
-    T.Env.to_seq xs |>
-      Seq.filter_map f |>
-      Seq.map (collect_field_candidates in_libs) |>
-      List.of_seq |>
-      List.flatten |>
-      List.filter (fun (c : hole_candidate) -> is_matching_lab c.id)
+      List.partition (fun (desc : hole_candidate) -> is_matching_lab ctx desc.id)
   in
   let eligible_terms, explicit_terms  =
     (* TODO: with the derivation, should we also prioritize local matches first? I think we should stay consistent with the original behavior, just adding an additional logic that: 'direct' takes priority over 'derived' *)
     match eligible_ids with
     | [id] -> ([id], []) (* first look in local env, otherwise consider module entries *)
     | _ ->
-       let (eligible_fields, explicit_fields) = candidates false env.vals is_val_module in
+       let (eligible_fields, explicit_fields) = FromModuleVal.matching_fields ctx env.vals in
        (eligible_ids @ eligible_fields,
         explicit_ids @ explicit_fields)
   in
@@ -1708,47 +1760,27 @@ let rec resolve_hole ~depth env at hole_sort typ =
              (desc_of_candidate candidate) mid id mod_desc mid id call_region call_src)
       explicit_terms
   in
-  (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
-     If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
-  let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ) in
 
-  let find_derivable_candidates candidate_list =
-    if depth >= !(Flags.implicit_derivation_depth) then [] else
-    candidate_list |> List.filter_map (fun (candidate : hole_candidate) ->
-      as_derivable_match candidate.typ
-      |> Option.map (fun (inst, implicit_args, cand_args, erased_typ) ->
-        (candidate, inst, implicit_args, cand_args, erased_typ)))
-  in
-
-  let disambiguate_derivable matches =
-    disambiguate_resolutions
-      (fun (_, _, _, _, t1) (_, _, _, _, t2) -> T.sub t1 t2) matches
-  in
-
-  let commit_derivation ~depth ((candidate : hole_candidate), inst, implicit_args, cand_args, _erased_typ) =
-    let failed, resolved = implicit_args |> List.partition_map (fun (name, inner_typ) ->
-      let inner_typ = T.open_ inst inner_typ in
+  let commit_derivation ~depth ((h : func_with_holes), (candidate : hole_candidate)) =
+    let failed, resolved = h.holes |> List.partition_map (fun (name, inner_typ) ->
       match resolve_hole ~depth:(depth + 1) env at (Named name) inner_typ with
       | Error err -> Either.Left (name, inner_typ, err)
       | Ok ok -> Either.Right (name, inner_typ, ok)) in
     if failed = [] then
       let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
-      let wrapper = synthesize_derived_wrapper at candidate.path cand_args resolved_paths in
-      Ok { candidate with path = wrapper; typ }
+      let wrapper = synthesize_derived_wrapper at candidate.path h.cand_args resolved_paths in
+      Ok { candidate with path = wrapper; typ = hole_typ }
     else
       let failures = failed |> List.map (fun (inner_name, inner_typ, inner_error) ->
         { candidate_desc = desc_of_candidate candidate;
           inner_name; inner_typ; inner_error }) in
       Error failures
   in
-
-  let try_derive ~depth candidate_list =
-    let matches = find_derivable_candidates candidate_list in
-    match disambiguate_derivable matches with
-    | `Single m -> `Committed (commit_derivation ~depth m)
-    | `Many _ ->
-      let candidates = List.map (fun (c, _, _, _, _) -> c) matches in
-      `Ambiguous candidates
+  let try_derive ~depth get_candidate_list source =
+    if depth >= !(Flags.implicit_derivation_depth) then `Empty else
+    match disambiguate_func_with_holes (get_candidate_list source) with
+    | `Single x -> `Committed (commit_derivation ~depth x)
+    | `Many matches -> `Ambiguous (List.map (fun (_, c) -> c) matches)
     | `Empty -> `Empty
   in
 
@@ -1759,42 +1791,38 @@ let rec resolve_hole ~depth env at hole_sort typ =
       explicit_candidates = explicit_terms;
       ambiguity_at = at;
       ambiguity_sort = hole_sort;
-      ambiguity_typ = typ;
+      ambiguity_typ = hole_typ;
     })
   | `Empty ->
     (* Try direct lib candidates *)
-    let lib_terms, _ = candidates true env.libs is_lib_module in
+    let lib_terms, _ = FromModuleLib.matching_fields ctx env.libs in
     match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else `Empty with
     | `Single term -> Ok term
     | `Many _ | `Empty ->
       (* No eligible direct candidates, try derivations from local scope *)
-      match try_derive ~depth (all_named_candidates false env.vals is_val_module) with
+      match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx) env.vals with
       | `Committed (Ok term) -> Ok term
       | `Ambiguous derivable_terms -> Error (HoleAmbiguous {
           ambiguous_candidates = derivable_terms;
           explicit_candidates = explicit_terms;
           ambiguity_at = at;
           ambiguity_sort = hole_sort;
-          ambiguity_typ = typ;
+          ambiguity_typ = hole_typ;
         })
-      | `Committed (Error local_failures) ->
-        Error (HoleSuggestions ([], explicit_terms, renaming_hints, local_failures))
+      | `Committed (Error inner_failures) ->
+        Error (HoleSuggestions ([], explicit_terms, renaming_hints, inner_failures))
       | `Empty ->
         (* Try derivations from lib candidates *)
-        let lib_derivation_failures =
-          match
-            if Option.is_some !Flags.implicit_package
-            then try_derive ~depth (all_named_candidates true env.libs is_lib_module)
-            else `Empty
-          with
-          | `Committed (Ok term) -> (Ok term)
-          | `Committed (Error failures) -> Error failures
-          | `Ambiguous _ | `Empty -> Error []
-        in
-        match lib_derivation_failures with
-        | Ok term -> Ok term
-        | Error failures ->
-          Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, failures))
+        match
+          if Option.is_some !Flags.implicit_package
+          then try_derive ~depth (FromModuleLib.matching_fields_with_holes ctx) env.libs
+          else `Empty
+        with
+        | `Committed (Ok term) -> Ok term
+        | `Committed (Error inner_failures) ->
+          Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, inner_failures))
+        | `Ambiguous _ | `Empty ->
+          Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints, []))
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
