@@ -6498,7 +6498,8 @@ module StackRep = struct
     | Prim (Nat | Int) -> Vanilla
     | Prim ((Nat8 | Nat16 | Nat32 | Nat64 | Int8 | Int16 | Int32 | Int64 | Char) as pty) -> UnboxedWord64 pty
     | Prim (Text | Blob | Principal) -> Vanilla
-    | Prim (Float | Float32) -> UnboxedFloat64
+    | Prim Float -> UnboxedFloat64
+    | Prim Float32 -> UnboxedFloat64 (* TODO: switch to UnboxedFloat32 (F32Type) for compactness *)
     | Obj (Actor, _, _) -> Vanilla
     | Func (Shared _, _, _, _, _) -> Vanilla
     | p -> todo "StackRep.of_type" (Arrange_ir.typ p) Vanilla
@@ -10651,7 +10652,8 @@ module AllocHow = struct
     match normalize t with
     | Prim ((Nat64 | Int64 | Nat32 | Int32 | Nat16 | Int16 | Nat8 | Int8 | Char) as pty) ->
        SR.UnboxedWord64 pty
-    | Prim (Float | Float32) -> SR.UnboxedFloat64
+    | Prim Float -> SR.UnboxedFloat64
+    | Prim Float32 -> SR.UnboxedFloat64 (* TODO: switch to UnboxedFloat32 for compactness *)
     | _ -> SR.Vanilla
 
   let dec lvl how_outer (seen, how0) dec =
