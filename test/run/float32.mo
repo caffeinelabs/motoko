@@ -17,6 +17,8 @@ assert (f32back != f64precise);
 // But round-tripping through f32 twice is idempotent
 assert (float32ToFloat (floatToFloat32 f32back) == f32back);
 
+debugPrint (debug_show f32);
 debugPrint "Float32 precision tests passed";
 
+//MOC_FLAG -dp
 //SKIP comp

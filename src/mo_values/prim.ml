@@ -135,6 +135,7 @@ let prim trap =
      | [a; b] -> k (Float (Float.copysign (as_float a) (as_float b)))
      | _ -> assert false)
   | "Float->Text" -> fun _ v k -> k (Text (Float.to_string (as_float v)))
+  | "Float32->Text" -> fun _ v k -> k (Text (Float32.to_string (as_float32 v) ^ "f"))
   | "fmtFloat->Text" -> fun _ v k ->
     (match Value.as_tup v with
      | [f; prec; mode] ->
