@@ -1,0 +1,3 @@
+implicit-derivation-no-backtracking.mo:39.8-39.30: type error [M0231], ambiguous implicit argument named `compare` of type 
+  ([Nat], [Nat]) -> Order.
+note: The ambiguous implicit candidates are: `ArrayA.compare`, `ArrayB.compare`.
