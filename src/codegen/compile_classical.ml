@@ -11787,6 +11787,15 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 0) ^^
     E.call_import env "rts" "float_fmt"
 
+  | OtherPrim "Float32->Text", [e] ->
+    SR.Vanilla,
+    compile_exp_as env ae SR.UnboxedFloat64 e ^^ (* TODO: UnboxedFloat32 when compact repr lands *)
+    compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 6) ^^
+    compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 0) ^^
+    E.call_import env "rts" "float_fmt" ^^
+    compile_lit_as env SR.Vanilla (TextLit "f") ^^
+    Text.concat env
+
   | OtherPrim "fmtFloat->Text", [f; prec; mode] ->
     SR.Vanilla,
     compile_exp_as env ae SR.UnboxedFloat64 f ^^
