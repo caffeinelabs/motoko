@@ -1236,8 +1236,7 @@ let check_int32 env = check_lit_val env T.Int32 Numerics.Int_32.of_string
 let check_int64 env = check_lit_val env T.Int64 Numerics.Int_64.of_string
 let check_float env = check_lit_val env T.Float Numerics.Float.of_string
 let check_float32 env at s =
-  let f = check_lit_val env T.Float32 Numerics.Float.of_string at s in
-  Numerics.Float32.of_float (Int32.float_of_bits (Int32.bits_of_float (Numerics.Float32.to_float f)))
+  Numerics.Float32.demote (check_lit_val env T.Float32 Numerics.Float.of_string at s)
 
 let check_text env at s =
   if not (Lib.Utf8.is_valid s) then

@@ -63,6 +63,7 @@ let sign_unop fint (fint8, fint16, fint32, fint64) ffloat = function
   | T.Int32 -> fun v -> Int32 (fint32 (as_int32 v))
   | T.Int64 -> fun v -> Int64 (fint64 (as_int64 v))
   | T.Float -> fun v -> Float (ffloat (as_float v))
+  | T.Float32 -> fun v -> Float32 (Float32.demote (ffloat (as_float32 v)))
   | _ -> raise (Invalid_argument "unop")
 
 let unop op t =
@@ -106,6 +107,7 @@ let num_binop fnat fint ffixed ffloat = function
   | T.Nat -> fun v1 v2 -> Int (fnat (as_int v1) (as_int v2))
   | T.Int -> fun v1 v2 -> Int (fint (as_int v1) (as_int v2))
   | T.Float -> fun v1 v2 -> Float (ffloat (as_float v1) (as_float v2))
+  | T.Float32 -> fun v1 v2 -> Float32 (Float32.demote (ffloat (as_float32 v1) (as_float32 v2)))
   | t -> fixed_binop ffixed t
 
 let binop op t =
@@ -149,6 +151,7 @@ let num_relop fnat fint (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, f
   | T.Int32 -> fun v1 v2 -> Bool (fint32 (as_int32 v1) (as_int32 v2))
   | T.Int64 -> fun v1 v2 -> Bool (fint64 (as_int64 v1) (as_int64 v2))
   | T.Float -> fun v1 v2 -> Bool (ffloat (as_float v1) (as_float v2))
+  | T.Float32 -> fun v1 v2 -> Bool (ffloat (as_float32 v1) (as_float32 v2))
   | _ -> raise (Invalid_argument "relop")
 
 let ord_relop fnat fint fwords ffloat fchar ftext fblob = function

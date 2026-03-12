@@ -69,7 +69,10 @@ sig
 end
 
 module Float : FloatType with type bits = int64 and type t = Wasm.F64.t
-module Float32 : FloatType with type bits = int64 and type t = Wasm.F64.t
+module Float32 : sig
+  include FloatType with type bits = int64 and type t = Wasm.F64.t
+  val demote : t -> t
+end
 
 module Int : NumType
 module Nat : NumType with type t = Int.t
