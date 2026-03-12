@@ -21,6 +21,8 @@ let
     staticpkgs.stdenv.mkDerivation {
       inherit name;
 
+      dontPatchELF = is_static;
+
       allowedRequisites = pkgs.lib.optional is_static staticpkgs.musl
         ++ pkgs.lib.optional is_dyn_static staticpkgs.patchelf;
 

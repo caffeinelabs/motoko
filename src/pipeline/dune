@@ -25,21 +25,9 @@
   (instrumentation (backend bisect_ppx --bisect-silent yes))
 )
 
-(rule
-  (alias copy_test_files)
-  (targets run run-drun perf bench)
-  (action
-    (progn
-      (run cp -r ../../../../test/run/      run)
-      (run cp -r ../../../../test/run-drun/ run-drun)
-      (run cp -r ../../../../test/perf/     perf)
-      (run cp -r ../../../../test/bench/    bench))))
-
 (library
   (name test_field_srcs)
-  (inline_tests
-    (deps
-      (alias copy_test_files)))
+  (inline_tests)
   (modules test_field_srcs)
   (libraries pipeline mo_frontend lib lang_utils mo_config mo_def mo_types mo_values wasm_exts)
   (flags (:standard -w -40))
