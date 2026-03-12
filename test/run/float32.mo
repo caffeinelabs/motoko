@@ -20,4 +20,8 @@ assert (float32ToFloat (floatToFloat32 f32back) == f32back);
 debugPrint (debug_show f32);
 debugPrint "Float32 precision tests passed";
 
+// Float32 literal ascription
+let lit32 : Float32 = 3.14;
+assert (debug_show lit32 == debug_show (floatToFloat32 3.14));
+
 //MOC_FLAG -dp

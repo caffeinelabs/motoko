@@ -178,6 +178,7 @@ let value_of_lit = function
   | Int32Lit w -> V.Int32 w
   | Int64Lit w -> V.Int64 w
   | FloatLit z -> V.Float z
+  | Float32Lit z -> V.Float32 z
   | CharLit c -> V.Char c
   | TextLit t -> V.Text t
   | BlobLit b -> V.Blob b

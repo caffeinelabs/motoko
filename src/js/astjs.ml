@@ -257,6 +257,9 @@ module Make (Cfg : Config) = struct
     | FloatLit f ->
         to_js_object "FloatLit"
           [| js_string (Numerics.Float.to_pretty_string f) |]
+    | Float32Lit f ->
+        to_js_object "Float32Lit"
+          [| js_string (Numerics.Float32.to_pretty_string f) |]
     | CharLit c -> to_js_object "CharLit" [| js_string (string_of_int c) |]
     | TextLit t -> to_js_object "TextLit" [| js_string t |]
     | BlobLit b -> to_js_object "BlobLit" [| js_string b |]

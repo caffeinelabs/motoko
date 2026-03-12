@@ -7222,7 +7222,7 @@ module MakeSerialization (Strm : Stream) = struct
       | Prim Int -> inc_data_size (get_x ^^ BigNum.compile_data_size_signed env)
       | Prim (Int8|Nat8) -> inc_data_size compile_unboxed_one
       | Prim (Int16|Nat16) -> inc_data_size (compile_unboxed_const 2l)
-      | Prim (Int32|Nat32|Char) -> inc_data_size (compile_unboxed_const 4l)
+      | Prim (Int32|Nat32|Char|Float32) -> inc_data_size (compile_unboxed_const 4l)
       | Prim (Int64|Nat64|Float) -> inc_data_size (compile_unboxed_const 8l)
       | Prim Bool -> inc_data_size compile_unboxed_one
       | Prim Null -> G.nop
@@ -10412,6 +10412,7 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | TextLit t     -> Const.Text t
   | BlobLit t     -> Const.Blob t
   | FloatLit f    -> Const.Float64 f
+  | Float32Lit f  -> Const.Float64 f
 
 let const_of_lit lit =
   Const.t_of_v (Const.Lit (const_lit_of_lit lit))
@@ -10984,7 +10985,7 @@ let compile_eq env =
   | Prim (Bool | Int8 | Nat8 | Int16 | Nat16 | Int32 | Nat32 | Char) ->
     G.i (Compare (Wasm.Values.I32 I32Op.Eq))
   | Non -> G.i Unreachable
-  | Prim Float -> G.i (Compare (Wasm.Values.F64 F64Op.Eq))
+  | Prim (Float | Float32) -> G.i (Compare (Wasm.Values.F64 F64Op.Eq))
   | t -> todo_trap env "compile_eq" (Arrange_type.typ t)
 
 let get_relops = Operator.(function
@@ -12928,7 +12929,8 @@ and compile_lit_pat env l =
   | BlobLit t ->
     compile_lit_as env SR.Vanilla l ^^
     Blob.compare env (Some Operator.EqOp)
-  | FloatLit _ ->
+  | FloatLit _
+  | Float32Lit _ ->
     todo_trap env "compile_lit_pat" (Arrange_ir.lit l)
 
 and fill_pat env ae pat : patternCode =

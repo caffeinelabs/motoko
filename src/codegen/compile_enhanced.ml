@@ -7626,7 +7626,7 @@ module Serialization = struct
       | Prim Int -> inc_data_size (get_x ^^ BigNum.compile_data_size_signed env)
       | Prim (Int8|Nat8) -> inc_data_size compile_unboxed_one
       | Prim (Int16|Nat16) -> inc_data_size (compile_unboxed_const 2L)
-      | Prim (Int32|Nat32|Char) -> inc_data_size (compile_unboxed_const 4L)
+      | Prim (Int32|Nat32|Char|Float32) -> inc_data_size (compile_unboxed_const 4L)
       | Prim (Int64|Nat64|Float) -> inc_data_size (compile_unboxed_const 8L)
       | Prim Bool -> inc_data_size compile_unboxed_one
       | Prim Null -> G.nop
@@ -10844,6 +10844,7 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | TextLit t     -> Const.Text t
   | BlobLit t     -> Const.Blob t
   | FloatLit f    -> Const.Float64 f
+  | Float32Lit f  -> Const.Float64 f
 
 let const_of_lit lit =
   Const.Lit (const_lit_of_lit lit)
@@ -11375,7 +11376,7 @@ let compile_eq env =
   | Prim (Bool | Int8 | Nat8 | Int16 | Nat16 | Int32 | Nat32 | Int64 | Nat64 | Char) ->
     compile_comparison I64Op.Eq
   | Non -> G.i Unreachable
-  | Prim Float -> compile_comparison_f64 F64Op.Eq
+  | Prim (Float | Float32) -> compile_comparison_f64 F64Op.Eq
   | t -> todo_trap env "compile_eq" (Arrange_type.typ t)
 
 let get_relops = Operator.(function
@@ -13250,7 +13251,8 @@ and compile_lit_pat env l =
   | BlobLit t ->
     compile_lit_as env SR.Vanilla l ^^
     Blob.compare env (Some Operator.EqOp)
-  | FloatLit _ ->
+  | FloatLit _
+  | Float32Lit _ ->
     todo_trap env "compile_lit_pat" (Arrange_ir.lit l)
 
 and fill_pat env ae pat : patternCode =
