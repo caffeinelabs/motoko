@@ -95,7 +95,8 @@ let pick_val vs = function
   | T.Error
   | T.Principal
   | T.Region
-  | T.Float -> Any
+  | T.Float
+  | T.Float32 -> Any
 
 let rec expand_notval t n vs : desc list =
   let missing = Lib.Option.get (T.span t) max_int - ValSet.cardinal vs in

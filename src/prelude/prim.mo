@@ -31,6 +31,7 @@ module Types = {
   public type Int32 = prim "Int32";
   public type Int64 = prim "Int64";
   public type Float = prim "Float";
+  public type Float32 = prim "Float32";
   public type Char = prim "Char";
   public type Text = prim "Text";
   public type Blob = prim "Blob";
@@ -524,6 +525,11 @@ func popcntInt64(w : Int64) : Int64 = (prim "popcntInt64" : Int64 -> Int64) w;
 func clzInt64(w : Int64) : Int64 = (prim "clzInt64" : Int64 -> Int64) w;
 func ctzInt64(w : Int64) : Int64 = (prim "ctzInt64" : Int64 -> Int64) w;
 func btstInt64(w : Int64, amount : Int64) : Bool = (prim "btstInt64" : (Int64, Int64) -> Int64)(w, amount) != (0 : Int64);
+
+// Float32 conversions
+
+func floatToFloat32(f : Float) : Float32 = (prim "num_conv_Float_Float32" : Float -> Float32) f;
+func float32ToFloat(f : Float32) : Float = (prim "num_conv_Float32_Float" : Float32 -> Float) f;
 
 // Float operations
 

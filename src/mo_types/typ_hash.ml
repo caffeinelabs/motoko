@@ -86,6 +86,7 @@ let prim = function
   | Int32 -> "i32"
   | Int64 -> "i64"
   | Float -> "f"
+  | Float32 -> "f32"
   | Char -> "c"
   | Text -> "t"
   | Blob -> "B"

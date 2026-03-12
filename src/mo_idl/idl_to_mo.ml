@@ -19,9 +19,7 @@ let check_prim at p =
   | Nat16 -> M.Prim M.Nat16
   | Nat32 -> M.Prim M.Nat32
   | Nat64 -> M.Prim M.Nat64
-  | Float32 -> raise (UnsupportedCandidFeature
-     (Diag.error_message at "M0161" "import"
-       "Candid 'float32' type cannot be imported as a Motoko type"))
+  | Float32 -> M.Prim M.Float32
   | Float64 -> M.Prim M.Float
   | Text -> M.Prim M.Text
   | Reserved -> M.Any

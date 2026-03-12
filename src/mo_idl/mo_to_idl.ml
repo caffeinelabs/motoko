@@ -77,6 +77,7 @@ module MakeState() = struct
     | Int32 -> PrimT Int32
     | Int64 -> PrimT Int64
     | Float -> PrimT Float64
+    | Float32 -> PrimT Float32
     | Char -> PrimT Nat32
     | Text -> PrimT Text
     | Blob -> BlobT
