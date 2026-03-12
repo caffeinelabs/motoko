@@ -17,11 +17,14 @@ assert (f32back != f64precise);
 // But round-tripping through f32 twice is idempotent
 assert (float32ToFloat (floatToFloat32 f32back) == f32back);
 
-debugPrint (debug_show f32);
-debugPrint "Float32 precision tests passed";
+debugPrint ("Float32 precision tests passed: " # debug_show f32);
 
 // Float32 literal ascription
 let lit32 : Float32 = 3.14;
 assert (debug_show lit32 == debug_show (floatToFloat32 3.14));
 
-//MOC_FLAG -dp
+//MOC-FLAG -dl
+//FILTER comp grep -e Float32Lit -e passed
+//FILTER run grep -e Float32Lit -e passed
+//FILTER run-ir grep -e Float32Lit -e passed
+//FILTER run-low grep -e Float32Lit -e passed
