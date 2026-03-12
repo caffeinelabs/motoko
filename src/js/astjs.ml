@@ -61,6 +61,7 @@ module Make (Cfg : Config) = struct
     | Int32 -> "Int32"
     | Int64 -> "Int64"
     | Float -> "Float"
+    | Float32 -> "Float32"
     | Char -> "Char"
     | Text -> "Text"
     | Blob -> "Blob"
