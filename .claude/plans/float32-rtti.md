@@ -8,62 +8,90 @@ use `Bits64 F` (tag 15), so the stable-memory serializer cannot distinguish them
 - `Float`   → should serialize 8 bytes (f64, Candid float64)
 - `Float32` → should serialize **4 bytes (f32)** for format stability
 
-A distinct `Bits64 H` tag (47) lets the serializer and debugger tell them apart.
+A distinct `Bits64 H` tag lets the serializer and debugger tell them apart.
 
-## Approach
+## Heap layout
 
-Float32 is stored as `UnboxedFloat64` (f64 with f32-truncated precision) in both the
-interpreter and the Wasm heap. So the **heap layout** of `Bits64 H` is identical to
-`Bits64 F` — 8 bytes of f64 payload. Only the header tag differs.
+Float32 is currently stored as `UnboxedFloat64` (f64 with f32-truncated precision)
+on **both** enhanced and classical builds. The `Bits64 H` heap object layout is
+therefore **identical to `Bits64 F`** — 8 bytes of f64 payload — and
+`size_of::<Bits64>()` is correct.
 
-The stable format must serialize Float32 as **4 bytes (f32)** for type fidelity and
-format stability: demote f64→f32 on serialize, promote f32→f64 on deserialize.
+The stable format must serialize Float32 as **4 bytes (f32)** for type fidelity:
+demote f64→f32 on serialize, promote f32→f64 on deserialize.
 This requires a dedicated `StableFloat32` serialization module (cannot reuse `StableBits64`).
+
+(Future: when Float32 moves to `UnboxedFloat32` / `HType`, the heap object will shrink
+to 4 bytes / `Bits32 F`. At that point `size_of` and the stable format will need
+updating. The `Bits64 H` tag serves as a stable identifier across that transition.)
+
+## Tag number constraint in the enhanced build
+
+In the enhanced build all odd tags 1–45 are allocated and:
+
+```
+#[enhanced_orthogonal_persistence]
+pub const TAG_ARRAY_SLICE_MIN: Tag = 46;
+```
+
+means **all values ≥ 46 are reserved** for the incremental GC's array-slice encoding
+(`slice_tag = (array_type << 62) | slice_start`). Tag 47 is **invalid** as a real
+object tag — it would be indistinguishable from a TAG_ARRAY_I slice starting at index 47.
+
+**Fix**: bump `TAG_ARRAY_SLICE_MIN` from 46 to 48, freeing tag 47 for `TAG_BITS64_H`.
+This constrains array-slice resume indices to ≥ 48, meaning a single GC increment
+must process at least 48 array fields before pausing — which should already hold
+given the GC's step granularity.
 
 ## Files to Change
 
-### 1. `src/codegen/compile_enhanced.ml` and `compile_classical.ml`
+### 1. `rts/motoko-rts/src/types.rs`
 
-**`bits_sort`** — add `H` variant (after `F`):
+**Bump `TAG_ARRAY_SLICE_MIN`** (enhanced only):
+```rust
+#[enhanced_orthogonal_persistence]
+pub const TAG_ARRAY_SLICE_MIN: Tag = 48;  // was 46; frees 47 for TAG_BITS64_H
+```
+
+**Add `TAG_BITS64_H`** (enhanced only, after `TAG_WEAK_REF = 45`):
+```rust
+#[enhanced_orthogonal_persistence]
+pub const TAG_BITS64_H: Tag = 47; // Float32 (f32-precision f64)
+```
+
+**Update size dispatch** (line ~1237):
+```rust
+TAG_BITS64_U | TAG_BITS64_S | TAG_BITS64_F | TAG_BITS64_H => size_of::<Bits64>(),
+```
+(classical needs no change; `TAG_BITS64_H` is enhanced-only)
+
+---
+
+### 2. `src/codegen/compile_enhanced.ml` and `compile_classical.ml`
+
+**`bits_sort`** — add `H` variant (enhanced only, or both if shared):
 ```ocaml
 type bits_sort = U | S | F | H
 ```
 
 **`int_of_tag`** — add (after `Bits64 F -> 15L`):
 ```ocaml
-| Bits64 H -> 47L   (* 4l in classical *)
+| Bits64 H -> 47L   (* enhanced only; classical uses TAG_BITS32_F path in future *)
 ```
-(47 is next available odd number after `WeakRef = 45`.)
 
-**WeakRef dispatch** (~line 2316 enhanced, similar in classical) — add Float32 arm:
+**WeakRef dispatch** (~line 2316 enhanced) — add Float32 arm:
 ```ocaml
-(Tagged.Bits64 Tagged.H, E.trap_with env "weak reference of Float32")
+(Tagged.(Bits64 H), E.trap_with env "weak reference of Float32")
 ```
 
-**Float32 alloc** — change the two `Bits64 F` references in the Float module
-(lines ~2810, ~2819 enhanced; ~2963, ~2972 classical) to use `Bits64 H`:
+**Float32 alloc** — change `Bits64 F` to `Bits64 H` for Float32 boxing:
 ```ocaml
 Tagged.alloc env size Tagged.(Bits64 H) ^^
 ...
 Tagged.(sanity_check_tag __LINE__ env (Bits64 H)) ^^
 ```
-Note: `Float.box` / `Float.unbox` are shared between Float and Float32 currently,
-so a new `Float32.box` / `Float32.unbox` pair (wrapping with `Bits64 H`) will be
-needed, or the existing Float module needs a `box_as` parameter.
-
----
-
-### 2. `rts/motoko-rts/src/types.rs`
-
-Add constant (after `TAG_BITS64_F = 15`):
-```rust
-pub const TAG_BITS64_H: Tag = 47; // Float32 (f32-precision f64)
-```
-
-Update size dispatch (line ~1237):
-```rust
-TAG_BITS64_U | TAG_BITS64_S | TAG_BITS64_F | TAG_BITS64_H => size_of::<Bits64>(),
-```
+A new `Float32.box` / `Float32.unbox` pair (wrapping with `Bits64 H`) is needed,
+or the existing Float module needs a `box_as` parameter.
 
 ---
 
@@ -74,48 +102,39 @@ Add variant to `StableObjectKind` (after `Bits64Float = 13`):
 Bits64Float32 = 14,
 ```
 
-Add import:
-```rust
-TAG_BITS64_H,
-```
+Add import: `TAG_BITS64_H`
 
-Add to the tag→kind mapping (after `TAG_BITS64_F => StableObjectKind::Bits64Float`):
+Add to tag→kind mapping:
 ```rust
 TAG_BITS64_H => StableObjectKind::Bits64Float32,
 ```
 
-Add to stable-kind→tag mapping:
+Add stable-kind constant and mapping:
 ```rust
+const STABLE_TAG_BITS64_FLOAT32: ... = 14; // (follow pattern of others)
 STABLE_TAG_BITS64_FLOAT32 => StableObjectKind::Bits64Float32,
 ```
-(add `const STABLE_TAG_BITS64_FLOAT32` similarly to the other three)
 
-Add to both `scan_serialized` and `serialize` match arms:
+Add to `scan_serialized` and `serialize` match arms:
 ```rust
 StableObjectKind::Bits64Float32 => StableFloat32::scan_serialized(context, translate),
 StableObjectKind::Bits64Float32 => StableFloat32::serialize(stable_memory, main_object),
 ```
-(4-byte f32 payload: demote f64→f32 on serialize, promote f32→f64 on deserialize.)
 
 ---
 
 ### 4. `rts/motoko-rts/src/stabilization/layout/stable_float32.rs` (new file)
 
-New module mirroring `stable_bits64.rs` but with 4-byte f32 payload:
+Mirrors `stable_bits64.rs` but with 4-byte f32 payload:
 - `serialize`: read 8-byte f64 from `Bits64 H` heap object, demote to f32, write 4 bytes
 - `deserialize`: read 4 bytes, promote f32→f64, allocate `Bits64 H` heap object
 - `scan_serialized`: advance by 4 bytes (not 8)
 
-Also add arm to `stable_bits64.rs`'s `stable_object_kind → tag` (or handle in new file):
-```rust
-StableObjectKind::Bits64Float32 => TAG_BITS64_H,
-```
-
 ---
 
-### 5. `rts/motoko-rts/src/visitor/enhanced.rs` and `visitor/classical.rs`
+### 5. `rts/motoko-rts/src/visitor/enhanced.rs`
 
-Add `TAG_BITS64_H` to the Bits64 pattern (line ~129 enhanced, ~115 classical):
+Add `TAG_BITS64_H` to the Bits64 pattern:
 ```rust
 TAG_BITS64_U | TAG_BITS64_S | TAG_BITS64_F | TAG_BITS64_H | ...
 ```
@@ -138,16 +157,10 @@ Single commit: `feat: distinct Bits64 H RTTI tag for Float32 heap objects`
 ## Note on Float16 (bfloat16 / IEEE 754 binary16)
 
 Should `Float16` arrive (driven by AI workloads), it would naturally take `Q`
-(quarter-width of f64), continuing the geometric sequence `F → H → Q`:
+(quarter-width), continuing the sequence:
 - `Bits64 F` = 64-bit float (full)
-- `Bits64 H` = 32-bit float (half)
-- `Bits64 Q` = 16-bit float (quarter)
+- `Bits64 H` = 32-bit float (half, stored as f64 for now)
+- `Bits64 Q` = 16-bit float (quarter, stored as f64 for now)
 
-`TAG_BITS64_Q` would be the next available odd number after 47.
-
-## Note on future compactness
-
-When Float32 eventually moves to `UnboxedFloat32` / `HType` (the TODO comments),
-the heap object size will shrink from 8 bytes to 4 bytes (a `Bits32`-style box).
-At that point the stable format and visitor will also need updating. The `Bits64 H`
-tag serves as a stable identifier across that future transition.
+`TAG_BITS64_Q` would be the next available odd number after 47 in the enhanced build
+(bumping `TAG_ARRAY_SLICE_MIN` again if needed).
