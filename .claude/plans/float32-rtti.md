@@ -79,10 +79,13 @@ type bits_sort = U | S | F | H
 | Bits64 H -> 47L   (* enhanced only; classical uses TAG_BITS32_F path in future *)
 ```
 
-**WeakRef dispatch** (~line 2316 enhanced) — add Float32 arm:
+**Weak-reference guard** (~line 2316 enhanced) — add Float32 arm so it traps like
+Float, rather than silently falling to `branch_default`'s pass-through default:
 ```ocaml
 (Tagged.(Bits64 H), E.trap_with env "weak reference of Float32")
 ```
+Note: the mutable-data serialization guards at ~line 7754 (WeakRef, MutBox, Array M,
+Region) concern upgrade-boundary mutability, not boxing — **no change needed there**.
 
 **Float32 alloc** — change `Bits64 F` to `Bits64 H` for Float32 boxing:
 ```ocaml
