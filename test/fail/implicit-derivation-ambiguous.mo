@@ -1,6 +1,6 @@
 type Order = { #less; #greater; #equal };
 
-// --- Head-level ambiguity: two derivable candidates for [T] ---
+// Head-level ambiguity: two derivable candidates for [T]
 module Nat1 {
   public func compare(a : Nat, b : Nat) : Order {
     if (a < b) #less else if (a == b) #equal else #greater;

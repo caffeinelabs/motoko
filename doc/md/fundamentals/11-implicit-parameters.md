@@ -3,7 +3,7 @@
 ## Overview
 
 Implicit parameters allow you to omit frequently-used function arguments at call sites when the compiler can infer them from context. This feature is particularly useful when working with ordered collections like `Map` and `Set` from the `core` library, which require comparison functions but where the comparison logic is usually obvious from the key type.
-Other exampes are `equal` and `toText` functions.
+Other examples are `equal` and `toText` functions.
 
 ## Basic usage
 
@@ -167,12 +167,27 @@ The compiler infers an implicit argument by:
 
 1. Examining the types of the explicit arguments provided.
 2. Looking for all candidate values for the implicit argument in the current scope that match the required type and name.
-3. From these, selecting the best unique candidate based on type specifity.
+3. From these, selecting the best unique candidate based on type specificity.
 
 If there is no unique best candidate the compiler rejects the call as ambiguous.
 
-If a callee takes several implicits parameter, either all implicit arguments must be omitted, or all explicit and implicit arguments must be provided at the call site,
+If a callee takes several implicit parameters, either all implicit arguments must be omitted, or all explicit and implicit arguments must be provided at the call site,
 in their declared order.
+
+### Resolution order
+
+The compiler searches for implicit arguments in the following order, stopping at the first tier that produces a unique match:
+
+1. **Direct local values** — values in the current scope whose type directly matches.
+2. **Direct module fields** — fields of modules in scope (e.g., `Nat.compare`) whose type directly matches.
+3. **Direct library fields** — fields of unimported libraries (requires `--implicit-package`).
+4. **Derived from local values** — local functions with implicit parameters that, after stripping their own implicits and instantiating type parameters, match the required type (see [Implicit derivation](#implicit-derivation) below).
+5. **Derived from module fields** — module fields with implicit parameters (e.g., `Array.compare<T>`), derived the same way.
+6. **Derived from library fields** — library fields with implicit parameters (requires `--implicit-package`).
+
+Within each tier, if multiple candidates match, the compiler picks the most specific one (by subtyping). If no unique best candidate exists, the call is rejected as ambiguous.
+
+This ordering guarantees that direct matches are always preferred over derived ones, and local definitions take precedence over module or library definitions.
 
 ### Implicit derivation
 
@@ -303,7 +318,9 @@ There is no need to update existing code unless you want to take advantage of th
 
 ## Performance considerations
 
-Implicit arguments have no runtime overhead. The comparison function is resolved at compile time, so there is no performance difference between using implicit and explicit arguments. The resulting code is identical.
+Implicit arguments are resolved at compile time.
+- For direct matches, the resulting code is identical to explicitly passing the argument.
+- For derived implicits, the compiler synthesizes a wrapper function at each call site. This creates a small overhead per call site, which could be mitigated by caching in the future. For now, if this becomes a performance issue, consider defining the function explicitly so all call sites share a single definition.
 
 ## See also
 

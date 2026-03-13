@@ -32,7 +32,7 @@ module Array {
   };
 };
 
-// --- Transitive derivation: [[Nat]] -> [Nat] -> Nat ---
+// Transitive derivation: [[Nat]] -> [Nat] -> Nat
 // Array.compare<[Nat]> needs [Nat].compare, which is Array.compare<Nat>,
 // which needs Nat.compare
 func compareNestedArrays(

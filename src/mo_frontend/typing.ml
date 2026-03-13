@@ -1582,7 +1582,7 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
       let (inst, c) = Bi_match.bi_match_subs None tbs None (arg_subs @ ret_subs) ~must_solve:[] in
       ignore (Bi_match.finalize inst c []);
       Some inst
-    with _ -> None
+    with Bi_match.Bimatch _ -> None
 
 module ImplicitHoles = struct
   type ctx = {
@@ -1924,7 +1924,6 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
       let lib_candidates = candidates true env.libs is_lib_module in
       match if Option.is_some !Flags.implicit_package then disambiguate_candidates lib_candidates else `Empty with
       | `Single c -> Ok c
-      (* TODO: should we report ambiguity on `Many? *)
       | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
 
 type contextual_dot_suggestion =

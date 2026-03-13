@@ -5,7 +5,7 @@ import Int "mo:core/Int";
 import Text "mo:core/Text";
 import { type Order } "mo:core/Order";
 
-// --- Test 1: Derive Array.compare for [Nat] from core ---
+// Derive Array.compare for [Nat] from core
 func compareNatArrays(
   a : [Nat],
   b : [Nat],
@@ -18,7 +18,7 @@ assert compareNatArrays([1, 2, 3], [1, 2, 3]) == #equal;
 assert compareNatArrays([1, 2], [1, 3]) == #less;
 assert compareNatArrays([1, 2, 3], [1, 2]) == #greater;
 
-// --- Test 2: Derive Array.compare for [Int] ---
+// Derive Array.compare for [Int]
 func compareIntArrays(
   a : [Int],
   b : [Int],
@@ -30,7 +30,7 @@ func compareIntArrays(
 assert compareIntArrays([-1, 0, 1], [-1, 0, 1]) == #equal;
 assert compareIntArrays([-2], [-1]) == #less;
 
-// --- Test 3: Derive Array.compare for [Text] ---
+// Derive Array.compare for [Text]
 func compareTextArrays(
   a : [Text],
   b : [Text],
@@ -41,7 +41,7 @@ func compareTextArrays(
 
 assert compareTextArrays(["a", "b"], ["a", "b"]) == #equal;
 
-// --- Test 4: Transitive: [[Nat]] ---
+// Transitive: [[Nat]]
 func compareNestedNatArrays(
   a : [[Nat]],
   b : [[Nat]],
@@ -53,13 +53,13 @@ func compareNestedNatArrays(
 assert compareNestedNatArrays([[1, 2], [3]], [[1, 2], [3]]) == #equal;
 assert compareNestedNatArrays([[1]], [[2]]) == #less;
 
-// --- Test 5: Derive Array.sort for [Nat] ---
+// Derive Array.sort for [Nat]
 do {
   let sorted = Array.sort<Nat>([3, 1, 2]);
   assert sorted == [1, 2, 3];
 };
 
-// --- Test 6: Derive Array.equal for [Nat] ---
+// Derive Array.equal for [Nat]
 func arraysEqual(
   a : [Nat],
   b : [Nat],
@@ -71,7 +71,7 @@ func arraysEqual(
 assert arraysEqual([1, 2, 3], [1, 2, 3]);
 assert not arraysEqual([1, 2], [1, 3]);
 
-// --- Test 7: Direct implicit still preferred over derivation ---
+// Direct implicit still preferred over derivation
 do {
   var localCalled = false;
   func compare(_a : [Nat], _b : [Nat]) : Order {

@@ -13,7 +13,7 @@ module Array {
   };
 };
 
-// --- Test 1: Missing inner implicit ---
+// Missing inner implicit
 // Derivation of [Bool] compare needs Bool.compare, which doesn't exist
 func needsBoolArrayCompare(
   a : [Bool],
@@ -25,7 +25,7 @@ func needsBoolArrayCompare(
 
 ignore needsBoolArrayCompare([true], [false]); // M0230: no Bool.compare
 
-// --- Test 2: Non-function implicit cannot be derived ---
+// Non-function implicit cannot be derived
 func needsNatValue(x : Nat, n : (implicit : Nat)) : Nat {
   n;
 };

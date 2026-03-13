@@ -1,6 +1,6 @@
 type Order = { #less; #greater; #equal };
 
-// --- Base compare functions (monomorphic, act as leaf implicits) ---
+// Base compare functions (monomorphic, act as leaf implicits)
 var natCompareCalls = 0;
 var intCompareCalls = 0;
 var arrayCompareCalls = 0;
@@ -25,7 +25,7 @@ module Text {
   };
 };
 
-// --- Polymorphic higher-order compare (has implicit parameter) ---
+// Polymorphic higher-order compare (has implicit parameter)
 module Array {
   public func compare<T>(a : [T], b : [T], compare : (implicit : (T, T) -> Order)) : Order {
     arrayCompareCalls += 1;
@@ -48,7 +48,7 @@ module Array {
   };
 };
 
-// --- Test 1: Basic derivation with [Nat] ---
+// Basic derivation with [Nat]
 func compareNatArrays(a : [Nat], b : [Nat], compare : (implicit : ([Nat], [Nat]) -> Order)) : Order {
   compare(a, b);
 };
@@ -61,7 +61,7 @@ assert natCompareCalls == 3;
 
 assert compareNatArrays([1, 2], [1, 3]) == #less;
 
-// --- Test 2: Derivation with [Int] ---
+// Derivation with [Int]
 func compareIntArrays(a : [Int], b : [Int], compare : (implicit : ([Int], [Int]) -> Order)) : Order {
   compare(a, b);
 };
@@ -72,20 +72,20 @@ assert compareIntArrays([1, 2, 3], [1, 2, 3]) == #equal;
 assert arrayCompareCalls == 1;
 assert intCompareCalls == 3;
 
-// --- Test 3: Explicit still works alongside derivation ---
+// Explicit still works alongside derivation
 func myArrayCompare(a : [Nat], b : [Nat]) : Order {
   Array.compare<Nat>(a, b, Nat.compare);
 };
 assert compareNatArrays([1, 2], [1, 3], myArrayCompare) == #less;
 
-// --- Test 4: Derivation with [Text] ---
+// Derivation with [Text]
 func compareTextArrays(a : [Text], b : [Text], compare : (implicit : ([Text], [Text]) -> Order)) : Order {
   compare(a, b);
 };
 
 assert compareTextArrays(["a"], ["b"]) == #equal;
 
-// --- Test 5: Direct implicit still preferred over derivation ---
+// Direct implicit still preferred over derivation
 do {
   var localCalled = false;
   func compare(_a : [Nat], _b : [Nat]) : Order {
@@ -97,7 +97,7 @@ do {
   assert localCalled;
 };
 
-// --- Test 6: Monomorphic derivation (no type params) ---
+// Monomorphic derivation (no type params)
 module Pair {
   public func compare(a : (Nat, Nat), b : (Nat, Nat), compare : (implicit : (Nat, Nat) -> Order)) : Order {
     let c1 = compare(a.0, b.0);
@@ -115,14 +115,14 @@ func comparePairs(a : (Nat, Nat), b : (Nat, Nat), compare : (implicit : ((Nat, N
 assert comparePairs((1, 2), (1, 3)) == #less;
 assert comparePairs((1, 2), (1, 2)) == #equal;
 
-// --- Test 7: Polymorphic function uses derived implicit at call site ---
+// Polymorphic function uses derived implicit at call site
 func polySort<T>(a : [T], b : [T], compare : (implicit : ([T], [T]) -> Order)) : Order {
   compare(a, b);
 };
 
 assert polySort<Nat>([1, 2], [1, 3]) == #less;
 
-// --- Test 8: Multiple implicits on the same function (one derived, one direct) ---
+// Multiple implicits on the same function (one derived, one direct)
 module Hasher {
   public func hash<T>(x : T, hash : (implicit : T -> Nat)) : Nat {
     hash(x);
@@ -146,7 +146,7 @@ let (ord, h) = needsBothImplicits([1], [2]);
 assert ord == #less;
 assert h == 42;
 
-// --- Test 9: Local module shadowing ---
+// Local module shadowing
 // Local module's compare should win over outer Array.compare derivation
 do {
   var localArrayCalled = false;
@@ -165,7 +165,7 @@ do {
   assert localArrayCalled;
 };
 
-// --- Test 10: Direct resolution with zero-non-implicit candidate in scope ---
+// Direct resolution with zero non-implicit candidate in scope
 module Const {
   public func compare<T>(compare : (implicit : (T, T) -> Order)) : (T, T) -> Order {
     compare;
@@ -179,11 +179,12 @@ func needsConstCompare(compare : (implicit : (Nat, Nat) -> Order)) : (Nat, Nat) 
 let cmp = needsConstCompare();
 assert cmp(1, 2) == #less;
 
-// --- Test 11: Multiple type parameters with multiple inner implicits ---
+// Multiple type parameters with multiple inner implicits
 do {
   module PairCmp {
     public func compare<A, B>(
-      a : (A, B), b : (A, B),
+      a : (A, B),
+      b : (A, B),
       cmpA : (implicit : (compare : (A, A) -> Order)),
       cmpB : (implicit : (compare : (B, B) -> Order)),
     ) : Order {
@@ -196,8 +197,9 @@ do {
   };
 
   func compareMixedPairs(
-    a : (Nat, Int), b : (Nat, Int),
-    compare : (implicit : ((Nat, Int), (Nat, Int)) -> Order)
+    a : (Nat, Int),
+    b : (Nat, Int),
+    compare : (implicit : ((Nat, Int), (Nat, Int)) -> Order),
   ) : Order {
     compare(a, b);
   };
@@ -205,4 +207,75 @@ do {
   assert compareMixedPairs((1, -2), (1, -3)) == #greater;
   assert compareMixedPairs((1, -2), (1, -2)) == #equal;
   assert compareMixedPairs((1, -2), (2, -2)) == #less;
+};
+
+// Derivation from local scope (top-level func, not module field)
+do {
+  var localDeriveCalled = false;
+  func compare<T>(_ : [T], _ : [T], compare : (implicit : (T, T) -> Order)) : Order {
+    ignore compare;
+    localDeriveCalled := true;
+    #equal;
+  };
+
+  func needsCompare(a : [Nat], b : [Nat], compare : (implicit : ([Nat], [Nat]) -> Order)) : Order {
+    compare(a, b);
+  };
+
+  assert needsCompare([1], [2]) == #equal;
+  assert localDeriveCalled;
+};
+
+// Local-derived (from local val) preferred over derived from module field
+do {
+  var localDeriveCalled = false;
+  var moduleDeriveCalled = false;
+
+  module _ArrMod {
+    public func compare<T>(_ : [T], _ : [T], compare : (implicit : (T, T) -> Order)) : Order {
+      ignore compare;
+      moduleDeriveCalled := true;
+      #equal;
+    };
+  };
+
+  func compare<T>(_ : [T], _ : [T], compare : (implicit : (T, T) -> Order)) : Order {
+    ignore compare;
+    localDeriveCalled := true;
+    #equal;
+  };
+
+  func needsCompare(a : [Nat], b : [Nat], compare : (implicit : ([Nat], [Nat]) -> Order)) : Order {
+    compare(a, b);
+  };
+
+  assert needsCompare([1], [2]) == #equal;
+  assert localDeriveCalled;
+  assert not moduleDeriveCalled;
+};
+
+// Direct local val preferred over direct module field
+do {
+  var localDirectCalled = false;
+  var moduleDirectCalled = false;
+
+  module M {
+    public func compare(_ : Nat, _ : Nat) : Order {
+      moduleDirectCalled := true;
+      #equal;
+    };
+  };
+
+  func compare(_ : Nat, _ : Nat) : Order {
+    localDirectCalled := true;
+    #equal;
+  };
+
+  func needsCompare(a : Nat, b : Nat, compare : (implicit : (Nat, Nat) -> Order)) : Order {
+    compare(a, b);
+  };
+
+  assert needsCompare(1, 2) == #equal;
+  assert localDirectCalled;
+  assert not moduleDirectCalled;
 };
