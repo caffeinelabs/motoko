@@ -12,6 +12,7 @@ MOC_JS_TARGET = _build/default/js/moc_js.bc.js
 MOC_INTERPRETER_TARGET = _build/default/js/moc_interpreter.bc.js
 DIDC_JS_TARGET = _build/default/js/didc_js.bc.js
 MOC_WASM_TARGET = _build/default/js/stable_check_wasm.bc.wasm.js
+MOC_CHECK_WASM_TARGET = _build/default/js/moc_check_wasm.bc.wasm.js
 
 DUNE_OPTS ?= --profile=release
 
@@ -57,6 +58,10 @@ moc.js: $(SOURCE_ID)
 moc.wasm: $(SOURCE_ID)
 	dune build $(DUNE_OPTS) $(MOC_WASM_TARGET)
 	@ln -fs $(MOC_WASM_TARGET) $@
+
+moc-check.wasm: $(SOURCE_ID)
+	dune build $(DUNE_OPTS) $(MOC_CHECK_WASM_TARGET)
+	@ln -fs $(MOC_CHECK_WASM_TARGET) $@
 
 moc_interpreter.js: $(SOURCE_ID)
 	dune build $(DUNE_OPTS) $(MOC_INTERPRETER_TARGET)

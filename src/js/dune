@@ -40,5 +40,13 @@
  (name stable_check_wasm)
  (modes wasm)
  (modules stable_check_wasm)
- (libraries stable_check lang_utils)
+ (libraries bigint_lite stable_check lang_utils)
+)
+
+(executable
+ (name moc_check_wasm)
+ (modes wasm)
+ (modules moc_check_wasm)
+ (libraries bigint_lite stable_check mo_config mo_types mo_def mo_frontend idllib astjs lang_utils source_id)
+ (preprocess (pps js_of_ocaml-ppx))
 )
