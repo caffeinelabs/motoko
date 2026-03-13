@@ -1283,31 +1283,31 @@ let infer_lit env lit at : T.prim =
 
 let check_lit env t lit at suggest =
   match t, !lit with
-  | T.Prim T.Nat, PreLit (s, T.Nat) ->
+  | T.(Prim Nat), PreLit (s, T.Nat) ->
     lit := NatLit (check_nat env at s)
-  | T.Prim T.Nat8, PreLit (s, T.Nat) ->
+  | T.(Prim Nat8), PreLit (s, T.Nat) ->
     lit := Nat8Lit (check_nat8 env at s)
-  | T.Prim T.Nat16, PreLit (s, T.Nat) ->
+  | T.(Prim Nat16), PreLit (s, T.Nat) ->
     lit := Nat16Lit (check_nat16 env at s)
-  | T.Prim T.Nat32, PreLit (s, T.Nat) ->
+  | T.(Prim Nat32), PreLit (s, T.Nat) ->
     lit := Nat32Lit (check_nat32 env at s)
-  | T.Prim T.Nat64, PreLit (s, T.Nat) ->
+  | T.(Prim Nat64), PreLit (s, T.Nat) ->
     lit := Nat64Lit (check_nat64 env at s)
-  | T.Prim T.Int, PreLit (s, (T.Nat | T.Int)) ->
+  | T.(Prim Int), PreLit (s, T.(Nat | Int)) ->
     lit := IntLit (check_int env at s)
-  | T.Prim T.Int8, PreLit (s, (T.Nat | T.Int)) ->
+  | T.(Prim Int8), PreLit (s, T.(Nat | Int)) ->
     lit := Int8Lit (check_int8 env at s)
-  | T.Prim T.Int16, PreLit (s, (T.Nat | T.Int)) ->
+  | T.(Prim Int16), PreLit (s, T.(Nat | Int)) ->
     lit := Int16Lit (check_int16 env at s)
-  | T.Prim T.Int32, PreLit (s, (T.Nat | T.Int)) ->
+  | T.(Prim Int32), PreLit (s, T.(Nat | Int)) ->
     lit := Int32Lit (check_int32 env at s)
-  | T.Prim T.Int64, PreLit (s, (T.Nat | T.Int)) ->
+  | T.(Prim Int64), PreLit (s, T.(Nat | Int)) ->
     lit := Int64Lit (check_int64 env at s)
-  | T.Prim T.Float, PreLit (s, (T.Nat | T.Int | T.Float)) ->
+  | T.(Prim Float), PreLit (s, T.(Nat | Int | Float)) ->
     lit := FloatLit (check_float env at s)
-  | T.Prim T.Float32, PreLit (s, (T.Nat | T.Int | T.Float)) ->
+  | T.(Prim Float32), PreLit (s, T.(Nat | Int | Float)) ->
     lit := Float32Lit (check_float32 env at s)
-  | T.Prim T.Blob, PreLit (s, T.Text) ->
+  | T.(Prim Blob), PreLit (s, T.Text) ->
     lit := BlobLit s
   | t, _ ->
     let t' = T.Prim (infer_lit env lit at) in
