@@ -1673,7 +1673,7 @@ module ImplicitHoles = struct
         if not (T.sub field.T.typ ctx.hole_typ) then None else
         Some (make_field_candidate module_ref field))
       |> partition ctx
-
+      (* TODO: calculate explicit candidates LAZILY on error *)
     let matching_fields_with_holes ctx xs = xs
       |> all_module_fields (fun module_ref field ->
         if not (is_matching_lab ctx field.T.lab) then None else (* Prune early by name *)
@@ -1763,9 +1763,11 @@ module ImplicitHoles = struct
             inner_name; inner_typ; inner_error }) in
         Error failures
     in
+    let guard ~depth f x =
+      if depth >= !(Flags.implicit_derivation_depth) then [] else f x
+    in
     let try_derive ~depth get_candidate_list source =
-      if depth >= !(Flags.implicit_derivation_depth) then `Empty else
-      match disambiguate_func_with_holes (get_candidate_list source) with
+      match disambiguate_func_with_holes (guard ~depth get_candidate_list source) with
       | `Single x -> `Committed (commit_derivation ~depth x)
       | `Many matches -> `Ambiguous (List.map (fun (_, c) -> c) matches)
       | `Empty -> `Empty
@@ -1773,44 +1775,63 @@ module ImplicitHoles = struct
 
     let ctx = { hole_sort; hole_typ } in
 
+    (* Try direct local candidates first (matching local env values) *)
     let (eligible_ids, explicit_ids) = matching_vals ctx env.vals in
-    let eligible_terms, explicit_terms  =
-      (* TODO: with the derivation, should we also prioritize local matches first? I think we should stay consistent with the original behavior, just adding an additional logic that: 'direct' takes priority over 'derived' *)
-      match eligible_ids with
-      | [id] -> ([id], []) (* first look in local env, otherwise consider module entries *)
-      | _ ->
-        let (eligible_fields, explicit_fields) = FromModuleVal.matching_fields ctx env.vals in
-        (eligible_ids @ eligible_fields,
-          explicit_ids @ explicit_fields)
-    in
-    
-    match disambiguate_holes eligible_terms with
+    match disambiguate_holes eligible_ids with
     | `Single term -> Ok term
-    | `Many _ -> Error (HoleAmbiguous {ambiguous_candidates = eligible_terms; explicit_candidates = explicit_terms})
+    | `Many _ -> Error (HoleAmbiguous {ambiguous_candidates = eligible_ids; explicit_candidates = explicit_ids})
     | `Empty ->
-      (* Try direct lib candidates *)
-      let lib_terms, _ = FromModuleLib.matching_fields ctx env.libs in
-      match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else `Empty with
-      | `Single term -> Ok term
-      | `Many _ | `Empty ->
-        (* No eligible direct candidates, try derivations from local scope *)
-        match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx) env.vals with
-        | `Committed (Ok term) -> Ok term
-        | `Ambiguous derivable_terms -> Error (HoleAmbiguous {ambiguous_candidates = derivable_terms; explicit_candidates = explicit_terms})
-        | `Committed (Error inner_failures) ->
-          Error (HoleSuggestions ([], explicit_terms, inner_failures))
-        | `Empty ->
-          (* Try derivations from lib candidates *)
-          match
-            if Option.is_some !Flags.implicit_package
-            then try_derive ~depth (FromModuleLib.matching_fields_with_holes ctx) env.libs
-            else `Empty
-          with
-          | `Committed (Ok term) -> Ok term
-          | `Committed (Error inner_failures) ->
-            Error (HoleSuggestions (lib_terms, explicit_terms, inner_failures))
-          | `Ambiguous _ | `Empty ->
-            Error (HoleSuggestions (lib_terms, explicit_terms, []))
+    
+    (* Get direct candidates from module fields; computed early for diagnostic purposes *)
+    let matching_fields, explicit_candidates =
+      let (fields, explicit_fields) = FromModuleVal.matching_fields ctx env.vals in
+      assert (eligible_ids = []);
+      (fields, explicit_ids @ explicit_fields)
+    in
+
+    (* Try direct candidates from module fields *)
+    match disambiguate_holes matching_fields with
+    | `Single term -> Ok term
+    | `Many _ -> Error (HoleAmbiguous {ambiguous_candidates = matching_fields; explicit_candidates})
+    | `Empty ->
+
+    (* Get direct module field candidates from libs (unimported modules) *)
+    (* Use them for resolution only when the feature flag is set! *)
+    let lib_fields, _ = FromModuleLib.matching_fields ctx env.libs in
+    match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_fields else `Empty with
+    | `Single term -> Ok term
+    | `Many _ | `Empty ->
+
+    (* No direct candidate : try implicit derivation
+      1. Find a matching candidate with holes
+      2. Resolve holes recursively
+      3. Synthesize wrapper function that applies the candidate to the resolved inner implicits *)
+
+    (* Try derivations from local scope *)
+    match try_derive ~depth (matching_vals_with_holes ctx) env.vals with
+    | `Committed (Ok term) -> Ok term
+    | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
+    | `Ambiguous cs -> Error (HoleAmbiguous {ambiguous_candidates = cs; explicit_candidates})
+    | `Empty ->
+
+    (* Try derivations from module fields *)
+    match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx) env.vals with
+    | `Committed (Ok term) -> Ok term
+    | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
+    | `Ambiguous derivable_terms -> Error (HoleAmbiguous {ambiguous_candidates = derivable_terms; explicit_candidates})
+    | `Empty ->
+
+    (* Get candidates for derivations from libs *)
+    let lib_fields_with_holes = guard ~depth (FromModuleLib.matching_fields_with_holes ctx) env.libs in
+    let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
+    match
+      if Option.is_some !Flags.implicit_package
+      then try_derive ~depth (Fun.const lib_fields_with_holes) ()
+      else `Empty
+    with
+    | `Committed (Ok term) -> Ok term
+    | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
+    | `Ambiguous _ | `Empty -> Error (HoleSuggestions (lib_fields, explicit_candidates, []))
 
 end
 
