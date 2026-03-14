@@ -4,18 +4,17 @@ error[M0230]: Cannot determine implicit argument `compare` of type
  26 │  ignore needsBoolArrayCompare([true], [false]); // M0230: no Bool.compare
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
-    = note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
-                 (Bool, Bool) -> Order could not be resolved.
+    = note: Implicit derivation attempted:
+                 via `Array.compare`, `compare` : `(Bool, Bool) -> Order` — not found
 error[M0230]: Cannot determine implicit argument `compare` of type
   ([[Bool]], [[Bool]]) -> Order
     ┌─ implicit-derivation.mo:37:8
  37 │  ignore needsNestedBoolArrayCompare([[true]], [[false]]); // M0230: full chain shown
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
-    = note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
-                 ([Bool], [Bool]) -> Order could not be resolved.
-    = note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
-                 (Bool, Bool) -> Order could not be resolved.
+    = note: Implicit derivation attempted:
+                 via `Array.compare`, `compare` : `([Bool], [Bool]) -> Order`
+                   via `Array.compare`, `compare` : `(Bool, Bool) -> Order` — not found
 error[M0230]: Cannot determine implicit argument `n` of type
   Nat
     ┌─ implicit-derivation.mo:44:8

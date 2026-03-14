@@ -1525,6 +1525,60 @@ and derivation_note = {
   inner_error : [`Error of hole_error | `DepthLimited];
 }
 
+let render_derivation_tree notes =
+  if notes = [] then [] else
+  let typ_str typ = Lib.Format.with_str_formatter T.pp_typ typ in
+  let group_by_candidate notes =
+    List.fold_left (fun acc note ->
+      match acc with
+      | (desc, holes) :: rest when desc = note.candidate_desc ->
+        (desc, holes @ [note]) :: rest
+      | _ ->
+        (note.candidate_desc, [note]) :: acc
+    ) [] notes |> List.rev
+  in
+  let leaf_reason = function
+    | `Error (HoleAmbiguous { ambiguous_candidates; _ }) ->
+      Some (Printf.sprintf "ambiguous (%s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)))
+    | `DepthLimited ->
+      Some (Printf.sprintf "depth limit (increase with `--implicit-derivation-depth`, current: %d)" !(Flags.implicit_derivation_depth))
+    | `Error (HoleSuggestions (lib_terms, _, [])) ->
+      let imports = List.filter_map import_suggestion_of_candidate lib_terms in
+      if imports = [] then Some "not found"
+      else Some (Printf.sprintf "try importing %s" (String.concat " or " imports))
+    | `Error (HoleSuggestions _) -> None
+  in
+  let children_of = function
+    | `Error (HoleSuggestions (_, _, ns)) -> ns
+    | _ -> []
+  in
+  let render_suffix inner_error =
+    match leaf_reason inner_error with
+    | Some r -> " — " ^ r
+    | None -> ""
+  in
+  let rec render_tree ~indent notes =
+    let groups = group_by_candidate notes in
+    List.concat_map (fun (candidate, holes) ->
+      match holes with
+      | [note] ->
+        let line = Printf.sprintf "%svia %s, `%s` : `%s`%s"
+          indent candidate note.inner_name (typ_str note.inner_typ)
+          (render_suffix note.inner_error) in
+        line :: render_tree ~indent:(indent ^ "  ") (children_of note.inner_error)
+      | _ ->
+        let header = Printf.sprintf "%svia %s:" indent candidate in
+        header :: List.concat_map (fun note ->
+          let line = Printf.sprintf "%s  `%s` : `%s`%s"
+            indent note.inner_name (typ_str note.inner_typ)
+            (render_suffix note.inner_error) in
+          line :: render_tree ~indent:(indent ^ "    ") (children_of note.inner_error)
+        ) holes
+    ) groups
+  in
+  let body = render_tree ~indent:"  " notes in
+  [String.concat "\n" ("Implicit derivation attempted:" :: body)]
+
 let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
   let mk e = { Source.it = e; at; note = empty_typ_note } in
   let param_counter = ref 0 in
@@ -2904,23 +2958,7 @@ and check_hole env at hole_sort hole_typ exp_ref =
         if explicit_terms = [] then []
         else [Printf.sprintf "Did you mean to explicitly use %s?" (String.concat " or " (List.map desc_of_candidate explicit_terms))]
       in
-      let rec render_derivation_notes notes =
-        List.concat_map (fun { candidate_desc; inner_name; inner_typ; inner_error } ->
-          let reason_text, sub_notes = match inner_error with
-            | `Error (HoleAmbiguous { ambiguous_candidates; _ }) ->
-              Printf.sprintf "is ambiguous (candidates: %s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)), []
-            | `DepthLimited ->
-              Printf.sprintf "could not be resolved. Consider increasing `--implicit-derivation-depth` (current limit: %d)" !(Flags.implicit_derivation_depth), []
-            | `Error (HoleSuggestions (_, _, inner_notes)) ->
-              "could not be resolved", render_derivation_notes inner_notes
-          in
-          let msg = Stdlib.Format.asprintf "Derivation via %s was attempted, but inner implicit `%s` of type %a %s."
-            candidate_desc inner_name display_typ inner_typ reason_text
-          in
-          msg :: sub_notes
-        ) notes
-      in
-      let derivation_sug = render_derivation_notes derivation_notes
+      let derivation_sug = render_derivation_tree derivation_notes
       in
       let import_sug =
         if lib_terms = [] then
