@@ -1510,7 +1510,7 @@ let erase_implicits args =
   ) args
 
 type hole_error =
-  | HoleSuggestions of hole_candidate list * hole_candidate list * derivation_note list
+  | HoleSuggestions of hole_candidate list * hole_candidate list * derivation_note option
   | HoleAmbiguous of ambiguity_info
 
 and ambiguity_info = {
@@ -1518,65 +1518,54 @@ and ambiguity_info = {
   explicit_candidates : hole_candidate list;
 }
 
-and derivation_note = {
-  candidate_desc : string;
-  inner_name : string;
-  inner_typ : T.typ;
-  inner_error : [`Error of hole_error | `DepthLimited];
-}
+and derivation_note = hole_candidate * derivation_error
 
-let render_derivation_tree notes =
-  if notes = [] then [] else
+and derivation_error =
+  | InnerErrors of (T.lab * T.typ * hole_error) list
+  | DepthLimited
+
+let render_derivation_tree = function
+  | None -> []
+  | Some note ->
   let typ_str typ = Lib.Format.with_str_formatter T.pp_typ typ in
-  let group_by_candidate notes =
-    List.fold_left (fun acc note ->
-      match acc with
-      | (desc, holes) :: rest when desc = note.candidate_desc ->
-        (desc, holes @ [note]) :: rest
-      | _ ->
-        (note.candidate_desc, [note]) :: acc
-    ) [] notes |> List.rev
-  in
   let leaf_reason = function
-    | `Error (HoleAmbiguous { ambiguous_candidates; _ }) ->
+    | HoleAmbiguous { ambiguous_candidates; _ } ->
       Some (Printf.sprintf "ambiguous (%s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)))
-    | `DepthLimited ->
-      Some (Printf.sprintf "depth limit (increase with `--implicit-derivation-depth`, current: %d)" !(Flags.implicit_derivation_depth))
-    | `Error (HoleSuggestions (lib_terms, _, [])) ->
+    | HoleSuggestions (lib_terms, _, None) ->
       let imports = List.filter_map import_suggestion_of_candidate lib_terms in
       if imports = [] then Some "not found"
       else Some (Printf.sprintf "try importing %s" (String.concat " or " imports))
-    | `Error (HoleSuggestions _) -> None
+    | HoleSuggestions _ -> None
   in
-  let children_of = function
-    | `Error (HoleSuggestions (_, _, ns)) -> ns
-    | _ -> []
-  in
-  let render_suffix inner_error =
-    match leaf_reason inner_error with
+  let render_suffix err =
+    match leaf_reason err with
     | Some r -> " — " ^ r
     | None -> ""
   in
-  let rec render_tree ~indent notes =
-    let groups = group_by_candidate notes in
-    List.concat_map (fun (candidate, holes) ->
-      match holes with
-      | [note] ->
+  let rec render_note ~indent ((candidate, deriv_err) : derivation_note) =
+    let desc = desc_of_candidate candidate in
+    match deriv_err with
+    | DepthLimited ->
+      [Printf.sprintf "%svia %s — depth limit (increase with `--implicit-derivation-depth`, current: %d)"
+        indent desc !(Flags.implicit_derivation_depth)]
+    | InnerErrors inner_errors ->
+      match inner_errors with
+      | [(name, typ, err)] ->
         let line = Printf.sprintf "%svia %s, `%s` : `%s`%s"
-          indent candidate note.inner_name (typ_str note.inner_typ)
-          (render_suffix note.inner_error) in
-        line :: render_tree ~indent:(indent ^ "  ") (children_of note.inner_error)
+          indent desc name (typ_str typ) (render_suffix err) in
+        line :: render_children ~indent:(indent ^ "  ") err
       | _ ->
-        let header = Printf.sprintf "%svia %s:" indent candidate in
-        header :: List.concat_map (fun note ->
+        let header = Printf.sprintf "%svia %s:" indent desc in
+        header :: List.concat_map (fun (name, typ, err) ->
           let line = Printf.sprintf "%s  `%s` : `%s`%s"
-            indent note.inner_name (typ_str note.inner_typ)
-            (render_suffix note.inner_error) in
-          line :: render_tree ~indent:(indent ^ "    ") (children_of note.inner_error)
-        ) holes
-    ) groups
+            indent name (typ_str typ) (render_suffix err) in
+          line :: render_children ~indent:(indent ^ "    ") err
+        ) inner_errors
+  and render_children ~indent = function
+    | HoleSuggestions (_, _, Some note) -> render_note ~indent note
+    | _ -> []
   in
-  let body = render_tree ~indent:"  " notes in
+  let body = render_note ~indent:"  " note in
   [String.concat "\n" ("Implicit derivation attempted:" :: body)]
 
 let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
@@ -1812,17 +1801,11 @@ module ImplicitHoles = struct
         let wrapper = synthesize_derived_wrapper at candidate.path h.cand_args resolved_paths in
         Ok { candidate with path = wrapper; typ = hole_typ }
       else
-        let failures = failed |> List.map (fun (inner_name, inner_typ, inner_error) ->
-          { candidate_desc = desc_of_candidate candidate;
-            inner_name; inner_typ; inner_error = `Error inner_error }) in
-        Error failures
+        Error (candidate, InnerErrors failed)
     in
     let try_commit ~depth ((h, candidate) as x) =
       if h.holes <> [] && depth >= !(Flags.implicit_derivation_depth) then
-        Error (h.holes |> List.map (fun (inner_name, inner_typ) ->
-          { candidate_desc = desc_of_candidate candidate;
-            inner_name; inner_typ;
-            inner_error = `DepthLimited }))
+        Error (candidate, DepthLimited)
       else
         commit_derivation ~depth x
     in
@@ -1870,14 +1853,14 @@ module ImplicitHoles = struct
     (* Try derivations from local scope *)
     match try_derive ~depth (matching_vals_with_holes ctx env.vals) with
     | `Committed (Ok term) -> Ok term
-    | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
+    | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, explicit_candidates, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous {ambiguous_candidates = cs; explicit_candidates})
     | `Empty ->
 
     (* Try derivations from module fields *)
     match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx env.vals) with
     | `Committed (Ok term) -> Ok term
-    | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
+    | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, explicit_candidates, Some e))
     | `Ambiguous derivable_terms -> Error (HoleAmbiguous {ambiguous_candidates = derivable_terms; explicit_candidates})
     | `Empty ->
 
@@ -1890,8 +1873,8 @@ module ImplicitHoles = struct
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
-    | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
-    | `Ambiguous _ | `Empty -> Error (HoleSuggestions (lib_fields, explicit_candidates, []))
+    | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, explicit_candidates, Some e))
+    | `Ambiguous _ | `Empty -> Error (HoleSuggestions (lib_fields, explicit_candidates, None))
 
 end
 
