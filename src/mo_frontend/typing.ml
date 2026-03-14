@@ -1522,7 +1522,7 @@ and derivation_note = {
   candidate_desc : string;
   inner_name : string;
   inner_typ : T.typ;
-  inner_error : hole_error;
+  inner_error : [`Error of hole_error | `DepthLimited];
 }
 
 let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
@@ -1760,15 +1760,21 @@ module ImplicitHoles = struct
       else
         let failures = failed |> List.map (fun (inner_name, inner_typ, inner_error) ->
           { candidate_desc = desc_of_candidate candidate;
-            inner_name; inner_typ; inner_error }) in
+            inner_name; inner_typ; inner_error = `Error inner_error }) in
         Error failures
     in
-    let guard ~depth f x =
-      if depth >= !(Flags.implicit_derivation_depth) then [] else f x
+    let try_commit ~depth ((h, candidate) as x) =
+      if h.holes <> [] && depth >= !(Flags.implicit_derivation_depth) then
+        Error (h.holes |> List.map (fun (inner_name, inner_typ) ->
+          { candidate_desc = desc_of_candidate candidate;
+            inner_name; inner_typ;
+            inner_error = `DepthLimited }))
+      else
+        commit_derivation ~depth x
     in
-    let try_derive ~depth get_candidate_list source =
-      match disambiguate_func_with_holes (guard ~depth get_candidate_list source) with
-      | `Single x -> `Committed (commit_derivation ~depth x)
+    let try_derive ~depth candidates =
+      match disambiguate_func_with_holes candidates with
+      | `Single x -> `Committed (try_commit ~depth x)
       | `Many matches -> `Ambiguous (List.map (fun (_, c) -> c) matches)
       | `Empty -> `Empty
     in
@@ -1808,25 +1814,25 @@ module ImplicitHoles = struct
       3. Synthesize wrapper function that applies the candidate to the resolved inner implicits *)
 
     (* Try derivations from local scope *)
-    match try_derive ~depth (matching_vals_with_holes ctx) env.vals with
+    match try_derive ~depth (matching_vals_with_holes ctx env.vals) with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
     | `Ambiguous cs -> Error (HoleAmbiguous {ambiguous_candidates = cs; explicit_candidates})
     | `Empty ->
 
     (* Try derivations from module fields *)
-    match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx) env.vals with
+    match try_derive ~depth (FromModuleVal.matching_fields_with_holes ctx env.vals) with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error es) -> Error (HoleSuggestions (lib_fields, explicit_candidates, es))
     | `Ambiguous derivable_terms -> Error (HoleAmbiguous {ambiguous_candidates = derivable_terms; explicit_candidates})
     | `Empty ->
 
     (* Get candidates for derivations from libs *)
-    let lib_fields_with_holes = guard ~depth (FromModuleLib.matching_fields_with_holes ctx) env.libs in
+    let lib_fields_with_holes = FromModuleLib.matching_fields_with_holes ctx env.libs in
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive ~depth (Fun.const lib_fields_with_holes) ()
+      then try_derive ~depth lib_fields_with_holes
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -2898,16 +2904,23 @@ and check_hole env at hole_sort hole_typ exp_ref =
         if explicit_terms = [] then []
         else [Printf.sprintf "Did you mean to explicitly use %s?" (String.concat " or " (List.map desc_of_candidate explicit_terms))]
       in
-      let derivation_sug =
-        List.map (fun { candidate_desc; inner_name; inner_typ; inner_error } ->
-          let reason_text = match inner_error with
-            | HoleAmbiguous { ambiguous_candidates; _ } ->
-              Printf.sprintf "is ambiguous (candidates: %s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates))
-            | HoleSuggestions _ -> "could not be resolved"
+      let rec render_derivation_notes notes =
+        List.concat_map (fun { candidate_desc; inner_name; inner_typ; inner_error } ->
+          let reason_text, sub_notes = match inner_error with
+            | `Error (HoleAmbiguous { ambiguous_candidates; _ }) ->
+              Printf.sprintf "is ambiguous (candidates: %s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)), []
+            | `DepthLimited ->
+              Printf.sprintf "could not be resolved. Consider increasing `--implicit-derivation-depth` (current limit: %d)" !(Flags.implicit_derivation_depth), []
+            | `Error (HoleSuggestions (_, _, inner_notes)) ->
+              "could not be resolved", render_derivation_notes inner_notes
           in
-          Stdlib.Format.asprintf "Derivation via %s was attempted, but inner implicit `%s` of type %a %s."
+          let msg = Stdlib.Format.asprintf "Derivation via %s was attempted, but inner implicit `%s` of type %a %s."
             candidate_desc inner_name display_typ inner_typ reason_text
-        ) derivation_notes
+          in
+          msg :: sub_notes
+        ) notes
+      in
+      let derivation_sug = render_derivation_notes derivation_notes
       in
       let import_sug =
         if lib_terms = [] then

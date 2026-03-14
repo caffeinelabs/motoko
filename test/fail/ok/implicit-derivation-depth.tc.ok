@@ -3,3 +3,5 @@ implicit-derivation-depth.mo:28.8-28.45: type error [M0230], Cannot determine im
 note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
 note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
   ([Nat], [Nat]) -> Order could not be resolved.
+note: Derivation via `Array.compare` was attempted, but inner implicit `compare` of type 
+  (Nat, Nat) -> Order could not be resolved. Consider increasing `--implicit-derivation-depth` (current limit: 1).

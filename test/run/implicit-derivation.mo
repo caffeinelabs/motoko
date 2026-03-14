@@ -259,7 +259,7 @@ do {
   var localDirectCalled = false;
   var moduleDirectCalled = false;
 
-  module M {
+  module _M {
     public func compare(_ : Nat, _ : Nat) : Order {
       moduleDirectCalled := true;
       #equal;
@@ -278,4 +278,61 @@ do {
   assert needsCompare(1, 2) == #equal;
   assert localDirectCalled;
   assert not moduleDirectCalled;
+};
+
+// Direct module field preferred over derived local
+do {
+  var directModuleCalled = false;
+  var derivedLocalCalled = false;
+
+  module M {
+    public func compare(_ : [Nat], _ : [Nat]) : Order {
+      directModuleCalled := true;
+      #equal;
+    };
+  };
+
+  func compare<T>(_ : [T], _ : [T], compareT : (implicit : (compare : (T, T) -> Order))) : Order {
+    ignore compareT;
+    derivedLocalCalled := true;
+    #equal;
+  };
+  ignore compare;
+
+  func needsCompare(a : [Nat], b : [Nat], compare : (implicit : ([Nat], [Nat]) -> Order)) : Order {
+    compare(a, b);
+  };
+
+  assert needsCompare([1], [2]) == #equal;
+  assert directModuleCalled;
+  assert not derivedLocalCalled;
+};
+
+// Direct module field preferred over derived module field
+do {
+  var directModuleCalled = false;
+  var derivedModuleCalled = false;
+
+  module DirectM {
+    public func compare(_ : [Nat], _ : [Nat]) : Order {
+      directModuleCalled := true;
+      #equal;
+    };
+  };
+
+  module DerivedM {
+    public func compare<T>(_ : [T], _ : [T], compare : (implicit : (T, T) -> Order)) : Order {
+      ignore compare;
+      derivedModuleCalled := true;
+      #equal;
+    };
+  };
+
+  func needsCompare(a : [Nat], b : [Nat], compare : (implicit : ([Nat], [Nat]) -> Order)) : Order {
+    compare(a, b);
+  };
+
+  assert needsCompare([1], [2]) == #equal;
+  assert directModuleCalled;
+  assert not derivedModuleCalled;
 };

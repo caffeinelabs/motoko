@@ -25,6 +25,17 @@ func needsBoolArrayCompare(
 
 ignore needsBoolArrayCompare([true], [false]); // M0230: no Bool.compare
 
+// Deep nesting: [[Bool]] needs two derivation levels, both shown in diagnostics
+func needsNestedBoolArrayCompare(
+  a : [[Bool]],
+  b : [[Bool]],
+  compare : (implicit : ([[Bool]], [[Bool]]) -> Order),
+) : Order {
+  compare(a, b);
+};
+
+ignore needsNestedBoolArrayCompare([[true]], [[false]]); // M0230: full chain shown
+
 // Non-function implicit cannot be derived
 func needsNatValue(x : Nat, n : (implicit : Nat)) : Nat {
   n;
