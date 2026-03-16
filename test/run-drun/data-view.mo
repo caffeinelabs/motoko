@@ -18,9 +18,9 @@ persistent actor Self {
      array.view()(start, count);
   };
 
-  // here, [insible_array.view] produces a non-shared (mutable) type, omit viewer
-  // later maybe approximate by shared type.
-  let invisible_array : [[var Nat]] = [];
+  // here, [insible_array.view] produces a non-shared (mutable) type,
+  // approximate to [Any]
+  let non_shared_array : [[var Nat]] = [];
 
   // shared values we can just display, sans viewer
   type Tree = { #leaf; #node : (Tree, Nat, Tree) };
@@ -28,7 +28,9 @@ persistent actor Self {
   let some_record = {a=1;b ="hello"; c = true} ;
 
   // stable, non-shared values we can't just display in full, without viewer
-  let some_mutable_record = {var a = 1};
+  // approximate to shared supertype { b : Nat; c : Any},
+  // dropping mutable fields, promoting non-shared to Any
+  let some_mutable_record = {var a = 1; b = 0; c = [var 0]};
 
   public query func __override(): async Text { "user defined __override" };
 
@@ -48,8 +50,8 @@ persistent actor Self {
 	/* user-defined */
 	__override : shared query () -> async Text;
 	/* unable to generate because of (potential) name clash, no viewer or non-shared type*/
-        __invisible_array : shared query() -> async None;
-        __some_mutable_record : shared query() -> async None;
+        __non_shared_array : shared query() -> async [Any];
+        __some_mutable_record : shared query() -> async {b : Nat; c : Any}; // drop a, approximate type of c
         __motoko_xxx : shared query () -> async None;
 
     };
@@ -57,18 +59,9 @@ persistent actor Self {
     Prim.debugPrint(debug_show (await views.__some_variant()));
     Prim.debugPrint(debug_show (await views.__some_record()));
     Prim.debugPrint(debug_show (await views.__override())); // calls user-defined method
-    try {
-      await views.__invisible_array(); //fails with method not available
-      assert false;
-    } catch (e) {
-      Prim.debugPrint (Prim.errorMessage(e));
-    };
-    try {
-      await views.__some_mutable_record(); //fails with method not available
-      assert false;
-    } catch (e) {
-      Prim.debugPrint (Prim.errorMessage(e));
-    };
+    // debug_show doesn't support Any values, so avoid those below
+    Prim.debugPrint(debug_show (await views.__non_shared_array()).size());
+    Prim.debugPrint(debug_show (await views.__some_mutable_record()).b);
     try {
       await views.__motoko_xxx(); //fails with method not available
       assert false;
