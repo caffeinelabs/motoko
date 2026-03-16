@@ -1029,7 +1029,7 @@ let shared_of_stable t =
               (* copy constructor with approximated body *)
               (* just weaken bounds to Any  *)
               let tbs' = List.map (fun tb -> {tb with bound = Any}) tbs in
-              let c' = Cons.fresh (Cons.name c) (Def(tbs', Pre)) in
+              let c' = Cons.fresh (Cons.name c) (Abs(tbs', Pre)) in
               seen := ConEnv.add c c' !seen;
               let u' = go u in
               set_kind c' (Def(tbs', u'));
