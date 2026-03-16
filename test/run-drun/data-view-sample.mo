@@ -14,11 +14,6 @@ persistent actor Self {
 
   include Views();
 
-  func isAdmin(p : Principal) : Bool {
-    Debug.print(debug_show (#isAdmin p));
-    true; // for demo purposes only
-  };
-
   // ═══════════════════════════════════════════════════════════════
   // Northwind Database — classic Microsoft sample data
   // ═══════════════════════════════════════════════════════════════
@@ -276,6 +271,8 @@ persistent actor Self {
     totalOrderDetails = 40 : Nat;
     totalUnicode = 1_112_064 : Nat;
   };
+
+  ignore summary;
 
   public func go() : async () {
     let views = actor (debug_show (Principal.fromActor(Self))) :

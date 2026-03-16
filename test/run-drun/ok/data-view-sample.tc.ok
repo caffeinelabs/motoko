@@ -1,2 +1,0 @@
-data-view-sample.mo:269.7-269.14: warning [M0194], unused identifier: `summary`
-help: if this is intentional, prefix it with an underscore: `_summary`
