@@ -69,7 +69,7 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ vars.GENERIC_CI_RW_APP_ID }}
@@ -193,7 +193,7 @@ jobs:
         with:
           ref: "master"
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         id: app-token-for-approvals
         with:
           app-id: ${{ vars.GENERIC_CI_RW_APP_ID }}
