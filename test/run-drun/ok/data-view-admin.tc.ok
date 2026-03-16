@@ -1,4 +1,0 @@
-data-view-admin.mo:8.7-8.11: warning [M0194], unused identifier: `view`
-help: if this is intentional, prefix it with an underscore: `_view`
-data-view-admin.mo:39.13-39.14: warning [M0194], unused identifier: `e`
-help: if this is intentional, prefix it with an underscore: `_e`

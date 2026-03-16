@@ -4164,18 +4164,6 @@ and infer_viewer env scope mut id viewer =
   begin
     let at = id.at in
     assert (!viewer = None);
-    let isAdmin_available ()  =
-      let isAdmin = "isAdmin" in
-      let env1 = adjoin env scope in
-      let available =
-        match T.Env.find_opt isAdmin env1.vals with
-        | Some (t, _, _, _) ->
-           T.sub t (T.Func(T.Local, T.Returns, [], [T.principal], [T.bool]))
-        | _ -> false
-      in
-      if available then use_identifier env1 isAdmin;
-      available
-    in
     let lab = "__" ^ id.it in
     if T.Env.mem lab scope.Scope.val_env || String.starts_with ~prefix:"__motoko" lab
     then () (* avoid any clash with local or reserved `__motoko_XXX` members by omitting viewer *)
@@ -4196,9 +4184,7 @@ and infer_viewer env scope mut id viewer =
            | T.Func(T.Local, T.Returns, [], ts1, ts2)
              when List.for_all T.shared ts1 && List.for_all T.shared ts2 ->
               { viewer_body = DotViewV exp;
-                viewer_field = viewer_field ts1 ts2;
-                viewer_isAdmin_available = isAdmin_available();
-              }
+                viewer_field = viewer_field ts1 ts2 }
            | _ -> raise Recover))
       in
       match infer_dot_view with
@@ -4217,9 +4203,7 @@ and infer_viewer env scope mut id viewer =
            in
            viewer := Some
              { viewer_body = DefaultV(varE);
-               viewer_field = viewer_field [] [typ];
-               viewer_isAdmin_available = isAdmin_available();
-             }
+               viewer_field = viewer_field [] [typ] }
   end
 
 (* Blocks and Declarations *)
