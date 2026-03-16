@@ -5,8 +5,8 @@ edition = "2024"
 
 
 [dependencies]
-pocket-ic = { git = "https://github.com/dfinity/ic", branch = "master", package = "pocket-ic" }
-ic-management-canister-types = "0.3.3"
+pocket-ic = { git = "https://github.com/dfinity/ic", tag = "release-2026-03-05_04-37-base", package = "pocket-ic" }
+ic-management-canister-types = "0.5.0"
 candid = "0.10.17"
 serde = "1.0.219"
 hex = "0.4.3"

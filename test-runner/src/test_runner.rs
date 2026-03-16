@@ -624,7 +624,6 @@ impl TestRunner {
 
     pub fn run(&self) -> std::io::Result<()> {
         let ic_config = IcpConfig {
-            canister_backtrace: Some(IcpConfigFlag::Disabled),
             beta_features: Some(IcpConfigFlag::Enabled),
             ..Default::default()
         };
@@ -648,7 +647,6 @@ impl TestRunner {
             self.commands[0].create_canister(&mut server, canister_id)?;
         }
         for command in &self.commands {
-            // command: {:?}", command);
             command.execute(&mut server)?;
         }
         Ok(())
