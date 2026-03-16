@@ -1006,6 +1006,44 @@ let is_local_async_func typ =
 let shared t = serializable false t
 let stable t = serializable true t
 
+let to_shared t =
+  let seen = ref ConEnv.empty in
+  let rec go t =
+    begin
+      match t with
+      | Var _ | Pre -> t
+      | Prim Error -> assert false
+      | Prim Region -> Any
+      | Any | Non | Prim _ -> t
+      | Async _ -> assert false
+      | Weak t -> Any
+      | Mut t -> Any
+      | Con (c, ts) ->
+        (match ConEnv.find_opt c !seen with
+         | Some d -> Con (d, List.map go ts)
+         | None ->
+            match Cons.kind c with
+            | Abs _ -> Any
+            | Def(tbs, u) ->
+              let d = Cons.fresh (Cons.name c) (Def(tbs, Pre)) in
+              seen := ConEnv.add c d !seen;
+              let u1 = go u in
+              set_kind d (Def(tbs, u1));
+              Con (d, List.map go ts))
+      | Array t -> Array (go t)
+      | Opt t -> Opt (go t)
+      | Tup ts -> Tup (List.map go ts)
+      | Obj (s, fs, ts) ->
+        (match s with
+         | Actor -> t
+         | Module | Mixin -> assert false (* TODO(1452) make modules sharable *)
+         | Object | Memory ->
+             Obj(s, List.map (fun f -> { f with typ = go f.typ }) fs, ts))
+      | Variant fs -> Variant (List.map (fun f -> {f with typ = go f.typ}) fs)
+      | Func (s, c, tbs, ts1, ts2) -> if is_shared_sort s then t else Any
+      | Named (n, t) -> go t
+    end
+  in go t
 
 (* Forward declare
    TODO: haul string_of_typ before the lub/glb business, if possible *)
