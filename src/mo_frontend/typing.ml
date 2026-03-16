@@ -4169,7 +4169,8 @@ and infer_viewer env scope mut id viewer =
     then () (* avoid any clash with local or reserved `__motoko_XXX` members by omitting viewer *)
     else
       let viewer_field args ret =
-        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, ret); src = empty_src } in
+        let shared_ret = List.map (fun ty -> if T.shared ty then ty else T.to_shared ty) ret in
+        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->
           let env = {env with msgs; used_identifiers = ref T.Env.empty } in (* don't record errors in outer env *)
@@ -4182,7 +4183,7 @@ and infer_viewer env scope mut id viewer =
           let viewer_typ = infer_exp env exp in
           match T.normalize viewer_typ with
            | T.Func(T.Local, T.Returns, [], ts1, ts2)
-             when List.for_all T.shared ts1 && List.for_all T.shared ts2 ->
+             when List.for_all T.shared ts1 && List.for_all T.stable ts2 ->
               { viewer_body = DotViewV exp;
                 viewer_field = viewer_field ts1 ts2 }
            | _ -> raise Recover))
@@ -4195,7 +4196,7 @@ and infer_viewer env scope mut id viewer =
          (* info env id.at "viewer not found for %s" id.it; *)
          let (typ, _, _) = T.Env.find id.it scope.Scope.val_env in
          let typ = T.as_immut typ in
-         if T.shared typ then
+         if T.stable typ then
            let varE =
              { (VarE {it = id.it; at; note = (mut, None)} @? at)
                with note = { note_typ = typ;

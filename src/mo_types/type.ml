@@ -1025,11 +1025,13 @@ let to_shared t =
             match Cons.kind c with
             | Abs _ -> Any
             | Def(tbs, u) ->
+              (* TODO: handle non-trivial bounds  *)
               let d = Cons.fresh (Cons.name c) (Def(tbs, Pre)) in
               seen := ConEnv.add c d !seen;
               let u1 = go u in
               set_kind d (Def(tbs, u1));
               Con (d, List.map go ts))
+      | Array (Mut t) -> Any
       | Array t -> Array (go t)
       | Opt t -> Opt (go t)
       | Tup ts -> Tup (List.map go ts)
@@ -1038,7 +1040,8 @@ let to_shared t =
          | Actor -> t
          | Module | Mixin -> assert false (* TODO(1452) make modules sharable *)
          | Object | Memory ->
-             Obj(s, List.map (fun f -> { f with typ = go f.typ }) fs, ts))
+             Obj(s,
+                 List.filter_map (fun f -> if is_mut f.typ then None else Some { f with typ = go f.typ }) fs, ts))
       | Variant fs -> Variant (List.map (fun f -> {f with typ = go f.typ}) fs)
       | Func (s, c, tbs, ts1, ts2) -> if is_shared_sort s then t else Any
       | Named (n, t) -> go t
