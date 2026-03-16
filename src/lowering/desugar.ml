@@ -660,15 +660,17 @@ and export_view viewer_opt =
            (* id.view() available *)
           assert (List.for_all T.shared ts2);
           ts1, ts2, fun vs ->
-          let v = fresh_var "ret" (T.seq ts2) in
-          letE v (callE (exp view_exp) [] (seqE (List.map varE vs)))
-            (varE v)
-       | DefaultV view_exp, T.Func(Shared Query, _, [_], [], [t]) ->
+          let view_e = exp view_exp in
+          primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
+ (*       let v = fresh_var "ret" (T.seq ts2) in
+         letE v (callE (exp view_exp) [] (seqE (List.map varE vs)))
+            (varE v) *)
+       | DefaultV view_exp, T.Func(Shared Query, _, [_], [], ts2) ->
          (* id, t shared *)
-          assert (T.shared t);
-          [], [t], fun _vs ->
-            let v = fresh_var "ret" t in
-            letE v (exp view_exp) (varE v)
+          assert (List.for_all T.shared ts2);
+          [], ts2, fun _vs ->
+            let view_e = exp view_exp in
+            primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
        | _ -> assert false
      in
      let vs = fresh_vars "param" ts1 in

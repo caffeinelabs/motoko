@@ -231,7 +231,7 @@ val is_local_async_func : typ -> bool
 
 val stable : typ -> bool
 
-val to_shared : typ -> typ
+val shared_of_stable : typ -> typ
 
 val inhabited : typ -> bool
 val singleton : typ -> bool
