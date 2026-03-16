@@ -1,0 +1,5 @@
+install $ID float32-stable/main.mo ""
+ingress $ID show "DIDL\x00\x00"
+ingress $ID mutate "DIDL\x00\x00"
+upgrade $ID float32-stable/main.mo ""
+ingress $ID show "DIDL\x00\x00"
