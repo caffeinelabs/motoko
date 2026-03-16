@@ -70,6 +70,7 @@ type env =
     type_recovery : bool;
     srcs : Field_sources.t;
     closest_loop : (Syntax.loop_flags * T.typ) option;
+    enhanced_migration : string option;
   }
 and ret_env =
   | NoRet
@@ -102,6 +103,7 @@ let env_of_scope msgs scope =
     type_recovery = false;
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
     closest_loop = None;
+    enhanced_migration = None;
   }
 
 let use_identifier env id =
@@ -2285,10 +2287,10 @@ and infer_exp'' env exp : T.typ =
   | AnnotE (exp1, typ) ->
     let t = check_typ env typ in
     if not env.pre then
-      (* If exp1 is TupE [] (placeholder for no initializer) and --enhanced-migration is enabled, *)
+      (* If exp1 is PrimE "_" (placeholder for no initializer) and --enhanced-migration is enabled, *)
       (* allow it without type checking (it's used for stable variables without initializers) *)
       (match exp1.it, !Flags.enhanced_migration with
-       | TupE [], Some _ ->
+       | PrimE "_", Some _ ->
          exp1.note <- {exp1.note with note_typ = t}
        | _ ->
          check_exp_strong env t exp1);
@@ -3829,7 +3831,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in
-    if s = T.Actor then check_migration env stab_tfs exp_opt at;
+    if s = T.Actor then check_migration env obj_sort stab_tfs exp_opt at;
   end;
   t
 
@@ -3907,6 +3909,39 @@ and stable_pat pat =
   | AnnotP (pat', _) -> stable_pat pat'
   | _ -> false
 
+and infer_migration_chain env at =
+  match env.enhanced_migration with
+  | None -> []
+  | Some path ->
+     let region_of_file file =
+       Source.{left = {file; line = 1; column = 0 };
+               right = {file; line = 1; column = 0 } }
+     in
+     let norm_path = Lib.FilePath.normalise path in
+     let chain =
+       T.Env.fold (fun lib lib_typ acc ->
+           if Filename.dirname lib <> norm_path
+           then acc else
+           match Type.normalize lib_typ with
+             | T.Obj(T.Module, fields, _) as mod_typ ->
+               begin
+                 match Type.lookup_val_field_opt "run" fields with
+                 | Some run_typ -> (lib, mod_typ, run_typ) :: acc
+                 | None ->
+                    warn env (region_of_file lib) "M0251"
+                      "migration module does not export a `run` function, skipping";
+                    acc
+               end
+             | _ ->
+               warn env (region_of_file lib) "M0251" "not a module, skipping";
+               acc) env.libs []
+       |> List.rev
+     in
+     if chain = [] then
+       local_error env at "M0251"
+        "--enhanced-migration: no valid migration modules found (migration modules must export a public `run` function)";
+     chain
+
 and infer_migration env obj_sort exp_opt =
   Option.map
     (fun exp ->
@@ -3956,8 +3991,7 @@ and check_migration_function env typ at =
    error messages.
  *)
 
-and check_enhanced_migration_chain env stab_tfs at =
- let chain = !T.migration_chain in
+and check_enhanced_migration_chain env chain stab_tfs at =
  if chain = [] then () else
  let check_chain chain post =
    let mfs = List.rev chain in
@@ -3997,11 +4031,13 @@ and check_enhanced_migration_chain env stab_tfs at =
  in
  check_chain chain stab_tfs
 
-and check_migration env (stab_tfs : T.field list) exp_opt at =
+and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
+  let migration_chain = infer_migration_chain env at in
+  (* record the chain, for desugar *)
+  obj_sort.note.note <- migration_chain;
   match exp_opt with
   | None ->
-     if !T.migration_chain <> [] then
-     check_enhanced_migration_chain env stab_tfs at
+    check_enhanced_migration_chain env migration_chain stab_tfs at
   | Some exp ->
    let focus = match exp.it with
      | ObjE(_, flds) ->
@@ -4021,7 +4057,7 @@ and check_migration env (stab_tfs : T.field list) exp_opt at =
          "expected expression with field `migration`, but expression has type%a"
            display_typ_expand exp.note.note_typ
     in
-    if !T.migration_chain <> [] then
+    if migration_chain <> [] then
       error env at "M0252"
         "cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other.";
     let dom_tfs, rng_tfs = check_migration_function env typ focus in
@@ -4098,13 +4134,13 @@ and check_migration env (stab_tfs : T.field list) exp_opt at =
 and check_stable_defaults env sort dec_fields =
   if sort.it <> T.Actor then () else begin
   (* With --enhanced-migration, stable variables must not have initializers *)
-  if Option.is_some !Flags.enhanced_migration then begin
+  if Option.is_some env.enhanced_migration then begin
     List.iter (fun dec_field ->
       match dec_field.it.stab, dec_field.it.dec.it with
       | Some {it = Stable; _}, LetD (_, exp, _)
       | Some {it = Stable; _}, VarD (_, exp) ->
         (match exp.it with
-         | AnnotE ({it = TupE []; _}, _) -> () (* placeholder for no initializer -- OK *)
+         | AnnotE ({it = PrimE "_"; _}, _) -> () (* placeholder for no initializer -- OK *)
          | _ ->
            local_error env exp.at "M0250"
              "stable variables must not have initializers with --enhanced-migration; use migration functions instead.")
@@ -4269,7 +4305,7 @@ and infer_dec env dec : T.typ =
     (* Check if this is a placeholder for no initializer *)
     if not env.pre then begin
       match exp.it with
-      | AnnotE ({it = TupE []; _}, _) when Option.is_some !Flags.enhanced_migration ->
+      | AnnotE ({it = PrimE "_"; _}, _) when Option.is_some env.enhanced_migration ->
         if not env.in_actor then
           error env exp.at "M0250"
             "variables without initializers are only allowed in actors with --enhanced-migration flag"
@@ -4285,7 +4321,7 @@ and infer_dec env dec : T.typ =
       let t = infer_exp env exp in
       (* Check if this is a placeholder for no initializer *)
       (match exp.it with
-       | AnnotE ({it = TupE []; _}, _) when Option.is_some !Flags.enhanced_migration ->
+       | AnnotE ({it = PrimE "_"; _}, _) when Option.is_some env.enhanced_migration ->
          if not env.in_actor then
            error env exp.at "M0250"
              "variables without initializers are only allowed in actors with --enhanced-migration flag"
@@ -4352,7 +4388,7 @@ and infer_dec env dec : T.typ =
       error env dec.at "M0228" "mixins may only be declared at the top-level";
     let t_pat, ve = infer_pat_exhaustive error env args in
     let env' = adjoin_vals env ve in
-    let obj_sort : obj_sort = { it = T.Mixin ; at = no_region; note = { it = true; at = no_region; note = () } }  in
+    let obj_sort : obj_sort = { it = T.Mixin ; at = no_region; note = { it = true; at = no_region; note = [] } }  in
     let t' = infer_obj { env' with check_unused = false } obj_sort None dec_fields dec.at in
     T.normalize t'
   | TypD _ ->
@@ -4744,6 +4780,8 @@ and infer_dec_valdecs env dec : Scope.t =
       con_env = T.ConSet.singleton c;
     }
 
+
+
 (* Programs *)
 let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     : (T.typ * Scope.t) Diag.result
@@ -4758,8 +4796,11 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
         (fun prog ->
           let env0 = env_of_scope msgs scope in
           let env = {
-             env0 with async = async_cap; type_recovery = enable_type_recovery;
-          } in
+              env0 with
+              async = async_cap;
+              type_recovery = enable_type_recovery;
+              enhanced_migration = !Flags.enhanced_migration;
+            } in
           let t, sscope = infer_block env prog.it prog.at true in
           if pkg_opt = None && Diag.is_error_free msgs then emit_unused_warnings env;
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
@@ -4810,7 +4851,14 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
     (fun msgs ->
       recover_opt
         (fun lib ->
-          let env = { (env_of_scope msgs scope) with errors_only = pkg_opt <> None } in
+          let env =
+            { (env_of_scope msgs scope) with
+              errors_only = pkg_opt <> None;
+              (* For now, only the main actor(class) supports enhanced_migration, not libraries
+                 For imported classes, we would need some convention to locate their migration
+                 dirs *)
+              enhanced_migration = None
+            } in
           let { imports; body = cub; _ } = lib.it in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_block env (imp_ds @ ds) lib.at false in
