@@ -120,7 +120,7 @@ module TaggingScheme = struct
     | Nat16
     | Int16
     | Nat8
-    | Int8 -> 0L
+    | Int8
     | Float32 -> 0L
     | _  -> assert false)
 
