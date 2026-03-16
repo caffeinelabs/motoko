@@ -657,20 +657,19 @@ and export_view viewer_opt =
      let ts1, ts2, mk_body =
        match (viewer_body, T.normalize viewer_field.typ) with
        | DotViewV view_exp, T.Func(Shared Query, _, [_], ts1, ts2) ->
-           (* id.view() available *)
-          assert (List.for_all T.shared ts2);
-          ts1, ts2, fun vs ->
-          let view_e = exp view_exp in
-          primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
- (*       let v = fresh_var "ret" (T.seq ts2) in
-         letE v (callE (exp view_exp) [] (seqE (List.map varE vs)))
-            (varE v) *)
+         (* id.view() available *)
+         assert (List.for_all T.shared ts2);
+         ts1, ts2, fun vs ->
+           let view_e =
+             callE (exp view_exp) [] (seqE (List.map varE vs))
+           in
+           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
        | DefaultV view_exp, T.Func(Shared Query, _, [_], [], ts2) ->
          (* id, t shared *)
-          assert (List.for_all T.shared ts2);
-          [], ts2, fun _vs ->
-            let view_e = exp view_exp in
-            primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
+         assert (List.for_all T.shared ts2);
+         [], ts2, fun _vs ->
+           let view_e = exp view_exp in
+           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
        | _ -> assert false
      in
      let vs = fresh_vars "param" ts1 in
