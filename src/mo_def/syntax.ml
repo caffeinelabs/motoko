@@ -181,8 +181,7 @@ type id_ref = (string, mut' * exp option) Source.annotated_phrase
 and viewer_body = DotViewV of exp | DefaultV of exp
 and viewer = {
     viewer_body : viewer_body;
-    viewer_field : Type.field;
-    viewer_isAdmin_available : bool;
+    viewer_field : Type.field
   }
 and stab = stab' Source.phrase
 and stab' = Stable of viewer option ref | Flexible
