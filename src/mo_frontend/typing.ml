@@ -1526,7 +1526,8 @@ and derivation_error =
   | InnerErrors of (T.lab * T.typ * hole_error) list
   | DepthLimited
 
-let render_derivation_tree ~tldr env = function
+(* TODO: remove or keep? *)
+let render_derivation_tree env = function
   | None -> []
   | Some note ->
   let rec render_note ~indent ((candidate, deriv_err) : derivation_note) acc =
@@ -1536,14 +1537,11 @@ let render_derivation_tree ~tldr env = function
       Printf.sprintf "%svia %s — depth limit (increase with `--implicit-derivation-depth`, current: %d)"
         indent desc !(Flags.implicit_derivation_depth) :: acc
     | InnerErrors inner_errors ->
-      let acc = if tldr then acc else Format.asprintf env "%svia %s : `%a`:" indent desc display_typ_oneline candidate.typ :: acc in
+      let acc = Format.asprintf env "%svia %s : `%a`:" indent desc display_typ_oneline candidate.typ :: acc in
       List.fold_left (fun acc (name, typ, err) ->
-        let acc, indent = if tldr then acc, indent else
-          let indent = indent ^ "  " in
-          let line = Format.asprintf env "%s`%s` : `%a`" indent name display_typ_oneline typ in
-          (line :: acc), indent
-        in
-        render_hole_error ~indent acc err
+        let indent = indent ^ "  " in
+        let line = Format.asprintf env "%s`%s` : `%a`" indent name display_typ_oneline typ in
+        render_hole_error ~indent (line :: acc) err
       ) acc inner_errors
   and render_hole_error ~indent acc = function
     | HoleSuggestions (lib_terms, _, note_opt) ->
