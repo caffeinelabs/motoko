@@ -860,30 +860,3 @@ func @dedup(b : Blob) : Blob {
 
   result;
 };
-
-/// Function that returns the ID (e.g., file name) of the last applied migration.
-func @checkLastMigration(mId : Text) : Bool {
-  /// For future use, instead of keeping around just the last migration,
-  /// we keep a list of all the migrations applied, not locking us
-  /// out of showing the history of applied migrations or other functionality.
-  type MigrationsList = ?(Text, MigrationsList);
-
-  // Get the migrations list from the RTS.
-  let ?(migrationId, _) = (prim "get_migrations" : () -> MigrationsList)() else {
-    return false;
-  };
-  // Check the parameter against the last migration in the list.
-  migrationId == mId;
-};
-
-/// Function that returns the ID (e.g., file name) of the last applied migration.
-func @setLastMigration(mId : Text) {
-  /// For future use, instead of keeping around just the last migration,
-  /// we keep a list of all the migrations applied, not locking us
-  /// out of showing the history of applied migrations or other functionality.
-  type MigrationsList = ?(Text, MigrationsList);
-
-  // Add the new migration ID at the beginning of the list.
-  let newList = ?(mId, (prim "get_migrations" : () -> MigrationsList)());
-  (prim "set_migrations" : (MigrationsList) -> ())(newList);
-};
