@@ -3000,9 +3000,9 @@ module Float32 = struct
 
      The heap layout of a Float32 is:
 
-       ┌──────┬─────┐
+       ┌────────────┬─────┐
        │ obj header │ f32 │
-       └──────┴─────┘
+       └────────────┴─────┘
 
      Tag = Bits32 F (45).  Incr GC: 3 words; no GC: 2 words.
      The f32 payload occupies one 32-bit word.
@@ -11022,6 +11022,14 @@ let compile_binop env t op : SR.t * SR.t * G.t =
       (powInt64_shortcut (Word64.compile_unsigned_pow env))
   | Type.(Prim Nat),                          PowOp -> BigNum.compile_unsigned_pow env
   | Type.(Prim Float),                        PowOp -> E.call_import env "rts" "pow"
+  | Type.(Prim Float32),                      PowOp ->
+    (* promote both f32 args to f64, call rts pow, demote back *)
+    let (set_b, get_b, _) = new_local_ env F32Type "f32_pow_b" in
+    set_b ^^
+    G.i (Convert (Wasm.Values.F64 F64Op.PromoteF32)) ^^
+    get_b ^^ G.i (Convert (Wasm.Values.F64 F64Op.PromoteF32)) ^^
+    E.call_import env "rts" "pow" ^^
+    G.i (Convert (Wasm.Values.F32 F32Op.DemoteF64))
   | Type.(Prim (Nat64|Int64)),                AndOp -> G.i (Binary (Wasm.Values.I64 I64Op.And))
   | Type.(Prim (Nat8|Nat16|Nat32|Int8|Int16|Int32)),
                                               AndOp -> G.i (Binary (Wasm.Values.I32 I32Op.And))
