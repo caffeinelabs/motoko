@@ -4689,9 +4689,16 @@ let infer_import env dec = match dec.it with
   | _ -> assert false
 
 let infer_imports env ds =
-  List.fold_left (fun acc d -> Scope.adjoin acc (infer_import env d)) Scope.empty ds
+  List.fold_left (fun acc d ->
+      let s = infer_import env d in
+      Scope.{ empty with
+        val_env = disjoint_union env d.at "M0017" "duplicate binding for %s in imports" s.val_env acc.val_env;
+        typ_env = disjoint_union env d.at "M0017" "duplicate binding for type %s in imports" s.typ_env acc.typ_env;
+        mixin_env = disjoint_union env d.at "M0017" "duplicate binding for mixin %s in imports" s.mixin_env acc.mixin_env;
+      }
+    ) Scope.empty ds
 
-let infer_prog' env at check_unused imports decls =
+let infer_split_prog env at check_unused imports decls =
   let iscope = infer_imports env imports in
   let env = adjoin env iscope in
   let t, sscope = infer_block env decls at check_unused in
@@ -4715,7 +4722,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
              env0 with async = async_cap; type_recovery = enable_type_recovery;
           } in
           let imports, decls = split_imports prog.it in
-          let t, sscope = infer_prog' env prog.at true imports decls in
+          let t, sscope = infer_split_prog env prog.at true imports decls in
           if pkg_opt = None && Diag.is_error_free msgs then emit_unused_warnings env;
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
           t, {sscope with Scope.fld_src_env}
@@ -4768,7 +4775,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
           let env = { (env_of_scope msgs scope) with errors_only = pkg_opt <> None } in
           let { imports; body = cub; _ } = lib.it in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
-          let typ, _ = infer_prog' env lib.at false imp_ds ds in
+          let typ, _ = infer_split_prog env lib.at false imp_ds ds in
           List.iter2 (fun import imp_d -> import.note <- imp_d.note.note_typ) imports imp_ds;
           cub.note <- {empty_typ_note with note_typ = typ};
           let imp_scope = match cub.it with
