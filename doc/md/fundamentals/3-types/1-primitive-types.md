@@ -97,6 +97,32 @@ let rounded = Float.floor(4.8); // 4.0
 let trigValue = Float.sin(Float.pi / 2); // 1.0
 ```
 
+## Float32
+
+`Float32` is a 32-bit (single-precision) IEEE 754 floating-point type. It uses half the
+memory of [`Float`](../../core/Float.md) and maps directly to the `float32` Candid type,
+making it suitable for compact storage or interoperability with services that use
+single-precision values.
+
+Values are written as float literals with a `Float32` type ascription, or produced by
+arithmetic on `Float32` operands, or by explicit conversion from `Float`:
+
+```motoko
+let a : Float32 = 3.14;              // literal rounded to single precision at compile time
+let b : Float32 = a * 2.0;           // arithmetic stays in Float32
+let c : Float32 = floatToFloat32 3.14;   // explicit conversion from Float
+let back : Float = float32ToFloat a;
+```
+
+Arithmetic (`+`, `-`, `*`, `/`, `**`) and comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`)
+work directly on `Float32` values without going through `Float`.
+
+:::note
+`Float32` has approximately 7 significant decimal digits of precision, compared to ~15 for
+[`Float`](../../core/Float.md). Use `Float` when precision matters; use `Float32` when
+memory compactness or Candid `float32` interoperability is the priority.
+:::
+
 ## Resources
 
 - [`Int`](../../core/Int.md)
@@ -106,4 +132,5 @@ let trigValue = Float.sin(Float.pi / 2); // 1.0
 - [`Char`](../../core/Char.md)
 - [`Text`](../../core/Text.md)
 - [`Float`](../../core/Float.md)
+- `Float32`
 
