@@ -238,8 +238,90 @@ Frontend (`prim.mo`, type-checker, etc.) is already complete.
 
 ## Future Work (not this plan)
 
-The user noted a possible future optimization: represent a large class of Float32 values as
-direct tagged scalars in classical Vanilla (similar to how `Nat32` has both a compact scalar
-range and a heap fallback). This could use spare bits in the 32-bit Vanilla word (e.g., values
-with NaN-tag patterns, or a specific exponent range). This is deferred; the present plan only
-establishes the correct `SR.UnboxedFloat32` foundation and `Bits32 F` boxing.
+### Partial scalar representation using the 1-LSBit invariant
+
+Without `--experimental-rtti`, the classical Vanilla tagging scheme uses only **1 bit** to
+distinguish scalars from heap pointers: bit 0 = 0 means scalar; bit 0 = 1 means a skewed
+heap pointer (all 4-byte-aligned heap addresses have bits 1:0 = 00; the stored Vanilla
+pointer is `address - 1`, so bit 0 = 1 always).
+
+#### F32 bit layout reminder
+
+IEEE 754 single-precision (F32):
+```
+ 31  30    23  22                    0
+  ┌───┬────────┬──────────────────────┐
+  │ S │ exp(8) │    mantissa (23)     │
+  └───┴────────┴──────────────────────┘
+                                     ╰── bit 0 is the LSBit of the mantissa
+```
+
+#### The scheme
+
+- **bit 0 of F32 bit pattern = 0**: store the 32-bit F32 bit pattern directly as the
+  I32 Vanilla scalar.  Unbox with a single `f32.reinterpret_i32`.  No heap allocation.
+  Covers ±0.0, all powers of 2, and roughly 50 % of all F32 values.
+
+- **bit 0 of F32 bit pattern = 1**: cannot store directly (would look like a heap pointer).
+  Box into a `Bits32 F` heap object; the skewed pointer stored in Vanilla is `addr - 1`
+  which has bit 0 = 1, consistent with all other heap pointers.
+
+```
+box (f32 on Wasm stack):
+  i32.reinterpret_f32        → I32 bits
+  check bit 0
+    = 0: return bits as Vanilla scalar            (no alloc)
+    = 1: alloc Bits32 F {bits}, return ptr - 1    (heap, skewed)
+
+unbox (I32 Vanilla):
+  check bit 0
+    = 0: f32.reinterpret_i32                      (no load)
+    = 1: load_forwarding_ptr → load_field_float32  (heap)
+```
+
+#### Constant pool implications
+
+`const_lit_of_lit (Float32Lit f)` is the natural split point.  Check bit 0 of the F32 bit
+pattern at OCaml compile time:
+
+```ocaml
+| Float32Lit f ->
+  let bits = Int32.bits_of_float (Numerics.Float32.to_float f) in
+  if Int32.logand bits 1l = 0l
+  then Const.Vanilla bits   (* scalar: materialises as a Wasm i32.const / f32.const *)
+  else Const.Float32 f      (* heap:   shared_static_obj Bits32 F on first use *)
+```
+
+- **`Const.Vanilla bits`**: no static heap object; `materialize_lit` returns the bits as-is
+  (line 9233: `Const.Vanilla n -> n`).  The existing `adjust` case
+  `Const (_, Const.Lit (Const.Vanilla n)), UnboxedFloat32` emits a single `f32.const`.
+- **`Const.Float32 f`**: `materialize_lit` calls `Float32.vanilla_lit env f` which allocates
+  a shared static `Bits32 F` heap object and returns its skewed pointer.
+
+**Invariant**: in the classical backend `Const.Float32` exclusively represents Float32 values
+whose bit pattern has bit 0 = 1 — i.e., every entry in the `Bits32 F` constant-pool sub-set
+has mantissa LSBit set.
+
+**Common literals** that become free scalars: `0.0` (0x00000000), `1.0` (0x3F800000),
+`2.0` (0x40000000), `0.5` (0x3F000000), `10.0` (0x41200000).
+Values like `3.14` (0x4048F5C3, bit 0 = 1) still require a pool entry.
+
+#### Sanity-check hook
+
+`Tagged.sanity_check_tag` (guarded by `Flags.sanity || TaggingScheme.debug`) can enforce
+the invariant on the **heap path**: when we follow a Vanilla pointer to a `Bits32 F` object,
+the `u32` payload stored inside that object must have bit 0 = 1 (otherwise it should have
+been kept as a scalar).  Add this assertion in `Float32.unbox` after loading the payload field.
+
+#### Trade-offs vs. current always-heap implementation
+
+| | Current (`Bits32 F` always) | Scalar-when-possible |
+|---|---|---|
+| Box cost | always alloc | branch + conditional alloc |
+| Unbox cost | always load | branch + conditional load |
+| `is_always_scalar` | false | still false (≈50 % box) |
+| `Opt.inject` | always needed | still needed |
+| GC pressure | 3 words per value | ≈1.5 words avg |
+
+This optimisation is deferred; the present plan establishes the `SR.UnboxedFloat32`
+foundation and always-heap `Bits32 F` boxing on which it can be layered.
