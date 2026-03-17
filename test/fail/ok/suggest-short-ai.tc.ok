@@ -274,6 +274,7 @@ suggest-short-ai.mo:4.6-4.7: type error [M0072], field s does not exist in type:
     rts_total_allocation : () -> Nat;
     rts_upgrade_instructions : () -> Nat;
     rts_version : () -> Text;
+    safeFloatToFloat32 : (f : Float, epsilon : Float) -> ?Float32;
     setCandidLimits :
       <system>{bias : Nat32; denominator : Nat32; numerator : Nat32} -> ();
     setCandidTypeLimits : <system>{bias : Nat32; scalar : Nat32} -> ();
