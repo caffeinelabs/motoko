@@ -6654,6 +6654,9 @@ module StackRep = struct
     | Const Const.Lit (Const.Float64 f), UnboxedFloat32 ->
       Float.compile_unboxed_const f ^^
       G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
+    | Const Const.Lit (Const.Vanilla n), UnboxedFloat32 ->
+      (* Float32Lit constant: extract f32 bits from upper 32 at OCaml level *)
+      G.i (Const (nr (Wasm_exts.Values.F32 (Wasm.F32.of_bits Int64.(to_int32 (shift_right_logical n 32))))))
     | Const c, UnboxedTuple 0 -> G.nop
     | Const Const.Tuple cs, UnboxedTuple n ->
       assert (n = List.length cs);
@@ -10880,7 +10883,12 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | TextLit t     -> Const.Text t
   | BlobLit t     -> Const.Blob t
   | FloatLit f    -> Const.Float64 f
-  | Float32Lit f  -> Const.Float64 f
+  | Float32Lit f  ->
+    (* EOP: Float32 lives as a bit-tagged I64 scalar in Vanilla (f32_bits<<32 | tag). *)
+    let f32_bits = Int32.bits_of_float (Numerics.Float32.to_float f) in
+    Const.Vanilla Int64.(logor
+      (shift_left (logand (of_int32 f32_bits) 0xFFFFFFFFL) 32)
+      (TaggingScheme.tag_of_typ Type.Float32))
 
 let const_of_lit lit =
   Const.Lit (const_lit_of_lit lit)
