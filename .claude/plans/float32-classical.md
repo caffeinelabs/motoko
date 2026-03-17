@@ -14,6 +14,25 @@ allocated `Bits32 F` tag (45).
 See also: `.claude/plans/float32.md` (frontend plan) and the enhanced backend scalars plan
 already executed in `compile_enhanced.ml`.
 
+## Prerequisites (done)
+
+- **EOP `Float32Lit` constant bug fixed** (commit `b6c4a3cf7`):
+  `const_lit_of_lit (Float32Lit f)` in `compile_enhanced.ml` was producing `Const.Float64 f`,
+  causing `build_constant_aux` to box as `Bits64 F`. Fixed by computing the tagged I64 scalar
+  at OCaml level — use `Int64.(...)` local open for clarity:
+  ```ocaml
+  let f32_bits = Int32.bits_of_float (Numerics.Float32.to_float f) in
+  Const.Vanilla Int64.(logor
+    (shift_left (logand (of_int32 f32_bits) 0xFFFFFFFFL) 32)
+    (TaggingScheme.tag_of_typ Type.Float32))
+  ```
+  The `adjust` case `Const Const.Lit (Const.Vanilla n), UnboxedFloat32` emits a single
+  `f32.const` — again use `Int64.(...)`:
+  ```ocaml
+  G.i (Const (nr (Wasm_exts.Values.F32 (Wasm.F32.of_bits Int64.(to_int32 (shift_right_logical n 32))))))
+  ```
+  Classical is unaffected (Float32 stays heap-boxed, adjust uses `Const.Float64` path).
+
 ## Goal
 
 - Use `F32Type` on the Wasm computation stack for `Float32` (was: `F64Type` via `UnboxedFloat64`)
@@ -57,7 +76,8 @@ Parallel to `Float` but uses `Bits32 F` tag and 4-byte `f32` payload.
 
 Functions to add (mirroring `Float`):
 - `payload_field env = Tagged.header_size env`
-- `compile_unboxed_const f` — emit a Wasm F32 const (demote f64 literal to f32 bits)
+- `compile_unboxed_const f` — emit a Wasm F32 const at OCaml level:
+  `G.i (Const (nr (Wasm.Values.F32 (Wasm.F32.of_bits (Int32.bits_of_float (Numerics.Float32.to_float f))))))`
 - `vanilla_lit env f` — static `Bits32 F` object with `I32 (f32 bits of f)`
 - `box env` — `Func.share_code1` boxing into `Bits32 F` heap object
 - `unbox env` — load forwarding ptr, sanity check `Bits32 F`, load f32 field
