@@ -160,7 +160,7 @@ jobs:
           find release-assets -type f -ls || true
 
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ vars.GENERIC_CI_RW_APP_ID }}
