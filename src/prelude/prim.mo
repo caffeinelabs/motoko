@@ -531,6 +531,12 @@ func btstInt64(w : Int64, amount : Int64) : Bool = (prim "btstInt64" : (Int64, I
 func floatToFloat32(f : Float) : Float32 = (prim "num_conv_Float_Float32" : Float -> Float32) f;
 func float32ToFloat(f : Float32) : Float = (prim "num_conv_Float32_Float" : Float32 -> Float) f;
 
+// Checked Float -> Float32 conversion: returns ?Float32 if round-trip stays within epsilon, null otherwise
+func safeFloatToFloat32(f : Float, epsilon : Float) : ?Float32 {
+  let f32 = floatToFloat32 f;
+  if (floatAbs(float32ToFloat f32 - f) <= epsilon) ?f32 else null
+};
+
 // Float operations
 
 func floatAbs(f : Float) : Float = (prim "fabs" : Float -> Float) f;
