@@ -325,3 +325,22 @@ been kept as a scalar).  Add this assertion in `Float32.unbox` after loading the
 
 This optimisation is deferred; the present plan establishes the `SR.UnboxedFloat32`
 foundation and always-heap `Bits32 F` boxing on which it can be layered.
+
+### The same 1-LSBit trick applies to `Float` (f64) in the enhanced backend
+
+In the 64-bit enhanced backend, `Float` values are currently always heap-boxed as `Bits64 F`.
+The identical observation holds: a 64-bit F64 bit pattern with **bit 0 = 0** can be stored
+directly as a 64-bit Vanilla scalar (bit 0 = 0 means scalar in the 64-bit tagging scheme),
+with no heap allocation.
+
+- **bit 0 of F64 = 0**: store the 64-bit bit pattern as an even Vanilla word; unbox with
+  `f64.reinterpret_i64`.  Covers ≈50 % of all values.
+- **bit 0 of F64 = 1**: box into a `Bits64 F` heap object; the skewed pointer `addr − 1`
+  has bit 0 = 1, consistent with all other heap pointers.
+
+Common literals that become free scalars: `0.0` (`0x0000…`), `1.0` (`0x3FF0000000000000`),
+`2.0` (`0x4000000000000000`), and many "round" values such as `3.14`
+(`0x400921FB54442D18`, bit 0 = 0 ✓).
+
+This optimisation is independent of the Float32 work and entirely contained in
+`compile_enhanced.ml`.  It is the natural `Float` analogue of the Float32 scheme above.
