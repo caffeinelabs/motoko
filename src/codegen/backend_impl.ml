@@ -107,6 +107,7 @@ module Backend64 : Backend_intf.S = struct
   
   let wrap_relop r = Compare (Wasm_exts.Values.I64 r)
   let wrap_testop t = Test (Wasm_exts.Values.I64 t)
+  let wrap_ibinop b = Binary (Wasm_exts.Values.I64 b)
 
   let memory_size = MemorySize
   let memory_grow = MemoryGrow
@@ -282,6 +283,7 @@ module Backend32 : Backend_intf.S = struct
   
   let wrap_relop r = Compare (Wasm_exts.Values.I32 r)
   let wrap_testop t = Test (Wasm_exts.Values.I32 t)
+  let wrap_ibinop b = Binary (Wasm_exts.Values.I32 b)
 
   let memory_size = MemorySize
   let memory_grow = MemoryGrow

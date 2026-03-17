@@ -37,6 +37,7 @@ module type S = sig
   (* Constants *)
   val word_size : int
   val word_size_in_bytes : int
+  val word_align : int  (* log2(word_size_in_bytes): 3 for 64-bit, 2 for 32-bit *)
   val page_size : t
   val page_size_bits : int
   
@@ -98,6 +99,7 @@ module type S = sig
   (* Generic wrappers: wrap an IntOp into the backend's word-size instruction *)
   val wrap_relop : IntOp.relop -> instr'
   val wrap_testop : IntOp.testop -> instr'
+  val wrap_ibinop : IntOp.binop -> instr'
 
   (* Memory Operations *)
   val memory_size : instr'
