@@ -4088,8 +4088,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
      with Invalid_argument _ ->
        error env focus "M0208"
          "expected expression with field `migration`, but expression has type%a"
-(* new alex/multimigration-v2*)
-           display_typ_expand exp.note.note_typ
+          display_typ_expand exp.note.note_typ
     in
     if migration_chain <> [] then
       error env at "M0252"
@@ -4125,93 +4124,10 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
       | Some _ -> ()
       | None ->
         local_error env focus "M0205"
-          "migration expression produces unexpected field `%s` of type%a\n%s\n%s"
-(* master
-         display_typ_expand exp.note.note_typ
-   in
-   let dom_tfs, rng_tfs =
-     try
-      let sort, tbs, t_args, t_rng = T.as_func_sub T.Local 0 typ in
-      let t_dom = T.seq t_args in
-      if sort <> T.Local || tbs <> [] then raise (Invalid_argument "");
-      check_fields "consumes" (T.normalize t_dom),
-      check_fields "produces" (T.promote t_rng)
-     with Invalid_argument _ ->
-       local_error env focus "M0203"
-         "expected non-generic, local function type, but migration expression produces type%a"
-         display_typ_expand typ;
-       [], []
-   in
-   List.iter
-     (fun tf ->
-      match T.lookup_val_field_opt tf.T.lab rng_tfs with
-      | None -> ()
-      | Some typ ->
-        let context = [T.StableVariable tf.T.lab] in
-        let imm_typ = T.as_immut typ in
-        let imm_expected = T.as_immut tf.T.typ in
-        match T.stable_sub_explained ~src_fields:env.srcs context imm_typ imm_expected with
-        | T.Compatible -> ()
-        | T.Incompatible explanation ->
-          local_error env focus "M0204"
-            "migration expression produces field `%s` of type%a\n, not the expected type%a%a"
-            tf.T.lab
-            display_typ_expand typ
-            display_typ_expand tf.T.typ
-            (display_explanation imm_typ imm_expected) explanation
-    ) stab_tfs;
-   (* Construct the pre signature *)
-   let pre_tfs = List.sort T.compare_field
-      dom_tfs @
-        (List.filter_map
-           (fun tf ->
-             match T.lookup_val_field_opt tf.T.lab dom_tfs, T.lookup_val_field_opt tf.T.lab rng_tfs with
-             | _, Some _  (* ignore consumed (overridden) *)
-             | Some _, _ -> (* ignore produced (provided) *)
-               None
-             | None, None ->
-               (* retain others *)
-               Some tf)
-           stab_tfs)
-   in
-   (* Check for duplicates and hash collisions in pre-signature *)
-   let pre_ids = List.map (fun tf -> T.{it = tf.lab; at = tf.src.region; note = ()}) pre_tfs in
-   check_ids env "pre actor type" "stable variable" pre_ids;
-   (* Reject any fields in range not in post signature (unintended data loss) *)
-   let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
-   List.iter (fun T.{lab;typ;src} ->
-     match T.lookup_val_field_opt lab stab_tfs with
-     | Some _ -> ()
-     | None ->
-       local_error env focus "M0205"
-         "migration expression produces unexpected field `%s` of type%a\n%s"
-         ~spans:(suggest_span env focus (Suggest.suggest_id "field" lab stab_ids))
-          lab
-          display_typ_expand typ
-         "The actor should declare a corresponding `stable` field.")
-     rng_tfs;
-   (* Warn about any field in domain, not in range, and declared stable in actor *)
-   (* This may indicate unintentional data loss. *)
-   List.iter (fun T.{lab;typ;src} ->
-     match T.lookup_val_field_opt lab rng_tfs with
-     | Some _ -> ()
-     | None ->
-       if List.mem lab stab_ids then
-         (* re-initialized *)
-         warn env focus "M0206"
-           "migration expression consumes field `%s` of type%a\nbut does not produce it, yet the field is declared in the actor.\n%s\n%s"
+          "migration expression produces unexpected field `%s` of type%a\n%s"
+          ~spans:(suggest_span env focus (Suggest.suggest_id "field" lab stab_ids))
            lab
            display_typ_expand typ
-           "The declaration in the actor will be reinitialized, discarding its consumed value."
-           "If reinitialization is unintended, and you want to preserve the consumed value, either remove this field from the parameter of the migration function or add it to the result of the migration function."
-       else
-         (* dropped *)
-         warn env focus "M0207"
-           "migration expression consumes field `%s` of type%a\nbut does not produce it. The field is not declared in the actor.\n%s\n%s"
-(* master *) *)
-           lab
-           display_typ_expand typ
-           (Suggest.suggest_id "field" lab stab_ids)
           "The actor should declare a corresponding `stable` field.")
       rng_tfs;
     (* Warn about any field in domain, not in range, and declared stable in actor *)
