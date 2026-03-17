@@ -884,6 +884,6 @@ func @setLastMigration(mId : Text) {
   type MigrationsList = ?(Text, MigrationsList);
 
   // Add the new migration ID at the beginning of the list.
-  let newList = (mId, (prim "get_migrations" : () -> MigrationsList)());
-  (prim "set_migrations" : (MigrationsList) -> ())(?newList);
+  let newList = ?(mId, (prim "get_migrations" : () -> MigrationsList)());
+  (prim "set_migrations" : (MigrationsList) -> ())(newList);
 };
