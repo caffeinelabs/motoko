@@ -3,7 +3,7 @@
 * motoko (`moc`)
 
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
-  * feat: add `Float32` primitive type with conversions to/from `Float`, Candid serialisation, and literal ascription (e.g. `(3.14 : Float32)`). This is an experimental feature and subject to change (#5906).
+  * feat: add `Float32` primitive type with conversions to/from `Float`, Candid serialisation, and literal ascription (e.g. `(3.14 : Float32)`). This is experimental and subject to change (#5906).
   * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
 
 ## 1.3.0 (2026-02-24)
