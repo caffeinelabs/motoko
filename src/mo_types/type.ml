@@ -2299,8 +2299,8 @@ and pp_kind ppf k =
   pp_kind' vs ppf k
 
 and pp_mig_field vs ppf {lab; typ; src} =
-    (* TODO: escape on print, unescape on parse as in ML value *)
-    fprintf ppf "@[<2>\"%s\" :@ %a@]" lab (pp_typ' vs) typ
+    let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
+    fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
 and pp_stab_sig ppf sig_ =
   let all_fields = match sig_ with
@@ -2654,8 +2654,4 @@ let string_of_stab_sig stab_sig : string =
   | PrePost _ -> "// Version: 3.0.0\n"
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
-
-(* The migration chain passed from pipeline to typing. *)
-(* Migration chain from --enhanced-migration directory: (filename, module_type, run_type) triples in order *)
-let migration_chain : (string * typ * typ) list ref = ref []
 

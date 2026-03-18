@@ -235,6 +235,18 @@ let resolve_alias_principal (msgs:Diag.msg_store) (alias:string) (f:string) : bl
      else bytes
   | Error msg -> err_unrecognized_alias msgs alias f msg; ""
 
+(* Get the migration files, filter by .mo extension and sort lexicographically. *)
+let get_migration_files dir : string list =
+   if not (Sys.is_directory dir) then
+    begin
+      Format.eprintf "The enhanced migration directory is not a directory.\n"; exit 1
+    end
+   else
+     Sys.readdir dir
+     |> Array.to_list
+     |> List.sort String.compare
+     |> List.filter (fun fname -> Filename.check_suffix fname ".mo")
+     |> List.map (Filename.concat dir)
 
 let prog_imports (p : prog): (url * resolved_import ref * region) list =
   let res = ref [] in
@@ -261,6 +273,7 @@ type flags = {
   actor_aliases : actor_aliases;
   actor_idl_path : actor_idl_path;
   include_all_libs : bool;
+  enhanced_migration_path : string option
   }
 
 type resolved_flags = {
@@ -311,6 +324,13 @@ let package_imports base packages =
   in
   List.concat imports
 
+let enhanced_migration_imports flags =
+  match flags.enhanced_migration_path with
+  | None -> []
+  | Some dir ->
+     let migration_files = get_migration_files dir in
+     List.map (fun path -> LibPath {package = None; path = path}) migration_files
+
 let resolve_flags : flags -> resolved_flags Diag.result
   = fun { actor_idl_path; package_urls; actor_aliases; _ } ->
   let open Diag.Syntax in
@@ -333,8 +353,10 @@ let resolve
            else
              (* consider only the explicitly imported package libraries *)
              RIM.empty)
-
     in
+    (* add any implicit imports for migrations *)
+    imported := (List.fold_right (fun ri rim -> RIM.add ri Source.no_region rim)
+                   (enhanced_migration_imports flags) !imported);
     List.iter (resolve_import_string msgs base actor_idl_path aliases packages imported)(prog_imports p);
     Some (List.map (fun (rim, at) -> rim @@ at) (RIM.bindings !imported))
   )

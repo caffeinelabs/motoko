@@ -1,1 +1,2 @@
-multi-migration-bad-chain/version2.mo:5.1-19.2: type error [M0251], migration chain broken: accumulated state is not compatible with input of multi-migration-bad-chain/bad-chain/Migration4.mo
+multi-migration-bad-chain/bad-chain/Init.mo:0.1: type error [M0254], initial actor requires field `five` of type
+  var Text
