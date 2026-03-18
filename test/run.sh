@@ -83,6 +83,8 @@ function normalize () {
         -e 's/^\(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations
     sed -e 's/^  \(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations (later version)
     sed -e 's/wasm `unreachable` instruction executed/unreachable/g' | # cross-version normalisation
+    sed -e '/^Canister Backtrace:$/,/^\.\?$/d' | # strip canister backtraces
+    sed -e 's/\(Error from Canister .*[^.]\)$/\1./' | # restore trailing period on IC error lines
     sed -e 's/Ignore Diff:.*/Ignore Diff: (ignored)/ig' \
         -e 's/Motoko compiler (source .*)/Motoko compiler (source XXX)/ig' \
         -e 's/Motoko compiler [^ ]* (source .*)/Motoko compiler (source XXX)/ig' \

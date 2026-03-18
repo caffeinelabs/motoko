@@ -56,6 +56,7 @@ error[M0072]: field stableM does not exist in type:
       };
     __getDedupTable : () -> ?[var __List];
     abs : (x : Int) -> Nat;
+    actorOfPrincipal : <A <: actor {}>(p : Principal) -> A;
     allocWeakRef : <T>(obj : T) -> weak T;
     arccos : (f : Float) -> Float;
     arcsin : (f : Float) -> Float;
@@ -311,7 +312,6 @@ error[M0072]: field stableM does not exist in type:
     trap : (x : Text) -> None;
     weakGet : <T>(w : weak T) -> ?T
   }
-The field stableM is not available. Try something else?
     ┌─ suggest-long-ai.mo:4:6
   4 │  Prim.stableM;
-    │       ^^^^^^^ 
+    │       ^^^^^^^ The field stableM is not available. Try something else?

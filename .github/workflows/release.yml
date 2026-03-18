@@ -99,7 +99,7 @@ jobs:
         run: nix build --max-jobs 1 '.#"release-files-${{ matrix.os }}"'
 
       - name: Upload Release Artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-files-${{ matrix.os }}
           path: result/*
@@ -117,7 +117,7 @@ jobs:
     needs: [prepare, changelog, build]
     steps:
       - name: Download all release artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
           pattern: release-files-*
@@ -160,7 +160,7 @@ jobs:
           find release-assets -type f -ls || true
 
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ vars.GENERIC_CI_RW_APP_ID }}

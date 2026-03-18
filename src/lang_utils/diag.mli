@@ -8,6 +8,10 @@ type span = {
   at_span : Source.region;
   label : string;
 }
+type edit = {
+  at_edit : Source.region;
+  suggested_replacement : string;
+}
 type message = {
   sev : severity;
   code : error_code;
@@ -16,13 +20,14 @@ type message = {
   text : string;
   spans : span list;
   notes: string list;
+  edits : edit list;
 }
 
 type messages = message list
 
-val info_message : Source.region -> string -> ?spans:span list -> ?notes:string list -> string -> message
-val warning_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> string -> message
-val error_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> string -> message
+val info_message : Source.region -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
+val warning_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
+val error_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
 
 val string_of_message : message -> string
 val is_treated_as_error : message -> bool

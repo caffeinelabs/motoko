@@ -56,6 +56,7 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
       };
     __getDedupTable : () -> ?[var __List];
     abs : (x : Int) -> Nat;
+    actorOfPrincipal : <A <: actor {}>(p : Principal) -> A;
     allocWeakRef : <T>(obj : T) -> weak T;
     arccos : (f : Float) -> Float;
     arcsin : (f : Float) -> Float;

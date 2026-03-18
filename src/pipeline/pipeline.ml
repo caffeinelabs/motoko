@@ -146,7 +146,7 @@ let resolve_flags ?(enhanced_migration_path=None) pkg_opt  =
     package_urls = !Flags.package_urls;
     actor_aliases = !Flags.actor_aliases;
     actor_idl_path = !Flags.actor_idl_path;
-    include_all_libs = pkg_opt = None && (!Flags.ai_errors || Option.is_some !Flags.implicit_package);
+    include_all_libs = pkg_opt = None && Flags.(!all_libs || !ai_errors || Option.is_some !implicit_package);
     enhanced_migration_path = enhanced_migration_path
   }
 

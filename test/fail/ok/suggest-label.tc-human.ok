@@ -1,5 +1,4 @@
 error[M0083]: unbound label fo
-Did you mean label foo?
     ┌─ suggest-label.mo:2:9
   2 │    break fo;
-    │          ^^ 
+    │          ^^ help: did you mean label foo?
