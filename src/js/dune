@@ -2,42 +2,36 @@
  (name astjs)
  (modules astjs)
  (libraries mo_def)
- (preprocess
-  (pps js_of_ocaml-ppx)))
+ (preprocess (pps js_of_ocaml-ppx))
+)
 
 (library
  (name common)
  (modules common)
  (libraries checkseum.ocaml mo_config pipeline idllib astjs)
- (preprocess
-  (pps js_of_ocaml-ppx)))
+ (preprocess (pps js_of_ocaml-ppx))
+)
 
 (executable
  (name moc_js)
- (modes js wasm)
+ (modes js)
  (modules moc_js)
  (libraries common mo_config idllib)
- (preprocess
-  (pps js_of_ocaml-ppx)))
+ (preprocess (pps js_of_ocaml-ppx))
+)
 
 (executable
  (name moc_interpreter)
- (modes js wasm)
+ (modes js)
  (modules moc_interpreter)
  (libraries common mo_config)
- (preprocess
-  (pps js_of_ocaml-ppx)))
+ (preprocess (pps js_of_ocaml-ppx))
+)
 
 (executable
  (name didc_js)
- (modes js wasm)
+ (modes js)
  (modules didc_js)
  (libraries lib idllib lang_utils)
- (preprocess
-  (pps js_of_ocaml-ppx)))
-
-(executable
- (name stable_check_wasm)
- (modes wasm)
- (modules stable_check_wasm)
- (libraries stable_check lang_utils))
+ (preprocess (pps js_of_ocaml-ppx))
+)

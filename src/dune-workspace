@@ -1,4 +1,4 @@
-(lang dune 3.17)
+(lang dune 3.0)
 
 (env
  (_

@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -113,7 +113,7 @@
 
       rts = import ./nix/rts.nix { inherit pkgs llvmEnv; };
 
-      commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo binaryen ] ++ (with ocamlPackages; [
+      commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo ] ++ (with ocamlPackages; [
         ocaml
         checkseum
         findlib
@@ -138,7 +138,6 @@
         ppx_expect
         bisect_ppx
         uucp
-        wasm_of_ocaml-compiler
       ]);
 
       moPackages = officialRelease: import ./nix/mo-packages.nix { inherit pkgs commonBuildInputs rts officialRelease; };
@@ -213,8 +212,6 @@
 
       js = import ./nix/moc.js.nix { inherit pkgs commonBuildInputs rts; };
 
-      wasm = import ./nix/moc.wasm.nix { inherit pkgs commonBuildInputs; };
-
       docs = import ./nix/docs.nix { inherit pkgs js base-src core-src; };
 
       checks = {
@@ -247,7 +244,7 @@
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
-        inherit nix-update tests js wasm test-runner;
+        inherit nix-update tests js test-runner;
 
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 
