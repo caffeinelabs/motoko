@@ -1,0 +1,33 @@
+error[M0096]: expression of type
+  async<$> Nat
+cannot produce expected type
+  async<$@anon-async-1.1> Nat
+because of incompatible async scopes: 
+  $
+ does not match 
+  $@anon-async-1.1
+    ┌─ bad-async.mo:4:37
+  4 │      public func foo1() : () { x := [a.getNat()] };
+    │                                      ^^^^^^^^^^ 
+error[M0087]: ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-1.1
+  scope $foo2 is bad-async.mo:5.36-8.6
+  scope $@anon-async-1.1 is bad-async.mo:1.1-9.2
+    ┌─ bad-async.mo:7:17
+  7 │           (await x[0])
+    │                  ^^^^ 
+help: start of scope $foo2 mentioned in error at bad-async.mo:7.11-7.21
+    ┌─ bad-async.mo:5:36
+  5 │      public func foo2() : async Nat {
+    │                                     ^ 
+help: end of scope $foo2 mentioned in error at bad-async.mo:7.11-7.21
+    ┌─ bad-async.mo:8:5
+  8 │      };
+    │      ^ 
+help: start of scope $@anon-async-1.1 mentioned in error at bad-async.mo:7.11-7.21
+    ┌─ bad-async.mo:1:1
+  1 │  actor a {
+    │  ^ 
+help: end of scope $@anon-async-1.1 mentioned in error at bad-async.mo:7.11-7.21
+    ┌─ bad-async.mo:9:1
+  9 │  };
+    │  ^ 

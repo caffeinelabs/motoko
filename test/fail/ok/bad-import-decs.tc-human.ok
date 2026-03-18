@@ -1,0 +1,4 @@
+warning[M0142]: deprecated syntax: an imported library should be a module or named actor class
+    ┌─ lib/decs.mo:1:1
+  1 │  let x = 666
+    │  ^ 

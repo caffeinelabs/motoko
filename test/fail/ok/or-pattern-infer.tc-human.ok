@@ -1,0 +1,4 @@
+error[M0184]: cannot infer the type of this or-pattern, please add a type annotation
+    ┌─ or-pattern-infer.mo:1:15
+  1 │  func no_infer(#a or #b) {}
+    │                ^^^^^^^^ 

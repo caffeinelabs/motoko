@@ -1,0 +1,4 @@
+error[M0014]: non-static expression in library, module or migration expression
+    ┌─ issue-3585/Field.mo:2:10
+  2 │    public var x = 1; // rejected as non-static
+    │           ^^^^^^^^^ 

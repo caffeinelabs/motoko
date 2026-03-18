@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // top-level actor objects are supported
 actor Counter {
 

@@ -1,3 +1,2 @@
-modules-bwd.mo:6.12-6.21: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-modules-bwd.mo:14.1-14.9: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-modules-bwd.mo:14.5-14.6: warning [M0194], unused identifier u (delete or rename to wildcard `_` or `_u`)
+modules-bwd.mo:7.12-7.21: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
+modules-bwd.mo:15.1-15.9: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

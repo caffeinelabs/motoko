@@ -1,2 +1,0 @@
-oneway.mo:13.11-13.12: warning [M0194], unused identifier e (delete or rename to wildcard `_` or `_e`)
-oneway.mo:27.15-27.16: warning [M0194], unused identifier e (delete or rename to wildcard `_` or `_e`)

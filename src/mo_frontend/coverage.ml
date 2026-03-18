@@ -57,7 +57,7 @@ let max_expand = 2
 let pick_nat (type t) (module Num : Numerics.NumType with type t = t) to_val vs =
   let x = ref Num.zero in
   while ValSet.mem (to_val !x) vs do
-    x := Num.add (Num.of_int 1) !x
+    x := Num.(add one !x)
   done;
   Val (to_val !x)
 
@@ -65,7 +65,7 @@ let pick_int (type t) (module Num : Numerics.NumType with type t = t) to_val vs 
   let x = ref Num.zero in
   while ValSet.mem (to_val !x) vs do
     x := Num.neg !x;
-    if Num.ge !x Num.zero then x := Num.add (Num.of_int 1) !x
+    Num.(if ge !x zero then x := add one !x)
   done;
   Val (to_val !x)
 

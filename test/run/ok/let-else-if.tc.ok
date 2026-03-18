@@ -1,2 +1,1 @@
-let-else-if.mo:1.5-1.6: warning [M0243], this pattern will always match, so the else clause is useless. Consider removing the else clause
-let-else-if.mo:1.5-1.6: warning [M0194], unused identifier x (delete or rename to wildcard `_` or `_x`)
+let-else-if.mo:2.5-2.6: warning [M0243], this pattern will always match, so the else clause is useless. Consider removing the else clause

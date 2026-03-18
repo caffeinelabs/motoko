@@ -800,7 +800,7 @@ let collect_got_imports (m : module_') : got_import list =
   let got_mem_name = Lib.Utf8.decode "GOT.mem" in
 
   let get_got_import (allow_normal_globals, global_index, imports) import : (bool * int32 * got_import list) =
-    let next_index = Int32.add global_index (Int32.of_int 1) in
+    let next_index = Int32.(add global_index one) in
     if import.it.module_name = got_func_name then
       let got_func = resolve_got_func global_index import m in
       (false, next_index, got_func :: imports)

@@ -1,0 +1,8 @@
+error[M0221]: failed to determine type for type pattern field
+    ┌─ M0221.mo:5:9
+  5 │    let { type K } = module { type K = Nat };
+    │          ^^^^^^ 
+error[M0221]: failed to determine type for type pattern field
+    ┌─ M0221.mo:15:9
+ 15 │    let { type Hash } = map;
+    │          ^^^^^^^^^ 

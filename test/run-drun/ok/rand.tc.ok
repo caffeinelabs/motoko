@@ -1,2 +1,0 @@
-rand.mo:8.9-8.11: warning [M0194], unused identifier t1 (delete or rename to wildcard `_` or `_t1`)
-rand.mo:10.9-10.11: warning [M0194], unused identifier t2 (delete or rename to wildcard `_` or `_t2`)

@@ -1,0 +1,28 @@
+error[M0140]: actor classes with type parameters are not supported yet
+    ┌─ bad-actor.mo:3:1
+  3 │  actor class A1<T>() {}; // reject generic actor class
+    │  ^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0140]: actor classes with type parameters are not supported yet
+    ┌─ bad-actor.mo:4:1
+  4 │  actor class A2<T,U>() {}; // reject generic actor class
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0034]: shared constructor has non-shared parameter type
+  (c : [var Int])
+type
+  (c : [var Int])
+is or contains non-shared type
+  var Int
+    ┌─ bad-actor.mo:6:15
+  6 │  actor class A3(c:[var Int]) {}; // reject non-shared parameter
+    │                ^^^^^^^^^^^^^ 
+error[M0134]: class body of type
+  actor {}
+does not match expected type
+  {}
+    ┌─ bad-actor.mo:8:1
+  8 │  actor class A4() : async object {} {}; // reject bad async return type
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+warning[M0135]: actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'
+    ┌─ bad-actor.mo:9:1
+  9 │  actor class A5() : actor {} {}; // reject non async return type
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

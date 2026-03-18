@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 
 module X {
   public func f() { g() };

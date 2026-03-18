@@ -1,0 +1,4 @@
+error[M0002]: unicode escape out of range
+    ┌─ text-high-surrogate.mo:1:9
+  1 │  let _ = "\u{dfff}";
+    │          ^^^^^^^^^^ 

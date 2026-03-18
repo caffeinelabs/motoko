@@ -1,0 +1,4 @@
+error[M0003]: file ../fail/issue-2471.mo must not depend on itself
+    ┌─ ../fail/issue-2471.mo:1:1
+  1 │  import Self "../fail/issue-2471";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,2 +1,0 @@
-self-shadow.mo:4.17-4.19: warning [M0194], unused identifier go (delete or rename to wildcard `_` or `_go`)
-self-shadow.mo:5.9-5.12: warning [M0194], unused identifier bar (delete or rename to wildcard `_` or `_bar`)

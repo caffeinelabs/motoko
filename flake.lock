@@ -3,11 +3,11 @@
     "candid-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1770135221,
-        "narHash": "sha256-7/5G25Ms2JrFGpzubtRwPJBAHAExCibw0PZ+ict4rHU=",
+        "lastModified": 1772218251,
+        "narHash": "sha256-3HBOPFyNaHTBh2eG2Kt6iilcyamvrKgxorVR0MPNObE=",
         "owner": "dfinity",
         "repo": "candid",
-        "rev": "022ec7e7f9b8061ed9b8342113638ad9b39e8c01",
+        "rev": "ba72cf4dbd42c182d7bfd281a718fd622a7a339e",
         "type": "github"
       },
       "original": {
@@ -68,6 +68,23 @@
         "type": "github"
       }
     },
+    "grace-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1771098024,
+        "narHash": "sha256-V5K9RGk47K/R+q4wS1FU02kMi1uWSCgdUjKHk7uXuGw=",
+        "owner": "johnyob",
+        "repo": "grace",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "johnyob",
+        "repo": "grace",
+        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
+        "type": "github"
+      }
+    },
     "ic-wasm-src": {
       "flake": false,
       "locked": {
@@ -121,11 +138,11 @@
     "motoko-core-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1769529814,
-        "narHash": "sha256-09g2JtY/Pm+8eWKTcpdF0BUehUqjvH/zqCAXpnLcO1A=",
+        "lastModified": 1773046417,
+        "narHash": "sha256-J03Grvj3ZNx6owe5NOhLtRv0HSssGwGGei+L3h4DZTw=",
         "owner": "caffeinelabs",
         "repo": "motoko-core",
-        "rev": "d0f5b0256293bd7cd656dd41b41980dd487c6088",
+        "rev": "ff044dadd7124cbd3c3d51bffac3074bff476cb7",
         "type": "github"
       },
       "original": {
@@ -176,16 +193,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1767313136,
-        "narHash": "sha256-16KkgfdYqjaeRGBaYsNrhPRRENs0qzkQVUooNHtoy2w=",
+        "lastModified": 1773068389,
+        "narHash": "sha256-vMrm7Pk2hjBRPnCSjhq1pH0bg350Z+pXhqZ9ICiqqCs=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ac62194c3917d5f474c1a844b6fd6da2db95077d",
+        "rev": "44bae273f9f82d480273bab26f5c50de3724f52f",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-25.05",
+        "ref": "nixos-25.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -227,6 +244,7 @@
         "candid-src": "candid-src",
         "esm": "esm",
         "flake-utils": "flake-utils",
+        "grace-src": "grace-src",
         "ic-wasm-src": "ic-wasm-src",
         "libtommath-src": "libtommath-src",
         "motoko-base-src": "motoko-base-src",

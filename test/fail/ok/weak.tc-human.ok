@@ -1,0 +1,14 @@
+error[M0131]: variable bad1 is declared stable but has non-stable type
+  weak (() -> ())
+    ┌─ weak.mo:12:14
+ 12 │    stable let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
+    │               ^^^^ 
+error[M0031]: shared function has non-shared parameter type
+  (x : weak Blob)
+type
+  (x : weak Blob)
+is or contains non-shared type
+  weak Blob
+    ┌─ weak.mo:28:26
+ 28 │    public shared func bad2(x : weak Blob) : async (weak Blob) { x }; // reject, not shared
+    │                           ^^^^^^^^^^^^^^^ 

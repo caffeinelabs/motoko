@@ -1,0 +1,4 @@
+error[M0057]: unbound variable cycles
+    ┌─ suggest-unprivileged.mo:5:1
+  5 │  cycles;
+    │  ^^^^^^ 

@@ -1,0 +1,8 @@
+error[M0227]: mixins can only be included in an actor context
+    ┌─ M0227.mo:5:5
+  5 │      include Mixin(10);
+    │      ^^^^^^^^^^^^^^^^^ 
+error[M0227]: mixins can only be included in an actor context
+    ┌─ M0227.mo:8:3
+  8 │    include Mixin(10);
+    │    ^^^^^^^^^^^^^^^^^ 

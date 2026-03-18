@@ -1,0 +1,1 @@
+timer-cancel.mo:21.7-21.10: warning [M0244], variable max is never reassigned, consider using `let`

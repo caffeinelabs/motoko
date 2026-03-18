@@ -1,0 +1,8 @@
+warning[M0217]: with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed
+    ┌─ non-persistent4.mo:2:1
+  2 │  persistent actor { // warn
+    │  ^^^^^^^^^^ 
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ non-persistent4.mo:5:3
+  5 │    stable let _z = #z; // warn
+    │    ^^^^^^ 

@@ -1,2 +1,2 @@
-bad-do-async.mo:1.24-1.29: type error [M0086], async expressions are not supported
+bad-do-async.mo:2.24-2.29: type error [M0086], async expressions are not supported
   (This is a limitation of the current version and flag -wasi-system-api.)

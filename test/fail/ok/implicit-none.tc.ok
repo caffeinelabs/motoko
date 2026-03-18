@@ -8,5 +8,5 @@ implicit-none.mo:10.3-10.60: info, Consider renaming ``M.explicit2`` to `M.c` in
 implicit-none.mo:19.1-19.9: f1(0, 1)
 implicit-none.mo:19.1-19.9: type error [M0230], Cannot determine implicit argument `c` of type
   (Nat, Nat) -> Order
-Hint: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.
-Hint: Did you mean to explicitly use `cM` or `cOther` or `explicit1` or `M.explicit2`?
+note: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.
+note: Did you mean to explicitly use `cM` or `cOther` or `explicit1` or `M.explicit2`?

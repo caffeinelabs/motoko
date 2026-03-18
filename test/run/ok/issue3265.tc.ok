@@ -1,3 +1,0 @@
-issue3265.mo:2.5-2.9: warning [M0194], unused identifier rec1 (delete or rename to wildcard `_` or `_rec1`)
-issue3265.mo:7.6-7.9: warning [M0194], unused identifier sub (delete or rename to wildcard `_` or `_sub`)
-issue3265.mo:8.5-8.9: warning [M0194], unused identifier rec2 (delete or rename to wildcard `_` or `_rec2`)

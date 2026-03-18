@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // test pretty printing of stable types (compiler should fail if producing unparseable stable type signature
 actor this {
 

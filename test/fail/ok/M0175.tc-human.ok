@@ -1,0 +1,5 @@
+error[M0175]: to_candid argument must have shared type, but instead has non-shared type
+  [var Nat]
+    ┌─ M0175.mo:1:1
+  1 │  to_candid ([var 1])
+    │  ^^^^^^^^^^^^^^^^^^^ 

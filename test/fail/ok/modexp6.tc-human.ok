@@ -1,0 +1,4 @@
+error[M0015]: only trivial patterns allowed in static expressions
+    ┌─ modexp6.mo:2:7
+  2 │    let #foo = #foo
+    │        ^^^^ 

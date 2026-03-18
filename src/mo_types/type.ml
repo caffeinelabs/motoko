@@ -57,7 +57,7 @@ and typ =
   | Opt of typ                                (* option *)
   | Tup of typ list                           (* tuple *)
   | Func of func_sort * control * bind list * typ list * typ list  (* function *)
-  | Async of async_sort * scope * typ                      (* future *)
+  | Async of async_sort * scope * typ         (* future/computation *)
   | Mut of typ                                (* mutable type *)
   | Any                                       (* top *)
   | Non                                       (* bottom *)

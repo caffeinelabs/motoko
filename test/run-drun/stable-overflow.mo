@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import P "mo:⛔";
 import {grow; size; loadBlob} "stable-mem/StableMemory";
 

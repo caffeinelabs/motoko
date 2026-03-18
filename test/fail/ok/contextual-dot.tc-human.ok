@@ -1,0 +1,11 @@
+error[M0072]: field first does not exist in type:
+  [Nat]
+Hint: Did you mean to import lib/Array.mo?
+    ┌─ contextual-dot.mo:6:13
+  6 │    [1, 2, 3].first()
+    │              ^^^^^ 
+error[M0072]: field last does not exist in type:
+  [Nat]
+    ┌─ contextual-dot.mo:10:13
+ 10 │    [1, 2, 3].last()
+    │              ^^^^ 

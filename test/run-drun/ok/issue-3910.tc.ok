@@ -1,14 +1,8 @@
-issue-3910.mo:17.10-17.35: warning [M0145], this pattern of type
+issue-3910.mo:18.10-18.35: warning [M0145], this pattern of type
   {trap : Bool}
 does not cover value
   {trap = true}
-issue-3910.mo:34.10-34.35: warning [M0145], this pattern of type
+issue-3910.mo:35.10-35.35: warning [M0145], this pattern of type
   {trap : Bool}
 does not cover value
   {trap = true}
-issue-3910.mo:7.11-7.12: warning [M0194], unused identifier r (delete or rename to wildcard `_` or `_r`)
-issue-3910.mo:12.13-12.17: warning [M0194], unused identifier trap (delete or rename to wildcard `_` or `_trap`)
-issue-3910.mo:24.11-24.12: warning [M0194], unused identifier r (delete or rename to wildcard `_` or `_r`)
-issue-3910.mo:29.13-29.17: warning [M0194], unused identifier trap (delete or rename to wildcard `_` or `_trap`)
-issue-3910.mo:52.11-52.12: warning [M0194], unused identifier e (delete or rename to wildcard `_` or `_e`)
-issue-3910.mo:67.11-67.12: warning [M0194], unused identifier e (delete or rename to wildcard `_` or `_e`)

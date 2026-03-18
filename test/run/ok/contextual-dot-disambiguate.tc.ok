@@ -1,3 +1,0 @@
-contextual-dot-disambiguate.mo:21.19-21.23: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
-contextual-dot-disambiguate.mo:25.19-25.23: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)
-contextual-dot-disambiguate.mo:29.19-29.23: warning [M0194], unused identifier self (delete or rename to wildcard `_` or `_self`)

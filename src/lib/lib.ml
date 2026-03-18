@@ -13,6 +13,9 @@ struct
   let display pp ppf x =
     Format.fprintf ppf "@\n@[<v 2>  %a@]" pp x
 
+  let display_inline pp ppf x =
+    Format.fprintf ppf "@[<v 2>%a@]" pp x
+
 end
 
 module Fun =
@@ -191,6 +194,9 @@ struct
       let len = min n (String.length s - i) in
       if len = 0 then [] else String.sub s i len :: loop (i + len)
     in loop 0
+
+  let strip_control_chars s =
+    String.map (fun c -> if c < ' ' then ' ' else c) s
 
   let rec find_from_opt f s i =
     if i = String.length s then

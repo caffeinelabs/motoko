@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -49,6 +49,10 @@
       url = "github:WebAssembly/spec/opam-1.1.1";
       flake = false;
     };
+    grace-src = {
+      url = "github:johnyob/grace/15251666a11a780dfd09f23e1b0c1e6b0e366dcf";
+      flake = false;
+    };
     ocaml-recovery-parser-src = {
       url = "github:serokell/ocaml-recovery-parser";
       flake = false;
@@ -70,6 +74,7 @@
     , motoko-matchers-src
     , ocaml-vlq-src
     , wasm-spec-src
+    , grace-src
     , ocaml-recovery-parser-src
     }: flake-utils.lib.eachDefaultSystem (system:
     let
@@ -85,7 +90,8 @@
             motoko-matchers-src
             ocaml-vlq-src
             wasm-spec-src
-            ocaml-recovery-parser-src;
+            ocaml-recovery-parser-src
+            grace-src;
         };
       };
 
@@ -107,7 +113,7 @@
 
       rts = import ./nix/rts.nix { inherit pkgs llvmEnv; };
 
-      commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo ] ++ (with ocamlPackages; [
+      commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo binaryen ] ++ (with ocamlPackages; [
         ocaml
         checkseum
         findlib
@@ -115,7 +121,11 @@
         menhirLib
         menhirSdk
         ocaml-recovery-parser
+        grace
         cow
+        fmt
+        iter
+        sexplib
         num
         stdint
         wasm_1
@@ -128,6 +138,7 @@
         ppx_expect
         bisect_ppx
         uucp
+        wasm_of_ocaml-compiler
       ]);
 
       moPackages = officialRelease: import ./nix/mo-packages.nix { inherit pkgs commonBuildInputs rts officialRelease; };
@@ -141,7 +152,7 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-10.0.0" = "sha256-Y71hDHsqxcDlUzKBP9fd9HyO1L51kqwTbIyTrGMRftk=";
+          "pocket-ic-12.0.0" = "sha256-5+Hm2mbVoHLPJLgV8OAZUJXnBRPRFsPknFQ8SUSR/GE=";
         };
       };
 
@@ -202,6 +213,8 @@
 
       js = import ./nix/moc.js.nix { inherit pkgs commonBuildInputs rts; };
 
+      wasm = import ./nix/moc.wasm.nix { inherit pkgs commonBuildInputs; };
+
       docs = import ./nix/docs.nix { inherit pkgs js base-src core-src; };
 
       checks = {
@@ -234,7 +247,7 @@
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
-        inherit nix-update tests js test-runner;
+        inherit nix-update tests js wasm test-runner;
 
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 

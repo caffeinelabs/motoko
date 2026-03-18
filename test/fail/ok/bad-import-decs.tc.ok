@@ -1,2 +1,1 @@
 lib/decs.mo:0.1: warning [M0142], deprecated syntax: an imported library should be a module or named actor class
-bad-import-decs.mo:1.8-1.9: warning [M0194], unused identifier C (delete or rename to wildcard `_` or `_C`)

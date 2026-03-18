@@ -1,4 +1,4 @@
-//MOC-FLAG --stable-regions
+//MOC-FLAG --stable-regions -A=M0194
 import P "mo:⛔";
 import {grow; size; loadBlob} "stable-mem/StableMemory";
 

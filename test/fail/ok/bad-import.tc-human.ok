@@ -1,0 +1,4 @@
+error[M0014]: non-static expression in library, module or migration expression
+    ┌─ lib/actor.mo:1:1
+  1 │  actor {};
+    │  ^^^^^^^^ 

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194,M0198
 module A {
   /// @deprecated do not use foo anymore
   public let foo = 5;

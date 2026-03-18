@@ -1,0 +1,8 @@
+warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
+    ┌─ M0130.mo:2:10
+  2 │    system let foo = ()
+    │           ^^^^^^^^^^ 
+error[M0130]: misplaced system visibility, did you mean private?
+    ┌─ M0130.mo:2:3
+  2 │    system let foo = ()
+    │    ^^^^^^ 

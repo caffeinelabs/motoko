@@ -388,6 +388,13 @@ let ignore_asyncE tbs e =
     AnnotE (AsyncE (None, Type.Fut, tbs, e) @? e.at,
       AsyncT (Type.Fut, scopeT e.at, TupT [] @! e.at) @! e.at) @? e.at ) @? e.at
 
+(** An expression that corresponds to the [exp_post] parser rule,
+    i.e. can appear to the left of [.] without parenthesization. *)
+let is_postfix_exp (e : exp) = match e.it with
+  | VarE _ | LitE _ | CallE _ | DotE _
+  | IdxE _ | ProjE _ | BangE _ | ArrayE _ -> true
+  | _ -> false
+
 let is_asyncE e =
   match e.it with
   | AsyncE _ -> true

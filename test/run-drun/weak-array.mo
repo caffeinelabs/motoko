@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence
+//MOC-FLAG --enhanced-orthogonal-persistence -A=M0194
 import Prim = "mo:prim";
 
 persistent actor {

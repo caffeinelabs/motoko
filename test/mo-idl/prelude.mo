@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 actor A {
     public type Nat = ();
     public type Id = Int;

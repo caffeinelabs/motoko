@@ -7,26 +7,36 @@
     # Also update ocaml-version in src/*/.ocamlformat!
     (self: super: { ocamlPackages = self.ocaml-ng.ocamlPackages_4_14; })
 
-    (self: super: rec {
-      # Additional ocaml packages
-      ocamlPackages = super.ocamlPackages // rec {
+    (self: super: {
+      ocamlPackages = super.ocamlPackages.overrideScope (oself: osuper: {
 
         # downgrade wasm until we have support for 2.0.1
         # (https://github.com/dfinity/motoko/pull/3364)
-        wasm_1 = super.ocamlPackages.wasm.overrideAttrs {
+        # nixos-25.11 switched wasm to buildDunePackage (2.0.2), but 1.1.1
+        # is Makefile-based, so we define it from scratch.
+        wasm_1 = self.stdenv.mkDerivation rec {
+          pname = "ocaml${osuper.ocaml.version}-wasm";
           version = "1.1.1";
           src = self.sources.wasm-spec-src;
+          nativeBuildInputs = with osuper; [ ocaml findlib ocamlbuild ];
+          strictDeps = true;
+          makeFlags = [ "-C" "interpreter" ];
+          createFindlibDestdir = true;
           patchPhase = ''
             substituteInPlace ./interpreter/Makefile \
               --replace-fail "+a-4-27-42-44-45" "+a-4-27-42-44-45-70"
           '';
+          postInstall = ''
+            mkdir $out/bin
+            cp -L interpreter/wasm $out/bin
+          '';
         };
 
-        ocaml-recovery-parser = super.ocamlPackages.buildDunePackage {
+        ocaml-recovery-parser = osuper.buildDunePackage {
           pname = "ocaml-recovery-parser";
           version = "0.3.0";
           src = self.sources.ocaml-recovery-parser-src;
-          buildInputs = with super.ocamlPackages; [
+          buildInputs = with osuper; [
             menhirSdk
             menhirLib
             fix
@@ -34,17 +44,26 @@
           ];
         };
 
-        # js_of_ocaml-compiler version 6.0.1 is misbehaving
-        js_of_ocaml-compiler = super.ocamlPackages.js_of_ocaml-compiler.override { version = "5.9.1"; };
-        js_of_ocaml = super.ocamlPackages.js_of_ocaml.override { inherit js_of_ocaml-compiler; };
-        gen_js_api = super.ocamlPackages.gen_js_api.override {
-          inherit js_of_ocaml-compiler;
-          ojs = super.ocamlPackages.ojs.override { inherit js_of_ocaml-compiler; };
+        # macOS strip crashes on .wasm/.wat files in this package
+        wasm_of_ocaml-compiler = osuper.wasm_of_ocaml-compiler.overrideAttrs (old: {
+          dontStrip = true;
+        });
+
+        grace = osuper.buildDunePackage {
+          pname = "grace";
+          version = "0.3.0";
+          src = self.sources.grace-src;
+          buildInputs = with osuper; [
+            dedent
+            core
+            ppx_jane
+            iter
+            uutf
+            fmt
+          ];
         };
-        js_of_ocaml-ppx = super.ocamlPackages.js_of_ocaml-ppx.override { inherit js_of_ocaml; };
-      };
-    }
-    )
+      });
+    })
 
     # Rust Nightly & Stable
     rust-overlay.overlays.default

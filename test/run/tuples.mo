@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 let tup1 = (1,2);
 let (x,y) = tup1;
 assert(x == 1);

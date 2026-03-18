@@ -1,0 +1,10 @@
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ issue2062.mo:2:3
+  1 │    func fac(n : Nat) : Nat {
+  2 │ ╭    if (n == 0) return
+  3 │ │    return 1;
+    │ ╰───────────^ 
+  4 │    };

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // test from_candid on an invalid blob traps
 // NB: we may wish to return null instead, in future
 actor {

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 func f() {};
 func g(()) {};
 func g1((())) {}; // only top-level parenthesis signifies arity

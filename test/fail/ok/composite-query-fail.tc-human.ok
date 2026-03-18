@@ -1,0 +1,57 @@
+error[M0188]: send capability required, but not available
+  (cannot call a `shared` function from a `query` function)
+    ┌─ composite-query-fail.mo:27:13
+ 27 │       ignore cq(); // reject composite call
+    │              ^^^^ 
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:31:13
+ 31 │       ignore m(); // reject update call
+    │              ^^^ 
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:35:6
+ 35 │       o(); // reject oneway call
+    │       ^^^ 
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:39:13
+ 39 │       ignore f(); // reject local async call
+    │              ^^^ 
+error[M0187]: send capability required, but not available
+  (cannot call a `shared` function from a `composite query` function; only calls to `query` and `composite query` functions are allowed)
+    ┌─ composite-query-fail.mo:43:13
+ 43 │       ignore s(); // reject local async* call
+    │              ^^^ 
+error[M0037]: misplaced async expression; a composite query cannot contain an async expression
+    ┌─ composite-query-fail.mo:47:13
+ 47 │       ignore async (); // reject anonymous async
+    │              ^^^^^^^^ 
+error[M0037]: misplaced async expression; a composite query cannot contain an async expression
+    ┌─ composite-query-fail.mo:52:13
+ 52 │       ignore async* {};
+    │              ^^^^^^^^^ 
+warning[M0222]: ignored argument of `async*` type has no effect
+    ┌─ composite-query-fail.mo:52:6
+ 52 │       ignore async* {};
+    │       ^^^^^^^^^^^^^^^^ 
+error[M0186]: composite send capability required, but not available
+  (cannot call a `composite query` function from a non-`composite query` function)
+    ┌─ composite-query-fail.mo:57:14
+ 57 │        ignore cq(); // reject
+    │               ^^^^ 
+error[M0186]: composite send capability required, but not available
+  (cannot call a `composite query` function from a non-`composite query` function)
+    ┌─ composite-query-fail.mo:62:14
+ 62 │        ignore cq(); // reject
+    │               ^^^^ 
+error[M0186]: composite send capability required, but not available
+  (cannot call a `composite query` function from a non-`composite query` function)
+    ┌─ composite-query-fail.mo:63:22
+ 63 │        ignore async { cq() }; // reject
+    │                       ^^^^ 
+error[M0188]: send capability required, but not available
+  (cannot call a `shared` function from a `query` function)
+    ┌─ composite-query-fail.mo:68:14
+ 68 │        ignore cq(); // reject
+    │               ^^^^ 

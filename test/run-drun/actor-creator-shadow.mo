@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0240
 shared(c) actor class C () {
   let c = 1;
 
