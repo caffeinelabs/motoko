@@ -173,8 +173,6 @@ Two kinds of operations coexist in this file:
       32-bit falls back to the RTS LEB128 decoder directly.
 
     Remaining 32-bit work (needs 32-bit RTS):
-    - Memory index type: get_memories hardcodes I64IndexType (Memory64);
-      32-bit backend needs B.wasm_idx_type (I32IndexType for Memory32).
     - Stable memory metadata layout (NewStableMemory offsets, version format)
       needs coordination with RTS for 32-bit format.
   
@@ -484,8 +482,8 @@ only make sense locally, i.e. within a single function (but we still put them
 in one big record, for convenience).
 
 32-bit adaptation: add_global_word uses B.wasm_val_type. prepare_branch_condition
-wraps i64 to i32 on 64-bit (nop on 32-bit). get_memories still hardcodes
-I64IndexType (remaining 32-bit work: needs B.wasm_idx_type for Memory32).
+wraps i64 to i32 on 64-bit (nop on 32-bit). get_memories uses B.wasm_idx_type
+(I64IndexType for Memory64, I32IndexType for Memory32).
 
 The fields fall into the following categories:
 
@@ -895,11 +893,11 @@ module E = struct
     !(env.requires_stable_memory)
 
   let get_memories (env : t) initial_memory_pages =
-    nr {mtype = MemoryType ({min = initial_memory_pages; max = None}, I64IndexType)}
+    nr {mtype = MemoryType ({min = initial_memory_pages; max = None}, B.wasm_idx_type)}
     ::
     match mode env with
     | Flags.WASIMode | Flags.WasmMode when !(env.requires_stable_memory) ->
-      [ nr {mtype = MemoryType ({min = Int64.zero; max = None}, I64IndexType)} ]
+      [ nr {mtype = MemoryType ({min = Int64.zero; max = None}, B.wasm_idx_type)} ]
     | _ -> []
 
   let get_dedup (env : t) : int32 =
@@ -13214,11 +13212,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     IC.trap_text env
 
   | OtherPrim "principalOfBlob", e ->
-    const_sr SR.Vanilla (Blob.copy env Tagged.B Tagged.P)
+    const_sr SR.Vanilla Tagged.(Blob.copy env B P)
   | OtherPrim "blobOfPrincipal", e ->
-    const_sr SR.Vanilla (Blob.copy env Tagged.P Tagged.B)
+    const_sr SR.Vanilla Tagged.(Blob.copy env P B)
   | OtherPrim "principalOfActor", e ->
-    const_sr SR.Vanilla (Blob.copy env Tagged.A Tagged.P)
+    const_sr SR.Vanilla Tagged.(Blob.copy env A P)
+  | OtherPrim "actorOfPrincipal", e ->
+    const_sr SR.Vanilla Tagged.(Blob.copy env P A)
 
   | OtherPrim "blobToArray", e ->
     const_sr SR.Vanilla (Arr.ofBlob env Tagged.I)
