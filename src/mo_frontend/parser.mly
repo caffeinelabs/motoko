@@ -31,6 +31,8 @@ let syntax_error at code msg =
 
 (* Helpers *)
 
+let persistent bool at = { it = bool; at = at; note = [] }
+
 let scope_bind x at =
   { var = Type.scope_var x @@ at;
     sort = Type.Scope @@ at;
@@ -385,14 +387,14 @@ seplist1(X, SEP) :
   | MODULE {Type.Module @@ at $sloc }
 
 %inline obj_sort :
-  | OBJECT { (false @@ no_region, Type.Object @@ at $sloc) }
+  | OBJECT { (persistent false no_region, Type.Object @@ at $sloc) }
   | po=persistent ACTOR { (po, Type.Actor @@ at $sloc) }
-  | MODULE { (false @@ no_region, Type.Module @@ at $sloc) }
+  | MODULE { (persistent false no_region, Type.Module @@ at $sloc) }
 
 %inline obj_sort_opt :
   | os=obj_sort { os }
   | (* empty *) {
-      ((!Flags.actors = Flags.DefaultPersistentActors) @@ no_region, Type.Object @@ no_region)
+      (persistent (!Flags.actors = Flags.DefaultPersistentActors) no_region, Type.Object @@ no_region)
     }
 
 %inline query:
@@ -884,8 +886,8 @@ stab :
   | TRANSIENT { Some (Flexible @@ at $sloc) }
 
 %inline persistent :
-  | (* empty *) { (!Flags.actors = Flags.DefaultPersistentActors) @@ no_region }
-  | PERSISTENT { true @@ at $sloc }
+  | (* empty *) { persistent (!Flags.actors = Flags.DefaultPersistentActors) no_region }
+  | PERSISTENT { persistent true (at $sloc) }
 
 (* Patterns *)
 
@@ -959,15 +961,15 @@ dec_var :
   | VAR x=id t=annot_opt
     (* No initializer - use unit expression () as placeholder *)
     (* Type checker will verify this is only allowed for stable variables with --enhanced-migration *)
-    { let unit_exp = TupE([]) @? at $sloc in
-      VarD(x, annot_exp unit_exp t) @? at $sloc }
+    { let init_exp = PrimE "_" @? at $sloc in
+      VarD(x, annot_exp init_exp t) @? at $sloc }
 
 dec_nonvar :
   | LET p=pat EQ e=exp(ob)
     { let p', e' = normalize_let p e in
       LetD (p', e', None) @? at $sloc }
   | LET p=pat
-    { let p', e' = normalize_let p (TupE([]) @? at $sloc) in
+    { let p', e' = normalize_let p (PrimE "_" @? at $sloc) in
       LetD (p', e', None) @? at $sloc }
   | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
     { TypD(x, tps, t) @? at $sloc }
@@ -1097,6 +1099,11 @@ pre_stab_field :
   | STABLE { false @@ at $sloc }
   | IN { true @@ at $sloc }
 
+mig_lab : t=TEXT { t @@ at $sloc }
+mig_field :
+  | mt=mig_lab COLON t=typ
+    { {tag=mt; typ=t} @@ at $sloc }
+
 parse_stab_sig :
   | start ds=seplist(typ_dec, semicolon) ACTOR LCURLY sfs=seplist(stab_field, semicolon) RCURLY
     { let trivia = !triv_table in
@@ -1116,5 +1123,16 @@ parse_stab_sig :
           at = at $sloc;
           note = { filename; trivia } }
     }
+  | start ds=seplist(typ_dec, semicolon)
+    LCURLY chain = seplist(mig_field, semicolon) RCURLY
+    ACTOR LCURLY sfs_post=seplist(stab_field, semicolon) RCURLY
+    { let trivia = !triv_table in
+      let sigs = Multi{chain;post=sfs_post} in
+      fun filename ->
+        { it = (ds, {it = sigs; at = at $sloc; note = ()});
+          at = at $sloc;
+          note = { filename; trivia } }
+    }
+
 
 %%

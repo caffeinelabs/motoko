@@ -47,11 +47,11 @@ let typed_phrase' f x =
 let is_empty_tup e = e.it = S.TupE []
 
 (* RTS migration tracking primitives *)
-let rts_was_migration_performed migration_hash =
-  primE (I.OtherPrim "was_migration_performed") [textE migration_hash]
+let rts_was_migration_performed mig_lab =
+  primE (I.OtherPrim "was_migration_performed") [textE mig_lab]
 
-let rts_register_migration migration_hash =
-  primE (I.OtherPrim "register_migration") [textE migration_hash]
+let rts_register_migration mig_lab =
+  primE (I.OtherPrim "register_migration") [textE mig_lab]
 
 
 let unit_typ at = { it = S.TupT []; at; note = T.unit }
@@ -322,6 +322,8 @@ and exp' at note = function
   | S.AnnotE (e, _) -> assert false
   | S.ImportE (f, ir) -> raise (Invalid_argument (Printf.sprintf "Import expression found in unit body: %s" f))
   | S.ImplicitLibE lib -> (varE (var (id_of_full_path lib) note.Note.typ)).it
+  | S.PrimE "_" ->
+    (primE (Ir.OtherPrim "trap") [textE "missing initializer _"]).it
   | S.PrimE s -> raise (Invalid_argument ("Unapplied prim " ^ s))
   | S.IgnoreE e ->
     I.BlockE ([
@@ -455,7 +457,7 @@ and obj_block at s exp_opt self_id dfs obj_typ =
   | T.Object | T.Module ->
     build_obj at s.it self_id dfs obj_typ
   | T.Actor ->
-    build_actor at [] exp_opt self_id dfs obj_typ
+    build_actor at s.note.note [] exp_opt self_id dfs obj_typ
   | T.Memory | T.Mixin -> assert false
 
 and build_field {T.lab; T.typ;_} =
@@ -673,7 +675,7 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
-and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
+and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let candid = build_candid ts obj_typ in
   let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
@@ -694,7 +696,7 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
   let get_state = fresh_var "getState" (T.Func(T.Local, T.Returns, [], [], [mem_ty])) in
   let ds = List.map (fun mk_d -> mk_d get_state) mk_ds in
   let sig_, stable_type, migration =
-    if !T.migration_chain <> [] then begin
+    if chain <> [] then begin
       (* --enhanced-migration: generates upgrade-time IR for the migration chain.
 
          Generated IR is a nested if-expression. Each level k either:
@@ -712,93 +714,24 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          and a final projection maps type_n to the actor's mem_ty.
 
          See doc/enhanced-multi-migration.md for the full design rationale. *)
-      let chain = !T.migration_chain in
 
-      let decompose_run run_typ =
-        let dom_i, rng_i = T.as_mono_func_sub run_typ in
-        let (_ds, dom_fields_i) = T.as_obj (T.normalize dom_i) in
-        let (_rs, rng_fields_i) = T.as_obj (T.promote rng_i) in
-        (dom_i, rng_i, dom_fields_i, rng_fields_i)
-      in
-      let migration_hash file =
-        Digest.to_hex (Digest.string (Filename.basename file))
-      in
+      (* Compute mem_typs = [mem_typ_0, mem_typ_1, ..., mem_typ_n] from
+         the stab_fields presignatures w.r.t chain. *)
 
-      (* Step 1: compute enhanced_mem_ty — union of all migration fields + actor
-         stab_fields (last-writer-wins, stab_fields merged last). In valid programs
-         this equals type_n, but the explicit stab_fields merge guarantees the load
-         type includes the actor's declared fields for the fresh-install fallback. *)
-      let all_fields_tbl = Hashtbl.create 32 in
-      List.iter (fun (_file, _mod_typ, run_typ) ->
-        let (_, _, dom_fields_i, rng_fields_i) = decompose_run run_typ in
-        List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) dom_fields_i;
-        List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) rng_fields_i
-      ) chain;
-      List.iter (fun tf -> Hashtbl.replace all_fields_tbl tf.T.lab tf) stab_fields;
-      let enhanced_stab_fields =
-        Hashtbl.fold (fun _k tf acc -> tf :: acc) all_fields_tbl []
-        |> List.sort T.compare_field
+      let chain_fields =
+        List.map
+          (fun (filename, _, typ) ->
+            T.{lab = T.migration_lab_of_filename filename;
+               typ;
+               src = T.empty_src})
+          chain
       in
-      let enhanced_mem_fields =
-        List.map (fun tf -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) enhanced_stab_fields
-      in
-      let enhanced_mem_ty = T.Obj (T.Memory, enhanced_mem_fields, []) in
-
-      (* Step 2: compute intermediate_types = [type_1, ..., type_n] by
-         reverse-folding from type_n = actor's mem_ty. Each step undoes one
-         migration: range-only fields are removed (introduced by that migration),
-         domain fields are restored with their domain types, and carried fields
-         are kept unchanged. This mirrors the stab_fields_pre calculation in the
-         old (with migration = fn) syntax and gives precise types at each
-         boundary — no ghost fields from dropped-and-never-reintroduced fields. *)
-      let intermediate_types =
-        let undo_migration next_fields (_file, _mod_typ, run_typ) =
-          let (_, _, dom_fields_k, rng_fields_k) = decompose_run run_typ in
-          let prev_tbl = Hashtbl.create 32 in
-          List.iter (fun tf ->
-            if not (List.exists (fun rf -> rf.T.lab = tf.T.lab) rng_fields_k) then
-              Hashtbl.replace prev_tbl tf.T.lab tf
-          ) next_fields;
-          List.iter (fun tf ->
-            Hashtbl.replace prev_tbl tf.T.lab
-              {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}
-          ) dom_fields_k;
-          Hashtbl.fold (fun _k tf acc -> tf :: acc) prev_tbl []
-          |> List.sort T.compare_field
-        in
-        let (types, _) =
-          List.fold_right (fun entry (acc, next_fields) ->
-            let next_ty = T.Obj (T.Memory, next_fields, []) in
-            let prev_fields = undo_migration next_fields entry in
-            (next_ty :: acc, prev_fields)
-          ) chain ([], mem_fields)
-        in
-        types
-      in
-
+      let (_, pres) = T.pres None chain_fields stab_fields in
+      let mem_typs = List.map T.mem_typ_of_pre pres in
       let n = List.length chain in
-
-      (* type_0: base case for ICStableRead when no migrations were performed.
-         With migrations, use Init's domain — the pre-migration actor's expected
-         shape. On fresh install, ICStableRead returns defaults (all ?T fields
-         are None). On pre-migration upgrade, the RTS checks compatibility.
-         Without migrations, use enhanced_mem_ty (= actor's mem_ty). *)
-      let type_0 =
-        if n = 0 then enhanced_mem_ty
-        else
-          let (_file, _mod_typ, run_typ) = List.hd chain in
-          let (_, _, dom_fields_0, _) = decompose_run run_typ in
-          let pre_fields =
-            List.map (fun tf -> {tf with T.typ = T.Opt (T.as_immut tf.T.typ)}) dom_fields_0
-          in
-          T.Obj (T.Memory, List.sort T.compare_field pre_fields, [])
+      assert (n <> 0);
+      let mem_typ_at idx = List.nth mem_typs idx
       in
-
-      let type_at idx =
-        if idx = 0 then type_0
-        else List.nth intermediate_types (idx - 1)
-      in
-
       (* Nested if-expression: each level k produces state_k : type_k.
          If m_k was already performed, ICStableRead(type_k) loads the state.
          Otherwise, recursively build state_{k-1}, run m_k, and merge output
@@ -807,15 +740,17 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
          or returns defaults on fresh install. *)
       let rec build_nested k =
         if k = 0 then
-          primE (I.ICStableRead (type_at 0)) []
+          primE (I.ICStableRead (mem_typ_at 0)) []
         else
-          let type_k = type_at k in
-          let (_, type_k_fields) = T.as_obj type_k in
-          let type_prev = type_at (k - 1) in
+          let mem_typ_k = mem_typ_at k in
+          let (_, mem_typ_k_fields) = T.as_obj mem_typ_k in
+          let mem_typ_prev = mem_typ_at (k - 1) in
           let (file_k, mod_typ_k, run_typ_k) = List.nth chain (k - 1) in
-          let (dom_k, rng_k, dom_fields_k, rng_fields_k) = decompose_run run_typ_k in
-          let hash_k = migration_hash file_k in
-          let state_prev = fresh_var "state" type_prev in
+          let (dom_fields_k, rng_fields_k) = T.as_migration run_typ_k in
+          let dom_k = T.Obj(T.Object, dom_fields_k, []) in
+          let rng_k = T.Obj(T.Object, rng_fields_k, []) in
+          let mig_lab_k = T.migration_lab_of_filename file_k in
+          let state_prev = fresh_var "state" mem_typ_prev in
           let v_dom = fresh_var "v_dom" dom_k in
           let v_rng = fresh_var "v_rng" rng_k in
           let mod_expr = varE (var (id_of_full_path file_k) mod_typ_k) in
@@ -846,45 +781,28 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
                   optE (dotE (varE v_rng) i (T.as_immut rt))
                 | None ->
                   dotE (varE state_prev) i t)
-              type_k_fields)
-            type_k_fields
+              mem_typ_k_fields)
+            mem_typ_k_fields
           in
           let else_branch =
             blockE [
               letD state_prev (build_nested (k - 1));
               letD v_dom extract_dom;
               letD v_rng (callE run_expr [] (varE v_dom));
-              expD (rts_register_migration hash_k)]
+              expD (rts_register_migration mig_lab_k)]
             merge_result
           in
-          ifE (rts_was_migration_performed hash_k)
-            (primE (I.ICStableRead type_k) [])
+          ifE (rts_was_migration_performed mig_lab_k)
+            (primE (I.ICStableRead mem_typ_k) [])
             else_branch
       in
-
-      (* Project from type_n to actor's mem_ty. Fields in type_n are carried;
-         actor-only fields (not in any migration) default to None. *)
-      let type_n = type_at n in
-      let (_, type_n_fields) = T.as_obj type_n in
-      let final_state = fresh_var "mig_state" type_n in
-      let projected =
-        objectE T.Memory
-          (List.map (fun T.{lab=i;typ=t;_} ->
-            i,
-            match T.lookup_val_field_opt i type_n_fields with
-            | Some _tn ->
-              dotE (varE final_state) i t
-            | None ->
-              nullE ())
-          mem_fields)
-        mem_fields
-      in
-      T.Single stab_fields,
-      I.{pre = enhanced_mem_ty; post = mem_ty},
+      let final_state = fresh_var "final_state" mem_ty in
+      T.Multi {chain = chain_fields; post = stab_fields},
+      I.{pre = mem_typ_at 0; post = mem_ty},
       blockE [
         letD final_state (build_nested n);
         expD (primE (I.ICStableStore mem_ty) []);
-      ] projected
+      ] (varE final_state)
     end
     else match exp_opt with
     | None ->
@@ -896,30 +814,11 @@ and build_actor at ts (exp_opt : Ir.exp option) self_id es obj_typ =
                 T.lookup_val_field T.migration_lab tfs
       in
       let e = dotE exp0 T.migration_lab typ in
-      let dom, rng = T.as_mono_func_sub typ in
-      let (_dom_sort, dom_fields) = T.as_obj (T.normalize dom) in
-      let (_rng_sort, rng_fields) = T.as_obj (T.promote rng) in
-      let stab_fields_pre =
-        List.sort (fun (r1, tf1) (r2, tf2) -> T.compare_field tf1 tf2)
-          ((List.map (fun tf -> (true, tf)) dom_fields) (* required *) @
-            (List.filter_map
-              (fun tf ->
-                match T.lookup_val_field_opt tf.T.lab dom_fields,
-                      T.lookup_val_field_opt tf.T.lab rng_fields with
-                | Some _, _    (* ignore consumed (overridden) *)
-                | _, Some _ -> (* ignore produced (provided) *)
-                  None
-                | None, None ->
-                  (* retain others *)
-                  Some (false, tf)) (* optional *)
-              stab_fields))
-      in
-      let mem_fields_pre =
-        List.map
-          (fun (is_required, tf) -> { tf with T.typ = T.Opt (T.as_immut tf.T.typ) })
-          stab_fields_pre
-      in
-      let mem_ty_pre = T.Obj (T.Memory, mem_fields_pre, []) in
+      let (dom_fields, rng_fields) = T.as_migration typ in
+      let dom = T.Obj(T.Object, dom_fields, []) in
+      let rng = T.Obj(T.Object, rng_fields, []) in
+      let stab_fields_pre = T.pre_fields typ ~has_initializers:true stab_fields in
+      let mem_ty_pre = T.mem_typ_of_pre stab_fields_pre in
       let v = fresh_var "v" mem_ty_pre in
       let v_dom = fresh_var "v_dom" dom in
       let v_rng = fresh_var "v_rng" rng in
@@ -1593,7 +1492,7 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
     I.LibU ([], {
       it = build_obj u.at T.Module self_id fields u.note.S.note_typ;
       at = u.at; note = typ_note u.note})
-  | S.ActorClassU (_persistence, exp_opt, sp, typ_id, _tbs, p, _, self_id, fields) ->
+  | S.ActorClassU (persistence, exp_opt, sp, typ_id, _tbs, p, _, self_id, fields) ->
     let fun_typ = u.note.S.note_typ in
     let op = match sp.it with
       | T.Local -> None
@@ -1609,7 +1508,8 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
         T.promote rng
       | _ -> assert false
     in
-    let actor_expression = build_actor u.at ts eo (Some self_id) fields obj_typ in
+    let chain = persistence.note in
+    let actor_expression = build_actor u.at chain ts eo (Some self_id) fields obj_typ in
     let e = wrap {
        it = actor_expression;
        at = no_region;
@@ -1623,7 +1523,7 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
   | S.ActorU (persistence, exp_opt, self_id, fields) ->
     let eo = Option.map exp exp_opt in
     let ty = u.note.S.note_typ in
-    let actor_expression = build_actor u.at [] eo self_id fields ty in
+    let actor_expression = build_actor u.at persistence.note [] eo self_id fields ty in
     begin match actor_expression with
     | I.ActorE (ds, fs, u, t) ->
        I.ActorU (None, ds, fs, u, t)

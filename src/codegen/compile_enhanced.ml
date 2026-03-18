@@ -10459,8 +10459,11 @@ module Persistence = struct
             if not (!Flags.explicit_enhanced_orthogonal_persistence) then
               E.trap_with env "Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration."
             else G.nop ^^
-            OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
-            EnhancedOrthogonalPersistence.initialize env actor_type
+            if !Flags.enhanced_migration = None then
+              OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
+              EnhancedOrthogonalPersistence.initialize env actor_type
+            else
+              E.trap_with env "Cannot upgrade from classical orthogonal persistence with --enhanced-migration"
           end
       end) ^^
     StableMem.region_init env

@@ -1,4 +1,5 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration multi-migration-bad-chain/bad-chain
+// enable -E M0254 to reject non-empty initial actor (pre)
+//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration multi-migration-bad-chain/bad-chain -E M0254
 
 import Prim "mo:prim";
 
