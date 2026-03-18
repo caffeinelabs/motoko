@@ -1,0 +1,10 @@
+// Version: 4.0.0
+{
+  "1" : {} -> {a : Nat};
+  "2" : {} -> {b : Int};
+  "3" : (old : {b : Int}) -> {b : Bool}
+}
+actor  {
+  stable a : Nat;
+  stable b : Bool
+} ;
