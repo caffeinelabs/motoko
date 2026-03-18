@@ -31,7 +31,10 @@ type typ_id = (string, Type.con option) Source.annotated_phrase
 
 type 'note sort = (Type.obj_sort, 'note) Source.annotated_phrase
 type typ_obj_sort = unit sort
-type persistence = bool Source.phrase
+
+type migration_chain = (string * Type.typ * Type.typ) list
+type persistence = (bool, migration_chain) Source.annotated_phrase
+
 type obj_sort = persistence sort
 type func_sort = Type.func_sort Source.phrase
 

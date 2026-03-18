@@ -35,7 +35,7 @@ let valid_metadata_names =
      "motoko:stable-types";
      "motoko:compiler"]
 
-let argspec = 
+let argspec =
   Args.ai_args
   @ [
   "-c", Arg.Unit (set_mode Compile), " compile programs to WebAssembly";
@@ -289,16 +289,7 @@ let process_files files : unit =
     printf "%s\n%!" banner;
     exit_on_none (Pipeline.run_files_and_stdin files)
   | Check ->
-    let migration_lib_files = 
-      if Option.is_some !Flags.enhanced_migration then
-        let lst = Pipeline.get_migration_files (Option.get !Flags.enhanced_migration) in
-        let (migration_mods, _) = Diag.run (Pipeline.load_migration_modules lst) in
-        Mo_types.Type.migration_chain := migration_mods;
-        lst
-      else [] (* Should not happen, we check against it and error in get_migration_files(). *)
-    in
-    (* Pass migration lib files to the tc check. *)
-    Diag.run (Pipeline.check_files (files @ migration_lib_files))
+    Diag.run (Pipeline.check_files files)
   | StableCompatible ->
     begin
       match (!Flags.pre_ref, !Flags.post_ref) with
@@ -308,18 +299,9 @@ let process_files files : unit =
       | _ -> assert false
     end
   | Compile ->
-    (* Get the migration files from the directory, if any. *)
-    let migration_libs = 
-      if Option.is_some !Flags.enhanced_migration then
-        let lst = Pipeline.get_migration_files (Option.get !Flags.enhanced_migration) in
-        let (migration_mods, migration_libs) = Diag.run (Pipeline.load_migration_modules lst) in
-        Mo_types.Type.migration_chain := migration_mods;
-        migration_libs
-      else [] (* Should not happen, we check against it and error in get_migration_files(). *)
-    in
     set_out_file files ".wasm";
     let source_map_file = !out_file ^ ".map" in
-    let (idl_prog, module_) = Diag.run Pipeline.(compile_files !Flags.compile_mode !link ~migration_libs files) in
+    let (idl_prog, module_) = Diag.run Pipeline.(compile_files !Flags.compile_mode !link files) in
     let module_ = CustomModule.{ module_ with
       source_mapping_url =
         if !gen_source_map

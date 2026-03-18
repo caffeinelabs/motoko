@@ -333,9 +333,13 @@ val migration_lab_of_filename : string -> mig_lab
 
 val is_migration : typ -> bool
 val as_migration : typ -> (field list * field list)
-val pre_fields : typ -> ?initialized : bool -> field list -> (bool * field) list
+val pre_fields : typ -> ?has_initializers : bool -> field list -> (bool * field) list
+val pres : mig_lab option -> field list -> field list ->
+           (bool * field) list * (bool * field) list list
 val pre : mig_lab option -> stab_sig -> (bool * field) list
 val post : stab_sig -> field list * mig_lab option
+
+val mem_typ_of_pre : (bool * field) list -> typ
 
 val match_stab_sig : stab_sig -> stab_sig -> bool
 val match_stab_fields : field list -> (bool * field) list -> bool
@@ -413,5 +417,3 @@ module ElideStampsAndHashes : PrettyConfig
 module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
-
-val migration_chain : (string * typ * typ) list ref

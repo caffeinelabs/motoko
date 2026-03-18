@@ -2299,8 +2299,8 @@ and pp_kind ppf k =
   pp_kind' vs ppf k
 
 and pp_mig_field vs ppf {lab; typ; src} =
-    (* TODO: escape on print, unescape on parse as in ML value *)
-    fprintf ppf "@[<2>\"%s\" :@ %a@]" lab (pp_typ' vs) typ
+    let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
+    fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
 and pp_stab_sig ppf sig_ =
   let all_fields = match sig_ with
@@ -2577,7 +2577,7 @@ let abstract sig0 =
 
 let migration_lab_of_filename file = Filename.basename file |> Filename.chop_extension
 
-let pre_fields mig_typ ?(initialized=true) post_fields =
+let pre_fields mig_typ ?(has_initializers=true) post_fields =
   let (dom_fields_k, rng_fields_k) = as_migration mig_typ in
   List.map (fun tf -> (true (* required *), tf)) dom_fields_k @
     List.filter_map (fun tf ->
@@ -2588,7 +2588,7 @@ let pre_fields mig_typ ?(initialized=true) post_fields =
            None
         | None, None ->
            (* retain others *)
-           Some (not initialized, tf)
+           Some (not has_initializers, tf)
       )
       post_fields
   |> List.sort (fun (r1, tf1) (r2, tf2) -> compare_field tf1 tf2)
@@ -2602,7 +2602,7 @@ let pres mig_lab_opt chain post =
       then (cur_pre_fields, acc)
       else
         let cur_post_fields = List.map snd cur_pre_fields in
-        let next_pre_fields = pre_fields mig_field.typ cur_post_fields in
+        let next_pre_fields = pre_fields mig_field.typ  ~has_initializers:false cur_post_fields in
         go (next_pre_fields::acc) mfs1 next_pre_fields
   in
   let mfs = List.rev chain in
@@ -2625,6 +2625,11 @@ let post = function
     assert (chain <> []);
     post,
     Some ((Lib.List.last chain).lab)
+
+let mem_typ_of_pre pre =
+  Obj(Memory,
+      List.map (fun (required, tf) -> {tf with typ = Opt (as_immut tf.typ)}) pre,
+      [])
 
 let rec match_stab_sig sig1 sig2 =
   let post_tfs1, mig_lab_opt = post sig1 in
@@ -2649,8 +2654,4 @@ let string_of_stab_sig stab_sig : string =
   | PrePost _ -> "// Version: 3.0.0\n"
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
-
-(* The migration chain passed from pipeline to typing. *)
-(* Migration chain from --enhanced-migration directory: (filename, module_type, run_type) triples in order *)
-let migration_chain : (string * typ * typ) list ref = ref []
 
