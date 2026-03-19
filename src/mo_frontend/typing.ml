@@ -1478,7 +1478,7 @@ let dot_module_exp module_exp name =
     it = module_exp;
     at = name.at;
     note = empty_typ_note
-  }, name, ref None)
+  }, name, ref None) @? name.at
 
 let module_ref_of_dot_module_exp (path : exp) =
   match path.it with
@@ -1508,23 +1508,14 @@ let resolve_hole env at name typ =
   in
   let find_candidate_fields in_libs (module_ref, (_, fs)) =
     List.filter_map has_matching_field_typ fs |>
-      List.map (fun (lab, typ, region)->
-          let path =
-            { it = dot_module_exp (module_exp in_libs module_ref) ({ it = lab; at = no_region; note = () });
-              at = Source.no_region;
-              note = empty_typ_note; }
-          in
-          ({ path; typ; module_ref_opt = Some module_ref; id=lab; region } : hole_candidate))
+    List.map (fun (lab, typ, region) ->
+      let path = dot_module_exp (module_exp in_libs module_ref) (lab @@ no_region) in
+      { path; typ; module_ref_opt = Some module_ref; id = lab; region })
   in
-  let find_candidate_id = function
-    (id, (t, region, _, _)) ->
+  let find_candidate_id (id, (t, region, _, _)) =
     if is_matching_typ t
     then
-      let path =
-        { it = VarE {it = id; at = no_region; note = (Const, None)};
-          at = Source.no_region;
-          note = empty_typ_note }
-      in
+      let path = VarE(id @~ no_region) @? no_region in
       Some { path; typ = t; module_ref_opt = None; id; region }
     else None
   in
@@ -1633,31 +1624,19 @@ module CtxDot = struct
 end
 
 let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_error) Result.t =
-  let is_matching_func n t =
-    if not (String.equal n name.it) then None
-    else CtxDot.is_matching_func t receiver_ty in
+  let open Lib.Option.Syntax in
+
   let find_candidate in_libs (module_ref, (module_ty, fs)) =
-    List.find_map (fun fld -> is_matching_func fld.T.lab fld.T.typ) fs |>
-      Option.map (fun (arg_ty, func_ty, inst) ->
-        let path = {
-          it = dot_module_exp (module_exp in_libs module_ref) name;
-          at = name.at;
-          note = empty_typ_note }
-        in
-        { module_ref = Some module_ref; path; func_ty; arg_ty; inst }) in
+    let* field = T.find_val_field_opt name.it fs in
+    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func field.T.typ receiver_ty in
+    let path = dot_module_exp (module_exp in_libs module_ref) name in
+    Some { module_ref = Some module_ref; path; func_ty; arg_ty; inst } in
 
   let local_candidate =
-    match T.Env.find_opt name.it env.vals with
-    | None -> None
-    | Some (t, _, _, _) ->
-      match is_matching_func name.it t with
-       | None -> None
-       | Some (arg_ty, func_ty, inst) ->
-         let path = {
-           it = VarE { it = name.it; at = name.at; note = (Const, None) };
-           at = name.at;
-           note = empty_typ_note } in
-         Some { module_ref = None; path; func_ty; arg_ty; inst } in
+    let* (t, _, _, _) = T.Env.find_opt name.it env.vals in
+    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func t receiver_ty in
+    let path = VarE (name.it @~ name.at) @? name.at in
+    Some { module_ref = None; path; func_ty; arg_ty; inst } in
 
   let candidates in_libs xs f =
     T.Env.to_seq xs |>
@@ -1682,8 +1661,8 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
     | cs -> match disambiguate_candidates cs with
       | Some c -> Ok c
       | None -> Error (DotAmbiguous (fun env ->
-         let modules =  (List.filter_map (fun c -> c.module_ref) cs) in
-         error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it (String.concat ", " modules))))
+         let modules = String.concat ", " (List.filter_map (fun c -> c.module_ref) cs) in
+         error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it modules)))
 
 type contextual_dot_suggestion =
   { module_url : T.lab;
