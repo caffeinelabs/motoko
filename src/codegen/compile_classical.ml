@@ -2375,7 +2375,9 @@ module Opt = struct
     null_lit env ^^
     G.i (Compare (Wasm.Values.I32 I32Op.Ne))
 
-  let inject env e =
+  let inject env t e =
+    if BitTagged.is_always_scalar t then e
+    else
     e ^^
     Func.share_code1 Func.Never env "opt_inject" ("x", I32Type) [I32Type] (fun env get_x ->
       get_x ^^ BitTagged.if_tagged_scalar env [I32Type]
@@ -8185,7 +8187,7 @@ module MakeSerialization (Strm : Stream) = struct
                     (* decoding failed, but this is opt, so: return null *)
                     (Opt.null_lit env)
                     (* decoding succeeded, return opt value *)
-                    (Opt.inject env get_val)
+                    (Opt.inject env t get_val)
                 ]
             end
             begin
@@ -8197,7 +8199,7 @@ module MakeSerialization (Strm : Stream) = struct
                 (* decoding failed, but this is opt, so: return null *)
                 (Opt.null_lit env)
                 (* decoding succeeded, return opt value *)
-                (Opt.inject env get_val)
+                (Opt.inject env t get_val)
             end
           end
         end
@@ -11307,9 +11309,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | OptPrim, [e] ->
     SR.Vanilla,
-    if BitTagged.is_always_scalar e.note.Note.typ
-    then compile_exp_vanilla env ae e
-    else Opt.inject env (compile_exp_vanilla env ae e)
+    Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)
   | TagPrim l, [e] ->
     SR.Vanilla,
     Variant.inject env l (compile_exp_vanilla env ae e)
@@ -11679,7 +11679,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     begin match ts with
     | [] ->
       (* return some () *)
-      Opt.inject env (Tuple.compile_unit env)
+      Opt.inject env Type.unit (Tuple.compile_unit env)
     | [t] ->
       (* save to local, propagate error as null or return some value *)
       let (set_val, get_val) = new_local env "val" in
@@ -11688,7 +11688,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
       compile_eq_const (Serialization.coercion_error_value env) ^^
       G.if1 I32Type
         (Opt.null_lit env)
-        (Opt.inject env get_val)
+        (Opt.inject env t get_val)
     | ts ->
       (* propagate any errors as null or return some tuples using shared code *)
       let n = List.length ts in
@@ -11706,7 +11706,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
               (Opt.null_lit env)
               (go ls')
           | [] ->
-            Opt.inject env (Arr.lit env Tagged.T locals)
+            Opt.inject env (Type.Tup ts) (Arr.lit env Tagged.T locals)
         in
         go locals)
     end

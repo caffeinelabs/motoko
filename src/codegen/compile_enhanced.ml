@@ -2230,7 +2230,9 @@ module Opt = struct
   let alloc_some env get_payload =
     Tagged.obj env Tagged.Some [ get_payload ]
 
-  let inject env e =
+  let inject env t e =
+    if BitTagged.is_always_scalar t then e
+    else
     e ^^
     Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
       get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
@@ -2255,7 +2257,7 @@ module Opt = struct
   | shared_value ->
     Tagged.shared_object __LINE__ env (fun env ->
       let materialized_value = Tagged.materialize_shared_value env shared_value in
-      inject env materialized_value (* potentially wrap in new `Opt` *)
+      inject env Type.Any materialized_value (* potentially wrap in new `Opt` *)
     )
 
   (* This function is used where conceptually, Opt.inject should be used, but
@@ -8625,7 +8627,7 @@ module Serialization = struct
                     (* decoding failed, but this is opt, so: return null *)
                     (Opt.null_lit env)
                     (* decoding succeeded, return opt value *)
-                    (Opt.inject env get_val)
+                    (Opt.inject env t get_val)
                 ]
             end
             begin
@@ -8637,7 +8639,7 @@ module Serialization = struct
                 (* decoding failed, but this is opt, so: return null *)
                 (Opt.null_lit env)
                 (* decoding succeeded, return opt value *)
-                (Opt.inject env get_val)
+                (Opt.inject env t get_val)
             end
           end
         end
@@ -9515,7 +9517,7 @@ module EnhancedOrthogonalPersistence = struct
   let load_old_field env field get_old_actor =
     if field.Type.typ = Type.(Opt Any) then
       (* A stable variable may have been promoted to type `Any`: Therefore, drop its former content. *)
-      Opt.inject env (Tuple.compile_unit env)
+      Opt.inject env Type.unit (Tuple.compile_unit env)
     else
       (get_old_actor ^^ Object.load_idx_raw env field.Type.lab)
 
@@ -11655,9 +11657,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     (* Never-heap-boxed types (UnboxedWord64 / UnboxedFloat32) have bit 0 = 0
        in their Vanilla encoding, so Opt.inject is a no-op — emit directly.
        TODO: extend to compile_classical.ml once it gains SR.UnboxedFloat32 support *)
-    if BitTagged.is_always_scalar e.note.Note.typ
-    then compile_exp_vanilla env ae e
-    else Opt.inject env (compile_exp_vanilla env ae e)
+    Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)
   | TagPrim l, [e] ->
     SR.Vanilla,
     Variant.inject env l (compile_exp_vanilla env ae e)
@@ -11953,7 +11953,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     begin match ts with
     | [] ->
       (* return some () *)
-      Opt.inject env (Tuple.compile_unit env)
+      Opt.inject env Type.unit (Tuple.compile_unit env)
     | [t] ->
       (* save to local, propagate error as null or return some value *)
       let (set_val, get_val) = new_local env "val" in
@@ -11962,7 +11962,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
       compile_eq_const (Serialization.coercion_error_value env) ^^
       E.if1 I64Type
         (Opt.null_lit env)
-        (Opt.inject env get_val)
+        (Opt.inject env t get_val)
     | ts ->
       (* propagate any errors as null or return some tuples using shared code *)
       let n = List.length ts in
@@ -11980,7 +11980,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
               (Opt.null_lit env)
               (go ls')
           | [] ->
-            Opt.inject env (Arr.lit env Tagged.T locals)
+            Opt.inject env (Type.Tup ts) (Arr.lit env Tagged.T locals)
         in
         go locals)
     end
