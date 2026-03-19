@@ -559,10 +559,6 @@ let check_closed env id k at =
 
 (* Imports *)
 
-let is_mixin_import env = function
-  | ImportE (_, {contents = LibPath {path; _}}) -> T.Env.find_opt path env.mixins
-  | _ -> None
-
 let check_import env at f ri =
   let full_path = match !ri with
     | Unresolved -> error env at "M0020" "unresolved import %s" f
@@ -4383,10 +4379,7 @@ and gather_dec env scope dec : Scope.t =
     let open Scope in
     if T.Env.mem id.it scope.val_env then
       error_duplicate env "" id;
-    (* NOTE: This is a bit ugly. We need to extend the environment
-       with any mixin imports we've found so far, so Include's in the
-       actor body can be resolved *)
-    let scope' = gather_block_decs { env with mixins = T.Env.adjoin scope.mixin_env env.mixins } decs in
+    let scope' = gather_block_decs env decs in
     let ve' = add_id scope.val_env id (object_of_scope env obj_sort.it dec_fields scope' at) in
     let obj_env = T.Env.add id.it scope' scope.obj_env in
     { val_env = ve';
@@ -4397,13 +4390,7 @@ and gather_dec env scope dec : Scope.t =
       mixin_env = scope.mixin_env;
       fld_src_env = scope.fld_src_env;
     }
-  | LetD (pat, exp, _) -> (match is_mixin_import env exp.it with
-    | None -> gather_pat env scope pat
-    | Some mix ->
-      match pat.it with
-      | VarP id -> Scope.adjoin scope (Scope.mixin id.it mix)
-      | _ -> error env pat.at "M0229" "mixins may only be imported by binding to a name"
-  )
+  | LetD (pat, exp, _) -> gather_pat env scope pat
   | VarD (id, _) -> Scope.adjoin_val_env scope (gather_id env scope.Scope.val_env id Scope.Declaration)
   | TypD (id, binds, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
     let open Scope in
@@ -4535,20 +4522,14 @@ and infer_dec_typdecs env dec : Scope.t =
     }
   (* TODO: generalize beyond let <id> = <valpath> *)
   | LetD ({it = VarP id; _}, exp, _) ->
-     begin match is_mixin_import env exp.it with
-     | Some mix ->
-        (* Format.printf "Adding mixin %s at %a\n" id.it display_typ t; *)
-        Scope.mixin id.it mix
-     | None ->
-    (match infer_val_path env exp with
-     | None -> Scope.empty
-     | Some t ->
-       let open Scope in
-       match T.promote t with
-       | T.Obj (_, _, _) as t' -> { Scope.empty with val_env = singleton id t' }
-       | _ -> { Scope.empty with val_env = singleton id T.Pre }
-    )
-           end
+    begin match infer_val_path env exp with
+    | None -> Scope.empty
+    | Some t ->
+      let open Scope in
+      match T.promote t with
+      | T.Obj (_, _, _) as t' -> { Scope.empty with val_env = singleton id t' }
+      | _ -> { Scope.empty with val_env = singleton id T.Pre }
+    end
   | LetD (pat, exp, _) ->
        begin match infer_val_path env exp with
        | Some t ->
@@ -4607,11 +4588,6 @@ and infer_block_valdecs env decs scope : Scope.t =
     ) (env, scope) decs
   in scope'
 
-and is_import d =
-  match d.it with
-  | LetD (_, {it = ImportE _; _}, None) -> true
-  | _ -> false
-
 and infer_dec_valdecs env dec : Scope.t =
   match dec.it with
   | IncludeD(i, _, n) -> Scope.empty
@@ -4636,9 +4612,9 @@ and infer_dec_valdecs env dec : Scope.t =
     Scope.{empty with val_env = singleton id obj_typ}
   | LetD (pat, exp, fail) ->
      let t = infer_exp {env with pre = true; check_unused = false} exp in
-     let env' = { env with closest_scrutinee = if is_import dec then None else Some (exp.at, t) } in
+     let env' = { env with closest_scrutinee = Some (exp.at, t) } in
      let ve' = match fail with
-       | None -> check_pat_exhaustive (if is_import dec then local_error else warn) env' t pat
+       | None -> check_pat_exhaustive warn env' t pat
        | Some _ ->
           let ve = check_pat env' t pat in
           if not env.pre && coverage_pat_is_exhaustive pat t then
@@ -4688,6 +4664,47 @@ and infer_dec_valdecs env dec : Scope.t =
       con_env = T.ConSet.singleton c;
     }
 
+let infer_import env dec = match dec.it with
+  | LetD (pat, ({it = ImportE(s, ri); at; _} as exp), None) ->
+    let is_mixin = match !ri with
+      | LibPath l -> T.Env.find_opt l.path env.mixins
+      | _ -> None
+    in
+    let t, scope = match is_mixin with
+      | Some mix ->
+        (match pat.it with
+        | VarP id -> mix.Scope.typ, Scope.mixin id.it mix
+        | _ -> error env pat.at "M0229" "mixins may only be imported by binding to a name")
+      | None ->
+        let t = check_import env at s ri in
+        let te = check_pat_typ_dec { env with pre = true } t pat in
+        let ve = check_pat_exhaustive local_error env t pat in
+        t, Scope.{ empty with typ_env = te; val_env = ve }
+    in
+    let t' = T.normalize t in
+    assert (t' <> T.Pre);
+    exp.note <- {note_typ = t'; note_eff = T.Triv};
+    dec.note <- {empty_typ_note with note_typ = t; note_eff = T.Triv};
+    scope
+  | _ -> assert false
+
+let infer_imports env ds =
+  List.fold_left (fun acc d ->
+      let s = infer_import env d in
+      Scope.{ empty with
+        val_env = disjoint_union env d.at "M0017" "duplicate binding for %s in imports" s.val_env acc.val_env;
+        typ_env = disjoint_union env d.at "M0017" "duplicate binding for type %s in imports" s.typ_env acc.typ_env;
+        mixin_env = disjoint_union env d.at "M0017" "duplicate binding for mixin %s in imports" s.mixin_env acc.mixin_env;
+      }
+    ) Scope.empty ds
+
+let infer_split_prog env at check_unused imports decls =
+  let iscope = infer_imports env imports in
+  let env = adjoin env iscope in
+  let t, sscope = infer_block env decls at check_unused in
+  if check_unused then leave_scope env iscope.Scope.val_env T.Env.empty;
+  t, Scope.adjoin iscope sscope
+
 (* Programs *)
 let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     : (T.typ * Scope.t) Diag.result
@@ -4704,7 +4721,8 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
           let env = {
              env0 with async = async_cap; type_recovery = enable_type_recovery;
           } in
-          let t, sscope = infer_block env prog.it prog.at true in
+          let imports, decls = split_imports prog.it in
+          let t, sscope = infer_split_prog env prog.at true imports decls in
           if pkg_opt = None && Diag.is_error_free msgs then emit_unused_warnings env;
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
           t, {sscope with Scope.fld_src_env}
@@ -4733,6 +4751,7 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
             let r = { d.at with right = (Lib.List.last ds).at.right } in
             local_error env r "M0141" "move these declarations into the body of the main actor or actor class"
         in
+        let _, decs = split_imports prog in
         let rec go ds = function
           | [] -> ()
           | (d::ds') when is_actor_dec d ->
@@ -4742,10 +4761,9 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
               error_in Flags.[ICMode; RefMode] env d.at "M0141"
                 "an actor or actor class must be the only non-imported declaration in a program"
             end
-          | (d::ds') when is_import d -> go ds ds'
           | (d::ds') -> go (d::ds) ds'
         in
-        go [] prog
+        go [] decs
         ) progs
     )
 
@@ -4757,7 +4775,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
           let env = { (env_of_scope msgs scope) with errors_only = pkg_opt <> None } in
           let { imports; body = cub; _ } = lib.it in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
-          let typ, _ = infer_block env (imp_ds @ ds) lib.at false in
+          let typ, _ = infer_split_prog env lib.at false imp_ds ds in
           List.iter2 (fun import imp_d -> import.note <- imp_d.note.note_typ) imports imp_ds;
           cub.note <- {empty_typ_note with note_typ = typ};
           let imp_scope = match cub.it with
