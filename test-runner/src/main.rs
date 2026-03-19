@@ -69,7 +69,7 @@ pub struct TestRunnerArgs {
     #[arg(
         conflicts_with_all = ["run", "filter"],
         trailing_var_arg = true,
-        help = "Run test files directly without interactive selection (e.g. test/fail/foo*.mo). Shell globs are expanded. Use with -a to accept changes."
+        help = "Run test files directly without interactive selection (e.g. test/fail/foo*.mo). Must be run from repo root. Shell globs are expanded. Use with -a to accept changes."
     )]
     pub paths: Vec<String>,
 }
@@ -330,21 +330,10 @@ fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTest
     }
 }
 
-/// Normalize a test path: if it doesn't start with "test/", prepend it.
-/// This allows users to write `fail/foo.mo` instead of `test/fail/foo.mo`.
-fn normalize_test_path(path: &str) -> String {
-    if path.starts_with("test/") {
-        path.to_string()
-    } else {
-        format!("test/{}", path)
-    }
-}
-
 /// Non-interactive batch mode: run the given test files in parallel.
 fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bool) {
     let test_files: Vec<String> = paths
         .into_iter()
-        .map(|p| normalize_test_path(&p))
         .filter(|p| p.ends_with(".mo") || p.ends_with(".drun"))
         .collect();
 
