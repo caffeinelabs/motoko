@@ -213,7 +213,9 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
      resolve_ic bytes
   | Ok (Url.IcAlias alias) ->
     begin match M.find_opt alias aliases with
-    | Some (Either.Right bytes) -> resolve_ic bytes
+    | Some (Either.Right (bytes, None)) -> resolve_ic bytes
+    | Some (Either.Right (bytes, Some did_path)) ->
+      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Either.Right bytes)
     | Some (Either.Left (envvar, did_path)) -> resolve_env (envvar, did_path)
     | None -> err_alias_not_defined msgs at alias
     end
@@ -233,17 +235,17 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   else (err_package_file_does_not_exist msgs f pname;"")
 
 (* Resolve the argument to `--actor-alias` and `--actor-env-alias`. Check eagerly for well-formedness *)
-let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url) Either.t) : (envvar * filepath, blob) Either.t =
+let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url * filepath option) Either.t) : (envvar * filepath, blob * filepath option) Either.t =
   let open Either in match f with
   | Left (v, p) ->
     Left (if Lib.Utf8.is_valid v then (v, p) else failwith "FIXME")
-  | Right f ->
-    Right (match Url.decode_principal f with
+  | Right (f, fp_opt) ->
+    Right ((match Url.decode_principal f with
     | Ok bytes ->
        if String.length bytes > 29 then
          (err_unrecognized_alias msgs alias f "Principal too long"; "")
        else bytes
-    | Error msg -> err_unrecognized_alias msgs alias f msg; "")
+    | Error msg -> err_unrecognized_alias msgs alias f msg; ""), fp_opt)
 
 let prog_imports (p : prog): (url * resolved_import ref * region) list =
   let res = ref [] in
@@ -255,8 +257,8 @@ let prog_imports (p : prog): (url * resolved_import ref * region) list =
 
 type actor_idl_path = filepath option
 type package_urls = url M.t
-type actor_aliases = (envvar * filepath, url) Either.t M.t
-type aliases = (envvar * filepath, blob) Either.t M.t
+type actor_aliases = (envvar * filepath, url * filepath option) Either.t M.t
+type aliases = (envvar * filepath, blob * filepath option) Either.t M.t
 
 
 let resolve_packages : package_urls -> package_map Diag.result = fun purls ->
