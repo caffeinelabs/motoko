@@ -1,6 +1,5 @@
 error[M0057]: unbound variable x in environment:
   {xxx : Nat}
-The variable x is not available. Try something else?
     ┌─ suggest-local-ai.mo:3:1
   3 │  x;
-    │  ^ 
+    │  ^ The variable x is not available. Try something else?

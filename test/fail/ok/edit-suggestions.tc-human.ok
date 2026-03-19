@@ -1,0 +1,202 @@
+warning[M0223]: redundant type instantiation
+    ┌─ edit-suggestions.mo:11:20
+ 11 │    let n1 = inferred<Nat>(1);
+    │                     ^^^^^ 
+    = help: remove `<Nat>`
+warning[M0236]: You can use the dot notation `m.size(...)` here
+    ┌─ edit-suggestions.mo:22:10
+ 22 │    ignore Map.size(m); // warn M0236
+    │           ^^^^^^^^^^^ 
+    = help: replace `Map` with `m`
+    = help: remove `m`
+error[M0230]: Cannot determine implicit argument `compare` of type
+  (Int, Int) -> Order
+    ┌─ edit-suggestions.mo:25:10
+ 25 │    ignore Map.get(m2, 1); // warn M0236
+    │           ^^^^^^^^^^^^^^ 
+    = note: Did you mean to import mo:core/Int?
+warning[M0236]: You can use the dot notation `m2.get(...)` here
+    ┌─ edit-suggestions.mo:25:10
+ 25 │    ignore Map.get(m2, 1); // warn M0236
+    │           ^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `m2`
+    = help: remove `m2,`
+warning[M0236]: You can use the dot notation `m.get(...)` here
+    ┌─ edit-suggestions.mo:28:10
+ 28 │    ignore Map.get(m, Nat.compare, 1); // warn M0236 + M0237
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `m`
+    = help: remove `m,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:28:21
+ 28 │    ignore Map.get(m, Nat.compare, 1); // warn M0236 + M0237
+    │                      ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0236]: You can use the dot notation `Map.empty<Nat, Text>().size(...)` here
+    ┌─ edit-suggestions.mo:31:10
+ 30 │      // complex receiver
+ 31 │      ignore Map.size(
+    │ ╭───────────^
+ 32 │ │      Map.empty<Nat, Text>()
+ 33 │ │    ); // warn M0236
+    │ ╰────^ 
+ 34 │    
+    = help: replace `Map` with `Map.empty<Nat, Text>()`
+    = help: remove `Map.empty<Nat, Text>()`
+warning[M0236]: You can use the dot notation `m.add(...)` here
+    ┌─ edit-suggestions.mo:36:3
+ 35 │      // multiline call -> M0236 + M0237
+ 36 │ ╭    Map.add(
+ 37 │ │      m,
+    · │  
+ 40 │ │      "John",
+ 41 │ │    ); // warn M0236 + M0237
+    │ ╰────^ 
+ 42 │    };
+    = help: replace `Map` with `m`
+    = help: remove `m,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:38:5
+ 38 │      Nat.compare,
+    │      ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:50:16
+ 50 │    ignore m.get(Nat.compare, 1); // warn M0237
+    │                 ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:54:5
+ 54 │      Nat.compare,
+    │      ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0236]: You can use the dot notation `data.get(...)` here
+    ┌─ edit-suggestions.mo:113:10
+113 │    ignore Impl.get(data, Nat.compare, 1);
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:113:25
+113 │    ignore Impl.get(data, Nat.compare, 1);
+    │                          ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0236]: You can use the dot notation `data.put(...)` here
+    ┌─ edit-suggestions.mo:116:10
+116 │    ignore Impl.put(data, Nat.compare, Text.compare, 1, "a");
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:116:25
+116 │    ignore Impl.put(data, Nat.compare, Text.compare, 1, "a");
+    │                          ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0237]: The `Text.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:116:38
+116 │    ignore Impl.put(data, Nat.compare, Text.compare, 1, "a");
+    │                                       ^^^^^^^^^^^^ 
+    = help: remove `Text.compare,`
+warning[M0236]: You can use the dot notation `data.find(...)` here
+    ┌─ edit-suggestions.mo:119:10
+119 │    ignore Impl.find(data, 1, Nat.compare);
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:119:29
+119 │    ignore Impl.find(data, 1, Nat.compare);
+    │                              ^^^^^^^^^^^ 
+    = help: remove `Nat.compare`
+warning[M0236]: You can use the dot notation `data.sort1(...)` here
+    ┌─ edit-suggestions.mo:120:10
+120 │    ignore Impl.sort1(data, Nat.compare); // -> M0236 + M0237
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:120:27
+120 │    ignore Impl.sort1(data, Nat.compare); // -> M0236 + M0237
+    │                            ^^^^^^^^^^^ 
+    = help: remove `Nat.compare`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:121:27
+121 │    ignore Impl.sort2(data, Nat.compare); // no dot suggestion (notSelf), M0237 only
+    │                            ^^^^^^^^^^^ 
+    = help: remove `Nat.compare`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:124:32
+124 │    let _ = Impl.make<Nat, Text>(Nat.compare, Text.compare);
+    │                                 ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0237]: The `Text.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:124:45
+124 │    let _ = Impl.make<Nat, Text>(Nat.compare, Text.compare);
+    │                                              ^^^^^^^^^^^^ 
+    = help: remove `Text.compare`
+warning[M0236]: You can use the dot notation `data.update(...)` here
+    ┌─ edit-suggestions.mo:127:10
+127 │    ignore Impl.update(data, Nat.compare, 1, Text.compare, "a");
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:127:28
+127 │    ignore Impl.update(data, Nat.compare, 1, Text.compare, "a");
+    │                             ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0237]: The `Text.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:127:44
+127 │    ignore Impl.update(data, Nat.compare, 1, Text.compare, "a");
+    │                                             ^^^^^^^^^^^^ 
+    = help: remove `Text.compare,`
+warning[M0236]: You can use the dot notation `data.put(...)` here
+    ┌─ edit-suggestions.mo:130:10
+129 │      // multiline: two adjacent implicits -> M0236 + M0237 x2
+130 │      ignore Impl.put(
+    │ ╭───────────^
+131 │ │      data,
+    · │  
+135 │ │      "a",
+136 │ │    );
+    │ ╰────^ 
+137 │    };
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:132:5
+132 │      Nat.compare,
+    │      ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0237]: The `Text.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:133:5
+133 │      Text.compare,
+    │      ^^^^^^^^^^^^ 
+    = help: remove `Text.compare,`
+warning[M0223]: redundant type instantiation
+    ┌─ edit-suggestions.mo:143:18
+143 │    let _ = Map.add<Nat, Text>(
+    │                   ^^^^^^^^^^^ 
+    = help: remove `<Nat, Text>`
+warning[M0236]: You can use the dot notation `Map.empty<Nat, Text>().add(...)` here
+    ┌─ edit-suggestions.mo:143:11
+142 │      // NB: Must use `let _ = ...` to get the 'redundant type instantiation' error
+143 │      let _ = Map.add<Nat, Text>(
+    │ ╭────────────^
+144 │ │      Map.empty<Nat, Text>(),
+    · │  
+147 │ │      "John",
+148 │ │    ); // warn M0223 + M0236 + M0237
+    │ ╰────^ 
+149 │    };
+    = help: replace `Map` with `Map.empty<Nat, Text>()`
+    = help: remove `Map.empty<Nat, Text>(),`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:145:5
+145 │      Nat.compare,
+    │      ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expression
+    ┌─ edit-suggestions.mo:143:3
+143 │    let _ = Map.add<Nat, Text>(
+    │    ^^^^^^^^ 

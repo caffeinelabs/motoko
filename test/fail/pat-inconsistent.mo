@@ -63,3 +63,11 @@ func absurd(birds : {#}) =
   switch birds {
     case (#geese) {};
   };
+
+func bad_pat() {
+  let (_, _) = 10;
+};
+
+func nested_bad_pat() {
+  let ((_, _), _) = (10, 20);
+};

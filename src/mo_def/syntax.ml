@@ -31,7 +31,10 @@ type typ_id = (string, Type.con option) Source.annotated_phrase
 
 type 'note sort = (Type.obj_sort, 'note) Source.annotated_phrase
 type typ_obj_sort = unit sort
-type persistence = bool Source.phrase
+
+type migration_chain = (string * Type.typ * Type.typ) list
+type persistence = (bool, migration_chain) Source.annotated_phrase
+
 type obj_sort = persistence sort
 type func_sort = Type.func_sort Source.phrase
 
@@ -283,6 +286,7 @@ and stab_body = stab_body' Source.phrase    (* type declarations & stable actor 
 and stab_body' =
   | Single of typ_field list
   | PrePost of (req * typ_field) list * typ_field list
+  | Multi of {chain : typ_tag list; post : typ_field list}
 and req = bool Source.phrase
 
 (* Compilation units *)
@@ -388,6 +392,13 @@ let ignore_asyncE tbs e =
     AnnotE (AsyncE (None, Type.Fut, tbs, e) @? e.at,
       AsyncT (Type.Fut, scopeT e.at, TupT [] @! e.at) @! e.at) @? e.at ) @? e.at
 
+(** An expression that corresponds to the [exp_post] parser rule,
+    i.e. can appear to the left of [.] without parenthesization. *)
+let is_postfix_exp (e : exp) = match e.it with
+  | VarE _ | LitE _ | CallE _ | DotE _
+  | IdxE _ | ProjE _ | BangE _ | ArrayE _ -> true
+  | _ -> false
+
 let is_asyncE e =
   match e.it with
   | AsyncE _ -> true
@@ -419,3 +430,15 @@ let contextual_dot_args e1 e2 dot_note =
     | { at; note = { note_eff; _ }; _ } ->
        { it = TupE ([e1; e2]); at; note = { note_eff = effect note_eff; note_typ = T.Tup ([e1.note.note_typ; e2.note.note_typ]) } }
   in args
+
+let is_import d =
+  match d.it with
+  | LetD (_, {it = ImportE _; _}, None) -> true
+  | _ -> false
+
+let split_imports prog =
+  let rec go acc = function
+    | [] -> List.rev acc, []
+    | d::ds -> if is_import d then go (d::acc) ds else List.rev acc, d::ds
+  in
+  go [] prog

@@ -1,10 +1,13 @@
-let a : actor {f : () -> (); g : () -> ()} = actor {
+let a : actor {f : () -> (); g : () -> (); type A = Int} = actor {
   public func f() : () {};
-  public func g() : () {}
+  public func g() : () {};
+  public type A = Int
 };
 
 func foo() = switch a {
   case {f; g} { () }
 };
 
-assert ((switch (foo()) { case () 0 }) == 0)
+assert (switch (foo()) { case () 0 }) == 0;
+
+let { type A } = a; // okay to import types from actor

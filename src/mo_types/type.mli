@@ -4,6 +4,7 @@ type id = string
 type lab = string
 type var = string
 type name = string
+type mig_lab = string
 
 type control = Returns | Promises | Replies
 type obj_sort = Object | Actor | Mixin | Module | Memory
@@ -328,11 +329,22 @@ val stable_sub_explained : ?src_fields : Field_sources.t -> context -> typ -> ty
 type stab_sig =
   | Single of field list
   | PrePost of (bool * field) list * field list
+  | Multi of {chain: field list; post: field list}
 
-val pre : stab_sig -> (bool * field) list
-val post : stab_sig -> field list
+val migration_lab_of_filename : string -> mig_lab
+
+val is_migration : typ -> bool
+val as_migration : typ -> (field list * field list)
+val pre_fields : typ -> ?has_initializers : bool -> field list -> (bool * field) list
+val pres : mig_lab option -> field list -> field list ->
+           (bool * field) list * (bool * field) list list
+val pre : mig_lab option -> stab_sig -> (bool * field) list
+val post : stab_sig -> field list * mig_lab option
+
+val mem_typ_of_pre : (bool * field) list -> typ
 
 val match_stab_sig : stab_sig -> stab_sig -> bool
+val match_stab_fields : field list -> (bool * field) list -> bool
 
 val string_of_stab_sig : stab_sig -> string
 
@@ -407,5 +419,3 @@ module ElideStampsAndHashes : PrettyConfig
 module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
-
-val migration_chain : (string * typ * typ) list ref

@@ -1,2 +1,3 @@
 M0028.mo:2.11-2.12: type error [M0028], field Y does not exist in type:
-  module {}
+  module {Ya : module {}}
+help: did you mean field Ya?
