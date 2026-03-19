@@ -60,9 +60,16 @@ pub struct TestRunnerArgs {
     )]
     pub accept: bool,
     #[arg(
+        long,
+        short,
         conflicts_with = "run",
+        help = "Pre-fill the interactive filter for pattern matching tests."
+    )]
+    pub filter: Option<String>,
+    #[arg(
+        conflicts_with_all = ["run", "filter"],
         trailing_var_arg = true,
-        help = "Test file paths or interactive filter. If paths end in .mo/.drun, runs in batch mode. Otherwise, used as interactive filter."
+        help = "Test file paths to run in batch mode (e.g. test/fail/foo.mo test/run/bar.mo). Shell globs are expanded."
     )]
     pub paths: Vec<String>,
 }
@@ -418,19 +425,11 @@ fn main() {
             .build_global()
             .expect("Failed to initialize global thread pool");
 
-        // Determine mode from positional args:
-        // - If any arg looks like a test file path (.mo/.drun), run in batch mode
-        // - Otherwise, use as interactive filter string
-        let has_file_paths = args.paths.iter().any(|p| {
-            p.ends_with(".mo") || p.ends_with(".drun")
-        });
-
-        if has_file_paths {
+        if !args.paths.is_empty() {
             run_batch_mode(args.paths, args.just_tc, args.accept, args.review);
         } else {
-            let filter = args.paths.first().map(|s| s.as_str()).unwrap_or("");
             run_interactive_mode(
-                filter,
+                args.filter.as_deref().unwrap_or(""),
                 args.in_file,
                 args.just_tc,
                 args.review,
