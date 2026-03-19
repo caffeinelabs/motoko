@@ -68,13 +68,25 @@ module Variant4 {
   };
 };
 
-// --- Variant with payload: Status ---
+// --- Types ---
 
 type Status = {
   #pending;
   #inProgress : { assignees : ?List.List<Text> };
   #completed : { completedAt : Nat; score : Nat };
 };
+
+type Priority = { #low; #medium; #high; #critical };
+
+type Task = {
+  id : Nat;
+  var name : Text;
+  var priority : Priority;
+  var status : Status;
+  var description : Text; // not used in comparison
+};
+
+// --- Compare functions ---
 
 module Status {
   public func compare(a : Status, b : Status) : Order {
@@ -91,10 +103,6 @@ module Status {
     );
   };
 };
-
-// --- Simple enum variant: Priority ---
-
-type Priority = { #low; #medium; #high; #critical };
 
 module Priority {
   public func compare(a : Priority, b : Priority) : Order {
@@ -113,23 +121,19 @@ module Priority {
   };
 };
 
-// --- Record type: Task (contains both variant types) ---
-
-type Task = {
-  id : Nat;
-  var name : Text;
-  var priority : Priority;
-  var status : Status;
-  var description : Text; // not used in comparison
-};
-
 module Task {
   public func compare(a : Task, b : Task) : Order {
     Order.compareBy(a, b, func(t) { (t.priority, t.status, t.id, t.name) });
   };
 };
 
-// --- Sorting with Array.sort (implicit Task.compare) ---
+module TaskByStatus {
+  public func compare(a : Task, b : Task) : Order {
+    Order.compareBy(a, b, func(t) { (t.status, t.priority, t.id) });
+  };
+};
+
+// --- Tests ---
 
 let tasks : [Task] = [
   {
@@ -178,22 +182,14 @@ let tasks : [Task] = [
   },
 ];
 
-// --- Alternative compare: pending first, then by priority ---
-
-module TaskByStatus {
-  public func compare(a : Task, b : Task) : Order {
-    Order.compareBy(a, b, func(t) { (t.status, t.priority, t.id) });
-  };
-};
-
 // Two compare functions exist for Task, so we must pass explicitly
 
 let sorted = Array.sort<Task>(tasks, Task.compare);
 
 assert sorted[0].name == "Write docs"; // low
 assert sorted[1].name == "Review PR"; // medium
-assert sorted[2].name == "Refactor"; // high, inProgress (null assignee)
-assert sorted[3].name == "Add tests"; // high, inProgress (?Alice)
+assert sorted[2].name == "Refactor"; // high, inProgress (null assignees)
+assert sorted[3].name == "Add tests"; // high, inProgress (?[Alice, Bob])
 assert sorted[4].name == "Deploy"; // critical, pending
 assert sorted[5].name == "Fix crash"; // critical, completed
 
@@ -201,8 +197,8 @@ let byStatus = Array.sort<Task>(tasks, TaskByStatus.compare);
 
 assert byStatus[0].name == "Write docs"; // pending, low
 assert byStatus[1].name == "Deploy"; // pending, critical
-assert byStatus[2].name == "Refactor"; // inProgress, null assignee
-assert byStatus[3].name == "Add tests"; // inProgress, ?Alice
+assert byStatus[2].name == "Refactor"; // inProgress, null assignees
+assert byStatus[3].name == "Add tests"; // inProgress, ?[Alice, Bob]
 assert byStatus[4].name == "Review PR"; // completed, medium
 assert byStatus[5].name == "Fix crash"; // completed, critical
 
