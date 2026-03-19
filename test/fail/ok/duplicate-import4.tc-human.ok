@@ -1,0 +1,4 @@
+error[M0017]: duplicate binding for type T in imports
+    ┌─ duplicate-import4.mo:2:1
+  2 │  import { Inner = { type T } } "duplicate-import/B";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
