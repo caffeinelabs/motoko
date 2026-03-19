@@ -133,6 +133,83 @@ module TaskByStatus {
   };
 };
 
+module WithoutImplicitDerivation {
+  module Status {
+    public func compare(a : Status, b : Status) : Order {
+      switch (a, b) {
+        case (#pending, #pending) #equal;
+        case (#pending, _) #less;
+        case (_, #pending) #greater;
+        case (#inProgress r1, #inProgress r2) {
+          switch (r1.assignees, r2.assignees) {
+            case (null, null) #equal;
+            case (null, _) #less;
+            case (_, null) #greater;
+            case (?l1, ?l2) List.compare<Text>(l1, l2, Text.compare);
+          };
+        };
+        case (#inProgress _, _) #less;
+        case (_, #inProgress _) #greater;
+        case (#completed r1, #completed r2) {
+          switch (Nat.compare(r1.completedAt, r2.completedAt)) {
+            case (#equal) Nat.compare(r1.score, r2.score);
+            case (ord) ord;
+          };
+        };
+      };
+    };
+  };
+
+  module Priority {
+    public func compare(a : Priority, b : Priority) : Order {
+      switch (a, b) {
+        case (#low, #low) #equal;
+        case (#low, _) #less;
+        case (_, #low) #greater;
+        case (#medium, #medium) #equal;
+        case (#medium, _) #less;
+        case (_, #medium) #greater;
+        case (#high, #high) #equal;
+        case (#high, _) #less;
+        case (_, #high) #greater;
+        case (#critical, #critical) #equal;
+      };
+    };
+  };
+
+  module Task {
+    public func compare(a : Task, b : Task) : Order {
+      switch (Priority.compare(a.priority, b.priority)) {
+        case (#equal) switch (Status.compare(a.status, b.status)) {
+          case (#equal) switch (Nat.compare(a.id, b.id)) {
+            case (#equal) Text.compare(a.name, b.name);
+            case (ord) ord;
+          };
+          case (ord) ord;
+        };
+        case (ord) ord;
+      };
+    };
+  };
+
+  module TaskByStatus {
+    public func compare(a : Task, b : Task) : Order {
+      switch (Status.compare(a.status, b.status)) {
+        case (#equal) switch (Priority.compare(a.priority, b.priority)) {
+          case (#equal) Nat.compare(a.id, b.id);
+          case (ord) ord;
+        };
+        case (ord) ord;
+      };
+    };
+  };
+
+  public func taskCompare(a : Task, b : Task) : Order { Task.compare(a, b) };
+  public func taskByStatusCompare(a : Task, b : Task) : Order {
+    TaskByStatus.compare(a, b);
+  };
+};
+
 // --- Tests ---
 
 let tasks : [Task] = [
@@ -201,5 +278,13 @@ assert byStatus[2].name == "Refactor"; // inProgress, null assignees
 assert byStatus[3].name == "Add tests"; // inProgress, ?[Alice, Bob]
 assert byStatus[4].name == "Review PR"; // completed, medium
 assert byStatus[5].name == "Fix crash"; // completed, critical
+
+// Verify manual compare functions produce the same results
+
+let sorted2 = Array.sort<Task>(tasks, WithoutImplicitDerivation.taskCompare);
+for (i in sorted.keys()) { assert sorted[i].id == sorted2[i].id };
+
+let byStatus2 = Array.sort<Task>(tasks, WithoutImplicitDerivation.taskByStatusCompare);
+for (i in byStatus.keys()) { assert byStatus[i].id == byStatus2[i].id };
 
 //SKIP comp
