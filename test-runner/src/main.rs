@@ -280,7 +280,7 @@ struct SingleTestResult {
 fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTestResult {
     let mode_flag = if just_tc {
         Some('t')
-    } else if test_name.contains("/run-drun/") || test_name.ends_with(".drun") {
+    } else if test_name.contains("/run-drun/") {
         Some('d')
     } else if test_name.contains("/fail/") {
         Some('t')
@@ -309,10 +309,10 @@ fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTest
     });
 
     SingleTestResult {
-        success: running_test.status.success(),
+        success: running_test.clone().status.success(),
         stdout: String::from_utf8_lossy(&running_test.stdout).to_string(),
         stderr: String::from_utf8_lossy(&running_test.stderr).to_string(),
-        test_name,
+        test_name: test_name.clone(),
     }
 }
 
