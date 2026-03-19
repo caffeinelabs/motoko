@@ -68,7 +68,6 @@ pub struct TestRunnerArgs {
     pub accept: bool,
     #[arg(
         conflicts_with_all = ["run", "filter"],
-        trailing_var_arg = true,
         help = "Run test files directly without interactive selection (e.g. test/fail/foo*.mo). Must be run from repo root. Shell globs are expanded. Use with -a to accept changes."
     )]
     pub paths: Vec<String>,
