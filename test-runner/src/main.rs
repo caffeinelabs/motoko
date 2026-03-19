@@ -278,40 +278,26 @@ struct SingleTestResult {
 }
 
 fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTestResult {
-    let test_arg_selector = || {
-        if just_tc {
-            "-t"
-        } else if test_name.contains("/run/") {
-            " "
-        } else if test_name.contains("/run-drun/") {
-            "-d"
-        } else if test_name.contains("/fail/") {
-            "-t"
-        } else {
-            " "
-        }
+    let mode_flag = if just_tc {
+        Some('t')
+    } else if test_name.contains("/run-drun/") {
+        Some('d')
+    } else if test_name.contains("/fail/") {
+        Some('t')
+    } else {
+        None
     };
 
-    // Build the combined flags string (e.g. "-at", "-ad", "-a", "-t", "-d")
-    let flags: String = {
-        let mut f = String::from("-");
-        if accept {
-            f.push('a');
-        }
-        let selector = test_arg_selector();
-        if selector != " " {
-            f.push_str(selector.trim_start_matches('-'));
-        }
-        if f == "-" {
-            String::new() // no flags needed
-        } else {
-            f
-        }
+    let flags: Option<String> = match (accept, mode_flag) {
+        (true, Some(m)) => Some(format!("-a{m}")),
+        (true, None) => Some("-a".to_string()),
+        (false, Some(m)) => Some(format!("-{m}")),
+        (false, None) => None,
     };
 
     let mut cmd = Command::new("test/run.sh");
-    if !flags.is_empty() {
-        cmd.arg(&flags);
+    if let Some(f) = &flags {
+        cmd.arg(f);
     }
     cmd.arg(&test_name);
 
