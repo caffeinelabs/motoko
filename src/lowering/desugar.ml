@@ -47,12 +47,18 @@ let typed_phrase' f x =
 let is_empty_tup e = e.it = S.TupE []
 
 (* RTS migration tracking primitives *)
-let rts_was_migration_performed mig_lab =
-  primE (I.OtherPrim "was_migration_performed") [textE mig_lab]
 
-let rts_register_migration mig_lab =
-  primE (I.OtherPrim "register_migration") [textE mig_lab]
+let rts_was_migration_performed migration_id =
+  let v = fresh_var "migrations" T.text in
+  switch_optE (primE (I.OtherPrim "get_migrations") [])
+    (falseE())
+    (tupP [varP v; wildP])
+    (primE (Ir.RelPrim (T.text, Operator.EqOp)) [varE v; textE migration_id])
+    T.bool
 
+let rts_register_migration migration_id =
+  primE (I.OtherPrim "set_migrations")
+    [optE(tupE [textE migration_id; primE (I.OtherPrim "get_migrations") []])]
 
 let unit_typ at = { it = S.TupT []; at; note = T.unit }
 

@@ -1269,8 +1269,8 @@ module RTS = struct
     E.add_func_import env "rts" "weak_ref_is_live" [I64Type] [I32Type];
     E.add_func_import env "rts" "get_dedup_table" [] [I64Type];
     E.add_func_import env "rts" "set_dedup_table" [I64Type] [];
-    E.add_func_import env "rts" "register_migration" [I64Type] [];
-    E.add_func_import env "rts" "was_migration_performed" [I64Type] [I32Type];
+    E.add_func_import env "rts" "get_migrations" [] [I64Type];
+    E.add_func_import env "rts" "set_migrations" [I64Type] [];
     ()
 
 end (* RTS *)
@@ -12212,16 +12212,14 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae dedup_table ^^
     E.call_import env "rts" "set_dedup_table"
 
-  | OtherPrim "register_migration", [hash] ->
-    SR.unit,
-    compile_exp_vanilla env ae hash ^^
-    E.call_import env "rts" "register_migration"
-
-  | OtherPrim "was_migration_performed", [hash] ->
+  | OtherPrim "get_migrations", [] ->
     SR.Vanilla,
-    compile_exp_vanilla env ae hash ^^
-    E.call_import env "rts" "was_migration_performed" ^^
-    Bool.from_rts_int32
+    E.call_import env "rts" "get_migrations"
+
+  | OtherPrim "set_migrations", [pointer] ->
+    SR.unit,
+    compile_exp_vanilla env ae pointer ^^
+    E.call_import env "rts" "set_migrations"
 
   (* Regions *)
 

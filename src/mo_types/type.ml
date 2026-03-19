@@ -349,7 +349,11 @@ let error = Prim Error
 let char = Prim Char
 let principal = Prim Principal
 let region = Prim Region
-
+let text_list =
+  (* TextList = ?(Text, TextList) *)
+  let c = Cons.fresh "TextList" (Abs([],Pre)) in
+  set_kind c (Def([], Opt(Tup [text; Con(c, [])])));
+  Con(c, [])
 
 let fields flds =
   List.sort compare_field

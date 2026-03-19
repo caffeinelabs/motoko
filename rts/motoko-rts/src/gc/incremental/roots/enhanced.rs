@@ -39,8 +39,8 @@ pub unsafe fn visit_roots<C, V: Fn(&mut C, *mut Value)>(
             visit_field(context, dedup_table);
         }
 
-        // Always visit the migration functions array as well.
-        // Otherwise the migration functions array will be garbage collected.
+        // Always visit the migration functions list as well.
+        // Otherwise the migration functions list will be garbage collected.
         use crate::persistence::get_migration_functions_ptr;
         let migration_functions = get_migration_functions_ptr();
         if migration_functions.is_non_null_ptr() {

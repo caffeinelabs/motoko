@@ -104,6 +104,8 @@ val blob : typ
 val error : typ
 val char : typ
 val principal : typ
+val text_list : typ
+
 val region : typ
 val heartbeat_type : typ
 val timer_type : typ
