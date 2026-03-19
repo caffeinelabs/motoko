@@ -1,0 +1,4 @@
+error[M0017]: duplicate binding for f in imports
+    ┌─ duplicate-import1.mo:2:1
+  2 │  import { f } "duplicate-import/B";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
