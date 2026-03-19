@@ -63,7 +63,7 @@ pub struct TestRunnerArgs {
         short,
         long,
         conflicts_with = "run",
-        help = "Accept changed test outputs (update ok/ files). Auto-detected flags: fail/ uses -t, run-drun/ uses -d."
+        help = "Accept changed test outputs (update ok/ files)."
     )]
     pub accept: bool,
     #[arg(
