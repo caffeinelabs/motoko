@@ -190,11 +190,9 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
       let full_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
       add_idl_import msgs imported ri_ref at full_path (Either.Right bytes)
   in
-  let resolve_env envvar = match actor_idl_path with
-    | None -> err_actor_import_without_idl_path msgs at
-    | Some actor_base ->
-      let full_path = in_base actor_base (Url.idl_basename_of_envvar envvar) in
-      add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
+  let resolve_env (envvar, did_path) =
+    let full_path = Lib.FilePath.normalise did_path in
+    add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
@@ -216,7 +214,7 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
   | Ok (Url.IcAlias alias) ->
     begin match M.find_opt alias aliases with
     | Some (Either.Right bytes) -> resolve_ic bytes
-    | Some (Either.Left envvar) -> resolve_env envvar
+    | Some (Either.Left (envvar, did_path)) -> resolve_env (envvar, did_path)
     | None -> err_alias_not_defined msgs at alias
     end
   | Ok (Url.FileValue path) ->
@@ -235,10 +233,10 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   else (err_package_file_does_not_exist msgs f pname;"")
 
 (* Resolve the argument to `--actor-alias` and `--actor-env-alias`. Check eagerly for well-formedness *)
-let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar, url) Either.t) : (envvar, blob) Either.t =
+let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url) Either.t) : (envvar * filepath, blob) Either.t =
   let open Either in match f with
-  | Left v ->
-    Left (if Lib.Utf8.is_valid v then v else failwith "FIXME")
+  | Left (v, p) ->
+    Left (if Lib.Utf8.is_valid v then (v, p) else failwith "FIXME")
   | Right f ->
     Right (match Url.decode_principal f with
     | Ok bytes ->
@@ -257,8 +255,8 @@ let prog_imports (p : prog): (url * resolved_import ref * region) list =
 
 type actor_idl_path = filepath option
 type package_urls = url M.t
-type actor_aliases = (envvar, url) Either.t M.t
-type aliases = (envvar, blob) Either.t M.t
+type actor_aliases = (envvar * filepath, url) Either.t M.t
+type aliases = (envvar * filepath, blob) Either.t M.t
 
 
 let resolve_packages : package_urls -> package_map Diag.result = fun purls ->

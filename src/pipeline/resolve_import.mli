@@ -8,7 +8,7 @@ module RIM : Map.S with type key = Syntax.resolved_import
 
 type actor_idl_path = string option
 type package_urls = string Flags.M.t
-type actor_aliases = (string, string) Either.t Flags.M.t
+type actor_aliases = (string * string, string) Either.t Flags.M.t
 
 type resolved_imports = Syntax.resolved_import Source.phrase list
 
@@ -24,7 +24,7 @@ type flags = {
 type package_map = filepath Flags.M.t
 type blob = string
 type envvar = string
-type aliases = (envvar, blob) Either.t Flags.M.t
+type aliases = (envvar * filepath, blob) Either.t Flags.M.t
 type resolved_flags = {
   packages : package_map;
   aliases : aliases;

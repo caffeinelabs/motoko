@@ -1,5 +1,4 @@
-//MOC-FLAG --actor-idl env-principal
-//MOC-FLAG --actor-env-alias management management
+//MOC-FLAG --actor-env-alias management management env-principal/management.did
 
 import { principalOfActor; debugPrint } = "mo:⛔";
 import Management "canister:management";

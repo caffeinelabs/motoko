@@ -1,5 +1,4 @@
-//MOC-FLAG --actor-idl no-env-principal
-//MOC-FLAG --actor-env-alias management management
+//MOC-FLAG --actor-env-alias management management no-env-principal/management.did
 
 import _Management "canister:management";
 
