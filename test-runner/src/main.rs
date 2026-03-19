@@ -85,7 +85,9 @@ fn run_legacy_mode(subnet_type: SubnetType) {
 
 /// The program offers the user a list of tests to choose from.
 /// A summary of the results of the tests is then printed out.
-fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do_review: bool, accept: bool) {
+fn run_interactive_mode(args: &TestRunnerArgs) {
+    let input_str = args.filter.as_deref().unwrap_or("");
+    let search_in_file = args.in_file;
     let test_dirs = ["test/run-drun", "test/run", "test/fail"];
 
     let load_file_contents = |path: &String| {
@@ -207,7 +209,7 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
     };
 
     let test_paths: Vec<String> = selection.into_iter().map(|t| t.path).collect();
-    run_tests(test_paths, just_tc, accept, do_review);
+    run_tests(test_paths, args);
 }
 
 fn print_summary(test_results: &[SingleTestResult], duration: Duration) {
@@ -241,8 +243,8 @@ struct SingleTestResult {
     test_name: String,
 }
 
-fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTestResult {
-    let mode_flag = if just_tc {
+fn run_single_test(test_name: String, args: &TestRunnerArgs) -> SingleTestResult {
+    let mode_flag = if args.just_tc {
         Some('t')
     } else if test_name.contains("/run-drun/") {
         Some('d')
@@ -252,7 +254,7 @@ fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTest
         None
     };
 
-    let flags: Option<String> = match (accept, mode_flag) {
+    let flags: Option<String> = match (args.accept, mode_flag) {
         (true, Some(m)) => Some(format!("-a{m}")),
         (true, None) => Some("-a".to_string()),
         (false, Some(m)) => Some(format!("-{m}")),
@@ -273,7 +275,7 @@ fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTest
     });
 
     SingleTestResult {
-        success: running_test.clone().status.success(),
+        success: running_test.status.success(),
         stdout: String::from_utf8_lossy(&running_test.stdout).to_string(),
         stderr: String::from_utf8_lossy(&running_test.stderr).to_string(),
         test_name: test_name.clone(),
@@ -281,7 +283,7 @@ fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTest
 }
 
 /// Run tests in parallel with progress bar, print summary, and optionally review failures.
-fn run_tests(test_paths: Vec<String>, just_tc: bool, accept: bool, do_review: bool) {
+fn run_tests(test_paths: Vec<String>, args: &TestRunnerArgs) {
     let pb = ProgressBar::new(test_paths.len() as u64);
     pb.set_style(
         ProgressStyle::with_template(
@@ -298,7 +300,7 @@ fn run_tests(test_paths: Vec<String>, just_tc: bool, accept: bool, do_review: bo
         .map(|test_path| {
             let pb_clone = Arc::clone(&pb_arc);
             pb_clone.set_message(format!("Running {test_path}"));
-            let result = run_single_test(test_path, just_tc, accept);
+            let result = run_single_test(test_path, args);
             pb_clone.inc(1);
             result
         })
@@ -307,7 +309,7 @@ fn run_tests(test_paths: Vec<String>, just_tc: bool, accept: bool, do_review: bo
     pb_arc.finish_and_clear();
     print_summary(&test_results, duration);
 
-    if do_review {
+    if args.review {
         let failed_paths: Vec<String> = test_results
             .iter()
             .filter(|t| !t.success)
@@ -324,9 +326,9 @@ fn run_tests(test_paths: Vec<String>, just_tc: bool, accept: bool, do_review: bo
 }
 
 /// Non-interactive batch mode: run the given test files in parallel.
-fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bool) {
-    let test_files: Vec<String> = paths
-        .into_iter()
+fn run_batch_mode(args: &TestRunnerArgs) {
+    let test_files: Vec<String> = args.paths.iter()
+        .cloned()
         .filter(|p| p.ends_with(".mo") || p.ends_with(".drun"))
         .collect();
 
@@ -337,7 +339,7 @@ fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bo
     }
 
     println!("Running {} tests...", test_files.len());
-    run_tests(test_files, just_tc, accept, do_review);
+    run_tests(test_files, args);
 }
 
 fn main() {
@@ -369,15 +371,9 @@ fn main() {
             .expect("Failed to initialize global thread pool");
 
         if !args.paths.is_empty() {
-            run_batch_mode(args.paths, args.just_tc, args.accept, args.review);
+            run_batch_mode(&args);
         } else {
-            run_interactive_mode(
-                args.filter.as_deref().unwrap_or(""),
-                args.in_file,
-                args.just_tc,
-                args.review,
-                args.accept,
-            );
+            run_interactive_mode(&args);
         }
     }
 }
