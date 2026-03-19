@@ -206,43 +206,8 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
         std::process::exit(1);
     };
 
-    let pb = ProgressBar::new(selection.len() as u64);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} tests finished ({msg})",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-    );
-    let pb_arc = Arc::new(pb);
-
-    let start_time = Instant::now();
-    let test_results: Vec<SingleTestResult> = selection
-        .into_par_iter()
-        .map(|test_path| {
-            let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
-
-            pb_clone.set_message(format!("Running {test_path}"));
-            let result = run_single_test(test_path.path, just_tc, accept);
-
-            pb_clone.inc(1);
-            result
-        })
-        .collect();
-    let duration = start_time.elapsed();
-    pb_arc.finish_and_clear();
-    print_summary(&test_results, duration);
-
-    if do_review {
-        let failed_paths: Vec<String> = test_results
-            .iter()
-            .filter(|t| !t.success)
-            .map(|t| t.test_name.clone())
-            .collect();
-        if !failed_paths.is_empty() {
-            review::run_review_for_tests(&failed_paths);
-        }
-    }
+    let test_paths: Vec<String> = selection.into_iter().map(|t| t.path).collect();
+    run_tests(test_paths, just_tc, accept, do_review);
 }
 
 fn print_summary(test_results: &[SingleTestResult], duration: Duration) {
@@ -315,22 +280,9 @@ fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTest
     }
 }
 
-/// Non-interactive batch mode: run the given test files in parallel.
-fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bool) {
-    let test_files: Vec<String> = paths
-        .into_iter()
-        .filter(|p| p.ends_with(".mo") || p.ends_with(".drun"))
-        .collect();
-
-    if test_files.is_empty() {
-        println!("No test files found matching the given paths.");
-        println!("Hint: paths should point to .mo or .drun files (e.g. test/fail/foo.mo)");
-        std::process::exit(1);
-    }
-
-    println!("Running {} tests...", test_files.len());
-
-    let pb = ProgressBar::new(test_files.len() as u64);
+/// Run tests in parallel with progress bar, print summary, and optionally review failures.
+fn run_tests(test_paths: Vec<String>, just_tc: bool, accept: bool, do_review: bool) {
+    let pb = ProgressBar::new(test_paths.len() as u64);
     pb.set_style(
         ProgressStyle::with_template(
             "[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} tests finished ({msg})",
@@ -341,7 +293,7 @@ fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bo
     let pb_arc = Arc::new(pb);
 
     let start_time = Instant::now();
-    let test_results: Vec<SingleTestResult> = test_files
+    let test_results: Vec<SingleTestResult> = test_paths
         .into_par_iter()
         .map(|test_path| {
             let pb_clone = Arc::clone(&pb_arc);
@@ -369,6 +321,23 @@ fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bo
     if test_results.iter().any(|t| !t.success) {
         std::process::exit(1);
     }
+}
+
+/// Non-interactive batch mode: run the given test files in parallel.
+fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bool) {
+    let test_files: Vec<String> = paths
+        .into_iter()
+        .filter(|p| p.ends_with(".mo") || p.ends_with(".drun"))
+        .collect();
+
+    if test_files.is_empty() {
+        println!("No test files found matching the given paths.");
+        println!("Hint: paths should point to .mo or .drun files (e.g. test/fail/foo.mo)");
+        std::process::exit(1);
+    }
+
+    println!("Running {} tests...", test_files.len());
+    run_tests(test_files, just_tc, accept, do_review);
 }
 
 fn main() {
