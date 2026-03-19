@@ -1586,7 +1586,7 @@ let render_derivation_leaves env = function
   let lines = List.map (fun l -> "\n  " ^ l) leaves in
   ["Implicit derivation failed:" ^ String.concat "" lines]
 
-let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
+let synthesize_derived_wrapper ~name at candidate_path cand_args resolved_paths =
   let mk e = { Source.it = e; at; note = empty_typ_note } in
   let param_counter = ref 0 in
   let fresh_name () =
@@ -1627,7 +1627,7 @@ let synthesize_derived_wrapper at candidate_path cand_args resolved_paths =
   let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
   let call_body = mk (CallE (None, candidate_path, inst_node, (false, ref call_arg_exp))) in
   let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
-  mk (FuncE ("$derived", sort_pat, [], pat, None, false, call_body))
+  mk (FuncE (name, sort_pat, [], pat, None, false, call_body))
 
 (** Checks [args -> rets <: req_args -> req_rets] via subtyping or
     bidirectional matching when [tbs] are present. Returns [Some inst] or [None]. *)
@@ -1646,6 +1646,23 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
     with Bi_match.Bimatch _ -> None
 
 module ImplicitHoles = struct
+  type rec_entry = {
+    name : string;
+    entry_sort : hole_sort;
+    entry_typ : T.typ;
+    mutable func_exp : exp option;
+  }
+
+  let find_matching_entry env rec_bindings hole_sort hole_typ =
+    List.find_opt (fun entry ->
+      match entry.entry_sort, hole_sort with
+      | Named n1, Named n2 ->
+        n1 = n2 &&
+        (try T.eq ~src_fields:env.srcs entry.entry_typ hole_typ
+         with T.Undecided -> false) (* deeply recursive types: conservatively no match *)
+      | _ -> false
+    ) !rec_bindings
+
   type ctx = {
     hole_sort : hole_sort;
     hole_typ : T.typ;
@@ -1798,6 +1815,9 @@ module ImplicitHoles = struct
             "Consider renaming `%s` to `%s.%s` in %s module `%s`. Then it can serve as an implicit argument `%s` in this call:\n%s%s"
             (desc_of_candidate candidate) mid id mod_desc mid id call_region call_src)
 
+  let mk_var_exp name at =
+    { Source.it = VarE { Source.it = name; at = Source.no_region; note = (Const, None) }; at; note = empty_typ_note }
+
   (** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
       Returns [Ok(candidate)] when a single resolution is
       found, [Error(file_paths)] when no resolution was found, but a
@@ -1806,18 +1826,30 @@ module ImplicitHoles = struct
       When direct resolution fails, attempts implicit derivation from
       polymorphic candidates whose inner implicits can be recursively resolved
       (up to [Flags.implicit_derivation_depth]).
+      Detects recursive derivation cycles via [rec_bindings] and generates
+      self-referential wrapper functions.
   *)
-  let rec resolve_hole ~depth env at hole_sort hole_typ =
+  let rec resolve_hole ~depth ~rec_bindings env at hole_sort hole_typ =
+
+    match find_matching_entry env rec_bindings hole_sort hole_typ with
+    | Some entry ->
+      Ok { path = mk_var_exp entry.name at; typ = hole_typ;
+           module_ref_opt = None; id = entry.name; region = at }
+    | None ->
 
     let commit_derivation ~depth ((h : func_with_holes), (candidate : hole_candidate)) =
+      let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
+      let entry = { name = my_rec_name; entry_sort = hole_sort; entry_typ = hole_typ; func_exp = None } in
+      rec_bindings := entry :: !rec_bindings;
       let failed, resolved = h.holes |> List.partition_map (fun (name, inner_typ) ->
-        match resolve_hole ~depth:(depth + 1) env at (Named name) inner_typ with
+        match resolve_hole ~depth:(depth + 1) ~rec_bindings env at (Named name) inner_typ with
         | Error err -> Either.Left (name, inner_typ, err)
         | Ok ok -> Either.Right (name, inner_typ, ok)) in
       if failed = [] then
         let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
-        let wrapper = synthesize_derived_wrapper at candidate.path h.cand_args resolved_paths in
-        Ok { candidate with path = wrapper; typ = hole_typ }
+        let wrapper = synthesize_derived_wrapper ~name:my_rec_name at candidate.path h.cand_args resolved_paths in
+        entry.func_exp <- Some wrapper;
+        Ok { candidate with path = mk_var_exp my_rec_name at; typ = hole_typ }
       else
         Error (candidate, InnerErrors failed)
     in
@@ -1896,7 +1928,36 @@ module ImplicitHoles = struct
 
 end
 
-let resolve_hole env = ImplicitHoles.resolve_hole ~depth:0 env
+let resolve_hole env at hole_sort hole_typ =
+  let rec_bindings = ref [] in
+  let result =
+    ImplicitHoles.resolve_hole ~depth:0 ~rec_bindings
+      env at hole_sort hole_typ
+  in
+  let open ImplicitHoles in
+  Result.map (fun candidate ->
+    let bindings = !rec_bindings
+      |> List.rev
+      |> List.map (fun entry ->
+           match entry.func_exp with
+           | Some e -> (entry.name, entry.entry_typ, e)
+           | None -> assert false) in
+    (candidate, bindings)
+  ) result
+
+let mk_recursive_block at bindings outermost_path hole_typ =
+  let nr = Source.no_region in
+  let mk_dec typ d =
+    { Source.it = d; at; note = {empty_typ_note with note_typ = typ} } in
+  let mk_pat name typ =
+    { Source.it = VarP { Source.it = name; at = nr; note = () };
+      at = nr; note = typ } in
+  let let_decs = List.map (fun (name, typ, func_exp) ->
+    mk_dec typ (LetD (mk_pat name typ, func_exp, None))
+  ) bindings in
+  let exp_dec = mk_dec hole_typ (ExpD outermost_path) in
+  { Source.it = BlockE (let_decs @ [exp_dec]);
+    at; note = {empty_typ_note with note_typ = hole_typ; note_eff = T.Triv} }
 
 type ctx_dot_candidate =
   { module_ref : T.lab option; (* optional module reference : name (from `vals`) or path (from `libs`) *)
@@ -2941,9 +3002,19 @@ and check_hole env at hole_sort hole_typ exp_ref =
     | Anon idx -> "at position " ^ (Int.to_string idx)
   in
   match resolve_hole env at hole_sort hole_typ with
-  | Ok {path; _} ->
+  | Ok ({path; _}, []) ->
     exp_ref := path;
     check_exp env hole_typ path
+  | Ok ({path; _}, bindings) ->
+    let env_rec = List.fold_left (fun env (name, typ, _) ->
+      { env with vals = T.Env.add name
+          (typ, Source.no_region, Scope.Declaration, Available) env.vals }
+    ) env bindings in
+    List.iter (fun (_, typ, func_exp) ->
+      check_exp env_rec typ func_exp
+    ) bindings;
+    check_exp env_rec hole_typ path;
+    exp_ref := mk_recursive_block at bindings path hole_typ
   | Error (HoleAmbiguous { ambiguous_candidates; explicit_candidates }) ->
     let descs = List.map desc_of_candidate ambiguous_candidates in
     let notes = Printf.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " descs) ::
@@ -3185,7 +3256,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
              | Some name ->
                 match resolve_hole env arg.at (match name with "_" -> Anon pos | id -> Named id) typ with
                 | Error _ -> acc
-                | Ok {path;_} ->
+                | Ok ({path;_}, _) ->
                    match path.it, arg.it with
                    | VarE {it = id0; _},
                      VarE {it = id1; note = (Const, _); _}
