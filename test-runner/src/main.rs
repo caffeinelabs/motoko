@@ -63,13 +63,13 @@ pub struct TestRunnerArgs {
         long,
         short,
         conflicts_with = "run",
-        help = "Pre-fill the interactive filter for pattern matching tests."
+        help = "Open interactive mode with the filter pre-filled (e.g. -f implicit-derivation). You select which matched tests to run."
     )]
     pub filter: Option<String>,
     #[arg(
         conflicts_with_all = ["run", "filter"],
         trailing_var_arg = true,
-        help = "Test file paths to run in batch mode (e.g. test/fail/foo.mo test/run/bar.mo). Shell globs are expanded."
+        help = "Run test files directly without interactive selection (e.g. test/fail/foo*.mo). Shell globs are expanded. Use with -a to accept changes."
     )]
     pub paths: Vec<String>,
 }
