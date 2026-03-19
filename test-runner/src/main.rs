@@ -30,8 +30,10 @@ pub struct TestRunnerArgs {
     #[arg(long, requires = "run", default_value = "system")]
     pub subnet_type: SubnetType,
     #[arg(
+        long,
+        short,
         conflicts_with = "run",
-        help = "Allows user to filter and pattern match tests and run them in parallel."
+        help = "Open interactive mode with the filter pre-filled (e.g. -f implicit-derivation). You select which matched tests to run."
     )]
     pub filter: Option<String>,
     #[arg(
@@ -57,6 +59,19 @@ pub struct TestRunnerArgs {
         help = "Test directory to review (e.g. test/fail). Can be repeated. If omitted, all test dirs are scanned."
     )]
     pub dir: Vec<String>,
+    #[arg(
+        short,
+        long,
+        conflicts_with = "run",
+        help = "Accept changed test outputs (update ok/ files). Auto-detected flags: fail/ uses -t, run-drun/ uses -d."
+    )]
+    pub accept: bool,
+    #[arg(
+        conflicts_with_all = ["run", "filter"],
+        trailing_var_arg = true,
+        help = "Run test files directly without interactive selection (e.g. test/fail/foo*.mo). Must be run from repo root. Shell globs are expanded. Use with -a to accept changes."
+    )]
+    pub paths: Vec<String>,
 }
 
 /// The program reads stdin where the .drun file contents are piped in.
@@ -71,7 +86,7 @@ fn run_legacy_mode(subnet_type: SubnetType) {
 
 /// The program offers the user a list of tests to choose from.
 /// A summary of the results of the tests is then printed out.
-fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do_review: bool) {
+fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do_review: bool, accept: bool) {
     let test_dirs = ["test/run-drun", "test/run", "test/fail"];
 
     let load_file_contents = |path: &String| {
@@ -209,7 +224,7 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
             let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
 
             pb_clone.set_message(format!("Running {test_path}"));
-            let result = run_single_test(test_path.path, just_tc);
+            let result = run_single_test(test_path.path, just_tc, accept);
 
             pb_clone.inc(1);
             result
@@ -262,41 +277,98 @@ struct SingleTestResult {
     test_name: String,
 }
 
-fn run_single_test(test_name: String, just_tc: bool) -> SingleTestResult {
-    let test_arg_selector = || {
-        if just_tc {
-            "-t"
-        } else if test_name.contains("/run/") {
-            " "
-        } else if test_name.contains("/run-drun/") {
-            "-d"
-        } else if test_name.contains("/fail/") {
-            "-t"
-        } else {
-            " "
-        }
+fn run_single_test(test_name: String, just_tc: bool, accept: bool) -> SingleTestResult {
+    let mode_flag = if just_tc {
+        Some('t')
+    } else if test_name.contains("/run-drun/") {
+        Some('d')
+    } else if test_name.contains("/fail/") {
+        Some('t')
+    } else {
+        None
     };
-    let running_test = Command::new("test/run.sh")
-        // If the arg selector outputs empty string (" "), we don't give any args.
-        .args(if test_arg_selector().eq(" ") {
-            None
-        } else {
-            Some(test_arg_selector())
-        })
-        .arg(test_name.clone())
-        .output()
-        .unwrap_or_else(|_| {
-            panic!(
-                "OS-related error. Failed to run test: {:?}.",
-                test_name.as_str()
-            )
-        });
+
+    let flags: Option<String> = match (accept, mode_flag) {
+        (true, Some(m)) => Some(format!("-a{m}")),
+        (true, None) => Some("-a".to_string()),
+        (false, Some(m)) => Some(format!("-{m}")),
+        (false, None) => None,
+    };
+
+    let mut cmd = Command::new("test/run.sh");
+    if let Some(f) = &flags {
+        cmd.arg(f);
+    }
+    cmd.arg(&test_name);
+
+    let running_test = cmd.output().unwrap_or_else(|_| {
+        panic!(
+            "OS-related error. Failed to run test: {:?}.",
+            test_name.as_str()
+        )
+    });
 
     SingleTestResult {
         success: running_test.clone().status.success(),
         stdout: String::from_utf8_lossy(&running_test.stdout).to_string(),
         stderr: String::from_utf8_lossy(&running_test.stderr).to_string(),
         test_name: test_name.clone(),
+    }
+}
+
+/// Non-interactive batch mode: run the given test files in parallel.
+fn run_batch_mode(paths: Vec<String>, just_tc: bool, accept: bool, do_review: bool) {
+    let test_files: Vec<String> = paths
+        .into_iter()
+        .filter(|p| p.ends_with(".mo") || p.ends_with(".drun"))
+        .collect();
+
+    if test_files.is_empty() {
+        println!("No test files found matching the given paths.");
+        println!("Hint: paths should point to .mo or .drun files (e.g. test/fail/foo.mo)");
+        std::process::exit(1);
+    }
+
+    println!("Running {} tests...", test_files.len());
+
+    let pb = ProgressBar::new(test_files.len() as u64);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} tests finished ({msg})",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+    let pb_arc = Arc::new(pb);
+
+    let start_time = Instant::now();
+    let test_results: Vec<SingleTestResult> = test_files
+        .into_par_iter()
+        .map(|test_path| {
+            let pb_clone = Arc::clone(&pb_arc);
+            pb_clone.set_message(format!("Running {test_path}"));
+            let result = run_single_test(test_path, just_tc, accept);
+            pb_clone.inc(1);
+            result
+        })
+        .collect();
+    let duration = start_time.elapsed();
+    pb_arc.finish_and_clear();
+    print_summary(&test_results, duration);
+
+    if do_review {
+        let failed_paths: Vec<String> = test_results
+            .iter()
+            .filter(|t| !t.success)
+            .map(|t| t.test_name.clone())
+            .collect();
+        if !failed_paths.is_empty() {
+            review::run_review_for_tests(&failed_paths);
+        }
+    }
+
+    if test_results.iter().any(|t| !t.success) {
+        std::process::exit(1);
     }
 }
 
@@ -328,12 +400,17 @@ fn main() {
             .build_global()
             .expect("Failed to initialize global thread pool");
 
-        run_interactive_mode(
-            args.filter.as_deref().unwrap_or(""),
-            args.in_file,
-            args.just_tc,
-            args.review,
-        );
+        if !args.paths.is_empty() {
+            run_batch_mode(args.paths, args.just_tc, args.accept, args.review);
+        } else {
+            run_interactive_mode(
+                args.filter.as_deref().unwrap_or(""),
+                args.in_file,
+                args.just_tc,
+                args.review,
+                args.accept,
+            );
+        }
     }
 }
 
