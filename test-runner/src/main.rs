@@ -33,7 +33,7 @@ pub struct TestRunnerArgs {
         long,
         short,
         conflicts_with = "run",
-        help = "Filter tests by name pattern. Pre-fills the picker in interactive mode; selects tests directly in batch mode (-b). Examples: -f lambda* (all lambda tests), -f /fail (all fail tests)."
+        help = "Filter tests by name pattern. Pre-fills the picker in interactive mode; selects tests directly in batch mode (-b). Examples: -f lambdas (word match), -f lambda.* (regex), -f /fail (all fail tests)."
     )]
     pub filter: Option<String>,
     #[arg(
