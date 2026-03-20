@@ -33,12 +33,12 @@ pub struct TestRunnerArgs {
         long,
         short,
         conflicts_with = "run",
-        help = "Filter tests by name pattern (e.g. -f lambda). Pre-fills the picker in interactive mode; selects tests directly in batch mode (-b)."
+        help = "Filter tests by name pattern. Pre-fills the picker in interactive mode; selects tests directly in batch mode (-b). Examples: -f lambda* (all lambda tests), -f /fail (all fail tests)."
     )]
     pub filter: Option<String>,
     #[arg(
         long,
-        help = "Allows user to filter via pattern matching in the contents of the test output file."
+        help = "Match the filter against test output file contents instead of test names (e.g. -f M0223 --in-file to run all tests whose output contains M0223)."
     )]
     pub in_file: bool,
     #[arg(
