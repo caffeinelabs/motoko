@@ -33,7 +33,7 @@ pub struct TestRunnerArgs {
         long,
         short,
         conflicts_with = "run",
-        help = "Open interactive mode with the filter pre-filled (e.g. -f implicit-derivation). You select which matched tests to run."
+        help = "Filter tests by name pattern (e.g. -f lambda). Pre-fills the picker in interactive mode; selects tests directly in batch mode (-b)."
     )]
     pub filter: Option<String>,
     #[arg(
@@ -67,10 +67,12 @@ pub struct TestRunnerArgs {
     )]
     pub accept: bool,
     #[arg(
-        conflicts_with_all = ["run", "filter"],
-        help = "Run test files directly without interactive selection (e.g. test/fail/foo*.mo). Must be run from repo root. Shell globs are expanded. Use with -a to accept changes."
+        short,
+        long,
+        conflicts_with_all = ["run", "review", "dir"],
+        help = "Skip the interactive picker and run all matched tests directly."
     )]
-    pub paths: Vec<String>,
+    pub batch: bool,
 }
 
 /// The program reads stdin where the .drun file contents are piped in.
@@ -83,14 +85,20 @@ fn run_legacy_mode(subnet_type: SubnetType) {
     test_runner::run_cmdline_test(buffer, subnet_type);
 }
 
-/// The program offers the user a list of tests to choose from.
-/// A summary of the results of the tests is then printed out.
-fn run_interactive_mode(args: &TestRunnerArgs) {
-    let input_str = args.filter.as_deref().unwrap_or("");
-    let search_in_file = args.in_file;
-    let test_dirs = ["test/run-drun", "test/run", "test/fail"];
+const TEST_DIRS: [&str; 3] = ["test/run-drun", "test/run", "test/fail"];
 
-    let load_file_contents = |path: &String| {
+fn compile_filter(input: &str) -> Result<Regex, regex::Error> {
+    let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
+    let pattern = if is_regex {
+        input.to_string()
+    } else {
+        format!(r"\b{}\b", regex::escape(input))
+    };
+    Regex::new(&pattern)
+}
+
+fn discover_tests(search_in_file: bool) -> Vec<TestFile> {
+    let load_file_contents = |path: &str| {
         let ok_file_content = if search_in_file {
             let file_path = std::path::Path::new(&path);
             if let (Some(parent), Some(file_name)) = (file_path.parent(), file_path.file_name()) {
@@ -98,16 +106,16 @@ fn run_interactive_mode(args: &TestRunnerArgs) {
                 let mut final_output = String::new();
                 for ext in possible_extensions {
                     let fp = parent.join("ok").join(file_name).with_extension(ext);
-                    let crnt = std::fs::read_to_string(fp).unwrap_or("".to_string());
+                    let crnt = std::fs::read_to_string(fp).unwrap_or_default();
                     final_output.push_str(crnt.as_str());
                     final_output.push_str("\n\n");
                 }
                 final_output
             } else {
-                "".to_string()
+                String::new()
             }
         } else {
-            "".to_string()
+            String::new()
         };
         TestFile {
             path: path.to_string(),
@@ -115,10 +123,10 @@ fn run_interactive_mode(args: &TestRunnerArgs) {
         }
     };
 
-    let mut tests: Vec<TestFile> = Vec::new();
-    for test_dir in test_dirs {
+    let mut tests = Vec::new();
+    for test_dir in TEST_DIRS {
         let local_tests: Vec<TestFile> = WalkDir::new(test_dir)
-            .max_depth(1) // Top-level directory only because that's where our tests are.
+            .max_depth(1)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|f| f.file_type().is_file())
@@ -126,9 +134,15 @@ fn run_interactive_mode(args: &TestRunnerArgs) {
             .filter(|f| f.ends_with(".mo") || f.ends_with(".drun"))
             .map(|s| load_file_contents(&s))
             .collect();
-
         tests.extend(local_tests);
     }
+    tests
+}
+
+fn run_interactive_mode(args: &TestRunnerArgs) {
+    let input_str = args.filter.as_deref().unwrap_or("");
+    let search_in_file = args.in_file;
+    let tests = discover_tests(search_in_file);
 
     // Cache regex compilation, otherwise filtering is slow.
     thread_local! {
@@ -141,15 +155,7 @@ fn run_interactive_mode(args: &TestRunnerArgs) {
             let mut cache = cache.borrow_mut();
             if cache.0 != input {
                 cache.0 = input.to_string();
-                // If the user tries to do pattern matching, let them do it.
-                // If not, do strict word checks.
-                let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
-                let pattern = if is_regex {
-                    input.to_string()
-                } else {
-                    format!(r"\b{}\b", regex::escape(input))
-                };
-                cache.1 = Regex::new(&pattern).ok();
+                cache.1 = compile_filter(input).ok();
             }
             // If the user wants to search through file contents, do that.
             let haystack = if search_in_file {
@@ -278,7 +284,7 @@ fn run_single_test(test_name: String, args: &TestRunnerArgs) -> SingleTestResult
         success: running_test.status.success(),
         stdout: String::from_utf8_lossy(&running_test.stdout).to_string(),
         stderr: String::from_utf8_lossy(&running_test.stderr).to_string(),
-        test_name: test_name.clone(),
+        test_name,
     }
 }
 
@@ -325,21 +331,43 @@ fn run_tests(test_paths: Vec<String>, args: &TestRunnerArgs) {
     }
 }
 
-/// Non-interactive batch mode: run the given test files in parallel.
 fn run_batch_mode(args: &TestRunnerArgs) {
-    let test_files: Vec<String> = args.paths.iter()
-        .cloned()
-        .filter(|p| p.ends_with(".mo") || p.ends_with(".drun"))
+    let filter = args.filter.as_deref().unwrap_or("");
+    let tests = discover_tests(args.in_file);
+
+    let compiled = if !filter.is_empty() {
+        match compile_filter(filter) {
+            Ok(re) => Some(re),
+            Err(e) => {
+                eprintln!("Invalid filter pattern {:?}: {e}", filter);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
+    };
+
+    let test_paths: Vec<String> = tests
+        .into_iter()
+        .filter(|t| {
+            let Some(re) = &compiled else { return true };
+            let haystack = if args.in_file { &t.content } else { &t.path };
+            re.is_match(haystack)
+        })
+        .map(|t| t.path)
         .collect();
 
-    if test_files.is_empty() {
-        println!("No test files found matching the given paths.");
-        println!("Hint: paths should point to .mo or .drun files (e.g. test/fail/foo.mo)");
+    if test_paths.is_empty() {
+        eprintln!("No tests matched the filter {:?}.", filter);
         std::process::exit(1);
     }
 
-    println!("Running {} tests...", test_files.len());
-    run_tests(test_files, args);
+    if filter.is_empty() {
+        println!("No filter specified, running all {} tests...", test_paths.len());
+    } else {
+        println!("Running {} tests matching {:?}...", test_paths.len(), filter);
+    }
+    run_tests(test_paths, args);
 }
 
 fn main() {
@@ -370,7 +398,7 @@ fn main() {
             .build_global()
             .expect("Failed to initialize global thread pool");
 
-        if !args.paths.is_empty() {
+        if args.batch {
             run_batch_mode(&args);
         } else {
             run_interactive_mode(&args);
