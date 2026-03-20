@@ -139,10 +139,9 @@ fn discover_tests(search_in_file: bool) -> Vec<TestFile> {
     tests
 }
 
-fn run_interactive_mode(args: &TestRunnerArgs) {
+fn select_interactive(tests: Vec<TestFile>, args: &TestRunnerArgs) -> Vec<String> {
     let input_str = args.filter.as_deref().unwrap_or("");
     let search_in_file = args.in_file;
-    let tests = discover_tests(search_in_file);
 
     // Cache regex compilation, otherwise filtering is slow.
     thread_local! {
@@ -190,18 +189,8 @@ fn run_interactive_mode(args: &TestRunnerArgs) {
     )
     .with_starting_filter_input(input_str)
     .with_formatter(&|tests| {
-        let first_ten = tests
-            .iter()
-            .take(10)
-            .map(|t| t.value.path.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        if tests.len() > 10 {
-            let others = tests.len() - 10;
-            format!("{first_ten}, ... (+{others} more).")
-        } else {
-            format!("{first_ten}.")
-        }
+        let paths: Vec<&str> = tests.iter().map(|t| t.value.path.as_str()).collect();
+        format_test_list(&paths)
     })
     .with_scorer(&|input, test_file, string_value, _idx| {
         if input.is_empty() {
@@ -210,12 +199,22 @@ fn run_interactive_mode(args: &TestRunnerArgs) {
         try_match(input, string_value, test_file)
     })
     .prompt() else {
-        println!("Error selecting tests.");
+        eprintln!("Error selecting tests.");
         std::process::exit(1);
     };
 
-    let test_paths: Vec<String> = selection.into_iter().map(|t| t.path).collect();
-    run_tests(test_paths, args);
+    selection.into_iter().map(|t| t.path).collect()
+}
+
+fn format_test_list<S: AsRef<str>>(paths: &[S]) -> String {
+    let first_ten: Vec<&str> = paths.iter().take(10).map(|s| s.as_ref()).collect();
+    let summary = first_ten.join(", ");
+    if paths.len() > 10 {
+        let others = paths.len() - 10;
+        format!("{summary}, ... (+{others} more).")
+    } else {
+        format!("{summary}.")
+    }
 }
 
 fn print_summary(test_results: &[SingleTestResult], duration: Duration) {
@@ -331,9 +330,8 @@ fn run_tests(test_paths: Vec<String>, args: &TestRunnerArgs) {
     }
 }
 
-fn run_batch_mode(args: &TestRunnerArgs) {
+fn select_batch(tests: Vec<TestFile>, args: &TestRunnerArgs) -> Vec<String> {
     let filter = args.filter.as_deref().unwrap_or("");
-    let tests = discover_tests(args.in_file);
 
     let compiled = if !filter.is_empty() {
         match compile_filter(filter) {
@@ -362,12 +360,8 @@ fn run_batch_mode(args: &TestRunnerArgs) {
         std::process::exit(1);
     }
 
-    if filter.is_empty() {
-        println!("No filter specified, running all {} tests...", test_paths.len());
-    } else {
-        println!("Running {} tests matching {:?}...", test_paths.len(), filter);
-    }
-    run_tests(test_paths, args);
+    println!("{}", format_test_list(&test_paths));
+    test_paths
 }
 
 fn main() {
@@ -382,7 +376,9 @@ fn main() {
         let required = ["test/run.sh", "test/run-drun", "test/run", "test/fail"];
         if let Some(missing) = required.iter().find(|p| !path.join(p).exists()) {
             println!("Current path: {:?}", path.display());
-            println!("test-runner should be run from the top-level repo directory (missing {missing}).");
+            println!(
+                "test-runner should be run from the top-level repo directory (missing {missing})."
+            );
             return;
         }
 
@@ -398,11 +394,13 @@ fn main() {
             .build_global()
             .expect("Failed to initialize global thread pool");
 
-        if args.batch {
-            run_batch_mode(&args);
+        let tests = discover_tests(args.in_file);
+        let test_paths = if args.batch {
+            select_batch(tests, &args)
         } else {
-            run_interactive_mode(&args);
-        }
+            select_interactive(tests, &args)
+        };
+        run_tests(test_paths, &args);
     }
 }
 
