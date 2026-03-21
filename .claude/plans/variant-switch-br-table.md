@@ -257,6 +257,30 @@ Check for a parallel `SwitchE` handler; apply the same optimisation.
 5. **GC forwarding pointers.** `get_variant_tag` already calls
    `load_forwarding_pointer` — no change needed here.
 
+## Future Optimisation: Same-body arm merging
+
+When multiple arms produce identical results (e.g. several arms all returning
+`false`), they are independent from each other from a dispatch perspective —
+they can share the same `br_table` target slot.
+
+**Consequence for mask-finding**: only the number of *distinct* arm bodies
+matters for injectivity, not the total arm count. Two arms with identical IR
+expressions may map to the same br_table label, so the mask only needs to be
+injective across the equivalence classes of arms (grouped by body).
+
+**Implementation sketch**:
+1. Group the `n` arms into `k ≤ n` equivalence classes by body IR equality
+   (or by pointer identity when they share the same expression node).
+2. Run `find_variant_mask` with `k` instead of `n` for the popcount bound.
+3. Build the dispatch table with one block per equivalence class; arms in the
+   same class share a label.
+
+This is strictly opt-in — correct without the optimisation, but the mask will
+typically be smaller (fewer bits needed), leading to smaller tables and
+potentially eliminating the right-shift entirely.
+
+*Not yet implemented — tracked here for future work.*
+
 ## Non-goals
 
 - Nested/wildcard patterns in variant arms (handled by `compile_pat_local`)
