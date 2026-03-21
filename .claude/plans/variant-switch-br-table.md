@@ -316,35 +316,82 @@ potentially eliminating the right-shift entirely.
 
 *Not yet implemented — tracked here for future work.*
 
-## Future Optimisation: Pre-shortening before Gosper's iteration
+## Future Optimisation: Multi-strategy batched search
 
-Currently the mask search runs Gosper's hack over the full 32/64-bit hash
-values, relying on the mask to carve out a small injective slice.  An
-alternative strategy is to *shorten* the hashes first, then search:
+The current single Gosper stream can still be slow for unlucky hash sets
+(e.g. the 12-arm NNS `Action_` type needs ~8 000 iterations).  The fix is
+to run several independent strategy streams **concurrently** and take the
+best early result — whichever strategy happens to work cheaply for the
+given hashes terminates the search.
 
-1. **Reduce modulo a small prime.** Choose the smallest prime `p ≥ n` such
-   that `hᵢ mod p` are all distinct (collision-free).  At runtime emit a
-   single `i32.rem_u p` (or strength-reduce it to a multiply-shift).  The
-   table size is at most `p`, typically very close to `n`.
+### Candidate type
 
-2. **Low-bit projection.** Take `k = bits_needed n` and look only at the
-   bottom `k` bits of each hash: `hᵢ & ((1 << k) - 1)`.  If already
-   injective — done, table size ≤ 2^k, no Gosper needed.  If not, try
-   rotating the hash (i.e. replace `h` with `rotl32(h, r)` for `r = 1..31`)
-   before re-checking.  A rotation costs one extra instruction at runtime
-   (`i32.rotl`) and keeps the table size bounded by `2^k`.
+```ocaml
+type candidate =
+  | MaskShift of { mask : int32; shift : int; table_size : int }
+      (* runtime: (hash & mask) >> shift;  overhead: AND + opt. SHR *)
+  | ModPrime  of { prime : int; table_size : int }
+      (* runtime: hash % prime;            overhead: i32.rem_u       *)
+  | RotLow    of { rot : int; bits : int; table_size : int }
+      (* runtime: rotl32(hash, rot) & (2^bits-1); overhead: i32.rotl + AND *)
+```
 
-**Why this is better than the current approach for large `n`:** Gosper
-iterates masks in order of increasing integer value, which produces compact
-masks for small `n` but may need many candidates for large `n` before finding
-one whose table size is within the threshold.  Pre-shortening bounds the
-search space up front and guarantees small table sizes at the cost of one
-extra runtime instruction (rem or rotl).
+### Cost model
 
-**Interaction with same-body merging:** Pre-shortening should be applied after
-grouping arms by body (equivalence-class count `k` rather than `n`).
+```
+cost(MaskShift{shift; table_size}) = 2 + (if shift > 0 then 1 else 0)
+                                       + table_size   (* br_table entries *)
+cost(ModPrime{prime})              = 3 + prime        (* rem_u costs ~3 cycles *)
+cost(RotLow{rot; bits})            = 2 + (if rot > 0 then 1 else 0)
+                                       + 1 lsl bits
+```
+
+Rank by estimated cycle cost; lower is better.
+
+### Strategy generators (lazy streams)
+
+1. **MaskShift (batched Gosper)**: For each bit-position window
+   `[2^n, 2^(n+1))` in increasing `n`, run Gosper within that window
+   with `popcount = bits_needed(arms)`, then `popcount+1`, etc.  This
+   avoids charging to high-valued masks before exhausting low-bit windows.
+
+2. **ModPrime**: Iterate primes `p ≥ n` in increasing order; for each
+   check `hᵢ mod p` pairwise distinct.  Terminates quickly when a small
+   collision-free prime exists.
+
+3. **RotLow**: For `bits = bits_needed(n)` and `rot = 0..30`, check
+   `rotl32(hᵢ, rot) & (2^bits - 1)` injective.  31 candidates per
+   `bits` level; try `bits+1` if none work.
+
+### Merger
+
+Run all generators round-robin (or priority-queue ordered by emitted cost).
+Collect the first few injective candidates and emit the cheapest.  A simple
+scheme: advance each generator one step per round until the first result
+appears in any stream; collect a bounded window of results (e.g. 4) across
+all streams; return the cheapest.
+
+### Benefits
+
+- No single strategy's worst case dominates compile time.
+- Prime-based dispatch is tried immediately and wins when a small prime
+  gives a tiny table (common for small variant types).
+- Rotation-based dispatch is tried with only 31 probes and guarantees
+  table size ≤ 2^k — useful when Gosper + mod-prime both fail cheaply.
+- The current 2^16 cutoff per strategy stream remains as a hard cap but
+  is rarely hit because one stream produces an early winner.
+
+### Interaction with same-body merging
+
+Apply the merged search after grouping arms by body (use equivalence-class
+count as the effective `n`).
 
 *Not yet implemented — tracked here for future work.*
+
+## Future Optimisation: Pre-shortening before Gosper's iteration
+
+*(Subsumed by Multi-strategy search above — ModPrime and RotLow are the
+concrete pre-shortening strategies described there.)*
 
 ## Non-goals
 
