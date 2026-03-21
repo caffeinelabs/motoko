@@ -11412,7 +11412,9 @@ let iter_masks_with_popcount k f =
     (* smallest k-bit mask: bits 0..k-1 set *)
     let m = ref (Int64.sub (Int64.shift_left 1L k) 1L) in
     let stop = ref false in
-    while not !stop && !m <> 0L && Int64.compare !m 0x1_0000_0000L < 0 do
+    let iters = ref 0 in
+    while not !stop && !m <> 0L && Int64.compare !m 0x1_0000_0000L < 0 && !iters < 0x400 do
+      incr iters;
       if f !m then stop := true
       else begin
         (* Gosper's hack: next int64 with same popcount *)
@@ -13072,7 +13074,11 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
   | SwitchE (e, cs) when
       List.length cs >= 4 &&
       List.for_all (fun {it=({pat; _} : case'); _} ->
-        match pat.it with TagP (l, _) -> l <> "" | _ -> false) cs ->
+        match pat.it with TagP (l, _) -> l <> "" | _ -> false) cs &&
+      (* all outer labels must be distinct — br_table dispatch requires one arm per tag *)
+      (let ls = List.filter_map (fun {it=({pat; _} : case'); _} ->
+         match pat.it with TagP (l, _) -> Some l | _ -> None) cs in
+       List.length ls = List.length (List.sort_uniq String.compare ls)) ->
     let code1 = compile_exp_vanilla env ae e in
     let (set_i, get_i) = new_local env "switch_in" in
 

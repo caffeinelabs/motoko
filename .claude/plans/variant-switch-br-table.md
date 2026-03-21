@@ -253,6 +253,37 @@ step is done, those benchmarks will reflect the real instruction savings.
    gracefully — it simply needs more bits in `M`. Ultimate fallback:
    `M = ~0l`, `S = 0`, table size = 2^32 → threshold exceeded → linear.
 
+6. **Gosper iteration cutoff.** Without a bound, `iter_masks_with_popcount`
+   may exhaust all C(32,k) candidates (e.g. C(32,4) = 35,960) before
+   returning `None`.  A cutoff of 2^10 iterations per popcount level is
+   applied in both backends to keep compile time bounded.
+
+7. **Distinct outer labels required; `None` fallback correctness.** The
+   `SwitchE` br_table branch builds each arm's code using `known_tag_pat`
+   (outer tag check stripped, assuming dispatch has already happened).
+   This is only correct when all outer labels are distinct — i.e. the
+   switch is a *flat* variant dispatch with one arm per label.  When
+   multiple arms share a label (nested pattern matching, e.g. `#lam(x, #va
+   y)` and `#lam(x, #app(y, z))` sharing `#lam`), `is_injective` returns
+   false for every mask and `find_variant_mask` returns `None`.  The `None`
+   fallback then calls `orsPatternFailure` with tag-check-free arm codes,
+   which is incorrect (any arm can match any outer tag).
+
+   **Current fix (workaround):** a distinct-labels guard in the `when`
+   clause prevents the whole branch from firing when labels repeat.  Those
+   switches fall through to the ordinary `SwitchE` handler with full
+   patterns.
+
+   **Deeper fix (future):** distinct-labels uniqueness is exactly
+   `is_injective identity_mask hashes`, so the guard is a special case of
+   the injectivity requirement.  The cleaner solution is to remove the
+   guard and fix the `None` branch to fall through to the regular handler
+   rather than using the `known_tag_pat` arms.  This would also handle the
+   case where the cutoff fires on a genuinely flat switch (no compact mask
+   found within budget) — currently that falls back to the broken
+   `orsPatternFailure`; with the deeper fix it would fall back to safe
+   linear dispatch.
+
 3. **31-bit vs 32-bit hashes.** Confirm the range of `E.hash` — if the
    MSB is never set, the mask search can skip bit 31.
 
