@@ -13119,6 +13119,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
           Variant.get_variant_tag env ^^
           compile_bitand_const mask ^^
           (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
+          G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^  (* br_table needs i32 *)
           G.i (BrTable (
             List.init table_size (fun j -> nr (Int32.of_int arm_for_slot.(j))),
             nr (Int32.of_int n)  (* default: unreachable *)
