@@ -54,13 +54,13 @@ persistent actor Core {
     n
   };
 
-  // Build a synthetic expression tree touching all 8 constructors (depth 7 → 24 nodes)
+  // Build a synthetic expression tree touching all 8 constructors
   func build(d : Nat) : Expr {
     if (d == 0) return #Lit 0;
     let s = build (d - 1 : Nat);
     switch (d % 8) {
-      case 0 #Var "x";
-      case 1 #Lit d;
+      case 0 #App (#Var "x", s);
+      case 1 #Lam ("k", s);
       case 2 #App  (s, #Var "y");
       case 3 #Lam  ("z", s);
       case 4 #Let  ("w", s, #Var "w");
@@ -70,7 +70,7 @@ persistent actor Core {
     }
   };
 
-  transient let tree = build 7;  // 24 nodes, all 8 constructors
+  transient let tree = build 15;  // 80 nodes, all 8 constructors
 
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 
