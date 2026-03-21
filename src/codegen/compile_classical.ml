@@ -11023,7 +11023,7 @@ let iter_masks_with_popcount k f =
     let m = ref (Int32.sub (Int32.shift_left 1l k) 1l) in
     let stop = ref false in
     let iters = ref 0 in
-    while not !stop && !m <> 0l && !iters < 0x400 do  (* 0l == wrapped past 2^32 *)
+    while not !stop && !m > 0l && !iters < 0x10000 do  (* 0l == wrapped; <0l == bit31 set (hashes are 31-bit) *)
       incr iters;
       if f !m then stop := true
       else begin

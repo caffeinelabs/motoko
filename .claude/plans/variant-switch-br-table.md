@@ -255,7 +255,7 @@ step is done, those benchmarks will reflect the real instruction savings.
 
 6. **Gosper iteration cutoff.** Without a bound, `iter_masks_with_popcount`
    may exhaust all C(32,k) candidates (e.g. C(32,4) = 35,960) before
-   returning `None`.  A cutoff of 2^10 iterations per popcount level is
+   returning `None`.  A cutoff of 2^16 iterations per popcount level is
    applied in both backends to keep compile time bounded.
 
 7. **`None` fallback correctness — implemented.** The `SwitchE` br_table
@@ -273,8 +273,14 @@ step is done, those benchmarks will reflect the real instruction savings.
    to fail for every mask, so `find_variant_mask` returns `None` and the
    guard fails safely.
 
-3. **31-bit vs 32-bit hashes.** Confirm the range of `E.hash` — if the
-   MSB is never set, the mask search can skip bit 31.
+3. **31-bit vs 32-bit hashes — resolved.** `Mo_types.Hash.hash` always
+   returns `logand 0x7fffffff sum`, so bit 31 is never set.  Masks with
+   bit 31 set are irrelevant (would never help distinguish hashes) and
+   must be excluded: `Nat32.of_int32` raises `Invalid_argument` on
+   negative int32 values (bit 31 set).  Fix: change the Gosper loop
+   guard from `!m <> 0l` to `!m > 0l` — stops at zero (wrapped) AND
+   at any mask with bit 31 set.  C(31,k) < 2^16 for k≤4 so this guard
+   is now the binding constraint for small popcount levels.
 
 4. **Threshold tuning.** `max(64, 4n)` is a starting point; may need
    benchmarking to confirm the right code-size / speed trade-off.

@@ -11413,7 +11413,7 @@ let iter_masks_with_popcount k f =
     let m = ref (Int64.sub (Int64.shift_left 1L k) 1L) in
     let stop = ref false in
     let iters = ref 0 in
-    while not !stop && !m <> 0L && Int64.compare !m 0x1_0000_0000L < 0 && !iters < 0x400 do
+    while not !stop && !m <> 0L && Int64.compare !m 0x1_0000_0000L < 0 && !iters < 0x10000 do
       incr iters;
       if f !m then stop := true
       else begin
