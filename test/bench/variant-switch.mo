@@ -1,0 +1,95 @@
+// Benchmark: small interpreter for a GHC-Core-like expression language.
+// Exercises an 8-arm variant switch (the hot path) heavily.
+//
+// Constructors:
+//   Var, Lit, App, Lam, Let, LetRec, Case, Con
+import {
+  performanceCounter;
+  rts_heap_size;
+  debugPrint;
+  rts_lifetime_instructions;
+} = "mo:⛔";
+
+actor Core {
+
+  type Expr = {
+    #Var    : Text;
+    #Lit    : Int;
+    #App    : (Expr, Expr);
+    #Lam    : (Text, Expr);
+    #Let    : (Text, Expr, Expr);     // name, rhs, body
+    #LetRec : [(Text, Expr, Expr)];   // list of (name, rhs, body)
+    #Case   : (Expr, [(Text, Expr)]); // scrutinee, alts
+    #Con    : (Text, [Expr]);         // constructor name, args
+  };
+
+  // Count all nodes in an expression tree
+  func size(e : Expr) : Nat =
+    switch e {
+      case (#Var  _)           1;
+      case (#Lit  _)           1;
+      case (#App (f, x))       1 + size f + size x;
+      case (#Lam (_, b))       1 + size b;
+      case (#Let (_, r, b))    1 + size r + size b;
+      case (#LetRec triples)   1 + sumTriples triples;
+      case (#Case(s, alts))    1 + size s + sumAlts alts;
+      case (#Con (_, args))    1 + sumArgs args;
+    };
+
+  func sumTriples(ts : [(Text, Expr, Expr)]) : Nat {
+    var n = 0;
+    for ((_, r, b) in ts.vals()) n += size r + size b;
+    n
+  };
+
+  func sumAlts(alts : [(Text, Expr)]) : Nat {
+    var n = 0;
+    for ((_, e) in alts.vals()) n += size e;
+    n
+  };
+
+  func sumArgs(args : [Expr]) : Nat {
+    var n = 0;
+    for (e in args.vals()) n += size e;
+    n
+  };
+
+  // Build a synthetic expression tree of ~700 nodes touching all 8 constructors
+  func build(d : Nat) : Expr {
+    if (d == 0) return #Lit 0;
+    let s = build (d - 1 : Nat);
+    switch (d % 8) {
+      case 0 #Var "x";
+      case 1 #Lit d;
+      case 2 #App  (s, #Var "y");
+      case 3 #Lam  ("z", s);
+      case 4 #Let  ("w", s, #Var "w");
+      case 5 #LetRec [("f", s, #App (#Var "f", #Lit 0))];
+      case 6 #Case (s, [("A", #Lit 1), ("B", s)]);
+      case _ #Con  ("Pair", [s, #Var "v"]);
+    }
+  };
+
+  let tree = build 9;  // ~700 nodes, all 8 constructors
+
+  func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
+
+  public func go() : async () {
+    let (m0, n0) = counters();
+    var total = 0;
+    var i = 0;
+    while (i < 10_000) {
+      total += size tree;
+      i += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint(debug_show { total; heap_diff = m1 - m0; instr_diff = n1 - n0 });
+  };
+
+  public func getPerfData() : async () {
+    debugPrint("instructions: " # debug_show (rts_lifetime_instructions()));
+  };
+};
+
+//CALL ingress go 0x4449444C0000
+//CALL ingress getPerfData 0x4449444C0000
