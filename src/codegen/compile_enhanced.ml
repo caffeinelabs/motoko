@@ -13070,15 +13070,16 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
        G.i Unreachable (* We should always exit using the branch_code *)
     )
 
-  (* Variant switch with 4+ arms: use masked br_table dispatch (O(1)) *)
+  (* Variant switch with 4+ arms: use masked br_table dispatch (O(1)).
+     Guard pre-checks find_variant_mask so that None falls through naturally
+     to the regular SwitchE handler below (no broken known_tag_pat fallback). *)
   | SwitchE (e, cs) when
       List.length cs >= 4 &&
       List.for_all (fun {it=({pat; _} : case'); _} ->
         match pat.it with TagP (l, _) -> l <> "" | _ -> false) cs &&
-      (* all outer labels must be distinct — br_table dispatch requires one arm per tag *)
-      (let ls = List.filter_map (fun {it=({pat; _} : case'); _} ->
-         match pat.it with TagP (l, _) -> Some l | _ -> None) cs in
-       List.length ls = List.length (List.sort_uniq String.compare ls)) ->
+      (let hs = List.filter_map (fun {it=({pat; _} : case'); _} ->
+         match pat.it with TagP (l, _) -> Some (Variant.hash_variant_label env l) | _ -> None) cs in
+       find_variant_mask (List.length hs) hs <> None) ->
     let code1 = compile_exp_vanilla env ae e in
     let (set_i, get_i) = new_local env "switch_in" in
 
@@ -13099,64 +13100,49 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
       | None -> StackRep.joins (List.map (fun (_, sr, _) -> sr) arms)
     in
 
-    (match find_variant_mask n hashes with
+    let [@warning "-8"] Some (mask, shift, table_size) = find_variant_mask n hashes in
+    (* Build dispatch table: slot j -> arm index (0..n-1) or n (default) *)
+    let arm_for_slot = Array.make table_size n in
+    List.iteri (fun k (hash, _, _) ->
+      let slot = Int64.to_int
+        (Int64.shift_right_logical (Int64.logand hash mask) shift) in
+      arm_for_slot.(slot) <- k
+    ) arms;
 
-    | None ->
-      (* No compact mask found — fall back to linear orsPatternFailure *)
-      let codes = List.map (fun (_, sr, c) -> (sr, c)) arms in
-      final_sr,
-      code1 ^^ set_i ^^
-      FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
-        orsPatternFailure env (List.map (fun (sr, c) ->
-          c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
-        ) codes) ^^
-        G.i Unreachable
-      )
+    final_sr,
+    code1 ^^ set_i ^^
+    FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
 
-    | Some (mask, shift, table_size) ->
-      (* Build dispatch table: slot j -> arm index (0..n-1) or n (default) *)
-      let arm_for_slot = Array.make table_size n in
-      List.iteri (fun k (hash, _, _) ->
-        let slot = Int64.to_int
-          (Int64.shift_right_logical (Int64.logand hash mask) shift) in
-        arm_for_slot.(slot) <- k
-      ) arms;
+      (* Dispatch code: load tag, mask, optional shift, br_table *)
+      let dispatch =
+        get_i ^^
+        Variant.get_variant_tag env ^^
+        compile_bitand_const mask ^^
+        (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
+        G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^  (* br_table needs i32 *)
+        G.i (BrTable (
+          List.init table_size (fun j -> nr (Int32.of_int arm_for_slot.(j))),
+          nr (Int32.of_int n)  (* default: unreachable *)
+        ))
+      in
 
-      final_sr,
-      code1 ^^ set_i ^^
-      FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+      (* Arm body codes: sub-pattern match + rhs + SR-adjust + exit.
+         On sub-pattern failure (impossible for well-typed code): trap. *)
+      let arm_body_codes = List.map (fun (_, sr, c) ->
+        with_fail (G.i Unreachable)
+          (c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code))
+      ) arms in
 
-        (* Dispatch code: load tag, mask, optional shift, br_table *)
-        let dispatch =
-          get_i ^^
-          Variant.get_variant_tag env ^^
-          compile_bitand_const mask ^^
-          (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
-          G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^  (* br_table needs i32 *)
-          G.i (BrTable (
-            List.init table_size (fun j -> nr (Int32.of_int arm_for_slot.(j))),
-            nr (Int32.of_int n)  (* default: unreachable *)
-          ))
-        in
-
-        (* Arm body codes: sub-pattern match + rhs + SR-adjust + exit.
-           On sub-pattern failure (impossible for well-typed code): trap. *)
-        let arm_body_codes = List.map (fun (_, sr, c) ->
-          with_fail (G.i Unreachable)
-            (c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code))
-        ) arms in
-
-        (* Build nested blocks from inside out:
-             block_default { block_arm_{n-1} { ... block_arm_0 { dispatch }
-               body_0 ... } body_{n-1} } unreachable
-           Inside dispatch: label k -> arm k, label n -> default.
-           fold starts with dispatch (not an extra wrapper), so arm_0 is label 0. *)
-        let with_arms = List.fold_left (fun acc body_code ->
-          G.block0 acc ^^ body_code
-        ) dispatch arm_body_codes in
-        G.block0 with_arms ^^
-        G.i Unreachable
-      )
+      (* Build nested blocks from inside out:
+           block_default { block_arm_{n-1} { ... block_arm_0 { dispatch }
+             body_0 ... } body_{n-1} } unreachable
+         Inside dispatch: label k -> arm k, label n -> default.
+         fold starts with dispatch (not an extra wrapper), so arm_0 is label 0. *)
+      let with_arms = List.fold_left (fun acc body_code ->
+        G.block0 acc ^^ body_code
+      ) dispatch arm_body_codes in
+      G.block0 with_arms ^^
+      G.i Unreachable
     )
 
   | SwitchE (e, cs) ->
