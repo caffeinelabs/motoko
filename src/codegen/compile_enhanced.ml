@@ -11407,12 +11407,12 @@ let bits_needed n =
    numerical order (Gosper's hack).  Calls [f m] for each; stops early
    if [f] returns true. *)
 let iter_masks_with_popcount k f =
-  if k <= 0 || k > 64 then ()
+  if k <= 0 || k > 32 then ()   (* EOP hashes are extend_i32_u: bits 0-31 only *)
   else
     (* smallest k-bit mask: bits 0..k-1 set *)
     let m = ref (Int64.sub (Int64.shift_left 1L k) 1L) in
     let stop = ref false in
-    while not !stop && !m <> 0L do          (* 0L == wrapped past 2^64 *)
+    while not !stop && !m <> 0L && Int64.compare !m 0x1_0000_0000L < 0 do
       if f !m then stop := true
       else begin
         (* Gosper's hack: next int64 with same popcount *)
@@ -11436,6 +11436,13 @@ let compact_table_size mask shift hashes =
     max acc (Int64.to_int (Int64.shift_right_logical (Int64.logand h mask) shift))
   ) 0 hashes + 1
 
+(* Count trailing zeros of a non-zero int64 (works for any bit pattern). *)
+let ctz64 m =
+  let c = ref (Int64.logand m (Int64.neg m)) in   (* isolate lowest set bit *)
+  let s = ref 0 in
+  while !c <> 1L do c := Int64.shift_right_logical !c 1; incr s done;
+  !s
+
 (* Find mask M and shift S for an n-arm variant switch.
    Returns Some (mask, shift, table_size) or None if no suitable mask found.
    Iterates masks of minimal popcount first (smallest integer = low bits =
@@ -11448,7 +11455,7 @@ let find_variant_mask n hashes =
       let result = ref None in
       iter_masks_with_popcount req (fun mask ->
         if is_injective mask hashes then begin
-          let shift = Int64.to_int Numerics.Nat64.(of_int64 mask |> ctz |> to_int64) in
+          let shift = ctz64 mask in
           let tbl = compact_table_size mask shift hashes in
           if tbl <= threshold then begin
             result := Some (mask, shift, tbl); true   (* stop *)

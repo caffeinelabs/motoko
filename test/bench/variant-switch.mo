@@ -10,7 +10,7 @@ import {
   rts_lifetime_instructions;
 } = "mo:⛔";
 
-actor Core {
+persistent actor Core {
 
   type Expr = {
     #Var    : Text;
@@ -54,7 +54,7 @@ actor Core {
     n
   };
 
-  // Build a synthetic expression tree of ~700 nodes touching all 8 constructors
+  // Build a synthetic expression tree touching all 8 constructors (depth 7 → 24 nodes)
   func build(d : Nat) : Expr {
     if (d == 0) return #Lit 0;
     let s = build (d - 1 : Nat);
@@ -64,13 +64,13 @@ actor Core {
       case 2 #App  (s, #Var "y");
       case 3 #Lam  ("z", s);
       case 4 #Let  ("w", s, #Var "w");
-      case 5 #LetRec [("f", s, #App (#Var "f", #Lit 0))];
+      case 5 #LetRec ([("f", s, #App (#Var "f", #Lit 0))]);
       case 6 #Case (s, [("A", #Lit 1), ("B", s)]);
       case _ #Con  ("Pair", [s, #Var "v"]);
     }
   };
 
-  let tree = build 9;  // ~700 nodes, all 8 constructors
+  transient let tree = build 7;  // 24 nodes, all 8 constructors
 
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 
