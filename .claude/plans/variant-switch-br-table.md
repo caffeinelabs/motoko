@@ -290,6 +290,36 @@ potentially eliminating the right-shift entirely.
 
 *Not yet implemented — tracked here for future work.*
 
+## Future Optimisation: Pre-shortening before Gosper's iteration
+
+Currently the mask search runs Gosper's hack over the full 32/64-bit hash
+values, relying on the mask to carve out a small injective slice.  An
+alternative strategy is to *shorten* the hashes first, then search:
+
+1. **Reduce modulo a small prime.** Choose the smallest prime `p ≥ n` such
+   that `hᵢ mod p` are all distinct (collision-free).  At runtime emit a
+   single `i32.rem_u p` (or strength-reduce it to a multiply-shift).  The
+   table size is at most `p`, typically very close to `n`.
+
+2. **Low-bit projection.** Take `k = bits_needed n` and look only at the
+   bottom `k` bits of each hash: `hᵢ & ((1 << k) - 1)`.  If already
+   injective — done, table size ≤ 2^k, no Gosper needed.  If not, try
+   rotating the hash (i.e. replace `h` with `rotl32(h, r)` for `r = 1..31`)
+   before re-checking.  A rotation costs one extra instruction at runtime
+   (`i32.rotl`) and keeps the table size bounded by `2^k`.
+
+**Why this is better than the current approach for large `n`:** Gosper
+iterates masks in order of increasing integer value, which produces compact
+masks for small `n` but may need many candidates for large `n` before finding
+one whose table size is within the threshold.  Pre-shortening bounds the
+search space up front and guarantees small table sizes at the cost of one
+extra runtime instruction (rem or rotl).
+
+**Interaction with same-body merging:** Pre-shortening should be applied after
+grouping arms by body (equivalence-class count `k` rather than `n`).
+
+*Not yet implemented — tracked here for future work.*
+
 ## Non-goals
 
 - Nested/wildcard patterns in variant arms (handled by `compile_pat_local`)
