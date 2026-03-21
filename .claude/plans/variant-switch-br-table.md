@@ -217,9 +217,14 @@ If `None`, fall through to `orsPatternFailure`.
 Call `Variant.project env` at the start of each arm body (same as current
 path) to load the variant payload after dispatch.
 
-### Step 4 — `compile_enhanced.ml`
+### Step 4 — `compile_enhanced.ml` *(TODO)*
 
-Check for a parallel `SwitchE` handler; apply the same optimisation.
+Apply the same optimisation to the EOP backend. Check for a parallel
+`SwitchE` handler in `src/codegen/compile_enhanced.ml` and port the helpers
+(`find_variant_mask` etc.) and the new dispatch path there.
+
+Note: the bench tests (`test/bench/`) run under EOP by default — once this
+step is done, those benchmarks will reflect the real instruction savings.
 
 ### Step 5 — Tests
 
