@@ -159,6 +159,34 @@ Note: Wasm JIT compilers (wasmtime, V8) typically lower `br_table` to a
 hardware jump table, giving an additional constant-factor speedup over
 what static instruction counts suggest.
 
+## Where to Apply the Optimisation: IR vs. Wasm Peephole
+
+Two possible insertion points:
+
+**Option A — IR level** (`SwitchE` with `TagP` arms, in `compile_classical.ml`)
+
+**Option B — Wasm peephole** (scan generated instructions for repeated
+`load / i32.const hash / i32.eq / br_if` chains and replace)
+
+### Comparison
+
+| Criterion | IR level (A) | Wasm peephole (B) |
+|-----------|-------------|-------------------|
+| Label strings / hashes available | ✓ directly | ✗ must re-decode from `i32.const` operands |
+| Exhaustiveness known | ✓ from type (`Variant [...]`) → `default` = `unreachable` | ✗ must infer from structure |
+| Forwarding-pointer load variation | ✓ handled by `get_variant_tag` call | ✗ pattern varies; fragile |
+| Existing precedent | ✓ `single_case`, `simplify_cases` | ✗ no peephole infrastructure |
+| Wasm AST mutability | n/a | ✗ AST is functional; replacement is unnatural |
+| Could catch other patterns | n/a | ✓ theoretically — but no other source of such chains exists |
+| Code generated once | ✓ | ✗ generate then discard |
+
+**Verdict: IR level (Option A) is strictly better.** All the information
+needed (labels, hashes, exhaustiveness, type structure) is available
+exactly at the `SwitchE` node. Wasm-level peephole would be fragile,
+redundant, and lose the semantic guarantee that the `default` branch is
+unreachable. Option A also follows the established pattern of
+`single_case` / `simplify_cases`.
+
 ## Implementation Steps
 
 ### Step 1 — Mask-finding utility (compile time)
