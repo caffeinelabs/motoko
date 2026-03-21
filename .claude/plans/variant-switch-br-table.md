@@ -268,6 +268,10 @@ matters for injectivity, not the total arm count. Two arms with identical IR
 expressions may map to the same br_table label, so the mask only needs to be
 injective across the equivalence classes of arms (grouped by body).
 
+This also subsumes **or-patterns** (`case (#foo | #bar) body`) — after
+desugaring, `#foo` and `#bar` produce arms with identical bodies, so they
+naturally fall into the same equivalence class and share a dispatch slot.
+
 **Implementation sketch**:
 1. Group the `n` arms into `k ≤ n` equivalence classes by body IR equality
    (or by pointer identity when they share the same expression node).
