@@ -2023,13 +2023,7 @@ and infer_exp'' env exp : T.typ =
     let check_idx_nat_type env exp2 =
       if not env.pre then begin
         let t2 = infer_exp env exp2 in
-        let is_nat_idx = T.sub t2 T.nat
-          || T.sub t2 T.(Prim Nat8)
-          || T.sub t2 T.(Prim Nat16)
-          || T.sub t2 T.(Prim Nat32)
-          || T.sub t2 T.(Prim Nat64)
-        in
-        if not is_nat_idx then
+        if not (T.is_nat_idx_typ t2) then
           error env exp2.at "M0245"
             "expected index type Nat or fixed-width Nat, but expression produces type%a"
             display_typ_expand t2

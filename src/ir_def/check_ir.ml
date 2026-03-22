@@ -395,12 +395,7 @@ let store_typ t  =
     List.for_all (fun f -> T.is_opt f.T.typ) fts
   | _ -> false
 
-let check_array_idx_typ t_idx =
-  T.sub t_idx T.nat
-  || T.sub t_idx T.(Prim Nat8)
-  || T.sub t_idx T.(Prim Nat16)
-  || T.sub t_idx T.(Prim Nat32)
-  || T.sub t_idx T.(Prim Nat64)
+let check_array_idx_typ = T.is_nat_idx_typ
 
 let rec check_exp env (exp:Ir.exp) : unit =
   (* helpers *)

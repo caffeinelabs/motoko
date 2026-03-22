@@ -91,6 +91,7 @@ val as_nat8 : value -> Nat8.t
 val as_nat16 : value -> Nat16.t
 val as_nat32 : value -> Nat32.t
 val as_nat64 : value -> Nat64.t
+val as_idx : value -> int
 val as_float : value -> Float.t
 val as_char : value -> unicode
 val as_text : value -> string

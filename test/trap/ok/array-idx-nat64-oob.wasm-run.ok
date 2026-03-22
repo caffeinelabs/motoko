@@ -1,0 +1,9 @@
+Nat64 index exceeds 32-bit range
+Error: failed to run main module `_out/array-idx-nat64-oob.wasm`
+
+Caused by:
+    0: failed to invoke command default
+    1: error while executing at wasm backtrace:
+         0: init
+         1: _start
+    2: wasm trap: unreachable

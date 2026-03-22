@@ -4417,7 +4417,7 @@ module Blob = struct
       compile_const_64 0xFFFFFFFF00000000L ^^
       G.i (Binary (Wasm.Values.I64 I64Op.And)) ^^
       G.i (Test (Wasm.Values.I64 I64Op.Eqz)) ^^
-      E.else_trap_with env "Blob index out of bounds" ^^
+      E.else_trap_with env "Nat64 index exceeds 32-bit range" ^^
       get_blob ^^
       get_idx ^^
       G.i (Convert (Wasm.Values.I32 I32Op.WrapI64)) ^^
@@ -4704,7 +4704,7 @@ module Arr = struct
       compile_const_64 0xFFFFFFFF00000000L ^^
       G.i (Binary (Wasm.Values.I64 I64Op.And)) ^^
       G.i (Test (Wasm.Values.I64 I64Op.Eqz)) ^^
-      E.else_trap_with env "Array index out of bounds" ^^
+      E.else_trap_with env "Nat64 index exceeds 32-bit range" ^^
       get_array ^^
       get_idx ^^
       G.i (Convert (Wasm.Values.I32 I32Op.WrapI64)) ^^
