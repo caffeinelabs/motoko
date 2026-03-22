@@ -87,8 +87,8 @@ let num_conv_trap_prim trap t1 t2 =
   | T.Int, T.Float -> fun v -> Float (Wasm.F64.of_float (Big_int.float_of_big_int (Int.to_big_int (as_int v))))
 
   | T.Float, T.Float32 ->
-    fun v -> Float32 (Float32.demote (as_float v))
-  | T.Float32, T.Float -> fun v -> Float (as_float32 v)
+    fun v -> Float32 (Float32.of_float (Float.to_float (as_float v)))
+  | T.Float32, T.Float -> fun v -> Float (Float.of_float (Float32.to_float (as_float32 v)))
 
   | t1, t2 -> trap.trap T.("Value.num_conv_trap_prim: " ^ string_of_typ (Prim t1) ^ string_of_typ (Prim t2))
 

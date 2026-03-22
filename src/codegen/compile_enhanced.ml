@@ -70,27 +70,29 @@ module TaggingScheme = struct
   | TUnit
   | TUnused
 
-  (* Leverage OCaml pattern match compilation to check tagging scheme is injective *)
-  (* OCaml generates stack overflow for _decode:
-  let _decode u64 =
-    match u64 with
+  (* Leverage OCaml pattern match compilation to check tagging scheme is injective.
+     Bit order is little-endian (LSB first within each byte, low bytes first),
+     as required to avoid stack overflow in OCaml's exhaustiveness checker — it works
+     left-to-right through patterns, so the discriminating tag bits must appear on the
+     left. See https://github.com/ocaml/ocaml/issues/14664#issuecomment-4135559828 *)
+  type byte = bit * bit * bit * bit * bit * bit * bit * bit (* bit0=lsb first *)
+  let _decode : byte * byte * byte * byte * byte * byte * byte * byte -> _tag = function
     | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TBool (* false *)
-    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,I)) -> TBool (* true *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,I,I)) -> TRef  (* 62 bit *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,I,O)) -> TNum  (* 62 bit *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,O,I,O,O)) -> TNat64 (* 60 bit *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,I,I,O,O)) -> TInt64
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TNat32
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (I,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TInt32
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (O,O,I,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TFloat32
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,O,I,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TChar
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TNat16
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (I,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TInt16
-    | ((_,_,_,_,_,_,_,_), (O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TNat8
-    | ((_,_,_,_,_,_,_,_), (I,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TInt8
-    | ((O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TUnit
-    | _                                                                                                                                                        -> TUnused
-  *)
+    | ((I,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TBool (* true *)
+    | ((I,I,_,_,_,_,_,_), _,_,_,_,_,_,_) -> TRef   (* 62 bit *)
+    | ((O,I,_,_,_,_,_,_), _,_,_,_,_,_,_) -> TNum   (* 62 bit *)
+    | ((O,O,I,O,_,_,_,_), _,_,_,_,_,_,_) -> TNat64 (* 60 bit *)
+    | ((O,O,I,I,_,_,_,_), _,_,_,_,_,_,_) -> TInt64
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O), _,_,_,_) -> TNat32
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,I), _,_,_,_) -> TInt32
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,I,O,O), _,_,_,_) -> TFloat32
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,I,O,_,_,_,_,_), _,_) -> TChar
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O), _,_) -> TNat16
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,I), _,_) -> TInt16
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O), _) -> TNat8
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,I), _) -> TInt8
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O)) -> TUnit
+    | _                                                                                                                                                      -> TUnused
 
   let tag_of_typ pty = Type.(
   if !Flags.rtti then
@@ -218,6 +220,7 @@ module Const = struct
     | Bool of bool
     | Word64 of Type.prim * int64
     | Float64 of Numerics.Float.t
+    | Float32 of Numerics.Float32.t
     | Text of string
     | Blob of string
     | Null
@@ -228,6 +231,7 @@ module Const = struct
     | BigInt _ -> 1
     | Word64 _ -> 2
     | Float64 _ -> 3
+    | Float32 _ -> 8
     | Bool _ -> 4
     | Text _ -> 5
     | Blob _ -> 6
@@ -244,6 +248,10 @@ module Const = struct
        Int64.compare
        (Int64.bits_of_float (Mo_values.Numerics.Float.to_float i))
        (Int64.bits_of_float (Mo_values.Numerics.Float.to_float j))
+    | Float32 i, Float32 j ->
+       Int32.compare
+       (Int32.bits_of_float (Mo_values.Numerics.Float32.to_float i))
+       (Int32.bits_of_float (Mo_values.Numerics.Float32.to_float j))
     | Bool i, Bool j -> Bool.compare i j
     | Text s, Text t -> String.compare s t
     | Blob s, Blob t -> String.compare s t
@@ -829,6 +837,10 @@ let compile_test op =
   G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
 let compile_comparison_f64 rel =
   G.i (Compare (Wasm_exts.Values.F64 rel)) ^^
+  G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
+
+let compile_comparison_f32 rel =
+  G.i (Compare (Wasm_exts.Values.F32 rel)) ^^
   G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
 
 let compile_unboxed_const i = G.i (Const (nr (Wasm_exts.Values.I64 i)))
@@ -1867,7 +1879,7 @@ module BitTagged = struct
       let ubitsl = Int64.of_int (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrS_const (Int64.sub 64L ubitsl)
-    | Nat64 | Nat32 | Nat16 | Nat8 ->
+    | Nat64 | Nat32 | Nat16 | Nat8 | Float32 ->
       let ubitsl = Int64.of_int (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrU_const (Int64.sub 64L ubitsl)
@@ -6577,6 +6589,10 @@ module StackRep = struct
   | Const.Lit (Const.BigInt number) -> BigNum.constant env number
   | Const.Lit (Const.Word64 (pty, number)) -> BoxedWord64.constant env pty number
   | Const.Lit (Const.Float64 number) -> Float.constant env number
+  | Const.Lit (Const.Float32 f) ->
+    E.Vanilla Int64.(logor
+      (shift_left (of_int32 (Wasm.F32.to_bits f)) 32)
+      (TaggingScheme.tag_of_typ Type.Float32))
   | Const.Opt value -> Opt.constant env (build_constant env value)
   | Const.Fun (_, get_fi, _) -> Closure.constant env get_fi
   | Const.Message _ -> assert false
@@ -6629,19 +6645,11 @@ module StackRep = struct
     | UnboxedFloat32, Vanilla ->
       G.i (Convert (Wasm_exts.Values.I32 I32Op.ReinterpretFloat)) ^^
       G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32)) ^^
-      compile_shl_const 32L ^^
-      compile_bitor_const (TaggingScheme.tag_of_typ Type.Float32)
+      BitTagged.tag env Type.Float32
     | Vanilla, UnboxedFloat32 ->
-      BitTagged.sanity_check_tag __LINE__ env Type.Float32 ^^
-      compile_shrU_const 32L ^^
+      BitTagged.untag __LINE__ env Type.Float32 ^^
       G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
       G.i (Convert (Wasm_exts.Values.F32 F32Op.ReinterpretInt))
-
-    (* Cross-width float conversions on the Wasm stack *)
-    | UnboxedFloat32, UnboxedFloat64 ->
-      G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32))
-    | UnboxedFloat64, UnboxedFloat32 ->
-      G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
 
     | Const value, Vanilla ->
         materialize_constant env value
@@ -6651,12 +6659,8 @@ module StackRep = struct
     | Const Const.Lit (Const.Word64 (ty1, n)), UnboxedWord64 ty2 when ty1 = ty2 ->
         compile_unboxed_const n
     | Const Const.Lit (Const.Float64 f), UnboxedFloat64 -> Float.compile_unboxed_const f
-    | Const Const.Lit (Const.Float64 f), UnboxedFloat32 ->
-      Float.compile_unboxed_const f ^^
-      G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
-    | Const Const.Lit (Const.Vanilla n), UnboxedFloat32 ->
-      (* Float32Lit constant: extract f32 bits from upper 32 at OCaml level *)
-      G.i (Const (nr (Wasm_exts.Values.F32 (Wasm.F32.of_bits Int64.(to_int32 (shift_right_logical n 32))))))
+    | Const Const.Lit (Const.Float32 f), UnboxedFloat32 ->
+      G.i (Const (nr (Wasm_exts.Values.F32 f)))
     | Const c, UnboxedTuple 0 -> G.nop
     | Const Const.Tuple cs, UnboxedTuple n ->
       assert (n = List.length cs);
@@ -10883,12 +10887,7 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | TextLit t     -> Const.Text t
   | BlobLit t     -> Const.Blob t
   | FloatLit f    -> Const.Float64 f
-  | Float32Lit f  ->
-    (* EOP: Float32 lives as a bit-tagged I64 scalar in Vanilla (f32_bits<<32 | tag). *)
-    let f32_bits = Int32.bits_of_float (Numerics.Float32.to_float f) in
-    Const.Vanilla Int64.(logor
-      (shift_left (logand (of_int32 f32_bits) 0xFFFFFFFFL) 32)
-      (TaggingScheme.tag_of_typ Type.Float32))
+  | Float32Lit f  -> Const.Float32 f
 
 let const_of_lit lit =
   Const.Lit (const_lit_of_lit lit)
@@ -11462,28 +11461,21 @@ let compile_relop env t op =
   if t = Type.Non then SR.Vanilla, G.i Unreachable else
   StackRep.of_type t,
   let open Operator in
+  let open Type in
   match t, op with
-  | Type.(Prim Text), _ -> Text.compare env op
-  | Type.(Prim (Blob|Principal)), _ -> Blob.compare env (Some op)
+  | Prim Text, _ -> Text.compare env op
+  | Prim (Blob|Principal), _ -> Blob.compare env (Some op)
   | _, EqOp -> compile_eq env t
-  | Type.(Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1)), op1 ->
+  | Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1), op1 ->
     compile_comparison_op env t1 op1
-  | Type.(Prim Float), GtOp -> compile_comparison_f64 F64Op.Gt
-  | Type.(Prim Float), GeOp -> compile_comparison_f64 F64Op.Ge
-  | Type.(Prim Float), LeOp -> compile_comparison_f64 F64Op.Le
-  | Type.(Prim Float), LtOp -> compile_comparison_f64 F64Op.Lt
-  | Type.(Prim Float32), GtOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Gt)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
-  | Type.(Prim Float32), GeOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Ge)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
-  | Type.(Prim Float32), LeOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Le)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
-  | Type.(Prim Float32), LtOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Lt)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
+  | Prim Float,   GtOp -> compile_comparison_f64 F64Op.Gt
+  | Prim Float,   GeOp -> compile_comparison_f64 F64Op.Ge
+  | Prim Float,   LeOp -> compile_comparison_f64 F64Op.Le
+  | Prim Float,   LtOp -> compile_comparison_f64 F64Op.Lt
+  | Prim Float32, GtOp -> compile_comparison_f32 F32Op.Gt
+  | Prim Float32, GeOp -> compile_comparison_f32 F32Op.Ge
+  | Prim Float32, LeOp -> compile_comparison_f32 F32Op.Le
+  | Prim Float32, LtOp -> compile_comparison_f32 F32Op.Lt
   | _ -> todo_trap env "compile_relop" (Arrange_ops.relop op)
 
 let compile_load_field env typ name =
@@ -11651,9 +11643,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | OptPrim, [e] ->
     SR.Vanilla,
-    (* Never-heap-boxed types (UnboxedWord64 / UnboxedFloat32) have bit 0 = 0
-       in their Vanilla encoding, so Opt.inject is a no-op — emit directly.
-       TODO: extend to compile_classical.ml once it gains SR.UnboxedFloat32 support *)
     Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)
   | TagPrim l, [e] ->
     SR.Vanilla,

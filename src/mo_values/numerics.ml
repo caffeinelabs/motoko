@@ -200,11 +200,7 @@ struct
 end
 
 module Float = MakeFloat(Wasm.F64)
-module Float32 = struct
-  include MakeFloat(Wasm.F64)
-  (* Truncate to f32 precision: demote to f32 and promote back *)
-  let demote f = of_float (Int32.float_of_bits (Int32.bits_of_float (to_float f)))
-end
+module Float32 = MakeFloat(Wasm.F32)
 
 
 module type NumType =
