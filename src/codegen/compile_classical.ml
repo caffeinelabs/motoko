@@ -2367,7 +2367,7 @@ module Opt = struct
     G.i (Compare (Wasm.Values.I32 I32Op.Ne))
 
  let injection_is_free env t =
-   Type.(match normalize t with
+   Type.(match promote t with
          | Prim Null
          | Opt _
          | Any

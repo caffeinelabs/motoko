@@ -2232,7 +2232,7 @@ module Opt = struct
     Tagged.obj env Tagged.Some [ get_payload ]
 
   let injection_is_free env t =
-    Type.(match normalize t with
+    Type.(match promote t with
          | Prim Null
          | Opt _
          | Any
