@@ -599,7 +599,10 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | IdxE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
-        k V.(let i = Numerics.Int.to_int (as_int v2) in
+        k V.(let i = match v2 with
+               | Nat64 n -> Numerics.Nat64.to_int n
+               | _ -> Numerics.Int.to_int (as_int v2)
+             in
              match v1 with
              | Blob s ->
                Nat8 (s.[i] |> Char.code |> Numerics.Nat8.of_int)

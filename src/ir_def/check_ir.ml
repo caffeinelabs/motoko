@@ -521,7 +521,9 @@ let rec check_exp env (exp:Ir.exp) : unit =
                  error env exp1.at "expected array type, but expression produces type\n  %s"
                                          (T.string_of_typ_expand t1)
       in
-      typ exp2 <: T.nat;
+      let t_idx = typ exp2 in
+      if not (T.sub t_idx T.nat || T.eq t_idx T.nat64) then
+        t_idx <: T.nat;
       T.as_immut t2 <: t
     | IdxBlobPrim, [exp1; exp2] ->
       typ exp1 <: T.blob;
@@ -983,7 +985,9 @@ and check_lexp env (lexp:Ir.lexp) : unit =
                error env exp1.at "expected array type, but expression produces type\n  %s"
                                        (T.string_of_typ_expand t1)
     in
-    typ exp2 <: T.nat;
+    let t_idx = typ exp2 in
+    if not (T.sub t_idx T.nat || T.eq t_idx T.nat64) then
+      t_idx <: T.nat;
     t2 <: t
 
 (* Cases *)

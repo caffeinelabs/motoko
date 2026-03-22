@@ -11432,8 +11432,13 @@ Traps or pushes the pointer to the element on the stack
 *)
 and compile_array_index env ae e1 e2 =
     compile_exp_vanilla env ae e1 ^^ (* offset to array payload *)
-    compile_exp_vanilla env ae e2 ^^ (* idx *)
-    Arr.idx_bigint env
+    (match Type.normalize e2.note.Note.typ with
+     | Type.Prim Type.Nat64 ->
+       compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e2 ^^
+       Arr.idx env
+     | _ ->
+       compile_exp_vanilla env ae e2 ^^
+       Arr.idx_bigint env)
 
 and compile_prim_invocation (env : E.t) ae p es at =
   (* for more concise code when all arguments and result use the same sr *)

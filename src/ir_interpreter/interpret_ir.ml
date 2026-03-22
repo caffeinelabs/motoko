@@ -364,7 +364,11 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
           | Const -> vs
         in k (V.Array (Array.of_list vs'))
       | (IdxPrim | DerefArrayOffset), [v1; v2] ->
-        k (try (V.as_array v1).(Numerics.Int.to_int (V.as_int v2))
+        let idx = match v2 with
+          | V.Nat64 n -> Numerics.Nat64.to_int n
+          | _ -> Numerics.Int.to_int (V.as_int v2)
+        in
+        k (try (V.as_array v1).(idx)
            with Invalid_argument s -> trap exp.at "%s" s)
       | NextArrayOffset , [v1] ->
         k (V.Int Numerics.Nat.(of_int ((to_int (V.as_int v1)) + 1)))
@@ -617,8 +621,12 @@ and interpret_lexp env lexp (k : (V.value ref) V.cont) =
   | IdxLE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
+        let idx = match v2 with
+          | V.Nat64 n -> Numerics.Nat64.to_int n
+          | _ -> Numerics.Int.to_int (V.as_int v2)
+        in
         k (V.as_mut
-          (try (V.as_array v1).(Numerics.Int.to_int (V.as_int v2))
+          (try (V.as_array v1).(idx)
            with Invalid_argument s -> trap lexp.at "%s" s))
       )
     )
