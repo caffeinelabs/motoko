@@ -396,7 +396,11 @@ let store_typ t  =
   | _ -> false
 
 let check_array_idx_typ t_idx =
-  T.sub t_idx T.nat || T.eq t_idx T.nat64
+  T.sub t_idx T.nat
+  || T.sub t_idx T.(Prim Nat8)
+  || T.sub t_idx T.(Prim Nat16)
+  || T.sub t_idx T.(Prim Nat32)
+  || T.sub t_idx T.(Prim Nat64)
 
 let rec check_exp env (exp:Ir.exp) : unit =
   (* helpers *)
@@ -530,7 +534,9 @@ let rec check_exp env (exp:Ir.exp) : unit =
       T.as_immut t2 <: t
     | IdxBlobPrim, [exp1; exp2] ->
       typ exp1 <: T.blob;
-      typ exp2 <: T.nat;
+      let t_idx = typ exp2 in
+      if not (check_array_idx_typ t_idx) then
+        t_idx <: T.nat;
       T.(Prim Nat8) <: t
     | GetLastArrayOffset, [exp1] ->
       let t1 = T.promote (typ exp1) in

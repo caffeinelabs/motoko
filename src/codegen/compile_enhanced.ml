@@ -11433,8 +11433,9 @@ Traps or pushes the pointer to the element on the stack
 and compile_array_index env ae e1 e2 =
     compile_exp_vanilla env ae e1 ^^ (* offset to array payload *)
     (match Type.normalize e2.note.Note.typ with
-     | Type.Prim Type.Nat64 ->
-       compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e2 ^^
+     | Type.Prim (Type.Nat8 | Type.Nat16 | Type.Nat32 | Type.Nat64 as pty) ->
+       compile_exp_as env ae (SR.UnboxedWord64 pty) e2 ^^
+       TaggedSmallWord.lsb_adjust pty ^^
        Arr.idx env
      | _ ->
        compile_exp_vanilla env ae e2 ^^
@@ -11629,8 +11630,14 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | IdxBlobPrim, [e1; e2] ->
     SR.Vanilla,
     compile_exp_vanilla env ae e1 ^^ (* offset to blob payload *)
-    compile_exp_vanilla env ae e2 ^^ (* idx *)
-    Blob.idx_bigint env
+    (match Type.normalize e2.note.Note.typ with
+     | Type.Prim (Type.Nat8 | Type.Nat16 | Type.Nat32 | Type.Nat64 as pty) ->
+       compile_exp_as env ae (SR.UnboxedWord64 pty) e2 ^^
+       TaggedSmallWord.lsb_adjust pty ^^
+       Blob.idx env
+     | _ ->
+       compile_exp_vanilla env ae e2 ^^
+       Blob.idx_bigint env)
 
   | BreakPrim name, [e] ->
     let d = VarEnv.get_label_depth ae name in

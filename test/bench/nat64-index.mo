@@ -1,15 +1,18 @@
-// Benchmark: Nat64 vs Nat array indexing
+// Benchmark: fixed-width Nat vs Nat array indexing
 import {
   performanceCounter;
   debugPrint;
   rts_heap_size;
   rts_lifetime_instructions;
   Array_init;
+  natToNat8;
+  natToNat16;
+  natToNat32;
   natToNat64;
   nat64ToNat;
 } = "mo:⛔";
 
-persistent actor Nat64Index {
+persistent actor NatXIndex {
 
   transient let arrSize = 256;
   transient let arr : [var Nat64] = Array_init<Nat64>(arrSize, 0);
@@ -41,7 +44,61 @@ persistent actor Nat64Index {
     debugPrint("nat_index: " # debug_show (m1 - m0, n1 - n0));
   };
 
-  // New: Nat64 loop counter, Nat64 index (no conversion)
+  // Nat8 loop counter, Nat8 index
+  public func nat8Index() : async () {
+    let (m0, n0) = counters();
+    let arrSize8 : Nat8 = natToNat8(arrSize - 1);
+    var outer = 0;
+    while (outer < 1000) {
+      var acc : Nat64 = 0;
+      var n : Nat8 = 0;
+      while (n < arrSize8) {
+        acc +%= arr[n];
+        n +%= 1;
+      };
+      outer += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint("nat8_index: " # debug_show (m1 - m0, n1 - n0));
+  };
+
+  // Nat16 loop counter, Nat16 index
+  public func nat16Index() : async () {
+    let (m0, n0) = counters();
+    let arrSize16 : Nat16 = natToNat16(arrSize);
+    var outer = 0;
+    while (outer < 1000) {
+      var acc : Nat64 = 0;
+      var n : Nat16 = 0;
+      while (n < arrSize16) {
+        acc +%= arr[n];
+        n +%= 1;
+      };
+      outer += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint("nat16_index: " # debug_show (m1 - m0, n1 - n0));
+  };
+
+  // Nat32 loop counter, Nat32 index
+  public func nat32Index() : async () {
+    let (m0, n0) = counters();
+    let arrSize32 : Nat32 = natToNat32(arrSize);
+    var outer = 0;
+    while (outer < 1000) {
+      var acc : Nat64 = 0;
+      var n : Nat32 = 0;
+      while (n < arrSize32) {
+        acc +%= arr[n];
+        n +%= 1;
+      };
+      outer += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint("nat32_index: " # debug_show (m1 - m0, n1 - n0));
+  };
+
+  // Nat64 loop counter, Nat64 index
   public func nat64Index() : async () {
     let (m0, n0) = counters();
     let arrSize64 : Nat64 = natToNat64(arrSize);
@@ -84,6 +141,9 @@ persistent actor Nat64Index {
 
 //CALL ingress setup 0x4449444C0000
 //CALL ingress natIndex 0x4449444C0000
+//CALL ingress nat8Index 0x4449444C0000
+//CALL ingress nat16Index 0x4449444C0000
+//CALL ingress nat32Index 0x4449444C0000
 //CALL ingress nat64Index 0x4449444C0000
 //CALL ingress nat64ToNatIndex 0x4449444C0000
 //CALL ingress getPerfData 0x4449444C0000

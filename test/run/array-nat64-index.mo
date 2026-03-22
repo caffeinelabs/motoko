@@ -40,3 +40,38 @@ while (k < 8) {
 assert(c[0] == 0);
 assert(c[(3 : Nat64)] == 30);
 assert(c[(7 : Nat64)] == 70);
+
+// Test Nat64 indexing into blobs
+let blob : Blob = "hello";
+assert(blob[(0 : Nat64)] == (104 : Nat8));
+assert(blob[(4 : Nat64)] == (111 : Nat8));
+
+// Test Nat64 blob index in a loop
+var bi : Nat64 = 0;
+var sum : Nat = 0;
+while (bi < 5) {
+  sum += Prim.nat8ToNat(blob[bi]);
+  bi += 1;
+};
+assert(sum == 532);
+
+// Test Nat8 indexing
+let n8 : Nat8 = 2;
+assert(a[n8] == 30);
+assert(blob[n8] == (108 : Nat8));
+b[n8] := 77;
+assert(b[n8] == 77);
+
+// Test Nat16 indexing
+let n16 : Nat16 = 3;
+assert(a[n16] == 40);
+assert(blob[n16] == (108 : Nat8));
+b[n16] := 88;
+assert(b[n16] == 88);
+
+// Test Nat32 indexing
+let n32 : Nat32 = 4;
+assert(a[n32] == 50);
+assert(blob[n32] == (111 : Nat8));
+b[n32] := 55;
+assert(b[n32] == 55);

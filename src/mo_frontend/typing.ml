@@ -2020,23 +2020,29 @@ and infer_exp'' env exp : T.typ =
     T.Array (match mut.it with Const -> t1 | Var -> T.Mut t1)
   | IdxE (exp1, exp2) ->
     let t1 = infer_exp_promote env exp1 in
-    let check_idx_nat_or_nat64 env exp2 =
+    let check_idx_nat_type env exp2 =
       if not env.pre then begin
         let t2 = infer_exp env exp2 in
-        if not (T.sub t2 T.nat) && not (T.eq t2 T.(Prim Nat64)) then
+        let is_nat_idx = T.sub t2 T.nat
+          || T.sub t2 T.(Prim Nat8)
+          || T.sub t2 T.(Prim Nat16)
+          || T.sub t2 T.(Prim Nat32)
+          || T.sub t2 T.(Prim Nat64)
+        in
+        if not is_nat_idx then
           error env exp2.at "M0245"
-            "expected index type Nat or Nat64, but expression produces type%a"
+            "expected index type Nat or fixed-width Nat, but expression produces type%a"
             display_typ_expand t2
       end
     in
     begin match t1 with
     | T.(Prim Blob) ->
-      if not env.pre then check_exp_strong env T.nat exp2;
+      check_idx_nat_type env exp2;
       T.(Prim Nat8)
     | _ ->
       try
         let t = T.as_array_sub t1 in
-        check_idx_nat_or_nat64 env exp2;
+        check_idx_nat_type env exp2;
         t
       with Invalid_argument _ ->
         error env exp1.at "M0075"
