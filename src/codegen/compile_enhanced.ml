@@ -1892,17 +1892,6 @@ module BitTagged = struct
       compile_bitand_const mask
     else G.nop
 
-  (* True for types whose Vanilla encoding is always a bit-tagged scalar (bit 0 = 0),
-     so Opt.inject is a no-op and can be omitted at compile time.
-     Nat64/Int64 are excluded: values outside the 60-bit compact range are heap-boxed
-     as Bits64 (bit 0 = 1), so the scalar property does not hold for all values.
-     Opt.inject is still a no-op for Nat64/Int64 (branch_default returns Bits64 as-is),
-     but it cannot be eliminated statically. *)
-  let is_always_scalar t =
-    Type.(match normalize t with
-    | Prim (Nat8 | Nat16 | Nat32 | Int8 | Int16 | Int32 | Char | Float32) -> true
-    | _ -> false)
-
 end (* BitTagged *)
 
 module Tagged = struct
@@ -2242,8 +2231,16 @@ module Opt = struct
   let alloc_some env get_payload =
     Tagged.obj env Tagged.Some [ get_payload ]
 
+  let injection_is_free env t =
+    Type.(match normalize t with
+         | Prim Null
+         | Opt _
+         | Any
+         | Con(_, _) -> false
+         | _ -> true)
+
   let inject env t e =
-    if BitTagged.is_always_scalar t then e
+    if injection_is_free env t then e
     else
     e ^^
     Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
