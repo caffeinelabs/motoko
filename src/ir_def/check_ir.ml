@@ -395,6 +395,9 @@ let store_typ t  =
     List.for_all (fun f -> T.is_opt f.T.typ) fts
   | _ -> false
 
+let check_array_idx_typ t_idx =
+  T.sub t_idx T.nat || T.eq t_idx T.nat64
+
 let rec check_exp env (exp:Ir.exp) : unit =
   (* helpers *)
   let check p = check env exp.at p in
@@ -522,7 +525,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
                                          (T.string_of_typ_expand t1)
       in
       let t_idx = typ exp2 in
-      if not (T.sub t_idx T.nat || T.eq t_idx T.nat64) then
+      if not (check_array_idx_typ t_idx) then
         t_idx <: T.nat;
       T.as_immut t2 <: t
     | IdxBlobPrim, [exp1; exp2] ->
@@ -986,7 +989,7 @@ and check_lexp env (lexp:Ir.lexp) : unit =
                                        (T.string_of_typ_expand t1)
     in
     let t_idx = typ exp2 in
-    if not (T.sub t_idx T.nat || T.eq t_idx T.nat64) then
+    if not (check_array_idx_typ t_idx) then
       t_idx <: T.nat;
     t2 <: t
 
