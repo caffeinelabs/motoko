@@ -5,7 +5,7 @@ import {
   debugPrint;
   rts_lifetime_instructions;
 } = "mo:⛔";
-import Nat32 "mo:core/Nat32"
+import Nat "mo:core/Nat"
 
 actor _alloc {
 
@@ -13,7 +13,7 @@ actor _alloc {
 
   public func go() : async () {
     let (m0, n0) = counters();
-    for (i in Nat32.range(0, 1024)) {
+    for (i in Nat.range(0, 1024)) {
       assert (i < 1024)
     };
     let (m1, n1) = counters();
