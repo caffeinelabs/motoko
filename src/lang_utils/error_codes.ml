@@ -207,7 +207,7 @@ let error_codes : (string * string option) list =
     "M0233", None; (* Wrong number of arguments *)
     "M0234", None; (* Field exists but is not a function *)
     "M0238", None; (* Misplaced break or continue *)
-    "M0245", None; (* Invalid array index type (expected Nat or Nat64) *)
+    "M0245", None; (* Invalid array index type (expected Nat or fixed-width Nat) *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
