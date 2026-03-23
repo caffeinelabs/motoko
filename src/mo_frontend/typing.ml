@@ -1937,6 +1937,10 @@ let resolve_hole env at hole_sort hole_typ =
       env at hole_sort hole_typ
   in
   let open ImplicitHoles in
+  (* Entries with func_exp = None only exist when commit_derivation failed,
+     which means the overall result is Error. Result.map skips Error, so
+     the assert below is safe as long as the no-backtracking invariant holds
+     (failed derivations immediately return Error, never fall through). *)
   Result.map (fun candidate ->
     let bindings = !rec_bindings
       |> List.rev
