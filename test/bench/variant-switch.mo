@@ -8,6 +8,7 @@ import {
   rts_heap_size;
   debugPrint;
   rts_lifetime_instructions;
+  Array_tabulate;
 } = "mo:⛔";
 
 persistent actor Core {
@@ -99,6 +100,144 @@ persistent actor Core {
       #Var "fib"
     )]);
 
+  // ── Runtime values ───────────────────────────────────────────────────────
+  type Val = { #VInt : Int; #VFun : Val -> Val; #VCon : (Text, [Val]) };
+  type Env = Text -> Val;
+
+  transient let emptyEnv : Env = func(_) { assert false; #VInt 0 };
+  func extend(env : Env, x : Text, v : Val) : Env =
+    func(y) = if (y == x) v else env y;
+  func applyVal(f : Val, v : Val) : Val = switch f {
+    case (#VFun g) g v;
+    case _         { assert false; #VInt 0 };
+  };
+
+  // Peano helpers
+  func addPeano(a : Val, b : Val) : Val = switch a {
+    case (#VCon (tag, args)) switch tag {
+      case "0"  b;
+      case "+1" #VCon ("+1", [addPeano (args[0], b)]);
+      case _    { assert false; #VInt 0 };
+    };
+    case _ { assert false; #VInt 0 };
+  };
+  func predPeano(v : Val) : Val = switch v {
+    case (#VCon (_, args)) args[0];
+    case _                 { assert false; #VInt 0 };
+  };
+  func evalPrimOp(c : Char) : Val = switch c {
+    case '+' #VFun (func(a) = #VFun (func(b) = addPeano (a, b)));
+    case '-' #VFun predPeano;
+    case _   { assert false; #VInt 0 };
+  };
+  func peano(n : Nat) : Val {
+    if (n == 0) #VCon ("0", [])
+    else        #VCon ("+1", [peano (n - 1 : Nat)])
+  };
+  func fromPeano(v : Val) : Nat = switch v {
+    case (#VCon (tag, args)) switch tag {
+      case "0"  0;
+      case "+1" 1 + fromPeano (args[0]);
+      case _    { assert false; 0 };
+    };
+    case _ { assert false; 0 };
+  };
+
+  // ── Direct AST interpreter ────────────────────────────────────────────────
+  func eval(e : Expr, env : Env) : Val = switch e {
+    case (#Var x)          env x;
+    case (#Lit n)          #VInt n;
+    case (#Prim c)         evalPrimOp c;
+    case (#App (f, x))     applyVal (eval(f, env), eval(x, env));
+    case (#Lam (x, b))     #VFun (func(v) = eval(b, extend(env, x, v)));
+    case (#Let (x, r, b))  eval(b, extend(env, x, eval(r, env)));
+    case (#LetRec triples) {
+      let (x, rhs, body) = triples[0];
+      var cell : Val = #VInt 0;
+      let recEnv = extend(env, x, #VFun (func(v) = applyVal (cell, v)));
+      cell := eval(rhs, recEnv);
+      eval(body, recEnv)
+    };
+    case (#Case (s, alts)) {
+      switch (eval(s, env)) {
+        case (#VCon (tag, _)) {
+          for ((altTag, altBody) in alts.vals()) {
+            if (tag == altTag) return eval(altBody, env);
+          };
+          assert false; #VInt 0
+        };
+        case _ { assert false; #VInt 0 };
+      }
+    };
+    case (#Con (t, args))
+      #VCon (t, Array_tabulate (args.size(), func(i) = eval(args[i], env)));
+  };
+
+  // ── Finally-tagless interpreter ───────────────────────────────────────────
+  // FT: a compiled term — just a closure Env -> Val, no more variant dispatch
+  type FT = Env -> Val;
+
+  type Symantics = {
+    lit    : Int -> FT;
+    var_   : Text -> FT;
+    app    : (FT, FT) -> FT;
+    lam    : (Text, FT) -> FT;
+    let_   : (Text, FT, FT) -> FT;
+    letRec : [(Text, FT, FT)] -> FT;
+    case_  : (FT, [(Text, FT)]) -> FT;
+    con    : (Text, [FT]) -> FT;
+    prim   : Char -> FT;
+  };
+
+  transient let evalSem : Symantics = {
+    lit    = func(n)        = func(_)   = #VInt n;
+    var_   = func(x)        = func(env) = env x;
+    app    = func(f, x)     = func(env) = applyVal (f env, x env);
+    lam    = func(x, b)     = func(env) = #VFun (func(v) = b (extend(env, x, v)));
+    let_   = func(x, r, b)  = func(env) = b (extend(env, x, r env));
+    letRec = func(triples)  = func(env) {
+      let (x, rhs, body) = triples[0];
+      var cell : Val = #VInt 0;
+      let recEnv = extend(env, x, #VFun (func(v) = applyVal (cell, v)));
+      cell := rhs recEnv;
+      body recEnv
+    };
+    case_  = func(scr, alts) = func(env) {
+      switch (scr env) {
+        case (#VCon (tag, _)) {
+          for ((altTag, altBody) in alts.vals()) {
+            if (tag == altTag) return altBody env;
+          };
+          assert false; #VInt 0
+        };
+        case _ { assert false; #VInt 0 };
+      }
+    };
+    con  = func(t, args) = func(env) =
+      #VCon (t, Array_tabulate (args.size(), func(i) = args[i] env));
+    prim = func(c) = func(_) = evalPrimOp c;
+  };
+
+  func transform(sem : Symantics, e : Expr) : FT = switch e {
+    case (#Var x)          sem.var_ x;
+    case (#Lit n)          sem.lit n;
+    case (#Prim c)         sem.prim c;
+    case (#App (f, x))     sem.app (transform(sem, f), transform(sem, x));
+    case (#Lam (x, b))     sem.lam (x, transform(sem, b));
+    case (#Let (x, r, b))  sem.let_ (x, transform(sem, r), transform(sem, b));
+    case (#LetRec triples) sem.letRec (Array_tabulate (triples.size(), func(i) {
+      let (x, r, b) = triples[i]; (x, transform(sem, r), transform(sem, b))
+    }));
+    case (#Case (s, alts)) sem.case_ (transform(sem, s), Array_tabulate (alts.size(), func(i) {
+      let (t, e2) = alts[i]; (t, transform(sem, e2))
+    }));
+    case (#Con (t, args))
+      sem.con (t, Array_tabulate (args.size(), func(i) = transform(sem, args[i])));
+  };
+
+  transient let fibFT   : FT  = transform(evalSem, fibCore);
+  transient let seven   : Val = peano 7;   // fib(7) = 13
+
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 
   public func go() : async () {
@@ -116,7 +255,30 @@ persistent actor Core {
   public func getPerfData() : async () {
     debugPrint("instructions: " # debug_show (rts_lifetime_instructions()));
   };
+
+  // Benchmark: eval fib(7) via direct AST interpreter vs FT (100 iterations each)
+  public func evalBench() : async () {
+    let fibFn   : Val = eval(fibCore, emptyEnv);  // AST: fib function via eval
+    let fibFnFT : Val = fibFT emptyEnv;           // FT:  fib function via compiled form
+
+    let (_m0, n0) = counters();
+    var r : Val = seven;
+    var i = 0;
+    while (i < 100) { r := applyVal (fibFn,   seven); i += 1 };
+    let (_m1, n1) = counters();
+    var r2 : Val = seven;
+    var j = 0;
+    while (j < 100) { r2 := applyVal (fibFnFT, seven); j += 1 };
+    let (_m2, n2) = counters();
+    debugPrint(debug_show {
+      fib7_eval   = fromPeano r;
+      fib7_evalFT = fromPeano r2;
+      instr_eval   = n1 - n0;
+      instr_evalFT = n2 - n1;
+    });
+  };
 };
 
 //CALL ingress go 0x4449444C0000
+//CALL ingress evalBench 0x4449444C0000
 //CALL ingress getPerfData 0x4449444C0000
