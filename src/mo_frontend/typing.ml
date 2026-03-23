@@ -1522,7 +1522,9 @@ and derivation_error =
   | InnerErrors of (T.lab * T.typ * hole_error) list
   | DepthLimited
 
-(* TODO: remove or keep? *)
+(* Renders the full derivation tree for diagnostics.
+   TODO: Currently unused — render_derivation_leaves provides a flatter alternative.
+   Keeping until the feature is fully reviewed, then we'll decide which to use. *)
 let render_derivation_tree env = function
   | None -> []
   | Some note ->
@@ -1584,27 +1586,28 @@ let render_derivation_leaves env = function
 
 let synthesize_derived_wrapper ~name at candidate_path cand_args resolved_paths =
   let mk e = { Source.it = e; at; note = empty_typ_note } in
-  let param_counter = ref 0 in
+  let param_idx = ref 0 in
   let fresh_name () =
-    let n = !param_counter in
-    incr param_counter;
+    let n = !param_idx in
+    incr param_idx;
     Printf.sprintf "$impl_arg%d" n
   in
-  let impl_queue = ref resolved_paths in
-  let param_names = ref [] in
-  let call_args = List.map (fun arg_typ ->
-    match as_implicit_with_type arg_typ with
-    | Some _ ->
-      let path = List.hd !impl_queue in
-      impl_queue := List.tl !impl_queue;
-      path
-    | None ->
-      let name = fresh_name () in
-      param_names := name :: !param_names;
-      mk (VarE { Source.it = name; at = Source.no_region; note = (Const, None) })
-  ) cand_args in
-  assert (!impl_queue = []);
-  let param_names = List.rev !param_names in
+  let call_args_rev, param_names_rev, remaining =
+    List.fold_left (fun (args_acc, params_acc, impls) arg_typ ->
+      match as_implicit_with_type arg_typ with
+      | Some _ ->
+        (match impls with
+         | path :: rest -> (path :: args_acc, params_acc, rest)
+         | [] -> assert false)
+      | None ->
+        let n = fresh_name () in
+        let exp = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) }) in
+        (exp :: args_acc, n :: params_acc, impls)
+    ) ([], [], resolved_paths) cand_args
+  in
+  assert (remaining = []);
+  let call_args = List.rev call_args_rev in
+  let param_names = List.rev param_names_rev in
   let mk_var_pat name =
     { Source.it = VarP { Source.it = name; at = Source.no_region; note = () };
       at = Source.no_region;
@@ -1683,6 +1686,9 @@ module ImplicitHoles = struct
     func_without_holes : T.typ;
   }
 
+  (* Only Local/Returns functions are eligible for derivation:
+     Shared and Composite functions (actors, async) are excluded
+     since implicits are a local-scope, synchronous mechanism. *)
   let is_matching_typ_with_holes ctx candidate_typ =
     match T.promote ctx.hole_typ, T.promote candidate_typ with
     | T.Func (T.Local, T.Returns, [], req_args, req_rets),
@@ -1744,7 +1750,7 @@ module ImplicitHoles = struct
 
     let matching_fields ctx xs = xs
       |> all_module_fields (fun module_ref field ->
-        if not (T.sub field.T.typ ctx.hole_typ) then None else
+        if not (is_matching_typ ctx field.T.typ) then None else
         Some (make_field_candidate module_ref field))
       |> partition ctx
       (* TODO: calculate explicit candidates LAZILY on error *)
@@ -1766,10 +1772,10 @@ module ImplicitHoles = struct
   let matching_vals ctx (vals : val_env) =
     T.Env.to_seq vals
     |> Seq.filter_map (fun (id, (t, region, _, _ : val_info)) ->
-      if not (T.sub t ctx.hole_typ) then None else
+      if not (is_matching_typ ctx t) then None else
       Some (make_val_candidate id t region))
     |> partition ctx
-  
+
   let matching_vals_with_holes ctx (vals : val_env) =
     T.Env.to_seq vals
     |> Seq.filter_map (fun (id, (t, region, _, _ : val_info)) ->
@@ -1784,7 +1790,7 @@ module ImplicitHoles = struct
   (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
   If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
   let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ)
-  let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) -> 
+  let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) ->
     T.sub x.func_without_holes y.func_without_holes)
 
   let renaming_hints env at hole_sort explicit_terms =
@@ -1870,7 +1876,7 @@ module ImplicitHoles = struct
     | `Single term -> Ok term
     | `Many _ -> Error (HoleAmbiguous {ambiguous_candidates = eligible_ids; explicit_candidates = explicit_ids})
     | `Empty ->
-    
+
     (* Get direct candidates from module fields; computed early for diagnostic purposes *)
     let matching_fields, explicit_candidates =
       let (fields, explicit_fields) = FromModuleVal.matching_fields ctx env.vals in

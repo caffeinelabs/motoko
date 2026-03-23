@@ -320,7 +320,7 @@ do {
     };
   };
 
-  module DerivedM {
+  module _DerivedM {
     public func compare<T>(_ : [T], _ : [T], compare : (implicit : (T, T) -> Order)) : Order {
       ignore compare;
       derivedModuleCalled := true;
@@ -335,4 +335,48 @@ do {
   assert needsCompare([1], [2]) == #equal;
   assert directModuleCalled;
   assert not derivedModuleCalled;
+};
+
+// Subtyping in derivation: inner implicit resolved via supertype (Int.compare for Nat args)
+do {
+  var intCompareCalled = false;
+
+  // Shadow outer modules so only local definitions are in scope
+  module Nat {};
+  module Int {
+    public func compare(a : Int, b : Int) : Order {
+      intCompareCalled := true;
+      if (a < b) #less else if (a == b) #equal else #greater;
+    };
+  };
+
+  module Array {
+    public func compare<T>(a : [T], b : [T], compare : (implicit : (T, T) -> Order)) : Order {
+      let len = a.size();
+      if (len != b.size()) {
+        if (len < b.size()) #less else #greater;
+      } else {
+        var i = 0;
+        var result : Order = #equal;
+        label l while (i < len) {
+          switch (compare(a[i], b[i])) {
+            case (#equal) {};
+            case other { result := other; break l };
+          };
+          i += 1;
+        };
+        result;
+      };
+    };
+  };
+
+  func needsNatArrayCompare(
+    a : [Nat],
+    b : [Nat],
+    compare : (implicit : ([Nat], [Nat]) -> Order),
+  ) : Order { compare(a, b) };
+
+  // Int.compare : (Int, Int) -> Order satisfies (Nat, Nat) -> Order via Nat <: Int
+  assert needsNatArrayCompare([1, 2], [1, 3]) == #less;
+  assert intCompareCalled;
 };

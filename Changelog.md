@@ -4,7 +4,7 @@
 
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
   * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
-  * feat: Implicit argument derivation — the compiler can now resolve implicit arguments by composing them from polymorphic functions that themselves have implicit parameters. For example, an implicit `compare` for `[Nat]` is automatically derived from `Array.compare<Nat>` + `Nat.compare`, eliminating the need for boilerplate wrapper modules. Works transitively (e.g., `[[Nat]]`). Depth-limited with `--implicit-derivation-depth` flag (default: 5). Error messages include derivation context when resolution fails.
+  * feat: Implicit argument derivation — the compiler can now resolve implicit arguments by composing them from polymorphic functions that themselves have implicit parameters. For example, an implicit `compare` for `[Nat]` is automatically derived from `Array.compare<Nat>` + `Nat.compare`, eliminating the need for boilerplate wrapper modules. Works transitively (e.g., `[[Nat]]`). Depth-limited with `--implicit-derivation-depth` flag (default: 5). Error messages include derivation context when resolution fails (#5903).
 
 ## 1.3.0 (2026-02-24)
 
