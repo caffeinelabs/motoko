@@ -1,0 +1,50 @@
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int8
+    ┌─ nat64-index.mo:4:10
+  4 │  ignore a[i8];
+    │           ^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int16
+    ┌─ nat64-index.mo:7:10
+  7 │  ignore a[i16];
+    │           ^^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int32
+    ┌─ nat64-index.mo:10:10
+ 10 │  ignore a[i32];
+    │           ^^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int64
+    ┌─ nat64-index.mo:13:10
+ 13 │  ignore a[i64];
+    │           ^^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int
+    ┌─ nat64-index.mo:17:10
+ 17 │  ignore a[i];
+    │           ^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int8
+    ┌─ nat64-index.mo:21:10
+ 21 │  ignore b[i8];
+    │           ^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int16
+    ┌─ nat64-index.mo:22:10
+ 22 │  ignore b[i16];
+    │           ^^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int32
+    ┌─ nat64-index.mo:23:10
+ 23 │  ignore b[i32];
+    │           ^^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int64
+    ┌─ nat64-index.mo:24:10
+ 24 │  ignore b[i64];
+    │           ^^^ 
+error[M0245]: expected index type Nat or fixed-width Nat, but expression produces type
+  Int
+    ┌─ nat64-index.mo:25:10
+ 25 │  ignore b[i];
+    │           ^ 
