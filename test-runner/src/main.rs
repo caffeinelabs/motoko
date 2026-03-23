@@ -38,6 +38,7 @@ pub struct TestRunnerArgs {
     pub filter: Option<String>,
     #[arg(
         long,
+        requires = "filter",
         help = "Match the filter against test output file contents instead of test names (e.g. -f M0223 --in-file to run all tests whose output contains M0223)."
     )]
     pub in_file: bool,
@@ -85,7 +86,7 @@ fn run_legacy_mode(subnet_type: SubnetType) {
     test_runner::run_cmdline_test(buffer, subnet_type);
 }
 
-const TEST_DIRS: [&str; 3] = ["test/run-drun", "test/run", "test/fail"];
+const TEST_DIRS: [&str; 4] = ["test/run-drun", "test/run", "test/fail", "test/trap"];
 
 fn compile_filter(input: &str) -> Result<Regex, regex::Error> {
     let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
@@ -373,8 +374,8 @@ fn main() {
             println!("Could not determine current directory. Aborting.");
             return;
         };
-        let required = ["test/run.sh", "test/run-drun", "test/run", "test/fail"];
-        if let Some(missing) = required.iter().find(|p| !path.join(p).exists()) {
+        let required = std::iter::once("test/run.sh").chain(TEST_DIRS);
+        if let Some(missing) = required.into_iter().find(|p| !path.join(p).exists()) {
             println!("Current path: {:?}", path.display());
             println!(
                 "test-runner should be run from the top-level repo directory (missing {missing})."
