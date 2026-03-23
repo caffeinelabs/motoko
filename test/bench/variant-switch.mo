@@ -75,6 +75,29 @@ persistent actor Core {
 
   transient let tree = build 15;  // all 9 constructors
 
+  // naïve fib in Core (Peano naturals; #Prim '+' = add, #Prim '-' = pred)
+  //   fib 0     = 0
+  //   fib (S 0) = 1
+  //   fib (S n) = fib n + fib (pred n)
+  transient let _fibCore : Expr =
+    #LetRec ([(
+      "fib",
+      #Lam ("n",
+        #Case (#Var "n", [
+          ("0",  #Con ("0", [])),
+          ("+1",
+            #Case (#App (#Prim '-', #Var "n"), [
+              ("0",  #Con ("+1", [#Con ("0", [])])),
+              ("+1",
+                #App (
+                  #App (#Prim '+',
+                    #App (#Var "fib", #App (#Prim '-', #Var "n"))),
+                  #App (#Var "fib", #App (#Prim '-', #App (#Prim '-', #Var "n")))))
+            ]))
+        ])),
+      #Var "fib"
+    )]);
+
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 
   public func go() : async () {
