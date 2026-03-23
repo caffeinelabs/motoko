@@ -7,7 +7,7 @@
 #   - run: nix profile install .#nix-build-uncached
 #   - name: "Run common tests"
 #     run: |
-#       cachix watch-exec ic-hs-test -- \
+#       cachix watch-exec ic-hs-test -- \  # only when auth token is available
 #         nix-build-uncached --max-jobs auto \
 #           -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.common-tests'
 
