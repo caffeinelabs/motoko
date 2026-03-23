@@ -79,7 +79,7 @@ persistent actor Core {
   //   fib 0     = 0
   //   fib (S 0) = 1
   //   fib (S n) = fib n + fib (pred n)
-  transient let _fibCore : Expr =
+  transient let fibCore : Expr =
     #LetRec ([(
       "fib",
       #Lam ("n",
@@ -106,7 +106,7 @@ persistent actor Core {
     var total = 0;
     var i = 0;
     while (i < 10_000) {
-      total += size tree;
+      total += size tree + size fibCore;
       i += 1;
     };
     let (m1, n1) = counters();
