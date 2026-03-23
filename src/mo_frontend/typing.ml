@@ -1753,7 +1753,7 @@ module ImplicitHoles = struct
         if not (is_matching_typ ctx field.T.typ) then None else
         Some (make_field_candidate module_ref field))
       |> partition ctx
-      (* TODO: calculate explicit candidates LAZILY on error *)
+      (* Future work: we could calculate explicit candidates LAZILY on error *)
     let matching_fields_with_holes ctx xs = xs
       |> all_module_fields (fun module_ref field ->
         if not (is_matching_lab ctx field.T.lab) then None else (* Prune early by name *)
