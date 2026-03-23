@@ -11438,8 +11438,65 @@ and compile_array_index env ae e1 e2 =
        TaggedSmallWord.lsb_adjust pty ^^
        Arr.idx env
      | _ ->
+       (* Speculative fast path for plain Nat (bigint) array indices.
+
+          Background: idx_bigint calls BigNum.to_word64_with, which
+          already has a tagged-scalar fast path internally. However,
+          that path still pays for:
+            1. A function call into the shared idx_bigint body
+            2. Allocating a local for the error message string
+            3. Another local + branch inside to_word64_with
+          By inlining the scalar check at the call site, we skip all
+          of that overhead for the common case (small Nat indices).
+
+          Tagging recap (see module BitTagged for full details):
+            - With RTTI (always on for enhanced), compact Nat n is
+              stored as (n << 2) | 0b10: ubits=62, tag=0b10.
+              Bit 0 is always 0 for scalars (pointers have 0b..11).
+            - Bit 63 is always 0 for non-negative compact Nat
+              (compact Nat/Int use signed form; Nat is non-negative).
+            - Heap-allocated bigints are skewed pointers with the
+              low two bits set (0b..11), so bit 0 = 1.
+
+          Fast path:
+            (val & 0x8000000000000001) == 0 confirms both bit 0
+            (scalar) and bit 63 (non-negative). An unsigned right
+            shift by (64 - ubits) then recovers the raw index, which
+            we pass directly to Arr.idx (the same function used by
+            the fixed-width Nat8/16/32/64 paths). Unsigned shift is
+            safe here because bit 63 is confirmed zero.
+
+          Slow path:
+            Any value that fails the check (heap bigint, or a
+            negative Int that somehow got here) falls through to
+            Arr.idx_bigint, which handles the full conversion.
+
+          Branch direction: the AND result is an i64; E.if_ wraps
+          it to i32 via i32.wrap_i64. Non-zero (failed check) takes
+          the then-branch (slow path), zero takes else (fast path).
+
+          Both array and index are saved to locals because wasm
+          if-blocks do not inherit the enclosing operand stack. *)
+       let set_va, get_va = new_local env "va" in
+       set_va ^^
        compile_exp_vanilla env ae e2 ^^
-       Arr.idx_bigint env)
+       let set_vi, get_vi = new_local env "vi" in
+       set_vi ^^
+       get_vi ^^
+       compile_bitand_const 0x8000000000000001L ^^
+       E.if_ env [I64Type]
+         begin
+           get_va ^^
+           get_vi ^^
+           Arr.idx_bigint env
+         end
+         begin
+           get_va ^^
+           get_vi ^^
+           compile_shrU_const
+             (Int64.of_int (64 - TaggingScheme.ubits_of Type.Nat)) ^^
+           Arr.idx env
+         end)
 
 and compile_prim_invocation (env : E.t) ae p es at =
   (* for more concise code when all arguments and result use the same sr *)
@@ -11636,8 +11693,31 @@ and compile_prim_invocation (env : E.t) ae p es at =
        TaggedSmallWord.lsb_adjust pty ^^
        Blob.idx env
      | _ ->
+       (* Speculative fast path for plain Nat blob indices.
+          Same approach as compile_array_index: inline the scalar
+          check to bypass idx_bigint for small Nat values.
+          See the comment in compile_array_index for full rationale
+          and tagging details. *)
+       let set_vb, get_vb = new_local env "vb" in
+       set_vb ^^
        compile_exp_vanilla env ae e2 ^^
-       Blob.idx_bigint env)
+       let set_vi, get_vi = new_local env "vi" in
+       set_vi ^^
+       get_vi ^^
+       compile_bitand_const 0x8000000000000001L ^^
+       E.if_ env [I64Type]
+         begin
+           get_vb ^^
+           get_vi ^^
+           Blob.idx_bigint env
+         end
+         begin
+           get_vb ^^
+           get_vi ^^
+           compile_shrU_const
+             (Int64.of_int (64 - TaggingScheme.ubits_of Type.Nat)) ^^
+           Blob.idx env
+         end)
 
   | BreakPrim name, [e] ->
     let d = VarEnv.get_label_depth ae name in
