@@ -1,8 +1,8 @@
 // Benchmark: small interpreter for a GHC-Core-like expression language.
-// Exercises an 8-arm variant switch (the hot path) heavily.
+// Exercises a 9-arm variant switch (the hot path) heavily.
 //
 // Constructors:
-//   Var, Lit, App, Lam, Let, LetRec, Case, Con
+//   Var, Lit, App, Lam, Let, LetRec, Case, Con, Prim
 import {
   performanceCounter;
   rts_heap_size;
@@ -21,6 +21,7 @@ persistent actor Core {
     #LetRec : [(Text, Expr, Expr)];   // list of (name, rhs, body)
     #Case   : (Expr, [(Text, Expr)]); // scrutinee, alts
     #Con    : (Text, [Expr]);         // constructor name, args
+    #Prim   : Char;                   // primitive operation
   };
 
   // Count all nodes in an expression tree
@@ -34,6 +35,7 @@ persistent actor Core {
       case (#LetRec triples)   1 + sumTriples triples;
       case (#Case(s, alts))    1 + size s + sumAlts alts;
       case (#Con (_, args))    1 + sumArgs args;
+      case (#Prim _)           1;
     };
 
   func sumTriples(ts : [(Text, Expr, Expr)]) : Nat {
@@ -54,11 +56,11 @@ persistent actor Core {
     n
   };
 
-  // Build a synthetic expression tree touching all 8 constructors
+  // Build a synthetic expression tree touching all 9 constructors
   func build(d : Nat) : Expr {
     if (d == 0) return #Lit 0;
     let s = build (d - 1 : Nat);
-    switch (d % 8) {
+    switch (d % 9) {
       case 0 #App (#Var "x", s);
       case 1 #Lam ("k", s);
       case 2 #App  (s, #Var "y");
@@ -66,11 +68,12 @@ persistent actor Core {
       case 4 #Let  ("w", s, #Var "w");
       case 5 #LetRec ([("f", s, #App (#Var "f", #Lit 0))]);
       case 6 #Case (s, [("A", #Lit 1), ("B", s)]);
-      case _ #Con  ("Pair", [s, #Var "v"]);
+      case 7 #Con  ("Pair", [s, #Var "v"]);
+      case _ #App (#Prim '+', s);
     }
   };
 
-  transient let tree = build 15;  // 80 nodes, all 8 constructors
+  transient let tree = build 15;  // all 9 constructors
 
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 
