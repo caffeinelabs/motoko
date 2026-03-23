@@ -56,14 +56,13 @@ runs:
 
     - name: "Run ${{ inputs.test-name }}"
       run: |
+        prefix=()
         if [ -n "$CACHIX_AUTH_TOKEN" ]; then
-          cachix watch-exec ic-hs-test -- \
-          nix-build-uncached --max-jobs auto \
-          -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.${{ inputs.test-target }}'
-        else
-          nix-build-uncached --max-jobs auto \
-          -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.${{ inputs.test-target }}'
+          prefix=(cachix watch-exec ic-hs-test --)
         fi
+        "${prefix[@]}" \
+        nix-build-uncached --max-jobs auto \
+        -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.${{ inputs.test-target }}'
       shell: bash
       env:
         CACHIX_AUTH_TOKEN: ${{ inputs.cachix-auth-token }}
