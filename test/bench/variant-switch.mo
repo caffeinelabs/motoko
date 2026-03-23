@@ -89,10 +89,11 @@ persistent actor Core {
             #Case (#App (#Prim '-', #Var "n"), [
               ("0",  #Con ("+1", [#Con ("0", [])])),
               ("+1",
-                #App (
-                  #App (#Prim '+',
-                    #App (#Var "fib", #App (#Prim '-', #Var "n"))),
-                  #App (#Var "fib", #App (#Prim '-', #App (#Prim '-', #Var "n")))))
+                #Let ("n1", #App (#Prim '-', #Var "n"),
+                  #App (
+                    #App (#Prim '+',
+                      #App (#Var "fib", #Var "n1")),
+                    #App (#Var "fib", #App (#Prim '-', #Var "n1")))))
             ]))
         ])),
       #Var "fib"
