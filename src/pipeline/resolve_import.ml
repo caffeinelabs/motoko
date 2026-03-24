@@ -234,7 +234,7 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   then f
   else (err_package_file_does_not_exist msgs f pname;"")
 
-(* Resolve the argument to `--actor-alias` and `--actor-env-alias`. Check eagerly for well-formedness *)
+(* Resolve the argument to `--actor-alias` and `--actor-env/id-alias`. Check eagerly for well-formedness *)
 let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url * filepath option) Either.t) : (envvar * filepath, blob * filepath option) Either.t =
   let open Either in match f with
   | Left (v, p) ->
