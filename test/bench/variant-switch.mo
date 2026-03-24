@@ -257,6 +257,7 @@ persistent actor Core {
   };
 
   // Benchmark: eval fib(7) via direct AST interpreter vs FT (100 iterations each)
+  // Also benchmarks AST→FT transform itself (pure Expr variant dispatch).
   public func evalBench() : async () {
     let fibFn   : Val = eval(fibCore, emptyEnv);  // AST: fib function via eval
     let fibFnFT : Val = fibFT emptyEnv;           // FT:  fib function via compiled form
@@ -270,11 +271,17 @@ persistent actor Core {
     var j = 0;
     while (j < 100) { r2 := applyVal (fibFnFT, seven); j += 1 };
     let (_m2, n2) = counters();
+    var xform : FT = fibFT;
+    var k = 0;
+    while (k < 100) { xform := transform(evalSem, fibCore); k += 1 };
+    let (_m3, n3) = counters();
     debugPrint(debug_show {
-      fib7_eval   = fromPeano r;
-      fib7_evalFT = fromPeano r2;
-      instr_eval   = n1 - n0;
-      instr_evalFT = n2 - n1;
+      fib7_eval      = fromPeano r;
+      fib7_evalFT    = fromPeano r2;
+      fib7_xform     = fromPeano (applyVal (xform emptyEnv, seven));
+      instr_eval      = n1 - n0;
+      instr_evalFT    = n2 - n1;
+      instr_transform = n3 - n2;
     });
   };
 };
