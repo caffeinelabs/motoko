@@ -238,7 +238,12 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
 let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url * filepath option) Either.t) : (envvar * filepath, blob * filepath option) Either.t =
   let open Either in match f with
   | Left (v, p) ->
-    Left (if Lib.Utf8.is_valid v then (v, p) else failwith "FIXME")
+    Left (if Lib.Utf8.is_valid v then (v, p) else
+      let open Diag in
+      (add_msg msgs
+        (error_message no_region "M0007" "actor-alias"
+          (Printf.sprintf "invalid UTF-8 in environment variable name for actor alias \"%s\"" alias));
+      (v, p)))
   | Right (f, fp_opt) ->
     Right ((match Url.decode_principal f with
     | Ok bytes ->
