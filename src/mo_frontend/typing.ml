@@ -3858,7 +3858,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
       ) dec_fields;
     end;
     if s = T.Module then Static.dec_fields env.msgs dec_fields;
-    if s = T.Actor && Option.is_some env.enhanced_migration then Static.actor_dec_fields env.msgs dec_fields;
+    if (s = T.Actor || s = T.Mixin) && Option.is_some env.enhanced_migration then Static.actor_dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in
     if s = T.Actor then check_migration env obj_sort stab_tfs exp_opt at;
