@@ -1584,6 +1584,10 @@ let render_derivation_leaves env = function
   let lines = List.map (fun l -> "\n  " ^ l) leaves in
   ["Implicit derivation failed:" ^ String.concat "" lines]
 
+(* Synthesized implicit-derivation wrappers use generated $impl_argN variable names. *)
+let is_synthesized_arg (e : Syntax.exp) =
+  match e.it with VarE {it = name; _} -> String.length name > 0 && name.[0] = '$' | _ -> false
+
 let synthesize_derived_wrapper ~name at candidate_path cand_args resolved_paths =
   let mk e = { Source.it = e; at; note = empty_typ_note } in
   let param_idx = ref 0 in
@@ -2089,6 +2093,7 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
   | None ->
     match exp.it, tys, es with
     | DotE(obj_exp, id, _), receiver_ty :: tys, e::es ->
+      if is_synthesized_arg e then () else (* no warnings for compiler-generated calls *)
       if (id.it = "equal" || Lib.String.chop_prefix "compare" id.it <> None) && List.length tys = 1 then () else
       (match contextual_dot env id receiver_ty with
       | Error _ -> ()
@@ -3280,6 +3285,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
         in
         if (List.length explicit_implicits) = saturated_arity - implicits_arity then
           List.iter (fun (name, exp, next_arg) ->
+            if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
             let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
             warn env exp.at "M0237"
               ~edits:[edit to_remove ""]
