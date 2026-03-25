@@ -22,7 +22,7 @@ let err m at =
        at
        "M0014"
        "type"
-       "non-static expression in library, module or migration expression")
+       "non-static expression in library, module, migration expression, or actor body with enhanced migration.")
 
 let pat_err m at =
   let open Diag in
@@ -128,3 +128,19 @@ and pat_field m pf = match pf.it with
 
 let prog p =
   Diag.with_message_store (fun m -> List.iter (dec m) p.it; Some ())
+
+let rec is_system e = match e.it with
+  | CallE (_, _, inst, _) -> (match inst.it with Some (true, _) -> true | _ -> false)
+  | IgnoreE e' | AnnotE (e', _) -> is_system e'
+  | _ -> false
+
+let actor_dec m d = match d.it with
+  | IncludeD _ -> ()
+  | VarD (_, e) when is_system e -> ()
+  | LetD (_, e, _) when is_system e -> ()
+  | ExpD e when is_system e -> ()
+  | VarD (_, e) -> exp m e
+  | _ -> dec m d
+
+let actor_dec_fields m dfs = List.iter (fun df -> actor_dec m df.it.dec) dfs
+
