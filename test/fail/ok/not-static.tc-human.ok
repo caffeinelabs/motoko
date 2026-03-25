@@ -1,4 +1,4 @@
-error[M0014]: non-static expression in library, module, migration expression, or actor body with enhanced migration
+error[M0014]: non-static expression in library, module, migration expression, or actor body with enhanced migration.
     ┌─ lib/not-static.mo:1:1
   1 │  assert "This is not a static files"
     │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

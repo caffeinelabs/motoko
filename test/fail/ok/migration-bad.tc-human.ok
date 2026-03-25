@@ -38,7 +38,7 @@ error[M0136]: empty block cannot produce expected type
     ┌─ migration-bad.mo:28:41
  28 │  (with migration = (func () : ({} -> {}) {}) ()) // reject, not static
     │                                          ^^ 
-error[M0014]: non-static expression in library, module, migration expression, or actor body with enhanced migration
+error[M0014]: non-static expression in library, module, migration expression, or actor body with enhanced migration.
     ┌─ migration-bad.mo:28:19
  28 │  (with migration = (func () : ({} -> {}) {}) ()) // reject, not static
     │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

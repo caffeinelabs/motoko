@@ -14,7 +14,7 @@ migration-bad.mo:23.7-23.57: type error [M0202], expected object type, but migra
   ()
 migration-bad.mo:28.41-28.43: type error [M0136], empty block cannot produce expected type
   {} -> {}
-migration-bad.mo:28.19-28.47: type error [M0014], non-static expression in library, module, migration expression, or actor body with enhanced migration
+migration-bad.mo:28.19-28.47: type error [M0014], non-static expression in library, module, migration expression, or actor body with enhanced migration.
 migration-bad.mo:33.1-33.18: type error [M0208], expected expression with field `migration`, but expression has type
   {other : ()}
 migration-bad.mo:37.1-37.21: type error [M0208], expected expression with field `migration`, but expression has type
