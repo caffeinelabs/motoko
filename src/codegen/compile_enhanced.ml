@@ -70,27 +70,29 @@ module TaggingScheme = struct
   | TUnit
   | TUnused
 
-  (* Leverage OCaml pattern match compilation to check tagging scheme is injective *)
-  (* OCaml generates stack overflow for _decode:
-  let _decode u64 =
-    match u64 with
+  (* Leverage OCaml pattern match compilation to check tagging scheme is injective.
+     Bit order is little-endian (LSB first within each byte, low bytes first),
+     as required to avoid stack overflow in OCaml's exhaustiveness checker — it works
+     left-to-right through patterns, so the discriminating tag bits must appear on the
+     left. See https://github.com/ocaml/ocaml/issues/14664#issuecomment-4135559828 *)
+  type byte = bit * bit * bit * bit * bit * bit * bit * bit (* bit0=lsb first *)
+  let _decode : byte * byte * byte * byte * byte * byte * byte * byte -> _tag = function
     | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TBool (* false *)
-    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,I)) -> TBool (* true *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,I,I)) -> TRef  (* 62 bit *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,I,O)) -> TNum  (* 62 bit *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,O,I,O,O)) -> TNat64 (* 60 bit *)
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,I,I,O,O)) -> TInt64
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TNat32
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (I,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TInt32
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (O,O,I,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TFloat32
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (_,_,_,_,_,O,I,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TChar
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TNat16
-    | ((_,_,_,_,_,_,_,_), (_,_,_,_,_,_,_,_), (I,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TInt16
-    | ((_,_,_,_,_,_,_,_), (O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TNat8
-    | ((_,_,_,_,_,_,_,_), (I,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TInt8
-    | ((O,I,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TUnit
-    | _                                                                                                                                                        -> TUnused
-  *)
+    | ((I,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O)) -> TBool (* true *)
+    | ((I,I,_,_,_,_,_,_), _,_,_,_,_,_,_) -> TRef   (* 62 bit *)
+    | ((O,I,_,_,_,_,_,_), _,_,_,_,_,_,_) -> TNum   (* 62 bit *)
+    | ((O,O,I,O,_,_,_,_), _,_,_,_,_,_,_) -> TNat64 (* 60 bit *)
+    | ((O,O,I,I,_,_,_,_), _,_,_,_,_,_,_) -> TInt64
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O), _,_,_,_) -> TNat32
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,I), _,_,_,_) -> TInt32
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,I,O,O), _,_,_,_) -> TFloat32
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,I,O,_,_,_,_,_), _,_) -> TChar
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O), _,_) -> TNat16
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,I), _,_) -> TInt16
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O), _) -> TNat8
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,I), _) -> TInt8
+    | ((O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,O,O), (O,O,O,O,O,O,I,O)) -> TUnit
+    | _                                                                                                                                                      -> TUnused
 
   let tag_of_typ pty = Type.(
   if !Flags.rtti then
