@@ -1869,7 +1869,7 @@ module BitTagged = struct
       let ubitsl = Int64.of_int (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrS_const (Int64.sub 64L ubitsl)
-    | Nat64 | Nat32 | Nat16 | Nat8 ->
+    | Nat64 | Nat32 | Nat16 | Nat8 | Float32 ->
       let ubitsl = Int64.of_int (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrU_const (Int64.sub 64L ubitsl)
@@ -6634,11 +6634,9 @@ module StackRep = struct
     | UnboxedFloat32, Vanilla ->
       G.i (Convert (Wasm_exts.Values.I32 I32Op.ReinterpretFloat)) ^^
       G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32)) ^^
-      compile_shl_const 32L ^^
-      compile_bitor_const (TaggingScheme.tag_of_typ Type.Float32)
+      BitTagged.tag env Type.Float32
     | Vanilla, UnboxedFloat32 ->
-      BitTagged.sanity_check_tag __LINE__ env Type.Float32 ^^
-      compile_shrU_const 32L ^^
+      BitTagged.untag __LINE__ env Type.Float32 ^^
       G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
       G.i (Convert (Wasm_exts.Values.F32 F32Op.ReinterpretInt))
 
