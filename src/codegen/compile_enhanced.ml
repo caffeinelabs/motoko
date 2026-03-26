@@ -8280,28 +8280,17 @@ module Serialization = struct
         reserve env get_data_buf (B.of_int_host 8) ^^
         get_x ^^ Float.unbox env ^^
         G.i (Store {ty = F64Type; align = 0; offset = 0L; sz = None})
-<<<<<<< alex/32bit-eop
-      | Prim ((Int64|Nat64) as pty) ->
-        reserve env get_data_buf (B.of_int_host 8) ^^
-=======
       | Prim (Int64|Nat64 as pty) ->
-        reserve env get_data_buf 8L ^^
->>>>>>> master
+        reserve env get_data_buf (B.of_int_host 8) ^^
         get_x ^^ BoxedWord64.unbox env pty ^^
         G.i (Store {ty = I64Type; align = 0; offset = 0L; sz = None})
       | Prim (Int32|Nat32 as ty) ->
         write_word_32 env get_data_buf (get_x ^^ TaggedSmallWord.lsb_adjust ty)
       | Prim Char ->
         write_word_32 env get_data_buf (get_x ^^ TaggedSmallWord.lsb_adjust_codepoint env)
-<<<<<<< alex/32bit-eop
-      | Prim ((Int16|Nat16) as ty) ->
+      | Prim (Int16|Nat16 as ty) ->
         reserve env get_data_buf (B.of_int_host 2) ^^
         get_x ^^ TaggedSmallWord.lsb_adjust ty ^^ wrap_i64_to_word32 ^^
-=======
-      | Prim (Int16|Nat16 as ty) ->
-        reserve env get_data_buf 2L ^^
-        get_x ^^ TaggedSmallWord.lsb_adjust ty ^^ G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
->>>>>>> master
         G.i (Store {ty = I32Type; align = 0; offset = 0L; sz = Some Wasm_exts.Types.Pack16})
       | Prim (Int8|Nat8 as ty) ->
         write_byte env get_data_buf (get_x ^^ TaggedSmallWord.lsb_adjust ty)
