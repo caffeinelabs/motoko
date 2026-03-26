@@ -28,3 +28,10 @@ assert r2 == [("active", "true"), ("count", "3")];
 // Three-field record
 let r3 = inspect({ flag = false; tag = "x"; n = (0 : Nat) });
 assert r3 == [("flag", "false"), ("n", "0"), ("tag", "x")];
+
+// Mutable field: T.as_immut strips the mutability so NatField.fieldOf resolves
+let r4 = do {
+  var count : Nat = 7;
+  inspect({ count })
+};
+assert r4 == [("count", "7")];

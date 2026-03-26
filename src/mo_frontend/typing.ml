@@ -1927,7 +1927,7 @@ module ImplicitHoles = struct
             | [] -> `Empty
             | _ :: _ :: _ -> `Ambiguous (List.map snd record_candidates)
             | [(elem_typ, candidate)] ->
-              if depth >= !(Flags.implicit_derivation_depth) then
+              if record_fields <> [] && depth >= !(Flags.implicit_derivation_depth) then
                 `Committed (Error (candidate, DepthLimited))
               else
               let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
