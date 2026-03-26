@@ -184,6 +184,9 @@ The compiler searches for implicit arguments in the following order, stopping at
 4. **Derived from local values** — local functions with implicit parameters that, after stripping their own implicits and instantiating type parameters, match the required type (see [Implicit derivation](#implicit-derivation) below).
 5. **Derived from module fields** — module fields with implicit parameters (e.g., `Array.compare<T>`), derived the same way.
 6. **Derived from library fields** — library fields with implicit parameters (requires `--implicit-package`).
+7. **Structural from local values** — local structural combiners (`__record` convention) applied to record types (see [Structural derivation](#structural-derivation) below).
+8. **Structural from module fields** — module-field structural combiners.
+9. **Structural from library fields** — library structural combiners (requires `--implicit-package`).
 
 Within each tier, if multiple candidates match, the compiler picks the most specific one (by subtyping). If no unique best candidate exists, the call is rejected as ambiguous.
 
@@ -216,6 +219,66 @@ This works transitively: a `compare` for `[[Nat]]` is derived via `Array.compare
 The resolution depth is bounded to guarantee termination. If you encounter a depth limit, you can increase it with `--implicit-derivation-depth` or provide the argument explicitly.
 
 When derivation is attempted but fails (for example, because an inner implicit can't be resolved), the compiler includes this context in the error message, telling you which candidate was tried and which inner implicit was missing.
+
+### Structural derivation
+
+When an implicit is needed for a **record type**, the compiler can synthesise it automatically using a *structural combiner* — a function that converts a list of (field-name, converted-value) pairs into the target type.
+
+A structural combiner is any function whose sole explicit parameter is named `__record` and has type `[(Text, T)] -> R` for some element type `T` and result type `R`. The `__` prefix signals to the compiler that this function acts as a record-level builder.
+
+When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R`, it:
+
+1. Decomposes `SomeRecord` into its fields.
+2. For each field `name : FieldType`, resolves a per-field implicit `FieldType -> T` using the same search label (e.g., `_toJson`).
+3. Synthesises a wrapper function that applies each per-field implicit and assembles the resulting `[(Text, T)]` list before calling the combiner.
+
+This makes it possible for a library to provide generic serialisation for **any** record type as long as instances exist for all field types.
+
+#### Example: JSON serialisation
+
+Suppose a `Json` package defines:
+
+```motoko no-repl
+public type Json = { #number : Int; #text : Text; #obj : [(Text, Json)]; /* ... */ };
+
+// The structural combiner — named parameter triggers record-level synthesis
+public func _toJson(__record : [(Text, Json)]) : Json = #obj(__record);
+
+// Entry point using contextual dot notation
+public func toJson<R>(self : R, _toJson : (implicit : R -> Json)) : Json = _toJson(self);
+```
+
+And per-type instances in companion modules:
+
+```motoko no-repl
+// IntJson.mo
+public func _toJson(self : Int) : Json = #number self;
+```
+
+Any record whose fields all have `_toJson` instances can now be serialised with no boilerplate:
+
+```motoko
+import Json "mo:json/Json";
+import IntJson "mo:json/IntJson";
+import TextJson "mo:json/TextJson";
+
+type Person = { name : Text; age : Int };
+
+let p : Person = { name = "Alice"; age = 30 };
+let json = p.toJson();
+// Result: #obj([("name", #text "Alice"), ("age", #number 30)])
+```
+
+The compiler finds `Json._toJson(__record)` as the unique structural combiner for `Json`, then resolves `TextJson._toJson` for the `name` field and `IntJson._toJson` for the `age` field, and synthesises the wrapper automatically.
+
+#### Naming conventions for structural combiners
+
+The `__` prefix (double underscore) on the parameter name is the signal to the compiler. Common patterns:
+
+- `__record : [(Text, T)] -> R` for records (supported today)
+- `__tuple : [T] -> R` and `__variant : (Text, T) -> R` are reserved for future extension
+
+The search label used to resolve per-field implicits is the same implicit parameter name used at the call site (e.g., `_toJson`). By convention, internal instances are named with a `_` prefix to distinguish them from the public entry-point function.
 
 ### Supported types
 

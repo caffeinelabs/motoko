@@ -5,6 +5,7 @@
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
   * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
   * feat: Implicit argument derivation — the compiler can now resolve implicit arguments by composing them from functions (possibly polymorphic) that themselves have implicit parameters. For example, an implicit `compare` for `[Nat]` is automatically derived from `Array.compare<Nat>` + `Nat.compare`, eliminating the need for boilerplate wrapper modules. Works transitively (e.g., `[[Nat]]`). Depth-limited with `--implicit-derivation-depth` flag (default: 5). Error messages include derivation context when resolution fails (#5903).
+  * feat: Structural implicit derivation for records — a function whose sole explicit parameter is named `__record` and typed `[(Text, T)] -> R` acts as a structural combiner. When the compiler needs an implicit of type `SomeRecord -> R`, it automatically decomposes the record, resolves a per-field implicit `FieldType -> T` for each field (using the same search label), and synthesises a wrapper. Enables generic serialisation (e.g., JSON, Candid) for any record type without per-type annotations (#5903).
 
 ## 1.3.0 (2026-02-24)
 
