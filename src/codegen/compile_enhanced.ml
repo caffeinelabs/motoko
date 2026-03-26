@@ -11657,8 +11657,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OptPrim, [e] ->
     SR.Vanilla,
     (* Never-heap-boxed types (UnboxedWord64 / UnboxedFloat32) have bit 0 = 0
-       in their Vanilla encoding, so Opt.inject is a no-op — emit directly.
-       TODO: extend to compile_classical.ml once it gains SR.UnboxedFloat32 support *)
+       in their Vanilla encoding, so Opt.inject is a no-op — emit directly. *)
     Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)
   | TagPrim l, [e] ->
     SR.Vanilla,
