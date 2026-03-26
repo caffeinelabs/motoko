@@ -3,6 +3,5 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     ┌─ implicit-derivation-depth.mo:28:8
  28 │  ignore needsNestedArrayCompare([[1]], [[2]]);
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Implicit derivation failed:
                  depth limit reached (increase with `--implicit-derivation-depth`, current: 1)

@@ -1,8 +1,9 @@
 error[M0230]: Cannot determine implicit argument `_toJson` of type
-  {flag : Bool} -> Json.Json
-    ┌─ implicit-derivation-structural-missing.mo:11:32
- 11 │  ignore ({ flag = true }).toJson();
-    │                                 ^^ 
-    = note: Did you mean to import mo:json/Json?
+  {flag : Bool; int : Int; nat : Nat} -> Json.Json
+    ┌─ implicit-derivation-structural-missing.mo:4:51
+  4 │  ignore ({ flag = true; nat = 1; int = -1 }).toJson();
+    │                                                    ^^ 
     = note: Implicit derivation failed:
-                 `flag : Bool` — not found
+                 `_toJson : Bool -> Json` — not found
+                 `_toJson : Int -> Json` — not found, try importing mo:json/IntJson
+                 `_toJson : Nat -> Json` — not found, try importing mo:json/IntJson

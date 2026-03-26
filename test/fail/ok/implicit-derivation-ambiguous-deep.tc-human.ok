@@ -3,6 +3,5 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     ┌─ implicit-derivation-ambiguous-deep.mo:31:8
  31 │  ignore needsCompare([1], [2]); // Array.compare is unique head, but inner Nat compare is ambiguous
     │         ^^^^^^^^^^^^^^^^^^^^^^ 
-    = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Implicit derivation failed:
                  `compare : (Nat, Nat) -> Order` — ambiguous (`MyNat.compare`, `Nat.compare`)

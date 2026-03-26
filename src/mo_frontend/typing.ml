@@ -1596,34 +1596,68 @@ let synthesize_derived_wrapper ~name candidate_path cand_args resolved_paths =
   let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
   mk (FuncE (name, sort_pat, [], pat, None, false, call_body))
 
-(** For each record field [lab], calls [field_impl_paths.(i)]([$r].[lab])
-    and collects results as [[(lab, result); ...]], then calls [combiner_path] on it.
-    Produces: [func($r) { combiner_path([("f1", impl1($r.f1)), ...]) }] *)
-let synthesize_structural_wrapper ~name combiner_path record_fields field_impl_paths =
+(** Wraps array entries in [combiner_path([entries...])] and produces a function
+    with the given parameter names.
+    A fresh VarE node is required for each use site — type-checking annotates nodes
+    in place, so sharing the same node across multiple accesses would trigger an
+    "already-annotated" assertion on the second access. *)
+let synthesize_combiner_wrapper ~name combiner_path param_names entries =
   let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note } in
-  let param_name = "$r" in
-  (* A fresh VarE node is required for each use site — type-checking annotates nodes in
-     place, so sharing the same node across multiple field accesses would trigger an
-     "already-annotated" assertion on the second access. *)
-  let mk_var name = mk (VarE { Source.it = name; at = Source.no_region; note = (Const, None) }) in
-  let field_entries = List.map2 (fun T.{lab; _} impl_path ->
-    let label_lit = mk (LitE (ref (TextLit lab))) in
-    let field_id = { Source.it = lab; at = Source.no_region; note = () } in
-    let field_access = mk (DotE (mk_var param_name, field_id, ref None)) in
-    let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
-    let field_result = mk (CallE (None, impl_path, inst_node, (false, ref field_access))) in
-    mk (TupE [label_lit; field_result])
-  ) record_fields field_impl_paths in
-  let mut_node = { Source.it = Const; at = Source.no_region; note = () } in
-  let array_arg = mk (ArrayE (mut_node, field_entries)) in
-  let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
-  let call_body = mk (CallE (None, combiner_path, inst_node, (false, ref array_arg))) in
   let mk_var_pat n =
     { Source.it = VarP { Source.it = n; at = Source.no_region; note = () };
-      at = Source.no_region; note = T.Pre }
-  in
+      at = Source.no_region; note = T.Pre } in
+  let mut_node = { Source.it = Const; at = Source.no_region; note = () } in
+  let array_arg = mk (ArrayE (mut_node, entries)) in
+  let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
+  let call_body = mk (CallE (None, combiner_path, inst_node, (false, ref array_arg))) in
   let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
-  mk (FuncE (name, sort_pat, [], mk_var_pat param_name, None, false, call_body))
+  let pat = match param_names with
+    | [p] -> mk_var_pat p
+    | ps -> { Source.it = TupP (List.map mk_var_pat ps); at = Source.no_region; note = T.Pre } in
+  mk (FuncE (name, sort_pat, [], pat, None, false, call_body))
+
+(** Record wrapper (unary or binary): for each field [lab], accesses the field from
+    one or two record params, calls the per-field implicit, and wraps as [(lab, result)].
+    Unary:  [func($r)       { combiner([("f1", impl1($r.f1)), ...]) }]
+    Binary: [func($r1, $r2) { combiner([("f1", impl1($r1.f1, $r2.f1)), ...]) }] *)
+let synthesize_record_wrapper ~name combiner_path record_fields arity field_impl_paths =
+  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note } in
+  let mk_var n = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) }) in
+  let mk_id lab = { Source.it = lab; at = Source.no_region; note = () } in
+  let params = match arity with `Unary -> ["$r"] | `Binary -> ["$r1"; "$r2"] in
+  let entries = List.map2 (fun T.{lab; _} impl_path ->
+    let label_lit = mk (LitE (ref (TextLit lab))) in
+    let impl_arg = match arity with
+      | `Unary -> mk (DotE (mk_var "$r", mk_id lab, ref None))
+      | `Binary ->
+        let a1 = mk (DotE (mk_var "$r1", mk_id lab, ref None)) in
+        let a2 = mk (DotE (mk_var "$r2", mk_id lab, ref None)) in
+        mk (TupE [a1; a2]) in
+    let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
+    let result = mk (CallE (None, impl_path, inst_node, (false, ref impl_arg))) in
+    mk (TupE [label_lit; result])
+  ) record_fields field_impl_paths in
+  synthesize_combiner_wrapper ~name combiner_path params entries
+
+(** Tuple wrapper (unary or binary): for each element [i], projects from one or two
+    tuple params, calls the per-element implicit.
+    Unary:  [func($t)       { combiner([impl0($t.0), impl1($t.1), ...]) }]
+    Binary: [func($t1, $t2) { combiner([impl0($t1.0, $t2.0), ...]) }] *)
+let synthesize_tuple_wrapper ~name combiner_path arity elem_impl_paths =
+  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note } in
+  let mk_var n = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) }) in
+  let params = match arity with `Unary -> ["$t"] | `Binary -> ["$t1"; "$t2"] in
+  let entries = List.mapi (fun i impl_path ->
+    let impl_arg = match arity with
+      | `Unary -> mk (ProjE (mk_var "$t", i))
+      | `Binary ->
+        let p1 = mk (ProjE (mk_var "$t1", i)) in
+        let p2 = mk (ProjE (mk_var "$t2", i)) in
+        mk (TupE [p1; p2]) in
+    let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
+    mk (CallE (None, impl_path, inst_node, (false, ref impl_arg)))
+  ) elem_impl_paths in
+  synthesize_combiner_wrapper ~name combiner_path params entries
 
 (** Checks [args -> rets <: req_args -> req_rets] via subtyping or
     bidirectional matching when [tbs] are present. Returns [Some inst] or [None]. *)
@@ -1707,33 +1741,48 @@ module ImplicitHoles = struct
   (* Structural synthesis: functions whose sole explicit parameter starts with "__"
      signal that the compiler should decompose a structural type and build the argument.
      The parameter type determines the synthesis kind:
-       __record : [(Text, T)] -> R   — record fields as named pairs
-       __tuple  : [T]         -> R   — tuple elements positionally (future)
+       __record : [(Text, T)] -> R   — record combiner
+       __tuple  : [T]         -> R   — tuple combiner
        __variant: (Text, T)   -> R   — matched variant case (future)
-     Only RecordKind is implemented; TupleKind/VariantKind are not yet handled in
-     try_derive_structural, so as_structural_combiner_typ returns None for them
-     to avoid silently accepting an unimplemented combiner shape. *)
-  type structural_kind = RecordKind (* | TupleKind | VariantKind — extend here *)
+     TupleKind is fully implemented. VariantKind is reserved;
+     as_structural_combiner_typ returns None for it. *)
+  type structural_kind = RecordKind | TupleKind
+    (* | VariantKind — extend here *)
+
+  type structural_info = {
+    kind : structural_kind;
+    arity : [ `Unary | `Binary ];
+    dom : T.typ;
+    ret : T.typ;
+  }
 
   let as_structural_combiner_typ candidate_typ =
     match T.promote candidate_typ with
-    | T.Func (T.Local, T.Returns, [], cand_args, [ret_typ]) ->
-      let (explicit_args, _) = erase_implicits cand_args in
-      (match explicit_args with
-       | [T.Named ("__record", inner_typ)] ->
-         (match T.promote inner_typ with
-          (* [(Text, T)] — record fields as (label, value) pairs *)
-          | T.Array (T.Tup [txt; elem_typ]) when T.normalize txt = T.Prim T.Text ->
-            Some (RecordKind, elem_typ, ret_typ)
-          | _ -> None)
+    | T.Func (T.Local, T.Returns, [], [T.Named ("__record", inner_typ)], [ret_typ]) ->
+      (match T.promote inner_typ with
+       | T.Array (T.Tup [txt; elem_typ]) when T.normalize txt = T.Prim T.Text ->
+         Some (RecordKind, elem_typ, ret_typ)
+       | _ -> None)
+    | T.Func (T.Local, T.Returns, [], [T.Named ("__tuple", inner_typ)], [ret_typ]) ->
+      (match T.promote inner_typ with
+       | T.Array elem_typ ->
+         Some (TupleKind, elem_typ, ret_typ)
        | _ -> None)
     | _ -> None
 
-  let is_structural_combiner_hole hole_typ =
+  let structural_info_of_hole hole_typ =
     match T.promote hole_typ with
-    | T.Func (T.Local, T.Returns, [], [dom], [_]) ->
-      (match T.promote dom with T.Obj (T.Object, _, _) -> true | _ -> false)
-    | _ -> false
+    | T.Func (T.Local, T.Returns, [], [dom], [ret]) ->
+      (match T.promote dom with
+       | T.Obj (T.Object, _, _) -> Some { kind = RecordKind; arity = `Unary; dom; ret }
+       | T.Tup elems when List.length elems >= 2 -> Some { kind = TupleKind; arity = `Unary; dom; ret }
+       | _ -> None)
+    | T.Func (T.Local, T.Returns, [], [d1; d2], [ret]) ->
+      (match T.promote d1, T.promote d2 with
+       | T.Obj (T.Object, _, _), T.Obj (T.Object, _, _) when T.eq d1 d2 -> Some { kind = RecordKind; arity = `Binary; dom = d1; ret }
+       | T.Tup e1, T.Tup _ when List.length e1 >= 2 && T.eq d1 d2 -> Some { kind = TupleKind; arity = `Binary; dom = d1; ret }
+       | _ -> None)
+    | _ -> None
 
   module type CandidateSource = sig
     type entry
@@ -1789,10 +1838,12 @@ module ImplicitHoles = struct
         |> Option.map (fun holes -> holes, make_field_candidate module_ref field))
       |> List.of_seq
 
-    let structural_candidates xs = xs
+    let structural_candidates {kind; ret; _} xs = xs
       |> all_module_fields (fun module_ref field ->
-        as_structural_combiner_typ field.T.typ
-        |> Option.map (fun _ -> make_field_candidate module_ref field))
+        match as_structural_combiner_typ field.T.typ with
+        | Some (k, elem_typ, comb_ret) when k = kind && T.sub comb_ret ret ->
+          Some (kind, elem_typ, make_field_candidate module_ref field)
+        | _ -> None)
       |> List.of_seq
   end
 
@@ -1821,10 +1872,13 @@ module ImplicitHoles = struct
   module FromModuleVal = MakeFromModule(ValCandidateSource)
   module FromModuleLib = MakeFromModule(LibCandidateSource)
 
-  let structural_val_candidates (vals : val_env) =
+  let structural_val_candidates {kind; ret; _} (vals : val_env) =
     T.Env.to_seq vals
     |> Seq.filter_map (fun (id, (t, region, _, _)) ->
-      Option.map (fun _ -> make_val_candidate id t region) (as_structural_combiner_typ t))
+      match as_structural_combiner_typ t with
+      | Some (k, elem_typ, comb_ret) when k = kind && T.sub comb_ret ret ->
+        Some (kind, elem_typ, make_val_candidate id t region)
+      | _ -> None)
     |> List.of_seq
 
   (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
@@ -1832,6 +1886,8 @@ module ImplicitHoles = struct
   let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ)
   let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) ->
     T.sub x.func_without_holes y.func_without_holes)
+  let disambiguate_structural_elems = disambiguate_resolutions (fun ((_, _, c1) : structural_kind * T.typ * hole_candidate) (_, _, c2) ->
+    T.sub c1.typ c2.typ)
 
   let renaming_hints env at hole_sort explicit_terms =
     explicit_terms |> List.iter (fun candidate ->
@@ -1908,52 +1964,43 @@ module ImplicitHoles = struct
       | `Empty -> `Empty
     in
 
-    (* Structural synthesis: for record/tuple/variant domain types, find a combiner
-       whose sole explicit "__"-prefixed param encodes the structural decomposition,
-       resolve per-element implicits, then synthesize the wrapper. *)
-    let try_derive_structural ~depth candidates =
-      match T.promote hole_typ with
-      | T.Func (T.Local, T.Returns, [], [dom], [target_typ]) ->
-        (match T.promote dom with
-         | T.Obj (T.Object, record_fields, _) ->
-           (* Filter to RecordKind candidates whose return type matches target_typ *)
-           let record_candidates = List.filter_map (fun (c : hole_candidate) ->
-             Option.bind (as_structural_combiner_typ c.typ) (fun (kind, elem_typ, ret_typ) ->
-               if kind = RecordKind && T.sub ret_typ target_typ
-               then Some (elem_typ, c)
-               else None))
-             candidates in
-           (match record_candidates with
-            | [] -> `Empty
-            | _ :: _ :: _ -> `Ambiguous (List.map snd record_candidates)
-            | [(elem_typ, candidate)] ->
-              if record_fields <> [] && depth >= !(Flags.implicit_derivation_depth) then
-                `Committed (Error (candidate, DepthLimited))
-              else
-              let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
-              let entry = { name = my_rec_name; entry_sort = hole_sort; entry_typ = hole_typ; func_exp = None } in
-              rec_bindings := entry :: !rec_bindings;
-              (* Resolve per-field implicits under the same search label (hole_sort).
-                 For Named labels this is exact — e.g. `_toJson` finds the right instance per
-                 field type. For Anon labels any non-privileged name matches, which is
-                 permissive; anonymous structural implicits are not a primary use case.
-                 Strip mutability (T.as_immut) so that mutable fields resolve as their base type —
-                 dot-access already projects through the mutable wrapper at runtime. *)
-              let failed, resolved = record_fields |> List.partition_map (fun T.{lab; typ; _} ->
-                let field_hole_typ = T.Func (T.Local, T.Returns, [], [T.as_immut typ], [elem_typ]) in
-                match resolve_hole ~depth:(depth + 1) ~rec_bindings env at hole_sort field_hole_typ with
-                | Error err -> Either.Left (lab, typ, err)
-                | Ok ok -> Either.Right (lab, ok.path)) in
-              if failed = [] then begin
-                let field_paths = List.map snd resolved in
-                let wrapper = synthesize_structural_wrapper ~name:my_rec_name candidate.path record_fields field_paths in
-                entry.func_exp <- Some wrapper;
-                `Committed (Ok { candidate with path = mk_var_exp my_rec_name at; typ = hole_typ })
-              end else
-                (* Invariant: func_exp = None iff the overall result is Error. *)
-                `Committed (Error (candidate, InnerErrors failed)))
-         | _ -> `Empty (* TupleKind / VariantKind: extend here *))
-      | _ -> `Empty
+    let try_derive_structural ~depth {arity; dom; _} selected =
+      match disambiguate_structural_elems selected with
+      | `Empty -> `Empty
+      | `Many cs -> `Ambiguous (List.map (fun (_, _, c) -> c) cs)
+      | `Single (kind, elem_typ, candidate) ->
+        let implicit_name = match hole_sort with Named n -> n | Anon _ -> "_" in
+        let derive elements synthesize_wrapper =
+          if elements <> [] && depth >= !(Flags.implicit_derivation_depth) then
+            `Committed (Error (candidate, DepthLimited))
+          else
+          let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
+          let entry = { name = my_rec_name; entry_sort = hole_sort; entry_typ = hole_typ; func_exp = None } in
+          rec_bindings := entry :: !rec_bindings;
+          let failed, resolved = elements |> List.partition_map (fun ft ->
+            let inner_hole_typ = match arity with
+              | `Unary -> T.Func (T.Local, T.Returns, [], [ft], [elem_typ])
+              | `Binary -> T.Func (T.Local, T.Returns, [], [ft; ft], [elem_typ]) in
+            match resolve_hole ~depth:(depth + 1) ~rec_bindings env at hole_sort inner_hole_typ with
+            | Error err -> Either.Left (implicit_name, inner_hole_typ, err)
+            | Ok ok -> Either.Right ok.path) in
+          if failed = [] then begin
+            entry.func_exp <- Some (synthesize_wrapper ~name:my_rec_name candidate.path resolved);
+            `Committed (Ok { candidate with path = mk_var_exp my_rec_name at; typ = hole_typ })
+          end else
+            `Committed (Error (candidate, InnerErrors failed))
+        in
+        match kind with
+        | RecordKind ->
+          let record_fields = match T.promote dom with T.Obj (T.Object, fs, _) -> fs | _ -> assert false in
+          let elements = record_fields |> List.map (fun f -> T.as_immut f.T.typ) in
+          derive elements (fun ~name path paths ->
+            synthesize_record_wrapper ~name path record_fields arity paths)
+        | TupleKind ->
+          let elem_typs = match T.promote dom with T.Tup es -> es | _ -> assert false in
+          let elements = elem_typs in
+          derive elements (fun ~name path paths ->
+            synthesize_tuple_wrapper ~name path arity paths)
     in
 
     let ctx = { hole_sort; hole_typ } in
@@ -2018,30 +2065,30 @@ module ImplicitHoles = struct
 
     (* Short-circuit: avoid O(modules × fields) traversals when the hole cannot possibly
        match a structural combiner (i.e. its domain is not a record/object type). *)
-    if not (is_structural_combiner_hole hole_typ) then Error (HoleSuggestions (lib_fields, explicit_candidates, None)) else
+    match structural_info_of_hole hole_typ with
+    | None -> Error (HoleSuggestions (lib_fields, explicit_candidates, None))
+    | Some structural_info ->
 
-    (* Augment lib_fields with structural lib candidates so they appear in import suggestions.
-       Computed unconditionally (like lib_fields_with_holes above); only the derivation
-       attempt below is gated on implicit_package. *)
-    let structural_lib_fields = FromModuleLib.structural_candidates env.libs in
-    let lib_fields = lib_fields @ structural_lib_fields in
-
-    (* Try structural synthesis (record/tuple/variant) — local vals, module fields, libs *)
-    match try_derive_structural ~depth (structural_val_candidates env.vals) with
+    (* Try structural synthesis (record/tuple/variant) — local vals, module fields, libs.
+       Candidate functions filter by kind + ret during collection;
+       try_derive_structural disambiguates and synthesizes with no further filtering. *)
+    match try_derive_structural ~depth structural_info (structural_val_candidates structural_info env.vals) with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, explicit_candidates, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous {ambiguous_candidates = cs; explicit_candidates})
     | `Empty ->
 
-    match try_derive_structural ~depth (FromModuleVal.structural_candidates env.vals) with
+    match try_derive_structural ~depth structural_info (FromModuleVal.structural_candidates structural_info env.vals) with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, explicit_candidates, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous {ambiguous_candidates = cs; explicit_candidates})
     | `Empty ->
 
+    let structural_lib_candidates = FromModuleLib.structural_candidates structural_info env.libs in
+    let lib_fields = lib_fields @ List.map (fun (_, _, c) -> c) structural_lib_candidates in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive_structural ~depth structural_lib_fields
+      then try_derive_structural ~depth structural_info structural_lib_candidates
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -3161,15 +3208,16 @@ and check_hole env at hole_sort hole_typ exp_ref =
       let derivation_sug = render_derivation_leaves env derivation_notes
       in
       let import_sug =
-        if lib_terms = [] then
+        if derivation_sug <> [] then []
+        else if lib_terms = [] then
           let desc = match hole_sort with Named id -> " named " ^ quote id | _ -> "" in
-          Stdlib.Format.sprintf
+          [Stdlib.Format.sprintf
             "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
-            desc desc
-        else Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))
+            desc desc]
+        else [Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))]
       in
       ImplicitHoles.renaming_hints env at hole_sort explicit_terms;
-      let notes = import_sug :: derivation_sug @ explicit_sug in
+      let notes = import_sug @ derivation_sug @ explicit_sug in
       local_error ~notes env at "M0230" "Cannot determine implicit argument %s of type%a"
         (desc hole_sort)
         display_typ hole_typ

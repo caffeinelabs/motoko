@@ -184,7 +184,7 @@ The compiler searches for implicit arguments in the following order, stopping at
 4. **Derived from local values** — local functions with implicit parameters that, after stripping their own implicits and instantiating type parameters, match the required type (see [Implicit derivation](#implicit-derivation) below).
 5. **Derived from module fields** — module fields with implicit parameters (e.g., `Array.compare<T>`), derived the same way.
 6. **Derived from library fields** — library fields with implicit parameters (requires `--implicit-package`).
-7. **Structural from local values** — local structural combiners (`__record` convention) applied to record types (see [Structural derivation](#structural-derivation) below).
+7. **Structural from local values** — local structural combiners (`__record`, `__tuple` convention) applied to record or tuple types (see [Structural derivation](#structural-derivation) below).
 8. **Structural from module fields** — module-field structural combiners.
 9. **Structural from library fields** — library structural combiners (requires `--implicit-package`).
 
@@ -222,19 +222,38 @@ When derivation is attempted but fails (for example, because an inner implicit c
 
 ### Structural derivation
 
-When an implicit is needed for a **record type**, the compiler can synthesise it automatically using a *structural combiner* — a function that converts a list of (field-name, converted-value) pairs into the target type.
+When an implicit is needed for a **record or tuple type**, the compiler can synthesise it automatically using a *structural combiner* — a function whose single parameter name begins with `__` and encodes the structural decomposition kind. Structural combiners must not have implicit parameters.
 
-A structural combiner is any function whose sole explicit parameter is named `__record` and has type `[(Text, T)] -> R` for some element type `T` and result type `R`. The parameter name `__record` is the signal to the compiler that this function acts as a record-level builder.
+Two structural kinds are supported, distinguished by the combiner's parameter name:
 
-When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R`, it:
+| Parameter name | Combiner type         | Hole type matched                        | Description                                    |
+|----------------|-----------------------|------------------------------------------|------------------------------------------------|
+| `__record`     | `[(Text, E)] -> R`    | `Rec -> R` or `(Rec, Rec) -> R`          | Record: one or two records, arity from hole    |
+| `__tuple`      | `[E] -> R`            | `(A, B, ...) -> R` or `((A,B,...), (A,B,...)) -> R` (≥ 2 elements) | Tuple: one implicit per element |
+| `__variant`    | —                     | —                                        | Reserved for future extension                  |
 
-1. Decomposes `SomeRecord` into its fields.
-2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> T` using the same search label as the enclosing implicit argument.
-3. Synthesises a wrapper function that applies each per-field implicit and assembles the resulting `[(Text, T)]` list before calling the combiner.
+The search label used to resolve per-element implicits is the same as the implicit parameter name at the call site.
+
+#### Disambiguation: binary vs unary when both `__record` and `__tuple` are in scope
+
+Having `__record` and `__tuple` combiners in scope simultaneously is safe — the compiler picks the right path by inspecting the **number of arguments** in the hole's function type. The dispatch depends on where the tuple appears in the source, not on what the type expands to:
+
+- `implicit : (X, X) -> T` — the inline tuple `(X, X)` is flattened into two separate args. The compiler sees a **two-argument** function, checks that both args are the same type, and uses the binary path: `__record` if `X` is a record type, `__tuple` if `X` is a tuple type (≥ 2 elements).
+- `implicit : P -> T` where `P` is a **type alias** for `(A, B, ...)` — `P` is not a tuple in the source, so it stays as a single arg. The compiler sees a **one-argument** function, promotes `P` to a tuple, and uses the `__tuple` combiner (unary path).
+
+In practice: write `(X, X) -> T` directly as two args to trigger the binary path. Going through a type alias `type Pair = (R, R)` and writing `Pair -> T` will route to `__tuple` (unary) instead.
+
+#### Unary record derivation (`__record`)
+
+When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R` (parameter named `__record`, type `[(Text, E)] -> R`), it:
+
+1. Decomposes `SomeRecord` into its fields (in lexicographic order).
+2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> E` using the same search label.
+3. Synthesises a wrapper: `func($r) { combiner([("f1", inst1($r.f1)), ...]) }`.
 
 This makes it possible for a library to provide generic serialisation for **any** record type as long as instances exist for all field types.
 
-#### Example: JSON serialisation
+##### Example: JSON serialisation
 
 Suppose a `Json` package defines a type, a structural combiner, and an entry point:
 
@@ -271,17 +290,88 @@ let json = p.toJson();
 
 The compiler finds `Json.encode(__record)` as the unique structural combiner for `Json`, resolves per-field `encode` instances from `TextJson` and `IntJson`, and synthesises the wrapper automatically.
 
-#### Reserved structural parameter names
+#### Binary record derivation
 
-The parameter name determines the structural kind. Currently defined:
+When the compiler is looking for an implicit of type `(Rec, Rec) -> R` where `Rec` is a record type and both arguments have the same type, it searches for an `__record` combiner for `R` — the same combiner that handles the unary case. The arity is determined entirely by the hole type; the combiner itself is unaware of it.
 
-- `__record : [(Text, T)] -> R` — record combiner (supported today)
+The compiler synthesises a binary wrapper:
 
-Reserved for future extension:
-- `__tuple` — tuple combiner
-- `__variant` — variant combiner
+```
+func($r1, $r2) { combiner([("f1", inst1($r1.f1, $r2.f1)), ("f2", inst2($r1.f2, $r2.f2)), ...]) }
+```
 
-The search label used to resolve per-field implicits is the same name as the implicit parameter at the call site.
+Each per-field implicit has type `(FieldType, FieldType) -> E`, resolved recursively with the same search label. This allows binary operations like comparison or equality to be derived field-by-field from a single `__record` combiner.
+
+##### Example: lexicographic comparison
+
+```motoko
+import Array "mo:core/Array";
+import Nat "mo:core/Nat";
+import Text "mo:core/Text";
+import Order "mo:core/Order";
+
+// __record combiner: fold field-wise Order to first non-equal.
+// Works for both unary (R -> Order) and binary ((R, R) -> Order) holes.
+func compare(__record : [(Text, Order.Order)]) : Order.Order {
+  for ((_, ord) in __record.vals()) {
+    if (ord != #equal) return ord
+  };
+  #equal
+};
+
+type Person = { name : Text; age : Nat };
+
+// Array.sort uses (implicit : (T, T) -> Order.Order) — derived from __record (binary path).
+// Fields resolved: age → Nat.compare, name → Text.compare (lexicographic order).
+let people : [Person] = [{ name = "Carol"; age = 30 }, { name = "Bob"; age = 25 }];
+let sorted = people.sort();
+// sorted[0] = { name = "Bob"; age = 25 }  (age 25 < 30)
+```
+
+Nested record types are handled automatically: a `Team` with a `Person` field will derive `compare` for `Team` by first deriving `compare` for `Person` at depth+1.
+
+#### Tuple derivation (`__tuple`)
+
+When the compiler is looking for an implicit of type `(A, B, ...) -> R` (a tuple domain with at least two elements), it searches for a structural combiner whose parameter is named `__tuple` and has type `[E] -> R`.
+
+When found, the compiler synthesises a wrapper:
+
+```
+func($t) { combiner([inst0($t.0), inst1($t.1), ...]) }
+```
+
+Each per-element implicit has type `ElemType_i -> E`, resolved positionally using the same search label.
+
+#### Binary tuple derivation
+
+Like `__record`, the `__tuple` combiner also supports binary holes. When the hole type is `((A, B, ...), (A, B, ...)) -> R` (two arguments of the same tuple type with ≥ 2 elements), the compiler synthesises a binary wrapper:
+
+```
+func($t1, $t2) { combiner([inst0($t1.0, $t2.0), inst1($t1.1, $t2.1), ...]) }
+```
+
+Each per-element implicit has type `(ElemType_i, ElemType_i) -> E`. This enables element-wise binary operations like comparison or equality over tuples.
+
+##### Example: tuple description
+
+```motoko
+// __tuple combiner: join per-element descriptions
+func describe(__tuple : [Text]) : Text {
+  var s = "("; var first = true;
+  for (t in __tuple.vals()) {
+    if (not first) { s #= ", " };
+    s #= t; first := false
+  };
+  s #= ")"; s
+};
+
+module TextDesc { public func describe(self : Text) : Text = self };
+module NatDesc  { public func describe(self : Nat)  : Text = debug_show self };
+
+func inspect<T>(x : T, describe : (implicit : T -> Text)) : Text = describe(x);
+
+assert inspect(("hello", 42 : Nat)) == "(hello, 42)";
+```
 
 ### Supported types
 
@@ -387,7 +477,7 @@ There is no need to update existing code unless you want to take advantage of th
 Implicit arguments are resolved at compile time.
 - For direct matches, the resulting code is identical to explicitly passing the argument.
 - For derived implicits, the compiler synthesizes a wrapper function at each call site. This creates a small overhead per call site, which could be mitigated by caching in the future. For now, if this becomes a performance issue, consider defining the function explicitly so all call sites share a single definition.
-- For structural derivation, the synthesised wrapper additionally invokes one implicit per record field, so runtime cost scales linearly with record width. For hot paths with wide records, consider writing a combiner explicitly.
+- For `__record` structural derivation, the synthesised wrapper invokes one implicit per record field (two invocations per field for the binary path), so runtime cost scales linearly with record width. For `__tuple`, cost scales with tuple arity. For hot paths with wide types, consider writing the combiner explicitly.
 
 ## See also
 
