@@ -11391,7 +11391,6 @@ let compile_unop env t op =
   | NegOp, Type.(Prim Int) ->
     SR.Vanilla, SR.Vanilla,
     BigNum.compile_neg env
-<<<<<<< alex/32bit-eop
   | NegOp, Type.(Prim Int64) ->
     SR.UnboxedWord64 Type.Int64, SR.UnboxedWord64 Type.Int64,
     Func.share_code1 Func.Never env (prim_fun_name Type.Int64 "neg_trap") ("n", I64Type) [I64Type] (fun env get_n ->
@@ -11402,10 +11401,7 @@ let compile_unop env t op =
       get_n ^^
       G.i i64_sub
     )
-  | NegOp, Type.(Prim ((Int8 | Int16 | Int32) as p)) ->
-=======
-  | NegOp, Type.(Prim (Int8 | Int16 | Int32 | Int64 as p)) ->
->>>>>>> master
+  | NegOp, Type.(Prim (Int8 | Int16 | Int32 as p)) ->
     StackRep.of_type t, StackRep.of_type t,
     Func.share_code1 Func.Never env (prim_fun_name p "neg_trap") ("n", B.wasm_val_type) [B.wasm_val_type] (fun env get_n ->
       get_n ^^
