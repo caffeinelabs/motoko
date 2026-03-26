@@ -1522,38 +1522,6 @@ and derivation_error =
   | InnerErrors of (T.lab * T.typ * hole_error) list
   | DepthLimited
 
-(* Renders the full derivation tree for diagnostics.
-   TODO: Currently unused — render_derivation_leaves provides a flatter alternative.
-   Keeping until the feature is fully reviewed, then we'll decide which to use. *)
-let render_derivation_tree env = function
-  | None -> []
-  | Some note ->
-  let rec render_note ~indent ((candidate, deriv_err) : derivation_note) acc =
-    let desc = desc_of_candidate candidate in
-    match deriv_err with
-    | DepthLimited ->
-      Printf.sprintf "%svia %s — depth limit (increase with `--implicit-derivation-depth`, current: %d)"
-        indent desc !(Flags.implicit_derivation_depth) :: acc
-    | InnerErrors inner_errors ->
-      let acc = Format.asprintf env "%svia %s : `%a`:" indent desc display_typ_oneline candidate.typ :: acc in
-      List.fold_left (fun acc (name, typ, err) ->
-        let indent = indent ^ "  " in
-        let line = Format.asprintf env "%s`%s` : `%a`" indent name display_typ_oneline typ in
-        render_hole_error ~indent (line :: acc) err
-      ) acc inner_errors
-  and render_hole_error ~indent acc = function
-    | HoleSuggestions (lib_terms, _, note_opt) ->
-      let imports = List.filter_map import_suggestion_of_candidate lib_terms in
-      let acc = if imports = [] then acc else Printf.sprintf "- try importing %s" (String.concat " or " imports) :: acc in
-      (match note_opt with
-      | Some note -> render_note ~indent note acc
-      | None -> if imports = [] then "- not found" :: acc else acc)
-    | HoleAmbiguous {ambiguous_candidates; _} ->
-      Printf.sprintf "- ambiguous (%s)" (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)) :: acc
-  in
-  let body = render_note ~indent:"\n  " note [] |> List.rev in
-  [String.concat " " ("Implicit derivation failed because:" :: body)]
-
 let render_derivation_leaves env = function
   | None -> []
   | Some note ->
@@ -1944,7 +1912,6 @@ module ImplicitHoles = struct
        whose sole explicit "__"-prefixed param encodes the structural decomposition,
        resolve per-element implicits, then synthesize the wrapper. *)
     let try_derive_structural ~depth candidates =
-      if depth >= !(Flags.implicit_derivation_depth) then `Empty else
       match T.promote hole_typ with
       | T.Func (T.Local, T.Returns, [], [dom], [target_typ]) ->
         (match T.promote dom with
@@ -1960,6 +1927,9 @@ module ImplicitHoles = struct
             | [] -> `Empty
             | _ :: _ :: _ -> `Ambiguous (List.map snd record_candidates)
             | [(elem_typ, candidate)] ->
+              if depth >= !(Flags.implicit_derivation_depth) then
+                `Committed (Error (candidate, DepthLimited))
+              else
               let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
               let entry = { name = my_rec_name; entry_sort = hole_sort; entry_typ = hole_typ; func_exp = None } in
               rec_bindings := entry :: !rec_bindings;
@@ -1998,7 +1968,7 @@ module ImplicitHoles = struct
     (* Get direct candidates from module fields; computed early for diagnostic purposes *)
     let matching_fields, explicit_candidates =
       let (fields, explicit_fields) = FromModuleVal.matching_fields ctx env.vals in
-      assert (eligible_ids = []);
+      (* eligible_ids = [] — guaranteed by the `Empty arm above *)
       (fields, explicit_ids @ explicit_fields)
     in
 

@@ -2378,6 +2378,10 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
     If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
     This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.
 
+    **Structural derivation**: When derivation also fails and the required hole type is `SomeRecord -> R` (i.e. its domain is an object/record type), the compiler additionally searches for *structural combiners* — first among local values, then module fields, then library fields (gated on `--implicit-package`).
+    A structural combiner is a function of type `[(Text, T)] -> R` whose sole explicit parameter is named `__record`. When a unique structural combiner for `R` is found, the compiler decomposes `SomeRecord` into its fields and resolves a per-field implicit of type `FieldType -> T` for each field (recursively, using the same search label). It then synthesizes a wrapper that collects the per-field results into a `[(Text, T)]` list and passes it to the combiner.
+    The parameter name `__record` is reserved; `__tuple` and `__variant` are reserved for future extension.
+
 The call expression `<exp1> <T0,…​,Tn>? <exp2>` evaluates `<exp1>` to a result `r1`. If `r1` is `trap`, then the result is `trap`.
 
 Otherwise, `<exp3>` (the hole expansion of `<exp2>`) is evaluated to a result `r2`. If `r2` is `trap`, the expression results in `trap`.

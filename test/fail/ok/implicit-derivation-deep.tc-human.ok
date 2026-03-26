@@ -5,7 +5,7 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Implicit derivation failed:
-                 `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
+        `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
 error[M0230]: Cannot determine implicit argument `compare` of type
   ([[Bool]], [[Bool]]) -> Order
     ┌─ implicit-derivation-deep.mo:28:8
@@ -13,7 +13,7 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Implicit derivation failed:
-                 `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
+        `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
 error[M0230]: Cannot determine implicit argument `compare` of type
   (([Color], [Int]), ([Color], [Int])) -> Order
     ┌─ implicit-derivation-deep.mo:38:8
@@ -21,5 +21,5 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Implicit derivation failed:
-                 `compare : (Color, Color) -> Order` — not found
-                 `compare : (Int, Int) -> Order` — not found, try importing mo:core/Int
+        `compare : (Color, Color) -> Order` — not found
+        `compare : (Int, Int) -> Order` — not found, try importing mo:core/Int

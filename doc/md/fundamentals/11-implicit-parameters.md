@@ -19,9 +19,9 @@ public func add<K, V>(self: Map<K, V>, compare : (implicit : (K, K) -> Order), k
 }
 ```
 
-The `implicit` marker on the type of parameter `compare` indicates the call-site can omit it the `compare` argument, provided it can be inferred the call site.
+The `implicit` marker on the type of parameter `compare` indicates the call-site can omit the `compare` argument, provided it can be inferred the call site.
 
-A function can declare more than on implicit parameter, even of the same name.
+A function can declare more than one implicit parameter, even of the same name.
 
 
 ```motoko
@@ -55,7 +55,7 @@ Map.add(map, 5, "five");
 ```
 The compiler automatically finds an appropriate comparison function based on the type of the key argument.
 
-The availabe candidates are:
+The available candidates are:
 * Any value named `compare` whose type matches the parameter type.
 
 If there is no such value,
@@ -81,7 +81,7 @@ let map = Map.empty<Nat, Text>();
 // Using contextual dot notation, without implicits - must provide compare function explicitly
 map.add(Nat.compare, 5, "five");
 
-// Using contextual dot nation together with implicits - compare function inferred from key type
+// Using contextual dot notation together with implicits - compare function inferred from key type
 map.add(5, "five");
 ```
 
@@ -224,38 +224,38 @@ When derivation is attempted but fails (for example, because an inner implicit c
 
 When an implicit is needed for a **record type**, the compiler can synthesise it automatically using a *structural combiner* — a function that converts a list of (field-name, converted-value) pairs into the target type.
 
-A structural combiner is any function whose sole explicit parameter is named `__record` and has type `[(Text, T)] -> R` for some element type `T` and result type `R`. The `__` prefix signals to the compiler that this function acts as a record-level builder.
+A structural combiner is any function whose sole explicit parameter is named `__record` and has type `[(Text, T)] -> R` for some element type `T` and result type `R`. The parameter name `__record` is the signal to the compiler that this function acts as a record-level builder.
 
 When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R`, it:
 
 1. Decomposes `SomeRecord` into its fields.
-2. For each field `name : FieldType`, resolves a per-field implicit `FieldType -> T` using the same search label (e.g., `_toJson`).
+2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> T` using the same search label as the enclosing implicit argument.
 3. Synthesises a wrapper function that applies each per-field implicit and assembles the resulting `[(Text, T)]` list before calling the combiner.
 
 This makes it possible for a library to provide generic serialisation for **any** record type as long as instances exist for all field types.
 
 #### Example: JSON serialisation
 
-Suppose a `Json` package defines:
+Suppose a `Json` package defines a type, a structural combiner, and an entry point:
 
 ```motoko no-repl
 public type Json = { #number : Int; #text : Text; #obj : [(Text, Json)]; /* ... */ };
 
-// The structural combiner — named parameter triggers record-level synthesis
-public func _toJson(__record : [(Text, Json)]) : Json = #obj(__record);
+// Structural combiner — __record parameter name triggers record-level synthesis
+public func encode(__record : [(Text, Json)]) : Json = #obj(__record);
 
 // Entry point using contextual dot notation
-public func toJson<R>(self : R, _toJson : (implicit : R -> Json)) : Json = _toJson(self);
+public func toJson<R>(self : R, encode : (implicit : R -> Json)) : Json = encode(self);
 ```
 
 And per-type instances in companion modules:
 
 ```motoko no-repl
 // IntJson.mo
-public func _toJson(self : Int) : Json = #number self;
+public func encode(self : Int) : Json = #number self;
 ```
 
-Any record whose fields all have `_toJson` instances can now be serialised with no boilerplate:
+Any record whose fields all have an `encode` instance can now be serialised with no boilerplate:
 
 ```motoko
 import Json "mo:json/Json";
@@ -269,16 +269,19 @@ let json = p.toJson();
 // Result: #obj([("name", #text "Alice"), ("age", #number 30)])
 ```
 
-The compiler finds `Json._toJson(__record)` as the unique structural combiner for `Json`, then resolves `TextJson._toJson` for the `name` field and `IntJson._toJson` for the `age` field, and synthesises the wrapper automatically.
+The compiler finds `Json.encode(__record)` as the unique structural combiner for `Json`, resolves per-field `encode` instances from `TextJson` and `IntJson`, and synthesises the wrapper automatically.
 
-#### Naming conventions for structural combiners
+#### Reserved structural parameter names
 
-The `__` prefix (double underscore) on the parameter name is the signal to the compiler. Common patterns:
+The parameter name determines the structural kind. Currently defined:
 
-- `__record : [(Text, T)] -> R` for records (supported today)
-- `__tuple : [T] -> R` and `__variant : (Text, T) -> R` are reserved for future extension
+- `__record : [(Text, T)] -> R` — record combiner (supported today)
 
-The search label used to resolve per-field implicits is the same implicit parameter name used at the call site (e.g., `_toJson`). By convention, internal instances are named with a `_` prefix to distinguish them from the public entry-point function.
+Reserved for future extension:
+- `__tuple` — tuple combiner
+- `__variant` — variant combiner
+
+The search label used to resolve per-field implicits is the same name as the implicit parameter at the call site.
 
 ### Supported types
 
@@ -384,6 +387,7 @@ There is no need to update existing code unless you want to take advantage of th
 Implicit arguments are resolved at compile time.
 - For direct matches, the resulting code is identical to explicitly passing the argument.
 - For derived implicits, the compiler synthesizes a wrapper function at each call site. This creates a small overhead per call site, which could be mitigated by caching in the future. For now, if this becomes a performance issue, consider defining the function explicitly so all call sites share a single definition.
+- For structural derivation, the synthesised wrapper additionally invokes one implicit per record field, so runtime cost scales linearly with record width. For hot paths with wide records, consider writing a combiner explicitly.
 
 ## See also
 
