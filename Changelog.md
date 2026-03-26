@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * feat: added `--actor-env-alias` to facilitate (installation-time) late binding of canister aliases via environment variables (#5890).
+  * feat: added `--actor-id-alias` as a variant of `--actor-alias` that accepts an explicit IDL file path as a third argument, bypassing the `--actor-idl` search path (#5890).
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
   * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
 
