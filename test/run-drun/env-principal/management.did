@@ -1,0 +1,3 @@
+service : {
+  canister_status : (record { canister_id : principal }) -> (record { settings : record { environment_variables : vec record { name : text; value : text } } });
+}

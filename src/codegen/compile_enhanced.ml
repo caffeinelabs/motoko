@@ -6489,7 +6489,7 @@ module StackRep = struct
     match normalize t with
     | Prim Bool -> SR.bool
     | Prim (Nat | Int) -> Vanilla
-    | Prim ((Nat8 | Nat16 | Nat32 | Nat64 | Int8 | Int16 | Int32 | Int64 | Char) as pty) -> UnboxedWord64 pty
+    | Prim (Nat8 | Nat16 | Nat32 | Nat64 | Int8 | Int16 | Int32 | Int64 | Char as pty) -> UnboxedWord64 pty
     | Prim (Text | Blob | Principal) -> Vanilla
     | Prim Float -> UnboxedFloat64
     | Obj (Actor, _, _) -> Vanilla
@@ -6587,15 +6587,15 @@ module StackRep = struct
     | Vanilla, UnboxedTuple n -> Tuple.to_stack env n
 
     (* BoxedWord64 types *)
-    | UnboxedWord64 (Type.(Int64 | Nat64) as pty), Vanilla ->
+    | UnboxedWord64 Type.(Int64 | Nat64 as pty), Vanilla ->
       BoxedWord64.box env pty
-    | Vanilla, UnboxedWord64 (Type.(Int64 | Nat64) as pty) ->
+    | Vanilla, UnboxedWord64 Type.(Int64 | Nat64 as pty) ->
       BoxedWord64.unbox env pty
 
     (* TaggedSmallWord types *)
-    | UnboxedWord64 (Type.(Int8 | Nat8 | Int16 | Nat16 | Int32 | Nat32 | Char) as pty), Vanilla ->
+    | UnboxedWord64 Type.(Int8 | Nat8 | Int16 | Nat16 | Int32 | Nat32 | Char as pty), Vanilla ->
       TaggedSmallWord.tag env pty
-    | Vanilla, UnboxedWord64 (Type.(Nat8 | Int8 | Nat16 | Int16 | Int32 | Nat32 | Char) as pty) ->
+    | Vanilla, UnboxedWord64 Type.(Nat8 | Int8 | Nat16 | Int16 | Int32 | Nat32 | Char as pty) ->
       TaggedSmallWord.untag env pty
 
     | UnboxedFloat64, Vanilla -> Float.box env
@@ -7779,19 +7779,19 @@ module Serialization = struct
         reserve env get_data_buf 8L ^^
         get_x ^^ Float.unbox env ^^
         G.i (Store {ty = F64Type; align = 0; offset = 0L; sz = None})
-      | Prim ((Int64|Nat64) as pty) ->
+      | Prim (Int64|Nat64 as pty) ->
         reserve env get_data_buf 8L ^^
         get_x ^^ BoxedWord64.unbox env pty ^^
         G.i (Store {ty = I64Type; align = 0; offset = 0L; sz = None})
-      | Prim ((Int32|Nat32) as ty) ->
+      | Prim (Int32|Nat32 as ty) ->
         write_word_32 env get_data_buf (get_x ^^ TaggedSmallWord.lsb_adjust ty)
       | Prim Char ->
         write_word_32 env get_data_buf (get_x ^^ TaggedSmallWord.lsb_adjust_codepoint env)
-      | Prim ((Int16|Nat16) as ty) ->
+      | Prim (Int16|Nat16 as ty) ->
         reserve env get_data_buf 2L ^^
         get_x ^^ TaggedSmallWord.lsb_adjust ty ^^ G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
         G.i (Store {ty = I32Type; align = 0; offset = 0L; sz = Some Wasm_exts.Types.Pack16})
-      | Prim ((Int8|Nat8) as ty) ->
+      | Prim (Int8|Nat8 as ty) ->
         write_byte env get_data_buf (get_x ^^ TaggedSmallWord.lsb_adjust ty)
       | Prim Bool ->
         write_byte env get_data_buf get_x
@@ -8352,13 +8352,13 @@ module Serialization = struct
           ReadBuf.read_float64 env get_data_buf ^^
           Float.box env
         end
-      | Prim ((Int64|Nat64) as pty) ->
+      | Prim (Int64|Nat64 as pty) ->
         with_prim_typ t
         begin
           ReadBuf.read_word64 env get_data_buf ^^
           BoxedWord64.box env pty
         end
-      | Prim ((Int32|Nat32) as ty) ->
+      | Prim (Int32|Nat32 as ty) ->
         with_prim_typ t
         begin
           ReadBuf.read_word32 env get_data_buf ^^
@@ -8372,14 +8372,14 @@ module Serialization = struct
           TaggedSmallWord.check_and_msb_adjust_codepoint env ^^
           TaggedSmallWord.tag env Char
         end
-      | Prim ((Int16|Nat16) as ty) ->
+      | Prim (Int16|Nat16 as ty) ->
         with_prim_typ t
         begin
           ReadBuf.read_word16 env get_data_buf ^^
           TaggedSmallWord.msb_adjust ty ^^
           TaggedSmallWord.tag env ty
         end
-      | Prim ((Int8|Nat8) as ty) ->
+      | Prim (Int8|Nat8 as ty) ->
         with_prim_typ t
         begin
           ReadBuf.read_byte env get_data_buf ^^
@@ -10630,7 +10630,7 @@ module AllocHow = struct
   let stackrep_of_type t =
     let open Type in
     match normalize t with
-    | Prim ((Nat64 | Int64 | Nat32 | Int32 | Nat16 | Int16 | Nat8 | Int8 | Char) as pty) ->
+    | Prim (Nat64 | Int64 | Nat32 | Int32 | Nat16 | Int16 | Nat8 | Int8 | Char as pty) ->
        SR.UnboxedWord64 pty
     | Prim Float -> SR.UnboxedFloat64
     | _ -> SR.Vanilla
@@ -10847,7 +10847,7 @@ let compile_unop env t op =
   | NegOp, Type.(Prim Int) ->
     SR.Vanilla, SR.Vanilla,
     BigNum.compile_neg env
-  | NegOp, Type.(Prim ((Int8 | Int16 | Int32 | Int64) as p)) ->
+  | NegOp, Type.(Prim (Int8 | Int16 | Int32 | Int64 as p)) ->
     StackRep.of_type t, StackRep.of_type t,
     Func.share_code1 Func.Never env (prim_fun_name p "neg_trap") ("n", I64Type) [I64Type] (fun env get_n ->
       get_n ^^
@@ -11196,7 +11196,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim (Int8|Int16|Int32)),           ModOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.RemS))
   | Type.(Prim (Nat8|Nat16|Nat32 as ty)),     WPowOp -> TaggedSmallWord.compile_nat_power env ty
   | Type.(Prim (Int8|Int16|Int32 as ty)),     WPowOp -> TaggedSmallWord.compile_int_power env ty
-  | Type.(Prim ((Nat8|Nat16|Nat32) as ty)),         PowOp ->
+  | Type.(Prim (Nat8|Nat16|Nat32 as ty)),     PowOp ->
     Func.share_code2 Func.Always env (prim_fun_name ty "pow")
       (("n", I64Type), ("exp", I64Type)) [I64Type]
       (fun env get_n get_exp ->
@@ -11233,7 +11233,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
               (get_n ^^ TaggedSmallWord.msb_adjust ty) (* n@{0,1} ** (1+exp) == n *)
           end
           (compile_unboxed_one ^^ TaggedSmallWord.msb_adjust ty)) (* x ** 0 == 1 *)
-  | Type.(Prim ((Int8|Int16|Int32) as ty)),         PowOp ->
+  | Type.(Prim (Int8|Int16|Int32 as ty)),         PowOp ->
     Func.share_code2 Func.Always env (prim_fun_name ty "pow")
       (("n", I64Type), ("exp", I64Type)) [I64Type]
       (fun env get_n get_exp ->
@@ -11651,7 +11651,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
       compile_exp_vanilla env ae e ^^
       Prim.prim_intToWordNShifted env (TaggedSmallWord.shift_of_type t2)
 
-    | (Nat|Int), ((Nat64|Int64) as p) ->
+    | (Nat|Int), (Nat64|Int64 as p) ->
       SR.UnboxedWord64 p,
       compile_exp_vanilla env ae e ^^
       BigNum.truncate_to_word64 env
@@ -12245,7 +12245,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_as env ae SR.Vanilla e2 ^^
     Region.store_blob env
 
-  | OtherPrim (("regionLoadNat8" | "regionLoadInt8" as p)), [e0; e1] ->
+  | OtherPrim ("regionLoadNat8" | "regionLoadInt8" as p), [e0; e1] ->
     let ty = Type.(if p = "regionLoadNat8" then Nat8 else Int8) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae SR.Vanilla e0 ^^
@@ -12254,7 +12254,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I64 I64Op.(if ty = Type.Nat8 then ExtendUI32 else ExtendSI32))) ^^
     TaggedSmallWord.msb_adjust ty
 
-  | OtherPrim (("regionStoreNat8" | "regionStoreInt8") as p), [e0; e1; e2] ->
+  | OtherPrim ("regionStoreNat8" | "regionStoreInt8" as p), [e0; e1; e2] ->
     let ty = Type.(if p = "regionStoreNat8" then Nat8 else Int8) in
     SR.unit,
     compile_exp_as env ae SR.Vanilla e0 ^^
@@ -12264,7 +12264,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     Region.store_word8 env
 
-  | OtherPrim (("regionLoadNat16" | "regionLoadInt16") as p), [e0; e1] ->
+  | OtherPrim ("regionLoadNat16" | "regionLoadInt16" as p), [e0; e1] ->
     let ty = Type.(if p = "regionLoadNat16" then Nat16 else Int16) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae SR.Vanilla e0 ^^
@@ -12273,7 +12273,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I64 I64Op.(if ty = Type.Nat16 then ExtendUI32 else ExtendSI32))) ^^
     TaggedSmallWord.msb_adjust ty
 
-  | OtherPrim (("regionStoreNat16" | "regionStoreInt16") as p), [e0; e1; e2] ->
+  | OtherPrim ("regionStoreNat16" | "regionStoreInt16" as p), [e0; e1; e2] ->
     let ty = Type.(if p = "regionStoreNat16" then Nat16 else Int16) in
     SR.unit,
     compile_exp_as env ae SR.Vanilla e0 ^^
@@ -12283,7 +12283,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     Region.store_word16 env
 
-  | OtherPrim (("regionLoadNat32" | "regionLoadInt32") as p), [e0; e1] ->
+  | OtherPrim ("regionLoadNat32" | "regionLoadInt32" as p), [e0; e1] ->
     let ty = Type.(if p = "regionLoadNat32" then Nat32 else Int32) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae SR.Vanilla e0 ^^
@@ -12292,7 +12292,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I64 I64Op.(if ty = Type.Nat32 then ExtendUI32 else ExtendSI32))) ^^
     TaggedSmallWord.msb_adjust ty
 
-  | OtherPrim (("regionStoreNat32" | "regionStoreInt32") as p), [e0; e1; e2] ->
+  | OtherPrim ("regionStoreNat32" | "regionStoreInt32" as p), [e0; e1; e2] ->
     let ty = Type.(if p = "regionStoreNat32" then Nat32 else Int32) in
     SR.unit,
     compile_exp_as env ae SR.Vanilla e0 ^^
@@ -12302,14 +12302,14 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     Region.store_word32 env
 
-  | OtherPrim (("regionLoadNat64" | "regionLoadInt64") as p), [e0; e1] ->
+  | OtherPrim ("regionLoadNat64" | "regionLoadInt64" as p), [e0; e1] ->
     let ty = Type.(if p = "regionLoadNat64" then Nat64 else Int64) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae SR.Vanilla e0 ^^
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e1 ^^
     Region.load_word64 env
 
-  | OtherPrim (("regionStoreNat64" | "regionStoreInt64") as p), [e0; e1; e2] ->
+  | OtherPrim ("regionStoreNat64" | "regionStoreInt64" as p), [e0; e1; e2] ->
     let ty = Type.(if p = "regionStoreNat64" then Nat64 else Int64) in
     SR.unit,
     compile_exp_as env ae SR.Vanilla e0 ^^
@@ -12317,13 +12317,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_as env ae (SR.UnboxedWord64 ty) e2 ^^
     Region.store_word64 env
 
-  | OtherPrim ("regionLoadFloat"), [e0; e1] ->
+  | OtherPrim "regionLoadFloat", [e0; e1] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.Vanilla e0 ^^
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e1 ^^
     Region.load_float64 env
 
-  | OtherPrim ("regionStoreFloat"), [e0; e1; e2] ->
+  | OtherPrim "regionStoreFloat", [e0; e1; e2] ->
     SR.unit,
     compile_exp_as env ae SR.Vanilla e0 ^^
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e1 ^^
@@ -12535,7 +12535,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim ("arrayToBlob" | "arrayMutToBlob"), e ->
     const_sr SR.Vanilla (Arr.toBlob env)
 
-  | OtherPrim (("stableMemoryLoadNat32" | "stableMemoryLoadInt32") as p), [e] ->
+  | OtherPrim ("stableMemoryLoadNat32" | "stableMemoryLoadInt32" as p), [e] ->
     let ty = Type.(if p = "stableMemoryLoadNat32" then Nat32 else Int32) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e ^^
@@ -12543,7 +12543,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I64 I64Op.(if ty = Type.Nat32 then ExtendUI32 else ExtendSI32))) ^^
     TaggedSmallWord.msb_adjust ty
 
-  | OtherPrim (("stableMemoryStoreNat32" | "stableMemoryStoreInt32") as p), [e1; e2] ->
+  | OtherPrim ("stableMemoryStoreNat32" | "stableMemoryStoreInt32" as p), [e1; e2] ->
     let ty = Type.(if p = "stableMemoryStoreNat32" then Nat32 else Int32) in
     SR.unit,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e1 ^^
@@ -12552,7 +12552,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     StableMemoryInterface.store_word32 env
 
-  | OtherPrim (("stableMemoryLoadNat8" | "stableMemoryLoadInt8") as p), [e] ->
+  | OtherPrim ("stableMemoryLoadNat8" | "stableMemoryLoadInt8" as p), [e] ->
     let ty = Type.(if p = "stableMemoryLoadNat8" then Nat8 else Int8) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e ^^
@@ -12562,7 +12562,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   (* Other prims, binary *)
 
-  | OtherPrim (("stableMemoryStoreNat8" | "stableMemoryStoreInt8") as p), [e1; e2] ->
+  | OtherPrim ("stableMemoryStoreNat8" | "stableMemoryStoreInt8" as p), [e1; e2] ->
     let ty = Type.(if p = "stableMemoryStoreNat8" then Nat8 else Int8) in
     SR.unit,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e1 ^^
@@ -12571,7 +12571,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     StableMemoryInterface.store_word8 env
 
-  | OtherPrim (("stableMemoryLoadNat16" | "stableMemoryLoadInt16") as p), [e] ->
+  | OtherPrim ("stableMemoryLoadNat16" | "stableMemoryLoadInt16" as p), [e] ->
     let ty = Type.(if p = "stableMemoryLoadNat16" then Nat16 else Int16) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e ^^
@@ -12579,7 +12579,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I64 I64Op.(if ty = Type.Nat16 then ExtendUI32 else ExtendSI32))) ^^
     TaggedSmallWord.msb_adjust ty
 
-  | OtherPrim (("stableMemoryStoreNat16" | "stableMemoryStoreInt16") as p), [e1; e2] ->
+  | OtherPrim ("stableMemoryStoreNat16" | "stableMemoryStoreInt16" as p), [e1; e2] ->
     let ty = Type.(if p = "stableMemoryStoreNat16" then Nat16 else Int16) in
     SR.unit,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e1 ^^
@@ -12588,13 +12588,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     StableMemoryInterface.store_word16 env
 
-  | OtherPrim (("stableMemoryLoadNat64" | "stableMemoryLoadInt64") as p), [e] ->
+  | OtherPrim ("stableMemoryLoadNat64" | "stableMemoryLoadInt64" as p), [e] ->
     let ty = Type.(if p = "stableMemoryLoadNat64" then Nat64 else Int64) in
     SR.UnboxedWord64 ty,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e ^^
     StableMemoryInterface.load_word64 env
 
-  | OtherPrim (("stableMemoryStoreNat64" | "stableMemoryStoreInt64") as p), [e1; e2] ->
+  | OtherPrim ("stableMemoryStoreNat64" | "stableMemoryStoreInt64" as p), [e1; e2] ->
     let ty = Type.(if p = "stableMemoryStoreNat64" then Nat64 else Int64) in
     SR.unit,
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e1 ^^
@@ -12727,7 +12727,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     const_sr SR.Vanilla (Text.to_blob env)
 
   (* textual to bytes *)
-  | BlobOfIcUrl, [_] ->
+  | (OtherPrim "decode_principal" | BlobOfIcUrl), [_] ->
     const_sr SR.Vanilla (E.call_import env "rts" "blob_of_principal")
   (* The other direction *)
   | IcUrlOfBlob, [_] ->
@@ -13070,7 +13070,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
       add_cycles
   | ActorE (ds, fs, _, _) ->
     fatal "Local actors not supported by backend"
-  | NewObjE (Type.(Object | Module | Memory) as _sort, fs, _) ->
+  | NewObjE (Type.(Object | Module | Memory), fs, _) ->
     (*
     We can enable this warning once we treat everything as static that
     mo_frontend/static.ml accepts, including _all_ literals.

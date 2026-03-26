@@ -1,6 +1,6 @@
 --- blob-bounds.run
 +++ blob-bounds.run-ir
-@@ -1,78 +1 @@
+@@ -1,79 +1 @@
 -blob-bounds.mo:1.17-1.18: internal error, Invalid_argument("index out of bounds")
 -
 -Last environment:
@@ -20,6 +20,7 @@
 -@dedup = <func>
 -@digits_dec = <func>
 -@digits_hex = <func>
+-@envvar_principal = <func>
 -@equal_array = <func>
 -@getSystemRefund = <func>
 -@ic00 = ""
