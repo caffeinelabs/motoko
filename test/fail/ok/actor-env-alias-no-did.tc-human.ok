@@ -1,0 +1,4 @@
+error[M0009]: file "nonexistent.did" does not exist
+    ┌─ actor-env-alias-no-did.mo:2:1
+  2 │  import _Foo "canister:alias";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

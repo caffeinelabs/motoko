@@ -17,6 +17,7 @@ Last environment:
 @dedup = <func>
 @digits_dec = <func>
 @digits_hex = <func>
+@envvar_principal = <func>
 @equal_array = <func>
 @getSystemRefund = <func>
 @ic00 = ""
