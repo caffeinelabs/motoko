@@ -1,0 +1,4 @@
+error[M0017]: duplicate binding for mixin Mixin in imports
+    ┌─ duplicate-import5.mo:2:1
+  2 │  import Mixin "duplicate-import/MixinB";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

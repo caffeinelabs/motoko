@@ -659,8 +659,7 @@ do
 
       if [ -e $out/$base.js ]
       then
-        export NODE_PATH=$NODE_PATH:$ESM
-        run node node -r esm $out/$base.js
+        run node node $out/$base.js
       fi
     fi
     ;;

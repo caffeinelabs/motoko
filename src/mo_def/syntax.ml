@@ -16,7 +16,7 @@ type lib_path = {package : string option; path : string}
 type resolved_import =
   | Unresolved
   | LibPath of lib_path
-  | IDLPath of (string * string) (* filepath * bytes *)
+  | IDLPath of (string * (string, string) Either.t) (* filepath * envvar/bytes *)
   | ImportedValuePath of string
   | PrimPath (* the built-in prim module *)
 
@@ -426,3 +426,15 @@ let contextual_dot_args e1 e2 dot_note =
     | { at; note = { note_eff; _ }; _ } ->
        { it = TupE ([e1; e2]); at; note = { note_eff = effect note_eff; note_typ = T.Tup ([e1.note.note_typ; e2.note.note_typ]) } }
   in args
+
+let is_import d =
+  match d.it with
+  | LetD (_, {it = ImportE _; _}, None) -> true
+  | _ -> false
+
+let split_imports prog =
+  let rec go acc = function
+    | [] -> List.rev acc, []
+    | d::ds -> if is_import d then go (d::acc) ds else List.rev acc, d::ds
+  in
+  go [] prog

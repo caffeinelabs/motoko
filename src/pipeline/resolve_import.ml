@@ -16,6 +16,7 @@ It returns a list of all imported file names.
 
 type filepath = string
 type url = string
+type envvar = string
 type blob = string
 
 type resolved_imports = Syntax.resolved_import Source.phrase list
@@ -147,11 +148,11 @@ let add_lib_import msgs imported ri_ref at lib_path =
   | Error err ->
     Diag.add_msg msgs err
 
-let add_idl_import msgs imported ri_ref at full_path bytes =
+let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
   if Sys.file_exists full_path
   then begin
-    ri_ref := IDLPath (full_path, bytes);
-    imported := RIM.add (IDLPath (full_path, bytes)) at !imported
+    ri_ref := IDLPath (full_path, envvar_or_bytes);
+    imported := RIM.add !ri_ref at !imported
   end else
     err_file_does_not_exist msgs at full_path
 
@@ -187,7 +188,11 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     | None -> err_actor_import_without_idl_path msgs at
     | Some actor_base ->
       let full_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
-      add_idl_import msgs imported ri_ref at full_path bytes
+      add_idl_import msgs imported ri_ref at full_path (Either.Right bytes)
+  in
+  let resolve_env (envvar, did_path) =
+    let full_path = Lib.FilePath.normalise did_path in
+    add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
@@ -208,7 +213,10 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
      resolve_ic bytes
   | Ok (Url.IcAlias alias) ->
     begin match M.find_opt alias aliases with
-    | Some bytes -> resolve_ic bytes
+    | Some (Either.Right (bytes, None)) -> resolve_ic bytes
+    | Some (Either.Right (bytes, Some did_path)) ->
+      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Either.Right bytes)
+    | Some (Either.Left (envvar, did_path)) -> resolve_env (envvar, did_path)
     | None -> err_alias_not_defined msgs at alias
     end
   | Ok (Url.FileValue path) ->
@@ -226,15 +234,23 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   then f
   else (err_package_file_does_not_exist msgs f pname;"")
 
-(* Resolve the argument to --actor-alias. Check eagerly for well-formedness *)
-let resolve_alias_principal (msgs:Diag.msg_store) (alias:string) (f:string) : blob =
-  match Url.decode_principal f with
-  | Ok bytes ->
-     if String.length bytes > 29 then
-       (err_unrecognized_alias msgs alias f "Principal too long"; "")
-     else bytes
-  | Error msg -> err_unrecognized_alias msgs alias f msg; ""
-
+(* Resolve the argument to `--actor-alias` and `--actor-env/id-alias`. Check eagerly for well-formedness *)
+let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url * filepath option) Either.t) : (envvar * filepath, blob * filepath option) Either.t =
+  let open Either in match f with
+  | Left (v, p) ->
+    Left (if Lib.Utf8.is_valid v then (v, p) else
+      let open Diag in
+      (add_msg msgs
+        (error_message no_region "M0007" "actor-alias"
+          (Printf.sprintf "invalid UTF-8 in environment variable name for actor alias \"%s\"" alias));
+      (v, p)))
+  | Right (f, fp_opt) ->
+    Right ((match Url.decode_principal f with
+    | Ok bytes ->
+       if String.length bytes > 29 then
+         (err_unrecognized_alias msgs alias f "Principal too long"; "")
+       else bytes
+    | Error msg -> err_unrecognized_alias msgs alias f msg; ""), fp_opt)
 
 let prog_imports (p : prog): (url * resolved_import ref * region) list =
   let res = ref [] in
@@ -246,8 +262,8 @@ let prog_imports (p : prog): (url * resolved_import ref * region) list =
 
 type actor_idl_path = filepath option
 type package_urls = url M.t
-type actor_aliases = url M.t
-type aliases = blob M.t
+type actor_aliases = (envvar * filepath, url * filepath option) Either.t M.t
+type aliases = (envvar * filepath, blob * filepath option) Either.t M.t
 
 
 let resolve_packages : package_urls -> package_map Diag.result = fun purls ->
