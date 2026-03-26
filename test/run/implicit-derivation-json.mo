@@ -38,63 +38,68 @@ module Json {
 // ── Implicit instances ───────────────────────────────────────────────────────
 
 module IntJson {
-  public func toJson(self : Int) : Json { #number self };
+  public func _toJson(self : Int) : Json { #number self };
 };
 
 module TextJson {
-  public func toJson(self : Text) : Json { #string self };
+  public func _toJson(self : Text) : Json { #string self };
 };
 
 module ArrayJson {
-  public func toJson<T>(self : [T], toJson : (implicit : T -> Json)) : Json {
-    #array(self.map(toJson));
+  public func _toJson<T>(self : [T], _toJson : (implicit : T -> Json)) : Json {
+    #array(self.map(_toJson));
   };
 };
 
 module ListJson {
-  public func toJson<T>(self : List.List<T>, toJson : (implicit : T -> Json)) : Json {
-    #array(self.values().map(toJson).toArray());
+  public func _toJson<T>(self : List.List<T>, _toJson : (implicit : T -> Json)) : Json {
+    #array(self.values().map(_toJson).toArray());
   };
 };
 
 // Map serialises to a JSON object; keys need a `toText` conversion.
 // Nat.toText and Text.toText from mo:core serve as leaf implicits for `toText`.
 module MapJson {
-  public func toJson<K, V>(
+  public func _toJson<K, V>(
     self : Map.Map<K, V>,
     toText : (implicit : K -> Text),
-    toJson : (implicit : V -> Json),
+    _toJson : (implicit : V -> Json),
   ) : Json {
     #obj(
-      self.entries().map(func(k, v) { (toText(k), toJson(v)) }).toArray()
+      self.entries().map(func(k, v) { (toText(k), _toJson(v)) }).toArray()
     );
   };
 };
 
-// Tuples: all element implicits share the `toJson` search label; the concrete
+// Tuples: all element implicits share the `_toJson` search label; the concrete
 // element type differentiates which instance is resolved for each slot.
 module Tuple2Json {
-  public func toJson<A, B>(
+  public func _toJson<A, B>(
     self : (A, B),
-    toJsonA : (implicit : (toJson : A -> Json)),
-    toJsonB : (implicit : (toJson : B -> Json)),
+    _toJsonA : (implicit : (_toJson : A -> Json)),
+    _toJsonB : (implicit : (_toJson : B -> Json)),
   ) : Json {
     let (a, b) = self;
-    #array([toJsonA(a), toJsonB(b)]);
+    #array([_toJsonA(a), _toJsonB(b)]);
   };
 };
 
 module Tuple3Json {
-  public func toJson<A, B, C>(
+  public func _toJson<A, B, C>(
     self : (A, B, C),
-    toJsonA : (implicit : (toJson : A -> Json)),
-    toJsonB : (implicit : (toJson : B -> Json)),
-    toJsonC : (implicit : (toJson : C -> Json)),
+    _toJsonA : (implicit : (_toJson : A -> Json)),
+    _toJsonB : (implicit : (_toJson : B -> Json)),
+    _toJsonC : (implicit : (_toJson : C -> Json)),
   ) : Json {
     let (a, b, c) = self;
-    #array([toJsonA(a), toJsonB(b), toJsonC(c)]);
+    #array([_toJsonA(a), _toJsonB(b), _toJsonC(c)]);
   };
 };
+
+// ── Entry point ──────────────────────────────────────────────────────────────
+
+// Bridges dot-syntax `value.toJson()` to the `_toJson` implicit search label.
+func toJson<R>(self : R, _toJson : (implicit : R -> Json)) : Json { _toJson(self) };
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
