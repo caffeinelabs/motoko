@@ -5,7 +5,7 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Implicit derivation failed:
-        `compare : (Bool, Bool) -> Order` — not found
+                 `compare : (Bool, Bool) -> Order` — not found
 error[M0230]: Cannot determine implicit argument `compare` of type
   ([[Bool]], [[Bool]]) -> Order
     ┌─ implicit-derivation.mo:37:8
@@ -13,7 +13,7 @@ error[M0230]: Cannot determine implicit argument `compare` of type
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
     = note: Implicit derivation failed:
-        `compare : (Bool, Bool) -> Order` — not found
+                 `compare : (Bool, Bool) -> Order` — not found
 error[M0230]: Cannot determine implicit argument `n` of type
   Nat
     ┌─ implicit-derivation.mo:44:8

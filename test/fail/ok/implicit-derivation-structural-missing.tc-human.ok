@@ -5,4 +5,4 @@ error[M0230]: Cannot determine implicit argument `_toJson` of type
     │                                 ^^ 
     = note: Did you mean to import mo:json/Json?
     = note: Implicit derivation failed:
-        `flag : Bool` — not found
+                 `flag : Bool` — not found
