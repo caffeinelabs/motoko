@@ -60,6 +60,13 @@ let rts_register_migration migration_id =
   primE (I.OtherPrim "set_migrations")
     [optE(tupE [textE migration_id; primE (I.OtherPrim "get_migrations") []])]
 
+let is_enhanced_migration_ptr_non_null =
+  switch_optE (primE (I.OtherPrim "get_migrations") [])
+    (falseE())
+    wildP
+    (trueE())
+    T.bool
+
 let unit_typ at = { it = S.TupT []; at; note = T.unit }
 
 let desugar_loop_flags at note body flags with_body =
@@ -831,7 +838,17 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
       T.PrePost (stab_fields_pre, stab_fields),
       I.{pre = mem_ty_pre; post = mem_ty},
       ifE (primE (I.OtherPrim "rts_in_upgrade") [])
-        (* in upgrade, apply migration *)
+        (* 
+          if we're trying to apply a regular migration (with migration = fn), but the RTS
+          holds a non-null pointer to a list of applied migrations for enhanced migration,
+          in other words, trying to apply a regular migration on top of an existing enhanced migration,
+          trap and roll back!
+        *)
+        (ifE is_enhanced_migration_ptr_non_null
+          (primE (Ir.OtherPrim "trap")
+            [textE "cannot apply regular migration on top of enhanced migration"])
+        
+        (* The regular path: in upgrade, apply migration *) 
         (blockE [
             letD v (primE (I.ICStableRead mem_ty_pre) []);
             letD v_dom
@@ -865,7 +882,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
                    nullE() (* TBR: could also reuse if compatible *)
                  | None -> dotE (varE v) i t)
               mem_fields)
-            mem_fields))
+            mem_fields)))
         (* not in upgrade, read record of nulls *)
         (primE (I.ICStableRead mem_ty) [])
   in
