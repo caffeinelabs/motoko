@@ -11109,20 +11109,21 @@ let compile_relop env t op =
   if t = Type.Non then SR.Vanilla, G.i Unreachable else
   StackRep.of_type t,
   let open Operator in
+  let open Type in
   match t, op with
-  | Type.(Prim Text), _ -> Text.compare env op
-  | Type.(Prim (Blob|Principal)), _ -> Blob.compare env (Some op)
+  | Prim Text, _ -> Text.compare env op
+  | Prim (Blob|Principal), _ -> Blob.compare env (Some op)
   | _, EqOp -> compile_eq env t
-  | Type.(Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1)), op1 ->
+  | Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1), op1 ->
     compile_comparison env t1 op1
-  | Type.(Prim Float),   GtOp -> compile_comparison_f64 F64Op.Gt
-  | Type.(Prim Float),   GeOp -> compile_comparison_f64 F64Op.Ge
-  | Type.(Prim Float),   LeOp -> compile_comparison_f64 F64Op.Le
-  | Type.(Prim Float),   LtOp -> compile_comparison_f64 F64Op.Lt
-  | Type.(Prim Float32), GtOp -> compile_comparison_f32 F32Op.Gt
-  | Type.(Prim Float32), GeOp -> compile_comparison_f32 F32Op.Ge
-  | Type.(Prim Float32), LeOp -> compile_comparison_f32 F32Op.Le
-  | Type.(Prim Float32), LtOp -> compile_comparison_f32 F32Op.Lt
+  | Prim Float,   GtOp -> compile_comparison_f64 F64Op.Gt
+  | Prim Float,   GeOp -> compile_comparison_f64 F64Op.Ge
+  | Prim Float,   LeOp -> compile_comparison_f64 F64Op.Le
+  | Prim Float,   LtOp -> compile_comparison_f64 F64Op.Lt
+  | Prim Float32, GtOp -> compile_comparison_f32 F32Op.Gt
+  | Prim Float32, GeOp -> compile_comparison_f32 F32Op.Ge
+  | Prim Float32, LeOp -> compile_comparison_f32 F32Op.Le
+  | Prim Float32, LtOp -> compile_comparison_f32 F32Op.Lt
   | _ -> todo_trap env "compile_relop" (Arrange_ops.relop op)
 
 let compile_load_field env typ name =
