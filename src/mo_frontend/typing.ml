@@ -3414,7 +3414,9 @@ and check_pat_aux env t pat val_kind : Scope.val_env =
   let t' = T.normalize t in
   let ve = check_pat_aux' env t' pat val_kind in
   if not env.pre then pat.note <- t';
-  ve
+  match pat.it with
+  | VarP id -> T.Env.singleton id.it (t, id.at, val_kind)
+  | _ -> ve
 
 and check_pat_aux' env t pat val_kind : Scope.val_env =
   let add_error_ctx spans = match env.closest_scrutinee with
