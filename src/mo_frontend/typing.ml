@@ -1278,36 +1278,38 @@ let infer_lit env lit at : T.prim =
     assert false
 
 let check_lit env t lit at suggest =
+  let is_sub = sub in
+  let open T in
   match t, !lit with
-  | T.(Prim Nat), PreLit (s, T.Nat) ->
+  | Prim Nat, PreLit (s, Nat) ->
     lit := NatLit (check_nat env at s)
-  | T.(Prim Nat8), PreLit (s, T.Nat) ->
+  | Prim Nat8, PreLit (s, Nat) ->
     lit := Nat8Lit (check_nat8 env at s)
-  | T.(Prim Nat16), PreLit (s, T.Nat) ->
+  | Prim Nat16, PreLit (s, Nat) ->
     lit := Nat16Lit (check_nat16 env at s)
-  | T.(Prim Nat32), PreLit (s, T.Nat) ->
+  | Prim Nat32, PreLit (s, Nat) ->
     lit := Nat32Lit (check_nat32 env at s)
-  | T.(Prim Nat64), PreLit (s, T.Nat) ->
+  | Prim Nat64, PreLit (s, Nat) ->
     lit := Nat64Lit (check_nat64 env at s)
-  | T.(Prim Int), PreLit (s, T.(Nat | Int)) ->
+  | Prim Int, PreLit (s, (Nat | Int)) ->
     lit := IntLit (check_int env at s)
-  | T.(Prim Int8), PreLit (s, T.(Nat | Int)) ->
+  | Prim Int8, PreLit (s, (Nat | Int)) ->
     lit := Int8Lit (check_int8 env at s)
-  | T.(Prim Int16), PreLit (s, T.(Nat | Int)) ->
+  | Prim Int16, PreLit (s, (Nat | Int)) ->
     lit := Int16Lit (check_int16 env at s)
-  | T.(Prim Int32), PreLit (s, T.(Nat | Int)) ->
+  | Prim Int32, PreLit (s, (Nat | Int)) ->
     lit := Int32Lit (check_int32 env at s)
-  | T.(Prim Int64), PreLit (s, T.(Nat | Int)) ->
+  | Prim Int64, PreLit (s, (Nat | Int)) ->
     lit := Int64Lit (check_int64 env at s)
-  | T.(Prim Float), PreLit (s, T.(Nat | Int | Float)) ->
+  | Prim Float, PreLit (s, (Nat | Int | Float)) ->
     lit := FloatLit (check_float env at s)
-  | T.(Prim Float32), PreLit (s, T.(Nat | Int | Float)) ->
+  | Prim Float32, PreLit (s, (Nat | Int | Float)) ->
     lit := Float32Lit (check_float32 env at s)
-  | T.(Prim Blob), PreLit (s, T.Text) ->
+  | Prim Blob, PreLit (s, Text) ->
     lit := BlobLit s
   | t, _ ->
-    let t' = T.Prim (infer_lit env lit at) in
-    if not (sub env at t' t) then
+    let t' = Prim (infer_lit env lit at) in
+    if not (is_sub env at t' t) then
     error env at "M0050"
       "literal of type%a\ndoes not have expected type%a%s"
       display_typ t'
