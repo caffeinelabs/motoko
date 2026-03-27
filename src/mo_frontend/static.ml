@@ -66,9 +66,11 @@ let rec exp ?(allow_system = false) m e  = match e.it with
      if <system> and we want to allow <system> calls, check.
      use-case: multi-migration actor bodies where we want to allow e.g., timers. 
   *)
-  | CallE (_, _, inst, _) 
+  | CallE (_, callee, inst, (_, ref_args)) 
     -> (match (allow_system, inst.it) with 
-        | (true, Some(true, _)) -> ()
+        | (true, Some(true, _)) -> 
+          (exp ~allow_system m callee;
+          exp ~allow_system m !ref_args)
         | _ -> err m e.at)
    
   (* Clearly non-static *)
@@ -138,9 +140,4 @@ and pat_field m pf = match pf.it with
 
 let prog ?(allow_system = false) p =
   Diag.with_message_store (fun m -> List.iter (dec ~allow_system m) p.it; Some ())
-
-let rec is_system e = match e.it with
-  | CallE (_, _, inst, _) -> (match inst.it with Some (true, _) -> true | _ -> false)
-  | IgnoreE e' | AnnotE (e', _) -> is_system e'
-  | _ -> false
 
