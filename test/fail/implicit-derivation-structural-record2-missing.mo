@@ -1,4 +1,4 @@
-//MOC-FLAG --package core $MOTOKO_CORE
+//MOC-FLAG --package core $MOTOKO_CORE --all-libs
 
 import Order "mo:core/Order";
 
