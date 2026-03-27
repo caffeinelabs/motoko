@@ -165,6 +165,7 @@ jobs:
         with:
           app-id: ${{ vars.GENERIC_CI_RW_APP_ID }}
           private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
+          repositories: motoko,node-motoko
 
       - name: Upload Release Assets
         uses: svenstaro/upload-release-action@v2
@@ -176,3 +177,12 @@ jobs:
           body: ${{ needs.changelog.outputs.release_body || 'Draft release created for testing purposes' }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Notify node-motoko of new release
+        if: ${{ github.event_name == 'push' }}
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: caffeinelabs/node-motoko
+          event-type: motoko-release
+          client-payload: '{"version": "${{ github.ref_name }}"}'
