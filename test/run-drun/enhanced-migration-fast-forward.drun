@@ -5,3 +5,6 @@ ingress $ID check "DIDL\x00\x00"
 
 # This fails when trying to apply a regular migration on top of a regular migration.
 upgrade $ID enhanced-migration-fast-forward/version1.mo ""
+
+# This fails when trying to apply a regular migration on top of a regular migration.
+upgrade $ID enhanced-migration-fast-forward/version2.mo ""
