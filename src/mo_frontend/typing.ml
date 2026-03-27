@@ -1453,7 +1453,7 @@ let disambiguate_resolutions (rel : 'candidate -> 'candidate -> bool) (candidate
   match List.fold_left add_candidate [] candidates with
   | [dom] -> `Single dom
   | [] -> `Empty
-  | _ -> `Many candidates
+  | frontier -> `Many frontier
 
 let is_lib_module (n, t) =
   match T.normalize t with

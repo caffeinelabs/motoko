@@ -11,7 +11,7 @@ Other examples are `equal` and `toText` functions.
 
 When declaring a function, any function parameter can be declared implicit using the `implicit` type constructor:
 
-For example, the core Map library, declares a function:
+For example, the core `Map` library declares a function:
 
 ```motoko no-repl
 public func add<K, V>(self: Map<K, V>, compare : (implicit : (K, K) -> Order), key : K, value : V) {
@@ -19,7 +19,7 @@ public func add<K, V>(self: Map<K, V>, compare : (implicit : (K, K) -> Order), k
 }
 ```
 
-The `implicit` marker on the type of parameter `compare` indicates the call-site can omit the `compare` argument, provided it can be inferred the call site.
+The `implicit` marker on the type of parameter `compare` indicates the call-site can omit the `compare` argument, provided it can be inferred at the call site.
 
 A function can declare more than one implicit parameter, even of the same name.
 
@@ -66,7 +66,7 @@ An ambiguous call can always be disambiguated by supplying the explicit argument
 
 ### Contextual dot notation
 
-Implicit parameters dovetail nicely with the [contextual dot notation](contextual-dot).
+Implicit parameters dovetail nicely with [contextual dot notation](10-contextual-dot.md).
 The dot notation and implicit arguments can be used in conjunction to shorten code.
 
 For example, since the first parameter of `Map.add` is called `self`, we can both use `map` as the receiver of `add` "method" calls
@@ -147,7 +147,7 @@ let scores = Map.empty<Text, Nat>();
 // Add player scores
 scores.add("Alice", 100);
 scores.add("Bob", 85);
-scores.add( "Charlie", 92);
+scores.add("Charlie", 92);
 
 // Update a score
 scores.add("Bob", 95);
@@ -158,7 +158,7 @@ if (scores.containsKey("Alice")) {
 };
 
 // Get size
-let playerCount = scores.size()
+let playerCount = scores.size();
 ```
 
 ## How inference works
@@ -222,7 +222,7 @@ When derivation is attempted but fails (for example, because an inner implicit c
 
 ### Structural derivation
 
-When an implicit is needed for a **record or tuple type**, the compiler can synthesise it automatically using a *structural combiner* — a function whose single parameter name begins with `__` and encodes the structural decomposition kind. Structural combiners must not have implicit parameters.
+When an implicit is needed for a **record or tuple type**, the compiler can synthesize it automatically using a *structural combiner* — a function whose single parameter name begins with `__` and encodes the structural decomposition kind. Structural combiners must not have implicit parameters.
 
 Two structural kinds are supported, distinguished by the combiner's parameter name:
 
@@ -251,9 +251,9 @@ When the compiler is looking for an implicit of type `SomeRecord -> R` and finds
 2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> E` using the same search label.
 3. Synthesises a wrapper: `func($r) { combiner([("f1", inst1($r.f1)), ...]) }`.
 
-This makes it possible for a library to provide generic serialisation for **any** record type as long as instances exist for all field types.
+This makes it possible for a library to provide generic serialization for **any** record type as long as instances exist for all field types.
 
-##### Example: JSON serialisation
+##### Example: JSON serialization
 
 Suppose a `Json` package defines a type, a structural combiner, and an entry point:
 
@@ -288,13 +288,13 @@ let json = p.toJson();
 // Result: #obj([("name", #text "Alice"), ("age", #number 30)])
 ```
 
-The compiler finds `Json.encode(__record)` as the unique structural combiner for `Json`, resolves per-field `encode` instances from `TextJson` and `IntJson`, and synthesises the wrapper automatically.
+The compiler finds `Json.encode(__record)` as the unique structural combiner for `Json`, resolves per-field `encode` instances from `TextJson` and `IntJson`, and synthesizes the wrapper automatically.
 
 #### Binary record derivation
 
 When the compiler is looking for an implicit of type `(Rec, Rec) -> R` where `Rec` is a record type and both arguments have the same type, it searches for an `__record` combiner for `R` — the same combiner that handles the unary case. The arity is determined entirely by the hole type; the combiner itself is unaware of it.
 
-The compiler synthesises a binary wrapper:
+The compiler synthesizes a binary wrapper:
 
 ```
 func($r1, $r2) { combiner([("f1", inst1($r1.f1, $r2.f1)), ("f2", inst2($r1.f2, $r2.f2)), ...]) }
@@ -334,7 +334,7 @@ Nested record types are handled automatically: a `Team` with a `Person` field wi
 
 When the compiler is looking for an implicit of type `(A, B, ...) -> R` (a tuple domain with at least two elements), it searches for a structural combiner whose parameter is named `__tuple` and has type `[E] -> R`.
 
-When found, the compiler synthesises a wrapper:
+When found, the compiler synthesizes a wrapper:
 
 ```
 func($t) { combiner([inst0($t.0), inst1($t.1), ...]) }
@@ -344,7 +344,7 @@ Each per-element implicit has type `ElemType_i -> E`, resolved positionally usin
 
 #### Binary tuple derivation
 
-Like `__record`, the `__tuple` combiner also supports binary holes. When the hole type is `((A, B, ...), (A, B, ...)) -> R` (two arguments of the same tuple type with ≥ 2 elements), the compiler synthesises a binary wrapper:
+Like `__record`, the `__tuple` combiner also supports binary holes. When the hole type is `((A, B, ...), (A, B, ...)) -> R` (two arguments of the same tuple type with ≥ 2 elements), the compiler synthesizes a binary wrapper:
 
 ```
 func($t1, $t2) { combiner([inst0($t1.0, $t2.0), inst1($t1.1, $t2.1), ...]) }
@@ -477,7 +477,7 @@ There is no need to update existing code unless you want to take advantage of th
 Implicit arguments are resolved at compile time.
 - For direct matches, the resulting code is identical to explicitly passing the argument.
 - For derived implicits, the compiler synthesizes a wrapper function at each call site. This creates a small overhead per call site, which could be mitigated by caching in the future. For now, if this becomes a performance issue, consider defining the function explicitly so all call sites share a single definition.
-- For `__record` structural derivation, the synthesised wrapper invokes one implicit per record field (two invocations per field for the binary path), so runtime cost scales linearly with record width. For `__tuple`, cost scales with tuple arity. For hot paths with wide types, consider writing the combiner explicitly.
+- For `__record` structural derivation, the synthesized wrapper invokes one implicit per record field (two invocations per field for the binary path), so runtime cost scales linearly with record width. For `__tuple`, cost scales with tuple arity. For hot paths with wide types, consider writing the combiner explicitly.
 
 ## See also
 

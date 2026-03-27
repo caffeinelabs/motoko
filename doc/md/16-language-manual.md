@@ -2373,7 +2373,7 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
     *  Ds is the disambiguated set of candidates, filtered by generality.
     * `<mid>.<idi>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
 
-    **Implicit derivation**: When no direct local value or module-field candidate is found, the compiler additionally searches for *derivable* candidates — first among local values, then among module fields, then among library fields (from unimported modules, but only when the `--implicit-package` flag is set).
+    **Implicit derivation**: When no direct candidate is found (neither from local values, module fields, nor library fields of unimported modules when `--implicit-package` is set), the compiler additionally searches for *derivable* candidates — first among local values, then among module fields, then among library fields.
     A derivable candidate is a function (possibly polymorphic) that has implicit parameters of its own, and whose type, after removing its implicit parameters and instantiating its type parameters, matches the required hole type.
     If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
     This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.

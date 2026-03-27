@@ -1,7 +1,7 @@
 error[M0230]: Cannot determine implicit argument `_toJson` of type
   {active : Bool; age : Int; name : Text} -> Json.Json
-    ┌─ implicit-derivation-json.mo:9:66
-  9 │  ignore ({ name = "Alice"; age = 42 : Int; active = true }).toJson();
+    ┌─ implicit-derivation-json.mo:10:66
+ 10 │  ignore ({ name = "Alice"; age = 42 : Int; active = true }).toJson();
     │                                                                   ^^ 
     = note: Implicit derivation failed:
                  `_toJson : Bool -> Json` — not found
@@ -9,15 +9,15 @@ error[M0230]: Cannot determine implicit argument `_toJson` of type
 error[M0230]: Cannot determine implicit argument `_toJson` of type
   {data : {var root : Node<Text, Int>; var size : Nat}; tag : Text} ->
     Json.Json
-    ┌─ implicit-derivation-json.mo:13:40
- 13 │  ignore ({ data = m; tag = "v" }).toJson();
+    ┌─ implicit-derivation-json.mo:15:40
+ 15 │  ignore ({ data = m; tag = "v" }).toJson();
     │                                         ^^ 
     = note: Implicit derivation failed:
                  `_toJson : {var root : Node<Text, Int>; var size : Nat} -> Json` — not found, try importing mo:json/MapJson
 error[M0230]: Cannot determine implicit argument `_toJson` of type
   {var root : Node<Text, Int>; var size : Nat} -> Json.Json
-    ┌─ implicit-derivation-json.mo:17:17
- 17 │  ignore m2.toJson();
+    ┌─ implicit-derivation-json.mo:20:17
+ 20 │  ignore m2.toJson();
     │                  ^^ 
     = note: Did you mean to import mo:json/MapJson?
     = note: Implicit derivation failed:
@@ -25,8 +25,8 @@ error[M0230]: Cannot determine implicit argument `_toJson` of type
                  `_toJson : Nat -> Json` — not found, try importing mo:json/IntJson
 error[M0230]: Cannot determine implicit argument `_toJson` of type
   {inner : {value : Nat}; outer : Text} -> Json.Json
-    ┌─ implicit-derivation-json.mo:19:58
- 19 │  ignore ({ inner = { value = 42 }; outer = "top" }).toJson();
+    ┌─ implicit-derivation-json.mo:23:58
+ 23 │  ignore ({ inner = { value = 42 }; outer = "top" }).toJson();
     │                                                           ^^ 
     = note: Implicit derivation failed:
                  `_toJson : Nat -> Json` — not found, try importing mo:json/IntJson
