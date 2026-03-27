@@ -336,6 +336,8 @@ let prim trap =
     | _ -> assert false
     )
 
+  | "get_migrations" ->
+    fun _ v k -> as_unit v; k Null
 
   | "cast"
   | "blobOfPrincipal"
