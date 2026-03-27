@@ -44,3 +44,31 @@ let number = switch (?5) {
 };
 assert number == 5;
 ```
+
+## Function `envVarNames`
+``` motoko no-repl
+func envVarNames() : [Text]
+```
+
+Returns the names of all canister environment variables.
+
+Example:
+```motoko include=import no-validate
+let names = Runtime.envVarNames();
+```
+
+## Function `envVar`
+``` motoko no-repl
+func envVar(name : Text) : ?Text
+```
+
+Returns an optional value of the canister environment variable with the given name.
+
+Example:
+```motoko include=import no-validate
+let value = Runtime.envVar("MY_ENV_VAR");
+let result = switch (value) {
+  case (?v) v;
+  case null Runtime.trap("Unknown environment variable");
+};
+```
