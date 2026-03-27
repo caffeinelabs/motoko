@@ -143,6 +143,7 @@ let rec html_of_type : env -> Syntax.typ -> t =
       ++ string "{ "
       ++ join_with (string "; ") (List.map (html_of_typ_field env) fields)
       ++ string " }"
+  | Syntax.FromCandidT _ -> failwith "FIXME"
 
 and html_of_typ_tag : env -> Syntax.typ_tag -> t =
  fun env typ_tag ->

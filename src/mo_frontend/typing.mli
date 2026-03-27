@@ -2,7 +2,7 @@ open Mo_def
 open Mo_types
 
 open Type
-open Scope
+open Mo_idl.Scope
 
 val initial_scope : scope
 

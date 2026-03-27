@@ -59,6 +59,7 @@
 
 <typ_pre> ::= 
     <typ_un>
+    'from_candid' <text>
     'async' <typ_pre>
     'async*' <typ_pre>
     <typ_obj_sort> <typ_obj>

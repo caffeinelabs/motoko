@@ -24,11 +24,14 @@ type rel_path = string
 
 type parse_result = (Syntax.prog * rel_path) Diag.result
 
-let parse_with lexer parser name =
+let parse_with ?(left = Source.no_pos) lexer parser name =
   try
     phase "Parsing" name;
     lexer.Lexing.lex_curr_p <-
-      {lexer.Lexing.lex_curr_p with Lexing.pos_fname = name};
+      Lexing.{lexer.lex_curr_p with pos_fname = name};
+    if left.Source.line <> 0 then
+      lexer.Lexing.lex_curr_p <-
+      Lexing.{lexer.lex_curr_p with pos_lnum = left.Source.line; pos_cnum = 0; pos_bol = -left.Source.column};
     let prog = parser Lexer.token lexer name in
     Ok prog
   with
@@ -50,12 +53,12 @@ let parse_file filename : parse_result =
      Diag.return (prog, filename)
   | Error e -> Error e
 
-let parse_string s : parse_result =
+let parse_string ?(left = Source.{no_pos with file = "source"}) s : parse_result =
   let lexer = Lexing.from_string s in
   let parser = Parser.parse_prog in
-  let result = parse_with lexer parser "source1" in
+  let result = parse_with ~left lexer parser left.Source.file in
   match result with
-  | Ok prog -> Diag.return (prog, "source2")
+  | Ok prog -> Diag.return (prog, left.Source.file)
   | Error e -> Error e
 
 let parse_file filename : parse_result =

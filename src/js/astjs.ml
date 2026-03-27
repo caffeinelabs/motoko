@@ -492,6 +492,7 @@ module Make (Cfg : Config) = struct
     | NamedT (id, t) ->
         to_js_object "NamedT" [| js_string id.it; syntax_typ_js t |]
     | WeakT t -> to_js_object "WeakT" [| syntax_typ_js t |]
+    | FromCandidT _ -> failwith "FIXME"
 
   and typ_field_js tf =
     let open Source in

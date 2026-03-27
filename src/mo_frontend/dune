@@ -1,6 +1,6 @@
 (library
   (name mo_frontend)
-  (libraries menhirLib lib lang_utils mo_config mo_def mo_types mo_values wasm_exts ocaml-recovery-parser.menhirRecoveryLib)
+  (libraries menhirLib lib lang_utils mo_config mo_def mo_idl mo_types mo_values wasm_exts ocaml-recovery-parser.menhirRecoveryLib)
   (modules (:standard \ test_recovery))
   (instrumentation (backend bisect_ppx --bisect-silent yes))
 )

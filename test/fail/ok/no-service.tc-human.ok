@@ -1,0 +1,4 @@
+error[M0245]: imported `actor` type doesn't specify `service`
+    ┌─ no-service.mo:1:10
+  1 │  type T = from_candid "type X = int";
+    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -1,0 +1,4 @@
+error[M0246]: malformed operator
+    ┌─ candid-syntax-error.mo:2:41
+  2 │  type SynErr = from_candid "type X = int * nat"
+    │                                          ^ 

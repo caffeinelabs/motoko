@@ -207,6 +207,9 @@ let error_codes : (string * string option) list =
     "M0233", None; (* Wrong number of arguments *)
     "M0234", None; (* Field exists but is not a function *)
     "M0238", None; (* Misplaced break or continue *)
+    "M0245", None; (* Candid type literal is missing `service` *)
+    "M0246", None; (* Syntax error in Candid literal *)
+    "M0247", None; (* Type error in Candid literal *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

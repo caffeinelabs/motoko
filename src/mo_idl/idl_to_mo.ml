@@ -5,34 +5,32 @@ module M = Mo_types.Type
 module I = Idllib.Typing
 
 
-let check_prim at p =
-  match p with
-  | Null -> M.Prim M.Null
-  | Bool -> M.Prim M.Bool
-  | Int -> M.Prim M.Int
-  | Int8 -> M.Prim M.Int8
-  | Int16 -> M.Prim M.Int16
-  | Int32 -> M.Prim M.Int32
-  | Int64 -> M.Prim M.Int64
-  | Nat -> M.Prim M.Nat
-  | Nat8 -> M.Prim M.Nat8
-  | Nat16 -> M.Prim M.Nat16
-  | Nat32 -> M.Prim M.Nat32
-  | Nat64 -> M.Prim M.Nat64
+let check_prim at = function
+  | Null -> M.(Prim Null)
+  | Bool -> M.(Prim Bool)
+  | Int -> M.(Prim Int)
+  | Int8 -> M.(Prim Int8)
+  | Int16 -> M.(Prim Int16)
+  | Int32 -> M.(Prim Int32)
+  | Int64 -> M.(Prim Int64)
+  | Nat -> M.(Prim Nat)
+  | Nat8 -> M.(Prim Nat8)
+  | Nat16 -> M.(Prim Nat16)
+  | Nat32 -> M.(Prim Nat32)
+  | Nat64 -> M.(Prim Nat64)
   | Float32 -> raise (UnsupportedCandidFeature
      (Diag.error_message at "M0161" "import"
        "Candid 'float32' type cannot be imported as a Motoko type"))
-  | Float64 -> M.Prim M.Float
-  | Text -> M.Prim M.Text
+  | Float64 -> M.(Prim Float)
+  | Text -> M.(Prim Text)
   | Reserved -> M.Any
   | Empty -> M.Non
 
-let check_modes ms =
-  match ms with
-  | [] -> (M.Write, M.Promises)
-  | [{it=Oneway; _}] -> (M.Write, M.Returns)
-  | [{it=Query; _}] -> (M.Query, M.Promises)
-  | [{it=Composite; _}] -> (M.Composite, M.Promises)
+let check_modes = function
+  | [] -> M.(Write, Promises)
+  | [{it=Oneway; _}] -> M.(Write, Returns)
+  | [{it=Query; _}] -> M.(Query, Promises)
+  | [{it=Composite; _}] -> M.(Composite, Promises)
   | _ -> assert false
 
 let check_label lab : M.lab =
@@ -51,7 +49,7 @@ let is_tuple fs =
 let rec check_typ' env occs t =
   match t.it with
   | PrimT p -> check_prim t.at p
-  | PrincipalT -> M.Prim M.Principal
+  | PrincipalT -> M.(Prim Principal)
   | VarT {it=id; _} ->
      (match M.Env.find_opt id !occs with
       | None ->
@@ -66,7 +64,7 @@ let rec check_typ' env occs t =
      )
   | OptT t -> M.Opt (check_typ' env occs t)
   | VecT t -> M.Array (check_typ' env occs t)
-  | BlobT -> M.Prim M.Blob
+  | BlobT -> M.(Prim Blob)
   | RecordT fs ->
      if is_tuple fs then
        M.Tup (List.map (fun (f : typ_field) -> check_typ' env occs f.it.typ) fs)
@@ -98,10 +96,10 @@ and check_variant_field env occs f =
   match f.it.typ.it with
   | PrimT Null -> M.{lab = check_label f.it.label; typ = M.Tup []; src = empty_src}
   | _ -> check_field env occs f
-and check_meth env occs (m: typ_meth) =
+and check_meth env occs (m : typ_meth) =
   M.{lab = Idllib.Escape.escape_method m.it.var.at m.it.var.it; typ = check_typ' env occs m.it.meth; src = empty_src}
 
-let check_prog (env: typ I.Env.t) actor : M.typ =
+let check_prog (env : typ I.Env.t) actor : M.typ =
   let occs = ref M.Env.empty in
   let fs = match actor with
     | Some {it=ServT ms; _} ->
