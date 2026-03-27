@@ -839,6 +839,10 @@ let compile_comparison_f64 rel =
   G.i (Compare (Wasm_exts.Values.F64 rel)) ^^
   G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
 
+let compile_comparison_f32 rel =
+  G.i (Compare (Wasm_exts.Values.F32 rel)) ^^
+  G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
+
 let compile_unboxed_const i = G.i (Const (nr (Wasm_exts.Values.I64 i)))
 let compile_const_32 i = G.i (Const (nr (Wasm_exts.Values.I32 i)))
 let compile_unboxed_zero = compile_unboxed_const 0L
@@ -11470,18 +11474,10 @@ let compile_relop env t op =
   | Type.(Prim Float), GeOp -> compile_comparison_f64 F64Op.Ge
   | Type.(Prim Float), LeOp -> compile_comparison_f64 F64Op.Le
   | Type.(Prim Float), LtOp -> compile_comparison_f64 F64Op.Lt
-  | Type.(Prim Float32), GtOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Gt)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
-  | Type.(Prim Float32), GeOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Ge)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
-  | Type.(Prim Float32), LeOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Le)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
-  | Type.(Prim Float32), LtOp ->
-    G.i (Compare (Wasm_exts.Values.F32 F32Op.Lt)) ^^
-    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32))
+  | Type.(Prim Float32), GtOp -> compile_comparison_f32 F32Op.Gt
+  | Type.(Prim Float32), GeOp -> compile_comparison_f32 F32Op.Ge
+  | Type.(Prim Float32), LeOp -> compile_comparison_f32 F32Op.Le
+  | Type.(Prim Float32), LtOp -> compile_comparison_f32 F32Op.Lt
   | _ -> todo_trap env "compile_relop" (Arrange_ops.relop op)
 
 let compile_load_field env typ name =
