@@ -1231,6 +1231,8 @@ let check_int16 env = check_lit_val env T.Int16 Numerics.Int_16.of_string
 let check_int32 env = check_lit_val env T.Int32 Numerics.Int_32.of_string
 let check_int64 env = check_lit_val env T.Int64 Numerics.Int_64.of_string
 let check_float env = check_lit_val env T.Float Numerics.Float.of_string
+let check_float32 env at s =
+  check_lit_val env T.Float32 Numerics.Float32.of_string at s
 
 let check_text env at s =
   if not (Lib.Utf8.is_valid s) then
@@ -1252,6 +1254,7 @@ let infer_lit env lit at : T.prim =
   | Int32Lit _ -> T.Int32
   | Int64Lit _ -> T.Int64
   | FloatLit _ -> T.Float
+  | Float32Lit _ -> T.Float32
   | CharLit _ -> T.Char
   | TextLit _ -> T.Text
   | BlobLit _ -> T.Blob
@@ -1275,35 +1278,39 @@ let infer_lit env lit at : T.prim =
     assert false
 
 let check_lit env t lit at suggest =
+  let sub', error' = sub, error in
+  let open T in
   match t, !lit with
-  | T.Prim T.Nat, PreLit (s, T.Nat) ->
+  | Prim Nat, PreLit (s, Nat) ->
     lit := NatLit (check_nat env at s)
-  | T.Prim T.Nat8, PreLit (s, T.Nat) ->
+  | Prim Nat8, PreLit (s, Nat) ->
     lit := Nat8Lit (check_nat8 env at s)
-  | T.Prim T.Nat16, PreLit (s, T.Nat) ->
+  | Prim Nat16, PreLit (s, Nat) ->
     lit := Nat16Lit (check_nat16 env at s)
-  | T.Prim T.Nat32, PreLit (s, T.Nat) ->
+  | Prim Nat32, PreLit (s, Nat) ->
     lit := Nat32Lit (check_nat32 env at s)
-  | T.Prim T.Nat64, PreLit (s, T.Nat) ->
+  | Prim Nat64, PreLit (s, Nat) ->
     lit := Nat64Lit (check_nat64 env at s)
-  | T.Prim T.Int, PreLit (s, (T.Nat | T.Int)) ->
+  | Prim Int, PreLit (s, (Nat | Int)) ->
     lit := IntLit (check_int env at s)
-  | T.Prim T.Int8, PreLit (s, (T.Nat | T.Int)) ->
+  | Prim Int8, PreLit (s, (Nat | Int)) ->
     lit := Int8Lit (check_int8 env at s)
-  | T.Prim T.Int16, PreLit (s, (T.Nat | T.Int)) ->
+  | Prim Int16, PreLit (s, (Nat | Int)) ->
     lit := Int16Lit (check_int16 env at s)
-  | T.Prim T.Int32, PreLit (s, (T.Nat | T.Int)) ->
+  | Prim Int32, PreLit (s, (Nat | Int)) ->
     lit := Int32Lit (check_int32 env at s)
-  | T.Prim T.Int64, PreLit (s, (T.Nat | T.Int)) ->
+  | Prim Int64, PreLit (s, (Nat | Int)) ->
     lit := Int64Lit (check_int64 env at s)
-  | T.Prim T.Float, PreLit (s, (T.Nat | T.Int | T.Float)) ->
+  | Prim Float, PreLit (s, (Nat | Int | Float)) ->
     lit := FloatLit (check_float env at s)
-  | T.Prim T.Blob, PreLit (s, T.Text) ->
+  | Prim Float32, PreLit (s, (Nat | Int | Float)) ->
+    lit := Float32Lit (check_float32 env at s)
+  | Prim Blob, PreLit (s, Text) ->
     lit := BlobLit s
   | t, _ ->
-    let t' = T.Prim (infer_lit env lit at) in
-    if not (sub env at t' t) then
-    error env at "M0050"
+    let t' = Prim (infer_lit env lit at) in
+    if not (sub' env at t' t) then
+    error' env at "M0050"
       "literal of type%a\ndoes not have expected type%a%s"
       display_typ t'
       display_typ_expand t

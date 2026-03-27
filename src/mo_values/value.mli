@@ -40,6 +40,7 @@ and value =
   | Nat32 of Nat32.t
   | Nat64 of Nat64.t
   | Float of Float.t
+  | Float32 of Float32.t
   | Char of unicode
   | Text of string
   | Blob of string
@@ -92,6 +93,7 @@ val as_nat16 : value -> Nat16.t
 val as_nat32 : value -> Nat32.t
 val as_nat64 : value -> Nat64.t
 val as_float : value -> Float.t
+val as_float32 : value -> Float32.t
 val as_char : value -> unicode
 val as_text : value -> string
 val as_blob : value -> string

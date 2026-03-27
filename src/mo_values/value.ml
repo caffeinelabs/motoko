@@ -49,6 +49,7 @@ and value =
   | Nat32 of Nat32.t
   | Nat64 of Nat64.t
   | Float of Float.t
+  | Float32 of Float32.t
   | Char of unicode
   | Text of string
   | Blob of string
@@ -97,6 +98,7 @@ let as_nat16 = function Nat16 w -> w | _ -> invalid "as_nat16"
 let as_nat32 = function Nat32 w -> w | _ -> invalid "as_nat32"
 let as_nat64 = function Nat64 w -> w | _ -> invalid "as_nat64"
 let as_float = function Float f -> f | _ -> invalid "as_float"
+let as_float32 = function Float32 f -> f | _ -> invalid "as_float32"
 let as_char = function Char c -> c | _ -> invalid "as_char"
 let as_text = function Text s -> s | _ -> invalid "as_text"
 let as_blob = function Blob b -> b | _ -> invalid "as_blob"
@@ -203,6 +205,7 @@ let rec pp_val_nullary d ppf (t, v : T.typ * value) =
     | Nat32 n -> pr ppf (Nat32.to_pretty_string n)
     | Nat64 n -> pr ppf (Nat64.to_pretty_string n)
     | Float f -> pr ppf (Float.to_pretty_string f)
+    | Float32 f -> pr ppf (Float32.to_pretty_string f)
     | Char c ->  pr ppf (string_of_string '\'' [c] '\'')
     | Text t -> pr ppf (string_of_string '\"' (Lib.Utf8.decode t) '\"')
     | Blob b ->

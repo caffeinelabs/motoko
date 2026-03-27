@@ -56,25 +56,27 @@ let bit_unop (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, fint64) = fu
   | _ -> raise (Invalid_argument "unop")
 
 (* types that support sign operations (+, -)  *)
-let sign_unop fint (fint8, fint16, fint32, fint64) ffloat = function
+let sign_unop fint (fint8, fint16, fint32, fint64) ffloat ffloat32 = function
   | T.Int -> fun v -> Int (fint (as_int v))
   | T.Int8 -> fun v -> Int8 (fint8 (as_int8 v))
   | T.Int16 -> fun v -> Int16 (fint16 (as_int16 v))
   | T.Int32 -> fun v -> Int32 (fint32 (as_int32 v))
   | T.Int64 -> fun v -> Int64 (fint64 (as_int64 v))
   | T.Float -> fun v -> Float (ffloat (as_float v))
+  | T.Float32 -> fun v -> Float32 (ffloat32 (as_float32 v))
   | _ -> raise (Invalid_argument "unop")
 
 let unop op t =
   match t with
   | T.Prim p ->
     (match op with
-    | PosOp -> Fun.(sign_unop id (id, id, id, id) id p)
+    | PosOp -> Fun.(sign_unop id (id, id, id, id) id id p)
     | NegOp ->
       sign_unop
         Int.neg
         (Int_8.neg, Int_16.neg, Int_32.neg, Int_64.neg)
         Float.neg
+        Float32.neg
         p
     | NotOp -> bit_unop
       (Nat8.not, Nat16.not, Nat32.not, Nat64.not,
@@ -102,22 +104,23 @@ let fixed_binop (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, fint64) =
   | T.Int64 -> fun v1 v2 -> Int64 (fint64 (as_int64 v1) (as_int64 v2))
   | _ -> raise (Invalid_argument "binop")
 
-let num_binop fnat fint ffixed ffloat = function
+let num_binop fnat fint ffixed ffloat ffloat32 = function
   | T.Nat -> fun v1 v2 -> Int (fnat (as_int v1) (as_int v2))
   | T.Int -> fun v1 v2 -> Int (fint (as_int v1) (as_int v2))
   | T.Float -> fun v1 v2 -> Float (ffloat (as_float v1) (as_float v2))
+  | T.Float32 -> fun v1 v2 -> Float32 (ffloat32 (as_float32 v1) (as_float32 v2))
   | t -> fixed_binop ffixed t
 
 let binop op t =
   match t with
   | T.Prim p ->
     (match op with
-    | AddOp -> num_binop Nat.add Int.add (Nat8.add, Nat16.add, Nat32.add, Nat64.add, Int_8.add, Int_16.add, Int_32.add, Int_64.add) Float.add p
-    | SubOp -> num_binop Nat.sub Int.sub (Nat8.sub, Nat16.sub, Nat32.sub, Nat64.sub, Int_8.sub, Int_16.sub, Int_32.sub, Int_64.sub) Float.sub p
-    | MulOp -> num_binop Nat.mul Int.mul (Nat8.mul, Nat16.mul, Nat32.mul, Nat64.mul, Int_8.mul, Int_16.mul, Int_32.mul, Int_64.mul) Float.mul p
-    | DivOp -> num_binop Nat.div Int.div (Nat8.div, Nat16.div, Nat32.div, Nat64.div, Int_8.div, Int_16.div, Int_32.div, Int_64.div) Float.div p
-    | ModOp -> num_binop Nat.rem Int.rem (Nat8.rem, Nat16.rem, Nat32.rem, Nat64.rem, Int_8.rem, Int_16.rem, Int_32.rem, Int_64.rem) Float.rem p
-    | PowOp -> num_binop Nat.pow Int.pow (Nat8.pow, Nat16.pow, Nat32.pow, Nat64.pow, Int_8.pow, Int_16.pow, Int_32.pow, Int_64.pow) Float.pow p
+    | AddOp -> num_binop Nat.add Int.add (Nat8.add, Nat16.add, Nat32.add, Nat64.add, Int_8.add, Int_16.add, Int_32.add, Int_64.add) Float.add Float32.add p
+    | SubOp -> num_binop Nat.sub Int.sub (Nat8.sub, Nat16.sub, Nat32.sub, Nat64.sub, Int_8.sub, Int_16.sub, Int_32.sub, Int_64.sub) Float.sub Float32.sub p
+    | MulOp -> num_binop Nat.mul Int.mul (Nat8.mul, Nat16.mul, Nat32.mul, Nat64.mul, Int_8.mul, Int_16.mul, Int_32.mul, Int_64.mul) Float.mul Float32.mul p
+    | DivOp -> num_binop Nat.div Int.div (Nat8.div, Nat16.div, Nat32.div, Nat64.div, Int_8.div, Int_16.div, Int_32.div, Int_64.div) Float.div Float32.div p
+    | ModOp -> num_binop Nat.rem Int.rem (Nat8.rem, Nat16.rem, Nat32.rem, Nat64.rem, Int_8.rem, Int_16.rem, Int_32.rem, Int_64.rem) Float.rem Float32.rem p
+    | PowOp -> num_binop Nat.pow Int.pow (Nat8.pow, Nat16.pow, Nat32.pow, Nat64.pow, Int_8.pow, Int_16.pow, Int_32.pow, Int_64.pow) Float.pow Float32.pow p
     | AndOp -> fixed_binop (Nat8.and_, Nat16.and_, Nat32.and_, Nat64.and_, Int_8.and_, Int_16.and_, Int_32.and_, Int_64.and_) p
     | OrOp  -> fixed_binop (Nat8.or_, Nat16.or_, Nat32.or_, Nat64.or_, Int_8.or_, Int_16.or_, Int_32.or_, Int_64.or_) p
     | XorOp -> fixed_binop (Nat8.xor, Nat16.xor, Nat32.xor, Nat64.xor, Int_8.xor, Int_16.xor, Int_32.xor, Int_64.xor) p
@@ -149,6 +152,7 @@ let num_relop fnat fint (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, f
   | T.Int32 -> fun v1 v2 -> Bool (fint32 (as_int32 v1) (as_int32 v2))
   | T.Int64 -> fun v1 v2 -> Bool (fint64 (as_int64 v1) (as_int64 v2))
   | T.Float -> fun v1 v2 -> Bool (ffloat (as_float v1) (as_float v2))
+  | T.Float32 -> fun v1 v2 -> Bool (ffloat (Float.of_float (Float32.to_float (as_float32 v1))) (Float.of_float (Float32.to_float (as_float32 v2))))
   | _ -> raise (Invalid_argument "relop")
 
 let ord_relop fnat fint fwords ffloat fchar ftext fblob = function

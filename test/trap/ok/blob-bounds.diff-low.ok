@@ -1,6 +1,6 @@
 --- blob-bounds.run
 +++ blob-bounds.run-low
-@@ -1,79 +1 @@
+@@ -1,80 +1 @@
 -blob-bounds.mo:1.17-1.18: internal error, Invalid_argument("index out of bounds")
 -
 -Last environment:
@@ -59,6 +59,7 @@
 -@text_of_Bool = <func>
 -@text_of_Char = <func>
 -@text_of_Float = <func>
+-@text_of_Float32 = <func>
 -@text_of_Int = <func>
 -@text_of_Int16 = <func>
 -@text_of_Int32 = <func>
