@@ -3015,7 +3015,7 @@ module Float32 = struct
        │ obj header │ f32 │
        └────────────┴─────┘
 
-     Tag = Bits32 F (45).  Incr GC: 3 words; no GC: 2 words.
+     Tag = Bits32 F (45).  Incr GC: 3 words; other GC: 2 words.
      The f32 payload occupies one 32-bit word.
   *)
 
