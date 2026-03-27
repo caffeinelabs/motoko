@@ -6640,12 +6640,6 @@ module StackRep = struct
       G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
       G.i (Convert (Wasm_exts.Values.F32 F32Op.ReinterpretInt))
 
-    (* Cross-width float conversions on the Wasm stack *)
-    | UnboxedFloat32, UnboxedFloat64 ->
-      G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32))
-    | UnboxedFloat64, UnboxedFloat32 ->
-      G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
-
     | Const value, Vanilla ->
         materialize_constant env value
     | Const Const.Lit (Const.Vanilla n), UnboxedWord64 ty ->
