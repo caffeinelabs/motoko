@@ -1,1 +1,1 @@
-issue-3585/Field.mo:2.10-2.19: type error [M0014], non-static expression in library, module, migration expression, or actor body with enhanced migration.
+issue-3585/Field.mo:2.10-2.19: type error [M0014], non-static expression in library, module or migration expression

@@ -1,1 +1,1 @@
-lib/actor.mo:1.1-1.9: type error [M0014], non-static expression in library, module, migration expression, or actor body with enhanced migration.
+lib/actor.mo:1.1-1.9: type error [M0014], non-static expression in library, module or migration expression

@@ -15,14 +15,22 @@ open Mo_def
 open Source
 open Syntax
 
-let err m at =
+let err ?(allow_system = false) m at =
   let open Diag in
   add_msg m
-    (error_message
-       at
-       "M0014"
-       "type"
-       "non-static expression in library, module, migration expression, or actor body with enhanced migration.")
+    (match (allow_system) with
+    | false -> 
+      (error_message
+        at
+        "M0014"
+        "type"
+        "non-static expression in library, module or migration expression")
+    | true ->
+      (error_message
+        at
+        "M0014"
+        "type"
+        "non-static expression in actor body compiled with enhanced migration capabilities. Only <system> capabilities allowed for non-static expressions."))
 
 let pat_err m at =
   let open Diag in
@@ -43,7 +51,7 @@ let rec exp ?(allow_system = false) m e  = match e.it with
     begin
       match mut.it with
       | Const ->  List.iter (exp ~allow_system m) es
-      | Var -> err m e.at
+      | Var -> err ~allow_system m e.at
     end
   | ObjBlockE (eo, _, _, dfs) ->
     Option.iter (exp ~allow_system m) eo; dec_fields ~allow_system m dfs 
@@ -56,7 +64,7 @@ let rec exp ?(allow_system = false) m e  = match e.it with
   (* Projections. These are a form of evaluation. *)
   | ProjE (exp1, _)
   | DotE (exp1, _, _) -> exp ~allow_system m exp1
-  | IdxE (exp1, exp2) -> err m e.at
+  | IdxE (exp1, exp2) -> err ~allow_system m e.at
 
   (* Transparent *)
   | AnnotE (exp1, _) | IgnoreE exp1 | DoOptE exp1 -> exp ~allow_system m exp1 
@@ -71,7 +79,7 @@ let rec exp ?(allow_system = false) m e  = match e.it with
         | (true, Some(true, _)) -> 
           (exp ~allow_system m callee;
           exp ~allow_system m !ref_args)
-        | _ -> err m e.at)
+        | _ -> err ~allow_system m e.at)
    
   (* Clearly non-static *)
   | UnE _
@@ -99,12 +107,12 @@ let rec exp ?(allow_system = false) m e  = match e.it with
   | ThrowE _
   | TryE _
   | BangE _
-  -> err m e.at
+  -> err ~allow_system m e.at
 
 and dec_fields ?(allow_system = false) m dfs = List.iter (fun df -> dec ~allow_system  m df.it.dec) dfs
 
 and exp_fields ?(allow_system = false) m efs = List.iter (fun (ef : exp_field) ->
-  if ef.it.mut.it = Var then err m ef.at;
+  if ef.it.mut.it = Var then err ~allow_system m ef.at;
   exp ~allow_system m ef.it.exp) efs
 
 and dec ?(allow_system = false) m d = match d.it with
@@ -113,7 +121,7 @@ and dec ?(allow_system = false) m d = match d.it with
   | ExpD e -> exp ~allow_system m e
   | LetD (p, e, fail) -> pat m p; exp ~allow_system m e; Option.iter (exp ~allow_system m) fail
   | VarD (_, e) when allow_system -> exp ~allow_system m e
-  | VarD _ | IncludeD _ -> err m d.at
+  | VarD _ | IncludeD _ -> err ~allow_system m d.at
 
 and pat m p = match p.it with
   | (WildP | VarP _) -> ()

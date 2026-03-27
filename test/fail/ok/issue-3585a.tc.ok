@@ -1,1 +1,1 @@
-issue-3585/Record.mo:2.21-2.30: type error [M0014], non-static expression in library, module, migration expression, or actor body with enhanced migration.
+issue-3585/Record.mo:2.21-2.30: type error [M0014], non-static expression in library, module or migration expression
