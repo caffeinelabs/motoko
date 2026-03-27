@@ -3208,8 +3208,8 @@ and check_hole env at hole_sort hole_typ exp_ref =
       let derivation_sug = render_derivation_leaves env derivation_notes
       in
       let import_sug =
-        if derivation_sug <> [] then []
-        else if lib_terms = [] then
+        if lib_terms = [] then
+          if derivation_sug <> [] then [] else
           let desc = match hole_sort with Named id -> " named " ^ quote id | _ -> "" in
           [Stdlib.Format.sprintf
             "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
