@@ -1279,6 +1279,7 @@ let infer_lit env lit at : T.prim =
 
 let check_lit env t lit at suggest =
   let is_sub = sub in
+  let error' = error in
   let open T in
   match t, !lit with
   | Prim Nat, PreLit (s, Nat) ->
@@ -1310,7 +1311,7 @@ let check_lit env t lit at suggest =
   | t, _ ->
     let t' = Prim (infer_lit env lit at) in
     if not (is_sub env at t' t) then
-    error env at "M0050"
+    error' env at "M0050"
       "literal of type%a\ndoes not have expected type%a%s"
       display_typ t'
       display_typ_expand t

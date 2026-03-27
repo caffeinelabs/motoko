@@ -220,6 +220,7 @@ module Const = struct
     | Bool of bool
     | Word64 of Type.prim * int64
     | Float64 of Numerics.Float.t
+    | Float32 of Numerics.Float32.t
     | Text of string
     | Blob of string
     | Null
@@ -230,6 +231,7 @@ module Const = struct
     | BigInt _ -> 1
     | Word64 _ -> 2
     | Float64 _ -> 3
+    | Float32 _ -> 8
     | Bool _ -> 4
     | Text _ -> 5
     | Blob _ -> 6
@@ -246,6 +248,10 @@ module Const = struct
        Int64.compare
        (Int64.bits_of_float (Mo_values.Numerics.Float.to_float i))
        (Int64.bits_of_float (Mo_values.Numerics.Float.to_float j))
+    | Float32 i, Float32 j ->
+       Int32.compare
+       (Int32.bits_of_float (Mo_values.Numerics.Float32.to_float i))
+       (Int32.bits_of_float (Mo_values.Numerics.Float32.to_float j))
     | Bool i, Bool j -> Bool.compare i j
     | Text s, Text t -> String.compare s t
     | Blob s, Blob t -> String.compare s t
@@ -6582,6 +6588,10 @@ module StackRep = struct
   | Const.Lit (Const.BigInt number) -> BigNum.constant env number
   | Const.Lit (Const.Word64 (pty, number)) -> BoxedWord64.constant env pty number
   | Const.Lit (Const.Float64 number) -> Float.constant env number
+  | Const.Lit (Const.Float32 f) ->
+    E.Vanilla Int64.(logor
+      (shift_left (logand (of_int32 (Wasm.F32.to_bits f)) 0xFFFFFFFFL) 32)
+      (TaggingScheme.tag_of_typ Type.Float32))
   | Const.Opt value -> Opt.constant env (build_constant env value)
   | Const.Fun (_, get_fi, _) -> Closure.constant env get_fi
   | Const.Message _ -> assert false
@@ -6648,12 +6658,8 @@ module StackRep = struct
     | Const Const.Lit (Const.Word64 (ty1, n)), UnboxedWord64 ty2 when ty1 = ty2 ->
         compile_unboxed_const n
     | Const Const.Lit (Const.Float64 f), UnboxedFloat64 -> Float.compile_unboxed_const f
-    | Const Const.Lit (Const.Float64 f), UnboxedFloat32 ->
-      Float.compile_unboxed_const f ^^
-      G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
-    | Const Const.Lit (Const.Vanilla n), UnboxedFloat32 ->
-      (* Float32Lit constant: extract f32 bits from upper 32 at OCaml level *)
-      G.i (Const (nr (Wasm_exts.Values.F32 (Wasm.F32.of_bits Int64.(to_int32 (shift_right_logical n 32))))))
+    | Const Const.Lit (Const.Float32 f), UnboxedFloat32 ->
+      G.i (Const (nr (Wasm_exts.Values.F32 f)))
     | Const c, UnboxedTuple 0 -> G.nop
     | Const Const.Tuple cs, UnboxedTuple n ->
       assert (n = List.length cs);
@@ -10880,12 +10886,7 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | TextLit t     -> Const.Text t
   | BlobLit t     -> Const.Blob t
   | FloatLit f    -> Const.Float64 f
-  | Float32Lit f  ->
-    (* EOP: Float32 lives as a bit-tagged I64 scalar in Vanilla (f32_bits<<32 | tag). *)
-    let f32_bits = Int32.bits_of_float (Numerics.Float32.to_float f) in
-    Const.Vanilla Int64.(logor
-      (shift_left (logand (of_int32 f32_bits) 0xFFFFFFFFL) 32)
-      (TaggingScheme.tag_of_typ Type.Float32))
+  | Float32Lit f  -> Const.Float32 f
 
 let const_of_lit lit =
   Const.Lit (const_lit_of_lit lit)
