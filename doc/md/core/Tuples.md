@@ -37,7 +37,7 @@ assert Tuple2.swap((1, "hello")) == ("hello", 1);
 
 ### Function `toText`
 ``` motoko no-repl
-func toText<A, B>(self : (A, B), toTextA : A -> Text, toTextB : B -> Text) : Text
+func toText<A, B>(self : (A, B), toTextA : (implicit : (toText : A -> Text)), toTextB : (implicit : (toText : B -> Text))) : Text
 ```
 
 Creates a textual representation of a tuple for debugging purposes.
@@ -52,7 +52,7 @@ assert Tuple2.toText((1, "hello"), Nat.toText, func (x: Text): Text = x) == "(1,
 
 ### Function `equal`
 ``` motoko no-repl
-func equal<A, B>(self : (A, B), other : (A, B), aEqual : (A, A) -> Bool, bEqual : (B, B) -> Bool) : Bool
+func equal<A, B>(self : (A, B), other : (A, B), equalA : (implicit : (equal : (A, A) -> Bool)), equalB : (implicit : (equal : (B, B) -> Bool))) : Bool
 ```
 
 Compares two tuples for equality.
@@ -68,7 +68,7 @@ assert Tuple2.equal((1, "hello"), (1, "hello"), Nat.equal, Text.equal);
 
 ### Function `compare`
 ``` motoko no-repl
-func compare<A, B>(self : (A, B), other : (A, B), aCompare : (A, A) -> Types.Order, bCompare : (B, B) -> Types.Order) : Types.Order
+func compare<A, B>(self : (A, B), other : (A, B), compareA : (implicit : (compare : (A, A) -> Types.Order)), compareB : (implicit : (compare : (B, B) -> Types.Order))) : Types.Order
 ```
 
 Compares two tuples lexicographically.
@@ -88,7 +88,7 @@ assert Tuple2.compare((1, "world"), (1, "hello"), Nat.compare, Text.compare) == 
 
 ### Function `makeToText`
 ``` motoko no-repl
-func makeToText<A, B>(toTextA : A -> Text, toTextB : B -> Text) : ((A, B)) -> Text
+func makeToText<A, B>(toTextA : (implicit : (toText : A -> Text)), toTextB : (implicit : (toText : B -> Text))) : ((A, B)) -> Text
 ```
 
 Creates a `toText` function for a tuple given `toText` functions for its elements.
@@ -105,7 +105,7 @@ assert tupleToText((1, "hello")) == "(1, hello)";
 
 ### Function `makeEqual`
 ``` motoko no-repl
-func makeEqual<A, B>(aEqual : (A, A) -> Bool, bEqual : (B, B) -> Bool) : ((A, B), (A, B)) -> Bool
+func makeEqual<A, B>(equalA : (implicit : (equal : (A, A) -> Bool)), equalB : (implicit : (equal : (B, B) -> Bool))) : ((A, B), (A, B)) -> Bool
 ```
 
 Creates an `equal` function for a tuple given `equal` functions for its elements.
@@ -123,7 +123,7 @@ assert tupleEqual((1, "hello"), (1, "hello"));
 
 ### Function `makeCompare`
 ``` motoko no-repl
-func makeCompare<A, B>(aCompare : (A, A) -> Types.Order, bCompare : (B, B) -> Types.Order) : ((A, B), (A, B)) -> Types.Order
+func makeCompare<A, B>(compareA : (implicit : (compare : (A, A) -> Types.Order)), compareB : (implicit : (compare : (B, B) -> Types.Order))) : ((A, B), (A, B)) -> Types.Order
 ```
 
 Creates a `compare` function for a tuple given `compare` functions for its elements.
@@ -147,7 +147,7 @@ module Tuple3
 
 ### Function `toText`
 ``` motoko no-repl
-func toText<A, B, C>(self : (A, B, C), toTextA : A -> Text, toTextB : B -> Text, toTextC : C -> Text) : Text
+func toText<A, B, C>(self : (A, B, C), toTextA : (implicit : (toText : A -> Text)), toTextB : (implicit : (toText : B -> Text)), toTextC : (implicit : (toText : C -> Text))) : Text
 ```
 
 Creates a textual representation of a 3-tuple for debugging purposes.
@@ -162,7 +162,7 @@ assert Tuple3.toText((1, "hello", 2), Nat.toText, func (x: Text): Text = x, Nat.
 
 ### Function `equal`
 ``` motoko no-repl
-func equal<A, B, C>(self : (A, B, C), other : (A, B, C), aEqual : (A, A) -> Bool, bEqual : (B, B) -> Bool, cEqual : (C, C) -> Bool) : Bool
+func equal<A, B, C>(self : (A, B, C), other : (A, B, C), equalA : (implicit : (equal : (A, A) -> Bool)), equalB : (implicit : (equal : (B, B) -> Bool)), equalC : (implicit : (equal : (C, C) -> Bool))) : Bool
 ```
 
 Compares two 3-tuples for equality.
@@ -178,7 +178,7 @@ assert Tuple3.equal((1, "hello", 2), (1, "hello", 2), Nat.equal, Text.equal, Nat
 
 ### Function `compare`
 ``` motoko no-repl
-func compare<A, B, C>(self : (A, B, C), other : (A, B, C), aCompare : (A, A) -> Types.Order, bCompare : (B, B) -> Types.Order, cCompare : (C, C) -> Types.Order) : Types.Order
+func compare<A, B, C>(self : (A, B, C), other : (A, B, C), compareA : (implicit : (compare : (A, A) -> Types.Order)), compareB : (implicit : (compare : (B, B) -> Types.Order)), compareC : (implicit : (compare : (C, C) -> Types.Order))) : Types.Order
 ```
 
 Compares two 3-tuples lexicographically.
@@ -197,7 +197,7 @@ assert Tuple3.compare((2, "hello", 2), (1, "hello", 2), Nat.compare, Text.compar
 
 ### Function `makeToText`
 ``` motoko no-repl
-func makeToText<A, B, C>(toTextA : A -> Text, toTextB : B -> Text, toTextC : C -> Text) : ((A, B, C)) -> Text
+func makeToText<A, B, C>(toTextA : (implicit : (toText : A -> Text)), toTextB : (implicit : (toText : B -> Text)), toTextC : (implicit : (toText : C -> Text))) : ((A, B, C)) -> Text
 ```
 
 Creates a `toText` function for a 3-tuple given `toText` functions for its elements.
@@ -214,7 +214,7 @@ assert toText((1, "hello", 2)) == "(1, hello, 2)";
 
 ### Function `makeEqual`
 ``` motoko no-repl
-func makeEqual<A, B, C>(aEqual : (A, A) -> Bool, bEqual : (B, B) -> Bool, cEqual : (C, C) -> Bool) : ((A, B, C), (A, B, C)) -> Bool
+func makeEqual<A, B, C>(equalA : (implicit : (equal : (A, A) -> Bool)), equalB : (implicit : (equal : (B, B) -> Bool)), equalC : (implicit : (equal : (C, C) -> Bool))) : ((A, B, C), (A, B, C)) -> Bool
 ```
 
 Creates an `equal` function for a 3-tuple given `equal` functions for its elements.
@@ -232,7 +232,7 @@ assert equal((1, "hello", 2), (1, "hello", 2));
 
 ### Function `makeCompare`
 ``` motoko no-repl
-func makeCompare<A, B, C>(aCompare : (A, A) -> Types.Order, bCompare : (B, B) -> Types.Order, cCompare : (C, C) -> Types.Order) : ((A, B, C), (A, B, C)) -> Types.Order
+func makeCompare<A, B, C>(compareA : (implicit : (compare : (A, A) -> Types.Order)), compareB : (implicit : (compare : (B, B) -> Types.Order)), compareC : (implicit : (compare : (C, C) -> Types.Order))) : ((A, B, C), (A, B, C)) -> Types.Order
 ```
 
 Creates a `compare` function for a 3-tuple given `compare` functions for its elements.
@@ -256,7 +256,7 @@ module Tuple4
 
 ### Function `toText`
 ``` motoko no-repl
-func toText<A, B, C, D>(self : (A, B, C, D), toTextA : A -> Text, toTextB : B -> Text, toTextC : C -> Text, toTextD : D -> Text) : Text
+func toText<A, B, C, D>(self : (A, B, C, D), toTextA : (implicit : (toText : A -> Text)), toTextB : (implicit : (toText : B -> Text)), toTextC : (implicit : (toText : C -> Text)), toTextD : (implicit : (toText : D -> Text))) : Text
 ```
 
 Creates a textual representation of a 4-tuple for debugging purposes.
@@ -271,7 +271,7 @@ assert Tuple4.toText((1, "hello", 2, 3), Nat.toText, func (x: Text): Text = x, N
 
 ### Function `equal`
 ``` motoko no-repl
-func equal<A, B, C, D>(self : (A, B, C, D), other : (A, B, C, D), aEqual : (A, A) -> Bool, bEqual : (B, B) -> Bool, cEqual : (C, C) -> Bool, dEqual : (D, D) -> Bool) : Bool
+func equal<A, B, C, D>(self : (A, B, C, D), other : (A, B, C, D), equalA : (implicit : (equal : (A, A) -> Bool)), equalB : (implicit : (equal : (B, B) -> Bool)), equalC : (implicit : (equal : (C, C) -> Bool)), equalD : (implicit : (equal : (D, D) -> Bool))) : Bool
 ```
 
 Compares two 4-tuples for equality.
@@ -287,7 +287,7 @@ assert Tuple4.equal((1, "hello", 2, 3), (1, "hello", 2, 3), Nat.equal, Text.equa
 
 ### Function `compare`
 ``` motoko no-repl
-func compare<A, B, C, D>(self : (A, B, C, D), other : (A, B, C, D), aCompare : (A, A) -> Types.Order, bCompare : (B, B) -> Types.Order, cCompare : (C, C) -> Types.Order, dCompare : (D, D) -> Types.Order) : Types.Order
+func compare<A, B, C, D>(self : (A, B, C, D), other : (A, B, C, D), compareA : (implicit : (compare : (A, A) -> Types.Order)), compareB : (implicit : (compare : (B, B) -> Types.Order)), compareC : (implicit : (compare : (C, C) -> Types.Order)), compareD : (implicit : (compare : (D, D) -> Types.Order))) : Types.Order
 ```
 
 Compares two 4-tuples lexicographically.
@@ -306,7 +306,7 @@ assert Tuple4.compare((2, "hello", 2, 3), (1, "hello", 2, 3), Nat.compare, Text.
 
 ### Function `makeToText`
 ``` motoko no-repl
-func makeToText<A, B, C, D>(toTextA : A -> Text, toTextB : B -> Text, toTextC : C -> Text, toTextD : D -> Text) : ((A, B, C, D)) -> Text
+func makeToText<A, B, C, D>(toTextA : (implicit : (toText : A -> Text)), toTextB : (implicit : (toText : B -> Text)), toTextC : (implicit : (toText : C -> Text)), toTextD : (implicit : (toText : D -> Text))) : ((A, B, C, D)) -> Text
 ```
 
 Creates a `toText` function for a 4-tuple given `toText` functions for its elements.
@@ -323,7 +323,7 @@ assert toText((1, "hello", 2, 3)) == "(1, hello, 2, 3)";
 
 ### Function `makeEqual`
 ``` motoko no-repl
-func makeEqual<A, B, C, D>(aEqual : (A, A) -> Bool, bEqual : (B, B) -> Bool, cEqual : (C, C) -> Bool, dEqual : (D, D) -> Bool) : ((A, B, C, D), (A, B, C, D)) -> Bool
+func makeEqual<A, B, C, D>(equalA : (implicit : (equal : (A, A) -> Bool)), equalB : (implicit : (equal : (B, B) -> Bool)), equalC : (implicit : (equal : (C, C) -> Bool)), equalD : (implicit : (equal : (D, D) -> Bool))) : ((A, B, C, D), (A, B, C, D)) -> Bool
 ```
 
 Creates an `equal` function for a 4-tuple given `equal` functions for its elements.
@@ -341,7 +341,7 @@ assert equal((1, "hello", 2, 3), (1, "hello", 2, 3));
 
 ### Function `makeCompare`
 ``` motoko no-repl
-func makeCompare<A, B, C, D>(aCompare : (A, A) -> Types.Order, bCompare : (B, B) -> Types.Order, cCompare : (C, C) -> Types.Order, dCompare : (D, D) -> Types.Order) : ((A, B, C, D), (A, B, C, D)) -> Types.Order
+func makeCompare<A, B, C, D>(compareA : (implicit : (compare : (A, A) -> Types.Order)), compareB : (implicit : (compare : (B, B) -> Types.Order)), compareC : (implicit : (compare : (C, C) -> Types.Order)), compareD : (implicit : (compare : (D, D) -> Types.Order))) : ((A, B, C, D), (A, B, C, D)) -> Types.Order
 ```
 
 Creates a `compare` function for a 4-tuple given `compare` functions for its elements.

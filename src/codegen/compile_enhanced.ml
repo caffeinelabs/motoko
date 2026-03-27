@@ -1892,6 +1892,17 @@ module BitTagged = struct
       compile_bitand_const mask
     else G.nop
 
+  (* True for types whose Vanilla encoding is always a bit-tagged scalar (bit 0 = 0),
+     so Opt.inject is a no-op and can be omitted at compile time.
+     Nat64/Int64 are excluded: values outside the 60-bit compact range are heap-boxed
+     as Bits64 (bit 0 = 1), so the scalar property does not hold for all values.
+     Opt.inject is still a no-op for Nat64/Int64 (branch_default returns Bits64 as-is),
+     but it cannot be eliminated statically. *)
+  let is_always_scalar t =
+    Type.(match normalize t with
+    | Prim (Nat8 | Nat16 | Nat32 | Int8 | Int16 | Int32 | Char | Float32) -> true
+    | _ -> false)
+
 end (* BitTagged *)
 
 module Tagged = struct
