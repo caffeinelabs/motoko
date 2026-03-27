@@ -59,6 +59,22 @@ assert sorted[0].name == "Bob";
 assert sorted[1].name == "Alice";
 assert sorted[2].name == "Carol";
 
+// ── Derivation inside a module body (ObjBlockE) ──────────────────────────────
+
+do {
+  module PersonOps {
+    public func sortPeople(people : [Person]) : [Person] = people.sort();
+    public func cmpPeople(a : Person, b : Person) : Order.Order = cmp(a, b);
+  };
+
+  assert PersonOps.cmpPeople(alice, bob) == #greater;
+  assert PersonOps.cmpPeople(alice, alice2) == #equal;
+  let module_sorted = PersonOps.sortPeople(people);
+  assert module_sorted[0].name == "Bob";
+  assert module_sorted[1].name == "Alice";
+  assert module_sorted[2].name == "Carol";
+};
+
 // ── Nested record: two levels of structural derivation ────────────────────────
 
 // Fields sorted: lead before size.

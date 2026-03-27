@@ -71,6 +71,21 @@ func arraysEqual(
 assert arraysEqual([1, 2, 3], [1, 2, 3]);
 assert not arraysEqual([1, 2], [1, 3]);
 
+// Derivation inside a module body (ObjBlockE)
+do {
+  module CoreOps {
+    public func sortNats(arr : [Nat]) : [Nat] = Array.sort<Nat>(arr);
+    public func eqNatArrays(
+      a : [Nat], b : [Nat],
+      equal : (implicit : ([Nat], [Nat]) -> Bool),
+    ) : Bool = equal(a, b);
+  };
+
+  assert CoreOps.sortNats([3, 1, 2]) == [1, 2, 3];
+  assert CoreOps.eqNatArrays([1, 2, 3], [1, 2, 3]);
+  assert not CoreOps.eqNatArrays([1, 2], [1, 3]);
+};
+
 // Direct implicit still preferred over derivation
 do {
   var localCalled = false;

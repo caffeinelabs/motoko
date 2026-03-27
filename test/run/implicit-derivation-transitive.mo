@@ -60,3 +60,22 @@ arrayCompareCalls := 0;
 assert compareNestedArrays([[1, 2], [3]], [[1, 2], [4]]) == #less;
 assert arrayCompareCalls == 3; // outer + 2 inner
 assert natCompareCalls == 3; // 1==1, 2==2, 3<4
+
+// Derivation inside a module body (ObjBlockE)
+do {
+  module NestedOps {
+    public func compareNested(
+      a : [[Nat]],
+      b : [[Nat]],
+      compare : (implicit : ([[Nat]], [[Nat]]) -> Order),
+    ) : Order = compare(a, b);
+  };
+
+  natCompareCalls := 0;
+  arrayCompareCalls := 0;
+  assert NestedOps.compareNested([[1, 2], [3]], [[1, 2], [3]]) == #equal;
+  assert arrayCompareCalls == 3;
+  assert natCompareCalls == 3;
+
+  assert NestedOps.compareNested([[1]], [[2]]) == #less;
+};
