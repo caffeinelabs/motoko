@@ -6594,7 +6594,7 @@ module StackRep = struct
   | Const.Lit (Const.Float64 number) -> Float.constant env number
   | Const.Lit (Const.Float32 f) ->
     E.Vanilla Int64.(logor
-      (shift_left (logand (of_int32 (Wasm.F32.to_bits f)) 0xFFFFFFFFL) 32)
+      (shift_left (of_int32 (Wasm.F32.to_bits f)) 32)
       (TaggingScheme.tag_of_typ Type.Float32))
   | Const.Opt value -> Opt.constant env (build_constant env value)
   | Const.Fun (_, get_fi, _) -> Closure.constant env get_fi
@@ -11646,8 +11646,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | OptPrim, [e] ->
     SR.Vanilla,
-    (* Never-heap-boxed types (UnboxedWord64 / UnboxedFloat32) have bit 0 = 0
-       in their Vanilla encoding, so Opt.inject is a no-op — emit directly. *)
     Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)
   | TagPrim l, [e] ->
     SR.Vanilla,
