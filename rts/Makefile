@@ -279,6 +279,7 @@ EXPORTED_SYMBOLS=\
   cos \
   exp \
   fmod \
+  fmodf \
   log
 
 WASM_A_DEPENDENCIES_32=$(TOMMATH_WASM_32_A)

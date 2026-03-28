@@ -1178,6 +1178,7 @@ module RTS = struct
     E.add_func_import env "rts" "exp" [F64Type] [F64Type];
     E.add_func_import env "rts" "log" [F64Type] [F64Type];
     E.add_func_import env "rts" "fmod" [F64Type; F64Type] [F64Type];
+    E.add_func_import env "rts" "fmodf" [F32Type; F32Type] [F32Type];
     E.add_func_import env "rts" "float_fmt" [F64Type; I32Type; I32Type] [I32Type];
     E.add_func_import env "rts" "char_to_upper" [I32Type] [I32Type];
     E.add_func_import env "rts" "char_to_lower" [I32Type] [I32Type];
@@ -10873,6 +10874,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
           get_res)
   | Type.(Prim Float32),                      DivOp -> G.i (Binary (Wasm.Values.F32 F32Op.Div))
   | Type.(Prim Float),                        DivOp -> G.i (Binary (Wasm.Values.F64 F64Op.Div))
+  | Type.(Prim Float32),                      ModOp -> E.call_import env "rts" "fmodf"
   | Type.(Prim Float),                        ModOp -> E.call_import env "rts" "fmod"
   | Type.(Prim (Int8|Int16|Int32)),           ModOp -> G.i (Binary (Wasm.Values.I32 I32Op.RemS))
   | Type.(Prim (Nat8|Nat16|Nat32 as ty)),     WPowOp -> TaggedSmallWord.compile_nat_power env ty
@@ -11025,7 +11027,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim Float),                        PowOp -> E.call_import env "rts" "pow"
   | Type.(Prim Float32),                      PowOp ->
     (* promote both f32 args to f64, call rts pow, demote back *)
-    let (set_b, get_b, _) = new_local_ env F32Type "f32_pow_b" in
+    let set_b, get_b, _ = new_local_ env F32Type "f32_pow_b" in
     set_b ^^
     G.i (Convert (Wasm.Values.F64 F64Op.PromoteF32)) ^^
     get_b ^^ G.i (Convert (Wasm.Values.F64 F64Op.PromoteF32)) ^^
