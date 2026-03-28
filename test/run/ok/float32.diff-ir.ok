@@ -1,6 +1,6 @@
 --- float32.run
 +++ float32.run-ir
-@@ -1 +1,76 @@
+@@ -1 +1,81 @@
 +        (LitE (TextLit Float32 precision tests passed: ))
 +  (LetD (VarP lit32) (LitE (Float32Lit 3.140_000_104_904_174_8)))
 +  (LetD (VarP a2) (LitE (Float32Lit 2)))
