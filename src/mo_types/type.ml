@@ -39,6 +39,7 @@ type prim =
   | Int32
   | Int64
   | Float
+  | Float32
   | Char
   | Text
   | Blob (* IR use: Packed representation, vec u8 IDL type *)
@@ -101,12 +102,14 @@ let tag_prim = function
   | Int32 -> 10
   | Int64 -> 11
   | Float -> 12
+  | Float32 -> 19
   | Char -> 13
   | Text -> 14
   | Blob -> 15
   | Error -> 16
   | Principal -> 17
   | Region -> 18
+  (* next free: 20 *)
 
 let tag_func_sort = function
   | Local -> 0
@@ -401,6 +404,7 @@ let prim = function
   | "Int32" -> Int32
   | "Int64" -> Int64
   | "Float" -> Float
+  | "Float32" -> Float32
   | "Char" -> Char
   | "Text" -> Text
   | "Blob" -> Blob
@@ -759,7 +763,7 @@ let rec span = function
   | Con _ as t -> span (promote t)
   | Prim Null -> Some 1
   | Prim Bool -> Some 2
-  | Prim (Nat | Int | Float | Text | Blob | Error | Principal | Region) -> None
+  | Prim (Nat | Int | Float | Float32 | Text | Blob | Error | Principal | Region) -> None
   | Prim (Nat8 | Int8) -> Some 0x100
   | Prim (Nat16 | Int16) -> Some 0x10000
   | Prim (Nat32 | Int32 | Nat64 | Int64 | Char) -> None  (* for all practical purposes *)
@@ -1565,6 +1569,7 @@ let rec has_no_subtypes_or_supertypes m co = function
     | Int32
     | Int64
     | Float
+    | Float32
     | Char
     | Text
     | Blob
@@ -1901,6 +1906,7 @@ let string_of_prim = function
   | Int32 -> "Int32"
   | Int64 -> "Int64"
   | Float -> "Float"
+  | Float32 -> "Float32"
   | Char -> "Char"
   | Text -> "Text"
   | Blob -> "Blob"

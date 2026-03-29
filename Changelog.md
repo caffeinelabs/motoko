@@ -1,10 +1,14 @@
 # Motoko compiler changelog
 
+## 1.4.0 (2026-03-27)
+
 * motoko (`moc`)
 
   * feat: added `--actor-env-alias` to facilitate (installation-time) late binding of canister aliases via environment variables (#5890).
   * feat: added `--actor-id-alias` as a variant of `--actor-alias` that accepts an explicit IDL file path as a third argument, bypassing the `--actor-idl` search path (#5890).
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
+  * feat: add `Float32` primitive type with conversions to/from `Float`, Candid serialisation, and literal ascription (e.g. `(3.14 : Float32)`). This is experimental and subject to change (#5906).
+  * feat: prettier unknown identifier suggestions and pattern type mismatch errors (#5875, #5881).
   * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
   * feat: Implicit argument derivation — the compiler can now resolve implicit arguments by composing them from functions (possibly polymorphic) that themselves have implicit parameters. For example, an implicit `compare` for `[Nat]` is automatically derived from `Array.compare<Nat>` + `Nat.compare`, eliminating the need for boilerplate wrapper modules. Works transitively (e.g., `[[Nat]]`). Depth-limited with `--implicit-derivation-depth` flag (default: 100). Error messages include derivation context when resolution fails (#5903).
   * feat: Structural implicit derivation for records and tuples — a function whose sole explicit parameter is named `__record` (typed `[(Text, () -> T)] -> R`) or `__tuple` (typed `[() -> T] -> R`) acts as a structural combiner. When the compiler needs an implicit for a record or tuple type, it automatically decomposes the type, resolves a per-field/per-element implicit (using the same search label), and synthesizes a wrapper. Each per-field result is wrapped in a thunk, giving the combiner control over evaluation order (enabling short-circuiting for compare/eq). Both unary (`X -> R`) and binary (`(X, X) -> R`) hole types are supported. Enables generic serialization (e.g., JSON, Candid) and comparison for any record or tuple type without per-type boilerplate (#5903).

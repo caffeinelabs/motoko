@@ -96,6 +96,7 @@ type lit =
   | Int32Lit of Numerics.Int_32.t
   | Int64Lit of Numerics.Int_64.t
   | FloatLit of Numerics.Float.t
+  | Float32Lit of Numerics.Float32.t
   | CharLit of Value.unicode
   | TextLit of string
   | BlobLit of string
@@ -332,6 +333,7 @@ let string_of_lit = function
   | TextLit t     -> t
   | BlobLit b     -> b
   | FloatLit f    -> Numerics.Float.to_pretty_string f
+  | Float32Lit f  -> Numerics.Float32.to_pretty_string f
   | PreLit _      -> assert false
 
 (** Used for debugging *)

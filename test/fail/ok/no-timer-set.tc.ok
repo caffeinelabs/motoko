@@ -38,6 +38,7 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
         type Char = Char;
         type Error = Error;
         type Float = Float;
+        type Float32 = Float32;
         type Int = Int;
         type Int16 = Int16;
         type Int32 = Int32;
@@ -143,6 +144,7 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
     explodeNat64 :
       (n : Nat64) ->
         (msb : Nat8, Nat8, Nat8, Nat8, Nat8, Nat8, Nat8, lsb : Nat8);
+    float32ToFloat : (f : Float32) -> Float;
     floatAbs : (f : Float) -> Float;
     floatCeil : (f : Float) -> Float;
     floatCopySign : (f : Float, g : Float) -> Float;
@@ -151,6 +153,7 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
     floatMin : (f : Float, g : Float) -> Float;
     floatNearest : (f : Float) -> Float;
     floatSqrt : (f : Float) -> Float;
+    floatToFloat32 : (f : Float) -> Float32;
     floatToFormattedText : (f : Float, prec : Nat8, mode : Nat8) -> Text;
     floatToInt : (f : Float) -> Int;
     floatToInt64 : (f : Float) -> Int64;
@@ -270,6 +273,7 @@ no-timer-set.mo:3.10-3.18: type error [M0119], object field setTimer is not cont
     rts_total_allocation : () -> Nat;
     rts_upgrade_instructions : () -> Nat;
     rts_version : () -> Text;
+    safeFloatToFloat32 : (f : Float, epsilon : Float) -> ?Float32;
     setCandidLimits :
       <system>{bias : Nat32; denominator : Nat32; numerator : Nat32} -> ();
     setCandidTypeLimits : <system>{bias : Nat32; scalar : Nat32} -> ();

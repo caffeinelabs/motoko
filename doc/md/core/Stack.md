@@ -732,7 +732,7 @@ import Iter "mo:core/Iter";
 persistent actor {
   transient let iter = [3, 2, 1].values();
 
-  let stack = iter.toStack();
+  let stack = iter.toStack<Nat>();
 
   assert Iter.toArray(Stack.values(stack)) == [1, 2, 3];
 }
