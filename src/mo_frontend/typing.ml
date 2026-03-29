@@ -1552,112 +1552,87 @@ let render_derivation_leaves env = function
   let lines = List.map (fun l -> "\n  " ^ l) leaves in
   ["Implicit derivation failed:" ^ String.concat "" lines]
 
-let synthesize_derived_wrapper ~name candidate_path cand_args resolved_paths =
-  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note } in
-  let param_idx = ref 0 in
-  let fresh_name () =
-    let n = !param_idx in
-    incr param_idx;
-    Printf.sprintf "$impl_arg%d" n
-  in
-  let call_args_rev, param_names_rev, remaining =
-    List.fold_left (fun (args_acc, params_acc, impls) arg_typ ->
-      match as_implicit_with_type arg_typ with
-      | Some _ ->
-        (match impls with
-         | path :: rest -> (path :: args_acc, params_acc, rest)
-         | [] -> assert false)
-      | None ->
-        let n = fresh_name () in
-        let exp = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) }) in
-        (exp :: args_acc, n :: params_acc, impls)
-    ) ([], [], resolved_paths) cand_args
-  in
-  assert (remaining = []);
-  let call_args = List.rev call_args_rev in
-  let param_names = List.rev param_names_rev in
-  let mk_var_pat name =
-    { Source.it = VarP { Source.it = name; at = Source.no_region; note = () };
-      at = Source.no_region;
-      note = T.Pre }
-  in
-  let pat = match param_names with
-    | [name] -> mk_var_pat name
-    | _ -> { Source.it = TupP (List.map mk_var_pat param_names);
-             at = Source.no_region;
-             note = T.Pre }
-  in
-  let call_arg_exp = match call_args with
-    | [arg] -> arg
-    | args -> mk (TupE args)
-  in
-  let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
-  let call_body = mk (CallE (None, candidate_path, inst_node, (false, ref call_arg_exp))) in
-  let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
-  mk (FuncE (name, sort_pat, [], pat, None, false, call_body))
-
-(** Wraps array entries in [combiner_path([entries...])] and produces a function
-    with the given parameter names.
-    A fresh VarE node is required for each use site — type-checking annotates nodes
-    in place, so sharing the same node across multiple accesses would trigger an
-    "already-annotated" assertion on the second access. *)
-let synthesize_combiner_wrapper ~name combiner_path param_names entries =
-  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note } in
-  let mk_var_pat n =
+module SynthesizeWrapper = struct
+  (* Fresh AST nodes are required at each use site — type-checking annotates in
+     place, so sharing a node triggers an "already-annotated" assertion. *)
+  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note }
+  let var n = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) })
+  let id lab = { Source.it = lab; at = Source.no_region; note = () }
+  let inst () = { Source.it = None; at = Source.no_region; note = [] }
+  let var_pat n =
     { Source.it = VarP { Source.it = n; at = Source.no_region; note = () };
-      at = Source.no_region; note = T.Pre } in
-  let mut_node = { Source.it = Const; at = Source.no_region; note = () } in
-  let array_arg = mk (ArrayE (mut_node, entries)) in
-  let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
-  let call_body = mk (CallE (None, combiner_path, inst_node, (false, ref array_arg))) in
-  let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
-  let pat = match param_names with
-    | [p] -> mk_var_pat p
-    | ps -> { Source.it = TupP (List.map mk_var_pat ps); at = Source.no_region; note = T.Pre } in
-  mk (FuncE (name, sort_pat, [], pat, None, false, call_body))
+      at = Source.no_region; note = T.Pre }
+  let thunk body =
+    let unit_pat = { Source.it = TupP []; at = Source.no_region; note = T.Pre } in
+    let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
+    mk (FuncE ("", sort_pat, [], unit_pat, None, false, body))
+  let call path arg =
+    mk (CallE (None, path, inst (), (false, ref arg)))
+  let func_ ~name param_names body =
+    let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
+    let pat = match param_names with
+      | [p] -> var_pat p
+      | ps -> { Source.it = TupP (List.map var_pat ps); at = Source.no_region; note = T.Pre } in
+    mk (FuncE (name, sort_pat, [], pat, None, false, body))
 
-(** Record wrapper (unary or binary): for each field [lab], accesses the field from
-    one or two record params, calls the per-field implicit, and wraps as [(lab, result)].
-    Unary:  [func($r)       { combiner([("f1", impl1($r.f1)), ...]) }]
-    Binary: [func($r1, $r2) { combiner([("f1", impl1($r1.f1, $r2.f1)), ...]) }] *)
-let synthesize_record_wrapper ~name combiner_path record_fields arity field_impl_paths =
-  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note } in
-  let mk_var n = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) }) in
-  let mk_id lab = { Source.it = lab; at = Source.no_region; note = () } in
-  let params = match arity with `Unary -> ["$r"] | `Binary -> ["$r1"; "$r2"] in
-  let entries = List.map2 (fun T.{lab; _} impl_path ->
-    let label_lit = mk (LitE (ref (TextLit lab))) in
-    let impl_arg = match arity with
-      | `Unary -> mk (DotE (mk_var "$r", mk_id lab, ref None))
-      | `Binary ->
-        let a1 = mk (DotE (mk_var "$r1", mk_id lab, ref None)) in
-        let a2 = mk (DotE (mk_var "$r2", mk_id lab, ref None)) in
-        mk (TupE [a1; a2]) in
-    let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
-    let result = mk (CallE (None, impl_path, inst_node, (false, ref impl_arg))) in
-    mk (TupE [label_lit; result])
-  ) record_fields field_impl_paths in
-  synthesize_combiner_wrapper ~name combiner_path params entries
+  (** Wraps resolved implicit paths into a function that calls [candidate_path],
+      threading explicit params through and substituting implicits. *)
+  let derived_wrapper ~name candidate_path cand_args resolved_paths =
+    let param_idx = ref 0 in
+    let fresh_name () =
+      let n = !param_idx in incr param_idx;
+      Printf.sprintf "$impl_arg%d" n in
+    let call_args_rev, param_names_rev, remaining =
+      List.fold_left (fun (args_acc, params_acc, impls) arg_typ ->
+        match as_implicit_with_type arg_typ with
+        | Some _ ->
+          (match impls with
+           | path :: rest -> (path :: args_acc, params_acc, rest)
+           | [] -> assert false)
+        | None ->
+          let n = fresh_name () in
+          (var n :: args_acc, n :: params_acc, impls)
+      ) ([], [], resolved_paths) cand_args in
+    assert (remaining = []);
+    let call_arg_exp = match List.rev call_args_rev with
+      | [arg] -> arg | args -> mk (TupE args) in
+    func_ ~name (List.rev param_names_rev) (call candidate_path call_arg_exp)
 
-(** Tuple wrapper (unary or binary): for each element [i], projects from one or two
-    tuple params, calls the per-element implicit.
-    Unary:  [func($t)       { combiner([impl0($t.0), impl1($t.1), ...]) }]
-    Binary: [func($t1, $t2) { combiner([impl0($t1.0, $t2.0), ...]) }] *)
-let synthesize_tuple_wrapper ~name combiner_path arity elem_impl_paths =
-  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note } in
-  let mk_var n = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) }) in
-  let params = match arity with `Unary -> ["$t"] | `Binary -> ["$t1"; "$t2"] in
-  let entries = List.mapi (fun i impl_path ->
-    let impl_arg = match arity with
-      | `Unary -> mk (ProjE (mk_var "$t", i))
-      | `Binary ->
-        let p1 = mk (ProjE (mk_var "$t1", i)) in
-        let p2 = mk (ProjE (mk_var "$t2", i)) in
-        mk (TupE [p1; p2]) in
-    let inst_node = { Source.it = None; at = Source.no_region; note = [] } in
-    mk (CallE (None, impl_path, inst_node, (false, ref impl_arg)))
-  ) elem_impl_paths in
-  synthesize_combiner_wrapper ~name combiner_path params entries
+  (** Wraps array entries in [combiner_path([entries...])] inside a function. *)
+  let combiner_wrapper ~name combiner_path param_names entries =
+    let mut_node = { Source.it = Const; at = Source.no_region; note = () } in
+    let array_arg = mk (ArrayE (mut_node, entries)) in
+    func_ ~name param_names (call combiner_path array_arg)
+
+  (** Record: [func($r) { combiner([("f1", func() { impl1($r.f1) }), ...]) }] *)
+  let record_wrapper ~name combiner_path record_fields arity field_impl_paths =
+    let params = match arity with `Unary -> ["$r"] | `Binary -> ["$r1"; "$r2"] in
+    let entries = List.map2 (fun T.{lab; _} impl_path ->
+      let label_lit = mk (LitE (ref (TextLit lab))) in
+      let impl_arg = match arity with
+        | `Unary -> mk (DotE (var "$r", id lab, ref None))
+        | `Binary ->
+          let a1 = mk (DotE (var "$r1", id lab, ref None)) in
+          let a2 = mk (DotE (var "$r2", id lab, ref None)) in
+          mk (TupE [a1; a2]) in
+      mk (TupE [label_lit; thunk (call impl_path impl_arg)])
+    ) record_fields field_impl_paths in
+    combiner_wrapper ~name combiner_path params entries
+
+  (** Tuple: [func($t) { combiner([func() { impl0($t.0) }, ...]) }] *)
+  let tuple_wrapper ~name combiner_path arity elem_impl_paths =
+    let params = match arity with `Unary -> ["$t"] | `Binary -> ["$t1"; "$t2"] in
+    let entries = List.mapi (fun i impl_path ->
+      let impl_arg = match arity with
+        | `Unary -> mk (ProjE (var "$t", i))
+        | `Binary ->
+          let p1 = mk (ProjE (var "$t1", i)) in
+          let p2 = mk (ProjE (var "$t2", i)) in
+          mk (TupE [p1; p2]) in
+      thunk (call impl_path impl_arg)
+    ) elem_impl_paths in
+    combiner_wrapper ~name combiner_path params entries
+end
 
 (** Checks [args -> rets <: req_args -> req_rets] via subtyping or
     bidirectional matching when [tbs] are present. Returns [Some inst] or [None]. *)
@@ -1741,9 +1716,9 @@ module ImplicitHoles = struct
   (* Structural synthesis: functions whose sole explicit parameter starts with "__"
      signal that the compiler should decompose a structural type and build the argument.
      The parameter type determines the synthesis kind:
-       __record : [(Text, T)] -> R   — record combiner
-       __tuple  : [T]         -> R   — tuple combiner
-       __variant: (Text, T)   -> R   — matched variant case (future)
+       __record : [(Text, () -> T)] -> R   — record combiner (lazy per-field thunks)
+       __tuple  : [() -> T]         -> R   — tuple combiner  (lazy per-element thunks)
+       __variant: (Text, T)         -> R   — matched variant case (future)
      TupleKind is fully implemented. VariantKind is reserved;
      as_structural_combiner_typ returns None for it. *)
   type structural_kind = RecordKind | TupleKind
@@ -1757,17 +1732,22 @@ module ImplicitHoles = struct
   }
 
   let as_structural_combiner_typ candidate_typ =
+    let with_thunk_elem kind thunk_typ ret_typ =
+      match T.normalize thunk_typ with
+      | T.Func (T.Local, T.Returns, [], [], [elem_typ]) ->
+        Some (kind, elem_typ, ret_typ)
+      | _ -> None in
     match T.promote candidate_typ with
     | T.Func (T.Local, T.Returns, [], [T.Named ("__record", inner_typ)], [ret_typ]) ->
       (match T.promote inner_typ with
-       | T.Array (T.Tup [txt; elem_typ]) when T.normalize txt = T.Prim T.Text ->
-         Some (RecordKind, elem_typ, ret_typ)
-       | _ -> None)
+      | T.Array (T.Tup [txt; thunk_typ]) when T.normalize txt = T.Prim T.Text ->
+        with_thunk_elem RecordKind thunk_typ ret_typ
+      | _ -> None)
     | T.Func (T.Local, T.Returns, [], [T.Named ("__tuple", inner_typ)], [ret_typ]) ->
       (match T.promote inner_typ with
-       | T.Array elem_typ ->
-         Some (TupleKind, elem_typ, ret_typ)
-       | _ -> None)
+      | T.Array thunk_typ ->
+        with_thunk_elem TupleKind thunk_typ ret_typ
+      | _ -> None)
     | _ -> None
 
   let structural_info_of_hole hole_typ =
@@ -1945,7 +1925,7 @@ module ImplicitHoles = struct
         | Ok ok -> Either.Right (name, inner_typ, ok)) in
       if failed = [] then
         let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
-        let wrapper = synthesize_derived_wrapper ~name:my_rec_name candidate.path h.cand_args resolved_paths in
+        let wrapper = SynthesizeWrapper.derived_wrapper ~name:my_rec_name candidate.path h.cand_args resolved_paths in
         entry.func_exp <- Some wrapper;
         Ok { candidate with path = mk_var_exp my_rec_name at; typ = hole_typ }
       else
@@ -1995,12 +1975,12 @@ module ImplicitHoles = struct
           let record_fields = match T.promote dom with T.Obj (T.Object, fs, _) -> fs | _ -> assert false in
           let elements = record_fields |> List.map (fun f -> T.as_immut f.T.typ) in
           derive elements (fun ~name path paths ->
-            synthesize_record_wrapper ~name path record_fields arity paths)
+            SynthesizeWrapper.record_wrapper ~name path record_fields arity paths)
         | TupleKind ->
           let elem_typs = match T.promote dom with T.Tup es -> es | _ -> assert false in
           let elements = elem_typs in
           derive elements (fun ~name path paths ->
-            synthesize_tuple_wrapper ~name path arity paths)
+            SynthesizeWrapper.tuple_wrapper ~name path arity paths)
     in
 
     let ctx = { hole_sort; hole_typ } in

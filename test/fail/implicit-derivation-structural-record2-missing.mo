@@ -2,7 +2,7 @@
 
 import Order "mo:core/Order";
 
-func compare(__record : [(Text, Order.Order)]) : Order.Order = #equal;
+func compare(__record : [(Text, () -> Order.Order)]) : Order.Order = #equal;
 
 func cmp<R>(x : R, y : R, compare : (implicit : (R, R) -> Order.Order)) : Order.Order =
   compare(x, y);

@@ -9,7 +9,7 @@ type Json = Json.Json;
 
 // A second combiner with the same shape creates ambiguity.
 module AltRecordJson {
-  public func _toJson(__record : [(Text, Json)]) : Json { #obj(__record) };
+  public func _toJson(__record : [(Text, () -> Json)]) : Json { #null_ };
 };
 
 ignore ({ x = 1 : Int }).toJson();

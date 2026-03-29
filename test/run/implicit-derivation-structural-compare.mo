@@ -8,19 +8,22 @@ import Text "mo:core/Text";
 import Order "mo:core/Order";
 
 // __record combiner in a module (top-level name would clash with __tuple combiner below)
+// Thunks enable genuine short-circuiting: remaining fields are never evaluated.
 module RecordCmp {
-  public func compare(__record : [(Text, Order.Order)]) : Order.Order {
-    for ((_, ord) in __record.vals()) {
+  public func compare(__record : [(Text, () -> Order.Order)]) : Order.Order {
+    for ((_, ordThunk) in __record.vals()) {
+      let ord = ordThunk();
       if (ord != #equal) return ord
     };
     #equal
   }
 };
 
-// __tuple combiner: same fold, but receives [Order] without field names
+// __tuple combiner: same fold, but receives [() -> Order] without field names
 module TupleCmp {
-  public func compare(__tuple : [Order.Order]) : Order.Order {
-    for (ord in __tuple.vals()) {
+  public func compare(__tuple : [() -> Order.Order]) : Order.Order {
+    for (ordThunk in __tuple.vals()) {
+      let ord = ordThunk();
       if (ord != #equal) return ord
     };
     #equal

@@ -1,3 +1,4 @@
+import Array "mo:core/Array";
 import Int "mo:core/Int";
 module {
   public type Json = {
@@ -42,5 +43,7 @@ module {
   public func toJson<R>(self : R, _toJson : (implicit : R -> Json)) : Json { _toJson(self) };
 
   // Structural record combiner: compiler detects __record and synthesizes per-field resolution.
-  public func _toJson(__record : [(Text, Json)]) : Json { #obj(__record) };
+  // Each field is a thunk — evaluated eagerly here since serialization needs all fields.
+  public func _toJson(__record : [(Text, () -> Json)]) : Json =
+    #obj(__record.map(func((k, v)) = (k, v())));
 }

@@ -1,13 +1,16 @@
 // End-to-end test for structural implicit derivation (compiles and runs).
 // Uses only inline definitions — no external packages required.
-//MOC-FLAG -W=M0223,M0236,M0237
+//MOC-FLAG --package core $MOTOKO_CORE -W=M0223,M0236,M0237
+
+import Array "mo:core/Array";
 
 // A simple serialisation target: list of (name, text) pairs
 type Fields = [(Text, Text)];
 
-// Structural combiner: collects per-field Text values into a Fields.
+// Structural combiner: collects per-field Text thunks into a Fields.
 // __record triggers structural synthesis; elem_typ = Text.
-func fieldOf(__record : [(Text, Text)]) : Fields = __record;
+func fieldOf(__record : [(Text, () -> Text)]) : Fields =
+  __record.map(func((k, f)) = (k, f()));
 
 // Per-type instances: each returns Text (the elem_typ)
 module TextField { public func fieldOf(self : Text) : Text = self };

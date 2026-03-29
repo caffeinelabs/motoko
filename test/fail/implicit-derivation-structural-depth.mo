@@ -6,7 +6,7 @@
 type Tag = { #str : Text; #obj : [(Text, Tag)] };
 
 // Structural combiner (search label: `enc`)
-module TagRec { public func enc(__record : [(Text, Tag)]) : Tag = #obj __record };
+module TagRec { public func enc(__record : [(Text, () -> Tag)]) : Tag = #obj([]) };
 // Per-type instance for Text
 module TagText { public func enc(self : Text) : Tag = #str self };
 

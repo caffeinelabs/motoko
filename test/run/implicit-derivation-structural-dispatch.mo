@@ -14,14 +14,14 @@
 
 // ── Combiners in separate modules ────────────────────────────────────────────
 
-// __record (binary path): receives [(field_name, per-field binary result)]
+// __record (binary path): receives [(field_name, thunk for per-field binary result)]
 module RecRender {
-  public func render(__record : [(Text, Text)]) : Text {
+  public func render(__record : [(Text, () -> Text)]) : Text {
     var s = "{";
     var first = true;
     for ((lab, v) in __record.vals()) {
       if (not first) { s #= ", " };
-      s #= lab # ":" # v;
+      s #= lab # ":" # v();
       first := false
     };
     s #= "}";
@@ -29,14 +29,14 @@ module RecRender {
   }
 };
 
-// __tuple: receives [per-element unary result], formats as "(v, v, ...)"
+// __tuple: receives [thunk for per-element unary result], formats as "(v, v, ...)"
 module TupRender {
-  public func render(__tuple : [Text]) : Text {
+  public func render(__tuple : [() -> Text]) : Text {
     var s = "(";
     var first = true;
     for (v in __tuple.vals()) {
       if (not first) { s #= ", " };
-      s #= v;
+      s #= v();
       first := false
     };
     s #= ")";
