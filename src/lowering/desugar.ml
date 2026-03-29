@@ -60,7 +60,7 @@ let rts_register_migration migration_id =
   primE (I.OtherPrim "set_migrations")
     [optE(tupE [textE migration_id; primE (I.OtherPrim "get_migrations") []])]
 
-let is_migration_non_null =
+let is_migration_non_null () =
   switch_optE (primE (I.OtherPrim "get_migrations") [])
     (falseE())
     wildP
@@ -821,7 +821,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
     | None ->
       T.Single stab_fields,
       I.{pre = mem_ty; post = mem_ty},
-      (ifE is_migration_non_null
+      (ifE is_migration_non_null ()
         (primE (Ir.OtherPrim "trap")
           [textE "cannot apply regular migration on top of enhanced migration"])
         (primE (I.ICStableRead mem_ty) []) (* as before *))
@@ -847,7 +847,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
           in other words, trying to apply a regular migration on top of an existing enhanced migration,
           trap and roll back!
         *)
-        (ifE is_migration_non_null
+        (ifE is_migration_non_null ()
           (primE (Ir.OtherPrim "trap")
             [textE "cannot apply regular migration on top of enhanced migration"])
         
