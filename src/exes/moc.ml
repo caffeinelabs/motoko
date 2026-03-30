@@ -218,17 +218,14 @@ let argspec =
   Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := false),
   " use legacy (classical) persistence. This also enables the usage of --copying-gc, --compacting-gc, and --generational-gc. Deprecated in favor of the new enhanced orthogonal persistence, which is default. Legacy persistence will be removed in the future.";
 
-  (* migration *)
-  "--enhanced-migration",
-  Arg.String (fun s -> Flags.enhanced_migration := Some s),
-  " enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence.";
-
   "-unguarded-enhanced-orthogonal-persistence",
   Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := true; Flags.explicit_enhanced_orthogonal_persistence := false),
   Args._UNDOCUMENTED_ "  (internal testing only)";
   ]
 
   @ Args.persistent_actors_args
+
+  @ Args.migration_args
 
   @ [
   "--stabilization-instruction-limit",
