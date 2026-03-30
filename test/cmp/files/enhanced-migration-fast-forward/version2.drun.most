@@ -1,8 +1,5 @@
-// Version: 3.0.0
-actor ({
-  in a : Text;
-  in b : Bool
-}, {
+// Version: 1.0.0
+actor {
   stable a : Text;
   stable var b : Bool
-}) ;
+};
