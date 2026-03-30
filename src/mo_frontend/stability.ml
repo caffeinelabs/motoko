@@ -91,18 +91,33 @@ let match_stab_fields s at mig_lab_opt tfs1 tfs2 =
              | Compatible -> ()
         end)
 
+let incompat_mix_migrations s at =
+  Diag.add_msg s
+    (Diag.error_message at "M0254" cat
+        (Format.asprintf "cannot upgrade from a program with enhanced migration to a program using regular or no migration. Please see %s."
+        migration_link))
+      
 let match_stab_sig sig1 sig2 : unit Diag.result =
-  let tfs1, mig_lab_opt = post sig1 in
-  let tfs2 = pre mig_lab_opt sig2 in
-  (* Assume that tfs1 and tfs2 are sorted. *)
-  let res = Diag.with_message_store (fun s ->
-    Some (match_stab_fields s Source.no_region None tfs1 tfs2))
-  in
-  (* cross check with simpler definition *)
-  match res with
-  | Ok _ ->
-    assert (Type.match_stab_sig sig1 sig2);
-    res
-  | Error _ ->
+  match (sig1, sig2) with 
+  (* Applying regular/old migration on top of a program that
+  already uses multi-migration is disallowed. *)
+  | (Multi _, PrePost _) | (Multi _, Single _) ->
     assert (not (Type.match_stab_sig sig1 sig2));
-    res
+    Diag.with_message_store (fun s ->
+      incompat_mix_migrations s Source.no_region;
+      None)
+  | _ ->
+    let tfs1, mig_lab_opt = post sig1 in
+    let tfs2 = pre mig_lab_opt sig2 in
+    (* Assume that tfs1 and tfs2 are sorted. *)
+    let res = Diag.with_message_store (fun s ->
+      Some (match_stab_fields s Source.no_region None tfs1 tfs2))
+    in
+    (* cross check with simpler definition *)
+    match res with
+    | Ok _ ->
+      assert (Type.match_stab_sig sig1 sig2);
+      res
+    | Error _ ->
+      assert (not (Type.match_stab_sig sig1 sig2));
+      res
