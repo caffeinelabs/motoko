@@ -1578,7 +1578,7 @@ module SynthesizeWrapper = struct
 
   (** Wraps resolved implicit paths into a function that calls [candidate_path],
       threading explicit params through and substituting implicits. *)
-  let derived_wrapper ~name candidate_path cand_args resolved_paths =
+  let derived_wrapper cand_args ~name candidate_path resolved_paths =
     let param_idx = ref 0 in
     let fresh_name () =
       let n = !param_idx in incr param_idx;
@@ -1662,12 +1662,11 @@ module ImplicitHoles = struct
     mutable func_exp : exp option;
   }
 
-  let find_matching_entry env rec_bindings {hole_name; hole_typ} =
-    List.find_opt (fun entry ->
+  let find_matching_entry rec_bindings {hole_name; hole_typ} =
+    !rec_bindings |> List.find_opt (fun entry ->
       entry.hole.hole_name = hole_name &&
-      (try T.eq ~src_fields:env.srcs entry.hole.hole_typ hole_typ (* TODO: 1. no need for src_fields; 2. use subtyping here? *)
-       with T.Undecided -> false)
-    ) !rec_bindings
+      (try T.eq entry.hole.hole_typ hole_typ
+       with T.Undecided -> false))
 
   let partition hole seq =
     let x, y = Seq.partition (fun (c : hole_candidate) -> c.id = hole.hole_name) seq in
@@ -1679,7 +1678,7 @@ module ImplicitHoles = struct
   (* ... or by filling the implicit holes in the candidate type with recursively resolved implicits *)
   type func_with_holes = {
     cand_args : T.typ list; (* Not substituted! Use only to determine the argument name *)
-    holes : (string * T.typ) list;
+    holes : hole list;
     func_without_holes : T.typ;
   }
 
@@ -1700,7 +1699,7 @@ module ImplicitHoles = struct
           let inst_args = List.map (T.open_ inst) explicit_args in
           let inst_rets = List.map (T.open_ inst) cand_rets in
           let func_without_holes = T.Func (T.Local, T.Returns, [], inst_args, inst_rets) in
-          let holes = List.map (fun (name, inner_typ) -> (name, T.open_ inst inner_typ)) implicit_args in
+          let holes = List.map (fun (hole_name, t) -> {hole_name; hole_typ = T.open_ inst t}) implicit_args in
           { cand_args; holes; func_without_holes})
     | _ -> None
 
@@ -1886,64 +1885,61 @@ module ImplicitHoles = struct
   *)
   let rec resolve_hole ~depth ~rec_bindings env at ({hole_name; hole_typ} as hole) =
 
-    match find_matching_entry env rec_bindings hole with
+    match find_matching_entry rec_bindings hole with
     | Some entry ->
       Ok { path = SynthesizeWrapper.var entry.entry_name; typ = hole_typ;
            module_ref_opt = None; id = entry.entry_name; region = at }
     | None ->
 
-    let commit_derivation ~depth ((h : func_with_holes), (candidate : hole_candidate)) =
-      let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
-      let entry = { entry_name = my_rec_name; hole; func_exp = None } in
-      rec_bindings := entry :: !rec_bindings;
-      let failed, resolved = h.holes |> List.partition_map (fun (name, inner_typ) ->
-        match resolve_hole ~depth:(depth + 1) ~rec_bindings env at {hole_name = name; hole_typ = inner_typ} with
-        | Error err -> Either.Left (name, inner_typ, err)
-        | Ok ok -> Either.Right (name, inner_typ, ok)) in
-      if failed = [] then
-        let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
-        let wrapper = SynthesizeWrapper.derived_wrapper ~name:my_rec_name candidate.path h.cand_args resolved_paths in
-        entry.func_exp <- Some wrapper;
-        Ok { candidate with path = SynthesizeWrapper.var my_rec_name; typ = hole_typ }
-      else
-        Error (candidate, InnerErrors failed)
-    in
-    let commit_structural_derivation {arity; kind; _} ~depth (elem_typ, (candidate : hole_candidate)) =
-      let elements, synthesize_wrapper = match kind with
-        | `Record record_fields ->
-          List.map (fun f -> T.as_immut f.T.typ) record_fields,
-          SynthesizeWrapper.record_wrapper record_fields arity
-        | `Tuple elem_typs ->
-          elem_typs,
-          SynthesizeWrapper.tuple_wrapper arity
-      in
-      let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
-      let entry = { entry_name = my_rec_name; hole; func_exp = None } in
-      rec_bindings := entry :: !rec_bindings;
-      let failed, resolved = elements |> List.partition_map (fun ft ->
-        let inner_hole_typ = match arity with
-          | `Unary -> T.Func (T.Local, T.Returns, [], [ft], [elem_typ])
-          | `Binary -> T.Func (T.Local, T.Returns, [], [ft; ft], [elem_typ]) in
-        match resolve_hole ~depth:(depth + 1) ~rec_bindings env at {hole_name; hole_typ = inner_hole_typ} with
-        | Error err -> Either.Left (hole_name, inner_hole_typ, err)
-        | Ok ok -> Either.Right ok.path) in
-      if failed = [] then begin
-        entry.func_exp <- Some (synthesize_wrapper ~name:my_rec_name candidate.path resolved);
-        Ok { candidate with path = SynthesizeWrapper.var my_rec_name; typ = hole_typ }
-      end else
-        Error (candidate, InnerErrors failed)
-    in
-    let try_derive_with disambiguate commit ~depth candidates =
-      match disambiguate candidates with
-      | `Single ((_, candidate) as x) -> `Committed (
-        if depth >= !(Flags.implicit_derivation_depth)
-        then Error (candidate, DepthLimited)
-        else commit ~depth x)
+    let try_derive_with holes wrapper candidates ~depth =
+      match candidates with
+      | `Single ((_, (candidate : hole_candidate)) as derivation) -> `Committed (
+        (* Check depth limit *)
+        if depth >= !(Flags.implicit_derivation_depth) then Error (candidate, DepthLimited) else
+
+        (* Add entry to rec_bindings *)
+        let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
+        let entry = { entry_name = my_rec_name; hole; func_exp = None } in
+        rec_bindings := entry :: !rec_bindings;
+
+        (* Resolve inner holes *)
+        let failed, resolved = holes derivation |> List.partition_map (fun inner_hole ->
+          match resolve_hole ~depth:(depth + 1) ~rec_bindings env at inner_hole with
+          | Error err -> Either.Left (inner_hole.hole_name, inner_hole.hole_typ, err)
+          | Ok ok -> Either.Right ok.path) in
+        if failed = [] then begin
+          entry.func_exp <- Some (wrapper derivation ~name:my_rec_name candidate.path resolved);
+          Ok { candidate with path = SynthesizeWrapper.var my_rec_name; typ = hole_typ }
+        end else
+          Error (candidate, InnerErrors failed)
+        )
       | `Many matches -> `Ambiguous (List.map (fun (_, c) -> c) matches)
       | `Empty -> `Empty
     in
-    let try_derive = try_derive_with disambiguate_func_with_holes commit_derivation in
-    let try_derive_structural info = try_derive_with disambiguate_structural_elems (commit_structural_derivation info) in
+    let holes (h, _) = h.holes in
+    let wrapper (h, _) = SynthesizeWrapper.derived_wrapper h.cand_args in
+    let try_derive candidates = try_derive_with holes wrapper (disambiguate_func_with_holes candidates) in
+
+    let structural_holes {arity; kind; _} (elem_typ, _) =
+      let elements = match kind with
+      | `Record record_fields -> List.map (fun f -> T.as_immut f.T.typ) record_fields
+      | `Tuple elem_typs -> elem_typs
+      in
+      elements |> List.map (fun ft ->
+        let args = match arity with
+        | `Unary -> [ft]
+        | `Binary -> [ft; ft] in
+        {hole_name; hole_typ = T.Func (T.Local, T.Returns, [], args, [elem_typ])})
+    in
+    let structural_wrapper {arity; kind; _} _ = match kind with
+      | `Record record_fields ->
+        SynthesizeWrapper.record_wrapper record_fields arity
+      | `Tuple elem_typs ->
+        SynthesizeWrapper.tuple_wrapper arity
+    in
+    let try_derive_structural info candidates =
+      try_derive_with (structural_holes info) (structural_wrapper info) (disambiguate_structural_elems candidates)
+    in
 
     (* Try direct local candidates first (matching local env values) *)
     let (eligible_ids, explicit_ids) = matching_vals hole env.vals in
@@ -2012,13 +2008,13 @@ module ImplicitHoles = struct
     (* Try structural synthesis (record/tuple/variant) — local vals, module fields, libs.
        Candidate functions filter by kind + ret during collection;
        try_derive_structural disambiguates and synthesizes with no further filtering. *)
-    match try_derive_structural info ~depth (structural_val_candidates info env.vals) with
+    match try_derive_structural info (structural_val_candidates info env.vals) ~depth with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, explicit_candidates, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous {ambiguous_candidates = cs; explicit_candidates})
     | `Empty ->
 
-    match try_derive_structural info ~depth (FromModuleVal.structural_candidates info env.vals) with
+    match try_derive_structural info (FromModuleVal.structural_candidates info env.vals) ~depth with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, explicit_candidates, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous {ambiguous_candidates = cs; explicit_candidates})
@@ -2028,7 +2024,7 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive_structural info ~depth structural_lib_candidates
+      then try_derive_structural info structural_lib_candidates ~depth
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
