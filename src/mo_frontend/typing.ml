@@ -1472,16 +1472,12 @@ let is_val_module (n, ((t, _, _, _) : val_info)) =
 
 let module_exp in_libs module_ref =
   if not in_libs then
-    VarE {it = module_ref; at = no_region; note = (Const, None)}
+    VarE (module_ref @~ no_region)
   else
     ImplicitLibE module_ref
 
 let dot_module_exp module_exp name =
-  DotE({
-    it = module_exp;
-    at = name.at;
-    note = empty_typ_note
-  }, name, ref None)
+  DotE(module_exp @? name.at, name, ref None) @? name.at
 
 let module_ref_of_dot_module_exp (path : exp) =
   match path.it with
@@ -1562,24 +1558,22 @@ let render_derivation_leaves env = function
 module SynthesizeWrapper = struct
   (* Fresh AST nodes are required at each use site — type-checking annotates in
      place, so sharing a node triggers an "already-annotated" assertion. *)
-  let mk e = { Source.it = e; at = Source.no_region; note = empty_typ_note }
-  let var n = mk (VarE { Source.it = n; at = Source.no_region; note = (Const, None) })
-  let id lab = { Source.it = lab; at = Source.no_region; note = () }
-  let inst () = { Source.it = None; at = Source.no_region; note = [] }
-  let var_pat n =
-    { Source.it = VarP { Source.it = n; at = Source.no_region; note = () };
-      at = Source.no_region; note = T.Pre }
+  let mk e = e @? no_region
+  let var n = mk (VarE (n @~ no_region))
+  let id lab = lab @@ no_region
+  let inst () = Source.annotate [] None no_region
+  let var_pat n = VarP (n @@ no_region) @! no_region
   let thunk body =
-    let unit_pat = { Source.it = TupP []; at = Source.no_region; note = T.Pre } in
-    let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
+    let unit_pat = TupP [] @! no_region in
+    let sort_pat = T.Local @@ no_region in
     mk (FuncE ("", sort_pat, [], unit_pat, None, false, body))
   let call path arg =
     mk (CallE (None, path, inst (), (false, ref arg)))
   let func_ ~name param_names body =
-    let sort_pat = { Source.it = T.Local; at = Source.no_region; note = () } in
+    let sort_pat = T.Local @@ no_region in
     let pat = match param_names with
       | [p] -> var_pat p
-      | ps -> { Source.it = TupP (List.map var_pat ps); at = Source.no_region; note = T.Pre } in
+      | ps -> TupP (List.map var_pat ps) @! no_region in
     mk (FuncE (name, sort_pat, [], pat, None, false, body))
 
   (** Wraps resolved implicit paths into a function that calls [candidate_path],
@@ -1607,7 +1601,7 @@ module SynthesizeWrapper = struct
 
   (** Wraps array entries in [combiner_path([entries...])] inside a function. *)
   let combiner_wrapper ~name combiner_path param_names entries =
-    let mut_node = { Source.it = Const; at = Source.no_region; note = () } in
+    let mut_node = Const @@ no_region in
     let array_arg = mk (ArrayE (mut_node, entries)) in
     func_ ~name param_names (call combiner_path array_arg)
 
@@ -1780,7 +1774,7 @@ module ImplicitHoles = struct
   module ValCandidateSource : CandidateSource with type entry = val_info = struct
     type entry = val_info
     let get_typ ((t, _, _, _) : val_info) = t
-    let make_ref_exp r = VarE {it = r; at = no_region; note = (Const, None)}
+    let make_ref_exp r = VarE (r @~ no_region)
   end
 
   module LibCandidateSource : CandidateSource with type entry = T.typ = struct
@@ -1805,11 +1799,7 @@ module ImplicitHoles = struct
           | field -> k module_ref field))
 
     let make_field_candidate module_ref T.{lab; typ; src} =
-      let path =
-        { it = dot_module_exp (M.make_ref_exp module_ref) ({ it = lab; at = no_region; note = () });
-          at = Source.no_region;
-          note = empty_typ_note; }
-      in
+      let path = dot_module_exp (M.make_ref_exp module_ref) (lab @@ no_region) in
       ({ path; typ; module_ref_opt = Some module_ref; id = lab; region = src.T.region} : hole_candidate)
 
     let matching_fields ctx xs = xs
@@ -1835,10 +1825,7 @@ module ImplicitHoles = struct
   end
 
   let make_val_candidate id t region =
-    let path =
-      { it = VarE {it = id; at = no_region; note = (Const, None)};
-        at = Source.no_region;
-        note = empty_typ_note } in
+    let path = VarE (id @~ no_region) @? no_region in
     { path; typ = t; module_ref_opt = None; id; region }
 
   let matching_vals ctx (vals : val_env) =
@@ -1900,9 +1887,6 @@ module ImplicitHoles = struct
             "Consider renaming `%s` to `%s.%s` in %s module `%s`. Then it can serve as an implicit argument `%s` in this call:\n%s%s"
             (desc_of_candidate candidate) mid id mod_desc mid id call_region call_src)
 
-  let mk_var_exp name at =
-    { Source.it = VarE { Source.it = name; at = Source.no_region; note = (Const, None) }; at; note = empty_typ_note }
-
   (** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
       Returns [Ok(candidate)] when a single resolution is
       found, [Error(file_paths)] when no resolution was found, but a
@@ -1918,7 +1902,7 @@ module ImplicitHoles = struct
 
     match find_matching_entry env rec_bindings hole_sort hole_typ with
     | Some entry ->
-      Ok { path = mk_var_exp entry.name at; typ = hole_typ;
+      Ok { path = SynthesizeWrapper.var entry.name; typ = hole_typ;
            module_ref_opt = None; id = entry.name; region = at }
     | None ->
 
@@ -1934,7 +1918,7 @@ module ImplicitHoles = struct
         let resolved_paths = List.map (fun (_, _, (c : hole_candidate)) -> c.path) resolved in
         let wrapper = SynthesizeWrapper.derived_wrapper ~name:my_rec_name candidate.path h.cand_args resolved_paths in
         entry.func_exp <- Some wrapper;
-        Ok { candidate with path = mk_var_exp my_rec_name at; typ = hole_typ }
+        Ok { candidate with path = SynthesizeWrapper.var my_rec_name; typ = hole_typ }
       else
         Error (candidate, InnerErrors failed)
     in
@@ -1973,7 +1957,7 @@ module ImplicitHoles = struct
             | Ok ok -> Either.Right ok.path) in
           if failed = [] then begin
             entry.func_exp <- Some (synthesize_wrapper ~name:my_rec_name candidate.path resolved);
-            `Committed (Ok { candidate with path = mk_var_exp my_rec_name at; typ = hole_typ })
+            `Committed (Ok { candidate with path = SynthesizeWrapper.var my_rec_name; typ = hole_typ })
           end else
             `Committed (Error (candidate, InnerErrors failed))
         in
@@ -2107,12 +2091,10 @@ let resolve_hole env at hole_sort hole_typ =
   ) result
 
 let mk_recursive_block at bindings outermost_path hole_typ =
-  let nr = Source.no_region in
   let mk_dec typ d =
     { Source.it = d; at; note = {empty_typ_note with note_typ = typ} } in
   let mk_pat name typ =
-    { Source.it = VarP { Source.it = name; at = nr; note = () };
-      at = nr; note = typ } in
+    Source.annotate typ (VarP (name @@ no_region)) no_region in
   let let_decs = List.map (fun (name, typ, func_exp) ->
     mk_dec typ (LetD (mk_pat name typ, func_exp, None))
   ) bindings in
@@ -2161,31 +2143,19 @@ module CtxDot = struct
 end
 
 let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_error) Result.t =
-  let is_matching_func n t =
-    if not (String.equal n name.it) then None
-    else CtxDot.is_matching_func t receiver_ty in
-  let find_candidate in_libs (module_ref, (module_ty, fs)) =
-    List.find_map (fun fld -> is_matching_func fld.T.lab fld.T.typ) fs |>
-      Option.map (fun (arg_ty, func_ty, inst) ->
-        let path = {
-          it = dot_module_exp (module_exp in_libs module_ref) name;
-          at = name.at;
-          note = empty_typ_note }
-        in
-        { module_ref = Some module_ref; path; func_ty; arg_ty; inst }) in
+  let open Lib.Option.Syntax in
+
+  let find_candidate in_libs (module_ref, (_, fs)) =
+    let* field = T.find_val_field_opt name.it fs in
+    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func field.T.typ receiver_ty in
+    let path = dot_module_exp (module_exp in_libs module_ref) name in
+    Some { module_ref = Some module_ref; path; func_ty; arg_ty; inst } in
 
   let local_candidate =
-    match T.Env.find_opt name.it env.vals with
-    | None -> None
-    | Some (t, _, _, _) ->
-      match is_matching_func name.it t with
-       | None -> None
-       | Some (arg_ty, func_ty, inst) ->
-         let path = {
-           it = VarE { it = name.it; at = name.at; note = (Const, None) };
-           at = name.at;
-           note = empty_typ_note } in
-         Some { module_ref = None; path; func_ty; arg_ty; inst } in
+    let* (t, _, _, _) = T.Env.find_opt name.it env.vals in
+    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func t receiver_ty in
+    let path = VarE (name.it @~ name.at) @? name.at in
+    Some { module_ref = None; path; func_ty; arg_ty; inst } in
 
   let candidates in_libs xs f =
     T.Env.to_seq xs |>
@@ -2201,8 +2171,8 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
     match disambiguate_candidates (candidates false env.vals is_val_module) with
     | `Single c -> Ok c
     | `Many cs -> Error (DotAmbiguous (fun env ->
-      let modules =  (List.filter_map (fun c -> c.module_ref) cs) in
-      error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it (String.concat ", " modules)))
+      let modules = String.concat ", " (List.filter_map (fun c -> c.module_ref) cs) in
+      error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it modules))
     | `Empty ->
       let lib_candidates = candidates true env.libs is_lib_module in
       match if Option.is_some !Flags.implicit_package then disambiguate_candidates lib_candidates else `Empty with
