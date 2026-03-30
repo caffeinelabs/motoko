@@ -31,6 +31,7 @@ assert float32ToFloat (a + b) == 5.0;
 assert float32ToFloat (b - a) == 1.0;
 assert float32ToFloat (a * b) == 6.0;
 assert float32ToFloat (b / a) == 1.5;
+assert float32ToFloat (b % a) == 1.0;
 assert float32ToFloat (-a)   == -2.0;
 
 // pow: exact case (2^10 = 1024)
@@ -61,6 +62,7 @@ assert a2 + b2 == 5.0;
 assert b2 - a2 == 1.0;
 assert a2 * b2 == 6.0;
 assert b2 / a2 == 1.5;
+assert b2 % a2 == 1.0;
 assert -a2     == -2.0;
 
 // pow: exact case (2^10 = 1024)

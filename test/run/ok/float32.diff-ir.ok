@@ -1,6 +1,6 @@
 --- float32.run
 +++ float32.run-ir
-@@ -1 +1,71 @@
+@@ -1 +1,76 @@
 +        (LitE (TextLit Float32 precision tests passed: ))
 +  (LetD (VarP lit32) (LitE (Float32Lit 3.140_000_104_904_174_8)))
 +  (LetD (VarP a2) (LitE (Float32Lit 2)))
@@ -9,6 +9,7 @@
 +        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit 6))
 +        (LitE (Float32Lit 1.5))
++        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit -2))
 +        (PrimE (BinPrim Float32 PowOp) (VarE a2) (LitE (Float32Lit 10)))
 +        (LitE (Float32Lit 1_024))
@@ -23,6 +24,7 @@
 +        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit 6))
 +        (LitE (Float32Lit 1.5))
++        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit -2))
 +        (PrimE (BinPrim Float32 PowOp) (VarE a2) (LitE (Float32Lit 10)))
 +        (LitE (Float32Lit 1_024))
@@ -37,6 +39,7 @@
 +        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit 6))
 +        (LitE (Float32Lit 1.5))
++        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit -2))
 +        (PrimE (BinPrim Float32 PowOp) (VarE a2) (LitE (Float32Lit 10)))
 +        (LitE (Float32Lit 1_024))
@@ -51,6 +54,7 @@
 +        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit 6))
 +        (LitE (Float32Lit 1.5))
++        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit -2))
 +        (PrimE (BinPrim Float32 PowOp) (VarE a2) (LitE (Float32Lit 10)))
 +        (LitE (Float32Lit 1_024))
@@ -65,6 +69,7 @@
 +        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit 6))
 +        (LitE (Float32Lit 1.5))
++        (LitE (Float32Lit 1))
 +        (LitE (Float32Lit -2))
 +        (PrimE (BinPrim Float32 PowOp) (VarE a2) (LitE (Float32Lit 10)))
 +        (LitE (Float32Lit 1_024))
