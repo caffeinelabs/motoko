@@ -31,7 +31,7 @@ error[M0098]: cannot apply function of type
          key : K) ->
     ?V
 to argument of type
-  {var root : Types.Map.Node<Text, Text>; var size_ : Nat}
+  Map.Map<Text, Text>
 because there is no way to satisfy subtyping
   ?V  <:  ()  (for the expected return type) 
     ┌─ wrong-call-args.mo:45:5

@@ -579,7 +579,7 @@ class Counter(n: Nat) {
 
          with errors:
         (unknown location): type error [M0072], field __error_recovery_var__ does not exist in type:
-          {}
+          Counter = {}
       |}]
     | Error msgs -> Printf.printf "%s" @@ show (Error msgs)
     end

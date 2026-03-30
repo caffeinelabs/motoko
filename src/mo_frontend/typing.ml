@@ -3893,11 +3893,11 @@ and check_pat_aux env t pat val_kind : Scope.val_env =
   assert (pat.note = T.Pre);
   if t = T.Pre then snd (infer_pat false env pat) else
   let t' = T.normalize t in
-  let ve = check_pat_aux' env t' pat val_kind in
+  let ve = check_pat_aux' env t' t pat val_kind in
   if not env.pre then pat.note <- t';
   ve
 
-and check_pat_aux' env t pat val_kind : Scope.val_env =
+and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
   let add_error_ctx spans = match env.closest_scrutinee with
     | Some (exp_at, exp_ty) ->
       secondary env exp_at "this expression has type `%a`" display_typ_expand_inline exp_ty :: spans
@@ -3907,7 +3907,7 @@ and check_pat_aux' env t pat val_kind : Scope.val_env =
   | WildP ->
     T.Env.empty
   | VarP id ->
-    T.Env.singleton id.it (t, id.at, val_kind)
+    T.Env.singleton id.it (t_orig, id.at, val_kind)
   | LitP lit ->
     if not env.pre then begin
       let t' = if eq env pat.at t T.nat then T.int else t in  (* account for Nat <: Int *)
