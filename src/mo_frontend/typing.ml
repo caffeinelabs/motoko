@@ -1653,30 +1653,24 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
 module ImplicitHoles = struct
   type rec_entry = {
     name : string;
-    entry_sort : hole_sort;
+    entry_name : string;
     entry_typ : T.typ;
     mutable func_exp : exp option;
   }
 
-  let find_matching_entry env rec_bindings hole_sort hole_typ =
+  let find_matching_entry env rec_bindings hole_name hole_typ =
     List.find_opt (fun entry ->
-      match entry.entry_sort, hole_sort with
-      | Named n1, Named n2 ->
-        n1 = n2 &&
-        (try T.eq ~src_fields:env.srcs entry.entry_typ hole_typ
-         with T.Undecided -> false) (* deeply recursive types: conservatively no match *)
-      | _ -> false
+      entry.entry_name = hole_name &&
+      (try T.eq ~src_fields:env.srcs entry.entry_typ hole_typ
+       with T.Undecided -> false)
     ) !rec_bindings
 
   type ctx = {
-    hole_sort : hole_sort;
+    hole_name : string;
     hole_typ : T.typ;
   }
 
-  let is_matching_lab ctx lab =
-    match ctx.hole_sort with
-    | Named lab1 -> lab = lab1
-    | Anon _ -> not (Syntax.is_privileged lab) (* fix from 5659 *)
+  let is_matching_lab ctx lab = lab = ctx.hole_name
 
   let partition ctx seq =
     let x, y = Seq.partition (fun (c : hole_candidate) -> is_matching_lab ctx c.id) seq in
@@ -1861,31 +1855,28 @@ module ImplicitHoles = struct
   let disambiguate_structural_elems = disambiguate_resolutions (fun ((_, c1) : T.typ * hole_candidate) (_, c2) ->
     T.sub c1.typ c2.typ)
 
-  let renaming_hints env at hole_sort explicit_terms =
+  let renaming_hints env at hole_name explicit_terms =
     explicit_terms |> List.iter (fun candidate ->
       if (candidate.region.left.file = at.left.file) then
         let call_region = Source.string_of_region at in
         let call_src = match Source.read_region at with Some s -> ": " ^ s | None -> "." in
-        match hole_sort with
-        | Anon _ -> ()
-        | Named id ->
-          let mod_desc, mid =
-            match candidate.path.it with
-            | DotE({ it = VarE {it = mid;_ }; _ }, _, _) ->
-              ("the existing", mid)
-            | VarE _ | _ ->
-              let mid = match Lib.String.chop_prefix id candidate.id with
-                | Some suffix when not (T.Env.mem suffix env.vals) ->
-                  suffix
-                | _ -> "<M>"
-              in
-              ("a new", mid)
-          in
-            info env candidate.region
-            "Consider renaming `%s` to `%s.%s` in %s module `%s`. Then it can serve as an implicit argument `%s` in this call:\n%s%s"
-            (desc_of_candidate candidate) mid id mod_desc mid id call_region call_src)
+        let mod_desc, mid =
+          match candidate.path.it with
+          | DotE({ it = VarE {it = mid;_ }; _ }, _, _) ->
+            ("the existing", mid)
+          | VarE _ | _ ->
+            let mid = match Lib.String.chop_prefix hole_name candidate.id with
+              | Some suffix when not (T.Env.mem suffix env.vals) ->
+                suffix
+              | _ -> "<M>"
+            in
+            ("a new", mid)
+        in
+          info env candidate.region
+          "Consider renaming `%s` to `%s.%s` in %s module `%s`. Then it can serve as an implicit argument `%s` in this call:\n%s%s"
+          (desc_of_candidate candidate) mid hole_name mod_desc mid hole_name call_region call_src)
 
-  (** Searches for hole resolutions for [name] on a given [hole_sort] and [typ].
+  (** Searches for hole resolutions for a given [hole_name] and [typ].
       Returns [Ok(candidate)] when a single resolution is
       found, [Error(file_paths)] when no resolution was found, but a
       matching module could be imported, and reports an ambiguity error
@@ -1896,9 +1887,9 @@ module ImplicitHoles = struct
       Detects recursive derivation cycles via [rec_bindings] and generates
       self-referential wrapper functions.
   *)
-  let rec resolve_hole ~depth ~rec_bindings env at hole_sort hole_typ =
+  let rec resolve_hole ~depth ~rec_bindings env at hole_name hole_typ =
 
-    match find_matching_entry env rec_bindings hole_sort hole_typ with
+    match find_matching_entry env rec_bindings hole_name hole_typ with
     | Some entry ->
       Ok { path = SynthesizeWrapper.var entry.name; typ = hole_typ;
            module_ref_opt = None; id = entry.name; region = at }
@@ -1906,10 +1897,10 @@ module ImplicitHoles = struct
 
     let commit_derivation ~depth ((h : func_with_holes), (candidate : hole_candidate)) =
       let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
-      let entry = { name = my_rec_name; entry_sort = hole_sort; entry_typ = hole_typ; func_exp = None } in
+      let entry = { name = my_rec_name; entry_name = hole_name; entry_typ = hole_typ; func_exp = None } in
       rec_bindings := entry :: !rec_bindings;
       let failed, resolved = h.holes |> List.partition_map (fun (name, inner_typ) ->
-        match resolve_hole ~depth:(depth + 1) ~rec_bindings env at (Named name) inner_typ with
+        match resolve_hole ~depth:(depth + 1) ~rec_bindings env at name inner_typ with
         | Error err -> Either.Left (name, inner_typ, err)
         | Ok ok -> Either.Right (name, inner_typ, ok)) in
       if failed = [] then
@@ -1921,7 +1912,6 @@ module ImplicitHoles = struct
         Error (candidate, InnerErrors failed)
     in
     let commit_structural_derivation {arity; kind; _} ~depth (elem_typ, (candidate : hole_candidate)) =
-      let implicit_name = match hole_sort with Named n -> n | Anon _ -> "_" in
       let elements, synthesize_wrapper = match kind with
         | `Record record_fields ->
           List.map (fun f -> T.as_immut f.T.typ) record_fields,
@@ -1931,14 +1921,14 @@ module ImplicitHoles = struct
           SynthesizeWrapper.tuple_wrapper arity
       in
       let my_rec_name = Printf.sprintf "$derived_implicit_%d" (List.length !rec_bindings) in
-      let entry = { name = my_rec_name; entry_sort = hole_sort; entry_typ = hole_typ; func_exp = None } in
+      let entry = { name = my_rec_name; entry_name = hole_name; entry_typ = hole_typ; func_exp = None } in
       rec_bindings := entry :: !rec_bindings;
       let failed, resolved = elements |> List.partition_map (fun ft ->
         let inner_hole_typ = match arity with
           | `Unary -> T.Func (T.Local, T.Returns, [], [ft], [elem_typ])
           | `Binary -> T.Func (T.Local, T.Returns, [], [ft; ft], [elem_typ]) in
-        match resolve_hole ~depth:(depth + 1) ~rec_bindings env at hole_sort inner_hole_typ with
-        | Error err -> Either.Left (implicit_name, inner_hole_typ, err)
+        match resolve_hole ~depth:(depth + 1) ~rec_bindings env at hole_name inner_hole_typ with
+        | Error err -> Either.Left (hole_name, inner_hole_typ, err)
         | Ok ok -> Either.Right ok.path) in
       if failed = [] then begin
         entry.func_exp <- Some (synthesize_wrapper ~name:my_rec_name candidate.path resolved);
@@ -1958,7 +1948,7 @@ module ImplicitHoles = struct
     let try_derive = try_derive_with disambiguate_func_with_holes commit_derivation in
     let try_derive_structural info = try_derive_with disambiguate_structural_elems (commit_structural_derivation info) in
 
-    let ctx = { hole_sort; hole_typ } in
+    let ctx = { hole_name; hole_typ } in
 
     (* Try direct local candidates first (matching local env values) *)
     let (eligible_ids, explicit_ids) = matching_vals ctx env.vals in
@@ -2052,11 +2042,11 @@ module ImplicitHoles = struct
 
 end
 
-let resolve_hole env at hole_sort hole_typ =
+let resolve_hole env at hole_name hole_typ =
   let rec_bindings = ref [] in
   let result =
     ImplicitHoles.resolve_hole ~depth:0 ~rec_bindings
-      env at hole_sort hole_typ
+      env at hole_name hole_typ
   in
   let open ImplicitHoles in
   (* Entries with func_exp = None only exist when commit_derivation or
@@ -2936,8 +2926,8 @@ and check_exp env t exp =
 and check_exp' env0 t exp : T.typ =
   let env = {env0 with in_prog = false; in_actor = false; context = exp.it :: env0.context } in
   match exp.it, t with
-  | HoleE (hole_sort, exp_ref), hole_typ ->
-    check_hole env exp.at hole_sort hole_typ exp_ref;
+  | HoleE (hole_name, exp_ref), hole_typ ->
+    check_hole env exp.at hole_name hole_typ exp_ref;
     t
   | PrimE s, T.Func _ ->
     t
@@ -3112,12 +3102,8 @@ and check_exp' env0 t exp : T.typ =
     let t' = infer_exp env0 exp in
     check_inferred env0 env t t' exp
 
-and check_hole env at hole_sort hole_typ exp_ref =
-  let desc = function
-    | Named id -> "`"^id^"`"
-    | Anon idx -> "at position " ^ (Int.to_string idx)
-  in
-  match resolve_hole env at hole_sort hole_typ with
+and check_hole env at hole_name hole_typ exp_ref =
+  match resolve_hole env at hole_name hole_typ with
   | Ok ({path; _}, []) ->
     exp_ref := path;
     check_exp env hole_typ path
@@ -3138,8 +3124,7 @@ and check_hole env at hole_sort hole_typ exp_ref =
         [ "The other explicit candidates are: " ^ (String.concat ", " (List.map desc_of_candidate explicit_candidates)) ]
     in
     error env at "M0231" ~notes "ambiguous implicit argument %s of type %a."
-      (match hole_sort with Named n -> "named " ^ quote n | Anon i -> "at argument position " ^ Int.to_string i)
-      display_typ hole_typ
+      ("named " ^ quote hole_name) display_typ hole_typ
   | Error (HoleSuggestions (lib_terms, explicit_terms, derivation_notes)) ->
     if not env.pre then begin
       let explicit_sug =
@@ -3151,16 +3136,16 @@ and check_hole env at hole_sort hole_typ exp_ref =
       let import_sug =
         if lib_terms = [] then
           if derivation_sug <> [] then [] else
-          let desc = match hole_sort with Named id -> " named " ^ quote id | _ -> "" in
+          let desc = " named " ^ quote hole_name in
           [Stdlib.Format.sprintf
             "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
             desc desc]
         else [Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))]
       in
-      ImplicitHoles.renaming_hints env at hole_sort explicit_terms;
+      ImplicitHoles.renaming_hints env at hole_name explicit_terms;
       let notes = import_sug @ derivation_sug @ explicit_sug in
       local_error ~notes env at "M0230" "Cannot determine implicit argument %s of type%a"
-        (desc hole_sort)
+        (quote hole_name)
         display_typ hole_typ
     end
 
@@ -3339,8 +3324,7 @@ and arity_with_implicits t_args =
 
 and insert_holes at ts es =
   let mk_hole pos hole_id =
-    let hole_sort = if hole_id = "" then Anon pos else Named hole_id in
-    {it = HoleE (hole_sort, ref {it = PrimE "hole"; at; note=empty_typ_note });
+    {it = HoleE (hole_id, ref {it = PrimE "hole"; at; note=empty_typ_note });
       at;
       note = empty_typ_note }
   in
@@ -3371,7 +3355,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
              match as_implicit typ with
              | None -> acc
              | Some name ->
-                match resolve_hole env arg.at (match name with "_" -> Anon pos | id -> Named id) typ with
+                match resolve_hole env arg.at name typ with
                 | Error _ -> acc
                 | Ok ({path;_}, _) ->
                    match path.it, arg.it with

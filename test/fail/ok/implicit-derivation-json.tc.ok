@@ -4,10 +4,9 @@ note: Implicit derivation failed:
   `_toJson : Bool -> Json` — not found
   `_toJson : Int -> Json` — not found, try importing mo:json/IntJson
 implicit-derivation-json.mo:15.40-15.42: type error [M0230], Cannot determine implicit argument `_toJson` of type
-  {data : {var root : Node<Text, Int>; var size : Nat}; tag : Text} ->
-    Json.Json
+  {data : Map.Map<Text, Int>; tag : Text} -> Json.Json
 note: Implicit derivation failed:
-  `_toJson : {var root : Node<Text, Int>; var size : Nat} -> Json` — not found, try importing mo:json/MapJson
+  `_toJson : Map<Text, Int> -> Json` — not found, try importing mo:json/MapJson
 implicit-derivation-json.mo:20.17-20.19: type error [M0230], Cannot determine implicit argument `_toJson` of type
   {var root : Node<Text, Int>; var size : Nat} -> Json.Json
 note: Did you mean to import mo:json/MapJson?
