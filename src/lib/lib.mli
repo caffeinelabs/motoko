@@ -110,6 +110,14 @@ sig
   val map2 : ('a -> 'b -> 'c) -> 'a option -> 'b option -> 'c option
 end
 
+module Result :
+sig
+  module Syntax :
+  sig
+    val (let*) : ('a, 'e) result -> ('a -> ('b, 'e) result) -> ('b, 'e) result
+  end
+end
+
 module Promise :
 sig
   type 'a t
