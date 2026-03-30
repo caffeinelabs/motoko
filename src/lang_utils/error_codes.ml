@@ -150,7 +150,7 @@ let error_codes : (string * string option) list =
     "M0158", Some([%blob "lang_utils/error_codes/M0158.md"]); (* a public class cannot be anonymous, please provide a name *)
     (* "M0159" DEFUNCT Word deprecation *)
     "M0160", None; (* Candid method name is not a valid Motoko identifier *)
-    "M0161", None; (* Candid float32 type cannot be imported as a Motoko type *)
+    (* "M0161" DEFUNCT Candid float32 type cannot be imported as a Motoko type *)
     "M0162", None; (* Candid service constructor type not supported as Motoko type *)
     (* "M0163" DEFUNCT Cannot import a Candid service constructor *)
     "M0164", None; (* Unknown record or variant label in textual representation *)

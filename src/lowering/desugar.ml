@@ -1244,6 +1244,7 @@ and lit = function
   | S.Int32Lit x -> I.Int32Lit x
   | S.Int64Lit x -> I.Int64Lit x
   | S.FloatLit x -> I.FloatLit x
+  | S.Float32Lit x -> I.Float32Lit x
   | S.CharLit x -> I.CharLit x
   | S.TextLit x -> I.TextLit x
   | S.BlobLit x -> I.BlobLit x
