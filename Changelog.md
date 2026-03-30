@@ -1,10 +1,16 @@
 # Motoko compiler changelog
 
-## 1.4.0 (2026-03-27)
+## 1.4.1 (2026-03-30)
 
 * motoko (`moc`)
 
   * feat: Preserve named types in variable pattern bindings, so error messages show e.g. `Map.Map<Text, Text>` instead of expanding the full structural type (#5940).
+  * bugfix: implement `Float32` `ModOp` (`%`) — Wasm has no `f32.rem` instruction; the fix promotes operands to `f64`, applies `fmod`, then demotes the result back to `f32` (#5950).
+
+## 1.4.0 (2026-03-27)
+
+* motoko (`moc`)
+
   * feat: added `--actor-env-alias` to facilitate (installation-time) late binding of canister aliases via environment variables (#5890).
   * feat: added `--actor-id-alias` as a variant of `--actor-alias` that accepts an explicit IDL file path as a third argument, bypassing the `--actor-idl` search path (#5890).
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
