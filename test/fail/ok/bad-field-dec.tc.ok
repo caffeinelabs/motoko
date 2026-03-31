@@ -1,0 +1,4 @@
+bad-field-dec.mo:4.10-4.21: type error [M0054], cannot infer type of primitive
+bad-field-dec.mo:5.10-5.21: type error [M0054], cannot infer type of primitive
+bad-field-dec.mo:7.13-7.24: type error [M0054], cannot infer type of primitive
+bad-field-dec.mo:8.13-8.24: type error [M0054], cannot infer type of primitive
