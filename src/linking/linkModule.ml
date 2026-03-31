@@ -219,6 +219,35 @@ let forwarding_target (funcs : func array) (types : Wasm_exts.Types.func_type li
     | [], [Call k] -> Some k.it
     | _ -> None
 
+(* True iff body is: Const (I32 0); LocalGet 1 … LocalGet n-1; Call k
+   i.e. a Motoko top-level forwarder that synthesises a null closure for callee *)
+let zero_forwarder_target (funcs : func array) (types : Wasm_exts.Types.func_type list)
+    (import_count : int) (fi : int32) : int32 option =
+  let idx = Int32.to_int fi - import_count in
+  if idx < 0 then None
+  else
+    let f = funcs.(idx) in
+    let param_count =
+      let Wasm_exts.Types.FuncType (ps, _) = List.nth types (Int32.to_int f.it.ftype.it) in
+      List.length ps
+    in
+    if param_count < 1 then None
+    else
+      let body_its = List.map (fun i -> i.it) f.it.body in
+      let rec eat_args n instrs =
+        if n = 0 then instrs
+        else match instrs with
+        | LocalGet v :: rest when v.it = Int32.of_int (param_count - n) ->
+          eat_args (n - 1) rest
+        | _ -> []
+      in
+      match f.it.locals, body_its with
+      | [], Const { it = Wasm_exts.Values.I32 0l; _ } :: rest ->
+        (match eat_args (param_count - 1) rest with
+         | [Call k] -> Some k.it
+         | _ -> None)
+      | _ -> None
+
 let rec fixpoint f x = let x' = f x in if x' = x then x else fixpoint f x'
 
 let chase_forwarders (funcs : func array) (types : Wasm_exts.Types.func_type list)
@@ -1041,6 +1070,56 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
     let types = List.map (fun t -> t.it) dm2.types in
     let import_count = Int32.to_int (count_imports is_fun_import dm2) in
     fixpoint (chase_forwarders funcs types import_count) fun_exports2
+  in
+  (* 0-forwarder chase: rewrite call sites in em1 that invoke a 0-forwarder
+     (Const I32 0; LocalGet 1…n-1; Call k) with an i32.const 0 closure arg,
+     redirecting the call to skip the forwarder and reach the callee directly. *)
+  let em1 =
+    let funcs = Array.of_list em1.module_.funcs in
+    let types = List.map (fun t -> t.it) em1.module_.types in
+    let import_count = Int32.to_int (count_imports is_fun_import em1.module_) in
+    let zero_fwds : (int32, int32) Hashtbl.t = Hashtbl.create 16 in
+    Array.iteri (fun idx _ ->
+      let fi = Int32.of_int (idx + import_count) in
+      (match zero_forwarder_target funcs types import_count fi with
+       | Some k -> Hashtbl.replace zero_fwds fi k
+       | None   -> ())
+    ) funcs;
+    if Hashtbl.length zero_fwds = 0 then em1
+    else
+      let rec loop em =
+        let any_changed = ref false in
+        let new_funcs = List.map (fun f ->
+          let arr = Array.of_list f.it.body in
+          let n = Array.length arr in
+          let changed = ref false in
+          for i = 0 to n - 1 do
+            match arr.(i).it with
+            | Call k when Hashtbl.mem zero_fwds k.it ->
+              let fi = k.it in
+              let param_count =
+                let idx = Int32.to_int fi - import_count in
+                let Wasm_exts.Types.FuncType (ps, _) =
+                  List.nth types (Int32.to_int funcs.(idx).it.ftype.it) in
+                List.length ps
+              in
+              let clos_pos = i - param_count in
+              if clos_pos >= 0 then
+                (match arr.(clos_pos).it with
+                 | Const { it = Wasm_exts.Values.I32 0l; _ } ->
+                   arr.(i) <- { arr.(i) with it = Call { k with it = Hashtbl.find zero_fwds fi } };
+                   changed := true;
+                   any_changed := true
+                 | _ -> ())
+            | _ -> ()
+          done;
+          if !changed then { f with it = { f.it with body = Array.to_list arr } }
+          else f
+        ) (em : extended_module).module_.funcs in
+        if !any_changed then loop { (em : extended_module) with module_ = { em.module_ with funcs = new_funcs } }
+        else em
+      in
+      loop em1
   in
   (* Resolve imports, to produce a renumbering function: *)
   let fun_resolved12 = resolve fun_required1 fun_exports2 in

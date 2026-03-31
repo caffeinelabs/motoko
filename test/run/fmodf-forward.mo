@@ -35,11 +35,11 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //CHECK: (func $baz
 //CHECK: call $quux
 //CHECK-NEXT: f64.load
-// foo is a 0-forwarder: passes i32.const 0 as closure arg to bar
+// foo→bar→quux chain collapsed: foo now calls quux directly (bar was a 0-forwarder)
 //CHECK: (func $foo
 //CHECK-NEXT: i32.const 0
-//CHECK: call $bar)
-// top-level bar is likewise a 0-forwarder to top-level quux
+//CHECK: call $quux)
+// top-level bar: 0-forwarder body unchanged; unreferenced after chase (DCE'd by wasm-opt)
 //CHECK: (func $bar
 //CHECK-NEXT: i32.const 0
 //CHECK: call $quux)
