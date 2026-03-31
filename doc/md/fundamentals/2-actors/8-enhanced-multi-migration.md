@@ -60,7 +60,7 @@ With enhanced multi-migration, actor variables are not initialized inline. Inste
 
 ```motoko no-repl
 // src/main.mo
-persistent actor {
+actor {
   var name : Text;
   var balance : Nat;
 
@@ -76,6 +76,7 @@ Pass the migration directory to the compiler:
 
 ```bash
 moc --enhanced-orthogonal-persistence \
+    --default-persistent-actors \
     --enhanced-migration ./migrations \
     src/main.mo -o main.wasm
 ```
@@ -96,8 +97,8 @@ For example, given the state `{a : Nat; b : Text; c : Bool}` and a migration:
 
 ```motoko no-repl
 module {
-public func run({ a : Nat; b : Text }) : { a : Int; d : Float }
-    { a = a; d = 1.0 }
+  public func run(old : { a : Nat; b : Text }) : { a : Int; d : Float } {
+    { a = old.a; d = 1.0 }
   }
 }
 ```
@@ -174,8 +175,8 @@ To change the type of a field, read it at its current type and produce it at the
 ```motoko no-repl
 // migrations/20250301_000000_CountToInt.mo
 module {
-  public func run({ count : Nat }) : { count : Int } {
-    { count = count }
+  public func run(old : { count : Nat }) : { count : Int } {
+    { count = old.count }
   }
 }
 ```
@@ -189,8 +190,8 @@ To rename a field, consume the old name and produce the new name:
 ```motoko no-repl
 // migrations/20250401_000000_RenameLabel.mo
 module {
-  public func run({ label : Text }) : { title : Text } {
-    { title = label }
+  public func run(old : { label : Text }) : { title : Text } {
+    { title = old.label }
   }
 }
 ```
@@ -204,7 +205,7 @@ To drop a field entirely, consume it in the input without producing it in the ou
 ```motoko no-repl
 // migrations/20250501_000000_DropEmail.mo
 module {
-  public func run({ email : Text }) : {} 
+  public func run(_ : { email : Text }) : {} {
     {}
   }
 }
@@ -225,8 +226,8 @@ Migrations can perform arbitrary computation. For example, splitting a full name
 import Text "mo:base/Text";
 
 module {
-  public func run({ name : Text } : { name : Text }) : { firstName : Text; lastName : Text } {
-    let parts = Text.split(name, #char ' ');
+  public func run(old : { name : Text }) : { firstName : Text; lastName : Text } {
+    let parts = Text.split(old.name, #char ' ');
     let first = switch (parts.next()) { case (?f) f; case null "" };
     let last = switch (parts.next()) { case (?l) l; case null "" };
     { firstName = first; lastName = last }
@@ -250,7 +251,7 @@ module {
 ```
 
 ```motoko no-repl
-persistent actor {
+actor {
   var a : Nat;
 }
 ```
@@ -269,7 +270,7 @@ module {
 ```
 
 ```motoko no-repl
-persistent actor {
+actor {
   var a : Nat;
   var b : Int;
 }
@@ -282,14 +283,14 @@ State: `{a : Nat; b : Int}`
 ```motoko no-repl
 // migrations/20250301_000000_ChangeBType.mo
 module {
-  public func run({ b : Int }) : { b : Bool } {
-    { b = (b > 0) }
+  public func run(old : { b : Int }) : { b : Bool } {
+    { b = old.b > 0 }
   }
 }
 ```
 
 ```motoko no-repl
-persistent actor {
+actor {
   var a : Nat;
   var b : Bool;
 }
@@ -302,14 +303,14 @@ State: `{a : Nat; b : Bool}`
 ```motoko no-repl
 // migrations/20250401_000000_DropA.mo
 module {
-  public func run({ a : Nat } : { a : Nat }) : {} {
+  public func run(_ : { a : Nat }) : {} {
     {}
   }
 }
 ```
 
 ```motoko no-repl
-persistent actor {
+actor {
   var b : Bool;
 }
 ```
@@ -328,7 +329,7 @@ module {
 ```
 
 ```motoko no-repl
-persistent actor {
+actor {
   var a : Text;
   var b : Bool;
 }
@@ -369,6 +370,7 @@ The first migration in the chain must initialize all required fields. When a can
 
 ```bash
 moc --enhanced-orthogonal-persistence \
+    --default-persistent-actors \
     --enhanced-migration ./migrations \
     actor.mo -o actor.wasm
 ```
