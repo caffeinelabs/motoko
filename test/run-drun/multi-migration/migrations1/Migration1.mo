@@ -12,7 +12,7 @@ module {
     res;
   };
 
-  public func run(
+  public func migration(
     old : {
       var zero : Nat;
       var one : [var Nat];

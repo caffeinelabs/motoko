@@ -767,7 +767,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
           let v_dom = fresh_var "v_dom" dom_k in
           let v_rng = fresh_var "v_rng" rng_k in
           let mod_expr = varE (var (id_of_full_path file_k) mod_typ_k) in
-          let run_expr = dotE mod_expr "run" run_typ_k in
+          let run_expr = dotE mod_expr "migration" run_typ_k in
           let extract_dom =
             objectE T.Object
               (List.map (fun T.{lab=i;typ=t;_} ->

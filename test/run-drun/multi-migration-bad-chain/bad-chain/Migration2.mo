@@ -2,7 +2,7 @@ import Prim "mo:prim";
 
 module {
 
-  public func run(old : { var zero : Nat; var three : [var (Nat, Text)] }) : {
+  public func migration(old : { var zero : Nat; var three : [var (Nat, Text)] }) : {
     var zero : Nat;
     var three : [var (Nat, Text)];
     var four : Text;

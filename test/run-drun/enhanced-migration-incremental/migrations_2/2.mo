@@ -1,6 +1,6 @@
 module {
 
-  public func run(_ : {}) : { b : Int } {
+  public func migration(_ : {}) : { b : Int } {
     {
       b = -5;
     };

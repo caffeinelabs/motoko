@@ -1,6 +1,6 @@
 module {
 
-  public func run(_ : {}) : { a : Nat } {
+  public func migration(_ : {}) : { a : Nat } {
     {
       a = 5;
     };

@@ -3918,11 +3918,11 @@ and infer_migration_chain env at =
            match Type.normalize lib_typ with
              | T.Obj(T.Module, fields, _) as mod_typ ->
                begin
-                 match Type.lookup_val_field_opt "run" fields with
-                 | Some run_typ -> (lib, mod_typ, run_typ) :: acc
-                 | None ->
-                    warn env (region_of_file lib) "M0251"
-                      "migration module does not export a `run` function, skipping";
+                match Type.lookup_val_field_opt "migration" fields with
+                | Some run_typ -> (lib, mod_typ, run_typ) :: acc
+                | None ->
+                   warn env (region_of_file lib) "M0251"
+                     "migration module does not export a `migration` function, skipping";
                     acc
                end
              | _ ->
@@ -3932,7 +3932,7 @@ and infer_migration_chain env at =
      in
      if chain = [] then
        local_error env at "M0251"
-        "--enhanced-migration: no valid migration modules found (migration modules must export a public `run` function)";
+        "--enhanced-migration: no valid migration modules found (migration modules must export a public `migration` function)";
      chain
 
 and infer_migration env obj_sort exp_opt =

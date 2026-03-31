@@ -1,4 +1,4 @@
 module {
     // Introduce field b;
-    public func run(_ : {}) : { b : Bool } { { b = true } };
+    public func migration(_ : {}) : { b : Bool } { { b = true } };
 };

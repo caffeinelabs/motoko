@@ -1,4 +1,4 @@
 module {
     // Introduce a c field.
-    public func run(_ : {}) : { c : Nat } { { c = 99 } };
+    public func migration(_ : {}) : { c : Nat } { { c = 99 } };
 };

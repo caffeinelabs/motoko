@@ -1,4 +1,4 @@
 module {
     // Drop a;
-    public func run(_ : { a : Text }) : {} { {} };
+    public func migration(_ : { a : Text }) : {} { {} };
 };
