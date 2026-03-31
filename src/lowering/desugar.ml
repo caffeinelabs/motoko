@@ -498,7 +498,7 @@ and call_system_func_opt name es obj_typ =
            let timer =
              blockE
                [ expD T.(callE (varE (var id.it note)) [Any]
-                   (varE (var "@set_global_timer" T.global_timer_set_type))) ]
+                   (varE (var "@set_global_timer" global_timer_set_type))) ]
                (unitE()) in
            { timer with at }
         | "heartbeat" ->
@@ -1244,6 +1244,7 @@ and lit = function
   | S.Int32Lit x -> I.Int32Lit x
   | S.Int64Lit x -> I.Int64Lit x
   | S.FloatLit x -> I.FloatLit x
+  | S.Float32Lit x -> I.Float32Lit x
   | S.CharLit x -> I.CharLit x
   | S.TextLit x -> I.TextLit x
   | S.BlobLit x -> I.BlobLit x
@@ -1390,8 +1391,10 @@ and transform_import (i : S.import) : Ir.dec list =
       varE (var (id_of_full_path fp) t)
     | S.PrimPath ->
       varE (var (id_of_full_path "@prim") t)
-    | S.IDLPath (fp, canister_id) ->
+    | S.IDLPath (fp, Either.Right canister_id) ->
       primE (I.ActorOfIdBlob t) [blobE canister_id]
+    | S.IDLPath (fp, Either.Left envvar) ->
+      primE (I.ActorOfIdBlob t) T.[callE (varE (var "@envvar_principal" (Func (Local, Returns, [], [Prim Text], [Prim Blob])))) [] (textE envvar)]
     | S.ImportedValuePath path ->
        if !Mo_config.Flags.blob_import_placeholders then
          raise (Invalid_argument ("blob import placeholder"))

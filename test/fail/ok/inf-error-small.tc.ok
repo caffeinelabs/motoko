@@ -14,7 +14,7 @@ inf-error-small.mo:47.26-47.58: type error [M0233], wrong number of arguments: e
 Expected 1 argument of type:
   (n : Nat)
 But got 3 arguments of type:
-  {map : [(Nat, [var Text])]}
+  Map.Map<Nat, Text> = {map : [(Nat, [var Text])]}
   (n : Nat, m : Nat) -> Order
   Text
 inf-error-small.mo:48.13-48.45: type error [M0096], expression of type
@@ -53,13 +53,13 @@ inf-error-small.mo:60.52-60.58: type error [M0096], expression of type
 cannot produce expected type
   Nat
 inf-error-small.mo:61.39-61.48: type error [M0096], expression of type
-  {map : [(Nat, [var Text])]}
+  Map.Map<Nat, Text> = {map : [(Nat, [var Text])]}
 cannot produce expected type
   (implicit : (Nat, Nat) -> Order)
 inf-error-small.mo:62.38-62.70: type error [M0233], wrong number of arguments: expected 1 but got 3
 Expected 1 argument of type:
   (n : Nat)
 But got 3 arguments of type:
-  {map : [(Nat, [var Text])]}
+  Map.Map<Nat, Text> = {map : [(Nat, [var Text])]}
   (n : Nat, m : Nat) -> Order
   Text

@@ -374,6 +374,7 @@ let type_lit env lit at : T.prim =
   | Int32Lit _ -> T.Int32
   | Int64Lit _ -> T.Int64
   | FloatLit _ -> T.Float
+  | Float32Lit _ -> T.Float32
   | CharLit _ -> T.Char
   | TextLit _ -> T.Text
   | BlobLit _ -> T.Blob

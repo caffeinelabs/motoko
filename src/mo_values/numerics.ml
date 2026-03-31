@@ -200,6 +200,7 @@ struct
 end
 
 module Float = MakeFloat(Wasm.F64)
+module Float32 = MakeFloat(Wasm.F32)
 
 
 module type NumType =

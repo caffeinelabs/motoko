@@ -6,5 +6,6 @@ enhanced-migration/enh-mig-test2/m4.mo:0.1: Compatibility error [M0170], the new
  because the type 
   Float
  is not compatible with type 
-  Text.
+  Text
+ in `a`.
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.

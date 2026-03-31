@@ -11,6 +11,7 @@ let moc_args = Mo_args.inclusion_args
   @ Mo_args.error_args
   @ Mo_args.ai_args
   @ Mo_args.persistent_actors_args
+  @ Mo_args.migration_args
 
 let position_of_pos pos =
   object%js
@@ -392,7 +393,7 @@ let set_actor_aliases entries =
                     let kv = Js.to_array kv in
                     Js.to_string (Array.get kv 0), Js.to_string (Array.get kv 1)) (Js.to_array entries) in
   let aliases = Flags.actor_aliases in
-  aliases := Flags.M.of_seq (Array.to_seq entries)
+  aliases := Flags.M.of_seq (Array.to_seq entries |> Seq.map (fun (k, p) -> k, Either.Right (p, None)))
 
 let set_public_metadata entries =
   let entries = Array.map Js.to_string (Js.to_array entries) in
