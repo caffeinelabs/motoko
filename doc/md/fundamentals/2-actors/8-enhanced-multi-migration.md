@@ -174,7 +174,7 @@ To change the type of a field, read it at its current type and produce it at the
 ```motoko no-repl
 // migrations/20250301_000000_CountToInt.mo
 module {
-  public func run({ count : Nat } : { count : Nat }) : { count : Int } {
+  public func run({ count : Nat }) : { count : Int } {
     { count = count }
   }
 }
