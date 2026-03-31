@@ -5,6 +5,17 @@ let x : Float32 = 41.99;
 let result : Float32 = x % pi32;
 debugPrint (debug_show (float32ToFloat result));
 
+// Nested closure chain: foo_clos -> bar -> quux (quux sunk into bar; bar is a forwarder)
+func foo_clos(a : Float32, b : Float, c : Nat32) : Float {
+  func bar(a : Float32, b : Float, c : Nat32) : Float {
+    func quux(a : Float32, b : Float, _ : Nat32) : Float = if (c != 0) (float32ToFloat a + b) else b;
+    quux(a, b, c)  // bar forwards all its args — no capture of c
+  };
+  bar(a, b, c)  // foo_clos computes c+c and passes it; bar need not capture c
+};
+
+let _ = foo_clos (floatToFloat32 1.0, 2.0, 3);
+
 // Motoko-level forwarding chain: foo -> bar -> quux (3 differently-typed args)
 func quux(a : Float32, b : Float, _c : Nat32) : Float =
   float32ToFloat a + b;
@@ -24,14 +35,25 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //CHECK: (func $baz
 //CHECK: call $quux
 //CHECK-NEXT: f64.load
-// foo is NOT chased: its body passes i32.const 0 (not local.get $clos) as closure arg
+// foo is a 0-forwarder: passes i32.const 0 as closure arg to bar
 //CHECK: (func $foo
 //CHECK-NEXT: i32.const 0
 //CHECK: call $bar)
-// bar likewise
+// top-level bar is likewise a 0-forwarder to top-level quux
 //CHECK: (func $bar
 //CHECK-NEXT: i32.const 0
 //CHECK: call $quux)
+// foo_clos is also a 0-forwarder: delegates entirely to nested bar.1
+//CHECK: (func $foo_clos
+//CHECK-NEXT: i32.const 0
+//CHECK: call $bar.1)
+// nested bar (bar.1): builds quux.1's closure (stores c at offset 13), dispatches via call_indirect
+//CHECK: (func $bar.1
+//CHECK: i32.store offset=13
+//CHECK: call_indirect
+// quux.1 (inner quux): loads captured c from $clos — real closure, NOT a 0-forwarder
+//CHECK: (func $quux.1
+//CHECK: local.get $clos
 // The $fmodf wrapper is still present in the binary (unreferenced; DCE'd by wasm-opt)
 //CHECK: (func $fmodf
 //CHECK-NEXT: local.get 0
