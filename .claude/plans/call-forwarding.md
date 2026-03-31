@@ -144,3 +144,41 @@ Then use `fun_exports2_chased` instead of `fun_exports2` in the `resolve` call.
   `fun_exports2` before the `resolve` step (~20 lines).
 
 No changes needed to `linkModule.mli`, the codegen, or the RTS.
+
+---
+
+## Impedance: Why Motoko-Level Forwarders Are Not Chased
+
+`chase_forwarders` operates on `fun_exports2` — the **RTS module's** exports.
+It does not apply to the moc-generated module (`em1`).  Even if it did, Motoko
+functions compiled by `moc` do **not** match the pure-forwarder pattern, for a
+structural reason: every Motoko function receives an implicit **closure
+pointer** as its first Wasm parameter (`$clos : i32`).
+
+When a Motoko function `foo` forwards to `bar`, the generated body is:
+
+```wat
+(func $foo (param $clos i32) (param $a i32) (param $b i32) (param $c i32) (result i32)
+  i32.const 0      ;; ← fresh null closure, NOT local.get $clos
+  local.get $a
+  local.get $b
+  local.get $c
+  call $bar)
+```
+
+The first argument to `$bar` is `i32.const 0` — a freshly synthesised null
+closure — rather than `local.get 0` (the forwarded `$clos`).  The
+`forwarding_target` pattern requires all arguments to be `local.get i` for
+`i = 0 … n-1`, so this body is correctly rejected as a non-forwarder.
+
+The same structural mismatch applies to `baz` (which additionally has
+post-call work: unboxing + `f64.add`), confirming that both the closure
+substitution and any trailing computation each independently disqualify a
+function from the forwarder check.
+
+### Consequence
+
+`chase_forwarders` is the right tool **only** for the RTS shim layer, where
+functions are plain `#[no_mangle]` Rust wrappers with no closure convention.
+Eliminating Motoko-level call indirections would require a separate,
+closure-aware optimisation pass in the codegen (not the linker).
