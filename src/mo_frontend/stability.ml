@@ -101,7 +101,7 @@ let match_stab_sig sig1 sig2 : unit Diag.result =
   match (sig1, sig2) with 
   (* Applying regular/old migration on top of a program that
   already uses multi-migration is disallowed. *)
-  | (Multi _, PrePost _) | (Multi _, Single _) ->
+  | Multi _,  (PrePost _ |  Single _) ->
     assert (not (Type.match_stab_sig sig1 sig2));
     Diag.with_message_store (fun s ->
       incompat_mix_migrations s Source.no_region;
