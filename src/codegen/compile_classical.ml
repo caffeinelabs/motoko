@@ -13250,12 +13250,12 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
     let fun_sr, fun_code = compile_exp env pre_ae e in
     (match fun_sr with
     | SR.StaticClosure fi ->
-      let (pre_ae1, local_i) = VarEnv.add_direct_local env pre_ae v (SR.StaticClosure fi) typ in
+      let pre_ae1, local_i = VarEnv.add_direct_local env pre_ae v fun_sr typ in
       ( pre_ae1, G.nop,
         (fun _ae -> fun_code ^^ G.i (LocalSet (nr local_i))),
         unmodified )
     | _ ->
-      let (pre_ae1, alloc_code, pre_code, sr, fill_code) = compile_unboxed_pat env pre_ae how pat in
+      let pre_ae1, alloc_code, pre_code, sr, fill_code = compile_unboxed_pat env pre_ae how pat in
       ( pre_ae1, alloc_code,
         (fun ae -> pre_code ^^ compile_exp_as_opt env ae sr e ^^ fill_code),
         unmodified ))
