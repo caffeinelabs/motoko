@@ -56,19 +56,28 @@ The input record describes which stable fields this migration reads from the cur
 
 ### The actor
 
-With enhanced multi-migration, actor variables are not initialized inline. Instead, all stable variable values come from the migration chain. A freshly deployed canister runs through every migration starting from the first one.
+With enhanced multi-migration, stable actor variables are declared **without initializers**. Unlike ordinary `let` and `var` declarations in Motoko, which always require an initializing expression (e.g. `var x : Nat = 0`), an enhanced-migration actor declares only the variable's name and type:
 
 ```motoko no-repl
 // src/main.mo
 actor {
-  var name : Text;
-  var balance : Nat;
+  var name : Text;     // no `= ...` — value comes from the migration chain
+  var balance : Nat;   // likewise
+  let frozen : Bool;   // `let` bindings can also be uninitialized
 
   public func greet() : async Text {
     "Hello, " # name # "! Your balance is " # debug_show balance
   };
 }
 ```
+
+The initial value of each uninitialized variable is determined entirely by the migration chain. When the canister is first deployed, every migration runs in order and the final state provides the values. On subsequent upgrades, only newly added migrations execute, but the result is the same: the migration chain — not the actor source — is the single source of truth for stable variable values.
+
+The compiler rejects any stable variable that carries an initializer when `--enhanced-migration` is enabled. This prevents ambiguity about whether the value comes from the migration chain or from the inline expression.
+
+:::note
+Non-stable declarations (local variables inside functions, private helper fields, etc.) still require initializers as usual. Only stable actor fields use the uninitialized syntax.
+:::
 
 ### Compiling
 
@@ -362,6 +371,7 @@ The first migration in the chain must initialize all required fields. When a can
 - Each migration file must be a module containing a `public func run(...)`.
 - The `--enhanced-migration` flag cannot be combined with the inline `(with migration = ...)` syntax.
 - Enhanced multi-migration requires enhanced orthogonal persistence.
+- Stable actor variables must be declared without initializers (e.g. `var x : Nat`, not `var x : Nat = 0`). The compiler rejects stable variables that carry an initializing expression.
 - The state after each migration (its output merged with carried-through fields) must be compatible with the input of the next migration in the chain. The compiler rejects the program if this is not the case.
 - The final state must be compatible with the actor's declared stable fields.
 - Fields in the last migration's output that are not declared in the actor are rejected by the compiler.
