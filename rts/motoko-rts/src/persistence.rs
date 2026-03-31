@@ -117,7 +117,7 @@ impl PersistentMetadata {
         (*self).weak_ref_registry = NULL_POINTER;
         // Initialize the dedup table as the null pointer.
         (*self).dedup_table = NULL_POINTER;
-        // Initialize the migration functions array as the null pointer.
+        // Initialize the migration functions list as the null pointer.
         (*self).migration_functions = NULL_POINTER;
     }
 }
