@@ -30,7 +30,7 @@ let err env at =
       (if not (env.allow_sys_call) then
          "non-static expression in library, module or migration expression"
        else
-         "non-static expression in actor body compiled with enhanced migration capabilities. Only <system> capabilities allowed for non-static expressions."))
+         "non-static expression in actor body compiled with enhanced migration capabilities."))
 
 let pat_err env at =
   let open Diag in
