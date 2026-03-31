@@ -1775,7 +1775,8 @@ and infer_exp'' env exp : T.typ =
   match exp.it with
   | HoleE (_, e) ->
     (* TODO: this should probably be an assert, not an error *)
-    error env exp.at "M0232" "cannot infer type of implicit argument"
+      error env exp.at "M0232" "cannot infer type of implicit argument"
+  | PrimE "_" -> T.Non
   | PrimE _ ->
     error env exp.at "M0054" "cannot infer type of primitive"
   | VarE id ->
@@ -4267,6 +4268,15 @@ and warn_unit_binding binder env (dec : dec) (exp : exp) =
   let at = Source.{dec.at with right = exp.at.left} in
   warn env at "M0239" "Avoid binding a unit `()` result; remove `%s` and keep the expression" binder
 
+and check_init env exp =
+  (* Check if this is a placeholder for no initializer *)
+  match exp.it with
+  | AnnotE ({it = PrimE "_"; _}, _) ->
+      if Option.is_none env.enhanced_migration || not env.in_actor then
+        error env exp.at "M0250"
+          "variables without initializers are only allowed in actors with --enhanced-migration flag"
+  | _ -> ()
+
 and infer_dec env dec : T.typ =
   let t =
   match dec.it with
@@ -4294,15 +4304,7 @@ and infer_dec env dec : T.typ =
         check_exp env T.Non fail
     );
     let t = infer_exp env exp in
-    (* Check if this is a placeholder for no initializer *)
-    if not env.pre then begin
-      match exp.it with
-      | AnnotE ({it = PrimE "_"; _}, _) when Option.is_some env.enhanced_migration ->
-        if not env.in_actor then
-          error env exp.at "M0250"
-            "variables without initializers are only allowed in actors with --enhanced-migration flag"
-      | _ -> ()
-    end;
+    if not env.pre then check_init env exp;
     if !Flags.typechecker_combine_srcs then
       combine_pat_srcs env t pat;
     if not env.pre && T.is_unit (T.normalize t) then
@@ -4311,13 +4313,7 @@ and infer_dec env dec : T.typ =
   | VarD (id, exp) ->
     if not env.pre then begin
       let t = infer_exp env exp in
-      (* Check if this is a placeholder for no initializer *)
-      (match exp.it with
-       | AnnotE ({it = PrimE "_"; _}, _) when Option.is_some env.enhanced_migration ->
-         if not env.in_actor then
-           error env exp.at "M0250"
-             "variables without initializers are only allowed in actors with --enhanced-migration flag"
-       | _ -> ());
+      check_init env exp;
       if !Flags.typechecker_combine_srcs then
         combine_id_srcs env t id;
       if T.is_unit (T.normalize t) then
