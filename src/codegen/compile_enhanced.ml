@@ -13550,7 +13550,7 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
      then bind the variable with that SR so CallPrim can emit a direct Call
      instead of call_indirect. Safe for non-recursive LetD since the FuncE
      does not reference v itself, and all its captures are already in pre_ae. *)
-  | LetD ({it = VarP v; note = typ; _} as pat, ({it = FuncE _; _} as e))
+  | LetD ({it = VarP v; note = typ; _} as p, ({it = FuncE _; _} as e))
     when not e.note.Note.const
       && AllocHow.(match M.find_opt v how with Some (LocalImmut _) -> true | _ -> false)
       && VarEnv.all_in_scope pre_ae (Freevars.captured e) ->
@@ -13565,7 +13565,7 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
       )
     | _ ->
       (* No static fi (e.g. shared sort) — generic path *)
-      let pre_ae1, alloc_code, pre_code, sr, fill_code = compile_unboxed_pat env pre_ae how pat in
+      let pre_ae1, alloc_code, pre_code, sr, fill_code = compile_unboxed_pat env pre_ae how p in
       ( pre_ae1, alloc_code,
         (fun ae -> pre_code ^^ compile_exp_as_opt env ae sr e ^^ fill_code),
         unmodified

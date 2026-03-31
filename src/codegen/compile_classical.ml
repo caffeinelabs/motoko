@@ -13250,7 +13250,7 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
   (* Special case: non-const LetD binding a FuncE — may yield SR.StaticClosure fi,
      so compile the FuncE eagerly here (with pre_ae) to extract fi before AllocHow
      would fix the local to SR.Vanilla. *)
-  | LetD ({it = VarP v; note = typ; _} as pat, ({it = FuncE _; _} as e))
+  | LetD ({it = VarP v; note = typ; _} as p, ({it = FuncE _; _} as e))
     when not e.note.Note.const
       && AllocHow.(match M.find_opt v how with Some (LocalImmut _) -> true | _ -> false)
       && VarEnv.all_in_scope pre_ae (Freevars.captured e) ->
@@ -13262,7 +13262,7 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
         (fun _ae -> fun_code ^^ G.i (LocalSet (nr local_i))),
         unmodified )
     | _ ->
-      let pre_ae1, alloc_code, pre_code, sr, fill_code = compile_unboxed_pat env pre_ae how pat in
+      let pre_ae1, alloc_code, pre_code, sr, fill_code = compile_unboxed_pat env pre_ae how p in
       ( pre_ae1, alloc_code,
         (fun ae -> pre_code ^^ compile_exp_as_opt env ae sr e ^^ fill_code),
         unmodified ))
