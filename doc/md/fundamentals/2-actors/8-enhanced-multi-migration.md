@@ -189,7 +189,7 @@ To rename a field, consume the old name and produce the new name:
 ```motoko no-repl
 // migrations/20250401_000000_RenameLabel.mo
 module {
-  public func run({ label : Text } : { label : Text }) : { title : Text } {
+  public func run({ label : Text }) : { title : Text } {
     { title = label }
   }
 }
