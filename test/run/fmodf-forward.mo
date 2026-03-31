@@ -9,11 +9,11 @@ debugPrint (debug_show (float32ToFloat result));
 //CHECK: f32.const 0x1.4feb86p+5
 //CHECK-NEXT: f32.const 0x1.921fb6p+1
 //CHECK-NEXT: call $fmodf
-// The $fmodf wrapper is a pure forwarder: local.get 0; local.get 1; call $libm...fmodf...
+// The $fmodf wrapper is a pure forwarder: local.get 0; local.get 1; call $libm...fmodf...) — end of body
 //CHECK: (func $fmodf
 //CHECK-NEXT: local.get 0
 //CHECK-NEXT: local.get 1
-//CHECK-NEXT: call $libm
+//CHECK-NEXT: call $libm{{.*}}){{$}}
 
 //SKIP run-ir
 //SKIP run-low
