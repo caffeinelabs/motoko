@@ -282,7 +282,7 @@ State: `{a : Nat; b : Int}`
 ```motoko no-repl
 // migrations/20250301_000000_ChangeBType.mo
 module {
-  public func run({ b : Int } : { b : Int }) : { b : Bool } {
+  public func run({ b : Int }) : { b : Bool } {
     { b = (b > 0) }
   }
 }
