@@ -63,7 +63,7 @@ struct PersistentMetadata {
     /// We keep a pointer to this here so that we can keep if alive across upgrades.
     /// To keep the dedup table live, we need to add it to roots as well.
     dedup_table: Value,
-    /// Migration function hashes array. This stores an array of the the hashes (strings) of the migration functions.
+    /// Migration function list. This is an RTS root that holds the head of a linked list of the the names (strings) of the migration functions.
     /// This is for the purpose of multi-migration tracking such that a single migration function
     /// cannot be executed multiple times, removing the risk of data loss.
     migration_functions: Value,
