@@ -13252,7 +13252,7 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
      would fix the local to SR.Vanilla. *)
   | LetD (({it = VarP v; note = typ; _} as pat), ({it = FuncE _; _} as e))
     when not e.note.Note.const
-      && (match AllocHow.M.find_opt v how with Some (AllocHow.LocalImmut _) -> true | _ -> false)
+      && AllocHow.(match M.find_opt v how with Some (LocalImmut _) -> true | _ -> false)
       && VarEnv.all_in_scope pre_ae (Freevars.captured e) ->
     let fun_sr, fun_code = compile_exp env pre_ae e in
     (match fun_sr with
