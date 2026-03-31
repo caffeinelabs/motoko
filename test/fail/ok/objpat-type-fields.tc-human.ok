@@ -18,7 +18,7 @@ error[M0051]: duplicate definition for type N in block
  40 │    let { type N; type N } = x;
     │                       ^ 
 error[M0119]: object type field U is not contained in expected type
-  module {type N = Nat; Z : Nat}
+  L1 = module {type N = Nat; Z : Nat}
     ┌─ objpat-type-fields.mo:45:9
  45 │    let { type U } = x;
     │          ^^^^^^ 

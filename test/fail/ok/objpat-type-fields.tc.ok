@@ -6,6 +6,6 @@ does not match parameter bound
 objpat-type-fields.mo:32.8-32.44: type error [M0189], mismatched types for type N in patterns
 objpat-type-fields.mo:40.22-40.23: type error [M0051], duplicate definition for type N in block
 objpat-type-fields.mo:45.9-45.15: type error [M0119], object type field U is not contained in expected type
-  module {type N = Nat; Z : Nat}
+  L1 = module {type N = Nat; Z : Nat}
 objpat-type-fields.mo:54.8-54.44: type error [M0189], mismatched types for type N in patterns
 objpat-type-fields.mo:62.8-62.37: type error [M0189], different set of type bindings in pattern alternatives

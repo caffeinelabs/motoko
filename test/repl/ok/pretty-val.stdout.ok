@@ -285,72 +285,19 @@ Motoko compiler (source XXX)
 > let o5 : ?????Nat = ?(?(?(?(?666))))
 >         type c<T, U> = {type List<T_1> = ?(T_1, List<T_1>); A : T; B : U}
 let c : <T, U>(x : T, y : U) -> c<T, U> = <func>
-> let c1 :
-  {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}} =
-  {A = #A; B = #B}
+> let c1 : c<{#A}, {#B}> = {A = #A; B = #B}
 > let c2 :
-  {
-    type List<T> = ?(T, List<T>);
-    A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-    B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-  } =
+  c<c<{#A}, {#B}>, c<{#A}, {#B}>> =
   {A = {A = #A; B = #B}; B = {A = #A; B = #B}}
 > let c3 :
-  {
-    type List<T> = ?(T, List<T>);
-    A :
-      {
-        type List<T> = ?(T, List<T>);
-        A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-        B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-      };
-    B :
-      {
-        type List<T> = ?(T, List<T>);
-        A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-        B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-      }
-  } =
+  c<c<c<{#A}, {#B}>, c<{#A}, {#B}>>, c<c<{#A}, {#B}>, c<{#A}, {#B}>>> =
   {
     A = {A = {A = #A; B = #B}; B = {A = #A; B = #B}};
     B = {A = {A = #A; B = #B}; B = {A = #A; B = #B}}
   }
 > let c4 :
-  {
-    type List<T> = ?(T, List<T>);
-    A :
-      {
-        type List<T> = ?(T, List<T>);
-        A :
-          {
-            type List<T> = ?(T, List<T>);
-            A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-            B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-          };
-        B :
-          {
-            type List<T> = ?(T, List<T>);
-            A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-            B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-          }
-      };
-    B :
-      {
-        type List<T> = ?(T, List<T>);
-        A :
-          {
-            type List<T> = ?(T, List<T>);
-            A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-            B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-          };
-        B :
-          {
-            type List<T> = ?(T, List<T>);
-            A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-            B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-          }
-      }
-  } =
+  c<c<c<c<{#A}, {#B}>, c<{#A}, {#B}>>, c<c<{#A}, {#B}>, c<{#A}, {#B}>>>,
+     c<c<c<{#A}, {#B}>, c<{#A}, {#B}>>, c<c<{#A}, {#B}>, c<{#A}, {#B}>>>> =
   {
     A =
       {
@@ -364,81 +311,10 @@ let c : <T, U>(x : T, y : U) -> c<T, U> = <func>
       }
   }
 > let c5 :
-  {
-    type List<T> = ?(T, List<T>);
-    A :
-      {
-        type List<T> = ?(T, List<T>);
-        A :
-          {
-            type List<T> = ?(T, List<T>);
-            A :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              };
-            B :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              }
-          };
-        B :
-          {
-            type List<T> = ?(T, List<T>);
-            A :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              };
-            B :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              }
-          }
-      };
-    B :
-      {
-        type List<T> = ?(T, List<T>);
-        A :
-          {
-            type List<T> = ?(T, List<T>);
-            A :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              };
-            B :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              }
-          };
-        B :
-          {
-            type List<T> = ?(T, List<T>);
-            A :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              };
-            B :
-              {
-                type List<T> = ?(T, List<T>);
-                A : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}};
-                B : {type List<T> = ?(T, List<T>); A : {#A}; B : {#B}}
-              }
-          }
-      }
-  } =
+  c<c<c<c<c<{#A}, {#B}>, c<{#A}, {#B}>>, c<c<{#A}, {#B}>, c<{#A}, {#B}>>>,
+       c<c<c<{#A}, {#B}>, c<{#A}, {#B}>>, c<c<{#A}, {#B}>, c<{#A}, {#B}>>>>,
+     c<c<c<c<{#A}, {#B}>, c<{#A}, {#B}>>, c<c<{#A}, {#B}>, c<{#A}, {#B}>>>,
+        c<c<c<{#A}, {#B}>, c<{#A}, {#B}>>, c<c<{#A}, {#B}>, c<{#A}, {#B}>>>>> =
   {
     A =
       {

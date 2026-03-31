@@ -1,14 +1,14 @@
 error[M0072]: field x does not exist in type:
-  {
-    a : {#a};
-    b : {#b};
-    c : {#c};
-    d : {#d};
-    e : {#e};
-    f : {#f};
-    g : {#g};
-    h : {#h}
-  }
+  R1 = {
+         a : {#a};
+         b : {#b};
+         c : {#c};
+         d : {#d};
+         e : {#e};
+         f : {#f};
+         g : {#g};
+         h : {#h}
+       }
     ┌─ dot-errors.mo:14:28
  14 │  func f (r : R1) : {#x} { r.x }; // unfolds R1
     │                             ^ 
