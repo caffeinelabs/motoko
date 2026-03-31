@@ -241,8 +241,13 @@ let zero_forwarder_target (funcs : func array) (types : Wasm_exts.Types.func_typ
           eat_args (n - 1) rest
         | _ -> []
       in
+      let is_null_clos = function
+        | Const { it = Wasm_exts.Values.I32 0l; _ }
+        | Const { it = Wasm_exts.Values.I64 0L; _ } -> true
+        | _ -> false
+      in
       match f.it.locals, body_its with
-      | [], Const { it = Wasm_exts.Values.I32 0l; _ } :: rest ->
+      | [], hd :: rest when is_null_clos hd ->
         (match eat_args (param_count - 1) rest with
          | [Call k] -> Some k.it
          | _ -> None)
@@ -1106,7 +1111,8 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
               let clos_pos = i - param_count in
               if clos_pos >= 0 then
                 (match arr.(clos_pos).it with
-                 | Const { it = Wasm_exts.Values.I32 0l; _ } ->
+                 | Const { it = Wasm_exts.Values.I32 0l; _ }
+                 | Const { it = Wasm_exts.Values.I64 0L; _ } ->
                    arr.(i) <- { arr.(i) with it = Call { k with it = Hashtbl.find zero_fwds fi } };
                    changed := true;
                    any_changed := true
