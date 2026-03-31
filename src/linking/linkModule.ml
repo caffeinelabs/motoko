@@ -215,8 +215,8 @@ let forwarding_target (funcs : func array) (types : Wasm_exts.Types.func_type li
         eat_args (n - 1) rest
       | _ -> []
     in
-    match f.it.locals, eat_args param_count body_its with
-    | [], [Call k] -> Some k.it
+    match eat_args param_count body_its with
+    | [Call k] | [Call k; Return] -> Some k.it
     | _ -> None
 
 (* True iff body is: Const (I32 0); LocalGet 1 … LocalGet n-1; Call k
