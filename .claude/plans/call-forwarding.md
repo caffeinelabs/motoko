@@ -180,5 +180,63 @@ function from the forwarder check.
 
 `chase_forwarders` is the right tool **only** for the RTS shim layer, where
 functions are plain `#[no_mangle]` Rust wrappers with no closure convention.
-Eliminating Motoko-level call indirections would require a separate,
-closure-aware optimisation pass in the codegen (not the linker).
+Eliminating Motoko-level call indirections requires a closure-aware extension
+described below.
+
+---
+
+## Future Work: 0-Forwarder Chase for Motoko-Level Indirections
+
+### Definition
+
+A **0-forwarder** is a function whose body is exactly:
+
+```wat
+i32.const 0      ;; fresh null closure (not local.get $clos)
+local.get 1
+local.get 2
+…
+local.get n-1
+call $k
+```
+
+i.e. it is a pure forwarder except that it substitutes a null closure for
+the received `$clos`.  This is precisely what `moc` emits for a Motoko
+function that simply delegates to another top-level function.
+
+### Matching call sites
+
+A call site **matches** a 0-forwarder `$foo` when it supplies `i32.const 0`
+as the closure argument:
+
+```wat
+i32.const 0      ;; ← already the null closure $k will need
+<a1>
+<a2>
+…
+call $foo        ;; $foo is a 0-forwarder to $k
+```
+
+Because the call site already carries the correct closure value (`0`), the
+intermediate `$foo` can be skipped: replace `call $foo` with `call $k`.  The
+`i32.const 0` remains in place and becomes `$k`'s closure directly.  No
+argument rewriting is required.
+
+### Safety
+
+The replacement is safe only at call sites that supply `i32.const 0`.  A
+hypothetical call site passing a real non-null closure to `$foo` must be left
+alone (`$foo` would have discarded it and passed `0` to `$k`; a direct `call
+$k` would expose the non-null closure to `$k`, changing semantics).  In
+practice `moc` consistently generates `i32.const 0` for every call to a
+top-level Motoko function, so every call site matches.
+
+### Implementation sketch
+
+1. **`zero_forwarder_target`** — variant of `forwarding_target` that accepts
+   `i32.const 0; local.get 1 … n-1; call k` instead of `local.get 0 … n-1; call k`.
+2. **Build a map** `zero_fwds : int32 → int32` over `em1`'s defined functions.
+3. **Body rewriter** — scan every instruction list in `em1`; when a `call fi`
+   is found where `fi ∈ zero_fwds` and the preceding instruction (at the right
+   stack depth) is `i32.const 0`, replace `call fi` with `call zero_fwds[fi]`.
+4. Run to **fixpoint** to handle chains (`foo → bar → quux`).
