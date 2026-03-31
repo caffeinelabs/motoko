@@ -11605,7 +11605,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
       | SR.StaticClosure fi, Type.Local ->
          (* Capturing closure with statically-known function index: direct call *)
          let (set_clos, get_clos) = new_local env "clos" in
-
          StackRep.of_arity return_arity,
          code1 ^^ set_clos ^^
          get_clos ^^
