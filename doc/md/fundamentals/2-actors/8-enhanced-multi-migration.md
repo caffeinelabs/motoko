@@ -96,7 +96,7 @@ For example, given the state `{a : Nat; b : Text; c : Bool}` and a migration:
 
 ```motoko no-repl
 module {
-  public func run({ a : Nat; b : Text } : { a : Nat; b : Text }) : { a : Int; d : Float } {
+public func run({ a : Nat; b : Text }) : { a : Int; d : Float }
     { a = a; d = 1.0 }
   }
 }
