@@ -2639,7 +2639,7 @@ let rec match_stab_sig sig1 sig2 =
   match (sig1, sig2) with 
   (* Applying regular/old migration on top of a program that
   already uses multi-migration is disallowed. *)
-  | (Multi _, PrePost _) | (Multi _, Single _) ->
+  | Multi _,  (PrePost _ |  Single _) ->
     false
   | _ ->
     let post_tfs1, mig_lab_opt = post sig1 in
