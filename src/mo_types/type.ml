@@ -2642,9 +2642,15 @@ let mem_typ_of_pre pre =
       [])
 
 let rec match_stab_sig sig1 sig2 =
-  let post_tfs1, mig_lab_opt = post sig1 in
-  let pre_tfs2 = pre mig_lab_opt sig2 in
-  match_stab_fields post_tfs1 pre_tfs2
+  match (sig1, sig2) with 
+  (* Applying regular/old migration on top of a program that
+  already uses multi-migration is disallowed. *)
+  | Multi _,  (PrePost _ |  Single _) ->
+    false
+  | _ ->
+    let post_tfs1, mig_lab_opt = post sig1 in
+    let pre_tfs2 = pre mig_lab_opt sig2 in
+    match_stab_fields post_tfs1 pre_tfs2
 
 and match_stab_fields tfs1 tfs2 =
   (* Assume that tfs1 and tfs2 are sorted. *)
