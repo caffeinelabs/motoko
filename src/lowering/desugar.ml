@@ -305,7 +305,7 @@ and exp' at note = function
   | S.LoopE (e1, opt_e2, flags) ->
     (match desugar_loop_flags at note e1 flags (fun e1 -> S.LoopE (e1, opt_e2, flags)) with
     | `Rec e -> exp' at note e
-    | `Body e1 -> 
+    | `Body e1 ->
       match opt_e2 with
       | None -> I.LoopE (exp e1)
       | Some e2 -> (loopWhileE (exp e1) (exp e2)).it)
@@ -823,7 +823,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
       I.{pre = mem_ty; post = mem_ty},
       (ifE (is_migration_non_null ())
         (primE (Ir.OtherPrim "trap")
-          [textE "cannot apply regular migration on top of enhanced migration"])
+          [textE "cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration"])
         (primE (I.ICStableRead mem_ty) []) (* as before *))
     | Some exp0 ->
       let typ = let _, tfs = T.as_obj_sub [T.migration_lab] exp0.note.Note.typ in
@@ -841,7 +841,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
       T.PrePost (stab_fields_pre, stab_fields),
       I.{pre = mem_ty_pre; post = mem_ty},
       ifE (primE (I.OtherPrim "rts_in_upgrade") [])
-        (* 
+        (*
           if we're trying to apply a regular migration (with migration = fn), but the RTS
           holds a non-null pointer to a list of applied migrations for enhanced migration,
           in other words, trying to apply a regular migration on top of an existing enhanced migration,
@@ -849,9 +849,8 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
         *)
         (ifE (is_migration_non_null ())
           (primE (Ir.OtherPrim "trap")
-            [textE "cannot apply regular migration on top of enhanced migration"])
-        
-        (* The regular path: in upgrade, apply migration *) 
+            [textE "cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration"])
+        (* The regular path: in upgrade, apply migration *)
         (blockE [
             letD v (primE (I.ICStableRead mem_ty_pre) []);
             letD v_dom

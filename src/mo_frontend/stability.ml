@@ -93,12 +93,12 @@ let match_stab_fields s at mig_lab_opt tfs1 tfs2 =
 
 let incompat_mix_migrations s at =
   Diag.add_msg s
-    (Diag.error_message at "M0254" cat
-        (Format.asprintf "cannot upgrade from a program with enhanced migration to a program using regular or no migration. Please see %s."
+    (Diag.error_message at "M0255" cat
+        (Format.asprintf "cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration. Please see %s."
         migration_link))
-      
+
 let match_stab_sig sig1 sig2 : unit Diag.result =
-  match (sig1, sig2) with 
+  match (sig1, sig2) with
   (* Applying regular/old migration on top of a program that
   already uses multi-migration is disallowed. *)
   | Multi _,  (PrePost _ |  Single _) ->
