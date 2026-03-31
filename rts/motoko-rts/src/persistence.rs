@@ -375,19 +375,19 @@ pub(crate) unsafe fn set_dedup_table_ptr<M: Memory>(mem: &mut M, dedup_table: Va
     write_with_barrier(mem, &mut (*metadata).dedup_table, dedup_table);
 }
 
-/// Accessor method for the migration functions array.
+/// Accessor method for the migration functions list.
 pub(crate) unsafe fn get_migration_functions_ptr() -> &'static mut Value {
     let metadata = PersistentMetadata::get();
     &mut (*metadata).migration_functions
 }
 
-/// Setter method for the migration functions array.
+/// Setter method for the migration functions list.
 pub(crate) unsafe fn set_migration_functions_ptr<M: Memory>(
     mem: &mut M,
     migration_functions: Value,
 ) {
     let metadata = PersistentMetadata::get();
-    // Use barrier in case the migration functions array is set during a GC phase.
+    // Use barrier in case the migration functions list is set during a GC phase.
     write_with_barrier(
         mem,
         &mut (*metadata).migration_functions,
