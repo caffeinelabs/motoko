@@ -14,7 +14,7 @@ With enhanced multi-migration you:
 
 1. Create a `migrations/` directory alongside your actor source.
 2. Add one `.mo` file per migration, named with a timestamp prefix so they sort chronologically.
-3. Each migration module exports a `public func run({...}) : {...}` that transforms a subset of stable fields.
+3. Each migration module exports a `public func migration({...}) : {...}` that transforms a subset of stable fields.
 4. Pass `--enhanced-migration ./migrations` to `moc` when compiling.
 
 The compiler reads all migration modules in lexicographic order, checks that they compose correctly, and compiles them into the actor. At runtime, only migrations that have not yet been applied are executed — already-applied migrations are skipped automatically.
@@ -41,12 +41,12 @@ my-canister/
 
 ### Writing a migration module
 
-Each migration module must export a `public func run` that takes a record of input fields and returns a record of output fields:
+Each migration module must export a `public func migration` that takes a record of input fields and returns a record of output fields:
 
 ```motoko no-repl
 // migrations/20250101_000000_Init.mo
 module {
-  public func run(_ : {}) : { name : Text; balance : Nat } {
+  public func migration(_ : {}) : { name : Text; balance : Nat } {
     { name = ""; balance = 0 }
   }
 }
@@ -83,7 +83,7 @@ moc --enhanced-orthogonal-persistence \
 
 ## Input and output fields
 
-Each migration's `run` function declares which fields it reads (input) and which fields it produces (output). The relationship between input and output fields determines what happens to the state:
+Each migration's `migration` function declares which fields it reads (input) and which fields it produces (output). The relationship between input and output fields determines what happens to the state:
 
 - **Input and output** — the migration transforms this field. It reads the old value and produces a new one, potentially with a different type. The output value replaces the old one in the state.
 
@@ -97,7 +97,7 @@ For example, given the state `{a : Nat; b : Text; c : Bool}` and a migration:
 
 ```motoko no-repl
 module {
-  public func run(old : { a : Nat; b : Text }) : { a : Int; d : Float } {
+  public func migration(old : { a : Nat; b : Text }) : { a : Int; d : Float } {
     { a = old.a; d = 1.0 }
   }
 }
@@ -147,7 +147,7 @@ The first migration in every chain initializes the actor's fields. Its input is 
 ```motoko no-repl
 // migrations/20250101_000000_Init.mo
 module {
-  public func run(_ : {}) : { count : Nat; header : Text } {
+  public func migration(_ : {}) : { count : Nat; header : Text } {
     { count = 0; header = "default" }
   }
 }
@@ -160,7 +160,7 @@ To add a new field, write a migration with an empty (or minimal) input that prod
 ```motoko no-repl
 // migrations/20250201_000000_AddEmail.mo
 module {
-  public func run(_ : {}) : { email : Text } {
+  public func migration(_ : {}) : { email : Text } {
     { email = "" }
   }
 }
@@ -175,7 +175,7 @@ To change the type of a field, read it at its current type and produce it at the
 ```motoko no-repl
 // migrations/20250301_000000_CountToInt.mo
 module {
-  public func run(old : { count : Nat }) : { count : Int } {
+  public func migration(old : { count : Nat }) : { count : Int } {
     { count = old.count }
   }
 }
@@ -190,7 +190,7 @@ To rename a field, consume the old name and produce the new name:
 ```motoko no-repl
 // migrations/20250401_000000_RenameHeader.mo
 module {
-  public func run(old : { header : Text }) : { title : Text } {
+  public func migration(old : { header : Text }) : { title : Text } {
     { title = old.header }
   }
 }
@@ -205,7 +205,7 @@ To drop a field entirely, consume it in the input without producing it in the ou
 ```motoko no-repl
 // migrations/20250501_000000_DropEmail.mo
 module {
-  public func run(_ : { email : Text }) : {} {
+  public func migration(_ : { email : Text }) : {} {
     {}
   }
 }
@@ -226,7 +226,7 @@ Migrations can perform arbitrary computation. For example, splitting a full name
 import Text "mo:base/Text";
 
 module {
-  public func run(old : { name : Text }) : { firstName : Text; lastName : Text } {
+  public func migration(old : { name : Text }) : { firstName : Text; lastName : Text } {
     let parts = Text.split(old.name, #char ' ');
     let first = switch (parts.next()) { case (?f) f; case null "" };
     let last = switch (parts.next()) { case (?l) l; case null "" };
@@ -244,7 +244,7 @@ Here is how an actor's state might evolve across several deployments:
 ```motoko no-repl
 // migrations/20250101_000000_Init.mo
 module {
-  public func run(_ : {}) : { a : Nat } {
+  public func migration(_ : {}) : { a : Nat } {
     { a = 0 }
   }
 }
@@ -263,7 +263,7 @@ State: `{a : Nat}`
 ```motoko no-repl
 // migrations/20250201_000000_AddB.mo
 module {
-  public func run(_ : {}) : { b : Int } {
+  public func migration(_ : {}) : { b : Int } {
     { b = 0 }
   }
 }
@@ -283,7 +283,7 @@ State: `{a : Nat; b : Int}`
 ```motoko no-repl
 // migrations/20250301_000000_ChangeBType.mo
 module {
-  public func run(old : { b : Int }) : { b : Bool } {
+  public func migration(old : { b : Int }) : { b : Bool } {
     { b = old.b > 0 }
   }
 }
@@ -303,7 +303,7 @@ State: `{a : Nat; b : Bool}`
 ```motoko no-repl
 // migrations/20250401_000000_DropA.mo
 module {
-  public func run(_ : { a : Nat }) : {} {
+  public func migration(_ : { a : Nat }) : {} {
     {}
   }
 }
@@ -322,7 +322,7 @@ State: `{b : Bool}`
 ```motoko no-repl
 // migrations/20250501_000000_AddAText.mo
 module {
-  public func run(_ : {}) : { a : Text } {
+  public func migration(_ : {}) : { a : Text } {
     { a = "" }
   }
 }
@@ -359,7 +359,7 @@ The first migration in the chain must initialize all required fields. When a can
 
 ## Restrictions
 
-- Each migration file must be a module containing a `public func run(...)`.
+- Each migration file must be a module containing a `public func migration(...)`.
 - The `--enhanced-migration` flag cannot be combined with the inline `(with migration = ...)` syntax.
 - Enhanced multi-migration requires enhanced orthogonal persistence.
 - The state after each migration (its output merged with carried-through fields) must be compatible with the input of the next migration in the chain. The compiler rejects the program if this is not the case.

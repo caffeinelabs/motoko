@@ -1,4 +1,4 @@
 module {
     // Introduce field a.
-    public func run(_ : {}) : { a : Text } { { a = "bla bla" } };
+    public func migration(_ : {}) : { a : Text } { { a = "bla bla" } };
 };

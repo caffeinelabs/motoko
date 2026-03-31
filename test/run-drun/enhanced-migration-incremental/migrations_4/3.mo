@@ -1,6 +1,6 @@
 module {
 
-  public func run(old : { b : Int }) : { b : Bool } {
+  public func migration(old : { b : Int }) : { b : Bool } {
     {
       b = old.b > 5;
     };

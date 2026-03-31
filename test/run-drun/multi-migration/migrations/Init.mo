@@ -1,6 +1,6 @@
 module {
 
-  public func run(_ : {}) : {
+  public func migration(_ : {}) : {
     var zero : Nat;
     var one : [var Nat];
     var two : [var Text];
