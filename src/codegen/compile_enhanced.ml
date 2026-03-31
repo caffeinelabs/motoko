@@ -11607,9 +11607,6 @@ and compile_prim_invocation (env : E.t) ae p es at =
             if this fires, a statically-known function escaped const-propagation
             and will be called via call_indirect instead of a direct Call. *)
          assert (match fun_sr with SR.Const (Const.Fun _) -> false | _ -> true);
-         let fi_opt = match fun_sr with
-           | SR.StaticClosure fi -> Some fi
-           | _ -> None in
          let (set_clos, get_clos) = new_local env "clos" in
 
          StackRep.of_arity return_arity,
@@ -11618,11 +11615,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
          get_clos ^^
          Closure.prepare_closure_call env ^^
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^
-         (match fi_opt with
-          | Some fi ->
+         (match fun_sr with
+          | SR.StaticClosure fi ->
             G.i (Call (nr fi)) ^^
             FakeMultiVal.load env (Lib.List.make return_arity I64Type)
-          | None ->
+          | _ ->
             get_clos ^^
             Closure.call_closure env n_args return_arity)
       | _, Type.Shared _ ->

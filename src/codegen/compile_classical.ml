@@ -297,6 +297,9 @@ module SR = struct
     | UnboxedFloat32
     | Unreachable
     | Const of Const.t
+    (* Closure pointer on stack; function index fi is statically known.
+       Adjust to Vanilla is a no-op (same i32 on stack). *)
+    | StaticClosure of int32
 
   let unit = UnboxedTuple 0
 
@@ -323,6 +326,7 @@ module SR = struct
     | UnboxedWord32 _ -> I32Type
     | UnboxedFloat64 -> F64Type
     | UnboxedFloat32 -> F32Type
+    | StaticClosure _ -> I32Type
     | UnboxedTuple n -> fatal "to_var_type: UnboxedTuple"
     | Const _ -> fatal "to_var_type: Const"
     | Unreachable -> fatal "to_var_type: Unreachable"
@@ -9198,6 +9202,7 @@ module StackRep = struct
     | UnboxedWord32 _ -> [I32Type]
     | UnboxedFloat64 -> [F64Type]
     | UnboxedFloat32 -> [F32Type]
+    | StaticClosure _ -> [I32Type]
     | UnboxedTuple n -> Lib.List.make n I32Type
     | Const _ -> []
     | Unreachable -> []
@@ -9208,6 +9213,7 @@ module StackRep = struct
     | UnboxedWord32 pty -> prim_fun_name pty "UnboxedWord32"
     | UnboxedFloat64 -> "UnboxedFloat64"
     | UnboxedFloat32 -> "UnboxedFloat32"
+    | StaticClosure fi -> Printf.sprintf "StaticClosure %ld" fi
     | UnboxedTuple n -> Printf.sprintf "UnboxedTuple %d" n
     | Unreachable -> "Unreachable"
     | Const _ -> "Const"
@@ -9220,6 +9226,10 @@ module StackRep = struct
     | Const _, Const _ -> Vanilla
     | Const _, sr2_ -> sr2
     | sr1, Const _ -> sr1
+
+    | StaticClosure fi1, StaticClosure fi2 when fi1 = fi2 -> sr1
+    | StaticClosure _, Vanilla | Vanilla, StaticClosure _ -> Vanilla
+    | StaticClosure _, _ | _, StaticClosure _ -> Vanilla
 
     | _, Vanilla -> Vanilla
     | Vanilla, _ -> Vanilla
@@ -9234,7 +9244,7 @@ module StackRep = struct
 
   let drop env (sr_in : t) =
     match sr_in with
-    | Vanilla | UnboxedWord64 _ | UnboxedWord32 _ | UnboxedFloat64 | UnboxedFloat32 -> G.i Drop
+    | Vanilla | UnboxedWord64 _ | UnboxedWord32 _ | UnboxedFloat64 | UnboxedFloat32 | StaticClosure _ -> G.i Drop
     | UnboxedTuple n -> G.table n (fun _ -> G.i Drop)
     | Const _ | Unreachable -> G.nop
 
@@ -9322,6 +9332,8 @@ module StackRep = struct
 
     | UnboxedFloat64, UnboxedFloat32 -> G.i (Convert (Wasm.Values.F32 F32Op.DemoteF64))
     | UnboxedFloat32, UnboxedFloat64 -> G.i (Convert (Wasm.Values.F64 F64Op.PromoteF32))
+
+    | StaticClosure _, Vanilla -> G.nop (* same i32 closure ptr on stack *)
 
     | Const (_, Const.Lit (Const.Bool b)), Vanilla -> Bool.lit b
     | Const c, Vanilla -> compile_unboxed_const (materialize_const_t env c)
@@ -9814,7 +9826,7 @@ module FuncDec = struct
 
       if is_local
       then
-        SR.Vanilla,
+        SR.StaticClosure fi,
         code ^^
         get_clos
       else assert false (* no first class shared functions *)
@@ -11264,8 +11276,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
          get_clos ^^
          Closure.prepare_closure_call env ^^
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^
-         get_clos ^^
-         Closure.call_closure env n_args return_arity
+         (match fun_sr with
+          | SR.StaticClosure fi ->
+            G.i (Call (nr fi)) ^^
+            FakeMultiVal.load env (Lib.List.make return_arity I32Type)
+          | _ ->
+            get_clos ^^
+            Closure.call_closure env n_args return_arity)
       | _, Type.Shared _ ->
          (* Non-one-shot functions have been rewritten in async.ml *)
          assert (control = Type.Returns);
@@ -13220,6 +13237,23 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
       G.(extend pre_ae, nop, (fun ae -> fill env ae; nop), unmodified)
     else (* refuted *)
       (pre_ae, G.nop, (fun _ -> PatCode.patternFailTrap env), unmodified)
+
+  (* Special case: non-const LetD binding a FuncE — may yield SR.StaticClosure fi,
+     so compile the FuncE eagerly here (with pre_ae) to extract fi before AllocHow
+     would fix the local to SR.Vanilla. *)
+  | LetD ({it = VarP v; note = typ; _}, ({it = FuncE _; _} as e)) when not e.note.Note.const ->
+    let fun_sr, fun_code = compile_exp env pre_ae e in
+    (match fun_sr with
+    | SR.StaticClosure fi ->
+      let (pre_ae1, local_i) = VarEnv.add_direct_local env pre_ae v (SR.StaticClosure fi) typ in
+      ( pre_ae1, G.nop,
+        (fun _ae -> fun_code ^^ G.i (LocalSet (nr local_i))),
+        unmodified )
+    | _ ->
+      let (pre_ae1, alloc_code, pre_code, sr, fill_code) = compile_unboxed_pat env pre_ae how (Source.({it = VarP v; at = e.at; note = typ})) in
+      ( pre_ae1, alloc_code,
+        (fun ae -> pre_code ^^ compile_exp_as_opt env ae sr e ^^ fill_code),
+        unmodified ))
 
   | LetD (p, e) ->
     let (pre_ae1, alloc_code, pre_code, sr, fill_code) = compile_unboxed_pat env pre_ae how p in
