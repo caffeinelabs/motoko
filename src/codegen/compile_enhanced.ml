@@ -11602,8 +11602,19 @@ and compile_prim_invocation (env : E.t) ae p es at =
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^ (* the args *)
          G.i (Call (nr (mk_fi()))) ^^
          FakeMultiVal.load env (Lib.List.make return_arity I64Type)
+      | SR.StaticClosure fi, Type.Local ->
+         (* Capturing closure with statically-known function index: direct call *)
+         let (set_clos, get_clos) = new_local env "clos" in
+
+         StackRep.of_arity return_arity,
+         code1 ^^ set_clos ^^
+         get_clos ^^
+         Closure.prepare_closure_call env ^^
+         compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^
+         G.i (Call (nr fi)) ^^
+         FakeMultiVal.load env (Lib.List.make return_arity I64Type)
       | _, Type.Local ->
-         (* SR.Const (_, Const.Fun _) must have been caught above;
+         (* SR.Const (Const.Fun _) must have been caught above;
             if this fires, a statically-known function escaped const-propagation
             and will be called via call_indirect instead of a direct Call. *)
          assert (match fun_sr with SR.Const (Const.Fun _) -> false | _ -> true);
@@ -11615,13 +11626,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
          get_clos ^^
          Closure.prepare_closure_call env ^^
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^
-         (match fun_sr with
-          | SR.StaticClosure fi ->
-            G.i (Call (nr fi)) ^^
-            FakeMultiVal.load env (Lib.List.make return_arity I64Type)
-          | _ ->
-            get_clos ^^
-            Closure.call_closure env n_args return_arity)
+         get_clos ^^
+         Closure.call_closure env n_args return_arity
       | _, Type.Shared _ ->
          (* Non-one-shot functions have been rewritten in async.ml *)
          assert (control = Type.Returns);
@@ -13541,7 +13547,7 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
      then bind the variable with that SR so CallPrim can emit a direct Call
      instead of call_indirect. Safe for non-recursive LetD since the FuncE
      does not reference v itself, and all its captures are already in pre_ae. *)
-  | LetD ({it = VarP v; note = typ; _}, ({it = FuncE _; _} as e)) when not e.note.Note.const ->
+  | LetD (({it = VarP v; note = typ; _} as pat), ({it = FuncE _; _} as e)) when not e.note.Note.const ->
     let fun_sr, fun_code = compile_exp env pre_ae e in
     (match fun_sr with
     | SR.StaticClosure fi ->
@@ -13553,7 +13559,7 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
       )
     | _ ->
       (* No static fi (e.g. shared sort) — generic path *)
-      let (pre_ae1, alloc_code, pre_code, sr, fill_code) = compile_unboxed_pat env pre_ae how (Source.({it = VarP v; at = e.at; note = typ})) in
+      let (pre_ae1, alloc_code, pre_code, sr, fill_code) = compile_unboxed_pat env pre_ae how pat in
       ( pre_ae1, alloc_code,
         (fun ae -> pre_code ^^ compile_exp_as_opt env ae sr e ^^ fill_code),
         unmodified
