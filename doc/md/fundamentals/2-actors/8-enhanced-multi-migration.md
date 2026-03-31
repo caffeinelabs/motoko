@@ -147,8 +147,8 @@ The first migration in every chain initializes the actor's fields. Its input is 
 ```motoko no-repl
 // migrations/20250101_000000_Init.mo
 module {
-  public func run(_ : {}) : { count : Nat; label : Text } {
-    { count = 0; label = "default" }
+  public func run(_ : {}) : { count : Nat; header : Text } {
+    { count = 0; header = "default" }
   }
 }
 ```
@@ -188,15 +188,15 @@ Here `count` changes from `Nat` to `Int`. The compiler accepts this because `Nat
 To rename a field, consume the old name and produce the new name:
 
 ```motoko no-repl
-// migrations/20250401_000000_RenameLabel.mo
+// migrations/20250401_000000_RenameHeader.mo
 module {
-  public func run(old : { label : Text }) : { title : Text } {
-    { title = old.label }
+  public func run(old : { header : Text }) : { title : Text } {
+    { title = old.header }
   }
 }
 ```
 
-The old field `label` is removed from the state and `title` takes its place.
+The old field `header` is removed from the state and `title` takes its place.
 
 ### Removing a field
 
