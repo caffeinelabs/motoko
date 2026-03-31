@@ -224,12 +224,19 @@ argument rewriting is required.
 
 ### Safety
 
-The replacement is safe only at call sites that supply `i32.const 0`.  A
-hypothetical call site passing a real non-null closure to `$foo` must be left
-alone (`$foo` would have discarded it and passed `0` to `$k`; a direct `call
-$k` would expose the non-null closure to `$k`, changing semantics).  In
-practice `moc` consistently generates `i32.const 0` for every call to a
-top-level Motoko function, so every call site matches.
+The replacement is safe at any call site that supplies **any `i32.const k`**
+as the closure argument — not just `i32.const 0`.
+
+In practice, `moc` emits `i32.const 0` for calls to top-level named functions,
+but for let-bound closure values it emits a **static closure object pointer**
+(e.g. `i32.const 2097251`).  The worker function ignores its received `$clos`
+and synthesises its own `i32.const 0` for the callee — so the caller's
+constant is irrelevant to the callee's behaviour.
+
+The condition is therefore: the closure argument at the call site must be a
+compile-time constant (`i32.const k` for any `k`).  A call site that computes
+the closure dynamically (loads it from memory, receives it as a parameter,
+etc.) cannot be safely redirected without a full alias/escape analysis.
 
 ### Implementation sketch
 
