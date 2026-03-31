@@ -9434,6 +9434,10 @@ module VarEnv = struct
     | Some l -> not (is_non_local l)
     | None -> assert false
 
+  (* True if all names in [vars] are already bound in [ae] *)
+  let all_in_scope ae vars =
+    List.for_all (fun x -> Option.is_some (NameEnv.find_opt x ae.vars)) vars
+
   let add_local_with_heap_ind env (ae : t) name typ =
       let i = E.add_anon_local env I32Type in
       E.add_local_name env i name;
@@ -13246,7 +13250,10 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
   (* Special case: non-const LetD binding a FuncE — may yield SR.StaticClosure fi,
      so compile the FuncE eagerly here (with pre_ae) to extract fi before AllocHow
      would fix the local to SR.Vanilla. *)
-  | LetD (({it = VarP v; note = typ; _} as pat), ({it = FuncE _; _} as e)) when not e.note.Note.const ->
+  | LetD (({it = VarP v; note = typ; _} as pat), ({it = FuncE _; _} as e))
+    when not e.note.Note.const
+      && (match AllocHow.M.find_opt v how with Some (AllocHow.LocalImmut _) -> true | _ -> false)
+      && VarEnv.all_in_scope pre_ae (Freevars.captured e) ->
     let fun_sr, fun_code = compile_exp env pre_ae e in
     (match fun_sr with
     | SR.StaticClosure fi ->
