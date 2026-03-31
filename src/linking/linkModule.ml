@@ -192,6 +192,43 @@ let find_exports is_thing m : exports =
     | _ -> map
   ) NameMap.empty m.exports
 
+(* Returns Some callee_index if fi is a pure forwarding function:
+   body = LocalGet 0 … LocalGet (n-1); Call k  with no extra locals.
+   import_count is the number of function imports in the module (so that
+   fi - import_count gives the index into the funcs array). *)
+let forwarding_target (funcs : func array) (types : Wasm_exts.Types.func_type list)
+    (import_count : int) (fi : int32) : int32 option =
+  let idx = Int32.to_int fi - import_count in
+  if idx < 0 then None
+  else
+    let f = funcs.(idx) in
+    let param_count =
+      let Wasm_exts.Types.FuncType (ps, _) = List.nth types (Int32.to_int f.it.ftype.it) in
+      List.length ps
+    in
+    let body_its = List.map (fun i -> i.it) f.it.body in
+    (* Consume n leading LocalGet 0 … LocalGet n-1 from instrs, return remainder *)
+    let rec eat_args n instrs =
+      if n = 0 then instrs
+      else match instrs with
+      | LocalGet v :: rest when v.it = Int32.of_int (param_count - n) ->
+        eat_args (n - 1) rest
+      | _ -> []
+    in
+    match f.it.locals, eat_args param_count body_its with
+    | [], [Call k] -> Some k.it
+    | _ -> None
+
+let rec fixpoint f x = let x' = f x in if x' = x then x else fixpoint f x'
+
+let chase_forwarders (funcs : func array) (types : Wasm_exts.Types.func_type list)
+    (import_count : int) (exports : exports) : exports =
+  NameMap.map (fun fi ->
+    match forwarding_target funcs types import_count fi with
+    | Some fi' -> fi'
+    | None     -> fi
+  ) exports
+
 
 (* Predicate to specialize these generic functions to the various entities *)
 
@@ -999,6 +1036,12 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
   let fun_required2 = find_imports is_fun_import "env" dm2 in
   let fun_exports1 = find_exports is_fun_export em1.module_ in
   let fun_exports2 = find_exports is_fun_export dm2 in
+  let fun_exports2 =
+    let funcs = Array.of_list dm2.funcs in
+    let types = List.map (fun t -> t.it) dm2.types in
+    let import_count = Int32.to_int (count_imports is_fun_import dm2) in
+    fixpoint (chase_forwarders funcs types import_count) fun_exports2
+  in
   (* Resolve imports, to produce a renumbering function: *)
   let fun_resolved12 = resolve fun_required1 fun_exports2 in
   let fun_resolved21 = resolve fun_required2 fun_exports1 in

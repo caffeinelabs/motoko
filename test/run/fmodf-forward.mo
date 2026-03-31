@@ -5,11 +5,11 @@ let x : Float32 = 41.99;
 let result : Float32 = x % pi32;
 debugPrint (debug_show (float32ToFloat result));
 
-// Status quo: call site goes through the $fmodf wrapper (two-hop indirection)
+// chase_forwarders: call site jumps directly to the libm implementation, bypassing $fmodf
 //CHECK: f32.const 0x1.4feb86p+5
 //CHECK-NEXT: f32.const 0x1.921fb6p+1
-//CHECK-NEXT: call $fmodf
-// The $fmodf wrapper is a pure forwarder: local.get 0; local.get 1; call $libm...fmodf...) — end of body
+//CHECK-NEXT: call $libm{{.*fmodf.*}}
+// The $fmodf wrapper is still present in the binary (unreferenced; DCE'd by wasm-opt)
 //CHECK: (func $fmodf
 //CHECK-NEXT: local.get 0
 //CHECK-NEXT: local.get 1
