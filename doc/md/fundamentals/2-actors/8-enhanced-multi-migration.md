@@ -204,7 +204,7 @@ To drop a field entirely, consume it in the input without producing it in the ou
 ```motoko no-repl
 // migrations/20250501_000000_DropEmail.mo
 module {
-  public func run({ email : Text } : { email : Text }) : {} {
+  public func run({ email : Text }) : {} 
     {}
   }
 }
