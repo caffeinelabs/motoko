@@ -63,3 +63,4 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //SKIP run-ir
 //SKIP run-low
 //SKIP-SANITY-CHECKS
+//CLASSICAL-PERSISTENCE-ONLY
