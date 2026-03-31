@@ -32,6 +32,7 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //CHECK: f32.const 0x1.4feb86p+5
 //CHECK-NEXT: f32.const 0x1.921fb6p+1
 //CHECK-NEXT: call ${{.*fmodf.*}}
+//CHECK-NOT: f64.promote_f32
 // baz has extra work after call $quux (unbox + f64.add) — not a forwarder
 //CHECK: (func $baz
 //CHECK: call $quux
