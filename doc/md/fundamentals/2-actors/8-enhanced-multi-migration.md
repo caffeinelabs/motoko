@@ -79,6 +79,30 @@ The compiler rejects any stable variable that carries an initializer when `--enh
 Non-stable declarations (local variables inside functions, private helper fields, etc.) still require initializers as usual. Only stable actor fields use the uninitialized syntax.
 :::
 
+### Static actor body
+
+Because the migration chain is the sole source of stable variable values, the top-level code in the actor body must be **static** — it must evaluate without immediate side effects. Arbitrary function calls, mutable updates to non-stable state, and other effectful expressions at the top level of the actor are rejected by the compiler.
+
+The one exception is calls to functions that require `<system>` capability, such as setting up ICP timers or configuring Candid decoding limits. These calls are permitted because they do not alter stable variable state; their effects are confined to system-level configuration.
+
+```motoko no-repl
+import Timer "mo:core/Timer";
+
+actor {
+  var count : Nat;
+
+  // Allowed: system capability call to set up a recurring timer
+  ignore Timer.setTimer<system>(#seconds 5, func () : async () {
+    count += 1;
+  });
+
+  // Rejected: top-level effectful expression
+  // let _ = Debug.print("hello");   // ERROR — not static
+};
+```
+
+This restriction ensures that the initialization of stable state is fully determined by the composition of migration functions, with no additional top-level effects in the actor body influencing the outcome.
+
 ### Compiling
 
 Pass the migration directory to the compiler:
@@ -372,6 +396,7 @@ The first migration in the chain must initialize all required fields. When a can
 - The `--enhanced-migration` flag cannot be combined with the inline `(with migration = ...)` syntax.
 - Enhanced multi-migration requires enhanced orthogonal persistence.
 - Stable actor variables must be declared without initializers (e.g. `var x : Nat`, not `var x : Nat = 0`). The compiler rejects stable variables that carry an initializing expression.
+- The actor body must be static: top-level effectful expressions and most function calls are rejected. Only calls requiring `<system>` capability (e.g. timer setup, Candid decoding configuration) are permitted.
 - The state after each migration (its output merged with carried-through fields) must be compatible with the input of the next migration in the chain. The compiler rejects the program if this is not the case.
 - The final state must be compatible with the actor's declared stable fields.
 - Fields in the last migration's output that are not declared in the actor are rejected by the compiler.
