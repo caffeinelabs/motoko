@@ -47,10 +47,10 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //CHECK: (func $foo_clos
 //CHECK-NEXT: {{i32|i64}}.const 0
 //CHECK: call $bar.1)
-// nested bar (bar.1): builds quux.1's closure (stores captured c), dispatches via call_indirect
+// nested bar (bar.1): builds quux.1's closure (stores captured c), calls $quux.1 directly
 //CHECK: (func $bar.1
 //CHECK: .store
-//CHECK: call_indirect
+//CHECK: call $quux.1
 // quux.1 (inner quux): loads captured c from $clos — real closure, NOT a 0-forwarder
 //CHECK: (func $quux.1
 //CHECK: local.get $clos
@@ -64,3 +64,4 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //SKIP run-ir
 //SKIP run-low
 //SKIP-SANITY-CHECKS
+//MOxC-FLAG -dl -v

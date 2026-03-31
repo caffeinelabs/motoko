@@ -9789,7 +9789,6 @@ module FuncDec = struct
         else assert false (* no first class shared functions yet *) in
 
       let fi = E.add_fun env name f in
-
       let code =
         (* Allocate a heap object for the closure *)
         Tagged.alloc env (Int32.add (Closure.header_size env) len) Tagged.Closure ^^
@@ -9822,7 +9821,6 @@ module FuncDec = struct
 
   let lit env ae name sort control free_vars args mk_body ret_tys at =
     let captured = List.filter (VarEnv.needs_capture ae) free_vars in
-
     if ae.VarEnv.lvl = VarEnv.TopLvl then assert (captured = []);
 
     if captured = []
@@ -11254,6 +11252,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
          G.i (Call (nr (mk_fi ()))) ^^
          FakeMultiVal.load env (Lib.List.make return_arity I32Type)
       | _, Type.Local ->
+         (* SR.Const (_, Const.Fun _) must have been caught above;
+            if this fires, a statically-known function escaped const-propagation
+            and will be called via call_indirect instead of a direct Call. *)
+         assert (match fun_sr with SR.Const (_, Const.Fun _) -> false | _ -> true);
          let (set_clos, get_clos) = new_local env "clos" in
 
          StackRep.of_arity return_arity,
