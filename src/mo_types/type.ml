@@ -1821,6 +1821,7 @@ let motoko_runtime_information_type =
     ("sanityChecks", bool);
     ("stableMemorySize", nat);
     ("totalAllocation", nat);
+    ("version", text_list)
   ]
 
 let motoko_runtime_information_fld =
