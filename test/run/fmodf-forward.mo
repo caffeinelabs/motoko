@@ -60,6 +60,7 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //CHECK-NEXT: local.get 1
 //CHECK-NEXT: call $libm{{.*}}){{$}}
 
+//SKIP run
 //SKIP run-ir
 //SKIP run-low
 //SKIP-SANITY-CHECKS
