@@ -141,21 +141,36 @@ compiles the FuncE with `pre_ae`, extracts `fi` from `SR.StaticClosure fi`, and
 binds `v` as `VarEnv.Local (SR.StaticClosure fi, local_i)` so the correct SR
 reaches `CallPrim`.
 
-In `CallPrim`'s `_, Type.Local` branch, `fi_opt` is extracted:
+In `CallPrim`, `SR.StaticClosure fi, Type.Local` is matched at the outer level
+(before the generic `_, Type.Local` arm), emitting `Call fi` directly:
 ```ocaml
-let fi_opt = match fun_sr with SR.StaticClosure fi -> Some fi | _ -> None in
-…
-(match fi_opt with
- | Some fi -> G.i (Call (nr fi)) ^^ FakeMultiVal.load …
- | None    -> get_clos ^^ Closure.call_closure env n_args return_arity)
+| SR.StaticClosure fi, Type.Local ->
+    … code1 ^^ set_clos ^^ get_clos ^^ prepare_closure_call ^^ args ^^
+    G.i (Call (nr fi)) ^^ FakeMultiVal.load …
 ```
 
-`StackRep.adjust (SR.StaticClosure _) SR.Vanilla` is a no-op (same i64 closure
+`StackRep.adjust (SR.StaticClosure _) SR.Vanilla` is a no-op (same closure
 ptr on stack).  `SR.StaticClosure` is also wired into `to_block_type`,
 `to_var_type`, `to_string`, `drop`, `join`, and `adjust`.
 
-Verified: `test/run/fmodf-forward.mo` `$bar.1` now emits `call $quux.1` instead
-of `call_indirect`.  Classical backend (`compile_classical.ml`) not yet ported.
+#### Gotcha: mutually recursive declarations
+
+The eager `compile_exp env pre_ae e` is only safe when all free variables of
+the `FuncE` are already present in `pre_ae`.  In a mutually recursive
+declaration group, `pre_ae` grows as each `dec` is processed by `go` in
+`compile_decs_public`; a forward-referenced variable (e.g. another function
+in the same `rec` block) is not yet in `pre_ae` when the earlier `dec` is
+compiled.  Calling `compile_exp` prematurely causes `FuncDec.lit` →
+`needs_capture pre_ae var` to hit `| None -> assert false`.
+
+Fix: guard the special case with
+`VarEnv.all_in_scope pre_ae (Freevars.captured e)` — only take the eager path
+when every free variable of the `FuncE` is already bound in `pre_ae`.
+Otherwise fall through to the regular deferred `fun ae -> …` path which
+receives the fully-built `ae`.
+
+Verified: `test/run/fmodf-forward.mo` passes; `nix build .#'tests.mo-idl'`
+clean.  Both classical and enhanced backends done on branch `gabor/static-closure`.
 
 ### Option C — Linker (already done for the 0-forwarder subset)
 
@@ -169,7 +184,7 @@ call_indirect` case.
 
 - Branch 3 (`_, Type.Local`) assertion: **in place** — confirms the invariant
   holds for subcase 1 (no `SR.Const (_, Const.Fun _)` leaks through).
-- Subcase 2 (capturing closure with known `fi`): **DONE** in `compile_enhanced.ml`
-  on branch `gabor/static-closure`.  Classical backend (`compile_classical.ml`)
-  not yet ported — same change applies symmetrically.
+- Subcase 2 (capturing closure with known `fi`): **DONE** in both backends on
+  branch `gabor/static-closure`.  Mutually-recursive gotcha fixed with
+  `VarEnv.all_in_scope` guard.
 - Subcase 3 (higher-order passing): requires devirtualization — out of scope.
