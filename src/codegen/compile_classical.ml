@@ -11102,25 +11102,14 @@ and unwrap_toNat ae e = match e.it with
 
 and compile_array_index env ae e1 e2 =
     compile_exp_vanilla env ae e1 ^^ (* offset to array payload *)
-    (match Type.normalize e2.note.Note.typ with
-     | Type.Prim (Type.Nat8 | Type.Nat16 | Type.Nat32 as pty) ->
-       compile_exp_as env ae (SR.UnboxedWord32 pty) e2 ^^
-       TaggedSmallWord.lsb_adjust pty ^^
-       Arr.idx env
-     | Type.Prim Type.Nat64 ->
-       compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e2 ^^
-       Arr.idx_nat64 env
-     | _ when (match unwrap_toNat ae e2 with
-       | Some (Type.(Nat8|Nat16|Nat32), _) -> true
-       | _ -> false) ->
-       let pty, inner = Option.get (unwrap_toNat ae e2) in
+    (match unwrap_toNat ae e2 with
+     | Some (Type.(Nat8|Nat16|Nat32 as pty), inner) ->
+       (* Peephole: recognize arr[NatN.toNat(x)] and elide the
+          conversion, compiling x directly as its native type. *)
        compile_exp_as env ae (SR.UnboxedWord32 pty) inner ^^
        TaggedSmallWord.lsb_adjust pty ^^
        Arr.idx env
-     | _ when (match unwrap_toNat ae e2 with
-       | Some (Type.Nat64, _) -> true
-       | _ -> false) ->
-       let _, inner = Option.get (unwrap_toNat ae e2) in
+     | Some (Type.Nat64, inner) ->
        compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) inner ^^
        Arr.idx_nat64 env
      | _ ->
@@ -11368,25 +11357,12 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | IdxBlobPrim, [e1; e2] ->
     SR.Vanilla,
     compile_exp_vanilla env ae e1 ^^ (* offset to blob payload *)
-    (match Type.normalize e2.note.Note.typ with
-     | Type.Prim (Type.Nat8 | Type.Nat16 | Type.Nat32 as pty) ->
-       compile_exp_as env ae (SR.UnboxedWord32 pty) e2 ^^
-       TaggedSmallWord.lsb_adjust pty ^^
-       Blob.idx env
-     | Type.Prim Type.Nat64 ->
-       compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e2 ^^
-       Blob.idx_nat64 env
-     | _ when (match unwrap_toNat ae e2 with
-       | Some (Type.(Nat8|Nat16|Nat32), _) -> true
-       | _ -> false) ->
-       let pty, inner = Option.get (unwrap_toNat ae e2) in
+    (match unwrap_toNat ae e2 with
+     | Some (Type.(Nat8|Nat16|Nat32 as pty), inner) ->
        compile_exp_as env ae (SR.UnboxedWord32 pty) inner ^^
        TaggedSmallWord.lsb_adjust pty ^^
        Blob.idx env
-     | _ when (match unwrap_toNat ae e2 with
-       | Some (Type.Nat64, _) -> true
-       | _ -> false) ->
-       let _, inner = Option.get (unwrap_toNat ae e2) in
+     | Some (Type.Nat64, inner) ->
        compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) inner ^^
        Blob.idx_nat64 env
      | _ ->

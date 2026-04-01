@@ -1,14 +1,16 @@
-// Benchmark: fixed-width Nat vs Nat array indexing
+// Benchmark: NatN.toNat() peephole vs plain Nat array indexing
 import {
   performanceCounter;
   debugPrint;
   rts_heap_size;
-  rts_lifetime_instructions;
   Array_init;
   natToNat8;
   natToNat16;
   natToNat32;
   natToNat64;
+  nat8ToNat;
+  nat16ToNat;
+  nat32ToNat;
   nat64ToNat;
 } = "mo:⛔";
 
@@ -44,8 +46,8 @@ persistent actor NatXIndex {
     debugPrint("nat_index: " # debug_show (m1 - m0, n1 - n0));
   };
 
-  // Nat8 loop counter, Nat8 index
-  public func nat8Index() : async () {
+  // Nat8 loop counter, nat8ToNat() for index
+  public func nat8ToNatIndex() : async () {
     let (m0, n0) = counters();
     let arrSize8 : Nat8 = natToNat8(arrSize - 1);
     var outer = 0;
@@ -53,17 +55,17 @@ persistent actor NatXIndex {
       var acc : Nat64 = 0;
       var n : Nat8 = 0;
       while (n < arrSize8) {
-        acc +%= arr[n];
+        acc +%= arr[nat8ToNat(n)];
         n +%= 1;
       };
       outer += 1;
     };
     let (m1, n1) = counters();
-    debugPrint("nat8_index: " # debug_show (m1 - m0, n1 - n0));
+    debugPrint("nat8_toNat_index: " # debug_show (m1 - m0, n1 - n0));
   };
 
-  // Nat16 loop counter, Nat16 index
-  public func nat16Index() : async () {
+  // Nat16 loop counter, nat16ToNat() for index
+  public func nat16ToNatIndex() : async () {
     let (m0, n0) = counters();
     let arrSize16 : Nat16 = natToNat16(arrSize);
     var outer = 0;
@@ -71,17 +73,17 @@ persistent actor NatXIndex {
       var acc : Nat64 = 0;
       var n : Nat16 = 0;
       while (n < arrSize16) {
-        acc +%= arr[n];
+        acc +%= arr[nat16ToNat(n)];
         n +%= 1;
       };
       outer += 1;
     };
     let (m1, n1) = counters();
-    debugPrint("nat16_index: " # debug_show (m1 - m0, n1 - n0));
+    debugPrint("nat16_toNat_index: " # debug_show (m1 - m0, n1 - n0));
   };
 
-  // Nat32 loop counter, Nat32 index
-  public func nat32Index() : async () {
+  // Nat32 loop counter, nat32ToNat() for index
+  public func nat32ToNatIndex() : async () {
     let (m0, n0) = counters();
     let arrSize32 : Nat32 = natToNat32(arrSize);
     var outer = 0;
@@ -89,34 +91,16 @@ persistent actor NatXIndex {
       var acc : Nat64 = 0;
       var n : Nat32 = 0;
       while (n < arrSize32) {
-        acc +%= arr[n];
+        acc +%= arr[nat32ToNat(n)];
         n +%= 1;
       };
       outer += 1;
     };
     let (m1, n1) = counters();
-    debugPrint("nat32_index: " # debug_show (m1 - m0, n1 - n0));
+    debugPrint("nat32_toNat_index: " # debug_show (m1 - m0, n1 - n0));
   };
 
-  // Nat64 loop counter, Nat64 index
-  public func nat64Index() : async () {
-    let (m0, n0) = counters();
-    let arrSize64 : Nat64 = natToNat64(arrSize);
-    var outer = 0;
-    while (outer < 1000) {
-      var acc : Nat64 = 0;
-      var n : Nat64 = 0;
-      while (n < arrSize64) {
-        acc +%= arr[n];
-        n += 1;
-      };
-      outer += 1;
-    };
-    let (m1, n1) = counters();
-    debugPrint("nat64_index: " # debug_show (m1 - m0, n1 - n0));
-  };
-
-  // Old workaround: Nat64 loop counter, toNat() for index
+  // Nat64 loop counter, nat64ToNat() for index
   public func nat64ToNatIndex() : async () {
     let (m0, n0) = counters();
     let arrSize64 : Nat64 = natToNat64(arrSize);
@@ -133,17 +117,11 @@ persistent actor NatXIndex {
     let (m1, n1) = counters();
     debugPrint("nat64_toNat_index: " # debug_show (m1 - m0, n1 - n0));
   };
-
-  public func getPerfData() : async () {
-    debugPrint("instructions: " # debug_show (rts_lifetime_instructions()));
-  };
 };
 
 //CALL ingress setup 0x4449444C0000
 //CALL ingress natIndex 0x4449444C0000
-//CALL ingress nat8Index 0x4449444C0000
-//CALL ingress nat16Index 0x4449444C0000
-//CALL ingress nat32Index 0x4449444C0000
-//CALL ingress nat64Index 0x4449444C0000
+//CALL ingress nat8ToNatIndex 0x4449444C0000
+//CALL ingress nat16ToNatIndex 0x4449444C0000
+//CALL ingress nat32ToNatIndex 0x4449444C0000
 //CALL ingress nat64ToNatIndex 0x4449444C0000
-//CALL ingress getPerfData 0x4449444C0000

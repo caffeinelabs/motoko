@@ -395,8 +395,6 @@ let store_typ t  =
     List.for_all (fun f -> T.is_opt f.T.typ) fts
   | _ -> false
 
-let check_array_idx_typ = T.is_nat_idx_typ
-
 let rec check_exp env (exp:Ir.exp) : unit =
   (* helpers *)
   let check p = check env exp.at p in
@@ -523,15 +521,11 @@ let rec check_exp env (exp:Ir.exp) : unit =
                  error env exp1.at "expected array type, but expression produces type\n  %s"
                                          (T.string_of_typ_expand t1)
       in
-      let t_idx = typ exp2 in
-      if not (check_array_idx_typ t_idx) then
-        t_idx <: T.nat;
+      typ exp2 <: T.nat;
       T.as_immut t2 <: t
     | IdxBlobPrim, [exp1; exp2] ->
       typ exp1 <: T.blob;
-      let t_idx = typ exp2 in
-      if not (check_array_idx_typ t_idx) then
-        t_idx <: T.nat;
+      typ exp2 <: T.nat;
       T.(Prim Nat8) <: t
     | GetLastArrayOffset, [exp1] ->
       let t1 = T.promote (typ exp1) in
@@ -989,9 +983,7 @@ and check_lexp env (lexp:Ir.lexp) : unit =
                error env exp1.at "expected array type, but expression produces type\n  %s"
                                        (T.string_of_typ_expand t1)
     in
-    let t_idx = typ exp2 in
-    if not (check_array_idx_typ t_idx) then
-      t_idx <: T.nat;
+    typ exp2 <: T.nat;
     t2 <: t
 
 (* Cases *)

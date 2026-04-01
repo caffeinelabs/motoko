@@ -96,12 +96,6 @@ let as_nat8 = function Nat8 w -> w | _ -> invalid "as_nat8"
 let as_nat16 = function Nat16 w -> w | _ -> invalid "as_nat16"
 let as_nat32 = function Nat32 w -> w | _ -> invalid "as_nat32"
 let as_nat64 = function Nat64 w -> w | _ -> invalid "as_nat64"
-let as_idx = function
-  | Nat8 n -> Numerics.Nat8.to_int n
-  | Nat16 n -> Numerics.Nat16.to_int n
-  | Nat32 n -> Numerics.Nat32.to_int n
-  | Nat64 n -> Numerics.Nat64.to_int n
-  | v -> Numerics.Int.to_int (as_int v)
 let as_float = function Float f -> f | _ -> invalid "as_float"
 let as_char = function Char c -> c | _ -> invalid "as_char"
 let as_text = function Text s -> s | _ -> invalid "as_text"

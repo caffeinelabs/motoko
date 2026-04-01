@@ -1407,13 +1407,6 @@ let sub ?(src_fields = empty_srcs_tbl ()) t1 t2 : bool =
   with_src_field_updates_predicate src_fields (fun () ->
     rel_typ (RelArg.sub []) (ref SS.empty) (ref SS.empty) t1 t2)
 
-let is_nat_idx_typ t =
-  sub t nat
-  || sub t (Prim Nat8)
-  || sub t (Prim Nat16)
-  || sub t (Prim Nat32)
-  || sub t (Prim Nat64)
-
 (* Compatibility *)
 
 let compatible_list p co xs1 xs2 =

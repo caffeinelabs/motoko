@@ -364,9 +364,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
           | Const -> vs
         in k (V.Array (Array.of_list vs'))
       | (IdxPrim | DerefArrayOffset), [v1; v2] ->
-        let idx = V.as_idx v2
-        in
-        k (try (V.as_array v1).(idx)
+        k (try (V.as_array v1).(Numerics.Int.to_int (V.as_int v2))
            with Invalid_argument s -> trap exp.at "%s" s)
       | NextArrayOffset , [v1] ->
         k (V.Int Numerics.Nat.(of_int ((to_int (V.as_int v1)) + 1)))
@@ -375,9 +373,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       | GetLastArrayOffset,  [v1] ->
         k (V.Int Numerics.Int.(of_int (Array.length (V.as_array v1) - 1)))
       | IdxBlobPrim, [v1; v2] ->
-        let idx = V.as_idx v2
-        in
-        k V.(Nat8 Numerics.((as_blob v1).[idx] |> Char.code |> Nat8.of_int))
+        k V.(Nat8 Numerics.((as_blob v1).[Int.to_int (as_int v2)] |> Char.code |> Nat8.of_int))
       | BreakPrim id, [v1] -> find id env.labs v1
       | RetPrim, [v1] -> Option.get env.rets v1
       | ThrowPrim, [v1] -> Option.get env.throws v1
@@ -621,10 +617,8 @@ and interpret_lexp env lexp (k : (V.value ref) V.cont) =
   | IdxLE (exp1, exp2) ->
     interpret_exp env exp1 (fun v1 ->
       interpret_exp env exp2 (fun v2 ->
-        let idx = V.as_idx v2
-        in
         k (V.as_mut
-          (try (V.as_array v1).(idx)
+          (try (V.as_array v1).(Numerics.Int.to_int (V.as_int v2))
            with Invalid_argument s -> trap lexp.at "%s" s))
       )
     )

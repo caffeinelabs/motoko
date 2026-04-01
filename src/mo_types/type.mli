@@ -286,7 +286,6 @@ val eq_con : ?src_fields : Field_sources.t -> con -> con -> bool
 
 val sub : ?src_fields : Field_sources.t -> typ -> typ -> bool
 val sub_explained : ?src_fields : Field_sources.t -> context -> typ -> typ -> compatibility
-val is_nat_idx_typ : typ -> bool
 val compatible : typ -> typ -> bool
 
 exception PreEncountered
