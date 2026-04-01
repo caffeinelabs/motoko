@@ -11088,14 +11088,29 @@ let rec compile_lexp (env : E.t) ae lexp : G.t * SR.t * G.t =
 (* Common code for a[e] as lexp and as exp.
 Traps or pushes the pointer to the element on the stack
 *)
+and unwrap_toNat_const = function
+  | Const.Fun (_, Const.PrimWrapper
+      (Ir.NumConvTrapPrim (Type.(Nat8|Nat16|Nat32|Nat64 as pty), Type.Nat))) ->
+    Some pty
+  | _ -> None
+
 and unwrap_toNat ae e = match e.it with
   | Ir.PrimE (Ir.NumConvTrapPrim (Type.(Nat8|Nat16|Nat32|Nat64 as pty), Type.Nat), [inner]) ->
     Some (pty, inner)
   | Ir.PrimE (Ir.CallPrim _, [{it = Ir.VarE (_, callee); _}; inner]) ->
     begin match VarEnv.lookup_var ae callee with
-    | Some (VarEnv.Const (_, Const.Fun (_, Const.PrimWrapper
-        (Ir.NumConvTrapPrim (Type.(Nat8|Nat16|Nat32|Nat64 as pty), Type.Nat))))) ->
-      Some (pty, inner)
+    | Some (VarEnv.Const (_, c)) ->
+      Option.map (fun pty -> (pty, inner)) (unwrap_toNat_const c)
+    | _ -> None
+    end
+  | Ir.PrimE (Ir.CallPrim _,
+      [{it = Ir.PrimE (Ir.DotPrim name, [{it = Ir.VarE (_, mod_var); _}]); _}; inner]) ->
+    begin match VarEnv.lookup_var ae mod_var with
+    | Some (VarEnv.Const (_, Const.Obj fs)) ->
+      begin match List.assoc_opt name fs with
+      | Some (_, c) -> Option.map (fun pty -> (pty, inner)) (unwrap_toNat_const c)
+      | None -> None
+      end
     | _ -> None
     end
   | _ -> None
@@ -11113,61 +11128,8 @@ and compile_array_index env ae e1 e2 =
        compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) inner ^^
        Arr.idx_nat64 env
      | _ ->
-       (* Speculative fast path for plain Nat (bigint) array indices.
-
-          Background: idx_bigint calls BigNum.to_word32_with, which
-          already has a tagged-scalar fast path internally. However,
-          that path still pays for:
-            1. A function call into the shared idx_bigint body
-            2. Allocating a local for the error message string
-            3. Another local + branch inside to_word32_with
-          By inlining the scalar check at the call site, we skip all
-          of that overhead for the common case (small Nat indices).
-
-          Tagging recap (see module BitTagged for full details):
-            - Scalar Nat n is stored as (n << (32 - ubits)) | tag,
-              where ubits = TaggingScheme.ubits_of Nat.
-              Bit 0 is always 0 for scalars (pointers have 0b..11).
-            - Bit 31 is always 0 for non-negative compact Nat
-              (compact Nat/Int use signed form; Nat is non-negative).
-            - Heap-allocated bigints are skewed pointers with the
-              low two bits set (0b..11), so bit 0 = 1.
-
-          Fast path:
-            (val & 0x80000001) == 0 confirms both bit 0 (scalar)
-            and bit 31 (non-negative). An unsigned right shift by
-            (32 - ubits) then recovers the raw index, which we pass
-            directly to Arr.idx (the same function used by the
-            fixed-width Nat8/Nat16/Nat32 paths).
-
-          Slow path:
-            Any value that fails the check (heap bigint, or a
-            negative Int that somehow got here) falls through to
-            Arr.idx_bigint, which handles the full conversion.
-
-          Both array and index are saved to locals because wasm
-          if-blocks do not inherit the enclosing operand stack. *)
-       let set_va, get_va = new_local env "va" in
-       set_va ^^
        compile_exp_vanilla env ae e2 ^^
-       let set_vi, get_vi = new_local env "vi" in
-       set_vi ^^
-       get_vi ^^
-       compile_bitand_const 0x80000001l ^^
-       G.i (Test (Wasm.Values.I32 I32Op.Eqz)) ^^
-       E.if_ env [I32Type]
-         begin
-           get_va ^^
-           get_vi ^^
-           compile_shrU_const
-             (Int32.of_int (32 - TaggingScheme.ubits_of Type.Nat)) ^^
-           Arr.idx env
-         end
-         begin
-           get_va ^^
-           get_vi ^^
-           Arr.idx_bigint env
-         end)
+       Arr.idx_bigint env)
 
 and compile_prim_invocation (env : E.t) ae p es at =
   (* for more concise code when all arguments and result use the same sr *)
@@ -11366,32 +11328,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
        compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) inner ^^
        Blob.idx_nat64 env
      | _ ->
-       (* Speculative fast path for plain Nat blob indices.
-          Same approach as compile_array_index: inline the scalar
-          check to bypass idx_bigint for small Nat values.
-          See the comment in compile_array_index for full rationale
-          and tagging details. *)
-       let set_vb, get_vb = new_local env "vb" in
-       set_vb ^^
        compile_exp_vanilla env ae e2 ^^
-       let set_vi, get_vi = new_local env "vi" in
-       set_vi ^^
-       get_vi ^^
-       compile_bitand_const 0x80000001l ^^
-       G.i (Test (Wasm.Values.I32 I32Op.Eqz)) ^^
-       E.if_ env [I32Type]
-         begin
-           get_vb ^^
-           get_vi ^^
-           compile_shrU_const
-             (Int32.of_int (32 - TaggingScheme.ubits_of Type.Nat)) ^^
-           Blob.idx env
-         end
-         begin
-           get_vb ^^
-           get_vi ^^
-           Blob.idx_bigint env
-         end)
+       Blob.idx_bigint env)
 
   | BreakPrim name, [e] ->
     let d = VarEnv.get_label_depth ae name in

@@ -1,15 +1,14 @@
 // Benchmark: NatN.toNat() peephole vs plain Nat array indexing
+//MOC-FLAG --package core $MOTOKO_CORE
+import Nat64 "mo:core/Nat64";
+import Nat32 "mo:core/Nat32";
 import {
   performanceCounter;
   debugPrint;
   rts_heap_size;
   Array_init;
-  natToNat8;
-  natToNat16;
   natToNat32;
   natToNat64;
-  nat8ToNat;
-  nat16ToNat;
   nat32ToNat;
   nat64ToNat;
 } = "mo:⛔";
@@ -46,44 +45,8 @@ persistent actor NatXIndex {
     debugPrint("nat_index: " # debug_show (m1 - m0, n1 - n0));
   };
 
-  // Nat8 loop counter, nat8ToNat() for index
-  public func nat8ToNatIndex() : async () {
-    let (m0, n0) = counters();
-    let arrSize8 : Nat8 = natToNat8(arrSize - 1);
-    var outer = 0;
-    while (outer < 1000) {
-      var acc : Nat64 = 0;
-      var n : Nat8 = 0;
-      while (n < arrSize8) {
-        acc +%= arr[nat8ToNat(n)];
-        n +%= 1;
-      };
-      outer += 1;
-    };
-    let (m1, n1) = counters();
-    debugPrint("nat8_toNat_index: " # debug_show (m1 - m0, n1 - n0));
-  };
-
-  // Nat16 loop counter, nat16ToNat() for index
-  public func nat16ToNatIndex() : async () {
-    let (m0, n0) = counters();
-    let arrSize16 : Nat16 = natToNat16(arrSize);
-    var outer = 0;
-    while (outer < 1000) {
-      var acc : Nat64 = 0;
-      var n : Nat16 = 0;
-      while (n < arrSize16) {
-        acc +%= arr[nat16ToNat(n)];
-        n +%= 1;
-      };
-      outer += 1;
-    };
-    let (m1, n1) = counters();
-    debugPrint("nat16_toNat_index: " # debug_show (m1 - m0, n1 - n0));
-  };
-
-  // Nat32 loop counter, nat32ToNat() for index
-  public func nat32ToNatIndex() : async () {
+  // Prim: nat32ToNat()
+  public func nat32PrimIndex() : async () {
     let (m0, n0) = counters();
     let arrSize32 : Nat32 = natToNat32(arrSize);
     var outer = 0;
@@ -97,11 +60,47 @@ persistent actor NatXIndex {
       outer += 1;
     };
     let (m1, n1) = counters();
-    debugPrint("nat32_toNat_index: " # debug_show (m1 - m0, n1 - n0));
+    debugPrint("nat32_prim_index: " # debug_show (m1 - m0, n1 - n0));
   };
 
-  // Nat64 loop counter, nat64ToNat() for index
-  public func nat64ToNatIndex() : async () {
+  // Core lib: Nat32.toNat()
+  public func nat32CoreIndex() : async () {
+    let (m0, n0) = counters();
+    let arrSize32 : Nat32 = natToNat32(arrSize);
+    var outer = 0;
+    while (outer < 1000) {
+      var acc : Nat64 = 0;
+      var n : Nat32 = 0;
+      while (n < arrSize32) {
+        acc +%= arr[Nat32.toNat(n)];
+        n +%= 1;
+      };
+      outer += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint("nat32_core_index: " # debug_show (m1 - m0, n1 - n0));
+  };
+
+  // Method: n.toNat()
+  public func nat32MethodIndex() : async () {
+    let (m0, n0) = counters();
+    let arrSize32 : Nat32 = natToNat32(arrSize);
+    var outer = 0;
+    while (outer < 1000) {
+      var acc : Nat64 = 0;
+      var n : Nat32 = 0;
+      while (n < arrSize32) {
+        acc +%= arr[n.toNat()];
+        n +%= 1;
+      };
+      outer += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint("nat32_method_index: " # debug_show (m1 - m0, n1 - n0));
+  };
+
+  // Prim: nat64ToNat()
+  public func nat64PrimIndex() : async () {
     let (m0, n0) = counters();
     let arrSize64 : Nat64 = natToNat64(arrSize);
     var outer = 0;
@@ -115,13 +114,51 @@ persistent actor NatXIndex {
       outer += 1;
     };
     let (m1, n1) = counters();
-    debugPrint("nat64_toNat_index: " # debug_show (m1 - m0, n1 - n0));
+    debugPrint("nat64_prim_index: " # debug_show (m1 - m0, n1 - n0));
+  };
+
+  // Core lib: Nat64.toNat()
+  public func nat64CoreIndex() : async () {
+    let (m0, n0) = counters();
+    let arrSize64 : Nat64 = natToNat64(arrSize);
+    var outer = 0;
+    while (outer < 1000) {
+      var acc : Nat64 = 0;
+      var n : Nat64 = 0;
+      while (n < arrSize64) {
+        acc +%= arr[Nat64.toNat(n)];
+        n += 1;
+      };
+      outer += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint("nat64_core_index: " # debug_show (m1 - m0, n1 - n0));
+  };
+
+  // Method: n.toNat()
+  public func nat64MethodIndex() : async () {
+    let (m0, n0) = counters();
+    let arrSize64 : Nat64 = natToNat64(arrSize);
+    var outer = 0;
+    while (outer < 1000) {
+      var acc : Nat64 = 0;
+      var n : Nat64 = 0;
+      while (n < arrSize64) {
+        acc +%= arr[n.toNat()];
+        n += 1;
+      };
+      outer += 1;
+    };
+    let (m1, n1) = counters();
+    debugPrint("nat64_method_index: " # debug_show (m1 - m0, n1 - n0));
   };
 };
 
 //CALL ingress setup 0x4449444C0000
 //CALL ingress natIndex 0x4449444C0000
-//CALL ingress nat8ToNatIndex 0x4449444C0000
-//CALL ingress nat16ToNatIndex 0x4449444C0000
-//CALL ingress nat32ToNatIndex 0x4449444C0000
-//CALL ingress nat64ToNatIndex 0x4449444C0000
+//CALL ingress nat32PrimIndex 0x4449444C0000
+//CALL ingress nat32CoreIndex 0x4449444C0000
+//CALL ingress nat32MethodIndex 0x4449444C0000
+//CALL ingress nat64PrimIndex 0x4449444C0000
+//CALL ingress nat64CoreIndex 0x4449444C0000
+//CALL ingress nat64MethodIndex 0x4449444C0000
