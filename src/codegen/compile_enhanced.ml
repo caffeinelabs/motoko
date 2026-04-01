@@ -2289,7 +2289,7 @@ module Opt = struct
 
   let project env typ =
     if injection_is_free env typ
-    then G.i Nop
+    then G.nop
     else
     Func.share_code1 Func.Never env "opt_project" ("x", I64Type) [I64Type] (fun env get_x ->
       get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
