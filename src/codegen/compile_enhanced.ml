@@ -2287,7 +2287,10 @@ module Opt = struct
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env some_payload_field
 
-  let project env =
+  let project env typ =
+    if injection_is_free env typ
+    then G.i Nop
+    else
     Func.share_code1 Func.Never env "opt_project" ("x", I64Type) [I64Type] (fun env get_x ->
       get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
         ( get_x ) (* scalar, no wrapping *)
@@ -7717,7 +7720,7 @@ module Serialization = struct
       | Opt t ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
         get_x ^^ Opt.is_some env ^^
-        E.if0 (get_x ^^ Opt.project env ^^ size env t) G.nop
+        E.if0 (get_x ^^ Opt.project env t ^^ size env t) G.nop
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
             get_x ^^
@@ -7896,7 +7899,7 @@ module Serialization = struct
         get_x ^^
         Opt.is_some env ^^
         E.if0
-          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env ^^ write env t)
+          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env t ^^ write env t)
           (write_byte env get_data_buf (compile_unboxed_const 0L))
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
@@ -13347,7 +13350,7 @@ and fill_pat env ae pat : patternCode =
         Opt.is_some env ^^
         E.if0
           ( get_x ^^
-            Opt.project env ^^
+            Opt.project env p.note ^^
             with_fail fail_code (fill_pat env ae p)
           )
           fail_code
