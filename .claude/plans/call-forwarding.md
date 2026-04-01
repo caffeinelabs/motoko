@@ -247,3 +247,49 @@ etc.) cannot be safely redirected without a full alias/escape analysis.
    is found where `fi ∈ zero_fwds` and the preceding instruction (at the right
    stack depth) is `i32.const 0`, replace `call fi` with `call zero_fwds[fi]`.
 4. Run to **fixpoint** to handle chains (`foo → bar → quux`).
+
+### Precise call-site eligibility via stack-depth tracking
+
+This tracking is only relevant for the **0-forwarder call-site rewriter** —
+i.e. when scanning `em1` for `call fi` instructions where `fi ∈ zero_fwds`.
+`chase_forwarders` / `forwarding_target` operate on the RTS exports map and
+never inspect call sites, so they are unaffected.  Furthermore, within the
+rewriter, the depth/zeros state only matters at the moment a matching `call fi`
+is encountered; for all other instructions it is just bookkeeping.
+
+The current implementation uses a flat-array offset heuristic: it checks
+`arr[i - param_count]` to see if it is `Const 0`.  This is unsound in general
+(it assumes every argument is produced by exactly one instruction) but correct
+for all code Motoko currently emits.
+
+A precise alternative avoids types entirely — only **net stack-depth deltas**
+are needed.  The idea:
+
+- Maintain an integer `depth` (absolute from function entry = 0).
+- Maintain a small **LRU set** (≈10 entries) of absolute depths where a
+  `Const 0` is statically known to reside.
+- Per instruction class:
+
+  | Class | Examples | Δ depth | Effect on `zeros` |
+  |---|---|---|---|
+  | `const 0` | `i32/i64.const 0` | +1 | add `depth` (pre-increment) |
+  | `const k≠0` | `i32.const 1`, `f64.const …` | +1 | — |
+  | `get` | `local.get i` | +1 | — |
+  | `set` | `local.set i` | −1 | evict entries > new depth |
+  | `tee` | `local.tee i` | 0 | — |
+  | unary | loads, conversions, `i32.clz`, … | 0 | evict top if consumed |
+  | binary | `i64.add`, `i64.or`, stores+pop, … | −1 | evict entries > new depth |
+  | `call f` | n params, m results | −n+m | evict entries > new depth |
+
+- On `call fi` where `fi ∈ zero_fwds`: check whether
+  `depth - param_count(fi)` ∈ `zeros` — if so, safe to rewrite.
+
+Control flow (`block`/`if`/`else`/`end`/`br`/`return`) can also be handled:
+forward-branch join points take the **intersection** of `zeros` from all
+incoming paths; back-edges (loop) conservatively flush `zeros`.  In practice
+Motoko never emits control flow mid-argument-list so this does not matter for
+current use, but it makes the check complete for the general case.
+
+A staged rollout makes sense: implement `const` + `get`/`set` + unary + binary
++ `call` first (covers all Motoko-generated argument sequences), add control
+flow later if needed.
