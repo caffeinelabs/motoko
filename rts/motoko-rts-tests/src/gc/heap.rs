@@ -129,7 +129,7 @@ impl MotokoHeap {
     }
 
     /// Get the heap as an array. Use `offset` values returned by the methods above to read.
-    pub fn heap(&self) -> Ref<Box<[u8]>> {
+    pub fn heap(&self) -> Ref<'_, Box<[u8]>> {
         Ref::map(self.inner.borrow(), |heap| &heap.heap)
     }
 
