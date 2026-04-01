@@ -9,7 +9,7 @@ Expected 2 arguments of type:
   (_x : Nat)
   (_y : Nat)
 But got 1 argument of type:
-  (Nat, Nat)
+  M.T = (Nat, Nat)
 ctx-dot-tuple-args.mo:16.7-16.15: type error [M0233], wrong number of arguments: expected 1 but got 2
 Expected 1 argument of type:
   (_xy : (Nat, Nat))

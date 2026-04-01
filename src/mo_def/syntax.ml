@@ -181,10 +181,9 @@ let break_label kind (id_opt : id option) =
 
 
 type id_ref = (string, mut' * exp option) Source.annotated_phrase
-and hole_sort = Named of string | Anon of int
 and exp = (exp', typ_note) Source.annotated_phrase
 and exp' =
-  | HoleE of hole_sort * exp ref
+  | HoleE of string * exp ref
   | PrimE of string                            (* primitive *)
   | VarE of id_ref                             (* variable *)
   | LitE of lit ref                            (* literal *)

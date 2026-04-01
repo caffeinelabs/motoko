@@ -1,5 +1,12 @@
 # Motoko compiler changelog
 
+## 1.4.1 (2026-03-30)
+
+* motoko (`moc`)
+
+  * feat: Preserve named types in variable pattern bindings, so error messages show e.g. `Map.Map<Text, Text>` instead of expanding the full structural type (#5940).
+  * bugfix: implement `Float32` `ModOp` (`%`) — Wasm has no `f32.rem` instruction; the fix promotes operands to `f64`, applies `fmod`, then demotes the result back to `f32` (#5950).
+
 ## 1.4.0 (2026-03-27)
 
 * motoko (`moc`)

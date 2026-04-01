@@ -44,6 +44,10 @@ pub fn pow(a: f64, b: f64) -> f64 {
     libm::pow(a, b)
 }
 #[no_mangle]
+pub fn powf(a: f32, b: f32) -> f32 {
+    libm::powf(a, b)
+}
+#[no_mangle]
 pub fn tan(a: f64) -> f64 {
     libm::tan(a)
 }
@@ -78,6 +82,10 @@ pub fn exp(a: f64) -> f64 {
 #[no_mangle]
 pub fn fmod(a: f64, b: f64) -> f64 {
     libm::fmod(a, b)
+}
+#[no_mangle]
+pub fn fmodf(a: f32, b: f32) -> f32 {
+    libm::fmodf(a, b)
 }
 #[no_mangle]
 pub fn log(a: f64) -> f64 {

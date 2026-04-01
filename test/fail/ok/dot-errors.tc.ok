@@ -1,14 +1,14 @@
 dot-errors.mo:14.28-14.29: type error [M0072], field x does not exist in type:
-  {
-    a : {#a};
-    b : {#b};
-    c : {#c};
-    d : {#d};
-    e : {#e};
-    f : {#f};
-    g : {#g};
-    h : {#h}
-  }
+  R1 = {
+         a : {#a};
+         b : {#b};
+         c : {#c};
+         d : {#d};
+         e : {#e};
+         f : {#f};
+         g : {#g};
+         h : {#h}
+       }
 dot-errors.mo:16.28-16.29: type error [M0072], field x does not exist in object.
 dot-errors.mo:18.33-18.34: type error [M0072], field x does not exist in type:
   R1 = {

@@ -1,12 +1,3 @@
-implicit-none.mo:4.6-4.8: info, Consider renaming ``cM`` to `<M>.c` in a new module `<M>`. Then it can serve as an implicit argument `c` in this call:
-implicit-none.mo:19.1-19.9: f1(0, 1)
-implicit-none.mo:6.6-6.12: info, Consider renaming ``cOther`` to `Other.c` in a new module `Other`. Then it can serve as an implicit argument `c` in this call:
-implicit-none.mo:19.1-19.9: f1(0, 1)
-implicit-none.mo:3.6-3.15: info, Consider renaming ``explicit1`` to `<M>.c` in a new module `<M>`. Then it can serve as an implicit argument `c` in this call:
-implicit-none.mo:19.1-19.9: f1(0, 1)
-implicit-none.mo:10.3-10.60: info, Consider renaming ``M.explicit2`` to `M.c` in the existing module `M`. Then it can serve as an implicit argument `c` in this call:
-implicit-none.mo:19.1-19.9: f1(0, 1)
 implicit-none.mo:19.1-19.9: type error [M0230], Cannot determine implicit argument `c` of type
   (Nat, Nat) -> Order
 note: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.
-note: Did you mean to explicitly use `cM` or `cOther` or `explicit1` or `M.explicit2`?
