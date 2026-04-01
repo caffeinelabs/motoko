@@ -2,6 +2,48 @@ import Prim "mo:prim";
 // test (type optimized) option injection and projection works correctly
 actor {
 
+  // Any
+  do {
+    type T = Any;
+    let v : T = ();
+
+    do {
+      var i = 0;
+      for(o in [null, ?v].values()) {
+        switch o {
+          case null { assert i == 0 };
+          case (?w) { assert i == 1 and w == v; };
+        };
+        i += 1;
+      }
+    };
+
+    do {
+      var i = 0;
+      for(o in [null, ?null, ??v].values()) {
+        switch o {
+          case null { assert i == 0 };
+          case (?null) { assert i == 1 };
+          case (??w) { assert i == 2 and w == v; };
+        };
+        i += 1;
+      }
+    };
+
+    do {
+      var i = 0;
+      for(o in [null, ?null, ??null, ???v].values()) {
+        switch o {
+          case null { assert i == 0 };
+          case (?null) { assert i == 1 };
+          case (??null) { assert i == 2 };
+          case (???w) { assert i == 3 and w == v };
+        };
+        i += 1;
+      };
+    };
+  };
+
   // Null
   do {
     type T = Null;
