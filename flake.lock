@@ -9,7 +9,7 @@
       },
       "locked": {
         "lastModified": 1775041927,
-        "narHash": "sha256-66oWXJlW6aPxkvgsOZraKJEU28lDwZBkgRpyDvbOFQE=",
+        "narHash": "sha256-oREOLT2fhkOLrNgz6DfeO0xisguuxo/tEbRJa/pRIQw=",
         "owner": "ggreif",
         "repo": "binaryen",
         "rev": "1f9671d2ef452982fdde9c4a4f048a54c4282abb",
