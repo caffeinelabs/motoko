@@ -2346,6 +2346,7 @@ module Opt = struct
     of n. This could be optimized further, by storing `n` in the Some payload,
     instead of a pointer, but unlikely worth it.
 
+    https://www.joachim-breitner.de/blog/787-A_mostly_allocation-free_optional_type
   *)
 
   let some_payload_field = Tagged.header_size
@@ -2362,40 +2363,49 @@ module Opt = struct
       I32 ptr
     ]
 
- let is_some env =
+  let is_some env =
     null_lit env ^^
     G.i (Compare (Wasm.Values.I32 I32Op.Ne))
 
- let injection_is_free env t =
-   Type.(match promote t with
-         | Prim Null
-         | Opt _
-         | Any
-         | Con(_, _) -> false
-         | _ -> true)
+  (*
+     With our option representation (see above), the only values v : T that
+     require non-trivial code to inject as Some v have a type T that can
+     contain null or ?w.
+     So for any T other than Null, ?U, Any, or generic bound T,
+     injection is a no-op and just returns v at type ?T.
+     For type that may contain null or ?w, we need to do some work.
+  *)
+  let injection_is_free env t =
+    Type.(match promote t with
+    | Prim Null
+    | Opt _
+    | Any
+    | Con(_, _) -> false
+    | _ -> true)
 
   let inject env t e =
-    if injection_is_free env t then e
+    if injection_is_free env t
+    then e
     else
-    e ^^
-    Func.share_code1 Func.Never env "opt_inject" ("x", I32Type) [I32Type] (fun env get_x ->
-      get_x ^^ BitTagged.if_tagged_scalar env [I32Type]
-        ( get_x ) (* scalar, no wrapping *)
-        ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
-          E.if_ env [I32Type]
-            ( get_x ) (* true literal, no wrapping *)
-            ( get_x ^^ Tagged.branch_default env [I32Type]
-              ( get_x ) (* default tag, no wrapping *)
-              [ Tagged.Null,
-                (* NB: even ?null does not require allocation: We use a static
-                  singleton for that: *)
-                compile_unboxed_const (vanilla_lit env (null_vanilla_lit env))
-              ; Tagged.Some,
-                Tagged.obj env Tagged.Some [get_x]
-              ]
-            )
-        )
-    )
+      e ^^
+      Func.share_code1 Func.Never env "opt_inject" ("x", I32Type) [I32Type] (fun env get_x ->
+        get_x ^^ BitTagged.if_tagged_scalar env [I32Type]
+          ( get_x ) (* scalar, no wrapping *)
+          ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
+            E.if_ env [I32Type]
+              ( get_x ) (* true literal, no wrapping *)
+              ( get_x ^^ Tagged.branch_default env [I32Type]
+                ( get_x ) (* default tag, no wrapping *)
+                [ Tagged.Null,
+                  (* NB: even ?null does not require allocation: We use a static
+                    singleton for that: *)
+                  compile_unboxed_const (vanilla_lit env (null_vanilla_lit env))
+                ; Tagged.Some,
+                  Tagged.obj env Tagged.Some [get_x]
+                ]
+              )
+          )
+      )
 
   (* This function is used where conceptually, Opt.inject should be used, but
   we know for sure that it wouldn’t do anything anyways, except dereferencing the forwarding pointer *)

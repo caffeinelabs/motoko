@@ -2231,6 +2231,14 @@ module Opt = struct
   let alloc_some env get_payload =
     Tagged.obj env Tagged.Some [ get_payload ]
 
+  (*
+     With our option representation (see above), the only values v : T that
+     require non-trivial code to inject as Some v have a type T that can
+     contain null or ?w.
+     So for any T other than Null, ?U, Any, or generic bound T,
+     injection is a no-op and just returns v at type ?T.
+     For a type T that may contain null or ?w, we need to do some work.
+  *)
   let injection_is_free env t =
     Type.(match promote t with
          | Prim Null
@@ -2240,25 +2248,26 @@ module Opt = struct
          | _ -> true)
 
   let inject env t e =
-    if injection_is_free env t then e
+    if injection_is_free env t
+    then e
     else
-    e ^^
-    Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
-      get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
-        ( get_x ) (* scalar, no wrapping *)
-        ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
-          E.if_ env [I64Type]
-            ( get_x ) (* true literal, no wrapping *)
-            ( get_x ^^ is_some env ^^
-              E.if_ env [I64Type]
-                ( get_x ^^ Tagged.branch_default env [I64Type]
-                  ( get_x ) (* default tag, no wrapping *)
-                  [ Tagged.Some, alloc_some env get_x ]
-                )
-                ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
-            )
-        )
-    )
+      e ^^
+      Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
+        get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
+          ( get_x ) (* scalar, no wrapping *)
+          ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
+            E.if_ env [I64Type]
+              ( get_x ) (* true literal, no wrapping *)
+              ( get_x ^^ is_some env ^^
+                E.if_ env [I64Type]
+                  ( get_x ^^ Tagged.branch_default env [I64Type]
+                    ( get_x ) (* default tag, no wrapping *)
+                    [ Tagged.Some, alloc_some env get_x ]
+                  )
+                  ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
+              )
+          )
+      )
 
   let constant env = function
   | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
