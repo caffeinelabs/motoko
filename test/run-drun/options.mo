@@ -13,7 +13,7 @@ actor {
   // Any
   do {
     type T = Any;
-    let v : T = ();
+    let v : T = #any;
 
     do {
       var i = 0;
@@ -480,7 +480,7 @@ actor {
   // unit
   do {
     type T = ();
-    let v : T = ();
+    let (#unit v) = #unit ();  // avoids MO239 warning
 
     do {
       var i = 0;
@@ -761,7 +761,7 @@ actor {
       for(o in [null].values()) {
         switch o {
           case null { assert i == 0 };
-          case (?_w) { assert false };
+//        case (?_w) { assert false };
         };
         i += 1;
       }
@@ -773,7 +773,7 @@ actor {
         switch o {
           case null { assert i == 0 };
           case (?null) { assert i == 1 };
-          case (??_w) { assert false };
+//        case (??w) { assert false };
         };
         i += 1;
       }
@@ -786,7 +786,7 @@ actor {
           case null { assert i == 0 };
           case (?null) { assert i == 1 };
           case (??null) { assert i == 2 };
-          case (???_w) { assert false };
+//        case (???_w) { assert false };
         };
         i += 1;
       };
