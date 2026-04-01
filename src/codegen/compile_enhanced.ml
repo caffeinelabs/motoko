@@ -4961,7 +4961,7 @@ module IC = struct
 
       Func.define_built_in env "print_ptr" [("ptr", I64Type); ("len", I64Type)] [] (fun env ->
         match E.mode env with
-        | Flags.WasmMode -> G.i Nop
+        | Flags.WasmMode -> G.nop
         | Flags.ICMode | Flags.RefMode ->
           G.i (LocalGet (nr 0l)) ^^
           G.i (LocalGet (nr 1l)) ^^
