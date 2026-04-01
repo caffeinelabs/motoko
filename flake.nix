@@ -57,6 +57,10 @@
       url = "github:serokell/ocaml-recovery-parser";
       flake = false;
     };
+    binaryen-patched = {
+      url = "github:ggreif/binaryen/gabor/lsb-if-ctz-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -76,6 +80,7 @@
     , wasm-spec-src
     , grace-src
     , ocaml-recovery-parser-src
+    , binaryen-patched
     }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import ./nix/pkgs.nix {
@@ -111,7 +116,8 @@
         export CLANG="${pkgs.clang_19}/bin/clang"
       '';
 
-      rts = import ./nix/rts.nix { inherit pkgs llvmEnv; };
+      wasmOpt = binaryen-patched.packages.${system}.default;
+      rts = import ./nix/rts.nix { inherit pkgs llvmEnv wasmOpt; };
 
       commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo ] ++ (with ocamlPackages; [
         ocaml
