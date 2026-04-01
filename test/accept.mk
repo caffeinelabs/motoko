@@ -4,9 +4,8 @@ REPO_ROOT := $(shell git rev-parse --show-toplevel)
 
 %.accept: %.mo
 	../run.sh -a $(RUNFLAGS) $<
-	@ git -C $(REPO_ROOT) status -s $(CURDIR)/$< $(THIS_DIR)/ok
+	@ git -C $(REPO_ROOT) status -s $(CURDIR)/$< $(CURDIR)/ok
 	@ echo STAGING: $< $(wildcard ok/$(basename $<).*)
-	@ if [ -n "$(wildcard $(THIS_DIR)/ok/$(basename $<).*)" ] \
-	; then git add --ignore-errors --update $< $(wildcard $(THIS_DIR)/ok/$(basename $<).*) \
-	; fi
+	@ set -- $(CURDIR)/ok/$(basename $<).*; \
+	  [ -e "$$1" ] && git add --ignore-errors $(CURDIR)/$< "$$@" || true
 	@ git -C $(REPO_ROOT) status -s $(CURDIR)/$< $(CURDIR)/ok/$(basename $<).*
