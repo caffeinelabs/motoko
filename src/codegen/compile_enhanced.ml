@@ -11430,11 +11430,30 @@ let rec compile_lexp (env : E.t) ae lexp : G.t * SR.t * G.t =
 (* Common code for a[e] as lexp and as exp.
 Traps or pushes the pointer to the element on the stack
 *)
+and unwrap_toNat ae e = match e.it with
+  | Ir.PrimE (Ir.NumConvTrapPrim (Type.(Nat8|Nat16|Nat32|Nat64 as pty), Type.Nat), [inner]) ->
+    Some (pty, inner)
+  | Ir.PrimE (Ir.CallPrim _, [{it = Ir.VarE (_, callee); _}; inner]) ->
+    begin match VarEnv.lookup_var ae callee with
+    | Some (VarEnv.Const (Const.Fun (_, _, Const.PrimWrapper
+        (Ir.NumConvTrapPrim (Type.(Nat8|Nat16|Nat32|Nat64 as pty), Type.Nat))))) ->
+      Some (pty, inner)
+    | _ -> None
+    end
+  | _ -> None
+
 and compile_array_index env ae e1 e2 =
     compile_exp_vanilla env ae e1 ^^ (* offset to array payload *)
     (match Type.normalize e2.note.Note.typ with
      | Type.Prim (Type.Nat8 | Type.Nat16 | Type.Nat32 | Type.Nat64 as pty) ->
        compile_exp_as env ae (SR.UnboxedWord64 pty) e2 ^^
+       TaggedSmallWord.lsb_adjust pty ^^
+       Arr.idx env
+     | _ when unwrap_toNat ae e2 <> None ->
+       (* Peephole: recognize arr[NatN.toNat(x)] and elide the
+          conversion, compiling x directly as its native type. *)
+       let pty, inner = Option.get (unwrap_toNat ae e2) in
+       compile_exp_as env ae (SR.UnboxedWord64 pty) inner ^^
        TaggedSmallWord.lsb_adjust pty ^^
        Arr.idx env
      | _ ->
@@ -11690,6 +11709,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
     (match Type.normalize e2.note.Note.typ with
      | Type.Prim (Type.Nat8 | Type.Nat16 | Type.Nat32 | Type.Nat64 as pty) ->
        compile_exp_as env ae (SR.UnboxedWord64 pty) e2 ^^
+       TaggedSmallWord.lsb_adjust pty ^^
+       Blob.idx env
+     | _ when unwrap_toNat ae e2 <> None ->
+       let pty, inner = Option.get (unwrap_toNat ae e2) in
+       compile_exp_as env ae (SR.UnboxedWord64 pty) inner ^^
        TaggedSmallWord.lsb_adjust pty ^^
        Blob.idx env
      | _ ->

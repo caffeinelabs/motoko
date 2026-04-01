@@ -11088,6 +11088,18 @@ let rec compile_lexp (env : E.t) ae lexp : G.t * SR.t * G.t =
 (* Common code for a[e] as lexp and as exp.
 Traps or pushes the pointer to the element on the stack
 *)
+and unwrap_toNat ae e = match e.it with
+  | Ir.PrimE (Ir.NumConvTrapPrim (Type.(Nat8|Nat16|Nat32|Nat64 as pty), Type.Nat), [inner]) ->
+    Some (pty, inner)
+  | Ir.PrimE (Ir.CallPrim _, [{it = Ir.VarE (_, callee); _}; inner]) ->
+    begin match VarEnv.lookup_var ae callee with
+    | Some (VarEnv.Const (_, Const.Fun (_, Const.PrimWrapper
+        (Ir.NumConvTrapPrim (Type.(Nat8|Nat16|Nat32|Nat64 as pty), Type.Nat))))) ->
+      Some (pty, inner)
+    | _ -> None
+    end
+  | _ -> None
+
 and compile_array_index env ae e1 e2 =
     compile_exp_vanilla env ae e1 ^^ (* offset to array payload *)
     (match Type.normalize e2.note.Note.typ with
@@ -11097,6 +11109,19 @@ and compile_array_index env ae e1 e2 =
        Arr.idx env
      | Type.Prim Type.Nat64 ->
        compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e2 ^^
+       Arr.idx_nat64 env
+     | _ when (match unwrap_toNat ae e2 with
+       | Some (Type.(Nat8|Nat16|Nat32), _) -> true
+       | _ -> false) ->
+       let pty, inner = Option.get (unwrap_toNat ae e2) in
+       compile_exp_as env ae (SR.UnboxedWord32 pty) inner ^^
+       TaggedSmallWord.lsb_adjust pty ^^
+       Arr.idx env
+     | _ when (match unwrap_toNat ae e2 with
+       | Some (Type.Nat64, _) -> true
+       | _ -> false) ->
+       let _, inner = Option.get (unwrap_toNat ae e2) in
+       compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) inner ^^
        Arr.idx_nat64 env
      | _ ->
        (* Speculative fast path for plain Nat (bigint) array indices.
@@ -11350,6 +11375,19 @@ and compile_prim_invocation (env : E.t) ae p es at =
        Blob.idx env
      | Type.Prim Type.Nat64 ->
        compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e2 ^^
+       Blob.idx_nat64 env
+     | _ when (match unwrap_toNat ae e2 with
+       | Some (Type.(Nat8|Nat16|Nat32), _) -> true
+       | _ -> false) ->
+       let pty, inner = Option.get (unwrap_toNat ae e2) in
+       compile_exp_as env ae (SR.UnboxedWord32 pty) inner ^^
+       TaggedSmallWord.lsb_adjust pty ^^
+       Blob.idx env
+     | _ when (match unwrap_toNat ae e2 with
+       | Some (Type.Nat64, _) -> true
+       | _ -> false) ->
+       let _, inner = Option.get (unwrap_toNat ae e2) in
+       compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) inner ^^
        Blob.idx_nat64 env
      | _ ->
        (* Speculative fast path for plain Nat blob indices.
