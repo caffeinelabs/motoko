@@ -275,6 +275,7 @@ EXPORTED_SYMBOLS=\
   atan \
   atan2 \
   pow \
+  powf \
   sin \
   cos \
   exp \
