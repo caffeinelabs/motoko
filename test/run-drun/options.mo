@@ -44,6 +44,7 @@ actor {
     };
   };
 
+
   // Null
   do {
     type T = Null;
@@ -742,6 +743,47 @@ actor {
   rec_bounded_test<Int, Int>(-1, func (t1, t2) = t1 == t2);
   rec_bounded_test<Nat, Int>(0, func (t1, t2) = t1 == t2);
 
+
+  // None
+  do {
+    type T = None;
+
+    do {
+      var i = 0;
+      for(o in [null].values()) {
+        switch o {
+          case null { assert i == 0 };
+          case (?_w) { assert false };
+        };
+        i += 1;
+      }
+    };
+
+    do {
+      var i = 0;
+      for(o in [null, ?null].values()) {
+        switch o {
+          case null { assert i == 0 };
+          case (?null) { assert i == 1 };
+          case (??_w) { assert false };
+        };
+        i += 1;
+      }
+    };
+
+    do {
+      var i = 0;
+      for(o in [null, ?null, ??null].values()) {
+        switch o {
+          case null { assert i == 0 };
+          case (?null) { assert i == 1 };
+          case (??null) { assert i == 2 };
+          case (???_w) { assert false };
+        };
+        i += 1;
+      };
+    };
+  };
 
 };
 
