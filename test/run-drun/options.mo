@@ -1,5 +1,13 @@
 import Prim "mo:prim";
-// test (type optimized) option injection and projection works correctly
+
+// Test (type optimized) option injection and projection works correctly
+
+// Basically the same test repeated at different,
+// representative type instantiations (staticially unboxed, statically mixed,
+// statically unknown)
+// Intended to test compile_enhanced/classical/Opt.injection_is_free type based
+// option optimization
+
 actor {
 
   // Any
