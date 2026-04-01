@@ -5,7 +5,7 @@ import Prim "mo:prim";
 // Basically the same test repeated at different,
 // representative type instantiations (staticially unboxed, statically mixed,
 // statically unknown)
-// Intended to test compile_enhanced/classical/Opt.injection_is_free type based
+// Intended to test compile_enhanced/classical/Opt.injection_is_free type-based
 // option optimization
 
 actor {
