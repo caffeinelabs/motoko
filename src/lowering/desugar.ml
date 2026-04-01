@@ -642,7 +642,8 @@ and export_runtime_information self_id =
     ("logicalStableMemorySize", prim_call "rts_logical_stable_memory_size", T.nat);
     ("maxStackSize", prim_call "rts_max_stack_size", T.nat);
     ("callbackTableCount", prim_call "rts_callback_table_count", T.nat);
-    ("callbackTableSize", prim_call "rts_callback_table_size", T.nat)
+    ("callbackTableSize", prim_call "rts_callback_table_size", T.nat);
+    ("version", prim_call "get_migrations", T.text_list)
   ] in
   let fields = List.map (fun (name, _, typ) -> fresh_var name typ) information in
   (* Use an object return type to allow adding more data in future. *)

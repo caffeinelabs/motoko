@@ -1,6 +1,7 @@
 import Prim "mo:prim";
 
 module {
+    public type TextList = ?(Text, TextList);
     public type RuntimeInformation = {
         compilerVersion : Text;
         rtsVersion : Text;
@@ -16,6 +17,7 @@ module {
         maxStackSize : Nat;
         callbackTableCount : Nat;
         callbackTableSize : Nat;
+        version : TextList;
     };
 
     public type ActorIntrospection = actor {
