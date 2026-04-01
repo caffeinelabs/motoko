@@ -1248,6 +1248,7 @@ module RTS = struct
     E.add_func_import env "rts" "blob_iter" [I64Type] [I64Type];
     E.add_func_import env "rts" "blob_iter_next" [I64Type] [I64Type];
     E.add_func_import env "rts" "pow" [F64Type; F64Type] [F64Type];
+    E.add_func_import env "rts" "powf" [F32Type; F32Type] [F32Type];
     E.add_func_import env "rts" "sin" [F64Type] [F64Type];
     E.add_func_import env "rts" "cos" [F64Type] [F64Type];
     E.add_func_import env "rts" "tan" [F64Type] [F64Type];
@@ -11389,14 +11390,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
       (powInt64_shortcut (Word64.compile_unsigned_pow env))
   | Type.(Prim Nat),                          PowOp -> BigNum.compile_unsigned_pow env
   | Type.(Prim Float),                        PowOp -> E.call_import env "rts" "pow"
-  | Type.(Prim Float32),                      PowOp ->
-    (* stack: [e1:f32, e2:f32]; promote both to f64, call pow, demote back *)
-    let set_b, get_b, _ = new_local_ env F32Type "f32_pow_b" in
-    set_b ^^
-    G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32)) ^^
-    get_b ^^ G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32)) ^^
-    E.call_import env "rts" "pow" ^^
-    G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
+  | Type.(Prim Float32),                      PowOp -> E.call_import env "rts" "powf"
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               AndOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.And))
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),

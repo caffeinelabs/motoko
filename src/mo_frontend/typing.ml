@@ -2684,6 +2684,11 @@ and infer_exp'' env exp : T.typ =
         k env exp1
       | NoRet ->
         local_error env exp.at "M0085" "misplaced return"
+    end else begin
+      (* Pre-pass must still run BimatchRet to infer return types for generic lambdas *)
+      match env.rets with
+      | BimatchRet k -> k env exp1
+      | _ -> ()
     end;
     T.Non
   | ThrowE exp1 ->

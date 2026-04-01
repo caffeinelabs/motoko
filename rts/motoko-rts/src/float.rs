@@ -44,6 +44,10 @@ pub fn pow(a: f64, b: f64) -> f64 {
     libm::pow(a, b)
 }
 #[no_mangle]
+pub fn powf(a: f32, b: f32) -> f32 {
+    libm::powf(a, b)
+}
+#[no_mangle]
 pub fn tan(a: f64) -> f64 {
     libm::tan(a)
 }
