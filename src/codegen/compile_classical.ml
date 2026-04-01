@@ -5187,6 +5187,12 @@ module IC = struct
     E.add_func_import env "ic0" "env_var_name_exists" [i; i] [I32Type];
     E.add_func_import env "ic0" "env_var_value_size" [i; i] [i];
     E.add_func_import env "ic0" "env_var_value_copy" (is 5) [];
+
+    E.add_func_import env "ic0" "msg_caller_info_signer_size" [] [i];
+    E.add_func_import env "ic0" "msg_caller_info_signer_copy" (is 3) [];
+    E.add_func_import env "ic0" "msg_caller_info_data_size" [] [i];
+    E.add_func_import env "ic0" "msg_caller_info_data_copy" (is 3) [];
+
     E.add_func_import env "ic0" "time" [] [I64Type];
     if !Flags.global_timer then
       E.add_func_import env "ic0" "global_timer_set" [I64Type] [I64Type]
@@ -5553,6 +5559,30 @@ let env_var_names env =
         (fun env -> compile_unboxed_const 0l)
     | _ ->
       E.trap_with env "cannot get caller when running locally"
+
+  let caller_info_signer env =
+    match E.mode env with
+    | Flags.ICMode | Flags.RefMode ->
+      Func.share_code0 Func.Never env "msg_caller_info_signer" [I32Type] (fun env ->
+        Blob.of_size_copy env Tagged.P
+          (fun env -> system_call env "msg_caller_info_signer_size")
+          (fun env -> system_call env "msg_caller_info_signer_copy")
+          (fun env -> compile_unboxed_const 0l)
+      )
+    | _ ->
+      E.trap_with env "cannot get caller_info_signer when running locally"
+
+  let caller_info_data env =
+    match E.mode env with
+    | Flags.ICMode | Flags.RefMode ->
+      Func.share_code0 Func.Never env "msg_caller_info_data" [I32Type] (fun env ->
+        Blob.of_size_copy env Tagged.B
+          (fun env -> system_call env "msg_caller_info_data_size")
+          (fun env -> system_call env "msg_caller_info_data_copy")
+          (fun env -> compile_unboxed_const 0l)
+      )
+    | _ ->
+      E.trap_with env "cannot get caller_info_data when running locally"
 
   let method_name env =
     match E.mode env with
@@ -12069,6 +12099,14 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.Vanilla,
     compile_exp_vanilla env ae name ^^
     IC.env_var env
+
+  | OtherPrim "caller_info_signer", [] ->
+    SR.Vanilla,
+    IC.caller_info_signer env
+
+  | OtherPrim "caller_info_data", [] ->
+    SR.Vanilla,
+    IC.caller_info_data env
 
   (* Regions *)
 

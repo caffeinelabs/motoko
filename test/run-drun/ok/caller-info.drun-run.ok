@@ -1,0 +1,3 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Err: IC0505: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister's Wasm module is not valid: Wasm module has an invalid import section. Module imports function 'msg_caller_info_signer_size' from 'ic0' that is not exported by the runtime..
+If you are running this canister in a test environment (e.g., dfx), make sure the test environment is up to date. Otherwise, this is likely an error with the compiler/CDK toolchain being used to build the canister. Please report the error to IC devs on the forum: https://forum.dfinity.org and include which language/CDK was used to create the canister.

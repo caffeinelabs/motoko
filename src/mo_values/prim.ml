@@ -489,4 +489,12 @@ let prim trap =
      fun _ v k ->
        k Null
 
+  | "caller_info_signer" ->
+     fun _ v k ->
+       k (Blob "")
+
+  | "caller_info_data" ->
+     fun _ v k ->
+       k (Blob "")
+
   | s -> trap.trap ("Value.prim: " ^ s)
