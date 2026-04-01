@@ -4,19 +4,19 @@ error[M0230]: Cannot determine implicit argument `compare` of type
  20 │  ignore needsBoolArrayCompare([true], [false]);
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: Implicit derivation failed:
-        `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
+                 `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
 error[M0230]: Cannot determine implicit argument `compare` of type
   ([[Bool]], [[Bool]]) -> Order
     ┌─ implicit-derivation-deep.mo:28:8
  28 │  ignore needsNestedBoolArrayCompare([[true]], [[false]]);
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: Implicit derivation failed:
-        `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
+                 `compare : (Bool, Bool) -> Order` — not found, try importing mo:core/Bool
 error[M0230]: Cannot determine implicit argument `compare` of type
   (([Color], [Int]), ([Color], [Int])) -> Order
     ┌─ implicit-derivation-deep.mo:38:8
  38 │  ignore needsPairCompare(([#red], [1]), ([#blue], [2]));
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: Implicit derivation failed:
-        `compare : (Color, Color) -> Order` — not found
-        `compare : (Int, Int) -> Order` — not found, try importing mo:core/Int
+                 `compare : (Color, Color) -> Order` — not found
+                 `compare : (Int, Int) -> Order` — not found, try importing mo:core/Int
