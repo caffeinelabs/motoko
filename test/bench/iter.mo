@@ -14,7 +14,7 @@ actor _alloc {
   public func go() : async () {
     let (m0, n0) = counters();
     for (i in Nat.range(0, 1024)) {
-      assert (i < 1024)
+      assert i < 1024
     };
     let (m1, n1) = counters();
     debugPrint(debug_show (m1 - m0, n1 - n0));
