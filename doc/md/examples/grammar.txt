@@ -331,7 +331,7 @@
 
 <dec_var> ::= 
     'var' <id> (':' <typ>)? '=' <exp>
-    'var' <id> (':' <typ>)?
+    'var' <id> ':' <typ>
 
 <dec_nonvar> ::= 
     'let' <pat> '=' <exp>

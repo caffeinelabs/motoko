@@ -1,0 +1,84 @@
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:10:5
+ 10 │      let x : Int; // reject
+    │      ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:11:5
+ 11 │      var y : Int; // reject
+    │      ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:14:5
+ 14 │      let x : Int; // reject
+    │      ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:15:5
+ 15 │      var y : Int; // reject
+    │      ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:18:9
+ 18 │          let x : Int; // reject
+    │          ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:19:9
+ 19 │          var y : Int; // reject
+    │          ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:26:7
+ 26 │        let x : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:27:7
+ 27 │        var y : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:33:8
+ 33 │         let x : Int; // reject
+    │         ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:34:8
+ 34 │         var y : Int; // reject
+    │         ^^^^^^^^^^^ 
+error[M0014]: non-static expression in library, module or migration expression
+    ┌─ enhanced-migration-misplaced-dec.mo:34:8
+ 34 │         var y : Int; // reject
+    │         ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:40:7
+ 40 │        let x : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:41:7
+ 41 │        var y : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:46:5
+ 46 │      let x : Int; // reject
+    │      ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:47:5
+ 47 │      var y : Int; // reject
+    │      ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:49:7
+ 49 │        let x : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:50:7
+ 50 │        var y : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:53:7
+ 53 │        let x : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:54:7
+ 54 │        var y : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:57:7
+ 57 │        let x : Int; // reject
+    │        ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ enhanced-migration-misplaced-dec.mo:58:7
+ 58 │        var y : Int; // reject
+    │        ^^^^^^^^^^^ 

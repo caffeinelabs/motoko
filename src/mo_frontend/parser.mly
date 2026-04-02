@@ -538,7 +538,6 @@ annot_opt :
   | COLON t=typ { Some t }
   | (* empty *) { None }
 
-
 (* Expressions *)
 
 lit :
@@ -958,17 +957,19 @@ func_pat :
 dec_var :
   | VAR x=id t=annot_opt EQ e=exp(ob)
     { VarD(x, annot_exp e t) @? at $sloc }
-  | VAR x=id t=annot_opt
-    (* No initializer - use unit expression () as placeholder *)
+  | VAR x=id COLON t=typ
+    (* No initializer - use PrimE "_" : None as placeholder *)
     (* Type checker will verify this is only allowed for stable variables with --enhanced-migration *)
     { let init_exp = PrimE "_" @? at $sloc in
-      VarD(x, annot_exp init_exp t) @? at $sloc }
+      VarD(x, annot_exp init_exp (Some t)) @? at $sloc }
 
 dec_nonvar :
   | LET p=pat EQ e=exp(ob)
     { let p', e' = normalize_let p e in
       LetD (p', e', None) @? at $sloc }
   | LET p=pat
+    (* because of shift/reduce conflict with LET id COLON typ,
+       we parse a full pat but reject during typing *)
     { let p', e' = normalize_let p (PrimE "_" @? at $sloc) in
       LetD (p', e', None) @? at $sloc }
   | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ

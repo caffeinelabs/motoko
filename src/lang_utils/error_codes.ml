@@ -213,6 +213,8 @@ let error_codes : (string * string option) list =
     "M0253", None; (* Inconsistent multi-migration signature *)
     "M0255", None; (* Upgrading enhanced migration with non-enhanced migration *)
     "M0256", None; (* Enhanced migration directory does not exist *)
+    "M0257", None; (* Misplaced uninitialized dec *)
+    "M0258", None; (* Uninitialized `let` with non <id> : <typ> pattern *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

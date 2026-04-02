@@ -4141,7 +4141,7 @@ and check_stable_defaults env sort dec_fields =
          | AnnotE ({it = PrimE "_"; _}, _) -> () (* placeholder for no initializer -- OK *)
          | _ ->
            local_error env exp.at "M0250"
-             "stable variables must not have initializers with --enhanced-migration; use migration functions instead.")
+             "with --enhanced-migration, this stable declaration cannot have an initializer.\n Remove the expression and initialize the declaration using a `migration` function.")
       | _ -> ())
     dec_fields
   end;
@@ -4205,8 +4205,13 @@ and check_stab env sort scope dec_fields =
       List.map (fun id -> {it = id; at = pat.at; note = ()}) ids;
     | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
     | (T.Actor | T.Mixin), Some stab, _ ->
-      local_error env stab.at "M0133"
-        "misplaced stability modifier: allowed on var or simple let declarations only";
+      let at, desc =
+        if stab.at = Source.no_region
+        then df.it.dec.at, "implicit "
+        else stab.at, "explicit "
+      in
+      local_error env at "M0133"
+        "misplaced %sstability modifier: allowed on var or simple let declarations only" desc;
       []
     | _ -> []) dec_fields
   in
@@ -4273,13 +4278,20 @@ and warn_unit_binding binder env (dec : dec) (exp : exp) =
   let at = Source.{dec.at with right = exp.at.left} in
   warn env at "M0239" "Avoid binding a unit `()` result; remove `%s` and keep the expression" binder
 
-and check_init env exp =
+and check_init env pat_opt exp at =
   (* Check if this is a placeholder for no initializer *)
   match exp.it with
   | AnnotE ({it = PrimE "_"; _}, _) ->
-      if Option.is_none env.enhanced_migration || not env.in_actor then
-        error env exp.at "M0250"
-          "variables without initializers are only allowed in actors with --enhanced-migration flag"
+    if Option.is_none env.enhanced_migration || not env.in_actor then
+      local_error env at "M0257"
+        "this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.";
+    (* check pattern is simple identifier pattern *)
+    (match pat_opt with
+     | None
+     | Some { it = VarP _; _} -> ()
+     | Some pat ->
+       local_error env at "M0258"
+         "this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`.")
   | _ -> ()
 
 and infer_dec env dec : T.typ =
@@ -4309,7 +4321,7 @@ and infer_dec env dec : T.typ =
         check_exp env T.Non fail
     );
     let t = infer_exp env exp in
-    if not env.pre then check_init env exp;
+    if not env.pre then check_init env (Some pat) exp dec.at;
     if !Flags.typechecker_combine_srcs then
       combine_pat_srcs env t pat;
     if not env.pre && T.is_unit (T.normalize t) then
@@ -4318,7 +4330,7 @@ and infer_dec env dec : T.typ =
   | VarD (id, exp) ->
     if not env.pre then begin
       let t = infer_exp env exp in
-      check_init env exp;
+      check_init env None exp dec.at;
       if !Flags.typechecker_combine_srcs then
         combine_id_srcs env t id;
       if T.is_unit (T.normalize t) then
