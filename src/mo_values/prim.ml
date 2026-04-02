@@ -343,6 +343,8 @@ let prim trap =
 
   | "get_migrations" ->
     fun _ v k -> as_unit v; k Null
+  | "set_migrations" ->
+    fun _ v k -> k unit
 
   | "cast"
   | "blobOfPrincipal"
