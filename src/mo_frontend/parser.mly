@@ -1083,6 +1083,8 @@ import_list :
 parse_module_header :
   | start import_list EOF {}
 
+(* stable signatures (.most files) *)
+
 typ_dec :
   | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
     { TypD(x, tps, t) @? at $sloc }
