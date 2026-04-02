@@ -290,7 +290,7 @@ type flags = {
   actor_aliases : actor_aliases;
   actor_idl_path : actor_idl_path;
   include_all_libs : bool;
-  enhanced_migration_path : string option
+  enhanced_migration : string option
   }
 
 type resolved_flags = {
@@ -342,7 +342,7 @@ let package_imports base packages =
   List.concat imports
 
 let enhanced_migration_imports flags =
-  match flags.enhanced_migration_path with
+  match flags.enhanced_migration with
   | None -> []
   | Some dir ->
      let migration_files = get_migration_files dir in

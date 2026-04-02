@@ -141,20 +141,20 @@ let parse_verification_file = parse_file' Lexer.mode_verification
 
 type resolve_result = (Syntax.prog * ResolveImport.resolved_imports) Diag.result
 
-let resolve_flags ?(enhanced_migration_path=None) pkg_opt  =
+let resolve_flags ~(enhanced_migration : string option) pkg_opt  =
   ResolveImport.{
     package_urls = !Flags.package_urls;
     actor_aliases = !Flags.actor_aliases;
     actor_idl_path = !Flags.actor_idl_path;
     include_all_libs = pkg_opt = None && Flags.(!all_libs || !ai_errors || Option.is_some !implicit_package);
-    enhanced_migration_path = enhanced_migration_path
+    enhanced_migration
   }
 
 let resolve_prog (prog, base) : resolve_result =
   Diag.map
     (fun libs -> (prog, libs))
     (ResolveImport.resolve
-       (resolve_flags ~enhanced_migration_path:!Flags.enhanced_migration None)
+       (resolve_flags ~enhanced_migration:!Flags.enhanced_migration None)
        prog base)
 
 let resolve_progs =
@@ -462,7 +462,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         let* prog, base = parsefn ri.Source.at f in
         let* () = Static.prog prog in
         let cur_pkg_opt = if lib_pkg_opt <> None then lib_pkg_opt else pkg_opt in
-        let* more_imports = ResolveImport.resolve (resolve_flags cur_pkg_opt) prog base in
+        let* more_imports = ResolveImport.resolve (resolve_flags ~enhanced_migration:None cur_pkg_opt) prog base in
         let* () = go_set cur_pkg_opt more_imports in
         let lib = lib_of_prog f prog in
         let* sscope = check_lib !senv cur_pkg_opt lib in
