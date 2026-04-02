@@ -2348,12 +2348,12 @@ and pp_stab_sig ppf sig_ =
         (string_of_obj_sort Actor)
         (pp_print_list ~pp_sep:semi (pp_stab_field vs)) tfs
     | PrePost (pre, post) ->
-      fprintf ppf "@[<v 2>%s({@;<0 0>%a@;<0 -2>}, {@;<0 0>%a@;<0 -2>}) @]"
+      fprintf ppf "@[<v 2>%s({@;<0 0>%a@;<0 -2>}, {@;<0 0>%a@;<0 -2>})@]"
         (string_of_obj_sort Actor)
         (pp_print_list ~pp_sep:semi (pp_pre_stab_field vs)) pre
         (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
     | Multi {chain; post} ->
-       fprintf ppf "@[<v 2>{@;<0 0>%a@;<0 -2>}@;<0-2>%s {@;<0 0>%a@;<0 -2>} @]"
+       fprintf ppf "@[<v 2>{@;<0 0>%a@;<0 -2>}@;<0-2>%s {@;<0 0>%a@;<0 -2>}@]"
         (pp_print_list ~pp_sep:semi (pp_mig_field vs)) chain
         (string_of_obj_sort Actor)
         (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
