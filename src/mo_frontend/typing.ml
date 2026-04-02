@@ -2277,14 +2277,7 @@ and infer_exp'' env exp : T.typ =
     T.unit
   | AnnotE (exp1, typ) ->
     let t = check_typ env typ in
-    if not env.pre then
-      (* If exp1 is PrimE "_" (placeholder for no initializer) and --enhanced-migration is enabled, *)
-      (* allow it without type checking (it's used for stable variables without initializers) *)
-      (match exp1.it, !Flags.enhanced_migration with
-       | PrimE "_", Some _ ->
-         exp1.note <- {exp1.note with note_typ = t}
-       | _ ->
-         check_exp_strong env t exp1);
+    if not env.pre then check_exp_strong env t exp1;
     t
   | IgnoreE exp1 ->
     if not env.pre then begin
