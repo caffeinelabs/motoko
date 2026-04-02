@@ -215,6 +215,7 @@ let error_codes : (string * string option) list =
     "M0256", None; (* Enhanced migration directory does not exist *)
     "M0257", None; (* Misplaced uninitialized dec *)
     "M0258", None; (* Uninitialized `let` with non <id> : <typ> pattern *)
+    "M0259", None; (* Uninitialized dec requires type annotation *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

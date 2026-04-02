@@ -4138,6 +4138,7 @@ and check_stable_defaults env sort dec_fields =
       | Some {it = Stable; _}, LetD (_, exp, _)
       | Some {it = Stable; _}, VarD (_, exp) ->
         (match exp.it with
+         | PrimE "_"
          | AnnotE ({it = PrimE "_"; _}, _) -> () (* placeholder for no initializer -- OK *)
          | _ ->
            local_error env exp.at "M0250"
@@ -4281,6 +4282,9 @@ and warn_unit_binding binder env (dec : dec) (exp : exp) =
 and check_init env pat_opt exp at =
   (* Check if this is a placeholder for no initializer *)
   match exp.it with
+  | PrimE "_"  ->
+    local_error env at "M0259"
+      "this uninitialized declaration requires a type annotation";
   | AnnotE ({it = PrimE "_"; _}, _) ->
     if Option.is_none env.enhanced_migration || not env.in_actor then
       local_error env at "M0257"
@@ -4291,7 +4295,7 @@ and check_init env pat_opt exp at =
      | Some { it = VarP _; _} -> ()
      | Some pat ->
        local_error env at "M0258"
-         "this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`.")
+         "this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`")
   | _ -> ()
 
 and infer_dec env dec : T.typ =
