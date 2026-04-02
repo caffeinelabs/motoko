@@ -1,7 +1,5 @@
 # Motoko compiler changelog
 
-## 1.5.0 (unreleased)
-
 * motoko (`moc`)
 
   * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
@@ -17,6 +15,8 @@
     General side-effects are allowed in migration functions, to enable data initialization
     and transformation.
     See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
+
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
 
 ## 1.4.1 (2026-03-30)
 
