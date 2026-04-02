@@ -5,6 +5,7 @@ actor {
 
   let x : Int; // accept
   var y : Int; // accept
+  let untyped : (); // accept
 
   do {
     let x : Int; // reject
