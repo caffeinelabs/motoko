@@ -6,7 +6,7 @@ actor {
 
   let x : Int; // accept
 
-  let (y,z) : (Int,Int); // reject
+  let (y,_) : (Int,Int); // reject
 
   let 1 : Int; // reject
 

@@ -7,7 +7,7 @@ does not cover value
     │        ^ 
 error[M0258]: this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`
     ┌─ enhanced-migration-bad-let.mo:9:3
-  9 │    let (y,z) : (Int,Int); // reject
+  9 │    let (y,_) : (Int,Int); // reject
     │    ^^^^^^^^^^^^^^^^^^^^^ 
 error[M0258]: this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`
     ┌─ enhanced-migration-bad-let.mo:11:3
@@ -23,7 +23,7 @@ error[M0015]: only trivial patterns allowed in static expressions
     │        ^ 
 error[M0133]: misplaced implicit stability modifier: allowed on var or simple let declarations only
     ┌─ enhanced-migration-bad-let.mo:9:3
-  9 │    let (y,z) : (Int,Int); // reject
+  9 │    let (y,_) : (Int,Int); // reject
     │    ^^^^^^^^^^^^^^^^^^^^^ 
 error[M0133]: misplaced implicit stability modifier: allowed on var or simple let declarations only
     ┌─ enhanced-migration-bad-let.mo:11:3
