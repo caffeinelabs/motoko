@@ -4156,7 +4156,7 @@ and check_stab env sort scope dec_fields =
       let at, desc =
         if stab.at = Source.no_region
         then df.it.dec.at, "implicit "
-        else stab.at, "explicit "
+        else stab.at, ""
       in
       local_error env at "M0133"
         "misplaced %sstability modifier: allowed on var or simple let declarations only" desc;

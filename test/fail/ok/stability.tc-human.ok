@@ -10,27 +10,27 @@ warning[M0239]: Avoid binding a unit `()` result; remove `var` and keep the expr
     ┌─ stability.mo:26:11
  26 │     stable var nxnnbkddcv = (); // reject due to collision
     │            ^^^^^^^^^^^^^^^^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:5:4
   5 │     stable type T = Int;  // reject
     │     ^^^^^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:6:4
   6 │     flexible type U = Int; // reject
     │     ^^^^^^^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:7:4
   7 │     flexible ignore 666; // reject
     │     ^^^^^^^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:8:4
   8 │     flexible (); // reject
     │     ^^^^^^^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:15:4
  15 │     stable let (p,q) = (1,2); // reject (for now, maybe forever)
     │     ^^^^^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:16:4
  16 │     stable let (r,s) = if true (1,2) else (2,1); // reject forever, I suspect, as RHS non-canonical
     │     ^^^^^^ 
@@ -49,11 +49,11 @@ error[M0131]: variable m3 is declared stable but has non-stable type
     ┌─ stability.mo:43:18
  43 │     stable module m3 {}; // reject
     │                   ^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:46:4
  46 │     flexible class C2(){}; // reject
     │     ^^^^^^^^ 
-error[M0133]: misplaced explicit stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:47:4
  47 │     stable class C3(){}; // reject
     │     ^^^^^^ 

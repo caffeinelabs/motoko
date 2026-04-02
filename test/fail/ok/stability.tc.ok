@@ -1,20 +1,20 @@
 stability.mo:3.7-3.15: type error [M0132], misplaced stability declaration on field of non-actor
 stability.mo:25.11-25.21: warning [M0239], Avoid binding a unit `()` result; remove `var` and keep the expression
 stability.mo:26.11-26.28: warning [M0239], Avoid binding a unit `()` result; remove `var` and keep the expression
-stability.mo:5.4-5.10: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
-stability.mo:6.4-6.12: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
-stability.mo:7.4-7.12: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
-stability.mo:8.4-8.12: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
-stability.mo:15.4-15.10: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
-stability.mo:16.4-16.10: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
+stability.mo:5.4-5.10: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
+stability.mo:6.4-6.12: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
+stability.mo:7.4-7.12: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
+stability.mo:8.4-8.12: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
+stability.mo:15.4-15.10: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
+stability.mo:16.4-16.10: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
 stability.mo:17.15-17.16: type error [M0131], variable f is declared stable but has non-stable type
   () -> ()
 stability.mo:39.18-39.20: type error [M0131], variable o6 is declared stable but has non-stable type
   {f : () -> ()}
 stability.mo:43.18-43.20: type error [M0131], variable m3 is declared stable but has non-stable type
   module {}
-stability.mo:46.4-46.12: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
-stability.mo:47.4-47.10: type error [M0133], misplaced explicit stability modifier: allowed on var or simple let declarations only
+stability.mo:46.4-46.12: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
+stability.mo:47.4-47.10: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
 stability.mo:50.15-50.20: type error [M0131], variable wrong is declared stable but has non-stable type
   module {}
 stability.mo:26.15-26.25: type error [M0019], stable variable names foo and nxnnbkddcv in actor type have colliding hashes
