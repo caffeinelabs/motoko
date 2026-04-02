@@ -2243,10 +2243,7 @@ module Opt = struct
   *)
   let injection_is_free env t =
     Type.(match promote t with
-         | Prim Null
-         | Opt _
-         | Any
-         | Con(_, _) -> false
+         | Prim Null | Opt _ | Any | Con _ -> false
          | _ -> true)
 
   let inject env t e =
