@@ -212,6 +212,7 @@ let error_codes : (string * string option) list =
     "M0252", None; (* Cannot combine (with migration = ...) with --enhanced-migration *)
     "M0253", None; (* Inconsistent multi-migration signature *)
     "M0255", None; (* Upgrading enhanced migration with non-enhanced migration *)
+    "M0256", None; (* Enhanced migration directory does not exist *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

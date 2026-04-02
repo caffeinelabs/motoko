@@ -235,18 +235,18 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   else (err_package_file_does_not_exist msgs f pname;"")
 
 (* Get the migration files, filter by .mo extension and sort lexicographically. *)
-let get_migration_files dir : string list =
-   if not (Sys.is_directory dir) then
-    begin
-      Format.eprintf "The enhanced migration directory is not a directory.\n"; exit 1
-    end
-   else
-     Sys.readdir dir
-     |> Array.to_list
-     |> List.sort String.compare
-     |> List.filter (fun fname -> Filename.check_suffix fname ".mo")
-     |> List.map (Filename.concat dir)
-     
+let get_migration_files dir : string list Diag.result =
+  if not (Sys.file_exists dir && Sys.is_directory dir) then
+    Diag.error Source.no_region "M0256" "import"
+      (Printf.sprintf "enhanced migration path '%s' is not a directory" dir)
+  else
+    Sys.readdir dir
+    |> Array.to_list
+    |> List.sort String.compare
+    |> List.filter (fun fname -> Filename.check_suffix fname ".mo")
+    |> List.map (Filename.concat dir)
+    |> Diag.return
+
 (* Resolve the argument to `--actor-alias` and `--actor-env/id-alias`. Check eagerly for well-formedness *)
 let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url * filepath option) Either.t) : (envvar * filepath, blob * filepath option) Either.t =
   let open Either in match f with
@@ -299,7 +299,6 @@ type resolved_flags = {
   actor_idl_path : actor_idl_path;
   }
 
-
 let list_files_recursively : string -> string list =
  fun dir ->
   let rec loop result = function
@@ -341,12 +340,13 @@ let package_imports base packages =
   in
   List.concat imports
 
-let enhanced_migration_imports flags =
+let enhanced_migration_imports flags : resolved_import list Diag.result =
   match flags.enhanced_migration with
-  | None -> []
+  | None -> Diag.return []
   | Some dir ->
-     let migration_files = get_migration_files dir in
-     List.map (fun path -> LibPath {package = None; path = path}) migration_files
+    let open Diag.Syntax in
+    let* migration_files = get_migration_files dir in
+    Diag.return (List.map (fun path -> LibPath {package = None; path = path}) migration_files)
 
 let resolve_flags : flags -> resolved_flags Diag.result
   = fun { actor_idl_path; package_urls; actor_aliases; _ } ->
@@ -360,6 +360,7 @@ let resolve
   = fun flags p base ->
   let open Diag.Syntax in
   let* { packages; aliases; actor_idl_path } = resolve_flags flags in
+  let* migration_imports = enhanced_migration_imports flags in
   Diag.with_message_store (fun msgs ->
     let base = if Sys.is_directory base then base else Filename.dirname base in
     let imported =
@@ -373,7 +374,7 @@ let resolve
     in
     (* add any implicit imports for migrations *)
     imported := (List.fold_right (fun ri rim -> RIM.add ri Source.no_region rim)
-                   (enhanced_migration_imports flags) !imported);
+                   migration_imports !imported);
     List.iter (resolve_import_string msgs base actor_idl_path aliases packages imported)(prog_imports p);
     Some (List.map (fun (rim, at) -> rim @@ at) (RIM.bindings !imported))
   )
