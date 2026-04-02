@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
 ## 1.4.1 (2026-03-30)
 
 * motoko (`moc`)
