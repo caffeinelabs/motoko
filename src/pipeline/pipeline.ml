@@ -328,7 +328,6 @@ let validate_stab_sig s : unit Diag.result =
     | Multi {chain=c1; post=post1}, Multi {chain=c2;post=post2} ->
       (* check we can at least self-upgrade,
          with a possibly different or no migration function *)
-      (* TODO: do more checks *)
       Stability.match_stab_sig (Single post1) (Single post2)
     | _, _ -> assert false))
 
