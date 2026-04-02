@@ -4,4 +4,3 @@ note: The ambiguous implicit candidates are: `MA.cmp`, `MB1.cmp`, `MB2.cmp`.
 implicit-best-candidate.mo:55.22-55.24: type error [M0231], ambiguous implicit argument named `default` of type 
   {a : Int}.
 note: The ambiguous implicit candidates are: `MB1.default`, `MB2.default`, `MC.default`.
-note: The other explicit candidates are: `b`, `c`
