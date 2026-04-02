@@ -82,3 +82,13 @@ error[M0257]: this declaration has no initializer. Omitting an initializer is on
     ┌─ enhanced-migration-misplaced-dec.mo:58:7
  58 │        var y : Int; // reject
     │        ^^^^^^^^^^^ 
+error[M0169]: the stable variable `untyped` of version `m1` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function
+    ┌─ enhanced-migration-misplaced-dec.mo:4:1
+  3 │    
+  4 │ ╭  actor {
+  5 │ │  
+    · │  
+ 60 │ │    };
+ 61 │ │  }
+    │ ╰──^ 
+ 62 │    
