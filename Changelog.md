@@ -1,5 +1,23 @@
 # Motoko compiler changelog
 
+## 1.5.0 (unreleased)
+
+* motoko (`moc`)
+
+  * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
+    Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
+    Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
+    The (lexicographic) sort order of module filenames determines the order of application of migration functions, with lowest applied first.
+    The compiler verifies that the chain of migration functions composes correctly.
+    The runtime only applies previously unapplied migrations on upgrade.
+    Stable variables within an actor's body must be declared with types but without initializers;
+    their values are determined entirely by the output of the migration chain.
+    The main body of actor must not have any immediate side effects, beyond invoking
+    local `<system>` functions (e.g. to register timers).
+    General side-effects are allowed in migration functions, to enable data initialization
+    and transformation.
+    See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
+
 ## 1.4.1 (2026-03-30)
 
 * motoko (`moc`)
