@@ -1830,30 +1830,24 @@ end
 let resolve_hole env at hole_name hole_typ =
   let open ImplicitHoles in
   let rec_bindings = ref [] in
-  let result = resolve_hole ~depth:0 ~rec_bindings env at {hole_name; hole_typ} in
-  (* Entries with func_exp = None only exist when commit_derivation
-     failed, which means the overall result is Error.
-     Result.map skips Error, so the assert below is safe as long as the
-     no-backtracking invariant holds (failed derivations immediately return
-     Error, never fall through). *)
-  Result.map (fun candidate ->
+  resolve_hole ~depth:0 ~rec_bindings env at {hole_name; hole_typ}
+  (* [func_exp = None] only exists when the derivation failed (when the result is Error).
+     So the assert below is safe as long as the no-backtracking invariant holds *)
+  |> Result.map (fun candidate ->
     let bindings = !rec_bindings
       |> List.rev
       |> List.map (fun entry ->
-           match entry.func_exp with
-           | Some e -> (entry.entry_name, entry.hole.hole_typ, e)
-           | None -> assert false) in
-    (candidate, bindings)
-  ) result
+        match entry.func_exp with
+        | Some e -> (entry.entry_name, entry.hole.hole_typ, e)
+        | None -> assert false)
+    in
+    (candidate, bindings))
 
 let mk_recursive_block at bindings outermost_path hole_typ =
-  let mk_dec typ d =
-    { Source.it = d; at; note = {empty_typ_note with note_typ = typ} } in
-  let mk_pat name typ =
-    Source.annotate typ (VarP (name @@ no_region)) no_region in
-  let let_decs = List.map (fun (name, typ, func_exp) ->
-    mk_dec typ (LetD (mk_pat name typ, func_exp, None))
-  ) bindings in
+  let mk_dec typ d = { Source.it = d; at; note = {empty_typ_note with note_typ = typ} } in
+  let mk_pat name typ = Source.annotate typ (VarP (name @@ no_region)) no_region in
+  let let_decs = bindings |> List.map (fun (name, typ, func_exp) ->
+    mk_dec typ (LetD (mk_pat name typ, func_exp, None))) in
   let exp_dec = mk_dec hole_typ (ExpD outermost_path) in
   { Source.it = BlockE (let_decs @ [exp_dec]);
     at; note = {empty_typ_note with note_typ = hole_typ; note_eff = T.Triv} }
@@ -2899,9 +2893,7 @@ and check_hole env at hole_name hole_typ exp_ref =
       { env with vals = T.Env.add name
           (typ, Source.no_region, Scope.Declaration, Available) env.vals }
     ) env bindings in
-    List.iter (fun (_, typ, func_exp) ->
-      check_exp env_rec typ func_exp
-    ) bindings;
+    List.iter (fun (_, typ, func_exp) -> check_exp env_rec typ func_exp) bindings;
     check_exp env_rec hole_typ path;
     exp_ref := mk_recursive_block at bindings path hole_typ
   | Error (HoleAmbiguous ambiguous_candidates) ->
@@ -2910,22 +2902,21 @@ and check_hole env at hole_name hole_typ exp_ref =
     error env at "M0231" ~notes "ambiguous implicit argument %s of type %a."
       ("named " ^ quote hole_name) display_typ hole_typ
   | Error (HoleSuggestions (lib_terms, derivation_notes)) ->
-    if not env.pre then begin
-      let derivation_sug = render_derivation_leaves env derivation_notes in
-      let import_sug =
-        if lib_terms = [] then
-          if derivation_sug <> [] then [] else
-          let desc = " named " ^ quote hole_name in
-          [Stdlib.Format.sprintf
-            "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
-            desc desc]
-        else [Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))]
-      in
-      let notes = import_sug @ derivation_sug in
-      local_error ~notes env at "M0230" "Cannot determine implicit argument %s of type%a"
-        (quote hole_name)
-        display_typ hole_typ
-    end
+    if env.pre then () else
+    let derivation_sug = render_derivation_leaves env derivation_notes in
+    let import_sug =
+      if lib_terms = [] then
+        if derivation_sug <> [] then [] else
+        let desc = " named " ^ quote hole_name in
+        [Stdlib.Format.sprintf
+          "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
+          desc desc]
+      else [Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))]
+    in
+    let notes = import_sug @ derivation_sug in
+    local_error ~notes env at "M0230" "Cannot determine implicit argument %s of type%a"
+      (quote hole_name)
+      display_typ hole_typ
 
 and check_inferred env0 env t t' exp =
   (match sub_explained env exp.at t' t with
