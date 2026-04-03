@@ -1,6 +1,6 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 debug.print: {bias = 1_024; scalar = 16}
-debug.print: {cycles = 175_161}
+debug.print: {cycles = 175_154}
 debug.print: {cycles = 175_422}
 debug.print: {cycles = 353_598}
 debug.print: {cycles = 531_774}

@@ -1423,7 +1423,6 @@ type hole_candidate =
     typ : T.typ;
     module_ref_opt: T.lab option; (* module name (from `vals`) or path (from `libs`) *)
     id : T.lab;
-    region : Source.region;
   }
 
 let desc_of_candidate candidate = quote
@@ -1463,7 +1462,7 @@ let disambiguate_resolutions (rel : 'candidate -> 'candidate -> bool) (candidate
 
 let is_lib_module (n, t) =
   match T.normalize t with
-  | T.Obj (T.Module, fs, _) -> Some (n, (t, fs))
+  | T.Obj (T.Module, fs, _) -> Some (n, fs)
   | _ -> None
 
 let is_val_module (n, ((t, _, _, _) : val_info)) =
@@ -1489,7 +1488,7 @@ let module_ref_of_dot_module_exp (path : exp) =
   | _ -> None
 
 type hole_error =
-  | HoleSuggestions of hole_candidate list * hole_candidate list * (env -> unit)
+  | HoleSuggestions of hole_candidate list
   | HoleAmbiguous of (env -> unit)
 
 (** Searches for hole resolutions for [name] of a given [typ].
@@ -1499,7 +1498,6 @@ type hole_error =
     when finding multiple resolutions.
  *)
 let resolve_hole env at name typ =
-  let is_matching_lab lab = name = lab in
   let is_matching_typ typ1 = T.sub typ1 typ in
   let has_matching_field_typ = function
     | T.{ lab; typ = Mut t; _ } -> None
@@ -1508,81 +1506,42 @@ let resolve_hole env at name typ =
        then Some (lab1, typ1, src.T.region)
        else None
   in
-  let find_candidate_fields in_libs (module_ref, (_, fs)) =
-    List.filter_map has_matching_field_typ fs |>
-    List.map (fun (lab, typ, region) ->
-      let path = dot_module_exp (module_exp in_libs module_ref) (lab @@ no_region) in
-      { path; typ; module_ref_opt = Some module_ref; id = lab; region })
+  let find_candidate_field in_libs (module_ref, fs) =
+    let open Lib.Option.Syntax in
+    let* field = T.find_val_field_opt name fs in
+    let* (lab, typ, region) = has_matching_field_typ field in
+    let path = dot_module_exp (module_exp in_libs module_ref) (lab @@ no_region) in
+    Some { path; typ; module_ref_opt = Some module_ref; id = lab }
   in
-  let find_candidate_id (id, (t, region, _, _)) =
-    if is_matching_typ t
-    then
-      let path = VarE(id @~ no_region) @? no_region in
-      Some { path; typ = t; module_ref_opt = None; id; region }
-    else None
-  in
-  let (eligible_ids, explicit_ids) =
-    T.Env.to_seq env.vals |>
-      Seq.filter_map find_candidate_id |>
-      List.of_seq |>
-      List.partition (fun (desc : hole_candidate) -> is_matching_lab desc.id)
-  in
-  let candidates in_libs xs f =
-    T.Env.to_seq xs |>
+  let candidates in_libs vals f =
+    T.Env.to_seq vals |>
       Seq.filter_map f |>
-      Seq.map (find_candidate_fields in_libs) |>
-      List.of_seq |>
-      List.flatten |>
-      List.partition (fun (desc : hole_candidate) -> is_matching_lab desc.id)
+      Seq.filter_map (find_candidate_field in_libs) |>
+      List.of_seq
   in
-  let eligible_terms, explicit_terms  =
-    match eligible_ids with
-    | [id] -> ([id], []) (* first look in local env, otherwise consider module entries *)
-    | _ ->
-       let (eligible_fields, explicit_fields) = candidates false env.vals is_val_module in
-       (eligible_ids @ eligible_fields,
-        explicit_ids @ explicit_fields)
-  in
-  let renaming_hints env =
-    List.iter (fun candidate ->
-      if (candidate.region.left.file = at.left.file) then
-        let call_region = Source.string_of_region at in
-        let call_src = match Source.read_region at with Some s -> ": " ^ s | None -> "." in
-        let mod_desc, mid =
-          match candidate.path.it with
-          | DotE({ it = VarE {it = mid;_ }; _ }, _, _) ->
-            ("the existing", mid)
-          | VarE _ | _ ->
-            let mid = match Lib.String.chop_prefix name candidate.id with
-              | Some suffix when not (T.Env.mem suffix env.vals) -> suffix
-              | _ -> "<M>"
-            in
-            ("a new", mid)
-          in
-            info env candidate.region
-             "Consider renaming `%s` to `%s.%s` in %s module `%s`. Then it can serve as an implicit argument `%s` in this call:\n%s%s"
-             (desc_of_candidate candidate) mid name mod_desc mid name call_region call_src)
-      explicit_terms
-  in
+  let eligible_terms = match T.Env.find_opt name env.vals with
+    | Some (t, region, _, _) when is_matching_typ t ->
+      (* Prefer local match over module entries *)
+      let path = VarE(name @~ no_region) @? no_region in
+      [{ path; typ = t; module_ref_opt = None; id = name }]
+    | _ -> candidates false env.vals is_val_module in
+
   (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
      If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
   let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ) in
   match eligible_terms with
   | [term] -> Ok term
   | [] ->
-    let (lib_terms, _) = candidates true env.libs is_lib_module in
+    let lib_terms = candidates true env.libs is_lib_module in
     (match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_terms else None with
       | Some term -> Ok term
-      | None -> Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints)))
+      | None -> Error (HoleSuggestions lib_terms))
   | terms ->
      match disambiguate_holes terms with
      | Some term -> Ok term
      | None -> Error (HoleAmbiguous (fun env ->
        let terms = List.map desc_of_candidate terms in
-       let notes = Printf.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " terms) ::
-         if explicit_terms = [] then [] else
-            [ "The other explicit candidates are: " ^ (String.concat ", " (List.map desc_of_candidate explicit_terms)) ]
-       in
+       let notes = [Printf.sprintf "The ambiguous implicit candidates are: %s." (String.concat ", " terms)] in
        error env at "M0231" ~notes "ambiguous implicit argument %s of type %a." ("named " ^ quote name) display_typ typ))
 
 type ctx_dot_candidate =
@@ -1628,7 +1587,7 @@ end
 let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_error) Result.t =
   let open Lib.Option.Syntax in
 
-  let find_candidate in_libs (module_ref, (module_ty, fs)) =
+  let find_candidate in_libs (module_ref, fs) =
     let* field = T.find_val_field_opt name.it fs in
     let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func field.T.typ receiver_ty in
     let path = dot_module_exp (module_exp in_libs module_ref) name in
@@ -1672,7 +1631,7 @@ type contextual_dot_suggestion =
     func_ty : T.typ;
   }
 let contextual_dot_suggestions libs receiver_ty =
-  let find_candidate (module_path, (module_ty, fs)) =
+  let find_candidate (module_path, fs) =
     List.to_seq fs |>
     Seq.filter_map (fun fld ->
       CtxDot.is_matching_func fld.T.typ receiver_ty |>
@@ -2453,12 +2412,8 @@ and check_exp' env0 t exp : T.typ =
     | Error (HoleAmbiguous mk_error) ->
       mk_error env;
       t
-    | Error (HoleSuggestions (lib_terms, explicit_terms, renaming_hints)) ->
+    | Error (HoleSuggestions lib_terms) ->
       if not env.pre then begin
-        let explicit_sug =
-          if explicit_terms = [] then []
-          else [Printf.sprintf "Did you mean to explicitly use %s?" (String.concat " or " (List.map desc_of_candidate explicit_terms))]
-        in
         let import_sug =
           if lib_terms = [] then
             Stdlib.Format.sprintf
@@ -2466,8 +2421,7 @@ and check_exp' env0 t exp : T.typ =
              (quote s) (quote s)
           else Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))
         in
-        renaming_hints env;
-        let notes = import_sug::explicit_sug in
+        let notes = [import_sug] in
         local_error ~notes env exp.at "M0230" "Cannot determine implicit argument %s of type%a" (quote s) display_typ t
       end;
       t
