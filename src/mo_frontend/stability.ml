@@ -23,7 +23,7 @@ let desc mig_lab_opt =
   | None -> "the previous version"
   | Some mig_lab -> "version `" ^ mig_lab ^ "`"
 
-(*TODO: could we use tf.src.region to locate the errors better *)
+(* FUTURE: we could perhaps use tf.src.region to better locate the errors below *)
 let error_discard s at mig_lap_opt tf =
   Diag.add_msg s
     (Diag.error_message at "M0169" cat
