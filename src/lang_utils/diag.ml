@@ -117,6 +117,7 @@ let ensure_primary_span msg =
   else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
 
 let fancy_of_message msg =
+  if Source.is_no_region msg.at then string_of_message msg else
   let file = msg.at.Source.left.Source.file in
   let source : G.Source.t = `File file in
   let content = In_channel.with_open_bin file In_channel.input_all in

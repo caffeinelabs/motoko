@@ -12,6 +12,9 @@ module Region_map : Map.S with type key = region
 val no_pos : pos
 val no_region : region
 
+val is_no_pos : pos -> bool
+val is_no_region : region -> bool
+
 val string_of_pos : pos -> string
 val string_of_region : region -> string
 
