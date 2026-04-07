@@ -2,6 +2,12 @@
 
 * motoko (`moc`)
 
+  * feat: Add `--generate-view-queries` flag to auto-generate query methods for stable variables (#5796).
+    When enabled, `moc` produces one `__<var>` query method per stable variable `<var>`, using the variable's `.view()` method if available, or returning the value directly for shared types.
+    Generated queries are restricted to controllers and self.
+    View queries appear in the local `.did` file (for tooling) but are excluded from the canister's public Candid interface, so they never affect upgrade compatibility.
+    See [Stable variable inspection](doc/md/icp-features/7-view-queries.md) for details.
+
   * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
     Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
     Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
