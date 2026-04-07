@@ -1006,58 +1006,6 @@ let is_local_async_func typ =
 let shared t = serializable false t
 let stable t = serializable true t
 
-let shared_of_stable t =
-  assert (stable t);
-  let seen = ref ConEnv.empty in
-  let rec go t =
-    begin
-      match t with
-      | Var _ | Pre -> t
-      | Prim Error -> assert false
-      | Prim Region -> Any
-      | Any | Non | Prim _ -> t
-      | Async _ -> assert false
-      | Weak t -> Any
-      | Mut t -> Any
-      | Con (c, ts) ->
-        (match ConEnv.find_opt c !seen with
-         | Some c' -> Con (c', List.map go ts)
-         | None ->
-            match Cons.kind c with
-            | Abs _ -> Any
-            | Def(tbs, u) ->
-              (* copy constructor with approximated body *)
-              (* just weaken bounds to Any  *)
-              let tbs' = List.map (fun tb -> {tb with bound = Any}) tbs in
-              let c' = Cons.fresh (Cons.name c) (Abs(tbs', Pre)) in
-              seen := ConEnv.add c c' !seen;
-              let u' = go u in
-              set_kind c' (Def(tbs', u'));
-              Con (c', List.map go ts))
-      | Array (Mut t) -> Any
-      | Array t -> Array (go t)
-      | Opt t -> Opt (go t)
-      | Tup ts -> Tup (List.map go ts)
-      | Obj (s, fs, ts) ->
-        (match s with
-         | Actor -> t
-         | Module | Mixin ->
-             assert false (* TODO(1452) make modules sharable *)
-         | Object | Memory ->
-             Obj(s,
-                 (* drop mutable fields, approx others *)
-                 List.filter_map (fun f ->
-                     if is_mut f.typ then
-                       None else
-                       Some { f with typ = go f.typ }) fs, ts))
-      | Variant fs -> Variant (List.map (fun f -> {f with typ = go f.typ}) fs)
-      | Func (s, c, tbs, ts1, ts2) ->
-        assert (is_shared_sort s);
-        t
-      | Named (n, t) -> Named (n, go t)
-    end
-  in go t
-
 (* Forward declare
    TODO: haul string_of_typ before the lub/glb business, if possible *)
 let str = ref (fun _ -> failwith "")

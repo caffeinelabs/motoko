@@ -4169,9 +4169,9 @@ and infer_viewer env scope mut id viewer =
     then () (* avoid any clash with local or reserved `__motoko_XXX` members by omitting viewer *)
     else
       let viewer_field args ret =
-        (* approximate any stable to shared returns, if necessary *)
+        (* approximate non-shared returns to Any, if necessary *)
         let shared_ret =
-          List.map (fun ty -> if T.shared ty then ty else T.shared_of_stable ty) ret in
+          List.map (fun ty -> if T.shared ty then ty else T.Any) ret in
         T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->

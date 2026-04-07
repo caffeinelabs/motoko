@@ -19,20 +19,20 @@ persistent actor Self {
   };
 
   // here, [array_of_non_shared.view] produces a non-shared result type,
-  // approximated to shared {b:{#B}; c : Any} entries
+  // approximated to Any entries
   let array_of_non_shared : [var { var a : {#A}; b : {#B}; c : [var {#C}]}] =
      [ var {var a = #A; b = #B; c = [var #C]} ];
 
   /* generates */
-  public query func __array_of_non_shared(start:Nat, count: Nat) : async [
-    {b:{#B}; c : Any} // <- approximation
-  ] {
+  public query func __array_of_non_shared(start:Nat, count: Nat) :
+    async Any // <- approximation
+  {
      array_of_non_shared.view()(start, count);
   };
 
 
   // here, [non_shared_array.view] produces a non-shared (mutable) type,
-  // approximate to [Any]
+  // approximate to Any
   let non_shared_array : [[var Nat]] = [];
 
   // shared values we can just display, sans viewer
@@ -71,31 +71,31 @@ persistent actor Self {
       actor {
         /* generated .views */
         __array : shared query (Nat, Nat) -> async [(Nat, Text)];
-        __array_of_non_shared : shared query (Nat, Nat) -> async [
-	   {b:{#B}; c : Any} ];
+        __array_of_non_shared : shared query (Nat, Nat) -> async Any; // approximation
 	/* generated simple */
         __some_variant: shared query () -> async Tree;
 	__some_record : shared query () -> async {a:Nat; b: Text; c : Bool};
 	/* user-defined */
 	__override : shared query () -> async Text;
 	/* unable to generate because of (potential) name clash, no viewer or non-shared type*/
-        __non_shared_array : shared query() -> async [Any];
-        __some_mutable_record : shared query() -> async {b : Nat; c : Any}; // drop a, approximate type of c
+        __non_shared_array : shared query() -> async Any; // approximation
+        __some_mutable_record : shared query() -> async Any; // approximation
 	__some_list : shared query () -> async List<Nat>;
-	__some_non_shared_list : shared query () -> async List<{b:Text}>;
+	__some_non_shared_list : shared query () -> async Any; // approximation
         __motoko_xxx : shared query () -> async None;
 
     };
+    func printAny(_ : Any) { Prim.debugPrint("any") };
     Prim.debugPrint(debug_show (await views.__array(0,0)));
     Prim.debugPrint(debug_show (await views.__some_variant()));
     Prim.debugPrint(debug_show (await views.__some_record()));
     Prim.debugPrint(debug_show (await views.__override())); // calls user-defined method
-    // debug_show doesn't support Any values, so avoid those below
-    Prim.debugPrint(debug_show (await views.__array_of_non_shared(0,0)).size());
-    Prim.debugPrint(debug_show (await views.__non_shared_array()).size());
-    Prim.debugPrint(debug_show (await views.__some_mutable_record()).b);
     Prim.debugPrint(debug_show (await views.__some_list()));
-    Prim.debugPrint(debug_show (await views.__some_non_shared_list()));
+    // debug_show doesn't support Any values, so avoid those below
+    printAny(await views.__array_of_non_shared(0,0));
+    printAny(await views.__non_shared_array());
+    printAny(await views.__some_mutable_record());
+    printAny(await views.__some_non_shared_list());
     try {
       await views.__motoko_xxx(); //fails with method not available
       assert false;
