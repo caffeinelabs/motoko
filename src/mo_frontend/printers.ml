@@ -31,6 +31,8 @@ let repr_of_symbol : xsymbol -> (string * string) =
   let eg_stab_field = String.concat " " ["stable"; eg_pat; eg_annot] in
   let eg_pre_stab_field = String.concat " " ["in"; eg_pat; eg_annot] in
   let eg_typ_tag = "#t" in
+  let eg_mig_tag = "\"<filename>\"" in
+  let eg_mig_field = eg_mig_tag ^ " : " ^ eg_typ in
   let seplist a sep = ("seplist(" ^ fst a ^ "," ^ fst sep ^ ")",
                        snd a) in
   let semi = "<semicolon>", ";" in
@@ -269,7 +271,9 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_stab_field) -> "<stab_field>", eg_stab_field
   | X (N N_pre_stab_field) -> "<pre_stab_field>", eg_pre_stab_field
   | X (N N_start) -> entry_point "<start>" (* dummy non-terminal, don't display *)
-
+  | X (N N_seplist_mig_field_semicolon_) -> seplist ("<mig_field>", eg_mig_field) semi
+  | X (N N_mig_lab) -> "<mig_lab>", "\"<filename>\""
+  | X (N N_mig_field) -> "<mig_field>", eg_mig_field
 (* In order to print a view of the stack that includes semantic values,
    we need an element printer. (If we don't need this feature, then
    [print_symbol] above suffices.) *)

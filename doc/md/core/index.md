@@ -1,6 +1,7 @@
 # Motoko core package
 
 * [Array](Array.md) Provides extended utility functions on immutable Arrays (values of type `[T]`).
+* [Base64](Base64.md) Module for Base64 encoding of byte sequences.
 * [Blob](Blob.md) Module for working with Blobs (immutable sequences of bytes).
 * [Bool](Bool.md) Boolean type and operations.
 * [CertifiedData](CertifiedData.md) Certified data.

@@ -3,7 +3,7 @@ palindrome.mo:19.28-19.38: warning [M0145], this pattern of type
 does not cover value
   null
 palindrome.mo:15.84-21.6: warning [M0145], this switch of type
-  (?(Char, List<Char>), ?(Char, List<Char>))
+  (List<Char>, List<Char>)
 does not cover value
   (null, ?(_))
 palindrome.mo:22.23-22.27: warning [M0145], this pattern of type
@@ -15,7 +15,7 @@ palindrome.mo:31.15-31.23: warning [M0145], this pattern of type
 does not cover value
   null
 palindrome.mo:27.7-36.8: warning [M0145], this switch of type
-  (?(Char, List<Char>), ?(Char, List<Char>))
+  (List<Char>, List<Char>)
 does not cover value
   (null, ?(_))
 palindrome.mo:39.11-39.15: warning [M0145], this pattern of type

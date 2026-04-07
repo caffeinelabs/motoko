@@ -23,6 +23,7 @@
                 "Nat32"
                 "Nat64"
                 "Float"
+                "Float32"
                 "Char"
                 "Text"
                 "Blob"

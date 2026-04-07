@@ -1,16 +1,5 @@
-data-view.mo:36.7-36.23: warning [M0194], unused identifier: `non_shared_array`
-help: if this is intentional, prefix it with an underscore: `_non_shared_array`
-data-view.mo:40.7-40.19: warning [M0194], unused identifier: `some_variant`
-help: if this is intentional, prefix it with an underscore: `_some_variant`
-data-view.mo:41.7-41.18: warning [M0194], unused identifier: `some_record`
-help: if this is intentional, prefix it with an underscore: `_some_record`
-data-view.mo:46.7-46.26: warning [M0194], unused identifier: `some_mutable_record`
-help: if this is intentional, prefix it with an underscore: `_some_mutable_record`
-data-view.mo:52.7-52.16: warning [M0194], unused identifier: `some_list`
-help: if this is intentional, prefix it with an underscore: `_some_list`
-data-view.mo:55.7-55.27: warning [M0194], unused identifier: `some_non_shared_list`
-help: if this is intentional, prefix it with an underscore: `_some_non_shared_list`
-data-view.mo:61.7-61.15: warning [M0194], unused identifier: `override`
+data-view.mo:41.7-41.19: warning [M0244], variable some_variant is never reassigned, consider using `let`
+data-view.mo:62.7-62.15: warning [M0194], unused identifier: `override`
 help: if this is intentional, prefix it with an underscore: `_override`
-data-view.mo:64.7-64.17: warning [M0194], unused identifier: `motoko_xxx`
+data-view.mo:65.7-65.17: warning [M0194], unused identifier: `motoko_xxx`
 help: if this is intentional, prefix it with an underscore: `_motoko_xxx`

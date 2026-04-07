@@ -12,7 +12,7 @@ Expected 2 arguments of type:
   (_x : Nat)
   (_y : Nat)
 But got 1 argument of type:
-  (Nat, Nat)
+  M.T = (Nat, Nat)
     ┌─ ctx-dot-tuple-args.mo:14:8
  14 │    s.f1(s); // er: 1 arg provided, 2 expected
     │         ^ 

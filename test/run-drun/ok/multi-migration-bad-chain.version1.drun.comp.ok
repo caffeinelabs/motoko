@@ -1,0 +1,1 @@
+multi-migration-bad-chain/version1.mo:5.1-19.2: type error [M0251], --enhanced-migration: no valid migration modules found (migration modules must export a public `migration` function)

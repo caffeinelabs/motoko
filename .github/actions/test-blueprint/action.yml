@@ -7,12 +7,15 @@
 #   - run: nix profile install .#nix-build-uncached
 #   - name: "Run common tests"
 #     run: |
-#       cachix watch-exec ic-hs-test -- \
+#       cachix watch-exec ic-hs-test -- \  # only when auth token is available
 #         nix-build-uncached --max-jobs auto \
 #           -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.common-tests'
 
 # The main workflow from test.yml will call this workflow with different
 # inputs, and this workflow will call the tests defined in the flake.nix file.
+#
+# Fork PRs run without Cachix push (no auth token available), but still
+# benefit from read-only cache access via the `cachix use` substituter.
 
 name: Test Blueprint
 description: Runs Motoko tests using nix and cachix
@@ -28,8 +31,9 @@ inputs:
     required: true
     description: "Name of the test to display in logs"
   cachix-auth-token:
-    required: true
-    description: "Cachix authentication token"
+    required: false
+    default: ''
+    description: "Cachix authentication token (optional; fork PRs run without push)"
 
 runs:
   using: "composite"
@@ -52,7 +56,13 @@ runs:
 
     - name: "Run ${{ inputs.test-name }}"
       run: |
-        cachix watch-exec ic-hs-test -- \
+        prefix=()
+        if [ -n "$CACHIX_AUTH_TOKEN" ]; then
+          prefix=(cachix watch-exec ic-hs-test --)
+        fi
+        "${prefix[@]}" \
         nix-build-uncached --max-jobs auto \
         -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.${{ inputs.test-target }}'
       shell: bash
+      env:
+        CACHIX_AUTH_TOKEN: ${{ inputs.cachix-auth-token }}

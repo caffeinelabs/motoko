@@ -5,25 +5,47 @@ open Exit
 (** suppress documentation *)
 let _UNDOCUMENTED_ doc = "" (* TODO: enable with developer env var? *)
 
-let string_map flag r desc =
+let string_map ?err inj flag r desc =
   let key_ref = ref "DEADBEEF" in
+  let label = Option.value ~default:flag err in
+  let open Arg in
   flag,
-  Arg.Tuple [
-    Arg.Set_string key_ref ;
-    Arg.String (fun value ->
+  Tuple [
+    Set_string key_ref;
+    String Flags.M.(fun value ->
       let key = !key_ref in
-      if Flags.M.mem key !r
-      then fail "duplicate %s %s" flag key
-      else r := Flags.M.add key value !r
+      if mem key !r
+      then fail "duplicate %s %s" label key
+      else r := add key (inj value) !r
+    )
+  ],
+  desc
+
+let string_map3 ?err inj flag r desc =
+  let key_ref = ref "DEADBEEF" in
+  let val_ref = ref "DEADBEEF" in
+  let label = Option.value ~default:flag err in
+  let open Arg in
+  flag,
+  Tuple [
+    Set_string key_ref;
+    Set_string val_ref;
+    String Flags.M.(fun third ->
+      let key = !key_ref in
+      if mem key !r
+      then fail "duplicate %s %s" label key
+      else r := add key (inj (!val_ref, third)) !r
     )
   ],
   desc
 
 (* Everything related to imports, packages, aliases *)
 let package_args = [
-  string_map "--package" Flags.package_urls "<package-name> <package-path> specify a <package-name> <package-path> pair, separated by a space";
+  string_map Fun.id "--package" Flags.package_urls "<package-name> <package-path> specify a <package-name> <package-path> pair, separated by a space";
   "--actor-idl", Arg.String (fun fp -> Flags.actor_idl_path := Some fp), "<idl-path>   path to actor IDL (Candid) files";
-  string_map "--actor-alias" Flags.actor_aliases "<alias> <principal>  actor import alias"
+  string_map ~err:"actor alias" (fun p -> Either.Right (p, None)) "--actor-alias" Flags.actor_aliases "<alias> <principal>  actor import alias";
+  string_map3 ~err:"actor alias" (fun (p, d) -> Either.Right (p, Some d)) "--actor-id-alias" Flags.actor_aliases "<alias> <principal> <did-path>  actor import alias with explicit IDL path";
+  string_map3 ~err:"actor alias" Either.left "--actor-env-alias" Flags.actor_aliases "<alias> <envvar> <did-path>  actor import via environment variable"
   ]
 
 let error_args = [
@@ -52,6 +74,12 @@ let ai_args = [
   "--ai-errors", Arg.Set Flags.ai_errors, " emit AI tailored errors";
   "--all-libs", Arg.Set Flags.all_libs, " load all library files from all packages, enabling better diagnostics, e.g. hinting at non-imported items (increases compilation time)";
   "--implicit-package", Arg.String (fun s -> Flags.implicit_package := Some s), _UNDOCUMENTED_ " allow contextual dot and implicits resolution from all modules in the given package"
+]
+
+let migration_args = [
+  "--enhanced-migration",
+  Arg.String (fun s -> Flags.enhanced_migration := Some s),
+  "<dir>  enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence.";
 ]
 
 let persistent_actors_args = [

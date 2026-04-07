@@ -1,0 +1,192 @@
+// Version: 4.0.0
+type BookId__638376719 = Nat;
+type BookId__841732186 = Nat;
+type BookStatus__677834097 = {#available; #lent};
+type BookStatus__927178831 = {#available; #lent};
+type Book__1028650291 =
+  {
+    var author : Text;
+    id : BookId__638376719;
+    isbn : Text;
+    var status : BookStatus__677834097;
+    var title : Text
+  };
+type Book__482171688 =
+  {
+    var author : Text;
+    id : BookId__841732186;
+    isbn : Text;
+    libraryId : LibraryId__146845918;
+    var status : BookStatus__927178831;
+    var title : Text
+  };
+type Counters__1041320162 = {var nextBookId : Nat; var nextLoanId : Nat};
+type Data__364021461<K, V> =
+  {var count : Nat__744096560; kvs : [var ?(K, V)]};
+type Data__562843832<T> = {var count : Nat__744096560; elements : [var ?T]};
+type Internal__711339771<K, V> =
+  {children : [var ?Node__794705536<K, V>]; data : Data__364021461<K, V>};
+type Internal__77339460<T> =
+  {children : [var ?Node__791649855<T>]; data : Data__562843832<T>};
+type Leaf__256396307<K, V> = {data : Data__364021461<K, V>};
+type Leaf__867457357<T> = {data : Data__562843832<T>};
+type LibraryId__146845918 = Nat;
+type Library__279233303 =
+  {
+    var address : Text;
+    var city : Text;
+    createdAt : Int;
+    id : LibraryId__146845918;
+    var name : Text
+  };
+type Library__963328211 =
+  {
+    var address : Text;
+    var city : Text;
+    createdAt : Int;
+    id : Nat;
+    var name : Text
+  };
+type List__438045208<T> = List__98861597<T>;
+type List__98861597<T> =
+  {
+    var blockIndex : Nat__744096560;
+    var blocks : [var [var ?T]];
+    var elementIndex : Nat__744096560
+  };
+type LoanId__538816382 = Nat;
+type LoanId__667664479 = Nat;
+type Loan__708682671 =
+  {
+    bookId : BookId__638376719;
+    borrower : Principal;
+    id : LoanId__667664479;
+    lentAt : Int;
+    var returnedAt : ?Int
+  };
+type Loan__752196680 =
+  {
+    bookId : BookId__841732186;
+    borrower : Principal;
+    id : LoanId__538816382;
+    lentAt : Int;
+    libraryId : LibraryId__146845918;
+    var returnedAt : ?Int
+  };
+type Map__829258118<K, V> = Map__896994111<K, V>;
+type Map__896994111<K, V> = Map__931027618<K, V>;
+type Map__931027618<K, V> =
+  {var root : Node__794705536<K, V>; var size : Nat__744096560};
+type Member__5507525 =
+  {
+    var address : Text;
+    var email : Text;
+    id : Principal;
+    var name : Text;
+    var phone : Text;
+    registeredAt : Int
+  };
+type Nat__744096560 = Nat__920180692;
+type Nat__920180692 = Nat;
+type NewBook__25514869 =
+  {
+    var author : Text;
+    id : Nat;
+    isbn : Text;
+    libraryId : Nat;
+    var status : {#available; #lent};
+    var title : Text
+  };
+type NewLoan__326242765 =
+  {
+    bookId : Nat;
+    borrower : Principal;
+    id : Nat;
+    lentAt : Int;
+    libraryId : Nat;
+    var returnedAt : ?Int
+  };
+type Node__791649855<T> =
+  {#internal : Internal__77339460<T>; #leaf : Leaf__867457357<T>};
+type Node__794705536<K, V> =
+  {#internal : Internal__711339771<K, V>; #leaf : Leaf__256396307<K, V>};
+type OldBook__623244037 =
+  {
+    var author : Text;
+    id : Nat;
+    isbn : Text;
+    var status : {#available; #lent};
+    var title : Text
+  };
+type OldLoan__977323131 =
+  {
+    bookId : Nat;
+    borrower : Principal;
+    id : Nat;
+    lentAt : Int;
+    var returnedAt : ?Int
+  };
+type Set__550133401<T> =
+  {var root : Node__791649855<T>; var size : Nat__744096560};
+type Set__747087771<T> = Set__550133401<T>;
+{
+  "V2" :
+    {} ->
+      {
+        books : Map__829258118<Nat, Book__1028650291>;
+        counters : Counters__1041320162;
+        librarians : Set__747087771<Principal>;
+        loans : List__438045208<Loan__708682671>
+      };
+  "V1" :
+    {} -> {members : Map__829258118<Principal, Member__5507525>};
+  "V0" :
+    (old : {
+             books : Map__829258118<Nat, OldBook__623244037>;
+             counters : {var nextBookId : Nat; var nextLoanId : Nat};
+             librarians : Set__747087771<Principal>;
+             loans : List__438045208<OldLoan__977323131>
+           }) ->
+      {
+        books : Map__829258118<Nat, NewBook__25514869>;
+        counters :
+          {
+            var nextBookId : Nat;
+            var nextLibraryId : Nat;
+            var nextLoanId : Nat
+          };
+        libraries : Map__829258118<Nat, Library__963328211>;
+        libraryStaff : Map__829258118<Nat, Set__747087771<Principal>>;
+        loans : List__438045208<NewLoan__326242765>
+      }
+}
+actor  {
+  stable books :
+    {
+      var root : Node__794705536<Nat, Book__482171688>;
+      var size : Nat__744096560
+    };
+  stable counters :
+    {var nextBookId : Nat; var nextLibraryId : Nat; var nextLoanId : Nat};
+  stable libraries :
+    {
+      var root : Node__794705536<Nat, Library__279233303>;
+      var size : Nat__744096560
+    };
+  stable libraryStaff :
+    {
+      var root : Node__794705536<Nat, Set__747087771<Principal>>;
+      var size : Nat__744096560
+    };
+  stable loans :
+    {
+      var blockIndex : Nat__744096560;
+      var blocks : [var [var ?Loan__752196680]];
+      var elementIndex : Nat__744096560
+    };
+  stable members :
+    {
+      var root : Node__794705536<Principal, Member__5507525>;
+      var size : Nat__744096560
+    }
+};

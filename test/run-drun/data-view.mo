@@ -13,23 +13,24 @@ persistent actor Self {
 
   let array : [var (Nat, Text)] = [var (1, "1"), (2,"2")];
 
-  /* generates */
+  /* generates
   public query func __array(start:Nat, count: Nat) : async [(Nat, Text)] {
      array.view()(start, count);
   };
+  */
 
   // here, [array_of_non_shared.view] produces a non-shared result type,
   // approximated to shared {b:{#B}; c : Any} entries
   let array_of_non_shared : [var { var a : {#A}; b : {#B}; c : [var {#C}]}] =
      [ var {var a = #A; b = #B; c = [var #C]} ];
 
-  /* generates */
+  /* generates
   public query func __array_of_non_shared(start:Nat, count: Nat) : async [
     {b:{#B}; c : Any} // <- approximation
   ] {
      array_of_non_shared.view()(start, count);
   };
-
+  */
 
   // here, [non_shared_array.view] produces a non-shared (mutable) type,
   // approximate to [Any]
