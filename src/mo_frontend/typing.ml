@@ -4190,10 +4190,8 @@ and infer_viewer env scope mut id viewer =
       in
       match infer_dot_view with
       | Ok (exp_typ, _) ->
-         (* info env at "viewer found for %s" id.it; *)
          viewer := Some exp_typ
       | Error _ ->
-         (* info env id.at "viewer not found for %s" id.it; *)
          let (typ, _, _) = T.Env.find id.it scope.Scope.val_env in
          let typ = T.as_immut typ in
          if T.shared typ then
