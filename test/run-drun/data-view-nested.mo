@@ -1,7 +1,6 @@
-//MOC-FLAG --generate-view-queries --idl --package core $MOTOKO_CORE
+//MOC-FLAG --generate-view-queries --package core $MOTOKO_CORE
 import Map "mo:core/Map";
 import Set "mo:core/Set";
-import Nat "mo:core/Nat";
 import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Debug "mo:core/Debug";
@@ -12,20 +11,8 @@ import Views "data-view-sample/views";
 /*
 produces .did
 
-type Set = record {}; // approximated
 service : {
-  __customers: (ko: opt text, count: opt nat) ->
-   (vec
-     record {
-       text;
-       record {
-         city: text;
-         companyName: text;
-         contactName: text;
-         contactTitle: text;
-         countries: Set;
-       };
-     }) query;
+  __customers: () -> (reserved) query; // approximated
   go: () -> ();
 }
 */
@@ -60,19 +47,16 @@ persistent actor Self {
   customers.add("CHOPS", {companyName = "Chop-suey Chinese"; contactName = "Yang Wang"; contactTitle = "Owner"; city = "Bern"; countries = Set.singleton "Switzerland"});
   customers.add("COMMI", {companyName = "Comercio Mineiro"; contactName = "Pedro Afonso"; contactTitle = "Sales Associate"; city = "Sao Paulo"; countries = Set.singleton "Brazil"});
 
+  func debugShow(_ : Any) { Debug.print("any") };
+
   public func go() : async () {
     let views = actor (debug_show (Principal.fromActor(Self))) :
       actor {
-        __customers: query (ko: ?Text, count: ?Nat) ->
-	  async [(Text,
-	         { city: Text;
-                   companyName: Text;
-                   contactName: Text;
-                   contactTitle: Text;
-                   countries: {} })]
+        __customers: query () ->
+	  async Any
      };
-     Debug.print(debug_show (await views.__customers(null, null))); // show all customers from first key
-     Debug.print(debug_show (await views.__customers(?"BOTTM", ?4))); // show at most 4 customers from key ""
+
+     debugShow(await views.__customers());
    }
 
 }
