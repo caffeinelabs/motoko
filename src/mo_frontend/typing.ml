@@ -4242,7 +4242,7 @@ and check_init env pat_opt exp at =
      | Some { it = VarP _; _} -> ()
      | Some pat ->
        local_error env at "M0258"
-         "this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`")
+         "this uninitialized `let` can only use a simple identifier pattern `let <id> : <typ>`")
   | _ -> ()
 
 and infer_dec env dec : T.typ =
