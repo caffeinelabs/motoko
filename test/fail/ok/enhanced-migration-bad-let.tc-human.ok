@@ -5,11 +5,11 @@ does not cover value
     ┌─ enhanced-migration-bad-let.mo:11:7
  11 │    let 1 : Int; // reject
     │        ^ 
-error[M0258]: this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`
+error[M0258]: this uninitialized `let` can only use a simple identifier pattern `let <id> : <typ>`
     ┌─ enhanced-migration-bad-let.mo:9:3
   9 │    let (y,_) : (Int,Int); // reject
     │    ^^^^^^^^^^^^^^^^^^^^^ 
-error[M0258]: this uninitialized `let` can only a simple identifier pattern `let <id> : <typ>`
+error[M0258]: this uninitialized `let` can only use a simple identifier pattern `let <id> : <typ>`
     ┌─ enhanced-migration-bad-let.mo:11:3
  11 │    let 1 : Int; // reject
     │    ^^^^^^^^^^^ 
