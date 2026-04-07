@@ -132,7 +132,6 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     error : (message : Text) -> Error;
     errorCode : (e : Error) -> ErrorCode;
     errorMessage : (e : Error) -> Text;
-    exists : <T>(f : T -> Bool) -> Bool;
     exp : (f : Float) -> Float;
     explodeInt16 : (n : Int16) -> (msb : Nat8, lsb : Nat8);
     explodeInt32 : (n : Int32) -> (msb : Nat8, Nat8, Nat8, lsb : Nat8);
@@ -159,7 +158,6 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     floatToInt64 : (f : Float) -> Int64;
     floatToText : (x : Float) -> Text;
     floatTrunc : (f : Float) -> Float;
-    forall : <T>(f : T -> Bool) -> Bool;
     getCandidLimits :
       <system>() -> {bias : Nat32; denominator : Nat32; numerator : Nat32};
     getCandidTypeLimits : <system>() -> {bias : Nat32; scalar : Nat32};

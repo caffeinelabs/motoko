@@ -1894,17 +1894,6 @@ module BitTagged = struct
       compile_bitand_const mask
     else G.nop
 
-  (* True for types whose Vanilla encoding is always a bit-tagged scalar (bit 0 = 0),
-     so Opt.inject is a no-op and can be omitted at compile time.
-     Nat64/Int64 are excluded: values outside the 60-bit compact range are heap-boxed
-     as Bits64 (bit 0 = 1), so the scalar property does not hold for all values.
-     Opt.inject is still a no-op for Nat64/Int64 (branch_default returns Bits64 as-is),
-     but it cannot be eliminated statically. *)
-  let is_always_scalar t =
-    Type.(match normalize t with
-    | Prim (Nat8 | Nat16 | Nat32 | Int8 | Int16 | Int32 | Char | Float32) -> true
-    | _ -> false)
-
 end (* BitTagged *)
 
 module Tagged = struct
@@ -2244,26 +2233,40 @@ module Opt = struct
   let alloc_some env get_payload =
     Tagged.obj env Tagged.Some [ get_payload ]
 
+  (*
+     With our option representation (see above), the only values v : T that
+     require non-trivial code to inject as Some v have a type T that can
+     contain null or ?w.
+     So for any T other than Null, ?U, Any, or generic bound T,
+     injection is a no-op and just returns v at type ?T.
+     For a type T that may contain null or ?w, we need to do some work.
+  *)
+  let injection_is_free env t =
+    Type.(match promote t with
+         | Prim Null | Opt _ | Any | Con _ -> false
+         | _ -> true)
+
   let inject env t e =
-    if BitTagged.is_always_scalar t then e
+    if injection_is_free env t
+    then e
     else
-    e ^^
-    Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
-      get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
-        ( get_x ) (* scalar, no wrapping *)
-        ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
-          E.if_ env [I64Type]
-            ( get_x ) (* true literal, no wrapping *)
-            ( get_x ^^ is_some env ^^
-              E.if_ env [I64Type]
-                ( get_x ^^ Tagged.branch_default env [I64Type]
-                  ( get_x ) (* default tag, no wrapping *)
-                  [ Tagged.Some, alloc_some env get_x ]
-                )
-                ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
-            )
-        )
-    )
+      e ^^
+      Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
+        get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
+          ( get_x ) (* scalar, no wrapping *)
+          ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
+            E.if_ env [I64Type]
+              ( get_x ) (* true literal, no wrapping *)
+              ( get_x ^^ is_some env ^^
+                E.if_ env [I64Type]
+                  ( get_x ^^ Tagged.branch_default env [I64Type]
+                    ( get_x ) (* default tag, no wrapping *)
+                    [ Tagged.Some, alloc_some env get_x ]
+                  )
+                  ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
+              )
+          )
+      )
 
   let constant env = function
   | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
@@ -2283,7 +2286,10 @@ module Opt = struct
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env some_payload_field
 
-  let project env =
+  let project env typ =
+    if injection_is_free env typ
+    then G.nop
+    else
     Func.share_code1 Func.Never env "opt_project" ("x", I64Type) [I64Type] (fun env get_x ->
       get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
         ( get_x ) (* scalar, no wrapping *)
@@ -4954,7 +4960,7 @@ module IC = struct
 
       Func.define_built_in env "print_ptr" [("ptr", I64Type); ("len", I64Type)] [] (fun env ->
         match E.mode env with
-        | Flags.WasmMode -> G.i Nop
+        | Flags.WasmMode -> G.nop
         | Flags.ICMode | Flags.RefMode ->
           G.i (LocalGet (nr 0l)) ^^
           G.i (LocalGet (nr 1l)) ^^
@@ -7713,7 +7719,7 @@ module Serialization = struct
       | Opt t ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
         get_x ^^ Opt.is_some env ^^
-        E.if0 (get_x ^^ Opt.project env ^^ size env t) G.nop
+        E.if0 (get_x ^^ Opt.project env t ^^ size env t) G.nop
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
             get_x ^^
@@ -7892,7 +7898,7 @@ module Serialization = struct
         get_x ^^
         Opt.is_some env ^^
         E.if0
-          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env ^^ write env t)
+          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env t ^^ write env t)
           (write_byte env get_data_buf (compile_unboxed_const 0L))
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
@@ -13337,7 +13343,7 @@ and fill_pat env ae pat : patternCode =
         Opt.is_some env ^^
         E.if0
           ( get_x ^^
-            Opt.project env ^^
+            Opt.project env p.note ^^
             with_fail fail_code (fill_pat env ae p)
           )
           fail_code

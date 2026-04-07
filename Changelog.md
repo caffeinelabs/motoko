@@ -3,6 +3,7 @@
 * motoko (`moc`)
 
   * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
 
 ## 1.4.1 (2026-03-30)
 
