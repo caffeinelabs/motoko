@@ -4185,7 +4185,7 @@ and infer_viewer env scope mut id viewer =
           let viewer_typ = infer_exp env exp in
           match T.normalize viewer_typ with
            | T.Func(T.Local, T.Returns, [], ts1, ts2)
-             when List.for_all T.shared ts1 && List.for_all T.stable ts2 ->
+             when List.for_all T.shared ts1 && List.for_all T.shared ts2 ->
               { viewer_body = DotViewV exp;
                 viewer_field = viewer_field ts1 ts2 }
            | _ -> raise Recover))

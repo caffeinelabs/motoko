@@ -12,58 +12,68 @@ persistent actor Self {
   };
 
   let array : [var (Nat, Text)] = [var (1, "1"), (2,"2")];
+  ignore array;
 
-  /* generates */
+  /* generates
   public query func __array(start:Nat, count: Nat) : async [(Nat, Text)] {
      array.view()(start, count);
   };
+  */
 
   // here, [array_of_non_shared.view] produces a non-shared result type,
   // approximated to Any entries
   let array_of_non_shared : [var { var a : {#A}; b : {#B}; c : [var {#C}]}] =
      [ var {var a = #A; b = #B; c = [var #C]} ];
+  ignore array_of_non_shared;
 
-  /* generates */
+  /* generates
   public query func __array_of_non_shared(start:Nat, count: Nat) :
     async Any // <- approximation
   {
      array_of_non_shared.view()(start, count);
   };
-
+  */
 
   // here, [non_shared_array.view] produces a non-shared (mutable) type,
   // approximate to Any
   let non_shared_array : [[var Nat]] = [];
+  ignore non_shared_array;
 
   // shared values we can just display, sans viewer
   type Tree = { #leaf; #node : (Tree, Nat, Tree) };
   var some_variant = #node (#leaf, 0, #leaf);
+  ignore some_variant;
   let some_record = {a=1;b ="hello"; c = true} ;
-
+  ignore some_record;
+  
   // stable, non-shared values we can't just display in full, without viewer
   // approximate to shared supertype { b : Nat; c : Any},
   // dropping mutable fields, promoting non-shared to Any
   let some_mutable_record = {var a = 1; b = 0; c = [var 0]};
+  ignore some_mutable_record;
 
   //recursive types:
   type List<T> = ?(T, List<T>);
 
   // all shared
   let some_list : List<Nat> = ?(1,?(2,null));
+  ignore some_list;
 
   // non-shared, approximated
   let some_non_shared_list : List<{var a : Nat; b : Text}> =
     ?({var a = 1; b = "1"},
       ?({var a = 2; b = "2"}, null));
+  ignore some_non_shared_list;
 
   public query func __override(): async Text { "user defined __override" };
 
   let override = #override;
   /* generates nothing as would clash with user-defined __override above" */
+  ignore override;
 
   let motoko_xxx = #motoko_xxx;
   /* generates nothing as would clash with reserved __motoko_ members" */
-
+  ignore motoko_xxx;
 
 
   public func go() : async () {
@@ -71,7 +81,7 @@ persistent actor Self {
       actor {
         /* generated .views */
         __array : shared query (Nat, Nat) -> async [(Nat, Text)];
-        __array_of_non_shared : shared query (Nat, Nat) -> async Any; // approximation
+        __array_of_non_shared : shared query () -> async Any; // approximation
 	/* generated simple */
         __some_variant: shared query () -> async Tree;
 	__some_record : shared query () -> async {a:Nat; b: Text; c : Bool};
@@ -92,7 +102,7 @@ persistent actor Self {
     Prim.debugPrint(debug_show (await views.__override())); // calls user-defined method
     Prim.debugPrint(debug_show (await views.__some_list()));
     // debug_show doesn't support Any values, so avoid those below
-    printAny(await views.__array_of_non_shared(0,0));
+    printAny(await views.__array_of_non_shared());
     printAny(await views.__non_shared_array());
     printAny(await views.__some_mutable_record());
     printAny(await views.__some_non_shared_list());
