@@ -894,7 +894,7 @@ and stabilize stab_opt d =
   match s, d.it with
   | (S.Flexible, _) ->
     ([], fun _ -> d)
-  | (S.Stable viewer, I.VarD(i, t, e)) ->
+  | (S.Stable _, I.VarD(i, t, e)) ->
     ([(i, T.Mut t)],
      fun get_state ->
      let v = fresh_var i t in
@@ -903,8 +903,8 @@ and stabilize stab_opt d =
          e
          (varP v) (varE v)
          t))
-  | (S.Stable viewer, I.RefD _) -> assert false (* RefD cannot come from user code *)
-  | (S.Stable viewer, I.LetD({it = I.VarP i; _} as p, e)) ->
+  | (S.Stable _, I.RefD _) -> assert false (* RefD cannot come from user code *)
+  | (S.Stable _, I.LetD({it = I.VarP i; _} as p, e)) ->
     let t = p.note in
     ([(i, t)],
      fun get_state ->
@@ -914,7 +914,7 @@ and stabilize stab_opt d =
          e
          (varP v) (varE v)
          t))
-  | (S.Stable viewer, I.LetD _) ->
+  | (S.Stable _, I.LetD _) ->
      assert false
 
 and view stab_opt =
