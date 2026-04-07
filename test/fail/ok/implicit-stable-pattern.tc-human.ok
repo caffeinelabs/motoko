@@ -1,1 +1,4 @@
-(unknown location): type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
+error[M0133]: misplaced implicit stability modifier: allowed on var or simple let declarations only
+    ┌─ implicit-stable-pattern.mo:2:4
+  2 │     let (x,y) = (1,2) // illegal implicit stable pattern
+    │     ^^^^^^^^^^^^^^^^^ 
