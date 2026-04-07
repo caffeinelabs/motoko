@@ -1,3 +1,6 @@
 non-persistent.mo:3.3-3.14: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
 non-persistent.mo:4.3-4.14: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
+non-persistent.mo:8.3-8.17: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
 non-persistent.mo:9.3-9.17: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
+non-persistent.mo:10.3-10.13: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
+non-persistent.mo:11.21-11.36: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
