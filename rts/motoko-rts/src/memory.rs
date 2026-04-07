@@ -150,7 +150,7 @@ pub unsafe fn get_migrations<M: Memory>(_mem: &mut M) -> Value {
 #[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 #[cfg(feature = "ic")]
-pub unsafe fn set_migrations<M: Memory>(mem: &mut M, dedup_table: Value) {
+pub unsafe fn set_migrations<M: Memory>(mem: &mut M, migrations: Value) {
     use crate::persistence::set_migration_functions_ptr;
-    set_migration_functions_ptr(mem, dedup_table);
+    set_migration_functions_ptr(mem, migrations);
 }
