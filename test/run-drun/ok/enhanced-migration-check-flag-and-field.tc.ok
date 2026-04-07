@@ -1,0 +1,1 @@
+enhanced-migration-check-flag-and-field.mo:6.1-12.2: type error [M0252], cannot combine `(with migration = ...)` with --enhanced-migration; use one or the other.

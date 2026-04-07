@@ -1,11 +1,11 @@
 error[M0096]: expression of type
-  {
-    aaaaaaaaaaaaaaaaaaa : Nat;
-    bbbbbbbbbbbbbbbbbbb : Nat;
-    ccccccccccccccccccc : Nat;
-    ddddddddddddddddddd : Nat;
-    eeeeeeeeeeeeeeeeeee : Nat
-  }
+  T = {
+        aaaaaaaaaaaaaaaaaaa : Nat;
+        bbbbbbbbbbbbbbbbbbb : Nat;
+        ccccccccccccccccccc : Nat;
+        ddddddddddddddddddd : Nat;
+        eeeeeeeeeeeeeeeeeee : Nat
+      }
 cannot produce expected type
   {
     aaaaaaaaaaaaaaaaaaa : Nat;
@@ -45,13 +45,13 @@ cannot produce expected type
  26 │  func h(x : Int) : T { x }; // reject
     │                        ^ 
 error[M0096]: expression of type
-  {
-    aaaaaaaaaaaaaaaaaaa : Nat;
-    bbbbbbbbbbbbbbbbbbb : Nat;
-    ccccccccccccccccccc : Nat;
-    ddddddddddddddddddd : Nat;
-    eeeeeeeeeeeeeeeeeee : Nat
-  }
+  T = {
+        aaaaaaaaaaaaaaaaaaa : Nat;
+        bbbbbbbbbbbbbbbbbbb : Nat;
+        ccccccccccccccccccc : Nat;
+        ddddddddddddddddddd : Nat;
+        eeeeeeeeeeeeeeeeeee : Nat
+      }
 cannot produce expected type
   Nat
     ┌─ pretty.mo:28:23

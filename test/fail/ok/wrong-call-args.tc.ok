@@ -19,7 +19,7 @@ wrong-call-args.mo:45.5-45.17: type error [M0098], cannot apply function of type
          key : K) ->
     ?V
 to argument of type
-  {var root : Types.Map.Node<Text, Text>; var size_ : Nat}
+  Map.Map<Text, Text>
 because there is no way to satisfy subtyping
   ?V  <:  ()  (for the expected return type) 
 wrong-call-args.mo:48.27-48.39: type error [M0096], expression of type

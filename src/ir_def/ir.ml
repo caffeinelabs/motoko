@@ -19,6 +19,7 @@ type lit =
   | Int32Lit of Numerics.Int_32.t
   | Int64Lit of Numerics.Int_64.t
   | FloatLit of Numerics.Float.t
+  | Float32Lit of Numerics.Float32.t
   | CharLit of Value.unicode
   | TextLit of string
   | BlobLit of string
@@ -183,8 +184,9 @@ and prim =
   | ICReplyDeadlinePrim
   | ICArgDataPrim
   | ICStableWrite of Type.typ          (* serialize value of stable type to stable memory *)
-  | ICStableRead of Type.typ           (* deserialize value of stable type from stable memory *)
+  | ICStableRead of Type.typ            (* deserialize value of stable type from stable memory *)
   | ICStableSize of Type.typ
+  | ICStableStore of Type.typ          (* assign_stable_type: store type descriptor without check *)
 
 (* Declarations *)
 
@@ -215,6 +217,7 @@ let string_of_lit = function
   | TextLit t     -> t
   | BlobLit b     -> Printf.sprintf "%s" b
   | FloatLit f    -> Numerics.Float.to_pretty_string f
+  | Float32Lit f  -> Numerics.Float32.to_pretty_string f
 
 (* Flavor *)
 
@@ -335,3 +338,4 @@ let map_prim t_typ t_lab p =
   | ICStableWrite t -> ICStableWrite (t_typ t)
   | ICStableRead t -> ICStableRead (t_typ t)
   | ICStableSize t -> ICStableSize (t_typ t)
+  | ICStableStore t -> ICStableStore (t_typ t)

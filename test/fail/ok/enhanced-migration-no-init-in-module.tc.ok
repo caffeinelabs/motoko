@@ -1,0 +1,3 @@
+enhanced-migration-no-init-in-module.mo:7.12-7.23: type error [M0257], this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+enhanced-migration-no-init-in-module.mo:8.12-8.23: type error [M0257], this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+enhanced-migration-no-init-in-module.mo:7.12-7.23: type error [M0014], non-static expression in library, module or migration expression

@@ -1,9 +1,9 @@
 variance.mo:17.3-17.5: type error [M0096], expression of type
-  {get : () -> ?None}
+  Co<None> = {get : () -> ?None}
 cannot produce expected type
   ()
 variance.mo:32.3-32.9: type error [M0096], expression of type
-  {put : (i : Any) -> ()}
+  Contra<Any> = {put : (i : Any) -> ()}
 cannot produce expected type
   ()
 variance.mo:44.24-44.27: type error [M0046], type argument
@@ -11,7 +11,7 @@ variance.mo:44.24-44.27: type error [M0046], type argument
 does not match parameter bound
   Nat
 variance.mo:44.10-44.15: type error [M0096], expression of type
-  {put : (i : Nat) -> ()}
+  Bound<Nat> = {put : (i : Nat) -> ()}
 cannot produce expected type
   {put : (i : Any) -> ()}
 because the type 
@@ -20,23 +20,23 @@ because the type
   Nat
  in `(i : _)` (used by arguments of `put`)
 variance.mo:48.3-48.8: type error [M0096], expression of type
-  {put : (i : Nat) -> ()}
+  Bound<Nat> = {put : (i : Nat) -> ()}
 cannot produce expected type
   ()
 variance.mo:64.3-64.6: type error [M0096], expression of type
-  {get : () -> ?Any; put : (i : Any) -> ()}
+  Non<None> = {get : () -> ?Any; put : (i : Any) -> ()}
 cannot produce expected type
   ()
 variance.mo:80.3-80.10: type error [M0096], expression of type
-  {get : () -> ?Nat; put : (i : Nat) -> ()}
+  Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   ()
 variance.mo:81.3-81.10: type error [M0096], expression of type
-  {get : () -> ?Nat; put : (i : Nat) -> ()}
+  Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   ()
 variance.mo:82.11-82.18: type error [M0096], expression of type
-  {get : () -> ?Nat; put : (i : Nat) -> ()}
+  Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   {get : () -> ?Any; put : (i : Any) -> ()}
 because the type 

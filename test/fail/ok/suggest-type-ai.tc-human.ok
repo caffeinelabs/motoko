@@ -6,6 +6,7 @@ error[M0030]: type field Num does not exist in type:
     type Char = Char;
     type Error = Error;
     type Float = Float;
+    type Float32 = Float32;
     type Int = Int;
     type Int16 = Int16;
     type Int32 = Int32;

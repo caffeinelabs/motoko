@@ -150,7 +150,7 @@ let error_codes : (string * string option) list =
     "M0158", Some([%blob "lang_utils/error_codes/M0158.md"]); (* a public class cannot be anonymous, please provide a name *)
     (* "M0159" DEFUNCT Word deprecation *)
     "M0160", None; (* Candid method name is not a valid Motoko identifier *)
-    "M0161", None; (* Candid float32 type cannot be imported as a Motoko type *)
+    (* "M0161" DEFUNCT Candid float32 type cannot be imported as a Motoko type *)
     "M0162", None; (* Candid service constructor type not supported as Motoko type *)
     (* "M0163" DEFUNCT Cannot import a Candid service constructor *)
     "M0164", None; (* Unknown record or variant label in textual representation *)
@@ -207,6 +207,15 @@ let error_codes : (string * string option) list =
     "M0233", None; (* Wrong number of arguments *)
     "M0234", None; (* Field exists but is not a function *)
     "M0238", None; (* Misplaced break or continue *)
+    "M0250", None; (* Variables without initializers only allowed in actors with --enhanced-migration flag *)
+    "M0251", None; (* Enhanced migration chain validation error (bad migration type, chain broken, output mismatch) *)
+    "M0252", None; (* Cannot combine (with migration = ...) with --enhanced-migration *)
+    "M0253", None; (* Inconsistent multi-migration signature *)
+    "M0255", None; (* Upgrading enhanced migration with non-enhanced migration *)
+    "M0256", None; (* Enhanced migration directory does not exist *)
+    "M0257", None; (* Misplaced uninitialized dec *)
+    "M0258", None; (* Uninitialized `let` with non <id> : <typ> pattern *)
+    "M0259", None; (* Uninitialized dec requires type annotation *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -252,6 +261,7 @@ let warning_codes = [
   "M0242", None, "Implicit oneway declaration";
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
+  "M0254", None, "Initial actor requires field"
   ]
 
 let try_find_explanation code =

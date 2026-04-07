@@ -44,6 +44,7 @@ module Make (Cfg : Config) = struct
     | Int32 -> Atom "Int32"
     | Int64 -> Atom "Int64"
     | Float -> Atom "Float"
+    | Float32 -> Atom "Float32"
     | Char -> Atom "Char"
     | Text -> Atom "Text"
     | Blob -> Atom "Blob"
