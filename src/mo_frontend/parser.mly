@@ -203,7 +203,7 @@ let share_dec_field default_stab (df : dec_field) =
              | TypD _
              | MixinD _
              | ClassD _ -> None
-             | _ -> Some default_stab)
+             | _ -> Some (default_stab df.at))
           | some -> some}
     }
 
@@ -974,7 +974,7 @@ dec_nonvar :
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
   | MIXIN p=pat_plain dfs=obj_body {
-     let dfs = List.map (share_dec_field (Stable @@ no_region)) dfs in
+     let dfs = List.map (share_dec_field (fun at -> Stable @@ at)) dfs in
      MixinD(p, dfs) @? at $sloc
   }
   | INCLUDE x=id e=exp(ob) { IncludeD(x, e, ref None) @? at $sloc }
@@ -989,7 +989,7 @@ obj_or_class_dec :
       let named, x = xf sort $sloc in
       let e =
         if s.it = Type.Actor then
-          let default_stab = (if persistent.it then Stable else Flexible) @@ no_region in
+          let default_stab at = (if persistent.it then Stable else Flexible) @@ at in
           let id = if named then Some x else None in
           AwaitE
             (Type.AwaitFut false,
@@ -1009,7 +1009,7 @@ obj_or_class_dec :
       let x, dfs = cb in
       let dfs', tps', t' =
        if s.it = Type.Actor then
-          let default_stab = (if persistent.it then Stable else Flexible) @@ no_region in
+          let default_stab at = (if persistent.it then Stable else Flexible) @@ at in
           (List.map (share_dec_field default_stab) dfs,
            ensure_scope_bind "" tps,
            (* Not declared async: insert AsyncT but deprecate in typing *)

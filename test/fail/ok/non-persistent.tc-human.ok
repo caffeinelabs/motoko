@@ -7,6 +7,18 @@ error[M0219]: this declaration is currently implicitly transient, please declare
   4 │    var _y = #y; // error
     │    ^^^^^^^^^^^ 
 error[M0219]: this declaration is currently implicitly transient, please declare it explicitly `transient`
+    ┌─ non-persistent.mo:8:3
+  8 │    module _M = {};
+    │    ^^^^^^^^^^^^^^ 
+error[M0219]: this declaration is currently implicitly transient, please declare it explicitly `transient`
     ┌─ non-persistent.mo:9:3
   9 │    object _O = {}; // error
     │    ^^^^^^^^^^^^^^ 
+error[M0219]: this declaration is currently implicitly transient, please declare it explicitly `transient`
+    ┌─ non-persistent.mo:10:3
+ 10 │    func f(){};
+    │    ^^^^^^^^^^ 
+error[M0219]: this declaration is currently implicitly transient, please declare it explicitly `transient`
+    ┌─ non-persistent.mo:11:21
+ 11 │    public /*shared*/ func g() : (){};
+    │                      ^^^^^^^^^^^^^^^ 

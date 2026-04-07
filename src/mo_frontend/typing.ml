@@ -3994,7 +3994,7 @@ and check_stable_defaults env sort dec_fields =
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable; at; _}, (LetD _ | VarD _) ->
-          if at <> Source.no_region then
+          if at <> dec_field.it.dec.at then
             warn env at "M0218" "redundant `stable` keyword, this declaration is implicitly stable"
         | _ -> ())
       dec_fields
@@ -4006,7 +4006,7 @@ and check_stable_defaults env sort dec_fields =
       List.fold_left (fun acc dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Flexible; at; _}, (LetD _ | VarD _) ->
-           if at = Source.no_region
+           if at = dec_field.it.dec.at
            then
              (local_error env dec_field.it.dec.at "M0219" "this declaration is currently implicitly transient, please declare it explicitly `transient`";
               true)
