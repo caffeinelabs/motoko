@@ -4162,13 +4162,15 @@ and infer_viewer env scope mut id viewer =
     assert (!viewer = None);
     let lab = "__" ^ id.it in
     if T.Env.mem lab scope.Scope.val_env || String.starts_with ~prefix:"__motoko" lab
-    then () (* avoid any clash with local or reserved `__motoko_XXX` members by omitting viewer *)
+    then () (* avoid any clash with local or reserved `__motokoXXX` members by omitting viewer *)
     else
       let viewer_field args ret =
         T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, ret); src = empty_src } in
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->
-          let env = {env with msgs; used_identifiers = ref T.Env.empty } in (* don't record errors in outer env *)
+          (* checkpoint env.used_identifiers *)
+          let saved_used_identifiers = !(env.used_identifiers) in
+          let env = {env with msgs} in (* don't record errors in outer env *)
           let env = adjoin env scope in
           let varE = VarE {it = id.it; at; note = (mut, None)} @? at in
           let dot_exp = DotE(varE, "view" @@ at, ref None) @? at in
@@ -4181,7 +4183,10 @@ and infer_viewer env scope mut id viewer =
              when List.for_all T.shared ts1 && List.for_all T.shared ts2 ->
               { viewer_body = DotViewV exp;
                 viewer_field = viewer_field ts1 ts2 }
-           | _ -> raise Recover))
+           | _ ->
+               (* restore env.used_identifiers *)
+               env.used_identifiers := saved_used_identifiers;
+               raise Recover))
       in
       match infer_dot_view with
       | Ok (exp_typ, _) ->
@@ -4197,6 +4202,7 @@ and infer_viewer env scope mut id viewer =
                with note = { note_typ = typ;
                              note_eff = T.Triv} }
            in
+           use_identifier env id.it;
            viewer := Some
              { viewer_body = DefaultV(varE);
                viewer_field = viewer_field [] [typ] }
