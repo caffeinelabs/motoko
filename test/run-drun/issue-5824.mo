@@ -1,5 +1,5 @@
-//MOC-FLAG --actor-idl issue-5824
-import { type T } = "ic:aaaaa-aa";
+//MOC-FLAG --actor-id-alias management aaaaa-aa issue-5824/aaaaa-aa.did
+import { type T } = "canister:management";
 
 actor {
   public func go(_ : T) : async () {

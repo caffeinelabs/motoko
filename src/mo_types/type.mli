@@ -28,6 +28,7 @@ type prim =
   | Int32
   | Int64
   | Float
+  | Float32
   | Char
   | Text
   | Blob (* IR use: Packed representation, vec u8 IDL type *)

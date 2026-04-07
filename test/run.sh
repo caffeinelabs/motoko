@@ -449,7 +449,7 @@ do
           # Check filecheck
           if [ "$SKIP_RUNNING" != yes ]
           then
-            if grep -F -q ^//CHECK $mangled
+            if grep -q '^//CHECK' $mangled
             then
               $ECHO -n " [FileCheck]"
               wasm2wat --enable-memory64 --enable-multi-memory --no-check $out/$base.wasm > $out/$base.wat
@@ -659,8 +659,7 @@ do
 
       if [ -e $out/$base.js ]
       then
-        export NODE_PATH=$NODE_PATH:$ESM
-        run node node -r esm $out/$base.js
+        run node node $out/$base.js
       fi
     fi
     ;;

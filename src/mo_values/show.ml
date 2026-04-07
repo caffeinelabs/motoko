@@ -15,7 +15,7 @@ let can_show t =
       | Prim (Nat16|Int16)
       | Prim (Nat32|Int32)
       | Prim (Nat64|Int64) -> true
-      | Prim Float -> true
+      | Prim (Float|Float32) -> true
       | Tup ts' -> List.for_all go ts'
       | Weak t'
       | Opt t' -> go t'
@@ -50,6 +50,7 @@ let rec show_val t v =
   | T.(Prim Int32), Value.Int32 i -> Numerics.Int_32.(sign (gt i zero) (to_string i))
   | T.(Prim Int64), Value.Int64 i -> Numerics.Int_64.(sign (gt i zero) (to_string i))
   | T.(Prim Float), Value.Float i -> Numerics.Float.to_string i
+  | T.(Prim Float32), Value.Float32 i -> Numerics.Float32.to_string i
   | T.(Prim Text), Value.Text s -> "\"" ^ s ^ "\""
   | T.(Prim Blob), Value.Blob s -> "\"" ^ Value.Blob.escape s ^ "\""
   | T.(Prim Char), Value.Char c -> "\'" ^ Lib.Utf8.encode [c] ^ "\'"

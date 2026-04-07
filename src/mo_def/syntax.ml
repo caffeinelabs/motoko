@@ -16,7 +16,7 @@ type lib_path = {package : string option; path : string}
 type resolved_import =
   | Unresolved
   | LibPath of lib_path
-  | IDLPath of (string * string) (* filepath * bytes *)
+  | IDLPath of (string * (string, string) Either.t) (* filepath * envvar/bytes *)
   | ImportedValuePath of string
   | PrimPath (* the built-in prim module *)
 
@@ -96,6 +96,7 @@ type lit =
   | Int32Lit of Numerics.Int_32.t
   | Int64Lit of Numerics.Int_64.t
   | FloatLit of Numerics.Float.t
+  | Float32Lit of Numerics.Float32.t
   | CharLit of Value.unicode
   | TextLit of string
   | BlobLit of string
@@ -180,10 +181,9 @@ let break_label kind (id_opt : id option) =
 
 
 type id_ref = (string, mut' * exp option) Source.annotated_phrase
-and hole_sort = Named of string | Anon of int
 and exp = (exp', typ_note) Source.annotated_phrase
 and exp' =
-  | HoleE of hole_sort * exp ref
+  | HoleE of string * exp ref
   | PrimE of string                            (* primitive *)
   | VarE of id_ref                             (* variable *)
   | LitE of lit ref                            (* literal *)
@@ -333,6 +333,7 @@ let string_of_lit = function
   | TextLit t     -> t
   | BlobLit b     -> b
   | FloatLit f    -> Numerics.Float.to_pretty_string f
+  | Float32Lit f  -> Numerics.Float32.to_pretty_string f
   | PreLit _      -> assert false
 
 (** Used for debugging *)
@@ -427,3 +428,15 @@ let contextual_dot_args e1 e2 dot_note =
     | { at; note = { note_eff; _ }; _ } ->
        { it = TupE ([e1; e2]); at; note = { note_eff = effect note_eff; note_typ = T.Tup ([e1.note.note_typ; e2.note.note_typ]) } }
   in args
+
+let is_import d =
+  match d.it with
+  | LetD (_, {it = ImportE _; _}, None) -> true
+  | _ -> false
+
+let split_imports prog =
+  let rec go acc = function
+    | [] -> List.rev acc, []
+    | d::ds -> if is_import d then go (d::acc) ds else List.rev acc, d::ds
+  in
+  go [] prog

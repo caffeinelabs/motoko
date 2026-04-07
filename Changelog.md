@@ -2,7 +2,24 @@
 
 * motoko (`moc`)
 
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
+## 1.4.1 (2026-03-30)
+
+* motoko (`moc`)
+
+  * feat: Preserve named types in variable pattern bindings, so error messages show e.g. `Map.Map<Text, Text>` instead of expanding the full structural type (#5940).
+  * bugfix: implement `Float32` `ModOp` (`%`) — Wasm has no `f32.rem` instruction; the fix promotes operands to `f64`, applies `fmod`, then demotes the result back to `f32` (#5950).
+
+## 1.4.0 (2026-03-27)
+
+* motoko (`moc`)
+
+  * feat: added `--actor-env-alias` to facilitate (installation-time) late binding of canister aliases via environment variables (#5890).
+  * feat: added `--actor-id-alias` as a variant of `--actor-alias` that accepts an explicit IDL file path as a third argument, bypassing the `--actor-idl` search path (#5890).
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
+  * feat: add `Float32` primitive type with conversions to/from `Float`, Candid serialisation, and literal ascription (e.g. `(3.14 : Float32)`). This is experimental and subject to change (#5906).
+  * feat: prettier unknown identifier suggestions and pattern type mismatch errors (#5875, #5881).
   * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
 
 ## 1.3.0 (2026-02-24)

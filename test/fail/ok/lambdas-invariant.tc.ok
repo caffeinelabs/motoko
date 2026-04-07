@@ -63,7 +63,7 @@ lambdas-invariant.mo:99.13-99.44: type error [M0098], cannot apply function of t
 to argument of type
   ([var Nat], Nat -> U)
 because there is no "best" choice for type parameter `U`.
-Hint: Add explicit type instantiation, e.g. <Nat, {var age : Nat; var name : Text}>
+Hint: Add explicit type instantiation, e.g. <Nat, User>
 lambdas-invariant.mo:102.13-102.45: type error [M0098], cannot apply function of type
   <T, U>([var T], T -> U) -> [var U]
 to argument of type

@@ -36,7 +36,6 @@ known_untested_codes = {
     "M0100", # hard to trigger (syntactic checks hit first)
     "M0108", # mode-specific
     "M0144", # bad import, but seems to be shadowed by non-static expression
-    "M0161", # Candid float32 type cannot be imported as a Motoko type
     "M0162", # Candid service constructor type not supported as Motoko type
     "M0164", # unknown record or variant label in textual representation
     "M0165", # odd expected type
