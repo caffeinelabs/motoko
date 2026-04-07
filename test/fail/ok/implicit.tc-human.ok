@@ -10,63 +10,18 @@ error[M0230]: Cannot determine implicit argument `d` of type
  60 │  f3(1, 1); // reject
     │  ^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `d` you need to have a matching declaration named `d` in scope.
-help: Consider renaming ``explicit1`` to `<M>.bogus` in a new module `<M>`. Then it can serve as an implicit argument `bogus` in this call:
-implicit.mo:65.1-65.9: f4(1, 1)
-    ┌─ implicit.mo:3:6
-  3 │  func explicit1(n : Nat, m : Nat) : Order { #less };
-    │       ^^^^^^^^^ 
-help: Consider renaming ``M.aardvark`` to `M.bogus` in the existing module `M`. Then it can serve as an implicit argument `bogus` in this call:
-implicit.mo:65.1-65.9: f4(1, 1)
-    ┌─ implicit.mo:8:3
-  8 │    public func aardvark(n : Nat, m : Nat) : Order { #less };
-    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-help: Consider renaming ``M.ambiguous`` to `M.bogus` in the existing module `M`. Then it can serve as an implicit argument `bogus` in this call:
-implicit.mo:65.1-65.9: f4(1, 1)
-    ┌─ implicit.mo:16:3
- 15 │    
- 16 │ ╭    public func ambiguous(n : Nat, m: Nat) : Order {
- 17 │ │      if (n < m) #less
- 18 │ │      else if (n == m) #greater
- 19 │ │      else #equal;
- 20 │ │    };
-    │ ╰────^ 
- 21 │    
-help: Consider renaming ``M.c`` to `M.bogus` in the existing module `M`. Then it can serve as an implicit argument `bogus` in this call:
-implicit.mo:65.1-65.9: f4(1, 1)
-    ┌─ implicit.mo:10:3
-  9 │    
- 10 │ ╭    public func c(n : Nat, m: Nat) : Order {
- 11 │ │      if (n < m) #less
- 12 │ │      else if (n == m) #greater
- 13 │ │      else #equal;
- 14 │ │    };
-    │ ╰────^ 
- 15 │    
-help: Consider renaming ``N.ambiguous`` to `N.bogus` in the existing module `N`. Then it can serve as an implicit argument `bogus` in this call:
-implicit.mo:65.1-65.9: f4(1, 1)
-    ┌─ implicit.mo:29:3
- 28 │    
- 29 │ ╭    public func ambiguous(n : Nat, m: Nat) : Order {
- 30 │ │      if (n < m) #less
- 31 │ │      else if (n == m) #greater
- 32 │ │      else #equal;
- 33 │ │    };
-    │ ╰────^ 
- 34 │    };
 error[M0230]: Cannot determine implicit argument `bogus` of type
   (Nat, Nat) -> Order
     ┌─ implicit.mo:65:1
  65 │  f4(1, 1); // reject
     │  ^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `bogus` you need to have a matching declaration named `bogus` in scope.
-    = note: Did you mean to explicitly use `explicit1` or `M.aardvark` or `M.ambiguous` or `M.c` or `N.ambiguous`?
 error[M0231]: ambiguous implicit argument named `ambiguous` of type 
   (Nat, Nat) -> Order.
     ┌─ implicit.mo:75:1
  75 │  f6(1, 1); // reject
     │  ^^^^^^^^ 
     = note: The ambiguous implicit candidates are: `M.ambiguous`, `N.ambiguous`.
-    = note: The other explicit candidates are: `explicit1`, `M.aardvark`, `M.c`
 error[M0231]: ambiguous implicit argument named `zero` of type 
   {x : Nat}.
     ┌─ implicit.mo:92:27

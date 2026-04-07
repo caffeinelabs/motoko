@@ -18,6 +18,7 @@ type Int16 = prim "Int16";
 type Int32 = prim "Int32";
 type Int64 = prim "Int64";
 type Float = prim "Float";
+type Float32 = prim "Float32";
 type Char = prim "Char";
 type Text = prim "Text";
 type Blob = prim "Blob";

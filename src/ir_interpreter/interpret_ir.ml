@@ -276,6 +276,7 @@ let interpret_lit env lit : V.value =
   | Int32Lit i -> V.Int32 i
   | Int64Lit i -> V.Int64 i
   | FloatLit f -> V.Float f
+  | Float32Lit f -> V.Float32 f
   | CharLit c -> V.Char c
   | TextLit s -> V.Text s
   | BlobLit b -> V.Blob b
@@ -481,6 +482,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
           V.Env.empty tfs
         in
         k (V.Obj ve)
+      | ICStableStore _, [] ->
+        k V.unit
       | SelfRef _, [] ->
         k (context env)
       | SystemTimePrim, [] ->
@@ -721,6 +724,7 @@ and match_lit lit v : bool =
   | Int32Lit i, V.Int32 i' -> Numerics.Int_32.eq i i'
   | Int64Lit i, V.Int64 i' -> Numerics.Int_64.eq i i'
   | FloatLit z, V.Float z' -> z = z'
+  | Float32Lit z, V.Float32 z' -> z = z'
   | CharLit c, V.Char c' -> c = c'
   | TextLit u, V.Text u' -> u = u'
   | BlobLit b, V.Blob b' -> b = b'

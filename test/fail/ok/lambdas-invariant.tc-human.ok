@@ -93,7 +93,7 @@ error[M0098]: cannot apply function of type
 to argument of type
   ([var Nat], Nat -> U)
 because there is no "best" choice for type parameter `U`.
-Hint: Add explicit type instantiation, e.g. <Nat, {var age : Nat; var name : Text}>
+Hint: Add explicit type instantiation, e.g. <Nat, User>
     ┌─ lambdas-invariant.mo:99:13
  99 │      let _ = VarArray.map(va, func x = user);
     │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

@@ -76,7 +76,11 @@ For every actor imported using `import "canister:alias"`, the Motoko compiler tr
 
 The first argument to `--actor-alias` is the alias without the URL scheme. The second argument must be a [textual representation] of the canister id.
 
-The given aliases must be unique (i.e. no `--actor-alias a aaaaa-aa --actor-alias a em77e-bvlzu-aq`).
+Alternatively, `--actor-env-alias alias ⟨envvar⟩ ⟨idl-file⟩` resolves the alias at runtime by reading the IC environment variable named `⟨envvar⟩`, whose value must be the textual representation of the canister id. This is useful when the target canister id is only known at deployment time.
+
+`--actor-id-alias alias ⟨canisterid⟩ ⟨idl-file⟩` is like `--actor-alias` but accepts an explicit IDL file path as a third argument, bypassing the `--actor-idl` search path. This is useful when the IDL file lives outside the standard IDL search path.
+
+The given aliases must be unique (i.e. no `--actor-alias a aaaaa-aa --actor-alias a em77e-bvlzu-aq`, no `--actor-env-alias a MY_CANISTER ⟨idl-file⟩ --actor-alias a em77e-bvlzu-aq`).
 
 [textual representation]: https://sdk.dfinity.org/docs/interface-spec/index.html#textual-ids
 
