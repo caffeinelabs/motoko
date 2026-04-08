@@ -11,6 +11,7 @@ error[M0001]: unexpected token 'let', expected one of token or <phrase> sequence
   <relop> <exp_bin(ob)>
   else <exp_nest>
   . <id>
+  <binop> <id>
   : <typ_nobin>
   := <exp(ob)>
   <binop> <exp_bin(ob)>
