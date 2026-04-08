@@ -1,0 +1,18 @@
+#ok(3)
+#err("bad")
+#ok(30)
+#timeout
+#err("hello")
+#ok(99)
+#ok(3)
+#timeout
+#denied(-42)
+#timeout
+#err("oops")
+#retry(3)
+#err("solo")
+#ok("42 true")
+#err("bad")
+#timeout
+?(#ok(5))
+#ok(42)
