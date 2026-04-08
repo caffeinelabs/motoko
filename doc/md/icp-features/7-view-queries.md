@@ -12,21 +12,21 @@ The flag is **off by default**. When enabled, the compiler examines every stable
 
 ## How it works
 
-For each stable variable `var` of type `<typ>`, the compiler attempts to generate a public query method named `__var`. Generation is skipped if:
+For each stable variable `id` of type `<typ>`, the compiler attempts to generate a public query method named `__id`. Generation is skipped if:
 
-- A member named `__var` is already declared in the actor (user-defined methods take precedence).
-- The name `__var` has the reserved prefix `__motoko_`.
+- A member named `__id` is already declared in the actor (user-defined methods take precedence).
+- The name `__id` has the reserved prefix `__motoko`.
 
 When generation proceeds, the compiler chooses one of two strategies:
 
 ### 1. `.view()` method available
 
-If the expression `var.view()` resolves to a function with shared argument types `(T1, ..., TN)` and shared result type `R`, the compiler generates:
+If the expression `id.view()` resolves to a function with shared argument types `(T1, ..., TN)` and shared result type `R`, the compiler generates:
 
 ```motoko
-public shared ({ caller }) query func __var(arg1 : T1, ..., argN : TN) : async R {
+public shared ({ caller }) query func __id(arg1 : T1, ..., argN : TN) : async R {
   <access-control>;
-  var.view()(arg1, ..., argN)
+  id.view()(arg1, ..., argN)
 };
 ```
 
@@ -37,9 +37,9 @@ The `.view()` call may rely on implicit arguments (such as `compare`) provided t
 If no `.view()` method is available but `<typ>` is a shared type, the compiler generates a simple accessor:
 
 ```motoko
-public shared ({ caller }) query func __var() : async <typ> {
+public shared ({ caller }) query func __id() : async <typ> {
   <access-control>;
-  var
+  id
 };
 ```
 
@@ -133,7 +133,7 @@ persistent actor {
 
 ```motoko
 //MOC-FLAG --generate-view-queries
-import Prim "mo:⛔";
+import Array "mo:core/Array";
 
 persistent actor Self {
 
@@ -141,7 +141,7 @@ persistent actor Self {
     public func view<V>(self : [var V]) :
       (start : Nat, count : Nat) -> [V] =
       func(start, count) {
-        Prim.Array_tabulate<V>(count, func i { self[start + i] })
+        Array.tabulate<V>(count, func i { self[start + i] })
       };
   };
 
@@ -171,3 +171,10 @@ The actor above exposes the following generated queries:
 - View queries are **not** part of the canister's public Candid interface and are therefore invisible to other canisters importing the actor's type.
 - Only controllers and the canister itself may call the generated queries; there is currently no hook for application-level authorization.
 - If a `.view()` method returns a non-shared type, the variable is treated as if no `.view()` exists (the view is silently skipped).
+
+## Links
+
+The sample project https://github.com/crusso/motoko-stable-viewer is a simple database application.
+It provides its own, reusable `views.mo` mixin, that adds simple paginated views to `core` collections.
+Its frontend uses a generic react component that renders the backend's stable variables.
+The rendering is driven by the backend's Candid interface file.
