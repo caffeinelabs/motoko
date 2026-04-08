@@ -47,6 +47,7 @@ and doc_type =
   | DTObj of Syntax.typ * (Syntax.typ_field * string option) list
   (* One level unwrapping of a variant type with documentation on its tags *)
   | DTVariant of Syntax.typ * (Syntax.typ_tag * string option) list
+
 and class_doc = {
   name : string;
   type_args : Syntax.typ_bind list;
@@ -189,8 +190,8 @@ struct
    fun ({ at; _ } as tf) ->
     (tf, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
-  let extract_variant_tag_doc :
-      Syntax.typ_tag -> Syntax.typ_tag * string option =
+  let extract_variant_tag_doc : Syntax.typ_tag -> Syntax.typ_tag * string option
+      =
    fun ({ at; _ } as tag) ->
     (tag, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
@@ -238,8 +239,8 @@ struct
               DTObj (typ, doc_fields)
           | Syntax.VariantT tags ->
               let doc_tags = List.map extract_variant_tag_doc tags in
-              if List.exists (fun (_, d) -> d <> None) doc_tags
-              then DTVariant (typ, doc_tags)
+              if List.exists (fun (_, d) -> d <> None) doc_tags then
+                DTVariant (typ, doc_tags)
               else DTPlain typ
           | _ -> DTPlain typ
         in

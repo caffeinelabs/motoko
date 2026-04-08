@@ -244,7 +244,8 @@ let plain_of_doc_typ_fields : Buffer.t -> doc_type -> unit =
               | Syntax.TupT [] -> ()
               | _ ->
                   bprintf buf " : ";
-                  plain_of_typ buf plain_render_functions tag.Source.it.Syntax.typ);
+                  plain_of_typ buf plain_render_functions
+                    tag.Source.it.Syntax.typ);
               bprintf buf "\n\n%s\n" doc)
         doc_tags
 
