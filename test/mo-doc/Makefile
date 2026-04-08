@@ -8,7 +8,7 @@ all:
 accept:
 	mkdir -p _out ok
 	$(MO_DOC) --source $(CURDIR) --output $(CURDIR)/_out --format plain
-	cp _out/field-docs.md ok/
+	cp _out/field-docs.md _out/module-comment.md _out/module-comment-before-imports.md ok/
 
 clean:
 	rm -rf _out

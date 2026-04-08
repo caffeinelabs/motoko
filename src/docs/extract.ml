@@ -300,10 +300,8 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
     lookup_trivia Source.(parser_pos.left.line, parser_pos.left.column)
     |> Option.get
   in
-  let body_at =
-    let comp_unit = Mo_def.CompUnit.comp_unit_of_prog true prog in
-    comp_unit.it.Syntax.body.at
-  in
+  let comp_unit = Mo_def.CompUnit.comp_unit_of_prog true prog in
+  let body_at = comp_unit.it.Syntax.body.at in
   (* Skip the module header *)
   match un_prog prog with
   | Ok (imports, decls) ->
@@ -313,11 +311,29 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
         let find_trivia = find_trivia
       end) in
       let docs = List.filter_map (Ex.extract_dec_field Fun.id) decls in
-      Ok
-        {
-          module_comment =
-            Trivia.doc_comment_of_trivia_info (find_trivia body_at);
-          lookup_type = Ex.lookup_type;
-          docs;
-        }
+      (* Try doc comment directly before `module`/`actor` body first
+         (new convention: doc comment placed after imports).
+         Fall back to the start of the program (old convention: doc comment
+         at the top of the file, before any imports).
+         If both positions carry a doc comment, warn and keep the lower one. *)
+      let module_comment =
+        match
+          ( Trivia.doc_comment_of_trivia_info (find_trivia body_at),
+            Trivia.doc_comment_of_trivia_info (find_trivia prog.at) )
+        with
+        | (Some _ as c), None | None, (Some _ as c) -> c
+        | (Some _ as c), Some _ ->
+            (* Both positions found a doc comment. If they share the same
+               source location (no imports — body_at = prog.at) it is the
+               same comment seen twice; no warning needed. *)
+            if Source.(body_at.left = prog.at.left) then c
+            else (
+              Printf.eprintf
+                "Warning: %s has module doc comments in two places; the one \
+                 before `module` takes precedence\n"
+                prog.note.Syntax.filename;
+              c)
+        | None, None -> None
+      in
+      Ok { module_comment; lookup_type = Ex.lookup_type; docs }
   | Error msg -> Error msg
