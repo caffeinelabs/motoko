@@ -6,7 +6,7 @@ module {
     x : Float;
     /// The Y coordinate.
     y : Float;
-    label : Text;
+    name : Text;
   };
 
   /// A variant type with documented tags.
