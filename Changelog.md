@@ -4,6 +4,10 @@
 
   * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
 
+* documentation (`mo-doc`)
+
+  * feat: doc comments on record fields and variant tags are now extracted and rendered below the enclosing `type` declaration (#5983).
+
 ## 1.4.1 (2026-03-30)
 
 * motoko (`moc`)
