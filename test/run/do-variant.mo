@@ -115,6 +115,36 @@ let v10 : {#err : Text} = v9 / #ok;
 Prim.debugPrint(debug_show(v10));
 assert (v10 == #err "solo");
 
+// ! on variants with different payload types for #ok (success path)
+let r11 : {#ok : Text; #err : Text; #timeout} = do #ok {
+    let a : {#ok : Nat; #err : Text} = #ok 42;
+    let n = a!;
+    let b : {#ok : Bool; #timeout} = #ok true;
+    let flag = b!;
+    debug_show(n) # " " # debug_show(flag);
+};
+Prim.debugPrint(debug_show(r11));
+assert (r11 == #ok "42 true");
+
+// ! on variants with different payload types for #ok (propagation paths)
+let r12 : {#ok : Text; #err : Text; #timeout} = do #ok {
+    let a : {#ok : Nat; #err : Text} = #err "bad";
+    let _n = a!;
+    "unreachable";
+};
+Prim.debugPrint(debug_show(r12));
+assert (r12 == #err "bad");
+
+let r13 : {#ok : Text; #err : Text; #timeout} = do #ok {
+    let a : {#ok : Nat; #err : Text} = #ok 1;
+    let _ = a!;
+    let b : {#ok : Bool; #timeout} = #timeout;
+    let _ = b!;
+    "unreachable";
+};
+Prim.debugPrint(debug_show(r13));
+assert (r13 == #timeout);
+
 // Nesting: do #ok inside do ?
 let r5 : ?(Result<Nat, Text>) = do ? {
     let r : Result<Nat, Text> = do #ok {

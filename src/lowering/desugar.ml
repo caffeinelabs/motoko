@@ -146,6 +146,10 @@ and exp' at note = function
        let ty = note.Note.typ in
        let e' = exp e in
        let scrutinee_typ = e'.note.Note.typ in
+       let narrowed_typ = match T.normalize scrutinee_typ with
+         | T.Variant fs -> T.Variant (List.filter (fun f -> f.T.lab <> lab) fs)
+         | t -> t
+       in
        let temp = fresh_var "temp" scrutinee_typ in
        let v = fresh_var "v" ty in
        let tag_case =
@@ -154,7 +158,7 @@ and exp' at note = function
            at = no_region; note = () } in
        let default_case =
          { it = I.{pat = {it = WildP; at = no_region; note = scrutinee_typ};
-                   exp = breakE ir_lab (varE temp)};
+                   exp = breakE ir_lab (primE (I.CastPrim (scrutinee_typ, narrowed_typ)) [varE temp])};
            at = no_region; note = () } in
        let switch_exp =
          { it = I.SwitchE (varE temp, [tag_case; default_case]);
@@ -177,20 +181,12 @@ and exp' at note = function
       { it = I.{pat = {it = TagP (id.it, wildP); at = no_region; note = scrutinee_typ};
                 exp = primE (I.OtherPrim "trap") [textE ("unexpected variant #" ^ id.it)]};
         at = no_region; note = () } in
-    let pass_cases = match T.normalize scrutinee_typ with
-      | T.Variant fs ->
-        List.filter_map (fun (f : T.field) ->
-          if f.T.lab = id.it then None
-          else
-            let v = fresh_var "v" f.T.typ in
-            Some { it = I.{pat = {it = TagP (f.T.lab, varP v); at = no_region; note = scrutinee_typ};
-                           exp = tagE f.T.lab (varE v)};
-                   at = no_region; note = () }
-        ) fs
-      | _ -> []
-    in
+    let default_case =
+      { it = I.{pat = {it = WildP; at = no_region; note = scrutinee_typ};
+                exp = primE (I.CastPrim (scrutinee_typ, ty)) [varE temp]};
+        at = no_region; note = () } in
     let switch_exp =
-      { it = I.SwitchE (varE temp, trap_case :: pass_cases);
+      { it = I.SwitchE (varE temp, [trap_case; default_case]);
         at = no_region;
         note = Note.{ def with typ = ty;
           eff = T.Triv } } in
