@@ -111,6 +111,11 @@ let adoc_of_doc_type : Buffer.t -> env -> Extract.doc_type -> unit =
   | DTObj (t, _) -> adoc_of_type buf env t
   | DTVariant (t, _) -> adoc_of_type buf env t
 
+let sub_declaration buf env heading item doc =
+  bprintf buf "\n`";
+  heading buf (render_fns env) item;
+  bprintf buf "`\n\n%s\n" doc
+
 let adoc_of_doc_type_fields : Buffer.t -> env -> Extract.doc_type -> unit =
  fun buf env -> function
   | DTPlain _ -> ()
@@ -119,18 +124,14 @@ let adoc_of_doc_type_fields : Buffer.t -> env -> Extract.doc_type -> unit =
         (function
           | _, None -> ()
           | field, Some doc ->
-              bprintf buf "\n`";
-              Plain.plain_of_typ_field buf (render_fns env) field;
-              bprintf buf "`\n\n%s\n" doc)
+              sub_declaration buf env Plain.plain_of_typ_field field doc)
         doc_fields
   | DTVariant (_, doc_tags) ->
       List.iter
         (function
           | _, None -> ()
           | tag, Some doc ->
-              bprintf buf "\n`";
-              Plain.plain_of_typ_tag buf (render_fns env) tag;
-              bprintf buf "`\n\n%s\n" doc)
+              sub_declaration buf env Plain.plain_of_typ_tag tag doc)
         doc_tags
 
 let rec adoc_of_declaration :
