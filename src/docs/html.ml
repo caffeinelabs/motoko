@@ -203,7 +203,14 @@ let html_of_type_doc : env -> Extract.type_doc -> Xref.t -> t =
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
-  | DTObj (ty, fields) ->
+  | DTObj (ty, _) ->
+      h4 ~cls:"type-declaration" ~id
+        (keyword "type "
+        ++ html_type type_doc.name
+        ++ ty_args
+        ++ string " = "
+        ++ html_of_type env ty)
+  | DTVariant (ty, _) ->
       h4 ~cls:"type-declaration" ~id
         (keyword "type "
         ++ html_type type_doc.name

@@ -214,7 +214,39 @@ let opt_typ : Buffer.t -> Syntax.typ option -> unit =
 let plain_of_doc_typ : Buffer.t -> doc_type -> unit =
  fun buf -> function
   | DTPlain ty -> plain_of_typ buf plain_render_functions ty
-  | DTObj (ty, doc_fields) -> plain_of_typ buf plain_render_functions ty
+  | DTObj (ty, _) -> plain_of_typ buf plain_render_functions ty
+  | DTVariant (ty, _) -> plain_of_typ buf plain_render_functions ty
+
+let plain_of_doc_typ_fields : Buffer.t -> doc_type -> unit =
+ fun buf -> function
+  | DTPlain _ -> ()
+  | DTObj (_, doc_fields) ->
+      List.iter
+        (fun (field, doc_opt) ->
+          match doc_opt with
+          | None -> ()
+          | Some doc -> (
+              match field.Source.it with
+              | Syntax.ValF (id, typ, _) ->
+                  bprintf buf "\n`%s` : " id.it;
+                  plain_of_typ buf plain_render_functions typ;
+                  bprintf buf "\n\n%s\n" doc
+              | _ -> ()))
+        doc_fields
+  | DTVariant (_, doc_tags) ->
+      List.iter
+        (fun (tag, doc_opt) ->
+          match doc_opt with
+          | None -> ()
+          | Some doc ->
+              bprintf buf "\n`#%s`" tag.Source.it.Syntax.tag.it;
+              (match tag.Source.it.Syntax.typ.it with
+              | Syntax.TupT [] -> ()
+              | _ ->
+                  bprintf buf " : ";
+                  plain_of_typ buf plain_render_functions tag.Source.it.Syntax.typ);
+              bprintf buf "\n\n%s\n" doc)
+        doc_tags
 
 let named_arg : Buffer.t -> function_arg_named -> unit =
  fun buf arg ->
@@ -262,7 +294,8 @@ let rec declaration_header :
       bprintf buf " = ";
       plain_of_doc_typ buf type_doc.typ;
       end_block buf;
-      doc_comment ()
+      doc_comment ();
+      plain_of_doc_typ_fields buf type_doc.typ
   | Class class_doc ->
       title buf lvl "";
       (match class_doc.sort.it with

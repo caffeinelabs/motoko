@@ -108,7 +108,8 @@ let adoc_of_doc_type : Buffer.t -> env -> Extract.doc_type -> unit =
  fun buf env dt ->
   match dt with
   | DTPlain t -> adoc_of_type buf env t
-  | DTObj (t, fields) -> adoc_of_type buf env t
+  | DTObj (t, _) -> adoc_of_type buf env t
+  | DTVariant (t, _) -> adoc_of_type buf env t
 
 let rec adoc_of_declaration :
     Buffer.t -> env -> Xref.t -> (unit -> unit) -> declaration_doc -> unit =
