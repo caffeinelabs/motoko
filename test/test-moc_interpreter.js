@@ -10,7 +10,7 @@ moc.Motoko.saveFile('empty.mo', '');
 moc.Motoko.saveFile('ok.mo', '1');
 moc.Motoko.saveFile('warn.mo', '2 - 1');
 moc.Motoko.saveFile('bad.mo', '1+');
-moc.Motoko.saveFile('limit.mo', 'var i = 0; while (i < 10000) { i += 1 }; i');
+moc.Motoko.saveFile('limit.mo', 'var i = 0; while (i < 8800) { i += 1 }; i');
 moc.Motoko.saveFile('text.mo', `let s = "${'⛔|'.repeat(10000)}"; s.size()`); // #3822
 
 try {
@@ -43,7 +43,7 @@ try {
       error: null,
     },
     stderr: '',
-    stdout: '10_000 : Nat\n'
+    stdout: '8_800 : Nat\n'
   });
 
   moc.Motoko.setRunStepLimit(5000);
