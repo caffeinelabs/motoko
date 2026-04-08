@@ -234,17 +234,16 @@ let plain_of_doc_typ_fields : Buffer.t -> doc_type -> unit =
         doc_fields
   | DTVariant (_, doc_tags) ->
       List.iter
-        (function
+        Syntax.(function
           | _, None -> ()
-          | tag, Some doc ->
-              Syntax.(
-                bprintf buf "\n`#%s`" tag.Source.it.tag.it;
-                (match tag.Source.it.typ.it with
-                | TupT [] -> ()
-                | _ ->
-                    bprintf buf " : ";
-                    plain_of_typ buf plain_render_functions tag.Source.it.typ);
-                bprintf buf "\n\n%s\n" doc))
+          | Source.{ it = { tag; typ }; _ }, Some doc ->
+              bprintf buf "\n`#%s`" tag.it;
+              (match typ.it with
+              | TupT [] -> ()
+              | _ ->
+                  bprintf buf " : ";
+                  plain_of_typ buf plain_render_functions typ);
+              bprintf buf "\n\n%s\n" doc)
         doc_tags
 
 let named_arg : Buffer.t -> function_arg_named -> unit =
