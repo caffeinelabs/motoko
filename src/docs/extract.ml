@@ -300,10 +300,7 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
     lookup_trivia Source.(parser_pos.left.line, parser_pos.left.column)
     |> Option.get
   in
-  let body_at =
-    let comp_unit = Mo_def.CompUnit.comp_unit_of_prog true prog in
-    comp_unit.it.Syntax.body.at
-  in
+  let module_docs = find_trivia prog.at in
   (* Skip the module header *)
   match un_prog prog with
   | Ok (imports, decls) ->
@@ -315,8 +312,7 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
       let docs = List.filter_map (Ex.extract_dec_field Fun.id) decls in
       Ok
         {
-          module_comment =
-            Trivia.doc_comment_of_trivia_info (find_trivia body_at);
+          module_comment = Trivia.doc_comment_of_trivia_info module_docs;
           lookup_type = Ex.lookup_type;
           docs;
         }
