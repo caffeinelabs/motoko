@@ -190,9 +190,7 @@ struct
    fun ({ at; _ } as tf) ->
     (tf, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
-  let extract_variant_tag_doc : Syntax.typ_tag -> Syntax.typ_tag * string option
-      =
-   fun ({ at; _ } as tag) ->
+  let extract_variant_tag_doc ({ at; _ } as tag) =
     (tag, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
   let rec extract_doc mk_xref = function
