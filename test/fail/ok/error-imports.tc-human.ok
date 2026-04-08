@@ -1,0 +1,11 @@
+warning[M0142]: deprecated syntax: an imported library should be a module or named actor class
+    ┌─ text-module.mo:1:1
+  1 │  "depri"
+    │  ^ 
+error[M0050]: literal of type
+  Text
+does not have expected type
+  module {}
+    ┌─ error-imports.mo:1:8
+  1 │  import "depri" = "text-module";
+    │         ^^^^^^^ 

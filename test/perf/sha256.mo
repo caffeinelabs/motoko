@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import SHA256 "./sha256/SHA256";
 import Array "./sha256/Array";
 import Nat8 "./sha256/Nat8";

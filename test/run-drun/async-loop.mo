@@ -1,6 +1,6 @@
 import Prim "mo:⛔";
 actor {
-  public func go() {
+  public func go() : () {
     do {
       var i = 0;
       var j = 0;

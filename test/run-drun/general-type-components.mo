@@ -15,8 +15,8 @@ type XYU = X.Y.U;
 
 
 actor A = {
-  public func f() { g();};
-  flexible shared func g() { f();};
+  public func f() : () { g();};
+  flexible shared func g() : () { f();};
   flexible object Y = {
     public type U = Int;
   };

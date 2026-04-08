@@ -17,9 +17,8 @@ let args = ref []
 let add_arg source = args := !args @ [source]
 
 let set_mode m () =
-  if !mode <> Default && !mode <> m then begin
-    eprintf "moc: multiple execution modes specified"; exit 1
-  end;
+  if !mode <> Default && !mode <> m then
+    fail "moc: multiple execution modes specified";
   mode := m
 
 let out_file = ref ""
@@ -36,7 +35,7 @@ let valid_metadata_names =
      "motoko:stable-types";
      "motoko:compiler"]
 
-let argspec = 
+let argspec =
   Args.ai_args
   @ [
   "-c", Arg.Unit (set_mode Compile), " compile programs to WebAssembly";
@@ -163,7 +162,8 @@ let argspec =
 
   "--generational-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Generational),
-  " use generational GC (only available with legacy/classical persistence)";
+  " use generational GC (only available with legacy/classical persistence)\n\
+  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
 
   "--incremental-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Incremental),
@@ -171,11 +171,13 @@ let argspec =
 
   "--compacting-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.MarkCompact),
-  " use compacting GC (only available with legacy/classical persistence)";
+  " use compacting GC (only available with legacy/classical persistence)\n\
+  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
 
   "--copying-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Copying),
-  " use copying GC (only available with legacy/classical persistence)";
+  " use copying GC (only available with legacy/classical persistence)\n\
+  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
 
   "--force-gc",
   Arg.Unit (fun () -> Flags.force_gc := true),
@@ -223,6 +225,8 @@ let argspec =
 
   @ Args.persistent_actors_args
 
+  @ Args.migration_args
+
   @ [
   "--stabilization-instruction-limit",
   Arg.Int (fun limit -> Flags.(stabilization_instruction_limit := {
@@ -245,7 +249,11 @@ let argspec =
 
   "-fshared-code",
   Arg.Unit (fun () -> Flags.share_code := true),
-  " do share low-level utility code: smaller code size but increased cycle consumption"
+  " do share low-level utility code: smaller code size but increased cycle consumption";
+
+  "--skip-gc-deprecation-warning",
+  Arg.Unit (fun () -> Flags.skip_gc_deprecation_warning := true),
+  " skip the deprecation warning for the GC strategy flags"
 
   ]
 
@@ -257,7 +265,7 @@ let set_out_file files ext =
   if !out_file = "" then begin
     match files with
     | [n] -> out_file := Filename.remove_extension (Filename.basename n) ^ ext
-    | ns -> eprintf "moc: no output file specified"; exit 1
+    | ns -> fail "moc: no output file specified"
   end
 
 (* Main *)
@@ -379,8 +387,19 @@ let () =
   Flags.compiled := !mode = Compile;
 
   if !Flags.warnings_are_errors && (not !Flags.print_warnings)
+  then fail "moc: --hide-warnings and -Werror together do not make sense";
+
+  if Option.is_some !Flags.enhanced_migration && not !Flags.enhanced_orthogonal_persistence
   then begin
-    eprintf "moc: --hide-warnings and -Werror together do not make sense"; exit 1
+    eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
+  end;
+  
+  if not !Flags.skip_gc_deprecation_warning 
+  then begin
+    match !Flags.gc_strategy with
+    | Mo_config.Flags.Copying | Mo_config.Flags.MarkCompact | Mo_config.Flags.Generational ->
+        eprintf "moc: --%s-gc is deprecated and will be removed in the future. Use --incremental-gc instead.\n" (Flags.gc_strategy_to_str !Flags.gc_strategy); 
+      | _ -> ();
   end;
 
   process_profiler_flags ();

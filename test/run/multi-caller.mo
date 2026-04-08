@@ -87,7 +87,7 @@ actor Pong {
     };
  };
 
- public func test(n:Nat) {
+ public func test(n:Nat) : () {
     ignore async await Ping.call(n);
  };
 

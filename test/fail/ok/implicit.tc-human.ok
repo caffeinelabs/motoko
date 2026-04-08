@@ -1,0 +1,30 @@
+error[M0230]: Cannot determine implicit argument `c` of type
+  (Bool, Bool) -> Order
+    ┌─ implicit.mo:58:1
+ 58 │  f2(true, true); // reject
+    │  ^^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.
+error[M0230]: Cannot determine implicit argument `d` of type
+  Nat -> Order
+    ┌─ implicit.mo:60:1
+ 60 │  f3(1, 1); // reject
+    │  ^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `d` you need to have a matching declaration named `d` in scope.
+error[M0230]: Cannot determine implicit argument `bogus` of type
+  (Nat, Nat) -> Order
+    ┌─ implicit.mo:65:1
+ 65 │  f4(1, 1); // reject
+    │  ^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `bogus` you need to have a matching declaration named `bogus` in scope.
+error[M0231]: ambiguous implicit argument named `ambiguous` of type 
+  (Nat, Nat) -> Order.
+    ┌─ implicit.mo:75:1
+ 75 │  f6(1, 1); // reject
+    │  ^^^^^^^^ 
+    = note: The ambiguous implicit candidates are: `M.ambiguous`, `N.ambiguous`.
+error[M0231]: ambiguous implicit argument named `zero` of type 
+  {x : Nat}.
+    ┌─ implicit.mo:92:27
+ 92 │  ignore mkZero<{ x : Nat }>();
+    │                            ^^ 
+    = note: The ambiguous implicit candidates are: `XY.zero`, `XZ.zero`.

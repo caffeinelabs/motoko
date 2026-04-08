@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Nat
+    ┌─ contextual-dot-biased-oddity.mo:17:18
+ 17 │  let f3 = b2.value(); // reject, field ref (applies the field of type Nat->Nat to ())
+    │                   ^^ 

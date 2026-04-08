@@ -1,5 +1,5 @@
 actor a {
-  public func go() {
+  public func go() : () {
     let _ = async { ():Any };
   }
 };

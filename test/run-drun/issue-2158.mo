@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // warning: compiler crash only manifests itself with
 // moc -c issue-2158.mo
 // because run.sh -d won't compile if --check fails (AFAICT)

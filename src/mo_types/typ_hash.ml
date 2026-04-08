@@ -67,9 +67,10 @@ For this encoding to be injective, it must be prefix free, i.e.
 type arity = Nullary | Unary | Nary | Labeled of string list | TwoSeq of int
 
 (*
-Type construtors are (mostly) described by a single letter.
+Type constructors are (mostly) described by a single letter.
 NB: This code better be prefix-free. Hence capital N, otherwise n8=u
-is a bit ambigous
+is a bit ambigous.
+Float is "f"; Float32 is "h" (half-width, prefix-free with "f").
 *)
 
 let prim = function
@@ -86,6 +87,7 @@ let prim = function
   | Int32 -> "i32"
   | Int64 -> "i64"
   | Float -> "f"
+  | Float32 -> "h"
   | Char -> "c"
   | Text -> "t"
   | Blob -> "B"
@@ -108,8 +110,8 @@ let rec go = function
      this is useful for stable serialization *)
   | Mut t -> ((Unary, "M"), [t])
 
-  | Obj (s, fs) ->
-    ( ( Labeled (List.map (fun f -> f.lab ^ if is_mut f.typ then "!" else "") fs),
+  | Obj (s, fs, tfs) ->
+    ( ( Labeled (List.map (fun f -> f.lab) tfs @ List.map (fun f -> f.lab ^ if is_mut f.typ then "!" else "") fs),
         (match s with Object -> "r" | Module -> "rm" | Memory -> "rs" | Actor -> "ra" | Mixin -> "rx")
       )
     , List.map (fun f -> as_immut f.typ) fs
@@ -135,7 +137,6 @@ let rec go = function
   | Named _ as t -> go (normalize t)
   | Pre -> assert false
   | Var _ -> assert false
-  | Typ _ -> assert false
 
 let paren xs = "(" ^ String.concat "" xs ^ ")"
 

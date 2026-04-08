@@ -77,6 +77,7 @@ module MakeState() = struct
     | Int32 -> PrimT Int32
     | Int64 -> PrimT Int64
     | Float -> PrimT Float64
+    | Float32 -> PrimT Float32
     | Char -> PrimT Nat32
     | Text -> PrimT Text
     | Blob -> BlobT
@@ -123,7 +124,6 @@ module MakeState() = struct
                     canonical
                 end)
         | _ -> assert false)
-    | Typ c -> assert false
     | Tup ts ->
        if ts = [] then
          I.(PrimT Null)
@@ -131,12 +131,12 @@ module MakeState() = struct
          I.RecordT (tuple ts)
     | Array t -> I.VecT (typ t)
     | Opt t -> I.OptT (typ t)
-    | Obj (Object, fs) ->
+    | Obj (Object, fs, _) ->
        I.RecordT (fields fs)
-    | Obj (Actor, fs) -> I.ServT (meths fs)
-    | Obj (Module, _)
-    | Obj (Memory, _)
-    | Obj (Mixin, _) -> assert false
+    | Obj (Actor, fs, _) -> I.ServT (meths fs)
+    | Obj (Module, _, _)
+    | Obj (Memory, _, _)
+    | Obj (Mixin, _, _) -> assert false
     | Variant fs ->
        I.VariantT (fields fs)
     | Func (Shared s, c, tbs, ts1, ts2) ->
@@ -171,7 +171,7 @@ module MakeState() = struct
        I.{label = I.Id nat @@ no_region; typ = typ t} @@ region
     | Id id ->
        I.{label = I.Named id @@ no_region; typ = typ t} @@ region
-  and fields fs = List.map field (val_fields fs)
+  and fields fs = List.map field fs
   and tuple ts =
     List.mapi (fun i x ->
         let id = Lib.Uint32.of_int i in
@@ -192,19 +192,14 @@ module MakeState() = struct
       I.{name = None; typ = typ t} @@ no_region
   and meths fs =
     List.fold_right (fun f list ->
-        match f.typ with
-        | Typ c ->
-           list
-        | _ ->
-           let meth =
-             I.{var = Idllib.Escape.unescape_method f.lab @@ no_region;
-                meth = typ f.typ} @@ f.src.region in
-           meth :: list
-      ) fs []
+      let meth =
+        I.{var = Idllib.Escape.unescape_method f.lab @@ no_region;
+           meth = typ f.typ} @@ f.src.region in
+      meth :: list) fs []
 
   let is_actor_con c =
     match Cons.kind c with
-    | Def ([], Obj (Actor, _)) -> true
+    | Def ([], Obj (Actor, _, _)) -> true
     | _ -> false
 
   let chase_decs env =

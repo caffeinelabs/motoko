@@ -200,6 +200,7 @@ struct
 end
 
 module Float = MakeFloat(Wasm.F64)
+module Float32 = MakeFloat(Wasm.F32)
 
 
 module type NumType =
@@ -207,6 +208,7 @@ sig
   type t
   val signed : bool
   val zero : t
+  val one : t
   val abs : t -> t
   val neg : t -> t
   val add : t -> t -> t
@@ -241,6 +243,7 @@ struct
   type t = big_int
   let signed = true
   let zero = zero_big_int
+  let one = unit_big_int
   let sub = sub_big_int
   let abs = abs_big_int
   let neg = minus_big_int

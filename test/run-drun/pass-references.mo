@@ -2,15 +2,15 @@ import Prim "mo:⛔";
 actor a {
   public func foo() : async Text = async "a";
 
-  public func pass_func(f : shared () -> async Text) {
+  public func pass_func(f : shared () -> async Text) : () {
     Prim.debugPrint (await f());
   };
 
-  public func pass_actor(a : actor { foo : shared () -> async Text }) {
+  public func pass_actor(a : actor { foo : shared () -> async Text }) : () {
     Prim.debugPrint (await a.foo());
   };
 
-  public func go() {
+  public func go() : () {
     actor b {
       public func foo() : async Text = async "b";
     };

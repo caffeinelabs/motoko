@@ -1,0 +1,188 @@
+error[M0098]: cannot apply function of type
+  <T <: ()>(x : T) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:13:1
+ 13 │  f(1);
+    │  ^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: ()>(x : T) -> ()
+to argument of type
+  (Nat, Bool)
+because there is no way to satisfy subtyping
+  (Nat, Bool)  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:15:1
+ 15 │  f(p1);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: ()>(x : T) -> ()
+to argument of type
+  ((Nat, Bool), (Nat, Bool))
+because there is no way to satisfy subtyping
+  ((Nat, Bool), (Nat, Bool))  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:17:1
+ 17 │  f(p2);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: ()>(x : T) -> ()
+to argument of type
+  (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))
+because there is no way to satisfy subtyping
+  (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:19:1
+ 19 │  f(p3);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: ()>(x : T) -> ()
+to argument of type
+  ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+   (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))))
+because there is no way to satisfy subtyping
+  ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+   (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))))  <: 
+    T  (for argument `x`) 
+    ┌─ pretty-inference.mo:21:1
+ 21 │  f(p4);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: ()>(x : T) -> ()
+to argument of type
+  (((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))),
+   ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))))
+because there is no way to satisfy subtyping
+  (((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))),
+   ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))))  <: 
+    T  (for argument `x`) 
+    ┌─ pretty-inference.mo:23:1
+ 23 │  f(p5);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: C<C<C<C<Nat>>>>>(x : T) -> ()
+to argument of type
+  Nat
+because there is no way to satisfy subtyping
+  Nat  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:28:1
+ 28 │  g(1);
+    │  ^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: C<C<C<C<Nat>>>>>(x : T) -> ()
+to argument of type
+  (Nat, Bool)
+because there is no way to satisfy subtyping
+  (Nat, Bool)  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:30:1
+ 30 │  g(p1);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: C<C<C<C<Nat>>>>>(x : T) -> ()
+to argument of type
+  ((Nat, Bool), (Nat, Bool))
+because there is no way to satisfy subtyping
+  ((Nat, Bool), (Nat, Bool))  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:32:1
+ 32 │  g(p2);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: C<C<C<C<Nat>>>>>(x : T) -> ()
+to argument of type
+  (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))
+because there is no way to satisfy subtyping
+  (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))  <:  T  (for argument `x`) 
+    ┌─ pretty-inference.mo:34:1
+ 34 │  g(p3);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: C<C<C<C<Nat>>>>>(x : T) -> ()
+to argument of type
+  ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+   (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))))
+because there is no way to satisfy subtyping
+  ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+   (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))))  <: 
+    T  (for argument `x`) 
+    ┌─ pretty-inference.mo:36:1
+ 36 │  g(p4);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T <: C<C<C<C<Nat>>>>>(x : T) -> ()
+to argument of type
+  (((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))),
+   ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))))
+because there is no way to satisfy subtyping
+  (((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))),
+   ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))))  <: 
+    T  (for argument `x`) 
+    ┌─ pretty-inference.mo:38:1
+ 38 │  g(p5);
+    │  ^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>(x : T, U -> ()) -> ()
+to argument of type
+  (Nat, Text)
+because there is no way to satisfy subtyping
+  Text  <:  U -> ()
+    ┌─ pretty-inference.mo:42:1
+ 42 │  h(1, "");
+    │  ^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>(x : T, U -> ()) -> ()
+to argument of type
+  ((Nat, Bool), Text)
+because there is no way to satisfy subtyping
+  Text  <:  U -> ()
+    ┌─ pretty-inference.mo:44:1
+ 44 │  h(p1, "");
+    │  ^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>(x : T, U -> ()) -> ()
+to argument of type
+  (((Nat, Bool), (Nat, Bool)), Text)
+because there is no way to satisfy subtyping
+  Text  <:  U -> ()
+    ┌─ pretty-inference.mo:46:1
+ 46 │  h(p2, "");
+    │  ^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>(x : T, U -> ()) -> ()
+to argument of type
+  ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))), Text)
+because there is no way to satisfy subtyping
+  Text  <:  U -> ()
+    ┌─ pretty-inference.mo:48:1
+ 48 │  h(p3, "");
+    │  ^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>(x : T, U -> ()) -> ()
+to argument of type
+  (((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+    (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))),
+   Text)
+because there is no way to satisfy subtyping
+  Text  <:  U -> ()
+    ┌─ pretty-inference.mo:50:1
+ 50 │  h(p4, "");
+    │  ^^^^^^^^^ 
+error[M0098]: cannot apply function of type
+  <T, U>(x : T, U -> ()) -> ()
+to argument of type
+  ((((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+     (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool)))),
+    ((((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))),
+     (((Nat, Bool), (Nat, Bool)), ((Nat, Bool), (Nat, Bool))))),
+   Text)
+because there is no way to satisfy subtyping
+  Text  <:  U -> ()
+    ┌─ pretty-inference.mo:52:1
+ 52 │  h(p5, "");
+    │  ^^^^^^^^^ 

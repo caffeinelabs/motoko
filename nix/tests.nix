@@ -1,4 +1,4 @@
-{ pkgs, llvmEnv, esm, commonBuildInputs, debugMoPackages, test-runner }:
+{ pkgs, llvmEnv, esm, commonBuildInputs, debugMoPackages, test-runner, core-src }:
 with debugMoPackages;
 let
   # The following were previously arguments to default.nix but flakes don't accept options yet.
@@ -16,7 +16,7 @@ let
   };
 
   testDerivationDeps =
-    (with pkgs; [ wabt bash perl getconf moreutils nodejs_20 ]) ++
+    (with pkgs; [ wabt bash perl getconf moreutils nodejs_24 ]) ++
     [ filecheck pkgs.wasmtime ];
 
   filecheck = pkgs.runCommandNoCC "FileCheck" { } ''
@@ -57,6 +57,7 @@ let
         patchShebangs .
         ${llvmEnv}
         export ESM=${esm}
+        export MOTOKO_CORE="${core-src}"
         type -p moc && moc --version
         ${if dir == "run-drun" 
           then "make -C ${dir}${pkgs.lib.optionalString (pkgs.system != "x86_64-darwin") " parallel -j4"} ${pkgs.lib.optionalString accept " accept"}"
@@ -65,6 +66,7 @@ let
       '';
     } // pkgs.lib.optionalAttrs accept {
       installPhase = pkgs.lib.optionalString accept ''
+        export MOTOKO_CORE="${core-src}"
         mkdir -p $out/share
         cp -v ${dir}/ok/*.ok $out/share
       '';
@@ -204,6 +206,7 @@ let
       patchShebangs .
       ${llvmEnv}
       export ESM=${esm}
+      export MOTOKO_CORE="${core-src}"
       export SOURCE_PATHS="${
         builtins.concatStringsSep " " (map (d: "${d}/src") (builtins.attrValues coverage_bins))
       }"
@@ -212,6 +215,7 @@ let
     '';
     installPhase = ''
       mv coverage $out;
+      export MOTOKO_CORE="${core-src}"
       mkdir -p $out/nix-support
       echo "report coverage $out index.html" >> $out/nix-support/hydra-build-products
     '';
@@ -238,6 +242,7 @@ fix_names
     idl = test_subdir "idl" [ didc ];
     mo-idl = test_subdir "mo-idl" [ moc didc ];
     mo-idl-eop = enhanced_orthogonal_persistence_subdir "mo-idl" [ moc didc ];
+    mo-doc = test_subdir "mo-doc" [ mo-doc ];
     trap = test_subdir "trap" [ moc ];
     trap-eop = enhanced_orthogonal_persistence_subdir "trap" [ moc ];
     run-deser = test_subdir "run-deser" [ deser ];

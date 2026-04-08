@@ -1,2 +1,4 @@
-unused-switch-case.mo:2.12-2.19: warning [M0194], unused identifier unused1 (delete or rename to wildcard `_` or `_unused1`)
-unused-switch-case.mo:3.10-3.17: warning [M0194], unused identifier unused2 (delete or rename to wildcard `_` or `_unused2`)
+unused-switch-case.mo:2.12-2.19: warning [M0194], unused identifier: `unused1`
+help: if this is intentional, prefix it with an underscore: `_unused1`
+unused-switch-case.mo:3.10-3.17: warning [M0194], unused identifier: `unused2`
+help: if this is intentional, prefix it with an underscore: `_unused2`

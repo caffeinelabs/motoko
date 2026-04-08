@@ -1,2 +1,2 @@
 suggest-local.mo:2.1-2.2: type error [M0057], unbound variable x
-Did you mean variable xxx?
+help: did you mean variable xxx?

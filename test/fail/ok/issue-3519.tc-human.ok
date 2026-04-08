@@ -1,0 +1,11 @@
+error[M0180]: shared function has unexpected type parameters
+    ┌─ issue-3519.mo:8:10
+  7 │      // test
+  8 │      public shared ({ caller }) func asplode<T>() : async GenericType<T> {
+    │ ╭───────────^
+  9 │ │      return {
+ 10 │ │        thing = 1;
+ 11 │ │      };
+ 12 │ │    };
+    │ ╰────^ 
+ 13 │    

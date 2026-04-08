@@ -8,7 +8,7 @@ open Common
 type level = int
 
 type render_functions = {
-  render_path : Syntax.path -> string;
+  render_path : Syntax.typ_path -> string;
   render_open_bracket : string;
   render_close_bracket : string;
 }
@@ -42,18 +42,17 @@ let sep_by' :
 let title : Buffer.t -> level -> string -> unit =
  fun buf level txt -> bprintf buf "\n%s %s" (String.make level '#') txt
 
-let rec plain_of_path : Buffer.t -> Syntax.path -> unit =
- fun buf path ->
-  match path.Source.it with
+let rec plain_of_path : Buffer.t -> Syntax.path' -> unit =
+ fun buf -> function
   | Syntax.IdH id -> Buffer.add_string buf id.it
   | Syntax.DotH (path, id) ->
-      plain_of_path buf path;
+      plain_of_path buf path.it;
       bprintf buf ".%s" id.it
 
-let string_of_path : Syntax.path -> string =
+let string_of_path : Syntax.typ_path -> string =
  fun path ->
   let buf = Buffer.create 8 in
-  plain_of_path buf path;
+  plain_of_path buf path.it;
   Buffer.contents buf
 
 let plain_render_functions : render_functions =
@@ -215,7 +214,29 @@ let opt_typ : Buffer.t -> Syntax.typ option -> unit =
 let plain_of_doc_typ : Buffer.t -> doc_type -> unit =
  fun buf -> function
   | DTPlain ty -> plain_of_typ buf plain_render_functions ty
-  | DTObj (ty, doc_fields) -> plain_of_typ buf plain_render_functions ty
+  | DTObj (ty, _) -> plain_of_typ buf plain_render_functions ty
+  | DTVariant (ty, _) -> plain_of_typ buf plain_render_functions ty
+
+let plain_of_doc_typ_fields buf : doc_type -> unit = function
+  | DTPlain _ -> ()
+  | DTObj (_, doc_fields) ->
+      List.iter
+        (function
+          | _, None -> ()
+          | field, Some doc ->
+              bprintf buf "\n`";
+              plain_of_typ_field buf plain_render_functions field;
+              bprintf buf "`\n\n%s\n" doc)
+        doc_fields
+  | DTVariant (_, doc_tags) ->
+      List.iter
+        (function
+          | _, None -> ()
+          | tag, Some doc ->
+              bprintf buf "\n`";
+              plain_of_typ_tag buf plain_render_functions tag;
+              bprintf buf "`\n\n%s\n" doc)
+        doc_tags
 
 let named_arg : Buffer.t -> function_arg_named -> unit =
  fun buf arg ->
@@ -263,7 +284,8 @@ let rec declaration_header :
       bprintf buf " = ";
       plain_of_doc_typ buf type_doc.typ;
       end_block buf;
-      doc_comment ()
+      doc_comment ();
+      plain_of_doc_typ_fields buf type_doc.typ
   | Class class_doc ->
       title buf lvl "";
       (match class_doc.sort.it with

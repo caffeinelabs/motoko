@@ -1,4 +1,4 @@
-explicit-actor-import.mo:10.8-10.29: type error [M0114], object pattern cannot consume actor type
+explicit-actor-import.mo:10.8-10.29: type error [M0114], object pattern cannot consume values from actor type
   actor {go : shared () -> async actor {}}
-explicit-actor-import.mo:11.8-11.29: type error [M0114], object pattern cannot consume actor type
+explicit-actor-import.mo:11.8-11.29: type error [M0114], object pattern cannot consume values from actor type
   actor {go : shared () -> async actor {}}

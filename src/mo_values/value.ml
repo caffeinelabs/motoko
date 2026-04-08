@@ -49,6 +49,7 @@ and value =
   | Nat32 of Nat32.t
   | Nat64 of Nat64.t
   | Float of Float.t
+  | Float32 of Float32.t
   | Char of unicode
   | Text of string
   | Blob of string
@@ -97,6 +98,7 @@ let as_nat16 = function Nat16 w -> w | _ -> invalid "as_nat16"
 let as_nat32 = function Nat32 w -> w | _ -> invalid "as_nat32"
 let as_nat64 = function Nat64 w -> w | _ -> invalid "as_nat64"
 let as_float = function Float f -> f | _ -> invalid "as_float"
+let as_float32 = function Float32 f -> f | _ -> invalid "as_float32"
 let as_char = function Char c -> c | _ -> invalid "as_char"
 let as_text = function Text s -> s | _ -> invalid "as_text"
 let as_blob = function Blob b -> b | _ -> invalid "as_blob"
@@ -160,21 +162,7 @@ let top_id = fresh_id ()
 
 (* Pretty Printing *)
 
-let add_unicode buf = function
-  | 0x09 -> Buffer.add_string buf "\\t"
-  | 0x0a -> Buffer.add_string buf "\\n"
-  | 0x22 -> Buffer.add_string buf "\\\""
-  | 0x27 -> Buffer.add_string buf "\\\'"
-  | 0x5c -> Buffer.add_string buf "\\\\"
-  | c when 0x20 <= c && c < 0x7f -> Buffer.add_char buf (Char.chr c)
-  | c -> Printf.bprintf buf "\\u{%02x}" c
-
-let string_of_string lsep s rsep =
-  let buf = Buffer.create 256 in
-  Buffer.add_char buf lsep;
-  List.iter (add_unicode buf) s;
-  Buffer.add_char buf rsep;
-  Buffer.contents buf
+let string_of_string = Lib.Utf8.string_of_string
 
 let pos_sign b = if b then "+" else ""
 
@@ -203,11 +191,12 @@ let rec pp_val_nullary d ppf (t, v : T.typ * value) =
     | Nat32 n -> pr ppf (Nat32.to_pretty_string n)
     | Nat64 n -> pr ppf (Nat64.to_pretty_string n)
     | Float f -> pr ppf (Float.to_pretty_string f)
+    | Float32 f -> pr ppf (Float32.to_pretty_string f)
     | Char c ->  pr ppf (string_of_string '\'' [c] '\'')
     | Text t -> pr ppf (string_of_string '\"' (Lib.Utf8.decode t) '\"')
     | Blob b ->
       (match t with
-         T.Obj (T.Actor, _) ->
+         T.Obj (T.Actor, _, _) ->
          pr ppf (string_of_string '`' (Lib.Utf8.decode (Ic.Url.encode_principal b)) '`')
        | _ -> pr ppf ("\"" ^ Blob.escape b ^ "\""))
     | Tup vs ->
@@ -220,7 +209,7 @@ let rec pp_val_nullary d ppf (t, v : T.typ * value) =
     | Obj ve ->
       if d = 0 then pr ppf "{...}" else
       let sort, lookup = match t with
-        | T.Obj (s, fs) ->
+        | T.Obj (s, fs, _) ->
           T.string_of_obj_sort s,
           fun lab -> T.lookup_val_field_opt lab fs
         | _ ->

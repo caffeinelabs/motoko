@@ -1,0 +1,12 @@
+error[M0231]: ambiguous implicit argument named `cmp` of type 
+  (B, B) -> Nat.
+    ┌─ implicit-best-candidate.mo:31:12
+ 31 │      assert cmp(b, c) == 2;
+    │             ^^^^^^^^^ 
+    = note: The ambiguous implicit candidates are: `MA.cmp`, `MB1.cmp`, `MB2.cmp`.
+error[M0231]: ambiguous implicit argument named `default` of type 
+  {a : Int}.
+    ┌─ implicit-best-candidate.mo:55:22
+ 55 │      ignore default<B>();
+    │                       ^^ 
+    = note: The ambiguous implicit candidates are: `MB1.default`, `MB2.default`, `MC.default`.

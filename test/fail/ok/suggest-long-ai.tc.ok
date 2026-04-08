@@ -38,6 +38,7 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
         type Char = Char;
         type Error = Error;
         type Float = Float;
+        type Float32 = Float32;
         type Int = Int;
         type Int16 = Int16;
         type Int32 = Int32;
@@ -56,6 +57,7 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
       };
     __getDedupTable : () -> ?[var __List];
     abs : (x : Int) -> Nat;
+    actorOfPrincipal : <A <: actor {}>(p : Principal) -> A;
     allocWeakRef : <T>(obj : T) -> weak T;
     arccos : (f : Float) -> Float;
     arcsin : (f : Float) -> Float;
@@ -131,7 +133,6 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
     error : (message : Text) -> Error;
     errorCode : (e : Error) -> ErrorCode;
     errorMessage : (e : Error) -> Text;
-    exists : <T>(f : T -> Bool) -> Bool;
     exp : (f : Float) -> Float;
     explodeInt16 : (n : Int16) -> (msb : Nat8, lsb : Nat8);
     explodeInt32 : (n : Int32) -> (msb : Nat8, Nat8, Nat8, lsb : Nat8);
@@ -143,6 +144,7 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
     explodeNat64 :
       (n : Nat64) ->
         (msb : Nat8, Nat8, Nat8, Nat8, Nat8, Nat8, Nat8, lsb : Nat8);
+    float32ToFloat : (f : Float32) -> Float;
     floatAbs : (f : Float) -> Float;
     floatCeil : (f : Float) -> Float;
     floatCopySign : (f : Float, g : Float) -> Float;
@@ -151,12 +153,12 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
     floatMin : (f : Float, g : Float) -> Float;
     floatNearest : (f : Float) -> Float;
     floatSqrt : (f : Float) -> Float;
+    floatToFloat32 : (f : Float) -> Float32;
     floatToFormattedText : (f : Float, prec : Nat8, mode : Nat8) -> Text;
     floatToInt : (f : Float) -> Int;
     floatToInt64 : (f : Float) -> Int64;
     floatToText : (x : Float) -> Text;
     floatTrunc : (f : Float) -> Float;
-    forall : <T>(f : T -> Bool) -> Bool;
     getCandidLimits :
       <system>() -> {bias : Nat32; denominator : Nat32; numerator : Nat32};
     getCandidTypeLimits : <system>() -> {bias : Nat32; scalar : Nat32};
@@ -270,6 +272,7 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
     rts_total_allocation : () -> Nat;
     rts_upgrade_instructions : () -> Nat;
     rts_version : () -> Text;
+    safeFloatToFloat32 : (f : Float, epsilon : Float) -> ?Float32;
     setCandidLimits :
       <system>{bias : Nat32; denominator : Nat32; numerator : Nat32} -> ();
     setCandidTypeLimits : <system>{bias : Nat32; scalar : Nat32} -> ();

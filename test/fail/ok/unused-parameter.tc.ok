@@ -1,2 +1,4 @@
-unused-parameter.mo:1.6-1.10: warning [M0194], unused identifier test (delete or rename to wildcard `_` or `_test`)
-unused-parameter.mo:1.11-1.16: warning [M0194], unused identifier param (delete or rename to wildcard `_` or `_param`)
+unused-parameter.mo:1.6-1.10: warning [M0194], unused identifier: `test`
+help: if this is intentional, prefix it with an underscore: `_test`
+unused-parameter.mo:1.11-1.16: warning [M0194], unused identifier: `param`
+help: if this is intentional, prefix it with an underscore: `_param`

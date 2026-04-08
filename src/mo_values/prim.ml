@@ -86,6 +86,10 @@ let num_conv_trap_prim trap t1 t2 =
   | T.Float, T.Int -> fun v -> Int (Int.of_big_int (bigint_of_double (as_float v)))
   | T.Int, T.Float -> fun v -> Float (Wasm.F64.of_float (Big_int.float_of_big_int (Int.to_big_int (as_int v))))
 
+  | T.Float, T.Float32 ->
+    fun v -> Float32 (Float32.of_float (Float.to_float (as_float v)))
+  | T.Float32, T.Float -> fun v -> Float (Float.of_float (Float32.to_float (as_float32 v)))
+
   | t1, t2 -> trap.trap T.("Value.num_conv_trap_prim: " ^ string_of_typ (Prim t1) ^ string_of_typ (Prim t2))
 
 (*
@@ -129,6 +133,7 @@ let prim trap =
      | [a; b] -> k (Float (Float.copysign (as_float a) (as_float b)))
      | _ -> assert false)
   | "Float->Text" -> fun _ v k -> k (Text (Float.to_string (as_float v)))
+  | "Float32->Text" -> fun _ v k -> k (Text (Float32.to_string (as_float32 v)))
   | "fmtFloat->Text" -> fun _ v k ->
     (match Value.as_tup v with
      | [f; prec; mode] ->
@@ -191,14 +196,14 @@ let prim trap =
      fun _ v k ->
      let w, a = as_pair v
      in k (match w with
-           | Nat8  y -> Nat8  Nat8. (and_ y (shl (of_int 1) (as_nat8  a)))
-           | Nat16 y -> Nat16 Nat16.(and_ y (shl (of_int 1) (as_nat16 a)))
-           | Nat32 y -> Nat32 Nat32.(and_ y (shl (of_int 1) (as_nat32 a)))
-           | Nat64 y -> Nat64 Nat64.(and_ y (shl (of_int 1) (as_nat64 a)))
-           | Int8  y -> Int8  Int_8. (and_ y (shl (of_int 1) (as_int8  a)))
-           | Int16 y -> Int16 Int_16.(and_ y (shl (of_int 1) (as_int16 a)))
-           | Int32 y -> Int32 Int_32.(and_ y (shl (of_int 1) (as_int32 a)))
-           | Int64 y -> Int64 Int_64.(and_ y (shl (of_int 1) (as_int64 a)))
+           | Nat8  y -> Nat8  Nat8. (and_ y (shl one (as_nat8  a)))
+           | Nat16 y -> Nat16 Nat16.(and_ y (shl one (as_nat16 a)))
+           | Nat32 y -> Nat32 Nat32.(and_ y (shl one (as_nat32 a)))
+           | Nat64 y -> Nat64 Nat64.(and_ y (shl one (as_nat64 a)))
+           | Int8  y -> Int8  Int_8. (and_ y (shl one (as_int8  a)))
+           | Int16 y -> Int16 Int_16.(and_ y (shl one (as_int16 a)))
+           | Int32 y -> Int32 Int_32.(and_ y (shl one (as_int32 a)))
+           | Int64 y -> Int64 Int_64.(and_ y (shl one (as_int64 a)))
            | _ -> failwith "btst")
 
   | "lsh_Nat" -> fun _ v k ->
@@ -336,11 +341,16 @@ let prim trap =
     | _ -> assert false
     )
 
+  | "get_migrations" ->
+    fun _ v k -> as_unit v; k Null
+  | "set_migrations" ->
+    fun _ v k -> k unit
 
   | "cast"
   | "blobOfPrincipal"
   | "principalOfBlob"
-  | "principalOfActor" -> fun _ v k -> k v
+  | "principalOfActor"
+  | "actorOfPrincipal" -> fun _ v k -> k v
 
   | "blobToArray" -> fun _ v k ->
     k (Array (Array.of_seq (Seq.map (fun c ->

@@ -10,7 +10,7 @@ actor a {
    (x,y);
   };
 
-  public func go() {
+  public func go() : () {
     let () = await A();
     let 1 = await B(1);
     let (1,true) = await C(1,true);

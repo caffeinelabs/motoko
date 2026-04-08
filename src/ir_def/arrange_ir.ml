@@ -126,6 +126,7 @@ and prim = function
   | ICReplyDeadlinePrim  -> Atom "ICReplyDeadlinePrim"
   | ICStableWrite t   -> "ICStableWrite" $$ [typ t]
   | ICStableRead t    -> "ICStableRead" $$ [typ t]
+  | ICStableStore t   -> "ICStableStore" $$ [typ t]
 
 and mut = function
   | Const -> Atom "Const"
@@ -155,6 +156,7 @@ and lit = function
   | Int32Lit w    -> "Int32Lit"  $$ [ Atom (Numerics.Int_32.to_pretty_string w) ]
   | Int64Lit w    -> "Int64Lit"  $$ [ Atom (Numerics.Int_64.to_pretty_string w) ]
   | FloatLit f    -> "FloatLit"  $$ [ Atom (Numerics.Float.to_pretty_string f) ]
+  | Float32Lit f  -> "Float32Lit" $$ [ Atom (Numerics.Float32.to_pretty_string f) ]
   | CharLit c     -> "CharLit"   $$ [ Atom (string_of_int c) ]
   | TextLit t     -> "TextLit"   $$ [ Atom t ]
   | BlobLit b     -> "BlobLit"   $$ [ Atom (Printf.sprintf "%S" b) ] (* hex might be nicer *)

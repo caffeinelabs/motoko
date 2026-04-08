@@ -1,5 +1,6 @@
+//MOC-FLAG -A=M0194
 actor a {
-  public func go() {
+  public func go() : () {
     let opts = [null, ?42, ?-25];
     let nulls = [null, null];
 

@@ -1,0 +1,5 @@
+error[M0136]: empty block cannot produce expected type
+  Bool
+    ┌─ M0136.mo:1:2
+  1 │  (do {}) : Bool
+    │   ^^^^^ 

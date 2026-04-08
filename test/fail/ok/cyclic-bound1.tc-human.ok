@@ -1,0 +1,4 @@
+error[M0043]: type parameter A has cyclic bounds A <: A
+    ┌─ cyclic-bound1.mo:3:8
+  3 │  func f<A <: A>(a : A)
+    │         ^^^^^^ 

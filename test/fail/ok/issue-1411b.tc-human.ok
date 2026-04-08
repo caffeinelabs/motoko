@@ -1,0 +1,4 @@
+error[M0024]: cannot infer type of forward variable reference Z3
+    ┌─ issue-1411b.mo:16:11
+ 16 │  type T3 = Z3.T;  //rejected: cannot infer type of forward variable reference Z3
+    │            ^^ 

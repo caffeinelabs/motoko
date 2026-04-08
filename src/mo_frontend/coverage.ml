@@ -57,7 +57,7 @@ let max_expand = 2
 let pick_nat (type t) (module Num : Numerics.NumType with type t = t) to_val vs =
   let x = ref Num.zero in
   while ValSet.mem (to_val !x) vs do
-    x := Num.add (Num.of_int 1) !x
+    x := Num.(add one !x)
   done;
   Val (to_val !x)
 
@@ -65,7 +65,7 @@ let pick_int (type t) (module Num : Numerics.NumType with type t = t) to_val vs 
   let x = ref Num.zero in
   while ValSet.mem (to_val !x) vs do
     x := Num.neg !x;
-    if Num.ge !x Num.zero then x := Num.add (Num.of_int 1) !x
+    Num.(if ge !x zero then x := add one !x)
   done;
   Val (to_val !x)
 
@@ -95,7 +95,8 @@ let pick_val vs = function
   | T.Error
   | T.Principal
   | T.Region
-  | T.Float -> Any
+  | T.Float
+  | T.Float32 -> Any
 
 let rec expand_notval t n vs : desc list =
   let missing = Lib.Option.get (T.span t) max_int - ValSet.cardinal vs in
@@ -177,6 +178,7 @@ let value_of_lit = function
   | Int32Lit w -> V.Int32 w
   | Int64Lit w -> V.Int64 w
   | FloatLit z -> V.Float z
+  | Float32Lit z -> V.Float32 z
   | CharLit c -> V.Char c
   | TextLit t -> V.Text t
   | BlobLit b -> V.Blob b

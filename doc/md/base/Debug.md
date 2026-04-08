@@ -14,7 +14,7 @@ func print(text : Text)
 Prints `text` to output stream.
 
 :::note
-When running on ICP, all output is written to the [canister log](https://internetcomputer.org/docs/building-apps/canister-management/logs) with the exclusion of any output
+When running on ICP, all output is written to the [canister log](https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/logs) with the exclusion of any output
 produced during the execution of non-replicated queries and composite queries.
 In other environments, like the interpreter and stand-alone Wasm engines, the output is written to standard out.
 :::

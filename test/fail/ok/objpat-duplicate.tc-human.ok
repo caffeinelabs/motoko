@@ -1,0 +1,8 @@
+error[M0121]: duplicate field a in object pattern
+    ┌─ objpat-duplicate.mo:4:19
+  4 │    case {a = x; b; a} {}
+    │                    ^ 
+error[M0017]: duplicate binding for a in pattern
+    ┌─ objpat-duplicate.mo:8:8
+  8 │    case {a; b = a} {}
+    │         ^^^^^^^^^^ 

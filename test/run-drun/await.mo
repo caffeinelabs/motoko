@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 actor a {
   public func go() : async () {
@@ -45,15 +46,14 @@ actor a {
     let g = async {
         var i = 10;
         Prim.debugPrint "g-label";
-        label lp
         while (true) {
             if (i < 13) {
                 Prim.debugPrint ".";
                 let _ = await f(i);
                 i += 1;
-                continue lp; 
+                continue; 
             } else {};
-            break lp;
+            break;
         };
         Prim.debugPrint "g-exit";
     };

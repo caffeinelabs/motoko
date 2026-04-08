@@ -1,0 +1,113 @@
+error[M0087]: ill-scoped await: expected async type from current scope $, found async type from other scope $top-level
+  scope $@anon-async-3.22 is illegal-await.mo:3.22-3.40
+  scope $top-level is the global scope
+    ┌─ illegal-await.mo:3:36
+  3 │    let t : async () = async { await t; };
+    │                                     ^ 
+help: start of scope $@anon-async-3.22 mentioned in error at illegal-await.mo:3.30-3.37
+    ┌─ illegal-await.mo:3:22
+  3 │    let t : async () = async { await t; };
+    │                       ^ 
+help: end of scope $@anon-async-3.22 mentioned in error at illegal-await.mo:3.30-3.37
+    ┌─ illegal-await.mo:3:39
+  3 │    let t : async () = async { await t; };
+    │                                        ^ 
+error[M0087]: ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-11.10
+  scope $@anon-async-12.25 is illegal-await.mo:12.25-12.44
+  scope $@anon-async-11.10 is illegal-await.mo:11.10-15.4
+    ┌─ illegal-await.mo:12:39
+ 12 │      let a1 : async () = async { await a2; }; // illegal await since a1 : Async<X>() </: Async<Y>()
+    │                                        ^^ 
+help: start of scope $@anon-async-12.25 mentioned in error at illegal-await.mo:12.33-12.41
+    ┌─ illegal-await.mo:12:25
+ 12 │      let a1 : async () = async { await a2; }; // illegal await since a1 : Async<X>() </: Async<Y>()
+    │                          ^ 
+help: end of scope $@anon-async-12.25 mentioned in error at illegal-await.mo:12.33-12.41
+    ┌─ illegal-await.mo:12:43
+ 12 │      let a1 : async () = async { await a2; }; // illegal await since a1 : Async<X>() </: Async<Y>()
+    │                                            ^ 
+help: start of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:12.33-12.41
+    ┌─ illegal-await.mo:11:10
+ 11 │    ignore async {
+    │           ^ 
+help: end of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:12.33-12.41
+    ┌─ illegal-await.mo:15:3
+ 15 │    };
+    │    ^ 
+error[M0087]: ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-11.10
+  scope $@anon-async-13.25 is illegal-await.mo:13.25-13.44
+  scope $@anon-async-11.10 is illegal-await.mo:11.10-15.4
+    ┌─ illegal-await.mo:13:39
+ 13 │      let a2 : async () = async { await a1; }; // illegal await since a2 : Async<X>() </: Async<Z>()
+    │                                        ^^ 
+help: start of scope $@anon-async-13.25 mentioned in error at illegal-await.mo:13.33-13.41
+    ┌─ illegal-await.mo:13:25
+ 13 │      let a2 : async () = async { await a1; }; // illegal await since a2 : Async<X>() </: Async<Z>()
+    │                          ^ 
+help: end of scope $@anon-async-13.25 mentioned in error at illegal-await.mo:13.33-13.41
+    ┌─ illegal-await.mo:13:43
+ 13 │      let a2 : async () = async { await a1; }; // illegal await since a2 : Async<X>() </: Async<Z>()
+    │                                            ^ 
+help: start of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:13.33-13.41
+    ┌─ illegal-await.mo:11:10
+ 11 │    ignore async {
+    │           ^ 
+help: end of scope $@anon-async-11.10 mentioned in error at illegal-await.mo:13.33-13.41
+    ┌─ illegal-await.mo:15:3
+ 15 │    };
+    │    ^ 
+error[M0087]: ill-scoped await: expected async type from current scope $, found async type from other scope $@anon-async-22.10
+  scope $@anon-async-24.11 is illegal-await.mo:24.11-26.6
+  scope $@anon-async-22.10 is illegal-await.mo:22.10-27.4
+    ┌─ illegal-await.mo:25:13
+ 25 │        await x // illegal: await _ : async<S>T -> T (not async<R> T -> T) (any T))
+    │              ^ 
+help: start of scope $@anon-async-24.11 mentioned in error at illegal-await.mo:25.7-25.14
+    ┌─ illegal-await.mo:24:11
+ 24 │      x := (async {
+    │            ^ 
+help: end of scope $@anon-async-24.11 mentioned in error at illegal-await.mo:25.7-25.14
+    ┌─ illegal-await.mo:26:5
+ 26 │      });
+    │      ^ 
+help: start of scope $@anon-async-22.10 mentioned in error at illegal-await.mo:25.7-25.14
+    ┌─ illegal-await.mo:22:10
+ 22 │    ignore async {
+    │           ^ 
+help: end of scope $@anon-async-22.10 mentioned in error at illegal-await.mo:25.7-25.14
+    ┌─ illegal-await.mo:27:3
+ 27 │    }
+    │    ^ 
+error[M0087]: ill-scoped await: expected async type from current scope $, found async type from other scope $
+  scope $Rec is illegal-await.mo:33.44-40.2
+  scope $ is illegal-await.mo:33.1-40.2
+    ┌─ illegal-await.mo:35:11
+ 35 │      await a // <- illegal await since async<@>() </: async<X>()
+    │            ^ 
+help: start of scope $Rec mentioned in error at illegal-await.mo:35.5-35.12
+    ┌─ illegal-await.mo:33:44
+ 33 │  func Rec(n : Int, a : async ()) : async () {
+    │                                             ^ 
+help: end of scope $Rec mentioned in error at illegal-await.mo:35.5-35.12
+    ┌─ illegal-await.mo:40:1
+ 40 │  };
+    │  ^ 
+help: start of scope $ mentioned in error at illegal-await.mo:35.5-35.12
+    ┌─ illegal-await.mo:33:1
+ 33 │  func Rec(n : Int, a : async ()) : async () {
+    │  ^ 
+help: end of scope $ mentioned in error at illegal-await.mo:35.5-35.12
+    ┌─ illegal-await.mo:40:1
+ 40 │  };
+    │  ^ 
+error[M0096]: expression of type
+  async<$> ()
+cannot produce expected type
+  async<$> ()
+because of incompatible async scopes: 
+  $
+ does not match 
+  $
+    ┌─ illegal-await.mo:38:20
+ 38 │      await Rec(n-1, a)
+    │                     ^ 

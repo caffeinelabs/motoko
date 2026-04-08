@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 //MOC-FLAG -W M0236
 // test suggestion of contextual dot notation,
 // excluding binary equals and compare(XXX)

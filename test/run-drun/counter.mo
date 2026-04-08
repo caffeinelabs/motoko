@@ -1,11 +1,11 @@
 import Prim "mo:⛔";
 actor {
   flexible var c = 1;
-  public func inc() {
+  public func inc() : () {
     c += 1;
     Prim.debugPrintNat c
   };
-  public func printCounter () {
+  public func printCounter () : () {
     Prim.debugPrintNat c
   };
   public func get() : async Nat {

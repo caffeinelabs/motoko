@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // test cycle overflow detection and larger cycle transfers
 
 import Prim "mo:⛔";

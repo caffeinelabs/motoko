@@ -1,0 +1,16 @@
+error[M0098]: cannot apply function of type
+  <T>(len : Nat, x : T) -> [var T]
+to argument of type
+  (Nat, Nat)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Nat>
+    ┌─ invariant-inference.mo:5:11
+  5 │    let a = Prim.Array_init(1, 0); // rejected as ambiguous
+    │            ^^^^^^^^^^^^^^^^^^^^^ 
+error[M0050]: literal of type
+  Int
+does not have expected type
+  Nat
+    ┌─ invariant-inference.mo:15:11
+ 15 │    a[0] := -1; // rejected
+    │            ^^ 

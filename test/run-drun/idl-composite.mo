@@ -4,7 +4,7 @@ actor This {
 
     public composite query func f() : async () {};
 
-    public func go() {
+    public func go() : () {
 
        let blob = to_candid (This);
 

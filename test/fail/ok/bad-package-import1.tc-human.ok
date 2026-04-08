@@ -1,0 +1,4 @@
+error[M0010]: package "foo" not defined
+    ┌─ bad-package-import1.mo:1:1
+  1 │  import imported1 "mo:foo";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^ 

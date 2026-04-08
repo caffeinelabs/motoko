@@ -31,6 +31,8 @@ let repr_of_symbol : xsymbol -> (string * string) =
   let eg_stab_field = String.concat " " ["stable"; eg_pat; eg_annot] in
   let eg_pre_stab_field = String.concat " " ["in"; eg_pat; eg_annot] in
   let eg_typ_tag = "#t" in
+  let eg_mig_tag = "\"<filename>\"" in
+  let eg_mig_field = eg_mig_tag ^ " : " ^ eg_typ in
   let seplist a sep = ("seplist(" ^ fst a ^ "," ^ fst sep ^ ")",
                        snd a) in
   let semi = "<semicolon>", ";" in
@@ -212,6 +214,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_option_exp_nullary_ob__) -> "<exp_nullary(ob)>?", eg_exp
   | X (N N_option_typ_args_) -> "<typ_args>?", eg_typ_args
   | X (N N_option_query_) -> "<query>?", "query"
+  | X (N N_option_id_) -> "<id>?", "x"
   | X (N N_parse_module_header) -> entry_point "<parse_module_header>"
   | X (N N_parse_prog) -> entry_point "<parse_prog>"
   | X (N N_parse_prog_interactive) -> entry_point "<parse_prog_interactive>"
@@ -223,6 +226,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_pat_plain) -> "<pat_plain>", eg_pat
   | X (N N_pat_un) -> "<pat_un>", eg_pat
   | X (N N_path) -> "<path>", "A.B.C"
+  | X (N N_typ_path) -> "<path>", "A.B.C"
   | X (N N_annot_opt) -> "<annot_opt>", eg_annot
   | X (N N_seplist_case_semicolon_) -> seplist ("<case>", eg_case) semi
   | X (N N_seplist_dec_SEMICOLON_) -> seplist ("<dec>", eg_dec) semi2
@@ -267,7 +271,9 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_stab_field) -> "<stab_field>", eg_stab_field
   | X (N N_pre_stab_field) -> "<pre_stab_field>", eg_pre_stab_field
   | X (N N_start) -> entry_point "<start>" (* dummy non-terminal, don't display *)
-
+  | X (N N_seplist_mig_field_semicolon_) -> seplist ("<mig_field>", eg_mig_field) semi
+  | X (N N_mig_lab) -> "<mig_lab>", "\"<filename>\""
+  | X (N N_mig_field) -> "<mig_field>", eg_mig_field
 (* In order to print a view of the stack that includes semantic values,
    we need an element printer. (If we don't need this feature, then
    [print_symbol] above suffices.) *)

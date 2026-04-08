@@ -90,5 +90,10 @@ let parse (f: string) : (parsed, string) result =
 
 
 (* Basename of the IDL file searched (see DFX-Interface.md) *)
+let idl_extension = ".did"
+
 let idl_basename_of_blob bytes =
-  encode_principal bytes ^ ".did"
+  encode_principal bytes ^ idl_extension
+
+let idl_basename_of_envvar envvar =
+  envvar ^ idl_extension

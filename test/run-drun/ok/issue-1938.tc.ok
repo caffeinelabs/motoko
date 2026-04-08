@@ -1,1 +1,0 @@
-issue-1938.mo:1.7-1.8: warning [M0194], unused identifier A (delete or rename to wildcard `_` or `_A`)

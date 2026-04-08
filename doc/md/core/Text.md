@@ -413,7 +413,7 @@ Two fields are separated by exactly one match.
 
 ```motoko include=import
 let words = Text.split("This is a sentence.", #char ' ');
-assert Text.join("|", words) == "This|is|a|sentence.";
+assert Text.join(words, "|") == "This|is|a|sentence.";
 ```
 
 ## Function `tokens`
@@ -427,7 +427,7 @@ Two tokens may be separated by one or more matches of `p`.
 
 ```motoko include=import
 let tokens = Text.tokens("this needs\n an   example", #predicate (func(c) { c == ' ' or c == '\n' }));
-assert Text.join("|", tokens) == "this|needs|an|example";
+assert Text.join(tokens, "|") == "this|needs|an|example";
 ```
 
 ## Function `contains`

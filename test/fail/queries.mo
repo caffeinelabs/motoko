@@ -2,7 +2,7 @@ import Prim "mo:⛔";
 
 actor a {
 
-  public shared func oneway() { };
+  public shared func oneway() : () { };
 
   public shared func request() : async () { await okquery()};
 

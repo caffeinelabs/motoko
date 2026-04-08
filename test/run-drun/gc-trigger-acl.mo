@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 import Lib "gc-trigger-acl/C";
 // test __motoko_gc_trigger can only be invoked from self or controller

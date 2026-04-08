@@ -1,0 +1,4 @@
+error[M0043]: type parameter U has cyclic bounds U <: U
+    ┌─ cyclic-bound5.mo:7:8
+  7 │  type C<U <: T<U>> = ();
+    │         ^^^^^^^^^ 

@@ -3,6 +3,6 @@ scope-example-func-implicit.mo:7.13-7.22: type error [M0092], async at scope
   $bogus
 cannot produce expected scope
   $
-  scope $ is scope-example-func-implicit.mo:3.43-17.4
+  scope $f is scope-example-func-implicit.mo:3.43-17.4
 scope-example-func-implicit.mo:3.43: info, start of scope $f mentioned in error at scope-example-func-implicit.mo:7.13-7.22
 scope-example-func-implicit.mo:17.3: info, end of scope $f mentioned in error at scope-example-func-implicit.mo:7.13-7.22

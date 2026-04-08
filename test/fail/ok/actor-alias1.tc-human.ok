@@ -1,0 +1,3 @@
+(unknown location): actor-alias error [M0007], cannot parse principal "not_an_ic_url" for actor alias "bar": invalid principal. Did you mean "sjr6b-ekuri"?
+(unknown location): actor-alias error [M0007], cannot parse principal "canister:baz" for actor alias "baz": invalid principal. Did you mean "e5mcd-furba"?
+(unknown location): actor-alias error [M0007], cannot parse principal "https://dfinity.org" for actor alias "foo": invalid principal. Did you mean "5kp66-tnini-tyora"?

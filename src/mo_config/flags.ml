@@ -14,9 +14,13 @@ type instruction_limits = {
 
 type actors = LegacyActors | RequirePersistentActors | DefaultPersistentActors
 
+type error_format = Plain | Human | Json
+
 type lint_level = Allow | Warn | Error
 
+let error_format = ref Plain
 let ai_errors = ref false
+let all_libs = ref false
 let trace = ref false
 let verbose = ref false
 let print_warnings = ref true
@@ -35,7 +39,7 @@ let dump_lowering = ref false
 let check_ir = ref true
 let package_urls : string M.t ref = ref M.empty
 let implicit_package : string option ref = ref None
-let actor_aliases : string M.t ref = ref M.empty
+let actor_aliases : (string * string, string * string option) Either.t M.t ref = ref M.empty
 let actor_idl_path : string option ref = ref None
 let max_stable_pages_default = 65536
 let max_stable_pages : int ref = ref max_stable_pages_default
@@ -66,6 +70,7 @@ let trap_on_call_error = ref false
 let use_stable_regions = ref false
 let enhanced_orthogonal_persistence = ref true
 let explicit_enhanced_orthogonal_persistence = ref false
+let enhanced_migration : string option ref = ref None
 let share_code = ref false
 let stabilization_instruction_limit_default = {
   upgrade = 180_000_000_000L; (* 200 billion limit with 10% reserve *)
@@ -102,3 +107,12 @@ let get_warning_level code =
 let is_warning_disabled code = get_warning_level code = Allow
 let is_warning_enabled code = not (is_warning_disabled code)
 
+let skip_gc_deprecation_warning = ref false
+
+let gc_strategy_to_str : gc_strategy -> string = fun gc_strategy ->
+  match gc_strategy with
+  | Copying -> "copying"
+  | MarkCompact -> "compacting"
+  | Generational -> "generational"
+  | Incremental -> "incremental"
+  | Default -> "default"

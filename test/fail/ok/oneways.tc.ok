@@ -1,12 +1,22 @@
-oneways.mo:8.25-8.27: type error [M0078], shared function with () result type has unexpected body:
+oneways.mo:8.30-8.32: type error [M0078], shared function with () result type has unexpected body:
   the body must either be of sugared form '{ ... }' 
   or explicit form '= ignore ((async ...) : async ())'
-oneways.mo:9.25-9.40: type error [M0078], shared function with () result type has unexpected body:
+oneways.mo:9.30-9.45: type error [M0078], shared function with () result type has unexpected body:
   the body must either be of sugared form '{ ... }' 
   or explicit form '= ignore ((async ...) : async ())'
-oneways.mo:15.24-15.26: type error [M0078], shared function with () result type has unexpected body:
+oneways.mo:12.21-12.23: warning [M0242], this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+oneways.mo:13.23-13.53: warning [M0242], this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+oneways.mo:14.23-14.57: warning [M0242], this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+oneways.mo:18.24-18.26: warning [M0242], this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+oneways.mo:18.24-18.26: type error [M0078], shared function with () result type has unexpected body:
   the body must either be of sugared form '{ ... }' 
   or explicit form '= ignore ((async ...) : async ())'
-oneways.mo:16.24-16.39: type error [M0078], shared function with () result type has unexpected body:
+oneways.mo:19.24-19.39: warning [M0242], this declares an implicit oneway function.
+  if this is intentional, annotate explicitly with `: ()`, otherwise annotate with `: async ()`
+oneways.mo:19.24-19.39: type error [M0078], shared function with () result type has unexpected body:
   the body must either be of sugared form '{ ... }' 
   or explicit form '= ignore ((async ...) : async ())'

@@ -280,6 +280,7 @@ let interpret_lit env lit : V.value =
   | Int32Lit i -> V.Int32 i
   | Int64Lit i -> V.Int64 i
   | FloatLit f -> V.Float f
+  | Float32Lit f -> V.Float32 f
   | CharLit c -> V.Char c
   | TextLit s -> V.Text s
   | BlobLit b -> V.Blob b
@@ -550,7 +551,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     interpret_exps env exp_bases [] (fun objs -> fields (merges (strip objs)))
   | TagE (i, exp1) ->
     interpret_exp env exp1 (fun v1 -> k (V.Variant (i.it, v1)))
-  | DotE (exp1, id, _) when T.(sub exp1.note.note_typ (Obj (Actor, []))) ->
+  | DotE (exp1, id, _) when T.(sub exp1.note.note_typ (Obj (Actor, [], []))) ->
     interpret_exp env exp1 (fun v1 -> k V.(Tup [v1; Text id.it]))
   | DotE (exp1, id, _) ->
     interpret_exp env exp1 (fun v1 ->
@@ -682,25 +683,30 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
                  ; throws = Option.map pre env.throws } in
     let k' v1 = interpret_catches env cases exp.at v1 k in
     interpret_exp { env with throws = Some k' } exp1 k
-  | WhileE (exp1, exp2) ->
+  | WhileE (exp1, exp2, flags) ->
     let k_continue = fun v -> V.as_unit v; interpret_exp env exp k in
+    let env = add_loop_labels env flags k k_continue in
     interpret_exp env exp1 (fun v1 ->
       if V.as_bool v1
       then interpret_exp env exp2 k_continue
       else k V.unit
     )
-  | LoopE (exp1, None) ->
-    interpret_exp env exp1 (fun v -> V.as_unit v; interpret_exp env exp k)
-  | LoopE (exp1, Some exp2) ->
-    interpret_exp env exp1 (fun v1 ->
-      V.as_unit v1;
+  | LoopE (exp1, None, flags) ->
+    let k_continue = fun v -> V.as_unit v; interpret_exp env exp k in
+    let env = add_loop_labels env flags k k_continue in
+    interpret_exp env exp1 k_continue
+  | LoopE (exp1, Some exp2, flags) ->
+    let k_continue = fun v ->
+      V.as_unit v;
       interpret_exp env exp2 (fun v2 ->
         if V.as_bool v2
         then interpret_exp env exp k
         else k V.unit
       )
-    )
-  | ForE (pat, exp1, exp2) ->
+    in
+    let env = add_loop_labels env flags k k_continue in
+    interpret_exp env exp1 k_continue
+  | ForE (pat, exp1, exp2, flags) ->
     interpret_exp env exp1 (fun v1 ->
       let fs = V.as_obj v1 in
       let _, next = V.as_func (find "next" fs) in
@@ -713,6 +719,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
             | None ->
               trap pat.at "value %s does not match pattern" (string_of_val env v')
             | Some ve ->
+              let env = add_loop_labels env flags k k_continue in
               interpret_exp (adjoin_vals env ve) exp2 k_continue
             )
           | V.Null -> k V.unit
@@ -724,8 +731,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     let env' = {env with labs = V.Env.add id.it k env.labs} in
     Profiler.bump_label id.at id.it ;
     interpret_exp env' exp1 k
-  | BreakE (id, exp1) ->
-    interpret_exp env exp1 (find id.it env.labs)
+  | BreakE (kind, id_opt, exp1) ->
+    interpret_exp env exp1 (find (Syntax.break_label kind id_opt) env.labs)
   | DebugE exp1 ->
     if !Mo_config.Flags.release_mode then k V.unit else interpret_exp env exp1 k
   | RetE exp1 ->
@@ -763,6 +770,11 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     interpret_exp env exp1 k
   | IgnoreE exp1 ->
     interpret_exp env exp1 (fun _v -> k V.unit)
+
+and add_loop_labels env flags k_break k_continue =
+  let labs = if flags.has_break then V.Env.add Syntax.auto_s k_break env.labs else env.labs in
+  let labs = if flags.has_continue then V.Env.add Syntax.auto_continue_s k_continue labs else labs in
+  { env with labs }
 
 and interpret_par env par k =
   match par with
@@ -878,6 +890,7 @@ and match_lit lit v : bool =
   | Int32Lit i, V.Int32 i' -> Int_32.eq i i'
   | Int64Lit i, V.Int64 i' -> Int_64.eq i i'
   | FloatLit z, V.Float z' -> z = z'
+  | Float32Lit z, V.Float32 z' -> z = z'
   | CharLit c, V.Char c' -> c = c'
   | TextLit u, V.Text u' -> u = u'
   | BlobLit b, V.Blob b' -> b = b'

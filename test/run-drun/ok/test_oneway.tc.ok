@@ -1,2 +1,2 @@
-oneway.mo:2.1-69.2: type error [M0014], non-static expression in library, module or migration expression
-oneway.mo:71.9-71.15: type error [M0014], non-static expression in library, module or migration expression
+oneway.mo:3.1-70.2: type error [M0014], non-static expression in library, module or migration expression
+oneway.mo:72.9-72.15: type error [M0014], non-static expression in library, module or migration expression

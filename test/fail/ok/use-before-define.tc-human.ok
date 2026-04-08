@@ -1,0 +1,4 @@
+error[M0016]: cannot use f before x has been defined
+    ┌─ use-before-define.mo:5:1
+  5 │  let y = f();
+    │  ^^^^^^^^^^^ 

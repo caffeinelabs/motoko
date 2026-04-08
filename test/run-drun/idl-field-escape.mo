@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 // This test checks that the IDL encoder/decode implements
 // the field escape logic
 actor {

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 actor {
   Prim.debugPrint ("init'ed");
@@ -9,7 +10,7 @@ actor {
 */
   stable var c = 1;
   stable var b = true;
-  public func inc() { c += 1; };
+  public func inc() : () { c += 1; };
   public query func check(n : Int) : async () {
     assert (c == n);
 //    assert (always10 == 10);

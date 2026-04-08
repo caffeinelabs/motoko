@@ -1,0 +1,4 @@
+error[M0109]: class cannot be a query
+    ┌─ M0109.mo:1:1
+  1 │  query actor class Foo() {}
+    │  ^^^^^ 

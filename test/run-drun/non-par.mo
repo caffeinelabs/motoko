@@ -19,7 +19,7 @@ actor A {
 
 
 
-    public func oneshot() {
+    public func oneshot() : () {
         debugPrint ("oneshot deadline set: " # debug_show (0 != replyDeadline()));
         debugPrint ("oneshot cycles: " # debug_show(Cycles.available()));
     };

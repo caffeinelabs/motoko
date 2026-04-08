@@ -177,7 +177,7 @@ let rec type_ref : Type.typ -> die list * int =
   | Prim pr -> prim_type_ref pr
   | Variant vs when is_enum vs -> enum vs
   | Variant vs -> variant vs
-  | Obj (Object, fs) -> object_ fs
+  | Obj (Object, fs, _) -> object_ fs
   | Tup cs -> tuple cs
   | Con (c, _) as ty ->
     begin match obvious_prim_of_con c ty with

@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 import P "mo:⛔";
 
 actor a {
@@ -8,7 +9,7 @@ actor a {
     }
   };
 
-  public func go() {
+  public func go() : () {
     ignore await opt();
   };
 }

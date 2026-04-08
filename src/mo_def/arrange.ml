@@ -119,13 +119,14 @@ module Make (Cfg : Config) = struct
     | OrE (e1, e2)        -> "OrE"     $$ [exp e1; exp e2]
     | IfE (e1, e2, e3)    -> "IfE"     $$ [exp e1; exp e2; exp e3]
     | SwitchE (e, cs)     -> "SwitchE" $$ [exp e] @ List.map case cs
-    | WhileE (e1, e2)     -> "WhileE"  $$ [exp e1; exp e2]
-    | LoopE (e1, None)    -> "LoopE"   $$ [exp e1]
-    | LoopE (e1, Some e2) -> "LoopE"   $$ [exp e1; exp e2]
-    | ForE (p, e1, e2)    -> "ForE"    $$ [pat p; exp e1; exp e2]
-    | LabelE (i, t, e)    -> "LabelE"  $$ [id i; typ t; exp e]
+    | WhileE (e1, e2, _)     -> "WhileE"  $$ [exp e1; exp e2]
+    | LoopE (e1, None, _)    -> "LoopE"   $$ [exp e1]
+    | LoopE (e1, Some e2, _) -> "LoopE"   $$ [exp e1; exp e2]
+    | ForE (p, e1, e2, _)    -> "ForE"    $$ [pat p; exp e1; exp e2]
+    | LabelE (i, t, e)       -> "LabelE"  $$ [id i; typ t; exp e]
     | DebugE e            -> "DebugE"  $$ [exp e]
-    | BreakE (i, e)       -> "BreakE"  $$ [id i; exp e]
+    | BreakE (_, Some i, e) -> "BreakE"  $$ [id i; exp e]
+    | BreakE (_, None, e)   -> "BreakE"  $$ [exp e]
     | RetE e              -> "RetE"    $$ [exp e]
     | AsyncE (par_opt, Type.Fut, tb, e) -> "AsyncE" $$ parenthetical par_opt [typ_bind tb; exp e]
     | AsyncE (None, Type.Cmp, tb, e) -> "AsyncE*" $$ [typ_bind tb; exp e]
@@ -182,6 +183,7 @@ module Make (Cfg : Config) = struct
     | Int32Lit i    -> "Int32Lit"  $$ [ Atom (Numerics.Int_32.to_pretty_string i) ]
     | Int64Lit i    -> "Int64Lit"  $$ [ Atom (Numerics.Int_64.to_pretty_string i) ]
     | FloatLit f    -> "FloatLit"  $$ [ Atom (Numerics.Float.to_pretty_string f) ]
+    | Float32Lit f  -> "Float32Lit" $$ [ Atom (Numerics.Float32.to_pretty_string f) ]
     | CharLit c     -> "CharLit"   $$ [ Atom (string_of_int c) ]
     | TextLit t     -> "TextLit"   $$ [ Atom t ]
     | BlobLit b     -> "BlobLit"   $$ [ Atom b ]
@@ -255,12 +257,12 @@ module Make (Cfg : Config) = struct
 
   and operator_type t = Atom (Type.string_of_typ t)
 
-  and path p = match p.it with
+  and path p = match p with
     | IdH i -> "IdH" $$ [id i]
-    | DotH (p, i) -> "DotH" $$ [path p; id i]
+    | DotH (p, i) -> "DotH" $$ [path p.it; id i]
 
   and typ t = source t.at (annot_typ t.note (match t.it with
-  | PathT (p, ts) -> "PathT" $$ [path p] @ List.map typ ts
+  | PathT (p, ts) -> "PathT" $$ [path p.it] @ List.map typ ts
   | PrimT p -> "PrimT" $$ [Atom p]
   | ObjT (s, ts) -> "ObjT" $$ [obj_sort s] @ List.map typ_field ts
   | ArrayT (m, t) -> "ArrayT" $$ [mut m; typ t]

@@ -1,0 +1,4 @@
+error[M0008]: cannot import canister urls without --actor-idl param
+    ┌─ bad-actor-import3.mo:1:1
+  1 │  import imported1 "ic:lg264-qjkae";
+    │  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

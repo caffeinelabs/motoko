@@ -1,0 +1,16 @@
+error[M0085]: misplaced return
+    ┌─ actor-cap.mo:4:3
+  4 │    return self;
+    │    ^^^^^^^^^^^ 
+error[M0039]: misplaced throw
+    ┌─ actor-cap.mo:5:3
+  5 │    throw (Prim.error("wrong"));
+    │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0085]: misplaced return
+    ┌─ actor-cap.mo:9:4
+  9 │     return self;
+    │     ^^^^^^^^^^^ 
+error[M0039]: misplaced throw
+    ┌─ actor-cap.mo:10:4
+ 10 │     throw (Prim.error("wrong"));
+    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

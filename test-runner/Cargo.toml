@@ -5,12 +5,19 @@ edition = "2024"
 
 
 [dependencies]
-pocket-ic = { git = "https://github.com/dfinity/ic", branch = "master", package = "pocket-ic" }
-ic-management-canister-types = "0.3.3"
+pocket-ic = { git = "https://github.com/dfinity/ic", tag = "release-2026-03-26_04-51-base", package = "pocket-ic" }
+ic-management-canister-types = "0.5.0"
 candid = "0.10.17"
 serde = "1.0.219"
 hex = "0.4.3"
 wasmparser = "0.228.0"
+walkdir = "2.5.0"
+inquire = "0.9.2"
+rayon = "1.11.0"
+indicatif = "0.18.3"
+regex = "1.12.3"
+clap = { version = "4.5.57", features = ["derive"] }
+similar = "2.7.0"
 
 # Workaround for Apple linker bug on x86_64-apple-darwin that causes
 # hyper HTTP client to generate bad code with opt-level=2

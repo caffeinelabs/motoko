@@ -1,3 +1,4 @@
+//MOC-FLAG -A=M0194
 //MOC-ENV MOC_UNLOCK_PRIM=yesplease
 
 import { debugPrint; error; setTimer; cancelTimer } = "mo:⛔";

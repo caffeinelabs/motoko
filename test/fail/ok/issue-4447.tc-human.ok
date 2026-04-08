@@ -1,0 +1,28 @@
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ issue-4447.mo:9:5
+  9 │      indirect<system>();
+    │      ^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ issue-4447.mo:10:12
+ 10 │      ignore indirect<system>()
+    │             ^^^^^^^^^^^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ issue-4447.mo:10:5
+ 10 │      ignore indirect<system>()
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ issue-4447.mo:19:5
+ 19 │      indirect<system>();
+    │      ^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ issue-4447.mo:20:12
+ 20 │      ignore indirect<system>()
+    │             ^^^^^^^^^^^^^^^^^^ 
+warning[M0089]: redundant ignore, operand already has type ()
+    ┌─ issue-4447.mo:20:5
+ 20 │      ignore indirect<system>()
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^ 

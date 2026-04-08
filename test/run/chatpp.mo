@@ -40,13 +40,13 @@ actor class Server() = {
     let cs = {head = c; var tail = clients};
     clients := ?cs;
     return object {
-      public shared func post(message : Text) {
+      public shared func post(message : Text) : () {
 	if (not c.revoked) { // inlined call to broadcast(c.id,message)
 	  let id = c.id;
 	  var next = clients;
-	  label sends loop {
+	  loop {
 	    switch next {
-	      case null { break sends };
+	      case null { break };
 	      case (?n) {
 		if (n.head.id != id) n.head.client.send(message);
 		next := n.tail;
@@ -55,11 +55,11 @@ actor class Server() = {
 	  };
         }
       };
-      public shared func cancel() { unsubscribe(c.id) };
+      public shared func cancel() : () { unsubscribe(c.id) };
     };
   };
 
-  flexible func unsubscribe(id : Nat) {
+  flexible func unsubscribe(id : Nat) : () {
     var prev : List<ClientData> = null;
     var next = clients;
     loop {
@@ -88,7 +88,7 @@ actor class Client() = this {
   flexible var name : Text = "";
   flexible var server : ?Server  = null;
 
-  public func go(n : Text, s : Server) {
+  public func go(n : Text, s : Server) : () {
     name := n;
     server := ?s;
     ignore(async {
@@ -99,7 +99,7 @@ actor class Client() = this {
     })
   };
 
-  public func send(msg : Text) {
+  public func send(msg : Text) : () {
     Prim.debugPrint(name # " received " # msg);
   };
 };

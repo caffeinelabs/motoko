@@ -202,12 +202,11 @@ let transform prog =
     | Variant fs -> Variant (List.map t_field fs)
     | Async (Fut, _, t) -> t_async_fut nary (t_typ t) (* TBR exploit the index _ *)
     | Async (Cmp, _, t) -> t_async_cmp nary (t_typ t) (* TBR exploit the index _ *)
-    | Obj (s, fs) -> Obj (s, List.map t_field fs)
+    | Obj (s, fs, tfs) -> Obj (s, List.map t_field fs, List.map t_typ_field tfs)
     | Mut t -> Mut (t_typ t)
     | Any -> Any
     | Non -> Non
     | Pre -> Pre
-    | Typ c -> Typ (t_con c)
     | Named _ -> assert false (* removed by erase_typ_field *)
     | Weak t -> Weak (t_typ t)
 
@@ -240,6 +239,9 @@ let transform prog =
 
   and t_field {lab; typ; src} =
     { lab; typ = t_typ typ; src }
+
+  and t_typ_field {lab; typ; src} =
+    { lab; typ = t_con typ; src }
   in
 
   let rec t_exp (exp: exp) =

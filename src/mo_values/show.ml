@@ -15,17 +15,16 @@ let can_show t =
       | Prim (Nat16|Int16)
       | Prim (Nat32|Int32)
       | Prim (Nat64|Int64) -> true
-      | Prim Float -> true
+      | Prim (Float|Float32) -> true
       | Tup ts' -> List.for_all go ts'
       | Weak t'
       | Opt t' -> go t'
       | Array t' -> go (as_immut t')
-      | Obj (Object, fs) ->
+      | Obj (Object, fs, _) ->
         List.for_all (fun f -> go (as_immut f.typ)) fs
       | Variant cts ->
         List.for_all (fun f -> go f.typ) cts
       | Non -> true
-      | Typ _ -> true
       | _ -> false
     end
   in go t
@@ -51,6 +50,7 @@ let rec show_val t v =
   | T.(Prim Int32), Value.Int32 i -> Numerics.Int_32.(sign (gt i zero) (to_string i))
   | T.(Prim Int64), Value.Int64 i -> Numerics.Int_64.(sign (gt i zero) (to_string i))
   | T.(Prim Float), Value.Float i -> Numerics.Float.to_string i
+  | T.(Prim Float32), Value.Float32 i -> Numerics.Float32.to_string i
   | T.(Prim Text), Value.Text s -> "\"" ^ s ^ "\""
   | T.(Prim Blob), Value.Blob s -> "\"" ^ Value.Blob.escape s ^ "\""
   | T.(Prim Char), Value.Char c -> "\'" ^ Lib.Utf8.encode [c] ^ "\'"
@@ -75,10 +75,10 @@ let rec show_val t v =
   | T.Array t', Value.Array a ->
     Printf.sprintf "[%s]"
       (String.concat ", " (List.map (show_val t') (Array.to_list a)))
-  | T.Obj (_, fts), Value.Obj fs ->
+  | T.Obj (_, fts, _), Value.Obj fs ->
     Printf.sprintf "{%s}"
       (String.concat "; "
-         (List.map (show_field fs) (T.val_fields fts)))
+         (List.map (show_field fs) fts))
   | T.Variant fs, Value.Variant (l, v) ->
     begin match List.find_opt (fun {T.lab = l'; _} -> l = l') fs with
     | Some {T.typ = T.Tup []; _} -> Printf.sprintf "#%s" l

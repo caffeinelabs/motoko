@@ -30,7 +30,7 @@ SKIP_RUNNING=${SKIP_RUNNING:-no}
 SKIP_VALIDATE=${SKIP_VALIDATE:-no}
 ONLY_TYPECHECK=no
 ECHO=echo
-MOC_ARGS="--legacy-persistence --legacy-actors"
+MOC_ARGS="--legacy-persistence --legacy-actors --skip-gc-deprecation-warning"
 
 export WASMTIME_NEW_CLI=1
 
@@ -83,6 +83,8 @@ function normalize () {
         -e 's/^\(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations
     sed -e 's/^  \(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations (later version)
     sed -e 's/wasm `unreachable` instruction executed/unreachable/g' | # cross-version normalisation
+    sed -e '/^Canister Backtrace:$/,/^\.\?$/d' | # strip canister backtraces
+    sed -e 's/\(Error from Canister .*[^.]\)$/\1./' | # restore trailing period on IC error lines
     sed -e 's/Ignore Diff:.*/Ignore Diff: (ignored)/ig' \
         -e 's/Motoko compiler (source .*)/Motoko compiler (source XXX)/ig' \
         -e 's/Motoko compiler [^ ]* (source .*)/Motoko compiler (source XXX)/ig' \
@@ -114,6 +116,8 @@ function run () {
   shift
 
   if grep -q "^//SKIP $ext$" $(basename $file); then return 1; fi
+  local FILTER_LINE=$(grep -E "^//FILTER $ext [A-Za-z0-9 -]*$" $(basename $file) | cut -d' ' -f3-)
+  if [[ "$FILTER_LINE" != "" ]]; then local FILTER="$FILTER_LINE"; fi
 
   if test -e $out/$base.$ext
   then
@@ -125,6 +129,9 @@ function run () {
   $ECHO "$@" >& $out/$base.$ext
   "$@" >& $out/$base.$ext
   local ret=$?
+  if [[ -n "${FILTER:-}" ]]; then
+    $FILTER < $out/$base.$ext > $out/$base.$ext.tmp && mv $out/$base.$ext.tmp $out/$base.$ext
+  fi
 
   if [ $ret != 0 ]
   then echo "Return code $ret" >> $out/$base.$ext.ret
@@ -315,6 +322,14 @@ do
         continue
       fi
     fi
+    if grep -q "//GENERATIONAL-GC-ONLY" $base.mo
+    then
+      if [[ $EXTRA_MOC_ARGS != *"--generational-gc"* ]]
+      then
+        $ECHO " Skipped (not applicable to generational gc)"
+        continue
+      fi
+    fi
     if grep -q "//SKIP-SANITY-CHECKS" $base.mo
     then
       if [[ $EXTRA_MOC_ARGS == *"--sanity-checks"* ]]
@@ -322,6 +337,11 @@ do
         $ECHO " Skipped (not applicable to --sanity-checks)"
         continue
       fi
+    fi
+    if grep -q "//NO-SKIP-GC-DEPRECATION-WARNING" $base.mo
+    then
+      # Remove the --skip-gc-deprecation-warning flag from the MOC_ARGS variable.
+      MOC_ARGS=$(echo $MOC_ARGS | sed 's/--skip-gc-deprecation-warning//g')
     fi
     if [[ $moc_extra_flags == *"-measure-rts-stack"* ]]
     then
@@ -337,6 +357,12 @@ do
     run tc $moc_with_flags --check $base.mo
     tc_succeeded=$?
     normalize $out/$base.tc
+    if [ "$ONLY_TYPECHECK" = "true" ]
+    then
+        run tc-human $moc_with_flags --check --error-format human $base.mo
+        tc_succeeded=$?
+        normalize $out/$base.tc-human
+    fi
 
     if [ "$tc_succeeded" -eq 0 -a "$ONLY_TYPECHECK" = "no" ]
     then
@@ -423,7 +449,7 @@ do
           # Check filecheck
           if [ "$SKIP_RUNNING" != yes ]
           then
-            if grep -F -q ^//CHECK $mangled
+            if grep -q '^//CHECK' $mangled
             then
               $ECHO -n " [FileCheck]"
               wasm2wat --enable-memory64 --enable-multi-memory --no-check $out/$base.wasm > $out/$base.wat
@@ -531,7 +557,7 @@ do
         # set drun args to use application subnet
         EXTRA_DRUN_ARGS="--subnet-type application"
       fi
-      
+
       have_var_name="HAVE_${runner//-/_}"
       if [ ${!have_var_name} != yes ]
       then
@@ -556,12 +582,33 @@ do
         run $mo_base.$runner.comp moc $MOC_ARGS $EXTRA_MOC_ARGS ${!flags_var_name} $moc_extra_flags --hide-warnings -c $mo_file -o $out/$base/$mo_base.$runner.wasm
       done
 
-      # mangle drun script
-      LANG=C perl -npe "s,$base/([^\s]+)\.mo,$out/$base/\$1.$runner.wasm," < $base.drun > $out/$base/$base.$runner.drun
+      # check for missing wasm files (compilation failures)
+      missing_wasm=false
+      for mo_file in $mo_files
+      do
+        mo_base=$(basename $mo_file .mo)
+        wasm_path="$out/$base/$mo_base.$runner.wasm"
+        if [ ! -f "$wasm_path" ]; then
+          missing_wasm=true
+          break
+        fi
+      done
 
-      # run wrapper
-      wrap_var_name="WRAP_${runner//-/_}"
-      run $runner ${!wrap_var_name} $out/$base/$base.$runner.drun $EXTRA_DRUN_ARGS
+      if [ "$missing_wasm" = true ]; then
+        $ECHO -n " [$runner]"
+        echo "Error: compilation failed, wasm output not produced" > $out/$base.$runner
+        echo "Return code 1" > $out/$base.$runner.ret
+        normalize $out/$base.$runner
+        diff_files="$diff_files $base.$runner.ret"
+        diff_files="$diff_files $base.$runner"
+      else
+        # mangle drun script
+        LANG=C perl -npe "s,$base/([^\s]+)\.mo,$out/$base/\$1.$runner.wasm," < $base.drun > $out/$base/$base.$runner.drun
+
+        # run wrapper
+        wrap_var_name="WRAP_${runner//-/_}"
+        run $runner ${!wrap_var_name} $out/$base/$base.$runner.drun $EXTRA_DRUN_ARGS
+      fi
       # clear EXTRA_DRUN_ARGS.
       EXTRA_DRUN_ARGS=""
     done
@@ -612,8 +659,7 @@ do
 
       if [ -e $out/$base.js ]
       then
-        export NODE_PATH=$NODE_PATH:$ESM
-        run node node -r esm $out/$base.js
+        run node node $out/$base.js
       fi
     fi
     ;;
@@ -633,7 +679,7 @@ do
     diff_files="$diff_files $base.cmp"
   ;;
   *)
-    echo "Unknown extentions $ext";
+    echo "Unknown extensions $ext";
     exit 1
   esac
   $ECHO ""

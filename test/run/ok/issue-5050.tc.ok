@@ -1,2 +1,0 @@
-issue-5050.mo:1.6-1.15: warning [M0194], unused identifier blob_keys (delete or rename to wildcard `_` or `_blob_keys`)
-issue-5050.mo:1.16-1.17: warning [M0194], unused identifier b (delete or rename to wildcard `_` or `_b`)

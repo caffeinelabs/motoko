@@ -15,5 +15,5 @@ val shadow : t -> t -> t
     representation. *)
 val from_module : Syntax.dec_field list -> t
 
-val lookup_type : t -> Syntax.path -> Xref.t option
+val lookup_type : t -> Syntax.typ_path -> Xref.t option
 val to_string : t -> string

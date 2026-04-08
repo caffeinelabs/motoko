@@ -1,2 +1,2 @@
-issue-2158/C.mo:4.11-4.30: type error [M0126], a shared function cannot be private
+issue-2158/C.mo:4.11-4.35: type error [M0126], a shared function cannot be private
   (This is a limitation of the current version.)

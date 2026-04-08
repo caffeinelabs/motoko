@@ -4,6 +4,7 @@ type id = string
 type lab = string
 type var = string
 type name = string
+type mig_lab = string
 
 type control = Returns | Promises | Replies
 type obj_sort = Object | Actor | Mixin | Module | Memory
@@ -28,6 +29,7 @@ type prim =
   | Int32
   | Int64
   | Float
+  | Float32
   | Char
   | Text
   | Blob (* IR use: Packed representation, vec u8 IDL type *)
@@ -41,7 +43,7 @@ and typ =
   | Var of var * int                          (* variable *)
   | Con of con * typ list                     (* constructor *)
   | Prim of prim                              (* primitive *)
-  | Obj of obj_sort * field list              (* object *)
+  | Obj of obj_sort * field list * typ_field list (* object *)
   | Variant of field list                     (* variant *)
   | Array of typ                              (* array *)
   | Opt of typ                                (* option *)
@@ -51,7 +53,6 @@ and typ =
   | Mut of typ                                (* mutable type *)
   | Any                                       (* top *)
   | Non                                       (* bottom *)
-  | Typ of con                                (* type (field of module) *)
   | Named of name * typ
   | Weak of typ                               (* weak references *)
   | Pre                                       (* pre-type *)
@@ -62,7 +63,9 @@ and bind_sort = Scope | Type
 and bind = {var : var; sort: bind_sort; bound : typ}
 
 and src = {depr : string option; track_region : Source.region; region : Source.region}
-and field = {lab : lab; typ : typ; src : src}
+and 'a gen_field = {lab : lab; typ : 'a; src : src}
+and field = typ gen_field
+and typ_field = con gen_field
 
 and con = kind Cons.t
 and kind =
@@ -102,6 +105,8 @@ val blob : typ
 val error : typ
 val char : typ
 val principal : typ
+val text_list : typ
+
 val region : typ
 val heartbeat_type : typ
 val timer_type : typ
@@ -110,6 +115,7 @@ val low_memory_type : typ
 
 val sum : (lab * typ) list -> typ
 val obj : obj_sort -> (lab * typ) list -> typ
+val obj' : obj_sort -> (lab * typ) list -> (lab * con) list -> typ
 
 val throwErrorCodes : field list
 val catchErrorCodes : field list
@@ -142,12 +148,12 @@ val is_async : typ -> bool
 val is_fut : typ -> bool
 val is_cmp : typ -> bool
 val is_mut : typ -> bool
-val is_typ : typ -> bool
 val is_con : typ -> bool
 val is_var : typ -> bool
 
 val as_prim : prim -> typ -> unit
 val as_obj : typ -> obj_sort * field list
+val as_obj' : typ -> obj_sort * field list * typ_field list
 val as_variant : typ -> field list
 val as_array : typ -> typ
 val as_opt : typ -> typ
@@ -158,7 +164,6 @@ val as_func : typ -> func_sort * control * bind list * typ list * typ list
 val as_async : typ -> async_sort * typ * typ
 val as_mut : typ -> typ
 val as_immut : typ -> typ
-val as_typ : typ -> con
 val as_con : typ -> con * typ list
 
 val as_prim_sub : prim -> typ -> unit
@@ -187,17 +192,15 @@ val arity : typ -> int
 
 val find_val_field_opt : string -> field list -> field option
 val lookup_val_field : string -> field list -> typ
-val lookup_typ_field : string -> field list -> con
+val lookup_typ_field : string -> typ_field list -> con
 val lookup_val_field_opt : string -> field list -> typ option
-val lookup_typ_field_opt : string -> field list -> con option
+val lookup_typ_field_opt : string -> typ_field list -> con option
 
 val lookup_val_deprecation : string -> field list -> string option
-val lookup_typ_deprecation : string -> field list -> string option
+val lookup_typ_deprecation : string -> typ_field list -> string option
 
-val val_fields : field list -> field list
-
-val compare_field : field -> field -> int
-val align_fields : field list -> field list -> (field, field) Lib.these Seq.t
+val compare_field : 'a gen_field -> 'a gen_field -> int
+val align_fields : 'a gen_field list -> 'a gen_field list -> ('a gen_field, 'a gen_field) Lib.these Seq.t
 
 (* Constructors *)
 
@@ -254,9 +257,10 @@ val cons_typs : typ list -> ConSet.t
 type compatibility = Compatible | Incompatible of explanation
 and explanation =
   | IncompatibleTypes of context * typ * typ
+  | IncompatibleCons of context * con * con
   | FailedPromote of typ * typ * explanation
   | MissingTag of context * desc * lab * typ
-  | MissingField of context * desc * lab * typ
+  | MissingField of context * desc * lab * typ * bool
   | FewerItems of context * string
   | MoreItems of context * string
   | PromotionToAny of context * typ
@@ -282,6 +286,7 @@ exception Undecided (* raised if termination depth exceeded  *)
 
 val eq : ?src_fields : Field_sources.t -> typ -> typ -> bool
 val eq_kind : ?src_fields : Field_sources.t -> kind -> kind -> bool
+val eq_con : ?src_fields : Field_sources.t -> con -> con -> bool
 
 val sub : ?src_fields : Field_sources.t -> typ -> typ -> bool
 val sub_explained : ?src_fields : Field_sources.t -> context -> typ -> typ -> compatibility
@@ -317,7 +322,7 @@ val scope_bind : bind
 
 (* Signatures *)
 
-(* like sub, but disallows promotion to  Any or narrower object types
+(* like sub, but disallows promotion to Any or narrower object types
    that signal data loss *)
 val stable_sub : ?src_fields : Field_sources.t -> typ -> typ -> bool
 val stable_sub_explained : ?src_fields : Field_sources.t -> context -> typ -> typ -> compatibility
@@ -325,11 +330,22 @@ val stable_sub_explained : ?src_fields : Field_sources.t -> context -> typ -> ty
 type stab_sig =
   | Single of field list
   | PrePost of (bool * field) list * field list
+  | Multi of {chain: field list; post: field list}
 
-val pre : stab_sig -> (bool * field) list
-val post : stab_sig -> field list
+val migration_lab_of_filename : string -> mig_lab
+
+val is_migration : typ -> bool
+val as_migration : typ -> (field list * field list)
+val pre_fields : typ -> ?has_initializers : bool -> field list -> (bool * field) list
+val pres : mig_lab option -> field list -> field list ->
+           (bool * field) list * (bool * field) list list
+val pre : mig_lab option -> stab_sig -> (bool * field) list
+val post : stab_sig -> field list * mig_lab option
+
+val mem_typ_of_pre : (bool * field) list -> typ
 
 val match_stab_sig : stab_sig -> stab_sig -> bool
+val match_stab_fields : field list -> (bool * field) list -> bool
 
 val string_of_stab_sig : stab_sig -> string
 

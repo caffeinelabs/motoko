@@ -2,7 +2,7 @@ open Extract
 open Printf
 open Mo_def
 
-type env = { lookup_type : Syntax.path -> Xref.t option }
+type env = { lookup_type : Syntax.typ_path -> Xref.t option }
 
 let surround : Buffer.t -> string -> (unit -> unit) -> unit =
  fun buf s inner ->
@@ -30,7 +30,7 @@ let adoc_link : Xref.t -> string -> string =
   let link = string_of_xref true xref in
   if link = "" then adoc_text else sprintf "xref:%s[%s]" link adoc_text
 
-let adoc_render_path : env -> Syntax.path -> string =
+let adoc_render_path : env -> Syntax.typ_path -> string =
  fun env path ->
   match env.lookup_type path with
   | None -> Plain.string_of_path path
@@ -108,7 +108,31 @@ let adoc_of_doc_type : Buffer.t -> env -> Extract.doc_type -> unit =
  fun buf env dt ->
   match dt with
   | DTPlain t -> adoc_of_type buf env t
-  | DTObj (t, fields) -> adoc_of_type buf env t
+  | DTObj (t, _) -> adoc_of_type buf env t
+  | DTVariant (t, _) -> adoc_of_type buf env t
+
+let sub_declaration buf env heading item doc =
+  bprintf buf "\n`";
+  heading buf (render_fns env) item;
+  bprintf buf "`\n\n%s\n" doc
+
+let adoc_of_doc_type_fields : Buffer.t -> env -> Extract.doc_type -> unit =
+ fun buf env -> function
+  | DTPlain _ -> ()
+  | DTObj (_, doc_fields) ->
+      List.iter
+        (function
+          | _, None -> ()
+          | field, Some doc ->
+              sub_declaration buf env Plain.plain_of_typ_field field doc)
+        doc_fields
+  | DTVariant (_, doc_tags) ->
+      List.iter
+        (function
+          | _, None -> ()
+          | tag, Some doc ->
+              sub_declaration buf env Plain.plain_of_typ_tag tag doc)
+        doc_tags
 
 let rec adoc_of_declaration :
     Buffer.t -> env -> Xref.t -> (unit -> unit) -> declaration_doc -> unit =
@@ -143,7 +167,8 @@ let rec adoc_of_declaration :
             type_doc.type_args;
           bprintf buf " = ";
           adoc_of_doc_type buf env type_doc.typ);
-      doc_comment ()
+      doc_comment ();
+      adoc_of_doc_type_fields buf env type_doc.typ
   | Class class_doc ->
       header class_doc.name;
       signature (fun _ ->

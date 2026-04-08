@@ -5,6 +5,7 @@ sig
   type t
   val signed : bool
   val zero : t
+  val one : t
   val abs : t -> t
   val neg : t -> t
   val add : t -> t -> t
@@ -68,6 +69,9 @@ sig
 end
 
 module Float : FloatType with type bits = int64 and type t = Wasm.F64.t
+module Float32 : sig
+  include FloatType with type bits = int32 and type t = Wasm.F32.t
+end
 
 module Int : NumType
 module Nat : NumType with type t = Int.t

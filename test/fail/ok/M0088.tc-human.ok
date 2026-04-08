@@ -1,0 +1,5 @@
+error[M0088]: expected async type, but expression has type
+  Bool
+    ┌─ M0088.mo:1:7
+  1 │  await true
+    │        ^^^^ 

@@ -1,0 +1,16 @@
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ bad-field-dec.mo:4:10
+  4 │    stable let a : Nat;
+    │           ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ bad-field-dec.mo:5:10
+  5 │    stable var b : Nat;
+    │           ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ bad-field-dec.mo:7:13
+  7 │    transient let c : Nat;
+    │              ^^^^^^^^^^^ 
+error[M0257]: this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+    ┌─ bad-field-dec.mo:8:13
+  8 │    transient var d : Nat;
+    │              ^^^^^^^^^^^ 

@@ -4,7 +4,7 @@ open Mo_types
 open Cow.Html
 open Common
 
-type env = { lookup_type : Syntax.path -> Xref.t option }
+type env = { lookup_type : Syntax.typ_path -> Xref.t option }
 
 let rec join_with : t -> t list -> t =
  fun sep -> function
@@ -21,11 +21,13 @@ let keyword : string -> t = cls_span "keyword"
 let parameter : string -> t = cls_span "parameter"
 let html_type : string -> t = cls_span "type"
 
-let rec string_of_path : Syntax.path -> string =
- fun path ->
-  match path.Source.it with
+let rec string_of_path' : Syntax.path' -> string = function
   | Syntax.IdH id -> id.Source.it
-  | Syntax.DotH (path, id) -> string_of_path path ^ "." ^ id.Source.it
+  | Syntax.DotH (path, id) ->
+      string_of_path' path.Source.it ^ "." ^ id.Source.it
+
+let string_of_path : Syntax.typ_path -> string =
+ fun path -> string_of_path' path.Source.it
 
 let rec id_of_xref : Xref.t -> string = function
   | Xref.XClass (x, xref) -> Printf.sprintf "%s.%s" x (id_of_xref xref)
@@ -57,7 +59,7 @@ let link_of_xref : Xref.t -> t -> t =
   let link = string_of_xref true xref in
   if link = "" then html else a ~href:(Uri.of_string link) html
 
-let html_of_path : env -> Syntax.path -> t =
+let html_of_path : env -> Syntax.typ_path -> t =
  fun env path ->
   match env.lookup_type path with
   | Some xref -> link_of_xref xref (html_type (string_of_path path))
@@ -189,6 +191,10 @@ and html_of_typ_item : env -> Syntax.typ_item -> t =
     oid
   ++ html_of_type env t
 
+let sub_declaration heading doc =
+  div ~cls:"declaration"
+    (h4 ~cls:"declaration" (code heading) ++ p (html_of_comment doc))
+
 let html_of_type_doc : env -> Extract.type_doc -> Xref.t -> t =
  fun env type_doc xref ->
   let ty_args = html_of_typ_binders env type_doc.type_args in
@@ -201,13 +207,34 @@ let html_of_type_doc : env -> Extract.type_doc -> Xref.t -> t =
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
-  | DTObj (ty, fields) ->
+  | DTObj (ty, doc_fields) ->
       h4 ~cls:"type-declaration" ~id
         (keyword "type "
         ++ html_type type_doc.name
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
+      ++ list
+           (List.filter_map
+              (function
+                | _, None -> None
+                | field, Some doc ->
+                    Some (sub_declaration (html_of_typ_field env field) doc))
+              doc_fields)
+  | DTVariant (ty, doc_tags) ->
+      h4 ~cls:"type-declaration" ~id
+        (keyword "type "
+        ++ html_type type_doc.name
+        ++ ty_args
+        ++ string " = "
+        ++ html_of_type env ty)
+      ++ list
+           (List.filter_map
+              (function
+                | _, None -> None
+                | tag, Some doc ->
+                    Some (sub_declaration (html_of_typ_tag env tag) doc))
+              doc_tags)
 
 let html_of_named_arg : env -> Extract.function_arg_named -> t =
  fun env arg ->

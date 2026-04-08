@@ -1,2 +1,1 @@
-return-before-define.mo:16.5-16.10: warning [M0194], unused identifier wrong (delete or rename to wildcard `_` or `_wrong`)
-return-before-define.mo:6.5-6.34: definedness error [M0016], cannot use g before x has been defined
+return-before-define.mo:7.5-7.34: definedness error [M0016], cannot use g before x has been defined

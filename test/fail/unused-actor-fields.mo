@@ -36,5 +36,5 @@ actor {
     };
 
     public shared ({ caller }) func publicActorFunction() : async () {};
-    public func otherPublicActorFunction(unusedParameter2 : Text) {};
+    public func otherPublicActorFunction(unusedParameter2 : Text) : () {};
 };

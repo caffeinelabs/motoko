@@ -1,0 +1,4 @@
+error[M0051]: duplicate definition for test in block
+    ┌─ decl-clash.mo:2:5
+  2 │  let test = ();
+    │      ^^^^ 

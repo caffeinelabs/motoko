@@ -1,0 +1,6 @@
+error[M0230]: Cannot determine implicit argument `c` of type
+  (Nat, Nat) -> Order
+    ┌─ implicit-none.mo:19:1
+ 19 │  f1(0, 1);
+    │  ^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `c` you need to have a matching declaration named `c` in scope.

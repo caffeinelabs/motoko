@@ -4,13 +4,13 @@
 actor {
   flexible var x = ("Foo", "Bar");
 
-  public func foo1() {
+  public func foo1() : () {
     ignore [1,2,3,4,5];
     x := ("abc", "def");
     ignore [1,2,3,4,5];
 
   };
-  public func foo2() {
+  public func foo2() : () {
     ignore [1,2,3,4,5,6,7,8,9];
     assert (x.0 == "abc");
     assert (x.1 == "def");

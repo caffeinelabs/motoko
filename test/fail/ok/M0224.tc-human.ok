@@ -1,0 +1,4 @@
+error[M0224]: overlapping resolution for `getX1` in scope from these modules: B, C
+    ┌─ M0224.mo:22:10
+ 22 │  ignore b.getX1(); // overlaps
+    │           ^^^^^ 

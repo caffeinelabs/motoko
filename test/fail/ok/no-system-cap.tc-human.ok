@@ -1,0 +1,20 @@
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ no-system-cap.mo:6:12
+  6 │      ignore setTimer<system>(1_000_000, false, func () : async () { });
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ no-system-cap.mo:7:5
+  7 │      cyclesAdd<system>(1_000_000);
+    │      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ no-system-cap.mo:11:13
+ 11 │       ignore setTimer<system>(1_000_000, false, func () : async () { });
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0197]: `system` capability required, but not available
+ (need an enclosing async expression or function body or explicit `system` type parameter)
+    ┌─ no-system-cap.mo:12:6
+ 12 │       cyclesAdd<system>(1_000_000);
+    │       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

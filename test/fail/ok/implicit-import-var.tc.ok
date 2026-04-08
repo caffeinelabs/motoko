@@ -1,2 +1,2 @@
 implicit-import-var.mo:8.8-8.11: type error [M0057], unbound variable Map
-Hint: Did you mean to import mo:core/Map or mo:core/pure/Map?
+help: Did you mean to import mo:core/Map or mo:core/pure/Map?

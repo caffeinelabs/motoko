@@ -92,6 +92,7 @@ let primE prim es =
     | ICCallerPrim -> T.caller
     | ICStableWrite _ -> T.unit
     | ICStableRead t -> t
+    | ICStableStore _ -> T.unit
     | ICMethodNamePrim -> T.text
     | ICPerformGC
     | ICStableSize _ -> T.nat64
@@ -137,6 +138,8 @@ let primE prim es =
     | OtherPrim "weak_ref_is_live" -> T.bool
     | OtherPrim "env_var_names" ->  T.Array T.text
     | OtherPrim "env_var" -> T.text
+    | OtherPrim "set_migrations" -> T.unit
+    | OtherPrim "get_migrations" -> T.text_list
     | _ -> assert false (* implement more as needed *)
   in
   let eff = map_max_effs eff es in
@@ -789,9 +792,8 @@ let objE sort typ_flds flds =
       blockE
         (List.rev ds)
         (newObjE sort fields
-           (T.obj sort
-              (List.map (fun (id, c) -> (id, T.Typ c)) typ_flds
-               @ fld_tys)))
+           (T.obj' sort fld_tys typ_flds))
+
     | (lab, exp)::flds ->
       let v, ds = match exp.it with
         | VarE (Const, v) -> var v (typ exp), ds
@@ -816,7 +818,7 @@ let objectE sort flds (tfs : T.field list) =
       blockE
         (List.rev ds)
         (newObjE sort fields
-          (T.Obj (sort, List.sort T.compare_field tfs)))
+          (T.Obj (sort, List.sort T.compare_field tfs, [])))
     | (lab, exp)::flds ->
        let v, typ, ds =
          match T.lookup_val_field_opt lab tfs with

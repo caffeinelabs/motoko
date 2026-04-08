@@ -140,6 +140,9 @@ let show_for : T.typ -> Ir.dec * T.typ list = fun t ->
   | T.(Prim Float) ->
     define_show t (invoke_prelude_show "@text_of_Float" t (argE t)),
     []
+  | T.(Prim Float32) ->
+    define_show t (invoke_prelude_show "@text_of_Float32" t (argE t)),
+    []
   | T.(Prim Text) ->
     define_show t (invoke_prelude_show "@text_of_Text" t (argE t)),
     []
@@ -193,7 +196,7 @@ let show_for : T.typ -> Ir.dec * T.typ list = fun t ->
       define_show t (invoke_text_of_array t' (varE (show_var_for t')) (argE t)),
       [t']
     end
-  | T.Obj (T.Object, fs) ->
+  | T.Obj (T.Object, fs, _) ->
     define_show t (
       cat_list (list_build
         (textE "{") (fun () -> textE "; ") (textE "}")
