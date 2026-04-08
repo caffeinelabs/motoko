@@ -345,6 +345,7 @@ let string_of_parser_token = function
   | Parser.SUBOP -> "SUBOP"
   | Parser.MULOP -> "MULOP"
   | Parser.DIVOP -> "DIVOP"
+  | Parser.DIVHASH -> "DIVHASH"  (* generated in lexer.ml, not source_lexer *)
   | Parser.MODOP -> "MODOP"
   | Parser.POWOP -> "POWOP"
   | Parser.WRAPADDOP -> "WRAPADDOP"

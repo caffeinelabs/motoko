@@ -139,6 +139,8 @@ module Make (Cfg : Config) = struct
     | OptE e              -> "OptE"    $$ [exp e]
     | DoOptE e            -> "DoOptE"  $$ [exp e]
     | BangE e             -> "BangE"   $$ [exp e]
+    | DoVariantE (i, e)   -> "DoVariantE" $$ [id i; exp e]
+    | SlashTagE (e, i)    -> "SlashTagE"  $$ [exp e; id i]
     | TagE (i, e)         -> "TagE"    $$ [id i; exp e]
     | PrimE p             -> "PrimE"   $$ [Atom p]
     | ImportE (f, _fp)    -> "ImportE" $$ [Atom f]

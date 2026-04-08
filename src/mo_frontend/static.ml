@@ -67,7 +67,7 @@ let rec exp env e  = match e.it with
   | IdxE (exp1, exp2) -> err env e.at
 
   (* Transparent *)
-  | AnnotE (exp1, _) | IgnoreE exp1 | DoOptE exp1 -> exp env exp1
+  | AnnotE (exp1, _) | IgnoreE exp1 | DoOptE exp1 | DoVariantE (_, exp1) -> exp env exp1
   | BlockE ds -> List.iter (dec env) ds
 
   (*
@@ -107,6 +107,7 @@ let rec exp env e  = match e.it with
   | ThrowE _
   | TryE _
   | BangE _
+  | SlashTagE _
   -> err env e.at
 
 and dec_fields env dfs = List.iter (fun df -> dec env df.it.dec) dfs

@@ -234,7 +234,7 @@ and objblock eo s id ty dec_fields =
 %token DEBUG_SHOW
 %token TO_CANDID FROM_CANDID
 %token ASSERT
-%token ADDOP SUBOP MULOP DIVOP MODOP POWOP
+%token ADDOP SUBOP MULOP DIVOP DIVHASH MODOP POWOP
 %token WRAPADDOP WRAPSUBOP WRAPMULOP WRAPPOWOP
 %token ANDOP OROP XOROP SHLOP SHROP ROTLOP ROTROP
 %token EQOP NEQOP LEOP LTOP GTOP GEOP
@@ -269,7 +269,7 @@ and objblock eo s id ty dec_fields =
 %left AND
 %nonassoc EQOP NEQOP LEOP LTOP GTOP GEOP
 %left ADDOP SUBOP WRAPADDOP WRAPSUBOP HASH
-%left MULOP WRAPMULOP DIVOP MODOP
+%left MULOP WRAPMULOP DIVOP DIVHASH MODOP
 %left OROP
 %left ANDOP
 %left XOROP
@@ -732,6 +732,8 @@ exp_un(B) :
     { e }
   | e1=exp_bin(B) op=binop e2=exp_bin(ob)
     { BinE(ref Type.Pre, e1, op, e2) @? at $sloc }
+  | e1=exp_bin(B) DIVHASH x=id
+    { SlashTagE(e1, x) @? at $sloc }
   | e1=exp_bin(B) op=relop e2=exp_bin(ob)
     { RelE(ref Type.Pre, e1, op, e2) @? at $sloc }
   | e1=exp_bin(B) AND e2=exp_bin(ob)
@@ -826,6 +828,8 @@ exp_un(B) :
     { e.it @? at $sloc }
   | DO QUEST e=block
     { DoOptE(e) @? at $sloc }
+  | DO HASH x=id e=block
+    { DoVariantE(x, e) @? at $sloc }
 
 exp_nonvar(B) :
   | e=exp_nondec(B)

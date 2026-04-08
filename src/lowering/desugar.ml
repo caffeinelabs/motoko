@@ -79,6 +79,8 @@ let desugar_loop_flags at note body flags with_body =
   let () = flags.has_break <- false in
   `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
 
+let current_variant_do : string option ref = ref None
+
 let rec exps es = List.map exp es
 
 and exp e =
@@ -125,15 +127,74 @@ and exp' at note = function
   | S.ProjE (e, i) -> (projE (exp e) i).it
   | S.OptE e -> (optE (exp e)).it
   | S.DoOptE e ->
-    I.LabelE ("!", note.Note.typ, optE (exp e))
+    let prev = !current_variant_do in
+    current_variant_do := None;
+    let result = I.LabelE ("!", note.Note.typ, optE (exp e)) in
+    current_variant_do := prev;
+    result
+  | S.DoVariantE (id, e) ->
+    let prev = !current_variant_do in
+    current_variant_do := Some id.it;
+    let ir_lab = "#" ^ id.it in
+    let result = I.LabelE (ir_lab, note.Note.typ, tagE id.it (exp e)) in
+    current_variant_do := prev;
+    result
   | S.BangE e ->
+    (match !current_variant_do with
+     | Some lab ->
+       let ir_lab = "#" ^ lab in
+       let ty = note.Note.typ in
+       let e' = exp e in
+       let scrutinee_typ = e'.note.Note.typ in
+       let temp = fresh_var "temp" scrutinee_typ in
+       let v = fresh_var "v" ty in
+       let tag_case =
+         { it = I.{pat = {it = TagP (lab, varP v); at = no_region; note = scrutinee_typ};
+                   exp = varE v};
+           at = no_region; note = () } in
+       let default_case =
+         { it = I.{pat = {it = WildP; at = no_region; note = scrutinee_typ};
+                   exp = breakE ir_lab (varE temp)};
+           at = no_region; note = () } in
+       let switch_exp =
+         { it = I.SwitchE (varE temp, [tag_case; default_case]);
+           at = no_region;
+           note = Note.{ def with typ = ty;
+             eff = T.Triv } } in
+       (letE temp e' switch_exp).it
+     | None ->
+       let ty = note.Note.typ in
+       let v = fresh_var "v" ty in
+       (switch_optE (exp e)
+         (breakE "!" (nullE()))
+         (varP v) (varE v) ty).it)
+  | S.SlashTagE (e, id) ->
+    let e' = exp e in
     let ty = note.Note.typ in
-    let v = fresh_var "v" ty in
-    (switch_optE (exp e)
-      (* case null : *)
-      (breakE "!" (nullE()))
-      (* case ? v : *)
-      (varP v) (varE v) ty).it
+    let scrutinee_typ = e'.note.Note.typ in
+    let temp = fresh_var "temp" scrutinee_typ in
+    let trap_case =
+      { it = I.{pat = {it = TagP (id.it, wildP); at = no_region; note = scrutinee_typ};
+                exp = primE (I.OtherPrim "trap") [textE ("unexpected variant #" ^ id.it)]};
+        at = no_region; note = () } in
+    let pass_cases = match T.normalize scrutinee_typ with
+      | T.Variant fs ->
+        List.filter_map (fun (f : T.field) ->
+          if f.T.lab = id.it then None
+          else
+            let v = fresh_var "v" f.T.typ in
+            Some { it = I.{pat = {it = TagP (f.T.lab, varP v); at = no_region; note = scrutinee_typ};
+                           exp = tagE f.T.lab (varE v)};
+                   at = no_region; note = () }
+        ) fs
+      | _ -> []
+    in
+    let switch_exp =
+      { it = I.SwitchE (varE temp, trap_case :: pass_cases);
+        at = no_region;
+        note = Note.{ def with typ = ty;
+          eff = T.Triv } } in
+    (letE temp e' switch_exp).it
   | S.ObjBlockE (exp_opt, s, (self_id_opt, _), dfs) ->
     let eo = Option.map exp exp_opt in
     obj_block at s eo self_id_opt dfs note.Note.typ

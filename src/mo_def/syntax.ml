@@ -202,6 +202,8 @@ and exp' =
   | OptE of exp                                (* option injection *)
   | DoOptE of exp                              (* option monad *)
   | BangE of exp                               (* scoped option projection *)
+  | DoVariantE of id * exp                     (* variant monad *)
+  | SlashTagE of exp * id                      (* variant narrowing *)
   | ObjBlockE of exp option * obj_sort * (id option * typ option) * dec_field list  (* object block *)
   | ObjE of exp list * exp_field list          (* record literal/extension *)
   | TagE of id * exp                           (* variant *)
