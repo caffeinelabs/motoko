@@ -203,20 +203,41 @@ let html_of_type_doc : env -> Extract.type_doc -> Xref.t -> t =
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
-  | DTObj (ty, _) ->
+  | DTObj (ty, doc_fields) ->
       h4 ~cls:"type-declaration" ~id
         (keyword "type "
         ++ html_type type_doc.name
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
-  | DTVariant (ty, _) ->
+      ++ list
+           (List.filter_map
+              (function
+                | _, None -> None
+                | field, Some doc ->
+                    Some
+                      (div ~cls:"declaration"
+                         (h4 ~cls:"declaration"
+                            (code (html_of_typ_field env field))
+                         ++ p (html_of_comment doc))))
+              doc_fields)
+  | DTVariant (ty, doc_tags) ->
       h4 ~cls:"type-declaration" ~id
         (keyword "type "
         ++ html_type type_doc.name
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
+      ++ list
+           (List.filter_map
+              (function
+                | _, None -> None
+                | tag, Some doc ->
+                    Some
+                      (div ~cls:"declaration"
+                         (h4 ~cls:"declaration" (code (html_of_typ_tag env tag))
+                         ++ p (html_of_comment doc))))
+              doc_tags)
 
 let html_of_named_arg : env -> Extract.function_arg_named -> t =
  fun env arg ->
