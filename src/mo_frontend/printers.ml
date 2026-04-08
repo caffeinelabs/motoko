@@ -139,6 +139,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (T T_DOT) -> simple_token "."
   | X (T T_DO) -> simple_token "do"
   | X (T T_DIVOP) -> binop "/"
+  | X (T T_DIVHASH) -> binop "/" (* TBR *)
   | X (T T_DIVASSIGN) -> binassign "/="
   | X (T T_DISALLOWED) -> simple_token "<disallowed>"
   | X (T T_DEBUG_SHOW) -> simple_token "debug_show"
