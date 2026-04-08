@@ -7,9 +7,10 @@ all:
 	if [ -s ok/warnings.check.ok ]; then diff ok/warnings.check.ok _out/warnings.check; fi
 
 accept:
+	rm -rf _out/* ok/*.md ok/*.ok
 	mkdir -p _out ok
 	$(MO_DOC) --source $(CURDIR) --output $(CURDIR)/_out --format plain 2>_out/warnings.check
-	cp _out/field-docs.md _out/module-comment.md _out/module-comment-before-imports.md _out/module-comment-both.md ok/
+	cp _out/*.md ok/
 	if [ -s _out/warnings.check ]; then cp _out/warnings.check ok/warnings.check.ok; fi
 
 clean:
