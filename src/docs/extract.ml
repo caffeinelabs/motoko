@@ -45,8 +45,8 @@ and doc_type =
   | DTPlain of Syntax.typ
   (* One level unwrapping of an object type with documentation on its fields *)
   | DTObj of Syntax.typ * (Syntax.typ_field * string option) list
-
-(* TODO We'll also want to unwrap variants here *)
+  (* One level unwrapping of a variant type with documentation on its tags *)
+  | DTVariant of Syntax.typ * (Syntax.typ_tag * string option) list
 and class_doc = {
   name : string;
   type_args : Syntax.typ_bind list;
@@ -189,6 +189,11 @@ struct
    fun ({ at; _ } as tf) ->
     (tf, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
+  let extract_variant_tag_doc :
+      Syntax.typ_tag -> Syntax.typ_tag * string option =
+   fun ({ at; _ } as tag) ->
+    (tag, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
+
   let rec extract_doc mk_xref = function
     | Source.
         {
@@ -231,6 +236,11 @@ struct
               let doc_fields = List.map extract_obj_field_doc fields in
               (* TODO Only unwrap the ObjT if at least one field is documented *)
               DTObj (typ, doc_fields)
+          | Syntax.VariantT tags ->
+              let doc_tags = List.map extract_variant_tag_doc tags in
+              if List.exists (fun (_, d) -> d <> None) doc_tags
+              then DTVariant (typ, doc_tags)
+              else DTPlain typ
           | _ -> DTPlain typ
         in
         Some
