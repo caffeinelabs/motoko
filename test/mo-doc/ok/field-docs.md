@@ -8,11 +8,11 @@ type Point = { x : Float; y : Float; name : Text }
 
 A record type with documented fields.
 
-`x` : Float
+`x : Float`
 
 The X coordinate.
 
-`y` : Float
+`y : Float`
 
 The Y coordinate.
 
@@ -23,10 +23,10 @@ type Shape = {#circle : Float; #rect : (Float, Float); #dot}
 
 A variant type with documented tags.
 
-`#circle` : Float
+`#circle : Float`
 
 A circle with a given radius.
 
-`#rect` : (Float, Float)
+`#rect : (Float, Float)`
 
 A rectangle with width and height.
