@@ -1,4 +1,5 @@
 # module-comment-before-imports
+A module with a doc comment before imports.
 
 ## Function `triple`
 ``` motoko no-repl
