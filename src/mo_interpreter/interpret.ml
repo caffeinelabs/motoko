@@ -43,7 +43,6 @@ type env =
     throws : throw_env;
     self : V.actor_id;
     actor_env : actor_env;
-    variant_lab : string option;
   }
 
 let adjoin_scope scope1 scope2 =
@@ -67,7 +66,6 @@ let env_of_scope flags ae scope =
     throws = None;
     self = V.top_id;
     actor_env = ae;
-    variant_lab = None;
   }
 
 let context env = V.Blob env.self
@@ -521,14 +519,14 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | OptE exp1 ->
     interpret_exp env exp1 (fun v1 -> k (V.Opt v1))
   | DoOptE exp1 ->
-    let env' = { env with labs = V.Env.add "!" k env.labs; variant_lab = None } in
+    let env' = { env with labs = V.Env.add "!" k env.labs } in
     interpret_exp env' exp1 (fun v1 -> k (V.Opt v1))
   | DoVariantE (id, exp1) ->
-    let env' = { env with labs = V.Env.add "!" k env.labs; variant_lab = Some id.it } in
+    let env' = { env with labs = V.Env.add "!" k env.labs } in
     interpret_exp env' exp1 (fun v1 -> k (V.Variant (id.it, v1)))
-  | BangE exp1 ->
+  | BangE (exp1, bang_ref) ->
     interpret_exp env exp1 (fun v1 ->
-      match env.variant_lab with
+      match !bang_ref with
       | Some lab ->
         (match v1 with
          | V.Variant (tag, v2) when tag = lab -> k v2

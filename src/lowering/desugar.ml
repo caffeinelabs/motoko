@@ -79,8 +79,6 @@ let desugar_loop_flags at note body flags with_body =
   let () = flags.has_break <- false in
   `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
 
-let current_variant_do : string option ref = ref None
-
 let rec exps es = List.map exp es
 
 and exp e =
@@ -127,20 +125,12 @@ and exp' at note = function
   | S.ProjE (e, i) -> (projE (exp e) i).it
   | S.OptE e -> (optE (exp e)).it
   | S.DoOptE e ->
-    let prev = !current_variant_do in
-    current_variant_do := None;
-    let result = I.LabelE ("!", note.Note.typ, optE (exp e)) in
-    current_variant_do := prev;
-    result
+    I.LabelE ("!", note.Note.typ, optE (exp e))
   | S.DoVariantE (id, e) ->
-    let prev = !current_variant_do in
-    current_variant_do := Some id.it;
     let ir_lab = "#" ^ id.it in
-    let result = I.LabelE (ir_lab, note.Note.typ, tagE id.it (exp e)) in
-    current_variant_do := prev;
-    result
-  | S.BangE e ->
-    (match !current_variant_do with
+    I.LabelE (ir_lab, note.Note.typ, tagE id.it (exp e))
+  | S.BangE (e, bang_ref) ->
+    (match !bang_ref with
      | Some lab ->
        let ir_lab = "#" ^ lab in
        let ty = note.Note.typ in

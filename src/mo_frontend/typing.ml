@@ -1187,7 +1187,7 @@ let rec is_explicit_exp e =
     true
   | LitE l -> is_explicit_lit !l
   | UnE (_, _, e1) | OptE e1 | DoOptE e1 | DoVariantE (_, e1)
-  | ProjE (e1, _) | DotE (e1, _, _) | BangE e1 | SlashTagE (e1, _) | IdxE (e1, _) | CallE (_, e1, _, _)
+  | ProjE (e1, _) | DotE (e1, _, _) | BangE (e1, _) | SlashTagE (e1, _) | IdxE (e1, _) | CallE (_, e1, _, _)
   | LabelE (_, _, e1) | AsyncE (_, _, _, e1) | AwaitE (_, e1) ->
     is_explicit_exp e1
   | BinE (_, e1, _, e2) | IfE (_, e1, e2) ->
@@ -1877,10 +1877,11 @@ and infer_exp'' env exp : T.typ =
     in
     let success_field = T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}} in
     T.Variant (List.sort T.compare_field (success_field :: rest_fields))
-  | BangE exp1 ->
+  | BangE (exp1, bang_ref) ->
     begin
       match env.variant_do with
       | Some { vd_lab; vd_acc } ->
+        bang_ref := Some vd_lab;
         let t1 = infer_exp_promote env exp1 in
         (try
           let fs = match T.promote t1 with
@@ -2569,9 +2570,10 @@ and check_exp' env0 t exp : T.typ =
     let env' = { env with variant_do = Some ctx } in
     check_exp env' success_typ exp1;
     t
-  | BangE exp1, t ->
+  | BangE (exp1, bang_ref), t ->
     begin match env.variant_do with
     | Some { vd_lab; vd_acc } ->
+      bang_ref := Some vd_lab;
       let rest_fields = match T.normalize !vd_acc with
         | T.Variant fs -> fs
         | T.Non -> []

@@ -138,7 +138,7 @@ module Make (Cfg : Config) = struct
     | AnnotE (e, t)       -> "AnnotE"  $$ [exp e; typ t]
     | OptE e              -> "OptE"    $$ [exp e]
     | DoOptE e            -> "DoOptE"  $$ [exp e]
-    | BangE e             -> "BangE"   $$ [exp e]
+    | BangE (e, _)        -> "BangE"   $$ [exp e]
     | DoVariantE (i, e)   -> "DoVariantE" $$ [id i; exp e]
     | SlashTagE (e, i)    -> "SlashTagE"  $$ [exp e; id i]
     | TagE (i, e)         -> "TagE"    $$ [id i; exp e]

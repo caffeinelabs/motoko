@@ -135,7 +135,7 @@ let rec exp msgs e : f = match e.it with
   | OptE e
   | DoOptE e
   | DoVariantE (_, e)
-  | BangE e
+  | BangE (e, _)
   | SlashTagE (e, _)
   | TagE (_, e)
   | ActorUrlE e

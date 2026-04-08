@@ -69,7 +69,7 @@ let rec infer_effect_exp (exp:Syntax.exp) : T.eff =
   | OptE exp1
   | DoOptE exp1
   | DoVariantE (_, exp1)
-  | BangE exp1
+  | BangE (exp1, _)
   | SlashTagE (exp1, _)
   | TagE (_, exp1)
   | DotE (exp1, _, _)

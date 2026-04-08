@@ -201,7 +201,7 @@ and exp' =
   | ProjE of exp * int                         (* tuple projection *)
   | OptE of exp                                (* option injection *)
   | DoOptE of exp                              (* option monad *)
-  | BangE of exp                               (* scoped option projection *)
+  | BangE of exp * string option ref            (* scoped option/variant projection; ref set during typing *)
   | DoVariantE of id * exp                     (* variant monad *)
   | SlashTagE of exp * id                      (* variant narrowing *)
   | ObjBlockE of exp option * obj_sort * (id option * typ option) * dec_field list  (* object block *)
@@ -399,7 +399,7 @@ let ignore_asyncE tbs e =
     i.e. can appear to the left of [.] without parenthesization. *)
 let is_postfix_exp (e : exp) = match e.it with
   | VarE _ | LitE _ | CallE _ | DotE _
-  | IdxE _ | ProjE _ | BangE _ | ArrayE _ -> true
+  | IdxE _ | ProjE _ | BangE _ | ArrayE  _ -> true
   | _ -> false
 
 let is_asyncE e =

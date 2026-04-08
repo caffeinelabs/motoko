@@ -422,7 +422,7 @@ module Make (Cfg : Config) = struct
     | OptE e -> to_js_object "OptE" [| exp_js e |]
     | DoOptE e -> to_js_object "DoOptE" [| exp_js e |]
     | DoVariantE (i, e) -> to_js_object "DoVariantE" [| id i; exp_js e |]
-    | BangE e -> to_js_object "BangE" [| exp_js e |]
+    | BangE (e, _) -> to_js_object "BangE" [| exp_js e |]
     | SlashTagE (e, i) -> to_js_object "SlashTagE" [| exp_js e; id i |]
     | TagE (i, e) -> to_js_object "TagE" [| id i; exp_js e |]
     | PrimE p -> to_js_object "PrimE" [| js_string p |]

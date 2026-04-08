@@ -689,7 +689,7 @@ exp_post(B) :
       CallE(None, e1, inst, (sugar, ref e2)) @? at $sloc
     }
   | e1=exp_post(B) BANG
-    { BangE(e1) @? at $sloc }
+    { BangE(e1, ref None) @? at $sloc }
   | LPAR SYSTEM e1=exp_post(B) DOT x=id RPAR
     { DotE(
         DotE(e1, "system" @@ at ($startpos($1),$endpos($1)), ref None) @? at $sloc,
