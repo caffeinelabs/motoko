@@ -41,7 +41,7 @@ module UWSet = Set.Make(struct
 end)
 
 type variant_do_ctx = {
-  vd_lab : string;
+  vd_lab : T.lab;
   vd_acc : T.typ ref;
 }
 

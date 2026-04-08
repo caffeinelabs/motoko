@@ -201,7 +201,7 @@ and exp' =
   | ProjE of exp * int                         (* tuple projection *)
   | OptE of exp                                (* option injection *)
   | DoOptE of exp                              (* option monad *)
-  | BangE of exp * string option ref            (* scoped option/variant projection; ref set during typing *)
+  | BangE of exp * Type.lab option ref           (* scoped option/variant projection; ref set during typing *)
   | DoVariantE of id * exp                     (* variant monad *)
   | SlashTagE of exp * id                      (* variant narrowing *)
   | ObjBlockE of exp option * obj_sort * (id option * typ option) * dec_field list  (* object block *)
