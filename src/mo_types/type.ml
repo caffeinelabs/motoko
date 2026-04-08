@@ -632,7 +632,9 @@ let is_var = function Var _ -> true | _ -> false
 let invalid s = raise (Invalid_argument ("Type." ^ s))
 
 let as_prim p = function Prim p' when p = p' -> () | _ -> invalid "as_prim"
-let as_obj = function Obj (s, fs, _) -> s, fs | _ -> invalid "as_obj"
+let as_obj = function Obj (s, fs, []) -> s, fs
+                    | Obj (s, fs, _::_) -> invalid "as_obj (unexpected typ fields)"
+                    | _ -> invalid "as_obj"
 let as_obj' = function Obj (s, fs, tfs) -> s, fs, tfs | _ -> invalid "as_obj'"
 let as_array = function Array t -> t | _ -> invalid "as_array"
 let as_opt = function Opt t -> t | _ -> invalid "as_opt"
