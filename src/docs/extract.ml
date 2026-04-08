@@ -331,7 +331,7 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
               Printf.eprintf
                 "Warning: %s has module doc comments in two places; the one \
                  before `module` takes precedence\n"
-                prog.note.Syntax.filename;
+                (Filename.basename prog.note.Syntax.filename);
               c)
         | None, None -> None
       in
