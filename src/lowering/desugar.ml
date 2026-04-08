@@ -142,13 +142,13 @@ and exp' at note = function
        in
        let v = fresh_var "v" ty in
        let tag_case =
-         { it = I.{pat = {it = TagP (lab, varP v); at = no_region; note = scrutinee_typ};
-                   exp = varE v};
+         { it = {I.pat = {it = I.TagP (lab, varP v); at = no_region; note = scrutinee_typ};
+                   I.exp = varE v};
            at = no_region; note = () } in
        let temp = fresh_var "temp" scrutinee_typ in
        let default_case =
-         { it = I.{pat = {it = (varP temp).it; at = no_region; note = scrutinee_typ};
-                   exp = breakE ir_lab (primE (I.CastPrim (scrutinee_typ, narrowed_typ)) [varE temp])};
+         { it = {I.pat = {it = (varP temp).it; at = no_region; note = scrutinee_typ};
+                   I.exp = breakE ir_lab (primE (I.CastPrim (scrutinee_typ, narrowed_typ)) [varE temp])};
            at = no_region; note = () } in
        I.SwitchE (e', [tag_case; default_case])
      | None ->
@@ -162,13 +162,13 @@ and exp' at note = function
     let ty = note.Note.typ in
     let scrutinee_typ = e'.note.Note.typ in
     let trap_case =
-      { it = I.{pat = {it = TagP (id.it, wildP); at = no_region; note = scrutinee_typ};
-                exp = primE (I.OtherPrim "trap") [textE ("unexpected variant #" ^ id.it)]};
+      { it = {I.pat = {it = I.TagP (id.it, wildP); at = no_region; note = scrutinee_typ};
+              I.exp = primE (I.OtherPrim "trap") [textE ("unexpected variant #" ^ id.it)]};
         at = no_region; note = () } in
     let temp = fresh_var "temp" scrutinee_typ in
     let default_case =
-      { it = I.{pat = {it = (varP temp).it; at = no_region; note = scrutinee_typ};
-                exp = primE (I.CastPrim (scrutinee_typ, ty)) [varE temp]};
+      { it = {I.pat = {it = (varP temp).it; at = no_region; note = scrutinee_typ};
+              I.exp = primE (I.CastPrim (scrutinee_typ, ty)) [varE temp]};
         at = no_region; note = () } in
     I.SwitchE (e', [trap_case; default_case])
   | S.ObjBlockE (exp_opt, s, (self_id_opt, _), dfs) ->
