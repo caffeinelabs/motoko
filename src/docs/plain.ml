@@ -234,7 +234,8 @@ let plain_of_doc_typ_fields : Buffer.t -> doc_type -> unit =
         doc_fields
   | DTVariant (_, doc_tags) ->
       List.iter
-        Syntax.(function
+        Syntax.(
+          function
           | _, None -> ()
           | Source.{ it = { tag; typ }; _ }, Some doc ->
               bprintf buf "\n`#%s`" tag.it;
