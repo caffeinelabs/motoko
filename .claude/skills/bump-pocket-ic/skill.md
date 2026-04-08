@@ -90,8 +90,7 @@ To obtain the correct hash, either:
 
 ### 7. Test locally (optional)
 ```sh
-nix build .#pocket-ic-server
-nix build .#test-runner
+nix build .#pocket-ic-server .#test-runner
 ```
 
 ### 8. Commit (three separate commits keeps the history readable)
