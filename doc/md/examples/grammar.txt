@@ -219,6 +219,7 @@
 <exp_bin> ::= 
     <exp_un>
     <exp_bin> <binop> <exp_bin>
+    <exp_bin> DIV'#' <id>
     <exp_bin> <relop> <exp_bin>
     <exp_bin> 'and' <exp_bin>
     <exp_bin> 'or' <exp_bin>
@@ -255,6 +256,7 @@
     'ignore' <exp_nest>
     'do' <block>
     'do' '?' <block>
+    'do' '#' <id> <block>
 
 <exp_nonvar> ::= 
     <exp_nondec>
