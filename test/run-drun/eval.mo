@@ -4,7 +4,7 @@ type Exp = { #Lit : Nat;
            };
 
 func eval( e: Exp) : ? Nat {
-  do ? { 
+  do ? {
     switch e {
        case (#Lit(n)) { n };
        case (#Div (e1, e2)) {
@@ -22,29 +22,26 @@ func eval( e: Exp) : ? Nat {
        }
     }
   }
-}
+};
 
-/* Similar, for Results
-func eval( e: Exp) : Result<Nat,Text> {
-  // label "!" { #Ok (...) }
-  do #Ok {
-    // e ! =def= case e of #Ok v -> v | #Err e -> break "!" (#Err e);
+func evalRes(e: Exp) : {#ok : Nat; #err : Text} {
+  do #ok {
     switch e {
        case (#Lit(n)) { n };
        case (#Div (e1, e2)) {
-         let v1 = eval e1 !;
-         let v2 = eval e2 !;
+         let v1 = evalRes e1 !;
+         let v2 = evalRes e2 !;
          if (v2 == 0)
-           (#Err "DIV/0") !
+           (#err "DIV/0") !
          else (v1 / v2);
        };
        case (#IfZero (e1, e2, e3)) {
-         if (eval e1 ! == 0)
-           eval e2 !
+         if (evalRes e1 ! == 0)
+           evalRes e2 !
          else
-           eval e3 !
+           evalRes e3 !
        }
     }
   }
-}
-*/
+};
+
