@@ -217,8 +217,7 @@ let plain_of_doc_typ : Buffer.t -> doc_type -> unit =
   | DTObj (ty, _) -> plain_of_typ buf plain_render_functions ty
   | DTVariant (ty, _) -> plain_of_typ buf plain_render_functions ty
 
-let plain_of_doc_typ_fields : Buffer.t -> doc_type -> unit =
- fun buf -> function
+let plain_of_doc_typ_fields buf : doc_type -> unit = function
   | DTPlain _ -> ()
   | DTObj (_, doc_fields) ->
       List.iter
