@@ -100,7 +100,7 @@ let rec exp lvl (env : env) e : Lbool.t =
   let lb =
     match e.it with
     | VarE (_, v) -> (find v env).const (*FIXME: use the mutability marker?*)
-    | FuncE (x, s, c, tp, as_ , ts, body) ->
+    | FuncE (x, s, c, tp, as_ , ts, body, _enc) ->
       exp_ NotTopLvl (args NotTopLvl env as_) body;
       begin match s, lvl with
       (* shared functions are not const for now *)

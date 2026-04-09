@@ -13168,7 +13168,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     pre_code ^^
     compile_exp_as env ae sr e ^^
     code
-  | FuncE (x, sort, control, typ_binds, args, res_tys, e) ->
+  | FuncE (x, sort, control, typ_binds, args, res_tys, e, _enc) ->
     let captured = Freevars.captured exp in
     let return_tys = match control with
       | Type.Returns -> res_tys
@@ -13577,7 +13577,7 @@ and compile_decs env ae decs captured_in_body : VarEnv.t * scope_wrap =
 *)
 and compile_const_exp env pre_ae exp : Const.v * (E.t -> VarEnv.t -> unit) =
   match exp.it with
-  | FuncE (name, sort, control, typ_binds, args, res_tys, e) ->
+  | FuncE (name, sort, control, typ_binds, args, res_tys, e, _enc) ->
     let fun_rhs =
 
       (* a few prims cannot be safely inlined *)

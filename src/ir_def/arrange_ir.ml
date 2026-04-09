@@ -25,7 +25,7 @@ let rec exp e = match e.it with
   | AsyncE (Type.Cmp, tb, e, t) -> "AsyncE*"  $$ [typ_bind tb; exp e; typ t]
   | DeclareE (i, t, e1) -> "DeclareE" $$ [id i; exp e1]
   | DefineE (i, m, e1)  -> "DefineE" $$ [id i; mut m; exp e1]
-  | FuncE (x, s, c, tp, as_, ts, e) ->
+  | FuncE (x, s, c, tp, as_, ts, e, _enc) ->
     "FuncE" $$ [Atom x; func_sort s; control c] @ List.map typ_bind tp @ args as_ @ [ typ (Type.seq ts); exp e]
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     "SelfCallE" $$ [typ (Type.seq ts); exp exp_f; exp exp_k; exp exp_r; exp exp_c]

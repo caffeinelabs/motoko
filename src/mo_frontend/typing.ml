@@ -3831,7 +3831,9 @@ and check_parenthetical env typ_opt = function
 and check_vis_parenthetical env ret_typ par =
   let encoder_typ = T.Func (T.Local, T.Returns, [], [ret_typ], [T.blob]) in
   let expected = T.obj T.Object [("encoder", encoder_typ)] in
-  check_exp env expected par
+  check_exp env expected par;
+  if par.note.note_eff <> T.Triv then
+    local_error env par.at "M0215" "encoder parenthetical must be effect-free"
 
 and check_system_fields env sort scope tfs dec_fields =
   List.iter (fun df ->

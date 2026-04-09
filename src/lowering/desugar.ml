@@ -167,7 +167,7 @@ and exp' at note = function
     let tbs' = typ_binds tbs in
     let vars = List.map (fun (tb : I.typ_bind) -> T.Con (tb.it.I.con, [])) tbs' in
     let tys = List.map (T.open_ vars) res_tys in
-    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e))
+    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e), None)
   (* Primitive functions in the prelude have particular shapes *)
   | S.CallE (None, {it=S.AnnotE ({it=S.PrimE p;_}, _);note;_}, _, (_, e))
     when Lib.String.chop_prefix "num_conv" p <> None ->
@@ -743,10 +743,41 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
+and find_encoder_in_par (par : S.exp) : S.exp option =
+  match par.it with
+  | S.ObjE (_, fields) ->
+    List.find_opt (fun (ef : S.exp_field) -> ef.it.S.id.it = "encoder") fields
+    |> Option.map (fun (ef : S.exp_field) -> ef.it.S.exp)
+  | _ -> None
+
+and build_encoders (df : S.dec_field) : S.exp option list =
+  match df.it.S.dec.it, df.it.S.vis.it with
+  | S.TypD _, _ -> []
+  | S.MixinD _, _ -> assert false
+  | S.IncludeD (_, _, note), _ ->
+    let { S.imports; decs; _ } = Option.get !note in
+    let import_encs = List.map (fun _ -> None) imports in
+    None :: import_encs @ List.concat_map build_encoders decs
+  | S.LetD ({ it = S.VarP _; _ }, { it = S.FuncE _; _ }, _), S.Public (_, Some par) ->
+    [find_encoder_in_par par]
+  | _ -> [None]
+
+(*<<<<<<< HEAD
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let fs0 = build_fields obj_typ0 in
+=======*0
+and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
+  let candid = build_candid ts obj_typ in
+  let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
+  let encoders = List.concat_map build_encoders es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
+  let ds = List.map2 (fun enc_opt d ->
+    match enc_opt, d.it with
+    | Some enc_exp, I.LetD (v, ({ it = I.FuncE (n, s, c, tbs, args, tys, body, None); _ } as fe)) ->
+      { d with it = I.LetD (v, { fe with it = I.FuncE (n, s, c, tbs, args, tys, body, Some (exp enc_exp)) }) }
+    | _ -> d
+  ) encoders ds in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
@@ -1291,7 +1322,7 @@ and dec' d =
           note = Note.{ def with typ = rng_typ } }
     in
     let fn = {
-      it = I.FuncE (id.it, sort, control, typ_binds tbs, args, [rng_typ], body);
+      it = I.FuncE (id.it, sort, control, typ_binds tbs, args, [rng_typ], body, None);
       at = at;
       note = Note.{ def with typ = fun_typ }
     } in
