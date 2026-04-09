@@ -1016,7 +1016,6 @@ let is_local_async_func typ =
 let shared t = serializable false t
 let stable t = serializable true t
 
-
 (* Forward declare
    TODO: haul string_of_typ before the lub/glb business, if possible *)
 let str = ref (fun _ -> failwith "")
