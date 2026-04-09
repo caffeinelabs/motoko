@@ -1,5 +1,5 @@
 (library
   (name mo_values)
-  (libraries num wasm lib lang_utils mo_types idllib checkseum ic uucp)
+  (libraries bigint_api wasm lib lang_utils mo_types idllib checkseum ic uucp)
   (instrumentation (backend bisect_ppx --bisect-silent yes))
 )

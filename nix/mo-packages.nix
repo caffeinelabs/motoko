@@ -21,6 +21,8 @@ let
     staticpkgs.stdenv.mkDerivation {
       inherit name;
 
+      dontPatchELF = is_static;
+
       allowedRequisites = pkgs.lib.optional is_static staticpkgs.musl
         ++ pkgs.lib.optional is_dyn_static staticpkgs.patchelf;
 
@@ -59,10 +61,15 @@ let
           -t ${staticpkgs.ocamlPackages.menhir} \
           $out/bin/*
       '' + pkgs.lib.optionalString (!officialRelease && is_dyn_static) ''
-        # these systems need a fixup to the loader interpreter
-        chmod +w $out/bin/*
-        patchelf --set-interpreter "${staticpkgs.musl}/lib/ld-musl-aarch64.so.1" $out/bin/*
-        chmod a-w $out/bin/*
+        # these systems may need a fixup to the loader interpreter,
+        # but only if the binary is dynamically linked (has .interp)
+        for f in $out/bin/*; do
+          if patchelf --print-interpreter "$f" &>/dev/null; then
+            chmod +w "$f"
+            patchelf --set-interpreter "${staticpkgs.musl}/lib/ld-musl-aarch64.so.1" "$f"
+            chmod a-w "$f"
+          fi
+        done
       '';
 
       doInstallCheck = !officialRelease;

@@ -1,0 +1,7 @@
+(library
+ (name stable_check)
+ (libraries lib lang_utils mo_def mo_config mo_types mo_frontend idllib mo_idl ic)
+ (modules stable_check resolve_import))
+
+(rule (copy ../pipeline/resolve_import.ml resolve_import.ml))
+(rule (copy ../pipeline/resolve_import.mli resolve_import.mli))

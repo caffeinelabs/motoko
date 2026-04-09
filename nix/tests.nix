@@ -144,10 +144,9 @@ let
   };
 
   unit = testDerivation {
-    # The rule for src/pipeline/dune will attempt to copy some files from the
-    # test directory to be run by src/pipeline/test_field_srcs.ml. We create src
-    # and test (the latter only with the wanted subdirectories) so that the dune
-    # rule will be able to copy.
+    # test_field_srcs.ml reads .mo files from the test directory.
+    # We create src and test (the latter only with the wanted subdirectories)
+    # so the test can find them via relative path.
     src = pkgs.runCommand "project-sources" { } ''
       mkdir -p $out/src $out/test
       cp -r ${../src}/* $out/src

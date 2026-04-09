@@ -87,7 +87,7 @@ assert.notEqual(empty_wasm_plain.code.wasm, empty_wasm_ic.code.wasm);
 Motoko.removeFile("empty.mo");
 assert.throws(() => {
   Motoko.compileWasm("ic", "empty.mo");
-}, /No such file or directory/);
+}, (err) => /no such file or directory/i.test(JSON.stringify(err)));
 
 // Check if error messages are correctly returned
 const bad_result = Motoko.compileWasm("ic", "bad.mo");

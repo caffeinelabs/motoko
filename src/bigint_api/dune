@@ -1,0 +1,5 @@
+(library
+ (name bigint_api)
+ (virtual_modules bigint)
+ (default_implementation bigint_num)
+ (wrapped false))

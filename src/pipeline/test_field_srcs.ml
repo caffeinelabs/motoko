@@ -206,7 +206,17 @@ let run_compare_typed_asts_tests_on_dir dir =
   let run_files = get_mo_files_from_dir dir in
   List.iter (fun file -> ignore @@ run_compare_typed_asts_test file) run_files
 
+let test_dir =
+  let rec find_project_root dir =
+    if Sys.file_exists (Filename.concat dir "dune-project") then dir
+    else
+      let parent = Filename.dirname dir in
+      if parent = dir then failwith "Cannot find dune-project"
+      else find_project_root parent
+  in
+  Filename.concat (Filename.concat (find_project_root (Sys.getcwd ())) "..") "test"
+
 let%test_unit "ASTs in test match with and without combining sources" =
   List.iter
     run_compare_typed_asts_tests_on_dir
-    ["run"; "run-drun"; "perf"; "bench"]
+    (List.map (Filename.concat test_dir) ["run"; "run-drun"; "perf"; "bench"])
