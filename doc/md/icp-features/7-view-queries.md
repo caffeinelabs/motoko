@@ -166,7 +166,7 @@ The actor above exposes the following generated queries:
 | `array`                 | `.view()`       | `__array(start : Nat, count : Nat) : async [(Nat, Text)]` |
 | `some_variant`          | shared fallback | `__some_variant() : async Tree`                           |
 | `some_record`           | shared fallback | `__some_record() : async {a : Nat; b : Text; c : Bool}`  |
-| `some_mutable_record`   | approximated  |  `__some_mutable_ record() : async Any`  |
+| `some_mutable_record`   | approximated  |  `__some_mutable_record() : async Any`  |
 
 ## Limitations
 
