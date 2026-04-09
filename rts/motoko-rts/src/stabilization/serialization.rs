@@ -2,10 +2,16 @@ pub mod stable_memory_stream;
 
 use crate::{
     memory::Memory,
-    stabilization::ic::metadata::SerializationRoots,
     stabilization::layout::serialize,
     types::{FwdPtr, Tag, Value, TAG_CLOSURE, TAG_FWD_PTR},
 };
+
+#[repr(C)]
+pub struct SerializationRoots {
+    pub actor: Value,
+    pub dedup_table: Value,
+    pub migrations_list: Value,
+}
 
 use self::stable_memory_stream::{ScanStream, StableMemoryStream};
 

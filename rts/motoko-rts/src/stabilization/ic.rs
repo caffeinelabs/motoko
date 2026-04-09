@@ -12,7 +12,8 @@ use crate::{
         set_migration_functions_ptr, set_upgrade_instructions,
     },
     rts_trap_with,
-    stabilization::ic::metadata::{SerializationRoots, StabilizationMetadata},
+    stabilization::ic::metadata::StabilizationMetadata,
+    stabilization::serialization::SerializationRoots,
     stable_mem::{self, moc_stable_mem_set_size, PAGE_SIZE},
     types::Value,
 };

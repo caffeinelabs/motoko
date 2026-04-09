@@ -50,13 +50,6 @@ pub struct UpgradeStatistics {
 }
 
 #[repr(C)]
-pub struct SerializationRoots {
-    pub actor: Value,
-    pub dedup_table: Value,
-    pub migrations_list: Value,
-}
-
-#[repr(C)]
 #[derive(Default)]
 pub struct LastPageRecord {
     pub statistics: UpgradeStatistics,
