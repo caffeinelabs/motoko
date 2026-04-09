@@ -5,7 +5,7 @@ import Container from "@theme/CodeBlock/Container";
 import styles from "./styles.module.css";
 import hljs from "highlight.js";
 import { extractConfig, handleRun } from "../hljs_run.js";
-import CopyButton from "@theme/CodeBlock/CopyButton";
+import CopyButton from "@theme/CodeBlock/Buttons/CopyButton";
 import runIcon from "@site/static/img/runIcon.png";
 
 // NOTE: String component of CodeBlock is being swizzled as a wrapped component.
