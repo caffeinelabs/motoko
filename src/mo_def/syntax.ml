@@ -141,16 +141,6 @@ let pf_pattern pf = match pf.it with
 
 (* Expressions *)
 
-type vis = vis' phrase
-and vis' =
-  | Public of string option
-  | Private
-  | System
-
-let is_public vis = match vis.it with Public _ -> true | _ -> false
-let is_private vis = match vis.it with Private -> true | _ -> false
-
-
 type op_typ = Type.typ ref (* For overloaded resolution; initially Type.Pre. *)
 
 type inst = ((bool * typ list) option, Type.typ list) annotated_phrase (* For implicit scope instantiation *)
@@ -250,6 +240,12 @@ and arg_exp = (bool * (exp ref))
 and assert_kind =
   | Runtime
 
+and vis = vis' phrase
+and vis' =
+  | Public of string option * exp option
+  | Private
+  | System
+
 and dec_field = dec_field' phrase
 and dec_field' = {dec : dec; vis : vis; stab: stab option}
 
@@ -280,6 +276,9 @@ and include_note = include_note' option ref
 
 and import = (import', Type.typ) annotated_phrase
 and import' = pat * string * resolved_import ref
+
+let is_public vis = match vis.Source.it with Public _ -> true | _ -> false
+let is_private vis = match vis.Source.it with Private -> true | _ -> false
 
 (* Program (pre unit detection) *)
 

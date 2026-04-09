@@ -81,7 +81,7 @@ let un_prog prog =
       let decs =
         List.map
           (fun d ->
-            { vis = Public None @@ no_region; dec = d; stab = None } @@ d.at)
+            { vis = Public (None, None) @@ no_region; dec = d; stab = None } @@ d.at)
           decs
       in
       Ok (imports, decs)
