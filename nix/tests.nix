@@ -19,7 +19,7 @@ let
     (with pkgs; [ wabt bash perl getconf moreutils nodejs_24 ]) ++
     [ filecheck pkgs.wasmtime ];
 
-  filecheck = pkgs.runCommandNoCC "FileCheck" { } ''
+  filecheck = pkgs.runCommand "FileCheck" { } ''
     mkdir -p $out/bin
     cp ${pkgs.llvm}/bin/FileCheck $out/bin
   '';
