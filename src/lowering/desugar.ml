@@ -762,13 +762,8 @@ and build_encoders (df : S.dec_field) : S.exp option list =
     [find_encoder_in_par par]
   | _ -> [None]
 
-(*<<<<<<< HEAD
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let fs0 = build_fields obj_typ0 in
-=======*0
-and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
-  let candid = build_candid ts obj_typ in
-  let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
   let encoders = List.concat_map build_encoders es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
