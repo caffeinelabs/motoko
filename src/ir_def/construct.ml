@@ -92,6 +92,7 @@ let primE prim es =
     | ICCallerPrim -> T.caller
     | ICStableWrite _ -> T.unit
     | ICStableRead t -> t
+    | ICStableStore _ -> T.unit
     | ICMethodNamePrim -> T.text
     | ICPerformGC
     | ICStableSize _ -> T.nat64
@@ -137,6 +138,8 @@ let primE prim es =
     | OtherPrim "weak_ref_is_live" -> T.bool
     | OtherPrim "env_var_names" ->  T.Array T.text
     | OtherPrim "env_var" -> T.text
+    | OtherPrim "set_migrations" -> T.unit
+    | OtherPrim "get_migrations" -> T.text_list
     | _ -> assert false (* implement more as needed *)
   in
   let eff = map_max_effs eff es in

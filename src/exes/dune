@@ -31,6 +31,6 @@
 (executable
  (name candid_tests)
  (modules candid_tests)
- (libraries lib idllib mo_idl mo_values lang_utils)
+ (libraries lib idllib mo_idl mo_values lang_utils str)
  (instrumentation (backend bisect_ppx --bisect-silent yes))
 )

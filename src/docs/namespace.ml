@@ -140,7 +140,7 @@ let lookup_type : t -> Syntax.typ_path -> Xref.t option =
           in
           Xref.extend top_xref
           |> Option.map (fun mk_top_xref ->
-                 mk_top_xref (mk_xref (Xref.XType id)))
+              mk_top_xref (mk_xref (Xref.XType id)))
       | Some (Xref.XNested _, sub_ns) ->
           let open Lib.Option.Syntax in
           let* sub_ns =

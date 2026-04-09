@@ -141,18 +141,21 @@ let parse_verification_file = parse_file' Lexer.mode_verification
 
 type resolve_result = (Syntax.prog * ResolveImport.resolved_imports) Diag.result
 
-let resolve_flags pkg_opt =
+let resolve_flags ~(enhanced_migration : string option) pkg_opt  =
   ResolveImport.{
     package_urls = !Flags.package_urls;
     actor_aliases = !Flags.actor_aliases;
     actor_idl_path = !Flags.actor_idl_path;
     include_all_libs = pkg_opt = None && Flags.(!all_libs || !ai_errors || Option.is_some !implicit_package);
+    enhanced_migration
   }
 
 let resolve_prog (prog, base) : resolve_result =
   Diag.map
     (fun libs -> (prog, libs))
-    (ResolveImport.resolve (resolve_flags None) prog base)
+    (ResolveImport.resolve
+       (resolve_flags ~enhanced_migration:!Flags.enhanced_migration None)
+       prog base)
 
 let resolve_progs =
   Diag.traverse resolve_prog
@@ -307,6 +310,7 @@ let stable_compatible pre post : unit Diag.result =
 (* basic sanity checking of emitted stable signatures *)
 let validate_stab_sig s : unit Diag.result =
   let open Diag.Syntax in
+  (*  Printf.printf "stable sig %s" s; *)
   let name = "stable-types" in
   Cons.session ~scope:name (fun () ->
     let* p1 = parse_stab_sig s name in
@@ -318,6 +322,10 @@ let validate_stab_sig s : unit Diag.result =
       (* check we can self-upgrade *)
       Stability.match_stab_sig (Single s1) (Single s2)
     | PrePost (pre1, post1), PrePost (pre2, post2) ->
+      (* check we can at least self-upgrade,
+         with a possibly different or no migration function *)
+       Stability.match_stab_sig (Single post1) (Single post2)
+    | Multi {chain=c1; post=post1}, Multi {chain=c2;post=post2} ->
       (* check we can at least self-upgrade,
          with a possibly different or no migration function *)
       Stability.match_stab_sig (Single post1) (Single post2)
@@ -453,7 +461,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         let* prog, base = parsefn ri.Source.at f in
         let* () = Static.prog prog in
         let cur_pkg_opt = if lib_pkg_opt <> None then lib_pkg_opt else pkg_opt in
-        let* more_imports = ResolveImport.resolve (resolve_flags cur_pkg_opt) prog base in
+        let* more_imports = ResolveImport.resolve (resolve_flags ~enhanced_migration:None cur_pkg_opt) prog base in
         let* () = go_set cur_pkg_opt more_imports in
         let lib = lib_of_prog f prog in
         let* sscope = check_lib !senv cur_pkg_opt lib in
@@ -838,7 +846,7 @@ let rec compile_libs mode libs : Lowering.Desugar.import_declaration =
           match cub.it with
           | Syntax.ActorClassU _ ->
             (* Okay to "run" here, as `compile_unit_to_wasm` only fails on Syntax.MixinU *)
-            let wasm = Diag.run (compile_unit_to_wasm mode imports l) in
+            let wasm = Diag.run (compile_unit_to_wasm mode None imports l) in
             Lowering.Desugar.import_compiled_class l wasm
           | _ ->
             Lowering.Desugar.import_unit l)
@@ -846,7 +854,7 @@ let rec compile_libs mode libs : Lowering.Desugar.import_declaration =
       go (imports @ new_imports) libs
   in go [] libs
 
-and compile_unit mode do_link imports u : Wasm_exts.CustomModule.extended_module Diag.result =
+and compile_unit mode (enhanced_migration:string option) do_link imports u : Wasm_exts.CustomModule.extended_module Diag.result =
   let open Diag.Syntax in
   let name = u.Source.note.Syntax.filename in
   Cons.session ~scope:name (fun () ->
@@ -856,13 +864,13 @@ and compile_unit mode do_link imports u : Wasm_exts.CustomModule.extended_module
     adjust_flags ();
     let rts = if do_link then Some (load_as_rts ()) else None in
     Diag.return (if !Flags.enhanced_orthogonal_persistence then
-      Codegen.Compile_enhanced.compile mode rts prog_ir
+      Codegen.Compile_enhanced.compile mode ~enhanced_migration rts prog_ir
     else
       Codegen.Compile_classical.compile mode rts prog_ir))
 
-and compile_unit_to_wasm mode imports (u : Syntax.comp_unit) : string Diag.result =
+and compile_unit_to_wasm mode (enhanced_migration:string option) imports (u : Syntax.comp_unit) : string Diag.result =
   let open Diag.Syntax in
-  let* wasm_mod = compile_unit mode true imports u in
+  let* wasm_mod = compile_unit mode enhanced_migration true imports u in
   let (_source_map, wasm) = Wasm_exts.CustomModuleEncode.encode wasm_mod in
   Diag.return wasm
 
@@ -870,7 +878,7 @@ and compile_progs mode do_link libs progs : Wasm_exts.CustomModule.extended_modu
   let imports = compile_libs mode libs in
   let prog = CompUnit.combine_progs progs in
   let u = CompUnit.comp_unit_of_prog false prog in
-  compile_unit mode do_link imports u
+  compile_unit mode (!Flags.enhanced_migration) do_link imports u
 
 let compile_files mode do_link files : compile_result =
   let open Diag.Syntax in

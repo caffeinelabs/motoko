@@ -19,7 +19,8 @@ type flags = {
   actor_aliases : actor_aliases;
   actor_idl_path : actor_idl_path;
   include_all_libs : bool;
-  }
+  enhanced_migration : string option;
+}
 
 type package_map = filepath Flags.M.t
 type blob = string

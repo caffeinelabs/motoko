@@ -48,7 +48,7 @@ let
       '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
         # there are references to darwin system libraries
         # in the binaries. But curiously, we can remove them
-        # an the binaries still work. They are essentially static otherwise.
+        # and the binaries still work. They are essentially static otherwise.
         remove-references-to \
           -t ${pkgs.libiconv} \
           $out/bin/*
@@ -60,10 +60,18 @@ let
           $out/bin/*
       '' + pkgs.lib.optionalString (!officialRelease && is_dyn_static) ''
         # these systems need a fixup to the loader interpreter
+        # (only for dynamic-static binaries that have an .interp section)
         chmod +w $out/bin/*
-        patchelf --set-interpreter "${staticpkgs.musl}/lib/ld-musl-aarch64.so.1" $out/bin/*
+        for f in $out/bin/*; do
+          patchelf --print-interpreter "$f" 2>/dev/null && \
+            patchelf --set-interpreter "${staticpkgs.musl}/lib/ld-musl-aarch64.so.1" "$f" || true
+        done
         chmod a-w $out/bin/*
       '';
+
+      # nixpkgs >= 25.11 patchelf errors on static binaries lacking .interp;
+      # we handle the interpreter fixup ourselves above for is_dyn_static.
+      dontPatchELF = is_static;
 
       doInstallCheck = !officialRelease;
       installCheckPhase = ''

@@ -841,13 +841,3 @@ func getCandidTypeLimits<system>() : {
     bias;
   };
 };
-
-// predicates for motoko-san
-
-func forall<T>(f : T -> Bool) : Bool {
-  (prim "forall" : <T>(T -> Bool) -> Bool) <T>(f);
-};
-
-func exists<T>(f : T -> Bool) : Bool {
-  (prim "exists" : <T>(T -> Bool) -> Bool) <T>(f);
-};

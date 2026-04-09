@@ -482,6 +482,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
           V.Env.empty tfs
         in
         k (V.Obj ve)
+      | ICStableStore _, [] ->
+        k V.unit
       | SelfRef _, [] ->
         k (context env)
       | SystemTimePrim, [] ->

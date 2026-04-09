@@ -1,0 +1,2 @@
+multi-migration-bad-chain/bad-init/Init.mo:1.1: warning [M0251], migration module does not export a `migration` function, skipping
+enhanced-migration-check-no-migration.mo:3.1-5.2: type error [M0251], --enhanced-migration: no valid migration modules found (migration modules must export a public `migration` function)
