@@ -384,7 +384,7 @@ let transform prog =
       DeclareE (id, t_typ typ, t_exp exp1)
     | DefineE (id, mut ,exp1) ->
       DefineE (id, mut, t_exp exp1)
-    | FuncE (x, s, c, typbinds, args, ret_tys, exp, _enc) ->
+    | FuncE (x, s, c, typbinds, args, ret_tys, exp, enc) ->
       begin
         match s with
         | Local ->
@@ -408,13 +408,15 @@ let transform prog =
                 | t -> assert false in
               let k =
                 let v = fresh_var "v" t1 in
-                v --> ic_replyE ret_tys (varE v) in
+                v --> (match Option.map t_exp enc with
+                  | None -> ic_replyE ret_tys (varE v)
+                  | Some enc' -> ic_reply_encE ret_tys enc' (varE v)) in
               let r =
                 let e = fresh_var "e" catch in
                 e --> ic_rejectE (errorMessageE (varE e)) in
               let cl = varE (var "@cleanup" clean_contT) in
               let exp' = callE (t_exp cps) [t0] (tupE [k; r; cl]) in
-              FuncE (x, Shared s', Replies, typbinds', args', ret_tys, exp', None)
+              FuncE (x, Shared s', Replies, typbinds', args', ret_tys, exp', enc)
             (* oneway, always with `ignore(async _)` body *)
             | Returns,
               { it = BlockE (

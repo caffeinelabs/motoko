@@ -452,7 +452,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       | NumConvWrapPrim (t1, t2), vs ->
         let arg = match vs with [v] -> v | _ -> V.Tup vs in
         k (Prim.num_conv_wrap_prim { Prim.trap = trap exp.at "%s" } t1 t2 arg)
-      | ICReplyPrim ts, [v1] ->
+      | ICReplyPrim (ts, _enc), [v1] ->
         assert (not env.flavor.has_async_typ);
         let reply = Option.get env.replies in
         Scheduler.queue (fun () -> reply v1)

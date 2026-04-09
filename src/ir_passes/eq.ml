@@ -214,8 +214,8 @@ and t_exp' env = function
   | PrimE (p, es) -> PrimE (p, t_exps env es)
   | AssignE (lexp1, exp2) ->
     AssignE (t_lexp env lexp1, t_exp env exp2)
-  | FuncE (s, c, id, typbinds, pat, typT, exp, _enc) ->
-    FuncE (s, c, id, typbinds, pat, typT, t_exp env exp, None)
+  | FuncE (s, c, id, typbinds, pat, typT, exp, enc) ->
+    FuncE (s, c, id, typbinds, pat, typT, t_exp env exp, enc)
   | BlockE block -> BlockE (t_block env block)
   | IfE (exp1, exp2, exp3) ->
     IfE (t_exp env exp1, t_exp env exp2, t_exp env exp3)

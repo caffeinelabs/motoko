@@ -628,11 +628,16 @@ let rec check_exp env (exp:Ir.exp) : unit =
       check_typ env t;
     | ICArgDataPrim, [] ->
       T.blob <: t
-    | ICReplyPrim ts, [exp1] ->
+    | ICReplyPrim (ts, enc_opt), [exp1] ->
       check (not (env.flavor.has_async_typ)) "ICReplyPrim in async flavor";
       check (T.shared t) "ICReplyPrim is not defined for non-shared operand type";
       (* TODO: check against expected reply typ; note this may not be env.ret_tys. *)
       typ exp1 <: (T.seq ts);
+      Option.iter (fun enc ->
+        check_exp env enc;
+        typ enc <: T.Func (T.Local, T.Returns, [], [T.seq ts], [T.blob]);
+        check (E.eff enc = T.Triv) "encoder in ICReplyPrim must be effect-free"
+      ) enc_opt;
       T.Non <: t
     | ICRejectPrim, [exp1] ->
       check (not (env.flavor.has_async_typ)) "ICRejectPrim in async flavor";

@@ -178,7 +178,7 @@ and prim =
                                       (* typ is the current continuation type of cps translation *)
   | CPSAsync of Type.async_sort * Type.typ
   | ICPerformGC
-  | ICReplyPrim of Type.typ list
+  | ICReplyPrim of Type.typ list * exp option (* optional user-supplied encoder: T -> Blob *)
   | ICRejectPrim
   | ICCallerPrim
   | ICCallPrim
@@ -329,7 +329,7 @@ let map_prim t_typ t_lab p =
   | OtherPrim _ -> p
   | CPSAwait (s, t) -> CPSAwait (s, t_typ t)
   | CPSAsync (s, t) -> CPSAsync (s, t_typ t)
-  | ICReplyPrim ts -> ICReplyPrim (List.map t_typ ts)
+  | ICReplyPrim (ts, enc) -> ICReplyPrim (List.map t_typ ts, enc)
   | ICArgDataPrim
   | ICPerformGC
   | ICRejectPrim

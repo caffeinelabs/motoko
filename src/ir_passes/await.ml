@@ -162,9 +162,9 @@ and t_exp' context exp =
     FuncE (x, T.Local, c, typbinds, pat, typs,
       { wrapper with it = BlockE (ds, t_async context async) }, None)
   | FuncE (x, (T.Shared _ as s), c, typbinds, pat, typs,
-      ({ it = AsyncE _;_ } as body), _enc) ->
+      ({ it = AsyncE _;_ } as body), enc) ->
     FuncE (x, s, c, typbinds, pat, typs,
-      t_async context body, None)
+      t_async context body, enc)
   | FuncE (x, (T.Shared _ as s), c, typbinds, pat, typs,
       { it = BlockE ([
          { it = LetD (

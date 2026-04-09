@@ -12884,13 +12884,26 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | ICArgDataPrim, [] ->
     SR.Vanilla, IC.arg_data env
 
-  | ICReplyPrim ts, [e] ->
+  | ICReplyPrim (ts, enc_opt), [e] ->
     SR.unit, begin match E.mode env with
     | Flags.ICMode | Flags.RefMode ->
-      compile_exp_vanilla env ae e ^^
-      (* TODO: We can try to avoid the boxing and pass the arguments to
-        serialize individually *)
-      Serialization.serialize env ts ^^
+      let result_code = compile_exp_vanilla env ae e in
+      let serialized = match enc_opt with
+        | None ->
+          (* TODO: We can try to avoid the boxing and pass the arguments to
+             serialize individually *)
+          result_code ^^ Serialization.serialize env ts
+        | Some enc_exp ->
+          let (set_enc, get_enc) = new_local env "encoder" in
+          compile_exp_vanilla env ae enc_exp ^^
+          set_enc ^^
+          get_enc ^^ Closure.prepare_closure_call env ^^
+          result_code ^^
+          get_enc ^^
+          Closure.call_closure env 1 1 ^^
+          Blob.as_ptr_len env
+      in
+      serialized ^^
       IC.reply_with_data env
     | _ ->
       E.trap_with env "cannot reply when running locally"
