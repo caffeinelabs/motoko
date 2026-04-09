@@ -679,7 +679,7 @@ do
     diff_files="$diff_files $base.cmp"
   ;;
   *)
-    echo "Unknown extentions $ext";
+    echo "Unknown extensions $ext";
     exit 1
   esac
   $ECHO ""

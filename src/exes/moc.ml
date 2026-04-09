@@ -35,7 +35,7 @@ let valid_metadata_names =
      "motoko:stable-types";
      "motoko:compiler"]
 
-let argspec = 
+let argspec =
   Args.ai_args
   @ [
   "-c", Arg.Unit (set_mode Compile), " compile programs to WebAssembly";
@@ -225,6 +225,8 @@ let argspec =
 
   @ Args.persistent_actors_args
 
+  @ Args.migration_args
+
   @ [
   "--stabilization-instruction-limit",
   Arg.Int (fun limit -> Flags.(stabilization_instruction_limit := {
@@ -387,6 +389,11 @@ let () =
   if !Flags.warnings_are_errors && (not !Flags.print_warnings)
   then fail "moc: --hide-warnings and -Werror together do not make sense";
 
+  if Option.is_some !Flags.enhanced_migration && not !Flags.enhanced_orthogonal_persistence
+  then begin
+    eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
+  end;
+  
   if not !Flags.skip_gc_deprecation_warning 
   then begin
     match !Flags.gc_strategy with

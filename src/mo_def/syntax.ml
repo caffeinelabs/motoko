@@ -31,7 +31,10 @@ type typ_id = (string, Type.con option) Source.annotated_phrase
 
 type 'note sort = (Type.obj_sort, 'note) Source.annotated_phrase
 type typ_obj_sort = unit sort
-type persistence = bool Source.phrase
+
+type migration_chain = (string * Type.typ * Type.typ) list
+type persistence = (bool, migration_chain) Source.annotated_phrase
+
 type obj_sort = persistence sort
 type func_sort = Type.func_sort Source.phrase
 
@@ -283,6 +286,7 @@ and stab_body = stab_body' Source.phrase    (* type declarations & stable actor 
 and stab_body' =
   | Single of typ_field list
   | PrePost of (req * typ_field) list * typ_field list
+  | Multi of {chain : typ_tag list; post : typ_field list}
 and req = bool Source.phrase
 
 (* Compilation units *)

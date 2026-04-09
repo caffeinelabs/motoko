@@ -10,9 +10,13 @@ s/<id>/ID/g
 /^<parse_prog_interactive> ::=/,+3d
 /^<import_list> ::=/,+2d
 /^<parse_module_header> ::=/,+2d
-/^<stab_field> ::=/,+2d
-/^<typ_dec> ::=/,+2d
-/^<parse_stab_sig> ::=/,+5d
+/^<typ_dec> ::=/,/^$/d
+/^<stab_field> ::=/,/^$/d
+/^<pre_stab_field> ::=/,/^$/d
+/^<mig_lab> ::=/,/^$/d
+/^<mig_field> ::=/,/^$/d
+/^<req> ::=/,/^$/d
+/^<parse_stab_sig> ::=/,/^$/d
 /.*PRIM.*/d
 /.*NUM_DOT_ID.*/d
 /^<bl> ::=/,+2d

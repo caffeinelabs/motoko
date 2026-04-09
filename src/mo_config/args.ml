@@ -77,6 +77,12 @@ let ai_args = [
   "--implicit-derivation-depth", Arg.Set_int Flags.implicit_derivation_depth, _UNDOCUMENTED_ " maximum depth for recursive implicit derivation (default: 100)"
 ]
 
+let migration_args = [
+  "--enhanced-migration",
+  Arg.String (fun s -> Flags.enhanced_migration := Some s),
+  "<dir>  enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence.";
+]
+
 let persistent_actors_args = [
   (* default stability *)
   "--default-persistent-actors",

@@ -503,11 +503,13 @@ module E = struct
     (* Counter for deriving a unique id per constant function. *)
     constant_functions : int32 ref;
     dedup : (unit -> int32) option ref;
+
+    enhanced_migration : string option;
   }
 
 
   (* The initial global environment *)
-  let mk_global mode rts trap_with : t = {
+  let mk_global mode rts trap_with enhanced_migration : t = {
     mode;
     rts;
     trap_with;
@@ -538,6 +540,7 @@ module E = struct
     global_type_descriptor = ref None;
     constant_functions = ref 0l;
     dedup = ref None;
+    enhanced_migration;
   }
 
   (* This wraps Mo_types.Hash.hash to also record which labels we have seen,
@@ -813,8 +816,11 @@ module E = struct
     | Some mk_fi -> mk_fi()
     | None -> assert false
 
-  let set_dedup (env : t) (mk_fi : unit -> int32)=
+  let set_dedup (env : t) (mk_fi : unit -> int32) =
     env.dedup := Some mk_fi
+
+  let enhanced_migration (env : t) : string option =
+    env.enhanced_migration
 
 end
 
@@ -1288,6 +1294,8 @@ module RTS = struct
     E.add_func_import env "rts" "weak_ref_is_live" [I64Type] [I32Type];
     E.add_func_import env "rts" "get_dedup_table" [] [I64Type];
     E.add_func_import env "rts" "set_dedup_table" [I64Type] [];
+    E.add_func_import env "rts" "get_migrations" [] [I64Type];
+    E.add_func_import env "rts" "set_migrations" [I64Type] [];
     ()
 
 end (* RTS *)
@@ -10510,8 +10518,11 @@ module Persistence = struct
             if not (!Flags.explicit_enhanced_orthogonal_persistence) then
               E.trap_with env "Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration."
             else G.nop ^^
-            OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
-            EnhancedOrthogonalPersistence.initialize env actor_type
+            if E.enhanced_migration env = None then
+              OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
+              EnhancedOrthogonalPersistence.initialize env actor_type
+            else
+              E.trap_with env "Cannot upgrade from classical orthogonal persistence with --enhanced-migration"
           end
       end) ^^
     StableMem.region_init env
@@ -12319,6 +12330,15 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae dedup_table ^^
     E.call_import env "rts" "set_dedup_table"
 
+  | OtherPrim "get_migrations", [] ->
+    SR.Vanilla,
+    E.call_import env "rts" "get_migrations"
+
+  | OtherPrim "set_migrations", [pointer] ->
+    SR.unit,
+    compile_exp_vanilla env ae pointer ^^
+    E.call_import env "rts" "set_migrations"
+
   (* Regions *)
 
   | OtherPrim "regionNew", [] ->
@@ -12933,6 +12953,9 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | ICStableWrite ty, [] ->
     SR.unit,
     Persistence.save env ty
+  | ICStableStore ty, [] ->
+    SR.unit,
+    EnhancedOrthogonalPersistence.assign_stable_type env ty
 
   (* Cycles *)
   | SystemCyclesBalancePrim, [] ->
@@ -13985,11 +14008,11 @@ and conclude_module env set_serialization_globals start_fi_o =
   | None -> emodule
   | Some rts -> Linking.LinkModule.link emodule "rts" rts
 
-let compile mode rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
+let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)
   assert !Flags.rtti; (* Use precise tagging for graph copy. *)
   assert (!Flags.gc_strategy = Flags.Incremental); (* Define heap layout with the incremental GC. *)
-  let env = E.mk_global mode rts IC.trap_with in
+  let env = E.mk_global mode rts IC.trap_with enhanced_migration in
 
   IC.register_globals env;
   Stack.register_globals env;

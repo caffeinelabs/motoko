@@ -5,6 +5,7 @@ type id = string
 type lab = string
 type var = string
 type name = string
+type mig_lab = string
 
 type control =
   | Returns        (* regular local function or one-shot shared function *)
@@ -86,6 +87,7 @@ let empty_src = {depr = None; track_region = Source.no_region; region = Source.n
 type stab_sig =
   | Single of field list
   | PrePost of ((* required *) bool * field) list * field list
+  | Multi of {chain: field list; post: field list}
 
 (* Efficient comparison *)
 let tag_prim = function
@@ -350,7 +352,11 @@ let error = Prim Error
 let char = Prim Char
 let principal = Prim Principal
 let region = Prim Region
-
+let text_list =
+  (* TextList = ?(Text, TextList) *)
+  let c = Cons.fresh "TextList" (Abs([],Pre)) in
+  set_kind c (Def([], Opt(Tup [text; Con(c, [])])));
+  Con(c, [])
 
 let fields flds =
   List.sort compare_field
@@ -1815,6 +1821,7 @@ let motoko_runtime_information_type =
     ("sanityChecks", bool);
     ("stableMemorySize", nat);
     ("totalAllocation", nat);
+    ("version", text_list)
   ]
 
 let motoko_runtime_information_fld =
@@ -2302,10 +2309,15 @@ and pp_kind ppf k =
   let vs = vs_of_cs cs in
   pp_kind' vs ppf k
 
+and pp_mig_field vs ppf {lab; typ; src} =
+    let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
+    fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
+
 and pp_stab_sig ppf sig_ =
   let all_fields = match sig_ with
     | Single tfs -> tfs
     | PrePost (pre, post) -> List.map snd pre @ post
+    | Multi {chain; post} -> chain @ post
   in
   let cs = List.fold_right
     (cons_field false)
@@ -2336,10 +2348,16 @@ and pp_stab_sig ppf sig_ =
         (string_of_obj_sort Actor)
         (pp_print_list ~pp_sep:semi (pp_stab_field vs)) tfs
     | PrePost (pre, post) ->
-      fprintf ppf "@[<v 2>%s({@;<0 0>%a@;<0 -2>}, {@;<0 0>%a@;<0 -2>}) @]"
+      fprintf ppf "@[<v 2>%s({@;<0 0>%a@;<0 -2>}, {@;<0 0>%a@;<0 -2>})@]"
         (string_of_obj_sort Actor)
         (pp_print_list ~pp_sep:semi (pp_pre_stab_field vs)) pre
         (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+    | Multi {chain; post} ->
+       fprintf ppf "@[<v 2>{@;<0 0>%a@;<0 -2>}@;<0-2>%s {@;<0 0>%a@;<0 -2>}@]"
+        (pp_print_list ~pp_sep:semi (pp_mig_field vs)) chain
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+
   in
   fprintf ppf "@[<v 0>%a%a%a;@]"
     (pp_print_list ~pp_sep:semi (pp_typ_field vs)) tfs
@@ -2531,20 +2549,109 @@ let stable_sub ?(src_fields = empty_srcs_tbl ()) t1 t2 =
   with_src_field_updates_predicate src_fields (fun () ->
     rel_typ (RelArg.stable_sub []) (ref SS.empty) (ref SS.empty) t1 t2)
 
-let pre = function
+let is_migration typ =
+  match normalize typ with
+  | Func(Local, Returns, [], [t1], [t2]) ->
+    (match normalize t1, normalize t2 with
+     | Obj(Object, dom_tfs, _), Obj(Object, rng_tfs, _) ->
+       List.for_all (fun tf -> stable tf.typ) dom_tfs &&
+         List.for_all (fun tf -> stable tf.typ) rng_tfs
+     | _-> false)
+  | _ -> false
+
+let as_migration mig_typ =
+  let dom_i, rng_i = as_mono_func_sub mig_typ in
+  let (_ds, dom_fields_i) = as_obj (normalize dom_i) in
+  let (_rs, rng_fields_i) = as_obj (promote rng_i) in
+  (dom_fields_i, rng_fields_i)
+
+(* For debugging, construct signatures with type info erased to ()
+let abstract_pre pre = List.map (fun (req,tf) -> (req, {tf with typ = unit})) pre
+let abstract_post post = List.map (fun tf -> {tf with typ = unit}) post
+let abstract_mig_typ typ =
+    let dom_fields, rng_fields = as_migration typ in
+    Func(Local, Returns, [],
+         [Obj(Object, List.map (fun tf -> {tf with typ = unit}) dom_fields, [])],
+         [Obj(Object, List.map (fun tf -> {tf with typ = unit}) rng_fields, [])])
+
+let abstract sig0 =
+   match sig0 with
+   | Single post -> Single (abstract_post post)
+   | PrePost (pre, post) ->
+     PrePost(abstract_pre pre, abstract_post post)
+   | Multi {chain;post} ->
+      Multi {chain =
+               List.map (fun tf -> {tf with typ = abstract_mig_typ tf.typ})
+                 chain;
+             post = abstract_post post}
+*)
+
+let migration_lab_of_filename file = Filename.basename file |> Filename.chop_extension
+
+let pre_fields mig_typ ?(has_initializers=true) post_fields =
+  let (dom_fields_k, rng_fields_k) = as_migration mig_typ in
+  List.map (fun tf -> (true (* required *), tf)) dom_fields_k @
+    List.filter_map (fun tf ->
+        match lookup_val_field_opt tf.lab dom_fields_k,
+              lookup_val_field_opt tf.lab rng_fields_k with
+        | Some _, _    (* ignore consumed (overridden) *)
+          | _, Some _ -> (* ignore produced (provided) *)
+           None
+        | None, None ->
+           (* retain others *)
+           Some (not has_initializers, tf)
+      )
+      post_fields
+  |> List.sort (fun (r1, tf1) (r2, tf2) -> compare_field tf1 tf2)
+
+let pres mig_lab_opt chain post =
+  let rec go acc mfs cur_pre_fields =
+    match mfs with
+    | [] -> (cur_pre_fields, acc)
+    | mig_field :: mfs1 ->
+      if (Some mig_field.lab) = mig_lab_opt
+      then (cur_pre_fields, acc)
+      else
+        let cur_post_fields = List.map snd cur_pre_fields in
+        let next_pre_fields = pre_fields mig_field.typ  ~has_initializers:false cur_post_fields in
+        go (next_pre_fields::acc) mfs1 next_pre_fields
+  in
+  let mfs = List.rev chain in
+  let last_pre = List.map (fun tf -> (false, tf)) post in
+  go [last_pre] mfs last_pre
+
+let pre mig_lab_opt = function
   | Single tfs ->
     (* all vars optional *)
     List.map (fun tf -> (false, tf)) tfs
   | PrePost (tfs, _) -> tfs
+  | Multi {chain; post} ->
+    let (pre, pres) = pres mig_lab_opt chain post in
+    pre
 
 let post = function
-  | Single tfs -> tfs
-  | PrePost (_, tfs) -> tfs
+  | Single tfs -> tfs, None
+  | PrePost (_, tfs) -> tfs, None
+  | Multi {chain; post} ->
+    assert (chain <> []);
+    post,
+    Some ((Lib.List.last chain).lab)
+
+let mem_typ_of_pre pre =
+  Obj(Memory,
+      List.map (fun (required, tf) -> {tf with typ = Opt (as_immut tf.typ)}) pre,
+      [])
 
 let rec match_stab_sig sig1 sig2 =
-  let post_tfs1 = post sig1 in
-  let pre_tfs2 = pre sig2 in
-  match_stab_fields post_tfs1 pre_tfs2
+  match (sig1, sig2) with 
+  (* Applying regular/old migration on top of a program that
+  already uses multi-migration is disallowed. *)
+  | Multi _,  (PrePost _ |  Single _) ->
+    false
+  | _ ->
+    let post_tfs1, mig_lab_opt = post sig1 in
+    let pre_tfs2 = pre mig_lab_opt sig2 in
+    match_stab_fields post_tfs1 pre_tfs2
 
 and match_stab_fields tfs1 tfs2 =
   (* Assume that tfs1 and tfs2 are sorted. *)
@@ -2561,5 +2668,7 @@ let string_of_stab_sig stab_sig : string =
   let module Pretty = MakePretty(ParseableStamps) in
   (match stab_sig with
   | Single _ -> "// Version: 1.0.0\n"
-  | PrePost _ -> "// Version: 3.0.0\n") ^
+  | PrePost _ -> "// Version: 3.0.0\n"
+  | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
+

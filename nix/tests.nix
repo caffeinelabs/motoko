@@ -242,6 +242,7 @@ fix_names
     idl = test_subdir "idl" [ didc ];
     mo-idl = test_subdir "mo-idl" [ moc didc ];
     mo-idl-eop = enhanced_orthogonal_persistence_subdir "mo-idl" [ moc didc ];
+    mo-doc = test_subdir "mo-doc" [ mo-doc ];
     trap = test_subdir "trap" [ moc ];
     trap-eop = enhanced_orthogonal_persistence_subdir "trap" [ moc ];
     run-deser = test_subdir "run-deser" [ deser ];

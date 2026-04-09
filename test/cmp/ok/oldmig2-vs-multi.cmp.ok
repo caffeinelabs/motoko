@@ -1,0 +1,2 @@
+(unknown location): Compatibility error [M0255], cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration. Please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+FALSE

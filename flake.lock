@@ -3,11 +3,11 @@
     "candid-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1774880097,
-        "narHash": "sha256-i1y/on25Qx9sJYG/F4Fx44bjQPaJ2vkxYzp3n99KPi0=",
+        "lastModified": 1775679456,
+        "narHash": "sha256-dirysVzx5Q557L2GywhBFzLae0F08YHJFzIUH+WVSIY=",
         "owner": "dfinity",
         "repo": "candid",
-        "rev": "27bdf42e00ee46eb38eaf7a6f452f563743b3923",
+        "rev": "36a80347a4d81388b84d00d58d1ebb8c8ee0741e",
         "type": "github"
       },
       "original": {

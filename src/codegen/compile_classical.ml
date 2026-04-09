@@ -1202,6 +1202,7 @@ module RTS = struct
     E.add_func_import env "rts" "stream_shutdown" [I32Type] [];
     E.add_func_import env "rts" "stream_reserve" [I32Type; I32Type] [I32Type];
     E.add_func_import env "rts" "stream_stable_dest" [I32Type; I64Type; I64Type] [];
+    E.add_func_import env "rts" "get_migrations" [] [I32Type];
     if !Flags.gc_strategy = Flags.Incremental then
       incremental_gc_imports env
     else
@@ -12541,6 +12542,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     BoxedSmallWord.box env Type.Nat32 ^^
     Serialization.Registers.get_type_bias env ^^
     BoxedSmallWord.box env Type.Nat32
+
+  (* dummy get_migrations function to handle case when a compile classical program
+  tries to upgrade but in desugar.ml we need to generate code
+  that checks get_migrations. *)
+  | OtherPrim "get_migrations", [] ->
+    SR.Vanilla,
+    Opt.null_lit env
 
   (* Coercions for abstract types *)
   | CastPrim (_,_), [e] ->
