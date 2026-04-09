@@ -743,12 +743,12 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
-and find_encoder_in_par (par : S.exp) : S.exp option =
-  match par.it with
-  | S.ObjE (_, fields) ->
-    List.find_opt (fun (ef : S.exp_field) -> ef.it.S.id.it = "encoder") fields
-    |> Option.map (fun (ef : S.exp_field) -> ef.it.S.exp)
-  | _ -> None
+and find_encoder_in_par par =
+  S.(match par.it with
+     | ObjE (_, fields) ->
+        List.find_opt (fun (ef : exp_field) -> ef.it.id.it = "encoder") fields
+        |> Option.map (fun (ef : exp_field) -> ef.it.exp)
+     | _ -> None)
 
 and build_encoders (df : S.dec_field) : S.exp option list =
   match df.it.S.dec.it, df.it.S.vis.it with
