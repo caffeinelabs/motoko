@@ -1,3 +1,1 @@
-data-view-core.mo:91.7-91.22: warning [M0194], unused identifier: `invisible_array`
-help: if this is intentional, prefix it with an underscore: `_invisible_array`
 data-view-core.mo:94.7-94.19: warning [M0244], variable some_variant is never reassigned, consider using `let`

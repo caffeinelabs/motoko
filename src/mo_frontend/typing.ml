@@ -4196,7 +4196,10 @@ and infer_viewer env scope mut id viewer =
     then () (* avoid any clash with local or reserved `__motokoXXX` members by omitting viewer *)
     else
       let viewer_field args ret =
-        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, ret); src = empty_src } in
+        (* approximate non-shared returns to Any, if necessary *)
+        let shared_ret =
+          List.map (fun ty -> if T.shared ty then ty else T.Any) ret in
+        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->
           (* checkpoint env.used_identifiers *)
@@ -4225,7 +4228,7 @@ and infer_viewer env scope mut id viewer =
       | Error _ ->
          let (typ, _, _) = T.Env.find id.it scope.Scope.val_env in
          let typ = T.as_immut typ in
-         if T.shared typ then
+         if T.stable typ then
            let varE =
              { (VarE {it = id.it; at; note = (mut, None)} @? at)
                with note = { note_typ = typ;
