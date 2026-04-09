@@ -11,6 +11,7 @@ syntax2.mo:2.1-2.4: syntax error [M0001], unexpected token 'let', expected one o
   <relop> <exp_bin(ob)>
   else <exp_nest>
   . <id>
+  <binop> <id>
   : <typ_nobin>
   := <exp(ob)>
   <binop> <exp_bin(ob)>

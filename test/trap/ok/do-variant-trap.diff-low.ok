@@ -1,0 +1,5 @@
+--- do-variant-trap.run
++++ do-variant-trap.run-low
+@@ -1 +1 @@
+-do-variant-trap.mo:3.9-3.16: execution error, SlashTagE: value is #ok
++(unknown location): execution error, explicit trap: unexpected variant #ok

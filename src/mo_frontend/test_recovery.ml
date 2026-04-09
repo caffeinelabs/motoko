@@ -140,6 +140,7 @@ let%expect_test "test1" =
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
       . <id>
+      <binop> <id> (e.g. '+ <id>')
       : <typ_nobin> (e.g. ': Int')
       := <exp(ob)> (e.g. ':= 42')
       <binop> <exp_bin(ob)> (e.g. '+ 42')
@@ -162,6 +163,7 @@ let%expect_test "test1" =
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
       . <id>
+      <binop> <id> (e.g. '+ <id>')
       : <typ_nobin> (e.g. ': Int')
       := <exp(ob)> (e.g. ':= 42')
       <binop> <exp_bin(ob)> (e.g. '+ 42')
@@ -367,6 +369,7 @@ actor Main {
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
       . <id>
+      <binop> <id> (e.g. '+ <id>')
       : <typ_nobin> (e.g. ': Int')
       := <exp(ob)> (e.g. ':= 42')
       <binop> <exp_bin(ob)> (e.g. '+ 42')

@@ -541,7 +541,9 @@ The syntax of an expression is as follows:
   ignore <block-or-exp>                          Ignore value
   do <block>                                     Block as expression
   do ? <block>                                   Option block
-  <exp> !                                        Null break
+  do # <id> <block>                              Variant block
+  <exp> !                                        Null break / variant break
+  <exp> / # <id>                                 Variant narrowing
   debug <block-or-exp>                           Debug expression
   actor <exp>                                    Actor reference
   to_candid ( <exp>,* )                          Candid serialization
@@ -2490,6 +2492,42 @@ It has type `T` provided:
 -   `<exp>` has option type `? T`.
 
 The expression `<exp> !` evaluates `<exp>` to a result `r`. If `r` is `trap`, then the result is `trap`; if `r` is `null`, execution breaks with value `null` from the nearest enclosing option block of form `do ? <block>`; otherwise, `r` is `? v` and execution continues with value `v`.
+
+### Variant block
+
+The variant block `do # <id> <block>` introduces scoped handling of variant values, generalizing option blocks from options to arbitrary variants.
+
+The expression `do # <id> <block>` has type `{# <id> : T} ∪ R` provided `<block>` has type `T`, where `R` is the union of all non-`<id>` variant tags propagated by `!` expressions within the block.
+
+The tag `# <id>` is the designated *success* tag. All other variant tags encountered by `!` within the block are implicitly propagated (short-circuited) as the result of the `do # <id>` expression.
+
+For example, `do #ok { ... }` wraps a successful result in `#ok` and propagates any `#err`, `#timeout`, etc., tags unchanged.
+
+Within a variant block, the `!` operator is reinterpreted to work on variants rather than options (see [variant break](#variant-break)).
+
+Variant blocks nest. The target of a `!` is determined by the nearest enclosing `do ?` or `do # <id>` block.
+
+### Variant break
+
+Within a `do # <id> <block>` expression, the break expression `<exp> !` invokes scoped handling of variant values.
+
+It has type `T` provided:
+
+-   The expression appears in the body `<block>` of an enclosing variant block of the form `do # <id> <block>`.
+
+-   `<exp>` has variant type `{# <id> : T; ...}` (i.e. it must include the success tag `# <id>`).
+
+The expression `<exp> !` evaluates `<exp>` to a result `r`. If `r` is `trap`, then the result is `trap`; if `r` is `# <id> v`, execution continues with value `v`; otherwise, `r` is some other variant `# <id'> v'` and execution breaks from the nearest enclosing variant block with value `r` (at the narrower type excluding `# <id>`).
+
+### Variant narrowing
+
+The variant narrowing expression `<exp> / # <id>` removes a tag from a variant type, trapping at runtime if the value actually carries that tag.
+
+It has type `{...} \ {# <id>}` (the variant type of `<exp>` with tag `# <id>` removed) provided:
+
+-   `<exp>` has a variant type that includes tag `# <id>`.
+
+The expression `<exp> / # <id>` evaluates `<exp>` to a result `r`. If `r` is `trap`, then the result is `trap`; if `r` is `# <id> v`, then the result is `trap`; otherwise, `r` is some other variant `# <id'> v'` and the result is `r` at the narrower type.
 
 ### Not
 

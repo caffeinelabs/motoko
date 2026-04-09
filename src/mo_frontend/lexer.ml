@@ -37,7 +37,8 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
         token
     | Some t -> t
   in
-  let next_parser_token () : parser_token =
+  let parser_lookahead : parser_token option ref = ref None in
+  let next_parser_token_raw () : parser_token =
     let rec eat_leading acc =
       let token, start, end_ = next () in
       match ST.to_parser_token token with
@@ -81,5 +82,19 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
     PosHashtbl.add trivia_table (pos_of_lexpos start)
       { leading_trivia; trailing_trivia };
     (token, start, end_)
+  in
+  let next_parser_token () : parser_token =
+    let t = match !parser_lookahead with
+      | Some tok -> parser_lookahead := None; tok
+      | None -> next_parser_token_raw ()
+    in
+    match t with
+    (* Combine / # into a single DIVHASH token for variant narrowing *)
+    | (Parser.DIVOP, start, _) ->
+      let next_tok = next_parser_token_raw () in
+      (match next_tok with
+       | (Parser.HASH, _, end_) -> (Parser.DIVHASH, start, end_)
+       | _ -> parser_lookahead := Some next_tok; t)
+    | _ -> t
   in
   (next_parser_token, trivia_table)

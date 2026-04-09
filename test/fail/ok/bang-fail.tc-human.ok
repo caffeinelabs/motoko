@@ -1,8 +1,8 @@
-error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' expression)
+error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)
     ┌─ bang-fail.mo:2:11
   2 │    let _ = (?1) ! : Nat; // reject in checking context
     │            ^^^^^^ 
-error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' expression)
+error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)
     ┌─ bang-fail.mo:6:13
   6 │    let _ = ? () !; // not an option in checking
     │              ^^^^ 
@@ -11,15 +11,15 @@ error[M0065]: expected option type before '!', but expression produces type
     ┌─ bang-fail.mo:6:13
   6 │    let _ = ? () !; // not an option in checking
     │              ^^ 
-error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' expression)
+error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)
     ┌─ bang-fail.mo:10:11
  10 │    let _ = (?1) !; // reject in synthesis
     │            ^^^^^^ 
-error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' expression)
+error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)
     ┌─ bang-fail.mo:10:11
  10 │    let _ = (?1) !; // reject in synthesis
     │            ^^^^^^ 
-error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' expression)
+error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)
     ┌─ bang-fail.mo:14:14
  14 │    let _ = ? (() !); // not an option in synthesis
     │               ^^^^ 
@@ -28,7 +28,7 @@ error[M0065]: expected option type before '!', but expression produces type
     ┌─ bang-fail.mo:14:14
  14 │    let _ = ? (() !); // not an option in synthesis
     │               ^^ 
-error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' expression)
+error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)
     ┌─ bang-fail.mo:18:14
  18 │    let _ = ? ((? ()) ! : Nat); // wrong content type
     │               ^^^^^^^^ 

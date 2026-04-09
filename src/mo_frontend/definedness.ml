@@ -134,7 +134,9 @@ let rec exp msgs e : f = match e.it with
   | AnnotE (e, _)
   | OptE e
   | DoOptE e
-  | BangE e
+  | DoVariantE (_, e)
+  | BangE (e, _)
+  | SlashTagE (e, _)
   | TagE (_, e)
   | ActorUrlE e
   | IgnoreE e           -> exp msgs e

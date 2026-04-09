@@ -126,14 +126,51 @@ and exp' at note = function
   | S.OptE e -> (optE (exp e)).it
   | S.DoOptE e ->
     I.LabelE ("!", note.Note.typ, optE (exp e))
-  | S.BangE e ->
+  | S.DoVariantE (id, e) ->
+    let ir_lab = "#" ^ id.it in
+    I.LabelE (ir_lab, note.Note.typ, tagE id.it (exp e))
+  | S.BangE (e, bang_ref) ->
+    (match !bang_ref with
+     | Some lab ->
+       let ir_lab = "#" ^ lab in
+       let ty = note.Note.typ in
+       let e' = exp e in
+       let scrutinee_typ = e'.note.Note.typ in
+       let narrowed_typ = match T.normalize scrutinee_typ with
+         | T.Variant fs -> T.Variant (List.filter (fun f -> f.T.lab <> lab) fs)
+         | t -> t
+       in
+       let v = fresh_var "v" ty in
+       let tag_case =
+         { it = {I.pat = {it = I.TagP (lab, varP v); at = no_region; note = scrutinee_typ};
+                   I.exp = varE v};
+           at = no_region; note = () } in
+       let temp = fresh_var "temp" scrutinee_typ in
+       let default_case =
+         { it = {I.pat = {it = (varP temp).it; at = no_region; note = scrutinee_typ};
+                   I.exp = breakE ir_lab (primE (I.CastPrim (scrutinee_typ, narrowed_typ)) [varE temp])};
+           at = no_region; note = () } in
+       I.SwitchE (e', [tag_case; default_case])
+     | None ->
+       let ty = note.Note.typ in
+       let v = fresh_var "v" ty in
+       (switch_optE (exp e)
+         (breakE "!" (nullE()))
+         (varP v) (varE v) ty).it)
+  | S.SlashTagE (e, id) ->
+    let e' = exp e in
     let ty = note.Note.typ in
-    let v = fresh_var "v" ty in
-    (switch_optE (exp e)
-      (* case null : *)
-      (breakE "!" (nullE()))
-      (* case ? v : *)
-      (varP v) (varE v) ty).it
+    let scrutinee_typ = e'.note.Note.typ in
+    let trap_case =
+      { it = {I.pat = {it = I.TagP (id.it, wildP); at = no_region; note = scrutinee_typ};
+              I.exp = primE (I.OtherPrim "trap") [textE ("unexpected variant #" ^ id.it)]};
+        at = no_region; note = () } in
+    let temp = fresh_var "temp" scrutinee_typ in
+    let default_case =
+      { it = {I.pat = {it = (varP temp).it; at = no_region; note = scrutinee_typ};
+              I.exp = primE (I.CastPrim (scrutinee_typ, ty)) [varE temp]};
+        at = no_region; note = () } in
+    I.SwitchE (e', [trap_case; default_case])
   | S.ObjBlockE (exp_opt, s, (self_id_opt, _), dfs) ->
     let eo = Option.map exp exp_opt in
     obj_block at s eo self_id_opt dfs note.Note.typ

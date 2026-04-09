@@ -521,12 +521,27 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | DoOptE exp1 ->
     let env' = { env with labs = V.Env.add "!" k env.labs } in
     interpret_exp env' exp1 (fun v1 -> k (V.Opt v1))
-  | BangE exp1 ->
+  | DoVariantE (id, exp1) ->
+    let env' = { env with labs = V.Env.add "!" k env.labs } in
+    interpret_exp env' exp1 (fun v1 -> k (V.Variant (id.it, v1)))
+  | BangE (exp1, bang_ref) ->
+    interpret_exp env exp1 (fun v1 ->
+      match !bang_ref with
+      | Some lab ->
+        (match v1 with
+         | V.Variant (tag, v2) when tag = lab -> k v2
+         | _ -> find "!" env.labs v1)
+      | None ->
+        (match v1 with
+         | V.Opt v2 -> k v2
+         | V.Null -> find "!" env.labs v1
+         | _ -> assert false))
+  | SlashTagE (exp1, id) ->
     interpret_exp env exp1 (fun v1 ->
       match v1 with
-      | V.Opt v2 -> k v2
-      | V.Null -> find "!" env.labs v1
-      | _ -> assert false)
+      | V.Variant (tag, _) when tag = id.it ->
+        trap exp.at "SlashTagE: value is #%s" id.it
+      | _ -> k v1)
   | ProjE (exp1, n) ->
     interpret_exp env exp1 (fun v1 -> k (List.nth (V.as_tup v1) n))
   | ObjBlockE (_exp_opt, obj_sort, (self_id_opt, _), dec_fields) ->

@@ -40,6 +40,11 @@ module UWSet = Set.Make(struct
   let compare (_, r1, _) (_, r2, _) = Region_ord.compare r1 r2
 end)
 
+type variant_do_ctx = {
+  vd_lab : T.lab;
+  vd_acc : T.typ ref;
+}
+
 type env =
   { vals : val_env;
     libs : Scope.lib_env;
@@ -72,6 +77,7 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (Source.region * T.typ) option;
     enhanced_migration : string option;
+    variant_do : variant_do_ctx option;
   }
 and ret_env =
   | NoRet
@@ -106,6 +112,7 @@ let env_of_scope msgs scope =
     closest_loop = None;
     closest_scrutinee = None;
     enhanced_migration = None;
+    variant_do = None;
   }
 
 let use_identifier env id =
@@ -1179,8 +1186,8 @@ let rec is_explicit_exp e =
   | AnnotE _ | ImportE _ | ImplicitLibE _ ->
     true
   | LitE l -> is_explicit_lit !l
-  | UnE (_, _, e1) | OptE e1 | DoOptE e1
-  | ProjE (e1, _) | DotE (e1, _, _) | BangE e1 | IdxE (e1, _) | CallE (_, e1, _, _)
+  | UnE (_, _, e1) | OptE e1 | DoOptE e1 | DoVariantE (_, e1)
+  | ProjE (e1, _) | DotE (e1, _, _) | BangE (e1, _) | SlashTagE (e1, _) | IdxE (e1, _) | CallE (_, e1, _, _)
   | LabelE (_, _, e1) | AsyncE (_, _, _, e1) | AwaitE (_, e1) ->
     is_explicit_exp e1
   | BinE (_, e1, _, e2) | IfE (_, e1, e2) ->
@@ -1855,20 +1862,78 @@ and infer_exp'' env exp : T.typ =
     let t1 = infer_exp env exp1 in
     T.Opt t1
   | DoOptE exp1 ->
-    let env' = add_lab env "!" (T.Prim T.Null) in
+    let env' = { (add_lab env "!" (T.Prim T.Null)) with variant_do = None } in
     let t1 = infer_exp env' exp1 in
     T.Opt t1
-  | BangE exp1 ->
+  | DoVariantE (id, exp1) ->
+    let acc = ref T.Non in
+    let ctx = { vd_lab = id.it; vd_acc = acc } in
+    let env' = { env with variant_do = Some ctx } in
+    let t1 = infer_exp env' exp1 in
+    let rest_fields = match T.normalize !acc with
+      | T.Variant fs -> fs
+      | T.Non -> []
+      | _ -> []
+    in
+    let success_field = T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}} in
+    T.Variant (List.sort T.compare_field (success_field :: rest_fields))
+  | BangE (exp1, bang_ref) ->
+    begin
+      match env.variant_do with
+      | Some { vd_lab; vd_acc } ->
+        bang_ref := Some vd_lab;
+        let t1 = infer_exp_promote env exp1 in
+        (try
+          let fs = match T.promote t1 with
+            | T.Variant fs -> fs
+            | T.Non -> [{T.lab = vd_lab; typ = T.Non; src = T.empty_src}]
+            | _ -> raise (Invalid_argument "as_variant")
+          in
+          let payload = match T.lookup_val_field_opt vd_lab fs with
+            | Some t -> t
+            | None ->
+              error env exp1.at "M0066"
+                "variant type%a\ndoes not have expected tag #%s for '!' in 'do #%s { ... }'"
+                display_typ_expand t1 vd_lab vd_lab
+          in
+          let rest_fields = List.filter (fun f -> f.T.lab <> vd_lab) fs in
+          if rest_fields <> [] then
+            vd_acc := T.lub ~src_fields:env.srcs !vd_acc (T.Variant rest_fields);
+          payload
+        with Invalid_argument _ ->
+          error env exp1.at "M0066"
+            "expected variant type before '!' in 'do #%s { ... }', but expression produces type%a"
+            vd_lab display_typ_expand t1)
+      | None ->
+        let t1 = infer_exp_promote env exp1 in
+        if Option.is_none (T.Env.find_opt "!" env.labs) then
+          local_error env exp.at "M0064" "misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)";
+        (try
+          T.as_opt_sub t1
+        with Invalid_argument _ ->
+          error env exp1.at "M0065"
+            "expected option type before '!', but expression produces type%a"
+            display_typ_expand t1)
+    end
+  | SlashTagE (exp1, id) ->
     begin
       let t1 = infer_exp_promote env exp1 in
-      if Option.is_none (T.Env.find_opt "!" env.labs) then
-        local_error env exp.at "M0064" "misplaced '!' (no enclosing 'do ? { ... }' expression)";
       try
-        T.as_opt_sub t1
+        let fs = match T.promote t1 with
+          | T.Variant fs -> fs
+          | T.Non -> []
+          | _ -> raise (Invalid_argument "as_variant")
+        in
+        if Option.is_none (T.find_val_field_opt id.it fs) then
+          local_error env id.at "M0066"
+            "tag #%s does not appear in type%a"
+            id.it display_typ_expand t1;
+        let rest_fields = List.filter (fun f -> f.T.lab <> id.it) fs in
+        T.Variant rest_fields
       with Invalid_argument _ ->
-        error env exp1.at "M0065"
-          "expected option type before '!', but expression produces type%a"
-          display_typ_expand t1
+        error env exp1.at "M0066"
+          "expected variant type before '/ #%s', but expression produces type%a"
+          id.it display_typ_expand t1
     end
   | TagE (id, exp1) ->
     let t1 = infer_exp env exp1 in
@@ -2491,14 +2556,39 @@ and check_exp' env0 t exp : T.typ =
     check_exp env (T.as_opt t) exp1;
     t
   | DoOptE exp1, _ when T.is_opt t ->
-    let env' = add_lab env "!" (T.Prim T.Null) in
+    let env' = { (add_lab env "!" (T.Prim T.Null)) with variant_do = None } in
     check_exp env' (T.as_opt t) exp1;
     t
-  | BangE exp1, t ->
-    if Option.is_none (T.Env.find_opt "!" env.labs) then
-      local_error env exp.at "M0064" "misplaced '!' (no enclosing 'do ? { ... }' expression)";
-    check_exp env (T.Opt t) exp1;
+  | DoVariantE (id, exp1), T.Variant fs when List.exists (fun f -> f.T.lab = id.it) fs ->
+    let success_typ = match T.lookup_val_field_opt id.it fs with
+      | Some t -> t
+      | None -> T.Non
+    in
+    let rest_fields = List.filter (fun f -> f.T.lab <> id.it) fs in
+    let rest = T.Variant rest_fields in
+    let ctx = { vd_lab = id.it; vd_acc = ref rest } in
+    let env' = { env with variant_do = Some ctx } in
+    check_exp env' success_typ exp1;
     t
+  | BangE (exp1, bang_ref), t ->
+    begin match env.variant_do with
+    | Some { vd_lab; vd_acc } ->
+      bang_ref := Some vd_lab;
+      let rest_fields = match T.normalize !vd_acc with
+        | T.Variant fs -> fs
+        | T.Non -> []
+        | _ -> []
+      in
+      let expected_variant = T.Variant (List.sort T.compare_field
+        (T.{lab = vd_lab; typ = t; src = T.empty_src} :: rest_fields)) in
+      check_exp env expected_variant exp1;
+      t
+    | None ->
+      if Option.is_none (T.Env.find_opt "!" env.labs) then
+        local_error env exp.at "M0064" "misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)";
+      check_exp env (T.Opt t) exp1;
+      t
+    end
   | ArrayE (mut, exps), T.Array t' ->
     if (mut.it = Var) <> T.is_mut t' then
       local_error env exp.at "M0091"

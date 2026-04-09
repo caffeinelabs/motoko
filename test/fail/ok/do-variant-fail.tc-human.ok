@@ -1,0 +1,25 @@
+error[M0064]: misplaced '!' (no enclosing 'do ? { ... }' or 'do #lab { ... }' expression)
+    ┌─ do-variant-fail.mo:3:11
+  3 │    let _ = (#ok 1)!;
+    │            ^^^^^^^^ 
+error[M0065]: expected option type before '!', but expression produces type
+  {#ok : Nat}
+    ┌─ do-variant-fail.mo:3:12
+  3 │    let _ = (#ok 1)!;
+    │             ^^^^^ 
+error[M0066]: expected variant type before '!' in 'do #ok { ... }', but expression produces type
+  Nat
+    ┌─ do-variant-fail.mo:9:6
+  9 │      (42 : Nat)!;
+    │       ^^^^^^^^ 
+error[M0066]: variant type
+  {#err : Text}
+does not have expected tag #ok for '!' in 'do #ok { ... }'
+    ┌─ do-variant-fail.mo:16:6
+ 16 │      (#err "bad" : {#err : Text})!;
+    │       ^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0066]: expected variant type before '/ #ok', but expression produces type
+  Nat
+    ┌─ do-variant-fail.mo:22:12
+ 22 │    let _ = (42 : Nat) / #ok;
+    │             ^^^^^^^^ 

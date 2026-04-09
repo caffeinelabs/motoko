@@ -211,6 +211,42 @@ To guard against division by 0 without trapping, the `eval` function returns an 
 
 Each recursive call is checked for `null` using `!`, immediately exiting the outer `do ?` block and then the function itself, when an intermediate result is `null`.
 
+## Variant blocks (`do #lab`)
+
+Variant blocks generalize option blocks from options to arbitrary variant types. Where `do ? { ... }` propagates `null`, `do #lab { ... }` designates `#lab` as the success tag and propagates all other variant tags.
+
+This is particularly useful for `Result`-like types where you want to work with the success value while automatically propagating errors:
+
+```motoko no-repl
+type Result<T, E> = {#ok : T; #err : E};
+
+func divide(a : Nat, b : Nat) : Result<Nat, Text> {
+  if (b == 0) #err "division by zero"
+  else #ok (a / b)
+};
+
+let result : Result<Nat, Text> = do #ok {
+  let x = divide(10, 2)!;  // x = 5, or propagate #err
+  let y = divide(x, 0)!;   // propagates #err "division by zero"
+  x + y
+};
+// result == #err "division by zero"
+```
+
+Inside `do #ok { ... }`, the `!` operator checks if a variant value carries the `#ok` tag. If it does, `!` extracts the payload and continues. If it carries any other tag (e.g. `#err`), `!` immediately exits the block with that variant value.
+
+The `!` operator's behavior depends on context: inside `do ? { ... }` it unwraps options; inside `do #lab { ... }` it unwraps variants. Variant and option blocks can be nested, with `!` always referring to the nearest enclosing block.
+
+### Variant narrowing (`/ #lab`)
+
+The expression `e / #lab` removes tag `#lab` from a variant type, trapping if the value actually carries that tag. This is useful for asserting that a variant is *not* a particular case:
+
+```motoko no-repl
+let v : {#ok : Nat; #err : Text; #timeout} = #timeout;
+let v2 : {#err : Text; #timeout} = v / #ok;  // ok: v is not #ok
+// v2 == #timeout
+```
+
 ## Resources
 
 - [`Option`](../../core/Option.md)

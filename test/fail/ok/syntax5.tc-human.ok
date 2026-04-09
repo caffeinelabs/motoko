@@ -9,6 +9,7 @@ error[M0001]: unexpected end of input, expected one of token or <phrase> sequenc
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
+  <binop> <id>
   , seplist(<exp(ob)>,,)
   : <typ_nobin>
   := <exp(ob)>

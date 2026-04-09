@@ -136,6 +136,35 @@ Instead of having to switch on the options `n` and `m` in a verbose manner the u
 
 A more interesting example of option blocks can be found at the end of the section on [switch](../5-control-flow/5-switch.md).
 
+## Variant block
+
+Variant blocks `do #lab { ... }` generalize option blocks to work with variant types instead of options. The tag `#lab` is the success tag — the `!` operator extracts its payload, and all other tags are automatically propagated.
+
+```motoko no-repl
+type Result<T, E> = {#ok : T; #err : E};
+
+func ok<T, E>(v : T) : Result<T, E> = #ok v;
+func err<T, E>(v : E) : Result<T, E> = #err v;
+
+let result : Result<Nat, Text> = do #ok {
+  let a = ok<Nat, Text>(10)!;  // a = 10
+  let b = ok<Nat, Text>(20)!;  // b = 20
+  a + b
+};
+// result == #ok 30
+
+let failed : Result<Nat, Text> = do #ok {
+  let a = ok<Nat, Text>(10)!;
+  let b = err<Nat, Text>("oops")!;  // propagates #err
+  a + b
+};
+// failed == #err "oops"
+```
+
+Inside `do #ok { ... }`, each `!` checks the variant: if it is `#ok v`, execution continues with `v`; if it is any other tag (e.g. `#err`), the block immediately exits with that variant. The behavior of `!` depends on the nearest enclosing block — `do ?` for options, `do #lab` for variants.
+
+The variant narrowing operator `<exp> / #lab` removes a tag from a variant's type, trapping if the value carries that tag. This can be used outside of variant blocks to assert and narrow variant types.
+
 ## `label` and `break`
 
 A `label` assigns a name with an optional type to a block of code that executes like any other block.

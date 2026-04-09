@@ -9,6 +9,7 @@ syntax5.mo:3.1: syntax error [M0001], unexpected end of input, expected one of t
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
+  <binop> <id>
   , seplist(<exp(ob)>,,)
   : <typ_nobin>
   := <exp(ob)>

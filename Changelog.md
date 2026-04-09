@@ -2,6 +2,13 @@
 
 * motoko (`moc`)
 
+  * feat: Variant blocks `do #lab { ... }` generalize option blocks `do ? { ... }` to variants.
+    Inside a `do #lab { ... }` block, the `!` operator extracts the `#lab` payload from a variant value
+    and short-circuits all other tags back to the enclosing `do #lab` expression.
+    The result type is a variant combining the success tag with all propagated error tags.
+    Also adds a variant narrowing operator `<exp> / #lab` that removes tag `#lab` from a variant type,
+    trapping at runtime if the value actually carries that tag.
+
   * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
     Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
     Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
