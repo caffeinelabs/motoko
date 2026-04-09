@@ -45,7 +45,9 @@ public shared ({ caller }) query func __id() : async <typ> {
 
 ### 3. No generation
 
-If neither condition is met (no `.view()` and the type is not shared), no query is generated for that variable.
+### 3. Approximation to `Any`
+
+If neither condition is met (no `.view()` and the type is not shared), the query just returns a value of the non-informative type `Any`.
 
 ## Access control
 
