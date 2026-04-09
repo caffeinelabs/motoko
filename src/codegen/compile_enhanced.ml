@@ -10388,15 +10388,17 @@ module IncrementalGraphStabilization = struct
     | _ -> ()
     end
 
+  
   let partial_destabilization_on_upgrade env actor_type =
     (* TODO: Verify that the post_upgrade hook cannot be directly called by the IC *)
     (* Garbage collection is disabled in `start_graph_destabilization` until destabilization has completed. *)
-    GraphCopyStabilization.start_graph_destabilization env actor_type.Ir.post ^^
+    let actor_typ = (if Option.is_some env.E.enhanced_migration then actor_type.Ir.post else actor_type.Ir.pre) in
+    GraphCopyStabilization.start_graph_destabilization env actor_typ  ^^
     get_destabilized_actor env ^^
     compile_test I64Op.Eqz ^^
     E.if0
       begin
-        destabilization_increment env actor_type.Ir.post ^^
+        destabilization_increment env actor_typ ^^
         get_destabilized_actor env ^^
         (E.if0
           G.nop
@@ -10443,7 +10445,8 @@ module IncrementalGraphStabilization = struct
     export_stabilize_before_upgrade_method env actor_type.Ir.post;
     define_async_destabilization_reply_callback env;
     define_async_destabilization_reject_callback env;
-    export_async_destabilization_method env actor_type.Ir.post;
+    let actor_typ = (if Option.is_some env.E.enhanced_migration then actor_type.Ir.post else actor_type.Ir.pre) in
+    export_async_destabilization_method env actor_typ;
     export_destabilize_after_upgrade_method env;
 
 end (* IncrementalGraphStabilization *)
