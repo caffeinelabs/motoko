@@ -1,4 +1,4 @@
-mod metadata;
+pub mod metadata;
 mod performance;
 
 use motoko_rts_macros::ic_mem_fn;
@@ -8,10 +8,11 @@ use crate::{
     memory::Memory,
     persistence::{
         compatibility::{memory_compatible, TypeDescriptor},
-        set_upgrade_instructions,
+        get_dedup_table_ptr, get_migration_functions_ptr, set_dedup_table_ptr,
+        set_migration_functions_ptr, set_upgrade_instructions,
     },
     rts_trap_with,
-    stabilization::ic::metadata::StabilizationMetadata,
+    stabilization::ic::metadata::{SerializationRoots, StabilizationMetadata},
     stable_mem::{self, moc_stable_mem_set_size, PAGE_SIZE},
     types::Value,
 };
@@ -25,8 +26,8 @@ struct StabilizationState {
     old_candid_data: Value,
     old_type_offsets: Value,
     completed: bool,
-    serialization: Serialization,
-    instruction_meter: InstructionMeter,
+    pub serialization: Serialization,
+    pub instruction_meter: InstructionMeter,
 }
 
 impl StabilizationState {
@@ -72,7 +73,12 @@ pub unsafe fn start_graph_stabilization<M: Memory>(
     assert!(is_gc_stopped());
     let stable_memory_pages = stable_mem::size(); // Backup the virtual size.
     let serialized_data_start = stable_memory_pages * PAGE_SIZE;
-    let serialization = Serialization::start(mem, stable_actor, serialized_data_start);
+    let serialization_roots = SerializationRoots {
+        actor: stable_actor,
+        dedup_table: *get_dedup_table_ptr(),
+        migrations_list: *get_migration_functions_ptr(),
+    };
+    let serialization = Serialization::start(mem, serialization_roots, serialized_data_start);
     STABILIZATION_STATE = Some(StabilizationState::new(
         serialization,
         old_candid_data,
@@ -126,7 +132,11 @@ unsafe fn write_metadata() {
         type_descriptor,
     };
     state.instruction_meter.stop();
-    metadata.store(&mut state.instruction_meter);
+    metadata.store(
+        &mut state.instruction_meter,
+        state.serialization.dedup_table_address,
+        state.serialization.migrations_list_address,
+    );
 }
 
 struct DestabilizationState {
@@ -161,10 +171,10 @@ pub unsafe fn start_graph_destabilization<M: Memory>(
     let mut instruction_meter = InstructionMeter::new();
     instruction_meter.start();
     let mut new_type_descriptor = TypeDescriptor::new(new_candid_data, new_type_offsets);
-    let (metadata, statistics) = StabilizationMetadata::load(mem);
+    let (metadata, last_page_record) = StabilizationMetadata::load(mem);
     let mut old_type_descriptor = metadata.type_descriptor;
     if !memory_compatible(mem, &mut old_type_descriptor, &mut new_type_descriptor) {
-        rts_trap_with("Memory-incompatible program upgrade");
+        rts_trap_with("blup: Memory-incompatible program upgrade");
     }
     // Restore the virtual size.
     moc_stable_mem_set_size(metadata.serialized_data_start / PAGE_SIZE);
@@ -176,11 +186,13 @@ pub unsafe fn start_graph_destabilization<M: Memory>(
         mem,
         metadata.serialized_data_start,
         metadata.serialized_data_length,
+        last_page_record.dedup_table_address,
+        last_page_record.migrations_list_address,
     );
     instruction_meter.stop();
     DESTABILIZATION_STATE = Some(DestabilizationState {
         deserialization,
-        stabilization_statistics: statistics,
+        stabilization_statistics: last_page_record.statistics,
         completed: false,
         instruction_meter,
     });
@@ -214,6 +226,12 @@ pub unsafe fn graph_destabilization_increment<M: Memory>(mem: &mut M) -> bool {
         state.instruction_meter.stop();
         if state.deserialization.is_completed() {
             record_upgrade_costs();
+
+            // We need to put back in the metadata pointing to the
+            // helper GC roots for the dedup table and migration list.
+            set_dedup_table_ptr(mem, state.deserialization.dedup_table_address);
+            set_migration_functions_ptr(mem, state.deserialization.migrations_list_address);
+
             state.completed = true;
             memory_sanity_check(mem);
         }

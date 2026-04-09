@@ -33,7 +33,7 @@ use crate::{
         VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS, VERSION_STABLE_HEAP_NO_REGIONS,
         VERSION_STABLE_HEAP_REGIONS,
     },
-    stabilization::{clear_stable_memory, grant_stable_space},
+    stabilization::{clear_stable_memory, grant_stable_space, StableValue},
     stable_mem::{
         get_version, ic0_stable64_read, ic0_stable64_size, ic0_stable64_write, read_u32, read_u64,
         set_version, write_u32, write_u64, PAGE_SIZE,
@@ -50,12 +50,30 @@ pub struct UpgradeStatistics {
 }
 
 #[repr(C)]
+pub struct SerializationRoots {
+    pub actor: Value,
+    pub dedup_table: Value,
+    pub migrations_list: Value,
+}
+
+#[repr(C)]
 #[derive(Default)]
-struct LastPageRecord {
-    statistics: UpgradeStatistics,
+pub struct LastPageRecord {
+    pub statistics: UpgradeStatistics,
     serialized_data_address: u64,
     serialized_data_length: u64,
     type_descriptor_address: u64,
+    /// Extra arguments to handle extra GC roots:
+    ///     * dedup_table_address
+    ///     * migrations_list_address
+    /// The two fields are tracking the addresses of
+    /// the saved extra GC-roots used specifically for
+    /// handling the auxiliary runtime data, i.e., the blob dedup table and the migrations list.
+    /// The value is 0 if not present, or a u64 integer with the address.
+    pub dedup_table_address: StableValue,
+    pub migrations_list_address: StableValue,
+    // END
+    /////
     first_word_backup: u32,
     version: u32,
 }
@@ -166,7 +184,12 @@ impl StabilizationMetadata {
         Self::write_metadata(&LastPageRecord::default());
     }
 
-    pub fn store(&self, measurement: &mut InstructionMeter) {
+    pub fn store(
+        &self,
+        measurement: &mut InstructionMeter,
+        dedup_table_address: StableValue,
+        migrations_list_address: StableValue,
+    ) {
         measurement.start();
         let mut offset = self.serialized_data_start + self.serialized_data_length;
         Self::align_page_start(&mut offset);
@@ -187,13 +210,15 @@ impl StabilizationMetadata {
             serialized_data_address: self.serialized_data_start,
             serialized_data_length: self.serialized_data_length,
             type_descriptor_address,
+            dedup_table_address,
+            migrations_list_address,
             first_word_backup,
             version: Self::stabilization_version() as u32,
         };
         Self::write_metadata(&last_page_record);
     }
 
-    pub fn load<M: Memory>(mem: &mut M) -> (StabilizationMetadata, UpgradeStatistics) {
+    pub fn load<M: Memory>(mem: &mut M) -> (StabilizationMetadata, LastPageRecord) {
         let last_page_record = Self::read_metadata();
         Self::clear_metadata();
         let version = last_page_record.version as usize;
@@ -207,7 +232,7 @@ impl StabilizationMetadata {
             serialized_data_length: last_page_record.serialized_data_length,
             type_descriptor,
         };
-        (metadata, last_page_record.statistics)
+        (metadata, last_page_record)
     }
 
     fn stabilization_version() -> usize {
