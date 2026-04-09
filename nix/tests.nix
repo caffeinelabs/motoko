@@ -60,7 +60,7 @@ let
         export MOTOKO_CORE="${core-src}"
         type -p moc && moc --version
         ${if dir == "run-drun" 
-          then "make -C ${dir}${pkgs.lib.optionalString (pkgs.system != "x86_64-darwin") " parallel -j4"} ${pkgs.lib.optionalString accept " accept"}"
+          then "make -C ${dir}${pkgs.lib.optionalString (pkgs.stdenv.hostPlatform.system != "x86_64-darwin") " parallel -j4"} ${pkgs.lib.optionalString accept " accept"}"
           else "make -C ${dir}${pkgs.lib.optionalString accept " accept"}"
         }
       '';
@@ -251,5 +251,5 @@ fix_names
     inherit qc unit candid coverage;
   }
   // pkgs.lib.optionalAttrs
-  (pkgs.system == accept-bench)
+  (pkgs.stdenv.hostPlatform.system == accept-bench)
   (fix_names { bench = perf_subdir true "bench" [ moc test-runner pkgs.pocket-ic.server pkgs.ic-wasm pkgs.cacert ]; })
