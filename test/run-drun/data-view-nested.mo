@@ -1,4 +1,4 @@
-//MOC-FLAG --generate-view-queries --idl --package core $MOTOKO_CORE
+//MOC-FLAG --generate-view-queries --package core $MOTOKO_CORE
 import Map "mo:core/Map";
 import Set "mo:core/Set";
 import Nat "mo:core/Nat";
