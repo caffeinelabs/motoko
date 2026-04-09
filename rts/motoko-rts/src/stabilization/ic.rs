@@ -175,7 +175,7 @@ pub unsafe fn start_graph_destabilization<M: Memory>(
     let (metadata, last_page_record) = StabilizationMetadata::load(mem);
     let mut old_type_descriptor = metadata.type_descriptor;
     if !memory_compatible(mem, &mut old_type_descriptor, &mut new_type_descriptor) {
-        rts_trap_with("blup: Memory-incompatible program upgrade");
+        rts_trap_with("Memory-incompatible program upgrade");
     }
     // Restore the virtual size.
     moc_stable_mem_set_size(metadata.serialized_data_start / PAGE_SIZE);
