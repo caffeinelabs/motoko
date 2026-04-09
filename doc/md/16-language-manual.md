@@ -2374,9 +2374,13 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
     * `<mid>.<idi>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
 
     **Implicit derivation**: When no direct candidate is found (neither from local values, module fields, nor library fields of unimported modules when `--implicit-package` is set), the compiler additionally searches for *derivable* candidates — first among local values, then among module fields, then among library fields.
-    A derivable candidate is a function (possibly polymorphic) that has implicit parameters of its own, and whose type, after removing its implicit parameters and instantiating its type parameters, matches the required hole type.
-    If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
-    This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.
+    A derivable candidate is a function (possibly polymorphic) whose type, after removing its implicit parameters and instantiating its type parameters, can produce the required hole type. There are two forms:
+
+    * **Function derivation**: The hole type is a function type, and the candidate's explicit (non-implicit) arguments and return types match it. The compiler synthesizes a wrapper function that forwards explicit arguments and fills in the resolved implicits.
+    * **Value derivation**: The hole type is a non-function type (e.g. an object type), and the candidate's return type matches it. The candidate's explicit arguments must all be unit-typed. The compiler calls the candidate directly to produce the value.
+
+    In both cases, the candidate's own implicit parameters are recursively resolved (up to a configurable depth limit).
+    This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope, and an implicit `Ord<[Nat]>` to be derived from a class `ArrayOrd<T>(Ord : (implicit : Ord<T>)) : Ord<[T]>` when `Ord<Nat>` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.
 
 The call expression `<exp1> <T0,…​,Tn>? <exp2>` evaluates `<exp1>` to a result `r1`. If `r1` is `trap`, then the result is `trap`.
 

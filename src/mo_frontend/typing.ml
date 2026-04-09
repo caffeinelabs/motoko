@@ -1567,9 +1567,10 @@ module SynthesizeWrapper = struct
       | ps -> TupP (List.map var_pat ps) @! no_region in
     mk (FuncE (name, sort_pat, [], pat, None, false, body))
 
-  (** Wraps resolved implicit paths into a function that calls [candidate_path],
-      threading explicit params through and substituting implicits. *)
-  let derived_wrapper cand_args ~name candidate_path resolved_paths =
+  (** Synthesizes a derived expression by calling [candidate_path] with resolved implicits.
+      When [is_value], produces a direct call (all cand_args are implicits).
+      Otherwise, wraps in a function that threads explicit params through. *)
+  let synthesize ~is_value cand_args ~name candidate_path resolved_paths =
     let param_idx = ref 0 in
     let fresh_name () =
       let n = !param_idx in incr param_idx;
@@ -1588,7 +1589,9 @@ module SynthesizeWrapper = struct
     assert (remaining = []);
     let call_arg_exp = match List.rev call_args_rev with
       | [arg] -> arg | args -> mk (TupE args) in
-    func_ ~name (List.rev param_names_rev) (call candidate_path call_arg_exp)
+    let call_exp = call candidate_path call_arg_exp in
+    if is_value then call_exp
+    else func_ ~name (List.rev param_names_rev) call_exp
 
 end
 
@@ -1609,6 +1612,8 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
     with Bi_match.Bimatch _ -> None
 
 module ImplicitHoles = struct
+  open Lib.Option.Syntax
+
   type hole = {
     hole_name : string;
     hole_typ : T.typ;
@@ -1630,31 +1635,38 @@ module ImplicitHoles = struct
   let is_matching_typ hole candidate_typ = T.sub candidate_typ hole.hole_typ
 
   (* ... or by filling the implicit holes in the candidate type with recursively resolved implicits *)
-  type func_with_holes = {
+  type derivation = {
     cand_args : T.typ list; (* Not substituted! Use only to determine the argument name *)
     holes : hole list;
-    func_without_holes : T.typ;
+    resolved_typ : T.typ;
+    is_value_derivation : bool;
   }
 
   (* Only Local/Returns functions are eligible for derivation:
      Shared and Composite functions (actors, async) are excluded
      since implicits are a local-scope, synchronous mechanism. *)
   let is_matching_typ_with_holes hole candidate_typ =
-    match T.promote hole.hole_typ, T.promote candidate_typ with
-    | T.Func (T.Local, T.Returns, [], req_args, req_rets),
-      T.Func (T.Local, T.Returns, cand_tbs, cand_args, cand_rets) ->
+    match T.promote candidate_typ with
+    | T.Func (T.Local, T.Returns, cand_tbs, cand_args, cand_rets) ->
       let (explicit_args, implicit_args) = erase_implicits cand_args in
-      if implicit_args = [] then None
-      else if List.length explicit_args <> List.length req_args then None
-      else if List.length cand_rets <> List.length req_rets then None
-      else
-        sub_or_bimatch_func cand_tbs explicit_args cand_rets req_args req_rets
-        |> Option.map (fun inst ->
-          let inst_args = List.map (T.open_ inst) explicit_args in
-          let inst_rets = List.map (T.open_ inst) cand_rets in
-          let func_without_holes = T.Func (T.Local, T.Returns, [], inst_args, inst_rets) in
-          let holes = List.map (fun (hole_name, t) -> {hole_name; hole_typ = T.open_ inst t}) implicit_args in
-          { cand_args; holes; func_without_holes})
+      let* (is_value, req_args, req_rets) =
+        match T.promote hole.hole_typ with
+        | T.Func (T.Local, T.Returns, [], req_args, req_rets)
+          when implicit_args <> []
+            && List.length explicit_args = List.length req_args
+            && List.length cand_rets = List.length req_rets ->
+          Some (false, req_args, req_rets)
+        | typ when explicit_args = [] && List.length cand_rets = 1 ->
+          Some (true, [], [typ])
+        | _ -> None in
+      let* inst = sub_or_bimatch_func cand_tbs explicit_args cand_rets req_args req_rets in
+      let resolved_typ =
+        if is_value then T.open_ inst (List.hd cand_rets)
+        else T.Func (T.Local, T.Returns, [],
+          List.map (T.open_ inst) explicit_args,
+          List.map (T.open_ inst) cand_rets) in
+      let holes = List.map (fun (hole_name, t) -> {hole_name; hole_typ = T.open_ inst t}) implicit_args in
+      Some { cand_args; holes; resolved_typ; is_value_derivation = is_value }
     | _ -> None
 
   module type CandidateSource = sig
@@ -1674,8 +1686,6 @@ module ImplicitHoles = struct
     let get_typ t = t
     let make_ref_exp r = ImplicitLibE r
   end
-
-  open Lib.Option.Syntax
 
   module MakeFromModule (M : CandidateSource) = struct
     let fields_from_module (n, entry) =
@@ -1726,8 +1736,8 @@ module ImplicitHoles = struct
   (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
   If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
   let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ)
-  let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) ->
-    T.sub x.func_without_holes y.func_without_holes)
+  let disambiguate_derivation = disambiguate_resolutions (fun ((x : derivation), (_ : hole_candidate)) (y, _) ->
+    T.sub x.resolved_typ y.resolved_typ)
 
   (** Searches for hole resolutions for a given [hole_name] and [typ].
       Returns [Ok(candidate)] when a single resolution is
@@ -1774,8 +1784,8 @@ module ImplicitHoles = struct
       | `Empty -> `Empty
     in
     let holes (h, _) = h.holes in
-    let wrapper (h, _) = SynthesizeWrapper.derived_wrapper h.cand_args in
-    let try_derive candidates = try_derive_with holes wrapper (disambiguate_func_with_holes candidates) in
+    let wrapper (h, _) = SynthesizeWrapper.synthesize ~is_value:h.is_value_derivation h.cand_args in
+    let try_derive candidates = try_derive_with holes wrapper (disambiguate_derivation candidates) in
 
     (* Try direct local candidate first (matching local env value by name) *)
     match matching_val hole env.vals with
@@ -1837,7 +1847,6 @@ let resolve_hole env at hole_name hole_typ =
      So the assert below is safe as long as the no-backtracking invariant holds *)
   |> Result.map (fun candidate ->
     let bindings = !rec_bindings
-      |> List.rev
       |> List.map (fun entry ->
         match entry.func_exp with
         | Some e -> (entry.entry_name, entry.hole.hole_typ, e)

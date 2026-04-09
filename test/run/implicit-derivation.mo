@@ -166,18 +166,20 @@ do {
 };
 
 // Direct resolution with zero non-implicit candidate in scope
-module Const {
-  public func compare<T>(compare : (implicit : (T, T) -> Order)) : (T, T) -> Order {
+do {
+  module _Const {
+    public func compare<T>(compare : (implicit : (T, T) -> Order)) : (T, T) -> Order {
+      compare;
+    };
+  };
+
+  func needsConstCompare(compare : (implicit : (Nat, Nat) -> Order)) : (Nat, Nat) -> Order {
     compare;
   };
-};
 
-func needsConstCompare(compare : (implicit : (Nat, Nat) -> Order)) : (Nat, Nat) -> Order {
-  compare;
+  let cmp = needsConstCompare();
+  assert cmp(1, 2) == #less;
 };
-
-let cmp = needsConstCompare();
-assert cmp(1, 2) == #less;
 
 // Multiple type parameters with multiple inner implicits
 do {

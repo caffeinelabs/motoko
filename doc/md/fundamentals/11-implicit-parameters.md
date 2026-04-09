@@ -194,7 +194,9 @@ This ordering guarantees that direct matches are always preferred over derived o
 
 When no direct match exists, the compiler can **derive** an implicit argument from a function that itself has implicit parameters. This eliminates the need for boilerplate wrapper functions. The candidate function can be polymorphic (the compiler infers the type instantiation) or monomorphic.
 
-For example, suppose `Array.compare` is declared as:
+#### Function derivation
+
+Suppose `Array.compare` is declared as:
 
 ```motoko no-repl
 public func compare<T>(a : [T], b : [T], compare : (implicit : (T, T) -> Order)) : Order
@@ -213,6 +215,52 @@ module MyArray {
 With derivation, the compiler handles this automatically. It recognizes that `Array.compare<Nat>`, after removing its implicit `compare` parameter and instantiating `T := Nat`, has the right type. It then recursively resolves the inner implicit (`Nat.compare`) and synthesizes the wrapper for you.
 
 This works transitively: a `compare` for `[[Nat]]` is derived via `Array.compare<[Nat]>`, which needs `[Nat]` compare, which is derived via `Array.compare<Nat>`, which needs `Nat.compare` — all resolved automatically.
+
+#### Value derivation
+
+Derivation also works for non-function values such as objects. This enables typeclass-style patterns where related operations are bundled in an object type:
+
+```motoko no-repl
+type Ord<T> = {
+  equal : (T, T) -> Bool;
+  compare : (T, T) -> Order;
+};
+```
+
+A candidate for value derivation is a function (or class) whose return type matches the required hole type after instantiating type parameters. The function's explicit arguments must all be unit-typed (e.g. a class constructor with no real parameters), while implicit arguments are resolved recursively:
+
+```motoko no-repl
+module NatEx {
+  public let Ord : Ord<Nat> = object {
+    public func equal(a : Nat, b : Nat) : Bool { Nat.equal(a, b) };
+    public func compare(a : Nat, b : Nat) : Order { Nat.compare(a, b) };
+  };
+};
+
+module ArrayEx {
+  public func Ord<T>(Ord : (implicit : Ord<T>)) : Ord<[T]> = object {
+    public func equal(a : [T], b : [T]) : Bool { Array.equal(a, b, Ord.equal) };
+    public func compare(a : [T], b : [T]) : Order { Array.compare(a, b, Ord.compare) };
+  };
+};
+```
+
+With these definitions, an implicit `Ord : (implicit : Ord<[Nat]>)` is derived by calling `ArrayEx.Ord<Nat>(NatEx.Ord)`. Unlike function derivation (which synthesizes a wrapper function), value derivation calls the candidate directly to produce the value.
+
+This also works for candidates with no implicit parameters at all, as long as the type parameters can be inferred and all explicit arguments are unit-typed:
+
+```motoko no-repl
+module ArrayConcat {
+  public func Monoid<T>() : Monoid<[T]> = object {
+    public let empty : [T] = [];
+    public func combine(a : [T], b : [T]) : [T] { Array.concat(a, b) };
+  };
+};
+```
+
+Here, `Monoid<[Nat]>` is derived by calling `ArrayConcat.Monoid<Nat>()` with no implicit arguments — only the type parameter is inferred.
+
+#### Derivation limits and errors
 
 The resolution depth is bounded to guarantee termination. If you encounter a depth limit, you can increase it with `--implicit-derivation-depth` or provide the argument explicitly.
 
@@ -321,7 +369,8 @@ There is no need to update existing code unless you want to take advantage of th
 
 Implicit arguments are resolved at compile time.
 - For direct matches, the resulting code is identical to explicitly passing the argument.
-- For derived implicits, the compiler synthesizes a wrapper function at each call site. This creates a small overhead per call site, which could be mitigated by caching in the future. For now, if this becomes a performance issue, consider defining the function explicitly so all call sites share a single definition.
+- For function derivation, the compiler synthesizes a wrapper function at each call site. This creates a small overhead per call site, which could be mitigated by caching in the future. For now, if this becomes a performance issue, consider defining the function explicitly so all call sites share a single definition.
+- For value derivation, the compiler synthesizes a direct call to produce the value at each call site.
 
 ## See also
 
