@@ -39,7 +39,7 @@ module Make (Cfg : Config) = struct
     in "Pos" $$ [Atom file; Atom (string_of_int p.line); Atom (string_of_int p.column)]
 
   let source at0 it =
-    if Cfg.include_sources && at0 <> Source.no_region then "@" $$ [pos at0.left; pos at0.right; it] else it
+    if Cfg.include_sources && at0 <> no_region then "@" $$ [pos at0.left; pos at0.right; it] else it
 
   let typ t = Atom (Type_pretty.string_of_typ t)
 
@@ -48,7 +48,7 @@ module Make (Cfg : Config) = struct
     | Some table ->
       let rec lookup_trivia (line, column) =
         Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
-      and find_trivia (parser_pos : Source.region) : Trivia.trivia_info =
+      and find_trivia (parser_pos : region) : Trivia.trivia_info =
         lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
       in
       (match Trivia.doc_comment_of_trivia_info (find_trivia at) with
@@ -75,7 +75,7 @@ module Make (Cfg : Config) = struct
     | Type.Module -> Atom "Module"
     | Type.Memory -> Atom "Memory"
 
-  let rec exp e = source e.Source.at (annot_typ e.note.note_typ (match e.it with
+  let rec exp e = source e.at (annot_typ e.note.note_typ (match e.it with
     | HoleE (_, e) -> "HoleE" $$ [exp !e]
     | VarE x              -> "VarE"      $$ [id x]
     | LitE l              -> "LitE"      $$ [lit !l]
