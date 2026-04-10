@@ -12,11 +12,6 @@ fn main() {
             println!("cargo:rustc-link-lib=static=tommath_wasm32");
         }
 
-        "aarch64-apple-darwin" => {
-            println!("cargo:rustc-link-search=native=../_build");
-            println!("cargo:rustc-link-lib=static=tommath_aarch64");
-        }
-
         "i686-unknown-linux-gnu" => {
             println!("cargo:rustc-link-search=native=../_build");
             println!("cargo:rustc-link-lib=static=tommath_i686");
