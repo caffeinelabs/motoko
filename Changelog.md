@@ -30,6 +30,8 @@
 
   * bugfix: Fix crash when reporting errors with no source region (#5976).
 
+  * bugfix: Resolve relative paths in `moc.js` flags (e.g. `--enhanced-migration`, `--actor-idl`) against the source file's directory, fixing "not a directory" errors when these flags are passed with relative paths via the language server.
+
 * documentation (`mo-doc`)
 
   * feat: doc comments on individual record fields and variant tags inside a `type` declaration are now extracted and rendered (#5983).
