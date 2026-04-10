@@ -4,7 +4,7 @@
   lexer.ml.
  *)
 
-open Wasm.Source
+open Source
 
 type mode = {
   privileged : bool;
@@ -23,8 +23,9 @@ let mode_verification : mode = { mode with verification = true }
 exception Error of region * string
 
 let convert_pos pos =
-  { file = pos.Lexing.pos_fname;
-    line = pos.Lexing.pos_lnum;
-    column = pos.Lexing.pos_cnum - pos.Lexing.pos_bol
+  Lexing.{
+      file = pos.pos_fname;
+      line = pos.pos_lnum;
+      column = pos.pos_cnum - pos.pos_bol
   }
 

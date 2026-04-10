@@ -33,14 +33,12 @@ module Make (Cfg : Config) = struct
   let ($$) head inner = Node (head, inner)
 
   let pos p =
-    let open Wasm.Source in
     let file = match Cfg.main_file with
     | Some f when f <> p.file -> p.file
     | _ -> ""
     in "Pos" $$ [Atom file; Atom (string_of_int p.line); Atom (string_of_int p.column)]
 
   let source at0 it =
-    let open Wasm.Source in
     if Cfg.include_sources && at0 <> Source.no_region then "@" $$ [pos at0.left; pos at0.right; it] else it
 
   let typ t = Atom (Type_pretty.string_of_typ t)

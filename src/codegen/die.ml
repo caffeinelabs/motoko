@@ -1,7 +1,7 @@
 open Mo_types
 open Wasm_exts.Dwarf5
 open Meta
-open Wasm.Source
+open Source
 
 (* Note [Low_pc, High_pc, Ranges are special]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

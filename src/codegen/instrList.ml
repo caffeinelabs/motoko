@@ -11,8 +11,6 @@ open Wasm_exts.Ast
 open Wasm.Source
 open Wasm_exts.Values
 
-let cr region = region
-
 let combine_shifts const op = function
   | I32 opl, ({it = I32 l'; _} as cl), I32 opr, I32 r' when opl = opr ->
     let l, r = Int32.(to_int l', to_int r') in
@@ -194,7 +192,7 @@ let table n f = List.fold_right (^^) (Lib.List.table n f) nop
 (* Region-managing combinator *)
 
 let with_region (pos : Source.region) (body : t) : t =
-  fun d _pos rest -> body d (cr pos) rest
+  fun d _pos rest -> body d pos rest
 
 (* Depths-managing combinators *)
 
