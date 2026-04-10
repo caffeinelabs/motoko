@@ -665,12 +665,12 @@ let error_shared env t at code fmt =
     Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] [] []); raise Recover) fmt
 
 let as_domT t =
-  match t.Source.it with
+  match t.it with
   | TupT tis -> tis
   | _ -> [(None, t)]
 
 let as_codomT sort t =
-  match sort, t.Source.it with
+  match sort, t.it with
   | T.Shared _,  AsyncT (T.Fut, _, t1) ->
     T.Promises, as_domT t1
   | _ -> T.Returns, as_domT t
@@ -4287,7 +4287,7 @@ and warn_unit_binding binder env (dec : dec) (exp : exp) =
     | `Let -> "let"
     | `Var -> "var"
   in
-  let at = Source.{dec.at with right = exp.at.left} in
+  let at = {dec.at with right = exp.at.left} in
   warn env at "M0239" "Avoid binding a unit `()` result; remove `%s` and keep the expression" binder
 
 and check_init env pat_opt exp at =
