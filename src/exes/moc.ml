@@ -257,7 +257,11 @@ let argspec =
 
   "--skip-gc-deprecation-warning",
   Arg.Unit (fun () -> Flags.skip_gc_deprecation_warning := true),
-  " skip the deprecation warning for the GC strategy flags"
+  " skip the deprecation warning for the GC strategy flags";
+
+  "--moi-cache",
+  Arg.String (fun dir -> Flags.moi_cache_dir := Some dir),
+  "<dir>  use <dir> as read/write cache for .moi interface files (incremental compilation)"
 
   ]
 
@@ -397,6 +401,9 @@ let () =
   then begin
     eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
   end;
+
+  if Option.is_some !Flags.moi_cache_dir && !mode <> Check
+  then fail "moc: --moi-cache requires --check";
   
   if not !Flags.skip_gc_deprecation_warning 
   then begin

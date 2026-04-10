@@ -89,6 +89,8 @@ let typechecker_combine_srcs = ref false (* useful for the language server *)
 let blob_import_placeholders = ref false (* when enabled, blob:file imports resolve as empty blobs *)
 let generate_view_queries = ref false
 
+let moi_cache_dir : string option ref = ref None
+
 let default_warning_levels = M.empty
   |> M.add "M0223" Allow (* don't report redundant instantions *)
   |> M.add "M0235" Allow (* don't deprecate for non-caffeine *)

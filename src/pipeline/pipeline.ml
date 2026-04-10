@@ -424,6 +424,33 @@ let chase_imports_cached parsefn senv0 imports scopes_map
   let senv = ref senv0 in
   let libs = ref [] in
   let cache = ref scopes_map in
+  let fingerprints : Moi_cache.fingerprint Type.Env.t ref = ref Type.Env.empty in
+
+  let moi_cache_dir = !Flags.moi_cache_dir in
+
+  let dep_fingerprints_of more_imports =
+    List.filter_map (fun ri ->
+      let name = resolved_import_name ri in
+      match Type.Env.find_opt name !fingerprints with
+      | Some fp -> Some (name, fp)
+      | None -> None
+    ) more_imports
+  in
+
+  let try_moi_load cache_dir source_hash f =
+    let dep_fp_lookup name = Type.Env.find_opt name !fingerprints in
+    match Moi_cache.load ~cache_dir ~source_path:f ~source_hash ~dep_fingerprints:dep_fp_lookup with
+    | Some (header, sscope) -> Some (sscope, header.Moi_cache.scope_fingerprint)
+    | None -> None
+  in
+
+  let save_moi cache_dir source_hash f more_imports sscope =
+    let deps = dep_fingerprints_of more_imports in
+    let fp = Moi_cache.compute_fingerprint ~source_hash ~deps in
+    let header = Moi_cache.{ source_hash; scope_fingerprint = fp; deps } in
+    Moi_cache.save ~cache_dir ~source_path:f ~header ~scope:sscope;
+    fp
+  in
 
   let rec go_cached pkg_opt ri =
     let ri_name = resolved_import_name ri in
@@ -464,8 +491,36 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         let* more_imports = ResolveImport.resolve (resolve_flags ~enhanced_migration:None cur_pkg_opt) prog base in
         let* () = go_set cur_pkg_opt more_imports in
         let lib = lib_of_prog f prog in
-        let* sscope = check_lib !senv cur_pkg_opt lib in
-        libs := lib :: !libs; (* NB: Conceptually an append *)
+
+        let is_cacheable sscope =
+          not (Type.Env.is_empty sscope.Scope.lib_env)
+        in
+
+        let* sscope = match moi_cache_dir with
+          | Some cache_dir ->
+            let source_hash = Moi_cache.hash_file f in
+            begin match try_moi_load cache_dir source_hash f with
+            | Some (sscope, fp) ->
+              fingerprints := Type.Env.add ri_name fp !fingerprints;
+              Diag.return sscope
+            | None ->
+              let* sscope = check_lib !senv cur_pkg_opt lib in
+              let fp =
+                if is_cacheable sscope
+                then save_moi cache_dir source_hash f more_imports sscope
+                else
+                  let deps = dep_fingerprints_of more_imports in
+                  Moi_cache.compute_fingerprint ~source_hash ~deps
+              in
+              fingerprints := Type.Env.add ri_name fp !fingerprints;
+              libs := lib :: !libs;
+              Diag.return sscope
+            end
+          | None ->
+            let* sscope = check_lib !senv cur_pkg_opt lib in
+            libs := lib :: !libs;
+            Diag.return sscope
+        in
         senv := Scope.adjoin !senv sscope;
         cache := Type.Env.add ri_name sscope !cache;
         pending := remove it !pending;

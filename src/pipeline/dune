@@ -18,6 +18,7 @@
     ir_passes
     codegen
     rts
+    source_id
   )
   (modules (:standard \ test_field_srcs))
   (inline_tests)
