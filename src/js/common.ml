@@ -105,7 +105,7 @@ let js_candid source =
     js_result (Pipeline.generate_idl [Js.to_string source])
       (fun prog ->
         let open Idllib in
-        let module WithComments = Arrange_idl.Make(struct let trivia = Some prog.Source.note.Syntax.trivia end) in
+        let module WithComments = Arrange_idl.Make(struct let trivia = Some prog.note.Syntax.trivia end) in
         let code = WithComments.string_of_prog prog in
         Js.some (Js.string code)))
 
@@ -156,7 +156,7 @@ let js_parse_motoko enable_recovery s =
       let include_sources = true
       let include_type_rep = Arrange.Without_type_rep
       let include_types = false
-      let include_docs = Some prog.Source.note.Syntax.trivia
+      let include_docs = Some prog.note.Syntax.trivia
       let include_parenthetical = false
       let main_file = Some main_file
     end)
@@ -183,7 +183,7 @@ let js_parse_motoko_with_deps enable_recovery path s =
       let include_sources = true
       let include_type_rep = Arrange.Without_type_rep
       let include_types = false
-      let include_docs = Some prog.Source.note.Syntax.trivia
+      let include_docs = Some prog.note.Syntax.trivia
       let include_parenthetical = false
       let main_file = Some main_file
     end) in
@@ -285,9 +285,9 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
           let include_sources = true
           let include_type_rep = Arrange.With_type_rep (Some sscope.Mo_frontend.Scope.fld_src_env)
           let include_types = true
-          let include_docs = Some prog.Source.note.Syntax.trivia
+          let include_docs = Some prog.note.Syntax.trivia
           let include_parenthetical = false
-          let main_file = Some prog.Source.at.left.file
+          let main_file = Some prog.at.left.file
         end)
         in
         ( Arrange.prog_js prog
