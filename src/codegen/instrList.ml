@@ -7,16 +7,17 @@ features are
  * Some simple peephole optimizations.
 *)
 
-open Wasm_exts.Ast
-
-let cr Source.{left; right} =
+(*let _cr Source.{left; right} =
   let left, right =
     (let Source.{ file; line; column } = left in Wasm.Source.{ file; line; column }),
     (let Source.{ file; line; column } = right in Wasm.Source.{ file; line; column })
-  in Wasm.Source.{ left; right }
+  in Wasm.Source.{ left; right }*)
 
+open Wasm_exts.Ast
 open Wasm.Source
 open Wasm_exts.Values
+
+let cr region = region
 
 let combine_shifts const op = function
   | I32 opl, ({it = I32 l'; _} as cl), I32 opr, I32 r' when opl = opr ->
@@ -331,7 +332,7 @@ let dw_tag die body =
 let dw_tag_no_children = dw_tag_open (* self-closing *)
 
 (* Marker for statement boundaries *)
-let dw_statement { Source.left; Source.right } =
+let dw_statement { left; right } =
   let open Wasm.Source in
-  let left = { file = left.Source.file; line = left.Source.line; column = left.Source.column } in
+  let left = { file = left.file; line = left.line; column = left.column } in
   i (Meta (StatementDelimiter left))
