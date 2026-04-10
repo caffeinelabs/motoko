@@ -199,6 +199,10 @@ let argspec =
   Arg.Unit (fun () -> Flags.rtti := true),
   " enable experimental support for precise runtime type information (default with enhanced orthogonal persistence)";
 
+  "--generate-view-queries",
+  Arg.Unit (fun () -> Flags.generate_view_queries := true),
+  " auto-generate queries for stable variables; preferring applicable .view() methods (default false)";
+
   "--rts-stack-pages",
   Arg.Int (fun pages -> Flags.rts_stack_pages := Some pages),
   "<n>  set maximum number of pages available for runtime system stack (default " ^ (Int.to_string Flags.rts_stack_pages_default) ^ ", only available with classical persistence)";

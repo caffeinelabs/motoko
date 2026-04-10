@@ -193,16 +193,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1767313136,
-        "narHash": "sha256-16KkgfdYqjaeRGBaYsNrhPRRENs0qzkQVUooNHtoy2w=",
+        "lastModified": 1775525138,
+        "narHash": "sha256-BQb70+B378ECLO8iQT3P/b1hCC5/CJVHZdeulY8futc=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ac62194c3917d5f474c1a844b6fd6da2db95077d",
+        "rev": "d96b37bbeb9840f1c0ebfe90585ef5067b69bbb3",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-25.05",
+        "ref": "nixos-25.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -254,8 +254,7 @@
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
         "ocaml-vlq-src": "ocaml-vlq-src",
-        "rust-overlay": "rust-overlay",
-        "wasm-spec-src": "wasm-spec-src"
+        "rust-overlay": "rust-overlay"
       }
     },
     "rust-overlay": {
@@ -311,23 +310,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "type": "github"
-      }
-    },
-    "wasm-spec-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1588580907,
-        "narHash": "sha256-7Ew7V63uzGhwrPLUa6+4OG4GwkuggmtJiuaESbYX584=",
-        "owner": "WebAssembly",
-        "repo": "spec",
-        "rev": "65a37e19b4aa4ffb76034ad6727bab74b071df9d",
-        "type": "github"
-      },
-      "original": {
-        "owner": "WebAssembly",
-        "ref": "opam-1.1.1",
-        "repo": "spec",
         "type": "github"
       }
     }

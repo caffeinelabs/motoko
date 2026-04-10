@@ -281,13 +281,12 @@ struct
     if Syntax.is_public dec_field.it.Syntax.vis then
       extract_doc mk_xref dec_field.it.Syntax.dec
       |> Option.map (fun (xref, decl_doc) ->
-             {
-               xref;
-               doc_comment =
-                 Trivia.doc_comment_of_trivia_info
-                   (Env.find_trivia dec_field.at);
-               declaration = decl_doc;
-             })
+          {
+            xref;
+            doc_comment =
+              Trivia.doc_comment_of_trivia_info (Env.find_trivia dec_field.at);
+            declaration = decl_doc;
+          })
     else None
 end
 
