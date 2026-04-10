@@ -3,7 +3,8 @@
 
 *)
 open Idllib
-open Source
+open Wasm.Source
+open Source [@@@warning "-41"]
 open Syntax
 open Mo_idl
 open Printf

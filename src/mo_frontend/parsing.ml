@@ -107,7 +107,7 @@ module RecoveryConfig = struct
       let open Lexing in
       let open Source in
       let file = loc.loc_start.pos_fname in
-      let region_loc : region = {
+      let region_loc : region = Wasm.Source.{
         left  : pos = {file; line = loc.loc_start.pos_lnum; column = loc.loc_start.pos_bol};
         right : pos = {file; line = loc.loc_end.pos_lnum; column = loc.loc_end.pos_bol};
       } in
@@ -122,7 +122,7 @@ module R = MenhirRecoveryLib.Make (Parser.MenhirInterpreter) (RecoveryConfig) (R
 
 let handle_error lexbuf error_detail message_store (start, end_) explanations =
   let at =
-        Source.{left = Lexer.convert_pos start; right = Lexer.convert_pos end_}
+        Wasm.Source.{left = Lexer.convert_pos start; right = Lexer.convert_pos end_}
   in
   let lexeme = slice_lexeme lexbuf start end_ in
   let token =
