@@ -9,8 +9,8 @@ JSON payloads, and data URIs.
 This module uses the standard Base64 alphabet (`A–Z`, `a–z`, `0–9`, `+`, `/`)
 and pads output to a multiple of 4 characters using `=`.
 
-Authored by Claude Sonnet (claude-sonnet-4-6) for use in generated
-Motoko API clients.
+Original version authored by Claude Sonnet (claude-sonnet-4-6) for use in generated
+Motoko API clients. The module received subsequent manual performance improvements.
 
 Import from the core package to use this module.
 ```motoko name=import

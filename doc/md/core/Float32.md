@@ -1,10 +1,10 @@
-# core/Float
-Double precision (64-bit) floating-point numbers in IEEE 754 representation.
+# core/Float32
+Single precision (32-bit) floating-point numbers in IEEE 754 representation.
 
 This module contains common floating-point constants and utility functions.
 
 ```motoko name=import
-import Float "mo:core/Float";
+import Float32 "mo:core/Float32";
 ```
 
 Notation for special values in the documentation below:
@@ -14,17 +14,12 @@ Notation for special values in the documentation below:
 
 Note:
 Floating point numbers have limited precision and operations may inherently result in numerical errors.
+`Float32` has less precision than `Float` (64-bit); only about 7 significant decimal digits.
 
 Examples of numerical errors:
   ```motoko
   assert 0.1 + 0.1 + 0.1 != 0.3;
   ```
-
-  ```motoko
-  assert not (1e16 + 1.0 != 1e16);
-  ```
-
- (and many more cases)
 
 Advice:
 * Floating point number comparisons by `==` or `!=` are discouraged. Instead, it is better to compare
@@ -32,47 +27,77 @@ Advice:
 
   Example:
   ```motoko
-  import Float "mo:core/Float";
-  let x = 0.1 + 0.1 + 0.1;
-  let y = 0.3;
+  import Float32 "mo:core/Float32";
+  let x = 0.1 + 0.1 + 0.1 : Float32;
+  let y = 0.3 : Float32;
 
-  let epsilon = 1e-6; // This depends on the application case (needs a numerical error analysis).
-  assert Float.equal(x, y, epsilon);
+  let epsilon = 1e-5 : Float32; // This depends on the application case (needs a numerical error analysis).
+  assert Float32.equal(x, y, epsilon);
   ```
 
-* For absolute precision, it is recommened to encode the fraction number as a pair of a Nat for the base
+* For absolute precision, it is recommended to encode the fraction number as a pair of a Nat for the base
   and a Nat for the exponent (decimal point).
+
+Note: As of `moc` 1.4, `Float32` support is experimental.
 
 NaN sign:
 * The NaN sign is only applied by `abs`, `neg`, and `copySign`. Other operations can have an arbitrary
   sign bit for NaN results.
 
-## Type `Float`
+## Type `Float32`
 ``` motoko no-repl
-type Float = Prim.Types.Float
+type Float32 = Prim.Types.Float32
 ```
 
-64-bit floating point number type.
+32-bit floating point number type.
+
+## Function `toFloat`
+``` motoko no-repl
+func toFloat(self : Float32) : Float
+```
+
+Conversion to Float (64-bit double precision).
+
+This is a lossless widening conversion.
+
+Example:
+```motoko include=import
+assert Float32.toFloat(1.5) == 1.5;
+```
+
+## Function `fromFloat`
+``` motoko no-repl
+func fromFloat(x : Float) : Float32
+```
+
+Conversion from Float (64-bit double precision) to Float32.
+
+Note: This may lose precision for values that are not exactly representable in 32-bit.
+
+Example:
+```motoko include=import
+assert Float32.fromFloat(1.5) == 1.5;
+```
 
 ## Value `pi`
 ``` motoko no-repl
-let pi : Float
+let pi : Float32
 ```
 
 Ratio of the circumference of a circle to its diameter.
-Note: Limited precision.
+Note: Limited precision (approximately 7 significant decimal digits).
 
 ## Value `e`
 ``` motoko no-repl
-let e : Float
+let e : Float32
 ```
 
 Base of the natural logarithm.
-Note: Limited precision.
+Note: Limited precision (approximately 7 significant decimal digits).
 
 ## Function `isNaN`
 ``` motoko no-repl
-func isNaN(self : Float) : Bool
+func isNaN(self : Float32) : Bool
 ```
 
 Determines whether the `number` is a `NaN` ("not a number" in the floating point representation).
@@ -83,12 +108,12 @@ Notes:
 
 Example:
 ```motoko include=import
-assert Float.isNaN(0.0/0.0);
+assert Float32.isNaN(0.0/0.0);
 ```
 
 ## Function `abs`
 ``` motoko no-repl
-func abs(x : Float) : Float
+func abs(x : Float32) : Float32
 ```
 
 Returns the absolute value of `x`.
@@ -103,13 +128,13 @@ abs(-0.0) => 0.0
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.abs(-1.2), 1.2, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.abs(-1.2), 1.2, epsilon);
 ```
 
 ## Function `sqrt`
 ``` motoko no-repl
-func sqrt(x : Float) : Float
+func sqrt(x : Float32) : Float32
 ```
 
 Returns the square root of `x`.
@@ -124,13 +149,13 @@ sqrt(NaN)  => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.sqrt(6.25), 2.5, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.sqrt(6.25), 2.5, epsilon);
 ```
 
 ## Function `ceil`
 ``` motoko no-repl
-func ceil(x : Float) : Float
+func ceil(x : Float32) : Float32
 ```
 
 Returns the smallest integral float greater than or equal to `x`.
@@ -146,13 +171,13 @@ ceil(-0.0) => -0.0
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.ceil(1.2), 2.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.ceil(1.2), 2.0, epsilon);
 ```
 
 ## Function `floor`
 ``` motoko no-repl
-func floor(x : Float) : Float
+func floor(x : Float32) : Float32
 ```
 
 Returns the largest integral float less than or equal to `x`.
@@ -168,13 +193,13 @@ floor(-0.0) => -0.0
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.floor(1.2), 1.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.floor(1.2), 1.0, epsilon);
 ```
 
 ## Function `trunc`
 ``` motoko no-repl
-func trunc(x : Float) : Float
+func trunc(x : Float32) : Float32
 ```
 
 Returns the nearest integral float not greater in magnitude than `x`.
@@ -191,18 +216,17 @@ trunc(-0.0) => -0.0
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.trunc(2.75), 2.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.trunc(2.75), 2.0, epsilon);
 ```
 
 ## Function `nearest`
 ``` motoko no-repl
-func nearest(x : Float) : Float
+func nearest(x : Float32) : Float32
 ```
 
 Returns the nearest integral float to `x`.
 A decimal place of exactly .5 is rounded to the nearest even integral float.
-and rounded down for `x < 0`
 
 Special cases:
 ```
@@ -216,12 +240,12 @@ nearest(14.5) => 14.0
 
 Example:
 ```motoko include=import
-assert Float.nearest(2.75) == 3.0
+assert Float32.nearest(2.75) == 3.0
 ```
 
 ## Function `copySign`
 ``` motoko no-repl
-func copySign(x : Float, y : Float) : Float
+func copySign(x : Float32, y : Float32) : Float32
 ```
 
 Returns `x` if `x` and `y` have same sign, otherwise `x` with negated sign.
@@ -230,49 +254,49 @@ The sign bit of zero, infinity, and `NaN` is considered.
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.copySign(1.2, -2.3), -1.2, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.copySign(1.2, -2.3), -1.2, epsilon);
 ```
 
 ## Function `min`
 ``` motoko no-repl
-func min(x : Float, y : Float) : Float
+func min(x : Float32, y : Float32) : Float32
 ```
 
 Returns the smaller value of `x` and `y`.
 
 Special cases:
 ```
-min(NaN, y) => NaN for any Float y
-min(x, NaN) => NaN for any Float x
+min(NaN, y) => NaN for any Float32 y
+min(x, NaN) => NaN for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-assert Float.min(1.2, -2.3) == -2.3; // with numerical imprecision
+assert Float32.min(1.2, -2.3) == -2.3; // with numerical imprecision
 ```
 
 ## Function `max`
 ``` motoko no-repl
-func max(x : Float, y : Float) : Float
+func max(x : Float32, y : Float32) : Float32
 ```
 
 Returns the larger value of `x` and `y`.
 
 Special cases:
 ```
-max(NaN, y) => NaN for any Float y
-max(x, NaN) => NaN for any Float x
+max(NaN, y) => NaN for any Float32 y
+max(x, NaN) => NaN for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-assert Float.max(1.2, -2.3) == 1.2;
+assert Float32.max(1.2, -2.3) == 1.2;
 ```
 
 ## Function `sin`
 ``` motoko no-repl
-func sin(x : Float) : Float
+func sin(x : Float32) : Float32
 ```
 
 Returns the sine of the radian angle `x`.
@@ -286,13 +310,13 @@ sin(NaN) => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.sin(Float.pi / 2), 1.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.sin(Float32.pi / 2.0), 1.0, epsilon);
 ```
 
 ## Function `cos`
 ``` motoko no-repl
-func cos(x : Float) : Float
+func cos(x : Float32) : Float32
 ```
 
 Returns the cosine of the radian angle `x`.
@@ -306,13 +330,13 @@ cos(NaN)  => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.cos(Float.pi / 2), 0.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.cos(Float32.pi / 2.0), 0.0, epsilon);
 ```
 
 ## Function `tan`
 ``` motoko no-repl
-func tan(x : Float) : Float
+func tan(x : Float32) : Float32
 ```
 
 Returns the tangent of the radian angle `x`.
@@ -326,13 +350,13 @@ tan(NaN)  => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.tan(Float.pi / 4), 1.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.tan(Float32.pi / 4.0), 1.0, epsilon);
 ```
 
 ## Function `arcsin`
 ``` motoko no-repl
-func arcsin(x : Float) : Float
+func arcsin(x : Float32) : Float32
 ```
 
 Returns the arc sine of `x` in radians.
@@ -346,33 +370,33 @@ arcsin(NaN) => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.arcsin(1.0), Float.pi / 2, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.arcsin(1.0), Float32.pi / 2.0, epsilon);
 ```
 
 ## Function `arccos`
 ``` motoko no-repl
-func arccos(x : Float) : Float
+func arccos(x : Float32) : Float32
 ```
 
 Returns the arc cosine of `x` in radians.
 
 Special cases:
 ```
-arccos(x)  => NaN if x > 1.0
-arccos(x)  => NaN if x < -1.0
-arcos(NaN) => NaN
+arccos(x)   => NaN if x > 1.0
+arccos(x)   => NaN if x < -1.0
+arccos(NaN) => NaN
 ```
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.arccos(1.0), 0.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.arccos(1.0), 0.0, epsilon);
 ```
 
 ## Function `arctan`
 ``` motoko no-repl
-func arctan(x : Float) : Float
+func arctan(x : Float32) : Float32
 ```
 
 Returns the arc tangent of `x` in radians.
@@ -386,13 +410,13 @@ arctan(NaN)  => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.arctan(1.0), Float.pi / 4, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.arctan(1.0), Float32.pi / 4.0, epsilon);
 ```
 
 ## Function `arctan2`
 ``` motoko no-repl
-func arctan2(y : Float, x : Float) : Float
+func arctan2(y : Float32, x : Float32) : Float32
 ```
 
 Given `(y, x)`, returns the arc tangent in radians of `y/x` based on the signs of both values to determine the correct quadrant.
@@ -407,19 +431,19 @@ arctan2(+inf, +inf) => pi / 4
 arctan2(+inf, -inf) => 3 * pi / 4
 arctan2(-inf, +inf) => -pi / 4
 arctan2(-inf, -inf) => -3 * pi / 4
-arctan2(NaN, x)     => NaN for any Float x
-arctan2(y, NaN)     => NaN for any Float y
+arctan2(NaN, x)     => NaN for any Float32 x
+arctan2(y, NaN)     => NaN for any Float32 y
 ```
 
 Example:
 ```motoko include=import
-let sqrt2over2 = Float.sqrt(2) / 2;
-assert Float.arctan2(sqrt2over2, sqrt2over2) == Float.pi / 4;
+let sqrt2over2 = Float32.sqrt(2.0) / 2.0;
+assert Float32.arctan2(sqrt2over2, sqrt2over2) == Float32.pi / 4.0;
 ```
 
 ## Function `exp`
 ``` motoko no-repl
-func exp(x : Float) : Float
+func exp(x : Float32) : Float32
 ```
 
 Returns the value of `e` raised to the `x`-th power.
@@ -433,13 +457,13 @@ exp(NaN)  => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.exp(1.0), Float.e, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.exp(1.0), Float32.e, epsilon);
 ```
 
 ## Function `log`
 ``` motoko no-repl
-func log(x : Float) : Float
+func log(x : Float32) : Float32
 ```
 
 Returns the natural logarithm (base-`e`) of `x`.
@@ -455,13 +479,13 @@ log(NaN)  => NaN
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.log(Float.e), 1.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.log(Float32.e), 1.0, epsilon);
 ```
 
 ## Function `format`
 ``` motoko no-repl
-func format(self : Float, fmt : {#fix : Nat8; #exp : Nat8; #gen : Nat8; #exact}) : Text
+func format(self : Float32, fmt : {#fix : Nat8; #exp : Nat8; #gen : Nat8; #exact}) : Text
 ```
 
 Formatting. `format(fmt, x)` formats `x` to `Text` according to the
@@ -482,12 +506,12 @@ differently, i.e. "NaN" or "nan", potentially omitting the `NaN` sign.
 
 Example:
 ```motoko include=import no-validate
-assert Float.format(#exp 3, 123.0) == "1.230e+02";
+assert Float32.format(123.0 : Float32, #exp (3 : Nat8)) == "1.230e+02";
 ```
 
 ## Function `toText`
 ``` motoko no-repl
-func toText(self : Float) : Text
+func toText(self : Float32) : Text
 ```
 
 Conversion to Text. Use `format(fmt, x)` for more detailed control.
@@ -503,27 +527,27 @@ differently, i.e. "NaN" or "nan", potentially omitting the `NaN` sign.
 
 Example:
 ```motoko include=import no-validate
-assert Float.toText(1.2) == "1.2";
+assert Float32.toText(1.5) == "1.5";
 ```
 
 ## Function `toInt64`
 ``` motoko no-repl
-func toInt64(self : Float) : Int64
+func toInt64(self : Float32) : Int64
 ```
 
-Conversion to Int64 by truncating Float, equivalent to `toInt64(trunc(f))`
+Conversion to Int64 by truncating Float32, equivalent to `toInt64(trunc(f))`
 
 Traps if the floating point number is larger or smaller than the representable Int64.
 Also traps for `inf`, `-inf`, and `NaN`.
 
 Example:
 ```motoko include=import
-assert Float.toInt64(-12.3) == -12;
+assert Float32.toInt64(-12.0) == -12;
 ```
 
 ## Function `fromInt64`
 ``` motoko no-repl
-func fromInt64(x : Int64) : Float
+func fromInt64(x : Int64) : Float32
 ```
 
 Conversion from Int64.
@@ -532,12 +556,12 @@ Note: The floating point number may be imprecise for large or small Int64.
 
 Example:
 ```motoko include=import
-assert Float.fromInt64(-42) == -42.0;
+assert Float32.fromInt64(-42) == -42.0;
 ```
 
 ## Function `toInt`
 ``` motoko no-repl
-func toInt(self : Float) : Int
+func toInt(self : Float32) : Int
 ```
 
 Conversion to Int.
@@ -546,62 +570,17 @@ Traps for `inf`, `-inf`, and `NaN`.
 
 Example:
 ```motoko include=import
-assert Float.toInt(1.2e6) == +1_200_000;
-```
-
-## Function `fromInt`
-``` motoko no-repl
-func fromInt(x : Int) : Float
-```
-
-Conversion from Int. May result in `Inf`.
-
-Note: The floating point number may be imprecise for large or small Int values.
-Returns `inf` if the integer is greater than the maximum floating point number.
-Returns `-inf` if the integer is less than the minimum floating point number.
-
-Example:
-```motoko include=import
-assert Float.fromInt(-123) == -123.0;
-```
-@deprecated M0235
-
-## Function `toFloat32`
-``` motoko no-repl
-func toFloat32(self : Float) : Prim.Types.Float32
-```
-
-Conversion to Float32 (32-bit single precision).
-
-Note: This may lose precision for values that are not exactly representable in 32-bit.
-
-Example:
-```motoko include=import
-assert Float.toFloat32(1.5) == 1.5;
-```
-
-## Function `fromFloat32`
-``` motoko no-repl
-func fromFloat32(x : Prim.Types.Float32) : Float
-```
-
-Conversion from Float32 (32-bit single precision) to Float (64-bit double precision).
-
-This is a lossless widening conversion.
-
-Example:
-```motoko include=import
-assert Float.fromFloat32(1.5) == 1.5;
+assert Float32.toInt(1.0e6) == +1_000_000;
 ```
 
 ## Function `equal`
 ``` motoko no-repl
-func equal(x : Float, y : Float, epsilon : Float) : Bool
+func equal(x : Float32, y : Float32, epsilon : Float32) : Bool
 ```
 
 Determines whether `x` is equal to `y` within the defined tolerance of `epsilon`.
-The `epsilon` considers numerical erros, see comment above.
-Equivalent to `Float.abs(x - y) <= epsilon` for a non-negative epsilon.
+The `epsilon` considers numerical errors, see comment above.
+Equivalent to `Float32.abs(x - y) <= epsilon` for a non-negative epsilon.
 
 Traps if `epsilon` is negative or `NaN`.
 
@@ -617,17 +596,17 @@ equal(NaN, y, epsilon)     => false for any y and `epsilon >= 0.0`
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(-12.3, -1.23e1, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(-12.3, -1.23e1, epsilon);
 ```
 
 ## Function `notEqual`
 ``` motoko no-repl
-func notEqual(x : Float, y : Float, epsilon : Float) : Bool
+func notEqual(x : Float32, y : Float32, epsilon : Float32) : Bool
 ```
 
 Determines whether `x` is not equal to `y` within the defined tolerance of `epsilon`.
-The `epsilon` considers numerical erros, see comment above.
+The `epsilon` considers numerical errors, see comment above.
 Equivalent to `not equal(x, y, epsilon)`.
 
 Traps if `epsilon` is negative or `NaN`.
@@ -644,13 +623,13 @@ notEqual(NaN, y, epsilon)     => true for any y and `epsilon >= 0.0`
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert not Float.notEqual(-12.3, -1.23e1, epsilon);
+let epsilon = 1e-5 : Float32;
+assert not Float32.notEqual(-12.3, -1.23e1, epsilon);
 ```
 
 ## Function `less`
 ``` motoko no-repl
-func less(x : Float, y : Float) : Bool
+func less(x : Float32, y : Float32) : Bool
 ```
 
 Returns `x < y`.
@@ -659,18 +638,18 @@ Special cases:
 ```
 less(+0.0, -0.0) => false
 less(-0.0, +0.0) => false
-less(NaN, y)     => false for any Float y
-less(x, NaN)     => false for any Float x
+less(NaN, y)     => false for any Float32 y
+less(x, NaN)     => false for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-assert Float.less(Float.e, Float.pi);
+assert Float32.less(Float32.e, Float32.pi);
 ```
 
 ## Function `lessOrEqual`
 ``` motoko no-repl
-func lessOrEqual(x : Float, y : Float) : Bool
+func lessOrEqual(x : Float32, y : Float32) : Bool
 ```
 
 Returns `x <= y`.
@@ -679,18 +658,18 @@ Special cases:
 ```
 lessOrEqual(+0.0, -0.0) => true
 lessOrEqual(-0.0, +0.0) => true
-lessOrEqual(NaN, y)     => false for any Float y
-lessOrEqual(x, NaN)     => false for any Float x
+lessOrEqual(NaN, y)     => false for any Float32 y
+lessOrEqual(x, NaN)     => false for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-assert Float.lessOrEqual(0.123, 0.1234);
+assert Float32.lessOrEqual(0.123, 0.1234);
 ```
 
 ## Function `greater`
 ``` motoko no-repl
-func greater(x : Float, y : Float) : Bool
+func greater(x : Float32, y : Float32) : Bool
 ```
 
 Returns `x > y`.
@@ -699,18 +678,18 @@ Special cases:
 ```
 greater(+0.0, -0.0) => false
 greater(-0.0, +0.0) => false
-greater(NaN, y)     => false for any Float y
-greater(x, NaN)     => false for any Float x
+greater(NaN, y)     => false for any Float32 y
+greater(x, NaN)     => false for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-assert Float.greater(Float.pi, Float.e);
+assert Float32.greater(Float32.pi, Float32.e);
 ```
 
 ## Function `greaterOrEqual`
 ``` motoko no-repl
-func greaterOrEqual(x : Float, y : Float) : Bool
+func greaterOrEqual(x : Float32, y : Float32) : Bool
 ```
 
 Returns `x >= y`.
@@ -719,24 +698,24 @@ Special cases:
 ```
 greaterOrEqual(+0.0, -0.0) => true
 greaterOrEqual(-0.0, +0.0) => true
-greaterOrEqual(NaN, y)     => false for any Float y
-greaterOrEqual(x, NaN)     => false for any Float x
+greaterOrEqual(NaN, y)     => false for any Float32 y
+greaterOrEqual(x, NaN)     => false for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-assert Float.greaterOrEqual(0.1234, 0.123);
+assert Float32.greaterOrEqual(0.1234, 0.123);
 ```
 
 ## Function `compare`
 ``` motoko no-repl
-func compare(x : Float, y : Float) : Order.Order
+func compare(x : Float32, y : Float32) : Order.Order
 ```
 
 Defines a total order of `x` and `y` for use in sorting.
 
 Note: Using this operation to determine equality or inequality is discouraged for two reasons:
-* It does not consider numerical errors, see comment above. Use `equal(x, y, espilon)` or
+* It does not consider numerical errors, see comment above. Use `equal(x, y, epsilon)` or
   `notEqual(x, y, epsilon)` to test for equality or inequality, respectively.
 * `NaN` are here considered equal if their sign matches, which is different to the standard equality
    by `==` or when using `equal()` or `notEqual()`.
@@ -753,15 +732,15 @@ Total order:
 
 Example:
 ```motoko include=import
-assert Float.compare(0.123, 0.1234) == #less;
+assert Float32.compare(0.123, 0.1234) == #less;
 ```
 
 ## Function `neg`
 ``` motoko no-repl
-func neg(x : Float) : Float
+func neg(x : Float32) : Float32
 ```
 
-Returns the negation of `x`, `-x` .
+Returns the negation of `x`, `-x`.
 
 Changes the sign bit for infinity.
 
@@ -777,13 +756,13 @@ neg(-0.0) => +0.0
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.neg(1.23), -1.23, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.neg(1.23), -1.23, epsilon);
 ```
 
 ## Function `add`
 ``` motoko no-repl
-func add(x : Float, y : Float) : Float
+func add(x : Float32, y : Float32) : Float32
 ```
 
 Returns the sum of `x` and `y`, `x + y`.
@@ -792,22 +771,22 @@ Note: Numerical errors may occur, see comment above.
 
 Special cases:
 ```
-add(+inf, y)    => +inf if y is any Float except -inf and NaN
-add(-inf, y)    => -inf if y is any Float except +inf and NaN
+add(+inf, y)    => +inf if y is any Float32 except -inf and NaN
+add(-inf, y)    => -inf if y is any Float32 except +inf and NaN
 add(+inf, -inf) => NaN
-add(NaN, y)     => NaN for any Float y
+add(NaN, y)     => NaN for any Float32 y
 ```
 The same cases apply commutatively, i.e. for `add(y, x)`.
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.add(1.23, 0.123), 1.353, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.add(1.23, 0.123), 1.353, epsilon);
 ```
 
 ## Function `sub`
 ``` motoko no-repl
-func sub(x : Float, y : Float) : Float
+func sub(x : Float32, y : Float32) : Float32
 ```
 
 Returns the difference of `x` and `y`, `x - y`.
@@ -816,25 +795,25 @@ Note: Numerical errors may occur, see comment above.
 
 Special cases:
 ```
-sub(+inf, y)    => +inf if y is any Float except +inf or NaN
-sub(-inf, y)    => -inf if y is any Float except -inf and NaN
-sub(x, +inf)    => -inf if x is any Float except +inf and NaN
-sub(x, -inf)    => +inf if x is any Float except -inf and NaN
+sub(+inf, y)    => +inf if y is any Float32 except +inf or NaN
+sub(-inf, y)    => -inf if y is any Float32 except -inf and NaN
+sub(x, +inf)    => -inf if x is any Float32 except +inf and NaN
+sub(x, -inf)    => +inf if x is any Float32 except -inf and NaN
 sub(+inf, +inf) => NaN
 sub(-inf, -inf) => NaN
-sub(NaN, y)     => NaN for any Float y
-sub(x, NaN)     => NaN for any Float x
+sub(NaN, y)     => NaN for any Float32 y
+sub(x, NaN)     => NaN for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.sub(1.23, 0.123), 1.107, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.sub(1.23, 0.123), 1.107, epsilon);
 ```
 
 ## Function `mul`
 ``` motoko no-repl
-func mul(x : Float, y : Float) : Float
+func mul(x : Float32, y : Float32) : Float32
 ```
 
 Returns the product of `x` and `y`, `x * y`.
@@ -849,19 +828,19 @@ mul(+inf, y) => -inf if y < 0.0
 mul(-inf, y) => +inf if y < 0.0
 mul(+inf, 0.0) => NaN
 mul(-inf, 0.0) => NaN
-mul(NaN, y) => NaN for any Float y
+mul(NaN, y) => NaN for any Float32 y
 ```
 The same cases apply commutatively, i.e. for `mul(y, x)`.
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.mul(1.23, 1e2), 123.0, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.mul(1.23, 1e2), 123.0, epsilon);
 ```
 
 ## Function `div`
 ``` motoko no-repl
-func div(x : Float, y : Float) : Float
+func div(x : Float32, y : Float32) : Float32
 ```
 
 Returns the division of `x` by `y`, `x / y`.
@@ -879,19 +858,19 @@ div(+inf, y)  => +inf if y >= 0.0
 div(+inf, y)  => -inf if y < 0.0
 div(-inf, y)  => -inf if y >= 0.0
 div(-inf, y)  => +inf if y < 0.0
-div(NaN, y)   => NaN for any Float y
-div(x, NaN)   => NaN for any Float x
+div(NaN, y)   => NaN for any Float32 y
+div(x, NaN)   => NaN for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.div(1.23, 1e2), 0.0123, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.div(1.23, 1e2), 0.0123, epsilon);
 ```
 
 ## Function `rem`
 ``` motoko no-repl
-func rem(x : Float, y : Float) : Float
+func rem(x : Float32, y : Float32) : Float32
 ```
 
 Returns the floating point division remainder `x % y`,
@@ -902,25 +881,23 @@ Note: Numerical errors may occur, see comment above.
 Special cases:
 ```
 rem(0.0, 0.0) => NaN
-rem(x, y)     => +inf if sign(x) == sign(y) for any x and y not being +inf, -inf, or NaN
-rem(x, y)     => -inf if sign(x) != sign(y) for any x and y not being +inf, -inf, or NaN
 rem(x, +inf)  => x for any x except +inf, -inf, and NaN
 rem(x, -inf)  => x for any x except +inf, -inf, and NaN
-rem(+inf, y)  => NaN for any Float y
-rem(-inf, y)  => NaN for any Float y
-rem(NaN, y)   => NaN for any Float y
-rem(x, NaN)   => NaN for any Float x
+rem(+inf, y)  => NaN for any Float32 y
+rem(-inf, y)  => NaN for any Float32 y
+rem(NaN, y)   => NaN for any Float32 y
+rem(x, NaN)   => NaN for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.rem(7.2, 2.3), 0.3, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.rem(7.2, 2.3), 0.3, epsilon);
 ```
 
 ## Function `pow`
 ``` motoko no-repl
-func pow(x : Float, y : Float) : Float
+func pow(x : Float32, y : Float32) : Float32
 ```
 
 Returns `x` to the power of `y`, `x ** y`.
@@ -936,20 +913,14 @@ pow(x, +inf)    => +inf if x > 0.0 or x < 0.0
 pow(0.0, +inf)  => 0.0
 pow(x, -inf)    => 0.0 if x > 0.0 or x < 0.0
 pow(0.0, -inf)  => +inf
-pow(x, y)       => NaN if x < 0.0 and y is a non-integral Float
-pow(-inf, y)    => +inf if y > 0.0 and y is a non-integral or an even integral Float
-pow(-inf, y)    => -inf if y > 0.0 and y is an odd integral Float
-pow(-inf, 0.0)  => 1.0
-pow(-inf, y)    => 0.0 if y < 0.0
-pow(-inf, +inf) => +inf
-pow(-inf, -inf) => 1.0
+pow(x, y)       => NaN if x < 0.0 and y is a non-integral Float32
 pow(NaN, y)     => NaN if y != 0.0
 pow(NaN, 0.0)   => 1.0
-pow(x, NaN)     => NaN for any Float x
+pow(x, NaN)     => NaN for any Float32 x
 ```
 
 Example:
 ```motoko include=import
-let epsilon = 1e-6;
-assert Float.equal(Float.pow(2.5, 2.0), 6.25, epsilon);
+let epsilon = 1e-5 : Float32;
+assert Float32.equal(Float32.pow(2.5, 2.0), 6.25, epsilon);
 ```
