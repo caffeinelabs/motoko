@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * bugfix: Resolve relative paths in `moc.js` flags (e.g. `--enhanced-migration`, `--actor-idl`) against the source file's directory, fixing "not a directory" errors when these flags are passed with relative paths via the language server (#6002).
+
 ## 1.5.0 (2026-04-10)
 
 * motoko (`moc`)
@@ -29,8 +33,6 @@
   * bugfix: Fix type inference for `return` expressions inside unannotated lambdas passed to generic functions. Previously, the generic type parameter could resolve to `Non` instead of the actual return type, causing an IR type error (#5962).
 
   * bugfix: Fix crash when reporting errors with no source region (#5976).
-
-  * bugfix: Resolve relative paths in `moc.js` flags (e.g. `--enhanced-migration`, `--actor-idl`) against the source file's directory, fixing "not a directory" errors when these flags are passed with relative paths via the language server.
 
 * documentation (`mo-doc`)
 
