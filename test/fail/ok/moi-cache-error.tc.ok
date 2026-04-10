@@ -1,0 +1,8 @@
+moi-cache-error.mo:7.16-7.24: type error [M0096], expression of type
+  Nat
+cannot produce expected type
+  Text
+because the type 
+  Nat
+ is not compatible with type 
+  Text

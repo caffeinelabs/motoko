@@ -1,2 +1,2 @@
 open Ir_def
-val analyze : Ir.prog -> unit
+val analyze : ?known_const:string list -> Ir.prog -> unit

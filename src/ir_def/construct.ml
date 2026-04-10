@@ -32,6 +32,13 @@ let fresh name_base () : string =
   id_stamps := Stamps.add name_base (n + 1) !id_stamps;
   Printf.sprintf "$%s/%i" name_base n
 
+let get_id_stamps () = Stamps.bindings !id_stamps
+let set_id_stamps entries =
+  id_stamps := List.fold_left (fun m (k, v) ->
+    let cur = Lib.Option.get (Stamps.find_opt k m) 0 in
+    if v > cur then Stamps.add k v m else m
+  ) !id_stamps entries
+
 let fresh_id name_base () : id =
   fresh name_base ()
 

@@ -11,6 +11,7 @@ open Mo_config
 open Printf
 
 module ResolveImport = Resolve_import
+module StringSet = Set.Make(String)
 
 type stat_env = Scope.t
 type dyn_env = Interpret.scope
@@ -829,17 +830,14 @@ let analyze analysis_name analysis prog name =
   if !Flags.check_ir
   then Check_ir.check_prog !Flags.verbose analysis_name prog
 
-let ir_passes mode prog_ir name =
-  (* erase typ components from objects *)
+let ir_passes mode ?(known_const = []) prog_ir name =
   let prog_ir = typ_field_translation true prog_ir name in
-  (* translations that extend the progam and must be done before await/cps conversion *)
   let prog_ir = show_translation true prog_ir name in
   let prog_ir = eq_translation true prog_ir name in
-  (* cps conversion and local transformations *)
   let prog_ir = await_lowering !Flags.await_lowering prog_ir name in
   let prog_ir = async_lowering mode !Flags.async_lowering prog_ir name in
   let prog_ir = tailcall_optimization true prog_ir name in
-  analyze "constness analysis" Const.analyze prog_ir name;
+  analyze "constness analysis" (Const.analyze ~known_const) prog_ir name;
   prog_ir
 
 
@@ -930,14 +928,227 @@ and compile_unit_to_wasm mode (enhanced_migration:string option) imports (u : Sy
   Diag.return wasm
 
 and compile_progs mode do_link libs progs : Wasm_exts.CustomModule.extended_module Diag.result =
+  match !Flags.moi_cache_dir with
+  | Some cache_dir when not (has_actor_class_libs libs) ->
+    compile_progs_cached mode do_link libs progs cache_dir
+  | _ ->
+    compile_progs_uncached mode do_link libs progs
+
+and compile_progs_uncached mode do_link libs progs =
   let imports = compile_libs mode libs in
   let prog = CompUnit.combine_progs progs in
   let u = CompUnit.comp_unit_of_prog false prog in
   compile_unit mode (!Flags.enhanced_migration) do_link imports u
 
+and has_actor_class_libs libs =
+  List.exists (fun l ->
+    match l.Source.it.Syntax.body.Source.it with
+    | Syntax.ActorClassU _ -> true
+    | _ -> false
+  ) libs
+
+and compute_dep_hash libs =
+  let hashes = List.map (fun l ->
+    let f = l.Source.note.Syntax.filename in
+    if Sys.file_exists f then Digest.file f
+    else Digest.string f
+  ) libs in
+  let sorted = List.sort String.compare hashes in
+  let buf = Buffer.create 256 in
+  List.iter (Buffer.add_string buf) sorted;
+  Digest.to_hex (Digest.string (Buffer.contents buf))
+
+and extract_binding_names decs =
+  let rec pat_names acc p =
+    match p.Source.it with
+    | Ir.VarP v -> v :: acc
+    | Ir.TupP ps -> List.fold_left pat_names acc ps
+    | Ir.ObjP pfs -> List.fold_left (fun a (pf : Ir.pat_field) -> pat_names a pf.Source.it.Ir.pat) acc pfs
+    | Ir.WildP | Ir.LitP _ | Ir.AltP _ | Ir.OptP _ | Ir.TagP _ -> acc
+  in
+  List.concat_map (fun d ->
+    match d.Source.it with
+    | Ir.LetD (p, _) -> pat_names [] p
+    | Ir.VarD (v, _, _) -> [v]
+    | Ir.RefD (v, _, _) -> [v]
+  ) decs
+
+and collect_cons_from_ir_decs decs =
+  let module T = Mo_types.Type in
+  let seen = ref T.ConSet.empty in
+  let acc = ref [] in
+  let add_con c =
+    if T.ConSet.mem c !seen then false
+    else begin seen := T.ConSet.add c !seen; acc := c :: !acc; true end
+  in
+  let rec walk_kind = function
+    | T.Def (bs, t) | T.Abs (bs, t) ->
+      List.iter (fun b -> walk_typ b.T.bound) bs; walk_typ t
+  and walk_typ = function
+    | T.Var _ | T.Prim _ | T.Any | T.Non | T.Pre -> ()
+    | T.Con (c, ts) ->
+      if add_con c then walk_kind (Cons.kind c);
+      List.iter walk_typ ts
+    | T.Obj (_, fs, tfs) ->
+      List.iter (fun f -> walk_typ f.T.typ) fs;
+      List.iter (fun (tf : T.typ_field) ->
+        if add_con tf.T.typ then walk_kind (Cons.kind tf.T.typ)) tfs
+    | T.Variant fs -> List.iter (fun f -> walk_typ f.T.typ) fs
+    | T.Array t | T.Opt t | T.Mut t | T.Named (_, t) | T.Weak t -> walk_typ t
+    | T.Tup ts -> List.iter walk_typ ts
+    | T.Func (_, _, bs, ts1, ts2) ->
+      List.iter (fun b -> walk_typ b.T.bound) bs;
+      List.iter walk_typ ts1; List.iter walk_typ ts2
+    | T.Async (_, s, t) -> walk_typ s; walk_typ t
+  in
+  let walk_note n = walk_typ n.Note.typ in
+  let rec walk_exp e = walk_note e.Source.note; walk_exp' e.Source.it
+  and walk_exp' = function
+    | Ir.VarE _ | Ir.LitE _ -> ()
+    | Ir.PrimE (_, es) -> List.iter walk_exp es
+    | Ir.AssignE (le, e) -> walk_lexp le; walk_exp e
+    | Ir.BlockE (ds, e) -> List.iter walk_dec ds; walk_exp e
+    | Ir.IfE (e1, e2, e3) -> walk_exp e1; walk_exp e2; walk_exp e3
+    | Ir.SwitchE (e, cs) -> walk_exp e; List.iter walk_case cs
+    | Ir.LoopE e -> walk_exp e
+    | Ir.LabelE (_, _, e) -> walk_exp e
+    | Ir.AsyncE (_, _, e, _) -> walk_exp e
+    | Ir.DeclareE (_, _, e) -> walk_exp e
+    | Ir.DefineE (_, _, e) -> walk_exp e
+    | Ir.FuncE (_, _, _, _, _, _, e) -> walk_exp e
+    | Ir.ActorE (ds, fs, sys, t) ->
+      List.iter walk_dec ds;
+      walk_typ t;
+      walk_typ sys.Ir.stable_type.Ir.pre;
+      walk_typ sys.Ir.stable_type.Ir.post;
+      walk_exp sys.Ir.preupgrade;
+      walk_exp sys.Ir.postupgrade;
+      walk_exp sys.Ir.heartbeat;
+      walk_exp sys.Ir.timer;
+      walk_exp sys.Ir.inspect;
+      walk_exp sys.Ir.low_memory;
+      walk_exp sys.Ir.stable_record
+    | Ir.NewObjE (_, _, t) -> walk_typ t
+    | Ir.TryE (e, cs, cl) ->
+      walk_exp e; List.iter walk_case cs;
+      Option.iter (fun (_, t) -> walk_typ t) cl
+    | Ir.SelfCallE (ts, e1, e2, e3, e4) ->
+      List.iter walk_typ ts;
+      walk_exp e1; walk_exp e2; walk_exp e3; walk_exp e4
+  and walk_lexp le =
+    walk_typ le.Source.note;
+    match le.Source.it with
+    | Ir.VarLE _ -> ()
+    | Ir.IdxLE (e1, e2) -> walk_exp e1; walk_exp e2
+    | Ir.DotLE (e, _) -> walk_exp e
+  and walk_case c = walk_exp c.Source.it.Ir.exp
+  and walk_dec d =
+    match d.Source.it with
+    | Ir.LetD (p, e) -> walk_pat p; walk_exp e
+    | Ir.VarD (_, t, e) -> walk_typ t; walk_exp e
+    | Ir.RefD (_, t, le) -> walk_typ t; walk_lexp le
+  and walk_pat p =
+    walk_typ p.Source.note;
+    match p.Source.it with
+    | Ir.WildP | Ir.VarP _ | Ir.LitP _ -> ()
+    | Ir.TupP ps -> List.iter walk_pat ps
+    | Ir.ObjP pfs -> List.iter (fun (pf : Ir.pat_field) -> walk_pat pf.Source.it.Ir.pat) pfs
+    | Ir.OptP p | Ir.TagP (_, p) -> walk_pat p
+    | Ir.AltP (p1, p2) -> walk_pat p1; walk_pat p2
+  in
+  List.iter walk_dec decs;
+  List.rev !acc
+
+and inject_and_dedup_lib_decs lib_decs (main_cu, main_flavor) =
+  let lib_names = List.fold_left (fun s d ->
+    match d.Source.it with
+    | Ir.LetD (p, _) ->
+      (match p.Source.it with
+       | Ir.VarP v -> StringSet.add v s
+       | _ -> s)
+    | _ -> s
+  ) StringSet.empty lib_decs in
+  let is_dup d = match d.Source.it with
+    | Ir.LetD (p, _) ->
+      (match p.Source.it with
+       | Ir.VarP v
+         when (String.length v > 5 && String.sub v 0 5 = "@show"
+               || String.length v > 3 && String.sub v 0 3 = "@eq")
+              && StringSet.mem v lib_names -> true
+       | _ -> false)
+    | _ -> false
+  in
+  let deduped_cu = match main_cu with
+    | Ir.ProgU ds -> Ir.ProgU (lib_decs @ List.filter (fun d -> not (is_dup d)) ds)
+    | Ir.ActorU (a, ds, fs, sys, t) ->
+      Ir.ActorU (a, lib_decs @ List.filter (fun d -> not (is_dup d)) ds, fs, sys, t)
+    | Ir.LibU _ -> assert false
+  in
+  (deduped_cu, main_flavor)
+
+and compile_combined_prog mode do_link lib_decs progs =
+  let prog = CompUnit.combine_progs progs in
+  let u = CompUnit.comp_unit_of_prog false prog in
+  let name = u.Source.note.Syntax.filename in
+  Cons.session ~scope:name (fun () ->
+    let main_ir = Lowering.Desugar.transform_unit u in
+    let lib_bindings = extract_binding_names lib_decs in
+    let main_ir =
+      let saved_check_ir = !Flags.check_ir in
+      Flags.check_ir := false;
+      Fun.protect ~finally:(fun () -> Flags.check_ir := saved_check_ir) (fun () ->
+        ir_passes mode ~known_const:lib_bindings main_ir name)
+    in
+    let combined = inject_and_dedup_lib_decs lib_decs main_ir in
+    analyze "constness analysis (combined)" (Const.analyze ~known_const:[]) combined name;
+    if !Flags.check_ir then
+      Check_ir.check_prog !Flags.verbose "combined IR" combined;
+    phase "Compiling" name;
+    adjust_flags ();
+    let rts = if do_link then Some (load_as_rts ()) else None in
+    Diag.return (if !Flags.enhanced_orthogonal_persistence then
+      Codegen.Compile_enhanced.compile mode ~enhanced_migration:(!Flags.enhanced_migration) rts combined
+    else
+      Codegen.Compile_classical.compile mode rts combined))
+
+and compile_progs_cached mode do_link libs progs cache_dir =
+  let dep_hash = compute_dep_hash libs in
+  let moic_path = Ir_cache.moic_path ~cache_dir ~dep_hash in
+  phase "IR cache" (Printf.sprintf "checking %s" moic_path);
+  match Ir_cache.read moic_path ~dep_hash with
+  | Some { Ir_cache.decs = cached_decs; id_stamps } ->
+    phase "IR cache" "hit — loading cached library IR";
+    let cons = collect_cons_from_ir_decs cached_decs in
+    Cons.bump_stamps_past cons;
+    Construct.set_id_stamps id_stamps;
+    compile_combined_prog mode do_link cached_decs progs
+  | None ->
+    phase "IR cache" "miss — building and caching library IR";
+    let open Lowering.Desugar in
+    let prelude_imports = import_prelude prelude @ import_prelude internals in
+    let lib_imports = compile_libs mode libs in
+    let lib_prog =
+      (Ir.ProgU (prelude_imports @ lib_imports), Ir.full_flavor ()) in
+    let lib_prog = ir_passes mode lib_prog "libraries" in
+    let lib_decs = match fst lib_prog with
+      | Ir.ProgU ds -> ds | _ -> assert false in
+    let cache_data = { Ir_cache.decs = lib_decs;
+                        id_stamps = Construct.get_id_stamps () } in
+    (try Ir_cache.write moic_path ~dep_hash cache_data
+     with exn ->
+       Printf.eprintf "moic: warning: failed to write cache %s: %s\n"
+         moic_path (Printexc.to_string exn));
+    compile_combined_prog mode do_link lib_decs progs
+
 let compile_files mode do_link files : compile_result =
   let open Diag.Syntax in
-  let* libs, progs, senv = load_progs ~check_actors:true parse_file files initial_stat_env in
+  let saved_cache_dir = !Flags.moi_cache_dir in
+  Flags.moi_cache_dir := None;
+  let result =
+    Fun.protect ~finally:(fun () -> Flags.moi_cache_dir := saved_cache_dir)
+      (fun () -> load_progs ~check_actors:true parse_file files initial_stat_env)
+  in
+  let* libs, progs, senv = result in
   let idl = Mo_idl.Mo_to_idl.prog (progs, senv) in
   let* ext_module = compile_progs mode do_link libs progs in
   (* validate any stable type signature, as a sanity check *)

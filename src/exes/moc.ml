@@ -402,8 +402,8 @@ let () =
     eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
   end;
 
-  if Option.is_some !Flags.moi_cache_dir && !mode <> Check
-  then fail "moc: --moi-cache requires --check";
+  if Option.is_some !Flags.moi_cache_dir && !mode <> Check && !mode <> Compile
+  then fail "moc: --moi-cache requires --check or -c";
   
   if not !Flags.skip_gc_deprecation_warning 
   then begin

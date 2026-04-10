@@ -27,6 +27,8 @@ val typ_of_var : var -> typ
 val arg_of_var : var -> arg
 val var_of_arg : arg -> var
 
+val get_id_stamps : unit -> (string * int) list
+val set_id_stamps : (string * int) list -> unit
 val fresh_id : string -> unit -> id
 val fresh_var : string -> typ -> var
 val fresh_vars : string -> typ list -> var list

@@ -1,0 +1,11 @@
+error[M0096]: expression of type
+  Nat
+cannot produce expected type
+  Text
+because the type 
+  Nat
+ is not compatible with type 
+  Text
+    ┌─ moi-cache-error.mo:7:16
+  7 │  let x : Text = C.get(c); // type error: Nat vs Text
+    │                 ^^^^^^^^ 

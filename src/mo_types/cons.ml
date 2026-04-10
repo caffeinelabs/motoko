@@ -55,6 +55,15 @@ let clone c k =
    hash = hash name stamp;
    kind = ref k}
 
+let bump_stamps_past cs =
+  List.iter (fun c ->
+    let (n, scope) = c.stamp in
+    let key = (c.name, scope) in
+    let cur = Lib.Option.get (Stamps.find_opt key !stamps.stamps) 0 in
+    if n >= cur then
+      stamps := { !stamps with stamps = Stamps.add key (n + 1) !stamps.stamps }
+  ) cs
+
 let kind c = !(c.kind)
 let unsafe_set_kind c k = c.kind := k
 

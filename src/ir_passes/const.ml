@@ -226,13 +226,13 @@ and block lvl env (ds, body) =
   let exp_const = exp lvl env' body in
   all [decs_const; exp_const]
 
-and comp_unit = function
+and comp_unit init_env = function
   | LibU _ -> raise (Invalid_argument "cannot compile library")
-  | ProgU ds -> decs_ TopLvl M.empty ds
+  | ProgU ds -> decs_ TopLvl init_env ds
   | ActorU (as_opt, ds, fs, {meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; stable_type}, typ) ->
     let env = match as_opt with
-      | None -> M.empty
-      | Some as_ -> args TopLvl M.empty as_
+      | None -> init_env
+      | Some as_ -> args TopLvl init_env as_
     in
     let (env', _) = decs TopLvl env ds in
     exp_ TopLvl env' preupgrade;
@@ -243,5 +243,8 @@ and comp_unit = function
     exp_ TopLvl env' low_memory;
     exp_ TopLvl env' stable_record
 
-let analyze ((cu, _flavor) : prog) =
-  ignore (comp_unit cu)
+let analyze ?(known_const = []) ((cu, _flavor) : prog) =
+  let init_env = List.fold_left (fun env name ->
+    M.add name { loc_known = true; const = surely_true } env
+  ) M.empty known_const in
+  ignore (comp_unit init_env cu)
