@@ -1,6 +1,8 @@
 open Mo_def
 open Wasm.Source
-open Source [@@@warning "-41"]
+open Source
+
+[@@@warning "-41"]
 
 type doc = {
   xref : Xref.t;
@@ -297,8 +299,7 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
     PosTable.find_opt prog.note.Syntax.trivia Trivia.{ line; column }
   in
   let find_trivia (parser_pos : Source.region) : Trivia.trivia_info =
-    lookup_trivia (parser_pos.left.line, parser_pos.left.column)
-    |> Option.get
+    lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
   in
   let module_docs = find_trivia prog.at in
   (* Skip the module header *)
