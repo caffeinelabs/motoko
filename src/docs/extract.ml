@@ -1,8 +1,5 @@
 open Mo_def
-open Wasm.Source
 open Source
-
-[@@@warning "-41"]
 
 type doc = {
   xref : Xref.t;

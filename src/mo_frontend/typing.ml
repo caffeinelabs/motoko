@@ -4,8 +4,7 @@ open Mo_values
 module Flags = Mo_config.Flags
 
 open Syntax
-open Wasm.Source
-open Source [@@@warning "-41"]
+open Source
 
 module T = Type
 module A = Effect

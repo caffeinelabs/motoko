@@ -1,5 +1,5 @@
-type pos = Wasm.Source.pos
-type region = Wasm.Source.region
+type pos = Wasm.Source.pos = { file : string; line : int; column : int }
+type region = Wasm.Source.region = { left : pos; right : pos }
 
 open Wasm.Source
 

@@ -5,8 +5,7 @@ open Mo_types
 open Mo_values
 
 open Syntax
-open Wasm.Source
-open Source [@@@warning "-41"]
+open Source
 open Operator
 open Parser_lib
 
@@ -14,13 +13,13 @@ open Parser_lib
 (* Position handling *)
 
 let position_to_pos position =
-  Wasm.Source.{ file = position.Lexing.pos_fname;
+  { file = position.Lexing.pos_fname;
     line = position.Lexing.pos_lnum;
     column = position.Lexing.pos_cnum - position.Lexing.pos_bol
   }
 
 let positions_to_region position1 position2 =
-  Wasm.Source.{ left = position_to_pos position1;
+  { left = position_to_pos position1;
     right = position_to_pos position2
   }
 
