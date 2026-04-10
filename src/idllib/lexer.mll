@@ -4,15 +4,15 @@ open Parser
 module Utf8 = Lib.Utf8
 
 let convert_pos pos =
-  { file = pos.Lexing.pos_fname;
-    line = pos.Lexing.pos_lnum;
-    column = pos.Lexing.pos_cnum - pos.Lexing.pos_bol
+  Lexing.{ file = pos.pos_fname;
+    line = pos.pos_lnum;
+    column = pos.pos_cnum - pos.pos_bol
   }
 
 let region lexbuf =
   let left = convert_pos (Lexing.lexeme_start_p lexbuf) in
   let right = convert_pos (Lexing.lexeme_end_p lexbuf) in
-  {left = left; right = right}
+  {left; right}
 
 let error lexbuf msg = raise (ParseError (region lexbuf, msg))
 let error_nest start lexbuf msg =
