@@ -15,6 +15,10 @@ ingress $ID check "DIDL\x00\x00"
 # with the dedup table.
 ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
 
+# This is supposed to fail, wrong migration in the chain!
+upgrade $ID enhanced-migration-incremental/version2.mo ""
+
+# This is working!
 upgrade $ID enhanced-migration-incremental/version5.mo ""
 
 # Destabilize.
