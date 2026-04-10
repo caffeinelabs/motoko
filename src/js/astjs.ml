@@ -8,7 +8,7 @@ module Type_pretty = Mo_types.Type.MakePretty (Mo_types.Type.ElideStamps)
 
 module type Config = Mo_def.Arrange.Config
 module type TypConfig = Mo_types.Arrange_type.Config
-open  Wasm.Source
+open  Source
 
 (* AST to JSON conversion *)
 module Make (Cfg : Config) = struct
@@ -104,7 +104,7 @@ module Make (Cfg : Config) = struct
 
   let mut_js m =
     let open Syntax in
-    js_string (match m.Source.it with Const -> "Const" | Var -> "Var")
+    js_string (match m.it with Const -> "Const" | Var -> "Var")
 
   let rec typ_js =
     let open Type in
@@ -161,7 +161,7 @@ module Make (Cfg : Config) = struct
           match Field_sources.Srcs_map.find_opt track_region srcs_tbl with
           | None -> []
           | Some srcs ->
-              List.of_seq (Seq.map region_js (Source.Region_set.to_seq srcs)))
+              List.of_seq (Seq.map region_js (Region_set.to_seq srcs)))
     in
     js_string (Option.value ~default:"" depr) :: region_js r :: srcs
 
@@ -209,7 +209,7 @@ module Make (Cfg : Config) = struct
     | None -> it
 
   let id i =
-    add_source i.Source.at (to_js_object "ID" [| js_string i.Source.it |])
+    add_source i.at (to_js_object "ID" [| js_string i.it |])
 
   let rec path p =
     let open Source in
@@ -304,7 +304,7 @@ module Make (Cfg : Config) = struct
 
   let rec exp_js e =
     let open Syntax in
-    exp'_js e |> add_raw_exp e |> add_type_annotation e.Source.note.note_typ |> add_source e.Source.at
+    exp'_js e |> add_raw_exp e |> add_type_annotation e.note.note_typ |> add_source e.at
 
   and exp'_js e =
     let open Syntax in
@@ -643,10 +643,10 @@ module Make (Cfg : Config) = struct
 
   and catch_js c =
     let open Syntax in
-    to_js_object "catch" Source.[| pat_js c.it.pat; exp_js c.it.exp |]
+    to_js_object "catch" [| pat_js c.it.pat; exp_js c.it.exp |]
 
   and prog_js p =
-    to_js_object "Prog" (List.map dec_js p.Source.it |> Array.of_list)
+    to_js_object "Prog" (List.map dec_js p.it |> Array.of_list)
 end
 
 include Make (Arrange.Default)

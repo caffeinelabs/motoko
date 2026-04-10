@@ -1,5 +1,5 @@
 open Wasm_exts
-open Wasm.Source
+open Source
 open Mo_config
 
 module Js = Js_of_ocaml.Js
