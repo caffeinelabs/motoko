@@ -141,29 +141,31 @@ let parse_verification_file = parse_file' Lexer.mode_verification
 
 type resolve_result = (Syntax.prog * ResolveImport.resolved_imports) Diag.result
 
-let resolve_flags ~enhanced_migration ~base pkg_opt =
+let resolve_flags ~is_main ~base pkg_opt =
   let base_dir = if Sys.is_directory base then base else Filename.dirname base in
-  let resolve_path p =
-    if !Flags.ocaml_js && Filename.is_relative p
-    then Filename.concat base_dir p |> Lib.FilePath.normalise
-    else p
+  let resolve_path_flag flag =
+    if not is_main then !flag else
+    Option.map (fun p ->
+      let p =
+        if !Flags.ocaml_js && Filename.is_relative p
+        then Filename.concat base_dir p |> Lib.FilePath.normalise
+        else p
+      in
+      flag := Some p; p) !flag
   in
-  let resolve_path_flag flag = Option.map (fun p -> let p = resolve_path p in flag := Some p; p) !flag in
-  let enhanced_migration = if enhanced_migration then resolve_path_flag Flags.enhanced_migration else None in
-  let actor_idl_path = resolve_path_flag Flags.actor_idl_path in
   ResolveImport.{
     package_urls = !Flags.package_urls;
     actor_aliases = !Flags.actor_aliases;
-    actor_idl_path;
+    actor_idl_path = resolve_path_flag Flags.actor_idl_path;
     include_all_libs = pkg_opt = None && Flags.(!all_libs || !ai_errors || Option.is_some !implicit_package);
-    enhanced_migration
+    enhanced_migration = if is_main then resolve_path_flag Flags.enhanced_migration else None;
   }
 
 let resolve_prog (prog, base) : resolve_result =
   Diag.map
     (fun libs -> (prog, libs))
     (ResolveImport.resolve
-       (resolve_flags ~enhanced_migration:true ~base None)
+       (resolve_flags ~is_main:true ~base None)
        prog base)
 
 let resolve_progs =
@@ -470,7 +472,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         let* prog, base = parsefn ri.Source.at f in
         let* () = Static.prog prog in
         let cur_pkg_opt = if lib_pkg_opt <> None then lib_pkg_opt else pkg_opt in
-        let* more_imports = ResolveImport.resolve (resolve_flags ~enhanced_migration:false ~base cur_pkg_opt) prog base in
+        let* more_imports = ResolveImport.resolve (resolve_flags ~is_main:false ~base cur_pkg_opt) prog base in
         let* () = go_set cur_pkg_opt more_imports in
         let lib = lib_of_prog f prog in
         let* sscope = check_lib !senv cur_pkg_opt lib in

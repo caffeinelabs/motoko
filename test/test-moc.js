@@ -267,6 +267,17 @@ assert.deepStrictEqual(Motoko.run([], "blob.mo"), {
   result: { error: {} },
 });
 
+// Relative --enhanced-migration path resolves against the source file's directory (#6002)
+Motoko.saveFile("/project/Main.mo",
+  'persistent actor { let x : Nat; public func get() : async Nat { x } };'
+);
+Motoko.saveFile("/project/migrations/m1.mo",
+  'module { public func migration(_ : {}) : { x : Nat } { { x = 42 } }; };'
+);
+Motoko.setExtraFlags(["--enhanced-migration=migrations"]);
+const migrationResult = Motoko.check("/project/Main.mo");
+assert.deepStrictEqual(migrationResult.diagnostics, []);
+
 Motoko.setExtraFlags(["-W=M0223"]);
 assert.throws(
   () => Motoko.setExtraFlags(["--invalid-flag"]),
