@@ -7,9 +7,9 @@ use crate::{
     gc::incremental::{is_gc_stopped, resume_gc, stop_gc},
     memory::Memory,
     persistence::{
-        compatibility::{memory_compatible, TypeDescriptor},
-        get_dedup_table_ptr, get_migration_functions_ptr, set_dedup_table_ptr,
-        set_migration_functions_ptr, set_upgrade_instructions,
+        compatibility::TypeDescriptor, get_dedup_table_ptr, get_migration_functions_ptr,
+        restore_stable_type, set_dedup_table_ptr, set_migration_functions_ptr,
+        set_upgrade_instructions,
     },
     rts_trap_with,
     stabilization::ic::metadata::StabilizationMetadata,
@@ -151,33 +151,17 @@ static mut DESTABILIZATION_STATE: Option<DestabilizationState> = None;
 
 /// Starts the graph-copy-based destabilization process.
 /// This requires that the deserialization is subsequently run and completed.
-/// Also checks whether the new program version is compatible to the stored state by comparing the type
-/// tables of both the old and the new program version.
-/// The check is identical to enhanced orthogonal persistence, except that the metadata is obtained from
-/// stable memory and not the persistent main memory.
-/// The parameters encode the type table of the new program version to which that data is to be upgraded.
-/// `new_candid_data`: A blob encoding the Candid type as a table.
-/// `new_type_offsets`: A blob encoding the type offsets in the Candid type table.
-///   Type index 0 represents the stable actor object to be serialized.
-/// Traps if the stable state is incompatible with the new program version and the upgrade is not
-/// possible.
+/// The old type descriptor from stable memory is restored into `PersistentMetadata`
+/// so that `register_stable_type` can check compatibility when the migration chain
+/// runs after destabilization (inside `Persistence.load` / `ICStableRead`).
 #[ic_mem_fn(ic_only)]
-pub unsafe fn start_graph_destabilization<M: Memory>(
-    mem: &mut M,
-    new_candid_data: Value,
-    new_type_offsets: Value,
-) {
+pub unsafe fn start_graph_destabilization<M: Memory>(mem: &mut M) {
     assert!(DESTABILIZATION_STATE.is_none());
 
     let mut instruction_meter = InstructionMeter::new();
     instruction_meter.start();
-    let mut new_type_descriptor = TypeDescriptor::new(new_candid_data, new_type_offsets);
     let (metadata, last_page_record) = StabilizationMetadata::load(mem);
-    let mut old_type_descriptor = metadata.type_descriptor;
-    if !memory_compatible(mem, &mut old_type_descriptor, &mut new_type_descriptor) {
-        rts_trap_with("Memory-incompatible program upgrade");
-    }
-    // Restore the virtual size.
+    restore_stable_type(mem, &metadata.type_descriptor);
     moc_stable_mem_set_size(metadata.serialized_data_start / PAGE_SIZE);
 
     // Stop the GC until the incremental graph destabilization has been completed.

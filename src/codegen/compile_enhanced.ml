@@ -1286,7 +1286,7 @@ module RTS = struct
     E.add_func_import env "rts" "is_graph_stabilization_started" [] [I32Type];
     E.add_func_import env "rts" "start_graph_stabilization" [I64Type; I64Type; I64Type] [];
     E.add_func_import env "rts" "graph_stabilization_increment" [] [I32Type];
-    E.add_func_import env "rts" "start_graph_destabilization" [I64Type; I64Type] [];
+    E.add_func_import env "rts" "start_graph_destabilization" [] [];
     E.add_func_import env "rts" "graph_destabilization_increment" [] [I32Type];
     E.add_func_import env "rts" "get_graph_destabilized_actor" [] [I64Type];
     E.add_func_import env "rts" "buffer_in_32_bit_range" [] [I64Type];
@@ -9607,8 +9607,7 @@ module GraphCopyStabilization = struct
   let graph_stabilization_increment env =
     E.call_import env "rts" "graph_stabilization_increment" ^^ Bool.from_rts_int32
 
-  let start_graph_destabilization env actor_type =
-    EnhancedOrthogonalPersistence.create_type_descriptor env actor_type ^^
+  let start_graph_destabilization env =
     E.call_import env "rts" "start_graph_destabilization"
 
   let graph_destabilization_increment env =
@@ -9616,7 +9615,9 @@ module GraphCopyStabilization = struct
 
   let get_graph_destabilized_actor env actor_type =
     E.call_import env "rts" "get_graph_destabilized_actor" ^^
-    EnhancedOrthogonalPersistence.upgrade_actor env actor_type
+    match env.E.enhanced_migration with
+    | Some _ -> G.nop
+    | None -> EnhancedOrthogonalPersistence.upgrade_actor env actor_type
 end
 
 module GCRoots = struct
@@ -10392,8 +10393,8 @@ module IncrementalGraphStabilization = struct
   let partial_destabilization_on_upgrade env actor_type =
     (* TODO: Verify that the post_upgrade hook cannot be directly called by the IC *)
     (* Garbage collection is disabled in `start_graph_destabilization` until destabilization has completed. *)
-    let actor_typ = (if Option.is_some env.E.enhanced_migration then actor_type.Ir.post else actor_type.Ir.pre) in
-    GraphCopyStabilization.start_graph_destabilization env actor_typ  ^^
+    let actor_typ = actor_type.Ir.pre in
+    GraphCopyStabilization.start_graph_destabilization env ^^
     get_destabilized_actor env ^^
     compile_test I64Op.Eqz ^^
     E.if0
@@ -10445,8 +10446,7 @@ module IncrementalGraphStabilization = struct
     export_stabilize_before_upgrade_method env actor_type.Ir.post;
     define_async_destabilization_reply_callback env;
     define_async_destabilization_reject_callback env;
-    let actor_typ = (if Option.is_some env.E.enhanced_migration then actor_type.Ir.post else actor_type.Ir.pre) in
-    export_async_destabilization_method env actor_typ;
+    export_async_destabilization_method env actor_type.Ir.pre;
     export_destabilize_after_upgrade_method env;
 
 end (* IncrementalGraphStabilization *)

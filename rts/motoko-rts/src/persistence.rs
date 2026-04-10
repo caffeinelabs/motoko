@@ -250,6 +250,14 @@ unsafe fn update_stable_type<M: Memory>(
     (*metadata).stable_type.assign(mem, &new_type);
 }
 
+/// Restore the old stable type from graph-copy stabilization metadata into
+/// the freshly initialized persistent metadata so that `register_stable_type`
+/// can check compatibility when the migration chain runs after destabilization.
+pub unsafe fn restore_stable_type<M: Memory>(mem: &mut M, old_type: &TypeDescriptor) {
+    let metadata = PersistentMetadata::get();
+    (*metadata).stable_type.assign(mem, old_type);
+}
+
 /// Register the stable actor type on canister initialization and upgrade.
 /// The type is stored in the persistent metadata memory for later retrieval on canister upgrades.
 /// On an upgrade, the memory compatibility between the new and existing stable type is checked.
