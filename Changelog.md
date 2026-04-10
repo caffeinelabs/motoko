@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.5.0 (2026-04-10)
+
 * motoko (`moc`)
 
   * feat: Add `--generate-view-queries` flag to auto-generate query methods for stable variables (#5796).
@@ -23,6 +25,10 @@
     See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
 
   * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
+  * bugfix: Fix type inference for `return` expressions inside unannotated lambdas passed to generic functions. Previously, the generic type parameter could resolve to `Non` instead of the actual return type, causing an IR type error (#5962).
+
+  * bugfix: Fix crash when reporting errors with no source region (#5976).
 
 * documentation (`mo-doc`)
 
