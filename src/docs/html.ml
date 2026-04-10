@@ -14,7 +14,10 @@ let rec join_with : t -> t list -> t =
   | x :: xs -> x ++ sep ++ join_with sep xs
 
 let space : t = string "\u{00A0}"
-let cls_span : string -> string -> t = fun cls s -> Cow.Html.span ~cls (string s)
+
+let cls_span : string -> string -> t =
+ fun cls s -> Cow.Html.span ~cls (string s)
+
 let fn_name : string -> t = cls_span "fnname"
 let class_name : string -> t = cls_span "classname"
 let object_name : string -> t = cls_span "objectname"
@@ -24,8 +27,7 @@ let html_type : string -> t = cls_span "type"
 
 let rec string_of_path' : Syntax.path' -> string = function
   | Syntax.IdH id -> id.it
-  | Syntax.DotH (path, id) ->
-      string_of_path' path.it ^ "." ^ id.it
+  | Syntax.DotH (path, id) -> string_of_path' path.it ^ "." ^ id.it
 
 let string_of_path : Syntax.typ_path -> string =
  fun path -> string_of_path' path.it
@@ -72,9 +74,7 @@ let html_of_comment : string -> t = function
 
 let html_of_mut : Syntax.mut -> t =
  fun mut ->
-  match mut.it with
-  | Syntax.Var -> keyword "var "
-  | Syntax.Const -> string ""
+  match mut.it with Syntax.Var -> keyword "var " | Syntax.Const -> string ""
 
 let html_of_func_sort : Syntax.func_sort -> t =
  fun sort ->
@@ -187,9 +187,7 @@ and html_of_typ_field : env -> Syntax.typ_field -> t =
 
 and html_of_typ_item : env -> Syntax.typ_item -> t =
  fun env (oid, t) ->
-  Option.fold ~none:empty
-    ~some:(fun id -> parameter id.it ++ string " : ")
-    oid
+  Option.fold ~none:empty ~some:(fun id -> parameter id.it ++ string " : ") oid
   ++ html_of_type env t
 
 let sub_declaration heading doc =

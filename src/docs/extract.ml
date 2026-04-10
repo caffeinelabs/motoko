@@ -194,11 +194,8 @@ struct
     (tag, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
   let rec extract_doc mk_xref = function
-    | 
-        {
-          it = Syntax.LetD ({ it = Syntax.VarP { it = name; _ }; _ }, rhs, _);
-          _;
-        } -> (
+    | { it = Syntax.LetD ({ it = Syntax.VarP { it = name; _ }; _ }, rhs, _); _ }
+      -> (
         match rhs with
         | { it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
             let mk_field_xref xref = mk_xref (Xref.XClass (name, xref)) in
@@ -245,21 +242,12 @@ struct
         Some
           ( mk_xref (Xref.XType name.it),
             Type { name = name.it; type_args = ty_args; typ = doc_typ } )
-    | 
-        {
-          it =
-            Syntax.ClassD
-              ( exp_opt,
-                shared_pat,
-                obj_sort,
-                name,
-                type_args,
-                ctor,
-                _,
-                _,
-                fields );
-          _;
-        } ->
+    | {
+        it =
+          Syntax.ClassD
+            (exp_opt, shared_pat, obj_sort, name, type_args, ctor, _, _, fields);
+        _;
+      } ->
         let mk_field_xref xref = mk_xref (Xref.XClass (name.it, xref)) in
         Some
           ( mk_xref (Xref.XType name.it),
