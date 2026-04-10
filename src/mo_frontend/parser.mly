@@ -5,7 +5,8 @@ open Mo_types
 open Mo_values
 
 open Syntax
-open Source
+open Wasm.Source
+open Source [@@@warning "-41"]
 open Operator
 open Parser_lib
 
@@ -13,13 +14,13 @@ open Parser_lib
 (* Position handling *)
 
 let position_to_pos position =
-  { file = position.Lexing.pos_fname;
+  Wasm.Source.{ file = position.Lexing.pos_fname;
     line = position.Lexing.pos_lnum;
     column = position.Lexing.pos_cnum - position.Lexing.pos_bol
   }
 
 let positions_to_region position1 position2 =
-  { left = position_to_pos position1;
+  Wasm.Source.{ left = position_to_pos position1;
     right = position_to_pos position2
   }
 
@@ -671,7 +672,7 @@ exp_post(B) :
     { DotE(e, x, ref None) @? at $sloc }
   | nid = NUM_DOT_ID
     { let (num, id) = nid in
-      let {left; right} = at $sloc in
+      let Wasm.Source.{left; right} = at $sloc in
       let e =
 	LitE(ref (PreLit (num, Type.Nat))) @?
 	{ left;

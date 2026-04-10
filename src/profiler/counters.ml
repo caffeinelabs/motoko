@@ -8,7 +8,7 @@ such as search, sorting, etc.
 
 *)
 
-open Source
+open Wasm.Source
 module Value = Mo_values.Value
 module T = Mo_types.Type
 

@@ -10,19 +10,19 @@ module Uint32 = Lib.Uint32
 let position_to_pos position =
   (* TBR: Remove assertion once the menhir bug is fixed. *)
   assert (Obj.is_block (Obj.repr position));
-  { file = position.Lexing.pos_fname;
+  Wasm.Source.{ file = position.Lexing.pos_fname;
     line = position.Lexing.pos_lnum;
     column = position.Lexing.pos_cnum - position.Lexing.pos_bol
   }
 
 let positions_to_region position1 position2 =
-  { left = position_to_pos position1;
+  Wasm.Source.{ left = position_to_pos position1;
     right = position_to_pos position2
   }
 
 let at (startpos, endpos) = positions_to_region startpos endpos
 
-let _anon sort at = "anon-" ^ sort ^ "-" ^ string_of_pos at.left
+let _anon sort at = "anon-" ^ sort ^ "-" ^ string_of_pos at.Wasm.Source.left
 
 let prim_typs = ["nat", Nat; "nat8", Nat8; "nat16", Nat16; "nat32", Nat32; "nat64", Nat64;
                  "int", Int; "int8", Int8; "int16", Int16; "int32", Int32; "int64", Int64;
