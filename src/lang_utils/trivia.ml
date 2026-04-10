@@ -1,4 +1,4 @@
-open Source
+open Wasm.Source
 
 type line_feed = LF | CRLF
 

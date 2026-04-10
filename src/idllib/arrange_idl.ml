@@ -1,6 +1,7 @@
-open Source
 open Syntax
 open Wasm.Sexpr
+open Wasm.Source
+open Source [@@@warning "-41"]
 
 let string_of_prim p =
   match p with

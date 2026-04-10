@@ -5,18 +5,18 @@
    Note that the functionality of this module is enabled only when
    [!Mo_config.Flags.typechecker_combine_srcs = true], otherwise the functions
    will do nothing or return empty data structures. *)
-module Srcs_tbl = Hashtbl.Make (struct
-  type t = Source.region
+open Wasm.Source
 
-  let equal l r =
-    let open Source in
-    let equal_pos l r =
+module Srcs_tbl = Hashtbl.Make (struct
+  type t = region
+
+  let equal l r = l = r
+    (*let equal_pos l r =
       l.line = r.line && l.column = r.column && l.file = r.file
     in
-    equal_pos l.left r.left && equal_pos l.right r.right
+    equal_pos l.left r.left && equal_pos l.right r.right*)
 
   let hash s =
-    let open Source in
     let combine_int h x = (h * 65521) lxor x in
     let hash_pos {line; column; file} =
       combine_int line (combine_int column (Int32.to_int (Hash.hash file)))
