@@ -1,7 +1,7 @@
 open Mo_config
 module G = Grace
 module GD = Grace.Diagnostic
-open Wasm.Source
+open Source
 
 type error_code = string
 type severity = Warning | Error | Info
@@ -98,7 +98,7 @@ let string_of_message msg =
     if msg.notes <> [] then
       "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
     else "" in
-  Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
+  Printf.sprintf "%s: %s%s, %s%s%s\n" (string_of_region msg.at) label code msg.text spans notes
 
 (** Converts a line/column based position to a byte offset.
 
@@ -119,7 +119,7 @@ let ensure_primary_span msg =
   else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
 
 let fancy_of_message (msg : message) =
-  if Source.is_no_region msg.at then string_of_message msg else
+  if is_no_region msg.at then string_of_message msg else
   let path = msg.at.left.file in
   let content = In_channel.with_open_bin path In_channel.input_all in
   let file = G.Source.{ name = Some path; content } in
