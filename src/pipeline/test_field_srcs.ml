@@ -77,7 +77,7 @@ let show (result : (Mo_def.Syntax.prog * Mo_types.Field_sources.srcs_map) Diag.r
   match result with
   | Error msgs -> Format.printf "Diagnostics:\n%s\n" (show_msgs msgs)
   | Ok ((prog, srcs), msgs) ->
-    let filename = prog.Source.note.Mo_def.Syntax.filename in
+    let filename = prog.note.Mo_def.Syntax.filename in
     let module Arrange = (val arrange filename srcs) in
     Format.printf "Ok:\n";
     Format.printf "Collected sources:\n";
@@ -87,10 +87,10 @@ let show (result : (Mo_def.Syntax.prog * Mo_types.Field_sources.srcs_map) Diag.r
     Format.printf "Sources table:\n";
     Seq.iter
       (fun (define, origins) ->
-        Format.printf "%s:" (Source.string_of_region define);
+        Format.printf "%s:" (string_of_region define);
         Seq.iter
-          (fun origin -> Format.printf " %s" (Source.string_of_region origin))
-          (Source.Region_set.to_seq origins);
+          (fun origin -> Format.printf " %s" (string_of_region origin))
+          (Region_set.to_seq origins);
         Format.printf "\n")
       (Mo_types.Field_sources.Srcs_map.to_seq srcs);
     match msgs with
@@ -100,7 +100,7 @@ let show (result : (Mo_def.Syntax.prog * Mo_types.Field_sources.srcs_map) Diag.r
 let run_get_sources_test source =
   let open Diag.Syntax in
   let infer_prog prog senv async_cap : Mo_types.Field_sources.srcs_map Diag.result =
-    let filename = prog.Source.note.Mo_def.Syntax.filename in
+    let filename = prog.note.Mo_def.Syntax.filename in
     let* _typ, sscope =
       Mo_types.Cons.session ~scope:filename (fun () ->
         Mo_frontend.Typing.infer_prog
