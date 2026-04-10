@@ -629,7 +629,7 @@ module Make (Cfg : Config) = struct
     | Some s -> (
         match s.it with
         | Flexible -> js_string "Flexible"
-        | Stable -> js_string "Stable")
+        | Stable _ -> js_string "Stable")
 
   and exp_field_js ef =
     let open Source in

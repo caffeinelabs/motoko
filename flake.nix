@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -45,10 +45,6 @@
       url = "github:flowtype/ocaml-vlq";
       flake = false;
     };
-    wasm-spec-src = {
-      url = "github:WebAssembly/spec/opam-1.1.1";
-      flake = false;
-    };
     grace-src = {
       url = "github:johnyob/grace/15251666a11a780dfd09f23e1b0c1e6b0e366dcf";
       flake = false;
@@ -73,7 +69,6 @@
     , motoko-core-src
     , motoko-matchers-src
     , ocaml-vlq-src
-    , wasm-spec-src
     , grace-src
     , ocaml-recovery-parser-src
     }: flake-utils.lib.eachDefaultSystem (system:
@@ -89,7 +84,6 @@
             motoko-core-src
             motoko-matchers-src
             ocaml-vlq-src
-            wasm-spec-src
             ocaml-recovery-parser-src
             grace-src;
         };
@@ -128,7 +122,7 @@
         sexplib
         num
         stdint
-        wasm_1
+        wasm
         vlq
         zarith
         yojson
