@@ -1,6 +1,6 @@
 open Type
 open Wasm.Sexpr
-open Wasm.Source
+open Source
 
 module type Config = sig
   val srcs_tbl : Field_sources.srcs_map option
@@ -72,7 +72,7 @@ module Make (Cfg : Config) = struct
         match Field_sources.Srcs_map.find_opt track_region srcs_tbl with
         | None -> []
         | Some srcs ->
-          List.of_seq (Seq.map region (Source.Region_set.to_seq srcs))
+          List.of_seq (Seq.map region (Region_set.to_seq srcs))
     in
     Atom (Option.value ~default:"" depr) :: region r :: srcs
 

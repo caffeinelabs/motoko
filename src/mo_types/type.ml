@@ -1,4 +1,5 @@
 open Field_sources
+open Source
 
 (* Representation *)
 type id = string
@@ -71,7 +72,7 @@ and scope = typ
 and bind_sort = Scope | Type
 
 and bind = {var : var; sort: bind_sort; bound : typ}
-and src = {depr : string option; track_region : Source.region; region : Source.region}
+and src = {depr : string option; track_region : region; region : region}
 and 'a gen_field = {lab : lab; typ : 'a; src : src}
 and field = typ gen_field
 and typ_field = con gen_field
@@ -81,7 +82,7 @@ and kind =
   | Def of bind list * typ
   | Abs of bind list * typ
 
-let empty_src = {depr = None; track_region = Source.no_region; region = Source.no_region}
+let empty_src = {depr = None; track_region = no_region; region = no_region}
 
 (* Stable signatures *)
 type stab_sig =
@@ -1058,7 +1059,7 @@ let add_src_field rel lubs glbs f1 f2 =
     (* Perhaps we could get away with just adding [r1] and [r2] to each other's
        tables, but we play safe here and overapproximate. *)
     let srcs =
-      Source.Region_set.(if rel == lubs then union else inter)
+      Region_set.(if rel == lubs then union else inter)
         (get_srcs src_map r1)
         (get_srcs src_map r2)
     in
@@ -1078,7 +1079,7 @@ let add_src_field_update rel eq tf1 tf2 =
       let src_map = !src_field_map in
       (* Perhaps we could get away with just adding [r1] and [r2] to each
          other's tables, but we play safe here and overapproximate. *)
-      let srcs = Source.Region_set.union (get_srcs src_map r1) (get_srcs src_map r2) in
+      let srcs = Region_set.union (get_srcs src_map r1) (get_srcs src_map r2) in
       if rel == eq then
         Srcs_tbl.replace src_map r1 srcs;
       Srcs_tbl.replace src_map r2 srcs
