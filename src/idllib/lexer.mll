@@ -1,5 +1,5 @@
 {
-open Wasm.Source
+open Source
 open Parser
 module Utf8 = Lib.Utf8
 
@@ -14,7 +14,7 @@ let region lexbuf =
   let right = convert_pos (Lexing.lexeme_end_p lexbuf) in
   {left = left; right = right}
 
-let error lexbuf msg = raise (Source.ParseError (region lexbuf, msg))
+let error lexbuf msg = raise (ParseError (region lexbuf, msg))
 let error_nest start lexbuf msg =
   lexbuf.Lexing.lex_start_p <- start;
   error lexbuf msg
