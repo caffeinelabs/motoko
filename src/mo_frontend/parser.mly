@@ -671,7 +671,7 @@ exp_post(B) :
     { DotE(e, x, ref None) @? at $sloc }
   | nid = NUM_DOT_ID
     { let (num, id) = nid in
-      let Wasm.Source.{left; right} = at $sloc in
+      let {left; right} = at $sloc in
       let e =
 	LitE(ref (PreLit (num, Type.Nat))) @?
 	{ left;

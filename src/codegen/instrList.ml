@@ -7,12 +7,6 @@ features are
  * Some simple peephole optimizations.
 *)
 
-(*let _cr Source.{left; right} =
-  let left, right =
-    (let Source.{ file; line; column } = left in Wasm.Source.{ file; line; column }),
-    (let Source.{ file; line; column } = right in Wasm.Source.{ file; line; column })
-  in Wasm.Source.{ left; right }*)
-
 open Wasm_exts.Ast
 open Wasm.Source
 open Wasm_exts.Values

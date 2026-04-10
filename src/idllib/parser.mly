@@ -10,13 +10,13 @@ module Uint32 = Lib.Uint32
 let position_to_pos position =
   (* TBR: Remove assertion once the menhir bug is fixed. *)
   assert (Obj.is_block (Obj.repr position));
-  Wasm.Source.{ file = position.Lexing.pos_fname;
+  { file = position.Lexing.pos_fname;
     line = position.Lexing.pos_lnum;
     column = position.Lexing.pos_cnum - position.Lexing.pos_bol
   }
 
 let positions_to_region position1 position2 =
-  Wasm.Source.{ left = position_to_pos position1;
+  { left = position_to_pos position1;
     right = position_to_pos position2
   }
 

@@ -51,7 +51,7 @@ module Make (Cfg : Config) = struct
       let rec lookup_trivia (line, column) =
         Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
       and find_trivia (parser_pos : Source.region) : Trivia.trivia_info =
-        lookup_trivia Wasm.Source.(parser_pos.left.line, parser_pos.left.column) |> Option.get
+        lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
       in
       (match Trivia.doc_comment_of_trivia_info (find_trivia at) with
       | Some s -> "*" $$ [Atom s; it]

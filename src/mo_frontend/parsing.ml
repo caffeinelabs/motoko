@@ -1,4 +1,5 @@
 open Mo_config
+open Source
 
 module P =
   MenhirLib.Printers.Make
@@ -31,8 +32,8 @@ let abstract_future future =
   String.concat " " ss
 
 let abstract_future_with_example future =
-  let ss      = String.concat " " @@ List.map Printers.string_of_symbol future in
-  let example = String.concat " " @@ List.map Printers.example_of_symbol future in
+  let ss      = List.map Printers.string_of_symbol future |> String.concat " " in
+  let example = List.map Printers.example_of_symbol future |> String.concat " " in
   if String.compare ss example != 0 then
     ss ^ " (e.g. '" ^ example ^ "')"
   else
@@ -107,7 +108,7 @@ module RecoveryConfig = struct
       let open Lexing in
       let open Source in
       let file = loc.loc_start.pos_fname in
-      let region_loc : region = Wasm.Source.{
+      let region_loc : region = {
         left  : pos = {file; line = loc.loc_start.pos_lnum; column = loc.loc_start.pos_bol};
         right : pos = {file; line = loc.loc_end.pos_lnum; column = loc.loc_end.pos_bol};
       } in
@@ -122,7 +123,7 @@ module R = MenhirRecoveryLib.Make (Parser.MenhirInterpreter) (RecoveryConfig) (R
 
 let handle_error lexbuf error_detail message_store (start, end_) explanations =
   let at =
-        Wasm.Source.{left = Lexer.convert_pos start; right = Lexer.convert_pos end_}
+        {left = Lexer.convert_pos start; right = Lexer.convert_pos end_}
   in
   let lexeme = slice_lexeme lexbuf start end_ in
   let token =
