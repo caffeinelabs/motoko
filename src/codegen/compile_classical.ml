@@ -10213,7 +10213,6 @@ open PatCode
 
 (* All the code above is independent of the IR *)
 open Ir
-let (@@) = Stdlib.(@@) (* get the app operator back *)
 
 module AllocHow = struct
   (*

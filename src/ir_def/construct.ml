@@ -4,6 +4,8 @@ open Mo_values
 module Cons = Mo_types.Cons
 module T = Mo_types.Type
 
+let (@@) = Source.(@@)
+
 (* Field names *)
 
 let nameN s = s
