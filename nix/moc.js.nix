@@ -7,7 +7,7 @@ let
       buildInputs = commonBuildInputs pkgs ++ [
         pkgs.ocamlPackages.js_of_ocaml
         pkgs.ocamlPackages.js_of_ocaml-ppx
-        pkgs.nodejs
+        pkgs.nodejs-slim
         # pkgs.nodePackages.terser
       ];
       buildPhase = ''
