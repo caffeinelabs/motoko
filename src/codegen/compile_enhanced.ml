@@ -503,11 +503,13 @@ module E = struct
     (* Counter for deriving a unique id per constant function. *)
     constant_functions : int32 ref;
     dedup : (unit -> int32) option ref;
+
+    enhanced_migration : string option;
   }
 
 
   (* The initial global environment *)
-  let mk_global mode rts trap_with : t = {
+  let mk_global mode rts trap_with enhanced_migration : t = {
     mode;
     rts;
     trap_with;
@@ -538,6 +540,7 @@ module E = struct
     global_type_descriptor = ref None;
     constant_functions = ref 0l;
     dedup = ref None;
+    enhanced_migration;
   }
 
   (* This wraps Mo_types.Hash.hash to also record which labels we have seen,
@@ -813,8 +816,11 @@ module E = struct
     | Some mk_fi -> mk_fi()
     | None -> assert false
 
-  let set_dedup (env : t) (mk_fi : unit -> int32)=
+  let set_dedup (env : t) (mk_fi : unit -> int32) =
     env.dedup := Some mk_fi
+
+  let enhanced_migration (env : t) : string option =
+    env.enhanced_migration
 
 end
 
@@ -1288,6 +1294,8 @@ module RTS = struct
     E.add_func_import env "rts" "weak_ref_is_live" [I64Type] [I32Type];
     E.add_func_import env "rts" "get_dedup_table" [] [I64Type];
     E.add_func_import env "rts" "set_dedup_table" [I64Type] [];
+    E.add_func_import env "rts" "get_migrations" [] [I64Type];
+    E.add_func_import env "rts" "set_migrations" [I64Type] [];
     ()
 
 end (* RTS *)
@@ -1894,17 +1902,6 @@ module BitTagged = struct
       compile_bitand_const mask
     else G.nop
 
-  (* True for types whose Vanilla encoding is always a bit-tagged scalar (bit 0 = 0),
-     so Opt.inject is a no-op and can be omitted at compile time.
-     Nat64/Int64 are excluded: values outside the 60-bit compact range are heap-boxed
-     as Bits64 (bit 0 = 1), so the scalar property does not hold for all values.
-     Opt.inject is still a no-op for Nat64/Int64 (branch_default returns Bits64 as-is),
-     but it cannot be eliminated statically. *)
-  let is_always_scalar t =
-    Type.(match normalize t with
-    | Prim (Nat8 | Nat16 | Nat32 | Int8 | Int16 | Int32 | Char | Float32) -> true
-    | _ -> false)
-
 end (* BitTagged *)
 
 module Tagged = struct
@@ -2244,26 +2241,40 @@ module Opt = struct
   let alloc_some env get_payload =
     Tagged.obj env Tagged.Some [ get_payload ]
 
+  (*
+     With our option representation (see above), the only values v : T that
+     require non-trivial code to inject as Some v have a type T that can
+     contain null or ?w.
+     So for any T other than Null, ?U, Any, or generic bound T,
+     injection is a no-op and just returns v at type ?T.
+     For a type T that may contain null or ?w, we need to do some work.
+  *)
+  let injection_is_free env t =
+    Type.(match promote t with
+         | Prim Null | Opt _ | Any | Con _ -> false
+         | _ -> true)
+
   let inject env t e =
-    if BitTagged.is_always_scalar t then e
+    if injection_is_free env t
+    then e
     else
-    e ^^
-    Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
-      get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
-        ( get_x ) (* scalar, no wrapping *)
-        ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
-          E.if_ env [I64Type]
-            ( get_x ) (* true literal, no wrapping *)
-            ( get_x ^^ is_some env ^^
-              E.if_ env [I64Type]
-                ( get_x ^^ Tagged.branch_default env [I64Type]
-                  ( get_x ) (* default tag, no wrapping *)
-                  [ Tagged.Some, alloc_some env get_x ]
-                )
-                ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
-            )
-        )
-    )
+      e ^^
+      Func.share_code1 Func.Never env "opt_inject" ("x", I64Type) [I64Type] (fun env get_x ->
+        get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
+          ( get_x ) (* scalar, no wrapping *)
+          ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
+            E.if_ env [I64Type]
+              ( get_x ) (* true literal, no wrapping *)
+              ( get_x ^^ is_some env ^^
+                E.if_ env [I64Type]
+                  ( get_x ^^ Tagged.branch_default env [I64Type]
+                    ( get_x ) (* default tag, no wrapping *)
+                    [ Tagged.Some, alloc_some env get_x ]
+                  )
+                  ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
+              )
+          )
+      )
 
   let constant env = function
   | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
@@ -2283,7 +2294,10 @@ module Opt = struct
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env some_payload_field
 
-  let project env =
+  let project env typ =
+    if injection_is_free env typ
+    then G.nop
+    else
     Func.share_code1 Func.Never env "opt_project" ("x", I64Type) [I64Type] (fun env get_x ->
       get_x ^^ BitTagged.if_tagged_scalar env [I64Type]
         ( get_x ) (* scalar, no wrapping *)
@@ -4954,7 +4968,7 @@ module IC = struct
 
       Func.define_built_in env "print_ptr" [("ptr", I64Type); ("len", I64Type)] [] (fun env ->
         match E.mode env with
-        | Flags.WasmMode -> G.i Nop
+        | Flags.WasmMode -> G.nop
         | Flags.ICMode | Flags.RefMode ->
           G.i (LocalGet (nr 0l)) ^^
           G.i (LocalGet (nr 1l)) ^^
@@ -7713,7 +7727,7 @@ module Serialization = struct
       | Opt t ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
         get_x ^^ Opt.is_some env ^^
-        E.if0 (get_x ^^ Opt.project env ^^ size env t) G.nop
+        E.if0 (get_x ^^ Opt.project env t ^^ size env t) G.nop
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
             get_x ^^
@@ -7892,7 +7906,7 @@ module Serialization = struct
         get_x ^^
         Opt.is_some env ^^
         E.if0
-          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env ^^ write env t)
+          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env t ^^ write env t)
           (write_byte env get_data_buf (compile_unboxed_const 0L))
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
@@ -10504,8 +10518,11 @@ module Persistence = struct
             if not (!Flags.explicit_enhanced_orthogonal_persistence) then
               E.trap_with env "Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration."
             else G.nop ^^
-            OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
-            EnhancedOrthogonalPersistence.initialize env actor_type
+            if E.enhanced_migration env = None then
+              OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
+              EnhancedOrthogonalPersistence.initialize env actor_type
+            else
+              E.trap_with env "Cannot upgrade from classical orthogonal persistence with --enhanced-migration"
           end
       end) ^^
     StableMem.region_init env
@@ -12313,6 +12330,15 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae dedup_table ^^
     E.call_import env "rts" "set_dedup_table"
 
+  | OtherPrim "get_migrations", [] ->
+    SR.Vanilla,
+    E.call_import env "rts" "get_migrations"
+
+  | OtherPrim "set_migrations", [pointer] ->
+    SR.unit,
+    compile_exp_vanilla env ae pointer ^^
+    E.call_import env "rts" "set_migrations"
+
   (* Regions *)
 
   | OtherPrim "regionNew", [] ->
@@ -12927,6 +12953,9 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | ICStableWrite ty, [] ->
     SR.unit,
     Persistence.save env ty
+  | ICStableStore ty, [] ->
+    SR.unit,
+    EnhancedOrthogonalPersistence.assign_stable_type env ty
 
   (* Cycles *)
   | SystemCyclesBalancePrim, [] ->
@@ -13337,7 +13366,7 @@ and fill_pat env ae pat : patternCode =
         Opt.is_some env ^^
         E.if0
           ( get_x ^^
-            Opt.project env ^^
+            Opt.project env p.note ^^
             with_fail fail_code (fill_pat env ae p)
           )
           fail_code
@@ -13979,11 +14008,11 @@ and conclude_module env set_serialization_globals start_fi_o =
   | None -> emodule
   | Some rts -> Linking.LinkModule.link emodule "rts" rts
 
-let compile mode rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
+let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)
   assert !Flags.rtti; (* Use precise tagging for graph copy. *)
   assert (!Flags.gc_strategy = Flags.Incremental); (* Define heap layout with the incremental GC. *)
-  let env = E.mk_global mode rts IC.trap_with in
+  let env = E.mk_global mode rts IC.trap_with enhanced_migration in
 
   IC.register_globals env;
   Stack.register_globals env;

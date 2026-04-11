@@ -191,6 +191,10 @@ and html_of_typ_item : env -> Syntax.typ_item -> t =
     oid
   ++ html_of_type env t
 
+let sub_declaration heading doc =
+  div ~cls:"declaration"
+    (h4 ~cls:"declaration" (code heading) ++ p (html_of_comment doc))
+
 let html_of_type_doc : env -> Extract.type_doc -> Xref.t -> t =
  fun env type_doc xref ->
   let ty_args = html_of_typ_binders env type_doc.type_args in
@@ -203,13 +207,34 @@ let html_of_type_doc : env -> Extract.type_doc -> Xref.t -> t =
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
-  | DTObj (ty, fields) ->
+  | DTObj (ty, doc_fields) ->
       h4 ~cls:"type-declaration" ~id
         (keyword "type "
         ++ html_type type_doc.name
         ++ ty_args
         ++ string " = "
         ++ html_of_type env ty)
+      ++ list
+           (List.filter_map
+              (function
+                | _, None -> None
+                | field, Some doc ->
+                    Some (sub_declaration (html_of_typ_field env field) doc))
+              doc_fields)
+  | DTVariant (ty, doc_tags) ->
+      h4 ~cls:"type-declaration" ~id
+        (keyword "type "
+        ++ html_type type_doc.name
+        ++ ty_args
+        ++ string " = "
+        ++ html_of_type env ty)
+      ++ list
+           (List.filter_map
+              (function
+                | _, None -> None
+                | tag, Some doc ->
+                    Some (sub_declaration (html_of_typ_tag env tag) doc))
+              doc_tags)
 
 let html_of_named_arg : env -> Extract.function_arg_named -> t =
  fun env arg ->

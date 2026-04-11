@@ -1,5 +1,5 @@
 { pkgs, base-doc, docs, coverage }:
-pkgs.runCommandNoCC "report-site"
+pkgs.runCommand "report-site"
 {
   buildInputs = [ pkgs.tree ];
 } ''

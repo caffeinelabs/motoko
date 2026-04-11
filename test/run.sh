@@ -448,7 +448,7 @@ do
           # Check filecheck
           if [ "$SKIP_RUNNING" != yes ]
           then
-            if grep -F -q ^//CHECK $mangled
+            if grep -q '^//CHECK' $mangled
             then
               $ECHO -n " [FileCheck]"
               wasm2wat --enable-memory64 --enable-multi-memory --no-check $out/$base.wasm > $out/$base.wat
@@ -678,7 +678,7 @@ do
     diff_files="$diff_files $base.cmp"
   ;;
   *)
-    echo "Unknown extentions $ext";
+    echo "Unknown extensions $ext";
     exit 1
   esac
   $ECHO ""

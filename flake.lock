@@ -3,11 +3,11 @@
     "candid-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1766069143,
-        "narHash": "sha256-hllvzZ/phhWbxuHhA1tME1Nc0ZAT9fMAZgwWsa9BLNs=",
+        "lastModified": 1775745258,
+        "narHash": "sha256-s8+H0ji2uZOv6vgkO4KEOPxQAgziF7uo41Qsvqcokew=",
         "owner": "dfinity",
         "repo": "candid",
-        "rev": "2e4a2cf6a66593e2cb3289535899eb232635bef2",
+        "rev": "39ef0989c4f7bdd71a0a68fdaf0f1146887e692c",
         "type": "github"
       },
       "original": {
@@ -122,11 +122,11 @@
     "motoko-core-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1765968049,
-        "narHash": "sha256-lO8kPkUSQYqEd2pGPATlBIfQDsWZ65nif1hOYN3WGdo=",
+        "lastModified": 1775054932,
+        "narHash": "sha256-RR31RVv2pDIZnzilXlGFISt4ejUGbJ0cDf0OzPMI380=",
         "owner": "caffeinelabs",
         "repo": "motoko-core",
-        "rev": "997746c93ae569fbf04e7b437ae1ae4fb13a59df",
+        "rev": "cd37dbfb6ae63552b1151324cf7e3ae461278b4c",
         "type": "github"
       },
       "original": {
@@ -177,16 +177,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1766014764,
-        "narHash": "sha256-+73VffE5GP5fvbib6Hs1Su6LehG+9UV1Kzs90T2gBLA=",
+        "lastModified": 1775525138,
+        "narHash": "sha256-BQb70+B378ECLO8iQT3P/b1hCC5/CJVHZdeulY8futc=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "2b0d2b456e4e8452cf1c16d00118d145f31160f9",
+        "rev": "d96b37bbeb9840f1c0ebfe90585ef5067b69bbb3",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-25.05",
+        "ref": "nixos-25.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -237,8 +237,7 @@
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
         "ocaml-vlq-src": "ocaml-vlq-src",
-        "rust-overlay": "rust-overlay",
-        "wasm-spec-src": "wasm-spec-src"
+        "rust-overlay": "rust-overlay"
       }
     },
     "rust-overlay": {
@@ -248,11 +247,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1766198367,
-        "narHash": "sha256-f1L1rCEu2Zew6zdiZ38jJDZd65ktE7UN+Gqn2LHPiFI=",
+        "lastModified": 1775704356,
+        "narHash": "sha256-A9JX65WofIF8OKrkMsjznSYNj/A4hfJfEGonsEQ9kxA=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "66bb33fdfb50b1ee724381c3f5d6012dac6c89b3",
+        "rev": "55660228072f38c64c4d2fd227944334dc3f4326",
         "type": "github"
       },
       "original": {
@@ -294,23 +293,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "type": "github"
-      }
-    },
-    "wasm-spec-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1588580907,
-        "narHash": "sha256-7Ew7V63uzGhwrPLUa6+4OG4GwkuggmtJiuaESbYX584=",
-        "owner": "WebAssembly",
-        "repo": "spec",
-        "rev": "65a37e19b4aa4ffb76034ad6727bab74b071df9d",
-        "type": "github"
-      },
-      "original": {
-        "owner": "WebAssembly",
-        "ref": "opam-1.1.1",
-        "repo": "spec",
         "type": "github"
       }
     }

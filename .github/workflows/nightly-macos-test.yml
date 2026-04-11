@@ -8,7 +8,7 @@ jobs:
   common-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Common Tests
         uses: ./.github/actions/test-blueprint
@@ -21,7 +21,7 @@ jobs:
   gc-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run GC Tests
         uses: ./.github/actions/test-blueprint
@@ -37,7 +37,7 @@ jobs:
         build_type: [release, debug]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get `motoko` Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Populate `moc`
         uses: ./.github/actions/test-blueprint
         with:
@@ -69,14 +69,14 @@ jobs:
         # we have to keep it elsewhere and restore later.
         run: cp -r ./.github/actions/test-blueprint ..
       - name: Get `motoko-core` Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: dfinity/motoko-core
           fetch-depth: "0"
       - name: Restore the `test-blueprint` action
         run:  mv ../test-blueprint ./.github/actions
       - name: Set up `mops`
-        uses: dfinity/motoko-core/.github/actions/setup@main
+        uses: dfinity/motoko-core/.github/actions/setup@cd37dbfb6ae63552b1151324cf7e3ae461278b4c # main
       - name: Set up `mops` cache
         run: |
           npx ic-mops --version
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest # No need to run on macOS, the ubuntu runner should be cheaper to run.
     steps:
       - name: Create Issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const date = new Date().toISOString().split('T')[0];

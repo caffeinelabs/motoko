@@ -79,17 +79,18 @@ let comp_unit_of_prog as_lib (prog : prog) : comp_unit =
 (* Lib as decs *)
 let obj_decs obj_sort at note id_opt fields =
   let open Source in
+  let persistence at = { it = false; at; note = [] }  in
   match id_opt with
   | None -> [
     { it = ExpD {
-        it = ObjBlockE ( None, { it = obj_sort; at; note = false @@ no_region }, (None, None), fields);
+        it = ObjBlockE ( None, { it = obj_sort; at; note = persistence no_region }, (None, None), fields);
         at;
         note };
       at; note }]
   | Some id -> [
     { it = LetD (
         { it = VarP id; at; note = note.note_typ },
-        { it = ObjBlockE ( None, { it = obj_sort; at; note = false @@ no_region }, (None, None), fields);
+        { it = ObjBlockE ( None, { it = obj_sort; at; note = persistence no_region }, (None, None), fields);
           at; note; },
         None);
       at; note

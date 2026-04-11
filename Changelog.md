@@ -1,5 +1,39 @@
 # Motoko compiler changelog
 
+## 1.5.0 (2026-04-10)
+
+* motoko (`moc`)
+
+  * feat: Add `--generate-view-queries` flag to auto-generate query methods for stable variables (#5796).
+    When enabled, `moc` produces one `__<var>` query method per stable variable `<var>`, using the variable's `.view()` method if available, or returning the value directly for shared types.
+    Generated queries are restricted to controllers and self.
+    View queries appear in the local `.did` file (for tooling) but are excluded from the canister's public Candid interface, so they never affect upgrade compatibility.
+    See [Stable variable inspection](doc/md/icp-features/7-view-queries.md) for details.
+
+  * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
+    Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
+    Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
+    The (lexicographic) sort order of module filenames determines the order of application of migration functions, with lowest applied first.
+    The compiler verifies that the chain of migration functions composes correctly.
+    The runtime only applies previously unapplied migrations on upgrade.
+    Stable variables within an actor's body must be declared with types but without initializers;
+    their values are determined entirely by the output of the migration chain.
+    The main body of actor must not have any immediate side effects, beyond invoking
+    local `<system>` functions (e.g. to register timers).
+    General side-effects are allowed in migration functions, to enable data initialization
+    and transformation.
+    See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
+
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
+  * bugfix: Fix type inference for `return` expressions inside unannotated lambdas passed to generic functions. Previously, the generic type parameter could resolve to `Non` instead of the actual return type, causing an IR type error (#5962).
+
+  * bugfix: Fix crash when reporting errors with no source region (#5976).
+
+* documentation (`mo-doc`)
+
+  * feat: doc comments on individual record fields and variant tags inside a `type` declaration are now extracted and rendered (#5983).
+
 ## 1.4.1 (2026-03-30)
 
 * motoko (`moc`)

@@ -1,0 +1,5 @@
+warning[M0254]: initial actor requires field `x` of type
+  {#X}
+    ┌─ enhanced-migration/enh-mig-test2/m1.mo:1:1
+  1 │  module {
+    │  ^ 
