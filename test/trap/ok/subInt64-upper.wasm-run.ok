@@ -4,8 +4,8 @@ Error: failed to run main module `_out/subInt64-upper.wasm`
 Caused by:
     0: failed to invoke command default
     1: error while executing at wasm backtrace:
-    0:    0x5de - <unknown>!sub<Int64>
-    1:    0x553 - <unknown>!init
-    2:    0x69c - <unknown>!_start
+    0:    0x - <unknown>!sub<Int64>
+    1:    0x - <unknown>!init
+    2:    0x - <unknown>!_start
     2: wasm trap: unreachable
 

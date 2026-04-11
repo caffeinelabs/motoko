@@ -4,8 +4,8 @@ Error: failed to run main module `_out/subNat64.wasm`
 Caused by:
     0: failed to invoke command default
     1: error while executing at wasm backtrace:
-    0:    0x577 - <unknown>!sub<Nat64>
-    1:    0x54a - <unknown>!init
-    2:    0x6b9 - <unknown>!_start
+    0:    0x - <unknown>!sub<Nat64>
+    1:    0x - <unknown>!init
+    2:    0x - <unknown>!_start
     2: wasm trap: unreachable
 

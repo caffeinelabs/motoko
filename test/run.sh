@@ -70,6 +70,7 @@ function normalize () {
         -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' \
         -e 's/^.*[IW], hypervisor:/hypervisor:/g' \
         -e 's/wasm:0x[a-f0-9]*:/wasm:0x___:/g' \
+        -e 's/0x[0-9a-fA-F]\+\( - <unknown>!\)/0x\1/g' \
         -e 's/prelude:[^:]*:/prelude:___:/g' \
         -e 's/prim:[^:]*:/prim:___:/g' \
         -e 's/ calling func\$[0-9]*/ calling func$NNN/g' \

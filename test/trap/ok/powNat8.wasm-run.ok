@@ -4,8 +4,8 @@ Error: failed to run main module `_out/powNat8.wasm`
 Caused by:
     0: failed to invoke command default
     1: error while executing at wasm backtrace:
-    0:    0x59a - <unknown>!pow<Nat8>
-    1:    0x54a - <unknown>!init
-    2:    0x626 - <unknown>!_start
+    0:    0x - <unknown>!pow<Nat8>
+    1:    0x - <unknown>!init
+    2:    0x - <unknown>!_start
     2: wasm trap: unreachable
 
