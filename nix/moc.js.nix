@@ -8,7 +8,7 @@ let
         pkgs.ocamlPackages.js_of_ocaml
         pkgs.ocamlPackages.js_of_ocaml-ppx
         pkgs.nodejs
-        pkgs.nodePackages.terser
+        # pkgs.nodePackages.terser
       ];
       buildPhase = ''
         patchShebangs .
@@ -16,7 +16,7 @@ let
         ./rts/gen.sh ${rts}/rts/
       '' + ''
         make ${n}.js
-        terser ${n}.js -o ${n}.min.js -c -m
+        jsoo_minify ${n}.js -o ${n}.min.js
       '';
       installPhase = ''
         mkdir -p $out/bin
@@ -26,7 +26,7 @@ let
       doInstallCheck = true;
       test = ../test + "/test-${n}.js";
       installCheckPhase = ''
-        NODE_PATH=$out/bin node --experimental-wasm-memory64 $test
+        NODE_PATH=$out/bin node $test
       '';
     };
 in
