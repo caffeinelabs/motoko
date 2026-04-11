@@ -86,7 +86,7 @@ let show (result : (Mo_def.Syntax.prog * Mo_types.Field_sources.srcs_map) Diag.r
       (gather_let_srcs @@ Arrange.prog prog);
     Format.printf "Sources table:\n";
     Seq.iter
-      (fun (define, origins) ->
+      Source.(fun (define, origins) ->
         Format.printf "%s:" (string_of_region define);
         Seq.iter
           (fun origin -> Format.printf " %s" (string_of_region origin))
@@ -100,7 +100,7 @@ let show (result : (Mo_def.Syntax.prog * Mo_types.Field_sources.srcs_map) Diag.r
 let run_get_sources_test source =
   let open Diag.Syntax in
   let infer_prog prog senv async_cap : Mo_types.Field_sources.srcs_map Diag.result =
-    let filename = prog.note.Mo_def.Syntax.filename in
+    let filename = prog.Source.note.Mo_def.Syntax.filename in
     let* _typ, sscope =
       Mo_types.Cons.session ~scope:filename (fun () ->
         Mo_frontend.Typing.infer_prog
