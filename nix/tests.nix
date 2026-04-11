@@ -16,7 +16,7 @@ let
   };
 
   testDerivationDeps =
-    (with pkgs; [ wabt bash perl getconf moreutils nodejs_24 ]) ++
+    (with pkgs; [ wabt bash perl getconf moreutils nodejs]) ++
     [ filecheck pkgs.wasmtime ];
 
   filecheck = pkgs.runCommand "FileCheck" { } ''
