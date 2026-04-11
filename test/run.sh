@@ -70,7 +70,6 @@ function normalize () {
         -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' \
         -e 's/^.*[IW], hypervisor:/hypervisor:/g' \
         -e 's/wasm:0x[a-f0-9]*:/wasm:0x___:/g' \
-        -e 's/0x[0-9a-fA-F]\+\( - <unknown>!\)/0x\1/g' \
         -e 's/prelude:[^:]*:/prelude:___:/g' \
         -e 's/prim:[^:]*:/prim:___:/g' \
         -e 's/ calling func\$[0-9]*/ calling func$NNN/g' \
@@ -81,10 +80,9 @@ function normalize () {
         -e 's,^.*/idl/_out/,..../idl/_out/,g' | # node puts full paths in error messages
     sed -e 's,\([a-zA-Z0-9.-]*\).mo.mangled,\1.mo,g' \
         -e 's/trap at 0x[a-f0-9]*/trap at 0x___:/g' \
-        -e 's/^\(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations
-    sed -e 's/^  \(         [0-9]\+:\).*!/\1 /g' | # wasmtime backtrace locations (later version)
+        -e '/^Canister Backtrace:$/,/^\.\?$/d' \
+        -e 's/0x[0-9a-fA-F]\+\( - <unknown>!\)/0x\1/g' | # wasmtime backtrace locations
     sed -e 's/wasm `unreachable` instruction executed/unreachable/g' | # cross-version normalisation
-    sed -e '/^Canister Backtrace:$/,/^\.\?$/d' | # strip canister backtraces
     sed -e 's/\(Error from Canister .*[^.]\)$/\1./' | # restore trailing period on IC error lines
     sed -e 's/Ignore Diff:.*/Ignore Diff: (ignored)/ig' \
         -e 's/Motoko compiler (source .*)/Motoko compiler (source XXX)/ig' \
