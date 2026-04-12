@@ -86,17 +86,17 @@
       llvmEnv = ''
         # When compiling to wasm, we want to have more control over the flags,
         # so we do not use the nix-provided wrapper in clang
-        export WASM_CLANG="clang-19"
+        export WASM_CLANG="clang-20"
         export WASM_LD=wasm-ld
         # because we use the unwrapped clang, we have to pass in some flags/paths
         # that otherwise the wrapped clang would take care for us
-        export WASM_CLANG_LIB="${pkgs.llvmPackages_19.clang-unwrapped.lib}"
+        export WASM_CLANG_LIB="${pkgs.llvmPackages_20.clang-unwrapped.lib}"
 
         # When compiling natively, we want to use `clang` (which is a nixpkgs
         # provided wrapper that sets various include paths etc).
         # But for some reason it does not handle building for Wasm well, so
-        # there we use plain clang-19. There is no stdlib there anyways.
-        export CLANG="${pkgs.clang_19}/bin/clang"
+        # there we use plain clang-20. There is no stdlib there anyways.
+        export CLANG="${pkgs.clang_20}/bin/clang"
       '';
 
       rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv; };
