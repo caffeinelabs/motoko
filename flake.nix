@@ -150,7 +150,7 @@
       };
 
       # Define test-runner package.
-      test-runner = pkgs.rustPlatform-stable.buildRustPackage {
+      test-runner = pkgs.rustPlatform.buildRustPackage {
         pname = "test-runner";
         version = "0.1.0";
         src = ./test-runner;
