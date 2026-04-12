@@ -81,7 +81,7 @@ function normalize () {
     sed -e 's,\([a-zA-Z0-9.-]*\).mo.mangled,\1.mo,g' \
         -e 's/trap at 0x[a-f0-9]*/trap at 0x___:/g' \
         -e '/^Canister Backtrace:$/,/^\.\?$/d' \
-        -e 's/0x[0-9a-fA-F]\+\( - <unknown>!\)/0x\1/g' | # wasmtime backtrace locations
+        -e 's/: *0x[0-9a-fA-F]\+\( - <unknown>!\)/:    0x\1/g' | # wasmtime backtrace locations
     sed -e 's/wasm `unreachable` instruction executed/unreachable/g' | # cross-version normalisation
     sed -e 's/\(Error from Canister .*[^.]\)$/\1./' | # restore trailing period on IC error lines
     sed -e 's/Ignore Diff:.*/Ignore Diff: (ignored)/ig' \
