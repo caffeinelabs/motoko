@@ -145,11 +145,12 @@ let resolve_flags ~is_main ~base pkg_opt =
   let resolve_path_flag flag =
     if not is_main then !flag else
     !flag |> Option.map (fun p ->
-      if not (!Flags.ocaml_js && Filename.is_relative p) then p else
-      let base_dir = if Sys.is_directory base then base else Filename.dirname base in
-      (* moc.js has no CWD, so resolve relative flag paths against the source file's directory *)
-      let p = Filename.concat base_dir p |> Lib.FilePath.normalise in
-      flag := Some p; p)
+      (* moc.js has no real CWD; resolve relative flag paths against the project root set via setProjectRoot *)
+      match !Flags.js_project_root with
+      | Some root when Filename.is_relative p ->
+        let p = Filename.concat root p |> Lib.FilePath.normalise in
+        flag := Some p; p
+      | _ -> p)
   in
   ResolveImport.{
     package_urls = !Flags.package_urls;
