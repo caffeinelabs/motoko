@@ -6,7 +6,7 @@ let
     "aarch64-linux" = "pocket-ic-arm64-linux";
     "x86_64-darwin" = "pocket-ic-x86_64-darwin";
     "aarch64-darwin" = "pocket-ic-arm64-darwin";
-  }.${pkgs.system} or (throw "Unsupported system: ${pkgs.system}");
+  }.${pkgs.stdenv.hostPlatform.system} or (throw "Unsupported system: ${pkgs.stdenv.hostPlatform.system}");
 
   # The pocket-ic-server is a binary that we download from github/dfinity/ic/releases.
   # Since this binary is important for our CI, we need to update it manually for now

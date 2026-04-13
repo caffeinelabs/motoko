@@ -1,12 +1,37 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ExecutionEnvironment from "@docusaurus/ExecutionEnvironment";
 import String from "@theme-original/CodeBlock/Content/String";
 import Container from "@theme/CodeBlock/Container";
 import styles from "./styles.module.css";
 import hljs from "highlight.js";
 import { extractConfig, handleRun } from "../hljs_run.js";
-import CopyButton from "@theme/CodeBlock/Buttons/CopyButton";
 import runIcon from "@site/static/img/runIcon.png";
+
+function SimpleCopyButton({ className, code }) {
+  const [isCopied, setIsCopied] = useState(false);
+  const timeoutRef = useRef(undefined);
+
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(code).then(() => {
+      setIsCopied(true);
+      timeoutRef.current = setTimeout(() => setIsCopied(false), 1000);
+    });
+  }, [code]);
+
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label={isCopied ? "Copied" : "Copy code to clipboard"}
+      title="Copy"
+      onClick={handleCopy}
+    >
+      {isCopied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 
 // NOTE: String component of CodeBlock is being swizzled as a wrapped component.
 
@@ -39,7 +64,7 @@ function ImmutableCodeBlock({ id, code, language, defaultCopy }) {
       {/* defaultCopy is a flag for code (candid) with only copy button */}
       {defaultCopy && (
         <div className={styles.buttonGroup}>
-          <CopyButton className={styles.copyButton} code={code} />
+          <SimpleCopyButton className={styles.copyButton} code={code} />
         </div>
       )}
     </Container>
@@ -83,7 +108,7 @@ export default function StringWrapper(props) {
               <code>{code}</code>
             </pre>
             <div className={styles.buttonGroup}>
-              <CopyButton className={styles.copyButton} code={code} />
+              <SimpleCopyButton className={styles.copyButton} code={code} />
               <RunButton
                 code={code}
                 setOutput={setOutput}

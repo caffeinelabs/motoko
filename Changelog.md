@@ -3,6 +3,23 @@
 * motoko (`moc`)
 
   * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
+## 1.5.1 (2026-04-13)
+
+* motoko (`moc`)
+
+  * bugfix: Resolve relative paths in `moc.js` flags (e.g. `--enhanced-migration`, `--actor-idl`) against the source file's directory, fixing "not a directory" errors when these flags are passed with relative paths via the language server (#6002).
+
+## 1.5.0 (2026-04-10)
+
+* motoko (`moc`)
+
+  * feat: Add `--generate-view-queries` flag to auto-generate query methods for stable variables (#5796).
+    When enabled, `moc` produces one `__<var>` query method per stable variable `<var>`, using the variable's `.view()` method if available, or returning the value directly for shared types.
+    Generated queries are restricted to controllers and self.
+    View queries appear in the local `.did` file (for tooling) but are excluded from the canister's public Candid interface, so they never affect upgrade compatibility.
+    See [Stable variable inspection](doc/md/icp-features/7-view-queries.md) for details.
+
   * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
     Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
     Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
@@ -18,6 +35,10 @@
     See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
 
   * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
+  * bugfix: Fix type inference for `return` expressions inside unannotated lambdas passed to generic functions. Previously, the generic type parameter could resolve to `Non` instead of the actual return type, causing an IR type error (#5962).
+
+  * bugfix: Fix crash when reporting errors with no source region (#5976).
 
 * documentation (`mo-doc`)
 

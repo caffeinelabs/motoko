@@ -87,7 +87,7 @@ assert.notEqual(empty_wasm_plain.code.wasm, empty_wasm_ic.code.wasm);
 Motoko.removeFile("empty.mo");
 assert.throws(() => {
   Motoko.compileWasm("ic", "empty.mo");
-}, /No such file or directory/);
+}, /empty.mo, no such file or directory/);
 
 // Check if error messages are correctly returned
 const bad_result = Motoko.compileWasm("ic", "bad.mo");
@@ -266,6 +266,17 @@ assert.deepStrictEqual(Motoko.run([], "blob.mo"), {
   stderr: "blob.mo:1.1-1.43: execution error, blob import placeholder\n",
   result: { error: {} },
 });
+
+// Relative --enhanced-migration path resolves against the source file's directory (#6002)
+Motoko.saveFile("/project/src/Main.mo",
+  'persistent actor { let x : Nat; public func get() : async Nat { x } };'
+);
+Motoko.saveFile("/project/migrations/m1.mo",
+  'module { public func migration(_ : {}) : { x : Nat } { { x = 42 } }; };'
+);
+Motoko.setExtraFlags(["--enhanced-migration=../migrations"]);
+const migrationResult = Motoko.check("/project/src/Main.mo");
+assert.deepStrictEqual(migrationResult.diagnostics, []);
 
 Motoko.setExtraFlags(["-W=M0223"]);
 assert.throws(

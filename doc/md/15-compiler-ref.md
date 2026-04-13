@@ -41,6 +41,7 @@ You can use the following options with the `moc` command.
 | `-fno-shared-code`                        | Do not share low-level utility code: larger code size but decreased cycle consumption (default).                                                      |
 | `--generational-gc`                       | Use generational GC (only available with legacy/classical persistence).                                                                               |
 | `-fshared-code`                           | Do share low-level utility code: smaller code size but increased cycle consumption.                                                                   |
+| `--generate-view-queries`                 | Auto-generate queries for stable variables; preferring applicable .view() methods (default false)                                                     |
 | `-help`,`--help`                          | Displays usage information.                                                                                                                           |
 | `--hide-warnings`                         | Hides compiler warnings.                                                                                                                              |
 | `-Werror`                                 | Treat warnings as errors.                                                                                                                             |

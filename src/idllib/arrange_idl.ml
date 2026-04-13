@@ -252,6 +252,18 @@ module Make (Cfg : Config) = struct
       kwd ppf ":";
       str ppf x.it;
       pp_close_box ppf ()
+    | Some {it=ClassT(args, {it = ServT ms;_ }); _} ->
+      pp_open_hbox ppf ();
+      kwd ppf "service";
+      kwd ppf ":";
+      pp_args ppf args;
+      str ppf " -> {";
+      pp_open_vbox ppf 2;
+      List.iter (fun m -> pp_print_cut ppf (); pp_meth ppf m; str ppf ";") ms;
+      pp_print_break ppf 0 (-2);
+      str ppf "}";
+      pp_close_box ppf ();
+      pp_close_box ppf ()
     | Some {it=ClassT(args, t); _} ->
       pp_open_hbox ppf ();
       kwd ppf "service";

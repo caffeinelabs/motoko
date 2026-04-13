@@ -8,6 +8,13 @@ features are
 *)
 
 open Wasm_exts.Ast
+
+let cr Source.{left; right} =
+  let left, right =
+    (let Source.{ file; line; column } = left in Wasm.Source.{ file; line; column }),
+    (let Source.{ file; line; column } = right in Wasm.Source.{ file; line; column })
+  in Wasm.Source.{ left; right }
+
 open Wasm.Source
 open Wasm_exts.Values
 
@@ -190,17 +197,6 @@ let concat_mapi f xs = List.fold_right (^^) (List.mapi f xs) nop
 let table n f = List.fold_right (^^) (Lib.List.table n f) nop
 
 (* Region-managing combinator *)
-
-let cr at =
-  let left = Wasm.Source.{
-    file = at.Source.left.Source.file;
-    line = at.Source.left.Source.line;
-    column = at.Source.left.Source.column } in
-  let right = Wasm.Source.{
-    file = at.Source.right.Source.file;
-    line = at.Source.right.Source.line;
-    column = at.Source.right.Source.column } in
-  Wasm.Source.{ left; right }
 
 let with_region (pos : Source.region) (body : t) : t =
   fun d _pos rest -> body d (cr pos) rest
