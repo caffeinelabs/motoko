@@ -95,6 +95,14 @@ run only the specific tests relevant to your change:
 test-runner -baf some-test         # targeted by name pattern
 ```
 
+## JS Tests
+
+```bash
+nix build .#js.moc .#js.moc_interpreter .#js.didc -L
+```
+
+Builds JS artifacts and runs matching tests in `test/` (e.g. `test/test-moc.js`).
+
 ## Test File Conventions
 
 - `//MOC-FLAG --some-flag`: extra flags passed to `moc`
