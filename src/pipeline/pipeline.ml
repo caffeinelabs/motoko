@@ -142,16 +142,14 @@ let parse_verification_file = parse_file' Lexer.mode_verification
 type resolve_result = (Syntax.prog * ResolveImport.resolved_imports) Diag.result
 
 let resolve_flags ~is_main ~base pkg_opt =
-  let base_dir = if Sys.is_directory base then base else Filename.dirname base in
   let resolve_path_flag flag =
     if not is_main then !flag else
-    Option.map (fun p ->
-      let p =
-        if !Flags.ocaml_js && Filename.is_relative p
-        then Filename.concat base_dir p |> Lib.FilePath.normalise
-        else p
-      in
-      flag := Some p; p) !flag
+    !flag |> Option.map (fun p ->
+      if not (!Flags.ocaml_js && Filename.is_relative p) then p else
+      let base_dir = if Sys.is_directory base then base else Filename.dirname base in
+      (* moc.js has no CWD, so resolve relative flag paths against the source file's directory *)
+      let p = Filename.concat base_dir p |> Lib.FilePath.normalise in
+      flag := Some p; p)
   in
   ResolveImport.{
     package_urls = !Flags.package_urls;
