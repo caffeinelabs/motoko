@@ -25,8 +25,10 @@ You can use the following options with the `moc` command.
 | Option                                    | Description                                                                                                                                           |
 |-------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--ai-errors`                             | Emit AI tailored error messages.                                                                                                                      |
-| `--actor-idl <idl-path>`                  | Specifies a path to actor IDL (Candid) files.                                                                                                         |
-| `--actor-alias <alias> <principal>`       | Specifies an actor import alias.                                                                                                                      |
+| `--actor-id-alias <alias> <principal> <idl-file>` | Specifies an actor import alias with an explicit IDL file path, bypassing the `--actor-idl` search path. Preferred over `--actor-idl` when the IDL file path is known. Also resolves `ic:<principal>` imports whose principal matches the second argument. |
+| `--actor-env-alias <alias> <envvar> <idl-file>`   | Like `--actor-id-alias`, but the canister id is read at compile time from environment variable `<envvar>` rather than given literally.                 |
+| `--actor-alias <alias> <principal>`               | Specifies an actor import alias; the IDL file is resolved via `--actor-idl`.                                                                          |
+| `--actor-idl <idl-path>`                          | Specifies a search path for actor IDL (Candid) files. Used when no `--actor-id-alias` entry matches the imported principal.                           |
 | `--args <file>`                           | Read additional newline separated command line arguments from `<file>`.                                                                               |
 | `--args0 <file>`                          | Read additional `NUL` separated command line arguments from `<file>`.                                                                                 |
 | `-c`                                      | Compile to WebAssembly.                                                                                                                               |
