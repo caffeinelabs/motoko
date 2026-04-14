@@ -189,6 +189,26 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     | Some actor_base ->
       let full_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
       add_idl_import msgs imported ri_ref at full_path (Either.Right bytes)
+  and find_principal_aliases bytes =
+    (* Collect all --actor-id-alias entries whose principal (2nd arg) matches bytes *)
+    M.fold (fun alias v acc -> match v with
+      | Either.Right (b, Some did_path) when b = bytes -> (alias, did_path) :: acc
+      | _ -> acc) aliases []
+  and warn_idl_conflict at bytes did_path =
+    (* Warn if --actor-idl would also resolve this principal, suggesting the
+       explicit --actor-id-alias form is now preferred *)
+    match actor_idl_path with
+    | Some actor_base ->
+      let dir_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
+      if Sys.file_exists dir_path then
+        Diag.add_msg msgs
+          (Diag.warning_message at "M0000" "import"
+            (Printf.sprintf
+              "IDL file for principal also found via --actor-idl; \
+               --actor-id-alias takes precedence. \
+               Consider using --actor-id-alias %s %s %s directly."
+              (Url.encode_principal bytes) (Url.encode_principal bytes) did_path))
+    | None -> ()
   in
   let resolve_env (envvar, did_path) =
     let full_path = Lib.FilePath.normalise did_path in
@@ -209,8 +229,23 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
   | Ok (Url.Ic bytes) ->
      if String.length bytes > 29 then
        err_unrecognized_url msgs at f "Principal too long"
-     else
-     resolve_ic bytes
+     else begin
+       match find_principal_aliases bytes with
+       | [] ->
+         resolve_ic bytes
+       | [(_, did_path)] ->
+         warn_idl_conflict at bytes did_path;
+         add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Either.Right bytes)
+       | matches ->
+         let aliases_str = String.concat ", " (List.map fst matches) in
+         Diag.add_msg msgs
+           (Diag.warning_message at "M0000" "import"
+             (Printf.sprintf
+               "Multiple --actor-id-alias entries match principal %s (%s); \
+                using the first one found." (Url.encode_principal bytes) aliases_str));
+         add_idl_import msgs imported ri_ref at
+           (Lib.FilePath.normalise (snd (List.hd matches))) (Either.Right bytes)
+     end
   | Ok (Url.IcAlias alias) ->
     begin match M.find_opt alias aliases with
     | Some (Either.Right (bytes, None)) -> resolve_ic bytes
