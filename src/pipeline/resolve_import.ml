@@ -202,7 +202,7 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
       let dir_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
       if Sys.file_exists dir_path then
         Diag.add_msg msgs
-          (Diag.warning_message at "M0000" "import"
+          (Diag.warning_message at "M0260" "import"
             (Printf.sprintf
               "IDL file for principal also found via --actor-idl; \
                --actor-id-alias takes precedence. \
@@ -239,7 +239,7 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
        | matches ->
          let aliases_str = String.concat ", " (List.map fst matches) in
          Diag.add_msg msgs
-           (Diag.warning_message at "M0000" "import"
+           (Diag.warning_message at "M0261" "import"
              (Printf.sprintf
                "Multiple --actor-id-alias entries match principal %s (%s); \
                 using the first one found." (Url.encode_principal bytes) aliases_str));
