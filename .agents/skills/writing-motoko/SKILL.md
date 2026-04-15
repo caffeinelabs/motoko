@@ -31,12 +31,13 @@ Motoko is under-represented in training data — always favour this skill and it
 
 ## Compiler Flags
 
-Defaults (no flag needed):
+Required for this skill's conventions:
 
 ```
---enhanced-orthogonal-persistence   on by default
---default-persistent-actors         all actors are `persistent`, no `stable` for fields needed
+--default-persistent-actors         all actors are `persistent`, no `stable` keyword needed
 ```
+
+`--enhanced-orthogonal-persistence` is on by default.
 
 Enable these warnings to enforce the coding style in this skill (off by default, auto-fixable):
 
@@ -102,17 +103,14 @@ Map.add(m, Nat.compare, 1, "hello");      // ✗
 
 ### Equality and Comparison
 
-`==` uses compiler-generated structural equality — fine for primitives but prefer `mo:core` functions for explicit semantics:
+`==` uses compiler-generated structural equality. `equal`/`compare` from `mo:core` are primarily used as implicit arguments for `Map`, `Set`, `contains`, etc.
+
+Some modules use `self` (dot-callable): `Text`, `Principal`, `Bool`, `Char`, `Blob`. Others use `x, y` (not dot-callable): `Nat`, `Int`, `Float`, sized integers.
 
 ```motoko
-Principal.equal(a, b)                     // ✓ mo:core, explicit
-a == b                                    // structural, OK for primitives
-
-Nat.compare(x, y)                        // ✓ returns Order
-Text.equal(s1, s2)                       // ✓ mo:core
+s1.equal(s2)                             // Text.equal has self
+Nat.compare(x, y)                        // Nat.compare does not
 ```
-
-Functions like `equal` and `compare` don't have a `self` parameter, so they are NOT called with dot notation.
 
 ### Mixins
 
@@ -271,8 +269,8 @@ let sum = scores.filter(func s = s > 15).foldLeft(0, func(acc, s) = acc + s);
 - **`find(predicate)`** — predicate search. Returns `?T`.
 
 ```motoko
-numbers.contains(3);                          // implicit Nat.equal
-friends.contains(Principal.equal, p);          // explicit equality
+numbers.contains(3);                          // Nat.equal auto-derived
+friends.contains(p);                          // Principal.equal auto-derived
 numbers.find(func(n) { n > 3 });              // returns ?Nat
 ```
 

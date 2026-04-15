@@ -66,9 +66,9 @@ actor { ... };
 
 ## Migration Function Rules
 
-- Type: `func (old : { ... }) : { ... }` — local, non-generic, both records must have stable field types
-- **Domain**: old stable fields (names and types from the previous version)
-- **Codomain**: new stable fields (must exist in the new actor with compatible types)
+- Type: `func (old : { ... }) : { ... }` — local, non-generic, both records must use persistable types (no functions or mutable arrays)
+- **Domain**: old actor fields (names and types from the previous version)
+- **Codomain**: new actor fields (must exist in the new actor with compatible types)
 - Runs **only on upgrade** — on fresh install, initializers run normally
 - If the migration traps, the upgrade is aborted and the canister stays on the old version
 
@@ -166,21 +166,11 @@ func(old : { var state : Int }) : { var value : Int } {
 
 Consume it in the input, omit from output. Compiler warns — ensure the loss is intentional.
 
-## Differences from Enhanced Migration
-
-| | Inline `(with migration = ...)` | Enhanced `--enhanced-migration` |
-|-|---|----|
-| Migration count | One per upgrade | Chain of modules in a directory |
-| Actor fields | Can have initializers | Must not have initializers |
-| Actor body | No static restriction | Must be static |
-| Flag needed | None | `--enhanced-migration=migrations` |
-| Combination | Cannot use both | Cannot use both |
-
 ## Checklist
 
 - [ ] Decide: implicit (compatible change) or explicit (migration function)
 - [ ] If explicit: define old types inline in `migration.mo`
-- [ ] Migration type: `func (old : RecordIn) : RecordOut` with stable fields
+- [ ] Migration type: `func (old : RecordIn) : RecordOut` with persistable types
 - [ ] Attach with `(with migration = Migration.run)` before the actor
 - [ ] Do not use `preupgrade`/`postupgrade` for data migration
 - [ ] Verify with `mops check --fix` and `mops build`
