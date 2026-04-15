@@ -288,3 +288,35 @@ assert.throws(
   () => Motoko.setExtraFlags(["-W=MMM"]),
   /moc: invalid warning code: MMM/
 );
+
+// js_of_ocaml note: `method m () = ...` compiles to a 2-arity function
+// (this + unit). Calling from JS requires a dummy argument to avoid partial
+// application. This matches how node-motoko's invoke() calls these methods.
+const resetFlags = () => Motoko.resetExtraFlags(0);
+
+// resetExtraFlags restores moc.js-default error detail (4)
+Motoko.setExtraFlags(["--error-detail", "0"]);
+const lowDetailResult = Motoko.check("bad.mo");
+assert.equal(lowDetailResult.diagnostics.length, 1);
+assert(
+  !lowDetailResult.diagnostics[0].message.includes("expected one of"),
+  "with --error-detail 0 the message should omit expected tokens"
+);
+resetFlags();
+const restoredDetailResult = Motoko.check("bad.mo");
+assert.equal(restoredDetailResult.diagnostics.length, 1);
+assert(
+  restoredDetailResult.diagnostics[0].message.includes("expected one of"),
+  "after resetExtraFlags, error detail should be restored to 4"
+);
+
+// resetExtraFlags then setExtraFlags: old flags don't bleed
+Motoko.setExtraFlags(["--error-detail", "0"]);
+resetFlags();
+Motoko.setExtraFlags(["--all-libs"]);
+const afterResetAndSet = Motoko.check("bad.mo");
+assert(
+  afterResetAndSet.diagnostics[0].message.includes("expected one of"),
+  "--error-detail 0 should not bleed through resetExtraFlags into subsequent setExtraFlags"
+);
+resetFlags();
