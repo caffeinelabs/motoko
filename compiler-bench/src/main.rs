@@ -226,11 +226,10 @@ fn hostname() -> Option<String> {
 fn main() -> Result<()> {
     let args = Args::parse();
     let cwd = std::env::current_dir().context("current_dir")?;
-    let repo = args
-        .repo_root
-        .clone()
-        .map(Ok)
-        .unwrap_or_else(|| find_repo_root(&cwd))?;
+    let repo = match &args.repo_root {
+        Some(p) => p.clone(),
+        None => find_repo_root(&cwd)?,
+    };
 
     let corpus_path = args
         .corpus
@@ -324,4 +323,25 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn corpus_toml_parses() {
+        let sample = r#"
+schema_version = 1
+[[benchmarks]]
+name = "example"
+root = "test/perf"
+entry = "x.mo"
+modes = ["check", "compile"]
+moc_flags = ["--hide-warnings"]
+"#;
+        let c: CorpusFile = toml::from_str(sample).expect("parse");
+        assert_eq!(c.benchmarks.len(), 1);
+        assert_eq!(c.benchmarks[0].name, "example");
+    }
 }

@@ -11,6 +11,7 @@
 , check-rts-formatting
 , debugMoPackages
 , test-runner
+, motoko-compiler-bench
 }:
 pkgs.mkShell {
   name = "motoko-shell";
@@ -53,6 +54,7 @@ pkgs.mkShell {
         pkgs.fzf
         pkgs.jq
         test-runner
+        motoko-compiler-bench
       ]
     ));
 

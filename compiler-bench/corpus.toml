@@ -1,0 +1,45 @@
+# Motoko compiler benchmark corpus (paths relative to repository root).
+schema_version = 1
+
+[[benchmarks]]
+name = "perf-sha256"
+root = "test/perf"
+entry = "sha256.mo"
+modes = ["check", "compile"]
+# Legacy actor syntax in older perf tests; matches pre-M0220 behaviour.
+moc_flags = ["-A=M0194", "--hide-warnings", "--legacy-actors"]
+
+[[benchmarks]]
+name = "perf-reversi"
+root = "test/perf"
+entry = "reversi.mo"
+modes = ["check", "compile"]
+moc_flags = ["--hide-warnings", "--legacy-actors"]
+
+[[benchmarks]]
+name = "bench-palindrome"
+root = "test/bench"
+entry = "palindrome.mo"
+modes = ["check", "compile"]
+moc_flags = ["--hide-warnings", "--legacy-actors"]
+
+[[benchmarks]]
+name = "fixture-minimal"
+root = "compiler-bench/fixtures"
+entry = "minimal_actor.mo"
+modes = ["check", "compile"]
+moc_flags = ["--hide-warnings"]
+
+[[benchmarks]]
+name = "fixture-nested-types"
+root = "compiler-bench/fixtures"
+entry = "nested_types.mo"
+modes = ["check", "compile"]
+moc_flags = ["--hide-warnings"]
+
+[[benchmarks]]
+name = "fixture-async"
+root = "compiler-bench/fixtures"
+entry = "async_surface.mo"
+modes = ["check", "compile"]
+moc_flags = ["--hide-warnings"]

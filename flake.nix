@@ -168,6 +168,18 @@
         doCheck = true;
       };
 
+      motoko-compiler-bench-cargo-lock = {
+        lockFile = ./compiler-bench/Cargo.lock;
+      };
+
+      motoko-compiler-bench = pkgs.rustPlatform-stable.buildRustPackage {
+        pname = "motoko-compiler-bench";
+        version = "0.1.0";
+        src = ./compiler-bench;
+        cargoLock = motoko-compiler-bench-cargo-lock;
+        doCheck = true;
+      };
+
       tests = import ./nix/tests.nix {
         inherit pkgs llvmEnv esm commonBuildInputs debugMoPackages test-runner core-src;
       };
@@ -218,7 +230,7 @@
       nix-update = nix-update-flake.packages.${system}.default;
 
       shell = import ./nix/shell.nix {
-        inherit pkgs nix-update base-src core-src llvmEnv esm commonBuildInputs rts js debugMoPackages docs test-runner;
+        inherit pkgs nix-update base-src core-src llvmEnv esm commonBuildInputs rts js debugMoPackages docs test-runner motoko-compiler-bench;
         inherit (checks) check-rts-formatting;
       };
 
@@ -238,7 +250,7 @@
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
-        inherit nix-update tests js test-runner;
+        inherit nix-update tests js test-runner motoko-compiler-bench;
 
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 
