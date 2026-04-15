@@ -166,14 +166,6 @@ func(old : { var state : Int }) : { var value : Int } {
 
 Consume it in the input, omit from output. Compiler warns — ensure the loss is intentional.
 
-### Widen a type (cast)
-
-When adding a variant tag, cast the old value to the new type:
-
-```motoko
-var status = task.status : NewStatus
-```
-
 ## Differences from Enhanced Migration
 
 | | Inline `(with migration = ...)` | Enhanced `--enhanced-migration` |
