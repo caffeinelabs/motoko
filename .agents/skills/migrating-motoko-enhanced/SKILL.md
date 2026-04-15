@@ -356,3 +356,4 @@ Then `mops check --fix` and `mops build` work as usual.
 ## Additional Resources
 
 - Load `writing-motoko` for general Motoko language reference and mo:core APIs
+- Load `migrating-motoko` for inline migration without `--enhanced-migration`

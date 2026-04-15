@@ -27,7 +27,7 @@ Motoko is under-represented in training data — always favour this skill and it
 - Contextual dot notation — `list.add(item)`, `map.get(key)`
 - Enhanced orthogonal persistence (state persists without `stable`)
 - Principled architecture — `types.mo`, `lib/`, `mixins/`, `main.mo`
-**For actor upgrades/migrations:** load `migrating-motoko-enhanced` when the project uses `--enhanced-migration`.
+**For actor upgrades/migrations:** load `migrating-motoko` for inline migration or `migrating-motoko-enhanced` for multi-migration with `--enhanced-migration`.
 
 ## Compiler Flags
 
