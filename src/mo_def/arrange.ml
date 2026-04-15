@@ -38,8 +38,8 @@ module Make (Cfg : Config) = struct
     | _ -> ""
     in "Pos" $$ [Atom file; Atom (string_of_int p.line); Atom (string_of_int p.column)]
 
-  let source at0 it =
-    if Cfg.include_sources && at0 <> no_region then "@" $$ [pos at0.left; pos at0.right; it] else it
+  let source at' it =
+    if Cfg.include_sources && at' <> no_region then "@" $$ [pos at'.left; pos at'.right; it] else it
 
   let typ t = Atom (Type_pretty.string_of_typ t)
 
