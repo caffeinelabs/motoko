@@ -10,4 +10,5 @@ val with_phase_diag : string -> string -> (unit -> 'a Diag.result) -> 'a Diag.re
 
 val maybe_write : unit -> unit
 (** If [--emit-compiler-timings] was given, write JSON to that path.
-    Call only after a successful compilation run (no partial timings). *)
+    Call only after a successful compilation run (no partial timings).
+    The JSON includes [phases] (per unit) and [phase_totals] (sum of [duration_ns] per phase name). *)

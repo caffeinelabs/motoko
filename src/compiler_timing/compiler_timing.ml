@@ -48,15 +48,42 @@ let json_of_row r =
     "duration_ns", `String (Int64.to_string r.duration_ns);
   ]
 
+module Phase_map = Map.Make (String)
+
+(** Sum [duration_ns] for each distinct [phase] heading across all units. *)
+let rollup_by_phase (rows : row list) : (string * int64) list =
+  let m =
+    List.fold_left
+      (fun acc r ->
+        Phase_map.update r.phase
+          (function
+            | None -> Some r.duration_ns
+            | Some n -> Some (Int64.add n r.duration_ns))
+          acc)
+      Phase_map.empty rows
+  in
+  Phase_map.bindings m |> List.sort (fun (a, _) (b, _) -> String.compare a b)
+
+let json_of_phase_total (phase, ns) =
+  `Assoc [
+    "phase", `String phase;
+    "duration_ns", `String (Int64.to_string ns);
+  ]
+
 let maybe_write () =
   match !Flags.emit_compiler_timings with
   | None -> ()
   | Some path ->
-    let phases = List.rev !rows |> List.map json_of_row in
+    let rev = List.rev !rows in
+    let phases = List.map json_of_row rev in
+    let phase_totals =
+      rollup_by_phase rev |> List.map json_of_phase_total
+    in
     let json =
       `Assoc [
         "schema_version", `Int 1;
         "phases", `List phases;
+        "phase_totals", `List phase_totals;
       ]
     in
     let oc = open_out_bin path in
