@@ -324,7 +324,5 @@ let dw_tag die body =
 let dw_tag_no_children = dw_tag_open (* self-closing *)
 
 (* Marker for statement boundaries *)
-let dw_statement { left; right } =
-  let open Wasm.Source in
-  let left = { file = left.file; line = left.line; column = left.column } in
+let dw_statement { left; _ } =
   i (Meta (StatementDelimiter left))

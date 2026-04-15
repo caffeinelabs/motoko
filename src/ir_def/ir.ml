@@ -29,7 +29,7 @@ type lit =
 
 type ('a, 'b) annotated_phrase = ('a, 'b) Source.annotated_phrase = {at : region; it : 'a; mutable note: 'b}
 type 'a phrase = ('a, Note.t) annotated_phrase
-let no_region = Source.no_region
+let no_region = no_region
 
 type typ_bind' = {con : Type.con; sort : Type.bind_sort; bound : Type.typ}
 type typ_bind = typ_bind' Source.phrase

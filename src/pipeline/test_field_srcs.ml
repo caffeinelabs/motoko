@@ -2,6 +2,8 @@
     Update of the expected values could be done via [dune runtest --auto-promote].
 *)
 
+open Source
+
 module Sexpr_set = Set.Make (struct
   type t = Wasm.Sexpr.sexpr
 
@@ -86,7 +88,7 @@ let show (result : (Mo_def.Syntax.prog * Mo_types.Field_sources.srcs_map) Diag.r
       (gather_let_srcs @@ Arrange.prog prog);
     Format.printf "Sources table:\n";
     Seq.iter
-      Source.(fun (define, origins) ->
+      (fun (define, origins) ->
         Format.printf "%s:" (string_of_region define);
         Seq.iter
           (fun origin -> Format.printf " %s" (string_of_region origin))
