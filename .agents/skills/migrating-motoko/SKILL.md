@@ -47,6 +47,8 @@ actor {
 Or inline:
 
 ```motoko
+import Int "mo:core/Int";
+
 (with migration = func(old : { var state : Int }) : { var newState : Float } {
   { var newState = old.state.toFloat() }
 })

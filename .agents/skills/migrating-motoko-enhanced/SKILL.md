@@ -164,6 +164,8 @@ module {
 
 ```motoko
 // migrations/20250601_000000_SplitName.mo
+import Text "mo:core/Text";
+
 module {
   public func migration(old : { name : Text }) : { firstName : Text; lastName : Text } {
     let parts = old.name.split(#char ' ');

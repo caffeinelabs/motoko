@@ -193,12 +193,13 @@ actor Main {
 
 ## Iterator Chaining
 
-Note: `import Array` enables `.find()`, `.any()`, `.all()` on arrays; `import Iter` enables `.map()`, `.filter()` on iterators; `import Bool` enables `.toText()` on booleans.
+Note: `import Array` enables `.find()`, `.any()`, `.all()` on arrays; `import Iter` enables `.map()`, `.filter()` on iterators; `import Bool` enables `.toText()` on booleans; `import Nat` enables `.toText()` on natural numbers.
 
 ```motoko
 import Array "mo:core/Array";
 import Bool "mo:core/Bool";
 import Iter "mo:core/Iter";
+import Nat "mo:core/Nat";
 
 actor {
   let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -374,6 +375,8 @@ actor {
 ```
 
 ## Type Conversions
+
+Requires `import Nat "mo:core/Nat"`, `import Int "mo:core/Int"`, etc. for dot-notation methods.
 
 ```motoko
 // Nat ↔ Int
