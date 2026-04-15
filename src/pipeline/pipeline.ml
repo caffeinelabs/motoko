@@ -7,6 +7,7 @@ open Ir_def
 open Ir_interpreter
 open Ir_passes
 open Mo_config
+open Compiler_timing
 
 open Printf
 
@@ -18,9 +19,6 @@ type env = stat_env * dyn_env
 
 
 (* Diagnostics *)
-
-let phase heading name =
-  if !Flags.verbose then printf "-- %s %s:\n%!" heading name
 
 let print_ce =
   Type.ConSet.iter (fun c ->
@@ -87,20 +85,20 @@ type no_region_parse_fn = string -> parse_result
 type parse_fn = Source.region -> no_region_parse_fn
 
 let generic_parse_with ?(recovery=false) mode lexer parser name : _ Diag.result =
-  phase "Parsing" name;
-  let open Diag.Syntax in
-  lexer.Lexing.lex_curr_p <-
-    {lexer.Lexing.lex_curr_p with Lexing.pos_fname = name};
-  (* a back door to enable the `prim` syntax, for our test suite *)
-  let tokenizer, triv_table = Lexer.tokenizer mode lexer in
-  let* mk_syntax =
-    try
-      Parser_lib.triv_table := triv_table;
-      Parsing.parse ~recovery mode (!Flags.error_detail) (parser lexer.Lexing.lex_curr_p) tokenizer lexer
-    with Lexer.Error (at, msg) -> Diag.error at"M0002" "syntax" msg
-  in
-  let phrase = mk_syntax name in
-  Diag.return phrase
+  with_phase_diag "Parsing" name (fun () ->
+    let open Diag.Syntax in
+    lexer.Lexing.lex_curr_p <-
+      {lexer.Lexing.lex_curr_p with Lexing.pos_fname = name};
+    (* a back door to enable the `prim` syntax, for our test suite *)
+    let tokenizer, triv_table = Lexer.tokenizer mode lexer in
+    let* mk_syntax =
+      try
+        Parser_lib.triv_table := triv_table;
+        Parsing.parse ~recovery mode (!Flags.error_detail) (parser lexer.Lexing.lex_curr_p) tokenizer lexer
+      with Lexer.Error (at, msg) -> Diag.error at"M0002" "syntax" msg
+    in
+    let phrase = mk_syntax name in
+    Diag.return phrase)
 
 let parse_with ?(recovery=false) mode lexer parser name : Syntax.prog Diag.result =
   let open Diag.Syntax in
@@ -206,9 +204,11 @@ let infer_prog
     async_cap
     prog : (Type.typ * Scope.scope) Diag.result =
   let filename = prog.Source.note.Syntax.filename in
-  phase "Checking" filename;
   Cons.session ~scope:filename (fun () ->
-    let r = Typing.infer_prog ~enable_type_recovery pkg_opt senv async_cap prog in
+    let r =
+      with_phase_diag "Checking" filename (fun () ->
+        Typing.infer_prog ~enable_type_recovery pkg_opt senv async_cap prog)
+    in
     if !Flags.trace && !Flags.verbose then begin
       match r with
       | Ok ((_, scope), _) ->
@@ -217,10 +217,9 @@ let infer_prog
         dump_prog Flags.dump_tc prog;
       | Error _ -> ()
     end;
-    phase "Definedness" filename;
     let open Diag.Syntax in
     let* t_sscope = r in
-    let* () = Definedness.check_prog prog in
+    let* () = with_phase_diag "Definedness" filename (fun () -> Definedness.check_prog prog) in
     Diag.return t_sscope)
 
 let check_progs
@@ -246,11 +245,15 @@ let check_progs
 let check_lib senv pkg_opt lib : Scope.scope Diag.result =
   let filename = lib.Source.note.Syntax.filename in
   Cons.session ~scope:filename (fun () ->
-    phase "Checking" (Filename.basename filename);
     let open Diag.Syntax in
-    let* sscope = Typing.check_lib senv pkg_opt lib in
-    phase "Definedness" (Filename.basename filename);
-    let* () = Definedness.check_lib lib in
+    let* sscope =
+      with_phase_diag "Checking" (Filename.basename filename) (fun () ->
+        Typing.check_lib senv pkg_opt lib)
+    in
+    let* () =
+      with_phase_diag "Definedness" (Filename.basename filename) (fun () ->
+        Definedness.check_lib lib)
+    in
     Diag.return sscope)
 
 let lib_of_prog f prog : Syntax.lib  =
@@ -574,12 +577,12 @@ let load_decl parse_one senv : load_decl_result =
 let interpret_prog denv prog : (Value.value * Interpret.scope) option =
   let open Interpret in
   let filename = prog.Source.note.Syntax.filename in
-  phase "Interpreting" filename;
   Cons.session ~scope:filename (fun () ->
-    let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
-    let result = Interpret.interpret_prog flags denv prog in
-    Profiler.process_prog_result result;
-    result)
+    with_phase "Interpreting" filename (fun () ->
+      let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
+      let result = Interpret.interpret_prog flags denv prog in
+      Profiler.process_prog_result result;
+      result))
 
 let rec interpret_libs denv libs : Interpret.scope =
   let open Interpret in
@@ -587,10 +590,10 @@ let rec interpret_libs denv libs : Interpret.scope =
   | [] -> denv
   | lib::libs' ->
     let filename = lib.Source.note.Syntax.filename in
-    phase "Interpreting" (Filename.basename filename);
     let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
     let dscope =
-      Cons.session ~scope:filename (fun () -> interpret_lib flags denv lib)
+      with_phase "Interpreting" (Filename.basename filename) (fun () ->
+        Cons.session ~scope:filename (fun () -> interpret_lib flags denv lib))
     in
     let denv' = adjoin_scope denv dscope in
     interpret_libs denv' libs'
@@ -696,17 +699,20 @@ let run_stdin lexer (senv, denv) : env option =
       if !Flags.verbose then printf "\n";
       None
     | Some (v, dscope) ->
-      phase "Finished" "stdin";
-      let denv' = Interpret.adjoin_scope denv dscope in
-      let env' = (senv', denv') in
-      (* TBR: hack *)
-      let t', v' =
-        if Option.fold ~none:false ~some:is_exp (Lib.List.last_opt prog.Source.it)
-        then t, v
-        else Type.unit, Value.unit
+      let env' =
+        with_phase "Finished" "stdin" (fun () ->
+          let denv' = Interpret.adjoin_scope denv dscope in
+          let env' = (senv', denv') in
+          (* TBR: hack *)
+          let t', v' =
+            if Option.fold ~none:false ~some:is_exp (Lib.List.last_opt prog.Source.it)
+            then t, v
+            else Type.unit, Value.unit
+          in
+          output_scope env' t' v' sscope dscope;
+          if !Flags.verbose then printf "\n";
+          env')
       in
-      output_scope env' t' v' sscope dscope;
-      if !Flags.verbose then printf "\n";
       Some env'
 
 let run_stdin_from_file files file : Value.value option =
@@ -736,25 +742,25 @@ let desugar_unit imports u name : Ir.prog Diag.result =
     let at = u.Source.it.Syntax.body.Source.at in
     Diag.error at "M0225" "compile" "A mixin cannot be used as an entry point. It needs to be included in an actor (class)"
   | _ ->
-  phase "Desugaring" name;
-  let open Lowering.Desugar in
-  let prog_ir' : Ir.prog = link_declarations
-    (import_prelude prelude @ import_prelude internals @ imports)
-    (transform_unit u) in
-  dump_ir Flags.dump_lowering prog_ir';
-  if !Flags.check_ir
-  then Check_ir.check_prog !Flags.verbose "Desugaring" prog_ir';
-  Diag.return prog_ir'
+  with_phase_diag "Desugaring" name (fun () ->
+    let open Lowering.Desugar in
+    let prog_ir' : Ir.prog = link_declarations
+      (import_prelude prelude @ import_prelude internals @ imports)
+      (transform_unit u) in
+    dump_ir Flags.dump_lowering prog_ir';
+    if !Flags.check_ir
+    then Check_ir.check_prog !Flags.verbose "Desugaring" prog_ir';
+    Diag.return prog_ir')
 
 (* IR transforms *)
 
 let transform transform_name trans prog name =
-  phase transform_name name;
-  let prog_ir' : Ir.prog = trans prog in
-  dump_ir Flags.dump_lowering prog_ir';
-  if !Flags.check_ir
-  then Check_ir.check_prog !Flags.verbose transform_name prog_ir';
-  prog_ir'
+  with_phase transform_name name (fun () ->
+    let prog_ir' : Ir.prog = trans prog in
+    dump_ir Flags.dump_lowering prog_ir';
+    if !Flags.check_ir
+    then Check_ir.check_prog !Flags.verbose transform_name prog_ir';
+    prog_ir')
 
 let transform_if transform_name trans flag prog name =
   if flag then transform transform_name trans prog name
@@ -779,10 +785,10 @@ let eq_translation =
   transform_if "Translate polymorphic equality" Eq.transform
 
 let analyze analysis_name analysis prog name =
-  phase analysis_name name;
-  analysis prog;
-  if !Flags.check_ir
-  then Check_ir.check_prog !Flags.verbose analysis_name prog
+  with_phase analysis_name name (fun () ->
+    analysis prog;
+    if !Flags.check_ir
+    then Check_ir.check_prog !Flags.verbose analysis_name prog)
 
 let ir_passes mode prog_ir name =
   (* erase typ components from objects *)
@@ -870,13 +876,13 @@ and compile_unit mode (enhanced_migration:string option) do_link imports u : Was
   Cons.session ~scope:name (fun () ->
     let* prog_ir = desugar_unit imports u name in
     let prog_ir = ir_passes mode prog_ir name in
-    phase "Compiling" name;
-    adjust_flags ();
-    let rts = if do_link then Some (load_as_rts ()) else None in
-    Diag.return (if !Flags.enhanced_orthogonal_persistence then
-      Codegen.Compile_enhanced.compile mode ~enhanced_migration rts prog_ir
-    else
-      Codegen.Compile_classical.compile mode rts prog_ir))
+    with_phase_diag "Compiling" name (fun () ->
+      adjust_flags ();
+      let rts = if do_link then Some (load_as_rts ()) else None in
+      Diag.return (if !Flags.enhanced_orthogonal_persistence then
+        Codegen.Compile_enhanced.compile mode ~enhanced_migration rts prog_ir
+      else
+        Codegen.Compile_classical.compile mode rts prog_ir)))
 
 and compile_unit_to_wasm mode (enhanced_migration:string option) imports (u : Syntax.comp_unit) : string Diag.result =
   let open Diag.Syntax in
@@ -927,10 +933,11 @@ let interpret_ir_progs libs progs =
   let u = CompUnit.comp_unit_of_prog false prog in
   let* prog_ir = desugar_unit imports u name in
   let prog_ir = ir_passes (!Flags.compile_mode) prog_ir name in
-  phase "Interpreting" name;
-  let open Interpret_ir in
-  let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
-  Diag.return (interpret_prog flags prog_ir)
+  Diag.return (
+    with_phase "Interpreting" name (fun () ->
+      let open Interpret_ir in
+      let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
+      interpret_prog flags prog_ir))
 
 let interpret_ir_files files =
   Diag.flush_messages (Diag.bind

@@ -111,6 +111,9 @@ let is_warning_enabled code = not (is_warning_disabled code)
 
 let skip_gc_deprecation_warning = ref false
 
+(** When set, [--emit-compiler-timings] records phase durations. *)
+let emit_compiler_timings : string option ref = ref None
+
 let gc_strategy_to_str : gc_strategy -> string = fun gc_strategy ->
   match gc_strategy with
   | Copying -> "copying"

@@ -1,7 +1,7 @@
 (executable
  (name moc)
  (modules moc)
- (libraries profiler pipeline source_id)
+ (libraries profiler pipeline compiler_timing source_id)
  (instrumentation (backend bisect_ppx --bisect-silent yes))
 )
 (executable

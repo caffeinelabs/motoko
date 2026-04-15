@@ -1,0 +1,4 @@
+(library
+ (name compiler_timing)
+ (libraries mo_config unix yojson lang_utils)
+ (instrumentation (backend bisect_ppx --bisect-silent yes)))

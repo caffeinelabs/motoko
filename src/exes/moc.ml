@@ -1,5 +1,6 @@
 open Wasm_exts
 open Mo_config
+open Compiler_timing
 
 open Printf
 
@@ -97,6 +98,10 @@ let argspec =
   "--profile-field",
     Arg.String (fun n -> Flags.(profile_field_names := n :: !profile_field_names)),
       "<field>  profile file includes the given field from the program result ";
+
+  "--emit-compiler-timings",
+    Arg.String (fun p -> Flags.emit_compiler_timings := Some p),
+    " <file>  write compiler phase timings as JSON to <file> (successful runs only)";
 
   "--public-metadata",
     Arg.String (fun n -> Flags.(public_metadata_names := n :: !public_metadata_names)),
@@ -296,6 +301,7 @@ let process_files files : unit =
       match (!Flags.pre_ref, !Flags.post_ref) with
       | Some pre, Some post ->
         Diag.run (Pipeline.stable_compatible pre post); (* exit 1 on error *)
+        maybe_write ();
         exit 0;
       | _ -> assert false
     end
@@ -409,12 +415,13 @@ let () =
   process_profiler_flags ();
   process_metadata_names "public" !Flags.public_metadata_names;
   process_metadata_names "omit" !Flags.omit_metadata_names;
+  clear ();
   try
     match process_files !args with
       (* TODO: Find a better place to gracefully handle the input-dependent linker error *)
     | exception Linking.LinkModule.TooLargeDataSegments error_message ->
       Printf.eprintf "Error: %s" error_message; ()
-    | () -> ()
+    | () -> maybe_write ()
   with
   | Sys_error msg ->
     (* IO error *)

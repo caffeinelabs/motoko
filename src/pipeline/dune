@@ -2,6 +2,7 @@
   (name pipeline)
   (libraries
     lib
+    compiler_timing
     idllib
     lang_utils
     mo_def
