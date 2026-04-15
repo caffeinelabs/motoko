@@ -17,6 +17,7 @@ let () =
       val version = js_version
       method setProjectRoot path = Flags.js_project_root := Some (Js.to_string path)
       method setExtraFlags argv = js_set_extra_flags argv
+      method resetExtraFlags () = js_reset_extra_flags ()
       method saveFile name content = js_save_file name content
       method removeFile name = js_remove_file name
       method renameFile oldpath newpath = js_rename_file oldpath newpath
