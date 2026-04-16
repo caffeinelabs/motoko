@@ -1067,8 +1067,7 @@ eval (SubMod a b m) = do a' <- eval a; b' <- eval b; m' <- eval m
 eval (MulMod a b m) = do a' <- eval a; b' <- eval b; m' <- eval m
                          guard (m' /= 0); pure $ (a' * b') `mod` m'
 eval (PowMod base exp m) = do b' <- eval base; e' <- eval exp; m' <- eval m
-                               guard (m' > 0 && e' >= 0)
-                               pure $ powerMod b' e' m'
+                               guard (m' > 0 && e' >= 0); pure $ powerMod b' e' m'
 eval (ConvertNatural t) = fromIntegral <$> evaluate t
 eval c@(ConvertNatToNatN t) = fromIntegral . (.&. maskFor c) <$> evaluate t
 eval (ConvertNatNToNat t) = fromIntegral <$> evaluate t
