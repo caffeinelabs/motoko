@@ -3522,10 +3522,10 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
     compile_bitand_const (B.or_host upper_half_mask B.one) ^^
     compile_eq_const B.zero
 
-  (* creates a boxed bignum from a signed i64 *)
+  (* creates a boxed bignum from a signed machine word *)
   let box env =
     let ubitsL = B.of_int_host (BitTagged.ubits_of Type.Int) in
-    compile_shrS_const (B.sub_host (B.of_int_host word_size_bits) ubitsL) ^^ Num.from_signed_word64 env
+    compile_shrS_const (B.sub_host (B.of_int_host word_size_bits) ubitsL) ^^ extend_sword_to_i64 ^^ Num.from_signed_word64 env
 
   (* check if both arguments are tagged scalars,
      if so, perform the fast path.
@@ -3558,12 +3558,12 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
             slow env ^^ set_res ^^ get_res ^^
             fits_in_vanilla env ^^
             E.if1 B.wasm_val_type
-              (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+              (get_res ^^ Num.truncate_to_word64 env ^^ wrap_i64_to_word ^^ BitTagged.tag env Type.Int)
               get_res
           end
       )
 
-  let compile_add = try_unbox2 "B_add" Word64.compile_add Num.compile_add
+  let compile_add = try_unbox2 "B_add" (fun _env -> G.i B.add) Num.compile_add
 
   let adjust_arg2 code env =
     compile_shrS_const (B.of_int_host (word_size_bits - BitTagged.ubits_of Type.Int)) ^^
@@ -3572,13 +3572,22 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
     code env ^^
     compile_shl_const (B.of_int_host (word_size_bits - BitTagged.ubits_of Type.Int))
 
-  let compile_mul = try_unbox2 "B_mul" (adjust_arg2 Word64.compile_mul) Num.compile_mul
-  let compile_signed_sub = try_unbox2 "B+sub" Word64.compile_signed_sub Num.compile_signed_sub
-  let compile_signed_div = try_unbox2 "B+div" (adjust_result Word64.compile_signed_div) Num.compile_signed_div
-  let compile_signed_mod = try_unbox2 "B_mod" Word64.compile_signed_mod Num.compile_signed_mod
-  let compile_unsigned_div = try_unbox2 "B_div" (adjust_result Word64.compile_unsigned_div) Num.compile_unsigned_div
-  let compile_unsigned_rem = try_unbox2 "B_rem" Word64.compile_unsigned_rem Num.compile_unsigned_rem
-  let compile_unsigned_sub = try_unbox2 "B_sub" Word64.compile_unsigned_sub Num.compile_unsigned_sub
+  let compile_mul = try_unbox2 "B_mul" (adjust_arg2 (fun _env -> G.i B.mul)) Num.compile_mul
+  let compile_signed_sub = try_unbox2 "B+sub" (fun _env -> G.i B.sub) Num.compile_signed_sub
+  let compile_signed_div = try_unbox2 "B+div" (adjust_result (fun _env -> G.i B.div_s)) Num.compile_signed_div
+  let compile_signed_mod = try_unbox2 "B_mod" (fun _env -> G.i B.rem_s) Num.compile_signed_mod
+  let compile_unsigned_div = try_unbox2 "B_div" (adjust_result (fun _env -> G.i B.div_u)) Num.compile_unsigned_div
+  let compile_unsigned_rem = try_unbox2 "B_rem" (fun _env -> G.i B.rem_u) Num.compile_unsigned_rem
+  let compile_unsigned_sub = try_unbox2 "B_sub"
+    (fun env ->
+      let set_b, get_b = new_local env "nat_sub_b" in
+      set_b ^^
+      let set_a, get_a = new_local env "nat_sub_a" in
+      set_a ^^
+      get_a ^^ get_b ^^ compile_comparison I64Op.LtU ^^
+      E.then_trap_with env "Natural subtraction underflow" ^^
+      get_a ^^ get_b ^^ G.i B.sub)
+    Num.compile_unsigned_sub
 
   let compile_unsigned_pow env =
     Func.share_code2 Func.Always env "B_pow" (("a", B.wasm_val_type), ("b", B.wasm_val_type)) [B.wasm_val_type]
@@ -3593,12 +3602,12 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
         get_a ^^ BitTagged.untag __LINE__ env Type.Int ^^ set_a ^^
         get_b ^^ BitTagged.untag __LINE__ env Type.Int ^^ set_b ^^
 
-        get_a ^^ Num.from_signed_word64 env ^^
-        get_b ^^ Num.from_signed_word64 env ^^
+        get_a ^^ extend_sword_to_i64 ^^ Num.from_signed_word64 env ^^
+        get_b ^^ extend_sword_to_i64 ^^ Num.from_signed_word64 env ^^
         Num.compile_unsigned_pow env ^^ set_res ^^
         get_res ^^ fits_in_vanilla env ^^
         E.if1 B.wasm_val_type
-          (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+          (get_res ^^ Num.truncate_to_word64 env ^^ wrap_i64_to_word ^^ BitTagged.tag env Type.Int)
           get_res
       end
       begin
@@ -3611,7 +3620,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
         Num.compile_unsigned_pow env ^^ set_res ^^
         get_res ^^ fits_in_vanilla env ^^
         E.if1 B.wasm_val_type
-          (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+          (get_res ^^ Num.truncate_to_word64 env ^^ wrap_i64_to_word ^^ BitTagged.tag env Type.Int)
           get_res
       end)
 
@@ -3643,7 +3652,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
           BitTagged.tag env Type.Int
         end
         begin
-          get_n ^^ Num.from_word64 env ^^
+          get_n ^^ extend_word_to_i64 ^^ Num.from_word64 env ^^
           get_amount ^^
           Num.compile_lsh env
         end
@@ -3674,7 +3683,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
           set_res ^^ get_res ^^
           fits_in_vanilla env ^^
           E.if1 B.wasm_val_type
-            (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+            (get_res ^^ Num.truncate_to_word64 env ^^ wrap_i64_to_word ^^ BitTagged.tag env Type.Int)
             get_res
         end)
 
@@ -3698,7 +3707,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
         begin
           get_n ^^ clear_tag env ^^ compile_eq_const sminl_shifted ^^ (* -2^sbits, shifted ubits *)
           E.if1 B.wasm_val_type
-            (compile_unboxed_const sminl ^^ Num.from_word64 env)
+            (compile_unboxed_const sminl ^^ extend_word_to_i64 ^^ Num.from_word64 env)
             begin
               compile_unboxed_const B.zero ^^
               get_n ^^ clear_tag env ^^
@@ -3753,7 +3762,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
 
   let compile_relop env bigintop =
     try_comp_unbox2 (name_from_relop bigintop)
-      (fun env' -> Word64.compile_relop env' (i64op_from_relop bigintop))
+      (fun _env -> compile_comparison (i64op_from_relop bigintop))
       (fun env' -> Num.compile_relop env' bigintop)
       env
 
@@ -3833,7 +3842,7 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
             (* -2^sbits is small enough for compact representation, but 2^sbits isn't *)
             compile_eq_const sminl_shifted ^^ (* i.e. -2^sbits shifted *)
             E.if1 B.wasm_val_type
-              (compile_unboxed_const sminl ^^ Num.from_word64 env)
+              (compile_unboxed_const sminl ^^ extend_word_to_i64 ^^ Num.from_word64 env)
               begin
                 (* absolute value works directly on shifted representation *)
                 compile_unboxed_const B.zero ^^
