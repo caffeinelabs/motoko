@@ -8275,7 +8275,7 @@ module Serialization = struct
       (* Check that accumulated data_size fits in 32-bit unsigned range *)
       get_data_size ^^
       compile_op_i64_const I64Op.ShrU 32L ^^
-      G.i (Test (Wasm_exts.Values.I64 I64Op.Eqz)) ^^
+      compile_test_i64 I64Op.Eqz ^^
       E.else_trap_with env "buffer_size overflow" ^^
       get_data_size ^^ wrap_i64_to_word ^^
       get_ref_size
