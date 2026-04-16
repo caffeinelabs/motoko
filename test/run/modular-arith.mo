@@ -3,8 +3,8 @@ import Prim "mo:⛔";
 // intAddMod: (7 + 5) mod 10 = 2
 assert Prim.intAddMod(7, 5, 10) == 2;
 
-// intSubMod: (3 - 7) mod 10 = -4
-assert Prim.intSubMod(3, 7, 10) == -4;
+// intSubMod: (3 - 7) mod 10 = 6 (LibTomMath returns positive remainder)
+assert Prim.intSubMod(3, 7, 10) == 6;
 
 // intMulMod: (7 * 8) mod 10 = 6
 assert Prim.intMulMod(7, 8, 10) == 6;
