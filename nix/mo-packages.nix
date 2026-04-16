@@ -16,7 +16,7 @@ let
         then "release-static"
         else "release";
       is_dyn_static =
-        is_static && pkgs.system == "aarch64-linux";
+        pkgs.stdenv.hostPlatform.system == "aarch64-linux";
     in
     staticpkgs.stdenv.mkDerivation {
       inherit name;

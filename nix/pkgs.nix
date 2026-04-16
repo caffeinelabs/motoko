@@ -36,15 +36,6 @@
             fmt
           ];
         };
-
-        # js_of_ocaml-compiler version 6.0.1 is misbehaving
-        js_of_ocaml-compiler = super.ocamlPackages.js_of_ocaml-compiler.override { version = "5.9.1"; };
-        js_of_ocaml = super.ocamlPackages.js_of_ocaml.override { inherit js_of_ocaml-compiler; };
-        gen_js_api = super.ocamlPackages.gen_js_api.override {
-          inherit js_of_ocaml-compiler;
-          ojs = super.ocamlPackages.ojs.override { inherit js_of_ocaml-compiler; };
-        };
-        js_of_ocaml-ppx = super.ocamlPackages.js_of_ocaml-ppx.override { inherit js_of_ocaml; };
       };
     }
     )
@@ -54,12 +45,12 @@
     (self: super: {
       # When you change the rust-nightly version,
       # make sure to change the rustStdDepsHash in ./rts.nix accordingly.
-      rust-nightly = self.rust-bin.nightly."2025-06-19".default.override {
+      rust-nightly = self.rust-bin.nightly."2026-04-08".default.override {
         extensions = [ "rust-src" ];
         targets = [ "wasm32-wasip1" ];
       };
 
-      rust-stable = self.rust-bin.stable."1.89.0".default;
+      rust-stable = self.rust-bin.stable."1.94.1".default;
 
       rustPlatform-stable = self.makeRustPlatform rec {
         rustc = self.rust-stable;

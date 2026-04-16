@@ -173,7 +173,7 @@ let js_parse_motoko_with_deps enable_recovery path s =
     let open Diag.Syntax in
     let* prog, _ = parse_fn main_file s in
     let* deps =
-      Pipeline.ResolveImport.resolve (Pipeline.resolve_flags ~enhanced_migration:!Flags.enhanced_migration None) prog main_file
+      Pipeline.ResolveImport.resolve (Pipeline.resolve_flags ~is_main:true ~base:main_file None) prog main_file
     in
     Diag.return (prog, deps)
   in

@@ -13,9 +13,9 @@ jobs:
         os: [ ubuntu-latest, macos-15-intel, ubuntu-24.04-arm, macos-latest ]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v6
-    - uses: cachix/install-nix-action@v31
-    - uses: cachix/cachix-action@v17
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b # v31.10.4
+    - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
       with:
         name: ic-hs-test
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'

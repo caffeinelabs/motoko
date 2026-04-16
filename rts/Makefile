@@ -124,6 +124,9 @@ RTS_RUST_FILES=$(shell ls **/*.rs)
 RTS_CARGO_FILES=$(shell ls **/Cargo.toml)
 
 RTS_COMPILE_FLAGS=-C target-feature=+bulk-memory
+RTS_RELEASE_COMPILE_FLAGS=$(RTS_COMPILE_FLAGS) -Zunstable-options -Cpanic=immediate-abort
+NIGHTLY_CARGO_OPTIONS=-Zjson-target-spec -Zbuild-std=core,alloc
+NIGHTLY_RELEASE_CARGO_OPTIONS=$(NIGHTLY_CARGO_OPTIONS) --release -Zbuild-std-features="optimize_for_size"
 
 TOMMATH_BINDINGS_RS_32=_build/wasm32/tommath_bindings.rs
 TOMMATH_BINDINGS_RS_64=_build/wasm64/tommath_bindings.rs
@@ -184,9 +187,9 @@ $(TOMMATH_BINDINGS_RS_64): | _build/wasm64
 # 32-bit Wasm builds
 
 RTS_DEPENDENCIES_32=$(TOMMATH_BINDINGS_RS_32) $(RTS_RUST_FILES) $(RTS_CARGO_FILES) | _build/wasm32
-RTS_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json -Zbuild-std=core,alloc
+RTS_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json $(NIGHTLY_CARGO_OPTIONS)
 RTS_DEBUG_BUILD_32=$(RTS_BUILD_32)
-RTS_RELEASE_BUILD_32=$(RTS_BUILD_32) --release -Zbuild-std-features="panic_immediate_abort,optimize_for_size"
+RTS_RELEASE_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_RELEASE_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json $(NIGHTLY_RELEASE_CARGO_OPTIONS)
 RTS_DEBUG_TARGET_32=motoko-rts/target/wasm32-none-shared/debug/libmotoko_rts.a
 RTS_RELEASE_TARGET_32=motoko-rts/target/wasm32-none-shared/release/libmotoko_rts.a
 
@@ -215,9 +218,9 @@ $(RTS_RUST_INCREMENTAL_DEBUG_WASM_32_A): $(RTS_DEPENDENCIES_32)
 # 64-bit Wasm builds
 
 RTS_DEPENDENCIES_64=$(TOMMATH_BINDINGS_RS_64) $(RTS_RUST_FILES) $(RTS_CARGO_FILES) | _build/wasm64
-RTS_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json -Zbuild-std=core,alloc --features enhanced_orthogonal_persistence
+RTS_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_CARGO_OPTIONS) --features enhanced_orthogonal_persistence
 RTS_DEBUG_BUILD_64=$(RTS_BUILD_64)
-RTS_RELEASE_BUILD_64=$(RTS_BUILD_64) --release -Zbuild-std-features="panic_immediate_abort,optimize_for_size"
+RTS_RELEASE_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_RELEASE_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_RELEASE_CARGO_OPTIONS) --features enhanced_orthogonal_persistence
 
 RTS_DEBUG_TARGET_64=motoko-rts/target/wasm64-none-shared/debug/libmotoko_rts.a
 RTS_RELEASE_TARGET_64=motoko-rts/target/wasm64-none-shared/release/libmotoko_rts.a
