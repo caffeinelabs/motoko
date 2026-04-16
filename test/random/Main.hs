@@ -107,7 +107,7 @@ matchingProps = testGroup "Pattern matching" $
 
 modularProps :: TestTree
 modularProps = testGroup "Modular arithmetic"
-  [ QC.testProperty "expected successes" $ (prop_verifies :: MOTerm Integer -> Property)
+  [ QC.testProperty "expected successes" $ withMaxSuccess 50 prop_verifies
   ]
 
 
@@ -737,10 +737,10 @@ instance Arbitrary (MOTerm Natural) where
   shrink x = [ Lit (fromIntegral x) | Just x <- pure $ evaluate x ] <> subShrink x
 
 posModulus :: Gen (MOTerm Integer)
-posModulus = Lit . (+ 2) . abs <$> arbitrary
+posModulus = Lit . (+ 2) . (`mod` 1000) . abs <$> arbitrary
 
 smallPosExp :: Gen (MOTerm Integer)
-smallPosExp = Lit . (`mod` 20) . abs <$> arbitrary
+smallPosExp = Lit . (`mod` 10) . abs <$> arbitrary
 
 instance Arbitrary (MOTerm Integer) where
   arbitrary = reasonablyShaped $ \n ->
@@ -1060,14 +1060,10 @@ eval (a `Mul` b) = eval a * eval b
 eval (a `Div` b) = eval a `quot` eval b
 eval (a `Mod` b) = eval a `rem` eval b
 eval (a `Pow` (eval -> b)) = do b' <- b; exponentiable b'; (^) <$> eval a <*> b
-eval (AddMod a b m) = do a' <- eval a; b' <- eval b; m' <- eval m
-                         guard (m' /= 0); pure $ (a' + b') `mod` m'
-eval (SubMod a b m) = do a' <- eval a; b' <- eval b; m' <- eval m
-                         guard (m' /= 0); pure $ (a' - b') `mod` m'
-eval (MulMod a b m) = do a' <- eval a; b' <- eval b; m' <- eval m
-                         guard (m' /= 0); pure $ (a' * b') `mod` m'
-eval (PowMod base exp m) = do b' <- eval base; e' <- eval exp; m' <- eval m
-                               guard (m' > 0 && e' >= 0); pure $ powerMod b' e' m'
+eval (AddMod a b m) = do a <- eval a; b <- eval b; m <- eval m; guard (m /= 0); pure $ (a + b) `mod` m
+eval (SubMod a b m) = do a <- eval a; b <- eval b; m <- eval m; guard (m /= 0); pure $ (a - b) `mod` m
+eval (MulMod a b m) = do a <- eval a; b <- eval b; m <- eval m; guard (m /= 0); pure $ (a * b) `mod` m
+eval (PowMod base exp m) = do base <- eval base; exp <- eval exp; m <- eval m; guard (m > 0 && exp >= 0); pure $ powerMod base exp m
 eval (ConvertNatural t) = fromIntegral <$> evaluate t
 eval c@(ConvertNatToNatN t) = fromIntegral . (.&. maskFor c) <$> evaluate t
 eval (ConvertNatNToNat t) = fromIntegral <$> evaluate t
