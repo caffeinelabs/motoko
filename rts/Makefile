@@ -27,7 +27,7 @@ TOMMATHFILES = \
    mp_reduce_is_2k mp_reduce_2k_setup mp_reduce_2k \
    mp_reduce_is_2k_l mp_reduce_2k_setup_l mp_reduce_2k_l \
    mp_cnt_lsb s_mp_exptmod s_mp_exptmod_fast s_mp_montgomery_reduce_fast \
-   s_mp_invmod_fast s_mp_invmod_slow
+   s_mp_invmod_fast s_mp_invmod_slow s_mp_mul_high_digs s_mp_mul_high_digs_fast
 
 TOMMATHSRC ?= $(CURDIR)/../../libtommath
 
