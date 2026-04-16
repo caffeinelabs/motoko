@@ -305,7 +305,7 @@ module Backend32 : Backend_intf.S = struct
         | Int64 ->                                0b1100l
         | Nat32 ->                               0b01000l
         | Int32 ->                               0b11000l
-        | Float32 ->                             0b00100l (* placeholder: Float32 needs boxing on 32-bit *)
+        | Float32 -> assert false (* Float32 is boxed on 32-bit, not bit-tagged *)
         | Char  ->                        0b010_00000000l
         | Nat16 ->                   0b01000000_00000000l
         | Int16 ->                   0b11000000_00000000l
@@ -326,7 +326,7 @@ module Backend32 : Backend_intf.S = struct
         | Int16
         | Nat8
         | Int8
-        | Float32 -> 0l
+        | Float32 -> assert false (* Float32 is boxed on 32-bit, not bit-tagged *)
         | _  -> assert false)
 
     let unit_tag =
@@ -344,7 +344,7 @@ module Backend32 : Backend_intf.S = struct
         | Nat   | Int   -> 30
         | Nat64 | Int64 -> 28
         | Nat32 | Int32 -> 27
-        | Float32       -> 27 (* placeholder: Float32 needs boxing on 32-bit *)
+        | Float32       -> assert false (* Float32 is boxed on 32-bit, not bit-tagged *)
         | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
         | Nat16 | Int16 -> 16
         | Nat8  | Int8  ->  8
@@ -354,7 +354,7 @@ module Backend32 : Backend_intf.S = struct
         | Nat   | Int   -> 31
         | Nat64 | Int64 -> 31
         | Nat32 | Int32 -> 31
-        | Float32       -> 31 (* placeholder: Float32 needs boxing on 32-bit *)
+        | Float32       -> assert false (* Float32 is boxed on 32-bit, not bit-tagged *)
         | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
         | Nat16 | Int16 -> 16
         | Nat8  | Int8  ->  8

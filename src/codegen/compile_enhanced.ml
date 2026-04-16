@@ -695,6 +695,14 @@ module E = struct
   let add_global_word (env : t) name mut init =
     add_global_word_delayed env name mut init
 
+  let add_global64 (env : t) name mut (init : int64) =
+    let p = Lib.Promise.make () in
+    add_global env name p;
+    Lib.Promise.fulfill p (nr {
+      gtype = GlobalType (I64Type, mut);
+      value = nr (G.to_instr_list (G.i (Const (nr (Wasm_exts.Values.I64 init)))))
+    })
+
   let get_global (env : t) name : int32 =
     match NameEnv.find_opt name !(env.global_names) with
     | Some gi -> gi
@@ -1156,12 +1164,15 @@ let store_ptr : G.t =
   G.i (B.store ~offset:(B.to_int64 ptr_unskew) ())
 
 let narrow_to_32 env get_value =
-  get_value ^^
-  compile_const_i64 0xffff_ffffL ^^
-  compile_comparison_i64 I64Op.LeU ^^
-  E.else_trap_with env "cannot narrow to 32 bit" ^^
-  get_value ^^
-  G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64))
+  if B.word_size = 4 then
+    get_value
+  else
+    get_value ^^
+    compile_const_i64 0xffff_ffffL ^^
+    compile_comparison_i64 I64Op.LeU ^^
+    E.else_trap_with env "cannot narrow to 32 bit" ^^
+    get_value ^^
+    wrap_i64_to_word32
 
 module FakeMultiVal = struct
   (* For some use-cases (e.g. processing the compiler output with analysis
@@ -1360,8 +1371,8 @@ module RTS = struct
     E.add_func_import env "rts" "initialize_static_variables" [B.wasm_val_type] [];
     E.add_func_import env "rts" "get_static_variable" [B.wasm_val_type] [B.wasm_val_type];
     E.add_func_import env "rts" "set_static_variable" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "set_upgrade_instructions" [B.wasm_val_type] [];
-    E.add_func_import env "rts" "get_upgrade_instructions" [] [B.wasm_val_type];
+    E.add_func_import env "rts" "set_upgrade_instructions" [I64Type] [];
+    E.add_func_import env "rts" "get_upgrade_instructions" [] [I64Type];
     E.add_func_import env "rts" "memcmp" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [I32Type];
     E.add_func_import env "rts" "version" [] [B.wasm_val_type];
     E.add_func_import env "rts" "parse_idl_header" [I32Type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
@@ -1508,22 +1519,19 @@ module RTS = struct
 end (* RTS *)
 
 module GC = struct
-  (* Record mutator/gc instructions counts.
-
-     32-bit adaptation: instruction_counter wraps the I64Type result of
-     ic0.performance_counter to B.wasm_val_type via wrap_i64_to_word, so
-     globals and arithmetic stay in machine-word type.
-  *)
+  (* Record mutator/gc instructions counts using i64 globals.
+     ic0.performance_counter returns I64Type; we keep that precision
+     in i64 globals and use i64 arithmetic, matching the classical backend.
+     This avoids truncation on 32-bit backends. *)
 
   let instruction_counter env =
     compile_const_32 0l ^^
-    E.call_import env "ic0" "performance_counter" ^^
-    wrap_i64_to_word
+    E.call_import env "ic0" "performance_counter"
 
   let register_globals env =
-    E.add_global_word env "__mutator_instructions" Mutable B.zero;
-    E.add_global_word env "__collector_instructions" Mutable B.zero;
-    E.add_global_word env "__lifetime_instructions" Mutable B.zero
+    E.add_global64 env "__mutator_instructions" Mutable 0L;
+    E.add_global64 env "__collector_instructions" Mutable 0L;
+    E.add_global64 env "__lifetime_instructions" Mutable 0L
 
   let get_mutator_instructions env =
     G.i (GlobalGet (nr (E.get_global env "__mutator_instructions")))
@@ -1552,7 +1560,7 @@ module GC = struct
     | Flags.(ICMode | RefMode)  ->
       instruction_counter env ^^
       get_mutator_instructions env ^^
-      G.i B.sub ^^
+      G.i i64_sub ^^
       set_collector_instructions env
     | _ -> G.nop
 
@@ -1561,9 +1569,9 @@ module GC = struct
     | Flags.(ICMode | RefMode)  ->
       get_mutator_instructions env ^^
       get_lifetime_instructions env ^^
-      G.i B.add ^^
+      G.i i64_add ^^
       get_collector_instructions env ^^
-      G.i B.add ^^
+      G.i i64_add ^^
       set_lifetime_instructions env
     | _ -> G.nop
 
@@ -2150,10 +2158,15 @@ module BitTagged = struct
       let ubitsl = B.of_int_host (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrS_const (B.sub_host (B.of_int_host word_size_bits) ubitsl)
-    | Nat64 | Nat32 | Nat16 | Nat8 | Float32 ->
+    | Nat64 | Nat32 | Nat16 | Nat8 ->
       let ubitsl = B.of_int_host (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrU_const (B.sub_host (B.of_int_host word_size_bits) ubitsl)
+    | Float32 when word_size_bits = 64 ->
+      let ubitsl = B.of_int_host (ubits_of pty) in
+      sanity_check_tag line env pty ^^
+      compile_shrU_const (B.sub_host (B.of_int_host word_size_bits) ubitsl)
+    | Float32 -> assert false (* Float32 is boxed on 32-bit, not bit-tagged *)
     | _ -> assert false)
 
   let clear_tag env pty =
@@ -6700,8 +6713,8 @@ module StableMemoryInterface = struct
 end
 
 module UpgradeStatistics = struct
-  (* 32-bit adaptation: No direct changes; uses GC.instruction_counter which
-     already wraps to B.wasm_val_type, and B.add for arithmetic. *)
+  (* RTS get/set_upgrade_instructions use u64. GC.instruction_counter
+     returns I64Type. All arithmetic here is i64. *)
   let get_upgrade_instructions env =
     E.call_import env "rts" "get_upgrade_instructions"
   let set_upgrade_instructions env =
@@ -6710,7 +6723,7 @@ module UpgradeStatistics = struct
   let add_instructions env =
     get_upgrade_instructions env ^^
     GC.instruction_counter env ^^
-    G.i B.add ^^
+    G.i i64_add ^^
     set_upgrade_instructions env
 
   let set_instructions env =
@@ -7078,9 +7091,12 @@ module StackRep = struct
   | Const.Lit (Const.Word64 (pty, number)) -> BoxedWord64.constant env pty number
   | Const.Lit (Const.Float64 number) -> Float.constant env number
   | Const.Lit (Const.Float32 f) ->
-    E.Vanilla (B.or_host
-      (B.shl_host (B.of_int64 (Int64.of_int32 (Wasm.F32.to_bits f))) (B.of_int_host 32))
-      (TaggingScheme.tag_of_typ Type.Float32))
+    if word_size_bits = 64 then
+      E.Vanilla (B.or_host
+        (B.shl_host (B.of_int64 (Int64.of_int32 (Wasm.F32.to_bits f))) (B.of_int_host 32))
+        (TaggingScheme.tag_of_typ Type.Float32))
+    else
+      Float.constant env (Wasm.F64.of_float (Wasm.F32.to_float f))
   | Const.Opt value -> Opt.constant env (build_constant env value)
   | Const.Fun (_, get_fi, _) -> Closure.constant env get_fi
   | Const.Message _ -> assert false
@@ -7129,15 +7145,24 @@ module StackRep = struct
     | UnboxedFloat64, Vanilla -> Float.box env
     | Vanilla, UnboxedFloat64 -> Float.unbox env
 
-    (* Float32: inline tagged like Nat32 — f32 bits in upper 32, tag in lower 32 *)
+    (* Float32: on 64-bit, inline tagged (f32 bits in upper 32, tag in lower 32).
+       On 32-bit, boxed as Bits64 F via promote/demote. *)
     | UnboxedFloat32, Vanilla ->
-      G.i (Convert (Wasm_exts.Values.I32 I32Op.ReinterpretFloat)) ^^
-      extend_i32_to_word ^^
-      BitTagged.tag env Type.Float32
+      if word_size_bits = 64 then
+        G.i (Convert (Wasm_exts.Values.I32 I32Op.ReinterpretFloat)) ^^
+        extend_i32_to_word ^^
+        BitTagged.tag env Type.Float32
+      else
+        G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32)) ^^
+        Float.box env
     | Vanilla, UnboxedFloat32 ->
-      BitTagged.untag __LINE__ env Type.Float32 ^^
-      wrap_i64_to_word32 ^^
-      G.i (Convert (Wasm_exts.Values.F32 F32Op.ReinterpretInt))
+      if word_size_bits = 64 then
+        BitTagged.untag __LINE__ env Type.Float32 ^^
+        wrap_i64_to_word32 ^^
+        G.i (Convert (Wasm_exts.Values.F32 F32Op.ReinterpretInt))
+      else
+        Float.unbox env ^^
+        G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
 
     | Const value, Vanilla ->
         materialize_constant env value
@@ -7602,7 +7627,7 @@ module Serialization = struct
   let get_idl_types_length env =
     G.i (GlobalGet (nr (E.get_global env "__idl_types_length")))
 
-  let candid_type_offset_size = 8L
+  let candid_type_offset_size = Int64.of_int B.word_size_in_bytes
 
   let get_global_type_descriptor env =
     match !(E.(env.global_type_descriptor)) with
@@ -8086,16 +8111,18 @@ module Serialization = struct
     Func.share_code1 Func.Always env name ("x", B.wasm_val_type) [B.wasm_val_type; B.wasm_val_type]
     (fun env get_x ->
 
-      (* Some combinators for writing values *)
-      let (set_data_size, get_data_size) = new_local env "data_size" in
+      (* data_size accumulates in i64 to detect overflow on both 32- and 64-bit.
+         On 64-bit B.wasm_val_type = I64Type so this is equivalent to the old code.
+         On 32-bit each increment is zero-extended before the i64 add. *)
+      let (set_data_size, get_data_size) = new_local_i64 env "data_size" in
       let (set_ref_size, get_ref_size) = new_local env "ref_size" in
-      compile_unboxed_const B.zero ^^ set_data_size ^^
+      compile_const_i64 0L ^^ set_data_size ^^
       compile_unboxed_const B.zero ^^ set_ref_size ^^
 
       let inc_data_size code =
         get_data_size ^^
-        code ^^
-        G.i B.add ^^
+        code ^^ extend_word_to_i64 ^^
+        G.i i64_add ^^
         set_data_size
       in
 
@@ -8245,14 +8272,12 @@ module Serialization = struct
          size_alias (fun () -> get_x ^^ WeakRef.load_field env ^^ size env t)
       | _ -> todo "buffer_size" (Arrange_ir.typ t) G.nop
       end ^^
-      (* Check 32-bit overflow of buffer_size (only relevant on 64-bit) *)
-      (if word_size_bits = 64 then
-        get_data_size ^^
-        compile_shrU_const (B.of_int_host 32) ^^
-        compile_test I64Op.Eqz ^^
-        E.else_trap_with env "buffer_size overflow"
-      else G.nop) ^^
+      (* Check that accumulated data_size fits in 32-bit unsigned range *)
       get_data_size ^^
+      compile_op_i64_const I64Op.ShrU 32L ^^
+      G.i (Test (Wasm_exts.Values.I64 I64Op.Eqz)) ^^
+      E.else_trap_with env "buffer_size overflow" ^^
+      get_data_size ^^ wrap_i64_to_word ^^
       get_ref_size
     )
 
@@ -12946,19 +12971,19 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | OtherPrim "rts_mutator_instructions", [] ->
     SR.Vanilla,
-    GC.get_mutator_instructions env ^^ BigNum.from_word64 env
+    GC.get_mutator_instructions env ^^ BigNumI64.from_word64_i64 env
 
   | OtherPrim "rts_collector_instructions", [] ->
     SR.Vanilla,
-    GC.get_collector_instructions env ^^ BigNum.from_word64 env
+    GC.get_collector_instructions env ^^ BigNumI64.from_word64_i64 env
 
   | OtherPrim "rts_lifetime_instructions", [] ->
     SR.Vanilla,
-    GC.get_lifetime_instructions env ^^ BigNum.from_word64 env
+    GC.get_lifetime_instructions env ^^ BigNumI64.from_word64_i64 env
 
   | OtherPrim "rts_upgrade_instructions", [] ->
     SR.Vanilla,
-    UpgradeStatistics.get_upgrade_instructions env ^^ BigNum.from_word64 env
+    UpgradeStatistics.get_upgrade_instructions env ^^ BigNumI64.from_word64_i64 env
 
   | OtherPrim "rts_stable_memory_size", [] ->
     SR.Vanilla,
@@ -14670,7 +14695,7 @@ and conclude_module env set_serialization_globals start_fi_o =
         stable_types = !(env.E.stable_types);
         compiler = metadata "motoko:compiler" (Lib.Option.get Source_id.release Source_id.id);
       };
-      enhanced_orthogonal_persistence = Some (false, "64-bit, layout version 1");
+      enhanced_orthogonal_persistence = Some (false, Printf.sprintf "%d-bit, layout version 1" (B.word_size * 8));
       candid = {
         args = !(env.E.args);
         service = !(env.E.service);
