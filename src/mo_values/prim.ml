@@ -216,15 +216,15 @@ let prim trap =
      | _ -> failwith "rsh_Nat")
   | "intAddMod" -> fun _ v k ->
     (match as_tup v with
-     | [a; b; m] -> k (Int Numerics.Int.(rem (add (as_int a) (as_int b)) (as_int m)))
+     | [a; b; m] -> let open Numerics.Int in let r = rem (add (as_int a) (as_int b)) (as_int m) in k (Int (if lt r zero then add r (abs (as_int m)) else r))
      | _ -> failwith "intAddMod")
   | "intSubMod" -> fun _ v k ->
     (match as_tup v with
-     | [a; b; m] -> k (Int Numerics.Int.(rem (sub (as_int a) (as_int b)) (as_int m)))
+     | [a; b; m] -> let open Numerics.Int in let r = rem (sub (as_int a) (as_int b)) (as_int m) in k (Int (if lt r zero then add r (abs (as_int m)) else r))
      | _ -> failwith "intSubMod")
   | "intMulMod" -> fun _ v k ->
     (match as_tup v with
-     | [a; b; m] -> k (Int Numerics.Int.(rem (mul (as_int a) (as_int b)) (as_int m)))
+     | [a; b; m] -> let open Numerics.Int in let r = rem (mul (as_int a) (as_int b)) (as_int m) in k (Int (if lt r zero then add r (abs (as_int m)) else r))
      | _ -> failwith "intMulMod")
   | "intPowMod" -> fun _ v k ->
     (match as_tup v with
