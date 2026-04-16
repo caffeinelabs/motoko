@@ -127,6 +127,7 @@ module Backend64 : Backend_intf.S = struct
         | Int64 ->                                                                    0b1100L
         | Nat32 ->                                     0b01000000_00000000_00000000_00000000L
         | Int32 ->                                     0b11000000_00000000_00000000_00000000L
+        | Float32 ->                                   0b00100000_00000000_00000000_00000000L
         | Char  ->                        0b010_00000000_00000000_00000000_00000000_00000000L
         | Nat16 ->                   0b01000000_00000000_00000000_00000000_00000000_00000000L
         | Int16 ->                   0b11000000_00000000_00000000_00000000_00000000_00000000L
@@ -146,7 +147,8 @@ module Backend64 : Backend_intf.S = struct
         | Nat16
         | Int16
         | Nat8
-        | Int8 -> 0L
+        | Int8
+        | Float32 -> 0L
         | _  -> assert false)
 
     let unit_tag =
@@ -163,7 +165,7 @@ module Backend64 : Backend_intf.S = struct
         match pty with
         | Nat | Int     -> 62
         | Nat64 | Int64 -> 60
-        | Nat32 | Int32 -> 32
+        | Nat32 | Int32 | Float32 -> 32
         | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
         | Nat16 | Int16 -> 16
         | Nat8  | Int8  ->  8
@@ -172,7 +174,7 @@ module Backend64 : Backend_intf.S = struct
         match pty with
         | Nat   | Int   -> 63
         | Nat64 | Int64 -> 63
-        | Nat32 | Int32 -> 32
+        | Nat32 | Int32 | Float32 -> 32
         | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
         | Nat16 | Int16 -> 16
         | Nat8  | Int8  ->  8
@@ -303,6 +305,7 @@ module Backend32 : Backend_intf.S = struct
         | Int64 ->                                0b1100l
         | Nat32 ->                               0b01000l
         | Int32 ->                               0b11000l
+        | Float32 ->                             0b00100l (* placeholder: Float32 needs boxing on 32-bit *)
         | Char  ->                        0b010_00000000l
         | Nat16 ->                   0b01000000_00000000l
         | Int16 ->                   0b11000000_00000000l
@@ -322,7 +325,8 @@ module Backend32 : Backend_intf.S = struct
         | Nat16
         | Int16
         | Nat8
-        | Int8 -> 0l
+        | Int8
+        | Float32 -> 0l
         | _  -> assert false)
 
     let unit_tag =
@@ -340,6 +344,7 @@ module Backend32 : Backend_intf.S = struct
         | Nat   | Int   -> 30
         | Nat64 | Int64 -> 28
         | Nat32 | Int32 -> 27
+        | Float32       -> 27 (* placeholder: Float32 needs boxing on 32-bit *)
         | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
         | Nat16 | Int16 -> 16
         | Nat8  | Int8  ->  8
@@ -349,6 +354,7 @@ module Backend32 : Backend_intf.S = struct
         | Nat   | Int   -> 31
         | Nat64 | Int64 -> 31
         | Nat32 | Int32 -> 31
+        | Float32       -> 31 (* placeholder: Float32 needs boxing on 32-bit *)
         | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
         | Nat16 | Int16 -> 16
         | Nat8  | Int8  ->  8
