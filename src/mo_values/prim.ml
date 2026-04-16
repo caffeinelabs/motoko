@@ -214,6 +214,22 @@ let prim trap =
     (match as_tup v with
      | [x; shift] -> k (Int Numerics.Int.(div (as_int x) (pow (of_int 2) (of_big_int (Nat32.to_big_int (as_nat32 shift))))))
      | _ -> failwith "rsh_Nat")
+  | "intAddMod" -> fun _ v k ->
+    (match as_tup v with
+     | [a; b; m] -> k (Int Numerics.Int.(rem (add (as_int a) (as_int b)) (as_int m)))
+     | _ -> failwith "intAddMod")
+  | "intSubMod" -> fun _ v k ->
+    (match as_tup v with
+     | [a; b; m] -> k (Int Numerics.Int.(rem (sub (as_int a) (as_int b)) (as_int m)))
+     | _ -> failwith "intSubMod")
+  | "intMulMod" -> fun _ v k ->
+    (match as_tup v with
+     | [a; b; m] -> k (Int Numerics.Int.(rem (mul (as_int a) (as_int b)) (as_int m)))
+     | _ -> failwith "intMulMod")
+  | "intPowMod" -> fun _ v k ->
+    (match as_tup v with
+     | [base; exp; m] -> k (Int Numerics.Int.(rem (pow (as_int base) (as_int exp)) (as_int m)))
+     | _ -> failwith "intPowMod")
 
   | "explode_Nat16" -> fun _ v k ->
     let n, ff = as_nat16 v, Nat16.(of_int 0xFF) in

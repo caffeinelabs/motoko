@@ -1104,6 +1104,10 @@ module RTS = struct
     add_rts_import "bigint_rem" [I32Type; I32Type] [I32Type];
     add_rts_import "bigint_div" [I32Type; I32Type] [I32Type];
     add_rts_import "bigint_pow" [I32Type; I32Type] [I32Type];
+    add_rts_import "bigint_addmod" [I32Type; I32Type; I32Type] [I32Type];
+    add_rts_import "bigint_submod" [I32Type; I32Type; I32Type] [I32Type];
+    add_rts_import "bigint_mulmod" [I32Type; I32Type; I32Type] [I32Type];
+    add_rts_import "bigint_exptmod" [I32Type; I32Type; I32Type] [I32Type];
     add_rts_import "bigint_neg" [I32Type] [I32Type];
     add_rts_import "bigint_lsh" [I32Type; I32Type] [I32Type];
     add_rts_import "bigint_rsh" [I32Type; I32Type] [I32Type];
@@ -11817,6 +11821,34 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae e1 ^^
     compile_exp_as env ae (SR.UnboxedWord32 Type.Nat32) e2 ^^
     BigNum.compile_rsh env
+
+  | OtherPrim "intAddMod", [e1; e2; e3] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae e1 ^^
+    compile_exp_vanilla env ae e2 ^^
+    compile_exp_vanilla env ae e3 ^^
+    E.call_rts env "bigint_addmod"
+
+  | OtherPrim "intSubMod", [e1; e2; e3] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae e1 ^^
+    compile_exp_vanilla env ae e2 ^^
+    compile_exp_vanilla env ae e3 ^^
+    E.call_rts env "bigint_submod"
+
+  | OtherPrim "intMulMod", [e1; e2; e3] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae e1 ^^
+    compile_exp_vanilla env ae e2 ^^
+    compile_exp_vanilla env ae e3 ^^
+    E.call_rts env "bigint_mulmod"
+
+  | OtherPrim "intPowMod", [e1; e2; e3] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae e1 ^^
+    compile_exp_vanilla env ae e2 ^^
+    compile_exp_vanilla env ae e3 ^^
+    E.call_rts env "bigint_exptmod"
 
   | OtherPrim ("explode_Nat16" | "explode_Int16" as pr), [e] ->
     SR.UnboxedTuple 2,

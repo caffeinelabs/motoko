@@ -48,6 +48,20 @@ func shiftRight(x : Nat, shift : Nat32) : Nat {
   (prim "rsh_Nat" : (Nat, Nat32) -> Nat)(x, shift);
 };
 
+// Modular arithmetic (backed by LibTomMath)
+func intAddMod(a : Int, b : Int, m : Int) : Int {
+  (prim "intAddMod" : (Int, Int, Int) -> Int)(a, b, m);
+};
+func intSubMod(a : Int, b : Int, m : Int) : Int {
+  (prim "intSubMod" : (Int, Int, Int) -> Int)(a, b, m);
+};
+func intMulMod(a : Int, b : Int, m : Int) : Int {
+  (prim "intMulMod" : (Int, Int, Int) -> Int)(a, b, m);
+};
+func intPowMod(base : Int, exp : Int, m : Int) : Int {
+  (prim "intPowMod" : (Int, Int, Int) -> Int)(base, exp, m);
+};
+
 // for testing
 func idlHash(x : Text) : Nat32 { (prim "idlHash" : Text -> Nat32) x };
 

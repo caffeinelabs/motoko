@@ -424,6 +424,58 @@ pub unsafe extern "C" fn bigint_pow(a: Value, b: Value) -> Value {
 
 #[cfg(feature = "ic")]
 #[no_mangle]
+unsafe extern "C" fn bigint_addmod(a: Value, b: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_addmod(
+        a.as_bigint().mp_int_ptr(),
+        b.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[cfg(feature = "ic")]
+#[no_mangle]
+unsafe extern "C" fn bigint_submod(a: Value, b: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_submod(
+        a.as_bigint().mp_int_ptr(),
+        b.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[cfg(feature = "ic")]
+#[no_mangle]
+unsafe extern "C" fn bigint_mulmod(a: Value, b: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_mulmod(
+        a.as_bigint().mp_int_ptr(),
+        b.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[cfg(feature = "ic")]
+#[no_mangle]
+unsafe extern "C" fn bigint_exptmod(base: Value, exp: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_exptmod(
+        base.as_bigint().mp_int_ptr(),
+        exp.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[cfg(feature = "ic")]
+#[no_mangle]
 unsafe extern "C" fn bigint_div(a: Value, b: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_div(

@@ -20,7 +20,13 @@ TOMMATHFILES = \
    mp_init_size mp_exch mp_clear mp_copy mp_count_bits mp_mul_2d mp_rshd mp_mul_d mp_div_2d mp_mod_2d \
    s_mp_balance_mul s_mp_toom_mul s_mp_toom_sqr s_mp_karatsuba_sqr s_mp_sqr_fast s_mp_sqr s_mp_karatsuba_mul \
    s_mp_mul_digs_fast s_mp_mul_digs mp_init_multi mp_clear_multi mp_mul_2 mp_div_2 mp_div_3 mp_lshd mp_incr \
-   mp_decr mp_add_d mp_sub_d
+   mp_decr mp_add_d mp_sub_d \
+   mp_mod mp_addmod mp_submod mp_mulmod mp_exptmod mp_invmod \
+   mp_reduce mp_reduce_setup mp_montgomery_setup mp_montgomery_calc_normalization mp_montgomery_reduce \
+   mp_dr_is_modulus mp_dr_setup mp_dr_reduce \
+   mp_reduce_is_2k mp_reduce_2k_setup mp_reduce_2k \
+   mp_reduce_is_2k_l mp_reduce_2k_setup_l mp_reduce_2k_l \
+   mp_cnt_lsb s_mp_exptmod s_mp_exptmod_fast
 
 TOMMATHSRC ?= $(CURDIR)/../../libtommath
 
@@ -157,6 +163,11 @@ TOMMATH_BIND_OPTIONS = \
 	    --allowlist-function mp_expt_u32 \
 	    --allowlist-function mp_2expt \
 	    --allowlist-function mp_incr \
+	    --allowlist-function mp_mod \
+	    --allowlist-function mp_addmod \
+	    --allowlist-function mp_submod \
+	    --allowlist-function mp_mulmod \
+	    --allowlist-function mp_exptmod \
 	    --blocklist-type __int32_t \
 	    --blocklist-type __int64_t \
 	    --blocklist-type __uint32_t \
