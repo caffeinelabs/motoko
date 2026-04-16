@@ -1,0 +1,15 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+install $ID enhanced-migration-incremental/version1.mo ""
+ingress $ID check "DIDL\x00\x00"
+
+upgrade $ID enhanced-migration-incremental/version2.mo ""
+ingress $ID check "DIDL\x00\x00"
+
+upgrade $ID enhanced-migration-incremental/version3.mo ""
+ingress $ID check "DIDL\x00\x00"
+
+upgrade $ID enhanced-migration-incremental/version4.mo ""
+ingress $ID check "DIDL\x00\x00"
+
+upgrade $ID enhanced-migration-incremental/version5.mo ""
+ingress $ID check "DIDL\x00\x00"

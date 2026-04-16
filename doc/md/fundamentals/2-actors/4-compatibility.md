@@ -242,6 +242,105 @@ For compatibility, when performing an upgrade, the (post) signature of the old c
 
 The migration function can be deleted or adjusted on the next upgrade.
 
+## Enhanced stable signatures
+
+When using [enhanced multi-migration](./8-enhanced-multi-migration.md), the compiler produces an **enhanced stable signature** that records the entire migration chain alongside the actor's final stable fields. This extended signature enables the tooling to verify upgrade compatibility across the full history of migrations.
+
+### Stable signature versions
+
+Motoko uses three versions of the stable signature format, each corresponding to a different migration style:
+
+**Version 1.0.0 — Single.** The original format, listing the actor's stable fields. Used when the actor has no migration function.
+
+```motoko no-repl file=../../examples/count-v1.most
+```
+
+**Version 3.0.0 — Pre/Post.** Used when the actor declares a single migration function via `(with migration = ...)`. The signature contains a pre-signature (the fields the migration function consumes from the old actor) and a post-signature (the new actor's stable fields):
+
+```motoko no-repl file=../../examples/count-v9.most
+```
+
+Fields marked `in` are required inputs that must be present in the previous actor. Fields marked `stable` are carried through or newly declared.
+
+**Version 4.0.0 — Multi (enhanced).** Used with `--enhanced-migration`. The signature contains the full migration chain followed by the actor's stable fields. Each entry in the chain records a migration module's name and function signature:
+
+```
+// Version: 4.0.0
+{
+  "00_Init" : {} -> {count : Nat; header : Text};
+  "01_AddEmail" : {} -> {email : Text};
+  "02_CountToInt" : (old : {count : Nat}) -> {count : Int}
+}
+actor {
+  stable count : Int;
+  stable email : Text;
+  stable header : Text
+};
+```
+
+The chain section (enclosed in braces before the `actor` keyword) lists each migration module by its filename (without the `.mo` extension), in ascending lexicographic order. Each entry shows the migration function's type: input fields on the left of `->` and output fields on the right. Migrations that do not consume any fields show `{}` as input. Migrations that consume fields name their parameter (e.g., `old`) and list the consumed field types.
+
+The `actor` section after the chain lists the final stable fields, just like a Version 1.0.0 signature.
+
+### How compatibility is checked
+
+When upgrading from one version to another, `dfx` and `moc --stable-compatible` compare the old and new stable signatures:
+
+- **Old Version 4.0.0 to new Version 4.0.0:** The post-signature (final `actor` fields) of the old code must be compatible with the pre-signature of the new code. The pre-signature of the new code is derived by walking backward through its migration chain: the last unapplied migration determines which fields must be present. Migrations that were already applied (present in the old signature's chain) are skipped automatically.
+
+- **Old Version 1.0.0 or 3.0.0 to new Version 4.0.0:** The post-signature of the old code is checked against the pre-signature derived from the new chain, starting from the first migration not yet applied. This allows adopting enhanced multi-migration from a canister that was previously using either no migration or a single migration function.
+
+- **Old Version 4.0.0 to new Version 1.0.0 or 3.0.0:** This is **not allowed**. Once a canister adopts enhanced multi-migration, it cannot revert to the older migration styles. The compiler rejects such upgrades with an error.
+
+### Example: evolving enhanced signatures
+
+Consider a canister that starts with a single migration and then adds more over time.
+
+After the initial deployment with one migration (`00_Init`), the stable signature is:
+
+```
+// Version: 4.0.0
+{
+  "00_Init" : {} -> {a : Nat}
+}
+actor {
+  stable a : Nat
+};
+```
+
+After a second deployment that adds a new field via migration `01_AddB`:
+
+```
+// Version: 4.0.0
+{
+  "00_Init" : {} -> {a : Nat};
+  "01_AddB" : {} -> {b : Int}
+}
+actor {
+  stable a : Nat;
+  stable b : Int
+};
+```
+
+The upgrade from the first signature to the second is valid: the old actor's post-signature `{a : Nat}` is compatible with the new code's pre-signature at migration `01_AddB`, which requires no fields from the old actor (its input is `{}`), and carries `a : Nat` through unchanged.
+
+After a third deployment that changes `b` from `Int` to `Bool`:
+
+```
+// Version: 4.0.0
+{
+  "00_Init" : {} -> {a : Nat};
+  "01_AddB" : {} -> {b : Int};
+  "02_ChangeBType" : (old : {b : Int}) -> {b : Bool}
+}
+actor {
+  stable a : Nat;
+  stable var b : Bool
+};
+```
+
+The upgrade from the second to the third signature is valid: migration `02_ChangeBType` consumes `b : Int` from the old state, which is present and compatible, and produces `b : Bool`.
+
 ## Upgrade tooling
 
 `dfx` incorporates an upgrade check. For this purpose, it uses the Motoko compiler (`moc`) that supports:
@@ -250,7 +349,7 @@ The migration function can be deleted or adjusted on the next upgrade.
 
 -   `moc --stable-compatible <pre> <post>`: Checks two `.most` files for upgrade compatibility.
 
-Motoko embeds `.did` and `.most` files as Wasm custom sections for use by `dfx` or other tools.
+Motoko embeds `.did` and `.most` files as Wasm custom sections for use by `dfx` or other tools. The `--stable-compatible` check works across all [stable signature versions](#stable-signature-versions) (1.0.0, 3.0.0, and 4.0.0), so `dfx` can verify compatibility regardless of the migration style used by either version.
 
 To upgrade e.g. from `cur.wasm` to `nxt.wasm`, `dfx` checks that both the Candid interface and stable variables are compatible:
 

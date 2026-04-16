@@ -31,7 +31,10 @@ type typ_id = (string, Type.con option) Source.annotated_phrase
 
 type 'note sort = (Type.obj_sort, 'note) Source.annotated_phrase
 type typ_obj_sort = unit sort
-type persistence = bool Source.phrase
+
+type migration_chain = (string * Type.typ * Type.typ) list
+type persistence = (bool, migration_chain) Source.annotated_phrase
+
 type obj_sort = persistence sort
 type func_sort = Type.func_sort Source.phrase
 
@@ -96,6 +99,7 @@ type lit =
   | Int32Lit of Numerics.Int_32.t
   | Int64Lit of Numerics.Int_64.t
   | FloatLit of Numerics.Float.t
+  | Float32Lit of Numerics.Float32.t
   | CharLit of Value.unicode
   | TextLit of string
   | BlobLit of string
@@ -145,8 +149,6 @@ and vis' =
 let is_public vis = match vis.Source.it with Public _ -> true | _ -> false
 let is_private vis = match vis.Source.it with Private -> true | _ -> false
 
-type stab = stab' Source.phrase
-and stab' = Stable | Flexible
 
 type op_typ = Type.typ ref (* For overloaded resolution; initially Type.Pre. *)
 
@@ -180,10 +182,19 @@ let break_label kind (id_opt : id option) =
 
 
 type id_ref = (string, mut' * exp option) Source.annotated_phrase
-and hole_sort = Named of string | Anon of int
+
+and viewer_body = DotViewV of exp | DefaultV of exp
+and viewer = {
+    viewer_body : viewer_body;
+    viewer_field : Type.field
+  }
+
+and stab = stab' Source.phrase
+and stab' = Stable of viewer option ref | Flexible
+
 and exp = (exp', typ_note) Source.annotated_phrase
 and exp' =
-  | HoleE of hole_sort * exp ref
+  | HoleE of string * exp ref
   | PrimE of string                            (* primitive *)
   | VarE of id_ref                             (* variable *)
   | LitE of lit ref                            (* literal *)
@@ -283,6 +294,7 @@ and stab_body = stab_body' Source.phrase    (* type declarations & stable actor 
 and stab_body' =
   | Single of typ_field list
   | PrePost of (req * typ_field) list * typ_field list
+  | Multi of {chain : typ_tag list; post : typ_field list}
 and req = bool Source.phrase
 
 (* Compilation units *)
@@ -332,6 +344,7 @@ let string_of_lit = function
   | TextLit t     -> t
   | BlobLit b     -> b
   | FloatLit f    -> Numerics.Float.to_pretty_string f
+  | Float32Lit f  -> Numerics.Float32.to_pretty_string f
   | PreLit _      -> assert false
 
 (** Used for debugging *)

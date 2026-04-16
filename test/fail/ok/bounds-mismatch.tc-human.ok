@@ -59,56 +59,56 @@ because elements have inconsistent types
  58 │    let _ = [func<A <: Int>() {}, func<A <: Nat>() {}];  // warn
     │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 error[M0096]: expression of type
-  <X>X -> X
+  A = <X>X -> X
 cannot produce expected type
   <Y <: Nat>Y -> Y
     ┌─ bounds-mismatch.mo:75:21
  75 │  func f(x : A) : B = x;
     │                      ^ 
 error[M0096]: expression of type
-  <X <: Int, Y <: {}>X -> Y
+  A = <X <: Int, Y <: {}>X -> Y
 cannot produce expected type
   <X <: Int, Y <: {x : Nat}>X -> Y
     ┌─ bounds-mismatch.mo:81:21
  81 │  func f(x : A) : B = x;
     │                      ^ 
 error[M0096]: expression of type
-  <X <: Nat, Y>X -> Y
+  A = <X <: Nat, Y>X -> Y
 cannot produce expected type
   <Y <: Nat, X <: Y>Y -> X
     ┌─ bounds-mismatch.mo:87:21
  87 │  func f(x : A) : B = x;
     │                      ^ 
 error[M0096]: expression of type
-  <X, Y>X -> X
+  A = <X, Y>X -> X
 cannot produce expected type
   <X <: Y, Y>X -> X
     ┌─ bounds-mismatch.mo:93:21
  93 │  func f(x : A) : B = x;
     │                      ^ 
 error[M0096]: expression of type
-  <X, Y, Z <: X>X -> X
+  A = <X, Y, Z <: X>X -> X
 cannot produce expected type
   <X, Y <: X, Z <: Y>X -> X
     ┌─ bounds-mismatch.mo:99:21
  99 │  func f(x : A) : B = x;
     │                      ^ 
 error[M0096]: expression of type
-  <X <: {x : Int}>X -> X
+  A = <X <: {x : Int}>X -> X
 cannot produce expected type
   <X <: C>X -> X
     ┌─ bounds-mismatch.mo:106:21
 106 │  func f(x : A) : B = x;
     │                      ^ 
 error[M0096]: expression of type
-  <X, Y <: {f : () -> X}>X -> X
+  A = <X, Y <: {f : () -> X}>X -> X
 cannot produce expected type
   <X <: Nat, Y <: C<X>>X -> X
     ┌─ bounds-mismatch.mo:113:21
 113 │  func f(x : A) : B = x;
     │                      ^ 
 error[M0096]: expression of type
-  <X, Y <: {f : () -> Nat}>X -> X
+  A = <X, Y <: {f : () -> Nat}>X -> X
 cannot produce expected type
   <X <: Nat, Y <: C<X>>X -> X
     ┌─ bounds-mismatch.mo:120:21

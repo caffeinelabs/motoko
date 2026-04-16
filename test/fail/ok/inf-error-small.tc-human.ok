@@ -23,7 +23,7 @@ error[M0233]: wrong number of arguments: expected 1 but got 3
 Expected 1 argument of type:
   (n : Nat)
 But got 3 arguments of type:
-  {map : [(Nat, [var Text])]}
+  Map.Map<Nat, Text> = {map : [(Nat, [var Text])]}
   (n : Nat, m : Nat) -> Order
   Text
     ┌─ inf-error-small.mo:47:26
@@ -92,7 +92,7 @@ cannot produce expected type
  60 │      func x2() { let _ = peopleMap.get(Nat.compare, "text") };
     │                                                     ^^^^^^ 
 error[M0096]: expression of type
-  {map : [(Nat, [var Text])]}
+  Map.Map<Nat, Text> = {map : [(Nat, [var Text])]}
 cannot produce expected type
   (implicit : (Nat, Nat) -> Order)
     ┌─ inf-error-small.mo:61:39
@@ -102,7 +102,7 @@ error[M0233]: wrong number of arguments: expected 1 but got 3
 Expected 1 argument of type:
   (n : Nat)
 But got 3 arguments of type:
-  {map : [(Nat, [var Text])]}
+  Map.Map<Nat, Text> = {map : [(Nat, [var Text])]}
   (n : Nat, m : Nat) -> Order
   Text
     ┌─ inf-error-small.mo:62:38

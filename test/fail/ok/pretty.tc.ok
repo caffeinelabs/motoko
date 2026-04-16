@@ -1,11 +1,11 @@
 pretty.mo:22.20-22.21: type error [M0096], expression of type
-  {
-    aaaaaaaaaaaaaaaaaaa : Nat;
-    bbbbbbbbbbbbbbbbbbb : Nat;
-    ccccccccccccccccccc : Nat;
-    ddddddddddddddddddd : Nat;
-    eeeeeeeeeeeeeeeeeee : Nat
-  }
+  T = {
+        aaaaaaaaaaaaaaaaaaa : Nat;
+        bbbbbbbbbbbbbbbbbbb : Nat;
+        ccccccccccccccccccc : Nat;
+        ddddddddddddddddddd : Nat;
+        eeeeeeeeeeeeeeeeeee : Nat
+      }
 cannot produce expected type
   {
     aaaaaaaaaaaaaaaaaaa : Nat;
@@ -36,13 +36,13 @@ cannot produce expected type
     eeeeeeeeeeeeeeeeeee : Nat
   }
 pretty.mo:28.23-28.24: type error [M0096], expression of type
-  {
-    aaaaaaaaaaaaaaaaaaa : Nat;
-    bbbbbbbbbbbbbbbbbbb : Nat;
-    ccccccccccccccccccc : Nat;
-    ddddddddddddddddddd : Nat;
-    eeeeeeeeeeeeeeeeeee : Nat
-  }
+  T = {
+        aaaaaaaaaaaaaaaaaaa : Nat;
+        bbbbbbbbbbbbbbbbbbb : Nat;
+        ccccccccccccccccccc : Nat;
+        ddddddddddddddddddd : Nat;
+        eeeeeeeeeeeeeeeeeee : Nat
+      }
 cannot produce expected type
   Nat
 pretty.mo:40.13-40.16: type error [M0072], field foo does not exist in type:

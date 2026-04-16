@@ -311,6 +311,7 @@ module Const = struct
     | Bool of bool
     | Word64 of Type.prim * int64
     | Float64 of Numerics.Float.t
+    | Float32 of Numerics.Float32.t
     | Text of string
     | Blob of string
     | Null
@@ -321,6 +322,7 @@ module Const = struct
     | BigInt _ -> 1
     | Word64 _ -> 2
     | Float64 _ -> 3
+    | Float32 _ -> 8
     | Bool _ -> 4
     | Text _ -> 5
     | Blob _ -> 6
@@ -337,6 +339,10 @@ module Const = struct
        Int64.compare
        (Int64.bits_of_float (Mo_values.Numerics.Float.to_float i))
        (Int64.bits_of_float (Mo_values.Numerics.Float.to_float j))
+    | Float32 i, Float32 j ->
+       Int32.compare
+       (Int32.bits_of_float (Mo_values.Numerics.Float32.to_float i))
+       (Int32.bits_of_float (Mo_values.Numerics.Float32.to_float j))
     | Bool i, Bool j -> Bool.compare i j
     | Text s, Text t -> String.compare s t
     | Blob s, Blob t -> String.compare s t
@@ -446,6 +452,7 @@ module SR = struct
     | UnboxedTuple of int
     | UnboxedWord64 of Type.prim
     | UnboxedFloat64
+    | UnboxedFloat32
     | Unreachable
     | Const of Const.v
 
@@ -466,6 +473,7 @@ module SR = struct
     | UnboxedWord64 Type.(Int64 | Nat64) -> I64Type
     | UnboxedWord64 _ -> B.wasm_val_type
     | UnboxedFloat64 -> F64Type
+    | UnboxedFloat32 -> F32Type
     | UnboxedTuple n -> fatal "to_var_type: UnboxedTuple"
     | Const _ -> fatal "to_var_type: Const"
     | Unreachable -> fatal "to_var_type: Unreachable"
@@ -594,11 +602,13 @@ module E = struct
     (* Counter for deriving a unique id per constant function. *)
     constant_functions : int32 ref;
     dedup : (unit -> int32) option ref;
+
+    enhanced_migration : string option;
   }
 
 
   (* The initial global environment *)
-  let mk_global mode rts trap_with : t = {
+  let mk_global mode rts trap_with enhanced_migration : t = {
     mode;
     rts;
     trap_with;
@@ -629,6 +639,7 @@ module E = struct
     global_type_descriptor = ref None;
     constant_functions = ref 0l;
     dedup = ref None;
+    enhanced_migration;
   }
 
   (* This wraps Mo_types.Hash.hash to also record which labels we have seen,
@@ -905,8 +916,11 @@ module E = struct
     | Some mk_fi -> mk_fi()
     | None -> assert false
 
-  let set_dedup (env : t) (mk_fi : unit -> int32)=
+  let set_dedup (env : t) (mk_fi : unit -> int32) =
     env.dedup := Some mk_fi
+
+  let enhanced_migration (env : t) : string option =
+    env.enhanced_migration
 
 end
 
@@ -956,6 +970,10 @@ let compile_test op =
   extend_i32_to_word
 let compile_comparison_f64 rel =
   G.i (Compare (Wasm_exts.Values.F64 rel)) ^^
+  extend_i32_to_word
+
+let compile_comparison_f32 rel =
+  G.i (Compare (Wasm_exts.Values.F32 rel)) ^^
   extend_i32_to_word
 
 let compile_unboxed_const i = G.i (B.const i)
@@ -1443,6 +1461,7 @@ module RTS = struct
     E.add_func_import env "rts" "blob_iter" [B.wasm_val_type] [B.wasm_val_type];
     E.add_func_import env "rts" "blob_iter_next" [B.wasm_val_type] [B.wasm_val_type];
     E.add_func_import env "rts" "pow" [F64Type; F64Type] [F64Type];
+    E.add_func_import env "rts" "powf" [F32Type; F32Type] [F32Type];
     E.add_func_import env "rts" "sin" [F64Type] [F64Type];
     E.add_func_import env "rts" "cos" [F64Type] [F64Type];
     E.add_func_import env "rts" "tan" [F64Type] [F64Type];
@@ -1453,6 +1472,7 @@ module RTS = struct
     E.add_func_import env "rts" "exp" [F64Type] [F64Type];
     E.add_func_import env "rts" "log" [F64Type] [F64Type];
     E.add_func_import env "rts" "fmod" [F64Type; F64Type] [F64Type];
+    E.add_func_import env "rts" "fmodf" [F32Type; F32Type] [F32Type];
     E.add_func_import env "rts" "float_fmt" [F64Type; B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
     E.add_func_import env "rts" "char_to_upper" [I32Type] [I32Type];
     E.add_func_import env "rts" "char_to_lower" [I32Type] [I32Type];
@@ -1481,6 +1501,8 @@ module RTS = struct
     E.add_func_import env "rts" "weak_ref_is_live" [B.wasm_val_type] [I32Type];
     E.add_func_import env "rts" "get_dedup_table" [] [B.wasm_val_type];
     E.add_func_import env "rts" "set_dedup_table" [B.wasm_val_type] [];
+    E.add_func_import env "rts" "get_migrations" [] [B.wasm_val_type];
+    E.add_func_import env "rts" "set_migrations" [B.wasm_val_type] [];
     ()
 
 end (* RTS *)
@@ -2128,7 +2150,7 @@ module BitTagged = struct
       let ubitsl = B.of_int_host (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrS_const (B.sub_host (B.of_int_host word_size_bits) ubitsl)
-    | Nat64 | Nat32 | Nat16 | Nat8 ->
+    | Nat64 | Nat32 | Nat16 | Nat8 | Float32 ->
       let ubitsl = B.of_int_host (ubits_of pty) in
       sanity_check_tag line env pty ^^
       compile_shrU_const (B.sub_host (B.of_int_host word_size_bits) ubitsl)
@@ -2499,24 +2521,32 @@ module Opt = struct
   let alloc_some env get_payload =
     Tagged.obj env Tagged.Some [ get_payload ]
 
-  let inject env e =
-    e ^^
-    Func.share_code1 Func.Never env "opt_inject" ("x", B.wasm_val_type) [B.wasm_val_type] (fun env get_x ->
-      get_x ^^ BitTagged.if_tagged_scalar env [B.wasm_val_type]
-        ( get_x ) (* scalar, no wrapping *)
-        ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
-          E.if_ env [B.wasm_val_type]
-            ( get_x ) (* true literal, no wrapping *)
-            ( get_x ^^ is_some env ^^
-              E.if_ env [B.wasm_val_type]
-                ( get_x ^^ Tagged.branch_default env [B.wasm_val_type]
-                  ( get_x ) (* default tag, no wrapping *)
-                  [ Tagged.Some, alloc_some env get_x ]
-                )
-                ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
-            )
-        )
-    )
+  let injection_is_free env t =
+    Type.(match promote t with
+         | Prim Null | Opt _ | Any | Con _ -> false
+         | _ -> true)
+
+  let inject env t e =
+    if injection_is_free env t
+    then e
+    else
+      e ^^
+      Func.share_code1 Func.Never env "opt_inject" ("x", B.wasm_val_type) [B.wasm_val_type] (fun env get_x ->
+        get_x ^^ BitTagged.if_tagged_scalar env [B.wasm_val_type]
+          ( get_x ) (* scalar, no wrapping *)
+          ( get_x ^^ BitTagged.is_true_literal env ^^ (* exclude true literal since `branch_default` follows the forwarding pointer *)
+            E.if_ env [B.wasm_val_type]
+              ( get_x ) (* true literal, no wrapping *)
+              ( get_x ^^ is_some env ^^
+                E.if_ env [B.wasm_val_type]
+                  ( get_x ^^ Tagged.branch_default env [B.wasm_val_type]
+                    ( get_x ) (* default tag, no wrapping *)
+                    [ Tagged.Some, alloc_some env get_x ]
+                  )
+                  ( alloc_some env get_x ) (* ?ⁿnull for n > 0 *)
+              )
+          )
+      )
 
   let constant env = function
   | E.Vanilla value when value = null_vanilla_lit -> Tagged.shared_object __LINE__ env (fun env -> alloc_some env (null_lit env)) (* ?ⁿnull for n > 0 *)
@@ -2524,7 +2554,7 @@ module Opt = struct
   | shared_value ->
     Tagged.shared_object __LINE__ env (fun env ->
       let materialized_value = Tagged.materialize_shared_value env shared_value in
-      inject env materialized_value (* potentially wrap in new `Opt` *)
+      inject env Type.Any materialized_value (* potentially wrap in new `Opt` *)
     )
 
   (* This function is used where conceptually, Opt.inject should be used, but
@@ -2536,7 +2566,10 @@ module Opt = struct
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env some_payload_field
 
-  let project env =
+  let project env typ =
+    if injection_is_free env typ
+    then G.nop
+    else
     Func.share_code1 Func.Never env "opt_project" ("x", B.wasm_val_type) [B.wasm_val_type] (fun env get_x ->
       get_x ^^ BitTagged.if_tagged_scalar env [B.wasm_val_type]
         ( get_x ) (* scalar, no wrapping *)
@@ -3261,6 +3294,12 @@ module ReadBuf = struct
     get_ptr get_buf ^^
     G.i (Load {ty = F64Type; align = 0; offset = 0L; sz = None}) ^^
     advance get_buf (compile_unboxed_const (B.of_int_host 8))
+
+  let read_float32 env get_buf =
+    check_space env get_buf (compile_unboxed_const (B.of_int_host 4)) ^^
+    get_ptr get_buf ^^
+    G.i (Load {ty = F32Type; align = 0; offset = 0L; sz = None}) ^^
+    advance get_buf (compile_unboxed_const (B.of_int_host 4))
 
   let read_blob env get_buf get_len =
     check_space env get_buf get_len ^^
@@ -5317,7 +5356,7 @@ module IC = struct
 
       Func.define_built_in env "print_ptr" [("ptr", B.wasm_val_type); ("len", B.wasm_val_type)] [] (fun env ->
         match E.mode env with
-        | Flags.WasmMode -> G.i Nop
+        | Flags.WasmMode -> G.nop
         | Flags.ICMode | Flags.RefMode ->
           G.i (LocalGet (nr 0l)) ^^
           G.i (LocalGet (nr 1l)) ^^
@@ -6973,6 +7012,7 @@ module StackRep = struct
     | Prim (Nat8 | Nat16 | Nat32 | Nat64 | Int8 | Int16 | Int32 | Int64 | Char as pty) -> UnboxedWord64 pty
     | Prim (Text | Blob | Principal) -> Vanilla
     | Prim Float -> UnboxedFloat64
+    | Prim Float32 -> UnboxedFloat32
     | Obj (Actor, _, _) -> Vanilla
     | Func (Shared _, _, _, _, _) -> Vanilla
     | p -> todo "StackRep.of_type" (Arrange_ir.typ p) Vanilla
@@ -6985,6 +7025,7 @@ module StackRep = struct
     | UnboxedWord64 Type.(Int64 | Nat64) -> [I64Type]
     | UnboxedWord64 _ -> [B.wasm_val_type]
     | UnboxedFloat64 -> [F64Type]
+    | UnboxedFloat32 -> [F32Type]
     | UnboxedTuple n -> Lib.List.make n B.wasm_val_type
     | Const _ -> []
     | Unreachable -> []
@@ -6993,6 +7034,7 @@ module StackRep = struct
     | Vanilla -> "Vanilla"
     | UnboxedWord64 pty -> prim_fun_name pty "UnboxedWord64"
     | UnboxedFloat64 -> "UnboxedFloat64"
+    | UnboxedFloat32 -> "UnboxedFloat32"
     | UnboxedTuple n -> Printf.sprintf "UnboxedTuple %d" n
     | Unreachable -> "Unreachable"
     | Const _ -> "Const"
@@ -7019,7 +7061,7 @@ module StackRep = struct
 
   let drop env (sr_in : t) =
     match sr_in with
-    | Vanilla | UnboxedWord64 _ | UnboxedFloat64 -> G.i Drop
+    | Vanilla | UnboxedWord64 _ | UnboxedFloat64 | UnboxedFloat32 -> G.i Drop
     | UnboxedTuple n -> G.table n (fun _ -> G.i Drop)
     | Const _ | Unreachable -> G.nop
 
@@ -7035,6 +7077,10 @@ module StackRep = struct
   | Const.Lit (Const.BigInt number) -> BigNum.constant env number
   | Const.Lit (Const.Word64 (pty, number)) -> BoxedWord64.constant env pty number
   | Const.Lit (Const.Float64 number) -> Float.constant env number
+  | Const.Lit (Const.Float32 f) ->
+    E.Vanilla (B.or_host
+      (B.shl_host (B.of_int64 (Int64.of_int32 (Wasm.F32.to_bits f))) (B.of_int_host 32))
+      (TaggingScheme.tag_of_typ Type.Float32))
   | Const.Opt value -> Opt.constant env (build_constant env value)
   | Const.Fun (_, get_fi, _) -> Closure.constant env get_fi
   | Const.Message _ -> assert false
@@ -7083,6 +7129,16 @@ module StackRep = struct
     | UnboxedFloat64, Vanilla -> Float.box env
     | Vanilla, UnboxedFloat64 -> Float.unbox env
 
+    (* Float32: inline tagged like Nat32 — f32 bits in upper 32, tag in lower 32 *)
+    | UnboxedFloat32, Vanilla ->
+      G.i (Convert (Wasm_exts.Values.I32 I32Op.ReinterpretFloat)) ^^
+      extend_i32_to_word ^^
+      BitTagged.tag env Type.Float32
+    | Vanilla, UnboxedFloat32 ->
+      BitTagged.untag __LINE__ env Type.Float32 ^^
+      wrap_i64_to_word32 ^^
+      G.i (Convert (Wasm_exts.Values.F32 F32Op.ReinterpretInt))
+
     | Const value, Vanilla ->
         materialize_constant env value
     | Const Const.Lit (Const.Vanilla n), UnboxedWord64 ty ->
@@ -7093,6 +7149,8 @@ module StackRep = struct
          | Type.(Int64 | Nat64) -> compile_const_i64 n
          | _ -> compile_unboxed_const (B.of_int64 n))
     | Const Const.Lit (Const.Float64 f), UnboxedFloat64 -> Float.compile_unboxed_const f
+    | Const Const.Lit (Const.Float32 f), UnboxedFloat32 ->
+      G.i (Const (nr (Wasm_exts.Values.F32 f)))
     | Const c, UnboxedTuple 0 -> G.nop
     | Const Const.Tuple cs, UnboxedTuple n ->
       assert (n = List.length cs);
@@ -7799,6 +7857,7 @@ module Serialization = struct
     | Prim Int16 -> Some 10l
     | Prim Int32 -> Some 11l
     | Prim Int64 -> Some 12l
+    | Prim Float32 -> Some 13l
     | Prim Float -> Some 14l
     | Prim Text -> Some 15l
     (* NB: Prim Blob does not map to a primitive IDL type *)
@@ -8116,7 +8175,7 @@ module Serialization = struct
       | Prim Int -> inc_data_size (get_x ^^ BigNum.compile_data_size_signed env)
       | Prim (Int8|Nat8) -> inc_data_size compile_unboxed_one
       | Prim (Int16|Nat16) -> inc_data_size (compile_unboxed_const (B.of_int_host 2))
-      | Prim (Int32|Nat32|Char) -> inc_data_size (compile_unboxed_const (B.of_int_host 4))
+      | Prim (Int32|Nat32|Char|Float32) -> inc_data_size (compile_unboxed_const (B.of_int_host 4))
       | Prim (Int64|Nat64|Float) -> inc_data_size (compile_unboxed_const (B.of_int_host 8))
       | Prim Bool -> inc_data_size compile_unboxed_one
       | Prim Null -> G.nop
@@ -8154,7 +8213,7 @@ module Serialization = struct
       | Opt t ->
         inc_data_size compile_unboxed_one ^^ (* one byte tag *)
         get_x ^^ Opt.is_some env ^^
-        E.if0 (get_x ^^ Opt.project env ^^ size env t) G.nop
+        E.if0 (get_x ^^ Opt.project env t ^^ size env t) G.nop
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
             get_x ^^
@@ -8276,6 +8335,10 @@ module Serialization = struct
         write_bignum_leb env get_data_buf get_x
       | Prim Int ->
         write_bignum_sleb env get_data_buf get_x
+      | Prim Float32 ->
+        reserve env get_data_buf (B.of_int_host 4) ^^
+        get_x ^^ StackRep.adjust env SR.Vanilla SR.UnboxedFloat32 ^^
+        G.i (Store {ty = F32Type; align = 0; offset = 0L; sz = None})
       | Prim Float ->
         reserve env get_data_buf (B.of_int_host 8) ^^
         get_x ^^ Float.unbox env ^^
@@ -8331,7 +8394,7 @@ module Serialization = struct
         get_x ^^
         Opt.is_some env ^^
         E.if0
-          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env ^^ write env t)
+          (write_byte env get_data_buf compile_unboxed_one ^^ get_x ^^ Opt.project env t ^^ write env t)
           (write_byte env get_data_buf (compile_unboxed_const B.zero))
       | Variant vs ->
         List.fold_right (fun (i, {lab = l; typ = t; _}) continue ->
@@ -8846,6 +8909,12 @@ module Serialization = struct
               BigNum.compile_load_from_data_buf env get_data_buf true
             end
           end
+      | Prim Float32 ->
+        with_prim_typ t
+        begin
+          ReadBuf.read_float32 env get_data_buf ^^
+          StackRep.adjust env SR.UnboxedFloat32 SR.Vanilla
+        end
       | Prim Float ->
         with_prim_typ t
         begin
@@ -9065,7 +9134,7 @@ module Serialization = struct
                     (* decoding failed, but this is opt, so: return null *)
                     (Opt.null_lit env)
                     (* decoding succeeded, return opt value *)
-                    (Opt.inject env get_val)
+                    (Opt.inject env t get_val)
                 ]
             end
             begin
@@ -9077,7 +9146,7 @@ module Serialization = struct
                 (* decoding failed, but this is opt, so: return null *)
                 (Opt.null_lit env)
                 (* decoding succeeded, return opt value *)
-                (Opt.inject env get_val)
+                (Opt.inject env t get_val)
             end
           end
         end
@@ -9964,7 +10033,7 @@ module EnhancedOrthogonalPersistence = struct
   let load_old_field env field get_old_actor =
     if field.Type.typ = Type.(Opt Any) then
       (* A stable variable may have been promoted to type `Any`: Therefore, drop its former content. *)
-      Opt.inject env (Tuple.compile_unit env)
+      Opt.inject env Type.unit (Tuple.compile_unit env)
     else
       (get_old_actor ^^ Object.load_idx_raw env field.Type.lab)
 
@@ -10952,8 +11021,11 @@ module Persistence = struct
             if not (!Flags.explicit_enhanced_orthogonal_persistence) then
               E.trap_with env "Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration."
             else G.nop ^^
-            OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
-            EnhancedOrthogonalPersistence.initialize env actor_type
+            if E.enhanced_migration env = None then
+              OldStabilization.load env actor_type (NewStableMemory.upgrade_version_from_candid env) ^^
+              EnhancedOrthogonalPersistence.initialize env actor_type
+            else
+              E.trap_with env "Cannot upgrade from classical orthogonal persistence with --enhanced-migration"
           end
       end) ^^
     StableMem.region_init env
@@ -11153,6 +11225,7 @@ module AllocHow = struct
     | Prim (Nat64 | Int64 | Nat32 | Int32 | Nat16 | Int16 | Nat8 | Int8 | Char as pty) ->
        SR.UnboxedWord64 pty
     | Prim Float -> SR.UnboxedFloat64
+    | Prim Float32 -> SR.UnboxedFloat32
     | _ -> SR.Vanilla
 
   let dec lvl how_outer (seen, how0) dec =
@@ -11367,6 +11440,7 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | TextLit t     -> Const.Text t
   | BlobLit t     -> Const.Blob t
   | FloatLit f    -> Const.Float64 f
+  | Float32Lit f  -> Const.Float32 f
 
 let const_of_lit lit =
   Const.Lit (const_lit_of_lit lit)
@@ -11414,6 +11488,9 @@ let compile_unop env t op =
   | NegOp, Type.(Prim Float) ->
     SR.UnboxedFloat64, SR.UnboxedFloat64,
     G.i (Unary (Wasm_exts.Values.F64 F64Op.Neg))
+  | NegOp, Type.(Prim Float32) ->
+    SR.UnboxedFloat32, SR.UnboxedFloat32,
+    G.i (Unary (Wasm_exts.Values.F32 F32Op.Neg))
   | NotOp, Type.(Prim (Nat64|Int64 as p)) ->
      SR.UnboxedWord64 p, SR.UnboxedWord64 p,
      compile_const_i64 (-1L) ^^ G.i i64_xor
@@ -11754,6 +11831,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim Nat32),                        AddOp -> compile_Nat32_kernel env "add" I64Op.Add
   | Type.Prim Type.(Nat8 | Nat16 as ty),      AddOp -> compile_smallNat_kernel env ty "add" I64Op.Add
   | Type.(Prim Float),                        AddOp -> G.i (Binary (Wasm_exts.Values.F64 F64Op.Add))
+  | Type.(Prim Float32),                      AddOp -> G.i (Binary (Wasm_exts.Values.F32 F32Op.Add))
   | Type.Prim Type.(Nat8|Nat16|Nat32|Int8|Int16|Int32),
                                               WSubOp -> G.i B.sub
   | Type.(Prim Int32),                        SubOp -> compile_Int32_kernel env "sub" I64Op.Sub
@@ -11761,6 +11839,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim Nat32),                        SubOp -> compile_Nat32_kernel env "sub" I64Op.Sub
   | Type.(Prim (Nat8|Nat16 as ty)),           SubOp -> compile_smallNat_kernel env ty "sub" I64Op.Sub
   | Type.(Prim Float),                        SubOp -> G.i (Binary (Wasm_exts.Values.F64 F64Op.Sub))
+  | Type.(Prim Float32),                      SubOp -> G.i (Binary (Wasm_exts.Values.F32 F32Op.Sub))
   | Type.Prim Type.(Nat8|Nat16|Nat32|Int8|Int16|Int32 as ty),
                                               WMulOp -> TaggedSmallWord.compile_word_mul env ty
   | Type.(Prim Int32),                        MulOp -> compile_Int32_kernel env "mul" I64Op.Mul
@@ -11772,6 +11851,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim Nat8),                         MulOp -> compile_smallNat_kernel' env Type.Nat8 "mul"
                                                          (compile_shrU_const (B.of_int_host 8) ^^ G.i B.mul)
   | Type.(Prim Float),                        MulOp -> G.i (Binary (Wasm_exts.Values.F64 F64Op.Mul))
+  | Type.(Prim Float32),                      MulOp -> G.i (Binary (Wasm_exts.Values.F32 F32Op.Mul))
   | Type.(Prim (Nat8|Nat16|Nat32 as ty)),     DivOp -> G.i B.div_u ^^
                                                        TaggedSmallWord.msb_adjust ty
   | Type.(Prim (Nat8|Nat16|Nat32)),           ModOp -> G.i B.rem_u
@@ -11792,6 +11872,8 @@ let compile_binop env t op : SR.t * SR.t * G.t =
           end
           get_res)
   | Type.(Prim Float),                        DivOp -> G.i (Binary (Wasm_exts.Values.F64 F64Op.Div))
+  | Type.(Prim Float32),                      DivOp -> G.i (Binary (Wasm_exts.Values.F32 F32Op.Div))
+  | Type.(Prim Float32),                      ModOp -> E.call_import env "rts" "fmodf"
   | Type.(Prim Float),                        ModOp -> E.call_import env "rts" "fmod"
   | Type.(Prim (Int8|Int16|Int32)),           ModOp -> G.i B.rem_s
   | Type.(Prim (Nat8|Nat16|Nat32 as ty)),     WPowOp -> TaggedSmallWord.compile_nat_power env ty
@@ -11934,6 +12016,7 @@ let compile_binop env t op : SR.t * SR.t * G.t =
       (powInt64_shortcut (Word64.compile_unsigned_pow env))
   | Type.(Prim Nat),                          PowOp -> BigNum.compile_unsigned_pow env
   | Type.(Prim Float),                        PowOp -> E.call_import env "rts" "pow"
+  | Type.(Prim Float32),                      PowOp -> E.call_import env "rts" "powf"
   | Type.(Prim (Nat8|Nat16|Nat32|Int8|Int16|Int32)),
                                               AndOp -> G.i B.and_
   | Type.(Prim (Nat64|Int64)),                AndOp -> G.i i64_and
@@ -11982,6 +12065,8 @@ let compile_eq env =
     compile_comparison_i64 I64Op.Eq
   | Non -> G.i Unreachable
   | Prim Float -> compile_comparison_f64 F64Op.Eq
+  | Prim Float32 ->
+    compile_comparison_f32 F32Op.Eq
   | t -> todo_trap env "compile_eq" (Arrange_type.typ t)
 
 let get_relops = Operator.(function
@@ -12007,16 +12092,21 @@ let compile_relop env t op =
   if t = Type.Non then SR.Vanilla, G.i Unreachable else
   StackRep.of_type t,
   let open Operator in
+  let open Type in
   match t, op with
-  | Type.(Prim Text), _ -> Text.compare env op
-  | Type.(Prim (Blob|Principal)), _ -> Blob.compare env (Some op)
+  | Prim Text, _ -> Text.compare env op
+  | Prim (Blob|Principal), _ -> Blob.compare env (Some op)
   | _, EqOp -> compile_eq env t
-  | Type.(Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1)), op1 ->
+  | Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1), op1 ->
     compile_comparison_op env t1 op1
-  | Type.(Prim Float), GtOp -> compile_comparison_f64 F64Op.Gt
-  | Type.(Prim Float), GeOp -> compile_comparison_f64 F64Op.Ge
-  | Type.(Prim Float), LeOp -> compile_comparison_f64 F64Op.Le
-  | Type.(Prim Float), LtOp -> compile_comparison_f64 F64Op.Lt
+  | Prim Float,   GtOp -> compile_comparison_f64 F64Op.Gt
+  | Prim Float,   GeOp -> compile_comparison_f64 F64Op.Ge
+  | Prim Float,   LeOp -> compile_comparison_f64 F64Op.Le
+  | Prim Float,   LtOp -> compile_comparison_f64 F64Op.Lt
+  | Prim Float32, GtOp -> compile_comparison_f32 F32Op.Gt
+  | Prim Float32, GeOp -> compile_comparison_f32 F32Op.Ge
+  | Prim Float32, LeOp -> compile_comparison_f32 F32Op.Le
+  | Prim Float32, LtOp -> compile_comparison_f32 F32Op.Lt
   | _ -> todo_trap env "compile_relop" (Arrange_ops.relop op)
 
 let compile_load_field env typ name =
@@ -12184,7 +12274,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | OptPrim, [e] ->
     SR.Vanilla,
-    Opt.inject env (compile_exp_vanilla env ae e)
+    Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)
   | TagPrim l, [e] ->
     SR.Vanilla,
     Variant.inject env l (compile_exp_vanilla env ae e)
@@ -12403,6 +12493,17 @@ and compile_prim_invocation (env : E.t) ae p es at =
       SR.UnboxedFloat64,
       compile_exp_as env ae (SR.UnboxedWord64 Int64) e ^^
       G.i (Convert (Wasm_exts.Values.F64 F64Op.ConvertSI64))
+
+    | Float, Float32 ->
+      SR.UnboxedFloat32,
+      compile_exp_as env ae SR.UnboxedFloat64 e ^^
+      G.i (Convert (Wasm_exts.Values.F32 F32Op.DemoteF64))
+
+    | Float32, Float ->
+      SR.UnboxedFloat64,
+      compile_exp_as env ae SR.UnboxedFloat32 e ^^
+      G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32))
+
     | (Nat8 as from_typ), (Nat16 as to_typ)
     | (Nat16 as from_typ), (Nat32 as to_typ) ->
       SR.UnboxedWord64 to_typ,
@@ -12501,7 +12602,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     begin match ts with
     | [] ->
       (* return some () *)
-      Opt.inject env (Tuple.compile_unit env)
+      Opt.inject env Type.unit (Tuple.compile_unit env)
     | [t] ->
       (* save to local, propagate error as null or return some value *)
       let (set_val, get_val) = new_local env "val" in
@@ -12510,7 +12611,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
       compile_eq_const (Serialization.coercion_error_value env) ^^
       E.if1 B.wasm_val_type
         (Opt.null_lit env)
-        (Opt.inject env get_val)
+        (Opt.inject env t get_val)
     | ts ->
       (* propagate any errors as null or return some tuples using shared code *)
       let n = List.length ts in
@@ -12528,7 +12629,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
               (Opt.null_lit env)
               (go ls')
           | [] ->
-            Opt.inject env (Arr.lit env Tagged.T locals)
+            Opt.inject env (Type.Tup ts) (Arr.lit env Tagged.T locals)
         in
         go locals)
     end
@@ -12731,6 +12832,14 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 0L) ^^
     E.call_import env "rts" "float_fmt"
 
+  | OtherPrim "Float32->Text", [e] ->
+    SR.Vanilla,
+    compile_exp_as env ae SR.UnboxedFloat32 e ^^
+    G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32)) ^^
+    compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 6L) ^^
+    compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 0L) ^^
+    E.call_import env "rts" "float_fmt"
+
   | OtherPrim "fmtFloat->Text", [f; prec; mode] ->
     SR.Vanilla,
     compile_exp_as env ae SR.UnboxedFloat64 f ^^
@@ -12897,6 +13006,15 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.unit,
     compile_exp_vanilla env ae dedup_table ^^
     E.call_import env "rts" "set_dedup_table"
+
+  | OtherPrim "get_migrations", [] ->
+    SR.Vanilla,
+    E.call_import env "rts" "get_migrations"
+
+  | OtherPrim "set_migrations", [pointer] ->
+    SR.unit,
+    compile_exp_vanilla env ae pointer ^^
+    E.call_import env "rts" "set_migrations"
 
   (* Regions *)
 
@@ -13514,6 +13632,9 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | ICStableWrite ty, [] ->
     SR.unit,
     Persistence.save env ty
+  | ICStableStore ty, [] ->
+    SR.unit,
+    EnhancedOrthogonalPersistence.assign_stable_type env ty
 
   (* Cycles *)
   | SystemCyclesBalancePrim, [] ->
@@ -13903,7 +14024,8 @@ and compile_lit_pat env l =
   | BlobLit t ->
     compile_lit_as env SR.Vanilla l ^^
     Blob.compare env (Some Operator.EqOp)
-  | FloatLit _ ->
+  | FloatLit _
+  | Float32Lit _ ->
     todo_trap env "compile_lit_pat" (Arrange_ir.lit l)
 
 and fill_pat env ae pat : patternCode =
@@ -13923,7 +14045,7 @@ and fill_pat env ae pat : patternCode =
         Opt.is_some env ^^
         E.if0
           ( get_x ^^
-            Opt.project env ^^
+            Opt.project env p.note ^^
             with_fail fail_code (fill_pat env ae p)
           )
           fail_code
@@ -14564,11 +14686,11 @@ and conclude_module env set_serialization_globals start_fi_o =
   | None -> emodule
   | Some rts -> Linking.LinkModule.link emodule "rts" rts
 
-let compile mode rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
+let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)
   assert !Flags.rtti; (* Use precise tagging for graph copy. *)
   assert (!Flags.gc_strategy = Flags.Incremental); (* Define heap layout with the incremental GC. *)
-  let env = E.mk_global mode rts IC.trap_with in
+  let env = E.mk_global mode rts IC.trap_with enhanced_migration in
 
   IC.register_globals env;
   Stack.register_globals env;

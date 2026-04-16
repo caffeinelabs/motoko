@@ -374,6 +374,7 @@ let type_lit env lit at : T.prim =
   | Int32Lit _ -> T.Int32
   | Int64Lit _ -> T.Int64
   | FloatLit _ -> T.Float
+  | Float32Lit _ -> T.Float32
   | CharLit _ -> T.Char
   | TextLit _ -> T.Text
   | BlobLit _ -> T.Blob
@@ -674,6 +675,10 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | ICStableWrite t1, [] ->
       check_typ env t1;
       check (store_typ t1) "Invalid type argument to ICStableWrite";
+      T.unit <: t
+    | ICStableStore t1, [] ->
+      check_typ env t1;
+      check (store_typ t1) "Invalid type argument to ICStableStore";
       T.unit <: t
     | NumConvWrapPrim (p1, p2), [e] ->
       (* we should check if this conversion is supported *)

@@ -1,0 +1,8 @@
+error[M0014]: non-static expression in actor body compiled with enhanced migration capabilities.
+    ┌─ enhanced-migration-no-sideeffects.mo:14:29
+ 14 │      transient let x : Nat = myFunc();
+    │                              ^^^^^^^^ 
+error[M0014]: non-static expression in actor body compiled with enhanced migration capabilities.
+    ┌─ enhanced-migration-no-sideeffects.mo:25:46
+ 25 │      transient let y = Timer.setTimer<system>(disallowMe(), check);
+    │                                               ^^^^^^^^^^^^ 

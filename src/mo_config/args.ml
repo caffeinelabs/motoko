@@ -76,6 +76,12 @@ let ai_args = [
   "--implicit-package", Arg.String (fun s -> Flags.implicit_package := Some s), _UNDOCUMENTED_ " allow contextual dot and implicits resolution from all modules in the given package"
 ]
 
+let migration_args = [
+  "--enhanced-migration",
+  Arg.String (fun s -> Flags.enhanced_migration := Some s),
+  "<dir>  enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence.";
+]
+
 let persistent_actors_args = [
   (* default stability *)
   "--default-persistent-actors",
