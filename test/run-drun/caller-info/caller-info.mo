@@ -19,11 +19,14 @@ actor {
 
   public shared func setTrustedCaller() : async () {
     let self = Prim.getSelfPrincipal<system>();
-    await ic.update_settings({ canister_id = self; settings = {
-      environment_variables = ?[{
-        name = "trusted_attribute_signers";
-        value = "rdmx6-jaaaa-aaaaa-aaadq-cai"
-      }] }
+    await ic.update_settings({
+      canister_id = self;
+      settings = {
+        environment_variables = ?[{
+          name = "trusted_attribute_signers";
+          value = "rdmx6-jaaaa-aaaaa-aaadq-cai";
+        }];
+      };
     });
   };
 
@@ -33,14 +36,60 @@ actor {
     switch (signer, trustedSigners) {
       case (?signer, ?trustedSigners) {
         if (signer != Principal.fromText(trustedSigners)) {
-          Runtime.trap("untrusted signer")
+          Runtime.trap("untrusted signer");
         };
       };
       case _ {
-        Runtime.trap("Signer or trusted signers not available")
+        Runtime.trap("Signer or trusted signers not available");
       };
     };
     let info = Prim.callerInfoData<system>();
     assert info == ("\00\00\00" : Blob);
   };
-}
+
+  // II canister principal extracted from the canister sig public key (ICRC-3 test vectors)
+  let iiSignerBlob : Blob = "\ff\ff\ff\ff\ff\e0\00\00\01\01";
+
+  type Icrc3Value = {
+    #Nat : Nat;
+    #Int : Int;
+    #Blob : Blob;
+    #Text : Text;
+    #Array : [Icrc3Value];
+    #Map : [(Text, Icrc3Value)];
+  };
+
+  func lookupText(map : [(Text, Icrc3Value)], key : Text) : ?Text {
+    for ((k, v) in map.vals()) {
+      if (k == key) {
+        switch v {
+          case (#Text t) { return ?t };
+          case _ {};
+        };
+      };
+    };
+    null;
+  };
+
+  public shared func checkCallerInfo() : async () {
+    let ?signer = Prim.callerInfoSigner<system>() else Runtime.trap("no signer");
+    assert Principal.toBlob(signer) == iiSignerBlob;
+
+    let data = Prim.callerInfoData<system>();
+    let ?map : ?Icrc3Value = from_candid (data) else Runtime.trap("invalid candid");
+    let #Map(entries) = map else Runtime.trap("expected Map");
+
+    let ?origin = lookupText(entries, "implicit:origin") else Runtime.trap("missing origin");
+    assert origin == "https://some-dapp.com";
+
+    switch (lookupText(entries, "email")) {
+      case (?email) { Debug.print(email) };
+      case _ {};
+    };
+    switch (lookupText(entries, "openid:https://accounts.google.com:email")) {
+      case (?email) { Debug.print(email) };
+      case _ {};
+    };
+
+  };
+};
