@@ -20,11 +20,11 @@ type usage = { assigned : bool }
 type avl = Available | Unavailable
 
 type lab_env = T.typ T.Env.t
-type val_info = T.typ * Source.region * Scope.val_kind * avl
+type val_info = T.typ * region * Scope.val_kind * avl
 type val_env  = val_info T.Env.t
 
 (* separate maps for values and types; entries only for _public_ elements *)
-type visibility_src = {depr : string option; id_region : Source.region; field_region : Source.region}
+type visibility_src = {depr : string option; id_region : region; field_region : region}
 type visibility_env = visibility_src T.Env.t * visibility_src T.Env.t
 
 let available env = T.Env.map (fun (ty, at, kind) -> (ty, at, kind, Available)) env
@@ -36,7 +36,7 @@ let initial_scope =
   }
 
 module UWSet = Set.Make(struct
-  type t = string * Source.region * Scope.val_kind
+  type t = string * region * Scope.val_kind
   let compare (_, r1, _) (_, r2, _) = Region_ord.compare r1 r2
 end)
 
@@ -60,17 +60,17 @@ type env =
     pre : bool;
     weak : bool;
     msgs : Diag.msg_store;
-    scopes : Source.region T.ConEnv.t;
+    scopes : region T.ConEnv.t;
     check_unused : bool;
     used_identifiers : usage T.Env.t ref;
     unused_warnings : UWSet.t ref;
-    shared_pat_regions : Source.region list ref;
+    shared_pat_regions : region list ref;
     reported_stable_memory : bool ref;
     errors_only : bool;
     type_recovery : bool;
     srcs : Field_sources.t;
     closest_loop : (Syntax.loop_flags * T.typ) option;
-    closest_scrutinee : (Source.region * T.typ) option;
+    closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
   }
 and ret_env =
@@ -367,7 +367,7 @@ let _warn_in modes env at code notes spans edits fmt =
 (* Unused identifier detection *)
 
 let emit_unused_warnings env =
-  let is_in_shared_pat pos = !(env.shared_pat_regions) |> List.exists Source.Pos_ord.(fun region ->
+  let is_in_shared_pat pos = !(env.shared_pat_regions) |> List.exists Pos_ord.(fun region ->
     compare region.left pos <= 0 && compare pos region.right <= 0)
   in
   let emit (id, region, kind) =
@@ -665,12 +665,12 @@ let error_shared env t at code fmt =
     Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] [] []); raise Recover) fmt
 
 let as_domT t =
-  match t.Source.it with
+  match t.it with
   | TupT tis -> tis
   | _ -> [(None, t)]
 
 let as_codomT sort t =
-  match sort, t.Source.it with
+  match sort, t.it with
   | T.Shared _,  AsyncT (T.Fut, _, t1) ->
     T.Promises, as_domT t1
   | _ -> T.Returns, as_domT t
@@ -702,7 +702,7 @@ let string_of_region r =
   let open Source in
   let { left; right } = r in
   let basename = if left.file = "" then "" else Filename.basename left.file in
-  Source.string_of_region
+  string_of_region
     { left =  { left with file = basename };
       right = { right with file = basename } }
 
@@ -1019,7 +1019,7 @@ and check_typ_binds env typ_binds : T.con list * T.bind list * Scope.typ_env * S
   List.iter2 (fun c k ->
     match Cons.kind c with
     | T.Abs (_, T.Pre) -> T.set_kind c k
-    | k' -> assert (eq_kind env Source.no_region k k')
+    | k' -> assert (eq_kind env no_region k k')
   ) cs ks;
   let env' = add_typs env xs cs in
   let _ = List.map (fun typ_bind -> check_typ env' typ_bind.it.bound) typ_binds in
@@ -1673,7 +1673,7 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
           let source =
             if e.at.left.line <> e.at.right.line then None
-            else Source.read_region e.at
+            else read_region e.at
           in
           let receiver_text, edits = match source with
             | None -> "...", []
@@ -2568,7 +2568,7 @@ and check_exp' env0 t exp : T.typ =
   (* TODO: allow shared with one scope par *)
   | FuncE (_, shared_pat,  [], pat, typ_opt, _sugar, exp), T.Func (s, c, [], ts1, ts2) ->
     let env', t2, codom = check_func_step env0.in_actor env (shared_pat, pat, typ_opt, exp) (s, c, ts1, ts2) in
-    check_sub_explained env Source.no_region t2 codom (fun explanation ->
+    check_sub_explained env no_region t2 codom (fun explanation ->
       error env exp.at "M0095"
         "function return type%a\ndoes not match expected return type%a%a"
         display_typ_expand t2
@@ -2849,7 +2849,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
         "expected function type, but expression produces type%a"
         display_typ_expand t1;
       if inst.it = None then
-        info env (Source.between exp1.at exp2.at)
+        info env (between exp1.at exp2.at)
           "this looks like an unintended function call, perhaps a missing ';'?";
       T.as_func_sub T.Local n T.Non
   in
@@ -3163,11 +3163,11 @@ and is_redundant_instantiation ts env infer_instantiation =
   | Ok (b, _) -> b
 
 and debug_print_infer_defer_split exp2 t_arg t2 subs deferred =
-  print_endline (Printf.sprintf "exp2 : %s" (Source.read_region_with_markers exp2.at |> Option.value ~default:""));
+  print_endline (Printf.sprintf "exp2 : %s" (read_region_with_markers exp2.at |> Option.value ~default:""));
   print_endline (Printf.sprintf "t_arg : %s" (T.string_of_typ t_arg));
   print_endline (Printf.sprintf "t2 : %s" (T.string_of_typ t2));
   print_endline (Printf.sprintf "subs : %s" (String.concat ", " (List.map (fun (t, t', _at) -> Printf.sprintf "%s <: %s" (T.string_of_typ t) (T.string_of_typ t')) subs)));
-  print_endline (Printf.sprintf "deferred : %s" (String.concat ", " (List.map (fun (exp, t) -> Printf.sprintf "%s : %s" (Source.read_region exp.at |> Option.value ~default:"") (T.string_of_typ t)) deferred)));
+  print_endline (Printf.sprintf "deferred : %s" (String.concat ", " (List.map (fun (exp, t) -> Printf.sprintf "%s : %s" (read_region exp.at |> Option.value ~default:"") (T.string_of_typ t)) deferred)));
   print_endline ""
 
 (* Cases *)
@@ -3657,7 +3657,7 @@ and scope_of_object val_kind env fs tfs =
   let typ_env = List.fold_left (fun te tf ->
     T.Env.add tf.T.lab tf.T.typ te) T.Env.empty tfs in
   let val_env = List.fold_left (fun te f ->
-    T.Env.add f.T.lab (f.T.typ, Source.no_region, val_kind) te) T.Env.empty fs in
+    T.Env.add f.T.lab (f.T.typ, no_region, val_kind) te) T.Env.empty fs in
   Scope.{ empty with typ_env; val_env }
 
 (* TODO: remove by merging conenv and valenv or by separating typ_fields *)
@@ -3866,8 +3866,8 @@ and infer_migration_chain env at =
   | None -> []
   | Some path ->
      let region_of_file file =
-       Source.{left = {file; line = 1; column = 0 };
-               right = {file; line = 1; column = 0 } }
+       {left = {file; line = 1; column = 0 };
+        right = {file; line = 1; column = 0 } }
      in
      let norm_path = Lib.FilePath.normalise path in
      let chain =
@@ -3957,7 +3957,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
            tf.T.lab display_typ tf.T.typ)
          post
      | (file, _, typ)::mfs1 ->
-        let file_at = let file_pos = { Source.no_pos with file = file} in {left = file_pos; right=file_pos} in
+        let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
         (* is this a migration function *)
         let (dom_mf, rng_mf) = check_migration_function env mf.T.typ file_at in
@@ -4108,7 +4108,7 @@ and check_stable_defaults env sort dec_fields =
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable _; at; _}, (LetD _ | VarD _) ->
-          if at <> Source.no_region then
+          if at <> no_region then
             warn env at "M0218" "redundant `stable` keyword, this declaration is implicitly stable"
         | _ -> ())
       dec_fields
@@ -4120,7 +4120,7 @@ and check_stable_defaults env sort dec_fields =
       List.fold_left (fun acc dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Flexible; at; _}, (LetD _ | VarD _) ->
-           if at = Source.no_region
+           if at = no_region
            then
              (local_error env dec_field.it.dec.at "M0219" "this declaration is currently implicitly transient, please declare it explicitly `transient`";
               true)
@@ -4163,7 +4163,7 @@ and check_stab env sort scope dec_fields =
     | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
     | (T.Actor | T.Mixin), Some stab, _ ->
       let at, desc =
-        if stab.at = Source.no_region
+        if stab.at = no_region
         then df.it.dec.at, "implicit "
         else stab.at, ""
       in
@@ -4287,7 +4287,7 @@ and warn_unit_binding binder env (dec : dec) (exp : exp) =
     | `Let -> "let"
     | `Var -> "var"
   in
-  let at = Source.{dec.at with right = exp.at.left} in
+  let at = {dec.at with right = exp.at.left} in
   warn env at "M0239" "Avoid binding a unit `()` result; remove `%s` and keep the expression" binder
 
 and check_init env pat_opt exp at =
@@ -4388,7 +4388,7 @@ and infer_dec env dec : T.typ =
       | None, _ -> ()
       | Some { it = AsyncT (T.Fut, _, typ); at; _ }, T.Actor
       | Some ({ at; _ } as typ), T.(Module | Object) ->
-        if at = Source.no_region then
+        if at = no_region then
           warn env dec.at "M0135"
             "actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'";
         let t'' = check_typ env'' typ in
@@ -4556,7 +4556,7 @@ and gather_dec env scope dec : Scope.t =
       ) scope.typ_env tfs in
       let val_env = List.fold_left (fun ve T.{ lab; typ; _ } ->
         if T.Env.mem lab ve then error_duplicate env "" { it = lab; at = i.at; note = () };
-        T.Env.add lab (typ, Source.no_region, Scope.MixinIncluded) ve
+        T.Env.add lab (typ, no_region, Scope.MixinIncluded) ve
       ) scope.val_env fs in
       { scope with typ_env; val_env }
     end
@@ -4908,7 +4908,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
           let imp_scope = match cub.it with
             | ModuleU _ ->
               if cub.at = no_region then begin
-                let r = Source.{
+                let r = {
                   left = { no_pos with file = lib.note.filename };
                   right = { no_pos with file = lib.note.filename }}
                 in

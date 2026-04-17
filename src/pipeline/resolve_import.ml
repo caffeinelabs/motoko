@@ -1,5 +1,6 @@
 open Mo_def
 open Ic
+open Source
 module Traversals = Mo_frontend.Traversals
 
 (*
@@ -19,7 +20,7 @@ type url = string
 type envvar = string
 type blob = string
 
-type resolved_imports = Syntax.resolved_import Source.phrase list
+type resolved_imports = Syntax.resolved_import phrase list
 
 (* This returns a map from Syntax.resolved_import
    to the location of the first import of that library
@@ -237,7 +238,7 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
 (* Get the migration files, filter by .mo extension and sort lexicographically. *)
 let get_migration_files dir : string list Diag.result =
   if not (Sys.file_exists dir && Sys.is_directory dir) then
-    Diag.error Source.no_region "M0256" "import"
+    Diag.error no_region "M0256" "import"
       (Printf.sprintf "enhanced migration path '%s' is not a directory" dir)
   else
     Sys.readdir dir
@@ -366,14 +367,14 @@ let resolve
     let imported =
       ref (if flags.include_all_libs
            then (* outside any package, add all available package libraries *)
-             (List.fold_right (fun ri rim -> RIM.add ri Source.no_region rim)
+             (List.fold_right (fun ri rim -> RIM.add ri no_region rim)
                (package_imports base packages) RIM.empty)
            else
              (* consider only the explicitly imported package libraries *)
              RIM.empty)
     in
     (* add any implicit imports for migrations *)
-    imported := (List.fold_right (fun ri rim -> RIM.add ri Source.no_region rim)
+    imported := (List.fold_right (fun ri rim -> RIM.add ri no_region rim)
                    migration_imports !imported);
     List.iter (resolve_import_string msgs base actor_idl_path aliases packages imported)(prog_imports p);
     Some (List.map (fun (rim, at) -> rim @@ at) (RIM.bindings !imported))

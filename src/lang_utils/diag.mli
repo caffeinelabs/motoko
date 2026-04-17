@@ -1,21 +1,23 @@
 (* A common data type for diagnostic messages *)
 
+open Source
+
 type severity
 type error_code = string
 type priority = Primary | Secondary
 type span = {
   prio : priority;
-  at_span : Source.region;
+  at_span : region;
   label : string;
 }
 type edit = {
-  at_edit : Source.region;
+  at_edit : region;
   suggested_replacement : string;
 }
 type message = {
   sev : severity;
   code : error_code;
-  at : Source.region;
+  at : region;
   cat : string;
   text : string;
   spans : span list;
@@ -25,9 +27,9 @@ type message = {
 
 type messages = message list
 
-val info_message : Source.region -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
-val warning_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
-val error_message : Source.region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
+val info_message : region -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
+val warning_message : region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
+val error_message : region -> error_code -> string -> ?spans:span list -> ?notes:string list -> ?edits:edit list -> string -> message
 
 val string_of_message : message -> string
 val is_treated_as_error : message -> bool
@@ -40,9 +42,9 @@ Both success and failure can come with messages)
 
 type 'a result = ('a * messages, messages) Stdlib.result
 
-val info : Source.region -> string -> string -> unit result
-val warn : Source.region -> error_code -> string -> string -> unit result
-val error : Source.region -> error_code -> string -> string -> 'a result
+val info : region -> string -> string -> unit result
+val warn : region -> error_code -> string -> string -> unit result
+val error : region -> error_code -> string -> string -> 'a result
 
 val return : 'a -> 'a result
 val bind : 'a result -> ('a -> 'b result) -> 'b result
