@@ -8,13 +8,6 @@ features are
 *)
 
 open Wasm_exts.Ast
-
-let cr Source.{left; right} =
-  let left, right =
-    (let Source.{ file; line; column } = left in Wasm.Source.{ file; line; column }),
-    (let Source.{ file; line; column } = right in Wasm.Source.{ file; line; column })
-  in Wasm.Source.{ left; right }
-
 open Wasm.Source
 open Wasm_exts.Values
 
@@ -199,7 +192,7 @@ let table n f = List.fold_right (^^) (Lib.List.table n f) nop
 (* Region-managing combinator *)
 
 let with_region (pos : Source.region) (body : t) : t =
-  fun d _pos rest -> body d (cr pos) rest
+  fun d _pos rest -> body d pos rest
 
 (* Depths-managing combinators *)
 
@@ -331,7 +324,5 @@ let dw_tag die body =
 let dw_tag_no_children = dw_tag_open (* self-closing *)
 
 (* Marker for statement boundaries *)
-let dw_statement { Source.left; Source.right } =
-  let open Wasm.Source in
-  let left = { file = left.Source.file; line = left.Source.line; column = left.Source.column } in
+let dw_statement { left; _ } =
   i (Meta (StatementDelimiter left))

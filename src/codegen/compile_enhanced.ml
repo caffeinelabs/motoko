@@ -5477,12 +5477,11 @@ module IC = struct
       Arr.lit env Tagged.S [get_actor; get_func]
    )
 
-
-  let fail_assert env at =
-    let open Source in
+  let fail_assert env at' =
+    let open Wasm.Source in
     let at = {
-        left = {at.left with file = Filename.basename at.left.file};
-        right = {at.right with file = Filename.basename at.right.file}
+        left = {at'.left with file = Filename.basename at'.left.file};
+        right = {at'.right with file = Filename.basename at'.right.file}
       }
     in
     E.trap_with env (Printf.sprintf "assertion failed at %s" (string_of_region at))

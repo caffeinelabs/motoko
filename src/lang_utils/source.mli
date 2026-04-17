@@ -1,5 +1,5 @@
-type pos = {file : string; line : int; column : int}
-type region = {left : pos; right : pos}
+type pos = Wasm.Source.pos = { file : string; line : int; column : int }
+type region = Wasm.Source.region = { left : pos; right : pos }
 type ('a, 'b) annotated_phrase = {at : region; it : 'a; mutable note: 'b}
 type 'a phrase = ('a, unit) annotated_phrase
 

@@ -1,5 +1,6 @@
 open Mo_types
 open Type
+open Source
 
 (* `bi_match scope_opt tbs subs ret_opt` returns
    a minimal instantiation `ts` such that
@@ -45,7 +46,7 @@ open Type
 *)
 
 type reason =
-  { actual : typ; expected : typ; at : Source.region }
+  { actual : typ; expected : typ; at : region }
 
 exception Bimatch of {
   message : string;
@@ -83,7 +84,7 @@ val bi_match_subs :
   scope option ->
   bind list ->
   typ option ->
-  (typ * typ * Source.region) list ->
+  (typ * typ * region) list ->
   must_solve: typ list ->
   typ list * ctx
 
@@ -99,7 +100,7 @@ val bi_match_subs :
 val finalize :
   typ list ->
   ctx ->
-  (typ * typ * Source.region) list ->
+  (typ * typ * region) list ->
   typ list * typ ConEnv.t
 
 (** Checks that all types are closed (no unresolved type variables) *)

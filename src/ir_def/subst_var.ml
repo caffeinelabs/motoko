@@ -1,4 +1,3 @@
-open Source
 open Ir
 
 (* One traversal for each syntactic category, named by that category *)

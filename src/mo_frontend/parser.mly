@@ -286,7 +286,7 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.typ_field> typ_field
 %type<Mo_def.Syntax.typ_bind> typ_bind
 %type<Mo_def.Syntax.typ list> typ_args
-%type<Source.region -> Mo_def.Syntax.pat> pat_opt
+%type<region -> Mo_def.Syntax.pat> pat_opt
 %type<Mo_def.Syntax.typ_tag list> seplist1(typ_tag,semicolon) seplist(typ_tag,semicolon)
 %type<Mo_def.Syntax.typ_item list> seplist(typ_item,COMMA)
 %type<Mo_def.Syntax.typ_field list> typ_obj seplist(typ_field,semicolon)

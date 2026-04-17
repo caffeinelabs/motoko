@@ -413,9 +413,11 @@ let gc_flags option =
 
 let js_contextual_dot_suggestions scope raw_exp =
   let open Mo_frontend in
+  let open Mo_def.Syntax in
+  let open Source in
   let scope = (Obj.magic scope : Scope.t) in
-  let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
-  let receiver_ty = exp.note.Mo_def.Syntax.note_typ in
+  let exp = (Obj.magic raw_exp : exp) in
+  let receiver_ty = exp.note.note_typ in
   let libs = scope.Scope.lib_env in
   let open Typing in
   let suggestions = contextual_dot_suggestions libs receiver_ty in

@@ -1,7 +1,8 @@
+open Source
 
 (* Identifiers *)
 
-type id = string Source.phrase
+type id = string phrase
 
 (* Types *)
 
@@ -24,13 +25,13 @@ type prim =
   | Reserved
   | Empty
 
-type func_mode = func_mode' Source.phrase
+type func_mode = func_mode' phrase
 and func_mode' = Oneway | Query | Composite
 
-type field_label = field_label' Source.phrase
+type field_label = field_label' phrase
 and field_label' = Id of Lib.Uint32.t | Named of string | Unnamed of Lib.Uint32.t
 
-type typ = typ' Source.phrase
+type typ = typ' phrase
 and typ' =
   | PrimT of prim                                (* primitive *)
   | VarT of id                                    (* type name *)
@@ -47,17 +48,17 @@ and typ' =
   | PrincipalT
   | PreT   (* pre-type *)
 
-and arg_typ = arg_typ' Source.phrase
+and arg_typ = arg_typ' phrase
 and arg_typ' = { name : id option; typ : typ }
-and typ_field = typ_field' Source.phrase
+and typ_field = typ_field' phrase
 and typ_field' = { label: field_label; typ : typ }
 
-and typ_meth = typ_meth' Source.phrase
+and typ_meth = typ_meth' phrase
 and typ_meth' = {var : id; meth : typ}
 
 (* Declarations *)
 
-and dec = dec' Source.phrase
+and dec = dec' phrase
 and dec' =
   | TypD of id * typ             (* type *)
   | ImportD of string * string ref  (* import *)
@@ -65,7 +66,7 @@ and dec' =
 (* Program *)
 
 type prog_note = { filename : string; trivia : Trivia.triv_table }
-type prog = (prog', prog_note) Source.annotated_phrase
+type prog = (prog', prog_note) annotated_phrase
 and prog' = { decs : dec list; actor : typ option }
 
 (* Values *)
@@ -73,7 +74,7 @@ and prog' = { decs : dec list; actor : typ option }
 (* This value AST is not to be taken serious. It is just good enough
 to translate Candid textual values into morally equivalent Motoko
 source code. See mo_idl/idl_to_mo_value.ml *)
-type value = value' Source.phrase
+type value = value' phrase
 and value' =
   | NumV of string (* Candid and Motoko syntax matches, so re-use. Includes floats. *)
   | TextV of string
@@ -87,9 +88,9 @@ and value' =
   | ServiceV of string
   | FuncV of (string * string)
   | PrincipalV of string
-and field_value = (field_label * value) Source.phrase
+and field_value = (field_label * value) phrase
 
-type args = value list Source.phrase
+type args = value list phrase
 
 (* Tests *)
 
@@ -106,7 +107,7 @@ type test' = {
   ttyp : typ list;
   desc : string option;
 }
-type test = test' Source.phrase
+type test = test' phrase
 
-type tests = (tests', string) Source.annotated_phrase
+type tests = (tests', string) annotated_phrase
 and tests' = { tdecs : dec list; tests : test list }
