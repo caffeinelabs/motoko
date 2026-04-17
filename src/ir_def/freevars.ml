@@ -1,4 +1,3 @@
-open Source
 open Ir
 open Mo_types
 

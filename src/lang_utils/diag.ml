@@ -1,23 +1,24 @@
 open Mo_config
 module G = Grace
 module GD = Grace.Diagnostic
+open Source
 
 type error_code = string
 type severity = Warning | Error | Info
 type priority = Primary | Secondary
 type span = {
   prio : priority;
-  at_span : Source.region;
+  at_span : region;
   label : string;
 }
 type edit = {
-  at_edit : Source.region;
+  at_edit : region;
   suggested_replacement : string;
 }
 type message = {
   sev : severity;
   code : error_code;
-  at : Source.region;
+  at : region;
   cat : string;
   text : string;
   spans : span list;
@@ -97,7 +98,7 @@ let string_of_message msg =
     if msg.notes <> [] then
       "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
     else "" in
-  Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
+  Printf.sprintf "%s: %s%s, %s%s%s\n" (string_of_region msg.at) label code msg.text spans notes
 
 (** Converts a line/column based position to a byte offset.
 
@@ -106,27 +107,27 @@ let string_of_message msg =
 *)
 let pos_to_byte content pos =
   let line_start = ref (-1) in
-  for _ = 1 to pos.Source.line - 1 do
+  for _ = 1 to pos.line - 1 do
     let prev = !line_start in
     line_start := String.index_from content (prev + 1) '\n';
   done;
-  !line_start + pos.Source.column + 1
+  !line_start + pos.column + 1
 
 let ensure_primary_span msg =
   if List.exists (fun span -> span.prio = Primary) msg.spans
   then msg.spans
   else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
 
-let fancy_of_message msg =
-  if Source.is_no_region msg.at then string_of_message msg else
-  let path = msg.at.Source.left.Source.file in
+let fancy_of_message (msg : message) =
+  if is_no_region msg.at then string_of_message msg else
+  let path = msg.at.left.file in
   let content = In_channel.with_open_bin path In_channel.input_all in
   let file = G.Source.{ name = Some path; content } in
   let source : G.Source.t = `String file in
   let range r =
     G.Range.create ~source
-      (G.Byte_index.of_int (pos_to_byte content r.Source.left))
-      (G.Byte_index.of_int (pos_to_byte content r.Source.right))
+      (G.Byte_index.of_int (pos_to_byte content r.left))
+      (G.Byte_index.of_int (pos_to_byte content r.right))
   in
   let mk_span span =
     let priority = match span.prio with
@@ -135,8 +136,8 @@ let fancy_of_message msg =
     GD.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
   let labels = List.map mk_span (ensure_primary_span msg) in
   let source_text r =
-    let start = pos_to_byte content r.Source.left in
-    let stop = pos_to_byte content r.Source.right in
+    let start = pos_to_byte content r.left in
+    let stop = pos_to_byte content r.right in
     String.sub content start (stop - start)
     |> Lib.String.strip_control_chars
     |> String.trim
@@ -168,8 +169,8 @@ let string_of_severity (sev : severity) = match sev with
   | Info -> "info"
 
 let json_span ?prio ?label ?suggested_replacement r =
-  let { Source.file; line = line_start; column = column_start } = r.Source.left in
-  let { Source.line = line_end; column = column_end; _ } = r.Source.right in
+  let { file; line = line_start; column = column_start } = r.left in
+  let { line = line_end; column = column_end; _ } = r.right in
   `Assoc [
     "file", `String file;
     "line_start", `Int line_start;

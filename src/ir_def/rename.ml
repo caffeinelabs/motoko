@@ -1,4 +1,3 @@
-open Source
 open Ir
 
 (* Identifiers and labels reside in different namespaces

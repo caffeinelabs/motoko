@@ -37,7 +37,9 @@ module Make (Cfg : Config) = struct
     | Some f when f <> p.file -> p.file
     | _ -> ""
     in "Pos" $$ [Atom file; Atom (string_of_int p.line); Atom (string_of_int p.column)]
-  let source at it = if Cfg.include_sources && at <> Source.no_region then "@" $$ [pos at.left; pos at.right; it] else it
+
+  let source at' it =
+    if Cfg.include_sources && at' <> no_region then "@" $$ [pos at'.left; pos at'.right; it] else it
 
   let typ t = Atom (Type_pretty.string_of_typ t)
 
@@ -46,8 +48,8 @@ module Make (Cfg : Config) = struct
     | Some table ->
       let rec lookup_trivia (line, column) =
         Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
-      and find_trivia (parser_pos : Source.region) : Trivia.trivia_info =
-        lookup_trivia Source.(parser_pos.left.line, parser_pos.left.column) |> Option.get
+      and find_trivia (parser_pos : region) : Trivia.trivia_info =
+        lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
       in
       (match Trivia.doc_comment_of_trivia_info (find_trivia at) with
       | Some s -> "*" $$ [Atom s; it]
