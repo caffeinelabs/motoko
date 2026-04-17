@@ -5643,12 +5643,11 @@ let env_var_names env =
       Arr.lit env Tagged.S [get_actor; get_func]
    )
 
-
-  let fail_assert env at =
-    let open Source in
+  let fail_assert env at' =
+    let open Wasm.Source in
     let at = {
-        left = {at.left with file = Filename.basename at.left.file};
-        right = {at.right with file = Filename.basename at.right.file}
+        left = {at'.left with file = Filename.basename at'.left.file};
+        right = {at'.right with file = Filename.basename at'.right.file}
       }
     in
     E.trap_with env (Printf.sprintf "assertion failed at %s" (string_of_region at))
@@ -12041,21 +12040,21 @@ and compile_prim_invocation (env : E.t) ae p es at =
   (* Weak refs are disallowed in classical mode *)
   (* The compiler will exit with an error if it encounters a related call *)
   | OtherPrim "alloc_weak_ref", [target] ->
-    let msg = Diag.error_message Source.no_region "alloc_weak_ref" "classical"
+    let msg = Diag.error_message no_region "alloc_weak_ref" "classical"
       "Weak references are not supported in classical mode."
     in
     Diag.print_messages [msg];
     exit 0
 
   | OtherPrim "weak_get", [weak_ref] ->
-    let msg = Diag.error_message Source.no_region "weak_get" "classical"
+    let msg = Diag.error_message no_region "weak_get" "classical"
       "Weak references are not supported in classical mode."
     in
     Diag.print_messages [msg];
     exit 0
 
   | OtherPrim "weak_ref_is_live", [weak_ref] ->
-    let msg = Diag.error_message Source.no_region "weak_ref_is_live" "classical"
+    let msg = Diag.error_message no_region "weak_ref_is_live" "classical"
       "Weak references are not supported in classical mode."
     in
     Diag.print_messages [msg];
