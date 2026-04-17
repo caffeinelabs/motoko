@@ -277,8 +277,8 @@ and include_note = include_note' option ref
 and import = (import', Type.typ) annotated_phrase
 and import' = pat * string * resolved_import ref
 
-let is_public vis = match vis.Source.it with Public _ -> true | _ -> false
-let is_private vis = match vis.Source.it with Private -> true | _ -> false
+let is_public vis = match vis.it with Public _ -> true | _ -> false
+let is_private vis = match vis.it with Private -> true | _ -> false
 
 (* Program (pre unit detection) *)
 
@@ -357,9 +357,6 @@ let string_of_resolved_import = function
 
 (* Miscellaneous *)
 (* TODO: none of what follows should probably be in this file *)
-
-open Source
-
 
 (* Identifiers *)
 
