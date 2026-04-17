@@ -3058,6 +3058,10 @@ sig
   val compile_unsigned_div : E.t -> G.t
   val compile_unsigned_rem : E.t -> G.t
   val compile_unsigned_pow : E.t -> G.t
+  val compile_addmod : E.t -> G.t
+  val compile_submod : E.t -> G.t
+  val compile_mulmod : E.t -> G.t
+  val compile_powmod : E.t -> G.t
   val compile_lsh : E.t -> G.t
   val compile_rsh : E.t -> G.t
 
@@ -3250,6 +3254,32 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
   let compile_unsigned_div = try_unbox2 "B_div" (adjust_result Word64.compile_unsigned_div) Num.compile_unsigned_div
   let compile_unsigned_rem = try_unbox2 "B_rem" Word64.compile_unsigned_rem Num.compile_unsigned_rem
   let compile_unsigned_sub = try_unbox2 "B_sub" Word64.compile_unsigned_sub Num.compile_unsigned_sub
+
+  (* Modular arithmetic: always use the slow path (boxed BigNums via RTS). *)
+  let slow_only3 name slow env =
+    Func.share_code3 Func.Always env name (("a", I64Type), ("b", I64Type), ("m", I64Type)) [I64Type]
+      (fun env get_a get_b get_m ->
+        let set_res, get_res = new_local env "res" in
+        get_a ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_a ^^ box env)
+          get_a ^^
+        get_b ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_b ^^ box env)
+          get_b ^^
+        get_m ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_m ^^ box env)
+          get_m ^^
+        slow env ^^ set_res ^^ get_res ^^
+        fits_in_vanilla env ^^
+        E.if1 I64Type
+          (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+          get_res
+      )
+
+  let compile_addmod = slow_only3 "B_addmod" (fun env -> E.call_import env "rts" "bigint_addmod")
+  let compile_submod = slow_only3 "B_submod" (fun env -> E.call_import env "rts" "bigint_submod")
+  let compile_mulmod = slow_only3 "B_mulmod" (fun env -> E.call_import env "rts" "bigint_mulmod")
+  let compile_powmod = slow_only3 "B_powmod" (fun env -> E.call_import env "rts" "bigint_exptmod")
 
   let compile_unsigned_pow env =
     Func.share_code2 Func.Always env "B_pow" (("a", I64Type), ("b", I64Type)) [I64Type]
@@ -3743,6 +3773,10 @@ module BigNumLibtommath : BigNumType = struct
   let compile_unsigned_rem env = E.call_rts env "bigint_rem"
   let compile_unsigned_div env = E.call_rts env "bigint_div"
   let compile_unsigned_pow env = E.call_rts env "bigint_pow"
+  let compile_addmod env = E.call_rts env "bigint_addmod"
+  let compile_submod env = E.call_rts env "bigint_submod"
+  let compile_mulmod env = E.call_rts env "bigint_mulmod"
+  let compile_powmod env = E.call_rts env "bigint_exptmod"
   let compile_lsh env = E.call_rts env "bigint_lsh"
   let compile_rsh env = E.call_rts env "bigint_rsh"
 
@@ -12087,28 +12121,28 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae e1 ^^
     compile_exp_vanilla env ae e2 ^^
     compile_exp_vanilla env ae e3 ^^
-    E.call_rts env "bigint_addmod"
+    BigNum.compile_addmod env
 
   | OtherPrim "intSubMod", [e1; e2; e3] ->
     SR.Vanilla,
     compile_exp_vanilla env ae e1 ^^
     compile_exp_vanilla env ae e2 ^^
     compile_exp_vanilla env ae e3 ^^
-    E.call_rts env "bigint_submod"
+    BigNum.compile_submod env
 
   | OtherPrim "intMulMod", [e1; e2; e3] ->
     SR.Vanilla,
     compile_exp_vanilla env ae e1 ^^
     compile_exp_vanilla env ae e2 ^^
     compile_exp_vanilla env ae e3 ^^
-    E.call_rts env "bigint_mulmod"
+    BigNum.compile_mulmod env
 
   | OtherPrim "intPowMod", [e1; e2; e3] ->
     SR.Vanilla,
     compile_exp_vanilla env ae e1 ^^
     compile_exp_vanilla env ae e2 ^^
     compile_exp_vanilla env ae e3 ^^
-    E.call_rts env "bigint_exptmod"
+    BigNum.compile_powmod env
 
   | OtherPrim ("explode_Nat16" | "explode_Int16" as pr), [e] ->
     SR.UnboxedTuple 2,

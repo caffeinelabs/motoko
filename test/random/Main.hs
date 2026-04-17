@@ -107,7 +107,7 @@ matchingProps = testGroup "Pattern matching" $
 
 modularProps :: TestTree
 modularProps = testGroup "Modular arithmetic"
-  [ QC.testProperty "expected successes" $ withMaxSuccess 50 prop_verifies
+  [ QC.testProperty "expected successes" $ withMaxSuccess 100 prop_verifies
   ]
 
 
