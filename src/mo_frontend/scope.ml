@@ -31,12 +31,12 @@ and scope =
 and t = scope
 
 let empty : scope =
-  { val_env = T.Env.empty;
-    lib_env = T.Env.empty;
-    typ_env = T.Env.empty;
+  T.Env.{ val_env = empty;
+    lib_env = empty;
+    typ_env = empty;
     con_env = T.ConSet.empty;
-    obj_env = T.Env.empty;
-    mixin_env = T.Env.empty;
+    obj_env = empty;
+    mixin_env = empty;
     fld_src_env = Field_sources.Srcs_map.empty;
   }
 

@@ -11,7 +11,7 @@ module V = Value
 module ValSet = Set.Make(struct type t = V.value let compare = V.compare end)
 module TagSet = Set.Make(struct type t = string let compare = String.compare end)
 module LabMap = Map.Make(struct type t = string let compare = String.compare end)
-module AtSet = Set.Make(struct type t = Source.region let compare = compare end)
+module AtSet = Set.Make(struct type t = region let compare = compare end)
 
 type desc =
   | Any
@@ -28,9 +28,9 @@ type ctxt =
   | InTag of ctxt * string
   | InTup of ctxt * desc list * desc list * pat list * T.typ list
   | InObj of ctxt * desc LabMap.t * string * pat_field list * T.field list
-  | InAlt1 of ctxt * Source.region * pat * T.typ
-  | InAlt2 of ctxt * Source.region
-  | InCase of Source.region * case list * T.typ
+  | InAlt1 of ctxt * region * pat * T.typ
+  | InAlt2 of ctxt * region
+  | InCase of region * case list * T.typ
 
 type sets =
   { mutable cases : AtSet.t;
@@ -367,11 +367,11 @@ and fail ctxt desc sets : bool =
 
 
 type uncovered = string
-type unreached = Source.region
+type unreached = region
 
 let check_cases cases t =
   let sets = make_sets () in
-  let _exhaustive = fail (InCase (Source.no_region, cases, t)) Any sets in
+  let _exhaustive = fail (InCase (no_region, cases, t)) Any sets in
   let uncovered = List.map (string_of_desc t) (List.rev sets.missing) in
   let unreached_cases = AtSet.diff sets.cases sets.reached_cases in
   let unreached_alts = AtSet.diff sets.alts sets.reached_alts in
@@ -381,5 +381,5 @@ let (@?) it at = {it; at; note = empty_typ_note}
 
 let check_pat pat t =
   let uncovered, unreached =
-    check_cases [{pat; exp = TupE [] @? Source.no_region} @@ Source.no_region] t
+    check_cases [{pat; exp = TupE [] @? no_region} @@ no_region] t
   in uncovered, List.filter ((<>) pat.at) unreached

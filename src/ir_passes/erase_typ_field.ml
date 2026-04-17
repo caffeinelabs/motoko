@@ -2,7 +2,6 @@ open Mo_types
 open Ir_def
 
 module E = Env
-open Source
 module Ir = Ir
 open Ir
 module T = Type
