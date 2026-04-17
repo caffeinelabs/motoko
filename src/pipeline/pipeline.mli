@@ -36,7 +36,7 @@ type compile_result =
 
 val compile_files : Flags.compile_mode -> bool -> string list -> compile_result
 
-val resolve_flags : enhanced_migration:string option -> (* package_opt *) string option -> ResolveImport.flags
+val resolve_flags : is_main:bool -> base:string -> (* package_opt *) string option -> ResolveImport.flags
 val resolved_import_name : Syntax.resolved_import Source.phrase -> string
 
 (* For use in the language server *)

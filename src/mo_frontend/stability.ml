@@ -1,5 +1,5 @@
 open Mo_types
-
+open Source
 open Type
 
 module Pretty = Type.MakePretty(Type.ElideStampsAndHashes)
@@ -104,14 +104,14 @@ let match_stab_sig sig1 sig2 : unit Diag.result =
   | Multi _,  (PrePost _ |  Single _) ->
     assert (not (Type.match_stab_sig sig1 sig2));
     Diag.with_message_store (fun s ->
-      incompat_mix_migrations s Source.no_region;
+      incompat_mix_migrations s no_region;
       None)
   | _ ->
     let tfs1, mig_lab_opt = post sig1 in
     let tfs2 = pre mig_lab_opt sig2 in
     (* Assume that tfs1 and tfs2 are sorted. *)
     let res = Diag.with_message_store (fun s ->
-      Some (match_stab_fields s Source.no_region None tfs1 tfs2))
+      Some (match_stab_fields s no_region None tfs1 tfs2))
     in
     (* cross check with simpler definition *)
     match res with

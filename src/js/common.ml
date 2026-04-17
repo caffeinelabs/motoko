@@ -173,7 +173,7 @@ let js_parse_motoko_with_deps enable_recovery path s =
     let open Diag.Syntax in
     let* prog, _ = parse_fn main_file s in
     let* deps =
-      Pipeline.ResolveImport.resolve (Pipeline.resolve_flags ~enhanced_migration:!Flags.enhanced_migration None) prog main_file
+      Pipeline.ResolveImport.resolve (Pipeline.resolve_flags ~is_main:true ~base:main_file None) prog main_file
     in
     Diag.return (prog, deps)
   in
@@ -413,9 +413,11 @@ let gc_flags option =
 
 let js_contextual_dot_suggestions scope raw_exp =
   let open Mo_frontend in
+  let open Mo_def.Syntax in
+  let open Source in
   let scope = (Obj.magic scope : Scope.t) in
-  let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
-  let receiver_ty = exp.note.Mo_def.Syntax.note_typ in
+  let exp = (Obj.magic raw_exp : exp) in
+  let receiver_ty = exp.note.note_typ in
   let libs = scope.Scope.lib_env in
   let open Typing in
   let suggestions = contextual_dot_suggestions libs receiver_ty in
