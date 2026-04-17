@@ -117,7 +117,6 @@
         num
         stdint
         wasm
-        vlq
         zarith
         yojson
         ppxlib
