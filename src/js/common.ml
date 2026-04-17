@@ -81,18 +81,32 @@ let js_set_extra_flags flags =
   let tokens = flags |> Js.to_array |> Array.map Js.to_string in
   parse_extra_flags tokens
 
+let js_clear_extra_flag name =
+  match name with
+  | "--hide-warnings" -> Flags.print_warnings := true
+  | "-Werror" -> Flags.warnings_are_errors := false
+  | "-A" | "-W" | "-E" -> Flags.warning_levels := Flags.default_warning_levels
+  | "--error-detail" -> Flags.error_detail := 4
+  | "--error-recovery" -> Flags.error_recovery := false
+  | "--error-format" -> Flags.error_format := Flags.Plain
+  | "--ai-errors" -> Flags.ai_errors := false
+  | "--all-libs" -> Flags.all_libs := false
+  | "--implicit-package" -> Flags.implicit_package := None
+  | "--enhanced-migration" -> Flags.enhanced_migration := None
+  | "--default-persistent-actors"
+  | "--require-persistent-actors"
+  | "--legacy-actors" -> Flags.actors := Flags.RequirePersistentActors
+  | _ -> failwith (Printf.sprintf "clearExtraFlag: unknown flag %s" name)
+
+let all_extra_flag_names = [
+  "--hide-warnings"; "-Werror"; "-W";
+  "--error-detail"; "--error-recovery"; "--error-format";
+  "--ai-errors"; "--all-libs"; "--implicit-package";
+  "--enhanced-migration"; "--require-persistent-actors";
+]
+
 let js_reset_extra_flags () =
-  Flags.print_warnings := true;
-  Flags.warnings_are_errors := false;
-  Flags.warning_levels := Flags.default_warning_levels;
-  Flags.error_detail := 4;
-  Flags.error_recovery := false;
-  Flags.error_format := Flags.Plain;
-  Flags.ai_errors := false;
-  Flags.all_libs := false;
-  Flags.implicit_package := None;
-  Flags.actors := Flags.RequirePersistentActors;
-  Flags.enhanced_migration := None
+  List.iter js_clear_extra_flag all_extra_flag_names
 
 let js_set_run_step_limit limit =
   Mo_interpreter.Interpret.step_limit := limit

@@ -18,6 +18,7 @@ let () =
       method setProjectRoot path = Flags.js_project_root := Some (Js.to_string path)
       method setExtraFlags argv = js_set_extra_flags argv
       method resetExtraFlags () = js_reset_extra_flags ()
+      method clearExtraFlag name = js_clear_extra_flag (Js.to_string name)
       method saveFile name content = js_save_file name content
       method removeFile name = js_remove_file name
       method renameFile oldpath newpath = js_rename_file oldpath newpath

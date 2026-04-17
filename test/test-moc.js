@@ -294,29 +294,35 @@ assert.throws(
 // application. This matches how node-motoko's invoke() calls these methods.
 const resetFlags = () => Motoko.resetExtraFlags(0);
 
-// resetExtraFlags restores moc.js-default error detail (4)
+// clearExtraFlag clears a single flag by CLI name
 Motoko.setExtraFlags(["--error-detail", "0"]);
-const lowDetailResult = Motoko.check("bad.mo");
-assert.equal(lowDetailResult.diagnostics.length, 1);
+assert(!Motoko.check("bad.mo").diagnostics[0].message.includes("expected one of"));
+Motoko.clearExtraFlag("--error-detail");
 assert(
-  !lowDetailResult.diagnostics[0].message.includes("expected one of"),
-  "with --error-detail 0 the message should omit expected tokens"
+  Motoko.check("bad.mo").diagnostics[0].message.includes("expected one of"),
+  "clearExtraFlag should restore --error-detail to moc.js default (4)"
 );
+
+// clearExtraFlag throws on unknown flag
+assert.throws(
+  () => Motoko.clearExtraFlag("--nonexistent"),
+  /clearExtraFlag: unknown flag/
+);
+
+// resetExtraFlags resets all flags at once
+Motoko.setExtraFlags(["--error-detail", "0"]);
 resetFlags();
-const restoredDetailResult = Motoko.check("bad.mo");
-assert.equal(restoredDetailResult.diagnostics.length, 1);
 assert(
-  restoredDetailResult.diagnostics[0].message.includes("expected one of"),
-  "after resetExtraFlags, error detail should be restored to 4"
+  Motoko.check("bad.mo").diagnostics[0].message.includes("expected one of"),
+  "resetExtraFlags should restore --error-detail to moc.js default (4)"
 );
 
 // resetExtraFlags then setExtraFlags: old flags don't bleed
 Motoko.setExtraFlags(["--error-detail", "0"]);
 resetFlags();
 Motoko.setExtraFlags(["--all-libs"]);
-const afterResetAndSet = Motoko.check("bad.mo");
 assert(
-  afterResetAndSet.diagnostics[0].message.includes("expected one of"),
-  "--error-detail 0 should not bleed through resetExtraFlags into subsequent setExtraFlags"
+  Motoko.check("bad.mo").diagnostics[0].message.includes("expected one of"),
+  "--error-detail 0 should not bleed through resetExtraFlags"
 );
 resetFlags();
