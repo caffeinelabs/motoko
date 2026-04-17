@@ -214,22 +214,18 @@ let prim trap =
     (match as_tup v with
      | [x; shift] -> k (Int Numerics.Int.(div (as_int x) (pow (of_int 2) (of_big_int (Nat32.to_big_int (as_nat32 shift))))))
      | _ -> failwith "rsh_Nat")
-  | "intAddMod" -> fun _ v k ->
+  | "intAddMod" | "intSubMod" | "intMulMod" | "intPowMod" as name ->
+    let open Numerics.Int in
+    let op = match name with
+      | "intAddMod" -> add | "intSubMod" -> sub
+      | "intMulMod" -> mul | "intPowMod" -> pow
+      | _ -> assert false in
+    fun _ v k ->
     (match as_tup v with
-     | [a; b; m] -> let open Numerics.Int in let r = rem (add (as_int a) (as_int b)) (as_int m) in k (Int (if lt r zero then add r (abs (as_int m)) else r))
-     | _ -> failwith "intAddMod")
-  | "intSubMod" -> fun _ v k ->
-    (match as_tup v with
-     | [a; b; m] -> let open Numerics.Int in let r = rem (sub (as_int a) (as_int b)) (as_int m) in k (Int (if lt r zero then add r (abs (as_int m)) else r))
-     | _ -> failwith "intSubMod")
-  | "intMulMod" -> fun _ v k ->
-    (match as_tup v with
-     | [a; b; m] -> let open Numerics.Int in let r = rem (mul (as_int a) (as_int b)) (as_int m) in k (Int (if lt r zero then add r (abs (as_int m)) else r))
-     | _ -> failwith "intMulMod")
-  | "intPowMod" -> fun _ v k ->
-    (match as_tup v with
-     | [base; exp; m] -> k (Int Numerics.Int.(rem (pow (as_int base) (as_int exp)) (as_int m)))
-     | _ -> failwith "intPowMod")
+     | [a; b; m] ->
+       let r = rem (op (as_int a) (as_int b)) (as_int m) in
+       k (Int (if lt r zero then add r (abs (as_int m)) else r))
+     | _ -> failwith name)
 
   | "explode_Nat16" -> fun _ v k ->
     let n, ff = as_nat16 v, Nat16.(of_int 0xFF) in
