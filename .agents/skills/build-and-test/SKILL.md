@@ -53,6 +53,13 @@ that `dune build exes/moc.exe` would miss.
 
 `src/moc` is a symlink to `_build/default/exes/moc.exe`.
 
+Alternatively, `src/Makefile` wraps dune with convenient targets:
+
+```bash
+make -C src          # build all native exes + grammar (equivalent to dune build)
+make -C src moc      # build just moc
+```
+
 The user typically runs `dune build -w` in a separate terminal for continuous rebuilds.
 If the user says they have a watch build running, skip the build step — `src/moc` is
 already up to date.
@@ -87,12 +94,21 @@ test-runner -bf fail/              # run without accepting (check for diffs)
 
 Never update expected output manually — always use `-a` to accept changes.
 
-**Avoid running full `run/` or `run-drun/` suites locally** — they take close to
-an hour. The full `fail/` suite is fine (~25 seconds). For `run/` and `run-drun/`,
-run only the specific tests relevant to your change:
+**Avoid running full `run/` or `run-drun/` suites locally** — `run/` takes ~1–2
+minutes, `run-drun/` significantly longer. The full `fail/` suite is fine (~25
+seconds). For `run/` and `run-drun/`, prefer running only the specific tests
+relevant to your change:
 
 ```bash
 test-runner -baf some-test         # targeted by name pattern
+```
+
+**EOP (Enhanced Orthogonal Persistence) tests**: By default, `run-drun/` tests
+run in non-EOP mode. To run the EOP variant, prefix the command with
+`EXTRA_MOC_ARGS="--enhanced-orthogonal-persistence"`:
+
+```bash
+EXTRA_MOC_ARGS="--enhanced-orthogonal-persistence" test-runner -baf run-drun/some-test
 ```
 
 ## JS Tests
@@ -108,6 +124,14 @@ Builds JS artifacts and runs matching tests in `test/` (e.g. `test/test-moc.js`)
 - `//MOC-FLAG --some-flag`: extra flags passed to `moc`
 - `//MOC-ENV VAR=value`: environment variables for the test
 - `//SKIP ext`: skip a specific output extension
+- `//FILTER ext <cmd>`: pipe test output for phase `ext` through `<cmd>` before
+  comparing (e.g. `//FILTER comp grep -e passed`)
+- `//CALL ingress <canister-id> <method> "DIDL\00\00"`: passed to `drun` as
+  additional calls. **For `run-drun/` tests, at least one `//CALL` line is
+  required** — without it the canister method is never invoked and the test
+  silently passes with empty output.
+- `//OR-CALL`: like `//CALL` but removes the line when interpreting, allowing
+  different behaviour between interpreter and `drun`
 - Expected outputs go in `ok/` subdirectory as `testname.ext.ok`
 - Actual outputs go in `_out/` (gitignored)
 

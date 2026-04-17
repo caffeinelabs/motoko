@@ -34,7 +34,7 @@ let set_unions = List.fold_left S.union S.empty
 type f = usage_info M.t
 
 (* The analysis result of a recursive group, before tying the knot *)
-type group = (Source.region * S.t * S.t * S.t) list
+type group = (region * S.t * S.t * S.t) list
 
 (* Operations: Union and removal *)
 let (++) : f -> f -> f = M.union (fun _ u1 u2 -> Some (join u1 u2))

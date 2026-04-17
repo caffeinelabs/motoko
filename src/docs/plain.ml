@@ -101,7 +101,7 @@ let plain_of_obj_sort : Buffer.t -> 'note Syntax.sort -> unit =
 
 let rec plain_of_typ : Buffer.t -> render_functions -> Syntax.typ -> unit =
  fun buf rf typ ->
-  match typ.Source.it with
+  match typ.it with
   | Syntax.PathT (path, typs) ->
       bprintf buf "%s" (rf.render_path path);
       sep_by' buf "<" ", " ">" (plain_of_typ buf rf) typs
@@ -188,7 +188,7 @@ and plain_of_typ_binders :
 and plain_of_typ_field :
     Buffer.t -> render_functions -> Syntax.typ_field -> unit =
  fun buf rf field ->
-  match field.Source.it with
+  match field.it with
   | Syntax.ValF (id, typ, mut) ->
       plain_of_mut buf mut;
       bprintf buf "%s : " id.it;

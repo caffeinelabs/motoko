@@ -1,6 +1,7 @@
 open Mo_types
 open Wasm_exts.Dwarf5
 open Meta
+open Source
 
 (* Note [Low_pc, High_pc, Ranges are special]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,10 +44,10 @@ type dw_AT = Producer of string
 
 type dw_TAG =
   | Compile_unit of string * string                            (* compilation directory, file name *)
-  | Subprogram of string * Type.typ list * Source.pos          (* name, return types, location *)
-  | LexicalBlock of Source.pos
-  | Formal_parameter of (string * Source.pos * Type.typ * int) (* name, location, type, Wasm slot *)
-  | Variable of (string * Source.pos * Type.typ * int)         (* name, location, type, Wasm slot *)
+  | Subprogram of string * Type.typ list * pos          (* name, return types, location *)
+  | LexicalBlock of pos
+  | Formal_parameter of (string * pos * Type.typ * int) (* name, location, type, Wasm slot *)
+  | Variable of (string * pos * Type.typ * int)         (* name, location, type, Wasm slot *)
   | Type of Type.typ
   | Typedef of string * Type.typ
   (*| Member*)
@@ -444,20 +445,20 @@ let tag_open : dw_TAG -> die list =
   | Subprogram (name, [retty], pos) ->
     let ds, ref_ret = type_ref retty in
     append_tag ds Wasm_exts.Abbreviation.dw_TAG_subprogram_Ret
-      (dw_attrs [Low_pc; High_pc; Name name; TypeRef ref_ret; Decl_file pos.Source.file; Decl_line pos.Source.line; Decl_column pos.Source.column; Prototyped true; External false])
+      (dw_attrs [Low_pc; High_pc; Name name; TypeRef ref_ret; Decl_file pos.file; Decl_line pos.line; Decl_column pos.column; Prototyped true; External false])
   | Subprogram (name, _, pos) ->
     [unreferencable_tag dw_TAG_subprogram
-       (dw_attrs [Low_pc; High_pc; Name name; Decl_file pos.Source.file; Decl_line pos.Source.line; Decl_column pos.Source.column; Prototyped true; External false])]
+       (dw_attrs [Low_pc; High_pc; Name name; Decl_file pos.file; Decl_line pos.line; Decl_column pos.column; Prototyped true; External false])]
   | Formal_parameter (name, pos, ty, slot) ->
     let ds, reference = type_ref ty in
     append_tag ds dw_TAG_formal_parameter
-      (dw_attrs [Name name; Decl_line pos.Source.line; Decl_column pos.Source.column; TypeRef reference; Location (loc slot ty)])
+      (dw_attrs [Name name; Decl_line pos.line; Decl_column pos.column; TypeRef reference; Location (loc slot ty)])
   | LexicalBlock pos ->
     [unreferencable_tag dw_TAG_lexical_block
-       (dw_attrs [Decl_line pos.Source.line; Decl_column pos.Source.column])]
+       (dw_attrs [Decl_line pos.line; Decl_column pos.column])]
   | Variable (name, pos, ty, slot) ->
     let ds, reference = type_ref ty in
     append_tag ds dw_TAG_variable
-      (dw_attrs [Name name; Decl_line pos.Source.line; Decl_column pos.Source.column; TypeRef reference; Location (loc slot ty)])
+      (dw_attrs [Name name; Decl_line pos.line; Decl_column pos.column; TypeRef reference; Location (loc slot ty)])
   | Type ty -> type_ ty
   | _ -> assert false

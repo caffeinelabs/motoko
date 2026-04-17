@@ -81,9 +81,9 @@ let rec value v t =
   | FuncV (s, m), _ ->
     Printf.sprintf "(actor %s : actor { %s : %s }).%s"
       (text_lit s)
-      (Idllib.Escape.escape_method Source.no_region m)
+      (Idllib.Escape.escape_method no_region m)
       (Pretty.string_of_typ t)
-      (Idllib.Escape.escape_method Source.no_region m)
+      (Idllib.Escape.escape_method no_region m)
   | PrincipalV s, _ ->
     "_Prim.principalOfActor" ^ parens ("actor " ^ text_lit s ^ " : actor {}")
   | _ -> raise (UnsupportedCandidFeature

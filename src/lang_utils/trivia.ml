@@ -59,7 +59,7 @@ type triv_table = trivia_info PosHashtbl.t
 
 let empty_triv_table = PosHashtbl.create 0
 
-let find_trivia triv_table (parser_pos : Source.region) : trivia_info =
+let find_trivia triv_table (parser_pos : region) : trivia_info =
   PosHashtbl.find triv_table
     { line = parser_pos.left.line; column = parser_pos.left.column }
 

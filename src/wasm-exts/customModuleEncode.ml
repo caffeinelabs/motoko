@@ -171,7 +171,7 @@ let encode (em : extended_module) =
   let add_dwarf_string =
     add_string (function | [] -> 0 | (h, p) :: _ -> String.length h + 1 + p) dwarf_strings in
 
-  let module Instrs = Set.Make (struct type t = int * Wasm.Source.pos let compare = compare end) in
+  let module Instrs = Set.Make (struct type t = int * Source.pos let compare = compare end) in
   let statement_positions = ref Instrs.empty in
 
   let module DW_Sequence = Set.Make (struct type t = int * Instrs.t * int let compare = compare end) in
@@ -314,7 +314,7 @@ let encode (em : extended_module) =
 
     let len i =
       if Int32.to_int (Int32.of_int i) <> i then
-        Code.error Wasm.Source.no_region
+        Code.error Source.no_region
           "cannot encode length with more than 32 bit";
       vu32 (Int32.of_int i)
 
@@ -372,9 +372,9 @@ let encode (em : extended_module) =
 
     (* Expressions *)
 
-    open Wasm.Source
     open Ast
     open Values
+    open Wasm.Source
 
     let op n = u8 n
     let end_ () = op 0x0b
@@ -1202,7 +1202,7 @@ let encode (em : extended_module) =
 
             (* build the statement loc -> addr map *)
             let statement_positions = !statement_positions in
-            let module StmtsAt = Map.Make (struct type t = Wasm.Source.pos let compare = compare end) in
+            let module StmtsAt = Map.Make (struct type t = pos let compare = compare end) in
             let statements_at = StmtsAt.of_seq (Seq.map (fun (k, v) -> v, k) (Instrs.to_seq statement_positions)) in
             let is_statement_at (addr, loc) =
               match StmtsAt.find_opt loc statements_at with
