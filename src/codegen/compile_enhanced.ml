@@ -11612,6 +11612,7 @@ and compile_array_index env ae e1 e2 =
 and compile_prim_invocation (env : E.t) ae p es at =
   (* for more concise code when all arguments and result use the same sr *)
   let const_sr sr inst = sr, G.concat_map (compile_exp_as env ae sr) es ^^ inst in
+  let vanilla_sr = const_sr SR.Vanilla in
 
   begin match p, es with
   (* Calls *)
@@ -12116,33 +12117,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat32) e2 ^^
     BigNum.compile_rsh env
 
-  | OtherPrim "intAddMod", [e1; e2; e3] ->
-    SR.Vanilla,
-    compile_exp_vanilla env ae e1 ^^
-    compile_exp_vanilla env ae e2 ^^
-    compile_exp_vanilla env ae e3 ^^
-    BigNum.compile_addmod env
-
-  | OtherPrim "intSubMod", [e1; e2; e3] ->
-    SR.Vanilla,
-    compile_exp_vanilla env ae e1 ^^
-    compile_exp_vanilla env ae e2 ^^
-    compile_exp_vanilla env ae e3 ^^
-    BigNum.compile_submod env
-
-  | OtherPrim "intMulMod", [e1; e2; e3] ->
-    SR.Vanilla,
-    compile_exp_vanilla env ae e1 ^^
-    compile_exp_vanilla env ae e2 ^^
-    compile_exp_vanilla env ae e3 ^^
-    BigNum.compile_mulmod env
-
-  | OtherPrim "intPowMod", [e1; e2; e3] ->
-    SR.Vanilla,
-    compile_exp_vanilla env ae e1 ^^
-    compile_exp_vanilla env ae e2 ^^
-    compile_exp_vanilla env ae e3 ^^
-    BigNum.compile_powmod env
+  | OtherPrim "intAddMod", [_; _; _] -> vanilla_sr (BigNum.compile_addmod env)
+  | OtherPrim "intSubMod", [_; _; _] -> vanilla_sr (BigNum.compile_submod env)
+  | OtherPrim "intMulMod", [_; _; _] -> vanilla_sr (BigNum.compile_mulmod env)
+  | OtherPrim "intPowMod", [_; _; _] -> vanilla_sr (BigNum.compile_powmod env)
 
   | OtherPrim ("explode_Nat16" | "explode_Int16" as pr), [e] ->
     SR.UnboxedTuple 2,
@@ -12757,21 +12735,21 @@ and compile_prim_invocation (env : E.t) ae p es at =
     IC.trap_text env
 
   | OtherPrim "principalOfBlob", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env B P)
+    vanilla_sr Tagged.(Blob.copy env B P)
   | OtherPrim "blobOfPrincipal", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env P B)
+    vanilla_sr Tagged.(Blob.copy env P B)
   | OtherPrim "principalOfActor", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env A P)
+    vanilla_sr Tagged.(Blob.copy env A P)
   | OtherPrim "actorOfPrincipal", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env P A)
+    vanilla_sr Tagged.(Blob.copy env P A)
 
   | OtherPrim "blobToArray", e ->
-    const_sr SR.Vanilla (Arr.ofBlob env Tagged.I)
+    vanilla_sr (Arr.ofBlob env Tagged.I)
   | OtherPrim "blobToArrayMut", e ->
-    const_sr SR.Vanilla (Arr.ofBlob env Tagged.M)
+    vanilla_sr (Arr.ofBlob env Tagged.M)
 
   | OtherPrim ("arrayToBlob" | "arrayMutToBlob"), e ->
-    const_sr SR.Vanilla (Arr.toBlob env)
+    vanilla_sr (Arr.toBlob env)
 
   | OtherPrim ("stableMemoryLoadNat32" | "stableMemoryLoadInt32" as p), [e] ->
     let ty = Type.(if p = "stableMemoryLoadNat32" then Nat32 else Int32) in
@@ -12888,11 +12866,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   (* Other prims, binary *)
   | OtherPrim "Array.init", [_;_] ->
-    const_sr SR.Vanilla (Arr.init env)
+    vanilla_sr (Arr.init env)
   | OtherPrim "Array.tabulate", [_;_] ->
-    const_sr SR.Vanilla (Arr.tabulate env Tagged.I)
+    vanilla_sr (Arr.tabulate env Tagged.I)
   | OtherPrim "Array.tabulateVar", [_;_] ->
-    const_sr SR.Vanilla (Arr.tabulate env Tagged.M)
+    vanilla_sr (Arr.tabulate env Tagged.M)
   | OtherPrim "btst8", [_;_] ->
     (* TODO: btstN returns Bool, not a small value *)
     const_sr (SR.UnboxedWord64 Type.Nat8) (TaggedSmallWord.btst_kernel env Type.Nat8)
@@ -12960,16 +12938,16 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp env ae e
 
   | DecodeUtf8, [_] ->
-    const_sr SR.Vanilla (Text.of_blob env)
+    vanilla_sr (Text.of_blob env)
   | EncodeUtf8, [_] ->
-    const_sr SR.Vanilla (Text.to_blob env)
+    vanilla_sr (Text.to_blob env)
 
   (* textual to bytes *)
   | (OtherPrim "decode_principal" | BlobOfIcUrl), [_] ->
-    const_sr SR.Vanilla (E.call_rts env "blob_of_principal")
+    vanilla_sr (E.call_rts env "blob_of_principal")
   (* The other direction *)
   | IcUrlOfBlob, [_] ->
-    const_sr SR.Vanilla (E.call_rts env "principal_of_blob")
+    vanilla_sr (E.call_rts env "principal_of_blob")
 
   (* Actor ids are blobs in the RTS *)
   | ActorOfIdBlob _, [e] ->
