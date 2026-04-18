@@ -74,93 +74,67 @@ pub extern "C" fn test_crc32() {
 #[no_mangle]
 pub extern "C" fn test_gc() {
     check_architecture();
-    unsafe {
-        gc::test();
-    }
+    gc::test();
 }
 #[no_mangle]
 pub extern "C" fn test_gc_predefined() {
     check_architecture();
-    unsafe {
-        gc::test_predefined();
-    }
+    gc::test_predefined();
 }
 #[no_mangle]
 pub extern "C" fn test_gc_components() {
     check_architecture();
-    unsafe {
-        gc::test_gc_components();
-    }
+    gc::test_gc_components();
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_0() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(0, gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(0, gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_1() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(gc::SEEDS_PER_CHUNK, 2 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(gc::SEEDS_PER_CHUNK, 2 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_2() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(2 * gc::SEEDS_PER_CHUNK, 3 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(2 * gc::SEEDS_PER_CHUNK, 3 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_3() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(3 * gc::SEEDS_PER_CHUNK, 4 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(3 * gc::SEEDS_PER_CHUNK, 4 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_4() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(4 * gc::SEEDS_PER_CHUNK, 5 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(4 * gc::SEEDS_PER_CHUNK, 5 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_5() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(5 * gc::SEEDS_PER_CHUNK, 6 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(5 * gc::SEEDS_PER_CHUNK, 6 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_6() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(6 * gc::SEEDS_PER_CHUNK, 7 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(6 * gc::SEEDS_PER_CHUNK, 7 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_7() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(7 * gc::SEEDS_PER_CHUNK, 8 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(7 * gc::SEEDS_PER_CHUNK, 8 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_8() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(8 * gc::SEEDS_PER_CHUNK, 9 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(8 * gc::SEEDS_PER_CHUNK, 9 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_gc_chunk_9() {
     check_architecture();
-    unsafe {
-        gc::test_random_range(9 * gc::SEEDS_PER_CHUNK, 10 * gc::SEEDS_PER_CHUNK);
-    }
+    gc::test_random_range(9 * gc::SEEDS_PER_CHUNK, 10 * gc::SEEDS_PER_CHUNK);
 }
 #[no_mangle]
 pub extern "C" fn test_leb128() {
@@ -186,23 +160,17 @@ pub extern "C" fn test_persistence() {
 #[no_mangle]
 pub extern "C" fn test_persistence_small() {
     check_architecture();
-    unsafe {
-        persistence_small_test();
-    }
+    persistence_small_test();
 }
 #[no_mangle]
 pub extern "C" fn test_persistence_20k() {
     check_architecture();
-    unsafe {
-        persistence_20k_test();
-    }
+    persistence_20k_test();
 }
 #[no_mangle]
 pub extern "C" fn test_stable_option() {
     check_architecture();
-    unsafe {
-        stable_option::test();
-    }
+    stable_option::test();
 }
 #[no_mangle]
 pub extern "C" fn test_text() {
