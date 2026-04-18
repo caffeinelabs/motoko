@@ -64,16 +64,17 @@ let entries lru =
   List.map (fun e -> (e.depth, e.value)) sorted
 
 let dump lru =
-  let buf = Buffer.create 64 in
-  Buffer.add_string buf "LRU[";
+  let open Buffer in
+  let buf = create 64 in
+  add_string buf "LRU[";
   List.iter (fun (d, v) ->
     Printf.bprintf buf " %d:" d;
-    (match v with
-     | I32 n -> Printf.bprintf buf "i32(%ld)" n
-     | I64 n -> Printf.bprintf buf "i64(%Ld)" n);
+    Printf.(match v with
+     | I32 n -> bprintf buf "i32(%ld)" n
+     | I64 n -> bprintf buf "i64(%Ld)" n);
   ) (entries lru);
-  Buffer.add_string buf " ]";
-  Buffer.contents buf
+  add_string buf " ]";
+  contents buf
 
 (* Intersect two LRUs: keep only entries present in both at the same depth with the same value *)
 let intersect lru1 lru2 =
@@ -167,9 +168,19 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
     Some lru
 
-  (* Select: pop 3, push 1 = net -2, result unknown *)
+  (* Select: pop condition + two values, push selected = net -2 *)
   | Select ->
-    Some (shift_and_evict (-2) lru)
+    let result = match lookup lru 0 with
+      | Some (I32 0l | I64 0L) -> lookup lru 1                  (* false → val2 *)
+      | Some _ -> lookup lru 2                                  (* true  → val1 *)
+      | None -> match lookup lru 1, lookup lru 2 with
+        | Some a, Some b when a = b -> Some a                   (* both equal *)
+        | _ -> None
+    in
+    let lru = shift_and_evict (-2) lru in
+    (match result with
+     | Some v -> Some (insert v lru)
+     | None -> Some lru)
 
   (* Local get: push 1, value unknown for now (Phase 2) *)
   | LocalGet _ ->
