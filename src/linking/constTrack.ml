@@ -13,14 +13,15 @@ type entry = { depth : int; value : const_val }
 
 (* Pure LRU: a list of entries ordered by recency (most recent first),
    with a capacity cap. *)
+module LocalMap = Map.Make(Int32)
+
 type t = {
   capacity : int;
   entries : entry list;
-  (* High water mark: net stack depth consumed by the last instruction.
-     Used to shift depths when processing sequences. *)
+  locals : const_val LocalMap.t;  (* known constant values of locals *)
 }
 
-let empty capacity = { capacity; entries = [] }
+let empty capacity = { capacity; entries = []; locals = LocalMap.empty }
 
 (* Shift all depths by delta, evict entries with negative depths *)
 let shift_and_evict delta lru =
@@ -67,23 +68,30 @@ let dump lru =
   let open Buffer in
   let buf = create 64 in
   add_string buf "LRU[";
-  List.iter (fun (d, v) ->
-    Printf.bprintf buf " %d:" d;
-    Printf.(match v with
+  List.iter Printf.(fun (d, v) ->
+    bprintf buf " %d:" d;
+    (match v with
      | I32 n -> bprintf buf "i32(%ld)" n
      | I64 n -> bprintf buf "i64(%Ld)" n);
   ) (entries lru);
   add_string buf " ]";
   contents buf
 
-(* Intersect two LRUs: keep only entries present in both at the same depth with the same value *)
+(* Intersect two LRUs: keep only entries present in both at the same depth with the same value.
+   Also intersect local maps: keep only locals that agree on value. *)
 let intersect lru1 lru2 =
   let entries =
     List.filter (fun e1 ->
       List.exists (fun e2 -> e2.depth = e1.depth && e2.value = e1.value) lru2.entries
     ) lru1.entries
   in
-  { lru1 with entries }
+  let locals = LocalMap.merge (fun _k v1 v2 ->
+    match v1, v2 with
+    | Some a, Some b when a = b -> Some a
+    | _ -> None
+  ) lru1.locals lru2.locals
+  in
+  { lru1 with entries; locals }
 
 (* Resolve block_type to (n_params, n_results).
    ValBlockType is resolved directly; VarBlockType needs the type section
@@ -99,16 +107,16 @@ let block_arity ~type_section (bt : block_type) : (int * int) option =
        Some (List.length ps, List.length rs)
      | None -> None)
 
-(* Convert a Wasm value to our const_val (only integral types) *)
-let to_const_val = function
-  | Wasm_exts.Values.I32 n -> Some (I32 n)
-  | Wasm_exts.Values.I64 n -> Some (I64 n)
-  | _ -> None
-
 (* Process a single instruction, returning updated LRU or None for terminators *)
 let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
 
   let open Wasm_exts.Values in
+  (* Disambiguate const_val constructors from Values.I32/I64 *)
+  let i32 n : const_val = I32 n in
+  let i64 n : const_val = I64 n in
+  let bool32 b = i32 (if b then 1l else 0l) in
+  let to_const_val : value -> const_val option = function
+    | I32 n -> Some (i32 n) | I64 n -> Some (i64 n) | _ -> None in
   match instr.it with
   (* Constants: push onto stack *)
   | Const {it; _} ->
@@ -129,10 +137,10 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     let result =
       match lookup lru 0, lookup lru 1 with
       | Some a, Some b ->
-        (match op with
-         | I32Op.Add -> try_binop_i32 Int32.add a b
-         | I32Op.Sub -> try_binop_i32 Int32.sub a b
-         | I32Op.Mul -> try_binop_i32 Int32.mul a b
+        I32Op.(match op with
+         | Add -> try_binop_i32 Int32.add a b
+         | Sub -> try_binop_i32 Int32.sub a b
+         | Mul -> try_binop_i32 Int32.mul a b
          | _ -> None)
       | _ -> None
     in
@@ -145,10 +153,10 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     let result =
       match lookup lru 0, lookup lru 1 with
       | Some a, Some b ->
-        (match op with
-         | I64Op.Add -> try_binop_i64 Int64.add a b
-         | I64Op.Sub -> try_binop_i64 Int64.sub a b
-         | I64Op.Mul -> try_binop_i64 Int64.mul a b
+        I64Op.(match op with
+         | Add -> try_binop_i64 Int64.add a b
+         | Sub -> try_binop_i64 Int64.sub a b
+         | Mul -> try_binop_i64 Int64.mul a b
          | _ -> None)
       | _ -> None
     in
@@ -167,6 +175,66 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
     Some lru
 
+  (* Test: pop 1, push 1 i32 (boolean result) *)
+  | Test (I32 I32Op.Eqz) ->
+    let result = match lookup lru 0 with
+      | Some (I32 0l) -> Some (i32 1l)
+      | Some (I32 _) -> Some (i32 0l)
+      | _ -> None in
+    let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
+    (match result with Some v -> Some (insert v lru) | None -> Some lru)
+  | Test (I64 _) ->
+    let result = match lookup lru 0 with
+      | Some (I64 0L) -> Some (i32 1l)
+      | Some (I64 _) -> Some (i32 0l)
+      | _ -> None in
+    let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
+    (match result with Some v -> Some (insert v lru) | None -> Some lru)
+  | Test _ ->
+    let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
+    Some lru
+
+  (* Compare: pop 2, push 1 i32 (boolean result) *)
+  | Compare (I32 op) ->
+    let result = match lookup lru 0, lookup lru 1 with
+      | Some (I32 a), Some (I32 b) ->
+        Some I32Op.(match op with
+         | Eq  -> bool32 (a = b)
+         | Ne  -> bool32 (a <> b)
+         | LtS -> bool32 (a < b)
+         | LtU -> bool32 (Int32.unsigned_compare a b < 0)
+         | GtS -> bool32 (a > b)
+         | GtU -> bool32 (Int32.unsigned_compare a b > 0)
+         | LeS -> bool32 (a <= b)
+         | LeU -> bool32 (Int32.unsigned_compare a b <= 0)
+         | GeS -> bool32 (a >= b)
+         | GeU -> bool32 (Int32.unsigned_compare a b >= 0))
+      | _ -> None in
+    let lru = shift_and_evict (-1) lru in
+    Some (match result with Some v -> insert v lru | None -> lru)
+
+  | Compare (I64 op) ->
+    let result = match lookup lru 0, lookup lru 1 with
+      | Some (I64 a), Some (I64 b) ->
+        Some I64Op.(match op with
+         | Eq  -> bool32 (a = b)
+         | Ne  -> bool32 (a <> b)
+         | LtS -> bool32 (a < b)
+         | LtU -> bool32 (Int64.unsigned_compare a b < 0)
+         | GtS -> bool32 (a > b)
+         | GtU -> bool32 (Int64.unsigned_compare a b > 0)
+         | LeS -> bool32 (a <= b)
+         | LeU -> bool32 (Int64.unsigned_compare a b <= 0)
+         | GeS -> bool32 (a >= b)
+         | GeU -> bool32 (Int64.unsigned_compare a b >= 0))
+      | _ -> None in
+    let lru = shift_and_evict (-1) lru in
+    Some (match result with Some v -> insert v lru | None -> lru)
+
+  | Compare _ ->
+    (* Float compare: pop 2, push 1, don't fold *)
+    Some (shift_and_evict (-1) lru)
+
   (* Select: pop condition + two values, push selected = net -2 *)
   | Select ->
     let result = match lookup lru 0 with
@@ -181,16 +249,26 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
      | Some v -> Some (insert v lru)
      | None -> Some lru)
 
-  (* Local get: push 1, value unknown for now (Phase 2) *)
-  | LocalGet _ ->
-    Some (shift_and_evict 1 lru)
+  (* Local get: push 1; if local is known, propagate *)
+  | LocalGet x ->
+    let lru = shift_and_evict 1 lru in
+    (match LocalMap.find_opt x.it lru.locals with
+     | Some cv -> Some (insert cv lru)
+     | None -> Some lru)
 
-  (* Local set: pop 1 *)
-  | LocalSet _ ->
-    Some (shift_and_evict (-1) lru)
+  (* Local set: pop 1; if TOS is known, record in locals *)
+  | LocalSet x ->
+    let locals = match lookup lru 0 with
+      | Some cv -> LocalMap.add x.it cv lru.locals
+      | None -> LocalMap.remove x.it lru.locals in
+    Some (shift_and_evict (-1) { lru with locals })
 
-  (* Local tee: pop 1, push 1 = net 0, but we lose track *)
-  | LocalTee _ -> Some lru
+  (* Local tee: like set but value stays on stack *)
+  | LocalTee x ->
+    let locals = match lookup lru 0 with
+      | Some cv -> LocalMap.add x.it cv lru.locals
+      | None -> LocalMap.remove x.it lru.locals in
+    Some { lru with locals }
 
   (* Global get/set *)
   | GlobalGet _ -> Some (shift_and_evict 1 lru)
@@ -238,12 +316,13 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
           Some (shift_and_evict (n_results - n_params) { lru with entries = [] }))
      | None -> None)
 
-  (* Loop: back-edges make iteration counts unknown, so we flush.
-     Net stack delta applied to outer entries only. *)
+  (* Loop: back-edges make iteration counts unknown, so we flush
+     both stack entries and locals (loop body may write locals). *)
   | Loop (bt, _body) ->
     (match block_arity ~type_section bt with
      | Some (n_params, n_results) ->
-       Some (shift_and_evict (n_results - n_params) { lru with entries = [] })
+       Some (shift_and_evict (n_results - n_params)
+         { lru with entries = []; locals = LocalMap.empty })
      | None -> None)
 
   (* If: pop condition, fork into then/else, intersect at join.
