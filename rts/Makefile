@@ -243,31 +243,33 @@ $(RTS_RUST_DEBUG_WASM_64_A): $(RTS_DEPENDENCIES_64)
 TEST_DEPENDENCIES_32=$(TOMMATH_WASM_32_A) $(TOMMATH_BINDINGS_RS_32)
 TEST_DEPENDENCIES_64=$(TOMMATH_WASM_64_A) $(TOMMATH_BINDINGS_RS_64)
 
-# Separate CARGO_TARGET_DIR per variant to allow parallel builds (make -j3)
-TEST_BUILD_32_NI=cd motoko-rts-tests && CARGO_TARGET_DIR=target-ni RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm32-wasip1
-TEST_RUN_32_NI=wasmtime -C cache=n -W nan-canonicalization=y motoko-rts-tests/target-ni/wasm32-wasip1/debug/motoko-rts-tests.wasm
+# RTS test variant template.
+# Each variant gets its own CARGO_TARGET_DIR (target-<name>) for parallel builds.
+# $(1) = target name, $(2) = cargo target triple,
+# $(3) = extra cargo flags, $(4) = features, $(5) = extra wasmtime flags, $(6) = dependencies
+define test_variant
+.PHONY: $(1)
+$(1): $$($(6))
+	cd motoko-rts-tests && CARGO_TARGET_DIR=target-$(1) RUSTFLAGS="$${RTS_COMPILE_FLAGS}" \
+	  cargo build --target=$(2) $(3) $(4)
+	wasmtime -C cache=n -W nan-canonicalization=y $(5) \
+	  motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
+endef
 
-TEST_BUILD_32_INC=cd motoko-rts-tests && CARGO_TARGET_DIR=target-inc RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm32-wasip1
-TEST_RUN_32_INC=wasmtime -C cache=n -W nan-canonicalization=y motoko-rts-tests/target-inc/wasm32-wasip1/debug/motoko-rts-tests.wasm
+comma := ,
 
-TEST_BUILD_64=cd motoko-rts-tests && CARGO_TARGET_DIR=target-64 RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm64-unknown-unknown -Zbuild-std=core,alloc,std,panic_abort --features enhanced_orthogonal_persistence
-TEST_RUN_64=wasmtime -C cache=n -W nan-canonicalization=y -W memory64 motoko-rts-tests/target-64/wasm64-unknown-unknown/debug/motoko-rts-tests.wasm
+$(eval $(call test_variant,test32-non-incremental,wasm32-wasip1,,\
+  --features classical_persistence,,TEST_DEPENDENCIES_32))
 
-.PHONY: test test32-non-incremental test32-incremental test64
+$(eval $(call test_variant,test32-incremental,wasm32-wasip1,,\
+  --features classical_persistence$(comma)incremental_gc,,TEST_DEPENDENCIES_32))
 
+$(eval $(call test_variant,test64,wasm64-unknown-unknown,\
+  -Zbuild-std=core$(comma)alloc$(comma)std$(comma)panic_abort,\
+  --features enhanced_orthogonal_persistence,-W memory64,TEST_DEPENDENCIES_64))
+
+.PHONY: test
 test: test32-non-incremental test32-incremental test64
-
-test32-non-incremental: $(TEST_DEPENDENCIES_32)
-	$(TEST_BUILD_32_NI) --features classical_persistence
-	$(TEST_RUN_32_NI)
-
-test32-incremental: $(TEST_DEPENDENCIES_32)
-	$(TEST_BUILD_32_INC) --features classical_persistence,incremental_gc
-	$(TEST_RUN_32_INC)
-
-test64: $(TEST_DEPENDENCIES_64)
-	$(TEST_BUILD_64)
-	$(TEST_RUN_64)
 
 #
 # Putting it all together
