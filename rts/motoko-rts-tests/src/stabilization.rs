@@ -141,12 +141,21 @@ fn random_heap(random: &mut Rand32, max_objects: usize) -> RandomHeap {
 }
 
 fn test_stabilization() {
-    println!("  Testing serialization and deserialization ...");
-    const RANDOM_SEED: u64 = 4711;
-    let mut random = Rand32::new(RANDOM_SEED);
+    test_stabilization_small();
+    test_stabilization_20k();
+}
+
+pub fn test_stabilization_small() {
+    println!("  Testing serialization and deserialization (small) ...");
+    let mut random = Rand32::new(4711);
     test_serialization_deserialization(&mut random, 100, 0);
     test_serialization_deserialization(&mut random, 1000, 200);
     test_serialization_deserialization(&mut random, 10_000, 5_000);
+}
+
+pub fn test_stabilization_20k() {
+    println!("  Testing serialization and deserialization (20k) ...");
+    let mut random = Rand32::new(20_000);
     test_serialization_deserialization(&mut random, 20_000, 7_000);
 }
 

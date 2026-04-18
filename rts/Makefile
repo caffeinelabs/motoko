@@ -251,10 +251,12 @@ TEST_DEPENDENCIES_64=$(TOMMATH_WASM_64_A) $(TOMMATH_BINDINGS_RS_64)
 # Generates: build-<name> (compile only) and <name> (build + run all modules in parallel).
 # Individual modules can be run via: make <name>-gc, <name>-bigint, etc.
 
-TEST_MODULES = bigint bitrel continuation_table crc32 \
-  gc_predefined gc_chunk_0 gc_chunk_1 gc_chunk_2 gc_chunk_3 gc_chunk_4 \
+TEST_MODULES = persistence_20k persistence_small \
+  gc_chunk_0 gc_chunk_1 gc_chunk_2 gc_chunk_3 gc_chunk_4 \
   gc_chunk_5 gc_chunk_6 gc_chunk_7 gc_chunk_8 gc_chunk_9 \
-  leb128 principal_id persistence stable_option text utf8
+  gc_predefined gc_components \
+  bigint bitrel continuation_table crc32 \
+  leb128 principal_id stable_option text utf8
 
 define test_variant
 .PHONY: build-$(1) $(1)

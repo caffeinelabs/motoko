@@ -43,28 +43,181 @@ fn main() {
 // Per-module entry points for parallel test execution via `wasmtime --invoke test_<mod>`.
 // No WASI needed — works on wasm64-unknown-unknown.
 
-#[no_mangle] pub extern "C" fn test_bigint() { check_architecture(); unsafe { bigint::test(); } }
-#[no_mangle] pub extern "C" fn test_bitrel() { check_architecture(); unsafe { bitrel::test(); } }
-#[no_mangle] pub extern "C" fn test_continuation_table() { check_architecture(); unsafe { continuation_table::test(); } }
-#[no_mangle] pub extern "C" fn test_crc32() { check_architecture(); unsafe { crc32::test(); } }
-#[no_mangle] pub extern "C" fn test_gc() { check_architecture(); unsafe { gc::test(); } }
-#[no_mangle] pub extern "C" fn test_gc_predefined() { check_architecture(); unsafe { gc::test_predefined(); gc::test_gc_components(); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_0() { check_architecture(); unsafe { gc::test_random_range(0, gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_1() { check_architecture(); unsafe { gc::test_random_range(gc::SEEDS_PER_CHUNK, 2 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_2() { check_architecture(); unsafe { gc::test_random_range(2 * gc::SEEDS_PER_CHUNK, 3 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_3() { check_architecture(); unsafe { gc::test_random_range(3 * gc::SEEDS_PER_CHUNK, 4 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_4() { check_architecture(); unsafe { gc::test_random_range(4 * gc::SEEDS_PER_CHUNK, 5 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_5() { check_architecture(); unsafe { gc::test_random_range(5 * gc::SEEDS_PER_CHUNK, 6 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_6() { check_architecture(); unsafe { gc::test_random_range(6 * gc::SEEDS_PER_CHUNK, 7 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_7() { check_architecture(); unsafe { gc::test_random_range(7 * gc::SEEDS_PER_CHUNK, 8 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_8() { check_architecture(); unsafe { gc::test_random_range(8 * gc::SEEDS_PER_CHUNK, 9 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_gc_chunk_9() { check_architecture(); unsafe { gc::test_random_range(9 * gc::SEEDS_PER_CHUNK, 10 * gc::SEEDS_PER_CHUNK); } }
-#[no_mangle] pub extern "C" fn test_leb128() { check_architecture(); unsafe { leb128::test(); } }
-#[no_mangle] pub extern "C" fn test_principal_id() { check_architecture(); unsafe { principal_id::test(); } }
-#[no_mangle] pub extern "C" fn test_persistence() { check_architecture(); unsafe { persistence_test(); } }
-#[no_mangle] pub extern "C" fn test_stable_option() { check_architecture(); unsafe { stable_option::test(); } }
-#[no_mangle] pub extern "C" fn test_text() { check_architecture(); unsafe { text::test(); } }
-#[no_mangle] pub extern "C" fn test_utf8() { check_architecture(); unsafe { utf8::test(); } }
+#[no_mangle]
+pub extern "C" fn test_bigint() {
+    check_architecture();
+    unsafe {
+        bigint::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_bitrel() {
+    check_architecture();
+    unsafe {
+        bitrel::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_continuation_table() {
+    check_architecture();
+    unsafe {
+        continuation_table::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_crc32() {
+    check_architecture();
+    unsafe {
+        crc32::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc() {
+    check_architecture();
+    unsafe {
+        gc::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_predefined() {
+    check_architecture();
+    unsafe {
+        gc::test_predefined();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_components() {
+    check_architecture();
+    unsafe {
+        gc::test_gc_components();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_0() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(0, gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_1() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(gc::SEEDS_PER_CHUNK, 2 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_2() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(2 * gc::SEEDS_PER_CHUNK, 3 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_3() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(3 * gc::SEEDS_PER_CHUNK, 4 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_4() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(4 * gc::SEEDS_PER_CHUNK, 5 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_5() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(5 * gc::SEEDS_PER_CHUNK, 6 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_6() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(6 * gc::SEEDS_PER_CHUNK, 7 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_7() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(7 * gc::SEEDS_PER_CHUNK, 8 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_8() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(8 * gc::SEEDS_PER_CHUNK, 9 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_gc_chunk_9() {
+    check_architecture();
+    unsafe {
+        gc::test_random_range(9 * gc::SEEDS_PER_CHUNK, 10 * gc::SEEDS_PER_CHUNK);
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_leb128() {
+    check_architecture();
+    unsafe {
+        leb128::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_principal_id() {
+    check_architecture();
+    unsafe {
+        principal_id::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_persistence() {
+    check_architecture();
+    unsafe {
+        persistence_test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_persistence_small() {
+    check_architecture();
+    unsafe {
+        persistence_small_test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_persistence_20k() {
+    check_architecture();
+    unsafe {
+        persistence_20k_test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_stable_option() {
+    check_architecture();
+    unsafe {
+        stable_option::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_text() {
+    check_architecture();
+    unsafe {
+        text::test();
+    }
+}
+#[no_mangle]
+pub extern "C" fn test_utf8() {
+    check_architecture();
+    unsafe {
+        utf8::test();
+    }
+}
 
 #[classical_persistence]
 fn check_architecture() {
@@ -91,10 +244,30 @@ fn persistence_test() {
     }
 }
 
+#[enhanced_orthogonal_persistence]
+fn persistence_small_test() {
+    unsafe {
+        stabilization::test_stabilization_small();
+    }
+}
+
+#[enhanced_orthogonal_persistence]
+fn persistence_20k_test() {
+    unsafe {
+        stabilization::test_stabilization_20k();
+    }
+}
+
 #[classical_persistence]
 fn persistence_test() {
     test_read_write_64_bit();
 }
+
+#[classical_persistence]
+fn persistence_small_test() {}
+
+#[classical_persistence]
+fn persistence_20k_test() {}
 
 #[classical_persistence]
 fn test_read_write_64_bit() {
