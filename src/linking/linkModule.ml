@@ -1115,7 +1115,7 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
                    Call { k with it = Hashtbl.find zero_fwds k.it } };
                  changed := true;
                  any_changed := true
-               | None -> ())
+               | Some (ConstTrack.FromLocal _) | None -> ())
             | _ -> ()
           in
           let type_section ti = List.nth types (Int32.to_int ti) in

@@ -10,6 +10,7 @@
 type const_val =
   | I32 of Int32.t
   | I64 of Int64.t
+  | FromLocal of Int32.t  (** unknown value from local n; enables backprop *)
 
 (** The LRU cache tracking stack constants. Immutable/pure. *)
 type t

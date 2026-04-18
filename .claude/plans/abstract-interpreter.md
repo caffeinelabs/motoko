@@ -137,11 +137,17 @@ constTrack-based sound stack-depth tracking:
 
 Both require accumulating branch states to fix (see Phase 3 below).
 
-## Phase 2: Local constant tracking (later)
+## Phase 2: Local constant tracking — Done
 
-- When a constant is written to a local (`local.set`/`local.tee`), record it
-- When a local is read (`local.get`), propagate the constant if tracked
-- Locals lose their constant status when overwritten with a non-constant
+- `LocalSet`/`LocalTee` record stack constants into `LocalMap`
+- `LocalGet` propagates known locals to the stack
+- `FromLocal n` variant in `const_val`: tracks unknown values from locals
+- Compare Eq/Ne: `FromLocal n` vs `FromLocal n` (same local) → always 1/0
+- Compare Eq/Ne: `FromLocal n` vs constant `k` → sets pending `refinement`
+- `BrIf` fall-through applies Ne refinement (false → local = value)
+- `LocalSet n` evicts all `FromLocal n` entries (stale references)
+- `Test (I32 Eqz)` / `Test (I64 Eqz)`: fold when operand known
+- Compare I32/I64: full relop folding when both operands known
 
 ## Phase 3: Precise branch joins via algebraic effects
 
@@ -216,6 +222,41 @@ is used as-is with no eviction.  For all-commensurable branches, the
 resolved.
 
 **Prerequisite**: OCaml 5.3 migration (draft PR exists).
+
+## Design Review Findings
+
+### Strengths
+- Clean `.mli` interface, exposes exactly the right things
+- Pure/immutable design excellent for branching (If bifurcation works naturally)
+- Good naming overall (`shift_and_evict`, `evict_from_local`)
+
+### Issues to address
+
+1. **`sense` field is cryptic** — rename to `eq_branch` or `true_means_equal`
+2. **Refinement mechanism is fragile** — relies on temporal protocol (Compare
+   sets it, next instruction must be BrIf). A stray instruction silently drops
+   it. Consider a debug warning when a non-BrIf discards a `Some` refinement.
+3. **I32/I64 handler duplication** — Binary (~30 lines), Compare (~65 lines),
+   and Test handlers are near-identical. Extract parameterized helpers to cut
+   ~50 lines and keep them in sync.
+
+### Lowest-hanging fruit for more precision
+
+1. **Extend `Unary` handling**: `I32WrapI64` and `I64ExtendSI32` on known
+   constants are trivial to propagate and common in real code.
+2. **`has_br_if` flag on Block**: skip result-slot eviction when no BrIf was
+   seen inside the body — cheap fix for the known pessimisation.
+3. **`FromLocal n + const k`** offset tracking: valuable for memory access
+   patterns, requires an `Offset` case in `const_val`. Moderate effort.
+
+### LRU data structure
+Sort-on-every-insert is wasteful but fine for capacity 4-8. Could just
+drop the tail element instead of sorting.
+
+### Phase 3 readiness
+`intersect` uses structural equality (`=`) on `const_val` — won't compose
+well with richer abstract values. Consider an explicit
+`equal : const_val -> const_val -> bool` early.
 
 ## Open Questions
 
