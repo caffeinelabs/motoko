@@ -252,6 +252,7 @@ define test_variant
 $(1): $$($(6))
 	cd motoko-rts-tests && CARGO_TARGET_DIR=target-$(1) RUSTFLAGS="$${RTS_COMPILE_FLAGS}" \
 	  cargo build --target=$(2) $(3) $(4)
+	test -f motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
 	wasmtime -C cache=n -W nan-canonicalization=y $(5) \
 	  motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
 endef
