@@ -165,12 +165,8 @@ pub fn test_stabilization_small() {
 }
 
 pub fn test_stabilization_20k() {
-    let seed = git_seed();
-    println!(
-        "  Testing serialization and deserialization (20k, seed={}) ...",
-        seed
-    );
-    let mut random = Rand32::new(seed);
+    println!("  Testing serialization and deserialization (20k, seed=4711) ...");
+    let mut random = Rand32::new(4711);
     test_serialization_deserialization(&mut random, 20_000, 7_000);
 }
 

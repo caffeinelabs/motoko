@@ -153,9 +153,7 @@ pub extern "C" fn test_principal_id() {
 #[no_mangle]
 pub extern "C" fn test_persistence() {
     check_architecture();
-    unsafe {
-        persistence_test();
-    }
+    persistence_test();
 }
 #[no_mangle]
 pub extern "C" fn test_persistence_small() {
@@ -214,16 +212,12 @@ fn persistence_test() {
 
 #[enhanced_orthogonal_persistence]
 fn persistence_small_test() {
-    unsafe {
-        stabilization::test_stabilization_small();
-    }
+    stabilization::test_stabilization_small();
 }
 
 #[enhanced_orthogonal_persistence]
 fn persistence_20k_test() {
-    unsafe {
-        stabilization::test_stabilization_20k();
-    }
+    stabilization::test_stabilization_20k();
 }
 
 #[classical_persistence]
