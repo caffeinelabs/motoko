@@ -258,10 +258,13 @@ TEST_MODULES = persistence_20k persistence_small \
   bigint bitrel continuation_table crc32 \
   leb128 principal_id stable_option text utf8
 
+GIT_HASH := $(shell git rev-parse HEAD 2>/dev/null || echo "0")
+
 define test_variant
 .PHONY: build-$(1) $(1)
 build-$(1): $$($(6))
-	cd motoko-rts-tests && CARGO_TARGET_DIR=target-$(1) RUSTFLAGS="$${RTS_COMPILE_FLAGS}" \
+	cd motoko-rts-tests && CARGO_TARGET_DIR=target-$(1) \
+	  RTS_TEST_GIT_HASH=$(GIT_HASH) RUSTFLAGS="$${RTS_COMPILE_FLAGS}" \
 	  cargo build --target=$(2) $(3) $(4)
 	test -f motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
 
@@ -269,7 +272,7 @@ build-$(1): $$($(6))
 $(foreach mod,$(TEST_MODULES),
 .PHONY: $(1)-$(mod)
 $(1)-$(mod): build-$(1)
-	wasmtime -C cache=n -W nan-canonicalization=y $(5) \
+	WASMTIME_BACKTRACE_DETAILS=1 wasmtime -C cache=n -W nan-canonicalization=y $(5) \
 	  --invoke test_$(mod) \
 	  motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
 )

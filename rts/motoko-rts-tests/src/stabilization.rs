@@ -145,17 +145,25 @@ fn test_stabilization() {
     test_stabilization_20k();
 }
 
+/// Derive a seed from the git hash, varying tests across commits.
+fn git_seed() -> u64 {
+    let hash = env!("RTS_TEST_GIT_HASH");
+    hash.bytes().fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64))
+}
+
 pub fn test_stabilization_small() {
-    println!("  Testing serialization and deserialization (small) ...");
-    let mut random = Rand32::new(4711);
+    let seed = git_seed();
+    println!("  Testing serialization and deserialization (small, seed={}) ...", seed);
+    let mut random = Rand32::new(seed);
     test_serialization_deserialization(&mut random, 100, 0);
     test_serialization_deserialization(&mut random, 1000, 200);
     test_serialization_deserialization(&mut random, 10_000, 5_000);
 }
 
 pub fn test_stabilization_20k() {
-    println!("  Testing serialization and deserialization (20k) ...");
-    let mut random = Rand32::new(20_000);
+    let seed = git_seed();
+    println!("  Testing serialization and deserialization (20k, seed={}) ...", seed);
+    let mut random = Rand32::new(seed);
     test_serialization_deserialization(&mut random, 20_000, 7_000);
 }
 
