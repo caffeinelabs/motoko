@@ -99,24 +99,23 @@ let block_arity ~type_section (bt : block_type) : (int * int) option =
        Some (List.length ps, List.length rs)
      | None -> None)
 
-(* Process a single instruction, returning updated LRU or None for terminators *)
-let is_zero (e : entry) =
-  match e.value with I32 0l | I64 0L -> true | _ -> false
+(* Convert a Wasm value to our const_val (only integral types) *)
+let to_const_val = function
+  | Wasm_exts.Values.I32 n -> Some (I32 n)
+  | Wasm_exts.Values.I64 n -> Some (I64 n)
+  | _ -> None
 
+(* Process a single instruction, returning updated LRU or None for terminators *)
 let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
 
   let open Wasm_exts.Values in
   match instr.it with
   (* Constants: push onto stack *)
-  | Const { it = I32 c; _ } ->
+  | Const {it; _} ->
     let lru = shift_and_evict 1 lru in (* existing entries go deeper *)
-    Some (insert (I32 c) lru)
-  | Const { it = I64 c; _ } ->
-    let lru = shift_and_evict 1 lru in
-    Some (insert (I64 c) lru)
-  | Const _ ->
-    (* Float constants: just shift, don't track *)
-    Some (shift_and_evict 1 lru)
+    (match to_const_val it with
+     | Some cv -> Some (insert cv lru)
+     | None -> Some lru) (* float: don't track *)
 
   (* Drop: pop one *)
   | Drop ->

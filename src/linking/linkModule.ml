@@ -1111,17 +1111,16 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
               (* closure arg is at depth n_params - 1 (deepest arg, pushed first) *)
               (match ConstTrack.lookup lru (n_params - 1) with
                | Some (ConstTrack.I32 _ | ConstTrack.I64 _) ->
-                 let target = Hashtbl.find zero_fwds k.it in
-                 Printf.eprintf "constTrack: rewrite call $%ld -> $%ld at depth %d\n%!" k.it target (n_params - 1);
                  arr.(idx) <- { arr.(idx) with it =
-                   Call { k with it = target } };
+                   Call { k with it = Hashtbl.find zero_fwds k.it } };
                  changed := true;
                  any_changed := true
                | None -> ())
             | _ -> ()
           in
+          let type_section ti = List.nth types (Int32.to_int ti) in
           ignore (ConstTrack.process_block
-            ~func_type ~on_call (ConstTrack.empty 8) (Array.to_list arr));
+            ~func_type ~type_section ~on_call (ConstTrack.empty 8) (Array.to_list arr));
           if !changed then { f with it = { f.it with body = Array.to_list arr } }
           else f
         ) (em : extended_module).module_.funcs in
