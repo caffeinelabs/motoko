@@ -237,8 +237,11 @@ resolved.
    sets it, next instruction must be BrIf). A stray instruction silently drops
    it. Consider a debug warning when a non-BrIf discards a `Some` refinement.
 3. **I32/I64 handler duplication** — Binary (~30 lines), Compare (~65 lines),
-   and Test handlers are near-identical. Extract parameterized helpers to cut
-   ~50 lines and keep them in sync.
+   and Test handlers are near-identical. Parameterised modules could help but
+   are blocked by `const_val` mixing I32/I64 in one non-GADT type. A GADT
+   `value` type would unblock this cleanly — see wasm-exts-update.md
+   § "Design Opportunity: GADT Value Types" for the full proposal. Best done
+   as part of the Wasm 2.0.2 update (same blast radius).
 
 ### Lowest-hanging fruit for more precision
 

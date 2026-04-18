@@ -134,3 +134,50 @@ types.ml  →  values.ml  →  ast.ml  →  operators.ml
 | **Total** | **~2–3 weeks** |
 
 Can be done incrementally — Phase 1+2 as one PR, Phase 3+4 as another.
+
+## Design Opportunity: GADT Value Types
+
+The 2.0.2 update is a natural moment to consider making the `op`/`value` type
+a GADT with a phantom type parameter distinguishing scalar from float values:
+
+```ocaml
+type scalar
+type float_
+
+type _ value =
+  | I32 : Int32.t -> scalar value
+  | I64 : Int64.t -> scalar value
+  | F32 : Float32.t -> float_ value
+  | F64 : Float64.t -> float_ value
+```
+
+**Benefits:**
+- `constTrack.ml`'s `const_val` type becomes `scalar value` — no separate type needed
+- Parameterised modules over the scalar type become natural: `IntOps` with
+  `type t` + `val extract : scalar value -> t option` — the type parameter
+  threads through, no runtime tag dispatch, no constructor ambiguity
+- I32/I64 handler duplication in constTrack (Binary, Compare, Test) could be
+  collapsed into a single parameterised handler
+- Functions that only accept scalar values (e.g. `to_const_val`) become
+  type-safe: float cases ruled out statically, no catch-all needed
+
+**Costs:**
+- `value` (holding any variant) needs existential wrapping:
+  `type any_value = Value : _ value -> any_value`
+- Every pattern match on heterogeneous collections (LRU entries, value lists)
+  must unwrap the existential
+- All consumers across the compiler need updating (same blast radius as the
+  2.0.2 update itself — so do it together, not separately)
+
+**Interaction with constTrack's `FromLocal`:**
+`FromLocal` tracks unknown values from locals — it's not a Wasm value at all.
+With the GADT approach, `FromLocal` would be a separate variant in a
+constTrack-local sum type that wraps `scalar value`:
+```ocaml
+type tracked = Known of scalar value | FromLocal of Int32.t
+```
+The LRU holds `tracked`, not raw values. This cleanly separates "Wasm values
+we know" from "analysis metadata."
+
+See also: abstract-interpreter.md § Design Review Findings for the
+deduplication motivation.
