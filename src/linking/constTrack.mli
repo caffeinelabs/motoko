@@ -1,8 +1,8 @@
 (* Abstract interpreter for tracking constant integral values on the Wasm operand stack.
    Uses an LRU cache keyed by stack depth to propagate constants through straight-line code.
 
-   Iteration stops at `call` instructions and branches.
-   At branches the LRU is emptied (join points handled later).
+   Continues through `call` instructions (shifting the LRU by the net stack delta).
+   Stops at branches and control flow (join points handled later).
    Pure data structures throughout — suitable for bifurcation on branches.
 *)
 
@@ -18,12 +18,17 @@ type t
 val empty : int -> t
 
 (** Process a basic block (list of instructions) starting with the given LRU state.
-    Returns the LRU state at the end of the block, or [None] if a `call`, branch,
+    Returns the LRU state at the end of the block, or [None] if a branch
     or other terminator was encountered.
     The callback [func_type] maps a function index to its parameter and result arities:
-    [func_type idx] returns [(n_params, n_results)]. *)
+    [func_type idx] returns [(n_params, n_results)].
+    The optional [on_call] callback is invoked at each [Call]/[CallIndirect] with
+    the LRU state {i before} the call, the 0-based instruction index, the number
+    of parameters, and the number of results.  Use this to inspect the stack at
+    call sites without modifying the abstract interpreter. *)
 val process_block :
   func_type:(Int32.t -> int * int) ->
+  ?on_call:(t -> int -> int -> int -> Wasm_exts.Ast.instr -> unit) ->
   t ->
   Wasm_exts.Ast.instr list ->
   t option

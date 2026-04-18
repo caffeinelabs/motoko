@@ -170,8 +170,6 @@ let step ~func_type lru (instr : Wasm_exts.Ast.instr) : t option =
   (* Call: consume n_params, produce n_results (all unknown) *)
   | Call x ->
     let (n_params, n_results) = func_type x.it in
-    (* Report if any known zero in the LRU at this call site *)
-    (* TODO: notify callback when zeros found at call site *)
     (* net stack delta: results - params *)
     let lru = shift_and_evict (n_results - n_params) lru in
     Some lru
@@ -196,12 +194,23 @@ let step ~func_type lru (instr : Wasm_exts.Ast.instr) : t option =
   (* Anything else: bail *)
   | _ -> None
 
-let process_block ~func_type lru instrs =
-  let rec go lru = function
+let process_block ~func_type ?on_call lru instrs =
+  let open Wasm.Source in
+  let open Wasm_exts.Ast in
+  let rec go idx lru = function
     | [] -> Some lru
     | instr :: rest ->
+      (* Fire callback before processing call instructions *)
+      (match on_call, instr.it with
+       | Some cb, Call x ->
+         let (n_params, n_results) = func_type x.it in
+         cb lru idx n_params n_results instr
+       | Some cb, CallIndirect (type_idx, _) ->
+         let (n_params, n_results) = func_type type_idx.it in
+         cb lru idx (n_params + 1) n_results instr (* +1 for table index *)
+       | _ -> ());
       match step ~func_type lru instr with
       | None -> None
-      | Some lru' -> go lru' rest
+      | Some lru' -> go (idx + 1) lru' rest
   in
-  go lru instrs
+  go 0 lru instrs

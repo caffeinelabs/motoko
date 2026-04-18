@@ -1076,8 +1076,9 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
     fixpoint (chase_forwarders funcs types import_count) fun_exports2
   in
   (* 0-forwarder chase: rewrite call sites in em1 that invoke a 0-forwarder
-     (Const I32 0; LocalGet 1…n-1; Call k) with an i32.const 0 closure arg,
-     redirecting the call to skip the forwarder and reach the callee directly. *)
+     (Const I32 0; LocalGet 1…n-1; Call k) with a constant closure arg,
+     redirecting the call to skip the forwarder and reach the callee directly.
+     Uses constTrack's abstract interpreter for sound stack-depth tracking. *)
   let em1 =
     let funcs = Array.of_list em1.module_.funcs in
     let types = List.map (fun t -> t.it) em1.module_.types in
@@ -1091,32 +1092,36 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
     ) funcs;
     if Hashtbl.length zero_fwds = 0 then em1
     else
+      let func_type fi =
+        let idx = Int32.to_int fi - import_count in
+        if idx < 0 then (0, 0)
+        else
+          let Wasm_exts.Types.FuncType (ps, rs) =
+            List.nth types (Int32.to_int funcs.(idx).it.ftype.it) in
+          (List.length ps, List.length rs)
+      in
       let rec loop em =
         let any_changed = ref false in
         let new_funcs = List.map (fun f ->
           let arr = Array.of_list f.it.body in
-          let n = Array.length arr in
           let changed = ref false in
-          for i = 0 to n - 1 do
-            match arr.(i).it with
+          let on_call lru idx n_params _n_results instr =
+            match instr.it with
             | Call k when Hashtbl.mem zero_fwds k.it ->
-              let fi = k.it in
-              let param_count =
-                let idx = Int32.to_int fi - import_count in
-                let Wasm_exts.Types.FuncType (ps, _) =
-                  List.nth types (Int32.to_int funcs.(idx).it.ftype.it) in
-                List.length ps
-              in
-              let clos_pos = i - param_count in
-              if clos_pos >= 0 then
-                (match arr.(clos_pos).it with
-                 | Const { it = Wasm_exts.Values.(I32 0l | I64 0L); _ } ->
-                   arr.(i) <- { arr.(i) with it = Call { k with it = Hashtbl.find zero_fwds fi } };
-                   changed := true;
-                   any_changed := true
-                 | _ -> ())
+              (* closure arg is at depth n_params - 1 (deepest arg, pushed first) *)
+              (match ConstTrack.lookup lru (n_params - 1) with
+               | Some (ConstTrack.I32 _ | ConstTrack.I64 _) ->
+                 let target = Hashtbl.find zero_fwds k.it in
+                 Printf.eprintf "constTrack: rewrite call $%ld -> $%ld at depth %d\n%!" k.it target (n_params - 1);
+                 arr.(idx) <- { arr.(idx) with it =
+                   Call { k with it = target } };
+                 changed := true;
+                 any_changed := true
+               | None -> ())
             | _ -> ()
-          done;
+          in
+          ignore (ConstTrack.process_block
+            ~func_type ~on_call (ConstTrack.empty 8) (Array.to_list arr));
           if !changed then { f with it = { f.it with body = Array.to_list arr } }
           else f
         ) (em : extended_module).module_.funcs in
@@ -1124,26 +1129,6 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
         else em
       in
       loop em1
-  in
-  (* Diagnostic: run constTrack over each function to find zero-forwarder candidates *)
-  let () =
-    let funcs = Array.of_list em1.module_.funcs in
-    let types = List.map (fun t -> t.it) em1.module_.types in
-    let import_count = Int32.to_int (count_imports is_fun_import em1.module_) in
-    let func_type fi =
-      let idx = Int32.to_int fi - import_count in
-      if idx < 0 then (0, 0) (* import — unknown, conservative *)
-      else
-        let Wasm_exts.Types.FuncType (ps, rs) =
-          List.nth types (Int32.to_int funcs.(idx).it.ftype.it) in
-        (List.length ps, List.length rs)
-    in
-    Array.iteri (fun idx f ->
-      ignore (ConstTrack.process_block
-        ~func_type
-        (ConstTrack.empty 8)
-        f.it.body)
-    ) funcs
   in
   (* Resolve imports, to produce a renumbering function: *)
   let fun_resolved12 = resolve fun_required1 fun_exports2 in
