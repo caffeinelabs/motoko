@@ -241,24 +241,29 @@ $(RTS_RUST_DEBUG_WASM_64_A): $(RTS_DEPENDENCIES_64)
 #
 
 TEST_DEPENDENCIES_32=$(TOMMATH_WASM_32_A) $(TOMMATH_BINDINGS_RS_32)
-TEST_BUILD_32=cd motoko-rts-tests && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm32-wasip1
-TEST_RUN_32=wasmtime -C cache=n -W nan-canonicalization=y motoko-rts-tests/target/wasm32-wasip1/debug/motoko-rts-tests.wasm
-
 TEST_DEPENDENCIES_64=$(TOMMATH_WASM_64_A) $(TOMMATH_BINDINGS_RS_64)
-TEST_BUILD_64=cd motoko-rts-tests && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm64-unknown-unknown -Zbuild-std=core,alloc,std,panic_abort --features enhanced_orthogonal_persistence
-TEST_RUN_64=wasmtime -C cache=n -W nan-canonicalization=y -W memory64 motoko-rts-tests/target/wasm64-unknown-unknown/debug/motoko-rts-tests.wasm
 
-.PHONY: test
+# Separate CARGO_TARGET_DIR per variant to allow parallel builds (make -j3)
+TEST_BUILD_32_NI=cd motoko-rts-tests && CARGO_TARGET_DIR=target-ni RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm32-wasip1
+TEST_RUN_32_NI=wasmtime -C cache=n -W nan-canonicalization=y motoko-rts-tests/target-ni/wasm32-wasip1/debug/motoko-rts-tests.wasm
+
+TEST_BUILD_32_INC=cd motoko-rts-tests && CARGO_TARGET_DIR=target-inc RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm32-wasip1
+TEST_RUN_32_INC=wasmtime -C cache=n -W nan-canonicalization=y motoko-rts-tests/target-inc/wasm32-wasip1/debug/motoko-rts-tests.wasm
+
+TEST_BUILD_64=cd motoko-rts-tests && CARGO_TARGET_DIR=target-64 RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm64-unknown-unknown -Zbuild-std=core,alloc,std,panic_abort --features enhanced_orthogonal_persistence
+TEST_RUN_64=wasmtime -C cache=n -W nan-canonicalization=y -W memory64 motoko-rts-tests/target-64/wasm64-unknown-unknown/debug/motoko-rts-tests.wasm
+
+.PHONY: test test32-non-incremental test32-incremental test64
 
 test: test32-non-incremental test32-incremental test64
 
 test32-non-incremental: $(TEST_DEPENDENCIES_32)
-	$(TEST_BUILD_32) --features classical_persistence
-	$(TEST_RUN_32)
+	$(TEST_BUILD_32_NI) --features classical_persistence
+	$(TEST_RUN_32_NI)
 
 test32-incremental: $(TEST_DEPENDENCIES_32)
-	$(TEST_BUILD_32) --features classical_persistence,incremental_gc
-	$(TEST_RUN_32)
+	$(TEST_BUILD_32_INC) --features classical_persistence,incremental_gc
+	$(TEST_RUN_32_INC)
 
 test64: $(TEST_DEPENDENCIES_64)
 	$(TEST_BUILD_64)

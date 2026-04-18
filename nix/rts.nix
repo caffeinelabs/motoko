@@ -90,7 +90,7 @@ pkgs.stdenv.mkDerivation {
   doCheck = true;
 
   checkPhase = ''
-    make test
+    make -j3 test
   '';
 
   installPhase = ''
