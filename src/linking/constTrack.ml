@@ -1,6 +1,7 @@
 (* Abstract interpreter for tracking constant integral values on the Wasm operand stack.
    See constTrack.mli for the interface description. *)
 
+open Wasm.Source
 open Wasm_exts.Ast
 
 type const_val =
@@ -66,10 +67,10 @@ let dump lru =
   let buf = Buffer.create 64 in
   Buffer.add_string buf "LRU[";
   List.iter (fun (d, v) ->
-    Buffer.add_string buf (Printf.sprintf " %d:" d);
+    Printf.bprintf buf " %d:" d;
     (match v with
-     | I32 n -> Buffer.add_string buf (Printf.sprintf "i32(%ld)" n)
-     | I64 n -> Buffer.add_string buf (Printf.sprintf "i64(%Ld)" n));
+     | I32 n -> Printf.bprintf buf "i32(%ld)" n
+     | I64 n -> Printf.bprintf buf "i64(%Ld)" n);
   ) (entries lru);
   Buffer.add_string buf " ]";
   Buffer.contents buf
@@ -77,10 +78,8 @@ let dump lru =
 (* Intersect two LRUs: keep only entries present in both at the same depth with the same value *)
 let intersect lru1 lru2 =
   let entries =
-    List.filter_map (fun e1 ->
-      match List.find_opt (fun e2 -> e2.depth = e1.depth && e2.value = e1.value) lru2.entries with
-      | Some _ -> Some e1
-      | None -> None
+    List.filter (fun e1 ->
+      List.exists (fun e2 -> e2.depth = e1.depth && e2.value = e1.value) lru2.entries
     ) lru1.entries
   in
   { lru1 with entries }
@@ -95,7 +94,7 @@ let block_arity ~type_section (bt : block_type) : (int * int) option =
   | VarBlockType v ->
     (match type_section with
      | Some ts ->
-       let Wasm_exts.Types.FuncType (ps, rs) = ts Wasm.Source.(v.it) in
+       let Wasm_exts.Types.FuncType (ps, rs) = ts v.it in
        Some (List.length ps, List.length rs)
      | None -> None)
 
@@ -104,7 +103,7 @@ let is_zero (e : entry) =
   match e.value with I32 0l | I64 0L -> true | _ -> false
 
 let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
-  let open Wasm.Source in
+
   let open Wasm_exts.Values in
   match instr.it with
   (* Constants: push onto stack *)
@@ -256,7 +255,7 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
   | _ -> None
 
 and process_block_inner ~func_type ~type_section ?on_call lru instrs =
-  let open Wasm.Source in
+
   let rec go idx lru = function
     | [] -> Some lru
     | instr :: rest ->
@@ -276,5 +275,4 @@ and process_block_inner ~func_type ~type_section ?on_call lru instrs =
   go 0 lru instrs
 
 let process_block ~func_type ?type_section ?on_call lru instrs =
-  let type_section = match type_section with Some ts -> Some ts | None -> None in
   process_block_inner ~func_type ~type_section ?on_call lru instrs
