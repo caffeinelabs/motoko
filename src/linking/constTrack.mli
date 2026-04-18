@@ -28,6 +28,7 @@ val empty : int -> t
     call sites without modifying the abstract interpreter. *)
 val process_block :
   func_type:(Int32.t -> int * int) ->
+  ?type_section:(Int32.t -> Wasm_exts.Types.func_type) ->
   ?on_call:(t -> int -> int -> int -> Wasm_exts.Ast.instr -> unit) ->
   t ->
   Wasm_exts.Ast.instr list ->

@@ -72,11 +72,36 @@ let dump lru =
   Buffer.add_string buf " ]";
   Buffer.contents buf
 
+(* Intersect two LRUs: keep only entries present in both at the same depth with the same value *)
+let intersect lru1 lru2 =
+  let entries =
+    List.filter_map (fun e1 ->
+      match List.find_opt (fun e2 -> e2.depth = e1.depth && e2.value = e1.value) lru2.entries with
+      | Some _ -> Some e1
+      | None -> None
+    ) lru1.entries
+  in
+  { lru1 with entries }
+
+(* Resolve block_type to (n_params, n_results).
+   ValBlockType is resolved directly; VarBlockType needs the type section
+   and is handled via the optional type_section callback. *)
+let block_arity ~type_section (bt : Wasm_exts.Ast.block_type) : (int * int) option =
+  match bt with
+  | Wasm_exts.Ast.ValBlockType None -> Some (0, 0)
+  | Wasm_exts.Ast.ValBlockType (Some _) -> Some (0, 1)
+  | Wasm_exts.Ast.VarBlockType v ->
+    (match type_section with
+     | Some ts ->
+       let Wasm_exts.Types.FuncType (ps, rs) = ts Wasm.Source.(v.it) in
+       Some (List.length ps, List.length rs)
+     | None -> None)
+
 (* Process a single instruction, returning updated LRU or None for terminators *)
 let is_zero (e : entry) =
   match e.value with I32 0l | I64 0L -> true | _ -> false
 
-let step ~func_type lru (instr : Wasm_exts.Ast.instr) : t option =
+let rec step ~func_type ~type_section ?on_call lru (instr : Wasm_exts.Ast.instr) : t option =
   let open Wasm.Source in
   let open Wasm_exts.Ast in
   let open Wasm_exts.Values in
@@ -180,8 +205,43 @@ let step ~func_type lru (instr : Wasm_exts.Ast.instr) : t option =
     let lru = shift_and_evict (n_results - n_params - 1) lru in
     Some lru
 
-  (* Branches and control flow: stop iteration *)
-  | Block _ | Loop _ | If _ -> None
+  (* Block: process body, result type determines net stack effect *)
+  | Block (bt, body) ->
+    (match block_arity ~type_section bt with
+     | Some (n_params, n_results) ->
+       let inner_lru = shift_and_evict (-n_params) lru in
+       (match process_block_inner ~func_type ~type_section ?on_call inner_lru body with
+        | Some lru' -> Some (shift_and_evict (n_results) { lru' with capacity = lru.capacity })
+        | None ->
+          (* Body hit a branch/terminator; assume worst case: all unknown *)
+          Some (shift_and_evict (n_results - n_params) { lru with entries = [] }))
+     | None -> None)
+
+  (* Loop: body may repeat, conservatively flush LRU for the body *)
+  | Loop (bt, _body) ->
+    (match block_arity ~type_section bt with
+     | Some (n_params, n_results) ->
+       Some (shift_and_evict (n_results - n_params) { lru with entries = [] })
+     | None -> None)
+
+  (* If: pop condition, fork into then/else, intersect at join *)
+  | If (bt, then_body, else_body) ->
+    (match block_arity ~type_section bt with
+     | Some (n_params, n_results) ->
+       (* pop condition *)
+       let lru_cond = shift_and_evict (-1) lru in
+       let inner_lru = shift_and_evict (-n_params) lru_cond in
+       let then_lru = process_block_inner ~func_type ~type_section ?on_call inner_lru then_body in
+       let else_lru = process_block_inner ~func_type ~type_section ?on_call inner_lru else_body in
+       let joined = match then_lru, else_lru with
+         | Some t, Some e -> intersect t e
+         | Some t, None -> { t with entries = [] } (* else hit terminator *)
+         | None, Some e -> { e with entries = [] }
+         | None, None -> { inner_lru with entries = [] }
+       in
+       Some (shift_and_evict n_results joined)
+     | None -> None)
+
   | Br _ | BrIf _ | BrTable _ -> None
   | Return -> None
   | Unreachable -> None
@@ -194,7 +254,7 @@ let step ~func_type lru (instr : Wasm_exts.Ast.instr) : t option =
   (* Anything else: bail *)
   | _ -> None
 
-let process_block ~func_type ?on_call lru instrs =
+and process_block_inner ~func_type ~type_section ?on_call lru instrs =
   let open Wasm.Source in
   let open Wasm_exts.Ast in
   let rec go idx lru = function
@@ -209,8 +269,12 @@ let process_block ~func_type ?on_call lru instrs =
          let (n_params, n_results) = func_type type_idx.it in
          cb lru idx (n_params + 1) n_results instr (* +1 for table index *)
        | _ -> ());
-      match step ~func_type lru instr with
+      match step ~func_type ~type_section ?on_call lru instr with
       | None -> None
       | Some lru' -> go (idx + 1) lru' rest
   in
   go 0 lru instrs
+
+let process_block ~func_type ?type_section ?on_call lru instrs =
+  let type_section = match type_section with Some ts -> Some ts | None -> None in
+  process_block_inner ~func_type ~type_section ?on_call lru instrs
