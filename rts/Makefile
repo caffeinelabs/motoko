@@ -247,14 +247,35 @@ TEST_DEPENDENCIES_64=$(TOMMATH_WASM_64_A) $(TOMMATH_BINDINGS_RS_64)
 # Each variant gets its own CARGO_TARGET_DIR (target-<name>) for parallel builds.
 # $(1) = target name, $(2) = cargo target triple,
 # $(3) = extra cargo flags, $(4) = features, $(5) = extra wasmtime flags, $(6) = dependencies
+#
+# Generates: build-<name> (compile only) and <name> (build + run all modules in parallel).
+# Individual modules can be run via: make <name>-gc, <name>-bigint, etc.
+
+TEST_MODULES = bigint bitrel continuation_table crc32 \
+  gc_predefined gc_chunk_0 gc_chunk_1 gc_chunk_2 gc_chunk_3 gc_chunk_4 \
+  gc_chunk_5 gc_chunk_6 gc_chunk_7 gc_chunk_8 gc_chunk_9 \
+  leb128 principal_id persistence stable_option text utf8
+
 define test_variant
-.PHONY: $(1)
-$(1): $$($(6))
+.PHONY: build-$(1) $(1)
+build-$(1): $$($(6))
 	cd motoko-rts-tests && CARGO_TARGET_DIR=target-$(1) RUSTFLAGS="$${RTS_COMPILE_FLAGS}" \
 	  cargo build --target=$(2) $(3) $(4)
 	test -f motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
+
+# Per-module targets: <variant>-<module>
+$(foreach mod,$(TEST_MODULES),
+.PHONY: $(1)-$(mod)
+$(1)-$(mod): build-$(1)
+	@echo ">>> $(1)-$(mod)"
 	wasmtime -C cache=n -W nan-canonicalization=y $(5) \
+	  --invoke test_$(mod) \
 	  motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
+	@echo "<<< $(1)-$(mod)"
+)
+
+# Run all modules in parallel after building
+$(1): $(foreach mod,$(TEST_MODULES),$(1)-$(mod))
 endef
 
 comma := ,

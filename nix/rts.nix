@@ -90,7 +90,7 @@ pkgs.stdenv.mkDerivation {
   doCheck = true;
 
   checkPhase = ''
-    make -j test
+    make -j$NIX_BUILD_CORES test
   '';
 
   installPhase = ''
