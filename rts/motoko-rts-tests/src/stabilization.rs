@@ -155,7 +155,7 @@ pub fn test_stabilization_small() {
 
 pub fn test_stabilization_20k() {
     println!("  Testing serialization and deserialization (20k) ...");
-    let mut random = Rand32::new(4711);
+    let mut random = Rand32::new(20_000);
     test_serialization_deserialization(&mut random, 20_000, 7_000);
 }
 

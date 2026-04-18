@@ -269,11 +269,9 @@ build-$(1): $$($(6))
 $(foreach mod,$(TEST_MODULES),
 .PHONY: $(1)-$(mod)
 $(1)-$(mod): build-$(1)
-	@echo ">>> $(1)-$(mod)"
 	wasmtime -C cache=n -W nan-canonicalization=y $(5) \
 	  --invoke test_$(mod) \
 	  motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
-	@echo "<<< $(1)-$(mod)"
 )
 
 # Run all modules in parallel after building
