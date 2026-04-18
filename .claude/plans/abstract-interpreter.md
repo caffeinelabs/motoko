@@ -149,19 +149,45 @@ The current join-point handling conservatively evicts result slots because
 `BrIf`-taken paths may carry different values. A precise solution requires
 collecting LRU states from all paths that reach a join point.
 
-OCaml 5.x algebraic effects provide a clean mechanism: `BrIf n` (when taken)
-*performs* a `May_leave` effect carrying its LRU state and target depth.
+OCaml 5.x algebraic effects provide a clean mechanism.  All three branch
+instructions emit `May_leave` with the LRU state and target depth:
+
+- **`BrIf n`**: perform `May_leave (n, lru')` where `lru' = shift_and_evict (-1) lru`
+  (condition popped), then continue on fall-through.
+- **`Br n`**: perform `May_leave (n, lru)`, then return `None` (terminator).
+- **`BrTable (targets, default)`**: pop the index, then iterate all targets
+  (`List.iter (fun t -> perform (May_leave (t, lru'))) (targets @ [default])`),
+  then return `None`. Just a `fold_left` / `iter` — each target block collects
+  the same LRU state since the stack is identical at that point.
+
 Each `Block` handler installs an effect handler that:
 1. Collects `May_leave (0, lru)` — branch targeting *this* block
 2. Re-raises `May_leave (n-1, lru)` — branch targeting an outer block
 
 At block exit, intersect the fall-through LRU with all collected branch LRUs.
-Only constants that agree across all incoming paths survive.
+Only constants that agree across all incoming paths survive.  This eliminates
+both known pessimisations (BrIf-less blocks and all-commensurable branches).
 
 ```ocaml
 (* Phase 3 sketch *)
 type _ Effect.t += May_leave : int * t -> unit Effect.t
 
+(* In step: *)
+| BrIf n ->
+    let lru' = shift_and_evict (-1) lru in
+    perform (May_leave (n.it, lru'));
+    Some lru'  (* fall-through *)
+
+| Br n ->
+    perform (May_leave (n.it, lru));
+    None
+
+| BrTable (targets, default) ->
+    let lru' = shift_and_evict (-1) lru in  (* pop index *)
+    List.iter (fun t -> perform (May_leave (t.it, lru'))) (targets @ [default]);
+    None
+
+(* In Block handler: *)
 | Block (bt, body) ->
     let branch_states = ref [] in
     match_with (process_block_inner ...) inner_lru body
@@ -174,14 +200,22 @@ type _ Effect.t += May_leave : int * t -> unit Effect.t
         | May_leave (n, lru) ->
           Some (fun k ->
             continue k ();
-            perform (May_leave (n - 1, lru)))
+            perform (May_leave (n - 1, lru)))  (* re-raise for outer block *)
         | _ -> None }
+    (* join: intersect fall-through with all collected branch states *)
+    let result = List.fold_left intersect fall_through !branch_states in
+    ...
 ```
 
 The depth decrement (`n - 1`) happens naturally at each Block boundary.
 No accumulator threading, no return-type changes. Pure control flow.
 
-**Prerequisite**: OCaml 5.x migration (in progress on other branches).
+For BrIf-less blocks, `branch_states` stays empty — the fall-through LRU
+is used as-is with no eviction.  For all-commensurable branches, the
+`fold_left intersect` preserves agreeing constants.  Both pessimisations
+resolved.
+
+**Prerequisite**: OCaml 5.3 migration (draft PR exists).
 
 ## Open Questions
 
