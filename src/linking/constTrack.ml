@@ -216,46 +216,67 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     let lru = shift_and_evict (n_results - n_params - 1) lru in
     Some lru
 
-  (* Block: process body, result type determines net stack effect *)
+  (* Block: process body; body's depth tracking is authoritative.
+     No shift_and_evict on exit — the body already accounts for all pushes/pops.
+     Result slots (depths 0..n_results-1) are evicted conservatively because
+     BrIf-taken paths may carry different values there.
+     KNOWN PESSIMISATION:
+     - BrIf-less blocks with constant results lose them unnecessarily
+     - Blocks where all branch paths agree on result values also lose them
+     Fixing these requires accumulating branch states (Phase 3). *)
   | Block (bt, body) ->
     (match block_arity ~type_section bt with
      | Some (n_params, n_results) ->
        let inner_lru = shift_and_evict (-n_params) lru in
        (match process_block_inner ~func_type ~type_section ?on_call inner_lru body with
-        | Some lru' -> Some (shift_and_evict (n_results) { lru' with capacity = lru.capacity })
+        | Some lru' ->
+          let lru' = { lru' with entries =
+            List.filter (fun e -> e.depth >= n_results) lru'.entries } in
+          Some lru'
         | None ->
-          (* Body hit a branch/terminator; assume worst case: all unknown *)
+          (* Body ended with a terminator (Br/Return/Unreachable).
+             All inner state is gone; outer entries adjusted by net delta. *)
           Some (shift_and_evict (n_results - n_params) { lru with entries = [] }))
      | None -> None)
 
-  (* Loop: body may repeat, conservatively flush LRU for the body *)
+  (* Loop: back-edges make iteration counts unknown, so we flush.
+     Net stack delta applied to outer entries only. *)
   | Loop (bt, _body) ->
     (match block_arity ~type_section bt with
      | Some (n_params, n_results) ->
        Some (shift_and_evict (n_results - n_params) { lru with entries = [] })
      | None -> None)
 
-  (* If: pop condition, fork into then/else, intersect at join *)
+  (* If: pop condition, fork into then/else, intersect at join.
+     Body depth tracking is authoritative — no exit shift needed.
+     Result slots evicted for the same reason as Block: BrIf inside
+     either branch may carry different values to the If's join point.
+     The intersect handles then-vs-else disagreement; the eviction
+     handles BrIf-within-branch disagreement. *)
   | If (bt, then_body, else_body) ->
     (match block_arity ~type_section bt with
      | Some (n_params, n_results) ->
-       (* pop condition *)
        let lru_cond = shift_and_evict (-1) lru in
        let inner_lru = shift_and_evict (-n_params) lru_cond in
        let then_lru = process_block_inner ~func_type ~type_section ?on_call inner_lru then_body in
        let else_lru = process_block_inner ~func_type ~type_section ?on_call inner_lru else_body in
        let joined = match then_lru, else_lru with
          | Some t, Some e -> intersect t e
-         | Some t, None -> { t with entries = [] } (* else hit terminator *)
-         | None, Some e -> { e with entries = [] }
+         | Some te, None | None, Some te -> { te with entries = [] }
          | None, None -> { inner_lru with entries = [] }
        in
-       Some (shift_and_evict n_results joined)
+       (* Evict result slots — BrIf inside branches may disagree *)
+       let joined = { joined with entries =
+         List.filter (fun e -> e.depth >= n_results) joined.entries } in
+       Some joined
      | None -> None)
 
-  | Br _ | BrIf _ | BrTable _ -> None
-  | Return -> None
-  | Unreachable -> None
+  | BrIf _ ->
+    (* Pop condition, continue on fall-through path *)
+    Some (shift_and_evict (-1) lru)
+
+  | Br _ | BrTable _ -> None
+  | Return | Unreachable -> None
 
   (* Bulk memory *)
   | MemoryFill -> Some (shift_and_evict (-3) lru)

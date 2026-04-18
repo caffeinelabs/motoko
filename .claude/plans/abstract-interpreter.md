@@ -80,46 +80,116 @@ When the LRU is full and a new constant needs to be inserted:
 ### Phase 1 — Done (src/linking/constTrack.{ml,mli})
 
 - Pure LRU cache keyed by stack depth, configurable capacity
-- `process_block` iterates instructions, stops at branches but **continues through calls**
+- `process_block` iterates instructions, continues through calls and control flow
 - Constant propagation through `i32.const`, `i64.const`
 - Constant folding for `i32.add/sub/mul`, `i64.add/sub/mul`
+- Smart `Select`: known condition picks operand, equal operands propagate regardless
 - Correct stack depth tracking for all instruction categories
 - `func_type` callback resolves function index → (n_params, n_results) arity
 - `Call`: consumes params, produces results (all unknown), shifts LRU by net delta
 - `CallIndirect`: same as `Call` but also consumes the table index (+1 param)
-- Diagnostic: dumps LRU to stderr when a known zero is present at a call site
-- Branches (`block`/`loop`/`if`/`br`/`br_if`/`br_table`) return `None` (stop iteration)
+- `on_call` callback: fires at each Call/CallIndirect with LRU state, instruction
+  index, and arity — enables the zero-forwarder rewriter in linkModule
+- `Block`: processes body recursively, evicts result slots conservatively at join
+- `If`: pops condition, forks into then/else, intersects LRU states at join
+- `Loop`: conservatively flushes (back-edges make iteration unknown)
+- `BrIf`: continues on fall-through path (pop condition), taken path exits to outer
+- `Br`/`BrTable`/`Return`/`Unreachable`: terminators, return `None`
+- `block_arity`: resolves `ValBlockType` directly, `VarBlockType` via optional
+  `type_section` callback
 - Uses `Wasm_exts.Ast` types (not `Wasm.Ast`) — matches `linkModule.ml`'s namespace
 - `dump` for debugging
 
-### Integration with linkModule.ml — In Progress
+### Integration with linkModule.ml — Done
 
-A diagnostic pass is wired into `linkModule.ml` (line ~1127) inside the `link` function:
-- Iterates over all defined functions in `em1` via `Array.of_list em1.module_.funcs`
-- Builds a `func_type` callback from the module's type section and import count
-- Calls `ConstTrack.process_block` with capacity-8 LRU on each function body
-- Currently diagnostic-only: stderr dumps when zeros are found near call sites
-- Next step: use the tracking results to drive zero-forwarder call-site rewriting
+The flat-array heuristic rewriter (`arr[i - param_count]`) has been replaced with
+constTrack-based sound stack-depth tracking:
+- `on_call` callback checks `ConstTrack.lookup lru (n_params - 1)` at each call
+  to a known zero-forwarder
+- Any constant at the closure-arg depth triggers the rewrite
+- Fixpoint iteration handles chains (foo → bar → quux)
+- Diagnostic `eprintf` on each rewrite (for development; remove before merge)
+
+17 test files show rewrites, up from 6 before Block/If/BrIf handling was added.
 
 ### Findings from implementation
 
-- Wasm `Select` takes an argument (optional type annotation) — not nullary
-- `Wasm_exts.Source.phrase` needs explicit `open` for `.it` field access
+- Wasm `Select` is nullary in this AST (no type annotation argument)
+- `Wasm.Source.phrase` needs `open Wasm.Source` for `.it` field access
 - `I32Op`/`I64Op` binop constructors need qualification to avoid warning 40
+- `open Wasm_exts.Values` inside `step` — can't open at top because `I32`/`I64`
+  constructors clash with our `const_val.I32`/`I64`
 - The module lives in `src/linking/` alongside `linkModule` — natural home since
   it operates on the Wasm AST post-linking
 - `dune` auto-discovers the new `.ml` — no build file changes needed
 - Pure data structures throughout (list-based LRU) — ready for bifurcation
 - `Call`/`CallIndirect` handling: results are unknown but depth tracking is precise,
   so constants surviving across calls (deeper on the stack) are preserved
+- Block/If body processing: body's depth tracking is authoritative, no exit shift
+  needed.  Result slots (depths 0..n_results-1) evicted conservatively at join.
+
+### Known pessimisations (Block/If join points)
+
+- **BrIf-less Blocks with constant results**: result slots evicted even though
+  there's only one path — no branch can disagree
+- **All-commensurable branches**: when every BrIf-taken path and the fall-through
+  agree on the result values, we still evict
+
+Both require accumulating branch states to fix (see Phase 3 below).
+
+## Phase 2: Local constant tracking (later)
+
+- When a constant is written to a local (`local.set`/`local.tee`), record it
+- When a local is read (`local.get`), propagate the constant if tracked
+- Locals lose their constant status when overwritten with a non-constant
+
+## Phase 3: Precise branch joins via algebraic effects
+
+The current join-point handling conservatively evicts result slots because
+`BrIf`-taken paths may carry different values. A precise solution requires
+collecting LRU states from all paths that reach a join point.
+
+OCaml 5.x algebraic effects provide a clean mechanism: `BrIf n` (when taken)
+*performs* a `May_leave` effect carrying its LRU state and target depth.
+Each `Block` handler installs an effect handler that:
+1. Collects `May_leave (0, lru)` — branch targeting *this* block
+2. Re-raises `May_leave (n-1, lru)` — branch targeting an outer block
+
+At block exit, intersect the fall-through LRU with all collected branch LRUs.
+Only constants that agree across all incoming paths survive.
+
+```ocaml
+(* Phase 3 sketch *)
+type _ Effect.t += May_leave : int * t -> unit Effect.t
+
+| Block (bt, body) ->
+    let branch_states = ref [] in
+    match_with (process_block_inner ...) inner_lru body
+    { effc = fun (type a) (eff : a Effect.t) ->
+        match eff with
+        | May_leave (0, lru) ->
+          Some (fun (k : (a, _) continuation) ->
+            branch_states := lru :: !branch_states;
+            continue k ())
+        | May_leave (n, lru) ->
+          Some (fun k ->
+            continue k ();
+            perform (May_leave (n - 1, lru)))
+        | _ -> None }
+```
+
+The depth decrement (`n - 1`) happens naturally at each Block boundary.
+No accumulator threading, no return-type changes. Pure control flow.
+
+**Prerequisite**: OCaml 5.x migration (in progress on other branches).
 
 ## Open Questions
 
 - What is the right LRU size? Too small misses opportunities, too large adds overhead
 - Should we track through `memory.load`/`memory.store` at known constant addresses?
-- How to handle `block`/`loop`/`if` — save/restore abstract state?
 - ~~Should `Call` consume args and produce results (shifting the LRU) instead of stopping?~~
-  **Resolved**: Yes, `Call` now shifts the LRU by `n_results - n_params`. This allows
-  tracking through call sequences in straight-line code.
+  **Resolved**: Yes, `Call` now shifts the LRU by `n_results - n_params`.
+- ~~How to handle `block`/`loop`/`if`?~~
+  **Resolved**: Recursive processing with conservative result-slot eviction.
+  Precise joins deferred to Phase 3 (algebraic effects).
 - Integration point: lives in `linking/` — operates on the merged Wasm AST during linking.
-  The diagnostic pass in `linkModule.ml` confirms this is the right location.
