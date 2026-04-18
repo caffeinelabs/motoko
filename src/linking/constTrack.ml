@@ -73,10 +73,13 @@ let dump lru =
   Buffer.contents buf
 
 (* Process a single instruction, returning updated LRU or None for terminators *)
-let step ~func_type lru (instr : Wasm.Ast.instr) : t option =
-  let open Wasm.Ast in
+let is_zero (e : entry) =
+  match e.value with I32 0l | I64 0L -> true | _ -> false
+
+let step ~func_type lru (instr : Wasm_exts.Ast.instr) : t option =
   let open Wasm.Source in
-  let open Wasm.Values in
+  let open Wasm_exts.Ast in
+  let open Wasm_exts.Values in
   match instr.it with
   (* Constants: push onto stack *)
   | Const { it = I32 c; _ } ->
@@ -140,7 +143,7 @@ let step ~func_type lru (instr : Wasm.Ast.instr) : t option =
     Some lru
 
   (* Select: pop 3, push 1 = net -2, result unknown *)
-  | Select _ ->
+  | Select ->
     Some (shift_and_evict (-2) lru)
 
   (* Local get: push 1, value unknown for now (Phase 2) *)
@@ -168,16 +171,13 @@ let step ~func_type lru (instr : Wasm.Ast.instr) : t option =
   | Call x ->
     let (n_params, n_results) = func_type x.it in
     (* Report if any known zero in the LRU at this call site *)
-    if List.exists (fun e -> e.value = I32 0l || e.value = I64 0L) lru.entries then
-      Printf.eprintf "constTrack: call $%ld with zero in %s\n%!" x.it (dump lru);
+    (* TODO: notify callback when zeros found at call site *)
     (* net stack delta: results - params *)
     let lru = shift_and_evict (n_results - n_params) lru in
     Some lru
 
   | CallIndirect (type_idx, _) ->
     let (n_params, n_results) = func_type type_idx.it in
-    if List.exists (fun e -> e.value = I32 0l || e.value = I64 0L) lru.entries then
-      Printf.eprintf "constTrack: call_indirect type=%ld with zero in %s\n%!" type_idx.it (dump lru);
     (* also consumes the table index from the stack: +1 param *)
     let lru = shift_and_evict (n_results - n_params - 1) lru in
     Some lru

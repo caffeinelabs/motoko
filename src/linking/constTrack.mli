@@ -25,7 +25,7 @@ val empty : int -> t
 val process_block :
   func_type:(Int32.t -> int * int) ->
   t ->
-  Wasm.Ast.instr list ->
+  Wasm_exts.Ast.instr list ->
   t option
 
 (** Look up the constant at a given stack depth (0 = top of stack), if known. *)

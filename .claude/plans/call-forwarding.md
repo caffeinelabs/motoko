@@ -248,48 +248,35 @@ etc.) cannot be safely redirected without a full alias/escape analysis.
    stack depth) is `i32.const 0`, replace `call fi` with `call zero_fwds[fi]`.
 4. Run to **fixpoint** to handle chains (`foo → bar → quux`).
 
-### Precise call-site eligibility via stack-depth tracking
+### Precise call-site eligibility via stack-depth tracking — IMPLEMENTED
 
-This tracking is only relevant for the **0-forwarder call-site rewriter** —
-i.e. when scanning `em1` for `call fi` instructions where `fi ∈ zero_fwds`.
-`chase_forwarders` / `forwarding_target` operate on the RTS exports map and
-never inspect call sites, so they are unaffected.  Furthermore, within the
-rewriter, the depth/zeros state only matters at the moment a matching `call fi`
-is encountered; for all other instructions it is just bookkeeping.
+**Status**: The `constTrack` abstract interpreter (`src/linking/constTrack.{ml,mli}`)
+now implements the precise stack-depth tracking described below. It replaces the
+unsound flat-array offset heuristic.
 
-The current implementation uses a flat-array offset heuristic: it checks
-`arr[i - param_count]` to see if it is `Const 0`.  This is unsound in general
-(it assumes every argument is produced by exactly one instruction) but correct
-for all code Motoko currently emits.
+**Current state**: A diagnostic pass in `linkModule.ml` (line ~1127) runs
+`ConstTrack.process_block` over every function body in `em1` and dumps the LRU
+to stderr whenever a known zero is present at a call site. This produces the
+data needed to drive the rewriter but does not yet modify any instructions.
 
-A precise alternative avoids types entirely — only **net stack-depth deltas**
-are needed.  The idea:
+**Next step**: Use `ConstTrack.lookup lru (depth - param_count)` at each
+`call fi` where `fi ∈ zero_fwds` to decide whether the call site is eligible
+for rewriting. Replace `call fi` with `call zero_fwds[fi]`.
 
-- Maintain an integer `depth` (absolute from function entry = 0).
-- Maintain a small **LRU set** (≈10 entries) of absolute depths where a
-  `Const 0` is statically known to reside.
-- Per instruction class:
+The tracking covers all instruction categories needed for Motoko-generated code:
 
-  | Class | Examples | Δ depth | Effect on `zeros` |
-  |---|---|---|---|
-  | `const 0` | `i32/i64.const 0` | +1 | add `depth` (pre-increment) |
-  | `const k≠0` | `i32.const 1`, `f64.const …` | +1 | — |
-  | `get` | `local.get i` | +1 | — |
-  | `set` | `local.set i` | −1 | evict entries > new depth |
-  | `tee` | `local.tee i` | 0 | — |
-  | unary | loads, conversions, `i32.clz`, … | 0 | evict top if consumed |
-  | binary | `i64.add`, `i64.or`, stores+pop, … | −1 | evict entries > new depth |
-  | `call f` | n params, m results | −n+m | evict entries > new depth |
+- Maintain a pure **LRU cache** (capacity 8) keyed by stack depth
+- `i32.const 0` / `i64.const 0` → insert at depth 0, shift others +1
+- Other constants → shift +1, no tracking
+- `local.get/set/tee`, `global.get/set` → correct depth shifts
+- Binary ops (`i32.add/sub/mul`, `i64.add/sub/mul`) → constant folding when both operands known
+- `Call f` with arity (n_params, n_results) → shift by `n_results - n_params`, results unknown
+- `CallIndirect` → same but +1 for table index consumption
+- Branches (`block`/`loop`/`if`/`br`/`br_if`/`br_table`) → stop iteration (`None`)
+- `Select` → net -2, result unknown
+- Memory ops → correct depth shifts
 
-- On `call fi` where `fi ∈ zero_fwds`: check whether
-  `depth - param_count(fi)` ∈ `zeros` — if so, safe to rewrite.
-
-Control flow (`block`/`if`/`else`/`end`/`br`/`return`) can also be handled:
-forward-branch join points take the **intersection** of `zeros` from all
-incoming paths; back-edges (loop) conservatively flush `zeros`.  In practice
-Motoko never emits control flow mid-argument-list so this does not matter for
-current use, but it makes the check complete for the general case.
-
-A staged rollout makes sense: implement `const` + `get`/`set` + unary + binary
-+ `call` first (covers all Motoko-generated argument sequences), add control
-flow later if needed.
+Control flow handling (forward-branch join points, loop back-edges) is
+deferred to Phase 3 of the abstract interpreter plan. In practice Motoko never
+emits control flow mid-argument-list, so stopping at branches is sufficient
+for the zero-forwarder rewriter.

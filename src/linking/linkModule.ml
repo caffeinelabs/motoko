@@ -1125,6 +1125,26 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
       in
       loop em1
   in
+  (* Diagnostic: run constTrack over each function to find zero-forwarder candidates *)
+  let () =
+    let funcs = Array.of_list em1.module_.funcs in
+    let types = List.map (fun t -> t.it) em1.module_.types in
+    let import_count = Int32.to_int (count_imports is_fun_import em1.module_) in
+    let func_type fi =
+      let idx = Int32.to_int fi - import_count in
+      if idx < 0 then (0, 0) (* import — unknown, conservative *)
+      else
+        let Wasm_exts.Types.FuncType (ps, rs) =
+          List.nth types (Int32.to_int funcs.(idx).it.ftype.it) in
+        (List.length ps, List.length rs)
+    in
+    Array.iteri (fun idx f ->
+      ignore (ConstTrack.process_block
+        ~func_type
+        (ConstTrack.empty 8)
+        f.it.body)
+    ) funcs
+  in
   (* Resolve imports, to produce a renumbering function: *)
   let fun_resolved12 = resolve fun_required1 fun_exports2 in
   let fun_resolved21 = resolve fun_required2 fun_exports1 in
