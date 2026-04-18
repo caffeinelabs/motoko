@@ -1,6 +1,8 @@
 (* Abstract interpreter for tracking constant integral values on the Wasm operand stack.
    See constTrack.mli for the interface description. *)
 
+open Wasm_exts.Ast
+
 type const_val =
   | I32 of Int32.t
   | I64 of Int64.t
@@ -86,11 +88,11 @@ let intersect lru1 lru2 =
 (* Resolve block_type to (n_params, n_results).
    ValBlockType is resolved directly; VarBlockType needs the type section
    and is handled via the optional type_section callback. *)
-let block_arity ~type_section (bt : Wasm_exts.Ast.block_type) : (int * int) option =
+let block_arity ~type_section (bt : block_type) : (int * int) option =
   match bt with
-  | Wasm_exts.Ast.ValBlockType None -> Some (0, 0)
-  | Wasm_exts.Ast.ValBlockType (Some _) -> Some (0, 1)
-  | Wasm_exts.Ast.VarBlockType v ->
+  | ValBlockType None -> Some (0, 0)
+  | ValBlockType (Some _) -> Some (0, 1)
+  | VarBlockType v ->
     (match type_section with
      | Some ts ->
        let Wasm_exts.Types.FuncType (ps, rs) = ts Wasm.Source.(v.it) in
@@ -101,9 +103,8 @@ let block_arity ~type_section (bt : Wasm_exts.Ast.block_type) : (int * int) opti
 let is_zero (e : entry) =
   match e.value with I32 0l | I64 0L -> true | _ -> false
 
-let rec step ~func_type ~type_section ?on_call lru (instr : Wasm_exts.Ast.instr) : t option =
+let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
   let open Wasm.Source in
-  let open Wasm_exts.Ast in
   let open Wasm_exts.Values in
   match instr.it with
   (* Constants: push onto stack *)
@@ -256,7 +257,6 @@ let rec step ~func_type ~type_section ?on_call lru (instr : Wasm_exts.Ast.instr)
 
 and process_block_inner ~func_type ~type_section ?on_call lru instrs =
   let open Wasm.Source in
-  let open Wasm_exts.Ast in
   let rec go idx lru = function
     | [] -> Some lru
     | instr :: rest ->
