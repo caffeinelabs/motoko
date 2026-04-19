@@ -252,14 +252,54 @@ let zero_forwarder_target (funcs : func array) (types : Wasm_exts.Types.func_typ
          | _ -> None)
       | _ -> None
 
-let rec fixpoint f x = let x' = f x in if x' = x then x else fixpoint f x'
+module Int32Map = Map.Make(Int32)
+
+(* One step of Kleene iteration on a forwarder map [m : fi -> fi]:
+   expand each entry's target via [m] itself, producing the updated map
+   paired with the *difference map* (only the entries whose target changed).
+   The difference map is the termination witness: an empty diff means fixpoint. *)
+let forward_step (m : int32 Int32Map.t) : int32 Int32Map.t * int32 Int32Map.t =
+  Int32Map.fold (fun fi t (m', diff) ->
+    match Int32Map.find_opt t m with
+    | Some t' when t' <> t ->
+      Int32Map.add fi t' m', Int32Map.add fi t' diff
+    | _ -> m', diff
+  ) m (m, Int32Map.empty)
+
+(* Path-compress a raw one-hop forwarder map to its transitive closure.
+
+   Kleene-iterates [forward_step] with difference-map output until the diff
+   becomes empty.  A bound of [cardinal raw] iterations forces termination
+   on cycles (where Kleene iteration oscillates rather than converges).
+
+   Entries whose final target is itself still a key of the converged map
+   sit on (or lead into) a cycle — they have no well-defined terminal, so
+   we drop them.  This guarantees any subsequent rewriter needs at most one
+   pass and cannot loop. *)
+let compress_forwarder_map (raw : int32 Int32Map.t) : int32 Int32Map.t =
+  let bound = Int32Map.cardinal raw in
+  let rec iter k m =
+    let (m', diff) = forward_step m in
+    if Int32Map.is_empty diff || k >= bound then
+      Int32Map.filter (fun _ t -> not (Int32Map.mem t m')) m'
+    else iter (k + 1) m'
+  in
+  iter 0 raw
 
 let chase_forwarders (funcs : func array) (types : Wasm_exts.Types.func_type list)
     (import_count : int) (exports : exports) : exports =
+  let raw =
+    NameMap.fold (fun _ fi acc ->
+      match forwarding_target funcs types import_count fi with
+      | Some t -> Int32Map.add fi t acc
+      | None -> acc
+    ) exports Int32Map.empty
+  in
+  let collapsed = compress_forwarder_map raw in
   NameMap.map (fun fi ->
-    match forwarding_target funcs types import_count fi with
-    | Some fi' -> fi'
-    | None     -> fi
+    match Int32Map.find_opt fi collapsed with
+    | Some terminal -> terminal
+    | None -> fi
   ) exports
 
 
@@ -1073,24 +1113,28 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
     let funcs = Array.of_list dm2.funcs in
     let types = List.map (fun t -> t.it) dm2.types in
     let import_count = Int32.to_int (count_imports is_fun_import dm2) in
-    fixpoint (chase_forwarders funcs types import_count) fun_exports2
+    chase_forwarders funcs types import_count fun_exports2
   in
   (* 0-forwarder chase: rewrite call sites in em1 that invoke a 0-forwarder
      (Const I32 0; LocalGet 1…n-1; Call k) with a constant closure arg,
      redirecting the call to skip the forwarder and reach the callee directly.
-     Uses constTrack's abstract interpreter for sound stack-depth tracking. *)
+     Uses constTrack's abstract interpreter for sound stack-depth tracking,
+     and path-compressed forwarder map so a single pass suffices. *)
   let em1 =
     let funcs = Array.of_list em1.module_.funcs in
     let types = List.map (fun t -> t.it) em1.module_.types in
     let import_count = Int32.to_int (count_imports is_fun_import em1.module_) in
-    let zero_fwds : (int32, int32) Hashtbl.t = Hashtbl.create 16 in
-    Array.iteri (fun idx _ ->
-      let fi = Int32.of_int (idx + import_count) in
-      (match zero_forwarder_target funcs types import_count fi with
-       | Some k -> Hashtbl.replace zero_fwds fi k
-       | None   -> ())
-    ) funcs;
-    if Hashtbl.length zero_fwds = 0 then em1
+    let zero_fwds =
+      let raw = Array.to_seq funcs
+        |> Seq.mapi (fun idx _ -> Int32.of_int (idx + import_count))
+        |> Seq.filter_map (fun fi ->
+             Option.map (fun t -> (fi, t))
+               (zero_forwarder_target funcs types import_count fi))
+        |> Int32Map.of_seq
+      in
+      compress_forwarder_map raw
+    in
+    if Int32Map.is_empty zero_fwds then em1
     else
       let func_type fi =
         let idx = Int32.to_int fi - import_count in
@@ -1100,37 +1144,47 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
             List.nth types (Int32.to_int funcs.(idx).it.ftype.it) in
           (List.length ps, List.length rs)
       in
-      let rec loop em =
-        let any_changed = ref false in
-        let new_funcs = List.map (fun f ->
-          let arr = Array.of_list f.it.body in
-          let changed = ref false in
-          let on_call lru idx n_params _n_results instr =
-            match instr.it with
-            | Call k when Hashtbl.mem zero_fwds k.it ->
-              (* Closure arg is at depth n_params - 1 (deepest arg, pushed first).
-                 Must be i32.const 0 / i64.const 0 specifically: the forwarder
-                 would have zeroed it; a nonzero value would reach $k unchanged
-                 after elision and could diverge if $k inspects $clos. *)
-              (match ConstTrack.lookup lru (n_params - 1) with
-               | Some (ConstTrack.I32 0l | ConstTrack.I64 0L) ->
-                 arr.(idx) <- { arr.(idx) with it =
-                   Call { k with it = Hashtbl.find zero_fwds k.it } };
-                 changed := true;
-                 any_changed := true
-               | Some _ | None -> ())
-            | _ -> ()
-          in
-          let type_section ti = List.nth types (Int32.to_int ti) in
-          ignore (ConstTrack.process_block
-            ~func_type ~type_section ~on_call (ConstTrack.empty 8) (Array.to_list arr));
-          if !changed then { f with it = { f.it with body = Array.to_list arr } }
-          else f
-        ) (em : extended_module).module_.funcs in
-        if !any_changed then loop { (em : extended_module) with module_ = { em.module_ with funcs = new_funcs } }
-        else em
+      let type_section ti = List.nth types (Int32.to_int ti) in
+      (* Collect call-site rewrites for one body as a difference-map
+         (instr-index → new-target). Applied functionally via List.mapi. *)
+      let module IntMap = Map.Make(Int) in
+      let collect_rewrites body =
+        let acc = ref IntMap.empty in
+        let on_call lru idx n_params _ instr =
+          match instr.it with
+          | Call k ->
+            (match Int32Map.find_opt k.it zero_fwds,
+                   ConstTrack.lookup lru (n_params - 1) with
+             (* Closure arg is at depth n_params-1 (deepest, pushed first).
+                Must be i32.const 0 / i64.const 0 specifically: the forwarder
+                zeros it before calling; a nonzero value would reach the
+                terminal callee unchanged after elision and could diverge if
+                it inspects $clos. *)
+             | Some target, Some (ConstTrack.I32 0l | ConstTrack.I64 0L) ->
+               acc := IntMap.add idx target !acc
+             | _ -> ())
+          | _ -> ()
+        in
+        ignore (ConstTrack.process_block
+          ~func_type ~type_section ~on_call (ConstTrack.empty 8) body);
+        !acc
       in
-      loop em1
+      let apply_rewrites body diff =
+        if IntMap.is_empty diff then body
+        else
+          List.mapi (fun i instr ->
+            match IntMap.find_opt i diff, instr.it with
+            | Some target, Call k -> { instr with it = Call { k with it = target } }
+            | _ -> instr
+          ) body
+      in
+      let rewrite_func f =
+        let diff = collect_rewrites f.it.body in
+        if IntMap.is_empty diff then f
+        else { f with it = { f.it with body = apply_rewrites f.it.body diff } }
+      in
+      { em1 with module_ = { em1.module_ with
+          funcs = List.map rewrite_func em1.module_.funcs } }
   in
   (* Resolve imports, to produce a renumbering function: *)
   let fun_resolved12 = resolve fun_required1 fun_exports2 in
