@@ -2,6 +2,6 @@ ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a000000000000000001
 ingress Completed: Reply: 0x4449444c0000
 debug.print: {heap_diff = 0; instr_diff = 95_690_321; total = 1_090_000}
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {fib7_eval = 13; fib7_evalFT = 13; fib7_xform = 13; instr_eval = 22_034_248; instr_evalFT = 21_519_148; instr_transform = 1_057_948}
+debug.print: {fib7_eval = 13; fib7_evalFT = 13; fib7_xform = 13; instr_eval = 22_051_348; instr_evalFT = 21_536_248; instr_transform = 1_057_948}
 ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000
