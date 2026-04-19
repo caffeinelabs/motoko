@@ -43,3 +43,17 @@ val entries : t -> (int * const_val) list
 
 (** Pretty-print the LRU state for debugging. *)
 val dump : t -> string
+
+(** Physical-identity comparison for instruction phrases.
+
+    Callers of [process_block] that wish to rewrite a particular call site
+    captured by [on_call] need to relocate the exact AST node again — the
+    [idx] passed to the callback is block-relative (fresh 0 at each nested
+    [Block]/[Loop]/[If]), so positional keys misalign across nesting levels.
+
+    This predicate identifies an instruction by its OCaml allocation, which
+    is the invariant the linker relies on: moc's Wasm IR is tree-shaped
+    (no phrase sharing, no position aliasing), so every position in a
+    body owns a distinct phrase record. Use [same_instr] in preference to
+    [(==)] at call sites to document the assumption. *)
+val same_instr : Wasm_exts.Ast.instr -> Wasm_exts.Ast.instr -> bool

@@ -1173,7 +1173,7 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
       (* Recursively rewrite matching call instructions, descending into
          Block/Loop/If bodies to reach nested calls. *)
       let rec rewrite_instr rewrites instr =
-        match List.find_opt (fun (i, _) -> i == instr) rewrites with
+        match List.find_opt (fun (i, _) -> ConstTrack.same_instr i instr) rewrites with
         | Some (_, target) ->
           (match instr.it with
            | Call k -> { instr with it = Call { k with it = target } }

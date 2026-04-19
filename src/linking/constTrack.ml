@@ -489,3 +489,7 @@ and process_block_inner ~func_type ~type_section ?on_call ?has_br_if lru instrs 
 
 let process_block ~func_type ?type_section ?on_call lru instrs =
   process_block_inner ~func_type ~type_section ?on_call lru instrs
+
+(* Physical-identity comparison. Sound under the linker's tree-shaped-IR
+   invariant (no phrase sharing, no position aliasing). See the .mli. *)
+let same_instr (a : Wasm_exts.Ast.instr) (b : Wasm_exts.Ast.instr) : bool = a == b
