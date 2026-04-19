@@ -1145,12 +1145,13 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
           (List.length ps, List.length rs)
       in
       let type_section ti = List.nth types (Int32.to_int ti) in
-      (* Collect call-site rewrites for one body as a difference-map
-         (instr-index → new-target). Applied functionally via List.mapi. *)
-      let module IntMap = Map.Make(Int) in
+      (* Collect call-site rewrites keyed by the instruction phrase's physical
+         identity. ConstTrack recurses into Block/Loop/If with a fresh idx,
+         so a positional key (top-level index) would mis-target nested calls.
+         Physical identity (==) uniquely pins the exact AST node. *)
       let collect_rewrites body =
-        let acc = ref IntMap.empty in
-        let on_call lru idx n_params _ instr =
+        let acc = ref [] in  (* (instr phrase, target) pairs *)
+        let on_call lru _idx n_params _ instr =
           match instr.it with
           | Call k ->
             (match Int32Map.find_opt k.it zero_fwds,
@@ -1161,7 +1162,7 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
                 terminal callee unchanged after elision and could diverge if
                 it inspects $clos. *)
              | Some target, Some (ConstTrack.I32 0l | ConstTrack.I64 0L) ->
-               acc := IntMap.add idx target !acc
+               acc := (instr, target) :: !acc
              | _ -> ())
           | _ -> ()
         in
@@ -1169,19 +1170,32 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
           ~func_type ~type_section ~on_call (ConstTrack.empty 8) body);
         !acc
       in
-      let apply_rewrites body diff =
-        if IntMap.is_empty diff then body
-        else
-          List.mapi (fun i instr ->
-            match IntMap.find_opt i diff, instr.it with
-            | Some target, Call k -> { instr with it = Call { k with it = target } }
-            | _ -> instr
-          ) body
+      (* Recursively rewrite matching call instructions, descending into
+         Block/Loop/If bodies to reach nested calls. *)
+      let rec rewrite_instr rewrites instr =
+        match List.find_opt (fun (i, _) -> i == instr) rewrites with
+        | Some (_, target) ->
+          (match instr.it with
+           | Call k -> { instr with it = Call { k with it = target } }
+           | _ -> instr)
+        | None ->
+          match instr.it with
+          | Block (bt, is) ->
+            { instr with it = Block (bt, List.map (rewrite_instr rewrites) is) }
+          | Loop (bt, is) ->
+            { instr with it = Loop (bt, List.map (rewrite_instr rewrites) is) }
+          | If (bt, is1, is2) ->
+            { instr with it = If (bt,
+                List.map (rewrite_instr rewrites) is1,
+                List.map (rewrite_instr rewrites) is2) }
+          | _ -> instr
       in
       let rewrite_func f =
-        let diff = collect_rewrites f.it.body in
-        if IntMap.is_empty diff then f
-        else { f with it = { f.it with body = apply_rewrites f.it.body diff } }
+        match collect_rewrites f.it.body with
+        | [] -> f
+        | rewrites ->
+          { f with it = { f.it with
+              body = List.map (rewrite_instr rewrites) f.it.body } }
       in
       { em1 with module_ = { em1.module_ with
           funcs = List.map rewrite_func em1.module_.funcs } }
