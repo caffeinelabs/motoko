@@ -72,7 +72,7 @@ let
   basePerf = baseFlake.checks.${system}.perf;
   prPerf = prFlake.checks.${system}.perf;
 in
-pkgs.runCommandNoCC "perf-delta"
+pkgs.runCommand "perf-delta"
 {
   nativeBuildInputs = [ pkgs.coreutils diff-stats ];
 } ''

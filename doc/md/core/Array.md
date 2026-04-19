@@ -696,6 +696,24 @@ assert Array.prevIndexOf<Char>(array, Char.equal, 'e', 4) == null;
 Runtime: O(array.size());
 Space: O(1);
 
+## Function `contains`
+``` motoko no-repl
+func contains<T>(self : [T], equal : (implicit : (T, T) -> Bool), element : T) : Bool
+```
+
+Returns true if the `array` contains `element` using the provided `equal` function.
+
+```motoko include=import
+import Char "mo:core/Char";
+let array = ['c', 'o', 'f', 'f', 'e', 'e'];
+assert Array.contains<Char>(array, Char.equal, 'f');
+assert not Array.contains<Char>(array, Char.equal, 'g');
+```
+
+Runtime: O(array.size())
+
+Space: O(1)
+
 ## Function `range`
 ``` motoko no-repl
 func range<T>(self : [T], fromInclusive : Int, toExclusive : Int) : Types.Iter<T>

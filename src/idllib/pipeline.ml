@@ -1,4 +1,5 @@
 open Printf
+open Source
 
 (* Diagnostics *)
 
@@ -32,7 +33,7 @@ let parse_with lexer parser name =
     let prog = parser Lexer.token lexer name in
     Ok prog
   with
-    | Source.ParseError (at, msg) ->
+    | ParseError (at, msg) ->
       error at "syntax" msg
     | Parser.Error ->
       error (Lexer.region lexer) "syntax" "unexpected token"
@@ -61,13 +62,13 @@ let parse_string s : parse_result =
 let parse_file filename : parse_result =
   try parse_file filename
   with Sys_error s ->
-    error Source.no_region "file" (sprintf "cannot open \"%s\"" filename)
+    error no_region "file" (sprintf "cannot open \"%s\"" filename)
 
 (* Type checking *)
 
 let check_prog senv prog
   : (Typing.scope * Syntax.typ option) Diag.result =
-  phase "Checking" prog.Source.note.Syntax.filename;
+  phase "Checking" prog.note.Syntax.filename;
   let r = Typing.check_prog senv prog in
   (match r with
    | Ok ((scope, _), _) ->
@@ -88,7 +89,7 @@ let merge_env imports init_env lib_env =
         if v1 = v2 then Some v1 else raise (Typing.Env.Clash k)
       ) env1 env2)
     with Typing.Env.Clash k ->
-      error Source.no_region "import" (sprintf "conflict type definition for %s" k) in
+      error no_region "import" (sprintf "conflict type definition for %s" k) in
   let env_list = List.map (fun import -> LibEnv.find import lib_env) imports in
   Diag.fold disjoint_union init_env env_list
 
@@ -98,7 +99,7 @@ let chase_imports senv imports =
   let lib_env = ref LibEnv.empty in
   let rec go file =
     if S.mem file !pending then
-      error Source.no_region "import" (sprintf "file %s must not depend on itself" file)
+      error no_region "import" (sprintf "file %s must not depend on itself" file)
     else if LibEnv.mem file !lib_env then
       Diag.return ()
     else begin
@@ -176,7 +177,7 @@ let parse_values s =
   try
     Diag.return (Parser.parse_args Lexer.token lexer)
   with
-    | Source.ParseError (at, msg) ->
+    | ParseError (at, msg) ->
       error at "syntax" msg
     | Parser.Error ->
       error (Lexer.region lexer) "syntax" "unexpected token"

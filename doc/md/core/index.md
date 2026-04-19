@@ -1,6 +1,7 @@
 # Motoko core package
 
 * [Array](Array.md) Provides extended utility functions on immutable Arrays (values of type `[T]`).
+* [Base64](Base64.md) Module for Base64 encoding of byte sequences.
 * [Blob](Blob.md) Module for working with Blobs (immutable sequences of bytes).
 * [Bool](Bool.md) Boolean type and operations.
 * [CertifiedData](CertifiedData.md) Certified data.
@@ -9,6 +10,7 @@
 * [Debug](Debug.md) Utility functions for debugging.
 * [Error](Error.md) Error values and inspection.
 * [Float](Float.md) Double precision (64-bit) floating-point numbers in IEEE 754 representation.
+* [Float32](Float32.md) Single precision (32-bit) floating-point numbers in IEEE 754 representation.
 * [Func](Func.md) Functions on functions, creating functions from simpler inputs.
 * [Int](Int.md) Signed integer numbers with infinite precision (also called big integers).
 * [Int16](Int16.md) Utility functions on 16-bit signed integers.

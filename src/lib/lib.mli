@@ -203,6 +203,8 @@ sig
   val is_valid : string -> bool
   val decode : string -> t (* raises Utf8 *)
   val encode : t -> string (* raises Utf8 *)
+
+  val string_of_string : char -> t -> char -> string
 end
 
 module FilePath :

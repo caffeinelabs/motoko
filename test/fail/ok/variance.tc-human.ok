@@ -1,12 +1,12 @@
 error[M0096]: expression of type
-  {get : () -> ?None}
+  Co<None> = {get : () -> ?None}
 cannot produce expected type
   ()
     ┌─ variance.mo:17:3
  17 │    co; // reject, so we can see the type
     │    ^^ 
 error[M0096]: expression of type
-  {put : (i : Any) -> ()}
+  Contra<Any> = {put : (i : Any) -> ()}
 cannot produce expected type
   ()
     ┌─ variance.mo:32:3
@@ -20,7 +20,7 @@ does not match parameter bound
  44 │    ignore bound : Bound<Any>; // reject
     │                         ^^^ 
 error[M0096]: expression of type
-  {put : (i : Nat) -> ()}
+  Bound<Nat> = {put : (i : Nat) -> ()}
 cannot produce expected type
   {put : (i : Any) -> ()}
 because the type 
@@ -32,35 +32,35 @@ because the type
  44 │    ignore bound : Bound<Any>; // reject
     │           ^^^^^ 
 error[M0096]: expression of type
-  {put : (i : Nat) -> ()}
+  Bound<Nat> = {put : (i : Nat) -> ()}
 cannot produce expected type
   ()
     ┌─ variance.mo:48:3
  48 │    bound; // reject, so we can see the type
     │    ^^^^^ 
 error[M0096]: expression of type
-  {get : () -> ?Any; put : (i : Any) -> ()}
+  Non<None> = {get : () -> ?Any; put : (i : Any) -> ()}
 cannot produce expected type
   ()
     ┌─ variance.mo:64:3
  64 │    non; // reject, so we can see the type
     │    ^^^ 
 error[M0096]: expression of type
-  {get : () -> ?Nat; put : (i : Nat) -> ()}
+  Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   ()
     ┌─ variance.mo:80:3
  80 │    invNat1; // reject, so we can see the type
     │    ^^^^^^^ 
 error[M0096]: expression of type
-  {get : () -> ?Nat; put : (i : Nat) -> ()}
+  Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   ()
     ┌─ variance.mo:81:3
  81 │    invNat2; // reject, so we can see the type
     │    ^^^^^^^ 
 error[M0096]: expression of type
-  {get : () -> ?Nat; put : (i : Nat) -> ()}
+  Inv<Nat> = {get : () -> ?Nat; put : (i : Nat) -> ()}
 cannot produce expected type
   {get : () -> ?Any; put : (i : Any) -> ()}
 because the type 

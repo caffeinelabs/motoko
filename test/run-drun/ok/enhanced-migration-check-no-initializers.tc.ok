@@ -1,0 +1,2 @@
+enhanced-migration-check-no-initializers.mo:6.9-6.19: type error [M0250], with --enhanced-migration, this stable declaration cannot have an initializer.
+ Remove the expression and initialize the declaration using a `migration` function.

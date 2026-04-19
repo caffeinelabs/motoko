@@ -1,5 +1,6 @@
 open Mo_def
 open Ic
+open Source
 module Traversals = Mo_frontend.Traversals
 
 (*
@@ -16,9 +17,10 @@ It returns a list of all imported file names.
 
 type filepath = string
 type url = string
+type envvar = string
 type blob = string
 
-type resolved_imports = Syntax.resolved_import Source.phrase list
+type resolved_imports = Syntax.resolved_import phrase list
 
 (* This returns a map from Syntax.resolved_import
    to the location of the first import of that library
@@ -147,11 +149,11 @@ let add_lib_import msgs imported ri_ref at lib_path =
   | Error err ->
     Diag.add_msg msgs err
 
-let add_idl_import msgs imported ri_ref at full_path bytes =
+let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
   if Sys.file_exists full_path
   then begin
-    ri_ref := IDLPath (full_path, bytes);
-    imported := RIM.add (IDLPath (full_path, bytes)) at !imported
+    ri_ref := IDLPath (full_path, envvar_or_bytes);
+    imported := RIM.add !ri_ref at !imported
   end else
     err_file_does_not_exist msgs at full_path
 
@@ -187,7 +189,11 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     | None -> err_actor_import_without_idl_path msgs at
     | Some actor_base ->
       let full_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
-      add_idl_import msgs imported ri_ref at full_path bytes
+      add_idl_import msgs imported ri_ref at full_path (Either.Right bytes)
+  in
+  let resolve_env (envvar, did_path) =
+    let full_path = Lib.FilePath.normalise did_path in
+    add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
@@ -208,7 +214,10 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
      resolve_ic bytes
   | Ok (Url.IcAlias alias) ->
     begin match M.find_opt alias aliases with
-    | Some bytes -> resolve_ic bytes
+    | Some (Either.Right (bytes, None)) -> resolve_ic bytes
+    | Some (Either.Right (bytes, Some did_path)) ->
+      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Either.Right bytes)
+    | Some (Either.Left (envvar, did_path)) -> resolve_env (envvar, did_path)
     | None -> err_alias_not_defined msgs at alias
     end
   | Ok (Url.FileValue path) ->
@@ -226,15 +235,36 @@ let resolve_package_url (msgs:Diag.msg_store) (pname:string) (f:url) : filepath 
   then f
   else (err_package_file_does_not_exist msgs f pname;"")
 
-(* Resolve the argument to --actor-alias. Check eagerly for well-formedness *)
-let resolve_alias_principal (msgs:Diag.msg_store) (alias:string) (f:string) : blob =
-  match Url.decode_principal f with
-  | Ok bytes ->
-     if String.length bytes > 29 then
-       (err_unrecognized_alias msgs alias f "Principal too long"; "")
-     else bytes
-  | Error msg -> err_unrecognized_alias msgs alias f msg; ""
+(* Get the migration files, filter by .mo extension and sort lexicographically. *)
+let get_migration_files dir : string list Diag.result =
+  if not (Sys.file_exists dir && Sys.is_directory dir) then
+    Diag.error no_region "M0256" "import"
+      (Printf.sprintf "enhanced migration path '%s' is not a directory" dir)
+  else
+    Sys.readdir dir
+    |> Array.to_list
+    |> List.sort String.compare
+    |> List.filter (fun fname -> Filename.check_suffix fname ".mo")
+    |> List.map (Filename.concat dir)
+    |> Diag.return
 
+(* Resolve the argument to `--actor-alias` and `--actor-env/id-alias`. Check eagerly for well-formedness *)
+let resolve_alias_principal (msgs : Diag.msg_store) (alias : string) (f : (envvar * filepath, url * filepath option) Either.t) : (envvar * filepath, blob * filepath option) Either.t =
+  let open Either in match f with
+  | Left (v, p) ->
+    Left (if Lib.Utf8.is_valid v then (v, p) else
+      let open Diag in
+      (add_msg msgs
+        (error_message no_region "M0007" "actor-alias"
+          (Printf.sprintf "invalid UTF-8 in environment variable name for actor alias \"%s\"" alias));
+      (v, p)))
+  | Right (f, fp_opt) ->
+    Right ((match Url.decode_principal f with
+    | Ok bytes ->
+       if String.length bytes > 29 then
+         (err_unrecognized_alias msgs alias f "Principal too long"; "")
+       else bytes
+    | Error msg -> err_unrecognized_alias msgs alias f msg; ""), fp_opt)
 
 let prog_imports (p : prog): (url * resolved_import ref * region) list =
   let res = ref [] in
@@ -246,8 +276,8 @@ let prog_imports (p : prog): (url * resolved_import ref * region) list =
 
 type actor_idl_path = filepath option
 type package_urls = url M.t
-type actor_aliases = url M.t
-type aliases = blob M.t
+type actor_aliases = (envvar * filepath, url * filepath option) Either.t M.t
+type aliases = (envvar * filepath, blob * filepath option) Either.t M.t
 
 
 let resolve_packages : package_urls -> package_map Diag.result = fun purls ->
@@ -261,6 +291,7 @@ type flags = {
   actor_aliases : actor_aliases;
   actor_idl_path : actor_idl_path;
   include_all_libs : bool;
+  enhanced_migration : string option
   }
 
 type resolved_flags = {
@@ -268,7 +299,6 @@ type resolved_flags = {
   aliases : aliases;
   actor_idl_path : actor_idl_path;
   }
-
 
 let list_files_recursively : string -> string list =
  fun dir ->
@@ -311,6 +341,14 @@ let package_imports base packages =
   in
   List.concat imports
 
+let enhanced_migration_imports flags : resolved_import list Diag.result =
+  match flags.enhanced_migration with
+  | None -> Diag.return []
+  | Some dir ->
+    let open Diag.Syntax in
+    let* migration_files = get_migration_files dir in
+    Diag.return (List.map (fun path -> LibPath {package = None; path = path}) migration_files)
+
 let resolve_flags : flags -> resolved_flags Diag.result
   = fun { actor_idl_path; package_urls; actor_aliases; _ } ->
   let open Diag.Syntax in
@@ -323,18 +361,21 @@ let resolve
   = fun flags p base ->
   let open Diag.Syntax in
   let* { packages; aliases; actor_idl_path } = resolve_flags flags in
+  let* migration_imports = enhanced_migration_imports flags in
   Diag.with_message_store (fun msgs ->
     let base = if Sys.is_directory base then base else Filename.dirname base in
     let imported =
       ref (if flags.include_all_libs
            then (* outside any package, add all available package libraries *)
-             (List.fold_right (fun ri rim -> RIM.add ri Source.no_region rim)
+             (List.fold_right (fun ri rim -> RIM.add ri no_region rim)
                (package_imports base packages) RIM.empty)
            else
              (* consider only the explicitly imported package libraries *)
              RIM.empty)
-
     in
+    (* add any implicit imports for migrations *)
+    imported := (List.fold_right (fun ri rim -> RIM.add ri no_region rim)
+                   migration_imports !imported);
     List.iter (resolve_import_string msgs base actor_idl_path aliases packages imported)(prog_imports p);
     Some (List.map (fun (rim, at) -> rim @@ at) (RIM.bindings !imported))
   )

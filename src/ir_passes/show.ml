@@ -2,7 +2,6 @@ open Ir_def
 open Mo_types
 open Mo_values
 (* Translates away calls to `show`. *)
-open Source
 open Ir
 module T = Type
 open Construct
@@ -139,6 +138,9 @@ let show_for : T.typ -> Ir.dec * T.typ list = fun t ->
     []
   | T.(Prim Float) ->
     define_show t (invoke_prelude_show "@text_of_Float" t (argE t)),
+    []
+  | T.(Prim Float32) ->
+    define_show t (invoke_prelude_show "@text_of_Float32" t (argE t)),
     []
   | T.(Prim Text) ->
     define_show t (invoke_prelude_show "@text_of_Text" t (argE t)),

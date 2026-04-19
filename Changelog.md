@@ -1,8 +1,67 @@
 # Motoko compiler changelog
 
+## Unreleased
+
 * motoko (`moc`)
 
+  * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files.
+
+## 1.5.1 (2026-04-13)
+
+* motoko (`moc`)
+
+  * bugfix: Resolve relative paths in `moc.js` flags (e.g. `--enhanced-migration`, `--actor-idl`) against the source file's directory, fixing "not a directory" errors when these flags are passed with relative paths via the language server (#6002).
+
+## 1.5.0 (2026-04-10)
+
+* motoko (`moc`)
+
+  * feat: Add `--generate-view-queries` flag to auto-generate query methods for stable variables (#5796).
+    When enabled, `moc` produces one `__<var>` query method per stable variable `<var>`, using the variable's `.view()` method if available, or returning the value directly for shared types.
+    Generated queries are restricted to controllers and self.
+    View queries appear in the local `.did` file (for tooling) but are excluded from the canister's public Candid interface, so they never affect upgrade compatibility.
+    See [Stable variable inspection](doc/md/icp-features/7-view-queries.md) for details.
+
+  * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
+    Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
+    Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
+    The (lexicographic) sort order of module filenames determines the order of application of migration functions, with lowest applied first.
+    The compiler verifies that the chain of migration functions composes correctly.
+    The runtime only applies previously unapplied migrations on upgrade.
+    Stable variables within an actor's body must be declared with types but without initializers;
+    their values are determined entirely by the output of the migration chain.
+    The main body of actor must not have any immediate side effects, beyond invoking
+    local `<system>` functions (e.g. to register timers).
+    General side-effects are allowed in migration functions, to enable data initialization
+    and transformation.
+    See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
+
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
+  * bugfix: Fix type inference for `return` expressions inside unannotated lambdas passed to generic functions. Previously, the generic type parameter could resolve to `Non` instead of the actual return type, causing an IR type error (#5962).
+
+  * bugfix: Fix crash when reporting errors with no source region (#5976).
+
+* documentation (`mo-doc`)
+
+  * feat: doc comments on individual record fields and variant tags inside a `type` declaration are now extracted and rendered (#5983).
+
+## 1.4.1 (2026-03-30)
+
+* motoko (`moc`)
+
+  * feat: Preserve named types in variable pattern bindings, so error messages show e.g. `Map.Map<Text, Text>` instead of expanding the full structural type (#5940).
+  * bugfix: implement `Float32` `ModOp` (`%`) — Wasm has no `f32.rem` instruction; the fix promotes operands to `f64`, applies `fmod`, then demotes the result back to `f32` (#5950).
+
+## 1.4.0 (2026-03-27)
+
+* motoko (`moc`)
+
+  * feat: added `--actor-env-alias` to facilitate (installation-time) late binding of canister aliases via environment variables (#5890).
+  * feat: added `--actor-id-alias` as a variant of `--actor-alias` that accepts an explicit IDL file path as a third argument, bypassing the `--actor-idl` search path (#5890).
   * feat: provide a polymorphic `actorOfPrincipal` primitive (#5882).
+  * feat: add `Float32` primitive type with conversions to/from `Float`, Candid serialisation, and literal ascription (e.g. `(3.14 : Float32)`). This is experimental and subject to change (#5906).
+  * feat: prettier unknown identifier suggestions and pattern type mismatch errors (#5875, #5881).
   * bugfix: Show the "Hint: Add explicit type instantiation" hint for calls with implicit arguments whose type parameters are invariant and underconstrained. Previously, implicit arguments caused unnecessary deferral of type variable solving, which suppressed the hint (#5886).
 
 ## 1.3.0 (2026-02-24)

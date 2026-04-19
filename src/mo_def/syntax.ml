@@ -2,6 +2,7 @@ open Mo_types
 open Mo_values
 
 open Operator
+open Source
 
 
 (* Notes *)
@@ -16,30 +17,33 @@ type lib_path = {package : string option; path : string}
 type resolved_import =
   | Unresolved
   | LibPath of lib_path
-  | IDLPath of (string * string) (* filepath * bytes *)
+  | IDLPath of (string * (string, string) Either.t) (* filepath * envvar/bytes *)
   | ImportedValuePath of string
   | PrimPath (* the built-in prim module *)
 
 (* Identifiers *)
 
-type id = string Source.phrase
+type id = string phrase
 (* type id_ref, see below *)
-type typ_id = (string, Type.con option) Source.annotated_phrase
+type typ_id = (string, Type.con option) annotated_phrase
 
 
 (* Types *)
 
-type 'note sort = (Type.obj_sort, 'note) Source.annotated_phrase
+type 'note sort = (Type.obj_sort, 'note) annotated_phrase
 type typ_obj_sort = unit sort
-type persistence = bool Source.phrase
-type obj_sort = persistence sort
-type func_sort = Type.func_sort Source.phrase
 
-type mut = mut' Source.phrase
+type migration_chain = (string * Type.typ * Type.typ) list
+type persistence = (bool, migration_chain) annotated_phrase
+
+type obj_sort = persistence sort
+type func_sort = Type.func_sort phrase
+
+type mut = mut' phrase
 and mut' = Const | Var
 
-and typ_path = (path', Type.con option) Source.annotated_phrase
-and path = (path', Type.typ) Source.annotated_phrase
+and typ_path = (path', Type.con option) annotated_phrase
+and path = (path', Type.typ) annotated_phrase
 and path' =
   | IdH  of id
   | DotH of path * id
@@ -47,7 +51,7 @@ and path' =
 and async_sort = Type.async_sort
 and await_sort = Type.await_sort
 
-type typ = (typ', Type.typ) Source.annotated_phrase
+type typ = (typ', Type.typ) annotated_phrase
 and typ' =
   | PathT of typ_path * typ list                   (* type path *)
   | PrimT of string                                (* primitive *)
@@ -65,16 +69,16 @@ and typ' =
   | WeakT of typ                                   (* weak reference *)
 
 and scope = typ
-and typ_field = typ_field' Source.phrase
+and typ_field = typ_field' phrase
 and typ_field' =
   | ValF of id * typ * mut
   | TypF of typ_id * typ_bind list * typ
 
-and typ_tag = typ_tag' Source.phrase
+and typ_tag = typ_tag' phrase
 and typ_tag' = {tag : id; typ : typ}
 
-and bind_sort = Type.bind_sort Source.phrase
-and typ_bind = (typ_bind', Type.con option) Source.annotated_phrase
+and bind_sort = Type.bind_sort phrase
+and typ_bind = (typ_bind', Type.con option) annotated_phrase
 and typ_bind' = {var : id; sort : bind_sort; bound : typ;}
 
 and typ_item = id option * typ
@@ -96,6 +100,7 @@ type lit =
   | Int32Lit of Numerics.Int_32.t
   | Int64Lit of Numerics.Int_64.t
   | FloatLit of Numerics.Float.t
+  | Float32Lit of Numerics.Float32.t
   | CharLit of Value.unicode
   | TextLit of string
   | BlobLit of string
@@ -104,7 +109,7 @@ type lit =
 
 (* Patterns *)
 
-type pat = (pat', Type.typ) Source.annotated_phrase
+type pat = (pat', Type.typ) annotated_phrase
 and pat' =
   | WildP                                      (* wildcard *)
   | VarP of id                                 (* variable *)
@@ -121,38 +126,36 @@ and pat' =
   | AsP of pat * pat                           (* conjunctive *)
 *)
 
-and pat_field = pat_field' Source.phrase
+and pat_field = pat_field' phrase
 and pat_field' =
   | ValPF of id * pat
   | TypPF of typ_id
 
-let pf_id pf = match pf.Source.it with
+let pf_id pf = match pf.it with
   | ValPF(id, _) -> id
-  | TypPF(id) -> Source.{ it = id.it; at = id.at; note = () }
+  | TypPF(id) -> { it = id.it; at = id.at; note = () }
 
-let pf_pattern pf = match pf.Source.it with
+let pf_pattern pf = match pf.it with
   | ValPF(_, pat) -> Some pat
   | TypPF(_) -> None
 
 (* Expressions *)
 
-type vis = vis' Source.phrase
+type vis = vis' phrase
 and vis' =
   | Public of string option
   | Private
   | System
 
-let is_public vis = match vis.Source.it with Public _ -> true | _ -> false
-let is_private vis = match vis.Source.it with Private -> true | _ -> false
+let is_public vis = match vis.it with Public _ -> true | _ -> false
+let is_private vis = match vis.it with Private -> true | _ -> false
 
-type stab = stab' Source.phrase
-and stab' = Stable | Flexible
 
 type op_typ = Type.typ ref (* For overloaded resolution; initially Type.Pre. *)
 
-type inst = ((bool * typ list) option, Type.typ list) Source.annotated_phrase (* For implicit scope instantiation *)
+type inst = ((bool * typ list) option, Type.typ list) annotated_phrase (* For implicit scope instantiation *)
 
-type sort_pat = (Type.shared_sort * pat) Type.shared Source.phrase
+type sort_pat = (Type.shared_sort * pat) Type.shared phrase
 
 type sugar = bool (* Is the source of a function body a block `<block>`,
                      subject to further desugaring during parse,
@@ -176,14 +179,23 @@ let break_label kind (id_opt : id option) =
   match kind, id_opt with
   | Break, None -> auto_s
   | Continue, None -> auto_continue_s
-  | _, Some {Source.it; _} -> it
+  | _, Some {it; _} -> it
 
 
-type id_ref = (string, mut' * exp option) Source.annotated_phrase
-and hole_sort = Named of string | Anon of int
-and exp = (exp', typ_note) Source.annotated_phrase
+type id_ref = (string, mut' * exp option) annotated_phrase
+
+and viewer_body = DotViewV of exp | DefaultV of exp
+and viewer = {
+    viewer_body : viewer_body;
+    viewer_field : Type.field
+  }
+
+and stab = stab' phrase
+and stab' = Stable of viewer option ref | Flexible
+
+and exp = (exp', typ_note) annotated_phrase
 and exp' =
-  | HoleE of hole_sort * exp ref
+  | HoleE of string * exp ref
   | PrimE of string                            (* primitive *)
   | VarE of id_ref                             (* variable *)
   | LitE of lit ref                            (* literal *)
@@ -238,13 +250,13 @@ and arg_exp = (bool * (exp ref))
 and assert_kind =
   | Runtime
 
-and dec_field = dec_field' Source.phrase
+and dec_field = dec_field' phrase
 and dec_field' = {dec : dec; vis : vis; stab: stab option}
 
-and exp_field = exp_field' Source.phrase
+and exp_field = exp_field' phrase
 and exp_field' = {mut : mut; id : id; exp : exp}
 
-and case = case' Source.phrase
+and case = case' phrase
 and case' = {pat : pat; exp : exp}
 
 (* When `Some`, this holds the expression that produces the function to apply to the receiver.
@@ -253,7 +265,7 @@ and contextual_dot_note = exp option ref
 
 (* Declarations *)
 
-and dec = (dec', typ_note) Source.annotated_phrase
+and dec = (dec', typ_note) annotated_phrase
 and dec' =
   | ExpD of exp                                (* plain unit expression *)
   | LetD of pat * exp * exp option             (* immutable, with an optional fail block *)
@@ -266,28 +278,29 @@ and dec' =
 and include_note' = { imports : import list; pat : pat; decs : dec_field list }
 and include_note = include_note' option ref
 
-and import = (import', Type.typ) Source.annotated_phrase
+and import = (import', Type.typ) annotated_phrase
 and import' = pat * string * resolved_import ref
 
 (* Program (pre unit detection) *)
 
 type prog_note = { filename : string; trivia : Trivia.triv_table }
-type prog = (prog', prog_note) Source.annotated_phrase
+type prog = (prog', prog_note) annotated_phrase
 and prog' = dec list
 
 (* Signatures (stable variables) *)
 
-type stab_sig = (stab_sig', prog_note) Source.annotated_phrase
+type stab_sig = (stab_sig', prog_note) annotated_phrase
 and stab_sig' = (dec list * stab_body)      (* type declarations & stable actor fields *)
-and stab_body = stab_body' Source.phrase    (* type declarations & stable actor fields *)
+and stab_body = stab_body' phrase    (* type declarations & stable actor fields *)
 and stab_body' =
   | Single of typ_field list
   | PrePost of (req * typ_field) list * typ_field list
-and req = bool Source.phrase
+  | Multi of {chain : typ_tag list; post : typ_field list}
+and req = bool phrase
 
 (* Compilation units *)
 
-type comp_unit_body = (comp_unit_body', typ_note) Source.annotated_phrase
+type comp_unit_body = (comp_unit_body', typ_note) annotated_phrase
 and comp_unit_body' =
  | ProgU of dec list                         (* main programs *)
  | ActorU of persistence * exp option * id option * dec_field list      (* main IC actor *)
@@ -296,7 +309,7 @@ and comp_unit_body' =
      persistence * exp option * sort_pat * typ_id * typ_bind list * pat * typ option * id * dec_field list
  | MixinU of pat * dec_field list            (* Mixins *)
 
-type comp_unit = (comp_unit', prog_note) Source.annotated_phrase
+type comp_unit = (comp_unit', prog_note) annotated_phrase
 and comp_unit' = {
   imports : import list;
   body : comp_unit_body;
@@ -307,11 +320,11 @@ type lib = comp_unit
 
 (* Helpers *)
 
-let (@@) = Source.(@@)
-let (@~) it at = Source.annotate (Const, None) it at
-let (@?) it at = Source.annotate empty_typ_note it at
-let (@!) it at = Source.annotate Type.Pre it at
-let (@=) it at = Source.annotate None it at
+let (@@) = (@@)
+let (@~) it at = annotate (Const, None) it at
+let (@?) it at = annotate empty_typ_note it at
+let (@!) it at = annotate Type.Pre it at
+let (@=) it at = annotate None it at
 
 (* NB: This function is currently unused *)
 let string_of_lit = function
@@ -332,6 +345,7 @@ let string_of_lit = function
   | TextLit t     -> t
   | BlobLit b     -> b
   | FloatLit f    -> Numerics.Float.to_pretty_string f
+  | Float32Lit f  -> Numerics.Float32.to_pretty_string f
   | PreLit _      -> assert false
 
 (** Used for debugging *)
@@ -365,7 +379,7 @@ let is_scope name =
 (* Types & Scopes *)
 
 let arity t =
-  match t.Source.it with
+  match t.it with
   | TupT ts -> List.length ts
   | _ -> 1
 

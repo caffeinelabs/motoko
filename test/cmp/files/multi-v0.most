@@ -1,0 +1,76 @@
+// Version: 4.0.0
+type BookId__638376719 = Nat;
+type BookStatus__677834097 = {#available; #lent};
+type Book__1028650291 =
+  {
+    var author : Text;
+    id : BookId__638376719;
+    isbn : Text;
+    var status : BookStatus__677834097;
+    var title : Text
+  };
+type Counters__1041320162 = {var nextBookId : Nat; var nextLoanId : Nat};
+type Data__364021461<K, V> =
+  {var count : Nat__744096560; kvs : [var ?(K, V)]};
+type Data__562843832<T> = {var count : Nat__744096560; elements : [var ?T]};
+type Internal__711339771<K, V> =
+  {children : [var ?Node__794705536<K, V>]; data : Data__364021461<K, V>};
+type Internal__77339460<T> =
+  {children : [var ?Node__791649855<T>]; data : Data__562843832<T>};
+type Leaf__256396307<K, V> = {data : Data__364021461<K, V>};
+type Leaf__867457357<T> = {data : Data__562843832<T>};
+type List__438045208<T> = List__98861597<T>;
+type List__98861597<T> =
+  {
+    var blockIndex : Nat__744096560;
+    var blocks : [var [var ?T]];
+    var elementIndex : Nat__744096560
+  };
+type LoanId__667664479 = Nat;
+type Loan__708682671 =
+  {
+    bookId : BookId__638376719;
+    borrower : Principal;
+    id : LoanId__667664479;
+    lentAt : Int;
+    var returnedAt : ?Int
+  };
+type Map__829258118<K, V> = Map__896994111<K, V>;
+type Map__896994111<K, V> = Map__931027618<K, V>;
+type Map__931027618<K, V> =
+  {var root : Node__794705536<K, V>; var size : Nat__744096560};
+type Nat__744096560 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__791649855<T> =
+  {#internal : Internal__77339460<T>; #leaf : Leaf__867457357<T>};
+type Node__794705536<K, V> =
+  {#internal : Internal__711339771<K, V>; #leaf : Leaf__256396307<K, V>};
+type Set__550133401<T> =
+  {var root : Node__791649855<T>; var size : Nat__744096560};
+type Set__747087771<T> = Set__550133401<T>;
+{
+  "20260224_000000_Init" :
+    {} ->
+      {
+        books : Map__829258118<Nat, Book__1028650291>;
+        counters : Counters__1041320162;
+        librarians : Set__747087771<Principal>;
+        loans : List__438045208<Loan__708682671>
+      }
+}
+actor  {
+  stable books :
+    {
+      var root : Node__794705536<Nat, Book__1028650291>;
+      var size : Nat__744096560
+    };
+  stable counters : {var nextBookId : Nat; var nextLoanId : Nat};
+  stable librarians :
+    {var root : Node__791649855<Principal>; var size : Nat__744096560};
+  stable loans :
+    {
+      var blockIndex : Nat__744096560;
+      var blocks : [var [var ?Loan__708682671]];
+      var elementIndex : Nat__744096560
+    }
+};

@@ -1,11 +1,10 @@
-
-(* WIP translation of syntaxops to use IR in place of Source *)
-open Source
 open Ir
 open Ir_effect
 open Mo_values
 module Cons = Mo_types.Cons
 module T = Mo_types.Type
+
+let (@@) = Source.(@@)
 
 (* Field names *)
 
@@ -44,10 +43,7 @@ let fresh_vars name_base ts =
 
 (* type arguments *)
 
-let typ_arg c sort typ =
-  { it = { Ir.con = c; Ir.sort = sort; Ir.bound = typ };
-    at = no_region;
-    note = () }
+let typ_arg con sort typ = { con; sort; bound = typ } @@ no_region
 
 (* Patterns *)
 
@@ -92,6 +88,7 @@ let primE prim es =
     | ICCallerPrim -> T.caller
     | ICStableWrite _ -> T.unit
     | ICStableRead t -> t
+    | ICStableStore _ -> T.unit
     | ICMethodNamePrim -> T.text
     | ICPerformGC
     | ICStableSize _ -> T.nat64
@@ -137,6 +134,8 @@ let primE prim es =
     | OtherPrim "weak_ref_is_live" -> T.bool
     | OtherPrim "env_var_names" ->  T.Array T.text
     | OtherPrim "env_var" -> T.text
+    | OtherPrim "set_migrations" -> T.unit
+    | OtherPrim "get_migrations" -> T.text_list
     | _ -> assert false (* implement more as needed *)
   in
   let eff = map_max_effs eff es in
@@ -365,16 +364,16 @@ let ifE exp1 exp2 exp3 =
 
 let falseE () = boolE false
 let trueE () = boolE true
-let notE : Ir.exp -> Ir.exp = fun e ->
+let notE : exp -> exp = fun e ->
   primE (RelPrim (T.bool, Operator.EqOp)) [e; falseE ()]
 
-let andE : Ir.exp -> Ir.exp -> Ir.exp = fun e1 e2 ->
+let andE : exp -> exp -> exp = fun e1 e2 ->
   ifE e1 e2 (falseE ())
-let orE : Ir.exp -> Ir.exp -> Ir.exp = fun e1 e2 ->
+let orE : exp -> exp -> exp = fun e1 e2 ->
   ifE e1 (trueE ()) e2
-let impliesE : Ir.exp -> Ir.exp -> Ir.exp = fun e1 e2 ->
+let impliesE : exp -> exp -> exp = fun e1 e2 ->
   orE (notE e1) e2
-let oldE : Ir.exp -> Ir.exp = fun e ->
+let oldE : exp -> exp = fun e ->
   { it = (primE (CallPrim [typ e]) [e]).it;
     at = no_region;
     note = Note.{ def with
@@ -382,7 +381,7 @@ let oldE : Ir.exp -> Ir.exp = fun e ->
     }
   }
 
-let rec conjE : Ir.exp list -> Ir.exp = function
+let rec conjE : exp list -> exp = function
   | [] -> trueE ()
   | [x] -> x
   | (x::xs) -> andE x (conjE xs)

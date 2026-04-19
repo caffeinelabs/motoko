@@ -30,13 +30,16 @@ pub struct TestRunnerArgs {
     #[arg(long, requires = "run", default_value = "system")]
     pub subnet_type: SubnetType,
     #[arg(
+        long,
+        short,
         conflicts_with = "run",
-        help = "Allows user to filter and pattern match tests and run them in parallel."
+        help = "Filter tests by name pattern. Pre-fills the picker in interactive mode; selects tests directly in batch mode (-b). Examples: -f lambdas (word match), -f lambda.* (regex), -f /fail (all fail tests)."
     )]
     pub filter: Option<String>,
     #[arg(
         long,
-        help = "Allows user to filter via pattern matching in the contents of the test output file."
+        requires = "filter",
+        help = "Match the filter against test output file contents instead of test names (e.g. -f M0223 --in-file to run all tests whose output contains M0223)."
     )]
     pub in_file: bool,
     #[arg(
@@ -57,6 +60,20 @@ pub struct TestRunnerArgs {
         help = "Test directory to review (e.g. test/fail). Can be repeated. If omitted, all test dirs are scanned."
     )]
     pub dir: Vec<String>,
+    #[arg(
+        short,
+        long,
+        conflicts_with = "run",
+        help = "Accept changed test outputs (update ok/ files)."
+    )]
+    pub accept: bool,
+    #[arg(
+        short,
+        long,
+        conflicts_with_all = ["run", "review", "dir"],
+        help = "Skip the interactive picker and run all matched tests directly."
+    )]
+    pub batch: bool,
 }
 
 /// The program reads stdin where the .drun file contents are piped in.
@@ -69,12 +86,20 @@ fn run_legacy_mode(subnet_type: SubnetType) {
     test_runner::run_cmdline_test(buffer, subnet_type);
 }
 
-/// The program offers the user a list of tests to choose from.
-/// A summary of the results of the tests is then printed out.
-fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do_review: bool) {
-    let test_dirs = ["test/run-drun", "test/run", "test/fail"];
+const TEST_DIRS: [&str; 4] = ["test/run-drun", "test/run", "test/fail", "test/trap"];
 
-    let load_file_contents = |path: &String| {
+fn compile_filter(input: &str) -> Result<Regex, regex::Error> {
+    let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
+    let pattern = if is_regex {
+        input.to_string()
+    } else {
+        format!(r"\b{}\b", regex::escape(input))
+    };
+    Regex::new(&pattern)
+}
+
+fn discover_tests(search_in_file: bool) -> Vec<TestFile> {
+    let load_file_contents = |path: &str| {
         let ok_file_content = if search_in_file {
             let file_path = std::path::Path::new(&path);
             if let (Some(parent), Some(file_name)) = (file_path.parent(), file_path.file_name()) {
@@ -82,16 +107,16 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
                 let mut final_output = String::new();
                 for ext in possible_extensions {
                     let fp = parent.join("ok").join(file_name).with_extension(ext);
-                    let crnt = std::fs::read_to_string(fp).unwrap_or("".to_string());
+                    let crnt = std::fs::read_to_string(fp).unwrap_or_default();
                     final_output.push_str(crnt.as_str());
                     final_output.push_str("\n\n");
                 }
                 final_output
             } else {
-                "".to_string()
+                String::new()
             }
         } else {
-            "".to_string()
+            String::new()
         };
         TestFile {
             path: path.to_string(),
@@ -99,10 +124,10 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
         }
     };
 
-    let mut tests: Vec<TestFile> = Vec::new();
-    for test_dir in test_dirs {
+    let mut tests = Vec::new();
+    for test_dir in TEST_DIRS {
         let local_tests: Vec<TestFile> = WalkDir::new(test_dir)
-            .max_depth(1) // Top-level directory only because that's where our tests are.
+            .max_depth(1)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|f| f.file_type().is_file())
@@ -110,9 +135,14 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
             .filter(|f| f.ends_with(".mo") || f.ends_with(".drun"))
             .map(|s| load_file_contents(&s))
             .collect();
-
         tests.extend(local_tests);
     }
+    tests
+}
+
+fn select_interactive(tests: Vec<TestFile>, args: &TestRunnerArgs) -> Vec<String> {
+    let input_str = args.filter.as_deref().unwrap_or("");
+    let search_in_file = args.in_file;
 
     // Cache regex compilation, otherwise filtering is slow.
     thread_local! {
@@ -125,15 +155,7 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
             let mut cache = cache.borrow_mut();
             if cache.0 != input {
                 cache.0 = input.to_string();
-                // If the user tries to do pattern matching, let them do it.
-                // If not, do strict word checks.
-                let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
-                let pattern = if is_regex {
-                    input.to_string()
-                } else {
-                    format!(r"\b{}\b", regex::escape(input))
-                };
-                cache.1 = Regex::new(&pattern).ok();
+                cache.1 = compile_filter(input).ok();
             }
             // If the user wants to search through file contents, do that.
             let haystack = if search_in_file {
@@ -168,18 +190,8 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
     )
     .with_starting_filter_input(input_str)
     .with_formatter(&|tests| {
-        let first_ten = tests
-            .iter()
-            .take(10)
-            .map(|t| t.value.path.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        if tests.len() > 10 {
-            let others = tests.len() - 10;
-            format!("{first_ten}, ... (+{others} more).")
-        } else {
-            format!("{first_ten}.")
-        }
+        let paths: Vec<&str> = tests.iter().map(|t| t.value.path.as_str()).collect();
+        format_test_list(&paths)
     })
     .with_scorer(&|input, test_file, string_value, _idx| {
         if input.is_empty() {
@@ -188,46 +200,21 @@ fn run_interactive_mode(input_str: &str, search_in_file: bool, just_tc: bool, do
         try_match(input, string_value, test_file)
     })
     .prompt() else {
-        println!("Error selecting tests.");
+        eprintln!("Error selecting tests.");
         std::process::exit(1);
     };
 
-    let pb = ProgressBar::new(selection.len() as u64);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} tests finished ({msg})",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-    );
-    let pb_arc = Arc::new(pb);
+    selection.into_iter().map(|t| t.path).collect()
+}
 
-    let start_time = Instant::now();
-    let test_results: Vec<SingleTestResult> = selection
-        .into_par_iter()
-        .map(|test_path| {
-            let pb_clone: std::sync::Arc<ProgressBar> = Arc::clone(&pb_arc);
-
-            pb_clone.set_message(format!("Running {test_path}"));
-            let result = run_single_test(test_path.path, just_tc);
-
-            pb_clone.inc(1);
-            result
-        })
-        .collect();
-    let duration = start_time.elapsed();
-    pb_arc.finish_and_clear();
-    print_summary(&test_results, duration);
-
-    if do_review {
-        let failed_paths: Vec<String> = test_results
-            .iter()
-            .filter(|t| !t.success)
-            .map(|t| t.test_name.clone())
-            .collect();
-        if !failed_paths.is_empty() {
-            review::run_review_for_tests(&failed_paths);
-        }
+fn format_test_list<S: AsRef<str>>(paths: &[S]) -> String {
+    let first_ten: Vec<&str> = paths.iter().take(10).map(|s| s.as_ref()).collect();
+    let summary = first_ten.join(", ");
+    if paths.len() > 10 {
+        let others = paths.len() - 10;
+        format!("{summary}, ... (+{others} more).")
+    } else {
+        format!("{summary}.")
     }
 }
 
@@ -262,42 +249,120 @@ struct SingleTestResult {
     test_name: String,
 }
 
-fn run_single_test(test_name: String, just_tc: bool) -> SingleTestResult {
-    let test_arg_selector = || {
-        if just_tc {
-            "-t"
-        } else if test_name.contains("/run/") {
-            " "
-        } else if test_name.contains("/run-drun/") {
-            "-d"
-        } else if test_name.contains("/fail/") {
-            "-t"
-        } else {
-            " "
-        }
+fn run_single_test(test_name: String, args: &TestRunnerArgs) -> SingleTestResult {
+    let mode_flag = if args.just_tc {
+        Some('t')
+    } else if test_name.contains("/run-drun/") {
+        Some('d')
+    } else if test_name.contains("/fail/") {
+        Some('t')
+    } else {
+        None
     };
-    let running_test = Command::new("test/run.sh")
-        // If the arg selector outputs empty string (" "), we don't give any args.
-        .args(if test_arg_selector().eq(" ") {
-            None
-        } else {
-            Some(test_arg_selector())
-        })
-        .arg(test_name.clone())
-        .output()
-        .unwrap_or_else(|_| {
-            panic!(
-                "OS-related error. Failed to run test: {:?}.",
-                test_name.as_str()
-            )
-        });
+
+    let flags: Option<String> = match (args.accept, mode_flag) {
+        (true, Some(m)) => Some(format!("-a{m}")),
+        (true, None) => Some("-a".to_string()),
+        (false, Some(m)) => Some(format!("-{m}")),
+        (false, None) => None,
+    };
+
+    let mut cmd = Command::new("test/run.sh");
+    if let Some(f) = &flags {
+        cmd.arg(f);
+    }
+    cmd.arg(&test_name);
+
+    let running_test = cmd.output().unwrap_or_else(|_| {
+        panic!(
+            "OS-related error. Failed to run test: {:?}.",
+            test_name.as_str()
+        )
+    });
 
     SingleTestResult {
-        success: running_test.clone().status.success(),
+        success: running_test.status.success(),
         stdout: String::from_utf8_lossy(&running_test.stdout).to_string(),
         stderr: String::from_utf8_lossy(&running_test.stderr).to_string(),
-        test_name: test_name.clone(),
+        test_name,
     }
+}
+
+/// Run tests in parallel with progress bar, print summary, and optionally review failures.
+fn run_tests(test_paths: Vec<String>, args: &TestRunnerArgs) {
+    let pb = ProgressBar::new(test_paths.len() as u64);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} tests finished ({msg})",
+        )
+        .unwrap()
+        .progress_chars("#>-"),
+    );
+    let pb_arc = Arc::new(pb);
+
+    let start_time = Instant::now();
+    let test_results: Vec<SingleTestResult> = test_paths
+        .into_par_iter()
+        .map(|test_path| {
+            let pb_clone = Arc::clone(&pb_arc);
+            pb_clone.set_message(format!("Running {test_path}"));
+            let result = run_single_test(test_path, args);
+            pb_clone.inc(1);
+            result
+        })
+        .collect();
+    let duration = start_time.elapsed();
+    pb_arc.finish_and_clear();
+    print_summary(&test_results, duration);
+
+    if args.review {
+        let failed_paths: Vec<String> = test_results
+            .iter()
+            .filter(|t| !t.success)
+            .map(|t| t.test_name.clone())
+            .collect();
+        if !failed_paths.is_empty() {
+            review::run_review_for_tests(&failed_paths);
+        }
+    }
+
+    if test_results.iter().any(|t| !t.success) {
+        std::process::exit(1);
+    }
+}
+
+fn select_batch(tests: Vec<TestFile>, args: &TestRunnerArgs) -> Vec<String> {
+    let filter = args.filter.as_deref().unwrap_or("");
+
+    let compiled = if !filter.is_empty() {
+        match compile_filter(filter) {
+            Ok(re) => Some(re),
+            Err(e) => {
+                eprintln!("Invalid filter pattern {:?}: {e}", filter);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
+    };
+
+    let test_paths: Vec<String> = tests
+        .into_iter()
+        .filter(|t| {
+            let Some(re) = &compiled else { return true };
+            let haystack = if args.in_file { &t.content } else { &t.path };
+            re.is_match(haystack)
+        })
+        .map(|t| t.path)
+        .collect();
+
+    if test_paths.is_empty() {
+        eprintln!("No tests matched the filter {:?}.", filter);
+        std::process::exit(1);
+    }
+
+    println!("{}", format_test_list(&test_paths));
+    test_paths
 }
 
 fn main() {
@@ -309,10 +374,12 @@ fn main() {
             println!("Could not determine current directory. Aborting.");
             return;
         };
-        let required = ["test/run.sh", "test/run-drun", "test/run", "test/fail"];
-        if let Some(missing) = required.iter().find(|p| !path.join(p).exists()) {
+        let required = std::iter::once("test/run.sh").chain(TEST_DIRS);
+        if let Some(missing) = required.into_iter().find(|p| !path.join(p).exists()) {
             println!("Current path: {:?}", path.display());
-            println!("test-runner should be run from the top-level repo directory (missing {missing}).");
+            println!(
+                "test-runner should be run from the top-level repo directory (missing {missing})."
+            );
             return;
         }
 
@@ -328,12 +395,13 @@ fn main() {
             .build_global()
             .expect("Failed to initialize global thread pool");
 
-        run_interactive_mode(
-            args.filter.as_deref().unwrap_or(""),
-            args.in_file,
-            args.just_tc,
-            args.review,
-        );
+        let tests = discover_tests(args.in_file);
+        let test_paths = if args.batch {
+            select_batch(tests, &args)
+        } else {
+            select_interactive(tests, &args)
+        };
+        run_tests(test_paths, &args);
     }
 }
 

@@ -1,0 +1,2 @@
+multi-migration-bad-chain/bad-chain/Init.mo:0.1: type error [M0254], initial actor requires field `five` of type
+  var Text

@@ -327,6 +327,23 @@ struct
     | n::ns when n < 0x110000 ->
       encode' (con n :: con (n lsr 6) :: con (n lsr 12) :: 0xf0 lor (n lsr 18) :: acc) ns
     | _ -> raise Utf8
+
+  let add_unicode buf = function
+  | 0x09 -> Buffer.add_string buf "\\t"
+  | 0x0a -> Buffer.add_string buf "\\n"
+  | 0x22 -> Buffer.add_string buf "\\\""
+  | 0x27 -> Buffer.add_string buf "\\\'"
+  | 0x5c -> Buffer.add_string buf "\\\\"
+  | c when 0x20 <= c && c < 0x7f -> Buffer.add_char buf (Char.chr c)
+  | c -> Printf.bprintf buf "\\u{%02x}" c
+
+  let string_of_string lsep s rsep =
+    let buf = Buffer.create 256 in
+    Buffer.add_char buf lsep;
+    List.iter (add_unicode buf) s;
+    Buffer.add_char buf rsep;
+    Buffer.contents buf
+
 end
 
 type ('a, 'b) these =

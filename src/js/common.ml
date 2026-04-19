@@ -11,6 +11,7 @@ let moc_args = Mo_args.inclusion_args
   @ Mo_args.error_args
   @ Mo_args.ai_args
   @ Mo_args.persistent_actors_args
+  @ Mo_args.migration_args
 
 let position_of_pos pos =
   object%js
@@ -172,7 +173,7 @@ let js_parse_motoko_with_deps enable_recovery path s =
     let open Diag.Syntax in
     let* prog, _ = parse_fn main_file s in
     let* deps =
-      Pipeline.ResolveImport.resolve (Pipeline.resolve_flags None) prog main_file
+      Pipeline.ResolveImport.resolve (Pipeline.resolve_flags ~is_main:true ~base:main_file None) prog main_file
     in
     Diag.return (prog, deps)
   in
@@ -392,7 +393,7 @@ let set_actor_aliases entries =
                     let kv = Js.to_array kv in
                     Js.to_string (Array.get kv 0), Js.to_string (Array.get kv 1)) (Js.to_array entries) in
   let aliases = Flags.actor_aliases in
-  aliases := Flags.M.of_seq (Array.to_seq entries)
+  aliases := Flags.M.of_seq (Array.to_seq entries |> Seq.map (fun (k, p) -> k, Either.Right (p, None)))
 
 let set_public_metadata entries =
   let entries = Array.map Js.to_string (Js.to_array entries) in
@@ -412,9 +413,11 @@ let gc_flags option =
 
 let js_contextual_dot_suggestions scope raw_exp =
   let open Mo_frontend in
+  let open Mo_def.Syntax in
+  let open Source in
   let scope = (Obj.magic scope : Scope.t) in
-  let exp = (Obj.magic raw_exp : Mo_def.Syntax.exp) in
-  let receiver_ty = exp.note.Mo_def.Syntax.note_typ in
+  let exp = (Obj.magic raw_exp : exp) in
+  let receiver_ty = exp.note.note_typ in
   let libs = scope.Scope.lib_env in
   let open Typing in
   let suggestions = contextual_dot_suggestions libs receiver_ty in
