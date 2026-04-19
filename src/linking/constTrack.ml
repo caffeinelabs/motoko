@@ -52,6 +52,15 @@ let insert value lru =
   else
     { lru with entries }
 
+(* Evict the entry at depth 0 (TOS replaced by unknown value) *)
+let evict_tos lru =
+  { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries }
+
+(* Maybe insert a result at depth 0; wraps in Some for |> chaining *)
+let maybe_insert result lru = Some (match result with
+  | Some v -> insert v lru
+  | None -> lru)
+
 (* Evict all FromLocal entries referring to local n *)
 let evict_from_local n lru =
   let is_from n = function FromLocal m -> Int32.equal m n | _ -> false in
@@ -188,11 +197,27 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     (* Float binary: pop 2, push 1, don't track *)
     Some (shift_and_evict (-1) lru)
 
-  (* Unary ops: pop 1, push 1 = net 0, but result unknown *)
+  (* Unary ops: pop 1, push 1 = net 0; propagate for known i32 ops *)
+  | Unary (I32 op) ->
+    let result = match lookup lru 0 with
+      | Some (I32 n) -> I32Op.(match op with
+         | Clz -> Some (i32 (Wasm.I32.clz n))
+         | Ctz -> Some (i32 (Wasm.I32.ctz n))
+         | Popcnt -> Some (i32 (Wasm.I32.popcnt n))
+         | _ -> None)
+      | _ -> None in
+    evict_tos lru |> maybe_insert result
+  | Unary (I64 op) ->
+    let result = match lookup lru 0 with
+      | Some (I64 n) -> I64Op.(match op with
+         | Clz -> Some (i64 (Wasm.I64.clz n))
+         | Ctz -> Some (i64 (Wasm.I64.ctz n))
+         | Popcnt -> Some (i64 (Wasm.I64.popcnt n))
+         | _ -> None)
+      | _ -> None in
+    evict_tos lru |> maybe_insert result
   | Unary _ ->
-    (* Could propagate for known ops, but skip for now *)
-    let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
-    Some lru
+    Some (evict_tos lru)
 
   (* Test: pop 1, push 1 i32 (boolean result) *)
   | Test (I32 I32Op.Eqz) ->
@@ -200,17 +225,15 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
       | Some (I32 0l) -> Some (i32 1l)
       | Some (I32 _) -> Some (i32 0l)
       | _ -> None in
-    let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
-    (match result with Some v -> Some (insert v lru) | None -> Some lru)
+    evict_tos lru |> maybe_insert result
   | Test (I64 _) ->
     let result = match lookup lru 0 with
       | Some (I64 0L) -> Some (i32 1l)
       | Some (I64 _) -> Some (i32 0l)
       | _ -> None in
-    let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
-    (match result with Some v -> Some (insert v lru) | None -> Some lru)
+    evict_tos lru |> maybe_insert result
   | Test _ ->
-    let lru = { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries } in
+    let lru = evict_tos lru in
     Some lru
 
   (* Compare: pop 2, push 1 i32 (boolean result) *)
@@ -246,7 +269,7 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
          | _ -> None, None)
       | _ -> None, None in
     let lru = shift_and_evict (-1) { lru with refinement = refine } in
-    Some (match result with Some v -> insert v lru | None -> lru)
+    lru |> maybe_insert result
 
   | Compare (I64 op) ->
     let top = lookup lru 0 in
@@ -280,7 +303,7 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
          | _ -> None, None)
       | _ -> None, None in
     let lru = shift_and_evict (-1) { lru with refinement = refine } in
-    Some (match result with Some v -> insert v lru | None -> lru)
+    lru |> maybe_insert result
 
   | Compare _ ->
     (* Float compare: pop 2, push 1, don't fold *)
@@ -329,11 +352,11 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
 
   (* Memory ops *)
   | Load _ -> (* pop addr, push value = net 0, unknown *)
-    Some { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries }
+    Some (evict_tos lru)
   | Store _ -> (* pop addr + value = net -2 *) Some (shift_and_evict (-2) lru)
   | MemorySize -> Some (shift_and_evict 1 lru)
   | MemoryGrow -> (* pop 1, push 1 = net 0, unknown *)
-    Some { lru with entries = List.filter (fun e -> e.depth <> 0) lru.entries }
+    Some (evict_tos lru)
 
   (* Call: consume n_params, produce n_results (all unknown) *)
   | Call x ->
@@ -360,10 +383,13 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     (match block_arity ~type_section bt with
      | Some (n_params, n_results) ->
        let inner_lru = shift_and_evict (-n_params) lru in
-       (match process_block_inner ~func_type ~type_section ?on_call inner_lru body with
+       let saw_br_if = ref false in
+       (match process_block_inner ~func_type ~type_section ?on_call
+                ~has_br_if:saw_br_if inner_lru body with
         | Some lru' ->
-          let lru' = { lru' with entries =
-            List.filter (fun e -> e.depth >= n_results) lru'.entries } in
+          (* Only evict result slots if branches were seen *)
+          let lru' = if !saw_br_if then { lru' with entries =
+            List.filter (fun e -> e.depth >= n_results) lru'.entries } else lru' in
           Some lru'
         | None ->
           (* Body ended with a terminator (Br/Return/Unreachable).
@@ -391,16 +417,19 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
      | Some (n_params, n_results) ->
        let lru_cond = shift_and_evict (-1) lru in
        let inner_lru = shift_and_evict (-n_params) lru_cond in
-       let then_lru = process_block_inner ~func_type ~type_section ?on_call inner_lru then_body in
-       let else_lru = process_block_inner ~func_type ~type_section ?on_call inner_lru else_body in
+       let saw_br_if = ref false in
+       let then_lru = process_block_inner ~func_type ~type_section ?on_call
+                        ~has_br_if:saw_br_if inner_lru then_body in
+       let else_lru = process_block_inner ~func_type ~type_section ?on_call
+                        ~has_br_if:saw_br_if inner_lru else_body in
        let joined = match then_lru, else_lru with
          | Some t, Some e -> intersect t e
          | Some te, None | None, Some te -> { te with entries = [] }
          | None, None -> { inner_lru with entries = [] }
        in
-       (* Evict result slots — BrIf inside branches may disagree *)
-       let joined = { joined with entries =
-         List.filter (fun e -> e.depth >= n_results) joined.entries } in
+       (* Only evict result slots if branches were seen inside either body *)
+       let joined = if !saw_br_if then { joined with entries =
+         List.filter (fun e -> e.depth >= n_results) joined.entries } else joined in
        Some joined
      | None -> None)
 
@@ -422,14 +451,27 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
   | MemoryCopy -> Some (shift_and_evict (-3) lru)
   | MemoryInit _ -> Some (shift_and_evict (-3) lru)
 
+  (* Convert: pop 1, push 1 = net 0 *)
+  | Convert cvt ->
+    let result = match cvt, lookup lru 0 with
+      | I32 I32Op.WrapI64, Some (I64 n) -> Some (i32 (Wasm.I32_convert.wrap_i64 n))
+      | I64 I64Op.ExtendSI32, Some (I32 n) -> Some (i64 (Wasm.I64_convert.extend_i32_s n))
+      | I64 I64Op.ExtendUI32, Some (I32 n) -> Some (i64 (Wasm.I64_convert.extend_i32_u n))
+      | _ -> None in
+    evict_tos lru |> maybe_insert result
+
   (* Anything else: bail *)
   | _ -> None
 
-and process_block_inner ~func_type ~type_section ?on_call lru instrs =
+and process_block_inner ~func_type ~type_section ?on_call ?has_br_if lru instrs =
 
   let rec go idx lru = function
     | [] -> Some lru
     | instr :: rest ->
+      (* Track whether any BrIf was seen in this block *)
+      (match has_br_if, instr.it with
+       | Some flag, BrIf _ -> flag := true
+       | _ -> ());
       (* Fire callback before processing call instructions *)
       (match on_call, instr.it with
        | Some cb, Call x ->
