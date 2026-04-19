@@ -55,25 +55,17 @@ When the LRU is full and a new constant needs to be inserted:
 - Handle calls by signature-based depth adjustment
 - No local tracking
 
-## Phase 2: Local constant tracking (later)
+## Phase 2: Local constant tracking — see Implementation Status below
 
-- When a constant is written to a local (`local.set`/`local.tee`), record it
-- When a local is read (`local.get`), propagate the constant if tracked
-- When a local is compared to a constant (`i32.eq` etc.), the local becomes that constant on the true branch (control flow sensitivity)
-- Locals lose their constant status when overwritten with a non-constant
-
-## Phase 3: Control flow (later)
-
-- At branches, fork the abstract state
-- Merge states at join points (constants agree → keep; disagree → unknown)
-- Dead branch elimination when branch condition is constant
+## Phase 3: Control flow — partially done, see Implementation Status below
 
 ## Implementation Notes
 
-- This lives in the compiler's codegen pipeline (OCaml), operating on the Wasm instruction stream
-- The LRU can be a simple array with linear scan (n ≤ 8)
-- The watermark is computed per-instruction from the Wasm spec's stack typing rules
-- Integration point: after instruction selection, before final Wasm emission
+- Lives in `src/linking/` alongside `linkModule` — operates on Wasm AST during linking
+- The LRU is a list with linear scan (capacity ≤ 8)
+- `evict_tos` and `maybe_insert` helpers reduce boilerplate
+- `Unary` I32/I64 Clz/Ctz/Popcnt folded via `Wasm.I32`/`Wasm.I64` modules
+- `Convert` WrapI64/ExtendSI32/ExtendUI32 folded via `Wasm.*_convert` modules
 
 ## Implementation Status
 
@@ -108,7 +100,7 @@ constTrack-based sound stack-depth tracking:
   to a known zero-forwarder
 - Any constant at the closure-arg depth triggers the rewrite
 - Fixpoint iteration handles chains (foo → bar → quux)
-- Diagnostic `eprintf` on each rewrite (for development; remove before merge)
+- Diagnostics removed for production; can be re-added for debugging
 
 17 test files show rewrites, up from 6 before Block/If/BrIf handling was added.
 
@@ -130,12 +122,11 @@ constTrack-based sound stack-depth tracking:
 
 ### Known pessimisations (Block/If join points)
 
-- **BrIf-less Blocks with constant results**: result slots evicted even though
-  there's only one path — no branch can disagree
+- ~~**BrIf-less Blocks with constant results**~~: **Fixed** — `has_br_if` flag
+  skips result-slot eviction when no branch was seen in the body.
 - **All-commensurable branches**: when every BrIf-taken path and the fall-through
-  agree on the result values, we still evict
-
-Both require accumulating branch states to fix (see Phase 3 below).
+  agree on the result values, we still evict.
+  Requires accumulating branch states to fix (see Phase 3 below).
 
 ## Phase 2: Local constant tracking — Done
 
@@ -245,12 +236,12 @@ resolved.
 
 ### Lowest-hanging fruit for more precision
 
-1. **Extend `Unary` handling**: `I32WrapI64` and `I64ExtendSI32` on known
-   constants are trivial to propagate and common in real code.
-2. **`has_br_if` flag on Block**: skip result-slot eviction when no BrIf was
-   seen inside the body — cheap fix for the known pessimisation.
-3. **`FromLocal n + const k`** offset tracking: valuable for memory access
-   patterns, requires an `Offset` case in `const_val`. Moderate effort.
+1. ~~**Extend `Unary`/`Convert` handling**~~: **Done** — Clz/Ctz/Popcnt for
+   I32/I64, WrapI64, ExtendSI32/ExtendUI32 all fold on known constants.
+2. ~~**`has_br_if` flag on Block**~~: **Done** — skips result-slot eviction
+   when no BrIf was seen.
+3. **`FromLocal n + const k`** offset tracking: deferred — no consumer without
+   memory tracking.
 
 ### LRU data structure
 Sort-on-every-insert is wasteful but fine for capacity 4-8. Could just
