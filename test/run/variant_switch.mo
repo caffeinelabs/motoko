@@ -33,6 +33,18 @@ assert (not (isWeekend (#Fri)));
 assert (isWeekend (#Sat));
 assert (isWeekend (#Sun));
 
+// Same dispatch expressed with or-patterns — exercises same-body arm merging
+func isWeekendOr(d : Weekday) : Bool =
+  switch d {
+    case (#Mon or #Tue or #Wed or #Thu or #Fri) false;
+    case (#Sat or #Sun) true;
+  };
+
+assert (not (isWeekendOr (#Mon)));
+assert (not (isWeekendOr (#Fri)));
+assert (isWeekendOr (#Sat));
+assert (isWeekendOr (#Sun));
+
 // Variant with payload — sub-pattern binding still works
 type Shape = { #circle : Float; #rect : (Float, Float); #tri : Float; #dot : () };
 
