@@ -224,19 +224,34 @@ argument rewriting is required.
 
 ### Safety
 
-The replacement is safe at any call site that supplies **any `i32.const k`**
-as the closure argument — not just `i32.const 0`.
+The replacement is safe at a call site `call fi` (with `fi` a 0-forwarder
+of arity `n`) iff the **closure argument** — the value sitting on the operand
+stack at depth `n-1` (0-indexed from TOS) at the instant `call fi` executes —
+is **`i32.const 0`** (or `i64.const 0` in wasm64), i.e. the same value `$foo`
+itself would have synthesised for `$k`.
 
-In practice, `moc` emits `i32.const 0` for calls to top-level named functions,
-but for let-bound closure values it emits a **static closure object pointer**
-(e.g. `i32.const 2097251`).  The worker function ignores its received `$clos`
-and synthesises its own `i32.const 0` for the callee — so the caller's
-constant is irrelevant to the callee's behaviour.
+Why not "any `i32.const k`": the 0-forwarder `$foo` *replaces* whatever
+closure it received with `i32.const 0` before calling `$k`.  If we elide
+`$foo` and the caller had supplied a nonzero `k`, that nonzero value now
+reaches `$k` unchanged.  The linker cannot prove locally that `$k` ignores
+its `$clos` slot — even though moc's top-level named functions typically do,
+this is not a verified invariant for an arbitrary callee.  If `$k` inspects
+`$clos` (e.g. tests for `!= 0`), the post-rewrite behaviour diverges from
+the pre-rewrite behaviour.  Restricting to zero makes the rewrite a pure
+identity transformation at `$k`'s entry: `$k` sees the same `$clos` value
+whether `$foo` is inlined or not.
 
-The condition is therefore: the closure argument at the call site must be a
-compile-time constant (`i32.const k` for any `k`).  A call site that computes
-the closure dynamically (loads it from memory, receives it as a parameter,
-etc.) cannot be safely redirected without a full alias/escape analysis.
+A call site that computes the closure dynamically (loads it from memory,
+receives it as a parameter, etc.) is likewise ineligible.
+
+**The closure argument cannot be identified textually.** It is the *deepest*
+of the callee's `n` arguments, so a naive "is there an `i32.const 0` among
+the instructions preceding `call fi`?" check would match zeros belonging to
+other operand positions (or to earlier statements).  The eligibility test
+must be phrased in terms of the operand stack at the moment of the `call`,
+which is what the abstract interpreter in the next section provides:
+`ConstTrack.lookup state (n-1)` must return `Some (I32 0l | I64 0L)` — zero
+specifically — at the call site for the rewrite to be sound.
 
 ### Implementation sketch
 

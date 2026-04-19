@@ -1108,14 +1108,17 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
           let on_call lru idx n_params _n_results instr =
             match instr.it with
             | Call k when Hashtbl.mem zero_fwds k.it ->
-              (* closure arg is at depth n_params - 1 (deepest arg, pushed first) *)
+              (* Closure arg is at depth n_params - 1 (deepest arg, pushed first).
+                 Must be i32.const 0 / i64.const 0 specifically: the forwarder
+                 would have zeroed it; a nonzero value would reach $k unchanged
+                 after elision and could diverge if $k inspects $clos. *)
               (match ConstTrack.lookup lru (n_params - 1) with
-               | Some (ConstTrack.I32 _ | ConstTrack.I64 _) ->
+               | Some (ConstTrack.I32 0l | ConstTrack.I64 0L) ->
                  arr.(idx) <- { arr.(idx) with it =
                    Call { k with it = Hashtbl.find zero_fwds k.it } };
                  changed := true;
                  any_changed := true
-               | Some (ConstTrack.FromLocal _) | None -> ())
+               | Some _ | None -> ())
             | _ -> ()
           in
           let type_section ti = List.nth types (Int32.to_int ti) in
