@@ -481,18 +481,6 @@ struct
     | 0l, x::_ -> x
     | n, _::xs' when n > 0l -> nth xs' (Int32.sub n 1l)
     | _ -> failwith "nth"
-
-  let rec take n xs =
-    match n, xs with
-    | 0l, _ -> []
-    | n, x::xs' when n > 0l -> x :: take (Int32.sub n 1l) xs'
-    | _ -> failwith "take"
-
-  let rec drop n xs =
-    match n, xs with
-    | 0l, _ -> xs
-    | n, _::xs' when n > 0l -> drop (Int32.sub n 1l) xs'
-    | _ -> failwith "drop"
 end
 
 module Array =
