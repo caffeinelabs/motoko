@@ -43,7 +43,6 @@ sig
   val index_of : 'a -> 'a list -> int option
   val index_where : ('a -> bool) -> 'a list -> int option
 
-  val compare : ('a -> 'a -> int) -> 'a list -> 'a list -> int
   val is_ordered : ('a -> 'a -> int) -> 'a list -> bool
   val is_strictly_ordered : ('a -> 'a -> int) -> 'a list -> bool
   val is_prefix : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool

@@ -134,7 +134,7 @@ let rec compare x1 x2 =
   | Nat32 n1, Nat32 n2 -> Nat32.compare n1 n2
   | Nat64 n1, Nat64 n2 -> Nat64.compare n1 n2
   | Opt v1, Opt v2 -> compare v1 v2
-  | Tup vs1, Tup vs2 -> Lib.List.compare compare vs1 vs2
+  | Tup vs1, Tup vs2 -> List.compare compare vs1 vs2
   | Array a1, Array a2 -> Lib.Array.compare compare a1 a2
   | Obj fs1, Obj fs2 -> Env.compare compare fs1 fs2
   | Variant (l1, v1), Variant (l2, v2) ->

@@ -415,16 +415,6 @@ struct
 
   let index_of x = index_where ((=) x)
 
-  let rec compare f xs ys =
-    match xs, ys with
-    | [], [] -> 0
-    | [], _ -> -1
-    | _, [] -> +1
-    | x::xs', y::ys' ->
-      match f x y with
-      | 0 -> compare f xs' ys'
-      | n -> n
-
   let rec is_ordered f xs =
     match xs with
     | [] | [_] -> true
