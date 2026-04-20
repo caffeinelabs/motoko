@@ -223,22 +223,6 @@
         "type": "github"
       }
     },
-    "ocaml-vlq-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1629909858,
-        "narHash": "sha256-et4gfL9IVNkmTLp/S03eAQuRifsuxexvABdC3G7t1MU=",
-        "owner": "flowtype",
-        "repo": "ocaml-vlq",
-        "rev": "66238f9539292b5e0cf73cb8d80dbd3f41732c27",
-        "type": "github"
-      },
-      "original": {
-        "owner": "flowtype",
-        "repo": "ocaml-vlq",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "candid-src": "candid-src",
@@ -253,7 +237,6 @@
         "nix-update-flake": "nix-update-flake",
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
-        "ocaml-vlq-src": "ocaml-vlq-src",
         "rust-overlay": "rust-overlay"
       }
     },

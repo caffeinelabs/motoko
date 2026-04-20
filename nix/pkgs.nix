@@ -5,7 +5,7 @@
 
     # Selecting the ocaml version
     # Also update ocaml-version in src/*/.ocamlformat!
-    (self: super: { ocamlPackages = self.ocaml-ng.ocamlPackages_4_14; })
+    (self: super: { ocamlPackages = self.ocaml-ng.ocamlPackages_5_3; })
 
     (self: super: rec {
       # Additional ocaml packages
