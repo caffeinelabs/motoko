@@ -193,11 +193,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1775525138,
-        "narHash": "sha256-BQb70+B378ECLO8iQT3P/b1hCC5/CJVHZdeulY8futc=",
+        "lastModified": 1776221942,
+        "narHash": "sha256-FbQAeVNi7G4v3QCSThrSAAvzQTmrmyDLiHNPvTF2qFM=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "d96b37bbeb9840f1c0ebfe90585ef5067b69bbb3",
+        "rev": "1766437c5509f444c1b15331e82b8b6a9b967000",
         "type": "github"
       },
       "original": {
@@ -223,22 +223,6 @@
         "type": "github"
       }
     },
-    "ocaml-vlq-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1629909858,
-        "narHash": "sha256-et4gfL9IVNkmTLp/S03eAQuRifsuxexvABdC3G7t1MU=",
-        "owner": "flowtype",
-        "repo": "ocaml-vlq",
-        "rev": "66238f9539292b5e0cf73cb8d80dbd3f41732c27",
-        "type": "github"
-      },
-      "original": {
-        "owner": "flowtype",
-        "repo": "ocaml-vlq",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "candid-src": "candid-src",
@@ -253,7 +237,6 @@
         "nix-update-flake": "nix-update-flake",
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
-        "ocaml-vlq-src": "ocaml-vlq-src",
         "rust-overlay": "rust-overlay"
       }
     },

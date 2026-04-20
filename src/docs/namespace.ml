@@ -112,14 +112,14 @@ let shadow : t -> t -> t =
   }
 
 let rec split_path : Syntax.path' -> string list * string = function
-  | Syntax.IdH id -> ([], id.Source.it)
+  | Syntax.IdH id -> ([], id.it)
   | Syntax.DotH (path, id) ->
-      let xs, x = split_path path.Source.it in
-      (List.append xs [ x ], id.Source.it)
+      let xs, x = split_path path.it in
+      (List.append xs [ x ], id.it)
 
 let lookup_type : t -> Syntax.typ_path -> Xref.t option =
  fun ns path ->
-  match split_path path.Source.it with
+  match split_path path.it with
   | [], id -> StringMap.find_opt id ns.types
   | x :: xs, id -> (
       match StringMap.find_opt x ns.values with

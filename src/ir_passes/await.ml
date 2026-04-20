@@ -1,7 +1,6 @@
 open Ir_def
 open Mo_types
 
-open Source
 open Ir
 open Ir_effect
 module R = Rename

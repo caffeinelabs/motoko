@@ -1,7 +1,7 @@
 (library
   (name lang_utils)
 
-  (libraries lib mo_config yojson grace grace.ansi_renderer)
+  (libraries lib mo_config wasm yojson grace grace.ansi_renderer)
 
   (wrapped false)
 

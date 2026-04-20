@@ -1,5 +1,6 @@
 open Mo_types
 open Mo_values
+open Source
 
 type id = string
 
@@ -26,7 +27,9 @@ type lit =
 
 (* Patterns *)
 
-type 'a phrase = ('a, Note.t) Source.annotated_phrase
+type ('a, 'b) annotated_phrase = ('a, 'b) Source.annotated_phrase = {at : region; it : 'a; mutable note: 'b}
+type 'a phrase = ('a, Note.t) annotated_phrase
+let no_region = no_region
 
 type typ_bind' = {con : Type.con; sort : Type.bind_sort; bound : Type.typ}
 type typ_bind = typ_bind' Source.phrase
@@ -37,7 +40,7 @@ type relop = Operator.relop
 
 type mut = Const | Var
 
-type pat = (pat', Type.typ) Source.annotated_phrase
+type pat = (pat', Type.typ) annotated_phrase
 and pat' =
   | WildP                                      (* wildcard *)
   | VarP of id                                 (* variable *)
@@ -52,7 +55,7 @@ and pat_field = pat_field' Source.phrase
 and pat_field' = {name : Type.lab; pat : pat}
 
 (* Like id, but with a type attached *)
-type arg = (string, Type.typ) Source.annotated_phrase
+type arg = (string, Type.typ) annotated_phrase
 
 (* Expressions *)
 
@@ -103,13 +106,13 @@ and meta = {
     sig_ : string  (* Motoko stable signature *)
   }
 
-and field = (field', Type.typ) Source.annotated_phrase
+and field = (field', Type.typ) annotated_phrase
 and field' = {name : Type.lab; var : id} (* the var is by reference, not by value *)
 
 and case = case' Source.phrase
 and case' = {pat : pat; exp : exp}
 
-and lexp = (lexp', Type.typ) Source.annotated_phrase
+and lexp = (lexp', Type.typ) annotated_phrase
 and lexp' =
   | VarLE of id                                (* variable *)
   | IdxLE of exp * exp                         (* array indexing *)
@@ -266,13 +269,13 @@ type prog = comp_unit * flavor
 
 (* object pattern helpers *)
 
-let pats_of_obj_pat pfs = List.map (fun {Source.it={name; pat}; _} -> pat) pfs
+let pats_of_obj_pat pfs = List.map (fun {it={name; pat}; _} -> pat) pfs
 
 let map_obj_pat f pfs =
-  List.map (fun ({Source.it={name; pat}; _} as pf) -> {pf with Source.it={name; pat=f pat}}) pfs
+  List.map (fun ({it={name; pat}; _} as pf) -> {pf with it={name; pat=f pat}}) pfs
 
 let replace_obj_pat pfs pats =
-  List.map2 (fun ({Source.it={name; pat=_}; _} as pf) pat -> {pf with Source.it={name; pat}}) pfs pats
+  List.map2 (fun ({it={name; pat=_}; _} as pf) pat -> {pf with it={name; pat}}) pfs pats
 
 (* Helper for transforming prims, without missing embedded typs and ids *)
 
