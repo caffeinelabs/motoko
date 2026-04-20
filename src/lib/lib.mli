@@ -49,8 +49,6 @@ sig
 
   val iter_pairs : ('a -> 'a -> unit) -> 'a list -> unit
 
-  val safe_map : ('a -> 'b) -> 'a list -> 'b list
-
   (** Assumes the two lists have been sorted with respect to the comparison function *)
   val align : ('a -> 'b -> int) -> 'a list -> 'b list -> ('a, 'b) these Seq.t
 end

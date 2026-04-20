@@ -443,13 +443,6 @@ struct
        | [] -> false
        | hd' :: tl' -> equal hd hd' && is_prefix equal tl tl')
 
-  (* tail-recursive map *)
-  let[@tail_mod_cons] rec safe_map f l = match l with
-    | [] -> []
-    | x :: xs ->
-      f x :: (safe_map[@tailcall]) f xs
-    [@@coverage off]
-
   let align cmp xs ys =
     let next (xs, ys) = match xs, ys with
       | [], [] -> None
