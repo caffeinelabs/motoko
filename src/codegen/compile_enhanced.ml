@@ -5387,7 +5387,7 @@ module IC = struct
     match E.mode env with
     | Flags.ICMode | Flags.RefMode ->
       Func.share_code0 Func.Never env "msg_caller_info_signer" [I32Type] (fun env ->
-        Blob.of_size_copy env Tagged.P
+        Blob.of_size_copy env Tagged.B
           (fun env -> system_call env "msg_caller_info_signer_size")
           (fun env -> system_call env "msg_caller_info_signer_copy")
           (fun env -> compile_unboxed_const 0L)

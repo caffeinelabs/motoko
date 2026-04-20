@@ -79,7 +79,7 @@ error[M0072]: field stableM does not exist in type:
     btstNat8 : (w : Nat8, amount : Nat8) -> Bool;
     call_raw : (p : Principal, m : Text, a : Blob) -> async Blob;
     callerInfoData : <system>() -> Blob;
-    callerInfoSigner : <system>() -> ?Principal;
+    callerInfoSigner : <system>() -> Blob;
     cancelTimer : (id : Nat) -> ();
     canisterSubnet : () -> Principal;
     canisterVersion : () -> Nat64;

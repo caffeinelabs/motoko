@@ -138,7 +138,7 @@ let primE prim es =
     | OtherPrim "weak_ref_is_live" -> T.bool
     | OtherPrim "env_var_names" ->  T.Array T.text
     | OtherPrim "env_var" -> T.text
-    | OtherPrim "caller_info_signer" -> T.principal
+    | OtherPrim "caller_info_signer" -> T.blob
     | OtherPrim "caller_info_data" -> T.blob
     | OtherPrim "set_migrations" -> T.unit
     | OtherPrim "get_migrations" -> T.text_list

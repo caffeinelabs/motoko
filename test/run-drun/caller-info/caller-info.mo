@@ -33,9 +33,9 @@ actor {
   public shared func test() : async () {
     let signer = Prim.callerInfoSigner<system>();
     let trustedSigners = Runtime.envVar<system>("trusted_attribute_signers");
-    switch (signer, trustedSigners) {
-      case (?signer, ?trustedSigners) {
-        if (signer != Principal.fromText(trustedSigners)) {
+    switch (signer.size() != 0, trustedSigners) {
+      case (true, ?trustedSigners) {
+        if (Principal.fromBlob(signer) != Principal.fromText(trustedSigners)) {
           Runtime.trap("untrusted signer");
         };
       };
@@ -72,8 +72,11 @@ actor {
   };
 
   public shared func checkCallerInfo() : async () {
-    let ?signer = Prim.callerInfoSigner<system>() else Runtime.trap("no signer");
-    assert Principal.toBlob(signer) == iiSignerBlob;
+    let signer = Prim.callerInfoSigner<system>();
+    if (signer.size() == 0) {
+      Runtime.trap("no signer");
+    };
+    assert signer == iiSignerBlob;
 
     let data = Prim.callerInfoData<system>();
     let ?map : ?Icrc3Value = from_candid (data) else Runtime.trap("invalid candid");
