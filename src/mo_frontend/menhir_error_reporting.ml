@@ -33,7 +33,7 @@ module Make
   let future explanation =
     let prod, index = explanation.item in
     let rhs = rhs prod in
-    Lib.List.drop index rhs
+    List.drop index rhs
 
   let goal explanation =
     let prod, _ = explanation.item in
