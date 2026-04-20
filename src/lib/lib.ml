@@ -353,9 +353,6 @@ type ('a, 'b) these =
 
 module List =
 struct
-  let equal p xs ys =
-    try List.for_all2 p xs ys with _ -> false
-
   let rec make n x = make' n x []
   and make' n x xs =
     if n = 0 then xs else make' (n - 1) x (x::xs)

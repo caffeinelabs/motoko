@@ -27,7 +27,6 @@ type ('a, 'b) these =
 
 module List :
 sig
-  val equal : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
   val make : int -> 'a -> 'a list
   val table : int -> (int -> 'a) -> 'a list
   val group : ('a -> 'a -> bool) -> 'a list -> 'a list list
