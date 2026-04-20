@@ -127,7 +127,7 @@ module Make
         let rhs = rhs prod in
         {
           item = item;
-          past = List.rev (marry (List.rev (Lib.List.take index rhs)) stack)
+          past = List.rev (marry (List.rev (List.take index rhs)) stack)
         } :: explanations
       else
         explanations
