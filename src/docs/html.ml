@@ -3,6 +3,7 @@ open Mo_def
 open Mo_types
 open Cow.Html
 open Common
+open Source
 
 type env = { lookup_type : Syntax.typ_path -> Xref.t option }
 
@@ -13,7 +14,10 @@ let rec join_with : t -> t list -> t =
   | x :: xs -> x ++ sep ++ join_with sep xs
 
 let space : t = string "\u{00A0}"
-let cls_span : string -> string -> t = fun cls s -> span ~cls (string s)
+
+let cls_span : string -> string -> t =
+ fun cls s -> Cow.Html.span ~cls (string s)
+
 let fn_name : string -> t = cls_span "fnname"
 let class_name : string -> t = cls_span "classname"
 let object_name : string -> t = cls_span "objectname"
@@ -22,12 +26,11 @@ let parameter : string -> t = cls_span "parameter"
 let html_type : string -> t = cls_span "type"
 
 let rec string_of_path' : Syntax.path' -> string = function
-  | Syntax.IdH id -> id.Source.it
-  | Syntax.DotH (path, id) ->
-      string_of_path' path.Source.it ^ "." ^ id.Source.it
+  | Syntax.IdH id -> id.it
+  | Syntax.DotH (path, id) -> string_of_path' path.it ^ "." ^ id.it
 
 let string_of_path : Syntax.typ_path -> string =
- fun path -> string_of_path' path.Source.it
+ fun path -> string_of_path' path.it
 
 let rec id_of_xref : Xref.t -> string = function
   | Xref.XClass (x, xref) -> Printf.sprintf "%s.%s" x (id_of_xref xref)
@@ -71,14 +74,12 @@ let html_of_comment : string -> t = function
 
 let html_of_mut : Syntax.mut -> t =
  fun mut ->
-  match mut.Source.it with
-  | Syntax.Var -> keyword "var "
-  | Syntax.Const -> string ""
+  match mut.it with Syntax.Var -> keyword "var " | Syntax.Const -> string ""
 
 let html_of_func_sort : Syntax.func_sort -> t =
  fun sort ->
   Mo_types.Type.(
-    match sort.Source.it with
+    match sort.it with
     | Local -> empty
     | Shared Composite -> keyword "shared composite query "
     | Shared Query -> keyword "shared query "
@@ -87,7 +88,7 @@ let html_of_func_sort : Syntax.func_sort -> t =
 let html_of_obj_sort : 'note Syntax.sort -> t =
  fun sort ->
   Mo_types.Type.(
-    match sort.Source.it with
+    match sort.it with
     | Object -> empty
     | Actor -> keyword "actor "
     | Module -> keyword "module "
@@ -96,7 +97,7 @@ let html_of_obj_sort : 'note Syntax.sort -> t =
 
 let rec html_of_type : env -> Syntax.typ -> t =
  fun env typ ->
-  match typ.Source.it with
+  match typ.it with
   | Syntax.PathT (path, typs) -> (
       html_of_path env path
       ++
@@ -146,20 +147,20 @@ let rec html_of_type : env -> Syntax.typ -> t =
 
 and html_of_typ_tag : env -> Syntax.typ_tag -> t =
  fun env typ_tag ->
-  string (Printf.sprintf "#%s" typ_tag.Source.it.Syntax.tag.Source.it)
+  string (Printf.sprintf "#%s" typ_tag.it.Syntax.tag.it)
   ++
-  match typ_tag.Source.it.Syntax.typ.Source.it with
+  match typ_tag.it.Syntax.typ.it with
   | Syntax.TupT [] -> nil
-  | _ -> string " : " ++ html_of_type env typ_tag.Source.it.Syntax.typ
+  | _ -> string " : " ++ html_of_type env typ_tag.it.Syntax.typ
 
 and html_of_typ_bind : env -> Syntax.typ_bind -> t =
  fun env typ_bind ->
-  let bound = typ_bind.Source.it.Syntax.bound in
+  let bound = typ_bind.it.Syntax.bound in
   let bound_html =
     if Syntax.is_any bound then empty
     else string " <: " ++ html_of_type env bound
   in
-  html_type typ_bind.Source.it.Syntax.var.Source.it ++ bound_html
+  html_type typ_bind.it.Syntax.var.it ++ bound_html
 
 and html_of_typ_binders : env -> Syntax.typ_bind list -> t =
  fun env typ_binders ->
@@ -173,22 +174,20 @@ and html_of_typ_binders : env -> Syntax.typ_bind list -> t =
 and html_of_typ_field : env -> Syntax.typ_field -> t =
  fun env field ->
   (* TODO mut might be wrong here *)
-  match field.Source.it with
+  match field.it with
   | Syntax.ValF (id, typ, mut) ->
-      html_of_mut mut ++ string (id.Source.it ^ " : ") ++ html_of_type env typ
+      html_of_mut mut ++ string (id.it ^ " : ") ++ html_of_type env typ
   | Syntax.TypF (id, tbs, typ) ->
       let ty_args = html_of_typ_binders env tbs in
       string "type "
-      ++ string id.Source.it
+      ++ string id.it
       ++ ty_args
       ++ string " = "
       ++ html_of_type env typ
 
 and html_of_typ_item : env -> Syntax.typ_item -> t =
  fun env (oid, t) ->
-  Option.fold ~none:empty
-    ~some:(fun id -> parameter id.Source.it ++ string " : ")
-    oid
+  Option.fold ~none:empty ~some:(fun id -> parameter id.it ++ string " : ") oid
   ++ html_of_type env t
 
 let sub_declaration heading doc =

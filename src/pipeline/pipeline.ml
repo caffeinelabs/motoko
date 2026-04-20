@@ -7,6 +7,7 @@ open Ir_def
 open Ir_interpreter
 open Ir_passes
 open Mo_config
+open Source
 
 open Printf
 
@@ -84,7 +85,7 @@ type rel_path = string
 type parse_result = (Syntax.prog * rel_path) Diag.result
 
 type no_region_parse_fn = string -> parse_result
-type parse_fn = Source.region -> no_region_parse_fn
+type parse_fn = region -> no_region_parse_fn
 
 let generic_parse_with ?(recovery=false) mode lexer parser name : _ Diag.result =
   phase "Parsing" name;
@@ -174,7 +175,7 @@ let resolve_progs =
 (* Printing dependency information *)
 
 let print_deps (file : string) : unit =
-  let (prog, _) =  Diag.run (parse_file Source.no_region file) in
+  let (prog, _) =  Diag.run (parse_file no_region file) in
   let imports = Diag.run (ResolveImport.collect_imports prog file) in
   List.iter (fun (url, path) ->
       if String.starts_with ~prefix:"blob:" url then () else
@@ -205,7 +206,7 @@ let infer_prog
     senv
     async_cap
     prog : (Type.typ * Scope.scope) Diag.result =
-  let filename = prog.Source.note.Syntax.filename in
+  let filename = prog.note.Syntax.filename in
   phase "Checking" filename;
   Cons.session ~scope:filename (fun () ->
     let r = Typing.infer_prog ~enable_type_recovery pkg_opt senv async_cap prog in
@@ -231,7 +232,7 @@ let check_progs
     | [] -> Diag.return (List.rev sscopes, senv)
     | prog::progs ->
       let open Diag.Syntax in
-      let filename = prog.Source.note.Syntax.filename in
+      let filename = prog.note.Syntax.filename in
       let async_cap = async_cap_of_prog prog in
       let* _t, sscope =
         Cons.session ~scope:filename (fun () ->
@@ -244,7 +245,7 @@ let check_progs
   go senv [] progs
 
 let check_lib senv pkg_opt lib : Scope.scope Diag.result =
-  let filename = lib.Source.note.Syntax.filename in
+  let filename = lib.note.Syntax.filename in
   Cons.session ~scope:filename (fun () ->
     phase "Checking" (Filename.basename filename);
     let open Diag.Syntax in
@@ -255,7 +256,7 @@ let check_lib senv pkg_opt lib : Scope.scope Diag.result =
 
 let lib_of_prog f prog : Syntax.lib  =
   let lib = CompUnit.comp_unit_of_prog true prog in
-  { lib with Source.note = { lib.Source.note with Syntax.filename = f } }
+  { lib with note = { lib.note with Syntax.filename = f } }
 
 (* Prelude and internals *)
 
@@ -308,11 +309,11 @@ let stable_compatible pre post : unit Diag.result =
   let* p1 = parse_stab_sig_from_file pre in
   let* p2 = parse_stab_sig_from_file post in
   let* s1 =
-    Cons.session ~scope:p1.Source.note.Syntax.filename (fun () ->
+    Cons.session ~scope:p1.note.Syntax.filename (fun () ->
       Typing.check_stab_sig initial_stat_env0 p1)
   in
   let* s2 =
-    Cons.session ~scope:p2.Source.note.Syntax.filename (fun () ->
+    Cons.session ~scope:p2.note.Syntax.filename (fun () ->
       Typing.check_stab_sig initial_stat_env0 p2)
   in
   Stability.match_stab_sig s1 s2
@@ -403,7 +404,7 @@ type load_decl_result =
   (Syntax.lib list * Syntax.prog * Scope.scope * Type.typ * Scope.scope) Diag.result
 
 let resolved_import_name ri =
-  Syntax.(match ri.Source.it with
+  Syntax.(match ri.it with
   | Unresolved -> "/* unresolved */"
   | LibPath { package = _; path }
   | IDLPath (path, _)
@@ -443,7 +444,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
       senv := Scope.adjoin !senv sscope;
       Diag.return ()
   and go pkg_opt ri =
-    let it = ri.Source.it in
+    let it = ri.it in
     let ri_name = resolved_import_name ri in
     match it with
     | Syntax.PrimPath ->
@@ -462,13 +463,13 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         Diag.return ()
       else if mem it !pending then
         Diag.error
-          ri.Source.at
+          ri.at
           "M0003"
           "import"
           (Printf.sprintf "file %s must not depend on itself" f)
       else begin
         pending := add it !pending;
-        let* prog, base = parsefn ri.Source.at f in
+        let* prog, base = parsefn ri.at f in
         let* () = Static.prog prog in
         let cur_pkg_opt = if lib_pkg_opt <> None then lib_pkg_opt else pkg_opt in
         let* more_imports = ResolveImport.resolve (resolve_flags ~is_main:false ~base cur_pkg_opt) prog base in
@@ -492,7 +493,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
       let* prog, idl_scope, actor_opt = Idllib.Pipeline.check_file f in
       if actor_opt = None then
         Diag.error
-          ri.Source.at
+          ri.at
           "M0004"
           "import"
           (Printf.sprintf "file %s does not define a service" f)
@@ -501,7 +502,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         | exception Idllib.Exception.UnsupportedCandidFeature error_message ->
           Stdlib.Error [
             Diag.error_message
-              ri.Source.at
+              ri.at
               "M0153"
               "import"
               (Printf.sprintf "file %s uses Candid types without corresponding Motoko type" f);
@@ -529,7 +530,7 @@ let load_progs_cached
     senv
     scope_cache : load_result_cached =
   let open Diag.Syntax in
-  let* parsed = Diag.traverse (parsefn Source.no_region) files in
+  let* parsed = Diag.traverse (parsefn no_region) files in
   let* rs = resolve_progs parsed in
   let progs = List.map fst rs in
   let libs = List.concat_map snd rs in
@@ -573,7 +574,7 @@ let load_decl parse_one senv : load_decl_result =
 
 let interpret_prog denv prog : (Value.value * Interpret.scope) option =
   let open Interpret in
-  let filename = prog.Source.note.Syntax.filename in
+  let filename = prog.note.Syntax.filename in
   phase "Interpreting" filename;
   Cons.session ~scope:filename (fun () ->
     let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
@@ -586,7 +587,7 @@ let rec interpret_libs denv libs : Interpret.scope =
   match libs with
   | [] -> denv
   | lib::libs' ->
-    let filename = lib.Source.note.Syntax.filename in
+    let filename = lib.note.Syntax.filename in
     phase "Interpreting" (Filename.basename filename);
     let flags = { trace = !Flags.trace; print_depth = !Flags.print_depth } in
     let dscope =
@@ -617,7 +618,7 @@ let interpret_files (senv0, denv0) files : (Scope.scope * Interpret.scope) optio
 
 let run_builtin prog denv : dyn_env =
   match interpret_prog denv prog with
-  | None -> builtin_error "initializing" prog.Source.note.Syntax.filename []
+  | None -> builtin_error "initializing" prog.note.Syntax.filename []
   | Some (_v, dscope) ->
     Interpret.adjoin_scope denv dscope
 
@@ -678,7 +679,7 @@ let parse_lexer lexer : parse_result =
     Error es
   | Ok (prog, ws) -> Ok ((prog, Filename.current_dir_name), ws)
 
-let is_exp dec = match dec.Source.it with Syntax.ExpD _ -> true | _ -> false
+let is_exp dec = match dec.it with Syntax.ExpD _ -> true | _ -> false
 
 let output_scope (senv, _) t v sscope dscope =
   print_scope senv sscope dscope.Interpret.val_env;
@@ -701,7 +702,7 @@ let run_stdin lexer (senv, denv) : env option =
       let env' = (senv', denv') in
       (* TBR: hack *)
       let t', v' =
-        if Option.fold ~none:false ~some:is_exp (Lib.List.last_opt prog.Source.it)
+        if Option.fold ~none:false ~some:is_exp (Lib.List.last_opt prog.it)
         then t, v
         else Type.unit, Value.unit
       in
@@ -713,7 +714,7 @@ let run_stdin_from_file files file : Value.value option =
   let open Lib.Option.Syntax in
   let* (senv, denv) = interpret_files initial_env files in
   let* (libs, prog, senv', t, sscope) =
-    Diag.flush_messages (load_decl (parse_file Source.no_region file) senv) in
+    Diag.flush_messages (load_decl (parse_file no_region file) senv) in
   let denv' = interpret_libs denv libs in
   let* (v, dscope) = interpret_prog denv' prog in
   print_val senv t v;
@@ -731,9 +732,9 @@ let run_files_and_stdin files =
 (* Desugaring *)
 
 let desugar_unit imports u name : Ir.prog Diag.result =
-  match u.Source.it.Syntax.body.Source.it with
+  match u.it.Syntax.body.it with
   | Syntax.MixinU _ ->
-    let at = u.Source.it.Syntax.body.Source.at in
+    let at = u.it.Syntax.body.at in
     Diag.error at "M0225" "compile" "A mixin cannot be used as an entry point. It needs to be included in an actor (class)"
   | _ ->
   phase "Desugaring" name;
@@ -850,7 +851,7 @@ let rec compile_libs mode libs : Lowering.Desugar.import_declaration =
     | [] -> imports
     | l :: libs ->
       let { Syntax.body = cub; _ } = l.it in
-      let filename = l.Source.note.Syntax.filename in
+      let filename = l.note.Syntax.filename in
       let new_imports =
         Cons.session ~scope:filename (fun () ->
           match cub.it with
@@ -866,7 +867,7 @@ let rec compile_libs mode libs : Lowering.Desugar.import_declaration =
 
 and compile_unit mode (enhanced_migration:string option) do_link imports u : Wasm_exts.CustomModule.extended_module Diag.result =
   let open Diag.Syntax in
-  let name = u.Source.note.Syntax.filename in
+  let name = u.note.Syntax.filename in
   Cons.session ~scope:name (fun () ->
     let* prog_ir = desugar_unit imports u name in
     let prog_ir = ir_passes mode prog_ir name in
@@ -903,7 +904,7 @@ let compile_files mode do_link files : compile_result =
   in
   let* () =
     if Wasm_exts.CustomModule.(ext_module.wasm_features) <> []
-    then Diag.warn Source.no_region "M0191" "compile" (Printf.sprintf "code requires Wasm features %s to execute" (String.concat "," Wasm_exts.CustomModule.(ext_module.wasm_features)))
+    then Diag.warn no_region "M0191" "compile" (Printf.sprintf "code requires Wasm features %s to execute" (String.concat "," Wasm_exts.CustomModule.(ext_module.wasm_features)))
     else Diag.return ()
   in
   Diag.return (idl, ext_module)
@@ -922,7 +923,7 @@ let import_libs libs : Lowering.Desugar.import_declaration =
 let interpret_ir_progs libs progs =
   let open Diag.Syntax in
   let prog = CompUnit.combine_progs progs in
-  let name = prog.Source.note.Syntax.filename in
+  let name = prog.note.Syntax.filename in
   let imports = import_libs libs in
   let u = CompUnit.comp_unit_of_prog false prog in
   let* prog_ir = desugar_unit imports u name in

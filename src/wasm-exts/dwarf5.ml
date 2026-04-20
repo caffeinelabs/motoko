@@ -673,7 +673,7 @@ module Meta =
 struct
 
 type die
-  = StatementDelimiter of Wasm.Source.pos
+  = StatementDelimiter of Source.pos
   | Tag of int option * int * die list
   | TagClose
   | OffsetAttribute of int

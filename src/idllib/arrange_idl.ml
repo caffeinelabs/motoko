@@ -1,6 +1,6 @@
-open Source
 open Syntax
 open Wasm.Sexpr
+open Source
 
 let string_of_prim p =
   match p with

@@ -1,5 +1,5 @@
 (library
   (name wasm_exts)
-  (libraries wasm vlq yojson lib prelude mo_config)
+  (libraries wasm vlq yojson lib prelude mo_config lang_utils)
   (instrumentation (backend bisect_ppx --bisect-silent yes))
 )

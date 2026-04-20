@@ -1,6 +1,5 @@
 open Mo_types
 open Mo_values
-open Source
 open Ir
 open Wasm.Sexpr
 
