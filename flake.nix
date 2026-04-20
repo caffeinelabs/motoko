@@ -41,10 +41,6 @@
       url = "github:kritzcreek/motoko-matchers/5ba5f52bd9a5649dedf5e2a1ccd55d98ed7ff982";
       flake = false;
     };
-    ocaml-vlq-src = {
-      url = "github:flowtype/ocaml-vlq";
-      flake = false;
-    };
     grace-src = {
       url = "github:johnyob/grace/15251666a11a780dfd09f23e1b0c1e6b0e366dcf";
       flake = false;
@@ -68,7 +64,6 @@
     , motoko-base-src
     , motoko-core-src
     , motoko-matchers-src
-    , ocaml-vlq-src
     , grace-src
     , ocaml-recovery-parser-src
     }: flake-utils.lib.eachDefaultSystem (system:
@@ -83,7 +78,6 @@
             motoko-base-src
             motoko-core-src
             motoko-matchers-src
-            ocaml-vlq-src
             ocaml-recovery-parser-src
             grace-src;
         };
