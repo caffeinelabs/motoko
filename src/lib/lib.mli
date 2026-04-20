@@ -31,8 +31,6 @@ sig
   val make : int -> 'a -> 'a list
   val table : int -> (int -> 'a) -> 'a list
   val group : ('a -> 'a -> bool) -> 'a list -> 'a list list
-  val take : int -> 'a list -> 'a list (* raises Failure *)
-  val drop : int -> 'a list -> 'a list (* raises Failure *)
   val replicate : 'a -> int -> 'a list
   val split_at : int -> 'a list -> ('a list * 'a list)
   val split3 : ('a * 'b * 'c) list -> ('a list * 'b list * 'c list)

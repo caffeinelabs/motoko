@@ -2015,8 +2015,8 @@ let pp_print_list ?(pp_sep = pp_print_cut) pp_v ppf v =
      if len < max then
        pp_print_list ~pp_sep pp_v ppf v
      else
-       let pre_vs = Lib.List.take (max / 2) v in
-       let post_vs = Lib.List.drop (len - (max / 2)) v in
+       let pre_vs = List.take (max / 2) v in
+       let post_vs = List.drop (len - (max / 2)) v in
        pp_print_list ~pp_sep pp_v ppf pre_vs;
        pp_sep ppf ();
        fprintf ppf "...@ ";
