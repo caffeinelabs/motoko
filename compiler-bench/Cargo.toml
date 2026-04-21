@@ -1,11 +1,11 @@
 [package]
-name = "motoko-compiler-bench"
+name = "compiler-bench"
 version = "0.1.0"
 edition = "2021"
 description = "Benchmark harness for the Motoko compiler (moc)"
 
 [[bin]]
-name = "motoko-compiler-bench"
+name = "compiler-bench"
 path = "src/main.rs"
 
 [dependencies]

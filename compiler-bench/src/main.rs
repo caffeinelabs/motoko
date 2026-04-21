@@ -11,7 +11,7 @@ use std::process::Command;
 use std::time::Instant;
 
 #[derive(Parser, Debug)]
-#[command(name = "motoko-compiler-bench")]
+#[command(name = "compiler-bench")]
 #[command(about = "Benchmark moc on a corpus of Motoko programs (wall time + --emit-compiler-timings).")]
 struct Args {
     /// Path to corpus TOML
