@@ -3276,10 +3276,10 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
           get_res
       )
 
-  let compile_addmod = slow_only3 "B_addmod" (fun env -> E.call_import env "rts" "bigint_addmod")
-  let compile_submod = slow_only3 "B_submod" (fun env -> E.call_import env "rts" "bigint_submod")
-  let compile_mulmod = slow_only3 "B_mulmod" (fun env -> E.call_import env "rts" "bigint_mulmod")
-  let compile_powmod = slow_only3 "B_powmod" (fun env -> E.call_import env "rts" "bigint_exptmod")
+  let compile_addmod = slow_only3 "B_addmod" (fun env -> E.call_rts env "bigint_addmod")
+  let compile_submod = slow_only3 "B_submod" (fun env -> E.call_rts env "bigint_submod")
+  let compile_mulmod = slow_only3 "B_mulmod" (fun env -> E.call_rts env "bigint_mulmod")
+  let compile_powmod = slow_only3 "B_powmod" (fun env -> E.call_rts env "bigint_exptmod")
 
   let compile_unsigned_pow env =
     Func.share_code2 Func.Always env "B_pow" (("a", I64Type), ("b", I64Type)) [I64Type]
