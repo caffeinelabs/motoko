@@ -97,7 +97,7 @@ type extracted = {
 module MakeExtract (Env : sig
   val all_decs : Syntax.dec_field list
   val imports : (string * string) list
-  val find_trivia : Source.region -> Trivia.trivia_info
+  val find_trivia : region -> Trivia.trivia_info
 end) =
 struct
   let namespace : Namespace.t =
@@ -194,13 +194,10 @@ struct
     (tag, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
   let rec extract_doc mk_xref = function
-    | Source.
-        {
-          it = Syntax.LetD ({ it = Syntax.VarP { it = name; _ }; _ }, rhs, _);
-          _;
-        } -> (
+    | { it = Syntax.LetD ({ it = Syntax.VarP { it = name; _ }; _ }, rhs, _); _ }
+      -> (
         match rhs with
-        | Source.{ it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
+        | { it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
             let mk_field_xref xref = mk_xref (Xref.XClass (name, xref)) in
             Some
               ( mk_xref (Xref.XType name),
@@ -213,9 +210,9 @@ struct
                   } )
         | _ -> Some (mk_xref (Xref.XValue name), extract_value_doc Let rhs name)
         )
-    | Source.{ it = Syntax.VarD ({ it = name; _ }, rhs); _ } -> (
+    | { it = Syntax.VarD ({ it = name; _ }, rhs); _ } -> (
         match rhs with
-        | Source.{ it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
+        | { it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
             let mk_field_xref xref = mk_xref (Xref.XClass (name, xref)) in
             Some
               ( mk_xref (Xref.XType name),
@@ -228,7 +225,7 @@ struct
                   } )
         | _ -> Some (mk_xref (Xref.XValue name), extract_value_doc Var rhs name)
         )
-    | Source.{ it = Syntax.TypD (name, ty_args, typ); _ } ->
+    | { it = Syntax.TypD (name, ty_args, typ); _ } ->
         let doc_typ =
           match typ.it with
           | Syntax.ObjT (_, fields) ->
@@ -245,21 +242,12 @@ struct
         Some
           ( mk_xref (Xref.XType name.it),
             Type { name = name.it; type_args = ty_args; typ = doc_typ } )
-    | Source.
-        {
-          it =
-            Syntax.ClassD
-              ( exp_opt,
-                shared_pat,
-                obj_sort,
-                name,
-                type_args,
-                ctor,
-                _,
-                _,
-                fields );
-          _;
-        } ->
+    | {
+        it =
+          Syntax.ClassD
+            (exp_opt, shared_pat, obj_sort, name, type_args, ctor, _, _, fields);
+        _;
+      } ->
         let mk_field_xref xref = mk_xref (Xref.XClass (name.it, xref)) in
         Some
           ( mk_xref (Xref.XType name.it),
@@ -295,9 +283,8 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
   let lookup_trivia (line, column) =
     PosTable.find_opt prog.note.Syntax.trivia Trivia.{ line; column }
   in
-  let find_trivia (parser_pos : Source.region) : Trivia.trivia_info =
-    lookup_trivia Source.(parser_pos.left.line, parser_pos.left.column)
-    |> Option.get
+  let find_trivia (parser_pos : region) : Trivia.trivia_info =
+    lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
   in
   let module_docs = find_trivia prog.at in
   (* Skip the module header *)

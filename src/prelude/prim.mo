@@ -121,6 +121,14 @@ func envVar<system>(name : Text) : ?Text {
   (prim "env_var" : Text -> ?Text)(name);
 };
 
+func callerInfoSigner<system>() : Blob {
+  (prim "caller_info_signer" : () -> Blob)();
+};
+
+func callerInfoData<system>() : Blob {
+  (prim "caller_info_data" : () -> Blob)();
+};
+
 /// EXPERIMENTAL SECTION AND API. DO NOT USE IN PRODUCTION CODE!
 ///
 type __WeakRef = {

@@ -6,6 +6,8 @@
 
   * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files.
 
+  * feat: expose caller attributes feature through prim (#5970)
+
 ## 1.5.1 (2026-04-13)
 
 * motoko (`moc`)
