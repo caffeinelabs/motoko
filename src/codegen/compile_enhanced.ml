@@ -5795,7 +5795,10 @@ module StableMem = struct
   let version_graph_copy_regions = Int64.of_int 4
   let version_stable_heap_no_regions = Int64.of_int 5
   let version_stable_heap_regions = Int64.of_int 6
-  let version_max = version_stable_heap_regions
+  (* V1 graph-copy: last-page record carries a 16-byte extension with extra GC roots. *)
+  let version_graph_copy_v1_no_regions = Int64.of_int 7
+  let version_graph_copy_v1_regions = Int64.of_int 8
+  let version_max = version_graph_copy_v1_regions
 
   let register_globals env =
     (* size (in pages) *)
@@ -9425,6 +9428,9 @@ module NewStableMemory = struct
   let upgrade_version_from_graph_stabilization env =
     StableMem.get_version env ^^
     compile_eq_const StableMem.version_graph_copy_no_regions ^^
+    StableMem.get_version env ^^
+    compile_eq_const StableMem.version_graph_copy_v1_no_regions ^^
+    G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
     E.if1 I64Type
     begin
       compile_unboxed_const StableMem.version_stable_heap_no_regions
@@ -9432,6 +9438,9 @@ module NewStableMemory = struct
     begin
       StableMem.get_version env ^^
       compile_eq_const StableMem.version_graph_copy_regions ^^
+      StableMem.get_version env ^^
+      compile_eq_const StableMem.version_graph_copy_v1_regions ^^
+      G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
       E.else_trap_with env "Unsupported stable memory version when upgrading from graph-copy-based stabilization" ^^
       compile_unboxed_const StableMem.version_stable_heap_regions
     end ^^
@@ -10477,6 +10486,12 @@ module Persistence = struct
     compile_eq_const StableMem.version_graph_copy_no_regions ^^
     get_persistence_version env ^^
     compile_eq_const StableMem.version_graph_copy_regions ^^
+    G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
+    get_persistence_version env ^^
+    compile_eq_const StableMem.version_graph_copy_v1_no_regions ^^
+    G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
+    get_persistence_version env ^^
+    compile_eq_const StableMem.version_graph_copy_v1_regions ^^
     G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))
 
   let use_enhanced_orthogonal_persistence env =
