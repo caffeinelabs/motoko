@@ -85,7 +85,7 @@ type no_region_parse_fn = string -> parse_result
 type parse_fn = Source.region -> no_region_parse_fn
 
 let generic_parse_with ?(recovery=false) mode lexer parser name : _ Diag.result =
-  with_phase_diag "Parsing" name (fun () ->
+  with_phase "Parsing" name (fun () ->
     let open Diag.Syntax in
     lexer.Lexing.lex_curr_p <-
       {lexer.Lexing.lex_curr_p with Lexing.pos_fname = name};
@@ -206,7 +206,7 @@ let infer_prog
   let filename = prog.Source.note.Syntax.filename in
   Cons.session ~scope:filename (fun () ->
     let r =
-      with_phase_diag "Checking" filename (fun () ->
+      with_phase "Checking" filename (fun () ->
         Typing.infer_prog ~enable_type_recovery pkg_opt senv async_cap prog)
     in
     if !Flags.trace && !Flags.verbose then begin
@@ -219,7 +219,7 @@ let infer_prog
     end;
     let open Diag.Syntax in
     let* t_sscope = r in
-    let* () = with_phase_diag "Definedness" filename (fun () -> Definedness.check_prog prog) in
+    let* () = with_phase "Definedness" filename (fun () -> Definedness.check_prog prog) in
     Diag.return t_sscope)
 
 let check_progs
@@ -247,11 +247,11 @@ let check_lib senv pkg_opt lib : Scope.scope Diag.result =
   Cons.session ~scope:filename (fun () ->
     let open Diag.Syntax in
     let* sscope =
-      with_phase_diag "Checking" (Filename.basename filename) (fun () ->
+      with_phase "Checking" (Filename.basename filename) (fun () ->
         Typing.check_lib senv pkg_opt lib)
     in
     let* () =
-      with_phase_diag "Definedness" (Filename.basename filename) (fun () ->
+      with_phase "Definedness" (Filename.basename filename) (fun () ->
         Definedness.check_lib lib)
     in
     Diag.return sscope)
@@ -742,7 +742,7 @@ let desugar_unit imports u name : Ir.prog Diag.result =
     let at = u.Source.it.Syntax.body.Source.at in
     Diag.error at "M0225" "compile" "A mixin cannot be used as an entry point. It needs to be included in an actor (class)"
   | _ ->
-  with_phase_diag "Desugaring" name (fun () ->
+  with_phase "Desugaring" name (fun () ->
     let open Lowering.Desugar in
     let prog_ir' : Ir.prog = link_declarations
       (import_prelude prelude @ import_prelude internals @ imports)
@@ -876,7 +876,7 @@ and compile_unit mode (enhanced_migration:string option) do_link imports u : Was
   Cons.session ~scope:name (fun () ->
     let* prog_ir = desugar_unit imports u name in
     let prog_ir = ir_passes mode prog_ir name in
-    with_phase_diag "Compiling" name (fun () ->
+    with_phase "Compiling" name (fun () ->
       adjust_flags ();
       let rts = if do_link then Some (load_as_rts ()) else None in
       Diag.return (if !Flags.enhanced_orthogonal_persistence then

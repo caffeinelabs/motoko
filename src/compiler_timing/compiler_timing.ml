@@ -30,17 +30,6 @@ let with_phase heading name thunk =
     record heading name t0 t1;
     r
 
-let with_phase_diag heading name f =
-  log_phase heading name;
-  match !Flags.emit_compiler_timings with
-  | None -> f ()
-  | Some _ ->
-    let t0 = Unix.gettimeofday () in
-    let r = f () in
-    let t1 = Unix.gettimeofday () in
-    record heading name t0 t1;
-    r
-
 let json_of_row r =
   `Assoc [
     "phase", `String r.phase;

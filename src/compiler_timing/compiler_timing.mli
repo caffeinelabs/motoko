@@ -6,8 +6,6 @@ val with_phase : string -> string -> (unit -> 'a) -> 'a
 (** [with_phase heading name thunk] runs [thunk] and records wall-clock duration
     when [--emit-compiler-timings] is set. *)
 
-val with_phase_diag : string -> string -> (unit -> 'a Diag.result) -> 'a Diag.result
-
 val maybe_write : unit -> unit
 (** If [--emit-compiler-timings] was given, write JSON to that path.
     Call only after a successful compilation run (no partial timings).
