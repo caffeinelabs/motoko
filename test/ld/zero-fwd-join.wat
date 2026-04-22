@@ -8,26 +8,63 @@
   (memory (;0;) i64 2)
   (global $heap_base i64 (i64.const 65536))
   (export "__heap_base" (global $heap_base))
-  (export "foo" (func $foo))
+  (export "nested_block"     (func $nested_block))
+  (export "block_over_loop"  (func $block_over_loop))
+  (export "agreeing_brif"    (func $agreeing_brif))
+  (export "agreeing_if_legs" (func $agreeing_if_legs))
 
-  ;; Zero-forwarder: body matches `zero_forwarder_target`'s syntactic
-  ;; pattern (Const 0; LocalGet 1; Call quux).  Its own closure
-  ;; (local 0) is discarded, and a null closure is synthesised for
-  ;; the callee.
+  ;; Zero-forwarder: body = Const 0; LocalGet 1; Call $quux — matches
+  ;; zero_forwarder_target's syntactic pattern, so the linker records
+  ;; $bar -> $quux in zero_fwds. Rewrites at any call site where
+  ;; ConstTrack reports `I32 0` at depth n_params-1.
   (func $bar (type $t_bi)
     i32.const 0
     local.get 1
     call $quux)
 
-  ;; Caller: the closure-arg for $bar is the result of a Block whose
-  ;; body has a BrIf and whose then/else paths both produce `i32.const 0`.
-  ;;
-  ;; Phase 2 of ConstTrack evicted the Block's result slot whenever a
-  ;; BrIf was seen — so the `0` at depth 1 would be lost and
-  ;; `collect_rewrites` would not fire.  Phase 3 takes the intersection
-  ;; of fall-through and every `Br*` branch-target state, so the shared
-  ;; `i32.const 0` survives and the call site is rewritten to $quux.
-  (func $foo (type $t_i)
+  ;; Case 1 — "Nested-Block de-Bruijn depth" (reviewer ex. 1)
+  ;; Br 1 from an inner block carries `i32.const 0` to the outer
+  ;; block's End. A second Br 1 from the fall-through path also
+  ;; carries 0. Phase 3's handler decrements the depth through the
+  ;; inner handler so the outer Block's branch_states collects both.
+  ;; Phase 2 had no accumulation — its conservative None-from-
+  ;; terminator path left the outer LRU empty.
+  (func $nested_block (type $t_i)
+    (block (result i32)
+      (block
+        i32.const 0
+        local.get 0
+        br_if 1         ;; taken: outer-End with 0
+        br 1            ;; fall-through: also exits outer-End with 0
+      )
+      unreachable
+    )
+    local.get 0
+    call $bar)
+
+  ;; Case 2 — "Block { Loop { Br 1 } }" (reviewer ex. 2)
+  ;; Loop doesn't collect — depth-0 back-edges are swallowed — but
+  ;; the Loop handler still decrements n>0 depths so the outer Block
+  ;; catches `Br 1` with its carried state. Phase 2 didn't process
+  ;; the loop body at all (old `Loop (bt, _body)` ignored it), so
+  ;; the carried 0 was invisible.
+  (func $block_over_loop (type $t_i)
+    (block (result i32)
+      (loop
+        i32.const 0
+        br 1            ;; exits outer with 0
+      )
+      unreachable
+    )
+    local.get 0
+    call $bar)
+
+  ;; Case 3 — "Agreeing BrIf" (reviewer ex. 3, canonical precision
+  ;; test). The Block has a BrIf; taken and fall-through paths both
+  ;; produce `i32.const 0`. Phase 2 evicted result-slot entries on
+  ;; any saw_br_if sighting, so the 0 was lost. Phase 3 intersects
+  ;; the two agreeing states and preserves it.
+  (func $agreeing_brif (type $t_i)
     (block (result i32)
       i32.const 0
       local.get 0
@@ -35,5 +72,25 @@
       drop
       i32.const 0
     )
+    local.get 0
+    call $bar)
+
+  ;; Case 4 — "If with agreeing legs" (reviewer ex. 4). Both then
+  ;; and else produce `i32.const 0`; the then-leg contains a BrIf
+  ;; targeting the function label. Phase 2's shared saw_br_if across
+  ;; the two legs forced result-slot eviction even though both legs
+  ;; agreed. Phase 3 intersects the two legs' fall-through states
+  ;; (normalised via the unified branch_states trick) and keeps the 0.
+  (func $agreeing_if_legs (type $t_i)
+    local.get 0
+    (if (result i32)
+      (then
+        i32.const 0
+        local.get 0
+        br_if 1         ;; exit function with 0
+        drop
+        i32.const 0)
+      (else
+        i32.const 0))
     local.get 0
     call $bar))
