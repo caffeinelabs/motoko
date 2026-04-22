@@ -203,23 +203,51 @@ tuple component match, …), so it knows which strategies *could* apply
 and what cost model is meaningful for this decision shape. When the
 recognizer asks, the handler computes and returns the chosen strategy.
 
-**Recognizer** — lives inside the matching EDSL (around `(^^^)` et al.
-in `compile_enhanced.ml`). Sees the fully-elaborated dispatch expression
-— post-desugaring, after or-patterns and pattern sugar have already
-collapsed to uniform "test and branch" fragments. When it reaches a
-point where a multi-way decision would be emitted, it `perform`s an
-effect — `Match_decision { token_set; scrutinee_repr; type_info }` —
-to the enclosing handler. The handler returns a plan; the recognizer
-emits it.
+**Recognizer** — lives inside the matching EDSL — *the procedural
+combinator calls* (`fill_pat`, `compile_pat_local`, `(^^^)`,
+`orElse`, `orsPatternFailure`, …) that together emit Wasm block
+structures for pattern matching. `patternCode` itself is opaque
+(`CannotFail of G.t | CanFail of (G.t -> G.t)`) — no walkable AST
+survives composition — so the recognizer must observe decisions
+*during* emission, not after. At each point where a tag-hash
+comparison (or, later, a literal comparison, component projection,
+…) is about to be emitted, the combinator `perform`s an effect
+— `Match_decision { token; body_compiler; scrutinee_repr }` —
+to the enclosing handler. The handler collects incrementally and,
+when the arm set is complete, commits on a strategy and emits.
 
 The protocol is deliberately generic:
 
-- `token_set` is opaque to the recognizer — for variants it's tag
-  hashes, for integer literals it's immediates, for constructor
-  matching it's nominal IDs. The handler interprets it.
-- `scrutinee_repr` says how to obtain the discriminating value (already
-  loaded on the stack, loadable from a known slot, computable by a
-  callback). The handler chooses strategies compatible with that shape.
+- `token` is opaque to the recognizer — for variants it's a tag
+  hash, for integer literals it's an immediate, for constructor
+  matching it's a nominal ID. The handler interprets it.
+- `body_compiler` is a thunk the handler can invoke (or not) to
+  emit the arm body's Wasm. Giving the handler *control over
+  emission* — rather than just asking it for a strategy to feed
+  back in — is what unlocks AND-patterns later (the handler can
+  return `No_op` and suppress emission entirely when a component
+  is already known from an outer context).
+- `scrutinee_repr` says how to obtain the discriminating value
+  (already loaded on the stack, loadable from a known local, computable
+  by a callback). The handler chooses strategies compatible with that
+  shape.
+
+### Concrete emission points in the EDSL
+
+In `compile_enhanced.ml`, the `perform`-sites are:
+
+- `fill_pat env ae (TagP (l, p))` — surfaces `Match_decision` with
+  `token = hash_variant_label l`, `body_compiler = compile-tail-of-arm`.
+- `fill_pat env ae (AltP (p1, p2))` when both legs are `TagP` or
+  nested `AltP` chains bottoming out in `TagP` — surfaces one
+  `Match_decision` per leaf, sharing the same `body_compiler`
+  (this is what makes or-patterns auto-fold).
+- Later, literal-pattern arms (`LitP`) would surface `Match_decision`
+  with `token = immediate`.
+
+No changes to `(^^^)`, `orElse`, or `orsPatternFailure` — they stay
+pure G.t manipulation. The effects are attached at the *leaf*
+combinators that know what kind of value is being discriminated.
 
 ### Strategy for V2 launch
 
