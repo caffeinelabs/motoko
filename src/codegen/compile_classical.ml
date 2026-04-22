@@ -12844,6 +12844,20 @@ and single_case e (cs : Ir.case list) =
 
 and known_tag_pat p = TagP ("", p)
 
+(* Flatten a pattern into the list of tag-label leaves it matches, or None if
+   any leaf is not a non-empty TagP. AltP trees are collapsed left-to-right.
+   This turns `(#mon | #tue | ... | #fri)` into `[("mon", _); ("tue", _); ...]`
+   so the SwitchE handler can count it as 5 dispatch targets for mask-finding,
+   while still compiling the arm body just once. *)
+and flatten_tag_leaves (p : Ir.pat) : (string * Ir.pat) list option =
+  match p.it with
+  | TagP (l, sub) when l <> "" -> Some [(l, sub)]
+  | AltP (p1, p2) ->
+    (match flatten_tag_leaves p1, flatten_tag_leaves p2 with
+     | Some l1, Some l2 -> Some (l1 @ l2)
+     | _ -> None)
+  | _ -> None
+
 and simplify_cases e (cs : Ir.case list) =
   match cs, e.note.Note.typ with
   (* for a 2-cased variant type, the second comparison can be omitted when the first pattern
@@ -12941,44 +12955,56 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
        G.i Unreachable (* We should always exit using the branch_code *)
     )
 
-  (* Variant switch with 4+ arms: use masked br_table dispatch (O(1)).
+  (* Variant switch with 4+ tag leaves (post or-pattern flattening):
+     use masked br_table dispatch (O(1)).
      Guard pre-checks find_variant_mask so that None falls through naturally
-     to the regular SwitchE handler below (no broken known_tag_pat fallback). *)
+     to the regular SwitchE handler below (no broken known_tag_pat fallback).
+     Or-patterns like `(#mon | #tue | ... | #fri) true` count as multiple
+     dispatch targets (one per leaf) but compile to a single arm body — the
+     dispatch table has multiple slots pointing to the same arm block. *)
   | SwitchE (e, cs) when
-      List.length cs >= 4 &&
-      List.for_all (fun {it=({pat; _} : case'); _} ->
-        match pat.it with TagP (l, _) -> l <> "" | _ -> false) cs &&
-      (let hs = List.filter_map (fun {it=({pat; _} : case'); _} ->
-         match pat.it with TagP (l, _) -> Some (Variant.hash_variant_label env l) | _ -> None) cs in
-       find_variant_mask (List.length hs) hs <> None) ->
+      (let per_case = List.map (fun {it=({pat; _} : case'); _} -> flatten_tag_leaves pat) cs in
+       List.for_all Option.is_some per_case &&
+       let all_leaves = List.concat_map Option.get per_case in
+       let n = List.length all_leaves in
+       n >= 4 &&
+       let hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) all_leaves in
+       find_variant_mask n hashes <> None) ->
     let code1 = compile_exp_vanilla env ae e in
     let (set_i, get_i) = new_local env "switch_in" in
 
-    (* Collect (hash, sr, patternCode) for each arm *)
-    let arms = List.map (fun {it={pat; exp=arm_exp}; _} ->
-      let [@warning "-8"] TagP (l, sub_pat) = pat.it in
-      let hash = Variant.hash_variant_label env l in
-      let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat sub_pat} in
+    (* Per case: compile the body once (using the first leaf's sub-pattern
+       — Motoko or-pattern typing ensures all legs bind the same variables).
+       Record the set of leaf hashes that dispatch to this case. *)
+    let cases = List.map (fun {it={pat; exp=arm_exp}; _} ->
+      let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+      let [@warning "-8"] (_, first_sub_pat) :: _ = leaves in
+      let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat first_sub_pat} in
       let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint arm_exp in
-      (hash, sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
+      let leaf_hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves in
+      (leaf_hashes, sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
     ) cs in
 
-    let n = List.length arms in
-    let hashes = List.map (fun (h, _, _) -> h) arms in
+    let n_cases = List.length cases in
+    let all_hashes = List.concat_map (fun (hs, _, _) -> hs) cases in
+    let n_leaves = List.length all_hashes in
 
     let final_sr = match sr_hint with
       | Some sr -> sr
-      | None -> StackRep.joins (List.map (fun (_, sr, _) -> sr) arms)
+      | None -> StackRep.joins (List.map (fun (_, sr, _) -> sr) cases)
     in
 
-    let [@warning "-8"] Some (mask, shift, table_size) = find_variant_mask n hashes in
-    (* Build dispatch table: slot j -> arm index (0..n-1) or n (default) *)
-    let arm_for_slot = Array.make table_size n in
-    List.iteri (fun k (hash, _, _) ->
-      let slot = Int32.to_int
-        (Int32.shift_right_logical (Int32.logand hash mask) shift) in
-      arm_for_slot.(slot) <- k
-    ) arms;
+    let [@warning "-8"] Some (mask, shift, table_size) = find_variant_mask n_leaves all_hashes in
+    (* Build dispatch table: slot j -> case index (0..n_cases-1) or n_cases (default).
+       Every leaf of case k contributes one slot pointing to k. *)
+    let slot_for_case = Array.make table_size n_cases in
+    List.iteri (fun case_idx (leaf_hashes, _, _) ->
+      List.iter (fun hash ->
+        let slot = Int32.to_int
+          (Int32.shift_right_logical (Int32.logand hash mask) shift) in
+        slot_for_case.(slot) <- case_idx
+      ) leaf_hashes
+    ) cases;
 
     final_sr,
     code1 ^^ set_i ^^
@@ -12991,8 +13017,8 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
         compile_bitand_const mask ^^
         (if shift > 0 then compile_shrU_const (Int32.of_int shift) else G.nop) ^^
         G.i (BrTable (
-          List.init table_size (fun j -> nr (Int32.of_int arm_for_slot.(j))),
-          nr (Int32.of_int n)  (* default: unreachable *)
+          List.init table_size (fun j -> nr (Int32.of_int slot_for_case.(j))),
+          nr (Int32.of_int n_cases)  (* default: unreachable *)
         ))
       in
 
@@ -13001,13 +13027,13 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
       let arm_body_codes = List.map (fun (_, sr, c) ->
         with_fail (G.i Unreachable)
           (c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code))
-      ) arms in
+      ) cases in
 
       (* Build nested blocks from inside out:
-           block_default { block_arm_{n-1} { ... block_arm_0 { dispatch }
-             body_0 ... } body_{n-1} } unreachable
-         Inside dispatch: label k -> arm k, label n -> default.
-         fold starts with dispatch (not an extra wrapper), so arm_0 is label 0. *)
+           block_default { block_case_{k-1} { ... block_case_0 { dispatch }
+             body_0 ... } body_{k-1} } unreachable
+         Inside dispatch: label k -> case k, label n_cases -> default.
+         fold starts with dispatch (not an extra wrapper), so case_0 is label 0. *)
       let with_arms = List.fold_left (fun acc body_code ->
         G.block0 acc ^^ body_code
       ) dispatch arm_body_codes in
