@@ -4,6 +4,6 @@ debug.print: {heap_diff = 0; instr_diff = 95_690_321; total = 1_090_000}
 ingress Completed: Reply: 0x4449444c0000
 debug.print: {fib7_eval = 13; fib7_evalFT = 13; fib7_xform = 13; instr_eval = 22_051_348; instr_evalFT = 21_536_248; instr_transform = 1_057_948}
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {acc1 = 20_000; acc2 = 20_000; instr_isWeekend = 7_070_321; instr_isWeekendOr = 7_070_321}
+debug.print: {acc1 = 20_000; acc2 = 20_000; instr_isWeekend = 7_070_321; instr_isWeekendOr = 7_070_321; instr_startLetter = 6_270_321; instr_startLetterOr = 6_270_321; last3 = 'S'; last4 = 'S'}
 ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000
