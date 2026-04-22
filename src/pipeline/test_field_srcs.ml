@@ -2,6 +2,8 @@
     Update of the expected values could be done via [dune runtest --auto-promote].
 *)
 
+open Source
+
 module Sexpr_set = Set.Make (struct
   type t = Wasm.Sexpr.sexpr
 
@@ -30,7 +32,7 @@ let rec remove_srcs =
   function
   | Atom _ as atom -> atom
   | Node (name, args) ->
-    Node (name, List.map remove_srcs @@ List.filter is_not_src args)
+    Node (name, List.(filter is_not_src args |> map remove_srcs))
 
 let gather_let_srcs sexpr =
   let open Wasm.Sexpr in
@@ -58,7 +60,7 @@ let gather_let_srcs sexpr =
         acc
         args
   in
-  List.of_seq @@ Sexpr_set.to_seq @@ go Sexpr_set.empty sexpr
+  Sexpr_set.(go empty sexpr |> to_seq) |> List.of_seq
 
 let arrange filename srcs_tbl : (module Mo_def.Arrange.S) =
   (module
@@ -77,20 +79,20 @@ let show (result : (Mo_def.Syntax.prog * Mo_types.Field_sources.srcs_map) Diag.r
   match result with
   | Error msgs -> Format.printf "Diagnostics:\n%s\n" (show_msgs msgs)
   | Ok ((prog, srcs), msgs) ->
-    let filename = prog.Source.note.Mo_def.Syntax.filename in
+    let filename = prog.note.Mo_def.Syntax.filename in
     let module Arrange = (val arrange filename srcs) in
     Format.printf "Ok:\n";
     Format.printf "Collected sources:\n";
     List.iter
       (fun srcs -> Format.printf "%s" (Wasm.Sexpr.to_string 80 srcs))
-      (gather_let_srcs @@ Arrange.prog prog);
+      (Arrange.prog prog |> gather_let_srcs);
     Format.printf "Sources table:\n";
     Seq.iter
       (fun (define, origins) ->
-        Format.printf "%s:" (Source.string_of_region define);
+        Format.printf "%s:" (string_of_region define);
         Seq.iter
-          (fun origin -> Format.printf " %s" (Source.string_of_region origin))
-          (Source.Region_set.to_seq origins);
+          (fun origin -> Format.printf " %s" (string_of_region origin))
+          (Region_set.to_seq origins);
         Format.printf "\n")
       (Mo_types.Field_sources.Srcs_map.to_seq srcs);
     match msgs with
@@ -182,8 +184,8 @@ let run_compare_typed_asts_test filename =
   let module Arrange_no_combine = (val arrange filename srcs_no_combine) in
   let module Arrange_combine = (val arrange filename srcs_combine) in
   (* AST should match (modulo the field sources). *)
-  let sexpr_prog_no_combine = remove_srcs @@ Arrange_no_combine.prog prog_no_combine in
-  let sexpr_prog_combine = remove_srcs @@ Arrange_combine.prog prog_combine in
+  let sexpr_prog_no_combine = Arrange_no_combine.prog prog_no_combine |> remove_srcs in
+  let sexpr_prog_combine = Arrange_combine.prog prog_combine |> remove_srcs in
   if sexpr_prog_no_combine <> sexpr_prog_combine then
     failwith
       (Format.sprintf
@@ -204,7 +206,7 @@ let get_mo_files_from_dir dir =
 
 let run_compare_typed_asts_tests_on_dir dir =
   let run_files = get_mo_files_from_dir dir in
-  List.iter (fun file -> ignore @@ run_compare_typed_asts_test file) run_files
+  List.iter (fun file -> run_compare_typed_asts_test file |> ignore) run_files
 
 let%test_unit "ASTs in test match with and without combining sources" =
   List.iter

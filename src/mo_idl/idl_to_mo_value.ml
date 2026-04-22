@@ -81,16 +81,16 @@ let rec value v t =
   | FuncV (s, m), _ ->
     Printf.sprintf "(actor %s : actor { %s : %s }).%s"
       (text_lit s)
-      (Idllib.Escape.escape_method Source.no_region m)
+      (Idllib.Escape.escape_method no_region m)
       (Pretty.string_of_typ t)
-      (Idllib.Escape.escape_method Source.no_region m)
+      (Idllib.Escape.escape_method no_region m)
   | PrincipalV s, _ ->
     "_Prim.principalOfActor" ^ parens ("actor " ^ text_lit s ^ " : actor {}")
   | _ -> raise (UnsupportedCandidFeature
     (Diag.error_message v.at "M0165" "import" "odd expected type"))
 
 let rec args vs = function
-  | ts when List.(compare_lengths vs.it ts < 0 && for_all is_defaultable (Lib.List.drop (length vs.it) ts)) ->
+  | ts when List.(compare_lengths vs.it ts < 0 && for_all is_defaultable (drop (length vs.it) ts)) ->
     let vs' = vs.it @ Lib.List.replicate { vs with it = NullV } List.(length ts - length vs.it) in
     args {vs with it = vs'} ts
   | ts -> parens_comma (List.map2 value (List.map2 enrich ts vs.it) ts)

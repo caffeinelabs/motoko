@@ -1,22 +1,24 @@
 open Mo_config
 module G = Grace
+module GD = Grace.Diagnostic
+open Source
 
 type error_code = string
 type severity = Warning | Error | Info
 type priority = Primary | Secondary
 type span = {
   prio : priority;
-  at_span : Source.region;
+  at_span : region;
   label : string;
 }
 type edit = {
-  at_edit : Source.region;
+  at_edit : region;
   suggested_replacement : string;
 }
 type message = {
   sev : severity;
   code : error_code;
-  at : Source.region;
+  at : region;
   cat : string;
   text : string;
   spans : span list;
@@ -96,44 +98,46 @@ let string_of_message msg =
     if msg.notes <> [] then
       "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
     else "" in
-  Printf.sprintf "%s: %s%s, %s%s%s\n" (Source.string_of_region msg.at) label code msg.text spans notes
+  Printf.sprintf "%s: %s%s, %s%s%s\n" (string_of_region msg.at) label code msg.text spans notes
 
 (** Converts a line/column based position to a byte offset.
 
-    NOTE(Christoph): This is rather inefficient. If at some point find this needs to be sped up,
+    NOTE(Christoph): This is rather inefficient. If at some point this needs to be sped up,
     we could maintain a datastructure like https://crates.io/crates/line-index
 *)
 let pos_to_byte content pos =
   let line_start = ref (-1) in
-  for _ = 1 to pos.Source.line - 1 do
+  for _ = 1 to pos.line - 1 do
     let prev = !line_start in
     line_start := String.index_from content (prev + 1) '\n';
   done;
-  !line_start + pos.Source.column + 1
+  !line_start + pos.column + 1
 
 let ensure_primary_span msg =
   if List.exists (fun span -> span.prio = Primary) msg.spans
   then msg.spans
   else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
 
-let fancy_of_message msg =
-  let file = msg.at.Source.left.Source.file in
-  let source : G.Source.t = `File file in
-  let content = In_channel.with_open_bin file In_channel.input_all in
+let fancy_of_message (msg : message) =
+  if is_no_region msg.at then string_of_message msg else
+  let path = msg.at.left.file in
+  let content = In_channel.with_open_bin path In_channel.input_all in
+  let file = G.Source.{ name = Some path; content } in
+  let source : G.Source.t = `String file in
   let range r =
     G.Range.create ~source
-      (G.Byte_index.of_int (pos_to_byte content r.Source.left))
-      (G.Byte_index.of_int (pos_to_byte content r.Source.right))
+      (G.Byte_index.of_int (pos_to_byte content r.left))
+      (G.Byte_index.of_int (pos_to_byte content r.right))
   in
   let mk_span span =
     let priority = match span.prio with
-      | Primary -> G.Diagnostic.Priority.Primary
-      | Secondary -> G.Diagnostic.Priority.Secondary in
-    G.Diagnostic.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
+      | Primary -> GD.Priority.Primary
+      | Secondary -> GD.Priority.Secondary in
+    GD.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
   let labels = List.map mk_span (ensure_primary_span msg) in
   let source_text r =
-    let start = pos_to_byte content r.Source.left in
-    let stop = pos_to_byte content r.Source.right in
+    let start = pos_to_byte content r.left in
+    let stop = pos_to_byte content r.right in
     String.sub content start (stop - start)
     |> Lib.String.strip_control_chars
     |> String.trim
@@ -142,27 +146,22 @@ let fancy_of_message msg =
     (* Future work: merge the replacements and display a diff *)
     let original = source_text edit.at_edit in
     if edit.suggested_replacement = "" then
-      G.Diagnostic.Message.createf "help: remove `%s`" original
+      GD.Message.createf "help: remove `%s`" original
     else if original = "" then
-      G.Diagnostic.Message.createf "help: insert `%s`" edit.suggested_replacement
+      GD.Message.createf "help: insert `%s`" edit.suggested_replacement
     else
-      G.Diagnostic.Message.createf "help: replace `%s` with `%s`" original edit.suggested_replacement
+      GD.Message.createf "help: replace `%s` with `%s`" original edit.suggested_replacement
   in
   let severity = match msg.sev with
-    | Error -> G.Diagnostic.Severity.Error
-    | Warning -> G.Diagnostic.Severity.Warning
-    | Info -> G.Diagnostic.Severity.Help in
+    | Error -> GD.Severity.Error
+    | Warning -> GD.Severity.Warning
+    | Info -> GD.Severity.Help in
   let notes =
-    List.map (G.Diagnostic.Message.createf "note: %s") msg.notes
+    List.map (GD.Message.createf "note: %s") msg.notes
     @ List.map edit_note msg.edits in
-  let diag = G.Diagnostic.(
-    createf
-      ~labels: labels
-      ~notes
-      ?code:(if msg.code = "" then None else Some(msg.code))
-      severity
-      "%s" msg.text) in
-    Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
+  let code = if msg.code = "" then None else Some msg.code in
+  let diag = GD.createf ~labels ~notes ?code severity "%s" msg.text in
+  Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
 
 let string_of_severity (sev : severity) = match sev with
   | Error -> "error"
@@ -170,8 +169,8 @@ let string_of_severity (sev : severity) = match sev with
   | Info -> "info"
 
 let json_span ?prio ?label ?suggested_replacement r =
-  let { Source.file; line = line_start; column = column_start } = r.Source.left in
-  let { Source.line = line_end; column = column_end; _ } = r.Source.right in
+  let { file; line = line_start; column = column_start } = r.left in
+  let { line = line_end; column = column_end; _ } = r.right in
   `Assoc [
     "file", `String file;
     "line_start", `Int line_start;

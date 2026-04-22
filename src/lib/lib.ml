@@ -327,6 +327,23 @@ struct
     | n::ns when n < 0x110000 ->
       encode' (con n :: con (n lsr 6) :: con (n lsr 12) :: 0xf0 lor (n lsr 18) :: acc) ns
     | _ -> raise Utf8
+
+  let add_unicode buf = function
+  | 0x09 -> Buffer.add_string buf "\\t"
+  | 0x0a -> Buffer.add_string buf "\\n"
+  | 0x22 -> Buffer.add_string buf "\\\""
+  | 0x27 -> Buffer.add_string buf "\\\'"
+  | 0x5c -> Buffer.add_string buf "\\\\"
+  | c when 0x20 <= c && c < 0x7f -> Buffer.add_char buf (Char.chr c)
+  | c -> Printf.bprintf buf "\\u{%02x}" c
+
+  let string_of_string lsep s rsep =
+    let buf = Buffer.create 256 in
+    Buffer.add_char buf lsep;
+    List.iter (add_unicode buf) s;
+    Buffer.add_char buf rsep;
+    Buffer.contents buf
+
 end
 
 type ('a, 'b) these =
@@ -336,9 +353,6 @@ type ('a, 'b) these =
 
 module List =
 struct
-  let equal p xs ys =
-    try List.for_all2 p xs ys with _ -> false
-
   let rec make n x = make' n x []
   and make' n x xs =
     if n = 0 then xs else make' (n - 1) x (x::xs)
@@ -355,25 +369,13 @@ struct
          grouping ((hd::l1)::acc) l2
     in grouping [] l
 
-  let rec take n xs = (* present in OCaml 5.3 *)
-    match n, xs with
-    | _ when n <= 0 -> []
-    | n, x::xs' when n > 0 -> x :: take (n - 1) xs'
-    | _ -> failwith "take"
-
-  let rec drop n xs = (* present in OCaml 5.3 *)
-    match n, xs with
-    | 0, _ -> xs
-    | n, _::xs' when n > 0 -> drop (n - 1) xs'
-    | _ -> failwith "drop"
-
   let rec replicate e = function
     | 0 -> []
     | n -> e :: replicate e (n - 1)
 
   let split_at n xs =
     if n <= List.length xs
-    then (take n xs, drop n xs)
+    then (List.take n xs, List.drop n xs)
     else (xs, [])
 
   let split3 l =
@@ -413,16 +415,6 @@ struct
 
   let index_of x = index_where ((=) x)
 
-  let rec compare f xs ys =
-    match xs, ys with
-    | [], [] -> 0
-    | [], _ -> -1
-    | _, [] -> +1
-    | x::xs', y::ys' ->
-      match f x y with
-      | 0 -> compare f xs' ys'
-      | n -> n
-
   let rec is_ordered f xs =
     match xs with
     | [] | [_] -> true
@@ -450,13 +442,6 @@ struct
       (match list with
        | [] -> false
        | hd' :: tl' -> equal hd hd' && is_prefix equal tl tl')
-
-  (* tail-recursive map *)
-  let[@tail_mod_cons] rec safe_map f l = match l with
-    | [] -> []
-    | x :: xs ->
-      f x :: (safe_map[@tailcall]) f xs
-    [@@coverage off]
 
   let align cmp xs ys =
     let next (xs, ys) = match xs, ys with
@@ -489,18 +474,6 @@ struct
     | 0l, x::_ -> x
     | n, _::xs' when n > 0l -> nth xs' (Int32.sub n 1l)
     | _ -> failwith "nth"
-
-  let rec take n xs =
-    match n, xs with
-    | 0l, _ -> []
-    | n, x::xs' when n > 0l -> x :: take (Int32.sub n 1l) xs'
-    | _ -> failwith "take"
-
-  let rec drop n xs =
-    match n, xs with
-    | 0l, _ -> xs
-    | n, _::xs' when n > 0l -> drop (Int32.sub n 1l) xs'
-    | _ -> failwith "drop"
 end
 
 module Array =

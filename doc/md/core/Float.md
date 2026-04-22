@@ -392,10 +392,10 @@ assert Float.equal(Float.arctan(1.0), Float.pi / 4, epsilon);
 
 ## Function `arctan2`
 ``` motoko no-repl
-func arctan2(x : Float, y : Float) : Float
+func arctan2(y : Float, x : Float) : Float
 ```
 
-Given `(y,x)`, returns the arc tangent in radians of `y/x` based on the signs of both values to determine the correct quadrant.
+Given `(y, x)`, returns the arc tangent in radians of `y/x` based on the signs of both values to determine the correct quadrant.
 
 Special cases:
 ```
@@ -565,6 +565,34 @@ Example:
 assert Float.fromInt(-123) == -123.0;
 ```
 @deprecated M0235
+
+## Function `toFloat32`
+``` motoko no-repl
+func toFloat32(self : Float) : Prim.Types.Float32
+```
+
+Conversion to Float32 (32-bit single precision).
+
+Note: This may lose precision for values that are not exactly representable in 32-bit.
+
+Example:
+```motoko include=import
+assert Float.toFloat32(1.5) == 1.5;
+```
+
+## Function `fromFloat32`
+``` motoko no-repl
+func fromFloat32(x : Prim.Types.Float32) : Float
+```
+
+Conversion from Float32 (32-bit single precision) to Float (64-bit double precision).
+
+This is a lossless widening conversion.
+
+Example:
+```motoko include=import
+assert Float.fromFloat32(1.5) == 1.5;
+```
 
 ## Function `equal`
 ``` motoko no-repl

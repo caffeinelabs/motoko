@@ -35,11 +35,13 @@ You can use the following options with the `moc` command.
 | `--copying-gc`                            | Use copying GC (only available with legacy/classical persistence).                                                                                    |
 | `--debug`                                 | Respects debug expressions in the source (the default).                                                                                               |
 | `--enhanced-orthogonal-persistence`       | Use enhanced orthogonal persistence (default): Scalable and fast upgrades using a persistent 64-bit main memory.                                      |
+| `--enhanced-migration <dir>`              | Enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence. |
 | `--error-detail <n>`                      | Set level of error message detail for syntax errors, n in \[0..3\] (default 2).                                                                       |
 | `--experimental-stable-memory <n>`        | Select support for the deprecated `ExperimentalStableMemory.mo` library (n < 0: error, n = 0: warn, n > 0: allow) (default 0).                        |
 | `-fno-shared-code`                        | Do not share low-level utility code: larger code size but decreased cycle consumption (default).                                                      |
 | `--generational-gc`                       | Use generational GC (only available with legacy/classical persistence).                                                                               |
 | `-fshared-code`                           | Do share low-level utility code: smaller code size but increased cycle consumption.                                                                   |
+| `--generate-view-queries`                 | Auto-generate queries for stable variables; preferring applicable .view() methods (default false)                                                     |
 | `-help`,`--help`                          | Displays usage information.                                                                                                                           |
 | `--hide-warnings`                         | Hides compiler warnings.                                                                                                                              |
 | `-Werror`                                 | Treat warnings as errors.                                                                                                                             |

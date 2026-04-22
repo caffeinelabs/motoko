@@ -1,0 +1,4 @@
+bad-field-dec.mo:4.10-4.21: type error [M0257], this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+bad-field-dec.mo:5.10-5.21: type error [M0257], this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+bad-field-dec.mo:7.13-7.24: type error [M0257], this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.
+bad-field-dec.mo:8.13-8.24: type error [M0257], this declaration has no initializer. Omitting an initializer is only allowed in an actor and with flag --enhanced-migration.

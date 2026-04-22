@@ -62,7 +62,7 @@ end
 
 module type FloatType =
 sig
-  include Wasm.Float.S
+  include Wasm.Fxx.S
   val rem : t -> t -> t
   val pow : t -> t -> t
   val to_pretty_string : t -> string

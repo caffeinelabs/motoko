@@ -74,6 +74,35 @@ open Dwarf5.Meta
 
 open CustomModule
 
+(* VLQ Base64 encoder for source maps.
+   Derived from https://github.com/flowtype/ocaml-vlq (MIT license).
+   Copyright (c) 2018-present, Facebook, Inc.
+   Only the encode path is included; decode (which depends on the
+   removed-in-OCaml-5 Stream module) is not needed by moc. *)
+module Vlq_base64 : sig
+  val encode : Buffer.t -> int -> unit
+end = struct
+  let shift = 5
+  let vlq_base = 1 lsl shift
+  let vlq_base_mask = vlq_base - 1
+  let vlq_continuation_bit = vlq_base
+  let base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+  let char_of_digit d = base64.[d]
+
+  let rec encode_vlq buf vlq =
+    let digit = vlq land vlq_base_mask in
+    let vlq = vlq lsr shift in
+    if vlq = 0 then Buffer.add_char buf (char_of_digit digit)
+    else begin
+      Buffer.add_char buf (char_of_digit (digit lor vlq_continuation_bit));
+      encode_vlq buf vlq
+    end
+
+  let encode buf value =
+    let vlq = if value < 0 then ((-value) lsl 1) + 1 else value lsl 1 in
+    encode_vlq buf vlq
+end
+
 (* Version *)
 
 let version = 1l
@@ -171,7 +200,7 @@ let encode (em : extended_module) =
   let add_dwarf_string =
     add_string (function | [] -> 0 | (h, p) :: _ -> String.length h + 1 + p) dwarf_strings in
 
-  let module Instrs = Set.Make (struct type t = int * Wasm.Source.pos let compare = compare end) in
+  let module Instrs = Set.Make (struct type t = int * Source.pos let compare = compare end) in
   let statement_positions = ref Instrs.empty in
 
   let module DW_Sequence = Set.Make (struct type t = int * Instrs.t * int let compare = compare end) in
@@ -272,10 +301,10 @@ let encode (em : extended_module) =
     let il = il - 1 in
     let if_ = add_source file !sources in
     if ol <> !prev_ol then Buffer.add_char map ';';
-    Vlq.Base64.encode map (oc - !prev_oc);             (* output column *)
-    Vlq.Base64.encode map (if_ - !prev_if);            (* sources index *)
-    Vlq.Base64.encode map (il - !prev_il);             (* input row *)
-    Vlq.Base64.encode map (ic - !prev_ic);             (* input column *)
+    Vlq_base64.encode map (oc - !prev_oc);             (* output column *)
+    Vlq_base64.encode map (if_ - !prev_if);            (* sources index *)
+    Vlq_base64.encode map (il - !prev_il);             (* input row *)
+    Vlq_base64.encode map (ic - !prev_ic);             (* input column *)
     Buffer.add_char map ',';
 
     prev_if := if_; prev_ol := ol; prev_oc := oc; prev_il := il; prev_ic := ic; incr segs
@@ -314,7 +343,7 @@ let encode (em : extended_module) =
 
     let len i =
       if Int32.to_int (Int32.of_int i) <> i then
-        Code.error Wasm.Source.no_region
+        Code.error Source.no_region
           "cannot encode length with more than 32 bit";
       vu32 (Int32.of_int i)
 
@@ -372,9 +401,9 @@ let encode (em : extended_module) =
 
     (* Expressions *)
 
-    open Wasm.Source
     open Ast
     open Values
+    open Wasm.Source
 
     let op n = u8 n
     let end_ () = op 0x0b
@@ -1202,7 +1231,7 @@ let encode (em : extended_module) =
 
             (* build the statement loc -> addr map *)
             let statement_positions = !statement_positions in
-            let module StmtsAt = Map.Make (struct type t = Wasm.Source.pos let compare = compare end) in
+            let module StmtsAt = Map.Make (struct type t = pos let compare = compare end) in
             let statements_at = StmtsAt.of_seq (Seq.map (fun (k, v) -> v, k) (Instrs.to_seq statement_positions)) in
             let is_statement_at (addr, loc) =
               match StmtsAt.find_opt loc statements_at with

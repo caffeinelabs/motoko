@@ -1,0 +1,1 @@
+enhanced-migration-bad-chain.mo:4.1-7.2: Compatibility error [M0169], version `m3` does not contain the stable variable `a`. The migration function cannot require this variable as input, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.

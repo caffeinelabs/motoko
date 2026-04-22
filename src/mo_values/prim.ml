@@ -341,6 +341,10 @@ let prim trap =
     | _ -> assert false
     )
 
+  | "get_migrations" ->
+    fun _ v k -> as_unit v; k Null
+  | "set_migrations" ->
+    fun _ v k -> k unit
 
   | "cast"
   | "blobOfPrincipal"
@@ -484,5 +488,13 @@ let prim trap =
   | "env_var" ->
      fun _ v k ->
        k Null
+
+  | "caller_info_signer" ->
+     fun _ v k ->
+       k (Blob "")
+
+  | "caller_info_data" ->
+     fun _ v k ->
+       k (Blob "")
 
   | s -> trap.trap ("Value.prim: " ^ s)

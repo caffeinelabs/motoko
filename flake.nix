@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -41,14 +41,6 @@
       url = "github:kritzcreek/motoko-matchers/5ba5f52bd9a5649dedf5e2a1ccd55d98ed7ff982";
       flake = false;
     };
-    ocaml-vlq-src = {
-      url = "github:flowtype/ocaml-vlq";
-      flake = false;
-    };
-    wasm-spec-src = {
-      url = "github:WebAssembly/spec/opam-1.1.1";
-      flake = false;
-    };
     grace-src = {
       url = "github:johnyob/grace/15251666a11a780dfd09f23e1b0c1e6b0e366dcf";
       flake = false;
@@ -72,8 +64,6 @@
     , motoko-base-src
     , motoko-core-src
     , motoko-matchers-src
-    , ocaml-vlq-src
-    , wasm-spec-src
     , grace-src
     , ocaml-recovery-parser-src
     }: flake-utils.lib.eachDefaultSystem (system:
@@ -88,8 +78,6 @@
             motoko-base-src
             motoko-core-src
             motoko-matchers-src
-            ocaml-vlq-src
-            wasm-spec-src
             ocaml-recovery-parser-src
             grace-src;
         };
@@ -128,8 +116,7 @@
         sexplib
         num
         stdint
-        wasm_1
-        vlq
+        wasm
         zarith
         yojson
         ppxlib
@@ -151,7 +138,7 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-12.0.0" = "sha256-5+Hm2mbVoHLPJLgV8OAZUJXnBRPRFsPknFQ8SUSR/GE=";
+          "pocket-ic-13.0.0" = "sha256-QMJWB1yRAgrvmugmGqG6zvk7Z3hzXkGTsGej5EJ3z8g=";
         };
       };
 

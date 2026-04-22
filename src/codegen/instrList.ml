@@ -191,19 +191,8 @@ let table n f = List.fold_right (^^) (Lib.List.table n f) nop
 
 (* Region-managing combinator *)
 
-let cr at =
-  let left = Wasm.Source.{
-    file = at.Source.left.Source.file;
-    line = at.Source.left.Source.line;
-    column = at.Source.left.Source.column } in
-  let right = Wasm.Source.{
-    file = at.Source.right.Source.file;
-    line = at.Source.right.Source.line;
-    column = at.Source.right.Source.column } in
-  Wasm.Source.{ left; right }
-
 let with_region (pos : Source.region) (body : t) : t =
-  fun d _pos rest -> body d (cr pos) rest
+  fun d _pos rest -> body d pos rest
 
 (* Depths-managing combinators *)
 
@@ -335,7 +324,5 @@ let dw_tag die body =
 let dw_tag_no_children = dw_tag_open (* self-closing *)
 
 (* Marker for statement boundaries *)
-let dw_statement { Source.left; Source.right } =
-  let open Wasm.Source in
-  let left = { file = left.Source.file; line = left.Source.line; column = left.Source.column } in
+let dw_statement { left; _ } =
   i (Meta (StatementDelimiter left))

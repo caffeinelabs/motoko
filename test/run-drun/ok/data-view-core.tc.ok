@@ -1,0 +1,1 @@
+data-view-core.mo:94.7-94.19: warning [M0244], variable some_variant is never reassigned, consider using `let`

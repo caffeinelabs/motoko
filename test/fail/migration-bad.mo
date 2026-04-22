@@ -38,7 +38,7 @@ actor h {
 actor i { // reject, no migration field
 };
 
-(with migration = ();
+(with migration = func ({}) : {}{{}};
       extra = ()) // future: warn, unexpected field
 actor j {
 };
