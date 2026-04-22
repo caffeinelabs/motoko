@@ -360,16 +360,21 @@ let warn_lossy_bind_type env at bind t1 t2 =
       display_typ_expand t1
       display_typ_expand t2
 
-let error_expected_option_type env at t =
+let error_expected_option_type env at ?op t =
+  let context = match op with
+    | Some op -> Printf.sprintf " before '%s'" op
+    | None -> ""
+  in
   error env at "M0065"
-    "expected option type, but expression produces type%a"
+    "expected option type%s, but expression produces type%a"
+    context
     display_typ_expand t
 
-let expect_option_type env exp t =
+let expect_option_type ?op env exp t =
   try
     T.as_opt_sub t
   with Invalid_argument _ ->
-    error_expected_option_type env exp.at t
+    error_expected_option_type env exp.at ?op t
 
 let error_expected_type env at ~actual ~expected =
   error env at "M0096"
@@ -1890,7 +1895,7 @@ and infer_exp'' env exp : T.typ =
       let t1 = infer_exp_promote env exp1 in
       if Option.is_none (T.Env.find_opt "!" env.labs) then
         local_error env exp.at "M0064" "misplaced '!' (no enclosing 'do ? { ... }' expression)";
-      expect_option_type env exp1 t1
+      expect_option_type ~op:"!" env exp1 t1
     end
   | TagE (id, exp1) ->
     let t1 = infer_exp env exp1 in
@@ -2084,7 +2089,7 @@ and infer_exp'' env exp : T.typ =
     T.bool
   | NullCoalesceE (e1, e2) ->
     let t1 = infer_exp env e1 in
-    let t_inner1 = expect_option_type env e1 t1 in
+    let t_inner1 = expect_option_type ~op:"??" env e1 t1 in
     let t2 = infer_exp env e2 in
     let t = T.lub ~src_fields:env.srcs t_inner1 t2 in
     if not env.pre && inconsistent t [t_inner1; t2] then

@@ -460,6 +460,9 @@ typ_un :
     { t }
   | QUEST t=typ_un
     { OptT(t) @! at $sloc }
+  (* backward compat: '?? T' (one NULLCOALESCE token) means '?(?T)' *)
+  | NULLCOALESCE t=typ_un
+    { OptT(OptT(t) @! at $sloc) @! at $sloc }
   | WEAK t=typ_un
     { WeakT(t) @! at $sloc }
 
@@ -708,6 +711,9 @@ exp_un(B) :
     { TagE (x, e) @? at $sloc }
   | QUEST e=exp_un(ob)
     { OptE(e) @? at $sloc }
+  (* backward compat: '?? e' (one NULLCOALESCE token) means '?(?e)' *)
+  | NULLCOALESCE e=exp_un(ob)
+    { OptE(OptE(e) @? at $sloc) @? at $sloc }
   | op=unop e=exp_un(ob)
     { match op, e.it with
       | (PosOp | NegOp), LitE {contents = PreLit (s, (Type.(Nat | Float) as typ))} ->
@@ -918,6 +924,9 @@ pat_un :
     { TagP(x, p) @! at $sloc }
   | QUEST p=pat_un
     { OptP(p) @! at $sloc }
+  (* backward compat: '?? p' (one NULLCOALESCE token) means '?(?p)' *)
+  | NULLCOALESCE p=pat_un
+    { OptP(OptP(p) @! at $sloc) @! at $sloc }
   | op=unop l=lit
     { match op, l with
       | (PosOp | NegOp), PreLit (s, (Type.(Nat | Float) as typ)) ->

@@ -1,5 +1,20 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * feat: Add null-coalescing operator `??` (#5722).
+    `e1 ?? e2` evaluates to the unwrapped contents of `e1` when `e1` is `?v`,
+    otherwise to `e2`. The right-hand side is evaluated lazily (short-circuit).
+    For example, `opt ?? defaultValue` replaces the verbose
+    `switch opt { case (?v) v; case null defaultValue }`.
+    The right-hand side may be a block (e.g. `opt ?? { let x = 1; x }`),
+    a `do`-block, or a `Prim.trap` for fail-fast unwrapping.
+    The binary form requires whitespace around `??` (e.g. `opt??42` is rejected),
+    while the unary forms `??T` / `?? T` continue to mean `?(?T)` in type,
+    expression, and pattern positions for backward compatibility.
+
 ## 1.6.0 (2026-04-21)
 
 * motoko (`moc`)

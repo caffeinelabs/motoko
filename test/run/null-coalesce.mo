@@ -9,6 +9,15 @@ let nn2 : ??Nat = ?null;
 let nn3 = ??1;
 let nn4 : ??Nat = ??1;
 
+// '?? T' (with whitespace) must still parse as nested option, for backward
+// compatibility with the pre-PR tokenization of `??` as two `?`.
+let nn5 : ?? Nat = ?? 1;
+assert (nn5 == ?? 1);
+switch (?? 9 : ?? Nat) {
+  case (?? p) assert (p == 9);
+  case _ Prim.trap("");
+};
+
 let t1 = n1 ?? 42;
 assert (t1 == 42);
 let t2 = n2 ?? 42;

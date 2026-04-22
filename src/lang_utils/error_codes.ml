@@ -65,7 +65,7 @@ let error_codes : (string * string option) list =
     "M0060", None; (* Operator is not defined for operand types *)
     "M0063", None; (* Show is not defined for operand type *)
     "M0064", None; (* Misplaced '!' without enclosing do block *)
-    "M0065", None; (* Expected option type *)
+    "M0065", None; (* Expected option type (before '!' or '??') *)
     "M0066", None; (* Tuple projection is out of bounds *)
     "M0067", None; (* Expected tuple type *)
     "M0068", None; (* Actors are not supported *)
