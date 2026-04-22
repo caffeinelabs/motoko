@@ -135,13 +135,13 @@ let run_under_leave_handler ~on_zero ~normalise body_proc =
       Some (fun k -> on_zero lru_b; Effect.Deep.continue k ())
     | May_leave (n, lru_b) ->
       Some (fun k ->
-        Effect.perform (May_leave (n - 1, lru_b));
+        May_leave (n - 1, lru_b) |> Effect.perform;
         Effect.Deep.continue k ())
     | _ -> None in
   Effect.Deep.try_with
     (fun () ->
        match body_proc () with
-       | Some lru' when normalise -> Effect.perform (May_leave (0, lru'))
+       | Some lru' when normalise -> May_leave (0, lru') |> Effect.perform
        | Some _ | None -> ())
     ()
     { Effect.Deep.effc = effc }
@@ -152,6 +152,9 @@ let join_branch_states branch_states =
   match branch_states with
   | [] -> None
   | s :: rest -> Some (List.fold_left intersect s rest)
+
+(* De-reference a Wasm branch-target phrase to an OCaml int label depth. *)
+let label_depth (n : var) : int = Int32.to_int n.it
 
 (* Resolve block_type to (n_params, n_results).
    ValBlockType is resolved directly; VarBlockType needs the type section
@@ -414,29 +417,28 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
   | Block (bt, body) ->
     (match block_arity ~type_section bt with
      | Some (n_params, _n_results) ->
-       let inner_lru = shift_and_evict (-n_params) lru in
+       let lru = shift_and_evict (-n_params) lru in
        let branch_states = ref [] in
        run_under_leave_handler
-         ~on_zero:(fun lru_b -> branch_states := lru_b :: !branch_states)
+         ~on_zero:(fun lru -> branch_states := lru :: !branch_states)
          ~normalise:true
-         (fun () -> process_block_inner ~func_type ~type_section ?on_call inner_lru body);
+         (fun () -> process_block_inner ~func_type ~type_section ?on_call lru body);
        join_branch_states !branch_states
      | None -> None)
 
   (* Loop: the Wasm label is at loop entry, so depth-0 branches are
      back-edges we don't track (no fixed-point). The body is still
-     processed for `on_call` side effects; exit state is flushed. *)
+     processed for `on_call` side effects; entry and exit states
+     are both fully flushed, so depth shifts are vacuous. *)
   | Loop (bt, body) ->
     (match block_arity ~type_section bt with
-     | Some (n_params, n_results) ->
-       let entry_lru = shift_and_evict (-n_params)
-                         { lru with entries = []; locals = LocalMap.empty } in
+     | Some _ ->
+       let lru = { lru with entries = []; locals = LocalMap.empty } in
        run_under_leave_handler
          ~on_zero:(fun _ -> ())         (* swallow back-edges *)
          ~normalise:false               (* fall-through state is discarded anyway *)
-         (fun () -> process_block_inner ~func_type ~type_section ?on_call entry_lru body);
-       Some (shift_and_evict (n_results - n_params)
-               { lru with entries = []; locals = LocalMap.empty })
+         (fun () -> process_block_inner ~func_type ~type_section ?on_call lru body);
+       Some lru
      | None -> None)
 
   (* If: both legs share branch_states and the same handler.
@@ -446,13 +448,13 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
   | If (bt, then_body, else_body) ->
     (match block_arity ~type_section bt with
      | Some (n_params, _n_results) ->
-       let lru_cond = shift_and_evict (-1) lru in
-       let inner_lru = shift_and_evict (-n_params) lru_cond in
+       let lru = shift_and_evict (-1) lru in           (* pop condition *)
+       let lru = shift_and_evict (-n_params) lru in   (* shift for block params *)
        let branch_states = ref [] in
-       let on_zero lru_b = branch_states := lru_b :: !branch_states in
+       let on_zero lru = branch_states := lru :: !branch_states in
        let run body =
          run_under_leave_handler ~on_zero ~normalise:true
-           (fun () -> process_block_inner ~func_type ~type_section ?on_call inner_lru body) in
+           (fun () -> process_block_inner ~func_type ~type_section ?on_call lru body) in
        run then_body;
        run else_body;
        join_branch_states !branch_states
@@ -467,20 +469,18 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
       | _ -> lru in
     let lru_taken = shift_and_evict (-1) lru in
     let lru_fall  = shift_and_evict (-1) lru_fall in
-    Effect.perform (May_leave (Int32.to_int n.it, lru_taken));
+    May_leave (label_depth n, lru_taken) |> Effect.perform;
     Some lru_fall
 
   | Br n ->
-    Effect.perform (May_leave (Int32.to_int n.it, lru));
+    May_leave (label_depth n, lru) |> Effect.perform;
     None
 
   | BrTable _ -> None                    (* not yet modelled *)
   | Return | Unreachable -> None
 
   (* Bulk memory *)
-  | MemoryFill -> Some (shift_and_evict (-3) lru)
-  | MemoryCopy -> Some (shift_and_evict (-3) lru)
-  | MemoryInit _ -> Some (shift_and_evict (-3) lru)
+  | MemoryFill | MemoryCopy | MemoryInit _ -> Some (shift_and_evict (-3) lru)
 
   (* Convert: pop 1, push 1 = net 0 *)
   | Convert cvt ->
@@ -529,4 +529,4 @@ let process_block ~func_type ?type_section ?on_call lru instrs =
 
 (* Physical-identity comparison. Sound under the linker's tree-shaped-IR
    invariant (no phrase sharing, no position aliasing). See the .mli. *)
-let same_instr (a : Wasm_exts.Ast.instr) (b : Wasm_exts.Ast.instr) : bool = a == b
+let same_instr (a : instr) (b : instr) : bool = a == b
