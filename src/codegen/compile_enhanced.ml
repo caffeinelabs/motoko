@@ -11634,17 +11634,23 @@ let find_variant_mask n hashes =
   in
   try_popcount (bits_needed n)
 
-(* Dispatch strategy protocol (effect-based).
+(* Dispatch strategy protocol (effect-based, streaming).
 
    Recognizer — the code that walks a multi-way match (today: the
    SwitchE variant case; tomorrow: and-patterns, literal-match chains)
-   — performs `Dispatch.Query case_hashes`, where `case_hashes` is a
-   list-of-lists: one sub-list per case, each containing the tag
-   hashes (or future equivalent tokens) that dispatch to that case.
-   An or-pattern leg contributes multiple entries in its case's
-   sub-list.
+   — streams one case at a time via `Match_arm`, then signals
+   completion with `Match_join` to receive the strategy plan. Each
+   `Match_arm hashes` hands the handler one case's token set (or-pattern
+   legs contribute multiple hashes in a single `Match_arm` call).
 
-   Handler — returns a `plan` value. The default handler runs
+   This streaming shape is cheap ceremony for whole-switch recognizers
+   like SwitchE (which already knows all cases upfront), but leaves
+   room for future recognizers that surface decisions incrementally —
+   AND-pattern sub-components, nested literal chains, etc. — without
+   protocol churn.
+
+   Handler — maintains mutable state across `Match_arm` calls and
+   returns a `plan` at `Match_join`. The default handler runs
    Gosper-based mask-finding. Outer scopes may override by installing
    their own handler before the recognizer fires (e.g. a test wanting
    to pin a specific plan, or a `--preserve-switch-shape` debug flag
@@ -11663,7 +11669,8 @@ module Dispatch = struct
     | Linear   (* fall back to the default linear-chain SwitchE emission *)
 
   type _ Effect.t +=
-    | Query : int64 list list -> plan Effect.t
+    | Match_arm : int64 list -> unit Effect.t
+    | Match_join : plan Effect.t
 
   let gosper_plan (case_hashes : int64 list list) : plan =
     let flat = List.concat case_hashes in
@@ -11683,11 +11690,20 @@ module Dispatch = struct
         ) case_hashes;
         MaskShift { mask; shift; table_size; slot_for_case }
 
-  (* Install the default Gosper-based handler around `body`. *)
+  (* Install the default Gosper-based handler around `body`.
+     Arms submitted via `Match_arm` accumulate in reverse; `Match_join`
+     reverses once and commits a plan. Each `with_handler` scope has
+     its own accumulator — nested switches don't leak state. *)
   let with_handler (type r) (body : unit -> r) : r =
+    let arms_rev = ref [] in
     let effc : type a. a Effect.t -> ((a, r) Effect.Deep.continuation -> r) option = function
-      | Query case_hashes ->
-        Some (fun k -> Effect.Deep.continue k (gosper_plan case_hashes))
+      | Match_arm hashes ->
+        Some (fun k ->
+          arms_rev := hashes :: !arms_rev;
+          Effect.Deep.continue k ())
+      | Match_join ->
+        Some (fun k ->
+          Effect.Deep.continue k (gosper_plan (List.rev !arms_rev)))
       | _ -> None
     in
     Effect.Deep.try_with body () { Effect.Deep.effc = effc }
@@ -13351,20 +13367,22 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let (set_i, get_i) = new_local env "switch_in" in
 
     (* Recognizer: if every case is tag-leafy (`TagP` possibly wrapped in
-       nested `AltP` legs), collect per-case leaf hashes and ask the
-       `Dispatch` handler for a plan. Or-patterns contribute multiple
-       entries to the same case's sub-list but compile to a single arm
-       body. A `MaskShift` plan fires br_table dispatch; a `Linear` plan
-       or a non-tag-leafy case falls through to the linear-chain
-       emission below. *)
+       nested `AltP` legs), stream each case's leaf hashes to the
+       `Dispatch` handler via `Match_arm`, then request the plan via
+       `Match_join`. Or-patterns contribute multiple hashes in one
+       `Match_arm` but compile to a single arm body. A `MaskShift` plan
+       fires br_table dispatch; a `Linear` plan or a non-tag-leafy case
+       falls through to the linear-chain emission below. *)
     let maybe_plan : Dispatch.plan option =
       if List.for_all (fun {it=({pat; _} : case'); _} ->
            Option.is_some (flatten_tag_leaves pat)) cs then
-        let case_hashes = List.map (fun {it=({pat; _} : case'); _} ->
-          let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
-          List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves) cs in
         Some (Dispatch.with_handler (fun () ->
-          Effect.perform (Dispatch.Query case_hashes)))
+          List.iter (fun {it=({pat; _} : case'); _} ->
+            let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+            let hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves in
+            Effect.perform (Dispatch.Match_arm hashes)
+          ) cs;
+          Effect.perform Dispatch.Match_join))
       else None
     in
 
