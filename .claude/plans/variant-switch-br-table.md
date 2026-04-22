@@ -159,33 +159,83 @@ Note: Wasm JIT compilers (wasmtime, V8) typically lower `br_table` to a
 hardware jump table, giving an additional constant-factor speedup over
 what static instruction counts suggest.
 
-## Where to Apply the Optimisation: IR vs. Wasm Peephole
+## Where to Apply the Optimisation
 
-Two possible insertion points:
+Three candidate insertion points, evolved over the life of the PR:
 
 **Option A — IR level** (`SwitchE` with `TagP` arms, in `compile_classical.ml`)
+— the shipped V1. Easy to reach labels, hashes, and exhaustiveness,
+but only sees one IR shape: a flat list of `TagP` arms with distinct bodies.
 
-**Option B — Wasm peephole** (scan generated instructions for repeated
-`load / i32.const hash / i32.eq / br_if` chains and replace)
+**Option B — Wasm peephole** (scan `i32.const hash / i32.eq / br_if`
+chains and rewrite). Rejected: labels must be re-decoded from operands,
+exhaustiveness is not locally known, `Wasm.AST` is functional (replacement
+is unnatural), and no existing peephole infrastructure to attach to.
 
-### Comparison
+**Option C — pattern-code EDSL with an algebraic-effect strategy query**
+— the V2 proposal. `compile_enhanced.ml:10635` composes pattern-matching
+via `patternCode` values combined with `(^^^)`. Both flat variant arms
+and or-pattern arms end up producing the *same* kind of "compare tag
+hash H, branch to body B" fragment at this level — the IR-shape
+distinction that Option A is blind to has already been elaborated away.
 
-| Criterion | IR level (A) | Wasm peephole (B) |
-|-----------|-------------|-------------------|
-| Label strings / hashes available | ✓ directly | ✗ must re-decode from `i32.const` operands |
-| Exhaustiveness known | ✓ from type (`Variant [...]`) → `default` = `unreachable` | ✗ must infer from structure |
-| Forwarding-pointer load variation | ✓ handled by `get_variant_tag` call | ✗ pattern varies; fragile |
-| Existing precedent | ✓ `single_case`, `simplify_cases` | ✗ no peephole infrastructure |
-| Wasm AST mutability | n/a | ✗ AST is functional; replacement is unnatural |
-| Could catch other patterns | n/a | ✓ theoretically — but no other source of such chains exists |
-| Code generated once | ✓ | ✗ generate then discard |
+### Why V1 is not enough
 
-**Verdict: IR level (Option A) is strictly better.** All the information
-needed (labels, hashes, exhaustiveness, type structure) is available
-exactly at the `SwitchE` node. Wasm-level peephole would be fragile,
-redundant, and lose the semantic guarantee that the `default` branch is
-unreachable. Option A also follows the established pattern of
-`single_case` / `simplify_cases`.
+`isWeekday` (7 flat arms: `#mon → true; #tue → true; ...; #sun → false`)
+optimises to `br_table`. The semantically-equal `isWeekdayOr`
+(or-pattern: `case (#mon | #tue | ... | #fri) true; case _ false`)
+does not — at IR the or-pattern is a *single* arm with a disjunctive
+pattern, so `SwitchE` sees 2 arms and the 4-arm threshold rejects it.
+Both should dispatch identically.
+
+### Architecture: Recognizer → Strategy Query → Emit
+
+OCaml 5.3 algebraic effects (same machinery as ConstTrack Phase 3) let
+us separate three concerns:
+
+1. **Recognizer** — at every point in `patternCode` where a tag-hash
+   comparison is about to be emitted, `perform` an effect
+   `Variant_arm { hash; body_code }`. Works uniformly across flat arms,
+   or-patterns, and (trivially) any future pattern shape that lowers
+   to the same fragment.
+
+2. **Strategy query** — at `compile_switch` entry, install a handler
+   that collects the surfaced `{hash; body}` set. Before emitting,
+   perform `Dispatch_strategy tag_set` and let the *enclosing* context
+   return the chosen plan (value of type `dispatch_plan =
+   MaskShift of … | ModPrime of … | RotLow of … | Linear of … | …`).
+   The strategy handler owns the cost model, Gosper/prime/rotation
+   searches, and threshold tuning — none of which touches the pattern
+   compiler.
+
+3. **Emit** — dispatch on the returned plan: emit `i32.and; [shr_u];
+   br_table` for `MaskShift`, `rem_u; br_table` for `ModPrime`, etc.
+   Each emitter is independently unit-testable.
+
+### What this buys
+
+- **or-patterns auto-fold.** Same-body arm merging stops being a
+  separate "Future Optimisation" — distinct arms with identical bodies
+  naturally perform the same `{hash; body}` effect payload and the
+  strategy sees `k` equivalence classes for free.
+- **Strategies are plug-ins.** Adding `RotLow` or a new heuristic is a
+  change in the handler, not in the pattern compiler.
+- **Testable in isolation.** The recognizer can be exercised with a
+  synthetic handler that records the effect trace; the strategist can
+  be exercised on hand-built tag sets without a Wasm backend attached.
+- **Context-sensitive overrides.** An outer handler (debug flag,
+  size-budget pass, `--preserve-switch-shape` for disassembly) can
+  intercept `Dispatch_strategy` and force a specific plan without
+  touching call sites.
+
+### Migration path
+
+V1 (IR-level, shipped) stays in place for `compile_classical.ml`. V2
+lands first in `compile_enhanced.ml` where `patternCode` already lives,
+then — if the architecture proves out — backports to the classical
+backend. The `Variant_arm` effect surface is narrow enough that a
+handler installed at a different entry point (e.g. an IR pass that
+pre-folds or-patterns) could still populate it.
 
 ## Implementation Steps
 
@@ -289,6 +339,12 @@ step is done, those benchmarks will reflect the real instruction savings.
    `load_forwarding_pointer` — no change needed here.
 
 ## Future Optimisation: Same-body arm merging
+
+*Subsumed by Option C above — distinct arms with identical bodies
+naturally perform the same `Variant_arm {hash; body}` effect payload,
+so the strategist sees them as one equivalence class without an
+explicit grouping pass. Under V1 (IR-level) the explicit pass below
+is still needed; under V2 it becomes automatic.*
 
 When multiple arms produce identical results (e.g. several arms all returning
 `false`), they are independent from each other from a dispatch perspective —
