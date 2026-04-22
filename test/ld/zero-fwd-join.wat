@@ -23,6 +23,15 @@
     local.get 1
     call $quux)
 
+  ;; Variant with a trailing `Return`. moc occasionally emits one
+  ;; after a tail call; zero_forwarder_target accepts both shapes
+  ;; (`[Call k]` and `[Call k; Return]`).
+  (func $bar_ret (type $t_bi)
+    i32.const 0
+    local.get 1
+    call $quux
+    return)
+
   ;; Case 1 — "Nested-Block de-Bruijn depth" (reviewer ex. 1)
   ;; Br 1 from an inner block carries `i32.const 0` to the outer
   ;; block's End. A second Br 1 from the fall-through path also
@@ -65,6 +74,10 @@
   ;; produce `i32.const 0`. Phase 2 evicted result-slot entries on
   ;; any saw_br_if sighting, so the 0 was lost. Phase 3 intersects
   ;; the two agreeing states and preserves it.
+  ;;
+  ;; This case also exercises the `[Call k; Return]` arm of
+  ;; zero_forwarder_target by calling $bar_ret (trailing-Return
+  ;; variant) instead of $bar.
   (func $agreeing_brif (type $t_i)
     (block (result i32)
       i32.const 0
@@ -74,7 +87,7 @@
       i32.const 0
     )
     local.get 0
-    call $bar)
+    call $bar_ret)
 
   ;; Case 4 — "If with agreeing legs" (reviewer ex. 4). Both then
   ;; and else produce `i32.const 0`; the then-leg contains a BrIf

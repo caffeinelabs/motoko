@@ -218,6 +218,7 @@ let forwarding_target (funcs : func array) (types : Wasm_exts.Types.func_type li
     | _ -> None
 
 (* True iff body is: Const (I32 0); LocalGet 1 … LocalGet n-1; Call k
+   (optionally followed by a trailing Return)
    i.e. a Motoko top-level forwarder that synthesises a null closure for callee *)
 let zero_forwarder_target (funcs : func array) (types : Wasm_exts.Types.func_type list)
     (import_count : int) (fi : int32) : int32 option =
@@ -246,7 +247,7 @@ let zero_forwarder_target (funcs : func array) (types : Wasm_exts.Types.func_typ
       match f.it.locals, body_its with
       | [], hd :: rest when is_null_clos hd ->
         (match eat_args (param_count - 1) rest with
-         | [Call k] -> Some k.it
+         | [Call k] | [Call k; Return] -> Some k.it
          | _ -> None)
       | _ -> None
 
