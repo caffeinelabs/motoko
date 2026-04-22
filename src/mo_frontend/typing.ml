@@ -360,27 +360,14 @@ let warn_lossy_bind_type env at bind t1 t2 =
       display_typ_expand t1
       display_typ_expand t2
 
-let error_expected_option_type env at ?op t =
-  let context = match op with
-    | Some op -> Printf.sprintf " before '%s'" op
-    | None -> ""
-  in
-  error env at "M0065"
-    "expected option type%s, but expression produces type%a"
-    context
-    display_typ_expand t
-
-let expect_option_type ?op env exp t =
+let expect_option_type ~op env exp t =
   try
     T.as_opt_sub t
   with Invalid_argument _ ->
-    error_expected_option_type env exp.at ?op t
-
-let error_expected_type env at ~actual ~expected =
-  error env at "M0096"
-    "expression of type%a\ncannot produce expected type%a"
-    display_typ_expand actual
-    display_typ_expand expected
+    error env exp.at "M0065"
+      "expected option type before '%s', but expression produces type%a"
+      op
+      display_typ_expand t
 
 let error_inconsistent_type env at at1 t1 at2 t2 =
   error env at "M0245"
@@ -3141,7 +3128,10 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
     ts, T.open_ ts t_arg, T.open_ ts t_ret
   with Bi_match.Bimatch { message; hint; reason } ->
     reason |> Option.iter (fun Bi_match.{ actual; expected; at } ->
-      error_expected_type env at ~actual ~expected);
+      error env at "M0096"
+        "expression of type%a\ncannot produce expected type%a"
+        display_typ_expand actual
+        display_typ_expand expected);
 
     let t1 = T.normalize t1 in
     let remove_holes_nary ts =

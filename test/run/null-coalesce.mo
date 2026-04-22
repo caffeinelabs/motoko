@@ -78,19 +78,20 @@ do {
   assert (counter == 1);
 };
 
-// Function calls returning options
+// Function calls returning options.
+// Parentheses are required around `?? default` because `??` binds looser than `==`.
 do {
   func lookup(key : Text) : ?Nat { if (key == "a") ?1 else null };
-  assert (lookup("a") ?? 0 == 1);
-  assert (lookup("b") ?? 0 == 0);
+  assert ((lookup("a") ?? 0) == 1);
+  assert ((lookup("b") ?? 0) == 0);
 };
 
 // Mutable variables
 do {
   var x : ?Nat = ?10;
-  assert (x ?? 0 == 10);
+  assert ((x ?? 0) == 10);
   x := null;
-  assert (x ?? 0 == 0);
+  assert ((x ?? 0) == 0);
 };
 
 // Subtyping: Nat inner with Int default yields Int
@@ -112,3 +113,10 @@ let tn1 = nn3 ?? ??0;
 assert (tn1 == ??1);
 let tn2 = nn0 ?? ??0;
 assert (tn2 == ??0);
+
+// Whitespace disambiguation: `a?? b` is binary `??`, since the lexer only requires
+// whitespace AFTER the second `?` to emit NULLCOALESCE.
+let ws1 = nat?? 0;
+assert (ws1 == 5);
+let ws2 = n2?? 0;
+assert (ws2 == 0);

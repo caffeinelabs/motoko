@@ -11,9 +11,12 @@
     `switch opt { case (?v) v; case null defaultValue }`.
     The right-hand side may be a block (e.g. `opt ?? { let x = 1; x }`),
     a `do`-block, or a `Prim.trap` for fail-fast unwrapping.
-    The binary form requires whitespace around `??` (e.g. `opt??42` is rejected),
-    while the unary forms `??T` / `?? T` continue to mean `?(?T)` in type,
-    expression, and pattern positions for backward compatibility.
+    The binary form requires whitespace after `??` (e.g. `opt ?? 42` and
+    `opt?? 42` parse as null-coalesce; `opt??42` is two `?` tokens) so that the
+    unary forms `??T` and `?? T` continue to mean `?(?T)` in type, expression,
+    and pattern positions for backward compatibility.
+    `??` binds looser than the comparison and arithmetic operators, so use
+    parentheses when mixing them: `(opt ?? 0) == 1`, not `opt ?? 0 == 1`.
 
 ## 1.6.0 (2026-04-21)
 
