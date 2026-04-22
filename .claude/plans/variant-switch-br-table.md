@@ -402,35 +402,83 @@ step is done, those benchmarks will reflect the real instruction savings.
 
 ## Future Optimisation: Same-body arm merging
 
-*Subsumed by Option C above — distinct arms with identical bodies
-naturally perform the same `Variant_arm {hash; body}` effect payload,
-so the strategist sees them as one equivalence class without an
-explicit grouping pass. Under V1 (IR-level) the explicit pass below
-is still needed; under V2 it becomes automatic.*
+### Scope decision (2026-04-23)
 
-When multiple arms produce identical results (e.g. several arms all returning
-`false`), they are independent from each other from a dispatch perspective —
-they can share the same `br_table` target slot.
+Under V2, or-patterns (`case (#mon or #tue or … or #fri) false`) already
+collapse to one arm block via the recognizer's `flatten_tag_leaves`
+helper — all leaves of a single case contribute multiple entries to the
+same sub-list in `Dispatch.Query`. That's the incentive channel: users
+who recognize same-body structure and write an or-pattern get the
+benefit.
 
-**Consequence for mask-finding**: only the number of *distinct* arm bodies
-matters for injectivity, not the total arm count. Two arms with identical IR
-expressions may map to the same br_table label, so the mask only needs to be
-injective across the equivalence classes of arms (grouped by body).
+**We deliberately do NOT auto-merge arms with structurally-equal bodies
+across distinct cases.** The reasoning:
 
-This also subsumes **or-patterns** (`case (#foo | #bar) body`) — after
-desugaring, `#foo` and `#bar` produce arms with identical bodies, so they
-naturally fall into the same equivalence class and share a dispatch slot.
+- Leaving cross-case merging to the user incentivises writing or-patterns,
+  which communicate intent (this group of tags genuinely shares an
+  outcome). Syntactic or-patterns are also stable under refactoring in a
+  way that "two cases happen to produce identical IR" is not.
+- Auto-merging at the IR level is brittle: two arms with the same *IR*
+  expression may have different *typing contexts*, scope, or side-effect
+  behaviour in edge cases that an equality check might miss.
+- More importantly, the right equivalence is **Wasm-instruction-sequence
+  equality**, not IR equality (see refinement below) — and that requires
+  ahead-of-time arm compilation, which is a larger restructuring.
 
-**Implementation sketch**:
-1. Group the `n` arms into `k ≤ n` equivalence classes by body IR equality
-   (or by pointer identity when they share the same expression node).
-2. Run `find_variant_mask` with `k` instead of `n` for the popcount bound.
-3. Build the dispatch table with one block per equivalence class; arms in the
-   same class share a label.
+### Why same-body merging matters for strategy choice
 
-This is strictly opt-in — correct without the optimisation, but the mask will
-typically be smaller (fewer bits needed), leading to smaller tables and
-potentially eliminating the right-shift entirely.
+Same-body merging is **not** a speedup for the already-dispatched case
+— each br_table slot still lands in its own arm block that executes the
+same instructions regardless of whether the blocks are physically
+shared. It's a code-size saving of that one duplicated body-block.
+
+But it **does** affect dispatcher choice upstream. The handler's
+strategy space is parameterised by `N = number of distinct outcome
+classes`, not by the raw arm count:
+
+- `ModPrime`: smaller `p` when classes merge — the br_table shrinks
+  linearly with class count. `mod 3` for 3 classes vs `mod 7` for 7
+  (same per-op cost, but half the table bytes).
+- `MaskShift`: fewer injectivity constraints → Gosper has more masks to
+  pick from → may land on smaller popcount (fewer SHR bits, more compact
+  table).
+- Perfect hashing: easier to find for 3 tokens than 7.
+
+So merging propagates as input-size reduction through every strategy
+downstream. Or-patterns already get this benefit because they arrive
+pre-merged. Cross-case merging would extend it — but only where the
+user didn't already write the or-pattern themselves.
+
+### Refinement: Wasm-level equivalence classes
+
+If we later add cross-case merging, the equivalence criterion should be
+**raw Wasm instruction sequences**, not IR structural equality:
+
+1. Compile each arm's body ahead of choosing the dispatch strategy
+   (remember: each arm is already a `Block` internally, and composition
+   via `(^^^)` is just difference-list concatenation of `G.t`).
+2. Compute an equivalence class per arm by comparing the compiled Wasm
+   byte sequences (modulo block-label numbering).
+3. Pass the class-reduced `token_set` to `Dispatch.Query` — the handler
+   sees `k ≤ n` sub-lists.
+
+Advantages over IR-level merging:
+- Blind to IR phase-ordering decisions (constant folding, inlining,
+  ANF) that might make two semantically-identical arms look different
+  at IR level.
+- Catches arms that *compile to* identical bytes for reasons the IR
+  doesn't surface (e.g. two variant-projection patterns that happen to
+  emit the same offset load).
+- No coupling to Motoko-specific expression-equality judgement —
+  works verbatim for any future matching context.
+
+### Incremental path
+
+1. V2 as-is: or-pattern merging only. Ships as part of #5927.
+2. Later: ahead-of-time arm compilation in the recognizer, Wasm-bytes
+   comparison, cross-case merging. Handler protocol is already
+   compatible (token_set is a list-of-lists); this is a pure
+   recognizer-side extension.
 
 *Not yet implemented — tracked here for future work.*
 
