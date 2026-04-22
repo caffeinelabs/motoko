@@ -415,13 +415,6 @@ let is_trivia : token -> line_feed trivia option = function
   | LINEFEED lf -> Some (Line lf)
   | t -> Option.map (map_trivia absurd) (is_lineless_trivia t)
 
-let is_whitespace_token : token -> bool = function
-  | LINEFEED _
-  | SINGLESPACE
-  | SPACE _
-  | TAB _ -> true
-  | _ -> false
-
 let is_whitespace : 'a trivia -> bool = function
   | Space _ | Tab _ | Line _ -> true
   | Comment _ -> false

@@ -10,13 +10,10 @@
     For example, `opt ?? defaultValue` replaces the verbose
     `switch opt { case (?v) v; case null defaultValue }`.
     The right-hand side may be a block (e.g. `opt ?? { let x = 1; x }`),
-    a `do`-block, or a `Prim.trap` for fail-fast unwrapping.
-    The binary form requires whitespace after `??` (e.g. `opt ?? 42` and
-    `opt?? 42` parse as null-coalesce; `opt??42` is two `?` tokens) so that the
-    unary forms `??T` and `?? T` continue to mean `?(?T)` in type, expression,
-    and pattern positions for backward compatibility.
-    `??` binds looser than the comparison and arithmetic operators, so use
-    parentheses when mixing them: `(opt ?? 0) == 1`, not `opt ?? 0 == 1`.
+    a `do`-block, or a `Prim.trap` for fail-fast unwrapping. Because `{ ... }`
+    on the right is parsed as a block, a bare record literal must be wrapped
+    in extra braces or parentheses, e.g. `opt ?? ({ x = 0 })` or
+    `opt ?? {{ x = 0 }}`.
 
 ## 1.6.0 (2026-04-21)
 

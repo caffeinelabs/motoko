@@ -14,16 +14,16 @@ let opt_is_whitespace : 'a trivia option -> bool =
 let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
     (unit -> parser_token) * triv_table =
   let trivia_table : triv_table = PosHashtbl.create 1013 in
-  let lookahead : source_token list ref = ref [] in
+  let lookahead : source_token option ref = ref None in
   (* We keep the trailing whitespace of the previous token
      around so we can disambiguate operators *)
   let last_trailing : line_feed trivia list ref = ref [] in
   let next () : source_token =
     match !lookahead with
-    | t :: ts ->
-        lookahead := ts;
+    | Some t ->
+        lookahead := None;
         t
-    | [] ->
+    | None ->
         let token = Source_lexer.token mode lexbuf in
         let start = Lexing.lexeme_start_p lexbuf in
         let end_ = Lexing.lexeme_end_p lexbuf in
@@ -31,11 +31,11 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
   in
   let peek () : source_token =
     match !lookahead with
-    | [] ->
+    | None ->
         let token = next () in
-        lookahead := [token];
+        lookahead := Some token;
         token
-    | t :: _ -> t
+    | Some t -> t
   in
   let next_parser_token () : parser_token =
     let rec eat_leading acc =
@@ -44,16 +44,6 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
       (* A semicolon immediately followed by a newline gets a special token for the REPL *)
       | Ok Parser.SEMICOLON when ST.is_line_feed (first (peek ())) ->
           (List.rev acc, (Parser.SEMICOLON_EOL, start, end_))
-      (* ?? is either null coalesce, or two questions marks depending on whitespace *)
-      | Ok Parser.QUEST when first (peek ()) = ST.QUEST ->
-          let (_, _, end2) as token2 = next () in (* consume second question mark *)
-          if ST.is_whitespace_token (first (peek ())) then
-            (* ?? followed by space: return NULLCOALESCE spanning both question marks *)
-            (List.rev acc, (Parser.NULLCOALESCE, start, end2))
-          else begin
-            lookahead := token2 :: !lookahead; (* revert consumption of second question mark *)
-            (List.rev acc, (Parser.QUEST, start, end_))
-          end
       (* >> can either close two nested type applications, or be a shift
          operator depending on whether it's prefixed with whitespace *)
       | Ok Parser.GT
