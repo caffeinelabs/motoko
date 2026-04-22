@@ -100,6 +100,29 @@ persistent actor Core {
       #Var "fib"
     )]);
 
+  // ── Weekday: 7-arm variant to compare explicit-arm vs or-pattern dispatch ─
+  type Weekday = { #Mon; #Tue; #Wed; #Thu; #Fri; #Sat; #Sun };
+
+  func isWeekend(d : Weekday) : Bool =
+    switch d {
+      case (#Mon) false;
+      case (#Tue) false;
+      case (#Wed) false;
+      case (#Thu) false;
+      case (#Fri) false;
+      case (#Sat) true;
+      case (#Sun) true;
+    };
+
+  func isWeekendOr(d : Weekday) : Bool =
+    switch d {
+      case (#Mon or #Tue or #Wed or #Thu or #Fri) false;
+      case (#Sat or #Sun) true;
+    };
+
+  transient let week : [Weekday] =
+    [#Mon, #Tue, #Wed, #Thu, #Fri, #Sat, #Sun];
+
   // ── Runtime values ───────────────────────────────────────────────────────
   type Val = { #VInt : Int; #VFun : Val -> Val; #VCon : (Text, [Val]) };
   type Env = Text -> Val;
@@ -284,8 +307,34 @@ persistent actor Core {
       instr_transform = n3 - n2;
     });
   };
+  // Benchmark: isWeekend vs isWeekendOr over all 7 inputs, 10k iterations each.
+  // Same dispatch semantics, different source shape — instruction counts should
+  // match if or-pattern arms compile to the same br_table path.
+  public func weekdayBench() : async () {
+    let (_m0, n0) = counters();
+    var acc1 = 0;
+    var i = 0;
+    while (i < 10_000) {
+      for (d in week.vals()) { if (isWeekend d) acc1 += 1 };
+      i += 1;
+    };
+    let (_m1, n1) = counters();
+    var acc2 = 0;
+    var j = 0;
+    while (j < 10_000) {
+      for (d in week.vals()) { if (isWeekendOr d) acc2 += 1 };
+      j += 1;
+    };
+    let (_m2, n2) = counters();
+    debugPrint(debug_show {
+      acc1; acc2;
+      instr_isWeekend   = n1 - n0;
+      instr_isWeekendOr = n2 - n1;
+    });
+  };
 };
 
 //CALL ingress go 0x4449444C0000
 //CALL ingress evalBench 0x4449444C0000
+//CALL ingress weekdayBench 0x4449444C0000
 //CALL ingress getPerfData 0x4449444C0000

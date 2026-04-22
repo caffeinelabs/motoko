@@ -340,11 +340,11 @@ let rename_funcs rn : module_' -> module_' = fun m ->
     | If (ty, is1, is2) -> If (ty, instrs is1, instrs is2)
     | i -> i
   and instr i = phrase instr' i
-  and instrs is = Lib.List.safe_map instr is in
+  and instrs is = List.map instr is in
 
   let func' f = { f with body = instrs f.body } in
   let func = phrase func' in
-  let funcs = Lib.List.safe_map func in
+  let funcs = List.map func in
 
   let edesc' = function
     | FuncExport v -> FuncExport (var v)
@@ -352,7 +352,7 @@ let rename_funcs rn : module_' -> module_' = fun m ->
   let edesc = phrase edesc' in
   let export' e = { e with edesc = edesc e.edesc } in
   let export = phrase export' in
-  let exports = Lib.List.safe_map export in
+  let exports = List.map export in
 
   let segment' f s = { s with init  = f s.init } in
   let segment f = phrase (segment' f) in
@@ -361,5 +361,5 @@ let rename_funcs rn : module_' -> module_' = fun m ->
     funcs = funcs m.funcs;
     exports = exports m.exports;
     start = Option.map var m.start;
-    elems = Lib.List.safe_map (segment (Lib.List.safe_map var)) m.elems;
+    elems = List.map (segment (List.map var)) m.elems;
   }
