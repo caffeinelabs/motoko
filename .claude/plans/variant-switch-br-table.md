@@ -188,54 +188,88 @@ does not — at IR the or-pattern is a *single* arm with a disjunctive
 pattern, so `SwitchE` sees 2 arms and the 4-arm threshold rejects it.
 Both should dispatch identically.
 
-### Architecture: Recognizer → Strategy Query → Emit
+### Architecture: Handler / Recognizer split
 
-OCaml 5.3 algebraic effects (same machinery as ConstTrack Phase 3) let
-us separate three concerns:
+Two roles, connected by an algebraic-effect protocol (OCaml 5.3 effects,
+same machinery as ConstTrack Phase 3). Neither role is variant-specific
+— the mechanism is a general matching-EDSL facility for any dispatch
+decision. Variant switches are just its first application; AND-patterns
+and literal-match chains are future applications of the same protocol.
 
-1. **Recognizer** — at every point in `patternCode` where a tag-hash
-   comparison is about to be emitted, `perform` an effect
-   `Variant_arm { hash; body_code }`. Works uniformly across flat arms,
-   or-patterns, and (trivially) any future pattern shape that lowers
-   to the same fragment.
+**Handler** — installed at IR dispatch nodes (`SwitchE` and friends).
+Sees the IR node and its type. Knows what kind of decision is being
+compiled (variant tag match, integer literal match, record projection,
+tuple component match, …), so it knows which strategies *could* apply
+and what cost model is meaningful for this decision shape. When the
+recognizer asks, the handler computes and returns the chosen strategy.
 
-2. **Strategy query** — at `compile_switch` entry, install a handler
-   that collects the surfaced `{hash; body}` set. Before emitting,
-   perform `Dispatch_strategy tag_set` and let the *enclosing* context
-   return the chosen plan (value of type `dispatch_plan =
-   MaskShift of … | ModPrime of … | RotLow of … | Linear of … | …`).
-   The strategy handler owns the cost model, Gosper/prime/rotation
-   searches, and threshold tuning — none of which touches the pattern
-   compiler.
+**Recognizer** — lives inside the matching EDSL (around `(^^^)` et al.
+in `compile_enhanced.ml`). Sees the fully-elaborated dispatch expression
+— post-desugaring, after or-patterns and pattern sugar have already
+collapsed to uniform "test and branch" fragments. When it reaches a
+point where a multi-way decision would be emitted, it `perform`s an
+effect — `Match_decision { token_set; scrutinee_repr; type_info }` —
+to the enclosing handler. The handler returns a plan; the recognizer
+emits it.
 
-3. **Emit** — dispatch on the returned plan: emit `i32.and; [shr_u];
-   br_table` for `MaskShift`, `rem_u; br_table` for `ModPrime`, etc.
-   Each emitter is independently unit-testable.
+The protocol is deliberately generic:
+
+- `token_set` is opaque to the recognizer — for variants it's tag
+  hashes, for integer literals it's immediates, for constructor
+  matching it's nominal IDs. The handler interprets it.
+- `scrutinee_repr` says how to obtain the discriminating value (already
+  loaded on the stack, loadable from a known slot, computable by a
+  callback). The handler chooses strategies compatible with that shape.
+
+### Strategy for V2 launch
+
+Gosper-based `MaskShift` only — same cost model as V1. The multi-
+strategy batched search (ModPrime, RotLow, …) remains listed below
+as future work; the protocol is forward-compatible with them since
+strategies are plan-values the handler returns, but the V2 milestone
+is purely "make V1's `br_table` dispatch work through the effect
+protocol, so or-patterns get it for free".
+
+### Success criterion
+
+An or-pattern switch must compile to byte-identical Wasm as its
+hand-expanded flat-arm equivalent. Concretely: `isWeekdayOr` (case
+`(#mon | #tue | ... | #fri) true; case _ false`) and `isWeekday`
+(7 flat arms) must disassemble to the same `i32.and; [shr_u];
+br_table` dispatch, with identical mask, shift, table, and arm
+blocks (modulo block-label numbering). A FileCheck test pinning
+this equivalence should live in `test/run/variant_switch.mo` (or
+a sibling) and is the acceptance gate for V2.
 
 ### What this buys
 
-- **or-patterns auto-fold.** Same-body arm merging stops being a
-  separate "Future Optimisation" — distinct arms with identical bodies
-  naturally perform the same `{hash; body}` effect payload and the
-  strategy sees `k` equivalence classes for free.
-- **Strategies are plug-ins.** Adding `RotLow` or a new heuristic is a
-  change in the handler, not in the pattern compiler.
+- **or-patterns auto-fold.** Distinct arms with identical bodies
+  naturally perform the same payload and the handler sees `k`
+  equivalence classes for free. The "Same-body arm merging" section
+  below becomes automatic under V2.
+- **Generic.** The handler/recognizer split applies to any
+  multi-way decision. Future AND-patterns — where matching a
+  product pattern may want to *skip* components already tested by an
+  outer match — fit the same protocol: the outer handler installs
+  "component `k` is known to be `v`" context, the inner recognizer
+  asks, and the handler returns `No_op` instead of a dispatch plan.
 - **Testable in isolation.** The recognizer can be exercised with a
-  synthetic handler that records the effect trace; the strategist can
-  be exercised on hand-built tag sets without a Wasm backend attached.
-- **Context-sensitive overrides.** An outer handler (debug flag,
+  synthetic handler that records the effect trace; the handler can
+  be exercised on hand-built `token_set` inputs without a Wasm
+  backend attached.
+- **Context-sensitive overrides.** Outer handlers (debug flag,
   size-budget pass, `--preserve-switch-shape` for disassembly) can
-  intercept `Dispatch_strategy` and force a specific plan without
-  touching call sites.
+  intercept and force a specific plan without touching call sites.
 
 ### Migration path
 
 V1 (IR-level, shipped) stays in place for `compile_classical.ml`. V2
-lands first in `compile_enhanced.ml` where `patternCode` already lives,
+lands first in `compile_enhanced.ml` where the matching EDSL lives,
 then — if the architecture proves out — backports to the classical
-backend. The `Variant_arm` effect surface is narrow enough that a
-handler installed at a different entry point (e.g. an IR pass that
-pre-folds or-patterns) could still populate it.
+backend. The `Match_decision` effect surface is narrow enough that
+future handlers at different entry points (AND-pattern compilation,
+literal-match chains, an IR pass that pre-folds or-patterns) can
+slot in without changes at the recognizer side.
 
 ## Implementation Steps
 
