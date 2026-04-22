@@ -29,6 +29,12 @@ type t = {
 
 let empty capacity = { capacity; entries = []; locals = LocalMap.empty; refinement = None }
 
+(* Phase 3: branches emit their outgoing LRU state as an effect.
+   The nearest enclosing Block/If/Loop handler catches (0, lru) and either
+   collects it (Block/If) or swallows it (Loop). Depths n>0 are re-raised
+   as n-1 so the effect propagates de-Bruijn-style through nested blocks. *)
+type _ Effect.t += May_leave : int * t -> unit Effect.t
+
 (* Shift all depths by delta, evict entries with negative depths *)
 let shift_and_evict delta lru =
   let entries =
@@ -371,79 +377,119 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     let lru = shift_and_evict (n_results - n_params - 1) lru in
     Some lru
 
-  (* Block: process body; body's depth tracking is authoritative.
-     No shift_and_evict on exit — the body already accounts for all pushes/pops.
-     Result slots (depths 0..n_results-1) are evicted conservatively because
-     BrIf-taken paths may carry different values there.
-     KNOWN PESSIMISATION:
-     - BrIf-less blocks with constant results lose them unnecessarily
-     - Blocks where all branch paths agree on result values also lose them
-     Fixing these requires accumulating branch states (Phase 3). *)
+  (* Block: install an effect handler around the body.
+     Each Br/BrIf inside emits `May_leave (n, lru)`. Our handler catches n=0
+     (branches targeting this Block's End) into branch_states and re-raises
+     n>0 as n-1 so outer blocks catch them at the correct de-Bruijn level.
+     After body processing, we normalise any fall-through lru as a synthetic
+     `May_leave (0, _)` so fall-through and explicit Br-to-End unify into the
+     same branch_states list. The join is simply fold-left intersect. *)
   | Block (bt, body) ->
     (match block_arity ~type_section bt with
-     | Some (n_params, n_results) ->
+     | Some (n_params, _n_results) ->
        let inner_lru = shift_and_evict (-n_params) lru in
-       let saw_br_if = ref false in
-       (match process_block_inner ~func_type ~type_section ?on_call
-                ~has_br_if:saw_br_if inner_lru body with
-        | Some lru' ->
-          (* Only evict result slots if branches were seen *)
-          let lru' = if !saw_br_if then { lru' with entries =
-            List.filter (fun e -> e.depth >= n_results) lru'.entries } else lru' in
-          Some lru'
-        | None ->
-          (* Body ended with a terminator (Br/Return/Unreachable).
-             All inner state is gone; outer entries adjusted by net delta. *)
-          Some (shift_and_evict (n_results - n_params) { lru with entries = [] }))
+       let branch_states = ref [] in
+       let effc : type a. a Effect.t -> ((a, unit) Effect.Deep.continuation -> unit) option = function
+         | May_leave (0, lru_b) ->
+           Some (fun k ->
+             branch_states := lru_b :: !branch_states;
+             Effect.Deep.continue k ())
+         | May_leave (n, lru_b) ->
+           Some (fun k ->
+             Effect.perform (May_leave (n - 1, lru_b));
+             Effect.Deep.continue k ())
+         | _ -> None in
+       Effect.Deep.try_with
+         (fun () ->
+            match process_block_inner ~func_type ~type_section ?on_call inner_lru body with
+            | Some lru' -> Effect.perform (May_leave (0, lru'))
+            | None -> ())
+         ()
+         { Effect.Deep.effc = effc };
+       (match !branch_states with
+        | [] -> None
+        | s :: rest -> Some (List.fold_left intersect s rest))
      | None -> None)
 
-  (* Loop: back-edges make iteration counts unknown, so we flush
-     both stack entries and locals (loop body may write locals). *)
-  | Loop (bt, _body) ->
+  (* Loop: the Wasm label is at loop entry (back-edge target). Without
+     fixed-point iteration we can't precisely track the entry state, so
+     we conservatively flush both stack entries and locals and process
+     the body for its side effects (`on_call` callbacks). `May_leave (0,_)`
+     targets the loop entry — swallowed. `May_leave (n>0, _)` re-raised. *)
+  | Loop (bt, body) ->
     (match block_arity ~type_section bt with
      | Some (n_params, n_results) ->
+       let entry_lru = shift_and_evict (-n_params)
+                         { lru with entries = []; locals = LocalMap.empty } in
+       let effc : type a. a Effect.t -> ((a, unit) Effect.Deep.continuation -> unit) option = function
+         | May_leave (0, _) ->
+           Some (fun k -> Effect.Deep.continue k ())
+         | May_leave (n, lru_b) ->
+           Some (fun k ->
+             Effect.perform (May_leave (n - 1, lru_b));
+             Effect.Deep.continue k ())
+         | _ -> None in
+       Effect.Deep.try_with
+         (fun () ->
+            match process_block_inner ~func_type ~type_section ?on_call entry_lru body with
+            | Some _ | None -> ())
+         ()
+         { Effect.Deep.effc = effc };
        Some (shift_and_evict (n_results - n_params)
-         { lru with entries = []; locals = LocalMap.empty })
+               { lru with entries = []; locals = LocalMap.empty })
      | None -> None)
 
-  (* If: pop condition, fork into then/else, intersect at join.
-     Body depth tracking is authoritative — no exit shift needed.
-     Result slots evicted for the same reason as Block: BrIf inside
-     either branch may carry different values to the If's join point.
-     The intersect handles then-vs-else disagreement; the eviction
-     handles BrIf-within-branch disagreement. *)
+  (* If: structurally identical to Block, processing each leg through the
+     same handler. Both legs' fall-throughs get normalised to
+     `May_leave (0, _)`, joining with any `Br 0` from within either leg. *)
   | If (bt, then_body, else_body) ->
     (match block_arity ~type_section bt with
-     | Some (n_params, n_results) ->
+     | Some (n_params, _n_results) ->
        let lru_cond = shift_and_evict (-1) lru in
        let inner_lru = shift_and_evict (-n_params) lru_cond in
-       let saw_br_if = ref false in
-       let then_lru = process_block_inner ~func_type ~type_section ?on_call
-                        ~has_br_if:saw_br_if inner_lru then_body in
-       let else_lru = process_block_inner ~func_type ~type_section ?on_call
-                        ~has_br_if:saw_br_if inner_lru else_body in
-       let joined = match then_lru, else_lru with
-         | Some t, Some e -> intersect t e
-         | Some te, None | None, Some te -> { te with entries = [] }
-         | None, None -> { inner_lru with entries = [] }
-       in
-       (* Only evict result slots if branches were seen inside either body *)
-       let joined = if !saw_br_if then { joined with entries =
-         List.filter (fun e -> e.depth >= n_results) joined.entries } else joined in
-       Some joined
+       let branch_states = ref [] in
+       let effc : type a. a Effect.t -> ((a, unit) Effect.Deep.continuation -> unit) option = function
+         | May_leave (0, lru_b) ->
+           Some (fun k ->
+             branch_states := lru_b :: !branch_states;
+             Effect.Deep.continue k ())
+         | May_leave (n, lru_b) ->
+           Some (fun k ->
+             Effect.perform (May_leave (n - 1, lru_b));
+             Effect.Deep.continue k ())
+         | _ -> None in
+       let process_leg body =
+         Effect.Deep.try_with
+           (fun () ->
+              match process_block_inner ~func_type ~type_section ?on_call inner_lru body with
+              | Some lru' -> Effect.perform (May_leave (0, lru'))
+              | None -> ())
+           ()
+           { Effect.Deep.effc = effc } in
+       process_leg then_body;
+       process_leg else_body;
+       (match !branch_states with
+        | [] -> None
+        | s :: rest -> Some (List.fold_left intersect s rest))
      | None -> None)
 
-  | BrIf _ ->
-    (* Pop condition, continue on fall-through path.
-       Fall-through means condition was false (0).
-       Apply refinement if sense=false (from Ne: false means equal). *)
-    let lru = match pending_refinement with
+  | BrIf n ->
+    (* Pop condition, emit the branch-taken state as May_leave, continue on fall-through.
+       Fall-through means condition was false (0). Apply sense=false refinement. *)
+    let lru_fall = match pending_refinement with
       | Some { local_idx; value; sense = false } ->
         { lru with locals = LocalMap.add local_idx value lru.locals }
       | _ -> lru in
-    Some (shift_and_evict (-1) lru)
+    let lru_taken = shift_and_evict (-1) lru in
+    let lru_fall  = shift_and_evict (-1) lru_fall in
+    Effect.perform (May_leave (Int32.to_int n.it, lru_taken));
+    Some lru_fall
 
-  | Br _ | BrTable _ -> None
+  | Br n ->
+    Effect.perform (May_leave (Int32.to_int n.it, lru));
+    None
+
+  | BrTable _ -> None                    (* not yet modelled *)
   | Return | Unreachable -> None
 
   (* Bulk memory *)
@@ -463,15 +509,11 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
   (* Anything else: bail *)
   | _ -> None
 
-and process_block_inner ~func_type ~type_section ?on_call ?has_br_if lru instrs =
+and process_block_inner ~func_type ~type_section ?on_call lru instrs =
 
   let rec go idx lru = function
     | [] -> Some lru
     | instr :: rest ->
-      (* Track whether any BrIf was seen in this block *)
-      (match has_br_if, instr.it with
-       | Some flag, BrIf _ -> flag := true
-       | _ -> ());
       (* Fire callback before processing call instructions *)
       (match on_call, instr.it with
        | Some cb, Call x ->
@@ -487,8 +529,18 @@ and process_block_inner ~func_type ~type_section ?on_call ?has_br_if lru instrs 
   in
   go 0 lru instrs
 
+(* Top-level: swallow any May_leave that leaks past the outermost block.
+   In valid Wasm, a Br at the top of a function body targets the implicit
+   function label, which is a return — the callers of process_block aren't
+   interested in that state. *)
 let process_block ~func_type ?type_section ?on_call lru instrs =
-  process_block_inner ~func_type ~type_section ?on_call lru instrs
+  let effc : type a. a Effect.t -> ((a, t option) Effect.Deep.continuation -> t option) option = function
+    | May_leave (_, _) -> Some (fun k -> Effect.Deep.continue k ())
+    | _ -> None in
+  Effect.Deep.try_with
+    (fun () -> process_block_inner ~func_type ~type_section ?on_call lru instrs)
+    ()
+    { Effect.Deep.effc = effc }
 
 (* Physical-identity comparison. Sound under the linker's tree-shaped-IR
    invariant (no phrase sharing, no position aliasing). See the .mli. *)
