@@ -13346,120 +13346,104 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
        G.i Unreachable (* We should always exit using the branch_code *)
     )
 
-  (* Variant switch where every case is tag-leafy (`TagP` possibly wrapped
-     in nested `AltP` legs). The recognizer collects per-case leaf hashes
-     and asks the `Dispatch` handler for a plan; when the handler returns
-     `MaskShift`, we emit a br_table dispatch. Or-patterns like
-     `(#mon | #tue | ... | #fri) true` contribute multiple leaves to the
-     same case but compile to a single arm body — the dispatch table has
-     multiple slots pointing to the same arm block. When the handler
-     returns `Linear` (too few leaves, no suitable mask, or an outer
-     handler forced it) we fall through to the default SwitchE arm. *)
-  | SwitchE (e, cs) when
-      List.for_all (fun {it=({pat; _} : case'); _} ->
-        Option.is_some (flatten_tag_leaves pat)) cs &&
-      (* Peek at the plan without emitting anything. If the handler says
-         `Linear`, let the default arm below compile the switch instead. *)
-      (let case_hashes = List.map (fun {it=({pat; _} : case'); _} ->
-         let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
-         List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves) cs in
-       Dispatch.with_handler (fun () ->
-         match Effect.perform (Dispatch.Query case_hashes) with
-         | Dispatch.MaskShift _ -> true
-         | Dispatch.Linear -> false)) ->
-    let code1 = compile_exp_vanilla env ae e in
-    let (set_i, get_i) = new_local env "switch_in" in
-
-    (* Per case: compile the body once (using the first leaf's sub-pattern
-       — Motoko or-pattern typing ensures all legs bind the same variables).
-       Record the set of leaf hashes that dispatch to this case. *)
-    let cases = List.map (fun {it={pat; exp=arm_exp}; _} ->
-      let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
-      let [@warning "-8"] (_, first_sub_pat) :: _ = leaves in
-      let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat first_sub_pat} in
-      let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint arm_exp in
-      let leaf_hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves in
-      (leaf_hashes, sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
-    ) cs in
-
-    let n_cases = List.length cases in
-    let case_hashes = List.map (fun (hs, _, _) -> hs) cases in
-
-    let final_sr = match sr_hint with
-      | Some sr -> sr
-      | None -> StackRep.joins (List.map (fun (_, sr, _) -> sr) cases)
-    in
-
-    (* Ask the handler for a plan. The guard already proved this is a
-       `MaskShift`; we re-run under the same handler to get the concrete
-       mask/shift/slot_for_case. Future commits can thread a single plan
-       through guard and body to avoid the duplicate query. *)
-    let [@warning "-8"] Dispatch.MaskShift { mask; shift; table_size; slot_for_case } =
-      Dispatch.with_handler (fun () -> Effect.perform (Dispatch.Query case_hashes)) in
-
-    final_sr,
-    code1 ^^ set_i ^^
-    FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
-
-      (* Dispatch code: load tag, mask, optional shift, br_table *)
-      let dispatch =
-        get_i ^^
-        Variant.get_variant_tag env ^^
-        compile_bitand_const mask ^^
-        (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
-        G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^  (* br_table needs i32 *)
-        G.i (BrTable (
-          List.init table_size (fun j -> nr (Int32.of_int slot_for_case.(j))),
-          nr (Int32.of_int n_cases)  (* default: unreachable *)
-        ))
-      in
-
-      (* Arm body codes: sub-pattern match + rhs + SR-adjust + exit.
-         On sub-pattern failure (impossible for well-typed code): trap. *)
-      let arm_body_codes = List.map (fun (_, sr, c) ->
-        with_fail (G.i Unreachable)
-          (c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code))
-      ) cases in
-
-      (* Build nested blocks from inside out:
-           block_default { block_case_{k-1} { ... block_case_0 { dispatch }
-             body_0 ... } body_{k-1} } unreachable
-         Inside dispatch: label k -> case k, label n_cases -> default.
-         fold starts with dispatch (not an extra wrapper), so case_0 is label 0. *)
-      let with_arms = List.fold_left (fun acc body_code ->
-        G.block0 acc ^^ body_code
-      ) dispatch arm_body_codes in
-      G.block0 with_arms ^^
-      G.i Unreachable
-    )
-
   | SwitchE (e, cs) ->
     let code1 = compile_exp_vanilla env ae e in
     let (set_i, get_i) = new_local env "switch_in" in
 
-    (* compile subexpressions and collect the provided stack reps *)
-    let codes = List.map (fun {it={pat; exp=e}; _} ->
-      let (ae1, pat_code) = compile_pat_local env ae pat in
-      let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
-      (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
-      ) (simplify_cases e cs) in
-
-    (* Use the expected stackrep, if given, else infer from the branches *)
-    let final_sr = match sr_hint with
-      | Some sr -> sr
-      | None -> StackRep.joins (List.map fst codes)
+    (* Recognizer: if every case is tag-leafy (`TagP` possibly wrapped in
+       nested `AltP` legs), collect per-case leaf hashes and ask the
+       `Dispatch` handler for a plan. Or-patterns contribute multiple
+       entries to the same case's sub-list but compile to a single arm
+       body. A `MaskShift` plan fires br_table dispatch; a `Linear` plan
+       or a non-tag-leafy case falls through to the linear-chain
+       emission below. *)
+    let maybe_plan : Dispatch.plan option =
+      if List.for_all (fun {it=({pat; _} : case'); _} ->
+           Option.is_some (flatten_tag_leaves pat)) cs then
+        let case_hashes = List.map (fun {it=({pat; _} : case'); _} ->
+          let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+          List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves) cs in
+        Some (Dispatch.with_handler (fun () ->
+          Effect.perform (Dispatch.Query case_hashes)))
+      else None
     in
 
-    final_sr,
-    (* Run scrut *)
-    code1 ^^ set_i ^^
-    (* Run rest in block to exit from *)
-    FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
-       orsPatternFailure env (List.map (fun (sr, c) ->
-          c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
-       ) codes) ^^
-       G.i Unreachable (* We should always exit using the branch_code *)
-    )
+    (match maybe_plan with
+    | Some (Dispatch.MaskShift { mask; shift; table_size; slot_for_case }) ->
+      (* Per case: compile the body once (using the first leaf's sub-pattern
+         — Motoko or-pattern typing ensures all legs bind the same variables). *)
+      let cases = List.map (fun {it={pat; exp=arm_exp}; _} ->
+        let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+        let [@warning "-8"] (_, first_sub_pat) :: _ = leaves in
+        let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat first_sub_pat} in
+        let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint arm_exp in
+        (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
+      ) cs in
+
+      let n_cases = List.length cases in
+
+      let final_sr = match sr_hint with
+        | Some sr -> sr
+        | None -> StackRep.joins (List.map fst cases)
+      in
+
+      final_sr,
+      code1 ^^ set_i ^^
+      FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+
+        (* Dispatch code: load tag, mask, optional shift, br_table *)
+        let dispatch =
+          get_i ^^
+          Variant.get_variant_tag env ^^
+          compile_bitand_const mask ^^
+          (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
+          G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^  (* br_table needs i32 *)
+          G.i (BrTable (
+            List.init table_size (fun j -> nr (Int32.of_int slot_for_case.(j))),
+            nr (Int32.of_int n_cases)  (* default: unreachable *)
+          ))
+        in
+
+        (* Arm body codes: sub-pattern match + rhs + SR-adjust + exit.
+           On sub-pattern failure (impossible for well-typed code): trap. *)
+        let arm_body_codes = List.map (fun (sr, c) ->
+          with_fail (G.i Unreachable)
+            (c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code))
+        ) cases in
+
+        (* Build nested blocks from inside out:
+             block_default { block_case_{k-1} { ... block_case_0 { dispatch }
+               body_0 ... } body_{k-1} } unreachable
+           Inside dispatch: label k -> case k, label n_cases -> default.
+           fold starts with dispatch (not an extra wrapper), so case_0 is label 0. *)
+        let with_arms = List.fold_left (fun acc body_code ->
+          G.block0 acc ^^ body_code
+        ) dispatch arm_body_codes in
+        G.block0 with_arms ^^
+        G.i Unreachable
+      )
+
+    | Some Dispatch.Linear | None ->
+      (* Linear hash-compare chain (default). *)
+      let codes = List.map (fun {it={pat; exp=e}; _} ->
+        let (ae1, pat_code) = compile_pat_local env ae pat in
+        let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
+        (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
+      ) (simplify_cases e cs) in
+
+      let final_sr = match sr_hint with
+        | Some sr -> sr
+        | None -> StackRep.joins (List.map fst codes)
+      in
+
+      final_sr,
+      code1 ^^ set_i ^^
+      FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+         orsPatternFailure env (List.map (fun (sr, c) ->
+            c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
+         ) codes) ^^
+         G.i Unreachable (* We should always exit using the branch_code *)
+      ))
   (* Async-wait lowering support features *)
   | DeclareE (name, typ, e) ->
     let ae1, i = VarEnv.add_local_with_heap_ind env ae name typ in
