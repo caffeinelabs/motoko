@@ -247,10 +247,12 @@ resolved.
 Sort-on-every-insert is wasteful but fine for capacity 4-8. Could just
 drop the tail element instead of sorting.
 
-### Phase 3 readiness
-`intersect` uses structural equality (`=`) on `const_val` — won't compose
-well with richer abstract values. Consider an explicit
-`equal : const_val -> const_val -> bool` early.
+### ~~Phase 3 readiness~~ → **shipped**
+`intersect` still uses structural equality (`=`) on `const_val`; no
+compose issues surfaced because the effect handlers exchange `lru`
+values directly rather than comparing richer abstract types. An
+explicit `equal` helper can be introduced when a non-structural
+`const_val` extension is actually proposed — not needed pre-emptively.
 
 ## Open Questions
 
@@ -259,6 +261,26 @@ well with richer abstract values. Consider an explicit
 - ~~Should `Call` consume args and produce results (shifting the LRU) instead of stopping?~~
   **Resolved**: Yes, `Call` now shifts the LRU by `n_results - n_params`.
 - ~~How to handle `block`/`loop`/`if`?~~
-  **Resolved**: Recursive processing with conservative result-slot eviction.
-  Precise joins deferred to Phase 3 (algebraic effects).
+  **Resolved**: Phase 3 landed via OCaml 5.3 algebraic effects (commits
+  `7d815c4d1` feat + `14c04cd6b` refactor, plus `6f2d94c2d` extending
+  coverage to `br_table`). Each label-pushing construct installs a
+  handler that collects (Block/If) or swallows (Loop) `May_leave (0, _)`
+  and re-raises deeper depths as `n-1`. Fall-through and explicit
+  `Br`-to-End unify through the same `branch_states` list via
+  per-construct `~normalise` in `run_under_leave_handler`. Both
+  pessimisations from Phase 2 (BrIf-less blocks losing constants,
+  all-commensurable branches losing agreeing constants) are resolved.
 - Integration point: lives in `linking/` — operates on the merged Wasm AST during linking.
+
+## Implementation Status (as of 2026-04-22)
+
+- ✅ Phase 1 — LRU, constants, Binary/Unary/Convert handling
+- ✅ Phase 2 — `has_br_if` (subsumed and removed by Phase 3)
+- ✅ Phase 3 — algebraic-effect-based precise branch joins (Block, If, Loop, Br, BrIf, BrTable)
+- Covered by regression tests in `test/ld/zero-fwd-join.wat` — five call
+  sites exercise each control-flow construct's precision; every case is
+  a strict regression detector (reverting the corresponding feature
+  flips exactly that case back to `call $bar`).
+- Independent reviewer passes (two rounds, the second focused on the
+  `br_table` arm) reported no correctness bugs, no semantic regressions
+  vs Phase 2, and a behaviour-preserving refactor.
