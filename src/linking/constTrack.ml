@@ -476,7 +476,16 @@ let rec step ~func_type ~type_section ?on_call lru (instr : instr) : t option =
     May_leave (label_depth n, lru) |> Effect.perform;
     None
 
-  | BrTable _ -> None                    (* not yet modelled *)
+  | BrTable (targets, default) ->
+    (* Pop the index, then contribute the popped-state to every possible
+       target's join (each listed target plus the default). Same as a
+       Br to each label in turn: de-Bruijn depth-decrement is handled
+       by the enclosing handlers. *)
+    let lru = shift_and_evict (-1) lru in
+    List.iter
+      (fun t -> May_leave (label_depth t, lru) |> Effect.perform)
+      (targets @ [default]);
+    None
   | Return | Unreachable -> None
 
   (* Bulk memory *)

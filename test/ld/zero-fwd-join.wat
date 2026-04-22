@@ -12,6 +12,7 @@
   (export "block_over_loop"  (func $block_over_loop))
   (export "agreeing_brif"    (func $agreeing_brif))
   (export "agreeing_if_legs" (func $agreeing_if_legs))
+  (export "br_table_agree"   (func $br_table_agree))
 
   ;; Zero-forwarder: body = Const 0; LocalGet 1; Call $quux — matches
   ;; zero_forwarder_target's syntactic pattern, so the linker records
@@ -92,5 +93,21 @@
         i32.const 0)
       (else
         i32.const 0))
+    local.get 0
+    call $bar)
+
+  ;; Case 5 — BrTable (grande finale)
+  ;; All listed targets and the default point at the enclosing Block's
+  ;; End, and the popped-index state carries `i32.const 0` on top.
+  ;; ConstTrack emits one `May_leave (0, [d0=I32 0])` per target; the
+  ;; Block's branch_states collects them all and intersects to the same
+  ;; 0. The previous `BrTable _ -> None` arm gave the analyser nothing,
+  ;; so the rewrite didn't fire.
+  (func $br_table_agree (type $t_i)
+    (block (result i32)
+      i32.const 0
+      local.get 0
+      br_table 0 0 0 0        ;; three listed + default, all target this block
+    )
     local.get 0
     call $bar))

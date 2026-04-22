@@ -51,6 +51,14 @@
     end
     local.get 0
     call $quux)
+  (func $br_table_agree (type 1) (param i32) (result i32)
+    block (result i32)  ;; label = @1
+      i32.const 0
+      local.get 0
+      br_table 0 (;@1;) 0 (;@1;) 0 (;@1;) 0 (;@1;)
+    end
+    local.get 0
+    call $quux)
   (func $__wasm_call_ctors (type 2))
   (func $__wasm_apply_data_relocs (type 2))
   (func $quux (type 0) (param i32 i32) (result i32)
