@@ -11634,6 +11634,65 @@ let find_variant_mask n hashes =
   in
   try_popcount (bits_needed n)
 
+(* Dispatch strategy protocol (effect-based).
+
+   Recognizer — the code that walks a multi-way match (today: the
+   SwitchE variant case; tomorrow: and-patterns, literal-match chains)
+   — performs `Dispatch.Query case_hashes`, where `case_hashes` is a
+   list-of-lists: one sub-list per case, each containing the tag
+   hashes (or future equivalent tokens) that dispatch to that case.
+   An or-pattern leg contributes multiple entries in its case's
+   sub-list.
+
+   Handler — returns a `plan` value. The default handler runs
+   Gosper-based mask-finding. Outer scopes may override by installing
+   their own handler before the recognizer fires (e.g. a test wanting
+   to pin a specific plan, or a `--preserve-switch-shape` debug flag
+   that forces `Linear`). *)
+module Dispatch = struct
+  type plan =
+    | MaskShift of {
+        mask : int64;
+        shift : int;
+        table_size : int;
+        (* For each slot j in the br_table, which case index receives it.
+           Slot value `n_cases` means "default" (unreachable for
+           exhaustive variant matches). *)
+        slot_for_case : int array;
+      }
+    | Linear   (* fall back to the default linear-chain SwitchE emission *)
+
+  type _ Effect.t +=
+    | Query : int64 list list -> plan Effect.t
+
+  let gosper_plan (case_hashes : int64 list list) : plan =
+    let flat = List.concat case_hashes in
+    let n = List.length flat in
+    let n_cases = List.length case_hashes in
+    if n < 4 then Linear
+    else match find_variant_mask n flat with
+      | None -> Linear
+      | Some (mask, shift, table_size) ->
+        let slot_for_case = Array.make table_size n_cases in
+        List.iteri (fun case_idx hashes ->
+          List.iter (fun hash ->
+            let slot = Int64.to_int
+              (Int64.shift_right_logical (Int64.logand hash mask) shift) in
+            slot_for_case.(slot) <- case_idx
+          ) hashes
+        ) case_hashes;
+        MaskShift { mask; shift; table_size; slot_for_case }
+
+  (* Install the default Gosper-based handler around `body`. *)
+  let with_handler (type r) (body : unit -> r) : r =
+    let effc : type a. a Effect.t -> ((a, r) Effect.Deep.continuation -> r) option = function
+      | Query case_hashes ->
+        Some (fun k -> Effect.Deep.continue k (gosper_plan case_hashes))
+      | _ -> None
+    in
+    Effect.Deep.try_with body () { Effect.Deep.effc = effc }
+end
+
 (* compile_lexp is used for expressions on the left of an assignment operator.
    Produces
    * preparation code, to run first
@@ -13287,21 +13346,27 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
        G.i Unreachable (* We should always exit using the branch_code *)
     )
 
-  (* Variant switch with 4+ tag leaves (post or-pattern flattening):
-     use masked br_table dispatch (O(1)).
-     Guard pre-checks find_variant_mask so that None falls through naturally
-     to the regular SwitchE handler below (no broken known_tag_pat fallback).
-     Or-patterns like `(#mon | #tue | ... | #fri) true` count as multiple
-     dispatch targets (one per leaf) but compile to a single arm body — the
-     dispatch table has multiple slots pointing to the same arm block. *)
+  (* Variant switch where every case is tag-leafy (`TagP` possibly wrapped
+     in nested `AltP` legs). The recognizer collects per-case leaf hashes
+     and asks the `Dispatch` handler for a plan; when the handler returns
+     `MaskShift`, we emit a br_table dispatch. Or-patterns like
+     `(#mon | #tue | ... | #fri) true` contribute multiple leaves to the
+     same case but compile to a single arm body — the dispatch table has
+     multiple slots pointing to the same arm block. When the handler
+     returns `Linear` (too few leaves, no suitable mask, or an outer
+     handler forced it) we fall through to the default SwitchE arm. *)
   | SwitchE (e, cs) when
-      (let per_case = List.map (fun {it=({pat; _} : case'); _} -> flatten_tag_leaves pat) cs in
-       List.for_all Option.is_some per_case &&
-       let all_leaves = List.concat_map Option.get per_case in
-       let n = List.length all_leaves in
-       n >= 4 &&
-       let hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) all_leaves in
-       find_variant_mask n hashes <> None) ->
+      List.for_all (fun {it=({pat; _} : case'); _} ->
+        Option.is_some (flatten_tag_leaves pat)) cs &&
+      (* Peek at the plan without emitting anything. If the handler says
+         `Linear`, let the default arm below compile the switch instead. *)
+      (let case_hashes = List.map (fun {it=({pat; _} : case'); _} ->
+         let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+         List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves) cs in
+       Dispatch.with_handler (fun () ->
+         match Effect.perform (Dispatch.Query case_hashes) with
+         | Dispatch.MaskShift _ -> true
+         | Dispatch.Linear -> false)) ->
     let code1 = compile_exp_vanilla env ae e in
     let (set_i, get_i) = new_local env "switch_in" in
 
@@ -13318,25 +13383,19 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     ) cs in
 
     let n_cases = List.length cases in
-    let all_hashes = List.concat_map (fun (hs, _, _) -> hs) cases in
-    let n_leaves = List.length all_hashes in
+    let case_hashes = List.map (fun (hs, _, _) -> hs) cases in
 
     let final_sr = match sr_hint with
       | Some sr -> sr
       | None -> StackRep.joins (List.map (fun (_, sr, _) -> sr) cases)
     in
 
-    let [@warning "-8"] Some (mask, shift, table_size) = find_variant_mask n_leaves all_hashes in
-    (* Build dispatch table: slot j -> case index (0..n_cases-1) or n_cases (default).
-       Every leaf of case k contributes one slot pointing to k. *)
-    let slot_for_case = Array.make table_size n_cases in
-    List.iteri (fun case_idx (leaf_hashes, _, _) ->
-      List.iter (fun hash ->
-        let slot = Int64.to_int
-          (Int64.shift_right_logical (Int64.logand hash mask) shift) in
-        slot_for_case.(slot) <- case_idx
-      ) leaf_hashes
-    ) cases;
+    (* Ask the handler for a plan. The guard already proved this is a
+       `MaskShift`; we re-run under the same handler to get the concrete
+       mask/shift/slot_for_case. Future commits can thread a single plan
+       through guard and body to avoid the duplicate query. *)
+    let [@warning "-8"] Dispatch.MaskShift { mask; shift; table_size; slot_for_case } =
+      Dispatch.with_handler (fun () -> Effect.perform (Dispatch.Query case_hashes)) in
 
     final_sr,
     code1 ^^ set_i ^^
