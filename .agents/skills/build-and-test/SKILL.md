@@ -103,13 +103,24 @@ relevant to your change:
 test-runner -baf some-test         # targeted by name pattern
 ```
 
-**EOP (Enhanced Orthogonal Persistence) tests**: By default, `run-drun/` tests
-run in non-EOP mode. To run the EOP variant, prefix the command with
-`EXTRA_MOC_ARGS="--enhanced-orthogonal-persistence"`:
+**EOP (Enhanced Orthogonal Persistence) tests**: `test-runner` detects the
+persistence mode automatically from markers in the test file — you don't
+need to set any environment variable. The rules (mirrored from `test/run.sh`):
 
-```bash
-EXTRA_MOC_ARGS="--enhanced-orthogonal-persistence" test-runner -baf run-drun/some-test
-```
+- `//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY` (or `# ...` in `.drun`),
+  `//MOC-FLAG --enhanced-orthogonal-persistence`, or
+  `//MOC-FLAG --enhanced-migration...` → run in EOP mode only.
+- `//CLASSICAL-PERSISTENCE-ONLY`, `//INCREMENTAL-GC-ONLY`,
+  `//GENERATIONAL-GC-ONLY`, `//MOC-FLAG --legacy-persistence`, or
+  `//MOC-FLAG --{incremental,generational,compacting,copying}-gc` → run in
+  classical mode only.
+- No persistence-relevant marker → run in **both** modes; both must pass
+  against the same `ok/*.ok` golden.
+
+For backwards compatibility, if `EXTRA_MOC_ARGS` is set and already contains
+`--enhanced-orthogonal-persistence` (e.g. legacy nix-driven workflows),
+inference is skipped and `test-runner` runs once with the inherited
+environment.
 
 ## JS Tests
 
