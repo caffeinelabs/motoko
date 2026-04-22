@@ -5,6 +5,16 @@ let x : Float32 = 41.99;
 let result : Float32 = x % pi32;
 debugPrint (debug_show (float32ToFloat result));
 
+// Lambda analog of foo_clos: same structure but with anonymous lambdas, direct invocation
+func foo_lam(a : Float32, b : Float, c : Nat32) : Float {
+  (func(a : Float32, b : Float, c : Nat32) : Float =
+    (func(a : Float32, b : Float, _ : Nat32) : Float = if (c != 0) (float32ToFloat a + b) else b)
+    (a, b, c))
+  (a, b, c)
+};
+
+let _ = foo_lam (floatToFloat32 1.0, 2.0, 3);
+
 // Nested closure chain: foo_clos -> bar -> quux (quux sunk into bar; bar is a forwarder)
 func foo_clos(a : Float32, b : Float, c : Nat32) : Float {
   func bar(a : Float32, b : Float, c : Nat32) : Float {
@@ -47,12 +57,23 @@ let _ = baz (floatToFloat32 1.0, 2.0, 3);
 //CHECK: (func $foo_clos
 //CHECK-NEXT: {{i32|i64}}.const 0
 //CHECK: call $bar.1)
-// nested bar (bar.1): builds quux.1's closure (stores captured c), dispatches via call_indirect
+// nested bar (bar.1): builds quux.1's closure (stores captured c), calls $quux.1 directly
 //CHECK: (func $bar.1
 //CHECK: .store
-//CHECK: call_indirect
+//CHECK: call $quux.1
 // quux.1 (inner quux): loads captured c from $clos — real closure, NOT a 0-forwarder
 //CHECK: (func $quux.1
+//CHECK: local.get $clos
+// foo_lam is a 0-forwarder: calls outer anon lambda directly (no captures)
+//CHECK: (func $foo_lam
+//CHECK-NEXT: {{i32|i64}}.const 0
+//CHECK: call $@anon-func-{{[0-9.]+}})
+// outer anon lambda: builds inner anon lambda's closure (stores captured c), calls it directly
+//CHECK: (func $@anon-func-{{[0-9.]+}} (type
+//CHECK: .store
+//CHECK: call $@anon-func-{{[0-9.]+}}
+// inner anon lambda: loads captured c from $clos — real closure, NOT a 0-forwarder
+//CHECK: (func $@anon-func-{{[0-9.]+}} (type
 //CHECK: local.get $clos
 // The $fmodf wrapper is still present in the binary (unreferenced; DCE'd by wasm-opt)
 //CHECK: (func $fmodf
