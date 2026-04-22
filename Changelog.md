@@ -1,10 +1,12 @@
 # Motoko compiler changelog
 
-## Unreleased
+## 1.6.0 (2026-04-21)
 
 * motoko (`moc`)
 
-  * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files.
+  * feat: expose caller attributes feature through primitives (#5970).
+
+  * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files (#6015).
 
 ## 1.5.1 (2026-04-13)
 
