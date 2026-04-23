@@ -103,14 +103,6 @@ relevant to your change:
 test-runner -baf some-test         # targeted by name pattern
 ```
 
-**EOP (Enhanced Orthogonal Persistence) tests**: By default, `run-drun/` tests
-run in non-EOP mode. To run the EOP variant, prefix the command with
-`EXTRA_MOC_ARGS="--enhanced-orthogonal-persistence"`:
-
-```bash
-EXTRA_MOC_ARGS="--enhanced-orthogonal-persistence" test-runner -baf run-drun/some-test
-```
-
 ## JS Tests
 
 ```bash
