@@ -8,6 +8,7 @@ module Type_pretty = Mo_types.Type.MakePretty (Mo_types.Type.ElideStamps)
 
 module type Config = Mo_def.Arrange.Config
 module type TypConfig = Mo_types.Arrange_type.Config
+open  Source
 
 (* AST to JSON conversion *)
 module Make (Cfg : Config) = struct
@@ -30,7 +31,6 @@ module Make (Cfg : Config) = struct
     | Without_type_rep -> None
 
   let syntax_pos_js p =
-    let open Source in
     let file =
       match Cfg.main_file with Some f when f <> p.file -> p.file | _ -> ""
     in
@@ -41,8 +41,8 @@ module Make (Cfg : Config) = struct
   let type_pos_js p =
     to_js_object "Pos"
       [|
-        js_string (string_of_int p.Source.line);
-        js_string (string_of_int p.Source.column);
+        js_string (string_of_int p.line);
+        js_string (string_of_int p.column);
       |]
 
   let prim_js p =
@@ -98,13 +98,11 @@ module Make (Cfg : Config) = struct
     |> js_string
 
   let region_js r =
-    let open Source in
     let filename = r.left.file in
     to_js_object "@@"
       [| js_string filename; type_pos_js r.left; type_pos_js r.right |]
 
   let mut_js m =
-    let open Source in
     let open Syntax in
     js_string (match m.it with Const -> "Const" | Var -> "Var")
 
@@ -163,7 +161,7 @@ module Make (Cfg : Config) = struct
           match Field_sources.Srcs_map.find_opt track_region srcs_tbl with
           | None -> []
           | Some srcs ->
-              List.of_seq @@ Seq.map region_js @@ Source.Region_set.to_seq srcs)
+              List.of_seq (Seq.map region_js (Region_set.to_seq srcs)))
     in
     js_string (Option.value ~default:"" depr) :: region_js r :: srcs
 
@@ -181,9 +179,9 @@ module Make (Cfg : Config) = struct
             [| it; Type_pretty.string_of_typ t |> js_string; typ_js t |]
     else it
 
-  let add_source (at : Source.region) (it : Js.Unsafe.any) : Js.Unsafe.any =
+  let add_source (at : region) (it : Js.Unsafe.any) : Js.Unsafe.any =
     let open Source in
-    if Cfg.include_sources && at <> Source.no_region then
+    if Cfg.include_sources && at <> no_region then
       to_js_object "@" [| syntax_pos_js at.left; syntax_pos_js at.right; it |]
     else it
 
@@ -196,13 +194,13 @@ module Make (Cfg : Config) = struct
     ignore (Js.Unsafe.global##.Object##defineProperty it (Js.string "rawExp") descriptor);
     it
 
-  let add_trivia (at : Source.region) (it : Js.Unsafe.any) : Js.Unsafe.any =
+  let add_trivia (at : region) (it : Js.Unsafe.any) : Js.Unsafe.any =
     match Cfg.include_docs with
     | Some table -> (
         let rec lookup_trivia (line, column) =
           Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
-        and find_trivia (parser_pos : Source.region) : Trivia.trivia_info =
-          lookup_trivia Source.(parser_pos.left.line, parser_pos.left.column)
+        and find_trivia (parser_pos : region) : Trivia.trivia_info =
+          lookup_trivia (parser_pos.left.line, parser_pos.left.column)
           |> Option.get
         in
         match Trivia.doc_comment_of_trivia_info (find_trivia at) with
@@ -211,7 +209,6 @@ module Make (Cfg : Config) = struct
     | None -> it
 
   let id i =
-    let open Source in
     add_source i.at (to_js_object "ID" [| js_string i.it |])
 
   let rec path p =
@@ -307,7 +304,6 @@ module Make (Cfg : Config) = struct
 
   let rec exp_js e =
     let open Syntax in
-    let open Source in
     exp'_js e |> add_raw_exp e |> add_type_annotation e.note.note_typ |> add_source e.at
 
   and exp'_js e =
@@ -646,12 +642,10 @@ module Make (Cfg : Config) = struct
     |> add_source c.at
 
   and catch_js c =
-    let open Source in
     let open Syntax in
     to_js_object "catch" [| pat_js c.it.pat; exp_js c.it.exp |]
 
   and prog_js p =
-    let open Source in
     to_js_object "Prog" (List.map dec_js p.it |> Array.of_list)
 end
 

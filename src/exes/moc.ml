@@ -1,5 +1,6 @@
 open Wasm_exts
 open Mo_config
+open Source
 
 open Printf
 
@@ -323,7 +324,7 @@ let process_files files : unit =
       let open Idllib in
       let did_file = Filename.remove_extension !out_file ^ ".did" in
       let oc = open_out did_file in
-      let module WithComments = Arrange_idl.Make(struct let trivia = Some idl_prog.Source.note.Syntax.trivia end) in
+      let module WithComments = Arrange_idl.Make(struct let trivia = Some idl_prog.note.Syntax.trivia end) in
       let idl_code = WithComments.string_of_prog idl_prog in
       output_string oc idl_code; close_out oc
     end;

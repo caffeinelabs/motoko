@@ -1,6 +1,7 @@
 open Mo_def
 open Mo_values
 open Mo_types
+open Source
 
 module V = Value
 module T = Type
@@ -20,7 +21,7 @@ val adjoin_scope : scope -> scope -> scope
 
 val step_limit : int ref
 
-exception Trap of Source.region * string
+exception Trap of region * string
 
 val interpret_prog : flags -> scope -> Syntax.prog -> (V.value * scope) option
 val interpret_lib : flags -> scope -> Syntax.lib -> scope

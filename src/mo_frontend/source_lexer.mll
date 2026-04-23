@@ -2,12 +2,13 @@
 open Trivia
 open Source_token
 open Lexer_lib
+open Source
 module Utf8 = Lib.Utf8
 
 let region lexbuf =
   let left = convert_pos (Lexing.lexeme_start_p lexbuf) in
   let right = convert_pos (Lexing.lexeme_end_p lexbuf) in
-  {Source.left = left; Source.right = right}
+  {left; right}
 
 let error lexbuf msg = raise (Error (region lexbuf, msg))
 let error_nest start lexbuf msg =

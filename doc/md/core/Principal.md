@@ -49,6 +49,23 @@ persistent actor MyCanister {
 }
 ```
 
+## Function `toActor`
+``` motoko no-repl
+func toActor<A <: actor {  }>(p : Principal) : A
+```
+
+Turns a `Principal` into an actor reference. The presence of the methods
+(and their respective types) is not guaranteed.
+
+This is the inverse of `fromActor`. The returned reference is
+typed with the given actor type `A`.
+
+Example:
+```motoko include=import no-repl
+let principal = Principal.fromText("un4fu-tqaaa-aaaab-qadjq-cai");
+let canister : actor {} = Principal.toActor<actor {}>(principal);
+```
+
 ## Function `toLedgerAccount`
 ``` motoko no-repl
 func toLedgerAccount(self : Principal, subAccount : ?Blob) : Blob
