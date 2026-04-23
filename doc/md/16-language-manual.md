@@ -1618,7 +1618,17 @@ The or pattern `<pat1> or <pat2>` is a disjunctive pattern.
 
 The result of matching `<pat1> or <pat2>` against a value is the result of matching `<pat1>`, if it succeeds, or the result of matching `<pat2>`, if the first match fails.
 
-An `or`-pattern may contain identifier (`<id>`) patterns with the restriction that both alternatives must bind the same set of identifiers. Each identifier's type is the least upper bound of its type in `<pat1>` and `<pat2>`.
+An `or`-pattern may contain identifier (`<id>`) patterns with the restriction that both alternatives must bind the same set of identifiers. Each identifier's type is the least upper bound of the types assigned to it by `<pat1>` and `<pat2>`.
+
+### And pattern
+
+The and pattern `<pat1> and <pat2>` is a conjunctive pattern.
+
+The result of matching `<pat1> and <pat2>` against a value is the union of the bindings produced by matching `<pat1>` and then `<pat2>`, both against the same value. The match fails if either sub-match fails.
+
+Unlike an `or`-pattern, the two sides of an `and`-pattern must bind *disjoint* sets of identifiers; a name bound in both sides is a type error.
+
+`and` binds tighter than `or`, so `<pat1> or <pat2> and <pat3>` parses as `<pat1> or (<pat2> and <pat3>)`.
 
 ### Expression declaration
 
