@@ -10518,6 +10518,33 @@ module Persistence = struct
     compile_eq_const StableMem.version_stable_heap_regions ^^
     G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))
 
+  (* Heuristic: detect deployments of a Motoko Wasm on top of
+    a non-Motoko canister (e.g. Rust).
+
+     `read_persistence_version` (in the RTS) only peeks at the first and last
+     u32 of stable memory: when the first word is non-zero it unconditionally
+     returns `legacy_version_no_stable_memory` (0), assuming this is a legacy
+     canister. For a Rust canister it can happen that the first word is
+     non-zero, so Motoko enters the Candid-destabilization branch and
+     traps with a confusing message.
+
+     A genuine Motoko non-EOP canister has the layout
+       [0..4) : u32 length N of the payload
+       [4..4+N) : Candid blob starting with the "DIDL"
+     so we verify at offset 4 before continuing and, on mismatch, trap. *)
+  let didl_magic_le = 0x4C444944l
+  let validate_motoko_legacy_signature env =
+    get_persistence_version env ^^
+    compile_eq_const StableMem.legacy_version_no_stable_memory ^^
+    E.if0
+      begin
+        compile_unboxed_const 4L ^^
+        StableMem.read_word32 env ^^
+        compile_eq32_const didl_magic_le ^^
+        E.else_trap_with env "Cannot install Motoko canister: previous canister version is non-Motoko (e.g., Rust, missing Candid \"DIDL\" signature). Uninstall it before deploying this Motoko canister."
+      end
+      G.nop
+
   let initialize env actor_type =
     E.call_rts env "read_persistence_version" ^^
     set_persistence_version env ^^
@@ -10547,6 +10574,7 @@ module Persistence = struct
           begin
             use_candid_destabilization env ^^
             E.else_trap_with env "Unsupported persistence version. Use newer Motoko compiler version." ^^
+            validate_motoko_legacy_signature env ^^
             if not (!Flags.explicit_enhanced_orthogonal_persistence) then
               E.trap_with env "Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration."
             else G.nop ^^

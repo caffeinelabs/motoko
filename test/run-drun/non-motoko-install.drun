@@ -1,0 +1,3 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+install $ID non-motoko-install/assetstorage.wasm.gz 0x4449444c016e7d010000
+upgrade $ID non-motoko-install/test.mo ""

@@ -107,6 +107,7 @@ let rec exp env e  = match e.it with
   | ThrowE _
   | TryE _
   | BangE _
+  | NullCoalesceE _
   -> err env e.at
 
 and dec_fields env dfs = List.iter (fun df -> dec env df.it.dec) dfs
