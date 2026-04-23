@@ -5,6 +5,16 @@
 * motoko (`moc`)
 
   * feat: and-patterns — `(p1 and p2)` matches when both legs match, binding from both (#6049).
+  * feat: Add null-coalescing operator `??` (#5722).
+    `e1 ?? e2` evaluates to the unwrapped contents of `e1` when `e1` is `?v`,
+    otherwise to `e2`. The right-hand side is evaluated lazily (short-circuit).
+    For example, `opt ?? defaultValue` replaces the verbose
+    `switch opt { case (?v) v; case null defaultValue }`.
+    The right-hand side may be a block (e.g. `opt ?? { let x = 1; x }`),
+    a `do`-block, or a `Prim.trap` for fail-fast unwrapping. Because `{ ... }`
+    on the right is parsed as a block, a bare record literal must be wrapped
+    in extra braces or parentheses, e.g. `opt ?? ({ x = 0 })` or
+    `opt ?? {{ x = 0 }}`.
 
 ## 1.6.0 (2026-04-21)
 

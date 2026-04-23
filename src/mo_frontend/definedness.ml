@@ -117,6 +117,7 @@ let rec exp msgs e : f = match e.it with
   | BinE (_, e1, _, e2)
   | RelE (_, e1, _, e2)
   | AndE (e1, e2)
+  | NullCoalesceE (e1, e2)
   | OrE (e1, e2) -> exps msgs [e1; e2]
   | ForE (p, e1, e2, _)    -> exp msgs e1 ++ (exp msgs e2 /// pat msgs p)
   | AsyncE (Some par, _, _, e) -> exps msgs [par; e]
