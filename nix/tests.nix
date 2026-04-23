@@ -59,8 +59,8 @@ let
         export ESM=${esm}
         export MOTOKO_CORE="${core-src}"
         type -p moc && moc --version
-        ${if dir == "run-drun" 
-          then "make -C ${dir}${pkgs.lib.optionalString (pkgs.stdenv.hostPlatform.system != "x86_64-darwin") " parallel -j4"} ${pkgs.lib.optionalString accept " accept"}"
+        ${if dir == "run-drun" && pkgs.stdenv.hostPlatform.system != "x86_64-darwin" && !accept
+          then "test-runner -b --single-mode -j 2 ${dir}"
           else "make -C ${dir}${pkgs.lib.optionalString accept " accept"}"
         }
       '';
