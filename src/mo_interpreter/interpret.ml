@@ -930,10 +930,8 @@ and match_pat pat v : val_env option =
     | some -> some
     )
   | AndP (pat1, pat2) ->
-    (match match_pat pat1 v, match_pat pat2 v with
-    | Some ve1, Some ve2 -> Some (V.Env.adjoin ve1 ve2)
-    | _ -> None
-    )
+    Option.(bind (match_pat pat1 v) (fun ve1 ->
+      map (V.Env.adjoin ve1) (match_pat pat2 v)))
   | AnnotP (pat1, _)
   | ParP pat1 ->
     match_pat pat1 v
