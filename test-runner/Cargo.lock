@@ -2162,6 +2162,7 @@ dependencies = [
  "ic-management-canister-types",
  "indicatif",
  "inquire",
+ "libc",
  "pocket-ic",
  "rayon",
  "regex",

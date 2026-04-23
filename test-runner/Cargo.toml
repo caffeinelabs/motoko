@@ -3,8 +3,20 @@ name = "test-runner"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "test_runner"
+path = "src/lib.rs"
+
+[[bin]]
+name = "test-runner"
+path = "src/main.rs"
+
+[[bin]]
+name = "run-test"
+path = "src/bin/run_test.rs"
 
 [dependencies]
+libc = "0.2"
 pocket-ic = { git = "https://github.com/dfinity/ic", tag = "release-2026-04-16_04-20-base", package = "pocket-ic" }
 ic-management-canister-types = "0.5.0"
 candid = "0.10.17"
