@@ -6,6 +6,7 @@ syntax5.mo:3.1: syntax error [M0001], unexpected end of input, expected one of t
   <binop> <exp(ob)>
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>

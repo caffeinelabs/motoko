@@ -96,6 +96,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (T T_OR) -> simple_token "or"
   | X (T T_OBJECT) -> simple_token "object"
   | X (T T_NULL) -> simple_token "null"
+  | X (T T_NULLCOALESCE) -> binop "??"
   | X (T T_NUM_DOT_ID) -> simple_token "num.id"
   | X (T T_NOT) -> simple_token "not"
   | X (T T_NEQOP) -> binop "!="

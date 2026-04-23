@@ -15,11 +15,7 @@ actor {
 
     public func check() : async () {
         Prim.debugPrint("CHECK " # debug_show (root.value));
-        switch (root.next) {
-            case null Prim.trap("");
-            case (?next) {
-                assert (next.value == root.value);
-            };
-        };
+        let next = root.next ?? Prim.trap("");
+        assert (next.value == root.value);
     };
 };
