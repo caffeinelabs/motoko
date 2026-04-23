@@ -3295,7 +3295,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
     if not env.pre then T.Env.(iter (fun k t1 -> warn_lossy_bind_type env pat.at k t1 (find k ve2))) ve1;
     t, T.Env.merge (fun _ -> Lib.Option.map2 (T.lub ~src_fields:env.srcs)) ve1 ve2*)
   | AndP (pat1, pat2) ->
-    error env pat.at "M0184"
+    error env pat.at "M0261"
         "cannot infer the type of this and-pattern, please add a type annotation";
     (*let t1, ve1 = infer_pat env pat1 in
     let t2, ve2 = infer_pat env pat2 in
