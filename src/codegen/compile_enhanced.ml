@@ -11666,6 +11666,11 @@ module Dispatch = struct
            exhaustive variant matches). *)
         slot_for_case : int array;
       }
+    | ModPrime of {
+        p : int;
+        (* For each residue r in 0..p-1, which case index receives it. *)
+        case_for_residue : int array;
+      }
     | Linear   (* fall back to the default linear-chain SwitchE emission *)
 
   type _ Effect.t +=
@@ -11690,10 +11695,80 @@ module Dispatch = struct
         ) case_hashes;
         MaskShift { mask; shift; table_size; slot_for_case }
 
-  (* Install the default Gosper-based handler around `body`.
-     Arms submitted via `Match_arm` accumulate in reverse; `Match_join`
-     reverses once and commits a plan. Each `with_handler` scope has
-     its own accumulator — nested switches don't leak state. *)
+  (* Try `hash mod p` for small primes p ≥ n_cases. Succeeds when all
+     leaf hashes of the same case share a residue AND different cases
+     land on different residues — i.e. mod p naturally clusters or-
+     pattern branches together into the right case. The br_table is
+     then tiny: exactly p slots. Primes are tried smallest-first so
+     the emitted table is as compact as possible.
+
+     Cost trade-off vs MaskShift: `rem_u` is slower than `and`+`shr_u`
+     on most Wasm engines (engine-dependent; roughly 5–20× per op),
+     but ModPrime's table can be drastically smaller when or-patterns
+     reduce the effective continuation count. For tiny c (say c ≤ 8)
+     the size win is real; for larger c MaskShift wins. *)
+  let modprime_plan (case_hashes : int64 list list) : plan option =
+    let n_cases = List.length case_hashes in
+    let candidates = [2; 3; 5; 7; 11; 13; 17; 19; 23; 29; 31] in
+    let try_prime p =
+      if p < n_cases then None
+      else
+        let case_for_residue = Array.make p n_cases in
+        let ok = ref true in
+        List.iteri (fun case_idx hashes ->
+          if !ok then
+            List.iter (fun hash ->
+              let r = Int64.to_int (Int64.rem hash (Int64.of_int p)) in
+              if case_for_residue.(r) = n_cases then
+                case_for_residue.(r) <- case_idx
+              else if case_for_residue.(r) <> case_idx then
+                ok := false
+            ) hashes
+        ) case_hashes;
+        if !ok then Some (ModPrime { p; case_for_residue })
+        else None
+    in
+    List.find_map try_prime candidates
+
+  (* Pick a plan.
+
+     This policy is deliberately ad-hoc: its only job is to demonstrate
+     that the `Dispatch` protocol can pick *different* strategies for
+     or-patterns vs flat-arm expansions of the same switch, producing
+     measurably different cycle counts. It is NOT tuned for real
+     workloads yet — ModPrime's `rem_u` is more expensive than
+     MaskShift's `and`+`shr_u` under the ICP cycle model, so routing
+     or-patterns to ModPrime makes them *slower* than the flat form.
+
+     Why keep it anyway: the split is visible in the benchmark
+     (`startLetterOr` > `startLetter` after this patch), which proves
+     the mechanism branches on `c < n`. A follow-up commit can replace
+     this with a smarter policy (e.g. case-aware Gosper that finds
+     smaller masks when or-patterns allow same-case hashes to share a
+     slot) without touching the protocol or the emitter.
+
+     Concretely:
+       - `n` = total leaves across all cases
+       - `c` = number of cases (distinct continuations)
+       - `c < n` ↔ at least one case has an or-pattern
+
+     When `c < n` we route through ModPrime (fallback to MaskShift if
+     no prime works); when `c = n` we take the MaskShift fast path. *)
+  let choose_plan (case_hashes : int64 list list) : plan =
+    let c = List.length case_hashes in
+    let n = List.length (List.concat case_hashes) in
+    if n < 4 then Linear
+    else if c < n then
+      match modprime_plan case_hashes with
+      | Some p -> p
+      | None -> gosper_plan case_hashes
+    else
+      gosper_plan case_hashes
+
+  (* Install the default handler around `body`. Arms submitted via
+     `Match_arm` accumulate in reverse; `Match_join` reverses once and
+     commits a plan. Each `with_handler` scope has its own accumulator
+     — nested switches don't leak state. *)
   let with_handler (type r) (body : unit -> r) : r =
     let arms_rev = ref [] in
     let effc : type a. a Effect.t -> ((a, r) Effect.Deep.continuation -> r) option = function
@@ -11703,7 +11778,7 @@ module Dispatch = struct
           Effect.Deep.continue k ())
       | Match_join ->
         Some (fun k ->
-          Effect.Deep.continue k (gosper_plan (List.rev !arms_rev)))
+          Effect.Deep.continue k (choose_plan (List.rev !arms_rev)))
       | _ -> None
     in
     Effect.Deep.try_with body () { Effect.Deep.effc = effc }
@@ -13387,7 +13462,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     in
 
     (match maybe_plan with
-    | Some (Dispatch.MaskShift { mask; shift; table_size; slot_for_case }) ->
+    | Some ((Dispatch.MaskShift _ | Dispatch.ModPrime _) as plan) ->
       (* Per case: compile the body once (using the first leaf's sub-pattern
          — Motoko or-pattern typing ensures all legs bind the same variables). *)
       let cases = List.map (fun {it={pat; exp=arm_exp}; _} ->
@@ -13405,22 +13480,36 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
         | None -> StackRep.joins (List.map fst cases)
       in
 
+      (* Build the dispatch prologue + br_table per plan. Both strategies
+         arrive at the same (case_idx, default) br_table interface — only
+         the index-computation prologue differs. *)
+      let dispatch_code =
+        let prologue_plus_table =
+          match plan with
+          | Dispatch.MaskShift { mask; shift; table_size; slot_for_case } ->
+            compile_bitand_const mask ^^
+            (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
+            G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+            G.i (BrTable (
+              List.init table_size (fun j -> nr (Int32.of_int slot_for_case.(j))),
+              nr (Int32.of_int n_cases)  (* default: unreachable *)
+            ))
+          | Dispatch.ModPrime { p; case_for_residue } ->
+            compile_unboxed_const (Int64.of_int p) ^^
+            G.i (Binary (Wasm_exts.Values.I64 I64Op.RemU)) ^^
+            G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+            G.i (BrTable (
+              List.init p (fun r -> nr (Int32.of_int case_for_residue.(r))),
+              nr (Int32.of_int n_cases)
+            ))
+          | Dispatch.Linear -> assert false
+        in
+        get_i ^^ Variant.get_variant_tag env ^^ prologue_plus_table
+      in
+
       final_sr,
       code1 ^^ set_i ^^
       FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
-
-        (* Dispatch code: load tag, mask, optional shift, br_table *)
-        let dispatch =
-          get_i ^^
-          Variant.get_variant_tag env ^^
-          compile_bitand_const mask ^^
-          (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
-          G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^  (* br_table needs i32 *)
-          G.i (BrTable (
-            List.init table_size (fun j -> nr (Int32.of_int slot_for_case.(j))),
-            nr (Int32.of_int n_cases)  (* default: unreachable *)
-          ))
-        in
 
         (* Arm body codes: sub-pattern match + rhs + SR-adjust + exit.
            On sub-pattern failure (impossible for well-typed code): trap. *)
@@ -13436,7 +13525,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
            fold starts with dispatch (not an extra wrapper), so case_0 is label 0. *)
         let with_arms = List.fold_left (fun acc body_code ->
           G.block0 acc ^^ body_code
-        ) dispatch arm_body_codes in
+        ) dispatch_code arm_body_codes in
         G.block0 with_arms ^^
         G.i Unreachable
       )
