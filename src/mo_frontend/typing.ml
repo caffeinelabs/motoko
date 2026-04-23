@@ -1157,6 +1157,7 @@ let rec is_explicit_pat p =
   | TupP ps -> List.for_all is_explicit_pat ps
   | ObjP pfs -> List.for_all is_explicit_pat_field pfs
   | AltP (p1, p2) -> is_explicit_pat p1 && is_explicit_pat p2
+  | AndP (p1, p2) -> is_explicit_pat p1 && is_explicit_pat p2
   | AnnotP _ -> true
 
 and is_explicit_pat_field pf =
@@ -1412,6 +1413,9 @@ and combine_pat_srcs env t pat : unit =
     in
     combine_pat_srcs env t1 pat1
   | AltP (pat1, pat2) ->
+    combine_pat_srcs env t pat1;
+    combine_pat_srcs env t pat2;
+  | AndP (pat1, pat2) ->
     combine_pat_srcs env t pat1;
     combine_pat_srcs env t pat2;
   | AnnotP (pat1, _typ) -> combine_pat_srcs env t pat1
@@ -3264,6 +3268,22 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
       error env pat.at "M0189" "different set of bindings in pattern alternatives";
     if not env.pre then T.Env.(iter (fun k t1 -> warn_lossy_bind_type env pat.at k t1 (find k ve2))) ve1;
     t, T.Env.merge (fun _ -> Lib.Option.map2 (T.lub ~src_fields:env.srcs)) ve1 ve2*)
+  | AndP (pat1, pat2) ->
+    error env pat.at "M0184"
+        "cannot infer the type of this and-pattern, please add a type annotation";
+    (*let t1, ve1 = infer_pat env pat1 in
+    let t2, ve2 = infer_pat env pat2 in
+    (* Both legs must accept the scrutinee, so the inferred type is the
+       intersection/glb. No bindings may overlap. *)
+    if not (T.compatible t1 t2) then
+      error env pat.at "M0104"
+        "pattern branches have incompatible types,\nleft consumes%a\nright consumes%a"
+        display_typ_expand t1
+        display_typ_expand t2;
+    let overlap = T.Env.filter (fun k _ -> T.Env.mem k ve2) ve1 in
+    if not (T.Env.is_empty overlap) then
+      error env pat.at "M0???" "and-pattern binds the same variable in both legs";
+    T.glb ~src_fields:env.srcs t1 t2, T.Env.union (fun _ v _ -> Some v) ve1 ve2*)
   | AnnotP ({it = VarP id; _} as pat1, typ) when name_types ->
     let t = check_typ env typ in
     T.Named (id.it, t), check_pat env t pat1
@@ -3421,6 +3441,19 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
     ) ve1;
     let merge_entries (t1, at1, kind1) (t2, at2, kind2) = (T.lub ~src_fields:env.srcs t1 t2, at1, kind1) in
     T.Env.merge (fun _ -> Lib.Option.map2 merge_entries) ve1 ve2
+  | AndP (pat1, pat2) ->
+    (* Both legs must match the scrutinee; bindings from both are
+       available in the body. Overlap in binding names is an error. *)
+    let ve1 = check_pat env t pat1 in
+    let ve2 = check_pat env t pat2 in
+    T.Env.iter (fun k _ ->
+      if T.Env.mem k ve2 then
+        error env pat.at "M0189"
+          "variable `%s` bound in both branches of and-pattern" k
+    ) ve1;
+    T.Env.merge (fun _ o1 o2 -> match o1, o2 with
+      | Some v, _ | _, Some v -> Some v
+      | None, None -> None) ve1 ve2
   | AnnotP (pat1, typ) ->
     let t' = check_typ env typ in
     if not (sub env pat.at t t') then
@@ -3542,6 +3575,18 @@ and check_pat_typ_dec env t pat : Scope.typ_env =
         error env pat.at "M0189" "mismatched types for type %s in patterns" s
       else None) te1 te2 in
     te1
+  | AndP (pat1, pat2), _ ->
+    (* Type-level bindings: union, with error on overlap. *)
+    let te1 = check_pat_typ_dec env t pat1 in
+    let te2 = check_pat_typ_dec env t pat2 in
+    T.Env.iter (fun k _ ->
+      if T.Env.mem k te2 then
+        error env pat.at "M0189"
+          "type identifier `%s` bound in both branches of and-pattern" k
+    ) te1;
+    T.Env.merge (fun _ o1 o2 -> match o1, o2 with
+      | Some v, _ | _, Some v -> Some v
+      | None, None -> None) te1 te2
   | _, _ -> T.Env.empty
 
 and check_pats_typ_dec env ts pats te at : Scope.typ_env =
@@ -3638,6 +3683,7 @@ and vis_pat src pat xs : visibility_env =
   | TagP (_, pat1)
   | AnnotP (pat1, _)
   | ParP pat1 -> vis_pat src pat1 xs
+  | AndP (pat1, pat2) -> vis_pat src pat1 (vis_pat src pat2 xs)
 
 and vis_pat_field src pf xs =
   match pf.it with
@@ -4573,6 +4619,7 @@ and gather_pat_aux env val_kind scope pat : Scope.t =
   | ObjP pfs -> List.fold_left (gather_pat_field env) scope pfs
   | TagP (_, pat1) | AltP (pat1, _) | OptP pat1
   | AnnotP (pat1, _) | ParP pat1 -> gather_pat env scope pat1
+  | AndP (pat1, pat2) -> gather_pat env (gather_pat env scope pat1) pat2
 
 and gather_pat_field env scope pf : Scope.t =
   let val_kind = kind_of_field_pattern pf in

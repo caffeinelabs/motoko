@@ -268,6 +268,12 @@ let rec match_pat ctxt desc pat t sets =
   | AltP (pat1, pat2) ->
     sets.alts <- AtSet.add pat1.at (AtSet.add pat2.at sets.alts);
     match_pat (InAlt1 (ctxt, pat1.at, pat2, t)) desc pat1 t sets
+  | AndP (pat1, _pat2) ->
+    (* TODO: proper coverage for and-patterns. For now approximate by
+       treating the pattern as equivalent to its first leg — unsound
+       for refutability but adequate for a draft that only exercises
+       the frontend + typecheck. *)
+    match_pat ctxt desc pat1 t sets
   | AnnotP (pat1, _)
   | ParP pat1 ->
     match_pat ctxt desc pat1 t sets

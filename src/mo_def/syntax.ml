@@ -120,11 +120,9 @@ and pat' =
   | OptP of pat                                (* option *)
   | TagP of id * pat                           (* tagged variant *)
   | AltP of pat * pat                          (* disjunctive *)
+  | AndP of pat * pat                          (* conjunctive *)
   | AnnotP of pat * typ                        (* type annotation *)
   | ParP of pat                                (* parenthesis *)
-(*
-  | AsP of pat * pat                           (* conjunctive *)
-*)
 
 and pat_field = pat_field' phrase
 and pat_field' =
