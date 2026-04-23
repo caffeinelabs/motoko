@@ -37,7 +37,7 @@ type Status = { #Ok : Nat; #Err : Text };
 // whole AndP fails and flow advances to the next case.
 func leftFails(s : Status) : Text =
   switch s {
-    case ((#Ok 42) and s5) ("42-left: " # debug_show s5);
+    case (#Ok 42 and s5) ("42-left: " # debug_show s5);
     case (#Ok n) ("ok " # debug_show n);
     case (#Err e) ("err " # e);
   };
