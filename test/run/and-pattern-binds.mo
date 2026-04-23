@@ -18,6 +18,3 @@ debugPrint (debug_show {x3; y3; z3});
 let ((#a n) and m) or ((#b n) and m) : { #a : Nat; #b : Nat } = #a 13;
 debugPrint (debug_show {n; m});
 
-//SKIP run-ir
-//SKIP run-low
-//SKIP comp

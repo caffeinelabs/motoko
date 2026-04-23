@@ -1037,6 +1037,9 @@ and gather_pat env const ve0 pat : val_env =
       let ve1, ve2 = go ve pat1, go ve pat2 in
       let common i1 i2 = { typ = lub env i1.typ i2.typ; loc_known = i1.loc_known && i2.loc_known; const = i1.const && i2.const } in
       T.Env.merge (fun _ -> Lib.Option.map2 common) ve1 ve2
+    | AndP (pat1, pat2) ->
+      (* legs contribute disjoint bindings (frontend enforces) *)
+      go (go ve pat1) pat2
     | OptP pat1
     | TagP (_, pat1) ->
       go ve pat1
@@ -1087,6 +1090,14 @@ and check_pat env pat : val_env =
         error env pat.at "set of bindings differ for alternative pattern";
     let common i1 i2 = { typ = lub env i1.typ i2.typ; loc_known = i1.loc_known && i2.loc_known; const = i1.const && i2.const } in
     T.Env.merge (fun _ -> Lib.Option.map2 common) ve1 ve2
+  | AndP (pat1, pat2) ->
+    (* both legs must accept the scrutinee; bindings are disjoint
+       (frontend enforces) so we can just take the disjoint union *)
+    let ve1 = check_pat env pat1 in
+    let ve2 = check_pat env pat2 in
+    t <: pat1.note;
+    t <: pat2.note;
+    disjoint_union env pat.at "duplicate binding for %s in and-pattern" ve1 ve2
 
 and check_pats at env pats ve : val_env =
   match pats with

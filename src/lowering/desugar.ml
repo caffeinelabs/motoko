@@ -1318,13 +1318,7 @@ and pat' = function
   | S.OptP p -> I.OptP (pat p)
   | S.TagP (i, p) -> I.TagP (i.it, pat p)
   | S.AltP (p1, p2) -> I.AltP (pat p1, pat p2)
-  | S.AndP (p1, p2) ->
-    (* TODO: AND-pattern lowering to IR. For the frontend/typecheck
-       draft PR the IR does not yet have an `AndP` constructor; reach
-       this arm only if a program containing an and-pattern is
-       compiled all the way through. *)
-    ignore (p1, p2);
-    failwith "and-pattern lowering not yet implemented"
+  | S.AndP (p1, p2) -> I.AndP (pat p1, pat p2)
   | S.AnnotP (p, _)
   | S.ParP p -> pat' p.it
 
