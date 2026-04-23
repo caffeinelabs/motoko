@@ -1,0 +1,4 @@
+error[M0051]: duplicate definition for a in block
+    ┌─ and-pattern-overlap.mo:1:20
+  1 │  let (a : Nat) and (a : Nat) = 5;
+    │                     ^ 
