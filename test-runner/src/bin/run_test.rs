@@ -985,11 +985,12 @@ fn modes_to_run(all_modes: bool, file_name: &str) -> Vec<Mode> {
     }
 }
 
-/// Re-exec `run-test` for a single persistence mode. Isolating each mode in
-/// its own process is required for `.drun`: `pocket-ic-server` inherits fd 1
-/// and 2 at spawn time, so reusing a single process across modes would
-/// silently route canister `debug_print` output to the previous mode's file.
-fn spawn_self_for_mode(cli: &Cli, file: &str, orig_cwd: &Path, mode: Mode, accept: bool) -> bool {
+/// Re-exec `run-test` for a single file, optionally pinning the persistence
+/// mode via `EXTRA_MOC_ARGS`. Isolating per-file work in its own process is
+/// required for `.drun`: `pocket-ic-server` inherits fd 1 and 2 at spawn time,
+/// so reusing a single process across files (or modes) would silently route
+/// subsequent canisters' `debug_print` output to the first file's capture.
+fn spawn_self(cli: &Cli, file: &str, orig_cwd: &Path, mode: Option<Mode>, accept: bool) -> bool {
     let exe = env::current_exe().unwrap_or_else(|_| PathBuf::from("run-test"));
     let mut cmd = Command::new(exe);
     cmd.current_dir(orig_cwd).arg(file);
@@ -999,15 +1000,18 @@ fn spawn_self_for_mode(cli: &Cli, file: &str, orig_cwd: &Path, mode: Mode, accep
     if cli.silent { cmd.arg("-s"); }
     if cli.only_tc { cmd.arg("-t"); }
     if cli.idl { cmd.arg("-i"); }
+    if mode.is_none() && cli.all_modes { cmd.arg("--all-modes"); }
 
-    let saved = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
-    let extra = mode.extra_moc_args();
-    let combined = match (saved.is_empty(), extra.is_empty()) {
-        (true, _) => extra.to_string(),
-        (false, true) => saved,
-        (false, false) => format!("{saved} {extra}"),
-    };
-    cmd.env("EXTRA_MOC_ARGS", combined);
+    if let Some(m) = mode {
+        let saved = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
+        let extra = m.extra_moc_args();
+        let combined = match (saved.is_empty(), extra.is_empty()) {
+            (true, _) => extra.to_string(),
+            (false, true) => saved,
+            (false, false) => format!("{saved} {extra}"),
+        };
+        cmd.env("EXTRA_MOC_ARGS", combined);
+    }
     cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 
@@ -1032,7 +1036,7 @@ fn process_file(cli: &Cli, file: &str, orig_cwd: &Path) -> bool {
             if multi {
                 println!("=== mode: {} ===", mode.label());
             }
-            ok_all &= spawn_self_for_mode(cli, file, orig_cwd, mode, cli.accept && i == 0);
+            ok_all &= spawn_self(cli, file, orig_cwd, Some(mode), cli.accept && i == 0);
         }
         return ok_all;
     }
@@ -1095,9 +1099,18 @@ fn main() {
 
     let orig_cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let mut failures: Vec<String> = Vec::new();
+    // With more than one input we re-exec per file so that each .drun test
+    // gets its own pocket-ic-server (the server inherits fd 1/2 at spawn
+    // time, so reusing a single process would drop later tests' debug_print).
+    let isolate = cli.files.len() > 1;
     for file in &cli.files {
         let c = per_file_cli(&cli, file);
-        if !process_file(&c, file, &orig_cwd) {
+        let ok = if isolate {
+            spawn_self(&c, file, &orig_cwd, None, cli.accept)
+        } else {
+            process_file(&c, file, &orig_cwd)
+        };
+        if !ok {
             failures.push(file.clone());
         }
     }
