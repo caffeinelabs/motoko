@@ -3308,7 +3308,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
         display_typ_expand t2;
     let overlap = T.Env.filter (fun k _ -> T.Env.mem k ve2) ve1 in
     if not (T.Env.is_empty overlap) then
-      error env pat.at "M0???" "and-pattern binds the same variable in both legs";
+      error env pat.at "M0260" "and-pattern binds the same variable in both legs";
     T.glb ~src_fields:env.srcs t1 t2, T.Env.union (fun _ v _ -> Some v) ve1 ve2*)
   | AnnotP ({it = VarP id; _} as pat1, typ) when name_types ->
     let t = check_typ env typ in
@@ -3474,7 +3474,7 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
     let ve2 = check_pat env t pat2 in
     T.Env.iter (fun k _ ->
       if T.Env.mem k ve2 then
-        error env pat.at "M0189"
+        error env pat.at "M0260"
           "variable `%s` bound in both branches of and-pattern" k
     ) ve1;
     T.Env.merge (fun _ o1 o2 -> match o1, o2 with
@@ -3607,7 +3607,7 @@ and check_pat_typ_dec env t pat : Scope.typ_env =
     let te2 = check_pat_typ_dec env t pat2 in
     T.Env.iter (fun k _ ->
       if T.Env.mem k te2 then
-        error env pat.at "M0189"
+        error env pat.at "M0260"
           "type identifier `%s` bound in both branches of and-pattern" k
     ) te1;
     T.Env.merge (fun _ o1 o2 -> match o1, o2 with
