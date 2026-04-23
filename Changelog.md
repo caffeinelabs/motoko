@@ -1,5 +1,11 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * feat: and-patterns — `(p1 and p2)` matches when both legs match, binding from both (#6049).
+
 ## 1.6.0 (2026-04-21)
 
 * motoko (`moc`)
