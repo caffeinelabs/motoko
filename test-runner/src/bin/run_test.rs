@@ -1064,8 +1064,9 @@ fn process_file(cli: &Cli, file: &str, orig_cwd: &Path) -> bool {
 /// to know `run-drun/`- and `fail/`-specific flags.
 fn per_file_cli(cli: &Cli, file: &str) -> Cli {
     let mut c = cli.clone();
-    c.dtests |= file.contains("/run-drun/");
-    c.only_tc |= file.contains("/fail/");
+    let has_component = |name: &str| file.split('/').any(|c| c == name);
+    c.dtests |= has_component("run-drun");
+    c.only_tc |= has_component("fail");
     c
 }
 
