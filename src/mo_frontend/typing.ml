@@ -3295,21 +3295,42 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
     if not env.pre then T.Env.(iter (fun k t1 -> warn_lossy_bind_type env pat.at k t1 (find k ve2))) ve1;
     t, T.Env.merge (fun _ -> Lib.Option.map2 (T.lub ~src_fields:env.srcs)) ve1 ve2*)
   | AndP (pat1, pat2) ->
-    error env pat.at "M0261"
-        "cannot infer the type of this and-pattern, please add a type annotation";
-    (*let t1, ve1 = infer_pat env pat1 in
-    let t2, ve2 = infer_pat env pat2 in
-    (* Both legs must accept the scrutinee, so the inferred type is the
-       intersection/glb. No bindings may overlap. *)
-    if not (T.compatible t1 t2) then
-      error env pat.at "M0104"
-        "pattern branches have incompatible types,\nleft consumes%a\nright consumes%a"
-        display_typ_expand t1
-        display_typ_expand t2;
-    let overlap = T.Env.filter (fun k _ -> T.Env.mem k ve2) ve1 in
-    if not (T.Env.is_empty overlap) then
-      error env pat.at "M0260" "and-pattern binds the same variable in both legs";
-    T.glb ~src_fields:env.srcs t1 t2, T.Env.union (fun _ v _ -> Some v) ve1 ve2*)
+    (* If at least one leg is explicit enough to infer, lift the other
+       leg into check-mode against that type. If both are explicit,
+       take the glb of their inferred types (both must accept the
+       scrutinee). Only reject with M0261 when neither leg carries
+       enough annotation to drive inference. *)
+    let t, ve1, ve2 =
+      match is_explicit_pat pat1, is_explicit_pat pat2 with
+      | true, true ->
+        let t1, ve1 = infer_pat false env pat1 in
+        let t2, ve2 = infer_pat false env pat2 in
+        if not (T.compatible t1 t2) then
+          error env pat.at "M0104"
+            "and-pattern legs have incompatible types,\nleft accepts%a\nright accepts%a"
+            display_typ_expand t1
+            display_typ_expand t2;
+        T.glb ~src_fields:env.srcs t1 t2, ve1, ve2
+      | true, false ->
+        let t1, ve1 = infer_pat false env pat1 in
+        let ve2 = check_pat env t1 pat2 in
+        t1, ve1, ve2
+      | false, true ->
+        let t2, ve2 = infer_pat false env pat2 in
+        let ve1 = check_pat env t2 pat1 in
+        t2, ve1, ve2
+      | false, false ->
+        error env pat.at "M0261"
+          "cannot infer the type of this and-pattern, please add a type annotation"
+    in
+    T.Env.iter (fun k _ ->
+      if T.Env.mem k ve2 then
+        error env pat.at "M0260"
+          "variable `%s` bound in both branches of and-pattern" k
+    ) ve1;
+    t, T.Env.merge (fun _ o1 o2 -> match o1, o2 with
+      | Some v, _ | _, Some v -> Some v
+      | None, None -> None) ve1 ve2
   | AnnotP ({it = VarP id; _} as pat1, typ) when name_types ->
     let t = check_typ env typ in
     T.Named (id.it, t), check_pat env t pat1
