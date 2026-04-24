@@ -1114,8 +1114,9 @@ and check_pats at env pats ve : val_env =
   | [] -> ve
   | pat::pats' ->
     let ve1 = check_pat env pat in
-    let ve' = disjoint_union env at "duplicate binding for %s in pattern" ve ve1 in
-    check_pats at env pats' ve'
+    verify_pair env at "duplicate binding for %s in pattern"
+      (fun k ve -> not (T.Env.mem k ve)) ve1 ve;
+    check_pats at env pats' (T.Env.adjoin ve ve1)
 
 and check_pat_fields env t = List.iter (check_pat_field env t)
 
