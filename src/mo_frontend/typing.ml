@@ -4645,7 +4645,26 @@ and gather_pat_aux env val_kind scope pat : Scope.t =
   | ObjP pfs -> List.fold_left (gather_pat_field env) scope pfs
   | TagP (_, pat1) | AltP (pat1, _) | OptP pat1
   | AnnotP (pat1, _) | ParP pat1 -> gather_pat env scope pat1
-  | AndP (pat1, pat2) -> gather_pat env (gather_pat env scope pat1) pat2
+  | AndP (pat1, pat2) ->
+    (* Gather each leg against the outer scope independently, then
+       enforce disjoint leg-contributions with the AndP-specific M0260
+       diagnostic (mirrors check_pat). Otherwise `gather_id` would fire
+       the generic M0051 in let-context on a duplicate. *)
+    let scope1 = gather_pat env scope pat1 in
+    let scope2 = gather_pat env scope pat2 in
+    T.Env.iter (fun k _ ->
+      if not (T.Env.mem k scope.Scope.val_env)
+      && T.Env.mem k scope2.Scope.val_env then
+        error env pat.at "M0260"
+          "variable `%s` bound in both branches of and-pattern" k)
+      scope1.Scope.val_env;
+    T.Env.iter (fun k _ ->
+      if not (T.Env.mem k scope.Scope.typ_env)
+      && T.Env.mem k scope2.Scope.typ_env then
+        error env pat.at "M0260"
+          "type identifier `%s` bound in both branches of and-pattern" k)
+      scope1.Scope.typ_env;
+    Scope.adjoin scope1 scope2
 
 and gather_pat_field env scope pf : Scope.t =
   let val_kind = kind_of_field_pattern pf in

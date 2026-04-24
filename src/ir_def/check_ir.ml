@@ -149,6 +149,12 @@ let disjoint_union env at fmt env1 env2 =
   try T.Env.disjoint_union env1 env2
   with T.Env.Clash k -> error env at fmt k
 
+(* Error on the first key of env1 that falsifies `ok k env2`, naming
+   that key via `fmt`. A cheap iter + predicate test, without the
+   raise/catch machinery of `disjoint_union`. *)
+let verify_pair env at fmt ok env1 env2 =
+  T.Env.iter (fun k _ -> if not (ok k env2) then error env at fmt k) env1
+
 (* Types *)
 
 (* FIX ME: these error reporting functions are eager and will construct unnecessary type strings !*)
@@ -1038,7 +1044,9 @@ and gather_pat env const ve0 pat : val_env =
       let common i1 i2 = { typ = lub env i1.typ i2.typ; loc_known = i1.loc_known && i2.loc_known; const = i1.const && i2.const } in
       T.Env.merge (fun _ -> Lib.Option.map2 common) ve1 ve2
     | AndP (pat1, pat2) ->
-      (* legs contribute disjoint bindings (frontend enforces) *)
+      (* pre-population only; check_pat below rejects overlapping
+         bindings via verify_pair, so IR loaded from disk is
+         validated without trusting the frontend *)
       go (go ve pat1) pat2
     | OptP pat1
     | TagP (_, pat1) ->
@@ -1091,13 +1099,15 @@ and check_pat env pat : val_env =
     let common i1 i2 = { typ = lub env i1.typ i2.typ; loc_known = i1.loc_known && i2.loc_known; const = i1.const && i2.const } in
     T.Env.merge (fun _ -> Lib.Option.map2 common) ve1 ve2
   | AndP (pat1, pat2) ->
-    (* both legs must accept the scrutinee; bindings are disjoint
-       (frontend enforces) so we can just take the disjoint union *)
+    (* both legs must accept the scrutinee; verify_pair enforces
+       disjoint bindings without trusting the frontend *)
     let ve1 = check_pat env pat1 in
     let ve2 = check_pat env pat2 in
     t <: pat1.note;
     t <: pat2.note;
-    disjoint_union env pat.at "duplicate binding for %s in and-pattern" ve1 ve2
+    verify_pair env pat.at "duplicate binding for %s in and-pattern"
+      (fun k ve2 -> not (T.Env.mem k ve2)) ve1 ve2;
+    T.Env.adjoin ve1 ve2
 
 and check_pats at env pats ve : val_env =
   match pats with
