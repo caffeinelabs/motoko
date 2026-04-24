@@ -58,9 +58,12 @@ func rightFails(s : Status) : Text =
 debugPrint (rightFails (#Ok 99));
 debugPrint (rightFails (#Ok 7));
 
-// AndP inside a function body — direct func-arg AndP would need type
-// inference we deliberately reject (infer_pat raises M0184, matching
-// AltP's behaviour); a switch lifts the scrutinee into check_pat.
+// AndP inside a function body. A top-level `func addBoth(AndP) : Nat =
+// …` desugars to `let addBoth = func …`, putting the FuncE into
+// inference mode — which rejects AndP with M0261. We lift the scrutinee
+// into check_pat via a switch here; equivalently, `let f : Nat -> Nat =
+// func(a and b) = …` or any HOF/class position that supplies the
+// expected Func type also works.
 func addBoth(p : Nat) : Nat =
   switch p {
     case ((x6 : Nat) and y6) (x6 + y6);
