@@ -206,7 +206,41 @@ type-table conformance on the wire. This is a deliberate escape
 hatch — the user takes responsibility for the cross-canister contract.
 Worth a Changelog/doc note when desugaring lands.
 
-### 5. Reverse direction (alternative typing)
+### 5. Exempt opted-out methods from the Candid interface
+
+Methods that carry an `encoder` and/or `decode` no longer speak
+Candid on the relevant edge, so advertising them in the Candid
+surface is misleading — Candid-only clients (other canisters,
+`dfx call`, `didc`) will Candid-encode arguments / Candid-decode
+replies that the canister never produces. Two surfaces are
+affected:
+
+- **`__get_candid_interface_tmpl_v1`** — the embedded canister-section
+  metadata that the IC fetches for Candid-aware tooling. The current
+  generation walks the actor's public-method type list. We need to
+  filter (or strip) the entries whose FuncE has a non-`None`
+  `codecs.{encoder,decoder}` *for the relevant direction*: a
+  decoder-only method still has a Candid-shaped reply, so its return
+  type is fine in the dictionary — but its argument list isn't.
+  Cleanest implementation is probably to suppress the whole method
+  if either codec is set, with a follow-up if we want partial entries.
+  Generation site is in `compile_classical.ml` /
+  `compile_enhanced.ml` (search for `idl` / `__get_candid_interface`).
+
+- **`moc --idl`** — the `.did` file generator (`mo_idl/mo_to_idl.ml`).
+  Same logic: walk the type's public methods, drop or annotate the
+  ones whose source FuncE has a codec set. The Candid AST has no
+  way to express "non-Candid endpoint" today, so suppression is the
+  right answer; clients see only the methods they can actually call.
+
+For both, the codec presence is on `FuncE` in IR, but `mo_to_idl`
+operates on the *type*, not the IR. We'd need to either thread the
+codec presence into the public type (e.g. as a synthetic field on
+`Type.func`, or a side-table mapping public-method-name → codec
+presence held by the actor type) or filter at the IR level before
+type extraction. The side-table approach keeps `Type.t` clean.
+
+### 6. Reverse direction (alternative typing)
 The current direction is method-signature → codec-type. We could
 instead derive the method's *input* type from the decoder's output
 type and the method's *output* type from the encoder's input type,
