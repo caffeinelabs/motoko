@@ -757,7 +757,7 @@ and find_codec_in_par lab par =
      | _ -> None)
 
 and find_encoder_in_par par = find_codec_in_par "encoder" par
-and find_decode_in_par  par = find_codec_in_par "decode"  par
+and find_decoder_in_par par = find_codec_in_par "decoder" par
 
 and build_codecs (df : S.dec_field) : (S.exp option * S.exp option) list =
   match df.it.S.dec.it, df.it.S.vis.it with
@@ -768,7 +768,7 @@ and build_codecs (df : S.dec_field) : (S.exp option * S.exp option) list =
     let import_codecs = List.map (fun _ -> (None, None)) imports in
     (None, None) :: import_codecs @ List.concat_map build_codecs decs
   | S.LetD ({ it = S.VarP _; _ }, { it = S.FuncE _; _ }, _), S.Public (_, Some par) ->
-    [(find_encoder_in_par par, find_decode_in_par par)]
+    [(find_encoder_in_par par, find_decoder_in_par par)]
   | _ -> [(None, None)]
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =

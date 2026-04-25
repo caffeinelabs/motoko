@@ -3866,7 +3866,7 @@ and check_vis_parenthetical env arg_typ ret_typ par =
   let decoder_typ = T.Func (T.Local, T.Returns, [], [T.blob], [arg_typ]) in
   let known = [
     ("encoder", encoder_typ);
-    ("decode", decoder_typ);
+    ("decoder", decoder_typ);
   ] in
   let labs_in_par = match par.it with
     | ObjE (_, fields) -> List.map (fun (ef : exp_field) -> ef.it.id.it) fields

@@ -1,6 +1,6 @@
 //MOC-FLAG --package core $MOTOKO_CORE
 
-// Test the `decode` field end-to-end. The decoder is a flow pipeline
+// Test the `decoder` field end-to-end. The decoder is a flow pipeline
 // `Blob -> ?Text -> ?Nat` built by mapping `Nat.fromText` over the
 // result of `decodeUtf8`. The method's ingress type is `?Nat`; the
 // method echoes that value (or 0 on null) back as a plain `Nat` over
@@ -14,7 +14,7 @@ import { decodeUtf8 } "mo:⛔";
 import Nat "mo:core/Nat";
 
 persistent actor {
-  (with decode = func (b : Blob) : ?Nat = do ? {
+  (with decoder = func (b : Blob) : ?Nat = do ? {
     Nat.fromText((decodeUtf8 b)!)!
   })
   public func get(n : ?Nat) : async Nat = async (switch n { case (?v) v; case null 0 });

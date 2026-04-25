@@ -38,7 +38,7 @@ slot, which already carries other annotations (e.g. cycle limits):
 ```motoko
 persistent actor {
   (with encoder = func (n : Nat) : Blob = ...;
-        decode  = func (b : Blob) : Nat   = ...)
+        decoder = func (b : Blob) : Nat   = ...)
   public func get(_ : Nat) : async Nat = ...
 }
 ```
@@ -48,7 +48,7 @@ persistent actor {
 ## Current state (what has shipped)
 
 ### Surface syntax & parser
-The visibility parenthetical is just an `ObjE`, so `decode = …` and
+The visibility parenthetical is just an `ObjE`, so `decoder = …` and
 `encoder = …` parse without grammar changes. Field names are a closed
 set, enforced by typing.
 
@@ -56,7 +56,7 @@ set, enforced by typing.
 
 For a public `func name(args : A) : async R`:
 - `encoder` is type-checked against `R -> Blob`.
-- `decode`  is type-checked against `Blob -> A`.
+- `decoder` is type-checked against `Blob -> A`.
 - Direction is **method → codec** (the method's signature drives the
   expected closure types). An alternative — *codec types driving the
   method signature* — is recorded as a code comment for future
@@ -65,7 +65,7 @@ For a public `func name(args : A) : async R`:
   parenthetical actually contains are required to match; unknown fields
   warn (M0212); unknown effects error (M0215, naming the offending
   field). No field is mandatory — both `(with encoder = …)` alone and
-  `(with decode = …)` alone are accepted.
+  `(with decoder = …)` alone are accepted.
 
 ### IR shape — `codecs` record on `FuncE` ([ir.ml:78-90](../src/ir_def/ir.ml#L78-L90))
 ```ocaml
@@ -103,11 +103,11 @@ comment captures this so future readers don't wonder why the
 parenthetical seems to vanish at this level.
 
 ### Decoder pipeline — wired end-to-end
-- Frontend parses, type-checks, and stores `decode` on the FuncE
+- Frontend parses, type-checks, and stores `decoder` on the FuncE
   through the `codecs.decoder` field.
 - All ir_passes thread `codecs` through unchanged.
 - `desugar.ml`'s `build_actor` populates `codecs.decoder = Some (exp
-  dec_exp)` from the parenthetical via `find_decode_in_par` /
+  dec_exp)` from the parenthetical via `find_decoder_in_par` /
   `build_codecs`. (The previous `build_encoders` was generalised to
   return `(enc_opt, dec_opt) list`, factored on a shared
   `find_codec_in_par lab`.)
@@ -120,7 +120,7 @@ parenthetical seems to vanish at this level.
   argument-decoding step: `None` → `Serialization.deserialize`;
   `Some compile_dec` → `compile_dec env ae0 ; closure-call` on raw
   `IC.arg_data` instead.
-- Result: a public actor method with `(with decode = …)` bypasses
+- Result: a public actor method with `(with decoder = …)` bypasses
   Candid on ingress; the user's closure receives the raw
   `msg_arg_data` bytes and produces a value of the method's
   argument type directly. The reply path is independent (Candid
@@ -129,7 +129,7 @@ parenthetical seems to vanish at this level.
 ### Tests
 Run-drun:
 - `parenthetical-public.mo` — encoder, returns `()`, all phases.
-- `parenthetical-decode.mo`  — full end-to-end: method ingress is
+- `parenthetical-decoder.mo`  — full end-to-end: method ingress is
   `?Nat`, decoder is the flow `Blob -> ?Text -> ?Nat` composed via
   `decodeUtf8` and `Nat.fromText`. The `//CALL` payload is the raw
   three ASCII bytes `"123"` (`0x313233`) — *not* a Candid envelope.
@@ -138,9 +138,9 @@ Run-drun:
   decoder Candid would reject `0x313233` as malformed input — so the
   green test is end-to-end proof that ingress Candid is bypassed.
 
-Fail (matched pairs, encoder ↔ decode):
-- `parenthetical-{encoder,decode}-effect.mo`   — M0215 effect-free.
-- `parenthetical-{encoder,decode}-mismatch.mo` — M0095 (finer than
+Fail (matched pairs, encoder ↔ decoder):
+- `parenthetical-{encoder,decoder}-effect.mo`   — M0215 effect-free.
+- `parenthetical-{encoder,decoder}-mismatch.mo` — M0095 (finer than
   field-level M0214) on a wrong codec type.
 
 ---
@@ -154,11 +154,11 @@ codecs for *all* public methods that don't override:
 
 ```motoko
 (with encoder = defaultEnc;
-      decode  = defaultDec)
+      decoder = defaultDec)
 persistent actor {
   public func quiet(x : T) : async R = body;        // inherits both
   (with encoder = customEnc)
-  public func loud(x : T) : async R = body;         // overrides encoder, inherits decode
+  public func loud(x : T) : async R = body;         // overrides encoder, inherits decoder
 }
 ```
 
@@ -189,7 +189,7 @@ Worth a Changelog/doc note when desugaring lands.
 
 ### 3. Exempt opted-out methods from the Candid interface
 
-Methods that carry an `encoder` and/or `decode` no longer speak
+Methods that carry an `encoder` and/or `decoder` no longer speak
 Candid on the relevant edge, so advertising them in the Candid
 surface is misleading — Candid-only clients (other canisters,
 `dfx call`, `didc`) will Candid-encode arguments / Candid-decode
@@ -234,7 +234,7 @@ for it.
 
 ## Non-goals
 
-- Replacing Candid wholesale. The default remains Candid; `decode`/`encoder`
+- Replacing Candid wholesale. The default remains Candid; `decoder`/`encoder`
   is opt-in per method (or per actor, after item 3).
 - Rich runtime introspection of the codec closure (e.g. composition
   primitives in the parenthetical syntax). Users compose with normal

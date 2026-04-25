@@ -1,8 +1,0 @@
-error[M0037]: misplaced async expression; try enclosing in an async function
-    ┌─ parenthetical-decode-effect.mo:5:31
-  5 │    (with decode = do { ignore (async ()); func (_ : Blob) : ?() = ?() })
-    │                                ^^^^^^^^ 
-error[M0215]: field decode in parenthetical must be effect-free
-    ┌─ parenthetical-decode-effect.mo:5:9
-  5 │    (with decode = do { ignore (async ()); func (_ : Blob) : ?() = ?() })
-    │          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
