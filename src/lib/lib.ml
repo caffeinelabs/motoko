@@ -239,8 +239,6 @@ struct
     done;
     Buffer.contents buf
 
-  let levenshtein_distance = String.edit_distance
-
 end
 
 module Utf8 =
