@@ -309,14 +309,16 @@ func compare<T>(__record : ?(Text, T, T, (T, T) -> Order, Order))) : Order
 
 `?` is allocation free but the inner tuples are still heap allocated on every call.... push `?` inwards to recursive result:
 
+```
 // i.e. use
 // `<T>(Text, T, T -> R, ?R) -> R`)
-```
+
 func ($r) { combiner<T1>("f1", $r1.f1, inst1, ?combiner<T2>("f2", $r1.f2, inst2, ... null) ...)) }
 ```
 
 Examples:
-```
+
+```motoko no-repl
 
 // unary
 func toJson<T>(lab : Text, t : T, f : T -> Json, __record : ?Json) : Json
@@ -358,6 +360,40 @@ func compare<T>(_lab : Text, T, T, (T, T) -> Order, __record : ?Order))) : Order
     }
   }
 }
+```
+
+
+# CPS based, to allow post processing in continutation
+
+The previous solution doesn't allow easy post processing. Maybe we use cps
+
+`?` is allocation free but the inner tuples are still heap allocated on every call.... push `?` inwards to recursive result:
+
+// i.e. use
+// `<T>(Text, T, T -> R, ?(k:R->R) -> R) -> (k:R->R) -> R`
+
+```motoko no-repl
+
+func ($r) { combiner<T1>("f1", $r1.f1, inst1, ?combiner<T2>("f2", $r1.f2, inst2, ... null) ...) (func t -> t) ) }
+
+func toText<T>(_lab : Text, t : T, f : T -> Text, __record : ?((Text->Text) -> Text) : (Text -> Text) -> Text {
+  switch __record {
+    case null (func k = "{" # k t # "}") ;
+    case (?k)
+      func r = k (_lab # f t # r))
+    }
+  }
+};
+
+let ret_true : (Bool -> Bool) -> Bool = func k = k true;
+let ret_false : (Bool -> Bool) -> Bool = func k = k false;
+func equals<T>(Text, T, T, (T, T) -> Bool, __record : ?(Bool->Bool) -> Bool))) : (Bool -> Bool) -> Bool
+  switch __record {
+    case null ret_true;
+    case (?k) { if f(t1, t2) then k else ret_false  }
+  }
+} // note still allocation free since we can hoist ret_true and ret_false
+  // Is this actually correct?
 ```
 
 This makes it possible for a library to provide generic serialization for **any** record type as long as instances exist for all field types.
