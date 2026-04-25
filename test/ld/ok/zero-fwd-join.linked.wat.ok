@@ -1,0 +1,81 @@
+(module
+  (type (;0;) (func (param i32 i32) (result i32)))
+  (type (;1;) (func (param i32) (result i32)))
+  (type (;2;) (func))
+  (func $bar (type 0) (param i32 i32) (result i32)
+    i32.const 0
+    local.get 1
+    call $quux)
+  (func $bar_ret (type 0) (param i32 i32) (result i32)
+    i32.const 0
+    local.get 1
+    call $quux
+    return)
+  (func $nested_block (type 1) (param i32) (result i32)
+    block (result i32)  ;; label = @1
+      block  ;; label = @2
+        i32.const 0
+        local.get 0
+        br_if 1 (;@1;)
+        br 1 (;@1;)
+      end
+      unreachable
+    end
+    local.get 0
+    call $quux)
+  (func $block_over_loop (type 1) (param i32) (result i32)
+    block (result i32)  ;; label = @1
+      loop  ;; label = @2
+        i32.const 0
+        br 1 (;@1;)
+      end
+      unreachable
+    end
+    local.get 0
+    call $quux)
+  (func $agreeing_brif (type 1) (param i32) (result i32)
+    block (result i32)  ;; label = @1
+      i32.const 0
+      local.get 0
+      br_if 0 (;@1;)
+      drop
+      i32.const 0
+    end
+    local.get 0
+    call $quux)
+  (func $agreeing_if_legs (type 1) (param i32) (result i32)
+    local.get 0
+    if (result i32)  ;; label = @1
+      i32.const 0
+      local.get 0
+      br_if 1 (;@0;)
+      drop
+      i32.const 0
+    else
+      i32.const 0
+    end
+    local.get 0
+    call $quux)
+  (func $br_table_agree (type 1) (param i32) (result i32)
+    block (result i32)  ;; label = @1
+      i32.const 0
+      local.get 0
+      br_table 0 (;@1;) 0 (;@1;) 0 (;@1;) 0 (;@1;)
+    end
+    local.get 0
+    call $quux)
+  (func $__wasm_call_ctors (type 2))
+  (func $__wasm_apply_data_relocs (type 2))
+  (func $quux (type 0) (param i32 i32) (result i32)
+    local.get 1
+    i32.const 1
+    i32.add)
+  (func $link_start (type 2)
+    call $__wasm_call_ctors)
+  (func $link_start.1 (type 2)
+    call $__wasm_apply_data_relocs
+    call $link_start)
+  (table (;0;) i64 1 1 funcref)
+  (memory (;0;) i64 2)
+  (global (;0;) i64 (i64.const 65536))
+  (start $link_start.1))

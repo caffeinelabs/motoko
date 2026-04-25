@@ -190,6 +190,117 @@ let find_exports is_thing m : exports =
     | _ -> map
   ) NameMap.empty m.exports
 
+(* Returns Some callee_index if fi is a pure forwarding function:
+   body = LocalGet 0 … LocalGet (n-1); Call k  with no extra locals.
+   import_count is the number of function imports in the module (so that
+   fi - import_count gives the index into the funcs array). *)
+let forwarding_target (funcs : func array) (types : Wasm_exts.Types.func_type list)
+    (import_count : int) (fi : int32) : int32 option =
+  let idx = Int32.to_int fi - import_count in
+  if idx < 0 then None
+  else
+    let f = funcs.(idx) in
+    let param_count =
+      let Wasm_exts.Types.FuncType (ps, _) = List.nth types (Int32.to_int f.it.ftype.it) in
+      List.length ps
+    in
+    let body_its = List.map (fun i -> i.it) f.it.body in
+    (* Consume n leading LocalGet 0 … LocalGet n-1 from instrs, return remainder *)
+    let rec eat_args n instrs =
+      if n = 0 then instrs
+      else match instrs with
+      | LocalGet v :: rest when v.it = Int32.of_int (param_count - n) ->
+        eat_args (n - 1) rest
+      | _ -> []
+    in
+    match eat_args param_count body_its with
+    | [Call k] | [Call k; Return] -> Some k.it
+    | _ -> None
+
+(* True iff body is: Const (I32 0); LocalGet 1 … LocalGet n-1; Call k
+   (optionally followed by a trailing Return)
+   i.e. a Motoko top-level forwarder that synthesises a null closure for callee *)
+let zero_forwarder_target (funcs : func array) (types : Wasm_exts.Types.func_type list)
+    (import_count : int) (fi : int32) : int32 option =
+  let idx = Int32.to_int fi - import_count in
+  if idx < 0 then None
+  else
+    let f = funcs.(idx) in
+    let param_count =
+      let Wasm_exts.Types.FuncType (ps, _) = List.nth types (Int32.to_int f.it.ftype.it) in
+      List.length ps
+    in
+    if param_count < 1 then None
+    else
+      let body_its = List.map (fun i -> i.it) f.it.body in
+      let rec eat_args n instrs =
+        if n = 0 then instrs
+        else match instrs with
+        | LocalGet v :: rest when v.it = Int32.of_int (param_count - n) ->
+          eat_args (n - 1) rest
+        | _ -> []
+      in
+      let is_null_clos = function
+        | Const { it = Wasm_exts.Values.(I32 0l | I64 0L); _ } -> true
+        | _ -> false
+      in
+      match f.it.locals, body_its with
+      | [], hd :: rest when is_null_clos hd ->
+        (match eat_args (param_count - 1) rest with
+         | [Call k] | [Call k; Return] -> Some k.it
+         | _ -> None)
+      | _ -> None
+
+module Int32Map = Map.Make(Int32)
+
+(* One step of Kleene iteration on a forwarder map [m : fi -> fi]:
+   expand each entry's target via [m] itself, producing the updated map
+   paired with the *difference map* (only the entries whose target changed).
+   The difference map is the termination witness: an empty diff means fixpoint. *)
+let forward_step (m : int32 Int32Map.t) : int32 Int32Map.t * int32 Int32Map.t =
+  Int32Map.fold (fun fi t (m', diff) ->
+    match Int32Map.find_opt t m with
+    | Some t' when t' <> t ->
+      Int32Map.add fi t' m', Int32Map.add fi t' diff
+    | _ -> m', diff
+  ) m (m, Int32Map.empty)
+
+(* Path-compress a raw one-hop forwarder map to its transitive closure.
+
+   Kleene-iterates [forward_step] with difference-map output until the diff
+   becomes empty.  A bound of [cardinal raw] iterations forces termination
+   on cycles (where Kleene iteration oscillates rather than converges).
+
+   Entries whose final target is itself still a key of the converged map
+   sit on (or lead into) a cycle — they have no well-defined terminal, so
+   we drop them.  This guarantees any subsequent rewriter needs at most one
+   pass and cannot loop. *)
+let compress_forwarder_map (raw : int32 Int32Map.t) : int32 Int32Map.t =
+  let bound = Int32Map.cardinal raw in
+  let rec iter k m =
+    let (m', diff) = forward_step m in
+    if Int32Map.is_empty diff || k >= bound then
+      Int32Map.filter (fun _ t -> not (Int32Map.mem t m')) m'
+    else iter (k + 1) m'
+  in
+  iter 0 raw
+
+let chase_forwarders (funcs : func array) (types : Wasm_exts.Types.func_type list)
+    (import_count : int) (exports : exports) : exports =
+  let raw =
+    NameMap.fold (fun _ fi acc ->
+      match forwarding_target funcs types import_count fi with
+      | Some t -> Int32Map.add fi t acc
+      | None -> acc
+    ) exports Int32Map.empty
+  in
+  let collapsed = compress_forwarder_map raw in
+  NameMap.map (fun fi ->
+    match Int32Map.find_opt fi collapsed with
+    | Some terminal -> terminal
+    | None -> fi
+  ) exports
+
 
 (* Predicate to specialize these generic functions to the various entities *)
 
@@ -997,6 +1108,97 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
   let fun_required2 = find_imports is_fun_import "env" dm2 in
   let fun_exports1 = find_exports is_fun_export em1.module_ in
   let fun_exports2 = find_exports is_fun_export dm2 in
+  let fun_exports2 =
+    let funcs = Array.of_list dm2.funcs in
+    let types = List.map (fun t -> t.it) dm2.types in
+    let import_count = Int32.to_int (count_imports is_fun_import dm2) in
+    chase_forwarders funcs types import_count fun_exports2
+  in
+  (* 0-forwarder chase: rewrite call sites in em1 that invoke a 0-forwarder
+     (Const I32 0; LocalGet 1…n-1; Call k) with a constant closure arg,
+     redirecting the call to skip the forwarder and reach the callee directly.
+     Uses constTrack's abstract interpreter for sound stack-depth tracking,
+     and path-compressed forwarder map so a single pass suffices. *)
+  let em1 =
+    let funcs = Array.of_list em1.module_.funcs in
+    let types = List.map (fun t -> t.it) em1.module_.types in
+    let import_count = Int32.to_int (count_imports is_fun_import em1.module_) in
+    let zero_fwds =
+      let raw = Array.to_seq funcs
+        |> Seq.mapi (fun idx _ -> Int32.of_int (idx + import_count))
+        |> Seq.filter_map (fun fi ->
+             Option.map (fun t -> (fi, t))
+               (zero_forwarder_target funcs types import_count fi))
+        |> Int32Map.of_seq
+      in
+      compress_forwarder_map raw
+    in
+    if Int32Map.is_empty zero_fwds then em1
+    else
+      let func_type fi =
+        let idx = Int32.to_int fi - import_count in
+        if idx < 0 then (0, 0)
+        else
+          let Wasm_exts.Types.FuncType (ps, rs) =
+            List.nth types (Int32.to_int funcs.(idx).it.ftype.it) in
+          (List.length ps, List.length rs)
+      in
+      let type_section ti = List.nth types (Int32.to_int ti) in
+      (* Collect call-site rewrites keyed by the instruction phrase's physical
+         identity. ConstTrack recurses into Block/Loop/If with a fresh idx,
+         so a positional key (top-level index) would mis-target nested calls.
+         Physical identity (==) uniquely pins the exact AST node. *)
+      let collect_rewrites body =
+        let acc = ref [] in  (* (instr phrase, target) pairs *)
+        let on_call lru _idx n_params _ instr =
+          match instr.it with
+          | Call k ->
+            (match Int32Map.find_opt k.it zero_fwds,
+                   ConstTrack.lookup lru (n_params - 1) with
+             (* Closure arg is at depth n_params-1 (deepest, pushed first).
+                Must be i32.const 0 / i64.const 0 specifically: the forwarder
+                zeros it before calling; a nonzero value would reach the
+                terminal callee unchanged after elision and could diverge if
+                it inspects $clos. *)
+             | Some target, Some (ConstTrack.I32 0l | ConstTrack.I64 0L) ->
+               acc := (instr, target) :: !acc
+             | _ -> ())
+          | _ -> ()
+        in
+        ignore (ConstTrack.process_block
+          ~func_type ~type_section ~on_call (ConstTrack.empty 8) body);
+        !acc
+      in
+      (* Recursively rewrite matching call instructions, descending into
+         Block/Loop/If bodies to reach nested calls. *)
+      let rec rewrite_instr rewrites instr =
+        match List.find_opt (fun (i, _) -> ConstTrack.same_instr i instr) rewrites with
+        | Some (_, target) ->
+          (match instr.it with
+           | Call k -> { instr with it = Call { k with it = target } }
+           | _ -> instr)
+        | None ->
+          match instr.it with
+          | Block (bt, is) ->
+            { instr with it = Block (bt, List.map (rewrite_instr rewrites) is) }
+          | Loop (bt, is) ->
+            { instr with it = Loop (bt, List.map (rewrite_instr rewrites) is) }
+          | If (bt, is1, is2) ->
+            { instr with it = If (bt,
+                List.map (rewrite_instr rewrites) is1,
+                List.map (rewrite_instr rewrites) is2) }
+          | _ -> instr
+      in
+      let rewrite_func f =
+        match collect_rewrites f.it.body with
+        | [] -> f
+        | rewrites ->
+          { f with it = { f.it with
+              body = List.map (rewrite_instr rewrites) f.it.body } }
+      in
+      { em1 with module_ = { em1.module_ with
+          funcs = List.map rewrite_func em1.module_.funcs } }
+  in
   (* Resolve imports, to produce a renumbering function: *)
   let fun_resolved12 = resolve fun_required1 fun_exports2 in
   let fun_resolved21 = resolve fun_required2 fun_exports1 in

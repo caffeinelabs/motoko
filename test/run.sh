@@ -66,8 +66,8 @@ function normalize () {
   then
     grep -a -E -v '^Raised by|^Raised at|^Re-raised at|^Re-Raised at|^Called from|^ +at ' $1 |
     grep -a -E -v 'note: using the' |
-    sed -e 's/\x00//g' \
-        -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' \
+    tr -d '\000' |
+    sed -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' \
         -e 's/^.*[IW], hypervisor:/hypervisor:/g' \
         -e 's/wasm:0x[a-f0-9]*:/wasm:0x___:/g' \
         -e 's/prelude:[^:]*:/prelude:___:/g' \
@@ -290,8 +290,8 @@ do
   case $ext in
   "mo")
     # extra flags (allow shell variables there)
-    moc_extra_flags="$(eval echo $(grep '//MOC-FLAG' $base.mo | cut -c11- | paste -sd' '))"
-    moc_extra_env="$(eval echo $(grep '//MOC-ENV' $base.mo | cut -c10- | paste -sd' '))"
+    moc_extra_flags="$(eval echo $(grep '//MOC-FLAG' $base.mo | cut -c11- | paste -sd' ' -))"
+    moc_extra_env="$(eval echo $(grep '//MOC-ENV' $base.mo | cut -c10- | paste -sd' ' -))"
     if ! grep -q "//MOC-NO-FORCE-GC" $base.mo
     then
       TEST_MOC_ARGS="--force-gc $EXTRA_MOC_ARGS"
@@ -577,7 +577,7 @@ do
           echo "$base.drun references $mo_file which is not in directory $base"
           exit 1
         fi
-        moc_extra_flags="$(eval echo $(grep '//MOC-FLAG' $mo_file | cut -c11- | paste -sd' '))"
+        moc_extra_flags="$(eval echo $(grep '//MOC-FLAG' $mo_file | cut -c11- | paste -sd' ' -))"
         flags_var_name="FLAGS_${runner//-/_}"
         run $mo_base.$runner.comp moc $MOC_ARGS $EXTRA_MOC_ARGS ${!flags_var_name} $moc_extra_flags --hide-warnings -c $mo_file -o $out/$base/$mo_base.$runner.wasm
       done
