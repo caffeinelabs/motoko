@@ -90,7 +90,7 @@ let rec value v t =
     (Diag.error_message v.at "M0165" "import" "odd expected type"))
 
 let rec args vs = function
-  | ts when List.(compare_lengths vs.it ts < 0 && for_all is_defaultable (Lib.List.drop (length vs.it) ts)) ->
+  | ts when List.(compare_lengths vs.it ts < 0 && for_all is_defaultable (drop (length vs.it) ts)) ->
     let vs' = vs.it @ Lib.List.replicate { vs with it = NullV } List.(length ts - length vs.it) in
     args {vs with it = vs'} ts
   | ts -> parens_comma (List.map2 value (List.map2 enrich ts vs.it) ts)

@@ -1,5 +1,7 @@
+mod mode;
 mod review;
 mod test_runner;
+use crate::mode::Mode;
 use crate::test_runner::SubnetType;
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -10,6 +12,7 @@ use regex::Regex;
 use std::cell::RefCell;
 use std::env;
 use std::io::Read;
+use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -260,30 +263,72 @@ fn run_single_test(test_name: String, args: &TestRunnerArgs) -> SingleTestResult
         None
     };
 
-    let flags: Option<String> = match (args.accept, mode_flag) {
-        (true, Some(m)) => Some(format!("-a{m}")),
-        (true, None) => Some("-a".to_string()),
-        (false, Some(m)) => Some(format!("-{m}")),
-        (false, None) => None,
+    // Legacy: if EXTRA_MOC_ARGS already forces EOP, run once inheriting env;
+    // otherwise infer mode(s) from in-test markers.
+    let inherited_eop = env::var("EXTRA_MOC_ARGS")
+        .unwrap_or_default()
+        .contains("--enhanced-orthogonal-persistence");
+    let modes = if inherited_eop {
+        vec![Mode::Eop]
+    } else {
+        mode::infer_modes(Path::new(&test_name))
     };
+    let multi_mode = modes.len() > 1;
 
-    let mut cmd = Command::new("test/run.sh");
-    if let Some(f) = &flags {
-        cmd.arg(f);
+    let mut combined_stdout = String::new();
+    let mut combined_stderr = String::new();
+    let mut success = true;
+
+    for (i, mode) in modes.iter().copied().enumerate() {
+        // Multi-mode accept: accept on i==0; later modes diff against the
+        // fresh golden, catching cross-mode divergence.
+        let mut flags = String::new();
+        if args.accept && i == 0 {
+            flags.push('a');
+        }
+        if let Some(m) = mode_flag {
+            flags.push(m);
+        }
+
+        let mut cmd = Command::new("test/run.sh");
+        if !flags.is_empty() {
+            cmd.arg(format!("-{flags}"));
+        }
+        cmd.arg(&test_name);
+
+        let extra = mode.extra_moc_args();
+        if !inherited_eop && !extra.is_empty() {
+            let existing = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
+            cmd.env(
+                "EXTRA_MOC_ARGS",
+                if existing.is_empty() {
+                    extra.to_string()
+                } else {
+                    format!("{existing} {extra}")
+                },
+            );
+        }
+
+        let out = cmd.output().unwrap_or_else(|_| {
+            panic!("Failed to run test: {:?}.", test_name.as_str())
+        });
+        if !out.status.success() {
+            success = false;
+        }
+
+        if multi_mode {
+            let header = format!("=== mode: {} ===\n", mode.label());
+            combined_stdout.push_str(&header);
+            combined_stderr.push_str(&header);
+        }
+        combined_stdout.push_str(&String::from_utf8_lossy(&out.stdout));
+        combined_stderr.push_str(&String::from_utf8_lossy(&out.stderr));
     }
-    cmd.arg(&test_name);
-
-    let running_test = cmd.output().unwrap_or_else(|_| {
-        panic!(
-            "OS-related error. Failed to run test: {:?}.",
-            test_name.as_str()
-        )
-    });
 
     SingleTestResult {
-        success: running_test.status.success(),
-        stdout: String::from_utf8_lossy(&running_test.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&running_test.stderr).to_string(),
+        success,
+        stdout: combined_stdout,
+        stderr: combined_stderr,
         test_name,
     }
 }

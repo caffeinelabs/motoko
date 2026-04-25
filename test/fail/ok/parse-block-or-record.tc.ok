@@ -7,6 +7,7 @@ parse-block-or-record.mo:14.16-14.17: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -27,6 +28,7 @@ parse-block-or-record.mo:15.16-15.17: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -47,6 +49,7 @@ parse-block-or-record.mo:21.16-21.17: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -67,6 +70,7 @@ parse-block-or-record.mo:21.23-21.24: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -87,6 +91,7 @@ parse-block-or-record.mo:21.30-21.31: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -107,6 +112,7 @@ parse-block-or-record.mo:26.27-26.28: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -127,6 +133,7 @@ parse-block-or-record.mo:26.34-26.35: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -147,6 +154,7 @@ parse-block-or-record.mo:26.41-26.42: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -167,6 +175,7 @@ parse-block-or-record.mo:31.38-31.39: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -187,6 +196,7 @@ parse-block-or-record.mo:31.45-31.46: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -210,6 +220,7 @@ parse-block-or-record.mo:42.19-42.23: syntax error [M0001], unexpected token 'wi
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -230,6 +241,7 @@ parse-block-or-record.mo:42.26-42.27: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -250,6 +262,7 @@ parse-block-or-record.mo:44.16-44.20: syntax error [M0001], unexpected token 'wi
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -270,6 +283,7 @@ parse-block-or-record.mo:44.23-44.24: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -290,6 +304,7 @@ parse-block-or-record.mo:50.26-50.27: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -310,6 +325,7 @@ parse-block-or-record.mo:50.33-50.34: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -330,6 +346,7 @@ parse-block-or-record.mo:50.40-50.41: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -350,6 +367,7 @@ parse-block-or-record.mo:51.26-51.27: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -370,6 +388,7 @@ parse-block-or-record.mo:51.33-51.34: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -390,6 +409,7 @@ parse-block-or-record.mo:51.40-51.41: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -410,6 +430,7 @@ parse-block-or-record.mo:53.24-53.25: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -430,6 +451,7 @@ parse-block-or-record.mo:53.31-53.32: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -450,6 +472,7 @@ parse-block-or-record.mo:53.38-53.39: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -470,6 +493,7 @@ parse-block-or-record.mo:57.35-57.36: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -490,6 +514,7 @@ parse-block-or-record.mo:57.42-57.43: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -510,6 +535,7 @@ parse-block-or-record.mo:57.49-57.50: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -530,6 +556,7 @@ parse-block-or-record.mo:61.26-61.27: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -550,6 +577,7 @@ parse-block-or-record.mo:61.33-61.34: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -570,6 +598,7 @@ parse-block-or-record.mo:61.40-61.41: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -590,6 +619,7 @@ parse-block-or-record.mo:62.23-62.24: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -610,6 +640,7 @@ parse-block-or-record.mo:62.30-62.31: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -630,6 +661,7 @@ parse-block-or-record.mo:62.37-62.38: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -650,6 +682,7 @@ parse-block-or-record.mo:64.29-64.30: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -670,6 +703,7 @@ parse-block-or-record.mo:64.36-64.37: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -690,6 +724,7 @@ parse-block-or-record.mo:64.43-64.44: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -710,6 +745,7 @@ parse-block-or-record.mo:66.23-66.24: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -730,6 +766,7 @@ parse-block-or-record.mo:66.30-66.31: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -750,6 +787,7 @@ parse-block-or-record.mo:66.37-66.38: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -770,6 +808,7 @@ parse-block-or-record.mo:70.25-70.26: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -790,6 +829,7 @@ parse-block-or-record.mo:70.32-70.33: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -810,6 +850,7 @@ parse-block-or-record.mo:70.39-70.40: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -830,6 +871,7 @@ parse-block-or-record.mo:71.24-71.25: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -850,6 +892,7 @@ parse-block-or-record.mo:71.31-71.32: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -870,6 +913,7 @@ parse-block-or-record.mo:71.38-71.39: syntax error [M0001], unexpected token '='
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -890,6 +934,7 @@ parse-block-or-record.mo:77.7-77.8: syntax error [M0001], unexpected token '=', 
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -910,6 +955,7 @@ parse-block-or-record.mo:82.7-82.8: syntax error [M0001], unexpected token '=', 
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -930,6 +976,7 @@ parse-block-or-record.mo:86.7-86.8: syntax error [M0001], unexpected token '=', 
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>

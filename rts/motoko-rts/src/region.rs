@@ -16,6 +16,10 @@ pub(crate) const VERSION_GRAPH_COPY_NO_REGIONS: usize = 3;
 pub(crate) const VERSION_GRAPH_COPY_REGIONS: usize = 4;
 pub(crate) const VERSION_STABLE_HEAP_NO_REGIONS: usize = 5;
 pub(crate) const VERSION_STABLE_HEAP_REGIONS: usize = 6;
+// V1 graph-copy: adds a 16-byte extension block in front of the legacy 40-byte
+// last-page record carrying extra GC roots (dedup table, migrations list).
+pub(crate) const VERSION_GRAPH_COPY_V1_NO_REGIONS: usize = 7;
+pub(crate) const VERSION_GRAPH_COPY_V1_REGIONS: usize = 8;
 
 const _: () = assert!(meta_data::size::PAGE_IN_BYTES == crate::stable_mem::PAGE_SIZE);
 const _: () = assert!(meta_data::size::PAGES_IN_BLOCK <= u8::MAX as u32);

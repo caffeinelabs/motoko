@@ -15,8 +15,9 @@ use crate::{
     persistence::compatibility::memory_compatible,
     region::{
         LEGACY_VERSION_NO_STABLE_MEMORY, LEGACY_VERSION_REGIONS, LEGACY_VERSION_SOME_STABLE_MEMORY,
-        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS, VERSION_STABLE_HEAP_NO_REGIONS,
-        VERSION_STABLE_HEAP_REGIONS,
+        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS,
+        VERSION_GRAPH_COPY_V1_NO_REGIONS, VERSION_GRAPH_COPY_V1_REGIONS,
+        VERSION_STABLE_HEAP_NO_REGIONS, VERSION_STABLE_HEAP_REGIONS,
     },
     rts_trap_with,
     stable_mem::read_persistence_version,
@@ -158,6 +159,8 @@ unsafe fn use_enhanced_orthogonal_persistence() -> bool {
         VERSION_STABLE_HEAP_NO_REGIONS | VERSION_STABLE_HEAP_REGIONS => true,
         VERSION_GRAPH_COPY_NO_REGIONS
         | VERSION_GRAPH_COPY_REGIONS
+        | VERSION_GRAPH_COPY_V1_NO_REGIONS
+        | VERSION_GRAPH_COPY_V1_REGIONS
         | LEGACY_VERSION_NO_STABLE_MEMORY
         | LEGACY_VERSION_SOME_STABLE_MEMORY
         | LEGACY_VERSION_REGIONS => false,
@@ -248,6 +251,14 @@ unsafe fn update_stable_type<M: Memory>(
         rts_trap_with("Memory-incompatible program upgrade");
     }
     (*metadata).stable_type.assign(mem, &new_type);
+}
+
+/// Restore the old stable type from graph-copy stabilization metadata into
+/// the freshly initialized persistent metadata so that `register_stable_type`
+/// can check compatibility when the migration chain runs after destabilization.
+pub unsafe fn restore_stable_type<M: Memory>(mem: &mut M, old_type: &TypeDescriptor) {
+    let metadata = PersistentMetadata::get();
+    (*metadata).stable_type.assign(mem, old_type);
 }
 
 /// Register the stable actor type on canister initialization and upgrade.

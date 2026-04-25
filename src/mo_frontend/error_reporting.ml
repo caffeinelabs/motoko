@@ -57,6 +57,7 @@ let terminal2token (type a) (symbol : a terminal) : token =
       | T_OR -> OR
       | T_OBJECT -> OBJECT
       | T_NULL -> NULL
+      | T_NULLCOALESCE -> NULLCOALESCE
       | T_NOT -> NOT
       | T_NEQOP -> NEQOP
       | T_NAT -> NAT "<nat>"

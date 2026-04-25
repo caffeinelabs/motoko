@@ -388,6 +388,7 @@ module Make (Cfg : Config) = struct
     | NotE e -> to_js_object "NotE" [| exp_js e |]
     | AndE (e1, e2) -> to_js_object "AndE" [| exp_js e1; exp_js e2 |]
     | OrE (e1, e2) -> to_js_object "OrE" [| exp_js e1; exp_js e2 |]
+    | NullCoalesceE (e1, e2) -> to_js_object "NullCoalesceE" [| exp_js e1; exp_js e2 |]
     | IfE (e1, e2, e3) ->
         to_js_object "IfE" [| exp_js e1; exp_js e2; exp_js e3 |]
     | SwitchE (e, cs) ->
