@@ -253,7 +253,9 @@ When the compiler is looking for an implicit of type `SomeRecord -> R` and finds
 ```
 func ($r) { combiner<T1>(?("f1", $r1.f1, inst1, combiner<T2>(?("f2", $r1.f2, inst2, ... combiner<None>(null))...)) }
 
-// NB, ? is free but the tuple is still heap allocated.... push `?` inwards?
+// NB, ? is allocation free but the inner tuples are still heap allocated on every call.... push `?` inwards?
+// i.e. use: `<T>((?Text, ?T, ?T -> R, ?R)) -> R`),
+// func ($r) { combiner<T1>(?"f1", ?$r1.f1, ?inst1, ?combiner<T2>(?("f2", $r1.f2, inst2, ... combiner<None>(null, null, null, null))...)) }
 ```
 
 Examples:
@@ -263,7 +265,7 @@ Examples:
 func toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
   switch __record {
     case null : #Array [];
-    case ?(lab:Text, t:T, f: T -> Json, j : JSon) {
+    case ?(lab : Text, t : T, f : T -> Json, j : JSon) {
       switch j {
         case (#Array a) {
           Array.append [(lab, f t)]
@@ -277,7 +279,7 @@ func toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
 func toText<T>(__record : ?(Text, T, T -> Text, Text) : Text {
   switch __record {
     case null : "";
-    case ?(_lab : Text, t, f: T -> Text, r : Text) {
+    case ?(_lab : Text, t, f : T -> Text, r : Text) {
       _lab # f t # s
     }
   }
@@ -288,7 +290,7 @@ func toText<T>(__record : ?(Text, T, T -> Text, Text) : Text {
 func equals<T>(__record : ?(Text, T, T, (T, T) -> Bool, Bool))) : Bool
   switch __record {
     case null true;
-    case ?(_lab : Text, t1, t2, f: (T, T) -> Bool, b : Bool) {
+    case ?(_lab : Text, t1, t2, f : (T, T) -> Bool, b : Bool) {
       b and f(t1, t2)
     }
   }
@@ -297,7 +299,7 @@ func equals<T>(__record : ?(Text, T, T, (T, T) -> Bool, Bool))) : Bool
 func compare<T>(__record : ?(Text, T, T, (T, T) -> Order, Order))) : Order
   switch __record {
     case null #equal;
-    case ?(_lab : Text, t1, t2, f: (T, T) -> Order, o : Order) {
+    case ?(_lab : Text, t1, t2, f : (T, T) -> Order, o : Order) {
       switch o {
         case (#equal) { f(t1, t2) }
         case o o
