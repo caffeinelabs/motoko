@@ -85,9 +85,8 @@ and exp' =
    `encoder : T -> Blob` replaces Candid serialization on reply.
    `decoder : Blob -> T` would replace Candid deserialization on
    ingress; not yet wired through desugaring/codegen.
-   TODO: an actor-level parenthetical may eventually carry default
-   codecs that are stamped onto every public method that doesn't
-   override them; the per-FuncE record keeps that change additive. *)
+   See `.claude/plans/non-candid.md` for the full plan, including
+   the actor-level inheritance idea and the OpenAPI/Web2 motivation. *)
 and codecs = { encoder : exp option; decoder : exp option }
 
 and stable_actor_typ = { pre: Type.typ; post: Type.typ }
