@@ -3800,9 +3800,9 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
       | Syntax.Public (_, Some par), LetD ({ it = VarP id; _ }, _, _) ->
         (match T.Env.find_opt id.it scope.Scope.val_env with
          | Some (typ, _, _) when T.is_func typ ->
-           let _, c, _, _, ts2 = T.as_func typ in
+           let _, c, _, ts1, ts2 = T.as_func typ in
            (match c with
-            | T.Promises -> check_vis_parenthetical env (T.seq ts2) par
+            | T.Promises -> check_vis_parenthetical env (T.seq ts1) (T.seq ts2) par
             | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
          | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
       | Syntax.Public (_, Some par), _ ->
@@ -3854,12 +3854,47 @@ and check_parenthetical env typ_opt = function
      let unrecognised = List.(filter T.(fun {lab; _} -> lab <> cycles_lab && lab <> timeout_lab) attrs_flds |> map (fun {T.lab; _} -> lab)) in
      if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute %s in parenthetical" (List.hd unrecognised);
 
-and check_vis_parenthetical env ret_typ par =
+and check_vis_parenthetical env arg_typ ret_typ par =
+  (* Direction is method → codec: the method's signature drives the
+     expected encoder/decoder types. An alternative we may want to
+     explore later is the inverse — deriving the method's input type
+     from the decoder's output type and the method's output type from
+     the encoder's input type, then checking the method signature
+     against those — which would let users pin codec types and have
+     the method fall in line. *)
   let encoder_typ = T.Func (T.Local, T.Returns, [], [ret_typ], [T.blob]) in
-  let expected = T.obj T.Object [("encoder", encoder_typ)] in
+  let decoder_typ = T.Func (T.Local, T.Returns, [], [T.blob], [arg_typ]) in
+  let known = [
+    ("encoder", encoder_typ);
+    ("decode", decoder_typ);
+  ] in
+  let labs_in_par = match par.it with
+    | ObjE (_, fields) -> List.map (fun (ef : exp_field) -> ef.it.id.it) fields
+    | _ -> []
+  in
+  let expected_fields = List.filter_map (fun lab ->
+    Option.map (fun typ -> (lab, typ)) (List.assoc_opt lab known)
+  ) labs_in_par in
+  let unrecognised = List.filter
+    (fun lab -> not (List.mem_assoc lab known)) labs_in_par in
+  List.iter (fun lab ->
+    warn env par.at "M0212"
+      "unrecognised attribute %s in parenthetical" lab
+  ) unrecognised;
+  if labs_in_par = [] then
+    warn env par.at "M0211" "redundant empty parenthetical note";
+  let expected = T.obj T.Object expected_fields in
   check_exp env expected par;
-  if par.note.note_eff <> T.Triv then
-    local_error env par.at "M0215" "encoder parenthetical must be effect-free"
+  (match par.it with
+   | ObjE (_, fields) ->
+     List.iter (fun (ef : exp_field) ->
+       if ef.it.exp.note.note_eff <> T.Triv then
+         local_error env ef.at "M0215"
+           "field %s in parenthetical must be effect-free" ef.it.id.it
+     ) fields
+   | _ ->
+     if par.note.note_eff <> T.Triv then
+       local_error env par.at "M0215" "parenthetical must be effect-free")
 
 and check_system_fields env sort scope tfs dec_fields =
   List.iter (fun df ->
