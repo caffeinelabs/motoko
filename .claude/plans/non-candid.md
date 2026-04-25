@@ -102,23 +102,41 @@ modelled, so any wire-byte transform is moot. A reviewer-facing
 comment captures this so future readers don't wonder why the
 parenthetical seems to vanish at this level.
 
-### Decoder pipeline — frontend only
+### Decoder pipeline — wired end-to-end
 - Frontend parses, type-checks, and stores `decode` on the FuncE
   through the `codecs.decoder` field.
-- IR passes thread it through unchanged.
-- `desugar.ml`'s `build_actor` does **not** install the decoder yet
-  (`codecs.decoder` is always `None`).
-- Codegen does **not** consult `codecs.decoder`.
-- Result: a parenthetical `(with decode = …)` is fully type-checked
-  but has zero runtime effect. The receiving Candid pipeline runs
-  unchanged.
+- All ir_passes thread `codecs` through unchanged.
+- `desugar.ml`'s `build_actor` populates `codecs.decoder = Some (exp
+  dec_exp)` from the parenthetical via `find_decode_in_par` /
+  `build_codecs`. (The previous `build_encoders` was generalised to
+  return `(enc_opt, dec_opt) list`, factored on a shared
+  `find_codec_in_par lab`.)
+- Both backends (`compile_classical.ml`, `compile_enhanced.ml`)
+  thread a `?(decoder=None)` thunk parameter — `(E.t -> VarEnv.t ->
+  G.t) option` — through `FuncDec.{lit, closed,
+  compile_const_message}`. The thunk is constructed at the FuncE
+  call site (where `compile_exp_vanilla` is in scope) and wraps the
+  decoder expression. Inside `compile_const_message`, branch at the
+  argument-decoding step: `None` → `Serialization.deserialize`;
+  `Some compile_dec` → `compile_dec env ae0 ; closure-call` on raw
+  `IC.arg_data` instead.
+- Result: a public actor method with `(with decode = …)` bypasses
+  Candid on ingress; the user's closure receives the raw
+  `msg_arg_data` bytes and produces a value of the method's
+  argument type directly. The reply path is independent (Candid
+  unless `encoder` is also set).
 
 ### Tests
 Run-drun:
 - `parenthetical-public.mo` — encoder, returns `()`, all phases.
-- `parenthetical-decode.mo`  — decoder pipeline `Blob -> ?Nat` via
-  `decodeUtf8 ∘ Nat.fromText`, method ingress `?Nat`, returns Candid
-  `Nat 42`.
+- `parenthetical-decode.mo`  — full end-to-end: method ingress is
+  `?Nat`, decoder is the flow `Blob -> ?Text -> ?Nat` composed via
+  `decodeUtf8` and `Nat.fromText`. The `//CALL` payload is the raw
+  three ASCII bytes `"123"` (`0x313233`) — *not* a Candid envelope.
+  With the decoder active that blob deserialises as `?123` and the
+  reply is Candid `Nat 123` (`0x4449444c00017d7b`). Without the
+  decoder Candid would reject `0x313233` as malformed input — so the
+  green test is end-to-end proof that ingress Candid is bypassed.
 
 Fail (matched pairs, encoder ↔ decode):
 - `parenthetical-{encoder,decode}-effect.mo`   — M0215 effect-free.
@@ -129,44 +147,7 @@ Fail (matched pairs, encoder ↔ decode):
 
 ## Pending work
 
-### 1. Decoder desugaring (`desugar.ml`)
-Mirror the encoder helpers:
-```ocaml
-and find_decode_in_par par : S.exp option = (* … *)
-and build_decoders (df : S.dec_field) : S.exp option list = (* … *)
-```
-…and extend the `List.map2` zipper in `build_actor` (line 776) to a
-`List.map3` over `(encoders, decoders, ds)`, populating
-`codecs.decoder = Some (exp dec_exp)` next to the existing `encoder`
-field.
-
-### 2. Codegen hook (both backends)
-Both `compile_classical.ml` and `compile_enhanced.ml` deserialize at
-`compile_const_message`:
-```ocaml
-Serialization.deserialize env arg_tys ^^
-G.concat_map (Var.set_val_vanilla_from_stack env ae1) (List.rev arg_names)
-```
-Branch on `codecs.decoder`. With `Some dec`:
-```ocaml
-let (set_dec, get_dec) = new_local env "decoder" in
-compile_exp_vanilla env ae dec_exp ^^ set_dec ^^
-get_dec ^^ Closure.prepare_closure_call env ^^
-IC.arg_data env ^^                          (* raw blob *)
-get_dec ^^
-Closure.call_closure env 1 1 ^^             (* result : T.seq arg_tys *)
-Tuple.unbox env (List.length arg_tys)       (* multi-arg case *)
-```
-Then the existing `set_val_vanilla_from_stack` walk consumes the N
-values exactly as today.
-
-The closure type is `Blob -> arg_typ` (strict, no framework-side
-`?`-unwrap). User trapping is the user's responsibility — explicit in
-the closure body or implicit by typing the method's argument as a
-`?T` and propagating null further on. This keeps codec semantics
-fully symmetric with the encoder side.
-
-### 3. Actor-level codec defaults
+### 1. Actor-level codec defaults
 Allow the parenthetical that today annotates an individual public
 method to also be attached to the actor itself, supplying default
 codecs for *all* public methods that don't override:
@@ -200,13 +181,13 @@ Implementation sketch:
   canister-wide custom protocol once instead of repeating it on every
   public method.
 
-### 4. Type-table validation escape hatch
+### 2. Type-table validation escape hatch
 With a custom decoder, the framework no longer enforces Candid
 type-table conformance on the wire. This is a deliberate escape
 hatch — the user takes responsibility for the cross-canister contract.
 Worth a Changelog/doc note when desugaring lands.
 
-### 5. Exempt opted-out methods from the Candid interface
+### 3. Exempt opted-out methods from the Candid interface
 
 Methods that carry an `encoder` and/or `decode` no longer speak
 Candid on the relevant edge, so advertising them in the Candid
@@ -240,7 +221,7 @@ codec presence into the public type (e.g. as a synthetic field on
 presence held by the actor type) or filter at the IR level before
 type extraction. The side-table approach keeps `Type.t` clean.
 
-### 6. Reverse direction (alternative typing)
+### 4. Reverse direction (alternative typing)
 The current direction is method-signature → codec-type. We could
 instead derive the method's *input* type from the decoder's output
 type and the method's *output* type from the encoder's input type,
