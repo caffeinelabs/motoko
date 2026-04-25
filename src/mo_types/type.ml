@@ -2051,6 +2051,8 @@ let comma ppf () = fprintf ppf ",@ "
 
 let semi ppf () = fprintf ppf ";@ "
 
+module StringMap = Map.Make(String)
+
 module StringSet = Set.Make(String)
 
 let vs_of_cs cs =
@@ -2343,13 +2345,41 @@ and pp_stab_sig ppf sig_ =
     | PrePost (pre, post) -> List.map snd pre @ post
     | Multi {chain; post} -> chain @ post
   in
-  let cs = List.fold_right
+
+  let cs0 = List.fold_right
     (cons_field false)
     (* false here ^ means ignore unreferenced type field components
        that would produce unreferenced bindings when unfolded *)
     all_fields ConSet.empty in
 
-  let cs = ConSet.fold (fun c cs -> ConSet.add (canonical c) cs)  cs ConSet.empty in
+  let cs =
+    if Cfg.canonicalize then
+      (* contract all simple type redefinitions, eliding them *)
+      ConSet.fold (fun c cs -> ConSet.add (canonical c) cs) cs0 ConSet.empty
+    else cs0 in
+
+  let path c index =
+    if index = 0 then
+      IdP (Cons.name c)
+    else
+      IdP (Cons.name c ^ Cfg.con_sep ^ (Int.to_string index))
+  in
+
+  (* (ab)use con_map to renumber constructors *)
+  con_map := ConEnv.empty;
+  let counts = ref StringMap.empty in
+  ConSet.iter (fun c ->
+      let index =
+        match StringMap.find_opt (Cons.name c) !counts with
+        | None ->
+          counts := StringMap.add (Cons.name c) (ref 0) (!counts);
+          0
+        | Some ri ->
+          ri := !ri + 1;
+          !ri
+      in
+      con_map := ConEnv.add c (path c index) (!con_map))
+    cs;
 
   let vs = vs_of_cs cs in
   let ds =
