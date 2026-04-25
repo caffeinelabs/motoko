@@ -241,11 +241,60 @@ The search label used to resolve per-element implicits is the same as the implic
 
 #### Unary record derivation (`__record`)
 
-When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R` (parameter named `__record`, type `[(Text, () -> E)] -> R`), it:
+When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R` (parameter named `__record`, type
+`<T>((?(Text, T, T -> R, R)) -> R`), it:
 
 1. Decomposes `SomeRecord` into its fields (in lexicographic order).
-2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> E` using the same search label.
-3. Synthesises a wrapper: `func($r) { combiner([("f1", func() { inst1($r.f1) }), ...]) }`.
+
+2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> R` using the same search label.
+
+3. Synthesises a wrapper
+
+```
+func ($r) { combiner<T1>(?("f1", $r1.f1, inst1, combiner<T2>(?("f2", $r1.f2, inst2, ... combiner<None>(null))...)) }
+```
+
+Examples:
+```
+toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
+         switch __record {
+             case null : #Array [];
+	     case ?(lab:Text, t:T, f: T -> Json, j : JSon) {
+	       switch j {
+	         case #Array a  { Array.append [(lab, f t)] a }
+		 case _ { assert false }
+             })
+
+
+toText<T>(__record : ?(Text, T, T -> Text, Text) : Text {
+       switch __record {
+         case null : "";
+         case ?(_lab : Text, t, f: T -> Text, r : (Text -> Text) -> Text) {
+	    _lab # f t # s
+         }
+      }
+
+binary:
+
+
+equals<T>(__record : ?(Text, T, T, (T, T) -> Bool, Bool))) : Bool
+         switch __record {
+             case null : true;
+	     case ?(_lab : Text, t1, t2, f: (T, T) -> Bool, b : Bool) {
+	       b and f (t1, t2) }
+             })
+
+
+compare<T>(__record : ?(Text, T, T, (T, T) -> Ord, Ord))) : Ord
+         switch __record {
+             case null : #EQ;
+	     case ?(_lab : Text, t1, t2, f: (T, T) -> Ord, o : Ord) {
+	       switch o {
+	          case #EQ : f (t1, t2)
+		  case o : o
+             })
+
+```
 
 This makes it possible for a library to provide generic serialization for **any** record type as long as instances exist for all field types.
 
