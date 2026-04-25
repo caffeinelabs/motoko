@@ -268,7 +268,7 @@ func toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
     case ?(lab : Text, t : T, f : T -> Json, j : JSon) {
       switch j {
         case (#Array a) {
-          Array.append [(lab, f t)]
+          Array.append([(lab, f t)], a) // inefficient
         };
        case _ { assert false };
       }
