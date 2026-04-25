@@ -1,7 +1,7 @@
 export default ({ IDL }) => {
  const A =
-  IDL.Record({'': IDL.Nat, '📦🍦': IDL.Nat, '字段名': IDL.Nat,
-   '字 段 名2': IDL.Nat})
+  IDL.Record({'': IDL.Nat, '📦🍦': IDL.Nat, '字段名': IDL.Nat, '字 段 名2': IDL.Nat
+   })
  const B =
   IDL.Variant({'': IDL.Null, '空的': IDL.Null, '  空的  ': IDL.Null,
    '1⃣️2⃣️3⃣️': IDL.Null})
