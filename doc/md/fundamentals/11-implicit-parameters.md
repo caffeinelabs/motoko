@@ -252,48 +252,59 @@ When the compiler is looking for an implicit of type `SomeRecord -> R` and finds
 
 ```
 func ($r) { combiner<T1>(?("f1", $r1.f1, inst1, combiner<T2>(?("f2", $r1.f2, inst2, ... combiner<None>(null))...)) }
+
+// NB, ? is free but the tuple is still heap allocated.... push `?` inwards?
 ```
 
 Examples:
 ```
-toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
-         switch __record {
-             case null : #Array [];
-	     case ?(lab:Text, t:T, f: T -> Json, j : JSon) {
-	       switch j {
-	         case #Array a  { Array.append [(lab, f t)] a }
-		 case _ { assert false }
-             })
 
-
-toText<T>(__record : ?(Text, T, T -> Text, Text) : Text {
-       switch __record {
-         case null : "";
-         case ?(_lab : Text, t, f: T -> Text, r : (Text -> Text) -> Text) {
-	    _lab # f t # s
-         }
+// unary
+func toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
+  switch __record {
+    case null : #Array [];
+    case ?(lab:Text, t:T, f: T -> Json, j : JSon) {
+      switch j {
+        case (#Array a) {
+          Array.append [(lab, f t)]
+        };
+       case _ { assert false };
       }
+    }
+  }
+} //NB: inefficient
 
-binary:
+func toText<T>(__record : ?(Text, T, T -> Text, Text) : Text {
+  switch __record {
+    case null : "";
+    case ?(_lab : Text, t, f: T -> Text, r : Text) {
+      _lab # f t # s
+    }
+  }
+} //NB: no enclosing `{` .. `}` - how would you add those efficiently
 
+// binary:
 
-equals<T>(__record : ?(Text, T, T, (T, T) -> Bool, Bool))) : Bool
-         switch __record {
-             case null : true;
-	     case ?(_lab : Text, t1, t2, f: (T, T) -> Bool, b : Bool) {
-	       b and f (t1, t2) }
-             })
+func equals<T>(__record : ?(Text, T, T, (T, T) -> Bool, Bool))) : Bool
+  switch __record {
+    case null true;
+    case ?(_lab : Text, t1, t2, f: (T, T) -> Bool, b : Bool) {
+      b and f(t1, t2)
+    }
+  }
+}
 
-
-compare<T>(__record : ?(Text, T, T, (T, T) -> Ord, Ord))) : Ord
-         switch __record {
-             case null : #EQ;
-	     case ?(_lab : Text, t1, t2, f: (T, T) -> Ord, o : Ord) {
-	       switch o {
-	          case #EQ : f (t1, t2)
-		  case o : o
-             })
-
+func compare<T>(__record : ?(Text, T, T, (T, T) -> Order, Order))) : Order
+  switch __record {
+    case null #equal;
+    case ?(_lab : Text, t1, t2, f: (T, T) -> Order, o : Order) {
+      switch o {
+        case (#equal) { f(t1, t2) }
+        case o o
+      }
+    }
+  }
+}
 ```
 
 This makes it possible for a library to provide generic serialization for **any** record type as long as instances exist for all field types.
