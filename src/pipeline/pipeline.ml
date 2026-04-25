@@ -321,7 +321,7 @@ let stable_compatible pre post : unit Diag.result =
 (* basic sanity checking of emitted stable signatures *)
 let validate_stab_sig s : unit Diag.result =
   let open Diag.Syntax in
-  (*  Printf.printf "stable sig %s" s; *)
+  (* Printf.printf "stable sig %s" s; *)
   let name = "stable-types" in
   Cons.session ~scope:name (fun () ->
     let* p1 = parse_stab_sig s name in
