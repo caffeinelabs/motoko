@@ -749,38 +749,45 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
-and find_encoder_in_par par =
+and find_codec_in_par lab par =
   S.(match par.it with
      | ObjE (_, fields) ->
-        List.find_opt (fun (ef : exp_field) -> ef.it.id.it = "encoder") fields
+        List.find_opt (fun (ef : exp_field) -> ef.it.id.it = lab) fields
         |> Option.map (fun (ef : exp_field) -> ef.it.exp)
      | _ -> None)
 
-and build_encoders (df : S.dec_field) : S.exp option list =
+and find_encoder_in_par par = find_codec_in_par "encoder" par
+and find_decode_in_par  par = find_codec_in_par "decode"  par
+
+and build_codecs (df : S.dec_field) : (S.exp option * S.exp option) list =
   match df.it.S.dec.it, df.it.S.vis.it with
   | S.TypD _, _ -> []
   | S.MixinD _, _ -> assert false
   | S.IncludeD (_, _, note), _ ->
     let { S.imports; decs; _ } = Option.get !note in
-    let import_encs = List.map (fun _ -> None) imports in
-    None :: import_encs @ List.concat_map build_encoders decs
+    let import_codecs = List.map (fun _ -> (None, None)) imports in
+    (None, None) :: import_codecs @ List.concat_map build_codecs decs
   | S.LetD ({ it = S.VarP _; _ }, { it = S.FuncE _; _ }, _), S.Public (_, Some par) ->
-    [find_encoder_in_par par]
-  | _ -> [None]
+    [(find_encoder_in_par par, find_decode_in_par par)]
+  | _ -> [(None, None)]
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let fs0 = build_fields obj_typ0 in
   let stabs = List.concat_map build_stabs es in
-  let encoders = List.concat_map build_encoders es in
+  let codec_pairs = List.concat_map build_codecs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
-  let ds = List.map2 (fun enc_opt d ->
-    match enc_opt, d.it with
-    | Some enc_exp, I.LetD (v, ({ it = I.FuncE (n, s, c, tbs, args, tys, body, codecs); _ } as fe))
-      when codecs.I.encoder = None ->
-      let codecs' = I.{ codecs with encoder = Some (exp enc_exp) } in
+  let ds = List.map2 (fun (enc_opt, dec_opt) d ->
+    match enc_opt, dec_opt, d.it with
+    | None, None, _ -> d
+    | _, _, I.LetD (v, ({ it = I.FuncE (n, s, c, tbs, args, tys, body, codecs); _ } as fe)) ->
+      let merge cur src = match cur with
+        | Some _ -> cur
+        | None -> Option.map exp src in
+      let codecs' = I.{ encoder = merge codecs.encoder enc_opt;
+                        decoder = merge codecs.decoder dec_opt } in
       { d with it = I.LetD (v, { fe with it = I.FuncE (n, s, c, tbs, args, tys, body, codecs') }) }
     | _ -> d
-  ) encoders ds in
+  ) codec_pairs ds in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
