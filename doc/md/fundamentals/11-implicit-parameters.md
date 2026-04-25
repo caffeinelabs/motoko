@@ -252,10 +252,6 @@ When the compiler is looking for an implicit of type `SomeRecord -> R` and finds
 
 ```
 func ($r) { combiner<T1>(?("f1", $r1.f1, inst1, combiner<T2>(?("f2", $r1.f2, inst2, ... combiner<None>(null))...)) }
-
-// NB, ? is allocation free but the inner tuples are still heap allocated on every call.... push `?` inwards?
-// i.e. use: `<T>((?Text, ?T, ?T -> R, ?R)) -> R`),
-// func ($r) { combiner<T1>(?"f1", ?$r1.f1, ?inst1, ?combiner<T2>(?("f2", $r1.f2, inst2, ... combiner<None>(null, null, null, null))...)) }
 ```
 
 Examples:
@@ -264,11 +260,11 @@ Examples:
 // unary
 func toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
   switch __record {
-    case null : #Array [];
+    case null { #Array []; };
     case ?(lab : Text, t : T, f : T -> Json, j : JSon) {
       switch j {
         case (#Array a) {
-          Array.append([(lab, f t)], a) // inefficient
+          Array.append([(lab, f t)], a); //  very inefficient
         };
        case _ { assert false };
       }
@@ -278,7 +274,7 @@ func toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
 
 func toText<T>(__record : ?(Text, T, T -> Text, Text) : Text {
   switch __record {
-    case null : "";
+    case null "";
     case ?(_lab : Text, t, f : T -> Text, r : Text) {
       _lab # f t # s
     }
@@ -301,7 +297,62 @@ func compare<T>(__record : ?(Text, T, T, (T, T) -> Order, Order))) : Order
     case null #equal;
     case ?(_lab : Text, t1, t2, f : (T, T) -> Order, o : Order) {
       switch o {
-        case (#equal) { f(t1, t2) }
+        case (#equal) { f(t1, t2) };
+        case o o
+      }
+    }
+  }
+}
+```
+
+# Optimization:
+
+`?` is allocation free but the inner tuples are still heap allocated on every call.... push `?` inwards to recursive result:
+
+// i.e. use
+// `<T>(Text, T, T -> R, ?R) -> R`)
+```
+func ($r) { combiner<T1>("f1", $r1.f1, inst1, ?combiner<T2>("f2", $r1.f2, inst2, ... null) ...)) }
+```
+
+Examples:
+```
+
+// unary
+func toJson<T>(lab : Text, t : T, f : T -> Json, __record : ?Json) : Json
+    switch __record {
+      case null { #Array []; };
+      case ?(#Array a) {
+        Array.append([(lab, f t)], a); //  still inefficient
+      case _ { assert false };
+    };
+  }
+} //NB: inefficient
+
+func toText<T>(_lab : Text, t : T, f : T -> Text, __record : ?Text) : Text {
+  switch __record {
+    case null "";
+    case (?r)
+      _lab # f t # r
+    }
+  }
+} //NB: no enclosing `{` .. `}` - how would you add those efficiently?
+
+// binary:
+
+func equals<T>(Text, T, T, (T, T) -> Bool, __record : ?Bool))) : Bool
+  switch __record {
+    case null true;
+    case (?b) { b and f(t1, t2) }
+  }
+}
+
+func compare<T>(_lab : Text, T, T, (T, T) -> Order, __record : ?Order))) : Order
+  switch __record {
+    case null #equal;
+    case (?o) {
+      switch o {
+        case (#equal) { f(t1, t2) };
         case o o
       }
     }
