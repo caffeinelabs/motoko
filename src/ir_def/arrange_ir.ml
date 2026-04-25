@@ -25,9 +25,10 @@ let rec exp e = match e.it with
   | AsyncE (Type.Cmp, tb, e, t) -> "AsyncE*"  $$ [typ_bind tb; exp e; typ t]
   | DeclareE (i, t, e1) -> "DeclareE" $$ [id i; exp e1]
   | DefineE (i, m, e1)  -> "DefineE" $$ [id i; mut m; exp e1]
-  | FuncE (x, s, c, tp, as_, ts, e, enc) ->
+  | FuncE (x, s, c, tp, as_, ts, e, codecs) ->
     "FuncE" $$ [Atom x; func_sort s; control c] @ List.map typ_bind tp @ args as_ @ [ typ (Type.seq ts); exp e]
-      @ (match enc with None -> [] | Some enc_exp -> [Atom "encoder:"; exp enc_exp])
+      @ (match codecs.encoder with None -> [] | Some enc_exp -> [Atom "encoder:"; exp enc_exp])
+      @ (match codecs.decoder with None -> [] | Some dec_exp -> [Atom "decoder:"; exp dec_exp])
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     "SelfCallE" $$ [typ (Type.seq ts); exp exp_f; exp exp_k; exp exp_r; exp exp_c]
   | ActorE (ds, fs, u, t) -> "ActorE"  $$ List.map dec ds @ fields fs @ [system u; typ t]

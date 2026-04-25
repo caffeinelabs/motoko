@@ -75,11 +75,20 @@ and exp' =
   | DeclareE of id * Type.typ * exp            (* local promise *)
   | DefineE of id * mut * exp                  (* promise fulfillment *)
   | FuncE of                                   (* function *)
-      string * Type.func_sort * Type.control * typ_bind list * arg list * Type.typ list * exp * exp option (* encoder *)
+      string * Type.func_sort * Type.control * typ_bind list * arg list * Type.typ list * exp * codecs
   | SelfCallE of Type.typ list * exp * exp * exp * exp (* essentially ICCallPrim (FuncE shared…) *)
   | ActorE of dec list * field list * system * Type.typ (* actor *)
   | NewObjE of Type.obj_sort * field list * Type.typ     (* make an object *)
   | TryE of exp * case list * (id * Type.typ) option (* try/catch/cleanup *)
+
+(* Optional codec closures attached to a public actor method's FuncE.
+   `encoder : T -> Blob` replaces Candid serialization on reply.
+   `decoder : Blob -> T` would replace Candid deserialization on
+   ingress; not yet wired through desugaring/codegen.
+   TODO: an actor-level parenthetical may eventually carry default
+   codecs that are stamped onto every public method that doesn't
+   override them; the per-FuncE record keeps that change additive. *)
+and codecs = { encoder : exp option; decoder : exp option }
 
 and stable_actor_typ = { pre: Type.typ; post: Type.typ }
 

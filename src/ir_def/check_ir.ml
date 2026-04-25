@@ -834,7 +834,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
           typ exp1 <: t0
     end;
     T.unit <: t
-  | FuncE (x, sort, control, typ_binds, args, ret_tys, exp, enc_opt) ->
+  | FuncE (x, sort, control, typ_binds, args, ret_tys, exp, codecs) ->
     let cs, tbs, ce = check_open_typ_binds env typ_binds in
     let ts = List.map (fun c -> T.Con(c, [])) cs in
     let env' = adjoin_cons env ce in
@@ -862,7 +862,14 @@ let rec check_exp env (exp:Ir.exp) : unit =
       let enc_ty = T.Func (T.Local, T.Returns, [], [enc_dom], [T.blob]) in
       typ enc <: enc_ty;
       check (E.eff enc = T.Triv) "encoder expression must be effect-free"
-    ) enc_opt
+    ) codecs.encoder;
+    Option.iter (fun dec ->
+      check_exp env dec;
+      let dec_cod = T.seq (List.map (T.close cs) ts1) in
+      let dec_ty = T.Func (T.Local, T.Returns, [], [T.blob], [dec_cod]) in
+      typ dec <: dec_ty;
+      check (E.eff dec = T.Triv) "decoder expression must be effect-free"
+    ) codecs.decoder
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     check (not env.flavor.Ir.has_async_typ) "SelfCallE in async flavor";
     List.iter (check_typ env) ts;

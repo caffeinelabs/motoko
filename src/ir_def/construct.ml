@@ -41,6 +41,10 @@ let fresh_var name_base typ : var =
 let fresh_vars name_base ts =
   List.mapi (fun i t -> fresh_var (Printf.sprintf "%s%i" name_base i) t) ts
 
+(* Codec helpers *)
+
+let no_codecs : codecs = { encoder = None; decoder = None }
+
 (* type arguments *)
 
 let typ_arg con sort typ = { con; sort; bound = typ } @@ no_region
@@ -341,7 +345,7 @@ let funcE name sort ctrl typ_binds args typs exp =
   let ts1 = List.map (function arg -> T.close cs arg.note) args in
   let ts2 = List.map (T.close cs) typs in
   let typ = T.Func(sort, ctrl, tbs, ts1, ts2) in
-  { it = FuncE(name, sort, ctrl, typ_binds, args, typs, exp, None);
+  { it = FuncE(name, sort, ctrl, typ_binds, args, typs, exp, no_codecs);
     at = no_region;
     note = Note.{ def with typ; eff = T.Triv };
   }
@@ -631,7 +635,7 @@ let unary_funcE name typ x exp =
        (* TODO: Assert invariant: retty has no free (unbound) DeBruijn indices -- Claudio *)
        ret_tys,
        exp',
-       None
+       no_codecs
      );
     at = no_region;
     note = Note.{ def with typ }
@@ -650,7 +654,7 @@ let nary_funcE name typ xs exp =
         List.map arg_of_var xs,
         ret_tys,
         exp,
-        None
+        no_codecs
       );
     at = no_region;
     note = Note.{ def with typ }
