@@ -86,6 +86,67 @@ persistent actor {
     n
   };
 
+  // A Smurf is a typed accessor for one client property, indexed by the
+  // 4cc the AE wire uses (decoder's #compare prop string). Smurfs bridge
+  // wire-form 4cc names ("cntr"/"age "/"inco") to Motoko Client fields.
+  type Smurf = {
+    fourcc : Text;
+    read : Client -> CandidValue;
+  };
+
+  transient let smurfs : [Smurf] = [
+    { fourcc = "cntr"; read = func(c : Client) : CandidValue = #text (c.country) },
+    { fourcc = "age "; read = func(c : Client) : CandidValue = #int32 (c.age) },
+    { fourcc = "inco"; read = func(c : Client) : CandidValue = #int32 (c.yearlyIncome) },
+  ];
+
+  func lookupSmurf(fourcc : Text) : Smurf {
+    for (s in smurfs.vals()) if (s.fourcc == fourcc) return s;
+    trap ("AE: no Smurf for " # fourcc)
+  };
+
+  func cmp(a : CandidValue, op : Comparison, b : CandidValue) : Bool {
+    switch (a, op, b) {
+      case (#text x,  #eq, #text y)  x == y;
+      case (#text x,  #ne, #text y)  x != y;
+      case (#int32 x, #eq, #int32 y) x == y;
+      case (#int32 x, #ne, #int32 y) x != y;
+      case (#int32 x, #lt, #int32 y) x <  y;
+      case (#int32 x, #gt, #int32 y) x >  y;
+      case (#int32 x, #le, #int32 y) x <= y;
+      case (#int32 x, #ge, #int32 y) x >= y;
+      case _ trap "AE: cmp type mismatch";
+    }
+  };
+
+  func evalBoolExpr(e : BoolExpr, c : Client) : Bool {
+    switch e {
+      case (#and_ (a, b)) evalBoolExpr(a, c) and evalBoolExpr(b, c);
+      case (#or_  (a, b)) evalBoolExpr(a, c) or  evalBoolExpr(b, c);
+      case (#not_ a)      not (evalBoolExpr(a, c));
+      case (#compare { prop; op; value }) cmp(lookupSmurf(prop).read c, op, value);
+    }
+  };
+
+  // Extract the test predicate from a decoded query of the running shape.
+  func extractPredicate(spec : ObjectSpec) : ?BoolExpr {
+    switch spec {
+      case (#obj { class_ = _; container; key = _ }) {
+        switch container {
+          case (#obj { class_ = _; container = _; key = #test e }) ?e;
+          case _ null;
+        }
+      };
+      case _ null;
+    }
+  };
+
+  func countMatchersDecoded(e : BoolExpr) : Nat {
+    var n = 0;
+    for (c in clients.vals()) if (evalBoolExpr(e, c)) n += 1;
+    n
+  };
+
   // every client's yearly income whose country == "Germany"
   // and 45 <= age <= 55
   func _germanMidlifeClientIncome() : ObjectSpec {
@@ -584,6 +645,15 @@ persistent actor {
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
     debugPrint(debug_show { stage = "db"; size = dbSize; matchers = countMatchers() });
+    switch (extractPredicate spec) {
+      case (?e) {
+        let (h0, c0) = counters();
+        let n = countMatchersDecoded e;
+        let (h1, c1) = counters();
+        debugPrint(debug_show { stage = "eval"; matchers = n; heap = h1 - h0; cycles = c1 - c0 });
+      };
+      case null debugPrint("AE: no predicate to evaluate");
+    };
     // round-trip visibility: encode `spec`, decode the result, print it
     let roundtrip = parseTopLevel(Reader((encodeAE spec).vals()));
     debugPrint(debug_show { stage = "roundtrip"; decoded = roundtrip });
