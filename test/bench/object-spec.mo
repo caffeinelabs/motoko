@@ -245,6 +245,25 @@ persistent actor {
     isNotFound  = true;
   };
 
+  // ValueSmurf: terminal leaf. Reads the named field from `parent` at construction
+  // time and stores it as a CandidValue. Does NOT close over `parent` afterwards —
+  // once the leaf is extracted, the parent's job is done. toDesc is a placeholder
+  // since AEOM ObjSpecs are references, not values; the encoder will treat
+  // classFourcc=="" and route via the value rather than the spec.
+  class _ValueSmurf(parent : Smurf, fieldName : Text) {
+    let value : CandidValue = switch (parent.readField fieldName) {
+      case (?v) v;
+      case null trap ("AE: ValueSmurf: field not found: " # fieldName);
+    };
+    public let blob        : () -> Blob          = func() = to_candid (value);
+    public let classFourcc : Text                = "";
+    public let accessors   : [Accessor]          = [];
+    public let enumerate   : () -> Iter<Blob>    = func() = { next = func() : ?Blob = null };
+    public let readField   : Text -> ?CandidValue = func(_ : Text) = ?value;
+    public let toDesc      : () -> ObjectSpec    = func() = #root;
+    public let isNotFound  : Bool                = false;
+  };
+
   class Reader(src : Iter<Nat8>) {
     public let next = src.next;
 
