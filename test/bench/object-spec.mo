@@ -203,6 +203,33 @@ persistent actor {
 
   type Iter<T> = { next : () -> ?T };
 
+  // Smurf protocol: existential-via-Candid abstraction over typed entities.
+  // Each Smurf carries its self-blob (Candid-encoded), its 4cc class,
+  // a list of navigation accessors, and renders itself as an ObjectSpec.
+  // The framework's encoder serializes the ObjectSpec to AE wire bytes.
+  type LookupKey = {
+    #indexed : Int;
+    #named   : Text;
+    #test    : BoolExpr;
+  };
+
+  type Smurf = {
+    blob         : Blob;                 // self, Candid-encoded
+    classFourcc  : Text;                 // wire 4cc, "" for primitives
+    primaryKey   : () -> KeyForm;        // for stable re-rendering
+    accessors    : [Accessor];           // per-class navigation hooks
+    enumerate    : () -> Iter<Blob>;     // every instance of this class
+    readField    : Text -> ?CandidValue; // for #compare in predicates
+    toDesc       : () -> ObjectSpec;     // render self as ObjSpecifier
+    isNotFound   : Bool;                 // sentinel for AE-404 (errAENoSuchObject)
+  };
+
+  type Accessor = {
+    form    : { #indexed; #named; #test };
+    fourcc  : Text;                       // 'cntr', 'age ', 'inco', 'name', …
+    lookUp  : (parentBlob : Blob, key : LookupKey) -> Smurf;
+  };
+
   class Reader(src : Iter<Nat8>) {
     public let next = src.next;
 
