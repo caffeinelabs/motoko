@@ -89,6 +89,12 @@ persistent actor {
   // A Smurf is a typed accessor for one client property, indexed by the
   // 4cc the AE wire uses (decoder's #compare prop string). Smurfs bridge
   // wire-form 4cc names ("cntr"/"age "/"inco") to Motoko Client fields.
+  //
+  // TODO: when Client gains nested subobjects (e.g. Address shared across
+  // entities), the Smurf must become zipper-like — carrying an existential
+  // "this is your container, now go fishing" context that can rebuild an
+  // ObjectSpec from inside-out (for provenance, certified queries, deeper
+  // walks). The current shape only handles primitive leaves.
   type Smurf = {
     fourcc : Text;
     read : Client -> CandidValue;
@@ -145,6 +151,33 @@ persistent actor {
     var n = 0;
     for (c in clients.vals()) if (evalBoolExpr(e, c)) n += 1;
     n
+  };
+
+  // Run the running-query shape (#obj prop → #obj clnt #test → #root) and
+  // return one CandidValue per matching client (the requested property).
+  // Two-pass: count, allocate, fill (no Buffer in `mo:⛔`).
+  func runQuery(spec : ObjectSpec) : [CandidValue] {
+    let propSmurf = switch spec {
+      case (#obj { class_ = _; container = _; key = #property name }) lookupSmurf name;
+      case _ trap "AE: outer key not #property";
+    };
+    let predicate = switch spec {
+      case (#obj { class_ = _; container; key = _ }) {
+        switch container {
+          case (#obj { class_ = _; container = _; key = #test e }) e;
+          case _ trap "AE: container not #test";
+        }
+      };
+      case _ trap "AE: spec not #obj";
+    };
+    var count = 0;
+    for (c in clients.vals()) if (evalBoolExpr(predicate, c)) count += 1;
+    let buf = Array_init<CandidValue>(count, #null_);
+    var i = 0;
+    for (c in clients.vals()) {
+      if (evalBoolExpr(predicate, c)) { buf[i] := propSmurf.read c; i += 1 };
+    };
+    Array_tabulate<CandidValue>(count, func(j : Nat) : CandidValue = buf[j])
   };
 
   // every client's yearly income whose country == "Germany"
@@ -654,6 +687,10 @@ persistent actor {
       };
       case null debugPrint("AE: no predicate to evaluate");
     };
+    let (qh0, qc0) = counters();
+    let result = runQuery spec;
+    let (qh1, qc1) = counters();
+    debugPrint(debug_show { stage = "query"; count = result.size(); heap = qh1 - qh0; cycles = qc1 - qc0; values = result });
     // round-trip visibility: encode `spec`, decode the result, print it
     let roundtrip = parseTopLevel(Reader((encodeAE spec).vals()));
     debugPrint(debug_show { stage = "roundtrip"; decoded = roundtrip });
