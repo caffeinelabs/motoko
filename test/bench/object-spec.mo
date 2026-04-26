@@ -6,6 +6,10 @@ import {
   performanceCounter;
   debugPrint;
   rts_heap_size;
+  arrayMutToBlob;
+  nat8ToNat;
+  intToNat32Wrap;
+  Array_init;
 } = "mo:⛔";
 
 persistent actor {
@@ -65,6 +69,26 @@ persistent actor {
   };
 
   func counters() : (Nat, Nat64) = (rts_heap_size(), performanceCounter(0));
+
+  type Iter<T> = { next : () -> ?T };
+
+  class _Reader(src : Iter<Nat8>) {
+    public let next = src.next;
+
+    public func take(n : Nat) : ?Blob {
+      let raw = Array_init<Nat8>(n, 0);
+      for (i in raw.keys()) {
+        let ?b = next() else return null;
+        raw[i] := b;
+      };
+      ?arrayMutToBlob(raw);
+    };
+
+    public func readU32BE() : ?Nat32 = do ? {
+      func to32(b : Nat8, s : Nat32) : Nat32 = intToNat32Wrap(nat8ToNat(b)) << s;
+      to32(next()!, 24) | to32(next()!, 16) | to32(next()!, 8) | to32(next()!, 0);
+    };
+  };
 
   func encoder(_spec : ObjectSpec) : Blob {
     let (h0, c0) = counters();
