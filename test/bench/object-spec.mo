@@ -272,21 +272,26 @@ persistent actor {
   };
 
   // ValueSmurf: terminal leaf. Reads the named field from `parent` at construction
-  // time and stores it as a CandidValue. Does NOT close over `parent` afterwards —
-  // once the leaf is extracted, the parent's job is done. toDesc is a placeholder
-  // since AEOM ObjSpecs are references, not values; the encoder will treat
-  // classFourcc=="" and route via the value rather than the spec.
+  // time and stores it as a CandidValue. Does NOT keep the parent's typed data
+  // — once the leaf is extracted, the parent's runtime state is unneeded. We do
+  // capture parent.toDesc() so toDesc emits the property reference path
+  // (`<field> of <parent>`); that's the spec the leaf points back to.
   class _ValueSmurf(parent : Smurf, fieldName : Text) {
     let value : CandidValue = switch (parent.readField fieldName) {
       case (?v) v;
       case null trap ("AE: ValueSmurf: field not found: " # fieldName);
     };
+    let parentDesc : ObjectSpec = parent.toDesc();
     public let blob        : () -> Blob          = func() = to_candid (value);
     public let classFourcc : Text                = "";
     public let accessors   : [Accessor]          = [];
     public let enumerate   : () -> Iter<Blob>    = func() = { next = func() : ?Blob = null };
     public let readField   : Text -> ?CandidValue = func(_ : Text) = ?value;
-    public let toDesc      : () -> ObjectSpec    = func() = #root;
+    public let toDesc      : () -> ObjectSpec    = func() = #obj {
+      class_    = "prop";
+      container = parentDesc;
+      key       = #property fieldName;
+    };
     public let isNotFound  : Bool                = false;
   };
 
@@ -322,6 +327,7 @@ persistent actor {
     fourcc_ : Text,
     form_   : { #indexed; #named; #test },
     wrap    : (T, Smurf) -> Smurf,
+    getName : T -> Text,             // used when form_ = #named; ignored otherwise
   ) {
     public let fourcc = fourcc_;
     public let form   = form_;
@@ -338,17 +344,34 @@ persistent actor {
           if (n == 0 or n > size) _notFoundSmurf
           else wrap(stab[n - 1], parent)
         };
-        case _ _notFoundSmurf;  // TODO: #named, #test (with matching form_)
+        case (#named, #named target) {
+          // Linear scan; relies on the init-time uniqueness assertion.
+          var found : ?T = null;
+          for (item in stab.vals()) {
+            switch found {
+              case null if (getName item == target) found := ?item;
+              case _ ();
+            };
+          };
+          switch found {
+            case (?item) wrap(item, parent);
+            case null _notFoundSmurf;
+          }
+        };
+        case _ _notFoundSmurf;  // TODO: #test (with matching form_)
       }
     };
   };
 
-  // The canister's root Smurf. Wires the "clnt" accessor over the stable
-  // clients array via _VarAccessor<Client>, with _clientSmurf as wrap.
+  // The canister's root Smurf. Hosts two "clnt" accessors over the stable
+  // clients array — one #indexed and one #named (lookup by primary key).
   transient let _actorSmurf : Smurf = {
     blob        = func() : Blob = "";
     classFourcc = "";
-    accessors   = [_VarAccessor<Client>(clients, "clnt", #indexed, _clientSmurf)];
+    accessors   = [
+      _VarAccessor<Client>(clients, "clnt", #indexed, _clientSmurf, func(c) = c.name),
+      _VarAccessor<Client>(clients, "clnt", #named,   _clientSmurf, func(c) = c.name),
+    ];
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
     readField   = func(_ : Text) : ?CandidValue = null;
     toDesc      = func() : ObjectSpec = #root;
@@ -850,6 +873,24 @@ persistent actor {
     spec
   };
 
+  // Tiny demo 2: `name of client <input> of root`. Looks up the client by
+  // name (the named clnt accessor at accessors[1]), then materialises the
+  // "name" property leaf via _ValueSmurf. The leaf's toDesc gives the
+  // property reference path.
+  (with encoder)
+  public func tiny2(input : Text) : async ObjectSpec {
+    let namedClnt = _actorSmurf.accessors[1];  // #named form
+    let clientS = namedClnt.lookUp(_actorSmurf, #named input);
+    if (clientS.isNotFound) {
+      debugPrint(debug_show { stage = "tiny2"; input; result = "notFound" });
+      return #root
+    };
+    let nameLeaf = _ValueSmurf(clientS, "name");
+    let spec = nameLeaf.toDesc();
+    debugPrint(debug_show { stage = "tiny2"; input; spec });
+    spec
+  };
+
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
     debugPrint(debug_show { stage = "db"; size = dbSize; matchers = countMatchers() });
@@ -876,6 +917,7 @@ persistent actor {
 //CALL ingress tiny1 0x4449444c00017c01
 //CALL ingress tiny1 0x4449444c00017c7f
 //CALL ingress tiny1 0x4449444c00017ce400
+//CALL ingress tiny2 0x4449444c0001710c48616e73204dc3bc6c6c6572
 //CALL ingress go 0x646c6532000000006f626a200000026e000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004696e636f66726f6d6f626a200000022a000000040000000077616e747479706500000004636c6e74666f726d656e756d000000047465737473656c646c6f6769000001ea00000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001c600000002000000006c6f67690000013600000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001120000000200000000636d70640000008200000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004636e747266726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a32757478740000000e004700650072006d0061006e0079636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043e3d20206f626a326c6f6e67000000040000002d636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043c3d20206f626a326c6f6e67000000040000003766726f6d6e756c6c00000000
 
 //SKIP run
