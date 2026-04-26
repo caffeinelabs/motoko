@@ -62,6 +62,7 @@ persistent actor {
   // 60% land in Germany (i % 5 < 3), 50% have age in [45,55] (offset
   // distribution over 22 values, 11 in range) → joint ≈ 30%.
   type Client = {
+    name : Text;          // primary key for stable references
     country : Text;
     age : Int32;
     yearlyIncome : Int32;
@@ -69,10 +70,20 @@ persistent actor {
 
   let dbSize : Nat = 100;
 
+  let germanFirstNames : [Text] = ["Hans", "Anna", "Otto", "Maria", "Karl", "Helga"];
+  let germanLastNames  : [Text] = ["Müller", "Schmidt", "Weber", "Fischer", "Bauer", "Hoffmann"];
+  let frenchFirstNames : [Text] = ["Jean", "Marie", "Pierre", "Anne", "Michel", "Claire"];
+  let frenchLastNames  : [Text] = ["Martin", "Bernard", "Dubois", "Petit", "Moreau", "Leroy"];
+
   let clients : [Client] = Array_tabulate<Client>(dbSize, func(i : Nat) : Client {
     let inGermany = i % 5 < 3;
     let ageOffset = (i * 13) % 22;     // 0..21, spread by *13
+    let firsts = if inGermany germanFirstNames else frenchFirstNames;
+    let lasts  = if inGermany germanLastNames  else frenchLastNames;
+    let firstName = firsts[i % firsts.size()];
+    let lastName  = lasts[(i / firsts.size()) % lasts.size()];
     {
+      name = firstName # " " # lastName;
       country = if inGermany "Germany" else "France";
       age = intToInt32Wrap(35 + ageOffset);     // 35..56
       yearlyIncome = intToInt32Wrap(50000 + i * 1000);
@@ -273,10 +284,11 @@ persistent actor {
     classFourcc = "clnt";
     accessors   = [];  // TODO: country, age, income property accessors
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
-    readField   = func(name : Text) : ?CandidValue =
-      if (name == "cntr") ?(#text (c.country))
-      else if (name == "age ") ?(#int32 (c.age))
-      else if (name == "inco") ?(#int32 (c.yearlyIncome))
+    readField   = func(prop : Text) : ?CandidValue =
+      if (prop == "name") ?(#text (c.name))
+      else if (prop == "cntr") ?(#text (c.country))
+      else if (prop == "age ") ?(#int32 (c.age))
+      else if (prop == "inco") ?(#int32 (c.yearlyIncome))
       else null;
     toDesc      = func() : ObjectSpec = #root;
     isNotFound  = false;
@@ -800,6 +812,7 @@ persistent actor {
       stage    = "tiny1";
       classFc  = s.classFourcc;
       notFound = s.isNotFound;
+      name     = s.readField "name";
       country  = s.readField "cntr";
       age      = s.readField "age ";
       income   = s.readField "inco";
