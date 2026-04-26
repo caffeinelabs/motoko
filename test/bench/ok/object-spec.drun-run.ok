@@ -1,5 +1,7 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
+debug.print: {age = ?(#int32(+35)); classFc = "clnt"; country = ?(#text("Germany")); income = ?(#int32(+50_000)); notFound = false; stage = "tiny1"}
+ingress Completed: Reply: 0x4449444c0000
 debug.print: {cycles = 128_344; decoded = #obj({class_ = "prop"; container = #obj({class_ = "clnt"; container = #root; key = #test(#and_(#and_(#compare({op = #eq; prop = "cntr"; value = #text("Germany")}), #compare({op = #ge; prop = "age "; value = #int32(+45)})), #compare({op = #le; prop = "age "; value = #int32(+55)})))}); key = #property("inco")}); heap = +1_212; stage = "decoder"}
 debug.print: {matchers = 31; size = 100; stage = "db"}
 debug.print: {cycles = 180_886; heap = +6_208; matchers = 31; stage = "eval"}
