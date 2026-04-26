@@ -10,6 +10,7 @@ import {
   nat8ToNat;
   nat32ToNat;
   nat32ToInt32;
+  int32ToNat32;
   natToNat8;
   intToNat32Wrap;
   Array_init;
@@ -74,7 +75,7 @@ persistent actor {
     };
   };
 
-  func counters() : (Nat, Nat64) = (rts_heap_size(), performanceCounter(0));
+  func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 
   type Iter<T> = { next : () -> ?T };
 
@@ -108,9 +109,9 @@ persistent actor {
   // 4cc primitive value descriptors + 'exmn' (collapses to #root, lossy)
   transient let (UTXT, LONG, EXMN) : (Nat32, Nat32, Nat32) =
     (0x75747874, 0x6c6f6e67, 0x65786d6e);
-  // 4cc predicate descriptors: 'logi' (logical), 'cmpd' (comparison)
-  transient let (LOGI, CMPD) : (Nat32, Nat32) =
-    (0x6c6f6769, 0x636d7064);
+  // 4cc predicate descriptors: 'logi' (logical), 'cmpd' (comparison), 'list'
+  transient let (LOGI, CMPD, LIST) : (Nat32, Nat32, Nat32) =
+    (0x6c6f6769, 0x636d7064, 0x6c697374);
   // 4cc record keys for 'logi' ('logc'/'term') and 'cmpd' ('obj1'/'relo'/'obj2')
   transient let (LOGC, TERM, OBJ1, RELO, OBJ2) : (Nat32, Nat32, Nat32, Nat32, Nat32) =
     (0x6c6f6763, 0x7465726d, 0x6f626a31, 0x72656c6f, 0x6f626a32);
@@ -311,6 +312,10 @@ persistent actor {
       pos += 4;
     };
 
+    public func writeBytes(b : Blob) {
+      for (byte in b.vals()) { buf[pos] := byte; pos += 1 };
+    };
+
     public func toBlob() : Blob = arrayMutToBlob buf;
   };
 
@@ -324,10 +329,146 @@ persistent actor {
     n
   };
 
+  func valueDescLen(v : CandidValue) : Nat {
+    switch v {
+      case (#null_) 0;
+      case (#text t) 2 * encodeUtf8(t).size();  // ASCII assumption: 2 bytes per char
+      case (#int32 _) 4;
+      case _ trap "AE: encoder unsupported value type";
+    }
+  };
+
+  func boolExprDescLen(e : BoolExpr) : Nat {
+    switch e {
+      case (#and_ (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
+      case (#or_  (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
+      case (#not_ a)      52 + boolExprDescLen a;
+      case (#compare { prop = _; op = _; value }) 116 + valueDescLen value;
+    }
+  };
+
+  func seldBodyLen(key : KeyForm) : Nat {
+    switch key {
+      case (#property _) 4;
+      case (#test e) boolExprDescLen e;
+      case _ trap "AE: encoder unsupported key form";
+    }
+  };
+
   func encDescLen(spec : ObjectSpec) : Nat {
     switch spec {
       case (#root) 0;
-      case (#obj { class_ = _; container; key = _ }) 68 + encDescLen container;
+      case (#obj { class_ = _; container; key }) 64 + seldBodyLen key + encDescLen container;
+    }
+  };
+
+  func textToUtf16(t : Text) : Blob {
+    // ASCII assumption: 0x00 high byte, then the UTF-8 byte (= ASCII codepoint).
+    // Real UTF-16 BE for non-ASCII would need: 1-byte UTF-8 → 2 bytes,
+    // 2-3-byte UTF-8 (BMP) → 2 bytes, 4-byte UTF-8 (non-BMP) → 4 bytes
+    // via a surrogate pair (0xD800-0xDBFF high, 0xDC00-0xDFFF low).
+    let utf8 = encodeUtf8 t;
+    let n = utf8.size();
+    let buf = Array_init<Nat8>(n * 2, 0);
+    var i = 0;
+    for (b in utf8.vals()) { buf[i * 2 + 1] := b; i += 1 };
+    arrayMutToBlob buf
+  };
+
+  func compareOpCC(op : Comparison) : Nat32 {
+    switch op {
+      case (#eq) EQ_OP;
+      case (#lt) LT_OP;
+      case (#gt) GT_OP;
+      case (#le) LE_OP;
+      case (#ge) GE_OP;
+      case (#ne) trap "AE: #ne should be NOT(=) — TODO";
+    }
+  };
+
+  func writeValue(w : Writer, v : CandidValue) {
+    switch v {
+      case (#null_) {
+        w.writeU32 NULL;
+        w.writeU32 0;
+      };
+      case (#text t) {
+        w.writeU32 UTXT;
+        let bytes = textToUtf16 t;
+        w.writeU32 (intToNat32Wrap (bytes.size()));
+        w.writeBytes bytes;
+      };
+      case (#int32 i) {
+        w.writeU32 LONG;
+        w.writeU32 4;
+        w.writeU32 (int32ToNat32 i);
+      };
+      case _ trap "AE: encoder unsupported value type";
+    }
+  };
+
+  func writeLogiHeader(w : Writer, op : Nat32, count : Nat32, listBodyLen : Nat) {
+    w.writeU32 2;       // fc = 2 (logc + term fields)
+    w.writeU32 0;       // pad
+    // logc field
+    w.writeU32 LOGC;
+    w.writeU32 ENUM;
+    w.writeU32 4;
+    w.writeU32 op;
+    // term field (a 'list')
+    w.writeU32 TERM;
+    w.writeU32 LIST;
+    w.writeU32 (intToNat32Wrap listBodyLen);
+    w.writeU32 count;
+    w.writeU32 0;       // list pad
+  };
+
+  func writeBoolExpr(w : Writer, e : BoolExpr) {
+    let len = boolExprDescLen e;
+    switch e {
+      case (#and_ (a, b)) {
+        w.writeU32 LOGI;
+        w.writeU32 (intToNat32Wrap len);
+        let lenA = boolExprDescLen a;
+        let lenB = boolExprDescLen b;
+        writeLogiHeader(w, AND_OP, 2, 24 + lenA + lenB);
+        writeBoolExpr(w, a);
+        writeBoolExpr(w, b);
+      };
+      case (#or_ (a, b)) {
+        w.writeU32 LOGI;
+        w.writeU32 (intToNat32Wrap len);
+        let lenA = boolExprDescLen a;
+        let lenB = boolExprDescLen b;
+        writeLogiHeader(w, OR_OP, 2, 24 + lenA + lenB);
+        writeBoolExpr(w, a);
+        writeBoolExpr(w, b);
+      };
+      case (#not_ a) {
+        w.writeU32 LOGI;
+        w.writeU32 (intToNat32Wrap len);
+        writeLogiHeader(w, NOT_OP, 1, 16 + boolExprDescLen a);
+        writeBoolExpr(w, a);
+      };
+      case (#compare { prop; op; value }) {
+        w.writeU32 CMPD;
+        w.writeU32 (intToNat32Wrap len);
+        // cmpd body
+        w.writeU32 3;       // fc
+        w.writeU32 0;
+        // obj1 = a property obj-spec for `prop`
+        w.writeU32 OBJ1;
+        let propObj : ObjectSpec = #obj { class_ = "prop"; container = #root; key = #property prop };
+        writeDesc(w, propObj);
+        // relo
+        w.writeU32 RELO;
+        w.writeU32 ENUM;
+        w.writeU32 4;
+        w.writeU32 (compareOpCC op);
+        // obj2
+        w.writeU32 OBJ2;
+        writeValue(w, value);
+      };
     }
   };
 
@@ -340,17 +481,21 @@ persistent actor {
     w.writeU32 4;
     w.writeU32 (textToCC4 class_);
     // form = 'enum' <formCode>
-    // TODO: emit TEST + 'logi' seld once writeBoolExpr is wired; for now,
-    // downgrade #test to 'prop' form with 4-zero seld so we don't trap.
     w.writeU32 FORM;
     w.writeU32 ENUM;
     w.writeU32 4;
-    w.writeU32 (switch key { case (#property _) PROP; case (#test _) PROP; case _ trap "AE: encoder key form unsupported" });
+    w.writeU32 (switch key { case (#property _) PROP; case (#test _) TEST; case _ trap "AE: encoder key form unsupported" });
     // seld
     w.writeU32 SELD;
-    w.writeU32 TYPE;
-    w.writeU32 4;
-    w.writeU32 (switch key { case (#property name) (textToCC4 name); case (#test _) 0; case _ trap "AE: encoder key form unsupported" });
+    switch key {
+      case (#property name) {
+        w.writeU32 TYPE;
+        w.writeU32 4;
+        w.writeU32 (textToCC4 name);
+      };
+      case (#test e) writeBoolExpr(w, e);
+      case _ trap "AE: encoder unsupported key form";
+    };
     // from = recursive descriptor
     w.writeU32 FROM;
     writeDesc(w, container);
@@ -384,7 +529,7 @@ persistent actor {
     let (h1, c1) = counters();
     debugPrint(debug_show {
       stage = "encoder";
-      heap = (h1 : Int) - h0;
+      heap = h1 - h0;
       cycles = c1 - c0;
       bytes = wire.size();
     });
@@ -397,7 +542,7 @@ persistent actor {
     let (h1, c1) = counters();
     debugPrint(debug_show {
       stage = "decoder";
-      heap = (h1 : Int) - h0;
+      heap = h1 - h0;
       cycles = c1 - c0;
       decoded = spec;
     });
