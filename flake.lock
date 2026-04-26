@@ -68,35 +68,19 @@
         "type": "github"
       }
     },
-    "grace-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1771098024,
-        "narHash": "sha256-V5K9RGk47K/R+q4wS1FU02kMi1uWSCgdUjKHk7uXuGw=",
-        "owner": "johnyob",
-        "repo": "grace",
-        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
-        "type": "github"
-      },
-      "original": {
-        "owner": "johnyob",
-        "repo": "grace",
-        "rev": "15251666a11a780dfd09f23e1b0c1e6b0e366dcf",
-        "type": "github"
-      }
-    },
     "ic-wasm-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1775750188,
-        "narHash": "sha256-HWjiQzjGRZAPmxJyvUbk3nfl77+tmBx4M6nNeFnNjJ4=",
+        "lastModified": 1775044306,
+        "narHash": "sha256-a0XpeGJdaSOzEYlRIO2ss0bBEX6UFQZo0h8nvO18qy8=",
         "owner": "dfinity",
         "repo": "ic-wasm",
-        "rev": "a69ffcc5f1d3c9b8e7e7c733e1e120373272b58e",
+        "rev": "006d6bb978af1ed1de3a037f12031aed1c1c4807",
         "type": "github"
       },
       "original": {
         "owner": "dfinity",
+        "ref": "gabor/bump-wasm-opt",
         "repo": "ic-wasm",
         "type": "github"
       }
@@ -228,7 +212,6 @@
         "candid-src": "candid-src",
         "esm": "esm",
         "flake-utils": "flake-utils",
-        "grace-src": "grace-src",
         "ic-wasm-src": "ic-wasm-src",
         "libtommath-src": "libtommath-src",
         "motoko-base-src": "motoko-base-src",

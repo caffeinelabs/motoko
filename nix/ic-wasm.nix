@@ -4,6 +4,9 @@ pkgs: with pkgs.llvmPackages_19; pkgs.rustPlatform-stable.buildRustPackage rec {
   src = pkgs.sources.ic-wasm-src;
   cargoLock = {
     lockFile = "${src}/Cargo.lock";
+    outputHashes = {
+         "wasm-opt-0.121.0" = "sha256-eQ3FD/BFO8x8GT38t4BVCiD+vvnAsDPtU6tMRZyNEu0=";
+    };
   };
   doCheck = false;
 

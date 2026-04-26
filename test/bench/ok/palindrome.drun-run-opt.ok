@@ -1,0 +1,11 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: (true, +2_928, 19_817)
+debug.print: (false, +2_928, 18_938)
+debug.print: (false, +2_928, 19_793)
+debug.print: (true, +2_184, 18_186)
+debug.print: (false, +2_160, 16_723)
+debug.print: (false, +2_160, 17_998)
+ingress Completed: Reply: 0x4449444c0000
+debug.print: instructions: 5_382_897
+ingress Completed: Reply: 0x4449444c0000

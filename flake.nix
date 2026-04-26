@@ -22,7 +22,7 @@
       flake = false;
     };
     ic-wasm-src = {
-      url = "github:dfinity/ic-wasm";
+      url = "github:dfinity/ic-wasm/gabor/bump-wasm-opt";
       flake = false;
     };
     libtommath-src = {
