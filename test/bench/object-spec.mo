@@ -13,6 +13,7 @@ import {
   intToNat32Wrap;
   Array_init;
   decodeUtf8;
+  encodeUtf8;
   trap;
 } = "mo:⛔";
 
@@ -100,6 +101,9 @@ persistent actor {
   // 4cc obj record keys: 'want', 'form', 'seld', 'from'
   transient let (WANT, FORM, SELD, FROM) : (Nat32, Nat32, Nat32, Nat32) =
     (0x77616e74, 0x666f726d, 0x73656c64, 0x66726f6d);
+  // 4cc payload tags: 'type', 'enum', 'prop', 'test'
+  transient let (TYPE, ENUM, PROP, TEST) : (Nat32, Nat32, Nat32, Nat32) =
+    (0x74797065, 0x656e756d, 0x70726f70, 0x74657374);
 
   func u32(r : Reader) : Nat32 {
     let ?n = r.readU32() else trap "AE: short read";
@@ -132,26 +136,35 @@ persistent actor {
     let _fieldCount = u32 r;  // expected: 4
     let _padding = u32 r;
     var class_ : Text = "";
+    var formCode : Nat32 = PROP;  // default 'prop' if FORM precedes SELD; relies on fixture order
+    var key : KeyForm = #property "";
     var container : ObjectSpec = #root;
     var i = 0;
     while (i < 4) {
       let keyCode = u32 r;
-      let valueType = u32 r;
+      let _valueType = u32 r;
       if (keyCode == FROM) {
-        container := parseDescBody(valueType, r);
+        container := parseDescBody(_valueType, r);
       } else if (keyCode == WANT) {
         let _len = u32 r;  // expect 4
         class_ := cc4ToText(u32 r);
-      } else if (keyCode == FORM or keyCode == SELD) {
-        // TODO: interpret form/seld; consume body for now.
+      } else if (keyCode == FORM) {
+        let _len = u32 r;  // expect 4
+        formCode := u32 r;
+      } else if (keyCode == SELD) {
         let len = u32 r;
-        let ?_ = r.take(nat32ToNat len) else trap "AE: short read on field body";
+        if (formCode == PROP) {
+          key := #property (cc4ToText(u32 r));
+        } else {
+          // TODO: 'test' form holds a 'logi' descriptor; skip for now.
+          let ?_ = r.take(nat32ToNat len) else trap "AE: short read on seld body";
+        };
       } else {
         trap "AE: unknown obj field key"
       };
       i += 1;
     };
-    #obj { class_; container; key = #property "" }
+    #obj { class_; container; key }
   };
 
   func parseTopLevel(r : Reader) : ObjectSpec {
@@ -165,9 +178,91 @@ persistent actor {
     trap "AE: parseValue unimplemented"
   };
 
-  func encoder(_spec : ObjectSpec) : Blob {
+  class Writer(size : Nat) {
+    let buf = Array_init<Nat8>(size, 0);
+    var pos = 0;
+
+    public func writeU32(n : Nat32) {
+      buf[pos]     := natToNat8(nat32ToNat((n >> 24) & 0xff));
+      buf[pos + 1] := natToNat8(nat32ToNat((n >> 16) & 0xff));
+      buf[pos + 2] := natToNat8(nat32ToNat((n >> 8) & 0xff));
+      buf[pos + 3] := natToNat8(nat32ToNat(n & 0xff));
+      pos += 4;
+    };
+
+    public func toBlob() : Blob = arrayMutToBlob buf;
+  };
+
+  func textToCC4(t : Text) : Nat32 {
+    let blob = encodeUtf8 t;
+    if (blob.size() > 4) trap "AE: 4cc text exceeds 4 bytes";
+    let pad = Array_init<Nat8>(4, 0);
+    var i = 0;
+    for (b in blob.vals()) { pad[i] := b; i += 1 };
+    let ?n = Reader((arrayMutToBlob pad).vals()).readU32() else trap "AE: short cc4";
+    n
+  };
+
+  func encDescLen(spec : ObjectSpec) : Nat {
+    switch spec {
+      case (#root) 0;
+      case (#obj { class_ = _; container; key = _ }) 68 + encDescLen container;
+    }
+  };
+
+  func writeObjBody(w : Writer, class_ : Text, container : ObjectSpec, key : KeyForm) {
+    w.writeU32 4;       // fieldCount
+    w.writeU32 0;       // padding
+    // want = 'type' <class_>
+    w.writeU32 WANT;
+    w.writeU32 TYPE;
+    w.writeU32 4;
+    w.writeU32 (textToCC4 class_);
+    // form = 'enum' <formCode>
+    w.writeU32 FORM;
+    w.writeU32 ENUM;
+    w.writeU32 4;
+    w.writeU32 (switch key { case (#property _) PROP; case (#test _) TEST; case _ trap "AE: encoder key form unsupported" });
+    // seld
+    w.writeU32 SELD;
+    switch key {
+      case (#property name) {
+        w.writeU32 TYPE;
+        w.writeU32 4;
+        w.writeU32 (textToCC4 name);
+      };
+      case _ trap "AE: encoder only handles #property keys";
+    };
+    // from = recursive descriptor
+    w.writeU32 FROM;
+    writeDesc(w, container);
+  };
+
+  func writeDesc(w : Writer, spec : ObjectSpec) {
+    switch spec {
+      case (#root) {
+        w.writeU32 NULL;
+        w.writeU32 0;
+      };
+      case (#obj { class_; container; key }) {
+        w.writeU32 OBJ;
+        w.writeU32 (intToNat32Wrap (encDescLen spec));
+        writeObjBody(w, class_, container, key);
+      };
+    }
+  };
+
+  func encodeAE(spec : ObjectSpec) : Blob {
+    let w = Writer(16 + encDescLen spec);  // 'dle2' + 4-byte zero + 8-byte outer header + body
+    w.writeU32 DLE2;
+    w.writeU32 0;
+    writeDesc(w, spec);
+    w.toBlob()
+  };
+
+  func encoder(spec : ObjectSpec) : Blob {
     let (h0, c0) = counters();
-    let wire : Blob = "" : Blob;  // TODO: AE encoder
+    let wire = encodeAE spec;
     let (h1, c1) = counters();
     debugPrint(debug_show {
       stage = "encoder";
