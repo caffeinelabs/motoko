@@ -214,20 +214,22 @@ persistent actor {
   };
 
   type Smurf = {
-    blob         : Blob;                 // self, Candid-encoded
+    blob         : () -> Blob;           // self, Candid-encoded; thunk so VarAccessor-class
+                                         // children can return "" when nobody pulls
     classFourcc  : Text;                 // wire 4cc, "" for primitives
-    primaryKey   : () -> KeyForm;        // for stable re-rendering
     accessors    : [Accessor];           // per-class navigation hooks
     enumerate    : () -> Iter<Blob>;     // every instance of this class
     readField    : Text -> ?CandidValue; // for #compare in predicates
-    toDesc       : () -> ObjectSpec;     // render self as ObjSpecifier
+    toDesc       : () -> ObjectSpec;     // render self as ObjSpecifier (closes over primary key)
     isNotFound   : Bool;                 // sentinel for AE-404 (errAENoSuchObject)
   };
 
   type Accessor = {
     form    : { #indexed; #named; #test };
     fourcc  : Text;                       // 'cntr', 'age ', 'inco', 'name', …
-    lookUp  : (parentBlob : Blob, key : LookupKey) -> Smurf;
+    // Takes the whole parent Smurf so the child can close over `parent.toDesc()`
+    // (the zipper edge) and pull `parent.blob()` lazily only when from_candid<P> needs it.
+    lookUp  : (parent : Smurf, key : LookupKey) -> Smurf;
   };
 
   class Reader(src : Iter<Nat8>) {
