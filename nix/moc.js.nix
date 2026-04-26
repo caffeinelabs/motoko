@@ -8,7 +8,6 @@ let
         pkgs.ocamlPackages.js_of_ocaml
         pkgs.ocamlPackages.js_of_ocaml-ppx
         pkgs.nodejs-slim
-        # pkgs.nodePackages.terser
       ];
       buildPhase = ''
         patchShebangs .
