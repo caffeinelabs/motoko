@@ -232,6 +232,19 @@ persistent actor {
     lookUp  : (parent : Smurf, key : LookupKey) -> Smurf;
   };
 
+  // AE-404 sentinel: every accessor returns this when its lookup misses.
+  // toDesc is a placeholder; encoder special-cases via isNotFound to emit
+  // an error AEDesc (errAENoSuchObject = -1728).
+  transient let _notFoundSmurf : Smurf = {
+    blob        = func() : Blob = "";
+    classFourcc = "";
+    accessors   = [];
+    enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
+    readField   = func(_ : Text) : ?CandidValue = null;
+    toDesc      = func() : ObjectSpec = #root;
+    isNotFound  = true;
+  };
+
   class Reader(src : Iter<Nat8>) {
     public let next = src.next;
 
