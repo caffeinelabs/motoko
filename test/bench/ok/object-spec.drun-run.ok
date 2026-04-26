@@ -3,6 +3,9 @@ ingress Completed: Reply: 0x4449444c0000
 debug.print: {classFc = "clnt"; name = ?(#text("Hans Müller")); notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Hans Müller")}); stage = "tiny1"}
 debug.print: {bytes = 104; cycles = 27_903; heap = +1_168; stage = "encoder"}
 ingress Completed: Reply: 0x646c6532000000006f626a2000000058000000040000000077616e747479706500000004636c6e74666f726d656e756d000000046e616d6573656c64757478740000001800480061006e00730020004d00c300bc006c006c0065007266726f6d6e756c6c00000000
+debug.print: {classFc = "clnt"; name = ?(#text("Anne Moreau")); notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Anne Moreau")}); stage = "tiny1"}
+debug.print: {bytes = 102; cycles = 27_161; heap = +1_152; stage = "encoder"}
+ingress Completed: Reply: 0x646c6532000000006f626a2000000056000000040000000077616e747479706500000004636c6e74666f726d656e756d000000046e616d6573656c6475747874000000160041006e006e00650020004d006f007200650061007566726f6d6e756c6c00000000
 debug.print: {cycles = 128_344; decoded = #obj({class_ = "prop"; container = #obj({class_ = "clnt"; container = #root; key = #test(#and_(#and_(#compare({op = #eq; prop = "cntr"; value = #text("Germany")}), #compare({op = #ge; prop = "age "; value = #int32(+45)})), #compare({op = #le; prop = "age "; value = #int32(+55)})))}); key = #property("inco")}); heap = +1_212; stage = "decoder"}
 debug.print: {matchers = 31; size = 100; stage = "db"}
 debug.print: {cycles = 180_886; heap = +6_208; matchers = 31; stage = "eval"}
