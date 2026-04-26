@@ -14,8 +14,10 @@ import {
   natToNat8;
   intToNat32Wrap;
   Array_init;
+  Array_tabulate;
   decodeUtf8;
   encodeUtf8;
+  intToInt32Wrap;
   trap;
 } = "mo:⛔";
 
@@ -52,6 +54,36 @@ persistent actor {
   type ObjectSpec = {
     #root;
     #obj : { class_ : Text; container : ObjectSpec; key : KeyForm };
+  };
+
+  // Mock client DB. Deterministic generation tuned for ~30% match rate
+  // against the running query (country=="Germany" AND 45<=age<=55):
+  // 60% land in Germany (i % 5 < 3), 50% have age in [45,55] (offset
+  // distribution over 22 values, 11 in range) → joint ≈ 30%.
+  type Client = {
+    country : Text;
+    age : Int32;
+    yearlyIncome : Int32;
+  };
+
+  let dbSize : Nat = 100;
+
+  let clients : [Client] = Array_tabulate<Client>(dbSize, func(i : Nat) : Client {
+    let inGermany = i % 5 < 3;
+    let ageOffset = (i * 13) % 22;     // 0..21, spread by *13
+    {
+      country = if inGermany "Germany" else "France";
+      age = intToInt32Wrap(35 + ageOffset);     // 35..56
+      yearlyIncome = intToInt32Wrap(50000 + i * 1000);
+    }
+  });
+
+  func countMatchers() : Nat {
+    var n = 0;
+    for (c in clients.vals()) {
+      if (c.country == "Germany" and c.age >= 45 and c.age <= 55) n += 1;
+    };
+    n
   };
 
   // every client's yearly income whose country == "Germany"
@@ -551,6 +583,7 @@ persistent actor {
 
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
+    debugPrint(debug_show { stage = "db"; size = dbSize; matchers = countMatchers() });
     // round-trip visibility: encode `spec`, decode the result, print it
     let roundtrip = parseTopLevel(Reader((encodeAE spec).vals()));
     debugPrint(debug_show { stage = "roundtrip"; decoded = roundtrip });
