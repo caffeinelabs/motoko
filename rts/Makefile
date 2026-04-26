@@ -169,6 +169,7 @@ TOMMATH_BIND_OPTIONS = \
 	    --allowlist-function mp_submod \
 	    --allowlist-function mp_mulmod \
 	    --allowlist-function mp_exptmod \
+	    --allowlist-function mp_invmod \
 	    --blocklist-type __int32_t \
 	    --blocklist-type __int64_t \
 	    --blocklist-type __uint32_t \

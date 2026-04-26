@@ -226,6 +226,23 @@ let prim trap =
        let r = rem (op (as_int a) (as_int b)) (as_int m) in
        k (Int (if lt r zero then add r (abs (as_int m)) else r))
      | _ -> failwith name)
+  | "intInvMod" -> fun _ v k ->
+    let open Numerics.Int in
+    let rec ext_gcd a b =
+      if eq b zero then (a, one, zero)
+      else
+        let q = div a b in
+        let g, x1, y1 = ext_gcd b (sub a (mul q b)) in
+        (g, y1, sub x1 (mul q y1))
+    in
+    (match as_tup v with
+     | [a; m] ->
+       let a, m = as_int a, as_int m in
+       let g, x, _ = ext_gcd a (abs m) in
+       if not (eq (abs g) one) then trap.trap "intInvMod: no inverse exists";
+       let r = rem x (abs m) in
+       k (Int (if lt r zero then add r (abs m) else r))
+     | _ -> failwith "intInvMod")
 
   | "explode_Nat16" -> fun _ v k ->
     let n, ff = as_nat16 v, Nat16.(of_int 0xFF) in

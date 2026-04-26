@@ -61,6 +61,9 @@ func intMulMod(a : Int, b : Int, m : Int) : Int {
 func intPowMod(base : Int, exp : Int, m : Int) : Int {
   (prim "intPowMod" : (Int, Int, Int) -> Int)(base, exp, m);
 };
+func intInvMod(a : Int, m : Int) : Int {
+  (prim "intInvMod" : (Int, Int) -> Int)(a, m);
+};
 
 // for testing
 func idlHash(x : Text) : Nat32 { (prim "idlHash" : Text -> Nat32) x };

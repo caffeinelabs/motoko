@@ -470,6 +470,17 @@ pub unsafe extern "C" fn bigint_exptmod(base: Value, exp: Value, modulus: Value)
     persist_bigint(i)
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn bigint_invmod(a: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_invmod(
+        a.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
 #[cfg(feature = "ic")]
 #[no_mangle]
 unsafe extern "C" fn bigint_div(a: Value, b: Value) -> Value {
