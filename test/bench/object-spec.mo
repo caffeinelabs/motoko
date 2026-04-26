@@ -312,16 +312,19 @@ persistent actor {
     public let fourcc = fourcc_;
     public let form   = form_;
     public func lookUp(parent : Smurf, key : LookupKey) : Smurf {
-      switch key {
-        case (#indexed i) {
-          if (i <= 0) _notFoundSmurf
-          else {
-            let n = abs i;
-            if (n > stab.size()) _notFoundSmurf
-            else wrap(stab[n - 1], parent)
-          }
+      switch (form_, key) {
+        case (#indexed, #indexed i) {
+          // AppleScript convention: 1-based forward, negatives count from end
+          // (-1 = last, -size = first); out of range → notFound.
+          let size = stab.size();
+          let n : Nat =
+            if (i > 0) abs i
+            else if (i < 0 and abs i <= size) size - abs i + 1
+            else 0;
+          if (n == 0 or n > size) _notFoundSmurf
+          else wrap(stab[n - 1], parent)
         };
-        case _ _notFoundSmurf;  // TODO: #named, #test
+        case _ _notFoundSmurf;  // TODO: #named, #test (with matching form_)
       }
     };
   };
