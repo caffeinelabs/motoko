@@ -1,5 +1,6 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {cycles = 119_105; decoded = #obj({class_ = "prop"; container = #obj({class_ = "clnt"; container = #root; key = #property("")}); key = #property("inco")}); heap = +2_816; stage = "decoder"}
-debug.print: {bytes = 152; cycles = 35_355; heap = +1_720; stage = "encoder"}
+debug.print: {cycles = 128_344; decoded = #obj({class_ = "prop"; container = #obj({class_ = "clnt"; container = #root; key = #test(#and_(#and_(#compare({op = #eq; prop = "cntr"; value = #text("Germany")}), #compare({op = #ge; prop = "age "; value = #int32(+45)})), #compare({op = #le; prop = "age "; value = #int32(+55)})))}); key = #property("inco")}); heap = +1_212; stage = "decoder"}
+debug.print: {decoded = #obj({class_ = "prop"; container = #obj({class_ = "clnt"; container = #root; key = #property("")}); key = #property("inco")}); stage = "roundtrip"}
+debug.print: {bytes = 152; cycles = 33_643; heap = +1_500; stage = "encoder"}
 ingress Completed: Reply: 0x646c6532000000006f626a2000000088000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004696e636f66726f6d6f626a2000000044000000040000000077616e747479706500000004636c6e74666f726d656e756d0000000470726f7073656c6474797065000000040000000066726f6d6e756c6c00000000

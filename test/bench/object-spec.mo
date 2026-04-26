@@ -9,6 +9,7 @@ import {
   arrayMutToBlob;
   nat8ToNat;
   nat32ToNat;
+  nat32ToInt32;
   natToNat8;
   intToNat32Wrap;
   Array_init;
@@ -104,6 +105,21 @@ persistent actor {
   // 4cc payload tags: 'type', 'enum', 'prop', 'test'
   transient let (TYPE, ENUM, PROP, TEST) : (Nat32, Nat32, Nat32, Nat32) =
     (0x74797065, 0x656e756d, 0x70726f70, 0x74657374);
+  // 4cc primitive value descriptors + 'exmn' (collapses to #root, lossy)
+  transient let (UTXT, LONG, EXMN) : (Nat32, Nat32, Nat32) =
+    (0x75747874, 0x6c6f6e67, 0x65786d6e);
+  // 4cc predicate descriptors: 'logi' (logical), 'cmpd' (comparison)
+  transient let (LOGI, CMPD) : (Nat32, Nat32) =
+    (0x6c6f6769, 0x636d7064);
+  // 4cc record keys for 'logi' ('logc'/'term') and 'cmpd' ('obj1'/'relo'/'obj2')
+  transient let (LOGC, TERM, OBJ1, RELO, OBJ2) : (Nat32, Nat32, Nat32, Nat32, Nat32) =
+    (0x6c6f6763, 0x7465726d, 0x6f626a31, 0x72656c6f, 0x6f626a32);
+  // 4cc enum values for 'logc': 'AND ', 'OR  ', 'NOT '
+  transient let (AND_OP, OR_OP, NOT_OP) : (Nat32, Nat32, Nat32) =
+    (0x414e4420, 0x4f522020, 0x4e4f5420);
+  // 4cc enum values for 'relo' (AE has no !=; #ne emitted as NOT(=))
+  transient let (EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP) : (Nat32, Nat32, Nat32, Nat32, Nat32) =
+    (0x3d202020, 0x3c202020, 0x3e202020, 0x3c3d2020, 0x3e3d2020);
 
   func u32(r : Reader) : Nat32 {
     let ?n = r.readU32() else trap "AE: short read";
@@ -122,9 +138,9 @@ persistent actor {
 
   func parseDescBody(typeCode : Nat32, r : Reader) : ObjectSpec {
     let length = u32 r;
-    if (typeCode == NULL) {
-      if (length != 0) trap "AE: null desc with non-zero length";
-      #root
+    if (typeCode == NULL or typeCode == EXMN) {
+      if (length != 0) trap "AE: null/exmn desc with non-zero length";
+      #root  // 'exmn' collapsed to #root (no algebraic effects in Motoko)
     } else if (typeCode == OBJ) {
       parseObjBody r
     } else {
@@ -142,9 +158,9 @@ persistent actor {
     var i = 0;
     while (i < 4) {
       let keyCode = u32 r;
-      let _valueType = u32 r;
+      let valueType = u32 r;
       if (keyCode == FROM) {
-        container := parseDescBody(_valueType, r);
+        container := parseDescBody(valueType, r);
       } else if (keyCode == WANT) {
         let _len = u32 r;  // expect 4
         class_ := cc4ToText(u32 r);
@@ -152,11 +168,14 @@ persistent actor {
         let _len = u32 r;  // expect 4
         formCode := u32 r;
       } else if (keyCode == SELD) {
-        let len = u32 r;
         if (formCode == PROP) {
+          let _len = u32 r;  // expect 4
           key := #property (cc4ToText(u32 r));
+        } else if (formCode == TEST) {
+          // valueType is typically 'logi'; reuse it for parseBoolExprBody
+          key := #test (parseBoolExprBody(valueType, r));
         } else {
-          // TODO: 'test' form holds a 'logi' descriptor; skip for now.
+          let len = u32 r;
           let ?_ = r.take(nat32ToNat len) else trap "AE: short read on seld body";
         };
       } else {
@@ -173,9 +192,111 @@ persistent actor {
     parseDescBody(u32 r, r)
   };
 
-  func _parseValue(_r : Reader) : CandidValue {
-    // TODO: utxt, long, enum, null
-    trap "AE: parseValue unimplemented"
+  func utxtToText(body : Blob) : Text {
+    // BE UTF-16 → assume ASCII (high byte = 0); take low bytes only
+    let n = body.size() / 2;
+    let raw = Array_init<Nat8>(n, 0);
+    var i = 0;
+    for (b in body.vals()) {
+      if (i % 2 == 1) raw[i / 2] := b;
+      i += 1;
+    };
+    let ?t = decodeUtf8(arrayMutToBlob raw) else trap "AE: invalid utxt";
+    t
+  };
+
+  func parseValue(r : Reader) : CandidValue {
+    let typeCode = u32 r;
+    let length = u32 r;
+    if (typeCode == NULL) {
+      if (length != 0) trap "AE: null value with non-zero length";
+      #null_
+    } else if (typeCode == UTXT) {
+      let ?body = r.take(nat32ToNat length) else trap "AE: short utxt body";
+      #text (utxtToText body)
+    } else if (typeCode == LONG) {
+      if (length != 4) trap "AE: long must be 4 bytes";
+      #int32 (nat32ToInt32 (u32 r))
+    } else if (typeCode == ENUM) {
+      if (length != 4) trap "AE: enum must be 4 bytes";
+      #text (cc4ToText (u32 r))
+    } else {
+      trap "AE: unsupported value type"
+    }
+  };
+
+  func parseBoolExprBody(typeCode : Nat32, r : Reader) : BoolExpr {
+    let _length = u32 r;
+    if (typeCode == LOGI) parseLogiBody r
+    else if (typeCode == CMPD) parseCmpdBody r
+    else trap "AE: unsupported BoolExpr descriptor"
+  };
+
+  func parseBoolExpr(r : Reader) : BoolExpr {
+    let typeCode = u32 r;
+    parseBoolExprBody(typeCode, r)
+  };
+
+  func parseLogiBody(r : Reader) : BoolExpr {
+    let _fc = u32 r;       // expected: 2 ('logc' + 'term')
+    let _pad = u32 r;
+    // 'logc' field
+    let logcKey = u32 r;
+    if (logcKey != LOGC) trap "AE: expected 'logc'";
+    let _logcType = u32 r;  // ENUM
+    let _logcLen = u32 r;   // 4
+    let op = u32 r;
+    // 'term' field (a 'list')
+    let termKey = u32 r;
+    if (termKey != TERM) trap "AE: expected 'term'";
+    let _termType = u32 r;  // LIST
+    let _termLen = u32 r;
+    let count = u32 r;
+    let _listPad = u32 r;
+    let n = nat32ToNat count;
+    if (n == 0) trap "AE: empty term list";
+    var acc = parseBoolExpr r;
+    var i : Nat = 1;
+    while (i < n) {
+      let next = parseBoolExpr r;
+      if (op == AND_OP) acc := #and_ (acc, next)
+      else if (op == OR_OP) acc := #or_ (acc, next)
+      else trap "AE: unsupported logical op for fold";
+      i += 1;
+    };
+    if (op == NOT_OP) #not_ acc else acc
+  };
+
+  func parseCmpdBody(r : Reader) : BoolExpr {
+    let _fc = u32 r;       // expected: 3
+    let _pad = u32 r;
+    // 'obj1' field
+    let obj1Key = u32 r;
+    if (obj1Key != OBJ1) trap "AE: expected 'obj1'";
+    let obj1Type = u32 r;
+    let obj1 = parseDescBody(obj1Type, r);
+    let prop = switch obj1 {
+      case (#obj { class_ = _; container = _; key = #property name }) name;
+      case _ trap "AE: cmpd 'obj1' is not a property reference";
+    };
+    // 'relo' field
+    let reloKey = u32 r;
+    if (reloKey != RELO) trap "AE: expected 'relo'";
+    let _reloType = u32 r;  // ENUM
+    let _reloLen = u32 r;   // 4
+    let opCode = u32 r;
+    let op : Comparison =
+      if (opCode == EQ_OP) #eq
+      else if (opCode == LT_OP) #lt
+      else if (opCode == GT_OP) #gt
+      else if (opCode == LE_OP) #le
+      else if (opCode == GE_OP) #ge
+      else trap "AE: unsupported relo opcode";
+    // 'obj2' field
+    let obj2Key = u32 r;
+    if (obj2Key != OBJ2) trap "AE: expected 'obj2'";
+    let value = parseValue r;
+    #compare { prop; op; value }
   };
 
   class Writer(size : Nat) {
@@ -219,20 +340,17 @@ persistent actor {
     w.writeU32 4;
     w.writeU32 (textToCC4 class_);
     // form = 'enum' <formCode>
+    // TODO: emit TEST + 'logi' seld once writeBoolExpr is wired; for now,
+    // downgrade #test to 'prop' form with 4-zero seld so we don't trap.
     w.writeU32 FORM;
     w.writeU32 ENUM;
     w.writeU32 4;
-    w.writeU32 (switch key { case (#property _) PROP; case (#test _) TEST; case _ trap "AE: encoder key form unsupported" });
+    w.writeU32 (switch key { case (#property _) PROP; case (#test _) PROP; case _ trap "AE: encoder key form unsupported" });
     // seld
     w.writeU32 SELD;
-    switch key {
-      case (#property name) {
-        w.writeU32 TYPE;
-        w.writeU32 4;
-        w.writeU32 (textToCC4 name);
-      };
-      case _ trap "AE: encoder only handles #property keys";
-    };
+    w.writeU32 TYPE;
+    w.writeU32 4;
+    w.writeU32 (switch key { case (#property name) (textToCC4 name); case (#test _) 0; case _ trap "AE: encoder key form unsupported" });
     // from = recursive descriptor
     w.writeU32 FROM;
     writeDesc(w, container);
@@ -287,7 +405,12 @@ persistent actor {
   };
 
   (with encoder; decoder)
-  public func go(spec : ObjectSpec) : async ObjectSpec { spec };
+  public func go(spec : ObjectSpec) : async ObjectSpec {
+    // round-trip visibility: encode `spec`, decode the result, print it
+    let roundtrip = parseTopLevel(Reader((encodeAE spec).vals()));
+    debugPrint(debug_show { stage = "roundtrip"; decoded = roundtrip });
+    spec
+  };
 }
 
 //CALL ingress go 0x646c6532000000006f626a200000026e000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004696e636f66726f6d6f626a200000022a000000040000000077616e747479706500000004636c6e74666f726d656e756d000000047465737473656c646c6f6769000001ea00000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001c600000002000000006c6f67690000013600000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001120000000200000000636d70640000008200000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004636e747266726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a32757478740000000e004700650072006d0061006e0079636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043e3d20206f626a326c6f6e67000000040000002d636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043c3d20206f626a326c6f6e67000000040000003766726f6d6e756c6c00000000
