@@ -273,6 +273,105 @@ non-Candid endpoint work already planned. Step 6 requires RTS changes.
 
 ---
 
+## Progress (as of 2026-04-27)
+
+Lives in [test/bench/object-spec.mo](../../test/bench/object-spec.mo) on
+branch `gabor/encoder` (PR #5996).
+
+### Shipped
+
+- **AE wire codec** — full round-trip decoder + encoder for the running
+  `'dle2'` envelope: `'obj '`/`'null'`/`'utxt'`/`'long'`/`'enum'`/`'logi'`/
+  `'cmpd'` plus the `'name'` keyform. 638-byte fixture decodes/encodes
+  byte-identical (modulo `'exmn' → 'null'` collapse for the iterand and
+  the `textToUtf16` ASCII-only mangling of non-BMP UTF-8).
+- **Smurf protocol skeleton** — existential via Candid blobs:
+  - `type Smurf` (lazy `blob : () -> Blob`, `classFourcc`, `accessors`,
+    `enumerate`, `readField`, `toDesc`, `isNotFound`).
+  - `type Accessor` (`form`, `fourcc`, `lookUp(parent : Smurf, key : LookupKey) : Smurf`).
+  - `type LookupKey` (`#indexed Int | #named Text | #test BoolExpr`).
+  - Mutual recursion `Smurf ↔ Accessor`; protocol surface is monomorphic
+    and shareable; `T` is closed inside method bodies via
+    `from_candid<T>` / `to_candid` (the `_clientSmurf` constructor
+    closes over `Client` directly, demonstrating the fast typed path).
+- **Concrete constructors**:
+  - `_notFoundSmurf` — AE-404 sentinel (`isNotFound = true`,
+    `toDesc = #root` placeholder; eventual `errAENoSuchObject` envelope).
+  - `_ValueSmurf` — terminal leaf class; reads parent's field at construction
+    and discards the parent.
+  - `_VarAccessor<T>` — typed escape hatch over a captured `[T]`. Indexing
+    is 1-based with AppleScript negative-from-end (`-1` = last);
+    out-of-range → `_notFoundSmurf`. Form-guarded: matches on
+    `(form_, key)` so a `#named`-declared accessor doesn't fire on a
+    `#indexed` key.
+  - `_clientSmurf` — `(Client, Smurf) → Smurf`. `toDesc` closes over
+    `parent.toDesc()` (the zipper edge) and uses `c.name` as primary
+    key, producing AppleScript-equivalent `client "<name>" of <root>`.
+  - `_actorSmurf` — canister root; `accessors[0]` is the `clnt`
+    `_VarAccessor<Client>` over the mock DB.
+- **Mock DB** — 100 Clients, deterministic, ~30% match the running
+  predicate (`country=="Germany" AND 45<=age<=55`). 10×10 French/German
+  name pools yield unique primary keys; an O(n²) init-time assertion
+  enforces it.
+- **`tiny1(i : Int) → ObjectSpec` public method** — drives the protocol
+  end-to-end: `_actorSmurf.accessors[0].lookUp(_actorSmurf, #indexed i)`,
+  surfaces `s.toDesc()` over `(with encoder)` to the wire. Demonstrated
+  with `tiny1(1)` ("Hans Müller"), `tiny1(-1)` and `tiny1(100)` (both
+  "Camille Girard" — addressing equivalence).
+- **Original benchmark `go(spec) → spec`** still runs the typed-fast-path
+  `runQuery` (returns `[CandidValue]` of matching incomes via the
+  monomorphic `PropReader`), separate from the existential protocol.
+  Cycle/heap numbers visible in the .ok file.
+
+### Distance from the vision
+
+| Roadmap step | Status |
+|--|--|
+| 1. `ObjectSpec` / `BoolExpr` types | ✓ done |
+| 2. Resolver skeleton | partial — `_VarAccessor` + `_clientSmurf` lookup works for `#indexed`; full `interpret(spec) : Smurf` walking the variant tree across both layers (clnt → prop) is **not yet wired** through the protocol. The typed-fast-path `runQuery` gives the answer for the running query but bypasses the existential boundary. |
+| 3. `CertifiedMap` integration | not started |
+| 4. `formTest` evaluator | partial — `evalBoolExpr` works in the typed-fast-path; still TODO inside the `_VarAccessor` (no `#test` form), and `cmpd`'s obj1 doesn't yet drive the resolver to read leaves through the existential boundary |
+| 5. HTTP JSON endpoint | not started |
+| 6. RTS introspection hooks | not started |
+
+### Protocol-level gaps
+
+- **`#named` lookup** — `_VarAccessor` only handles `#indexed`. Filter
+  by name (the inverse of `toDesc`'s primary-key emission) is the next
+  natural extension.
+- **`#test` filter** — needs to live somewhere; current sketch is to
+  add `filter : BoolExpr → Smurf` on `Smurf` itself rather than as a
+  third `Accessor.form` (since cardinality differs from point lookups).
+- **Property accessors on `_clientSmurf`** — its `accessors : []` is
+  empty; `_clientSmurf.accessors` should host four leaf accessors
+  (name/cntr/age/inco) so navigation can drill into a found Client.
+- **`'exmn'` ↔ `#it`** — currently collapsed to `#root` (lossy); an
+  `#it : ()` variant on `ObjectSpec` would round-trip py-appscript
+  output exactly. The user noted this is "really an algebraic effect"
+  — Motoko has no algebraic effects, and the current bench predicate
+  doesn't exercise `it as value` (only `it.<property>`), so the
+  collapse is fine until extended.
+- **Real UTF-16 BE in `textToUtf16`** — current ASCII assumption mangles
+  non-BMP / multi-byte UTF-8. Documented in the function header.
+- **`#ne` encoder** — traps; should desugar to `NOT(=)`.
+
+### `Accessors.mo` library (the long-term shape)
+
+Not yet started. The bench file is a hand-rolled instance of what
+`Accessors.compile([entityHook])` would emit for one entity (`Client`).
+The shape is converging:
+
+- Per-entity hook supplies: class fourcc, primary-key form, list of
+  property accessors, list of class-navigators (indexed/named/test/…).
+- `Accessors.compile` emits the `Smurf` record + `Accessor` instances.
+- Each property accessor is monomorphic (`func(parentBlob) : Smurf` with
+  `from_candid<P>` baked in); `VarAccessor<T>` is the typed-fast-path
+  bypass for stable-var-backed entities (parent's blob ignored).
+- Pure data → codegen-friendly; library is the only consumer of the
+  `Smurf` interface, every entity provider plugs in via hooks.
+
+---
+
 ## Apple Events Compact Binary Encoding
 
 For interoperability with macOS AppleScript/Automator (Use Case 7), the
