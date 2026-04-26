@@ -17,7 +17,7 @@
 // benchmark observes the codec cost on a real ingress/egress path.
 //
 // At each step the harness reports `payload_bytes`,
-// `decode_heap`/`decode_cycles`, `encode_heap`/`encode_cycles` so the
+// `decoder_heap`/`decoder_cycles`, `encoder_heap`/`encoder_cycles` so the
 // per-stage cost is visible as the codec fills in.
 //
 // Wire-format reference: `.claude/plans/query.md` §"Apple Events
@@ -100,44 +100,54 @@ actor {
   };
 
   // ───────────────────────── codec stubs ────────────────────────
-  // Filled in incrementally. v3: `decode`. v4: `encode`. Until
+  // Filled in incrementally. v3: `decoder`. v4: `encoder`. Until
   // both are real, `go` reports payload_bytes only.
-
-  func encode(_ : ObjectSpec) : Blob {
-    // TODO v4: AE compact-binary encoder.
-    "" : Blob
-  };
-
-  func decode(_ : Blob) : ObjectSpec {
-    // TODO v3: AE compact-binary decoder.
-    #root
-  };
 
   // ───────────────────────── benchmark harness ──────────────────
 
   func counters() : (Nat, Nat64) = (rts_heap_size(), performanceCounter(0));
 
+  // Encoder/decoder time themselves and report on each call.  The
+  // `stage` label lets the caller distinguish the three legs of a
+  // round-trip (pre-encode for fixture, ingress decode, egress
+  // re-encode); this also covers the pre-encode that earlier scaffolds
+  // left untimed, which will matter once v4 lands a real encoder.
+  func encoder(stage : Text, _ : ObjectSpec) : Blob {
+    let (h0, c0) = counters();
+    let wire : Blob = "" : Blob;  // TODO v4: AE compact-binary encoder.
+    let (h1, c1) = counters();
+    debugPrint(debug_show {
+      stage = "encoder/" # stage;
+      heap = (h1 : Int) - h0;
+      cycles = c1 - c0;
+      bytes = wire.size();
+    });
+    wire
+  };
+
+  func decoder(stage : Text, _ : Blob) : ObjectSpec {
+    let (h0, c0) = counters();
+    let spec : ObjectSpec = #root;  // TODO v3: AE compact-binary decoder.
+    let (h1, c1) = counters();
+    debugPrint(debug_show {
+      stage = "decoder/" # stage;
+      heap = (h1 : Int) - h0;
+      cycles = c1 - c0;
+    });
+    spec
+  };
+
   public func go() : async () {
     let spec = germanMidlifeClientIncome();
-    ignore spec;  // referenced; suppresses unused warning until codec lands
 
-    // Until v4 the encoder returns "", so the timed sections are
-    // currently no-ops; we still emit the keys so any follow-up that
-    // populates them slots into a stable schema for diff comparison.
-    let wire : Blob = encode(spec);
-    let payload_bytes = wire.size();
-
-    let (h0, c0) = counters();
-    let _decoded = decode(wire);
-    let (h1, c1) = counters();
-    let _reencoded = encode(_decoded);
-    let (h2, c2) = counters();
-
-    debugPrint(debug_show {
-      payload_bytes = payload_bytes;
-      decode_heap = (h1 : Int) - h0; decode_cycles = c1 - c0;
-      encode_heap = (h2 : Int) - h1; encode_cycles = c2 - c1;
-    });
+    // Three legs, each self-timed: pre-encode produces the wire bytes
+    // (will be replaced by an osarun-generated fixture in v2), the
+    // ingress decode is the actual ingress codec cost, and the egress
+    // re-encode is what the canister would ship back when the body is
+    // the identity.
+    let wire = encoder("pre", spec);
+    let decoded = decoder("ingress", wire);
+    let _reencoded = encoder("egress", decoded);
   };
 }
 
