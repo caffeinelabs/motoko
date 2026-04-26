@@ -70,10 +70,12 @@ persistent actor {
 
   let dbSize : Nat = 100;
 
-  let germanFirstNames : [Text] = ["Hans", "Anna", "Otto", "Maria", "Karl", "Helga"];
-  let germanLastNames  : [Text] = ["Müller", "Schmidt", "Weber", "Fischer", "Bauer", "Hoffmann"];
-  let frenchFirstNames : [Text] = ["Jean", "Marie", "Pierre", "Anne", "Michel", "Claire"];
-  let frenchLastNames  : [Text] = ["Martin", "Bernard", "Dubois", "Petit", "Moreau", "Leroy"];
+  // 10 × 10 pools per culture — enough to make `firstIdx=i%10, lastIdx=(i/10)%10`
+  // produce unique names across 0..99 (i.e. `i mod 100` is the discriminator).
+  let germanFirstNames : [Text] = ["Hans", "Anna", "Otto", "Maria", "Karl", "Helga", "Klaus", "Ingrid", "Werner", "Ursula"];
+  let germanLastNames  : [Text] = ["Müller", "Schmidt", "Weber", "Fischer", "Bauer", "Hoffmann", "Schulz", "Wagner", "Becker", "Koch"];
+  let frenchFirstNames : [Text] = ["Jean", "Marie", "Pierre", "Anne", "Michel", "Claire", "Henri", "Sophie", "Paul", "Camille"];
+  let frenchLastNames  : [Text] = ["Martin", "Bernard", "Dubois", "Petit", "Moreau", "Leroy", "Roux", "Vincent", "Fournier", "Girard"];
 
   let clients : [Client] = Array_tabulate<Client>(dbSize, func(i : Nat) : Client {
     let inGermany = i % 5 < 3;
@@ -89,6 +91,18 @@ persistent actor {
       yearlyIncome = intToInt32Wrap(50000 + i * 1000);
     }
   });
+
+  // O(n²) sanity: for each client, filter all clients matching its name —
+  // there must be exactly one. Names must be unique to be valid primary keys.
+  transient let _verifyUniqueNames : () = do {
+    for (c in clients.vals()) {
+      var count = 0;
+      for (other in clients.vals()) {
+        if (other.name == c.name) count += 1;
+      };
+      if (count != 1) trap("AE: primary key '" # c.name # "' appears " # debug_show count # " times");
+    };
+  };
 
   func countMatchers() : Nat {
     var n = 0;
