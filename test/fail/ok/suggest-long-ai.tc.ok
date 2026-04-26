@@ -185,6 +185,7 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
     int8ToInt16 : (n : Int8) -> Int16;
     int8ToNat8 : (n : Int8) -> Nat8;
     intAddMod : (a : Int, b : Int, m : Int) -> Int;
+    intInvMod : (a : Int, m : Int) -> Int;
     intMulMod : (a : Int, b : Int, m : Int) -> Int;
     intPowMod : (base : Int, exp : Int, m : Int) -> Int;
     intSubMod : (a : Int, b : Int, m : Int) -> Int;
