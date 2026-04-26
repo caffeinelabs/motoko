@@ -277,9 +277,10 @@ persistent actor {
   };
 
   // Wraps a single Client as an existential Smurf. readField bridges 4cc
-  // property names to typed Client fields. toDesc is a placeholder (#root) —
-  // parent-zipper reconstruction comes when VarAccessor passes parent through.
-  func _clientSmurf(c : Client) : Smurf = {
+  // property names to typed Client fields. toDesc closes over `parent` (the
+  // zipper edge) and uses `c.name` as primary key — gives a stable reference
+  // (`client "Hans Müller" of <root>`) regardless of the lookup form.
+  func _clientSmurf(c : Client, parent : Smurf) : Smurf = {
     blob        = func() : Blob = to_candid (c);
     classFourcc = "clnt";
     accessors   = [];  // TODO: country, age, income property accessors
@@ -290,7 +291,11 @@ persistent actor {
       else if (prop == "age ") ?(#int32 (c.age))
       else if (prop == "inco") ?(#int32 (c.yearlyIncome))
       else null;
-    toDesc      = func() : ObjectSpec = #root;
+    toDesc      = func() : ObjectSpec = #obj {
+      class_    = "clnt";
+      container = parent.toDesc();
+      key       = #name (c.name);
+    };
     isNotFound  = false;
   };
 
@@ -302,18 +307,18 @@ persistent actor {
     stab    : [T],
     fourcc_ : Text,
     form_   : { #indexed; #named; #test },
-    wrap    : T -> Smurf,
+    wrap    : (T, Smurf) -> Smurf,
   ) {
     public let fourcc = fourcc_;
     public let form   = form_;
-    public func lookUp(_parent : Smurf, key : LookupKey) : Smurf {
+    public func lookUp(parent : Smurf, key : LookupKey) : Smurf {
       switch key {
         case (#indexed i) {
           if (i <= 0) _notFoundSmurf
           else {
             let n = abs i;
             if (n > stab.size()) _notFoundSmurf
-            else wrap (stab[n - 1])
+            else wrap(stab[n - 1], parent)
           }
         };
         case _ _notFoundSmurf;  // TODO: #named, #test
@@ -357,9 +362,9 @@ persistent actor {
   // 4cc obj record keys: 'want', 'form', 'seld', 'from'
   transient let (WANT, FORM, SELD, FROM) : (Nat32, Nat32, Nat32, Nat32) =
     (0x77616e74, 0x666f726d, 0x73656c64, 0x66726f6d);
-  // 4cc payload tags: 'type', 'enum', 'prop', 'test'
-  transient let (TYPE, ENUM, PROP, TEST) : (Nat32, Nat32, Nat32, Nat32) =
-    (0x74797065, 0x656e756d, 0x70726f70, 0x74657374);
+  // 4cc payload tags: 'type', 'enum', 'prop', 'test', 'name'
+  transient let (TYPE, ENUM, PROP, TEST, NAME) : (Nat32, Nat32, Nat32, Nat32, Nat32) =
+    (0x74797065, 0x656e756d, 0x70726f70, 0x74657374, 0x6e616d65);
   // 4cc primitive value descriptors + 'exmn' (collapses to #root, lossy)
   transient let (UTXT, LONG, EXMN) : (Nat32, Nat32, Nat32) =
     (0x75747874, 0x6c6f6e67, 0x65786d6e);
@@ -604,6 +609,7 @@ persistent actor {
   func seldBodyLen(key : KeyForm) : Nat {
     switch key {
       case (#property _) 4;
+      case (#name n) 2 * encodeUtf8(n).size();   // ASCII assumption (see textToUtf16)
       case (#test e) boolExprDescLen e;
       case _ trap "AE: encoder unsupported key form";
     }
@@ -738,7 +744,7 @@ persistent actor {
     w.writeU32 FORM;
     w.writeU32 ENUM;
     w.writeU32 4;
-    w.writeU32 (switch key { case (#property _) PROP; case (#test _) TEST; case _ trap "AE: encoder key form unsupported" });
+    w.writeU32 (switch key { case (#property _) PROP; case (#name _) NAME; case (#test _) TEST; case _ trap "AE: encoder key form unsupported" });
     // seld
     w.writeU32 SELD;
     switch key {
@@ -746,6 +752,12 @@ persistent actor {
         w.writeU32 TYPE;
         w.writeU32 4;
         w.writeU32 (textToCC4 name);
+      };
+      case (#name n) {
+        w.writeU32 UTXT;
+        let bytes = textToUtf16 n;
+        w.writeU32 (intToNat32Wrap (bytes.size()));
+        w.writeBytes bytes;
       };
       case (#test e) writeBoolExpr(w, e);
       case _ trap "AE: encoder unsupported key form";
@@ -804,19 +816,21 @@ persistent actor {
   };
 
   // Tiny demo: drive `actorSmurf.accessors[0].lookUp` ("clnt", indexed=1)
-  // and surface a few fields of the resulting clientSmurf via readField.
-  public func tiny1() : async () {
+  // and return the resulting clientSmurf's stable reference (toDesc) — the
+  // parent-zipper turns `client 1 of root` into `client "Hans Müller" of root`.
+  (with encoder)
+  public func tiny1() : async ObjectSpec {
     let clntAccessor = _actorSmurf.accessors[0];
     let s = clntAccessor.lookUp(_actorSmurf, #indexed 1);
+    let spec = s.toDesc();
     debugPrint(debug_show {
       stage    = "tiny1";
       classFc  = s.classFourcc;
       notFound = s.isNotFound;
       name     = s.readField "name";
-      country  = s.readField "cntr";
-      age      = s.readField "age ";
-      income   = s.readField "inco";
+      spec;
     });
+    spec
   };
 
   (with encoder; decoder)
