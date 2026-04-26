@@ -41,22 +41,49 @@ let
     doCheck = false;
   };
 
-  # Tiny Python harness. v1 just confirms that the appscript / aem
-  # modules are importable; later commits grow this into a fixture
-  # generator that prints `<name>=<hex>` for each pinned query in the
-  # bench's catalogue. The harness source lives here, in nix — it is
-  # neither AppleScript nor a Python file in the motoko source tree.
+  # Python harness — builds AE Object Specifiers via aem's reference
+  # builder, packs each through `AEM_packself`, dumps the flattened
+  # bytes as hex. Each query in the catalogue prints one line
+  # `<name>=<hex>` so the bench's `Blob` literals can be regenerated
+  # by re-running the encoder. The harness lives here in nix — there
+  # is no Python file checked into the motoko source tree.
   harness = pkgs.writeText "ae-fixtures.py" ''
     """AE compact-binary fixture generator for the motoko bench.
 
-    v1: smoke-test only — verifies the appscript/aem modules are
-    importable so `nix run .#ae-encoder` exercises the whole stack.
-    Future commits will accept a query name as an argv parameter and
-    emit hex bytes for the matching ObjectSpec.
+    Each entry in `QUERIES` corresponds to a positive test/example in
+    `test/bench/object-spec.mo`. `nix run .#ae-encoder` writes each
+    query's flattened AE descriptor to stdout as `<name>=<hex>`.
     """
     import sys
-    import aem
-    print(f"appscript/aem stack OK; aem from {aem.__file__}")
+    from aem import app, its, Codecs, ae
+
+    # 4-char OSType abbreviations for the bench's class/property names.
+    # Stable codes; the motoko bench uses the same set so round-trip
+    # decoding is meaningful.
+    CL_CLIENT = 'clnt'
+    PR_COUNTRY = 'cntr'
+    PR_AGE = 'age '
+    PR_INCOME = 'inco'
+
+    def german_midlife_client_income():
+        """every client whose country == "Germany" and 45 <= age <= 55,
+        then their `.yearlyIncome` property."""
+        clients = app.elements(CL_CLIENT).byfilter(
+            its.property(PR_COUNTRY).eq('Germany')
+              .AND(its.property(PR_AGE).ge(45))
+              .AND(its.property(PR_AGE).le(55))
+        )
+        return clients.property(PR_INCOME)
+
+    QUERIES = {
+        'german_midlife_client_income': german_midlife_client_income,
+    }
+
+    codecs = Codecs()
+    for name, build in QUERIES.items():
+        spec = build()
+        desc = spec.AEM_packself(codecs)
+        print(f"{name}={desc.flatten().hex()}")
   '';
 in
 pkgs.writeShellApplication {
