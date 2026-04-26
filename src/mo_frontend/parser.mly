@@ -244,6 +244,7 @@ and objblock eo s id ty dec_fields =
 %token ANDASSIGN ORASSIGN XORASSIGN SHLASSIGN SHRASSIGN ROTLASSIGN ROTRASSIGN
 %token WRAPADDASSIGN WRAPSUBASSIGN WRAPMULASSIGN WRAPPOWASSIGN
 %token NULL
+%token NULLCOALESCE
 %token FLEXIBLE STABLE
 %token TRANSIENT PERSISTENT
 %token<string> DOT_NUM
@@ -459,6 +460,9 @@ typ_un :
     { t }
   | QUEST t=typ_un
     { OptT(t) @! at $sloc }
+  (* backward compat: '?? T' (one NULLCOALESCE token) means '?(?T)' *)
+  | NULLCOALESCE t=typ_un
+    { OptT(OptT(t) @! at $sloc) @! at $sloc }
   | WEAK t=typ_un
     { WeakT(t) @! at $sloc }
 
@@ -707,6 +711,9 @@ exp_un(B) :
     { TagE (x, e) @? at $sloc }
   | QUEST e=exp_un(ob)
     { OptE(e) @? at $sloc }
+  (* backward compat: '?? e' (one NULLCOALESCE token) means '?(?e)' *)
+  | NULLCOALESCE e=exp_un(ob)
+    { OptE(OptE(e) @? at $sloc) @? at $sloc }
   | op=unop e=exp_un(ob)
     { match op, e.it with
       | (PosOp | NegOp), LitE {contents = PreLit (s, (Type.(Nat | Float) as typ))} ->
@@ -753,6 +760,8 @@ exp_un(B) :
     { e }
   | e1=exp_bin(B) ASSIGN e2=exp(ob)
     { AssignE(e1, e2) @? at $sloc}
+  | e1=exp_bin(B) NULLCOALESCE e2=exp_nest
+    { NullCoalesceE(e1, e2) @? at $sloc }
   | e1=exp_bin(B) op=binassign e2=exp(ob)
     { assign_op e1 (fun e1' -> BinE(ref Type.Pre, e1', op, e2) @? at $sloc) (at $sloc) }
   | RETURN %prec RETURN_NO_ARG
@@ -915,6 +924,9 @@ pat_un :
     { TagP(x, p) @! at $sloc }
   | QUEST p=pat_un
     { OptP(p) @! at $sloc }
+  (* backward compat: '?? p' (one NULLCOALESCE token) means '?(?p)' *)
+  | NULLCOALESCE p=pat_un
+    { OptP(OptP(p) @! at $sloc) @! at $sloc }
   | op=unop l=lit
     { match op, l with
       | (PosOp | NegOp), PreLit (s, (Type.(Nat | Float) as typ)) ->

@@ -95,10 +95,7 @@ actor client {
 
     let requestSize : Nat64 = calculateRequestSize(request);
     print(debug_show (requestSize) # " -- calculated request size");
-    let defaultMaxResBytes : Nat64 = switch (request.max_response_bytes) {
-      case (?max_response_bytes) max_response_bytes;
-      case null 2_000_000;
-    };
+    let defaultMaxResBytes : Nat64 = request.max_response_bytes ?? 2_000_000;
     let cost = Prim.costHttpRequest(requestSize, defaultMaxResBytes);
     print(debug_show (cost) # " -- http cost request");
 

@@ -1294,7 +1294,7 @@ module RTS = struct
     add_rts_import "is_graph_stabilization_started" [] [I32Type];
     add_rts_import "start_graph_stabilization" [I64Type; I64Type; I64Type] [];
     add_rts_import "graph_stabilization_increment" [] [I32Type];
-    add_rts_import "start_graph_destabilization" [I64Type; I64Type] [];
+    add_rts_import "start_graph_destabilization" [] [];
     add_rts_import "graph_destabilization_increment" [] [I32Type];
     add_rts_import "get_graph_destabilized_actor" [] [I64Type];
     add_rts_import "buffer_in_32_bit_range" [] [I64Type];
@@ -5887,7 +5887,10 @@ module StableMem = struct
   let version_graph_copy_regions = Int64.of_int 4
   let version_stable_heap_no_regions = Int64.of_int 5
   let version_stable_heap_regions = Int64.of_int 6
-  let version_max = version_stable_heap_regions
+  (* V1 graph-copy: last-page record carries a 16-byte extension with extra GC roots. *)
+  let version_graph_copy_v1_no_regions = Int64.of_int 7
+  let version_graph_copy_v1_regions = Int64.of_int 8
+  let version_max = version_graph_copy_v1_regions
 
   let register_globals env =
     (* size (in pages) *)
@@ -9517,6 +9520,9 @@ module NewStableMemory = struct
   let upgrade_version_from_graph_stabilization env =
     StableMem.get_version env ^^
     compile_eq_const StableMem.version_graph_copy_no_regions ^^
+    StableMem.get_version env ^^
+    compile_eq_const StableMem.version_graph_copy_v1_no_regions ^^
+    G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
     E.if1 I64Type
     begin
       compile_unboxed_const StableMem.version_stable_heap_no_regions
@@ -9524,6 +9530,9 @@ module NewStableMemory = struct
     begin
       StableMem.get_version env ^^
       compile_eq_const StableMem.version_graph_copy_regions ^^
+      StableMem.get_version env ^^
+      compile_eq_const StableMem.version_graph_copy_v1_regions ^^
+      G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
       E.else_trap_with env "Unsupported stable memory version when upgrading from graph-copy-based stabilization" ^^
       compile_unboxed_const StableMem.version_stable_heap_regions
     end ^^
@@ -9698,8 +9707,7 @@ module GraphCopyStabilization = struct
   let graph_stabilization_increment env =
     E.call_rts env "graph_stabilization_increment" ^^ Bool.from_rts_int32
 
-  let start_graph_destabilization env actor_type =
-    EnhancedOrthogonalPersistence.create_type_descriptor env actor_type ^^
+  let start_graph_destabilization env =
     E.call_rts env "start_graph_destabilization"
 
   let graph_destabilization_increment env =
@@ -9707,7 +9715,9 @@ module GraphCopyStabilization = struct
 
   let get_graph_destabilized_actor env actor_type =
     E.call_rts env "get_graph_destabilized_actor" ^^
-    EnhancedOrthogonalPersistence.upgrade_actor env actor_type
+    match env.E.enhanced_migration with
+    | Some _ -> G.nop
+    | None -> EnhancedOrthogonalPersistence.upgrade_actor env actor_type
 end
 
 module GCRoots = struct
@@ -10482,7 +10492,7 @@ module IncrementalGraphStabilization = struct
   let partial_destabilization_on_upgrade env actor_type =
     (* TODO: Verify that the post_upgrade hook cannot be directly called by the IC *)
     (* Garbage collection is disabled in `start_graph_destabilization` until destabilization has completed. *)
-    GraphCopyStabilization.start_graph_destabilization env actor_type.Ir.pre ^^
+    GraphCopyStabilization.start_graph_destabilization env ^^
     get_destabilized_actor env ^^
     compile_test I64Op.Eqz ^^
     E.if0
@@ -10568,6 +10578,12 @@ module Persistence = struct
     compile_eq_const StableMem.version_graph_copy_no_regions ^^
     get_persistence_version env ^^
     compile_eq_const StableMem.version_graph_copy_regions ^^
+    G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
+    get_persistence_version env ^^
+    compile_eq_const StableMem.version_graph_copy_v1_no_regions ^^
+    G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^
+    get_persistence_version env ^^
+    compile_eq_const StableMem.version_graph_copy_v1_regions ^^
     G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))
 
   let use_enhanced_orthogonal_persistence env =
@@ -10576,6 +10592,33 @@ module Persistence = struct
     get_persistence_version env ^^
     compile_eq_const StableMem.version_stable_heap_regions ^^
     G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))
+
+  (* Heuristic: detect deployments of a Motoko Wasm on top of
+    a non-Motoko canister (e.g. Rust).
+
+     `read_persistence_version` (in the RTS) only peeks at the first and last
+     u32 of stable memory: when the first word is non-zero it unconditionally
+     returns `legacy_version_no_stable_memory` (0), assuming this is a legacy
+     canister. For a Rust canister it can happen that the first word is
+     non-zero, so Motoko enters the Candid-destabilization branch and
+     traps with a confusing message.
+
+     A genuine Motoko non-EOP canister has the layout
+       [0..4) : u32 length N of the payload
+       [4..4+N) : Candid blob starting with the "DIDL"
+     so we verify at offset 4 before continuing and, on mismatch, trap. *)
+  let didl_magic_le = 0x4C444944l
+  let validate_motoko_legacy_signature env =
+    get_persistence_version env ^^
+    compile_eq_const StableMem.legacy_version_no_stable_memory ^^
+    E.if0
+      begin
+        compile_unboxed_const 4L ^^
+        StableMem.read_word32 env ^^
+        compile_eq32_const didl_magic_le ^^
+        E.else_trap_with env "Cannot install Motoko canister: previous canister version is non-Motoko (e.g., Rust, missing Candid \"DIDL\" signature). Uninstall it before deploying this Motoko canister."
+      end
+      G.nop
 
   let initialize env actor_type =
     E.call_rts env "read_persistence_version" ^^
@@ -10606,6 +10649,7 @@ module Persistence = struct
           begin
             use_candid_destabilization env ^^
             E.else_trap_with env "Unsupported persistence version. Use newer Motoko compiler version." ^^
+            validate_motoko_legacy_signature env ^^
             if not (!Flags.explicit_enhanced_orthogonal_persistence) then
               E.trap_with env "Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration."
             else G.nop ^^

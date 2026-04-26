@@ -14,7 +14,10 @@ use crate::{
 use motoko_rts::{
     memory::{alloc_array, Memory},
     stabilization::{
-        deserialization::Deserialization, graph_copy::GraphCopy, serialization::Serialization,
+        deserialization::Deserialization,
+        graph_copy::GraphCopy,
+        layout::StableValue,
+        serialization::{Serialization, SerializationRoots},
     },
     types::{Value, Words, TAG_ARRAY_M},
 };
@@ -168,14 +171,25 @@ fn test_serialization_deserialization(random: &mut Rand32, max_objects: usize, s
 
 fn serialize(old_stable_root: Value, stable_start: u64) -> u64 {
     let mut memory = TestMemory::new(Words(0));
-    let mut serialization = Serialization::start(&mut memory, old_stable_root, stable_start);
+    let roots = SerializationRoots {
+        actor: old_stable_root,
+        dedup_table: Value::from_raw(0),
+        migrations_list: Value::from_raw(0),
+    };
+    let mut serialization = Serialization::start(&mut memory, roots, stable_start);
     serialization.copy_increment(&mut memory);
     assert!(serialization.is_completed());
     serialization.serialized_data_length()
 }
 
 fn deserialize<M: Memory>(mem: &mut M, stable_start: u64, stable_size: u64) -> Value {
-    let mut deserialization = Deserialization::start(mem, stable_start, stable_size);
+    let mut deserialization = Deserialization::start(
+        mem,
+        stable_start,
+        stable_size,
+        StableValue::from_raw(0),
+        StableValue::from_raw(0),
+    );
     deserialization.copy_increment(mem);
     assert!(deserialization.is_completed());
     deserialization.get_stable_root()
