@@ -265,6 +265,23 @@ persistent actor {
     public let isNotFound  : Bool                = false;
   };
 
+  // Wraps a single Client as an existential Smurf. readField bridges 4cc
+  // property names to typed Client fields. toDesc is a placeholder (#root) —
+  // parent-zipper reconstruction comes when VarAccessor passes parent through.
+  func _clientSmurf(c : Client) : Smurf = {
+    blob        = func() : Blob = to_candid (c);
+    classFourcc = "clnt";
+    accessors   = [];  // TODO: country, age, income property accessors
+    enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
+    readField   = func(name : Text) : ?CandidValue =
+      if (name == "cntr") ?(#text (c.country))
+      else if (name == "age ") ?(#int32 (c.age))
+      else if (name == "inco") ?(#int32 (c.yearlyIncome))
+      else null;
+    toDesc      = func() : ObjectSpec = #root;
+    isNotFound  = false;
+  };
+
   // VarAccessor<T>: typed escape hatch over a stable [T]. Captures the
   // collection at construction and ignores `parent.blob()` — no Candid
   // round-trip on input. `wrap : T -> Smurf` is supplied per entity to
@@ -290,6 +307,18 @@ persistent actor {
         case _ _notFoundSmurf;  // TODO: #named, #test
       }
     };
+  };
+
+  // The canister's root Smurf. Wires the "clnt" accessor over the stable
+  // clients array via _VarAccessor<Client>, with _clientSmurf as wrap.
+  transient let _actorSmurf : Smurf = {
+    blob        = func() : Blob = "";
+    classFourcc = "";
+    accessors   = [_VarAccessor<Client>(clients, "clnt", #indexed, _clientSmurf)];
+    enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
+    readField   = func(_ : Text) : ?CandidValue = null;
+    toDesc      = func() : ObjectSpec = #root;
+    isNotFound  = false;
   };
 
   class Reader(src : Iter<Nat8>) {
