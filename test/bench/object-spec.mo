@@ -86,29 +86,27 @@ persistent actor {
     n
   };
 
-  // A Smurf is a typed accessor for one client property, indexed by the
-  // 4cc the AE wire uses (decoder's #compare prop string). Smurfs bridge
-  // wire-form 4cc names ("cntr"/"age "/"inco") to Motoko Client fields.
+  // PropReader: a typed accessor for one Client property, indexed by the
+  // 4cc the AE wire uses (decoder's #compare prop string). Bridges wire-form
+  // 4cc names ("cntr"/"age "/"inco") to Motoko Client fields.
   //
-  // TODO: when Client gains nested subobjects (e.g. Address shared across
-  // entities), the Smurf must become zipper-like — carrying an existential
-  // "this is your container, now go fishing" context that can rebuild an
-  // ObjectSpec from inside-out (for provenance, certified queries, deeper
-  // walks). The current shape only handles primitive leaves.
-  type Smurf = {
+  // The Smurf protocol (introduced separately) generalises this to existential,
+  // Candid-blob-keyed accessors over arbitrary entity types. PropReader stays
+  // as the typed-fast-path used by the running query while the protocol lands.
+  type PropReader = {
     fourcc : Text;
     read : Client -> CandidValue;
   };
 
-  transient let smurfs : [Smurf] = [
+  transient let propReaders : [PropReader] = [
     { fourcc = "cntr"; read = func(c : Client) : CandidValue = #text (c.country) },
     { fourcc = "age "; read = func(c : Client) : CandidValue = #int32 (c.age) },
     { fourcc = "inco"; read = func(c : Client) : CandidValue = #int32 (c.yearlyIncome) },
   ];
 
-  func lookupSmurf(fourcc : Text) : Smurf {
-    for (s in smurfs.vals()) if (s.fourcc == fourcc) return s;
-    trap ("AE: no Smurf for " # fourcc)
+  func lookupPropReader(fourcc : Text) : PropReader {
+    for (p in propReaders.vals()) if (p.fourcc == fourcc) return p;
+    trap ("AE: no PropReader for " # fourcc)
   };
 
   func cmp(a : CandidValue, op : Comparison, b : CandidValue) : Bool {
@@ -130,7 +128,7 @@ persistent actor {
       case (#and_ (a, b)) evalBoolExpr(a, c) and evalBoolExpr(b, c);
       case (#or_  (a, b)) evalBoolExpr(a, c) or  evalBoolExpr(b, c);
       case (#not_ a)      not (evalBoolExpr(a, c));
-      case (#compare { prop; op; value }) cmp(lookupSmurf(prop).read c, op, value);
+      case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
     }
   };
 
@@ -157,8 +155,8 @@ persistent actor {
   // return one CandidValue per matching client (the requested property).
   // Two-pass: count, allocate, fill (no Buffer in `mo:⛔`).
   func runQuery(spec : ObjectSpec) : [CandidValue] {
-    let propSmurf = switch spec {
-      case (#obj { class_ = _; container = _; key = #property name }) lookupSmurf name;
+    let propReader = switch spec {
+      case (#obj { class_ = _; container = _; key = #property name }) lookupPropReader name;
       case _ trap "AE: outer key not #property";
     };
     let predicate = switch spec {
@@ -175,7 +173,7 @@ persistent actor {
     let buf = Array_init<CandidValue>(count, #null_);
     var i = 0;
     for (c in clients.vals()) {
-      if (evalBoolExpr(predicate, c)) { buf[i] := propSmurf.read c; i += 1 };
+      if (evalBoolExpr(predicate, c)) { buf[i] := propReader.read c; i += 1 };
     };
     Array_tabulate<CandidValue>(count, func(j : Nat) : CandidValue = buf[j])
   };
