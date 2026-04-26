@@ -8,8 +8,12 @@ import {
   rts_heap_size;
   arrayMutToBlob;
   nat8ToNat;
+  nat32ToNat;
+  natToNat8;
   intToNat32Wrap;
   Array_init;
+  decodeUtf8;
+  trap;
 } = "mo:⛔";
 
 persistent actor {
@@ -72,7 +76,7 @@ persistent actor {
 
   type Iter<T> = { next : () -> ?T };
 
-  class _Reader(src : Iter<Nat8>) {
+  class Reader(src : Iter<Nat8>) {
     public let next = src.next;
 
     public func take(n : Nat) : ?Blob {
@@ -84,10 +88,81 @@ persistent actor {
       ?arrayMutToBlob(raw);
     };
 
-    public func readU32BE() : ?Nat32 = do ? {
+    public func readU32() : ?Nat32 = do ? {
       func to32(b : Nat8, s : Nat32) : Nat32 = intToNat32Wrap(nat8ToNat(b)) << s;
       to32(next()!, 24) | to32(next()!, 16) | to32(next()!, 8) | to32(next()!, 0);
     };
+  };
+
+  // 4cc descriptor types: 'dle2' envelope, 'obj ', 'null'
+  transient let (DLE2, OBJ, NULL) : (Nat32, Nat32, Nat32) =
+    (0x646c6532, 0x6f626a20, 0x6e756c6c);
+  // 4cc obj record keys: 'want', 'form', 'seld', 'from'
+  transient let (WANT, FORM, SELD, FROM) : (Nat32, Nat32, Nat32, Nat32) =
+    (0x77616e74, 0x666f726d, 0x73656c64, 0x66726f6d);
+
+  func u32(r : Reader) : Nat32 {
+    let ?n = r.readU32() else trap "AE: short read";
+    n
+  };
+
+  func cc4ToText(cc : Nat32) : Text {
+    let b = Array_init<Nat8>(4, 0);
+    b[0] := natToNat8(nat32ToNat((cc >> 24) & 0xff));
+    b[1] := natToNat8(nat32ToNat((cc >> 16) & 0xff));
+    b[2] := natToNat8(nat32ToNat((cc >> 8) & 0xff));
+    b[3] := natToNat8(nat32ToNat(cc & 0xff));
+    let ?t = decodeUtf8(arrayMutToBlob b) else trap "AE: invalid utf8 in 4cc";
+    t
+  };
+
+  func parseDescBody(typeCode : Nat32, r : Reader) : ObjectSpec {
+    let length = u32 r;
+    if (typeCode == NULL) {
+      if (length != 0) trap "AE: null desc with non-zero length";
+      #root
+    } else if (typeCode == OBJ) {
+      parseObjBody r
+    } else {
+      trap "AE: unsupported ObjectSpec descriptor type"
+    }
+  };
+
+  func parseObjBody(r : Reader) : ObjectSpec {
+    let _fieldCount = u32 r;  // expected: 4
+    let _padding = u32 r;
+    var class_ : Text = "";
+    var container : ObjectSpec = #root;
+    var i = 0;
+    while (i < 4) {
+      let keyCode = u32 r;
+      let valueType = u32 r;
+      if (keyCode == FROM) {
+        container := parseDescBody(valueType, r);
+      } else if (keyCode == WANT) {
+        let _len = u32 r;  // expect 4
+        class_ := cc4ToText(u32 r);
+      } else if (keyCode == FORM or keyCode == SELD) {
+        // TODO: interpret form/seld; consume body for now.
+        let len = u32 r;
+        let ?_ = r.take(nat32ToNat len) else trap "AE: short read on field body";
+      } else {
+        trap "AE: unknown obj field key"
+      };
+      i += 1;
+    };
+    #obj { class_; container; key = #property "" }
+  };
+
+  func parseTopLevel(r : Reader) : ObjectSpec {
+    if (u32 r != DLE2) trap "AE: missing dle2 magic";
+    if (u32 r != 0) trap "AE: dle2 padding nonzero";
+    parseDescBody(u32 r, r)
+  };
+
+  func _parseValue(_r : Reader) : CandidValue {
+    // TODO: utxt, long, enum, null
+    trap "AE: parseValue unimplemented"
   };
 
   func encoder(_spec : ObjectSpec) : Blob {
@@ -103,14 +178,15 @@ persistent actor {
     wire
   };
 
-  func decoder(_wire : Blob) : ObjectSpec {
+  func decoder(wire : Blob) : ObjectSpec {
     let (h0, c0) = counters();
-    let spec : ObjectSpec = #root;  // TODO: AE decoder
+    let spec = parseTopLevel(Reader(wire.vals()));
     let (h1, c1) = counters();
     debugPrint(debug_show {
       stage = "decoder";
       heap = (h1 : Int) - h0;
       cycles = c1 - c0;
+      decoded = spec;
     });
     spec
   };
