@@ -3,7 +3,18 @@ install $ID blob-dedup-upgrade/v1.mo ""
 ingress $ID test2 "DIDL\x00\x00"
 upgrade $ID blob-dedup-upgrade/v2.mo ""
 ingress $ID test2 "DIDL\x00\x00"
+
+# Add a call to stabilization to check if graph copy works properly
+# with the dedup table.
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+
+# Go to next version.
 upgrade $ID blob-dedup-upgrade/v3.mo ""
+
+# Destabilize.
+ingress $ID __motoko_destabilize_after_upgrade "DIDL\x00\x00"
+
+# All should work as normal.
 ingress $ID test2 "DIDL\x00\x00"
 ingress $ID test3 "DIDL\x00\x00"
 

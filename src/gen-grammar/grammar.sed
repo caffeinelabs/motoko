@@ -92,6 +92,7 @@ s/PLUSASSIGN/\'+=\'/g
 s/OROP/\'|\'/g
 s/ORASSIGN/\'|=\'/g
 s/OBJECT/\'object\'/g
+s/NULLCOALESCE/'\?\?'/g
 s/NULL/\'null\'/g
 s/NOT/\'not\'/g
 s/NEQOP/\'!=\'/g

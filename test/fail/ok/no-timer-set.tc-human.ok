@@ -78,6 +78,8 @@ error[M0119]: object field setTimer is not contained in expected type
     btstNat64 : (w : Nat64, amount : Nat64) -> Bool;
     btstNat8 : (w : Nat8, amount : Nat8) -> Bool;
     call_raw : (p : Principal, m : Text, a : Blob) -> async Blob;
+    callerInfoData : <system>() -> Blob;
+    callerInfoSigner : <system>() -> Blob;
     canisterSubnet : () -> Principal;
     canisterVersion : () -> Nat64;
     charIsAlphabetic : (c : Char) -> Bool;

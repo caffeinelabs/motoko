@@ -20,11 +20,7 @@ actor this {
     };
 
     public func test() : async () {
-        switch instance {
-            case (?instance) {
-                await instance.test1();
-            };
-            case null Prim.trap("Null");
-        };
+        let inst = instance ?? Prim.trap("Null");
+        await inst.test1();
     };
 };
