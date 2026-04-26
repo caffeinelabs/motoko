@@ -18,6 +18,7 @@ import {
   decodeUtf8;
   encodeUtf8;
   intToInt32Wrap;
+  abs;
   trap;
 } = "mo:⛔";
 
@@ -262,6 +263,33 @@ persistent actor {
     public let readField   : Text -> ?CandidValue = func(_ : Text) = ?value;
     public let toDesc      : () -> ObjectSpec    = func() = #root;
     public let isNotFound  : Bool                = false;
+  };
+
+  // VarAccessor<T>: typed escape hatch over a stable [T]. Captures the
+  // collection at construction and ignores `parent.blob()` — no Candid
+  // round-trip on input. `wrap : T -> Smurf` is supplied per entity to
+  // build the appropriate child Smurf (e.g. a clientSmurf wrapping a Client).
+  class _VarAccessor<T>(
+    stab    : [T],
+    fourcc_ : Text,
+    form_   : { #indexed; #named; #test },
+    wrap    : T -> Smurf,
+  ) {
+    public let fourcc = fourcc_;
+    public let form   = form_;
+    public func lookUp(_parent : Smurf, key : LookupKey) : Smurf {
+      switch key {
+        case (#indexed i) {
+          if (i <= 0) _notFoundSmurf
+          else {
+            let n = abs i;
+            if (n > stab.size()) _notFoundSmurf
+            else wrap (stab[n - 1])
+          }
+        };
+        case _ _notFoundSmurf;  // TODO: #named, #test
+      }
+    };
   };
 
   class Reader(src : Iter<Nat8>) {
