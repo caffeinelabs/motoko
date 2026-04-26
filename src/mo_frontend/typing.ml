@@ -3795,6 +3795,12 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
             "a shared function cannot be private"
       ) dec_fields;
     end;
+    (* Parentheticals on public actor methods can reference sibling
+       actor-fields by name (e.g. `(with encoder; decoder)` punning to
+       locally-defined `encoder` / `decoder` funcs), so the env we
+       hand to `check_vis_parenthetical` must include the actor's
+       full scope, not just the outer-context env. *)
+    let par_env = adjoin_vals env scope.Scope.val_env in
     List.iter (fun df ->
       match df.it.vis.it, df.it.dec.it with
       | Syntax.Public (_, Some par), LetD ({ it = VarP id; _ }, _, _) ->
@@ -3802,7 +3808,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
          | Some (typ, _, _) when T.is_func typ ->
            let _, c, _, ts1, ts2 = T.as_func typ in
            (match c with
-            | T.Promises -> check_vis_parenthetical env (T.seq ts1) (T.seq ts2) par
+            | T.Promises -> check_vis_parenthetical par_env (T.seq ts1) (T.seq ts2) par
             | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
          | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
       | Syntax.Public (_, Some par), _ ->
