@@ -1489,24 +1489,16 @@ let module_ref_of_dot_module_exp (path : exp) =
 let as_implicit = function
   | T.Named (_inf_arg_name, (T.Named ("implicit", T.Named (arg_name, t)))) ->
     (* override inferred arg_name *)
-    Some arg_name
-  | T.Named (inf_arg_name, (T.Named ("implicit", t))) ->
-    (* non-overriden, use inferred arg_name *)
-    Some inf_arg_name
-  | _ -> None
-
-(* Like [as_implicit] but also returns the inner type that needs to be resolved *)
-let as_implicit_with_type = function
-  | T.Named (_inf_arg_name, (T.Named ("implicit", T.Named (arg_name, t)))) ->
     Some (arg_name, t)
   | T.Named (inf_arg_name, (T.Named ("implicit", t))) ->
+    (* non-overriden, use inferred arg_name *)
     Some (inf_arg_name, t)
   | _ -> None
 
 (* Partition a function's arg types into (non_implicit_args, (name, inner_type) list) *)
 let erase_implicits args =
   List.partition_map (fun arg ->
-    match as_implicit_with_type arg with
+    match as_implicit arg with
     | Some (name, inner_typ) -> Either.Right (name, inner_typ)
     | None -> Either.Left arg
   ) args
@@ -1534,15 +1526,15 @@ let render_derivation_leaves env = function
     | HoleSuggestions (lib_terms, note_opt) ->
       let imports = List.filter_map import_suggestion_of_candidate lib_terms in
       if imports <> [] then
-        Format.asprintf env "`%s : %a` — not found, try importing %s"
+        Format.asprintf env "`%s : %a` not found, try importing %s"
           name display_typ_oneline typ (List.hd imports) :: acc
       else (match note_opt with
       | Some note -> collect_note note acc
       | None ->
-        Format.asprintf env "`%s : %a` — not found"
+        Format.asprintf env "`%s : %a` not found"
           name display_typ_oneline typ :: acc)
     | HoleAmbiguous ambiguous_candidates ->
-      Format.asprintf env "`%s : %a` — ambiguous (%s)"
+      Format.asprintf env "`%s : %a` ambiguous: %s"
         name display_typ_oneline typ
         (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)) :: acc
   in
@@ -1576,7 +1568,7 @@ module SynthesizeWrapper = struct
       Printf.sprintf "$impl_arg%d" n in
     let call_args_rev, param_names_rev, remaining =
       List.fold_left (fun (args_acc, params_acc, impls) arg_typ ->
-        match as_implicit_with_type arg_typ with
+        match as_implicit arg_typ with
         | Some _ ->
           (match impls with
            | path :: rest -> (path :: args_acc, params_acc, rest)
@@ -1595,6 +1587,8 @@ end
 (** Checks [args -> rets <: req_args -> req_rets] via subtyping or
     bidirectional matching when [tbs] are present. Returns [Some inst] or [None]. *)
 let sub_or_bimatch_func tbs args rets req_args req_rets =
+  assert (List.length args = List.length req_args);
+  assert (List.length rets = List.length req_rets);
   if tbs = [] then
     if List.for_all2 (fun a b -> T.sub a b) req_args args
     && List.for_all2 (fun a b -> T.sub a b) rets req_rets
@@ -1640,7 +1634,7 @@ module ImplicitHoles = struct
      Shared and Composite functions (actors, async) are excluded
      since implicits are a local-scope, synchronous mechanism. *)
   let is_matching_typ_with_holes hole candidate_typ =
-    match T.promote hole.hole_typ, T.promote candidate_typ with
+    match hole.hole_typ, T.promote candidate_typ with
     | T.Func (T.Local, T.Returns, [], req_args, req_rets),
       T.Func (T.Local, T.Returns, cand_tbs, cand_args, cand_rets) ->
       let (explicit_args, implicit_args) = erase_implicits cand_args in
@@ -1712,11 +1706,13 @@ module ImplicitHoles = struct
 
   let matching_val hole (vals : val_env) =
     let* (t, _, _, _) = T.Env.find_opt hole.hole_name vals in
+    if T.is_mut t then None else
     if not (is_matching_typ hole t) then None else
     Some (make_val_candidate hole.hole_name t)
 
   let matching_val_with_holes hole (vals : val_env) =
     let* (t, _, _, _) = T.Env.find_opt hole.hole_name vals in
+    if T.is_mut t then None else
     let* holes = is_matching_typ_with_holes hole t in
     Some (holes, make_val_candidate hole.hole_name t)
 
@@ -3105,7 +3101,7 @@ and insert_holes at ts es =
     | [] -> es
     | t :: ts1 ->
       match as_implicit t with
-      | Some arg_name ->
+      | Some (arg_name, _) ->
         mk_hole n arg_name :: go (n + 1) ts1 es
       | None ->
         match es with
@@ -3126,7 +3122,7 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
              Some arg,
              match as_implicit typ with
              | None -> acc
-             | Some name ->
+             | Some (name, _) ->
                 match resolve_hole env arg.at name typ with
                 | Error _ -> acc
                 | Ok ({path;_}, _) ->

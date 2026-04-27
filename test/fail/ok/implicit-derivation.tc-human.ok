@@ -4,14 +4,14 @@ error[M0230]: Cannot determine implicit argument `compare` of type
  26 │  ignore needsBoolArrayCompare([true], [false]); // M0230: no Bool.compare
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: Implicit derivation failed:
-                 `compare : (Bool, Bool) -> Order` — not found
+                 `compare : (Bool, Bool) -> Order` not found
 error[M0230]: Cannot determine implicit argument `compare` of type
   ([[Bool]], [[Bool]]) -> Order
     ┌─ implicit-derivation.mo:37:8
  37 │  ignore needsNestedBoolArrayCompare([[true]], [[false]]); // M0230: full chain shown
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: Implicit derivation failed:
-                 `compare : (Bool, Bool) -> Order` — not found
+                 `compare : (Bool, Bool) -> Order` not found
 error[M0230]: Cannot determine implicit argument `n` of type
   Nat
     ┌─ implicit-derivation.mo:44:8
