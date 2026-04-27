@@ -1,12 +1,12 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {classFc = "clnt"; notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Hans Müller")}); stage = "tiny1"}
+debug.print: {class4cc = "clnt"; notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Hans Müller")}); stage = "tiny1"}
 debug.print: {bytes = 104; cycles = 28_528; heap = +1_272; stage = "encoder"}
 ingress Completed: Reply: 0x646c6532000000006f626a2000000058000000040000000077616e747479706500000004636c6e74666f726d656e756d000000046e616d6573656c64757478740000001800480061006e00730020004d00c300bc006c006c0065007266726f6d6e756c6c00000000
-debug.print: {classFc = "clnt"; notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Camille Girard")}); stage = "tiny1"}
+debug.print: {class4cc = "clnt"; notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Camille Girard")}); stage = "tiny1"}
 debug.print: {bytes = 108; cycles = 30_012; heap = +1_324; stage = "encoder"}
 ingress Completed: Reply: 0x646c6532000000006f626a200000005c000000040000000077616e747479706500000004636c6e74666f726d656e756d000000046e616d6573656c64757478740000001c00430061006d0069006c006c0065002000470069007200610072006466726f6d6e756c6c00000000
-debug.print: {classFc = "clnt"; notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Camille Girard")}); stage = "tiny1"}
+debug.print: {class4cc = "clnt"; notFound = false; spec = #obj({class_ = "clnt"; container = #root; key = #name("Camille Girard")}); stage = "tiny1"}
 debug.print: {bytes = 108; cycles = 30_012; heap = +1_324; stage = "encoder"}
 ingress Completed: Reply: 0x646c6532000000006f626a200000005c000000040000000077616e747479706500000004636c6e74666f726d656e756d000000046e616d6573656c64757478740000001c00430061006d0069006c006c0065002000470069007200610072006466726f6d6e756c6c00000000
 debug.print: {input = "Hans Müller"; spec = #obj({class_ = "prop"; container = #obj({class_ = "clnt"; container = #root; key = #name("Hans Müller")}); key = #property("name")}); stage = "tiny2"}
