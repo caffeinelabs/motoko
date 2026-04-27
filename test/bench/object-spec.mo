@@ -369,8 +369,8 @@ persistent actor {
     blob        = func() : Blob = "";
     classFourcc = "";
     accessors   = [
-      VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func(c) = c.name),
-      VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func(c) = c.name),
+      VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
+      VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
     ];
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
     readField   = func(_ : Text) : ?CandidValue = null;
