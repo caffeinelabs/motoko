@@ -830,12 +830,7 @@ persistent actor {
     let clntAccessor = actorSmurf.accessors[0];
     let s = clntAccessor.lookUp(actorSmurf, #indexed i);
     let spec = s.toDesc();
-    debugPrint(debug_show {
-      stage    = "tiny1";
-      class4cc = s.class4cc;
-      notFound = s.isNotFound;
-      spec;
-    });
+    debugPrint(debug_show { stage = "tiny1"; spec });
     spec
   };
 
