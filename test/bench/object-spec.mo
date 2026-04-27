@@ -242,7 +242,7 @@ persistent actor {
   type Smurf = {
     blob         : () -> Blob;           // self, Candid-encoded; thunk so VarAccessor-class
                                          // children can return "" when nobody pulls
-    class4cc  : Text;                 // wire 4cc, "" for primitives
+    class4cc     : Text;                 // wire 4cc, "" for primitives
     accessors    : [Accessor];           // per-class navigation hooks (incl. property leaves)
     enumerate    : () -> Iter<Blob>;     // every instance of this class
     toDesc       : () -> ObjectSpec;     // render self as ObjSpecifier (closes over primary key)
@@ -262,7 +262,7 @@ persistent actor {
   // an error AEDesc (errAENoSuchObject = -1728).
   transient let notFoundSmurf : Smurf = {
     blob        = func() : Blob = "";
-    class4cc = "";
+    class4cc    = "";
     accessors   = [];
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
     toDesc      = func() : ObjectSpec = #root;
@@ -274,7 +274,7 @@ persistent actor {
   // property accessor) computes the value typed-from-source and passes it in.
   class ValueSmurf(value : CandidValue, parentDesc : ObjectSpec, fieldName : Text) {
     public let blob        : () -> Blob       = func() = to_candid (value);
-    public let class4cc : Text             = "";
+    public let class4cc    : Text             = "";
     public let accessors   : [Accessor]       = [];
     public let enumerate   : () -> Iter<Blob> = func() = { next = func() : ?Blob = null };
     public let toDesc      : () -> ObjectSpec = func() = #obj {
@@ -306,7 +306,7 @@ persistent actor {
 
   func clientSmurf(c : Client, parent : Smurf) : Smurf = {
     blob        = func() : Blob = to_candid (c);
-    class4cc = "clnt";
+    class4cc    = "clnt";
     accessors   = [
       clientPropAccessor("name", c, func c = #text (c.name)),
       clientPropAccessor("cntr", c, func c = #text (c.country)),
@@ -371,7 +371,7 @@ persistent actor {
   // clients array — one #indexed and one #named (lookup by primary key).
   transient let actorSmurf : Smurf = {
     blob        = func() : Blob = "";
-    class4cc = "";
+    class4cc    = "";
     accessors   = [
       VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
       VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
