@@ -611,6 +611,10 @@ persistent actor {
       pos += 4;
     };
 
+    public func writeU32s(ns : [Nat32]) {
+      for (n in ns.vals()) writeU32 n;
+    };
+
     public func writeBytes(b : Blob) {
       for (byte in b.vals()) { buf[pos] := byte; pos += 1 };
     };
@@ -688,47 +692,31 @@ persistent actor {
 
   func writeValue(w : Writer, v : CandidValue) {
     switch v {
-      case (#null_) {
-        w.writeU32 NULL;
-        w.writeU32 0;
-      };
+      case (#null_) w.writeU32s([NULL, 0]);
       case (#text t) {
-        w.writeU32 UTXT;
         let bytes = textToUtf16 t;
-        w.writeU32 (intToNat32Wrap (bytes.size()));
+        w.writeU32s([UTXT, intToNat32Wrap (bytes.size())]);
         w.writeBytes bytes;
       };
-      case (#int32 i) {
-        w.writeU32 LONG;
-        w.writeU32 4;
-        w.writeU32 (int32ToNat32 i);
-      };
+      case (#int32 i) w.writeU32s([LONG, 4, int32ToNat32 i]);
       case _ trap "AE: encoder unsupported value type";
     }
   };
 
   func writeLogiHeader(w : Writer, op : Nat32, count : Nat32, listBodyLen : Nat) {
-    w.writeU32 2;       // fc = 2 (logc + term fields)
-    w.writeU32 0;       // pad
-    // logc field
-    w.writeU32 LOGC;
-    w.writeU32 ENUM;
-    w.writeU32 4;
-    w.writeU32 op;
-    // term field (a 'list')
-    w.writeU32 TERM;
-    w.writeU32 LIST;
-    w.writeU32 (intToNat32Wrap listBodyLen);
-    w.writeU32 count;
-    w.writeU32 0;       // list pad
+    w.writeU32s([
+      2, 0,                                            // fc=2 (logc+term), pad
+      LOGC, ENUM, 4, op,                               // logc field
+      TERM, LIST, intToNat32Wrap listBodyLen,          // term field header
+      count, 0,                                        // list body: count + pad
+    ]);
   };
 
   func writeBoolExpr(w : Writer, e : BoolExpr) {
     let len = boolExprDescLen e;
     switch e {
       case (#and_ (a, b)) {
-        w.writeU32 LOGI;
-        w.writeU32 (intToNat32Wrap len);
+        w.writeU32s([LOGI, intToNat32Wrap len]);
         let lenA = boolExprDescLen a;
         let lenB = boolExprDescLen b;
         writeLogiHeader(w, AND_OP, 2, 24 + lenA + lenB);
@@ -736,8 +724,7 @@ persistent actor {
         writeBoolExpr(w, b);
       };
       case (#or_ (a, b)) {
-        w.writeU32 LOGI;
-        w.writeU32 (intToNat32Wrap len);
+        w.writeU32s([LOGI, intToNat32Wrap len]);
         let lenA = boolExprDescLen a;
         let lenB = boolExprDescLen b;
         writeLogiHeader(w, OR_OP, 2, 24 + lenA + lenB);
@@ -745,58 +732,40 @@ persistent actor {
         writeBoolExpr(w, b);
       };
       case (#not_ a) {
-        w.writeU32 LOGI;
-        w.writeU32 (intToNat32Wrap len);
+        w.writeU32s([LOGI, intToNat32Wrap len]);
         writeLogiHeader(w, NOT_OP, 1, 16 + boolExprDescLen a);
         writeBoolExpr(w, a);
       };
       case (#compare { prop; op; value }) {
-        w.writeU32 CMPD;
-        w.writeU32 (intToNat32Wrap len);
-        // cmpd body
-        w.writeU32 3;       // fc
-        w.writeU32 0;
-        // obj1 = a property obj-spec for `prop`
-        w.writeU32 OBJ1;
+        // cmpd header + fc/pad + obj1 keycode
+        w.writeU32s([CMPD, intToNat32Wrap len, 3, 0, OBJ1]);
         let propObj : ObjectSpec = #obj { class_ = "prop"; container = #root; key = #property prop };
         writeDesc(w, propObj);
-        // relo
-        w.writeU32 RELO;
-        w.writeU32 ENUM;
-        w.writeU32 4;
-        w.writeU32 (compareOpCC op);
-        // obj2
-        w.writeU32 OBJ2;
+        // relo + obj2 keycode
+        w.writeU32s([RELO, ENUM, 4, compareOpCC op, OBJ2]);
         writeValue(w, value);
       };
     }
   };
 
   func writeObjBody(w : Writer, class_ : Text, container : ObjectSpec, key : KeyForm) {
-    w.writeU32 4;       // fieldCount
-    w.writeU32 0;       // padding
-    // want = 'type' <class_>
-    w.writeU32 WANT;
-    w.writeU32 TYPE;
-    w.writeU32 4;
-    w.writeU32 (textToCC4 class_);
-    // form = 'enum' <formCode>
-    w.writeU32 FORM;
-    w.writeU32 ENUM;
-    w.writeU32 4;
-    w.writeU32 (switch key { case (#property _) PROP; case (#name _) NAME; case (#test _) TEST; case _ trap "AE: encoder key form unsupported" });
-    // seld
-    w.writeU32 SELD;
+    let formCode = switch key {
+      case (#property _) PROP;
+      case (#name _)     NAME;
+      case (#test _)     TEST;
+      case _ trap "AE: encoder key form unsupported";
+    };
+    w.writeU32s([
+      4, 0,                                  // fieldCount=4, padding
+      WANT, TYPE, 4, textToCC4 class_,       // want field
+      FORM, ENUM, 4, formCode,               // form field
+      SELD,                                  // seld keycode (body follows per case)
+    ]);
     switch key {
-      case (#property name) {
-        w.writeU32 TYPE;
-        w.writeU32 4;
-        w.writeU32 (textToCC4 name);
-      };
+      case (#property name) w.writeU32s([TYPE, 4, textToCC4 name]);
       case (#name n) {
-        w.writeU32 UTXT;
         let bytes = textToUtf16 n;
-        w.writeU32 (intToNat32Wrap (bytes.size()));
+        w.writeU32s([UTXT, intToNat32Wrap (bytes.size())]);
         w.writeBytes bytes;
       };
       case (#test e) writeBoolExpr(w, e);
@@ -809,13 +778,9 @@ persistent actor {
 
   func writeDesc(w : Writer, spec : ObjectSpec) {
     switch spec {
-      case (#root) {
-        w.writeU32 NULL;
-        w.writeU32 0;
-      };
+      case (#root) w.writeU32s([NULL, 0]);
       case (#obj { class_; container; key }) {
-        w.writeU32 OBJ;
-        w.writeU32 (intToNat32Wrap (encDescLen spec));
+        w.writeU32s([OBJ, intToNat32Wrap (encDescLen spec)]);
         writeObjBody(w, class_, container, key);
       };
     }
@@ -823,8 +788,7 @@ persistent actor {
 
   func encodeAE(spec : ObjectSpec) : Blob {
     let w = Writer(16 + encDescLen spec);  // 'dle2' + 4-byte zero + 8-byte outer header + body
-    w.writeU32 DLE2;
-    w.writeU32 0;
+    w.writeU32s([DLE2, 0]);
     writeDesc(w, spec);
     w.toBlob()
   };
