@@ -1,0 +1,15 @@
+implicit-derivation-rep.mo:92.13-92.26: type error [M0230], Cannot determine implicit argument `rep` of type
+  {inj : None -> Blob; proj : Blob -> None}
+note: If you're trying to omit an implicit argument named `rep` you need to have a matching declaration named `rep` in scope.
+implicit-derivation-rep.mo:96.13-96.33: type error [M0230], Cannot determine implicit argument `rep` of type
+  {inj : [Nat] -> Blob; proj : Blob -> [Nat]}
+note: If you're trying to omit an implicit argument named `rep` you need to have a matching declaration named `rep` in scope.
+implicit-derivation-rep.mo:97.13-97.33: type error [M0230], Cannot determine implicit argument `rep` of type
+  {inj : [Nat] -> Blob; proj : Blob -> [Nat]}
+note: If you're trying to omit an implicit argument named `rep` you need to have a matching declaration named `rep` in scope.
+implicit-derivation-rep.mo:102.13-102.47: type error [M0230], Cannot determine implicit argument `rep` of type
+  {inj : [(Nat, Bool)] -> Blob; proj : Blob -> [(Nat, Bool)]}
+note: If you're trying to omit an implicit argument named `rep` you need to have a matching declaration named `rep` in scope.
+implicit-derivation-rep.mo:103.13-103.40: type error [M0230], Cannot determine implicit argument `rep` of type
+  {inj : [(Nat, Bool)] -> Blob; proj : Blob -> [(Nat, Bool)]}
+note: If you're trying to omit an implicit argument named `rep` you need to have a matching declaration named `rep` in scope.
