@@ -243,9 +243,8 @@ persistent actor {
     blob         : () -> Blob;           // self, Candid-encoded; thunk so VarAccessor-class
                                          // children can return "" when nobody pulls
     classFourcc  : Text;                 // wire 4cc, "" for primitives
-    accessors    : [Accessor];           // per-class navigation hooks
+    accessors    : [Accessor];           // per-class navigation hooks (incl. property leaves)
     enumerate    : () -> Iter<Blob>;     // every instance of this class
-    readField    : Text -> ?CandidValue; // for #compare in predicates
     toDesc       : () -> ObjectSpec;     // render self as ObjSpecifier (closes over primary key)
     isNotFound   : Bool;                 // sentinel for AE-404 (errAENoSuchObject)
   };
@@ -266,50 +265,55 @@ persistent actor {
     classFourcc = "";
     accessors   = [];
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
-    readField   = func(_ : Text) : ?CandidValue = null;
     toDesc      = func() : ObjectSpec = #root;
     isNotFound  = true;
   };
 
-  // ValueSmurf: terminal leaf. Reads the named field from `parent` at construction
-  // time and stores it as a CandidValue. Does NOT keep the parent's typed data
-  // — once the leaf is extracted, the parent's runtime state is unneeded. We do
-  // capture parent.toDesc() so toDesc emits the property reference path
-  // (`<field> of <parent>`); that's the spec the leaf points back to.
-  class ValueSmurf(parent : Smurf, fieldName : Text) {
-    let value : CandidValue = switch (parent.readField fieldName) {
-      case (?v) v;
-      case null trap ("AE: ValueSmurf: field not found: " # fieldName);
-    };
-    let parentDesc : ObjectSpec = parent.toDesc();
-    public let blob        : () -> Blob          = func() = to_candid (value);
-    public let classFourcc : Text                = "";
-    public let accessors   : [Accessor]          = [];
-    public let enumerate   : () -> Iter<Blob>    = func() = { next = func() : ?Blob = null };
-    public let readField   : Text -> ?CandidValue = func(_ : Text) = ?value;
-    public let toDesc      : () -> ObjectSpec    = func() = #obj {
+  // ValueSmurf: terminal leaf. Carries an extracted CandidValue and the spec
+  // path back to the property (`<field> of <parentDesc>`). The caller (a
+  // property accessor) computes the value typed-from-source and passes it in.
+  class ValueSmurf(value : CandidValue, parentDesc : ObjectSpec, fieldName : Text) {
+    public let blob        : () -> Blob       = func() = to_candid (value);
+    public let classFourcc : Text             = "";
+    public let accessors   : [Accessor]       = [];
+    public let enumerate   : () -> Iter<Blob> = func() = { next = func() : ?Blob = null };
+    public let toDesc      : () -> ObjectSpec = func() = #obj {
       class_    = "prop";
       container = parentDesc;
       key       = #property fieldName;
     };
-    public let isNotFound  : Bool                = false;
+    public let isNotFound  : Bool             = false;
   };
 
-  // Wraps a single Client as an existential Smurf. readField bridges 4cc
-  // property names to typed Client fields. toDesc closes over `parent` (the
-  // zipper edge) and uses `c.name` as primary key — gives a stable reference
-  // (`client "Hans Müller" of <root>`) regardless of the lookup form.
+  // Find an accessor on a Smurf by 4cc + form. Linear scan.
+  func findAccessor(parent : Smurf, fourcc : Text, form : { #indexed; #named; #test }) : ?Accessor {
+    for (a in parent.accessors.vals()) {
+      if (a.fourcc == fourcc and a.form == form) return ?a;
+    };
+    null
+  };
+
+  // Wraps a single Client as an existential Smurf. toDesc closes over `parent`
+  // (the zipper edge) and uses `c.name` as primary key — gives a stable
+  // reference (`client "Hans Müller" of <root>`). The four property accessors
+  // close over `c` directly (typed-fast-path: no Candid roundtrip), each
+  // emitting a ValueSmurf with the typed field.
+  func clientPropAccessor(fourcc : Text, c : Client, extract : Client -> CandidValue) : Accessor = {
+    form = #named;
+    fourcc;
+    lookUp = func(p, _) = ValueSmurf(extract c, p.toDesc(), fourcc);
+  };
+
   func clientSmurf(c : Client, parent : Smurf) : Smurf = {
     blob        = func() : Blob = to_candid (c);
     classFourcc = "clnt";
-    accessors   = [];  // TODO: country, age, income property accessors
+    accessors   = [
+      clientPropAccessor("name", c, func c = #text (c.name)),
+      clientPropAccessor("cntr", c, func c = #text (c.country)),
+      clientPropAccessor("age ", c, func c = #int32 (c.age)),
+      clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
+    ];
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
-    readField   = func(prop : Text) : ?CandidValue =
-      if (prop == "name") ?(#text (c.name))
-      else if (prop == "cntr") ?(#text (c.country))
-      else if (prop == "age ") ?(#int32 (c.age))
-      else if (prop == "inco") ?(#int32 (c.yearlyIncome))
-      else null;
     toDesc      = func() : ObjectSpec = #obj {
       class_    = "clnt";
       container = parent.toDesc();
@@ -373,7 +377,6 @@ persistent actor {
       VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
     ];
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
-    readField   = func(_ : Text) : ?CandidValue = null;
     toDesc      = func() : ObjectSpec = #root;
     isNotFound  = false;
   };
@@ -831,7 +834,6 @@ persistent actor {
       stage    = "tiny1";
       classFc  = s.classFourcc;
       notFound = s.isNotFound;
-      name     = s.readField "name";
       spec;
     });
     spec
@@ -849,7 +851,8 @@ persistent actor {
       debugPrint(debug_show { stage = "tiny2"; input; result = "notFound" });
       return #root
     };
-    let nameLeaf = ValueSmurf(clientS, "name");
+    let ?nameAcc = findAccessor(clientS, "name", #named) else trap "AE: tiny2: no name accessor on clientSmurf";
+    let nameLeaf = nameAcc.lookUp(clientS, #named "name");
     let spec = nameLeaf.toDesc();
     debugPrint(debug_show { stage = "tiny2"; input; spec });
     spec
