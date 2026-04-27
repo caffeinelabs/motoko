@@ -2,7 +2,7 @@
 // Use:
 // ```
 // export EXTRA_MOC_ARGS="--incremental-gc"
-// ../run.sh -d actor64.drun
+// run-test -d actor64.drun
 // ```
 import Prim "mo:prim";
 

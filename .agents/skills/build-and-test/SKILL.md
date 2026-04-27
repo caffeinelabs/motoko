@@ -28,12 +28,12 @@ persists across subsequent calls, so this only needs to run once.
 **Important**: The `unalias moc` is still needed. The user's shell may have
 `moc` aliased to a mops-installed version (e.g. `moc=$(mops toolchain bin moc)`).
 In zsh, **aliases take precedence over PATH**, so even with the correct PATH,
-`run.sh` would silently use the wrong `moc`. Always verify with `which moc` —
+`run-test` would silently use the wrong `moc`. Always verify with `which moc` —
 it should print the local `bin/moc` or `src/moc` path, not a mops path.
 
 **Important**: Stay in the repo root. Both `test-runner` and `dune build --root src`
-expect to be run from there. `test-runner` will fail silently if `test/run.sh` is
-not found relative to cwd.
+expect to be run from there. `test-runner` will fail silently if the expected
+test directories are not found relative to cwd.
 
 ## Building
 
@@ -68,7 +68,7 @@ already up to date.
 
 Tests live in `test/` with subdirectories per category: `fail/`, `run/`, `run-drun/`,
 `trap/`, etc. Use `test-runner` (a Rust tool in the nix shell) to run tests. It wraps
-`test/run.sh`, runs tests in parallel (8 threads), and automatically applies the
+`run-test`, runs tests in parallel (8 threads), and automatically applies the
 correct flags per test category (`-t` for fail, `-d` for run-drun, etc.).
 
 **All `test-runner` commands must be run from the repo root. Always pass `-b`
@@ -130,9 +130,9 @@ Builds JS artifacts and runs matching tests in `test/` (e.g. `test/test-moc.js`)
 ## Troubleshooting
 
 **`test-runner` exits with code 1 and no output**:
-You are not in the repo root. `test-runner` checks for `test/run.sh` relative
-to cwd and exits silently if it's missing. Run `cd "$(git rev-parse --show-toplevel)"`
-first.
+You are not in the repo root. `test-runner` checks for `test/` subdirectories
+relative to cwd and exits silently if they are missing. Run
+`cd "$(git rev-parse --show-toplevel)"` first.
 
 **`paste: illegal option` or `sed: first RE may not be empty`**:
 Nix environment not loaded. Run the setup snippet above. If `direnv export`
