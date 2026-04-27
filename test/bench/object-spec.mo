@@ -261,7 +261,7 @@ persistent actor {
   // AE-404 sentinel: every accessor returns this when its lookup misses.
   // toDesc is a placeholder; encoder special-cases via isNotFound to emit
   // an error AEDesc (errAENoSuchObject = -1728).
-  transient let _notFoundSmurf : Smurf = {
+  transient let notFoundSmurf : Smurf = {
     blob        = func() : Blob = "";
     classFourcc = "";
     accessors   = [];
@@ -276,7 +276,7 @@ persistent actor {
   // — once the leaf is extracted, the parent's runtime state is unneeded. We do
   // capture parent.toDesc() so toDesc emits the property reference path
   // (`<field> of <parent>`); that's the spec the leaf points back to.
-  class _ValueSmurf(parent : Smurf, fieldName : Text) {
+  class ValueSmurf(parent : Smurf, fieldName : Text) {
     let value : CandidValue = switch (parent.readField fieldName) {
       case (?v) v;
       case null trap ("AE: ValueSmurf: field not found: " # fieldName);
@@ -299,7 +299,7 @@ persistent actor {
   // property names to typed Client fields. toDesc closes over `parent` (the
   // zipper edge) and uses `c.name` as primary key — gives a stable reference
   // (`client "Hans Müller" of <root>`) regardless of the lookup form.
-  func _clientSmurf(c : Client, parent : Smurf) : Smurf = {
+  func clientSmurf(c : Client, parent : Smurf) : Smurf = {
     blob        = func() : Blob = to_candid (c);
     classFourcc = "clnt";
     accessors   = [];  // TODO: country, age, income property accessors
@@ -322,7 +322,7 @@ persistent actor {
   // collection at construction and ignores `parent.blob()` — no Candid
   // round-trip on input. `wrap : T -> Smurf` is supplied per entity to
   // build the appropriate child Smurf (e.g. a clientSmurf wrapping a Client).
-  class _VarAccessor<T>(
+  class VarAccessor<T>(
     stab    : [T],
     fourcc_ : Text,
     form_   : { #indexed; #named; #test },
@@ -341,7 +341,7 @@ persistent actor {
             if (i > 0) abs i
             else if (i < 0 and abs i <= size) size - abs i + 1
             else 0;
-          if (n == 0 or n > size) _notFoundSmurf
+          if (n == 0 or n > size) notFoundSmurf
           else wrap(stab[n - 1], parent)
         };
         case (#named, #named target) {
@@ -355,22 +355,22 @@ persistent actor {
           };
           switch found {
             case (?item) wrap(item, parent);
-            case null _notFoundSmurf;
+            case null notFoundSmurf;
           }
         };
-        case _ _notFoundSmurf;  // TODO: #test (with matching form_)
+        case _ notFoundSmurf;  // TODO: #test (with matching form_)
       }
     };
   };
 
   // The canister's root Smurf. Hosts two "clnt" accessors over the stable
   // clients array — one #indexed and one #named (lookup by primary key).
-  transient let _actorSmurf : Smurf = {
+  transient let actorSmurf : Smurf = {
     blob        = func() : Blob = "";
     classFourcc = "";
     accessors   = [
-      _VarAccessor<Client>(clients, "clnt", #indexed, _clientSmurf, func(c) = c.name),
-      _VarAccessor<Client>(clients, "clnt", #named,   _clientSmurf, func(c) = c.name),
+      VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func(c) = c.name),
+      VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func(c) = c.name),
     ];
     enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
     readField   = func(_ : Text) : ?CandidValue = null;
@@ -860,8 +860,8 @@ persistent actor {
   // Negative i counts from the end (AppleScript convention).
   (with encoder)
   public func tiny1(i : Int) : async ObjectSpec {
-    let clntAccessor = _actorSmurf.accessors[0];
-    let s = clntAccessor.lookUp(_actorSmurf, #indexed i);
+    let clntAccessor = actorSmurf.accessors[0];
+    let s = clntAccessor.lookUp(actorSmurf, #indexed i);
     let spec = s.toDesc();
     debugPrint(debug_show {
       stage    = "tiny1";
@@ -875,17 +875,17 @@ persistent actor {
 
   // Tiny demo 2: `name of client <input> of root`. Looks up the client by
   // name (the named clnt accessor at accessors[1]), then materialises the
-  // "name" property leaf via _ValueSmurf. The leaf's toDesc gives the
+  // "name" property leaf via ValueSmurf. The leaf's toDesc gives the
   // property reference path.
   (with encoder)
   public func tiny2(input : Text) : async ObjectSpec {
-    let namedClnt = _actorSmurf.accessors[1];  // #named form
-    let clientS = namedClnt.lookUp(_actorSmurf, #named input);
+    let namedClnt = actorSmurf.accessors[1];  // #named form
+    let clientS = namedClnt.lookUp(actorSmurf, #named input);
     if (clientS.isNotFound) {
       debugPrint(debug_show { stage = "tiny2"; input; result = "notFound" });
       return #root
     };
-    let nameLeaf = _ValueSmurf(clientS, "name");
+    let nameLeaf = ValueSmurf(clientS, "name");
     let spec = nameLeaf.toDesc();
     debugPrint(debug_show { stage = "tiny2"; input; spec });
     spec
