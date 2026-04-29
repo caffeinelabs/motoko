@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
   * Add `intAddMod`, `intSubMod`, `intMulMod`, `intPowMod` and `intInvMod` modular arithmetic primitives via LibTomMath (#6026).
 
 ## 1.7.0 (2026-04-29)

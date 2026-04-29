@@ -73,7 +73,8 @@ let inclusion_args = [
 let ai_args = [
   "--ai-errors", Arg.Set Flags.ai_errors, " emit AI tailored errors";
   "--all-libs", Arg.Set Flags.all_libs, " load all library files from all packages, enabling better diagnostics, e.g. hinting at non-imported items (increases compilation time)";
-  "--implicit-package", Arg.String (fun s -> Flags.implicit_package := Some s), _UNDOCUMENTED_ " allow contextual dot and implicits resolution from all modules in the given package"
+  "--implicit-package", Arg.String (fun s -> Flags.implicit_package := Some s), _UNDOCUMENTED_ " allow contextual dot and implicits resolution from all modules in the given package";
+  "--implicit-derivation-depth", Arg.Set_int Flags.implicit_derivation_depth, " maximum depth for recursive implicit derivation (default: 100)"
 ]
 
 let migration_args = [
