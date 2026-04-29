@@ -1534,7 +1534,7 @@ let render_derivation_leaves env = function
         Format.asprintf env "`%s : %a` not found"
           name display_typ_oneline typ :: acc)
     | HoleAmbiguous ambiguous_candidates ->
-      Format.asprintf env "`%s : %a` ambiguous: %s"
+      Format.asprintf env "`%s : %a` has ambiguous solutions: %s"
         name display_typ_oneline typ
         (String.concat ", " (List.map desc_of_candidate ambiguous_candidates)) :: acc
   in
