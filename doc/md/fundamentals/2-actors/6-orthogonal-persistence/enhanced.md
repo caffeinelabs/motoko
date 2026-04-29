@@ -51,7 +51,7 @@ Compatible changes for immutable types are largely analogous to the allowed Moto
 * Supporting shared function parameter contravariance and return type covariance.
 * Any other change according to Motoko's subtyping rule.
 
-The runtime system checks migration compatibility on upgrade, and if not fulfilled, rolls back the upgrade. This compatibility check serves as an additional safety measure on top of the `dfx` warning that can be bypassed by users.
+The runtime system checks migration compatibility on upgrade, and if not fulfilled, rolls back the upgrade. This compatibility check serves as an additional safety measure on top of the `icp` warning that can be bypassed by users.
 
 Any more complex change can be performed with programmatic instruction, see [explicit migration](../../2-actors/3-data-persistence.md#explicit-migration).
 
@@ -69,23 +69,23 @@ Graph-copy-based stabilization can be performed in three steps:
 1. Initiate the explicit stabilization before the upgrade:
 
 ```
-dfx canister call CANISTER_ID __motoko_stabilize_before_upgrade "()"
+icp canister call CANISTER_ID __motoko_stabilize_before_upgrade "()"
 ```
 
 2. Run the upgrade:
 
 ```
-dfx deploy CANISTER_ID
+icp deploy CANISTER_ID
 ```
 
 3. Complete the explicit destabilization after the upgrade:
 
 ```
-dfx canister call CANISTER_ID __motoko_destabilize_after_upgrade "()"
+icp canister call CANISTER_ID __motoko_destabilize_after_upgrade "()"
 ```
 
 Remarks:
-* When receiving the `dfx` error "The request timed out." during explicit stabilization, upgrade, or destabilization, one can simply repeat the call until it completes.
+* When receiving the `icp` error "The request timed out." during explicit stabilization, upgrade, or destabilization, one can simply repeat the call until it completes.
 * Step 3 (explicit destabilization) may not be needed if the corresponding operation fits into the upgrade message.
 
 ### Old stable memory

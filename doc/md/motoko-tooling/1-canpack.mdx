@@ -39,7 +39,7 @@ npm install -g canpack
 
 ## Using Canpack
 
-In a project directory that contains a `dfx.json` and `mops.toml` file, you can use Canpack by first creating a new file called `canpack.json` with the following content:
+In a project directory that contains an `icp.yaml` and `mops.toml` file, you can use Canpack by first creating a new file called `canpack.json` with the following content:
 
 ```json
 {
@@ -61,18 +61,15 @@ Then, generate the required files using the command:
 canpack
 ```
 
-In the project's `dfx.json` file, configure the `"dependencies"` for your project's Motoko canister:
+In the project's `icp.yaml` file, configure your project's Motoko canister:
 
-```json
-{
-    "canisters": {
-        "my_project_backend": {
-            "dependencies": ["motoko_rust"],
-            "main": "src/my_project_backend/main.mo",
-            "type": "motoko"
-        }
-    },
-}
+```yaml
+canisters:
+  - name: my_project_backend
+    recipe:
+      type: "@dfinity/motoko@v4.1.0"
+      configuration:
+        main: src/my_project_backend/main.mo
 ```
 
 Then, to write a Motoko canister that imports Rust crates, import `Rust` from the `motoko_rust` canister:

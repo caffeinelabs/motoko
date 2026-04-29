@@ -29,7 +29,12 @@ If you are migrating an existing project, you can keep the `base` import and gra
 ### Important considerations
 
 :::warning Version requirements
-The `core` package depends on new language features, so make sure to update to the latest dfx (0.28+) or Motoko compiler (0.15+) before migrating.
+The `core` package depends on new language features, so make sure to update to the latest Motoko compiler (0.15+) before migrating. You can pin the compiler version in your `mops.toml`:
+
+```toml
+[toolchain]
+moc = "0.15.1"
+```
 :::
 
 When updating to the `core` package:
@@ -958,7 +963,7 @@ If you encounter errors like `field Array_tabulateVar does not exist in module`,
 **Solution:**
 2. Ensure you're using the latest Motoko compiler version
 3. Update the `core` package to the latest version in your `mops.toml`
-4. Clean and rebuild your project: `dfx stop && dfx start --clean`
+4. Reinstall the canister to deploy the updated Wasm with a clean state: `icp deploy <canister_name> --mode reinstall`
 
 ### Migration issues
 
