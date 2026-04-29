@@ -5,6 +5,18 @@ on:
   workflow_dispatch:  # Allow manual triggering
   
 jobs:
+  rts-checked:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
+      - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
+        with:
+          name: ic-hs-test
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build `.#rts-checked` (cargo test on darwin)
+        run: nix build .#rts-checked --print-out-paths
+
   common-tests:
     runs-on: macos-latest
     steps:
@@ -89,7 +101,7 @@ jobs:
         run: npm test
 
   create-issue:
-    needs: [common-tests, gc-tests, systems-go-tests, motoko-core-tests]
+    needs: [rts-checked, common-tests, gc-tests, systems-go-tests, motoko-core-tests]
     if: ${{ always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest # No need to run on macOS, the ubuntu runner should be cheaper to run.
     steps:

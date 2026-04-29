@@ -97,7 +97,7 @@ assert blob == "\00\00\00\00\00\30\00\D3\01\01";
 
 ## Function `fromBlob`
 ``` motoko no-repl
-func fromBlob(self : Blob) : Principal
+func fromBlob(blob : Blob) : Principal
 ```
 
 Converts a `Blob` (bytes) representation of a `Principal` to a `Principal` value.

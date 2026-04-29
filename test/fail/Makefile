@@ -1,13 +1,13 @@
 RUNFLAGS = -t
 
 all:
-	../run.sh $(RUNFLAGS) *.mo
+	run-test $(RUNFLAGS) *.mo
 
 accept:
-	../run.sh $(RUNFLAGS) -a *.mo
+	run-test $(RUNFLAGS) -a *.mo
 
 accept-par:
-	find . -maxdepth 1 -name '*.mo' -print0 | xargs -0 -P4 -I{} ../run.sh $(RUNFLAGS) -a {}
+	find . -maxdepth 1 -name '*.mo' -print0 | xargs -0 -P4 -I{} run-test $(RUNFLAGS) -a {}
 
 clean:
 	rm -rf _out

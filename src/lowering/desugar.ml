@@ -814,15 +814,26 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
       assert (n <> 0);
       let mem_typ_at idx = List.nth mem_typs idx
       in
-      (* Nested if-expression: each level k produces state_k : type_k.
+      (* Each level k is emitted as its own local function migrate_step_k,
+         so per-step IC complexity stays independent of N (lifts the
+         IC0505 wasm-function-complexity cap on chain length). Body of
+         migrate_step_k:
          If m_k was already performed, ICStableRead(type_k) loads the state.
-         Otherwise, recursively build state_{k-1}, run m_k, and merge output
-         with carried fields from state_{k-1} to produce type_k.
+         Otherwise, recursively build state_{k-1} via migrate_step_{k-1}(),
+         run m_k, and merge output with carried fields from state_{k-1} to
+         produce type_k.
          Base case (k=0): ICStableRead(type_0) loads the pre-migration actor
          or returns defaults on fresh install. *)
+      let step_decls = Dynarray.create () in
+      let emit_step k body =
+        let step_typ = T.Func (T.Local, T.Returns, [], [], [mem_typ_at k]) in
+        let step = fresh_var (Printf.sprintf "migrate_step_%d" k) step_typ in
+        Dynarray.add_last step_decls (nary_funcD step [] body);
+        callE (varE step) [] (unitE ())
+      in
       let rec build_nested k =
         if k = 0 then
-          primE (I.ICStableRead (mem_typ_at 0)) []
+          emit_step k (primE (I.ICStableRead (mem_typ_at 0)) [])
         else
           let mem_typ_k = mem_typ_at k in
           let (_, mem_typ_k_fields) = T.as_obj mem_typ_k in
@@ -874,17 +885,18 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
               expD (rts_register_migration mig_lab_k)]
             merge_result
           in
-          ifE (rts_was_migration_performed mig_lab_k)
-            (primE (I.ICStableRead mem_typ_k) [])
-            else_branch
+          emit_step k
+            (ifE (rts_was_migration_performed mig_lab_k)
+              (primE (I.ICStableRead mem_typ_k) [])
+              else_branch)
       in
       let final_state = fresh_var "final_state" mem_ty in
+      let init_call = build_nested n in
+      Dynarray.add_last step_decls (letD final_state init_call);
+      Dynarray.add_last step_decls (expD (primE (I.ICStableStore mem_ty) []));
       T.Multi {chain = chain_fields; post = stab_fields},
       I.{pre = mem_typ_at 0; post = mem_ty},
-      blockE [
-        letD final_state (build_nested n);
-        expD (primE (I.ICStableStore mem_ty) []);
-      ] (varE final_state)
+      blockE (Dynarray.to_list step_decls) (varE final_state)
     end
     else match exp_opt with
     | None ->

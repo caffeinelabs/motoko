@@ -4,7 +4,7 @@
 // this imports our own IDL, stored in actor-import
 
 // currently hard-codes the ic-ref self id
-// once we have actor aliases we can let run.sh set an alias.
+// once we have actor aliases we can let run-test set an alias.
 
 import imported1 "ic:lg264-qjkae";
 import { go = imported1_go } "ic:lg264-qjkae";
