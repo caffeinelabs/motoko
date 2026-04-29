@@ -1195,6 +1195,10 @@ module RTS = struct
     add_rts_import "bigint_mulmod" [I64Type; I64Type; I64Type] [I64Type];
     add_rts_import "bigint_exptmod" [I64Type; I64Type; I64Type] [I64Type];
     add_rts_import "bigint_invmod" [I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_sqr" [I64Type] [I64Type];
+    add_rts_import "bigint_montgomery_setup" [I64Type] [I64Type];
+    add_rts_import "bigint_montgomery_calc_normalization" [I64Type] [I64Type];
+    add_rts_import "bigint_montgomery_reduce" [I64Type; I64Type; I64Type] [I64Type];
     add_rts_import "bigint_neg" [I64Type] [I64Type];
     add_rts_import "bigint_lsh" [I64Type; I64Type] [I64Type];
     add_rts_import "bigint_rsh" [I64Type; I64Type] [I64Type];
@@ -3064,6 +3068,10 @@ sig
   val compile_mulmod : E.t -> G.t
   val compile_powmod : E.t -> G.t
   val compile_invmod : E.t -> G.t
+  val compile_sqr : E.t -> G.t
+  val compile_montgomery_setup : E.t -> G.t
+  val compile_montgomery_calc_normalization : E.t -> G.t
+  val compile_montgomery_reduce : E.t -> G.t
   val compile_lsh : E.t -> G.t
   val compile_rsh : E.t -> G.t
 
@@ -3295,11 +3303,32 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
           get_res
       )
 
+  let slow_only1 name slow env =
+    Func.share_code1 Func.Always env name ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let set_res, get_res = new_local env "res" in
+        get_a ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_a ^^ box env)
+          get_a ^^
+        slow env ^^ set_res ^^ get_res ^^
+        fits_in_vanilla env ^^
+        E.if1 I64Type
+          (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+          get_res
+      )
+
   let compile_addmod = slow_only3 "B_addmod" (fun env -> E.call_rts env "bigint_addmod")
   let compile_submod = slow_only3 "B_submod" (fun env -> E.call_rts env "bigint_submod")
   let compile_mulmod = slow_only3 "B_mulmod" (fun env -> E.call_rts env "bigint_mulmod")
   let compile_powmod = slow_only3 "B_powmod" (fun env -> E.call_rts env "bigint_exptmod")
   let compile_invmod = slow_only2 "B_invmod" (fun env -> E.call_rts env "bigint_invmod")
+  let compile_sqr = slow_only1 "B_sqr" (fun env -> E.call_rts env "bigint_sqr")
+  let compile_montgomery_setup =
+    slow_only1 "B_mont_setup" (fun env -> E.call_rts env "bigint_montgomery_setup")
+  let compile_montgomery_calc_normalization =
+    slow_only1 "B_mont_calcnorm" (fun env -> E.call_rts env "bigint_montgomery_calc_normalization")
+  let compile_montgomery_reduce =
+    slow_only3 "B_mont_reduce" (fun env -> E.call_rts env "bigint_montgomery_reduce")
 
   let compile_unsigned_pow env =
     Func.share_code2 Func.Always env "B_pow" (("a", I64Type), ("b", I64Type)) [I64Type]
@@ -3798,6 +3827,11 @@ module BigNumLibtommath : BigNumType = struct
   let compile_mulmod env = E.call_rts env "bigint_mulmod"
   let compile_powmod env = E.call_rts env "bigint_exptmod"
   let compile_invmod env = E.call_rts env "bigint_invmod"
+  let compile_sqr env = E.call_rts env "bigint_sqr"
+  let compile_montgomery_setup env = E.call_rts env "bigint_montgomery_setup"
+  let compile_montgomery_calc_normalization env =
+    E.call_rts env "bigint_montgomery_calc_normalization"
+  let compile_montgomery_reduce env = E.call_rts env "bigint_montgomery_reduce"
   let compile_lsh env = E.call_rts env "bigint_lsh"
   let compile_rsh env = E.call_rts env "bigint_rsh"
 
@@ -12187,6 +12221,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "intMulMod", [_; _; _] -> vanilla_sr (BigNum.compile_mulmod env)
   | OtherPrim "intPowMod", [_; _; _] -> vanilla_sr (BigNum.compile_powmod env)
   | OtherPrim "intInvMod", [_; _] -> vanilla_sr (BigNum.compile_invmod env)
+  | OtherPrim "intSqr", [_] -> vanilla_sr (BigNum.compile_sqr env)
+  | OtherPrim "intMontgomerySetup", [_] -> vanilla_sr (BigNum.compile_montgomery_setup env)
+  | OtherPrim "intMontgomeryCalcNormalization", [_] -> vanilla_sr (BigNum.compile_montgomery_calc_normalization env)
+  | OtherPrim "intMontgomeryReduce", [_; _; _] -> vanilla_sr (BigNum.compile_montgomery_reduce env)
 
   | OtherPrim ("explode_Nat16" | "explode_Int16" as pr), [e] ->
     SR.UnboxedTuple 2,

@@ -25,3 +25,33 @@ assert Prim.intInvMod(3, 10) == 7;
 assert Prim.intInvMod(5, 7) == 3;
 // Round-trip: a * a⁻¹ ≡ 1 (mod m)
 assert Prim.intMulMod(11, Prim.intInvMod(11, 100), 100) == 1;
+
+// intSqr: trivial cases
+assert Prim.intSqr(0) == 0;
+assert Prim.intSqr(1) == 1;
+assert Prim.intSqr(7) == 49;
+assert Prim.intSqr(-7) == 49;
+// Large square — fits Motoko Int but exercises the libtommath path
+assert Prim.intSqr(1234567890) == 1524157875019052100;
+
+// Montgomery primitives — round-trips that hold for any consistent digit_bit
+// (so the same test passes in both interpreter (digit_bit=28) and compiled
+// (digit_bit=28 on wasm32, 60 on wasm64) — exact rho/R values differ across
+// targets but cancel in round-trip).
+let m = 101;          // odd prime, required for libtommath Montgomery
+let R = Prim.intMontgomeryCalcNormalization(m);
+let mp = Prim.intMontgomerySetup(m);
+
+// Round-trip: reduce(a * R mod m, m, mp) == a mod m
+let a = 42;
+let aR = (a * R) % m;
+assert Prim.intMontgomeryReduce(aR, m, mp) == a % m;
+
+// Montgomery multiplication: reduce(aR * bR, m, mp) == abR mod m
+let b = 17;
+let bR = (b * R) % m;
+let abR_via_montgomery = Prim.intMontgomeryReduce(aR * bR, m, mp);
+let abR_direct = (a * b * R) % m;
+assert abR_via_montgomery == abR_direct;
+// One more reduce undoes the trailing R factor: reduce(abR, m, mp) == ab mod m
+assert Prim.intMontgomeryReduce(abR_via_montgomery, m, mp) == (a * b) % m;

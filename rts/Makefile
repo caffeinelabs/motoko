@@ -170,6 +170,10 @@ TOMMATH_BIND_OPTIONS = \
 	    --allowlist-function mp_mulmod \
 	    --allowlist-function mp_exptmod \
 	    --allowlist-function mp_invmod \
+	    --allowlist-function mp_sqr \
+	    --allowlist-function mp_montgomery_setup \
+	    --allowlist-function mp_montgomery_calc_normalization \
+	    --allowlist-function mp_montgomery_reduce \
 	    --blocklist-type __int32_t \
 	    --blocklist-type __int64_t \
 	    --blocklist-type __uint32_t \

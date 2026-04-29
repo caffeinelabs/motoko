@@ -64,6 +64,18 @@ func intPowMod(base : Int, exp : Int, m : Int) : Int {
 func intInvMod(a : Int, m : Int) : Int {
   (prim "intInvMod" : (Int, Int) -> Int)(a, m);
 };
+func intSqr(a : Int) : Int {
+  (prim "intSqr" : Int -> Int) a;
+};
+func intMontgomerySetup(m : Int) : Int {
+  (prim "intMontgomerySetup" : Int -> Int) m;
+};
+func intMontgomeryCalcNormalization(m : Int) : Int {
+  (prim "intMontgomeryCalcNormalization" : Int -> Int) m;
+};
+func intMontgomeryReduce(t : Int, m : Int, mp : Int) : Int {
+  (prim "intMontgomeryReduce" : (Int, Int, Int) -> Int)(t, m, mp);
+};
 
 // for testing
 func idlHash(x : Text) : Nat32 { (prim "idlHash" : Text -> Nat32) x };
