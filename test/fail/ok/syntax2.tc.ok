@@ -7,6 +7,7 @@ syntax2.mo:2.1-2.4: syntax error [M0001], unexpected token 'let', expected one o
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
+  <binop> <exp_nest>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   else <exp_nest>

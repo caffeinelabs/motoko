@@ -1,8 +1,6 @@
-mod mode;
 mod review;
-mod test_runner;
-use crate::mode::Mode;
-use crate::test_runner::SubnetType;
+use test_runner::test_runner as exec;
+use test_runner::test_runner::SubnetType;
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use inquire::MultiSelect;
@@ -27,7 +25,7 @@ use walkdir::WalkDir;
 pub struct TestRunnerArgs {
     #[arg(
         long,
-        help = "Allows user pipe to stdin the contend of a .mo or .drun file preprocessed by run.sh."
+        help = "Allows user pipe to stdin the content of a preprocessed .drun file."
     )]
     pub run: bool,
     #[arg(long, requires = "run", default_value = "system")]
@@ -77,6 +75,25 @@ pub struct TestRunnerArgs {
         help = "Skip the interactive picker and run all matched tests directly."
     )]
     pub batch: bool,
+    #[arg(
+        short,
+        long,
+        conflicts_with = "run",
+        default_value_t = 8,
+        help = "Max parallel tests."
+    )]
+    pub jobs: usize,
+    #[arg(
+        long,
+        conflicts_with = "run",
+        help = "Do not pass --all-modes to run-test; honour the inherited EXTRA_MOC_ARGS literally (use in CI)."
+    )]
+    pub single_mode: bool,
+    #[arg(
+        conflicts_with_all = ["run", "review", "dir"],
+        help = "Test directories or files to consider. Defaults to the standard top-level test dirs when omitted."
+    )]
+    pub paths: Vec<String>,
 }
 
 /// The program reads stdin where the .drun file contents are piped in.
@@ -86,10 +103,18 @@ fn run_legacy_mode(subnet_type: SubnetType) {
     let mut buffer = String::new();
     let _ = stdin.read_to_string(&mut buffer);
 
-    test_runner::run_cmdline_test(buffer, subnet_type);
+    exec::run_cmdline_test(buffer, subnet_type);
 }
 
 const TEST_DIRS: [&str; 4] = ["test/run-drun", "test/run", "test/fail", "test/trap"];
+
+fn resolve_roots(paths: &[String]) -> Vec<String> {
+    if paths.is_empty() {
+        TEST_DIRS.iter().map(|s| s.to_string()).collect()
+    } else {
+        paths.to_vec()
+    }
+}
 
 fn compile_filter(input: &str) -> Result<Regex, regex::Error> {
     let is_regex = input.chars().any(|c| "^$.*+?()[]{}|".contains(c));
@@ -101,7 +126,7 @@ fn compile_filter(input: &str) -> Result<Regex, regex::Error> {
     Regex::new(&pattern)
 }
 
-fn discover_tests(search_in_file: bool) -> Vec<TestFile> {
+fn discover_tests(search_in_file: bool, roots: &[String]) -> Vec<TestFile> {
     let load_file_contents = |path: &str| {
         let ok_file_content = if search_in_file {
             let file_path = std::path::Path::new(&path);
@@ -128,8 +153,11 @@ fn discover_tests(search_in_file: bool) -> Vec<TestFile> {
     };
 
     let mut tests = Vec::new();
-    for test_dir in TEST_DIRS {
-        let local_tests: Vec<TestFile> = WalkDir::new(test_dir)
+    for root in roots {
+        if !Path::new(root).exists() {
+            continue;
+        }
+        let local_tests: Vec<TestFile> = WalkDir::new(root)
             .max_depth(1)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -252,83 +280,28 @@ struct SingleTestResult {
     test_name: String,
 }
 
+/// Dispatch one test to `run-test`. Mode inference, per-mode EXTRA_MOC_ARGS,
+/// and `-d`/`-t` flag selection all happen inside `run-test` itself.
 fn run_single_test(test_name: String, args: &TestRunnerArgs) -> SingleTestResult {
-    let mode_flag = if args.just_tc {
-        Some('t')
-    } else if test_name.contains("/run-drun/") {
-        Some('d')
-    } else if test_name.contains("/fail/") {
-        Some('t')
-    } else {
-        None
-    };
-
-    // Legacy: if EXTRA_MOC_ARGS already forces EOP, run once inheriting env;
-    // otherwise infer mode(s) from in-test markers.
-    let inherited_eop = env::var("EXTRA_MOC_ARGS")
-        .unwrap_or_default()
-        .contains("--enhanced-orthogonal-persistence");
-    let modes = if inherited_eop {
-        vec![Mode::Eop]
-    } else {
-        mode::infer_modes(Path::new(&test_name))
-    };
-    let multi_mode = modes.len() > 1;
-
-    let mut combined_stdout = String::new();
-    let mut combined_stderr = String::new();
-    let mut success = true;
-
-    for (i, mode) in modes.iter().copied().enumerate() {
-        // Multi-mode accept: accept on i==0; later modes diff against the
-        // fresh golden, catching cross-mode divergence.
-        let mut flags = String::new();
-        if args.accept && i == 0 {
-            flags.push('a');
-        }
-        if let Some(m) = mode_flag {
-            flags.push(m);
-        }
-
-        let mut cmd = Command::new("test/run.sh");
-        if !flags.is_empty() {
-            cmd.arg(format!("-{flags}"));
-        }
-        cmd.arg(&test_name);
-
-        let extra = mode.extra_moc_args();
-        if !inherited_eop && !extra.is_empty() {
-            let existing = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
-            cmd.env(
-                "EXTRA_MOC_ARGS",
-                if existing.is_empty() {
-                    extra.to_string()
-                } else {
-                    format!("{existing} {extra}")
-                },
-            );
-        }
-
-        let out = cmd.output().unwrap_or_else(|_| {
-            panic!("Failed to run test: {:?}.", test_name.as_str())
-        });
-        if !out.status.success() {
-            success = false;
-        }
-
-        if multi_mode {
-            let header = format!("=== mode: {} ===\n", mode.label());
-            combined_stdout.push_str(&header);
-            combined_stderr.push_str(&header);
-        }
-        combined_stdout.push_str(&String::from_utf8_lossy(&out.stdout));
-        combined_stderr.push_str(&String::from_utf8_lossy(&out.stderr));
+    let mut cmd = Command::new("run-test");
+    if !args.single_mode {
+        cmd.arg("--all-modes");
     }
+    if args.accept {
+        cmd.arg("-a");
+    }
+    if args.just_tc {
+        cmd.arg("-t");
+    }
+    cmd.arg(&test_name);
 
+    let out = cmd
+        .output()
+        .unwrap_or_else(|_| panic!("Failed to run test: {:?}.", test_name.as_str()));
     SingleTestResult {
-        success,
-        stdout: combined_stdout,
-        stderr: combined_stderr,
+        success: out.status.success(),
+        stdout: String::from_utf8_lossy(&out.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&out.stderr).into_owned(),
         test_name,
     }
 }
@@ -415,17 +388,19 @@ fn main() {
     if args.run {
         run_legacy_mode(args.subnet_type);
     } else {
-        let Ok(path) = env::current_dir() else {
-            println!("Could not determine current directory. Aborting.");
-            return;
-        };
-        let required = std::iter::once("test/run.sh").chain(TEST_DIRS);
-        if let Some(missing) = required.into_iter().find(|p| !path.join(p).exists()) {
-            println!("Current path: {:?}", path.display());
-            println!(
-                "test-runner should be run from the top-level repo directory (missing {missing})."
-            );
-            return;
+        let roots = resolve_roots(&args.paths);
+        if args.paths.is_empty() {
+            let Ok(path) = env::current_dir() else {
+                println!("Could not determine current directory. Aborting.");
+                return;
+            };
+            if let Some(missing) = roots.iter().find(|p| !path.join(p).exists()) {
+                println!("Current path: {:?}", path.display());
+                println!(
+                    "test-runner should be run from the top-level repo directory (missing {missing})."
+                );
+                return;
+            }
         }
 
         if args.review && !args.dir.is_empty() {
@@ -434,13 +409,12 @@ fn main() {
             return;
         }
 
-        // Set max 8 threads for now.
         ThreadPoolBuilder::new()
-            .num_threads(8)
+            .num_threads(args.jobs)
             .build_global()
             .expect("Failed to initialize global thread pool");
 
-        let tests = discover_tests(args.in_file);
+        let tests = discover_tests(args.in_file, &roots);
         let test_paths = if args.batch {
             select_batch(tests, &args)
         } else {
@@ -452,8 +426,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_runner::TestCommand;
-    use crate::test_runner::parse_commands;
+    use test_runner::test_runner::TestCommand;
+    use test_runner::test_runner::parse_commands;
     use pocket_ic::PocketIcBuilder;
     use std::path::PathBuf;
 

@@ -1,10 +1,10 @@
 RUNFLAGS =
 
 all:
-	../run.sh $(RUNFLAGS) *.wat
+	run-test $(RUNFLAGS) *.wat
 
 accept:
-	../run.sh $(RUNFLAGS) -a *.wat
+	run-test $(RUNFLAGS) -a *.wat
 
 clean:
 	rm -rf _out
