@@ -824,11 +824,11 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
          produce type_k.
          Base case (k=0): ICStableRead(type_0) loads the pre-migration actor
          or returns defaults on fresh install. *)
-      let step_decls = ref [] in
+      let step_decls = Dynarray.create () in
       let emit_step k body =
         let step_typ = T.Func (T.Local, T.Returns, [], [], [mem_typ_at k]) in
         let step = fresh_var (Printf.sprintf "migrate_step_%d" k) step_typ in
-        step_decls := nary_funcD step [] body :: !step_decls;
+        Dynarray.add_last step_decls (nary_funcD step [] body);
         callE (varE step) [] (unitE ())
       in
       let rec build_nested k =
@@ -895,7 +895,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
       T.Multi {chain = chain_fields; post = stab_fields},
       I.{pre = mem_typ_at 0; post = mem_ty},
       blockE (
-        List.rev !step_decls @ [
+        Dynarray.to_list step_decls @ [
           letD final_state init_call;
           expD (primE (I.ICStableStore mem_ty) []);
         ]) (varE final_state)
