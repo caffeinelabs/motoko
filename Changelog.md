@@ -1,6 +1,6 @@
 # Motoko compiler changelog
 
-## Next
+## 1.7.0 (2026-04-29)
 
 * motoko (`moc`)
 
@@ -14,6 +14,12 @@
     on the right is parsed as a block, a bare record literal must be wrapped
     in extra braces or parentheses, e.g. `opt ?? ({ x = 0 })` or
     `opt ?? {{ x = 0 }}`.
+
+  * perf: Compile enhanced multi-migration chains as per-step functions instead of one deeply-nested inlined expression, avoiding the wasm-function complexity limit hit by long chains (#6065).
+
+  * bugfix: Preserve GC-only roots (blob deduplication table, migration functions list) across graph-copy upgrades, and defer actor type compatibility checks to `ICStableRead` so enhanced multi-migration chains with multiple pending steps are accepted (#5993).
+
+  * bugfix: Clearer error when installing a Motoko canister over a non-Motoko or otherwise incompatible canister (#6044).
 
 ## 1.6.0 (2026-04-21)
 
