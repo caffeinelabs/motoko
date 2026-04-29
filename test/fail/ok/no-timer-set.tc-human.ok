@@ -185,8 +185,12 @@ error[M0119]: object field setTimer is not contained in expected type
     int8ToNat8 : (n : Int8) -> Nat8;
     intAddMod : (a : Int, b : Int, m : Int) -> Int;
     intInvMod : (a : Int, m : Int) -> Int;
+    intMontgomeryCalcNormalization : (m : Int) -> Int;
+    intMontgomeryReduce : (t : Int, m : Int, mp : Int) -> Int;
+    intMontgomerySetup : (m : Int) -> Int;
     intMulMod : (a : Int, b : Int, m : Int) -> Int;
     intPowMod : (base : Int, exp : Int, m : Int) -> Int;
+    intSqr : (a : Int) -> Int;
     intSubMod : (a : Int, b : Int, m : Int) -> Int;
     intToFloat : (n : Int) -> Float;
     intToInt16 : (n : Int) -> Int16;
