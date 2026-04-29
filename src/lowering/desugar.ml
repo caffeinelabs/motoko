@@ -892,13 +892,11 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
       in
       let final_state = fresh_var "final_state" mem_ty in
       let init_call = build_nested n in
+      Dynarray.add_last step_decls (letD final_state init_call);
+      Dynarray.add_last step_decls (expD (primE (I.ICStableStore mem_ty) []));
       T.Multi {chain = chain_fields; post = stab_fields},
       I.{pre = mem_typ_at 0; post = mem_ty},
-      blockE (
-        Dynarray.to_list step_decls @ [
-          letD final_state init_call;
-          expD (primE (I.ICStableStore mem_ty) []);
-        ]) (varE final_state)
+      blockE (Dynarray.to_list step_decls) (varE final_state)
     end
     else match exp_opt with
     | None ->
