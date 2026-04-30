@@ -55,6 +55,7 @@ persistent actor {
   type ObjectSpec = {
     #root;
     #obj : { class_ : Text; container : ObjectSpec; key : KeyForm };
+    #value : CandidValue;          // data descriptor (utxt/long/…), wraps a typed leaf value
   };
 
   // Mock client DB. Deterministic generation tuned for ~30% match rate
@@ -94,14 +95,12 @@ persistent actor {
 
   // O(n²) sanity: for each client, filter all clients matching its name —
   // there must be exactly one. Names must be unique to be valid primary keys.
-  transient let _verifyUniqueNames : () = do {
-    for (c in clients.vals()) {
-      var count = 0;
-      for (other in clients.vals()) {
-        if (other.name == c.name) count += 1;
-      };
-      if (count != 1) trap("AE: primary key '" # c.name # "' appears " # debug_show count # " times");
+  for (c in clients.vals()) {
+    var count = 0;
+    for (other in clients.vals()) {
+      if (other.name == c.name) count += 1;
     };
+    if (count != 1) trap("AE: primary key '" # c.name # "' appears " # debug_show count # " times");
   };
 
   func countMatchers() : Nat {
@@ -245,7 +244,7 @@ persistent actor {
     class4cc     : Text;                 // wire 4cc, "" for primitives
     accessors    : [Accessor];           // per-class navigation hooks (incl. property leaves)
     enumerate    : () -> Iter<Blob>;     // every instance of this class
-    toDesc       : () -> ObjectSpec;     // render self as ObjSpecifier (closes over primary key)
+    toDesc       : () -> ObjectSpec;     // render self: #obj/#root for nodes, #value for leaves
     isNotFound   : Bool;                 // sentinel for AE-404 (errAENoSuchObject)
   };
 
@@ -269,20 +268,16 @@ persistent actor {
     isNotFound  = true;
   };
 
-  // ValueSmurf: terminal leaf. Carries an extracted CandidValue and the spec
-  // path back to the property (`<field> of <parentDesc>`). The caller (a
-  // property accessor) computes the value typed-from-source and passes it in.
-  class ValueSmurf(value : CandidValue, parentDesc : ObjectSpec, fieldName : Text) {
-    public let blob        : () -> Blob       = func() = to_candid (value);
-    public let class4cc    : Text             = "";
-    public let accessors   : [Accessor]       = [];
-    public let enumerate   : () -> Iter<Blob> = func() = { next = func() : ?Blob = null };
-    public let toDesc      : () -> ObjectSpec = func() = #obj {
-      class_    = "prop";
-      container = parentDesc;
-      key       = #property fieldName;
-    };
-    public let isNotFound  : Bool             = false;
+  // ValueSmurf: terminal leaf. Identity is its data — toDesc renders as a
+  // `#value` data descriptor (utxt/long/…), not the path. If we ever want
+  // path-aware leaves we'll introduce a separate ContextValueSmurf.
+  class ValueSmurf(value : CandidValue) {
+    public func blob() : Blob = to_candid (value);
+    public let  class4cc                      = "";
+    public let  accessors   : [Accessor]      = [];
+    public func enumerate() : Iter<Blob>      = { next = func() : ?Blob = null };
+    public func toDesc() : ObjectSpec         = #value value;
+    public let  isNotFound                    = false;
   };
 
   // Find an accessor on a Smurf by 4cc + form. Linear scan.
@@ -301,7 +296,7 @@ persistent actor {
   func clientPropAccessor(fourcc : Text, c : Client, extract : Client -> CandidValue) : Accessor = {
     form = #named;
     fourcc;
-    lookUp = func(p, _) = ValueSmurf(extract c, p.toDesc(), fourcc);
+    lookUp = func _ = ValueSmurf(extract c);
   };
 
   func clientSmurf(c : Client, parent : Smurf) : Smurf = {
@@ -666,6 +661,7 @@ persistent actor {
     switch spec {
       case (#root) 0;
       case (#obj { class_ = _; container; key }) 64 + seldBodyLen key + encDescLen container;
+      case (#value v) valueDescLen v;
     }
   };
 
@@ -786,6 +782,7 @@ persistent actor {
         w.writeU32s([OBJ, intToNat32Wrap (encDescLen spec)]);
         writeObjBody(w, class_, container, key);
       };
+      case (#value v) writeValue(w, v);
     }
   };
 
