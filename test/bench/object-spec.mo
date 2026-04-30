@@ -384,15 +384,26 @@ persistent actor {
     evalPred : (BoolExpr, T) -> Bool,
     pred     : ?BoolExpr,
   ) {
-    public func blob() : Blob              = "";
-    public let  class4cc                   = classCC;
-    public let  accessors  : [Accessor]    = [];
-    public func toDesc() : ObjectSpec {
-      var count = 0;
+    func cardinality() : Nat {
+      var n = 0;
       for (t in source.vals()) {
         let m = switch pred { case null true; case (?p) evalPred(p, t) };
-        if m count += 1;
+        if m n += 1;
       };
+      n
+    };
+
+    public func blob() : Blob              = "";
+    public let  class4cc                   = classCC;
+    // 'pcnt' is the AE generic-property "count" — `count of <collection>`.
+    // Resolution is a #value(#int32) data descriptor.
+    public let  accessors  : [Accessor]    = [{
+      form   = #named;
+      fourcc = "pcnt";
+      lookUp = func _ = ValueSmurf(#int32 (intToInt32Wrap (cardinality())));
+    }];
+    public func toDesc() : ObjectSpec {
+      let count = cardinality();
       let buf = Array_init<ObjectSpec>(count, #root);
       var i = 0;
       for (t in source.vals()) {
@@ -928,6 +939,20 @@ persistent actor {
     spec
   };
 
+  // Tiny demo 4: `count of every client whose country = <input>`.
+  // Same filter chain as tiny3, then dispatches the AE 'pcnt' property
+  // accessor on the resulting CollectionSmurf — returns a #value(#int32 N)
+  // data descriptor.
+  (with encoder)
+  public func tiny4(input : Text) : async ObjectSpec {
+    let pred : BoolExpr = #compare { prop = "cntr"; op = #eq; value = #text input };
+    let filtered = clntCollection.filter(pred);
+    let ?pcnt = findAccessor(filtered, "pcnt", #named) else trap "AE: tiny4: no pcnt accessor on collection";
+    let spec = pcnt.lookUp(filtered, #named "pcnt").toDesc();
+    debugPrint(debug_show { stage = "tiny4"; input; spec });
+    spec
+  };
+
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
     debugPrint(debug_show { stage = "db"; size = dbSize; matchers = countMatchers() });
@@ -956,6 +981,7 @@ persistent actor {
 //CALL ingress tiny1 0x4449444c00017ce400
 //CALL ingress tiny2 0x4449444c0001710c48616e73204dc3bc6c6c6572
 //CALL ingress tiny3 0x4449444c000171064672616e6365
+//CALL ingress tiny4 0x4449444c000171064672616e6365
 //CALL ingress go 0x646c6532000000006f626a200000026e000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004696e636f66726f6d6f626a200000022a000000040000000077616e747479706500000004636c6e74666f726d656e756d000000047465737473656c646c6f6769000001ea00000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001c600000002000000006c6f67690000013600000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001120000000200000000636d70640000008200000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004636e747266726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a32757478740000000e004700650072006d0061006e0079636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043e3d20206f626a326c6f6e67000000040000002d636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043c3d20206f626a326c6f6e67000000040000003766726f6d6e756c6c00000000
 
 //SKIP run
