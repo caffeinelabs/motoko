@@ -78,6 +78,8 @@ error[M0072]: field s does not exist in type:
     btstNat64 : (w : Nat64, amount : Nat64) -> Bool;
     btstNat8 : (w : Nat8, amount : Nat8) -> Bool;
     call_raw : (p : Principal, m : Text, a : Blob) -> async Blob;
+    callerInfoData : <system>() -> Blob;
+    callerInfoSigner : <system>() -> Blob;
     cancelTimer : (id : Nat) -> ();
     canisterSubnet : () -> Principal;
     canisterVersion : () -> Nat64;
@@ -133,7 +135,6 @@ error[M0072]: field s does not exist in type:
     error : (message : Text) -> Error;
     errorCode : (e : Error) -> ErrorCode;
     errorMessage : (e : Error) -> Text;
-    exists : <T>(f : T -> Bool) -> Bool;
     exp : (f : Float) -> Float;
     explodeInt16 : (n : Int16) -> (msb : Nat8, lsb : Nat8);
     explodeInt32 : (n : Int32) -> (msb : Nat8, Nat8, Nat8, lsb : Nat8);
@@ -160,7 +161,6 @@ error[M0072]: field s does not exist in type:
     floatToInt64 : (f : Float) -> Int64;
     floatToText : (x : Float) -> Text;
     floatTrunc : (f : Float) -> Float;
-    forall : <T>(f : T -> Bool) -> Bool;
     getCandidLimits :
       <system>() -> {bias : Nat32; denominator : Nat32; numerator : Nat32};
     getCandidTypeLimits : <system>() -> {bias : Nat32; scalar : Nat32};

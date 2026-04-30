@@ -34,7 +34,7 @@ let set_unions = List.fold_left S.union S.empty
 type f = usage_info M.t
 
 (* The analysis result of a recursive group, before tying the knot *)
-type group = (Source.region * S.t * S.t * S.t) list
+type group = (region * S.t * S.t * S.t) list
 
 (* Operations: Union and removal *)
 let (++) : f -> f -> f = M.union (fun _ u1 u2 -> Some (join u1 u2))
@@ -117,6 +117,7 @@ let rec exp msgs e : f = match e.it with
   | BinE (_, e1, _, e2)
   | RelE (_, e1, _, e2)
   | AndE (e1, e2)
+  | NullCoalesceE (e1, e2)
   | OrE (e1, e2) -> exps msgs [e1; e2]
   | ForE (p, e1, e2, _)    -> exp msgs e1 ++ (exp msgs e2 /// pat msgs p)
   | AsyncE (Some par, _, _, e) -> exps msgs [par; e]

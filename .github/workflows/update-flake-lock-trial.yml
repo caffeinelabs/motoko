@@ -25,17 +25,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Determinate Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210 # main
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
         id: app-token
         with:
-          app-id: ${{ vars.GENERIC_CI_RW_APP_ID }}
+          client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
           private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
       - name: Update flake.lock
-        uses: DeterminateSystems/update-flake-lock@main
+        uses: DeterminateSystems/update-flake-lock@3d82c7e1a46ddcc239881a2ac62b0d9d970dc96b # main
         with:
           branch: "update_flake_lock_action_trial"
           inputs: |

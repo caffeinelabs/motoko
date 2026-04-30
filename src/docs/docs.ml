@@ -1,4 +1,5 @@
 open Extract
+open Source
 
 type output_format = Plain | Adoc | Html
 
@@ -25,7 +26,7 @@ let write_file : string -> string -> unit =
 
 let extract : string -> extracted option =
  fun in_file ->
-  let parse_result = Pipeline.parse_file Source.no_region in_file in
+  let parse_result = Pipeline.parse_file no_region in_file in
   match parse_result with
   | Error err ->
       Printf.eprintf "Skipping %s:\n" in_file;

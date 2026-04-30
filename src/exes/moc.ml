@@ -1,5 +1,6 @@
 open Wasm_exts
 open Mo_config
+open Source
 
 open Printf
 
@@ -35,7 +36,7 @@ let valid_metadata_names =
      "motoko:stable-types";
      "motoko:compiler"]
 
-let argspec = 
+let argspec =
   Args.ai_args
   @ [
   "-c", Arg.Unit (set_mode Compile), " compile programs to WebAssembly";
@@ -199,6 +200,10 @@ let argspec =
   Arg.Unit (fun () -> Flags.rtti := true),
   " enable experimental support for precise runtime type information (default with enhanced orthogonal persistence)";
 
+  "--generate-view-queries",
+  Arg.Unit (fun () -> Flags.generate_view_queries := true),
+  " auto-generate queries for stable variables; preferring applicable .view() methods (default false)";
+
   "--rts-stack-pages",
   Arg.Int (fun pages -> Flags.rts_stack_pages := Some pages),
   "<n>  set maximum number of pages available for runtime system stack (default " ^ (Int.to_string Flags.rts_stack_pages_default) ^ ", only available with classical persistence)";
@@ -224,6 +229,8 @@ let argspec =
   ]
 
   @ Args.persistent_actors_args
+
+  @ Args.migration_args
 
   @ [
   "--stabilization-instruction-limit",
@@ -317,7 +324,7 @@ let process_files files : unit =
       let open Idllib in
       let did_file = Filename.remove_extension !out_file ^ ".did" in
       let oc = open_out did_file in
-      let module WithComments = Arrange_idl.Make(struct let trivia = Some idl_prog.Source.note.Syntax.trivia end) in
+      let module WithComments = Arrange_idl.Make(struct let trivia = Some idl_prog.note.Syntax.trivia end) in
       let idl_code = WithComments.string_of_prog idl_prog in
       output_string oc idl_code; close_out oc
     end;
@@ -387,6 +394,11 @@ let () =
   if !Flags.warnings_are_errors && (not !Flags.print_warnings)
   then fail "moc: --hide-warnings and -Werror together do not make sense";
 
+  if Option.is_some !Flags.enhanced_migration && not !Flags.enhanced_orthogonal_persistence
+  then begin
+    eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
+  end;
+  
   if not !Flags.skip_gc_deprecation_warning 
   then begin
     match !Flags.gc_strategy with

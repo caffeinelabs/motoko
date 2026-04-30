@@ -82,6 +82,16 @@ assert a2 <= a2;
 assert b2 >  a2;
 assert b2 >= b2;
 
+// PromoteF32;DemoteF64 round-trip is identity (peephole target)
+// Direct nested application avoids the pipe's intermediate let-binding (which would insert local.tee)
+let pi : Float32 = 3.14159265358979323846;
+assert floatToFloat32 (float32ToFloat pi) == pi;
+//CHECK: f32.const 0x1.921fb6p+1
+//CHECK-NOT: f64.promote_f32
+//CHECK-NOT: f32.demote_f64
+//CHECK-NEXT: f32.const 0x1.921fb6p+1
+//CHECK-NEXT: f32.eq
+
 //MOC-FLAG -dl
 //FILTER comp grep -e Float32Lit -e passed
 //FILTER run grep -e Float32Lit -e passed

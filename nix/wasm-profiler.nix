@@ -30,7 +30,7 @@ in
 
   # the FlameGraph package is a bit inconvenient, with stuff like files.pl in
   # the path. Package a smaller, nicer one, with just the flamegraph tool.
-  flamegraph-bin = pkgs.runCommandNoCC "flamegraph" { } ''
+  flamegraph-bin = pkgs.runCommand "flamegraph" { } ''
     mkdir -p $out/bin
     cp ${pkgs.flamegraph}/bin/flamegraph.pl $out/bin/flamegraph
   '';

@@ -3,7 +3,6 @@
 open Ir_def
 open Mo_types
 open Mo_values
-open Source
 open Ir
 module T = Type
 open Construct

@@ -65,7 +65,7 @@ let error_codes : (string * string option) list =
     "M0060", None; (* Operator is not defined for operand types *)
     "M0063", None; (* Show is not defined for operand type *)
     "M0064", None; (* Misplaced '!' without enclosing do block *)
-    "M0065", None; (* Expected option type before '!' *)
+    "M0065", None; (* Expected option type (before '!' or '??') *)
     "M0066", None; (* Tuple projection is out of bounds *)
     "M0067", None; (* Expected tuple type *)
     "M0068", None; (* Actors are not supported *)
@@ -207,6 +207,16 @@ let error_codes : (string * string option) list =
     "M0233", None; (* Wrong number of arguments *)
     "M0234", None; (* Field exists but is not a function *)
     "M0238", None; (* Misplaced break or continue *)
+    "M0245", None; (* Cannot find best common type (Inconsistent type) *)
+    "M0250", None; (* Variables without initializers only allowed in actors with --enhanced-migration flag *)
+    "M0251", None; (* Enhanced migration chain validation error (bad migration type, chain broken, output mismatch) *)
+    "M0252", None; (* Cannot combine (with migration = ...) with --enhanced-migration *)
+    "M0253", None; (* Inconsistent multi-migration signature *)
+    "M0255", None; (* Upgrading enhanced migration with non-enhanced migration *)
+    "M0256", None; (* Enhanced migration directory does not exist *)
+    "M0257", None; (* Misplaced uninitialized dec *)
+    "M0258", None; (* Uninitialized `let` with non <id> : <typ> pattern *)
+    "M0259", None; (* Uninitialized dec requires type annotation *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -252,6 +262,7 @@ let warning_codes = [
   "M0242", None, "Implicit oneway declaration";
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
+  "M0254", None, "Initial actor requires field"
   ]
 
 let try_find_explanation code =

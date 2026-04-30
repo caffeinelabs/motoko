@@ -3,11 +3,11 @@
     "candid-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1774880097,
-        "narHash": "sha256-i1y/on25Qx9sJYG/F4Fx44bjQPaJ2vkxYzp3n99KPi0=",
+        "lastModified": 1775745258,
+        "narHash": "sha256-s8+H0ji2uZOv6vgkO4KEOPxQAgziF7uo41Qsvqcokew=",
         "owner": "dfinity",
         "repo": "candid",
-        "rev": "27bdf42e00ee46eb38eaf7a6f452f563743b3923",
+        "rev": "39ef0989c4f7bdd71a0a68fdaf0f1146887e692c",
         "type": "github"
       },
       "original": {
@@ -88,11 +88,11 @@
     "ic-wasm-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1774880106,
-        "narHash": "sha256-+/4ALRFXGkBu2lLxK8vVoi2PZkGY4jcmqvSzWk1X5tA=",
+        "lastModified": 1775750188,
+        "narHash": "sha256-HWjiQzjGRZAPmxJyvUbk3nfl77+tmBx4M6nNeFnNjJ4=",
         "owner": "dfinity",
         "repo": "ic-wasm",
-        "rev": "8df9bd5317135386b614c4a59b309315453cc47e",
+        "rev": "a69ffcc5f1d3c9b8e7e7c733e1e120373272b58e",
         "type": "github"
       },
       "original": {
@@ -138,11 +138,11 @@
     "motoko-core-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1774968680,
-        "narHash": "sha256-Toug7hhkUOIcz+wxtNPe3fCLkCcYMZomoDf6lKqeiEg=",
+        "lastModified": 1777281947,
+        "narHash": "sha256-QOU2UxUABEgpg6LKA7qaBHBAy0qg1eyr4lUBvVGA5aw=",
         "owner": "caffeinelabs",
         "repo": "motoko-core",
-        "rev": "6aa07bae550ef14da483ebd93901a726405380eb",
+        "rev": "f5bd361eea97f887cf740f22601d570a31a0c7ad",
         "type": "github"
       },
       "original": {
@@ -193,16 +193,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1767313136,
-        "narHash": "sha256-16KkgfdYqjaeRGBaYsNrhPRRENs0qzkQVUooNHtoy2w=",
+        "lastModified": 1777077449,
+        "narHash": "sha256-AIiMJiqvGrN4HyLEbKAoCSRRYn0rnlW5VbKNIMIYqm4=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ac62194c3917d5f474c1a844b6fd6da2db95077d",
+        "rev": "a4bf06618f0b5ee50f14ed8f0da77d34ecc19160",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-25.05",
+        "ref": "nixos-25.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -223,22 +223,6 @@
         "type": "github"
       }
     },
-    "ocaml-vlq-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1629909858,
-        "narHash": "sha256-et4gfL9IVNkmTLp/S03eAQuRifsuxexvABdC3G7t1MU=",
-        "owner": "flowtype",
-        "repo": "ocaml-vlq",
-        "rev": "66238f9539292b5e0cf73cb8d80dbd3f41732c27",
-        "type": "github"
-      },
-      "original": {
-        "owner": "flowtype",
-        "repo": "ocaml-vlq",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "candid-src": "candid-src",
@@ -253,9 +237,7 @@
         "nix-update-flake": "nix-update-flake",
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
-        "ocaml-vlq-src": "ocaml-vlq-src",
-        "rust-overlay": "rust-overlay",
-        "wasm-spec-src": "wasm-spec-src"
+        "rust-overlay": "rust-overlay"
       }
     },
     "rust-overlay": {
@@ -265,11 +247,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1769222645,
-        "narHash": "sha256-gu6oZ86zLudBZMq8LL1qdtYt/S69GV5keQVXdvBrVSU=",
+        "lastModified": 1777259803,
+        "narHash": "sha256-fIb/EoVu/1U0qVrE6qZCJ2WCfprRpywNIAVzKEACIQc=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "22da29e7f3d8cff75009cbbcf992c7cb66920cfd",
+        "rev": "a6cb2224d975e16b5e67de688c6ad306f7203425",
         "type": "github"
       },
       "original": {
@@ -311,23 +293,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "type": "github"
-      }
-    },
-    "wasm-spec-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1588580907,
-        "narHash": "sha256-7Ew7V63uzGhwrPLUa6+4OG4GwkuggmtJiuaESbYX584=",
-        "owner": "WebAssembly",
-        "repo": "spec",
-        "rev": "65a37e19b4aa4ffb76034ad6727bab74b071df9d",
-        "type": "github"
-      },
-      "original": {
-        "owner": "WebAssembly",
-        "ref": "opam-1.1.1",
-        "repo": "spec",
         "type": "github"
       }
     }

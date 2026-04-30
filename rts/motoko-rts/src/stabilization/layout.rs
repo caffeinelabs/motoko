@@ -179,7 +179,7 @@ impl StableObjectKind {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Default)]
 pub struct StableValue(u64);
 
 impl StableValue {

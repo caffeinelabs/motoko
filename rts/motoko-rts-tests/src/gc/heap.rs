@@ -129,7 +129,7 @@ impl MotokoHeap {
     }
 
     /// Get the heap as an array. Use `offset` values returned by the methods above to read.
-    pub fn heap(&self) -> Ref<Box<[u8]>> {
+    pub fn heap(&self) -> Ref<'_, Box<[u8]>> {
         Ref::map(self.inner.borrow(), |heap| &heap.heap)
     }
 
@@ -342,8 +342,12 @@ fn heap_size_for_gc(gc: GC, total_heap_size_bytes: usize, n_objects: usize) -> u
 }
 
 #[incremental_gc]
-fn heap_size_for_gc(gc: GC, _total_heap_size_bytes: usize, _n_objects: usize) -> usize {
+fn heap_size_for_gc(gc: GC, total_heap_size_bytes: usize, _n_objects: usize) -> usize {
     match gc {
-        GC::Incremental => 3 * motoko_rts::gc::incremental::partitioned_heap::PARTITION_SIZE,
+        GC::Incremental => {
+            let min_partitions = 3 * motoko_rts::gc::incremental::partitioned_heap::PARTITION_SIZE;
+            // Ensure enough space for the actual heap content
+            min_partitions.max(total_heap_size_bytes * 2)
+        }
     }
 }

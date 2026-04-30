@@ -15,8 +15,9 @@ use crate::{
     persistence::compatibility::memory_compatible,
     region::{
         LEGACY_VERSION_NO_STABLE_MEMORY, LEGACY_VERSION_REGIONS, LEGACY_VERSION_SOME_STABLE_MEMORY,
-        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS, VERSION_STABLE_HEAP_NO_REGIONS,
-        VERSION_STABLE_HEAP_REGIONS,
+        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS,
+        VERSION_GRAPH_COPY_V1_NO_REGIONS, VERSION_GRAPH_COPY_V1_REGIONS,
+        VERSION_STABLE_HEAP_NO_REGIONS, VERSION_STABLE_HEAP_REGIONS,
     },
     rts_trap_with,
     stable_mem::read_persistence_version,
@@ -63,6 +64,10 @@ struct PersistentMetadata {
     /// We keep a pointer to this here so that we can keep if alive across upgrades.
     /// To keep the dedup table live, we need to add it to roots as well.
     dedup_table: Value,
+    /// Migration function list. This is an RTS root that holds the head of a linked list of the the names (strings) of the migration functions.
+    /// This is for the purpose of multi-migration tracking such that a single migration function
+    /// cannot be executed multiple times, removing the risk of data loss.
+    migration_functions: Value,
 }
 
 /// Location of the persistent metadata. Prereserved and fixed forever.
@@ -113,6 +118,8 @@ impl PersistentMetadata {
         (*self).weak_ref_registry = NULL_POINTER;
         // Initialize the dedup table as the null pointer.
         (*self).dedup_table = NULL_POINTER;
+        // Initialize the migration functions list as the null pointer.
+        (*self).migration_functions = NULL_POINTER;
     }
 }
 
@@ -136,6 +143,12 @@ pub unsafe fn initialize_memory<M: Memory>() {
             // We need to initialize the dedup table to NULL_POINTER.
             (*metadata).dedup_table = NULL_POINTER;
         }
+        // Explicit migration from a version of the RTS without migration functions support.
+        if (*metadata).migration_functions.get_raw() == 0 {
+            // This is the first upgrade from a version of the RTS without migration functions support.
+            // We need to initialize the migration functions array to NULL_POINTER.
+            (*metadata).migration_functions = NULL_POINTER;
+        }
     } else {
         metadata.initialize::<M>();
     }
@@ -146,6 +159,8 @@ unsafe fn use_enhanced_orthogonal_persistence() -> bool {
         VERSION_STABLE_HEAP_NO_REGIONS | VERSION_STABLE_HEAP_REGIONS => true,
         VERSION_GRAPH_COPY_NO_REGIONS
         | VERSION_GRAPH_COPY_REGIONS
+        | VERSION_GRAPH_COPY_V1_NO_REGIONS
+        | VERSION_GRAPH_COPY_V1_REGIONS
         | LEGACY_VERSION_NO_STABLE_MEMORY
         | LEGACY_VERSION_SOME_STABLE_MEMORY
         | LEGACY_VERSION_REGIONS => false,
@@ -236,6 +251,14 @@ unsafe fn update_stable_type<M: Memory>(
         rts_trap_with("Memory-incompatible program upgrade");
     }
     (*metadata).stable_type.assign(mem, &new_type);
+}
+
+/// Restore the old stable type from graph-copy stabilization metadata into
+/// the freshly initialized persistent metadata so that `register_stable_type`
+/// can check compatibility when the migration chain runs after destabilization.
+pub unsafe fn restore_stable_type<M: Memory>(mem: &mut M, old_type: &TypeDescriptor) {
+    let metadata = PersistentMetadata::get();
+    (*metadata).stable_type.assign(mem, old_type);
 }
 
 /// Register the stable actor type on canister initialization and upgrade.
@@ -361,4 +384,24 @@ pub(crate) unsafe fn set_dedup_table_ptr<M: Memory>(mem: &mut M, dedup_table: Va
     let metadata = PersistentMetadata::get();
     // Use barrier in case the dedup table is set during a GC phase.
     write_with_barrier(mem, &mut (*metadata).dedup_table, dedup_table);
+}
+
+/// Accessor method for the migration functions list.
+pub(crate) unsafe fn get_migration_functions_ptr() -> &'static mut Value {
+    let metadata = PersistentMetadata::get();
+    &mut (*metadata).migration_functions
+}
+
+/// Setter method for the migration functions list.
+pub(crate) unsafe fn set_migration_functions_ptr<M: Memory>(
+    mem: &mut M,
+    migration_functions: Value,
+) {
+    let metadata = PersistentMetadata::get();
+    // Use barrier in case the migration functions list is set during a GC phase.
+    write_with_barrier(
+        mem,
+        &mut (*metadata).migration_functions,
+        migration_functions,
+    );
 }

@@ -2,8 +2,78 @@
 
 * motoko (`moc`)
 
-  * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5903).
   * feat: Structural implicit derivation for records and tuples via `__record` and `__tuple` combiners. Per-field results are lazy thunks, enabling short-circuiting for operations like `compare` (#5903).
+
+  * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
+## 1.7.0 (2026-04-29)
+
+* motoko (`moc`)
+
+  * feat: Add null-coalescing operator `??` (#5722).
+    `e1 ?? e2` evaluates to the unwrapped contents of `e1` when `e1` is `?v`,
+    otherwise to `e2`. The right-hand side is evaluated lazily (short-circuit).
+    For example, `opt ?? defaultValue` replaces the verbose
+    `switch opt { case (?v) v; case null defaultValue }`.
+    The right-hand side may be a block (e.g. `opt ?? { let x = 1; x }`),
+    a `do`-block, or a `Prim.trap` for fail-fast unwrapping. Because `{ ... }`
+    on the right is parsed as a block, a bare record literal must be wrapped
+    in extra braces or parentheses, e.g. `opt ?? ({ x = 0 })` or
+    `opt ?? {{ x = 0 }}`.
+
+  * perf: Compile enhanced multi-migration chains as per-step functions instead of one deeply-nested inlined expression, avoiding the wasm-function complexity limit hit by long chains (#6065).
+
+  * bugfix: Preserve GC-only roots (blob deduplication table, migration functions list) across graph-copy upgrades, and defer actor type compatibility checks to `ICStableRead` so enhanced multi-migration chains with multiple pending steps are accepted (#5993).
+
+  * bugfix: Clearer error when installing a Motoko canister over a non-Motoko or otherwise incompatible canister (#6044).
+
+## 1.6.0 (2026-04-21)
+
+* motoko (`moc`)
+
+  * feat: expose caller attributes feature through primitives (#5970).
+
+  * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files (#6015).
+
+## 1.5.1 (2026-04-13)
+
+* motoko (`moc`)
+
+  * bugfix: Resolve relative paths in `moc.js` flags (e.g. `--enhanced-migration`, `--actor-idl`) against the source file's directory, fixing "not a directory" errors when these flags are passed with relative paths via the language server (#6002).
+
+## 1.5.0 (2026-04-10)
+
+* motoko (`moc`)
+
+  * feat: Add `--generate-view-queries` flag to auto-generate query methods for stable variables (#5796).
+    When enabled, `moc` produces one `__<var>` query method per stable variable `<var>`, using the variable's `.view()` method if available, or returning the value directly for shared types.
+    Generated queries are restricted to controllers and self.
+    View queries appear in the local `.did` file (for tooling) but are excluded from the canister's public Candid interface, so they never affect upgrade compatibility.
+    See [Stable variable inspection](doc/md/icp-features/7-view-queries.md) for details.
+
+  * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
+    Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
+    Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
+    The (lexicographic) sort order of module filenames determines the order of application of migration functions, with lowest applied first.
+    The compiler verifies that the chain of migration functions composes correctly.
+    The runtime only applies previously unapplied migrations on upgrade.
+    Stable variables within an actor's body must be declared with types but without initializers;
+    their values are determined entirely by the output of the migration chain.
+    The main body of actor must not have any immediate side effects, beyond invoking
+    local `<system>` functions (e.g. to register timers).
+    General side-effects are allowed in migration functions, to enable data initialization
+    and transformation.
+    See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
+
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
+  * bugfix: Fix type inference for `return` expressions inside unannotated lambdas passed to generic functions. Previously, the generic type parameter could resolve to `Non` instead of the actual return type, causing an IR type error (#5962).
+
+  * bugfix: Fix crash when reporting errors with no source region (#5976).
+
+* documentation (`mo-doc`)
+
+  * feat: doc comments on individual record fields and variant tags inside a `type` declaration are now extracted and rendered (#5983).
 
 ## 1.4.1 (2026-03-30)
 

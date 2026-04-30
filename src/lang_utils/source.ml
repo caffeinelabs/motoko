@@ -1,5 +1,8 @@
-type pos = {file : string; line : int; column : int}
-type region = {left : pos; right : pos}
+type pos = Wasm.Source.pos = { file : string; line : int; column : int }
+type region = Wasm.Source.region = { left : pos; right : pos }
+
+open Wasm.Source
+
 type ('a, 'b) annotated_phrase = {at : region; it : 'a; mutable note: 'b}
 type 'a phrase = ('a, unit) annotated_phrase
 
@@ -34,6 +37,9 @@ let (@@) it at = annotate () it at
 
 let no_pos = {file = ""; line = 0; column = 0}
 let no_region = {left = no_pos; right = no_pos}
+
+let is_no_pos p = p.file = "" && p.line = 0 && p.column = 0
+let is_no_region r = is_no_pos r.left && is_no_pos r.right
 
 let span r1 r2 = {left = r1.left; right = r2.right}
 let between r1 r2 = {left = r1.right; right = r2.left}
