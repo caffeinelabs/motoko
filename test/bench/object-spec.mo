@@ -56,6 +56,7 @@ persistent actor {
     #root;
     #obj : { class_ : Text; container : ObjectSpec; key : KeyForm };
     #value : CandidValue;          // data descriptor (utxt/long/…), wraps a typed leaf value
+    #list : [ObjectSpec];          // 'list' descriptor (typeAEList): N nested descriptors
   };
 
   // Mock client DB. Deterministic generation tuned for ~30% match rate
@@ -662,6 +663,11 @@ persistent actor {
       case (#root) 0;
       case (#obj { class_ = _; container; key }) 64 + seldBodyLen key + encDescLen container;
       case (#value v) valueDescLen v;
+      case (#list es) {
+        var n : Nat = 8;                              // count + pad
+        for (e in es.vals()) n += 8 + encDescLen e;   // each child: 8-byte AE header + body
+        n
+      };
     }
   };
 
@@ -783,6 +789,11 @@ persistent actor {
         writeObjBody(w, class_, container, key);
       };
       case (#value v) writeValue(w, v);
+      case (#list es) {
+        w.writeU32s([LIST, intToNat32Wrap (encDescLen spec),
+                     intToNat32Wrap (es.size()), 0]);
+        for (e in es.vals()) writeDesc(w, e);
+      };
     }
   };
 
@@ -850,6 +861,28 @@ persistent actor {
     spec
   };
 
+  // Tiny demo 3: `every client whose country = <input>`. Filters the typed
+  // [Client] directly with a #compare predicate, returns a #list of #obj
+  // references (one `clnt by name` spec per match). No CollectionSmurf yet —
+  // that's the next refactor; this exercises the wire encoding for #list.
+  (with encoder)
+  public func tiny3(input : Text) : async ObjectSpec {
+    let pred : BoolExpr = #compare { prop = "cntr"; op = #eq; value = #text input };
+    var count = 0;
+    for (c in clients.vals()) if (evalBoolExpr(pred, c)) count += 1;
+    let buf = Array_init<ObjectSpec>(count, #root);
+    var i = 0;
+    for (c in clients.vals()) {
+      if (evalBoolExpr(pred, c)) {
+        buf[i] := #obj { class_ = "clnt"; container = #root; key = #name (c.name) };
+        i += 1;
+      };
+    };
+    let spec : ObjectSpec = #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]));
+    debugPrint(debug_show { stage = "tiny3"; input; count });
+    spec
+  };
+
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
     debugPrint(debug_show { stage = "db"; size = dbSize; matchers = countMatchers() });
@@ -877,6 +910,7 @@ persistent actor {
 //CALL ingress tiny1 0x4449444c00017c7f
 //CALL ingress tiny1 0x4449444c00017ce400
 //CALL ingress tiny2 0x4449444c0001710c48616e73204dc3bc6c6c6572
+//CALL ingress tiny3 0x4449444c000171064672616e6365
 //CALL ingress go 0x646c6532000000006f626a200000026e000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004696e636f66726f6d6f626a200000022a000000040000000077616e747479706500000004636c6e74666f726d656e756d000000047465737473656c646c6f6769000001ea00000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001c600000002000000006c6f67690000013600000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001120000000200000000636d70640000008200000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004636e747266726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a32757478740000000e004700650072006d0061006e0079636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043e3d20206f626a326c6f6e67000000040000002d636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043c3d20206f626a326c6f6e67000000040000003766726f6d6e756c6c00000000
 
 //SKIP run
