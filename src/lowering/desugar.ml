@@ -989,7 +989,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
     | None -> ds in
   let meta =
     I.{ candid = candid;
-        sig_ = T.string_of_stab_sig sig_} in
+        sig_ = T.string_of_stab_sig (Stab_sig_dedup.dedup sig_)} in
   let with_stable_vars wrap =
     let vs = fresh_vars "v" (List.map (fun f -> f.T.typ) mem_fields) in
     blockE
