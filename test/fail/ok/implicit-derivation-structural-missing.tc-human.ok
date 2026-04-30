@@ -4,6 +4,6 @@ error[M0230]: Cannot determine implicit argument `_toJson` of type
   4 │  ignore ({ flag = true; nat = 1; int = -1 }).toJson();
     │                                                    ^^ 
     = note: Implicit derivation failed:
-                 `_toJson : Bool -> Json` — not found
-                 `_toJson : Int -> Json` — not found, try importing mo:json/IntJson
-                 `_toJson : Nat -> Json` — not found, try importing mo:json/IntJson
+                 `_toJson : Bool -> Json` not found
+                 `_toJson : Int -> Json` not found, try importing mo:json/IntJson
+                 `_toJson : Nat -> Json` not found, try importing mo:json/IntJson

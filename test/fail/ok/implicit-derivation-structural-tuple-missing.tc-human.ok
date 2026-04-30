@@ -4,4 +4,4 @@ error[M0230]: Cannot determine implicit argument `describe` of type
   6 │  ignore inspect(("hello", true));
     │         ^^^^^^^^^^^^^^^^^^^^^^^^ 
     = note: Implicit derivation failed:
-                 `describe : Bool -> Text` — not found
+                 `describe : Bool -> Text` not found
