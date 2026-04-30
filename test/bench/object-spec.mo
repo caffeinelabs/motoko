@@ -244,7 +244,6 @@ persistent actor {
                                          // children can return "" when nobody pulls
     class4cc     : Text;                 // wire 4cc, "" for primitives
     accessors    : [Accessor];           // per-class navigation hooks (incl. property leaves)
-    enumerate    : () -> Iter<Blob>;     // every instance of this class
     toDesc       : () -> ObjectSpec;     // render self: #obj/#root for nodes, #value for leaves
     isNotFound   : Bool;                 // sentinel for AE-404 (errAENoSuchObject)
   };
@@ -264,7 +263,6 @@ persistent actor {
     blob        = func() : Blob = "";
     class4cc    = "";
     accessors   = [];
-    enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
     toDesc      = func() : ObjectSpec = #root;
     isNotFound  = true;
   };
@@ -276,7 +274,6 @@ persistent actor {
     public func blob() : Blob = to_candid (value);
     public let  class4cc                      = "";
     public let  accessors   : [Accessor]      = [];
-    public func enumerate() : Iter<Blob>      = { next = func() : ?Blob = null };
     public func toDesc() : ObjectSpec         = #value value;
     public let  isNotFound                    = false;
   };
@@ -309,7 +306,6 @@ persistent actor {
       clientPropAccessor("age ", c, func c = #int32 (c.age)),
       clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
     ];
-    enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
     toDesc      = func() : ObjectSpec = #obj {
       class_    = "clnt";
       container = parent.toDesc();
@@ -372,7 +368,6 @@ persistent actor {
       VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
       VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
     ];
-    enumerate   = func() : Iter<Blob> = { next = func() : ?Blob = null };
     toDesc      = func() : ObjectSpec = #root;
     isNotFound  = false;
   };
