@@ -1812,7 +1812,7 @@ module ImplicitHoles = struct
       is_matching_typ_with_holes hole field.T.typ
       |> Option.map (fun holes -> holes, make_field_candidate module_ref field))
 
-    let structural_candidates info hole = filter_fields hole (fun module_ref field ->
+    let matching_fields_structural info hole = filter_fields hole (fun module_ref field ->
       is_matching_structural_combiner info field.T.typ
       |> Option.map (fun elem_typ -> (elem_typ, make_field_candidate module_ref field)))
   end
@@ -1833,14 +1833,14 @@ module ImplicitHoles = struct
     let* holes = is_matching_typ_with_holes hole t in
     Some (holes, make_val_candidate hole.hole_name t)
 
-  module FromModuleVal = MakeFromModule(ValCandidateSource)
-  module FromModuleLib = MakeFromModule(LibCandidateSource)
-
-  let structural_val_candidates info hole (vals : val_env) =
+  let matching_val_structural info hole (vals : val_env) =
     let* (t, _, _, _) = T.Env.find_opt hole.hole_name vals in
     if T.is_mut t then None else
     let* elem_typ = is_matching_structural_combiner info t in
     Some (elem_typ, make_val_candidate hole.hole_name t)
+
+  module FromModuleVal = MakeFromModule(ValCandidateSource)
+  module FromModuleLib = MakeFromModule(LibCandidateSource)
 
   (* All candidates are subtypes of the required type. The "greatest" of these types is the "closest" to the required type.
   If we can uniquely identify a single candidate that is the supertype of all other candidates we pick it. *)
@@ -1978,19 +1978,19 @@ module ImplicitHoles = struct
     (* Try structural synthesis (record/tuple/variant) — local vals, module fields, libs.
        Candidate functions filter by kind + ret during collection;
        try_derive_structural disambiguates and synthesizes with no further filtering. *)
-    match try_derive_structural info (Option.to_list (structural_val_candidates info hole env.vals)) ~depth with
+    match try_derive_structural info (Option.to_list (matching_val_structural info hole env.vals)) ~depth with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous cs)
     | `Empty ->
 
-    match try_derive_structural info (FromModuleVal.structural_candidates info hole env.vals) ~depth with
+    match try_derive_structural info (FromModuleVal.matching_fields_structural info hole env.vals) ~depth with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous cs)
     | `Empty ->
 
-    let structural_lib_candidates = FromModuleLib.structural_candidates info hole env.libs in
+    let structural_lib_candidates = FromModuleLib.matching_fields_structural info hole env.libs in
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
       if Option.is_some !Flags.implicit_package
