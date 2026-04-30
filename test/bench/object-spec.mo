@@ -245,6 +245,7 @@ persistent actor {
     class4cc     : Text;                 // wire 4cc, "" for primitives
     accessors    : [Accessor];           // per-class navigation hooks (incl. property leaves)
     toDesc       : () -> ObjectSpec;     // render self: #obj/#root for nodes, #value for leaves
+    filter       : (BoolExpr) -> Smurf;  // restrict elements (singleton: pass/empty; collection: subset)
     isNotFound   : Bool;                 // sentinel for AE-404 (errAENoSuchObject)
   };
 
@@ -264,6 +265,7 @@ persistent actor {
     class4cc    = "";
     accessors   = [];
     toDesc      = func() : ObjectSpec = #root;
+    filter      = func _ = notFoundSmurf;     // empty stays empty
     isNotFound  = true;
   };
 
@@ -275,6 +277,10 @@ persistent actor {
     public let  class4cc                      = "";
     public let  accessors   : [Accessor]      = [];
     public func toDesc() : ObjectSpec         = #value value;
+    // ValueSmurf is a singleton; filtering it would need a typed evaluator
+    // over CandidValue. We don't have one yet, so trap — callers shouldn't
+    // filter leaves directly today. (TODO: predicate-on-CandidValue eval.)
+    public func filter(_ : BoolExpr) : Smurf  = trap "AE: ValueSmurf.filter — predicate-on-CandidValue not implemented";
     public let  isNotFound                    = false;
   };
 
@@ -297,21 +303,26 @@ persistent actor {
     lookUp = func _ = ValueSmurf(extract c);
   };
 
-  func clientSmurf(c : Client, parent : Smurf) : Smurf = {
-    blob        = func() : Blob = to_candid (c);
-    class4cc    = "clnt";
-    accessors   = [
-      clientPropAccessor("name", c, func c = #text (c.name)),
-      clientPropAccessor("cntr", c, func c = #text (c.country)),
-      clientPropAccessor("age ", c, func c = #int32 (c.age)),
-      clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
-    ];
-    toDesc      = func() : ObjectSpec = #obj {
-      class_    = "clnt";
-      container = parent.toDesc();
-      key       = #name (c.name);
+  func clientSmurf(c : Client, parent : Smurf) : Smurf {
+    let self : Smurf = {
+      blob        = func() : Blob = to_candid (c);
+      class4cc    = "clnt";
+      accessors   = [
+        clientPropAccessor("name", c, func c = #text (c.name)),
+        clientPropAccessor("cntr", c, func c = #text (c.country)),
+        clientPropAccessor("age ", c, func c = #int32 (c.age)),
+        clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
+      ];
+      toDesc      = func() : ObjectSpec = #obj {
+        class_    = "clnt";
+        container = parent.toDesc();
+        key       = #name (c.name);
+      };
+      // Singleton filter: predicate against the typed Client; pass-or-empty.
+      filter      = func p = if (evalBoolExpr(p, c)) self else notFoundSmurf;
+      isNotFound  = false;
     };
-    isNotFound  = false;
+    self
   };
 
   // VarAccessor<T>: typed escape hatch over a stable [T]. Captures the
@@ -359,6 +370,47 @@ persistent actor {
     };
   };
 
+  // CollectionSmurf<T>: typed multi-element view over a stable [T]. Holds
+  // an accumulated predicate (`null` = unfiltered) so `filter` composes via
+  // `#and_`. `toDesc` resolves eagerly into a `#list` of element references —
+  // each match is wrapped (e.g. clientSmurf) and asked for its own toDesc.
+  // The typed-fast-path: `evalPred` operates on `T` directly, no Candid round
+  // trip per element.
+  class CollectionSmurf<T>(
+    source   : [T],
+    classCC  : Text,
+    parent   : Smurf,
+    wrap     : (T, Smurf) -> Smurf,
+    evalPred : (BoolExpr, T) -> Bool,
+    pred     : ?BoolExpr,
+  ) {
+    public func blob() : Blob              = "";
+    public let  class4cc                   = classCC;
+    public let  accessors  : [Accessor]    = [];
+    public func toDesc() : ObjectSpec {
+      var count = 0;
+      for (t in source.vals()) {
+        let m = switch pred { case null true; case (?p) evalPred(p, t) };
+        if m count += 1;
+      };
+      let buf = Array_init<ObjectSpec>(count, #root);
+      var i = 0;
+      for (t in source.vals()) {
+        let m = switch pred { case null true; case (?p) evalPred(p, t) };
+        if m { buf[i] := wrap(t, parent).toDesc(); i += 1 };
+      };
+      #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
+    };
+    public func filter(p : BoolExpr) : Smurf {
+      let newPred : ?BoolExpr = switch pred {
+        case null ?p;
+        case (?old) ?(#and_ (old, p));
+      };
+      CollectionSmurf<T>(source, classCC, parent, wrap, evalPred, newPred)
+    };
+    public let isNotFound = false;
+  };
+
   // The canister's root Smurf. Hosts two "clnt" accessors over the stable
   // clients array — one #indexed and one #named (lookup by primary key).
   transient let actorSmurf : Smurf = {
@@ -369,8 +421,16 @@ persistent actor {
       VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
     ];
     toDesc      = func() : ObjectSpec = #root;
+    // Root has no own attributes — predicate doesn't apply, fall through.
+    filter      = func _ = notFoundSmurf;
     isNotFound  = false;
   };
+
+  // Unfiltered "every clnt of root" view. Eventually navigated to via an
+  // accessor on actorSmurf; for now exposed top-level so tiny3 can route
+  // through `filter` without inventing a new accessor form.
+  transient let clntCollection : Smurf =
+    CollectionSmurf<Client>(clients, "clnt", actorSmurf, clientSmurf, evalBoolExpr, null);
 
   class Reader(src : Iter<Nat8>) {
     public let next = src.next;
@@ -857,24 +917,14 @@ persistent actor {
   };
 
   // Tiny demo 3: `every client whose country = <input>`. Filters the typed
-  // [Client] directly with a #compare predicate, returns a #list of #obj
-  // references (one `clnt by name` spec per match). No CollectionSmurf yet —
-  // that's the next refactor; this exercises the wire encoding for #list.
+  // [Client] via the protocol surface: clntCollection.filter(pred).toDesc().
+  // CollectionSmurf accumulates predicates and resolves eagerly into a #list
+  // of element references; each match's toDesc() is the `clnt by name` spec.
   (with encoder)
   public func tiny3(input : Text) : async ObjectSpec {
     let pred : BoolExpr = #compare { prop = "cntr"; op = #eq; value = #text input };
-    var count = 0;
-    for (c in clients.vals()) if (evalBoolExpr(pred, c)) count += 1;
-    let buf = Array_init<ObjectSpec>(count, #root);
-    var i = 0;
-    for (c in clients.vals()) {
-      if (evalBoolExpr(pred, c)) {
-        buf[i] := #obj { class_ = "clnt"; container = #root; key = #name (c.name) };
-        i += 1;
-      };
-    };
-    let spec : ObjectSpec = #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]));
-    debugPrint(debug_show { stage = "tiny3"; input; count });
+    let spec = clntCollection.filter(pred).toDesc();
+    debugPrint(debug_show { stage = "tiny3"; input });
     spec
   };
 
