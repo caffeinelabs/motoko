@@ -1,0 +1,4 @@
+implicit-derivation-ambiguous-deep.mo:31.8-31.30: type error [M0230], Cannot determine implicit argument `compare` of type
+  ([Nat], [Nat]) -> Order
+note: Implicit derivation failed:
+  `compare : (Nat, Nat) -> Order` has ambiguous solutions: `MyNat.compare`, `Nat.compare`
