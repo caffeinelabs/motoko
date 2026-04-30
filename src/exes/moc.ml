@@ -333,11 +333,11 @@ let process_files files : unit =
       let sig_file = Filename.remove_extension !out_file ^ ".most"
       in
       CustomModule.(
-        match module_.motoko.stable_types with
-        | Some (_, txt) ->
+        match module_.motoko.stable_types_text with
+        | Some txt ->
           let oc_ = open_out sig_file in
           output_string oc_ txt; close_out oc_
-        | _ -> ())
+        | None -> ())
     end
 
   | PrintDeps -> begin

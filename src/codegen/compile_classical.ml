@@ -425,6 +425,7 @@ module E = struct
     args : (bool * string) option ref;
     service : (bool * string) option ref;
     stable_types : (bool * string) option ref;
+    stable_types_text : string option ref;
     labs : LabSet.t ref; (* Used labels (fields and variants),
                             collected for Motoko custom section 0 *)
 
@@ -467,6 +468,7 @@ module E = struct
     args = ref None;
     service = ref None;
     stable_types = ref None;
+    stable_types_text = ref None;
     labs = ref LabSet.empty;
     (* Actually unused outside mk_fun_env: *)
     n_param = 0l;
@@ -13593,6 +13595,7 @@ and main_actor as_opt mod_env ds fs up =
 
     (* Export metadata *)
     env.E.stable_types := metadata "motoko:stable-types" up.meta.sig_;
+    env.E.stable_types_text := Some up.meta.sig_;
     env.E.service := metadata "candid:service" up.meta.candid.service;
     env.E.args := metadata "candid:args" up.meta.candid.args;
 
@@ -13711,6 +13714,7 @@ and conclude_module env set_serialization_globals start_fi_o =
       motoko = {
         labels = E.get_labs env;
         stable_types = !(env.E.stable_types);
+        stable_types_text = !(env.E.stable_types_text);
         compiler = metadata "motoko:compiler" (Lib.Option.get Source_id.release Source_id.id)
       };
       enhanced_orthogonal_persistence = None;
