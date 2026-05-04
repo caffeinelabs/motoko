@@ -45,7 +45,7 @@ pkgs.mkShell {
         pkgs.fswatch
         pkgs.rlwrap # for `rlwrap moc`
         pkgs.moreutils # `chronic` for `make -C test quick`
-        pkgs.wabt # `wasm-validate` for `test/run.sh`
+        pkgs.wabt # `wasm-validate` for `run-test`
         pkgs.openjdk
         pkgs.difftastic
         pkgs.pocket-ic.server

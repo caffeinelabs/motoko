@@ -27,12 +27,9 @@ type ('a, 'b) these =
 
 module List :
 sig
-  val equal : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
   val make : int -> 'a -> 'a list
   val table : int -> (int -> 'a) -> 'a list
   val group : ('a -> 'a -> bool) -> 'a list -> 'a list list
-  val take : int -> 'a list -> 'a list (* raises Failure *)
-  val drop : int -> 'a list -> 'a list (* raises Failure *)
   val replicate : 'a -> int -> 'a list
   val split_at : int -> 'a list -> ('a list * 'a list)
   val split3 : ('a * 'b * 'c) list -> ('a list * 'b list * 'c list)
@@ -46,14 +43,11 @@ sig
   val index_of : 'a -> 'a list -> int option
   val index_where : ('a -> bool) -> 'a list -> int option
 
-  val compare : ('a -> 'a -> int) -> 'a list -> 'a list -> int
   val is_ordered : ('a -> 'a -> int) -> 'a list -> bool
   val is_strictly_ordered : ('a -> 'a -> int) -> 'a list -> bool
   val is_prefix : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
 
   val iter_pairs : ('a -> 'a -> unit) -> 'a list -> unit
-
-  val safe_map : ('a -> 'b) -> 'a list -> 'b list
 
   (** Assumes the two lists have been sorted with respect to the comparison function *)
   val align : ('a -> 'b -> int) -> 'a list -> 'b list -> ('a, 'b) these Seq.t
@@ -64,8 +58,6 @@ sig
   val make : int32 -> 'a -> 'a list
   val length : 'a list -> int32
   val nth : 'a list -> int32 -> 'a (* raises Failure *)
-  val take : int32 -> 'a list -> 'a list (* raises Failure *)
-  val drop : int32 -> 'a list -> 'a list (* raises Failure *)
 end
 
 module Array :

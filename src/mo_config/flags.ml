@@ -88,6 +88,7 @@ let experimental_stable_memory_default = 0 (* _ < 0: error; _ = 0: warn, _ > 0: 
 let experimental_stable_memory = ref experimental_stable_memory_default
 let typechecker_combine_srcs = ref false (* useful for the language server *)
 let blob_import_placeholders = ref false (* when enabled, blob:file imports resolve as empty blobs *)
+let implicit_derivation_depth = ref 100
 let generate_view_queries = ref false
 
 let default_warning_levels = M.empty

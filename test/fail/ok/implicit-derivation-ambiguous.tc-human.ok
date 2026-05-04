@@ -1,0 +1,6 @@
+error[M0231]: ambiguous implicit argument named `compare` of type 
+  ([Nat], [Nat]) -> Order.
+    ┌─ implicit-derivation-ambiguous.mo:30:8
+ 30 │  ignore needsCompare([1], [2]); // ambiguous head: Array1.compare and Array2.compare
+    │         ^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: The ambiguous implicit candidates are: `Array1.compare`, `Array2.compare`.

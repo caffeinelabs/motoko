@@ -4,6 +4,7 @@ use ic_management_canister_types::CanisterSettings;
 use pocket_ic::common::rest::IcpConfig;
 use pocket_ic::common::rest::IcpConfigFlag;
 use pocket_ic::common::rest::RawEffectivePrincipal;
+use pocket_ic::common::rest::RawSenderInfo;
 use pocket_ic::{PocketIc, PocketIcBuilder, RejectResponse, call_candid_as};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -65,6 +66,7 @@ pub enum TestCommand {
         canister_id: String,
         method_name: String,
         args: String,
+        sender_info: Option<(String, String)>,
     },
     Query {
         canister_id: String,
@@ -255,6 +257,13 @@ impl TestCommand {
             .map_err(|e| std::io::Error::other(format!("Failed to parse args: {}", e)))
     }
 
+    fn parse_sender_info(inputs: (&str, &str)) -> Result<RawSenderInfo, std::io::Error> {
+        Ok(RawSenderInfo {
+            signer: TestCommand::parse_args(inputs.0)?,
+            info: TestCommand::parse_args(inputs.1)?,
+        })
+    }
+
     fn create_canister(&self, server: &mut PocketIc, canister_id: &str) -> std::io::Result<()> {
         let canister_principal = Self::principal_from_text(canister_id)?;
         let sender = Principal::anonymous();
@@ -408,9 +417,15 @@ impl TestCommand {
         canister_id: &str,
         method_name: &str,
         args: &str,
+        sender_info: &Option<(String, String)>,
     ) -> std::io::Result<()> {
         let canister_principal = Self::principal_from_text(canister_id)?;
         let payload = Self::parse_args(args)?;
+        let sender_info = if let Some(sender_info) = sender_info {
+            Some(Self::parse_sender_info((&sender_info.0, &sender_info.1))?)
+        } else {
+            None
+        };
 
         let res = match method_name {
             "__motoko_stabilize_before_upgrade" => server.update_call(
@@ -435,16 +450,31 @@ impl TestCommand {
                 // Certain tests are of form await (with_timeout = X) and we need to wait
                 // for the call either to be completed or to timeout.
                 // We do this by submitting the call and then polling its status.
-                let res = server
-                    .submit_call(
-                        canister_principal,
-                        Principal::anonymous(),
-                        method_name,
-                        payload,
-                    )
-                    .map_err(|e| {
-                        std::io::Error::other(format!("Failed to submit call: {:?}", e))
-                    })?;
+                let res = if let Some(sender_info) = sender_info {
+                    server
+                        .submit_call_with_sender_info(
+                            canister_principal,
+                            Principal::anonymous(),
+                            method_name,
+                            payload,
+                            sender_info,
+                        )
+                        .map_err(|e| {
+                            std::io::Error::other(format!("Failed to submit call: {:?}", e))
+                        })?
+                } else {
+                    server
+                        .submit_call(
+                            canister_principal,
+                            Principal::anonymous(),
+                            method_name,
+                            payload,
+                        )
+                        .map_err(|e| {
+                            std::io::Error::other(format!("Failed to submit call: {:?}", e))
+                        })?
+                };
+
                 while server.ingress_status(res.clone()).is_none() {
                     server.tick();
                     server.advance_time(Duration::from_secs(1));
@@ -499,7 +529,8 @@ impl TestCommand {
                 canister_id,
                 method_name,
                 args,
-            } => self.ingress_command(server, canister_id, method_name, args),
+                sender_info,
+            } => self.ingress_command(server, canister_id, method_name, args, sender_info),
             TestCommand::Query {
                 canister_id,
                 method_name,
@@ -580,6 +611,21 @@ pub fn parse_commands(content: &str) -> std::io::Result<Vec<TestCommand>> {
                     canister_id: parts[1].to_string(),
                     method_name: parts[2].to_string(),
                     args: parts[3].to_string(),
+                    sender_info: None,
+                }
+            }
+            "ingress_with_caller_info" => {
+                if parts.len() != 6 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "ingress command requires 5 arguments",
+                    ));
+                }
+                TestCommand::Ingress {
+                    canister_id: parts[1].to_string(),
+                    method_name: parts[2].to_string(),
+                    args: parts[3].to_string(),
+                    sender_info: Some((parts[4].to_string(), parts[5].to_string())),
                 }
             }
             "query" => {

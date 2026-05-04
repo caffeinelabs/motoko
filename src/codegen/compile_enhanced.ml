@@ -761,6 +761,8 @@ module E = struct
 
   let call_import (env : t) = Imports.call_import env.imports
 
+  let call_rts (env : t) = call_import env "rts"
+
   let reuse_import (env : t) = Imports.reuse_import env.imports
 
   let finalize_func_imports (env : t) = Imports.finalize_func_imports env.imports
@@ -1355,165 +1357,166 @@ module RTS = struct
      float_fmt uses B.wasm_val_type (vanilla values, not genuine i64).
   *)
   let system_imports env =
-    E.add_func_import env "rts" "initialize_incremental_gc" [] [];
-    E.add_func_import env "rts" "schedule_incremental_gc" [] [];
-    E.add_func_import env "rts" "incremental_gc" [] [];
-    E.add_func_import env "rts" "write_with_barrier" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "allocation_barrier" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "running_gc" [] [I32Type];
-    E.add_func_import env "rts" "register_stable_type" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "assign_stable_type" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "has_stable_actor" [] [I32Type];
-    E.add_func_import env "rts" "load_stable_actor" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "save_stable_actor" [B.wasm_val_type] [];
-    E.add_func_import env "rts" "free_stable_actor" [] [];
-    E.add_func_import env "rts" "contains_field" [B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "initialize_static_variables" [B.wasm_val_type] [];
-    E.add_func_import env "rts" "get_static_variable" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "set_static_variable" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "set_upgrade_instructions" [I64Type] [];
-    E.add_func_import env "rts" "get_upgrade_instructions" [] [I64Type];
-    E.add_func_import env "rts" "memcmp" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "version" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "parse_idl_header" [I32Type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "idl_alloc_typtbl" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "idl_sub_buf_words" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "idl_sub_buf_init" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "idl_sub"
+    let add_rts_import = E.add_func_import env "rts" in
+    add_rts_import "initialize_incremental_gc" [] [];
+    add_rts_import "schedule_incremental_gc" [] [];
+    add_rts_import "incremental_gc" [] [];
+    add_rts_import "write_with_barrier" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "allocation_barrier" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "running_gc" [] [I32Type];
+    add_rts_import "register_stable_type" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "assign_stable_type" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "has_stable_actor" [] [I32Type];
+    add_rts_import "load_stable_actor" [] [B.wasm_val_type];
+    add_rts_import "save_stable_actor" [B.wasm_val_type] [];
+    add_rts_import "free_stable_actor" [] [];
+    add_rts_import "contains_field" [B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "initialize_static_variables" [B.wasm_val_type] [];
+    add_rts_import "get_static_variable" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "set_static_variable" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "set_upgrade_instructions" [I64Type] [];
+    add_rts_import "get_upgrade_instructions" [] [I64Type];
+    add_rts_import "memcmp" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "version" [] [B.wasm_val_type];
+    add_rts_import "parse_idl_header" [I32Type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "idl_alloc_typtbl" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "idl_sub_buf_words" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "idl_sub_buf_init" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "idl_sub"
       [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; I32Type; I32Type] [I32Type];
-    E.add_func_import env "rts" "leb128_decode" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "sleb128_decode" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_to_word32_wrap" [B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "bigint_of_word64" [I64Type] [B.wasm_val_type]; (* FIXED: param is always i64 *)
-    E.add_func_import env "rts" "bigint_of_int64" [I64Type] [B.wasm_val_type]; (* FIXED: param is always i64 *)
-    E.add_func_import env "rts" "bigint_of_float64" [F64Type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_to_float64" [B.wasm_val_type] [F64Type];
-    E.add_func_import env "rts" "bigint_to_word64_wrap" [B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
-    E.add_func_import env "rts" "bigint_to_word64_trap" [B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
-    E.add_func_import env "rts" "bigint_to_word64_trap_with" [B.wasm_val_type; B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
-    E.add_func_import env "rts" "bigint_eq" [B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "bigint_isneg" [B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "bigint_count_bits" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_2complement_bits" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_lt" [B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "bigint_gt" [B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "bigint_le" [B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "bigint_ge" [B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "bigint_add" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_sub" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_mul" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_rem" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_div" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_pow" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_neg" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_lsh" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_rsh" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_abs" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_leb128_size" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_leb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "bigint_leb128_decode" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_leb128_decode_word64" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
-    E.add_func_import env "rts" "bigint_sleb128_size" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_sleb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "bigint_sleb128_decode" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "bigint_sleb128_decode_word64" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
-    E.add_func_import env "rts" "leb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "sleb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "utf8_valid" [B.wasm_val_type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "utf8_validate" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "skip_leb128" [B.wasm_val_type] [];
-    E.add_func_import env "rts" "skip_any" [B.wasm_val_type; B.wasm_val_type; I32Type; I32Type] [];
-    E.add_func_import env "rts" "find_field" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; I32Type; B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "skip_fields" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "remember_continuation" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "recall_continuation" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "peek_future_continuation" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "continuation_count" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "continuation_table_size" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "blob_of_text" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_compare" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_concat" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_iter_done" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_iter" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_iter_next" [B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "text_len" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_of_ptr_size" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_singleton" [I32Type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_size" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_to_buf" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "text_lowercase" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "text_uppercase" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "region_init" [B.wasm_val_type] [];
-    E.add_func_import env "rts" "alloc_region" [I64Type; B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "init_region" [B.wasm_val_type; I64Type; B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "region_new" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "region_id" [B.wasm_val_type] [I64Type];
-    E.add_func_import env "rts" "region_page_count" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "region_vec_pages" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "region_size" [B.wasm_val_type] [I64Type];
-    E.add_func_import env "rts" "region_grow" [B.wasm_val_type; I64Type] [I64Type];
-    E.add_func_import env "rts" "region_load_blob" [B.wasm_val_type; I64Type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "region_store_blob" [B.wasm_val_type; I64Type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "region_load_word8" [B.wasm_val_type; I64Type] [I32Type];
-    E.add_func_import env "rts" "region_store_word8" [B.wasm_val_type; I64Type; I32Type] [];
-    E.add_func_import env "rts" "region_load_word16" [B.wasm_val_type; I64Type] [I32Type];
-    E.add_func_import env "rts" "region_store_word16" [B.wasm_val_type; I64Type; I32Type] [];
-    E.add_func_import env "rts" "region_load_word32" [B.wasm_val_type; I64Type] [I32Type];
-    E.add_func_import env "rts" "region_store_word32" [B.wasm_val_type; I64Type; I32Type] [];
-    E.add_func_import env "rts" "region_load_word64" [B.wasm_val_type; I64Type] [I64Type];
-    E.add_func_import env "rts" "region_store_word64" [B.wasm_val_type; I64Type; I64Type] [];
-    E.add_func_import env "rts" "region_load_float64" [B.wasm_val_type; I64Type] [F64Type];
-    E.add_func_import env "rts" "region_store_float64" [B.wasm_val_type; I64Type; F64Type] [];
-    E.add_func_import env "rts" "region0_get" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "blob_of_principal" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "principal_of_blob" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "compute_crc32" [B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "blob_iter_done" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "blob_iter" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "blob_iter_next" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "pow" [F64Type; F64Type] [F64Type];
-    E.add_func_import env "rts" "powf" [F32Type; F32Type] [F32Type];
-    E.add_func_import env "rts" "sin" [F64Type] [F64Type];
-    E.add_func_import env "rts" "cos" [F64Type] [F64Type];
-    E.add_func_import env "rts" "tan" [F64Type] [F64Type];
-    E.add_func_import env "rts" "asin" [F64Type] [F64Type];
-    E.add_func_import env "rts" "acos" [F64Type] [F64Type];
-    E.add_func_import env "rts" "atan" [F64Type] [F64Type];
-    E.add_func_import env "rts" "atan2" [F64Type; F64Type] [F64Type];
-    E.add_func_import env "rts" "exp" [F64Type] [F64Type];
-    E.add_func_import env "rts" "log" [F64Type] [F64Type];
-    E.add_func_import env "rts" "fmod" [F64Type; F64Type] [F64Type];
-    E.add_func_import env "rts" "fmodf" [F32Type; F32Type] [F32Type];
-    E.add_func_import env "rts" "float_fmt" [F64Type; B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "char_to_upper" [I32Type] [I32Type];
-    E.add_func_import env "rts" "char_to_lower" [I32Type] [I32Type];
-    E.add_func_import env "rts" "char_is_whitespace" [I32Type] [I32Type];
-    E.add_func_import env "rts" "char_is_lowercase" [I32Type] [I32Type];
-    E.add_func_import env "rts" "char_is_uppercase" [I32Type] [I32Type];
-    E.add_func_import env "rts" "char_is_alphabetic" [I32Type] [I32Type];
-    E.add_func_import env "rts" "get_max_live_size" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "get_reclaimed" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "alloc_words" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "get_total_allocations" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "get_heap_size" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "alloc_blob" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "alloc_array" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "read_persistence_version" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "stop_gc_before_stabilization" [] [];
-    E.add_func_import env "rts" "start_gc_after_destabilization" [] [];
-    E.add_func_import env "rts" "is_graph_stabilization_started" [] [I32Type];
-    E.add_func_import env "rts" "start_graph_stabilization" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "graph_stabilization_increment" [] [I32Type];
-    E.add_func_import env "rts" "start_graph_destabilization" [B.wasm_val_type; B.wasm_val_type] [];
-    E.add_func_import env "rts" "graph_destabilization_increment" [] [I32Type];
-    E.add_func_import env "rts" "get_graph_destabilized_actor" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "buffer_in_32_bit_range" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "alloc_weak_ref" [B.wasm_val_type] [B.wasm_val_type];
-    E.add_func_import env "rts" "weak_ref_is_live" [B.wasm_val_type] [I32Type];
-    E.add_func_import env "rts" "get_dedup_table" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "set_dedup_table" [B.wasm_val_type] [];
-    E.add_func_import env "rts" "get_migrations" [] [B.wasm_val_type];
-    E.add_func_import env "rts" "set_migrations" [B.wasm_val_type] [];
+    add_rts_import "leb128_decode" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "sleb128_decode" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_to_word32_wrap" [B.wasm_val_type] [I32Type];
+    add_rts_import "bigint_of_word64" [I64Type] [B.wasm_val_type]; (* FIXED: param is always i64 *)
+    add_rts_import "bigint_of_int64" [I64Type] [B.wasm_val_type]; (* FIXED: param is always i64 *)
+    add_rts_import "bigint_of_float64" [F64Type] [B.wasm_val_type];
+    add_rts_import "bigint_to_float64" [B.wasm_val_type] [F64Type];
+    add_rts_import "bigint_to_word64_wrap" [B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
+    add_rts_import "bigint_to_word64_trap" [B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
+    add_rts_import "bigint_to_word64_trap_with" [B.wasm_val_type; B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
+    add_rts_import "bigint_eq" [B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "bigint_isneg" [B.wasm_val_type] [I32Type];
+    add_rts_import "bigint_count_bits" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_2complement_bits" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_lt" [B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "bigint_gt" [B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "bigint_le" [B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "bigint_ge" [B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "bigint_add" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_sub" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_mul" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_rem" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_div" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_pow" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_neg" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_lsh" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_rsh" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_abs" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_leb128_size" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_leb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "bigint_leb128_decode" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_leb128_decode_word64" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
+    add_rts_import "bigint_sleb128_size" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_sleb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "bigint_sleb128_decode" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "bigint_sleb128_decode_word64" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [I64Type]; (* FIXED: returns i64 *)
+    add_rts_import "leb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "sleb128_encode" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "utf8_valid" [B.wasm_val_type; B.wasm_val_type] [I32Type];
+    add_rts_import "utf8_validate" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "skip_leb128" [B.wasm_val_type] [];
+    add_rts_import "skip_any" [B.wasm_val_type; B.wasm_val_type; I32Type; I32Type] [];
+    add_rts_import "find_field" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; I32Type; B.wasm_val_type] [I32Type];
+    add_rts_import "skip_fields" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "remember_continuation" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "recall_continuation" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "peek_future_continuation" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "continuation_count" [] [B.wasm_val_type];
+    add_rts_import "continuation_table_size" [] [B.wasm_val_type];
+    add_rts_import "blob_of_text" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_compare" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_concat" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_iter_done" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_iter" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_iter_next" [B.wasm_val_type] [I32Type];
+    add_rts_import "text_len" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_of_ptr_size" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_singleton" [I32Type] [B.wasm_val_type];
+    add_rts_import "text_size" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_to_buf" [B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "text_lowercase" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "text_uppercase" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "region_init" [B.wasm_val_type] [];
+    add_rts_import "alloc_region" [I64Type; B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "init_region" [B.wasm_val_type; I64Type; B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "region_new" [] [B.wasm_val_type];
+    add_rts_import "region_id" [B.wasm_val_type] [I64Type];
+    add_rts_import "region_page_count" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "region_vec_pages" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "region_size" [B.wasm_val_type] [I64Type];
+    add_rts_import "region_grow" [B.wasm_val_type; I64Type] [I64Type];
+    add_rts_import "region_load_blob" [B.wasm_val_type; I64Type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "region_store_blob" [B.wasm_val_type; I64Type; B.wasm_val_type] [];
+    add_rts_import "region_load_word8" [B.wasm_val_type; I64Type] [I32Type];
+    add_rts_import "region_store_word8" [B.wasm_val_type; I64Type; I32Type] [];
+    add_rts_import "region_load_word16" [B.wasm_val_type; I64Type] [I32Type];
+    add_rts_import "region_store_word16" [B.wasm_val_type; I64Type; I32Type] [];
+    add_rts_import "region_load_word32" [B.wasm_val_type; I64Type] [I32Type];
+    add_rts_import "region_store_word32" [B.wasm_val_type; I64Type; I32Type] [];
+    add_rts_import "region_load_word64" [B.wasm_val_type; I64Type] [I64Type];
+    add_rts_import "region_store_word64" [B.wasm_val_type; I64Type; I64Type] [];
+    add_rts_import "region_load_float64" [B.wasm_val_type; I64Type] [F64Type];
+    add_rts_import "region_store_float64" [B.wasm_val_type; I64Type; F64Type] [];
+    add_rts_import "region0_get" [] [B.wasm_val_type];
+    add_rts_import "blob_of_principal" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "principal_of_blob" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "compute_crc32" [B.wasm_val_type] [I32Type];
+    add_rts_import "blob_iter_done" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "blob_iter" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "blob_iter_next" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "pow" [F64Type; F64Type] [F64Type];
+    add_rts_import "powf" [F32Type; F32Type] [F32Type];
+    add_rts_import "sin" [F64Type] [F64Type];
+    add_rts_import "cos" [F64Type] [F64Type];
+    add_rts_import "tan" [F64Type] [F64Type];
+    add_rts_import "asin" [F64Type] [F64Type];
+    add_rts_import "acos" [F64Type] [F64Type];
+    add_rts_import "atan" [F64Type] [F64Type];
+    add_rts_import "atan2" [F64Type; F64Type] [F64Type];
+    add_rts_import "exp" [F64Type] [F64Type];
+    add_rts_import "log" [F64Type] [F64Type];
+    add_rts_import "fmod" [F64Type; F64Type] [F64Type];
+    add_rts_import "fmodf" [F32Type; F32Type] [F32Type];
+    add_rts_import "float_fmt" [F64Type; B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "char_to_upper" [I32Type] [I32Type];
+    add_rts_import "char_to_lower" [I32Type] [I32Type];
+    add_rts_import "char_is_whitespace" [I32Type] [I32Type];
+    add_rts_import "char_is_lowercase" [I32Type] [I32Type];
+    add_rts_import "char_is_uppercase" [I32Type] [I32Type];
+    add_rts_import "char_is_alphabetic" [I32Type] [I32Type];
+    add_rts_import "get_max_live_size" [] [B.wasm_val_type];
+    add_rts_import "get_reclaimed" [] [B.wasm_val_type];
+    add_rts_import "alloc_words" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "get_total_allocations" [] [B.wasm_val_type];
+    add_rts_import "get_heap_size" [] [B.wasm_val_type];
+    add_rts_import "alloc_blob" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "alloc_array" [B.wasm_val_type; B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "read_persistence_version" [] [B.wasm_val_type];
+    add_rts_import "stop_gc_before_stabilization" [] [];
+    add_rts_import "start_gc_after_destabilization" [] [];
+    add_rts_import "is_graph_stabilization_started" [] [I32Type];
+    add_rts_import "start_graph_stabilization" [B.wasm_val_type; B.wasm_val_type; B.wasm_val_type] [];
+    add_rts_import "graph_stabilization_increment" [] [I32Type];
+    add_rts_import "start_graph_destabilization" [] [];
+    add_rts_import "graph_destabilization_increment" [] [I32Type];
+    add_rts_import "get_graph_destabilized_actor" [] [B.wasm_val_type];
+    add_rts_import "buffer_in_32_bit_range" [] [B.wasm_val_type];
+    add_rts_import "alloc_weak_ref" [B.wasm_val_type] [B.wasm_val_type];
+    add_rts_import "weak_ref_is_live" [B.wasm_val_type] [I32Type];
+    add_rts_import "get_dedup_table" [] [B.wasm_val_type];
+    add_rts_import "set_dedup_table" [B.wasm_val_type] [];
+    add_rts_import "get_migrations" [] [B.wasm_val_type];
+    add_rts_import "set_migrations" [B.wasm_val_type] [];
     ()
 
 end (* RTS *)
@@ -1602,23 +1605,23 @@ module Heap = struct
     G.i (GlobalGet (nr (E.get_global env "__heap_base")))
 
   let get_total_allocation env =
-    E.call_import env "rts" "get_total_allocations"
+    E.call_rts env "get_total_allocations"
 
   let get_reclaimed env =
-    E.call_import env "rts" "get_reclaimed"
+    E.call_rts env "get_reclaimed"
 
   let get_memory_size =
     G.i B.memory_size ^^
     compile_mul_const page_size
 
   let get_max_live_size env =
-    E.call_import env "rts" "get_max_live_size"
+    E.call_rts env "get_max_live_size"
 
   (* Static allocation (always words)
      (uses dynamic allocation for smaller and more readable code) *)
   let alloc env (n : B.t) : G.t =
     compile_unboxed_const n ^^
-    E.call_import env "rts" "alloc_words"
+    E.call_rts env "alloc_words"
 
   (* Heap objects *)
 
@@ -1655,7 +1658,7 @@ module Heap = struct
   (* Copying bytes (works on unskewed memory addresses) *)
   let memcpy env = G.i B.memory_copy
   (* Comparing bytes (works on unskewed memory addresses) *)
-  let memcmp env = E.call_import env "rts" "memcmp" ^^ extend_i32_to_word
+  let memcmp env = E.call_rts env "memcmp" ^^ extend_i32_to_word
 
   let register env =
     let get_heap_base_fn = E.add_fun env "get_heap_base" (Func.of_body env [] [B.wasm_val_type] (fun env ->
@@ -1668,11 +1671,11 @@ module Heap = struct
     })
 
   let get_heap_size env =
-    E.call_import env "rts" "get_heap_size"
+    E.call_rts env "get_heap_size"
 
   let get_static_variable env index =
     compile_unboxed_const (B.of_int64 index) ^^
-    E.call_import env "rts" "get_static_variable"
+    E.call_rts env "get_static_variable"
 
 end (* Heap *)
 
@@ -1887,11 +1890,11 @@ module ContinuationTable = struct
      32-bit adaptation: No direct changes; delegates to RTS with
      B.wasm_val_type params.
   *)
-  let remember env : G.t = E.call_import env "rts" "remember_continuation"
-  let recall env : G.t = E.call_import env "rts" "recall_continuation"
-  let peek_future env : G.t = E.call_import env "rts" "peek_future_continuation"
-  let count env : G.t = E.call_import env "rts" "continuation_count"
-  let size env : G.t = E.call_import env "rts" "continuation_table_size"
+  let remember env : G.t = E.call_rts env "remember_continuation"
+  let recall env : G.t = E.call_rts env "recall_continuation"
+  let peek_future env : G.t = E.call_rts env "peek_future_continuation"
+  let count env : G.t = E.call_rts env "continuation_count"
+  let size env : G.t = E.call_rts env "continuation_table_size"
 end (* ContinuationTable *)
 
 module Bool = struct
@@ -2416,18 +2419,18 @@ module Tagged = struct
     go cases
 
   let allocation_barrier env =
-    E.call_import env "rts" "allocation_barrier"
+    E.call_rts env "allocation_barrier"
 
   let write_with_barrier env =
     let (set_value, get_value) = new_local env "written_value" in
     let (set_location, get_location) = new_local env "write_location" in
     set_value ^^ set_location ^^
     (* performance gain by first checking the GC state *)
-    E.call_import env "rts" "running_gc" ^^
+    E.call_rts env "running_gc" ^^
     Bool.from_rts_int32 ^^
     E.if0 (
       get_location ^^ get_value ^^
-      E.call_import env "rts" "write_with_barrier"
+      E.call_rts env "write_with_barrier"
     ) (
       get_location ^^ get_value ^^
       store_unskewed_ptr
@@ -3232,10 +3235,10 @@ module ReadBuf = struct
     set_ptr get_buf (get_ptr get_buf ^^ get_delta ^^ G.i B.add)
 
   let read_leb128 env get_buf =
-    get_buf ^^ E.call_import env "rts" "leb128_decode"
+    get_buf ^^ E.call_rts env "leb128_decode"
 
   let read_sleb128 env get_buf =
-    get_buf ^^ E.call_import env "rts" "sleb128_decode"
+    get_buf ^^ E.call_rts env "sleb128_decode"
 
   let check_space env get_buf get_delta =
     get_delta ^^
@@ -3447,12 +3450,12 @@ module I32Leb = struct
 
   let compile_store_to_data_buf_unsigned env get_x get_buf =
     get_x ^^ get_buf ^^
-    E.call_import env "rts" "leb128_encode" ^^
+    E.call_rts env "leb128_encode" ^^
     compile_leb128_size get_x
 
   let compile_store_to_data_buf_signed env get_x get_buf =
     get_x ^^ get_buf ^^
-    E.call_import env "rts" "sleb128_encode" ^^
+    E.call_rts env "sleb128_encode" ^^
     compile_sleb128_size get_x
 end
 
@@ -3860,8 +3863,8 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
       env
 
   let compile_load_from_word64 env get_data_buf = function
-    | false -> get_data_buf ^^ E.call_import env "rts" "bigint_leb128_decode_word64"
-    | true -> get_data_buf ^^ E.call_import env "rts" "bigint_sleb128_decode_word64"
+    | false -> get_data_buf ^^ E.call_rts env "bigint_leb128_decode_word64"
+    | true -> get_data_buf ^^ E.call_rts env "bigint_sleb128_decode_word64"
 
   let compile_load_from_data_buf env get_data_buf signed =
     if word_size_bits = 64 then begin
@@ -3998,36 +4001,36 @@ module BigNumLibtommath : BigNumType = struct
      from_word64/from_signed_word64 extend machine-word to I64Type via
      extend_word_to_i64 before calling bigint_of_word64/bigint_of_int64 RTS. *)
 
-  let to_word64 env = E.call_import env "rts" "bigint_to_word64_trap"
-  let to_word64_with env get_err_msg = get_err_msg ^^ E.call_import env "rts" "bigint_to_word64_trap_with"
+  let to_word64 env = E.call_rts env "bigint_to_word64_trap"
+  let to_word64_with env get_err_msg = get_err_msg ^^ E.call_rts env "bigint_to_word64_trap_with"
 
-  let truncate_to_word32 env = E.call_import env "rts" "bigint_to_word32_wrap" ^^ extend_i32_to_word
-  let truncate_to_word64 env = E.call_import env "rts" "bigint_to_word64_wrap"
+  let truncate_to_word32 env = E.call_rts env "bigint_to_word32_wrap" ^^ extend_i32_to_word
+  let truncate_to_word64 env = E.call_rts env "bigint_to_word64_wrap"
 
-  let from_signed_word_compact env = E.call_import env "rts" "bigint_of_int64"
-  let from_word64 env = E.call_import env "rts" "bigint_of_word64"
-  let from_signed_word64 env = E.call_import env "rts" "bigint_of_int64"
+  let from_signed_word_compact env = E.call_rts env "bigint_of_int64"
+  let from_word64 env = E.call_rts env "bigint_of_word64"
+  let from_signed_word64 env = E.call_rts env "bigint_of_int64"
 
-  let compile_data_size_unsigned env = E.call_import env "rts" "bigint_leb128_size"
-  let compile_data_size_signed env = E.call_import env "rts" "bigint_sleb128_size"
+  let compile_data_size_unsigned env = E.call_rts env "bigint_leb128_size"
+  let compile_data_size_signed env = E.call_rts env "bigint_sleb128_size"
 
   let compile_store_to_data_buf_unsigned env =
     let (set_buf, get_buf) = new_local env "buf" in
     let (set_n, get_n) = new_local env "n" in
     set_n ^^ set_buf ^^
-    get_n ^^ get_buf ^^ E.call_import env "rts" "bigint_leb128_encode" ^^
-    get_n ^^ E.call_import env "rts" "bigint_leb128_size"
+    get_n ^^ get_buf ^^ E.call_rts env "bigint_leb128_encode" ^^
+    get_n ^^ E.call_rts env "bigint_leb128_size"
 
   let compile_store_to_data_buf_signed env =
     let (set_buf, get_buf) = new_local env "buf" in
     let (set_n, get_n) = new_local env "n" in
     set_n ^^ set_buf ^^
-    get_n ^^ get_buf ^^ E.call_import env "rts" "bigint_sleb128_encode" ^^
-    get_n ^^ E.call_import env "rts" "bigint_sleb128_size"
+    get_n ^^ get_buf ^^ E.call_rts env "bigint_sleb128_encode" ^^
+    get_n ^^ E.call_rts env "bigint_sleb128_size"
 
   let compile_load_from_data_buf env get_data_buf = function
-    | false -> get_data_buf ^^ E.call_import env "rts" "bigint_leb128_decode"
-    | true -> get_data_buf ^^ E.call_import env "rts" "bigint_sleb128_decode"
+    | false -> get_data_buf ^^ E.call_rts env "bigint_leb128_decode"
+    | true -> get_data_buf ^^ E.call_rts env "bigint_sleb128_decode"
 
   let constant env n =
     (* See enum mp_sign *)
@@ -4072,39 +4075,39 @@ module BigNumLibtommath : BigNumType = struct
   let assert_nonneg env =
     Func.share_code1 Func.Never env "assert_nonneg" ("n", B.wasm_val_type) [B.wasm_val_type] (fun env get_n ->
       get_n ^^
-      E.call_import env "rts" "bigint_isneg" ^^ Bool.from_rts_int32 ^^
+      E.call_rts env "bigint_isneg" ^^ Bool.from_rts_int32 ^^
       E.then_trap_with env "Natural subtraction underflow" ^^
       get_n
     )
 
-  let compile_abs env = E.call_import env "rts" "bigint_abs"
-  let compile_neg env = E.call_import env "rts" "bigint_neg"
-  let compile_add env = E.call_import env "rts" "bigint_add"
-  let compile_mul env = E.call_import env "rts" "bigint_mul"
-  let compile_signed_sub env = E.call_import env "rts" "bigint_sub"
-  let compile_signed_div env = E.call_import env "rts" "bigint_div"
-  let compile_signed_mod env = E.call_import env "rts" "bigint_rem"
-  let compile_unsigned_sub env = E.call_import env "rts" "bigint_sub" ^^ assert_nonneg env
-  let compile_unsigned_rem env = E.call_import env "rts" "bigint_rem"
-  let compile_unsigned_div env = E.call_import env "rts" "bigint_div"
-  let compile_unsigned_pow env = E.call_import env "rts" "bigint_pow"
-  let compile_lsh env = E.call_import env "rts" "bigint_lsh"
-  let compile_rsh env = E.call_import env "rts" "bigint_rsh"
+  let compile_abs env = E.call_rts env "bigint_abs"
+  let compile_neg env = E.call_rts env "bigint_neg"
+  let compile_add env = E.call_rts env "bigint_add"
+  let compile_mul env = E.call_rts env "bigint_mul"
+  let compile_signed_sub env = E.call_rts env "bigint_sub"
+  let compile_signed_div env = E.call_rts env "bigint_div"
+  let compile_signed_mod env = E.call_rts env "bigint_rem"
+  let compile_unsigned_sub env = E.call_rts env "bigint_sub" ^^ assert_nonneg env
+  let compile_unsigned_rem env = E.call_rts env "bigint_rem"
+  let compile_unsigned_div env = E.call_rts env "bigint_div"
+  let compile_unsigned_pow env = E.call_rts env "bigint_pow"
+  let compile_lsh env = E.call_rts env "bigint_lsh"
+  let compile_rsh env = E.call_rts env "bigint_rsh"
 
-  let compile_eq env = E.call_import env "rts" "bigint_eq" ^^ Bool.from_rts_int32
-  let compile_is_negative env = E.call_import env "rts" "bigint_isneg" ^^ Bool.from_rts_int32
+  let compile_eq env = E.call_rts env "bigint_eq" ^^ Bool.from_rts_int32
+  let compile_is_negative env = E.call_rts env "bigint_isneg" ^^ Bool.from_rts_int32
   let compile_relop env = function
-      | Lt -> E.call_import env "rts" "bigint_lt" ^^ Bool.from_rts_int32
-      | Le -> E.call_import env "rts" "bigint_le" ^^ Bool.from_rts_int32
-      | Ge -> E.call_import env "rts" "bigint_ge" ^^ Bool.from_rts_int32
-      | Gt -> E.call_import env "rts" "bigint_gt" ^^ Bool.from_rts_int32
+      | Lt -> E.call_rts env "bigint_lt" ^^ Bool.from_rts_int32
+      | Le -> E.call_rts env "bigint_le" ^^ Bool.from_rts_int32
+      | Ge -> E.call_rts env "bigint_ge" ^^ Bool.from_rts_int32
+      | Gt -> E.call_rts env "bigint_gt" ^^ Bool.from_rts_int32
 
   let fits_signed_bits env bits =
-    E.call_import env "rts" "bigint_2complement_bits" ^^
+    E.call_rts env "bigint_2complement_bits" ^^
     compile_unboxed_const (B.of_int_host bits) ^^
     compile_comparison I64Op.LeU
   let fits_unsigned_bits env bits =
-    E.call_import env "rts" "bigint_count_bits" ^^
+    E.call_rts env "bigint_count_bits" ^^
     compile_unboxed_const (B.of_int_host bits) ^^
     compile_comparison I64Op.LeU
 
@@ -4200,7 +4203,7 @@ module Blob = struct
   let alloc env sort len =
     compile_unboxed_const Tagged.(int_of_tag (Blob sort)) ^^
     len ^^
-    E.call_import env "rts" "alloc_blob" ^^
+    E.call_rts env "alloc_blob" ^^
     (* uninitialized blob payload is allowed by the barrier *)
     Tagged.allocation_barrier env
 
@@ -4399,11 +4402,11 @@ module Blob = struct
   )
 
   let iter env =
-    E.call_import env "rts" "blob_iter"
+    E.call_rts env "blob_iter"
   let iter_done env =
-    E.call_import env "rts" "blob_iter_done"
+    E.call_rts env "blob_iter_done"
   let iter_next env =
-    E.call_import env "rts" "blob_iter_next" ^^
+    E.call_rts env "blob_iter_next" ^^
     TaggedSmallWord.msb_adjust Type.Nat8
 
   (* Dynamic blob index access. Returns the value of the element.
@@ -4564,7 +4567,7 @@ module Object = struct
      Check whether an (actor) object contains a specific field *)
   let contains_field env field =
     compile_unboxed_const (B.of_int64 (E.hash env field)) ^^
-    E.call_import env "rts" "contains_field" ^^
+    E.call_rts env "contains_field" ^^
     Bool.from_rts_int32
 
   (* Returns a pointer to the object field (without following the field indirection) *)
@@ -4674,75 +4677,75 @@ module Region = struct
   *)
 
   let alloc_region env =
-    E.call_import env "rts" "alloc_region"
+    E.call_rts env "alloc_region"
 
   let init_region env =
-    E.call_import env "rts" "init_region"
+    E.call_rts env "init_region"
 
   (* field accessors *)
   (* NB: all these opns must resolve forwarding pointers here or in RTS *)
   let id env =
-    E.call_import env "rts" "region_id"
+    E.call_rts env "region_id"
 
   let page_count env =
-    E.call_import env "rts" "region_page_count"
+    E.call_rts env "region_page_count"
 
   let vec_pages env =
-    E.call_import env "rts" "region_vec_pages"
+    E.call_rts env "region_vec_pages"
 
   let new_ env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_new"
+    E.call_rts env "region_new"
 
   let size env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_size"
+    E.call_rts env "region_size"
 
   let grow env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_grow"
+    E.call_rts env "region_grow"
 
   let load_blob env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_load_blob"
+    E.call_rts env "region_load_blob"
   let store_blob env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_store_blob"
+    E.call_rts env "region_store_blob"
 
   let load_word8 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_load_word8"
+    E.call_rts env "region_load_word8"
   let store_word8 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_store_word8"
+    E.call_rts env "region_store_word8"
 
   let load_word16 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_load_word16"
+    E.call_rts env "region_load_word16"
   let store_word16 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_store_word16"
+    E.call_rts env "region_store_word16"
 
   let load_word32 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_load_word32"
+    E.call_rts env "region_load_word32"
   let store_word32 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_store_word32"
+    E.call_rts env "region_store_word32"
 
   let load_word64 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_load_word64"
+    E.call_rts env "region_load_word64"
   let store_word64 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_store_word64"
+    E.call_rts env "region_store_word64"
 
   let load_float64 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_load_float64"
+    E.call_rts env "region_load_float64"
   let store_float64 env =
     E.require_stable_memory env;
-    E.call_import env "rts" "region_store_float64"
+    E.call_rts env "region_store_float64"
 
 end
 
@@ -4766,33 +4769,33 @@ module Text = struct
   *)
 
   let of_ptr_size env =
-    E.call_import env "rts" "text_of_ptr_size"
+    E.call_rts env "text_of_ptr_size"
   let concat env =
-    E.call_import env "rts" "text_concat"
+    E.call_rts env "text_concat"
   let size env =
-    E.call_import env "rts" "text_size"
+    E.call_rts env "text_size"
   let to_buf env =
-    E.call_import env "rts" "text_to_buf"
+    E.call_rts env "text_to_buf"
   let len_nat env =
     Func.share_code1 Func.Never env "text_len" ("text", B.wasm_val_type) [B.wasm_val_type] (fun env get ->
       get ^^
-      E.call_import env "rts" "text_len" ^^
+      E.call_rts env "text_len" ^^
       BigNum.from_word64 env
     )
   let prim_showChar env =
     TaggedSmallWord.lsb_adjust_codepoint env ^^
     wrap_i64_to_word32 ^^
-    E.call_import env "rts" "text_singleton"
-  let to_blob env = E.call_import env "rts" "blob_of_text"
+    E.call_rts env "text_singleton"
+  let to_blob env = E.call_rts env "blob_of_text"
 
-  let lowercase env = E.call_import env "rts" "text_lowercase"
-  let uppercase env = E.call_import env "rts" "text_uppercase"
+  let lowercase env = E.call_rts env "text_lowercase"
+  let uppercase env = E.call_rts env "text_uppercase"
 
   let of_blob env =
     let (set_blob, get_blob) = new_local env "blob" in
     set_blob ^^
     get_blob ^^ Blob.as_ptr_len env ^^
-    E.call_import env "rts" "utf8_valid" ^^
+    E.call_rts env "utf8_valid" ^^
     Bool.from_rts_int32 ^^
     E.if1 B.wasm_val_type
       (get_blob ^^ Blob.copy env Tagged.B Tagged.T ^^
@@ -4801,11 +4804,11 @@ module Text = struct
       (Opt.null_lit env)
 
   let iter env =
-    E.call_import env "rts" "text_iter"
+    E.call_rts env "text_iter"
   let iter_done env =
-    E.call_import env "rts" "text_iter_done"
+    E.call_rts env "text_iter_done"
   let iter_next env =
-    E.call_import env "rts" "text_iter_next" ^^ Bool.from_rts_int32 ^^
+    E.call_rts env "text_iter_next" ^^ Bool.from_rts_int32 ^^
     TaggedSmallWord.msb_adjust_codepoint
 
   let compare env op =
@@ -4820,7 +4823,7 @@ module Text = struct
     Func.share_code2 Func.Never env name (("x", B.wasm_val_type), ("y", B.wasm_val_type)) [B.wasm_val_type] (fun env get_x get_y ->
       get_x ^^ Tagged.load_forwarding_pointer env ^^
       get_y ^^ Tagged.load_forwarding_pointer env ^^
-      E.call_import env "rts" "text_compare" ^^
+      E.call_rts env "text_compare" ^^
       compile_unboxed_const B.zero ^^
       match op with
         | LtOp -> compile_comparison I64Op.LtS
@@ -4927,7 +4930,7 @@ module Arr = struct
   let alloc env array_sort len =
     compile_unboxed_const Tagged.(int_of_tag (Array array_sort)) ^^
     len ^^
-    E.call_import env "rts" "alloc_array"
+    E.call_rts env "alloc_array"
 
   let iterate env get_array body =
     let (set_boundary, get_boundary) = new_local env "boundary" in
@@ -5352,6 +5355,12 @@ module IC = struct
     E.add_func_import env "ic0" "env_var_name_exists" [i; i] [I32Type];
     E.add_func_import env "ic0" "env_var_value_size" [i; i] [i];
     E.add_func_import env "ic0" "env_var_value_copy" (is 5) [];
+
+    E.add_func_import env "ic0" "msg_caller_info_signer_size" [] [i];
+    E.add_func_import env "ic0" "msg_caller_info_signer_copy" (is 3) [];
+    E.add_func_import env "ic0" "msg_caller_info_data_size" [] [i];
+    E.add_func_import env "ic0" "msg_caller_info_data_copy" (is 3) [];
+
     E.add_func_import env "ic0" "time" [] [I64Type];
     if !Flags.global_timer then
       E.add_func_import env "ic0" "global_timer_set" [I64Type] [I64Type]
@@ -5392,7 +5401,7 @@ module IC = struct
 
           Stack.with_words env "io_vec" (B.of_int_host 6) (fun get_iovec_ptr ->
             let buffer_length = 512 in
-            let buffer_ptr = E.call_import env "rts" "buffer_in_32_bit_range" in
+            let buffer_ptr = E.call_rts env "buffer_in_32_bit_range" in
 
             (* Truncate the text if it does not fit into the buffer **)
             min env (compile_unboxed_const (B.of_int_host buffer_length)) get_len ^^
@@ -5786,6 +5795,30 @@ module IC = struct
         (fun env -> compile_unboxed_const B.zero)
     | _ ->
       E.trap_with env "cannot get caller when running locally"
+
+  let caller_info_signer env =
+    match E.mode env with
+    | Flags.ICMode | Flags.RefMode ->
+      Func.share_code0 Func.Never env "msg_caller_info_signer" [B.wasm_val_type] (fun env ->
+        Blob.of_size_copy env Tagged.B
+          (fun env -> system_call env "msg_caller_info_signer_size")
+          (fun env -> system_call env "msg_caller_info_signer_copy")
+          (fun env -> compile_unboxed_const B.zero)
+      )
+    | _ ->
+      E.trap_with env "cannot get caller_info_signer when running locally"
+
+  let caller_info_data env =
+    match E.mode env with
+    | Flags.ICMode | Flags.RefMode ->
+      Func.share_code0 Func.Never env "msg_caller_info_data" [B.wasm_val_type] (fun env ->
+        Blob.of_size_copy env Tagged.B
+          (fun env -> system_call env "msg_caller_info_data_size")
+          (fun env -> system_call env "msg_caller_info_data_copy")
+          (fun env -> compile_unboxed_const B.zero)
+      )
+    | _ ->
+      E.trap_with env "cannot get caller_info_data when running locally"
 
   let method_name env =
     match E.mode env with
@@ -6241,7 +6274,10 @@ module StableMem = struct
   let version_graph_copy_regions = 4
   let version_stable_heap_no_regions = 5
   let version_stable_heap_regions = 6
-  let version_max = version_stable_heap_regions
+  (* V1 graph-copy: last-page record carries a 16-byte extension with extra GC roots. *)
+  let version_graph_copy_v1_no_regions = 7
+  let version_graph_copy_v1_regions = 8
+  let version_max = version_graph_copy_v1_regions
 
   let register_globals env =
     (* size (in pages) *)
@@ -6262,7 +6298,7 @@ module StableMem = struct
 
   let region_init env =
     compile_unboxed_const (if !Flags.use_stable_regions then B.one else B.zero) ^^
-    E.call_import env "rts" "region_init"
+    E.call_rts env "region_init"
 
   (* stable memory bounds check *)
   let guard env =
@@ -6539,7 +6575,7 @@ end (* StableMem *)
 module StableMemoryInterface = struct
 
   (* Helpers *)
-  let get_region0 env = E.call_import env "rts" "region0_get"
+  let get_region0 env = E.call_rts env "region0_get"
 
   let if_regions env args tys is1 is2 =
     StableMem.get_version env ^^
@@ -6724,9 +6760,9 @@ module UpgradeStatistics = struct
   (* RTS get/set_upgrade_instructions use u64. GC.instruction_counter
      returns I64Type. All arithmetic here is i64. *)
   let get_upgrade_instructions env =
-    E.call_import env "rts" "get_upgrade_instructions"
+    E.call_rts env "get_upgrade_instructions"
   let set_upgrade_instructions env =
-    E.call_import env "rts" "set_upgrade_instructions"
+    E.call_rts env "set_upgrade_instructions"
 
   let add_instructions env =
     get_upgrade_instructions env ^^
@@ -8483,10 +8519,10 @@ module Serialization = struct
       f (compile_unboxed_const B.zero)
     else
       get_typtbl_size1 ^^ get_typtbl_size2 ^^
-      E.call_import env "rts" "idl_sub_buf_words" ^^
+      E.call_rts env "idl_sub_buf_words" ^^
       Stack.dynamic_with_words env "rel_buf" (fun get_ptr ->
         get_ptr ^^ get_typtbl_size1 ^^ get_typtbl_size2 ^^
-        E.call_import env "rts" "idl_sub_buf_init" ^^
+        E.call_rts env "idl_sub_buf_init" ^^
         f get_ptr)
 
   (* See Note [Candid subtype checks] *)
@@ -8512,7 +8548,7 @@ module Serialization = struct
         Registers.get_global_typtbl_size env ^^
         get_idltyp1 ^^ wrap_i64_to_word32 ^^
         get_idltyp2 ^^ wrap_i64_to_word32 ^^
-        E.call_import env "rts" "idl_sub" ^^
+        E.call_rts env "idl_sub" ^^
         extend_i32_to_word
         )
 
@@ -8608,7 +8644,7 @@ module Serialization = struct
 
       let skip get_typ =
         get_data_buf ^^ get_typtbl ^^ get_typ ^^ wrap_i64_to_word32 ^^ compile_const_32 0l ^^
-        E.call_import env "rts" "skip_any"
+        E.call_rts env "skip_any"
       in
 
       (* This flag is set to return a coercion error at the very end
@@ -8701,7 +8737,7 @@ module Serialization = struct
         ReadBuf.get_ptr get_data_buf ^^ set_ptr ^^
         ReadBuf.advance get_data_buf get_len ^^
         (* validate *)
-        get_ptr ^^ get_len ^^ E.call_import env "rts" "utf8_validate" ^^
+        get_ptr ^^ get_len ^^ E.call_rts env "utf8_validate" ^^
         (* copy *)
         get_ptr ^^ get_len ^^ Text.of_ptr_size env
       in
@@ -9030,7 +9066,7 @@ module Serialization = struct
           G.concat_mapi (fun i t ->
             (* skip all possible intermediate extra fields *)
             get_typ_buf ^^ get_data_buf ^^ get_typtbl ^^ compile_const_32 (Int32.of_int i) ^^ get_n_ptr ^^
-            E.call_import env "rts" "find_field" ^^
+            E.call_rts env "find_field" ^^
             Bool.from_rts_int32 ^^
             E.if1 B.wasm_val_type
               begin
@@ -9048,7 +9084,7 @@ module Serialization = struct
 
           (* skip all possible trailing extra fields *)
           get_typ_buf ^^ get_data_buf ^^ get_typtbl ^^ get_n_ptr ^^
-          E.call_import env "rts" "skip_fields" ^^
+          E.call_rts env "skip_fields" ^^
 
           Tuple.from_stack env (List.length ts)
         )
@@ -9060,7 +9096,7 @@ module Serialization = struct
             f.Type.lab, fun () ->
               (* skip all possible intermediate extra fields *)
               get_typ_buf ^^ get_data_buf ^^ get_typtbl ^^ compile_const_32 (Lib.Uint32.to_int32 h) ^^ get_n_ptr ^^
-              E.call_import env "rts" "find_field" ^^
+              E.call_rts env "find_field" ^^
               Bool.from_rts_int32 ^^
               E.if1 B.wasm_val_type
                 begin
@@ -9078,7 +9114,7 @@ module Serialization = struct
 
           (* skip all possible trailing extra fields *)
           get_typ_buf ^^ get_data_buf ^^ get_typtbl ^^ get_n_ptr ^^
-          E.call_import env "rts" "skip_fields"
+          E.call_rts env "skip_fields"
           )
       | Array (Mut t) ->
         read_alias env (Array (Mut t)) (fun get_array_typ on_alloc ->
@@ -9199,8 +9235,8 @@ module Serialization = struct
 
           (* Zoom past the previous entries *)
           get_tagidx ^^ from_0_to_n env (fun _ ->
-            get_typ_buf ^^ E.call_import env "rts" "skip_leb128" ^^
-            get_typ_buf ^^ E.call_import env "rts" "skip_leb128"
+            get_typ_buf ^^ E.call_rts env "skip_leb128" ^^
+            get_typ_buf ^^ E.call_rts env "skip_leb128"
           ) ^^
 
           (* Now read the tag *)
@@ -9386,7 +9422,7 @@ module Serialization = struct
         Registers.get_type_scaler env ^^ G.i B.mul ^^
         Registers.get_type_bias env ^^ G.i B.add in
       Bool.(lit extended ^^ to_rts_int32) ^^ get_data_buf ^^ tydesc_tolerance ^^ get_typtbl_ptr ^^ get_typtbl_size_ptr ^^ get_maintyps_ptr ^^
-      E.call_import env "rts" "parse_idl_header" ^^
+      E.call_rts env "parse_idl_header" ^^
 
       (* Allocate global type table, if necessary for subtype checks *)
       (if extended then
@@ -9395,7 +9431,7 @@ module Serialization = struct
          get_global_candid_data env ^^
          get_global_type_offsets env ^^
          get_global_typtbl_ptr ^^ get_global_typtbl_end_ptr ^^ get_global_typtbl_size_ptr ^^
-         E.call_import env "rts" "idl_alloc_typtbl"
+         E.call_rts env "idl_alloc_typtbl"
       end) ^^
 
       (* Allocate memo table, if necessary *)
@@ -9475,7 +9511,7 @@ module Serialization = struct
            ReadBuf.read_sleb128 env get_main_typs_buf ^^
            wrap_i64_to_word32 ^^
            compile_const_32 0l ^^
-           E.call_import env "rts" "skip_any" ^^
+           E.call_rts env "skip_any" ^^
            get_arg_count ^^ compile_sub_const B.one ^^ set_arg_count
          end ^^
 
@@ -9953,6 +9989,9 @@ module NewStableMemory = struct
   let upgrade_version_from_graph_stabilization env =
     StableMem.get_version env ^^
     compile_eq_const (B.of_int_host StableMem.version_graph_copy_no_regions) ^^
+    StableMem.get_version env ^^
+    compile_eq_const (B.of_int_host StableMem.version_graph_copy_v1_no_regions) ^^
+    G.i B.or_ ^^
     E.if1 B.wasm_val_type
     begin
       compile_unboxed_const (B.of_int_host StableMem.version_stable_heap_no_regions)
@@ -9960,6 +9999,9 @@ module NewStableMemory = struct
     begin
       StableMem.get_version env ^^
       compile_eq_const (B.of_int_host StableMem.version_graph_copy_regions) ^^
+      StableMem.get_version env ^^
+      compile_eq_const (B.of_int_host StableMem.version_graph_copy_v1_regions) ^^
+      G.i B.or_ ^^
       E.else_trap_with env "Unsupported stable memory version when upgrading from graph-copy-based stabilization" ^^
       compile_unboxed_const (B.of_int_host StableMem.version_stable_heap_regions)
     end ^^
@@ -10040,13 +10082,13 @@ module EnhancedOrthogonalPersistence = struct
   (* 32-bit adaptation: No direct changes; delegates to RTS and Serialization
      which are already parameterized. *)
 
-  let has_stable_actor env = E.call_import env "rts" "has_stable_actor"
+  let has_stable_actor env = E.call_rts env "has_stable_actor"
 
-  let load_stable_actor env = E.call_import env "rts" "load_stable_actor"
+  let load_stable_actor env = E.call_rts env "load_stable_actor"
 
-  let save_stable_actor env = E.call_import env "rts" "save_stable_actor"
+  let save_stable_actor env = E.call_rts env "save_stable_actor"
 
-  let free_stable_actor env = E.call_import env "rts" "free_stable_actor"
+  let free_stable_actor env = E.call_rts env "free_stable_actor"
 
   let create_type_descriptor env actor_type =
     let (candid_type_desc, type_offsets, type_indices) = Serialization.(type_desc env Persistence [actor_type]) in
@@ -10057,11 +10099,11 @@ module EnhancedOrthogonalPersistence = struct
 
   let register_stable_type env actor_type =
     create_type_descriptor env actor_type ^^
-    E.call_import env "rts" "register_stable_type"
+    E.call_rts env "register_stable_type"
 
   let assign_stable_type env actor_type =
     create_type_descriptor env actor_type ^^
-    E.call_import env "rts" "assign_stable_type"
+    E.call_rts env "assign_stable_type"
 
   let load_old_field env field get_old_actor =
     if field.Type.typ = Type.(Opt Any) then
@@ -10128,25 +10170,26 @@ end (* EnhancedOrthogonalPersistence *)
    32-bit adaptation: No direct changes; delegates to RTS. *)
 module GraphCopyStabilization = struct
   let is_graph_stabilization_started env =
-    E.call_import env "rts" "is_graph_stabilization_started" ^^ Bool.from_rts_int32
+    E.call_rts env "is_graph_stabilization_started" ^^ Bool.from_rts_int32
 
   let start_graph_stabilization env actor_type =
     EnhancedOrthogonalPersistence.create_type_descriptor env actor_type ^^
-    E.call_import env "rts" "start_graph_stabilization"
+    E.call_rts env "start_graph_stabilization"
 
   let graph_stabilization_increment env =
-    E.call_import env "rts" "graph_stabilization_increment" ^^ Bool.from_rts_int32
+    E.call_rts env "graph_stabilization_increment" ^^ Bool.from_rts_int32
 
-  let start_graph_destabilization env actor_type =
-    EnhancedOrthogonalPersistence.create_type_descriptor env actor_type ^^
-    E.call_import env "rts" "start_graph_destabilization"
+  let start_graph_destabilization env =
+    E.call_rts env "start_graph_destabilization"
 
   let graph_destabilization_increment env =
-    E.call_import env "rts" "graph_destabilization_increment" ^^ Bool.from_rts_int32
+    E.call_rts env "graph_destabilization_increment" ^^ Bool.from_rts_int32
 
   let get_graph_destabilized_actor env actor_type =
-    E.call_import env "rts" "get_graph_destabilized_actor" ^^
-    EnhancedOrthogonalPersistence.upgrade_actor env actor_type
+    E.call_rts env "get_graph_destabilized_actor" ^^
+    match env.E.enhanced_migration with
+    | Some _ -> G.nop
+    | None -> EnhancedOrthogonalPersistence.upgrade_actor env actor_type
 end
 
 module GCRoots = struct
@@ -10156,12 +10199,12 @@ module GCRoots = struct
     Func.share_code0 Func.Always env "initialize_root_array" [] (fun env ->
       let length = B.of_int_host (E.object_pool_size env) in
       compile_unboxed_const length ^^
-      E.call_import env "rts" "initialize_static_variables" ^^
+      E.call_rts env "initialize_static_variables" ^^
       E.iterate_object_pool env (fun index allocation ->
       Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
             compile_unboxed_const (B.of_int_host index) ^^
             allocation env ^^
-              E.call_import env "rts" "set_static_variable")
+              E.call_rts env "set_static_variable")
       )
     )
 end (* GCRoots *)
@@ -10803,7 +10846,7 @@ module IncrementalGraphStabilization = struct
       begin
         (* Extra safety measure stopping the GC during incremental stabilization,
            although it should not be called in lifecycle state `InStabilization`. *)
-        E.call_import env "rts" "stop_gc_before_stabilization" ^^
+        E.call_rts env "stop_gc_before_stabilization" ^^
         IC.get_actor_to_persist env ^^
         GraphCopyStabilization.start_graph_stabilization env actor_type
       end)
@@ -10862,7 +10905,7 @@ module IncrementalGraphStabilization = struct
   let complete_graph_destabilization env =
     IC.initialize_main_actor env ^^
     (* Allow other messages and allow garbage collection. *)
-    E.call_import env "rts" "start_gc_after_destabilization" ^^
+    E.call_rts env "start_gc_after_destabilization" ^^
     Lifecycle.trans env Lifecycle.Idle
 
   let define_async_destabilization_reply_callback env =
@@ -10924,7 +10967,7 @@ module IncrementalGraphStabilization = struct
   let partial_destabilization_on_upgrade env actor_type =
     (* TODO: Verify that the post_upgrade hook cannot be directly called by the IC *)
     (* Garbage collection is disabled in `start_graph_destabilization` until destabilization has completed. *)
-    GraphCopyStabilization.start_graph_destabilization env actor_type.Ir.pre ^^
+    GraphCopyStabilization.start_graph_destabilization env ^^
     get_destabilized_actor env ^^
     compile_test I64Op.Eqz ^^
     E.if0
@@ -11013,6 +11056,12 @@ module Persistence = struct
     compile_eq_const (B.of_int_host StableMem.version_graph_copy_no_regions) ^^
     get_persistence_version env ^^
     compile_eq_const (B.of_int_host StableMem.version_graph_copy_regions) ^^
+    G.i B.or_ ^^
+    get_persistence_version env ^^
+    compile_eq_const (B.of_int_host StableMem.version_graph_copy_v1_no_regions) ^^
+    G.i B.or_ ^^
+    get_persistence_version env ^^
+    compile_eq_const (B.of_int_host StableMem.version_graph_copy_v1_regions) ^^
     G.i B.or_
 
   let use_enhanced_orthogonal_persistence env =
@@ -11022,8 +11071,35 @@ module Persistence = struct
     compile_eq_const (B.of_int_host StableMem.version_stable_heap_regions) ^^
     G.i B.or_
 
+  (* Heuristic: detect deployments of a Motoko Wasm on top of
+    a non-Motoko canister (e.g. Rust).
+
+     `read_persistence_version` (in the RTS) only peeks at the first and last
+     u32 of stable memory: when the first word is non-zero it unconditionally
+     returns `legacy_version_no_stable_memory` (0), assuming this is a legacy
+     canister. For a Rust canister it can happen that the first word is
+     non-zero, so Motoko enters the Candid-destabilization branch and
+     traps with a confusing message.
+
+     A genuine Motoko non-EOP canister has the layout
+       [0..4) : u32 length N of the payload
+       [4..4+N) : Candid blob starting with the "DIDL"
+     so we verify at offset 4 before continuing and, on mismatch, trap. *)
+  let didl_magic_le = 0x4C444944l
+  let validate_motoko_legacy_signature env =
+    get_persistence_version env ^^
+    compile_eq_const (B.of_int_host StableMem.legacy_version_no_stable_memory) ^^
+    E.if0
+      begin
+        compile_unboxed_const (B.of_int_host 4) ^^
+        StableMem.read_word32 env ^^
+        compile_eq32_const didl_magic_le ^^
+        E.else_trap_with env "Cannot install Motoko canister: previous canister version is non-Motoko (e.g., Rust, missing Candid \"DIDL\" signature). Uninstall it before deploying this Motoko canister."
+      end
+      G.nop
+
   let initialize env actor_type =
-    E.call_import env "rts" "read_persistence_version" ^^
+    E.call_rts env "read_persistence_version" ^^
     set_persistence_version env ^^
     use_graph_destabilization env ^^
     E.if0
@@ -11051,6 +11127,7 @@ module Persistence = struct
           begin
             use_candid_destabilization env ^^
             E.else_trap_with env "Unsupported persistence version. Use newer Motoko compiler version." ^^
+            validate_motoko_legacy_signature env ^^
             if not (!Flags.explicit_enhanced_orthogonal_persistence) then
               E.trap_with env "Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration."
             else G.nop ^^
@@ -11906,8 +11983,8 @@ let compile_binop env t op : SR.t * SR.t * G.t =
           get_res)
   | Type.(Prim Float),                        DivOp -> G.i (Binary (Wasm_exts.Values.F64 F64Op.Div))
   | Type.(Prim Float32),                      DivOp -> G.i (Binary (Wasm_exts.Values.F32 F32Op.Div))
-  | Type.(Prim Float32),                      ModOp -> E.call_import env "rts" "fmodf"
-  | Type.(Prim Float),                        ModOp -> E.call_import env "rts" "fmod"
+  | Type.(Prim Float32),                      ModOp -> E.call_rts env "fmodf"
+  | Type.(Prim Float),                        ModOp -> E.call_rts env "fmod"
   | Type.(Prim (Int8|Int16|Int32)),           ModOp -> G.i B.rem_s
   | Type.(Prim (Nat8|Nat16|Nat32 as ty)),     WPowOp -> TaggedSmallWord.compile_nat_power env ty
   | Type.(Prim (Int8|Int16|Int32 as ty)),     WPowOp -> TaggedSmallWord.compile_int_power env ty
@@ -12048,8 +12125,8 @@ let compile_binop env t op : SR.t * SR.t * G.t =
       env "pow" BigNum.compile_unsigned_pow
       (powInt64_shortcut (Word64.compile_unsigned_pow env))
   | Type.(Prim Nat),                          PowOp -> BigNum.compile_unsigned_pow env
-  | Type.(Prim Float),                        PowOp -> E.call_import env "rts" "pow"
-  | Type.(Prim Float32),                      PowOp -> E.call_import env "rts" "powf"
+  | Type.(Prim Float),                        PowOp -> E.call_rts env "pow"
+  | Type.(Prim Float32),                      PowOp -> E.call_rts env "powf"
   | Type.(Prim (Nat8|Nat16|Nat32|Int8|Int16|Int32)),
                                               AndOp -> G.i B.and_
   | Type.(Prim (Nat64|Int64)),                AndOp -> G.i i64_and
@@ -12501,7 +12578,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     | Float, Int ->
       SR.Vanilla,
       compile_exp_as env ae SR.UnboxedFloat64 e ^^
-      E.call_import env "rts" "bigint_of_float64"
+      E.call_rts env "bigint_of_float64"
 
     | Int, Float ->
       SR.UnboxedFloat64,
@@ -12515,7 +12592,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
          extend_sword_to_i64 ^^
          G.i (Convert (Wasm_exts.Values.F64 F64Op.ConvertSI64)))
         (get_b ^^
-         E.call_import env "rts" "bigint_to_float64")
+         E.call_rts env "bigint_to_float64")
 
     | Float, Int64 ->
       SR.UnboxedWord64 Int64,
@@ -12695,7 +12772,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.UnboxedWord64 Type.Int8,
     compile_exp_vanilla env ae e1 ^^
     compile_exp_vanilla env ae e2 ^^
-    E.call_import env "rts" "text_compare" ^^
+    E.call_rts env "text_compare" ^^
     TaggedSmallWord.msb_adjust Type.Int8
   | OtherPrim "blob_compare", [e1; e2] ->
     SR.UnboxedWord64 Type.Int8,
@@ -12863,7 +12940,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
     compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 6L) ^^
     compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 0L) ^^
-    E.call_import env "rts" "float_fmt"
+    E.call_rts env "float_fmt"
 
   | OtherPrim "Float32->Text", [e] ->
     SR.Vanilla,
@@ -12871,60 +12948,60 @@ and compile_prim_invocation (env : E.t) ae p es at =
     G.i (Convert (Wasm_exts.Values.F64 F64Op.PromoteF32)) ^^
     compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 6L) ^^
     compile_unboxed_const (TaggedSmallWord.vanilla_lit Type.Nat8 0L) ^^
-    E.call_import env "rts" "float_fmt"
+    E.call_rts env "float_fmt"
 
   | OtherPrim "fmtFloat->Text", [f; prec; mode] ->
     SR.Vanilla,
     compile_exp_as env ae SR.UnboxedFloat64 f ^^
     compile_exp_vanilla env ae prec ^^
     compile_exp_vanilla env ae mode ^^
-    E.call_import env "rts" "float_fmt"
+    E.call_rts env "float_fmt"
 
   | OtherPrim "fsin", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "sin"
+    E.call_rts env "sin"
 
   | OtherPrim "fcos", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "cos"
+    E.call_rts env "cos"
 
   | OtherPrim "ftan", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "tan"
+    E.call_rts env "tan"
 
   | OtherPrim "fasin", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "asin"
+    E.call_rts env "asin"
 
   | OtherPrim "facos", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "acos"
+    E.call_rts env "acos"
 
   | OtherPrim "fatan", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "atan"
+    E.call_rts env "atan"
 
   | OtherPrim "fatan2", [y; x] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 y ^^
     compile_exp_as env ae SR.UnboxedFloat64 x ^^
-    E.call_import env "rts" "atan2"
+    E.call_rts env "atan2"
 
   | OtherPrim "fexp", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "exp"
+    E.call_rts env "exp"
 
   | OtherPrim "flog", [e] ->
     SR.UnboxedFloat64,
     compile_exp_as env ae SR.UnboxedFloat64 e ^^
-    E.call_import env "rts" "log"
+    E.call_rts env "log"
 
   (* Other prims, nullary *)
 
@@ -12943,7 +13020,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   | OtherPrim "rts_version", [] ->
     SR.Vanilla,
-    E.call_import env "rts" "version"
+    E.call_rts env "version"
 
   | OtherPrim "rts_heap_size", [] ->
     SR.Vanilla,
@@ -13009,7 +13086,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "alloc_weak_ref", [target] ->
     SR.Vanilla,
     WeakRef.try_inject env (compile_exp_vanilla env ae target) ^^
-    E.call_import env "rts" "alloc_weak_ref"
+    E.call_rts env "alloc_weak_ref"
 
   | OtherPrim "weak_get", [weak_ref] ->
     SR.Vanilla,
@@ -13019,7 +13096,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "weak_ref_is_live", [weak_ref] ->
     SR.Vanilla,
     compile_exp_vanilla env ae weak_ref ^^
-    E.call_import env "rts" "weak_ref_is_live" ^^
+    E.call_rts env "weak_ref_is_live" ^^
     Bool.from_rts_int32
 
   | OtherPrim "env_var_names", [] ->
@@ -13031,23 +13108,31 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae name ^^
     IC.env_var env
 
+  | OtherPrim "caller_info_signer", [] ->
+    SR.Vanilla,
+    IC.caller_info_signer env
+
+  | OtherPrim "caller_info_data", [] ->
+    SR.Vanilla,
+    IC.caller_info_data env
+
   | OtherPrim "get_dedup_table", [] ->
     SR.Vanilla,
-    E.call_import env "rts" "get_dedup_table"
+    E.call_rts env "get_dedup_table"
 
   | OtherPrim "set_dedup_table", [dedup_table] ->
     SR.unit,
     compile_exp_vanilla env ae dedup_table ^^
-    E.call_import env "rts" "set_dedup_table"
+    E.call_rts env "set_dedup_table"
 
   | OtherPrim "get_migrations", [] ->
     SR.Vanilla,
-    E.call_import env "rts" "get_migrations"
+    E.call_rts env "get_migrations"
 
   | OtherPrim "set_migrations", [pointer] ->
     SR.unit,
     compile_exp_vanilla env ae pointer ^^
-    E.call_import env "rts" "set_migrations"
+    E.call_rts env "set_migrations"
 
   (* Regions *)
 
@@ -13202,7 +13287,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "crc32Hash", [e] ->
     SR.UnboxedWord64 Type.Nat32,
     compile_exp_vanilla env ae e ^^
-    E.call_import env "rts" "compute_crc32" ^^
+    E.call_rts env "compute_crc32" ^^
     extend_i32_to_word ^^
     TaggedSmallWord.msb_adjust Type.Nat32
 
@@ -13572,10 +13657,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   (* textual to bytes *)
   | (OtherPrim "decode_principal" | BlobOfIcUrl), [_] ->
-    const_sr SR.Vanilla (E.call_import env "rts" "blob_of_principal")
+    const_sr SR.Vanilla (E.call_rts env "blob_of_principal")
   (* The other direction *)
   | IcUrlOfBlob, [_] ->
-    const_sr SR.Vanilla (E.call_import env "rts" "principal_of_blob")
+    const_sr SR.Vanilla (E.call_rts env "principal_of_blob")
 
   (* Actor ids are blobs in the RTS *)
   | ActorOfIdBlob _, [e] ->
@@ -13965,7 +14050,7 @@ and compile_char_to_char_rts env ae exp rts_fn =
   compile_exp_as env ae (SR.UnboxedWord64 Type.Char) exp ^^
   TaggedSmallWord.lsb_adjust_codepoint env ^^
   wrap_i64_to_word32 ^^
-  E.call_import env "rts" rts_fn ^^
+  E.call_rts env rts_fn ^^
   extend_i32_to_word ^^
   TaggedSmallWord.msb_adjust_codepoint
 
@@ -13980,7 +14065,7 @@ and compile_char_to_bool_rts (env : E.t) (ae : VarEnv.t) exp rts_fn =
   wrap_i64_to_word32 ^^
   (* The RTS function returns Motoko True/False values (which are represented as
      1 and 0, respectively) so we don't need any marshalling *)
-  E.call_import env "rts" rts_fn ^^
+  E.call_rts env rts_fn ^^
   Bool.from_rts_int32
 
 (*
@@ -14646,7 +14731,7 @@ and conclude_module env set_serialization_globals start_fi_o =
 
   (* Wrap the start function with the RTS initialization *)
   let rts_start_fi = E.add_fun env "rts_start" (Func.of_body env [] [] (fun env1 ->
-    E.call_import env "rts" ("initialize_incremental_gc") ^^
+    E.call_rts env ("initialize_incremental_gc") ^^
     GCRoots.register_static_variables env ^^
     match start_fi_o with
     | Some fi ->

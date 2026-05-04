@@ -11,5 +11,19 @@ ingress $ID check "DIDL\x00\x00"
 upgrade $ID enhanced-migration-incremental/version4.mo ""
 ingress $ID check "DIDL\x00\x00"
 
+# Add a call to stabilization to check if graph copy works properly
+# with the rts migration list.
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+
+# This is supposed to fail, wrong migration in the chain!
+upgrade $ID enhanced-migration-incremental/version2.mo ""
+
+# This is working!
 upgrade $ID enhanced-migration-incremental/version5.mo ""
+
+# Destabilize.
+ingress $ID __motoko_destabilize_after_upgrade "DIDL\x00\x00"
+
+# Everything should work as normal.
 ingress $ID check "DIDL\x00\x00"
+

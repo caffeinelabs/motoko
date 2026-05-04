@@ -1,0 +1,52 @@
+null-coalesce.mo:12.31-12.32: type error [M0065], expected option type before '??', but expression produces type
+  T
+null-coalesce.mo:15.23-15.43: type error [M0245], cannot find best common type for
+  Text
+and
+  Int
+null-coalesce.mo:16.23-16.25: type error [M0065], expected option type before '??', but expression produces type
+  Nat
+null-coalesce.mo:17.23-17.30: type error [M0065], expected option type before '??', but expression produces type
+  Text
+null-coalesce.mo:18.24-18.28: type error [M0065], expected option type before '??', but expression produces type
+  Bool
+null-coalesce.mo:24.29-24.30: type error [M0096], expression of type
+  T
+cannot produce expected type
+  ?Int
+because type variable 
+  T
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  ?Int
+null-coalesce.mo:27.22-27.32: type error [M0096], expression of type
+  ?Int
+cannot produce expected type
+  ?Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
+null-coalesce.mo:29.40-29.43: type error [M0096], expression of type
+  Int
+cannot produce expected type
+  Text
+null-coalesce.mo:30.21-30.23: type error [M0050], literal of type
+  Nat
+does not have expected type
+  ?Nat
+null-coalesce.mo:31.29-31.30: type error [M0096], expression of type
+  T
+cannot produce expected type
+  ?Nat
+because type variable 
+  T
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  ?Nat

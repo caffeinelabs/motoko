@@ -78,6 +78,8 @@ suggest-short-ai.mo:4.6-4.7: type error [M0072], field s does not exist in type:
     btstNat64 : (w : Nat64, amount : Nat64) -> Bool;
     btstNat8 : (w : Nat8, amount : Nat8) -> Bool;
     call_raw : (p : Principal, m : Text, a : Blob) -> async Blob;
+    callerInfoData : <system>() -> Blob;
+    callerInfoSigner : <system>() -> Blob;
     cancelTimer : (id : Nat) -> ();
     canisterSubnet : () -> Principal;
     canisterVersion : () -> Nat64;

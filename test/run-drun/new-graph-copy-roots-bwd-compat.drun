@@ -1,0 +1,17 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+
+# The wasm is obtained with compiler at git commit `895c20f49a3139b0f5c2ad9cc07c57260ef82b82`
+install $ID new-graph-copy-roots-bwd-compat/new-stabilization.wasm ""
+ingress $ID populate "DIDL\x00\x00"
+ingress $ID print "DIDL\x00\x00"
+
+# Do graph copy stabilization.
+ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
+
+# We now install the same code compiled with the new version which
+# has the extra GC roots for graph copy stab/destab.
+upgrade $ID new-graph-copy-roots-bwd-compat/new-stabilization.mo ""
+
+ingress $ID __motoko_destabilize_after_upgrade "DIDL\x00\x00"
+
+ingress $ID print "DIDL\x00\x00"

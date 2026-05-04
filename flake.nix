@@ -99,7 +99,14 @@
         export CLANG="${pkgs.clang_19}/bin/clang"
       '';
 
-      rts = import ./nix/rts.nix { inherit pkgs llvmEnv; };
+      rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv; };
+      # `.#rts-checked` always runs the host-side `cargo test` suite.
+      # `.#rts` is the same on Linux (Hydra-cached, fast) but skips the
+      # check phase on darwin where the cargo test suite has no cache and
+      # dominates wall-clock — the `nightly-macos-test` schedule covers
+      # darwin checks separately by building `.#rts-checked` directly.
+      rts-checked = rts-set.checked;
+      rts = if pkgs.stdenv.isDarwin then rts-set.build else rts-checked;
 
       commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo ] ++ (with ocamlPackages; [
         ocaml
@@ -117,7 +124,6 @@
         num
         stdint
         wasm
-        vlq
         zarith
         yojson
         ppxlib
@@ -139,7 +145,7 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-13.0.0" = "sha256-86wm0ofPSmZ/gCTanP8NYLG2VRs03t53byo1VNL8DJg=";
+          "pocket-ic-13.0.0" = "sha256-QMJWB1yRAgrvmugmGqG6zvk7Z3hzXkGTsGej5EJ3z8g=";
         };
       };
 
@@ -224,7 +230,7 @@
         base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
         report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
-        inherit rts base-src core-src docs shell;
+        inherit rts rts-checked base-src core-src docs shell;
       };
     in
     {
