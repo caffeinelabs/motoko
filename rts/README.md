@@ -70,7 +70,7 @@ If you change dependencies (e.g. bump versions, add more crates), Make sure that
 `motoko-rts-tests/Cargo.lock` is up to date. This can be done by running
 `cargo build --target=wasm32-wasip1` in `motoko-rts-tests/` directory.
 
-**Updating rustc**: see [`.agents/skills/bump-rust-nightly/SKILL.md`](../.agents/skills/bump-rust-nightly/SKILL.md) for the full recipe — nightly date, `rustStdDepsHash` probe, Cargo lockfile updates, common compiler-error fixes, macOS test slowness, and CI-trigger pattern.
+**Updating rustc**: see [`.agents/skills/bump-rust-nightly/SKILL.md`](../.agents/skills/bump-rust-nightly/SKILL.md) for the full recipe — nightly date, `rustStdDepsHash` probe, Cargo lockfile updates, common compiler-error fixes, and CI-trigger pattern.
 
 Running RTS tests
 -----------------
