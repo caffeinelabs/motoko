@@ -196,6 +196,10 @@ let argspec =
   Arg.Unit (fun () -> Flags.experimental_field_aliasing := true),
   " enable experimental support for aliasing of var fields";
 
+  "--experimental-tailcalls",
+  Arg.Unit (fun () -> Flags.experimental_tailcalls := true),
+  " enable experimental support for non-self (mutual / cross-function) tail calls (currently a no-op; IR primitive and backend codegen pending)";
+
   "--experimental-rtti",
   Arg.Unit (fun () -> Flags.rtti := true),
   " enable experimental support for precise runtime type information (default with enhanced orthogonal persistence)";
