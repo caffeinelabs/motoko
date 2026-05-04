@@ -1,7 +1,7 @@
 # Bumping the Rust Nightly Toolchain
 
 This skill guides you through bumping the `rustc-nightly` version used to build
-the Motoko RTS. Branch: `gabor/bump-nightly-rustc`, PR: caffeinelabs/motoko#5743.
+the Motoko RTS.
 
 ## Files to Change
 
