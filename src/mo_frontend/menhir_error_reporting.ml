@@ -110,7 +110,7 @@ module Make
        We view these items as explanations: they explain what
        we have read and what we expect to read. *)
 
-    let stack_elements (env : 'a env) : element list Lazy.t =
+    let stack_elements env =
       let rec build i : element list Lazy.t =
         lazy (
             match get i env with
