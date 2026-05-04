@@ -317,12 +317,6 @@ EXPORTED_SYMBOLS=\
   fmodf \
   log
 
-EXPORTED_SYMBOLS_64=\
-  $(EXPORTED_SYMBOLS) \
-  __wasm_apply_data_relocs
-
-
-
 WASM_A_DEPENDENCIES_32=$(TOMMATH_WASM_32_A)
 LINKER_OPTIONS_32=\
   --import-memory --shared --no-entry --gc-sections \
