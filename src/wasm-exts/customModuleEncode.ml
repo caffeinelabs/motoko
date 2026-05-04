@@ -452,6 +452,8 @@ let encode (em : extended_module) =
       | Return -> op 0x0f
       | Call x -> op 0x10; var x
       | CallIndirect (x, y) -> op 0x11; var y; var x
+      | ReturnCall x -> op 0x12; var x
+      | ReturnCallIndirect (x, y) -> op 0x13; var y; var x
 
       | Drop -> op 0x1a
       | Select -> op 0x1b
