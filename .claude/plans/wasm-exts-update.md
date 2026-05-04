@@ -173,14 +173,117 @@ stack, not a performance regression to chase down.
 
 ### Future work (not part of this slice)
 
+- **Source-level annotation `(with tailcall)`** — the most useful next
+  step; supersedes the "producer heuristics" idea below by giving the
+  user direct control. See § *Source-level annotation* below.
 - **Producer heuristics.** Today the producer emits `TailCallPrim` for
   every tail-positioned non-self `CallPrim` under the flag. Smarter
-  heuristics could limit it to functions known to be in a mutual-recursion
-  cycle, or to source-annotated `tail` calls, so the cycle cost is paid
-  only where stack safety actually matters.
+  heuristics (e.g. limit to functions known to be in a mutual-recursion
+  cycle) would help, but explicit annotation is strictly better — it
+  documents intent and verifies it.
 - **`return_call_indirect`.** Extend `Closure.call_closure` so the
   closure-call path can use `return_call_indirect` when the prim is
   `TailCallPrim`. Currently those fall through to ordinary `call_indirect`.
+
+## Source-level annotation: `(with tailcall)` — *proposed*
+
+### Motivation
+
+Per-call granularity matches the actual *property* `return_call`
+provides — bounded stack at a metered cost — which is a property of
+individual recursive call sites, not of whole modules. The
+`--experimental-tailcalls` flag is a coarse module-wide knob; the
+annotation lets users pay the IC's cycle premium *only* where stack
+safety matters.
+
+Equally valuable as a **declarative diagnostic**: the compiler can
+verify the annotated call is in tail position and warn otherwise.
+Same role as Scala's `@tailrec` or Haskell's `{-# RULES #-}` —
+intent meets verification. Today users have no way to express "I
+*meant* this to be a tail call"; with this annotation, that intent
+is checked at compile time.
+
+**Near-term value:** a workable opt-in for the `core` library's
+recursive algorithms (list/tree traversals, fold/reduce on deep
+structures) where stack safety beats cycles, while we wait for the
+IC's per-instruction cost of `return_call` to come down.
+
+### Surface syntax
+
+The `parenthetical` non-terminal is already in the grammar
+(`parser.mly`, used today for `(with cycles = …)`,
+`(with migration = …)`, etc.). Two spellings reduce to the same IR:
+
+- **Explicit:** `(with tailcall = true) f(args)`
+- **Pun:** `(with tailcall) f(args)` — desugars to
+  `(with tailcall = tailcall)` via record punning, requires
+  `let tailcall = true` (or import `tailcall` from a constant-bearing
+  module) in scope.
+
+The pun form needs no grammar change — it's the punning shorthand
+the language already supports for record fields. The cost is just a
+new attribute key in the typechecker's table of recognised
+`with`-fields.
+
+### Typecheck constraint
+
+The `tailcall` field must resolve to a **compile-time-known `Bool`**.
+Rationale: codegen needs to decide statically whether to emit `Call`
+or `ReturnCall` — it cannot dispatch on a runtime value. This
+contrasts with `(with cycles = expr)`, which accepts a runtime `Nat`
+because the value is passed at the call boundary.
+
+Const-folding already covers literals, identifiers bound to
+literals, and trivial expressions; rejecting non-const values is a
+small one-shot check at the typecheck of the parenthetical. Error
+message: *"`tailcall` must be a compile-time-known Bool (literal or
+constant binding)"*.
+
+### Lowering
+
+When the parenthetical is present and resolves to `true`, lower the
+call straight to `PrimE (TailCallPrim insts, [e1; e2])` — bypassing
+the flag-gated producer arm in `tailcall.ml`. The codegen path
+already in place (commit `ef2c7fb0c`) does the rest. When `false`
+(or absent), lower to `CallPrim` as today.
+
+### Open design questions
+
+1. **Flag interaction.** Three plausible policies:
+   - *Annotation always wins* — flag becomes redundant for new code,
+     kept only as a coarse migration knob. Cleanest end-state.
+   - *Annotation only with flag* — keeps `--experimental-tailcalls`
+     as a gate during the experimental window. Conservative.
+   - *Annotation overrides default* — explicit `tailcall = false`
+     blocks producer-arm rewrites even with flag on, useful for
+     proving "this call site is intentionally not a tail call."
+
+2. **Tail-position warning: where to run the analysis.** Tail
+   position is well-defined but subtle (early returns inside switch
+   arms, both branches of an `if`, etc.). The producer in
+   `tailcall.ml` already does this analysis correctly. Two designs:
+   - *Frontend approximation* — warn on obvious non-tail (call not
+     last in its enclosing block); let `tailcall.ml` confirm and emit
+     the precise warning later.
+   - *Defer to IR* — the annotation lowers to `TailCallPrim`
+     unconditionally; `tailcall.ml` (or a new IR pass) checks tail
+     position and warns if the annotation was misplaced. Avoids
+     duplicating the analysis.
+
+3. **Self-recursion.** A `(with tailcall) self(args)` annotation:
+   honour by emitting `TailCallPrim` (cycle cost, no loop), or keep
+   the existing self-tail → loop rewrite (cheaper)? The user
+   expressed *intent* (tail-call), and the loop rewrite satisfies it
+   semantically (bounded stack, no overflow). Suggested behaviour:
+   keep the loop, emit a *note* (not warning) that a cheaper form
+   was applied.
+
+4. **Indirect calls.** Today codegen specialises only direct calls.
+   For closure calls (`Type.Local` via `call_indirect`), should the
+   annotation force `return_call_indirect`? Requires extending
+   `Closure.call_closure`. Suggested interim behaviour: emit warning
+   *"annotation honoured only for direct calls; closure-call tail
+   support pending"*.
 
 ## Risks
 
