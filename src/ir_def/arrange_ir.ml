@@ -61,6 +61,7 @@ and arg a = Atom a.it
 
 and prim = function
   | CallPrim ts       -> "CallPrim" $$ List.map typ ts
+  | TailCallPrim ts   -> "TailCallPrim" $$ List.map typ ts
   | UnPrim (t, uo)    -> "UnPrim"     $$ [typ t; Arrange_ops.unop uo]
   | BinPrim (t, bo)   -> "BinPrim"    $$ [typ t; Arrange_ops.binop bo]
   | RelPrim (t, ro)   -> "RelPrim"    $$ [typ t; Arrange_ops.relop ro]

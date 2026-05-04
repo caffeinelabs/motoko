@@ -27,7 +27,7 @@ let effect_exp (exp: exp) : T.eff = eff exp
 
 let is_async_call p exps =
   match p, exps with
-  | CallPrim _, [exp1; _] ->
+  | (CallPrim _ | TailCallPrim _), [exp1; _] ->
     T.is_shared_func (typ exp1) ||
     T.is_local_async_func (typ exp1)
   | OtherPrim "call_raw", _ ->

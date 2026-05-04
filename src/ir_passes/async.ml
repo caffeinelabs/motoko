@@ -323,7 +323,7 @@ let transform prog =
       in
       let v_ret, v_fail, v_clean = fresh_var "v" t_ret, fresh_var "e" t_fail, fresh_var "c" t_clean in
       ([v_ret; v_fail; v_clean] -->* callE (t_exp exp1) [t0] (List.map varE [v_ret; v_fail; v_clean] |> tupE)).it
-    | PrimE (CallPrim typs, [exp1; exp2]) when is_awaitable_func exp1 ->
+    | PrimE ((CallPrim typs | TailCallPrim typs), [exp1; exp2]) when is_awaitable_func exp1 ->
       let ts1,ts2 =
         match typ exp1 with
         | Func (Shared _, Promises, tbs, ts1, ts2) ->

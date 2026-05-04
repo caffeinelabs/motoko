@@ -328,7 +328,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
   | PrimE (p, es) ->
     interpret_exps env es [] (fun vs ->
       match p, vs with
-      | CallPrim typs, [v1; v2] ->
+      | (CallPrim typs | TailCallPrim typs), [v1; v2] ->
         let v1 = match v1 with
           | V.(Tup [Blob aid; Text id]) -> lookup_actor env exp.at aid id
           | _ -> v1 in
