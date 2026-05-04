@@ -91,8 +91,9 @@ linking and module construction.
 - **SIMD instructions**: No vectorisation in Motoko codegen.
 - **Exception instructions**: Future work (Motoko try/catch). Take the AST
   constructors but don't emit.
-- **Tail calls**: Future work (async optimisation). Same — take constructors,
-  don't emit yet.
+- ~~**Tail calls**: Future work (async optimisation). Same — take constructors,
+  don't emit yet.~~ **Delivered** end-to-end on `gabor/wasm-exts-sync` —
+  see § *Tail-call instructions (delivered)* below.
 
 These exist in the AST for compatibility but the codegen doesn't touch them.
 
@@ -110,6 +111,76 @@ types.ml  →  values.ml  →  ast.ml  →  operators.ml
 ```
 
 `types.ml` must go first — everything depends on it.
+
+## Tail-call instructions (delivered)
+
+Implemented on branch `gabor/wasm-exts-sync` ahead of the broader 2.0.2 sync,
+so the rest of that work can land later without re-touching this slice.
+
+### Stack
+
+| commit | layer | what |
+| --- | --- | --- |
+| `f2c69f3e7` | wasm-exts | `ReturnCall` / `ReturnCallIndirect` AST variants, smart constructors, encoder (opcodes `0x12`/`0x13`), decoder (illegal-list updated). |
+| `a7ebc369d` | CLI | `--experimental-tailcalls` flag wired in `flags.ml` + `moc.ml`. |
+| `dd2d8337a` | IR | New `prim` constructor `TailCallPrim of Type.typ list`; consumer arms in interpreter, type-checker, effect inference, async lowering, both backends merged via or-patterns; `arrange_ir.ml` renders it. |
+| `ef2c7fb0c` | codegen | `compile_classical.ml` and `compile_enhanced.ml` direct-call arm: `is_tail` derived from prim, emits `ReturnCall <fi>` and skips `FakeMultiVal.load` (control never returns). |
+| `4dbdb1712` | producer | `tailcall.ml` gains a third arm: in tail position, when the self-recursion loop-rewrite doesn't apply and `--experimental-tailcalls` is set, emit `TailCallPrim` instead of `CallPrim`. |
+| `fb38c1b24` | bench | `test/bench/tailcall.mo` — Hutton/Bahr-style stack VM running `fak`. Mutually tail-recursive dispatcher (`step` → `opPush` → `step` → …), first-order, no closures. |
+
+### Design notes
+
+- **Pipeline order matters.** `tailcall_optimization` runs *after*
+  `async_lowering` (`pipeline.ml:796-797`), so by the time the producer arm
+  sees a `CallPrim`, awaitable/IC calls have already been desugared. The
+  producer therefore cannot mistakenly tag a shared call as a tail call.
+- **Codegen scope: direct calls only.** `TailCallPrim` is honoured in the
+  `SR.Const Const.Fun (..., mk_fi, _)` arm (known function index → emit
+  `ReturnCall <fi>`). Closure calls (`Type.Local` via `call_indirect`) and
+  shared calls fall through to the regular path even if the prim is
+  `TailCallPrim`. Extending to `return_call_indirect` is a follow-up if the
+  cost/benefit ever justifies it.
+- **Validation.** Wasm `return_call` requires the callee's wasm result type
+  to match the enclosing function's. Motoko's all-multival-via-side-channel
+  ABI gives every wasm function the result type `[]` (or a single `i64`),
+  so the constraint holds trivially for direct calls between Motoko
+  functions.
+- **Self-recursion still loops.** The pre-existing self-tail-call → loop
+  rewrite is strictly cheaper than `return_call` to self (no call mechanism
+  at all), so the producer arm only fires when the loop rewrite *cannot*
+  apply: cross-function tail calls, mutually-recursive cycles, or self-calls
+  with mismatched type instantiation.
+
+### Empirical: IC instruction-counter cost
+
+Measured against `test/bench/tailcall.mo` (fak(10) ×1000):
+
+| build | cycles |
+| --- | --- |
+| baseline (no flag) | 15_439_607 |
+| `--experimental-tailcalls` | 25_416_088 |
+
+The diff between the two wasm outputs is **a single instruction per dispatch
+hop**: `call $step` → `return_call $step`. Everything else (locals,
+allocation for the option-tuple, arg passing) is identical. So the ~65%
+cycle overhead is purely the IC's metering charging more for `return_call`.
+
+**Implication:** `--experimental-tailcalls` is a *bounded-stack* opt-in,
+not a perf optimisation. The win is for code that would otherwise blow
+the wasm stack — virtual-machine dispatchers, CPS-transformed programs,
+deep mutual recursion. Treat the cycle cost as the price of bounded
+stack, not a performance regression to chase down.
+
+### Future work (not part of this slice)
+
+- **Producer heuristics.** Today the producer emits `TailCallPrim` for
+  every tail-positioned non-self `CallPrim` under the flag. Smarter
+  heuristics could limit it to functions known to be in a mutual-recursion
+  cycle, or to source-annotated `tail` calls, so the cycle cost is paid
+  only where stack safety actually matters.
+- **`return_call_indirect`.** Extend `Closure.call_closure` so the
+  closure-call path can use `return_call_indirect` when the prim is
+  `TailCallPrim`. Currently those fall through to ordinary `call_indirect`.
 
 ## Risks
 
