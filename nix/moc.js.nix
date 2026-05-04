@@ -8,6 +8,7 @@ let
         pkgs.ocamlPackages.js_of_ocaml
         pkgs.ocamlPackages.js_of_ocaml-ppx
         pkgs.nodejs-slim
+        pkgs.terser
       ];
       buildPhase = ''
         patchShebangs .
@@ -15,7 +16,7 @@ let
         ./rts/gen.sh ${rts}/rts/
       '' + ''
         make ${n}.js
-        jsoo_minify ${n}.js -o ${n}.min.js
+        terser ${n}.js -o ${n}.min.js -c -m
       '';
       installPhase = ''
         mkdir -p $out/bin
