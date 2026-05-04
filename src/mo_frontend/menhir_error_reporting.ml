@@ -145,7 +145,7 @@ module Make
 
   let weed comp l =
     let rec loop acc = function
-      | [] | [x] as xs -> List.rev (xs @ acc)
+      | [] | [_] as xs -> List.rev (xs @ acc)
       | x :: (y :: _ as rest) when comp x y = 0 -> loop acc rest
       | x :: rest -> loop (x :: acc) rest
     in
