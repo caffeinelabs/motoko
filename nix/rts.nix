@@ -46,86 +46,99 @@ let
       rustStdDeps
     ];
   };
-in
+  baseAttrs = {
+    src = ../rts;
 
-pkgs.stdenv.mkDerivation {
-  name = "moc-rts";
+    nativeBuildInputs = [ pkgs.makeWrapper pkgs.removeReferencesTo pkgs.cacert ];
 
-  src = ../rts;
+    buildInputs = with pkgs; [
+      llvmPackages_19.clang
+      llvmPackages_19.bintools
+      rust-nightly
+      wasmtime
+      rust-bindgen
+      python3
+      wabt
+    ] ++ pkgs.lib.optional pkgs.stdenv.isDarwin [
+      libiconv
+    ];
 
-  nativeBuildInputs = [ pkgs.makeWrapper pkgs.removeReferencesTo pkgs.cacert ];
+    preBuild = ''
+      export CARGO_HOME=$PWD/cargo-home
 
-  buildInputs = with pkgs; [
-    llvmPackages_19.clang
-    llvmPackages_19.bintools
-    rust-nightly
-    wasmtime
-    rust-bindgen
-    python3
-    wabt
-  ] ++ pkgs.lib.optional pkgs.stdenv.isDarwin [
-    libiconv
-  ];
+      # This replicates logic from nixpkgs’ pkgs/build-support/rust/default.nix
+      mkdir -p $CARGO_HOME
+      echo "Using vendored sources from ${rtsDeps}"
+      unpackFile ${allDeps}
+      cat > $CARGO_HOME/config.toml <<__END__
+        [source."crates-io"]
+        "replace-with" = "vendored-sources"
 
-  preBuild = ''
-    export CARGO_HOME=$PWD/cargo-home
-
-    # This replicates logic from nixpkgs’ pkgs/build-support/rust/default.nix
-    mkdir -p $CARGO_HOME
-    echo "Using vendored sources from ${rtsDeps}"
-    unpackFile ${allDeps}
-    cat > $CARGO_HOME/config.toml <<__END__
-      [source."crates-io"]
-      "replace-with" = "vendored-sources"
-
-      [source."vendored-sources"]
-      "directory" = "$(stripHash ${allDeps})"
-    __END__
+        [source."vendored-sources"]
+        "directory" = "$(stripHash ${allDeps})"
+      __END__
 
 
-    ${llvmEnv}
-    export TOMMATHSRC=${pkgs.sources.libtommath-src}
-  '';
+      ${llvmEnv}
+      export TOMMATHSRC=${pkgs.sources.libtommath-src}
+    '';
 
-  doCheck = true;
+    installPhase = ''
+      mkdir -p $out/rts
+      cp mo-rts-non-incremental.wasm $out/rts
+      cp mo-rts-non-incremental-debug.wasm $out/rts
+      cp mo-rts-incremental.wasm $out/rts
+      cp mo-rts-incremental-debug.wasm $out/rts
+      cp mo-rts-eop.wasm $out/rts
+      cp mo-rts-eop-debug.wasm $out/rts
+    '';
 
-  checkPhase = ''
-    make test
-  '';
-
-  installPhase = ''
-    mkdir -p $out/rts
-    cp mo-rts-non-incremental.wasm $out/rts
-    cp mo-rts-non-incremental-debug.wasm $out/rts
-    cp mo-rts-incremental.wasm $out/rts
-    cp mo-rts-incremental-debug.wasm $out/rts
-    cp mo-rts-eop.wasm $out/rts
-    cp mo-rts-eop-debug.wasm $out/rts
-  '';
-
-  # This needs to be self-contained. Remove mention of nix path in debug
-  # message.
-  preFixup = ''
-    remove-references-to \
-      -t ${pkgs.rust-nightly} \
-      $out/rts/mo-rts-non-incremental.wasm \
-      $out/rts/mo-rts-non-incremental-debug.wasm \
-      $out/rts/mo-rts-incremental.wasm \
-      $out/rts/mo-rts-incremental-debug.wasm \
-      $out/rts/mo-rts-eop.wasm \
-      $out/rts/mo-rts-eop-debug.wasm
-
-    for rtsDep in $(find ${rtsDeps} -type l -exec readlink {} +); do
+    # This needs to be self-contained. Remove mention of nix path in debug
+    # message.
+    preFixup = ''
       remove-references-to \
-        -t "$rtsDep" \
+        -t ${pkgs.rust-nightly} \
         $out/rts/mo-rts-non-incremental.wasm \
         $out/rts/mo-rts-non-incremental-debug.wasm \
         $out/rts/mo-rts-incremental.wasm \
         $out/rts/mo-rts-incremental-debug.wasm \
         $out/rts/mo-rts-eop.wasm \
         $out/rts/mo-rts-eop-debug.wasm
-    done
-  '';
 
-  allowedRequisites = [ ];
-}
+      for rtsDep in $(find ${rtsDeps} -type l -exec readlink {} +); do
+        remove-references-to \
+          -t "$rtsDep" \
+          $out/rts/mo-rts-non-incremental.wasm \
+          $out/rts/mo-rts-non-incremental-debug.wasm \
+          $out/rts/mo-rts-incremental.wasm \
+          $out/rts/mo-rts-incremental-debug.wasm \
+          $out/rts/mo-rts-eop.wasm \
+          $out/rts/mo-rts-eop-debug.wasm
+      done
+    '';
+
+    allowedRequisites = [ ];
+  };
+
+  # Test-less build: produces the wasm artifacts only. This is the default
+  # `.#rts` consumed by everything (moc, test aggregates, artifacts job)
+  # because it's the bottleneck on macOS where running `cargo test` adds
+  # ~10+ minutes of from-source build with no Hydra cache.
+  rts-build = pkgs.stdenv.mkDerivation (baseAttrs // {
+    name = "moc-rts";
+    doCheck = false;
+  });
+
+  # Same source/build, additionally runs the host-side cargo test suite.
+  # Wired into the macos-nightly schedule so the tests still run on darwin
+  # daily, just not on every PR.
+  rts-checked = pkgs.stdenv.mkDerivation (baseAttrs // {
+    name = "moc-rts-checked";
+    doCheck = true;
+    checkPhase = ''
+      make -j8 test
+    '';
+  });
+in
+
+{ build = rts-build; checked = rts-checked; }

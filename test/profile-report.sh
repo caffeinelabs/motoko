@@ -3,13 +3,20 @@
 # This script runs the programs in perf/ with wasm-profiler instrumentation
 # and dumps flamegraphs and an index.html in _profile.
 #
-# It expect on the path:
-# moc drun wasm-profiler-instrument wasm-profiler-postproc flamegraph
+# It expects on the path:
+# moc test-runner wasm-profiler-instrument wasm-profiler-postproc flamegraph
 # (Should all be present in the nix shell)
 
 set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
+
+export LANG=C.UTF-8
+# On darwin, default 2MB can trigger "thread 'MR Batch Processor' has overflowed its stack"
+export RUST_MIN_STACK=$((10*1024*1024))
+
+# drun's default canister id; used to address //CALL directives.
+ID=rwlgt-iiaaa-aaaaa-aaaaa-cai
 
 if ! [ -d perf ]; then
   echo "Did not find perf/"
@@ -54,9 +61,19 @@ for file in perf/*.mo; do
   moc --force-gc -g "$file" -o "_profile_build/$base.wasm"
   wasm-profiler-instrument --ic-system-api -i "_profile_build/$base.wasm" -o "_profile_build/$base.instrumented.wasm"
 
-  # qr.mo takes far too long with profiling instrumentation, so limit runtime
-  timeout 20s ./drun-wrapper.sh "_profile_build/$base.instrumented.wasm" "$file" |&
-    wasm-profiler-postproc flamegraph "_profile_build/$base.instrumented.wasm" \
+  # qr.mo takes far too long with profiling instrumentation, so limit runtime.
+  # Synthesize a drun script: install the instrumented wasm and replay any
+  # //CALL directives from the source file, then feed it to test-runner --run.
+  wasm="_profile_build/$base.instrumented.wasm"
+  {
+    echo "create"
+    echo "install $ID $wasm 0x"
+    LANG=C perl -ne '
+      print "$1 '"$ID"' $2\n" if m,^//CALL (ingress|query) (.*),;
+      print "upgrade '"$ID"' '"$wasm"' 0x\n" if m,^//CALL upgrade,;
+    ' "$file"
+  } | timeout 20s test-runner --run |&
+    wasm-profiler-postproc flamegraph "$wasm" \
     > "_profile_build/$base.flamegraph"
 
   flamegraph --hash --title "$base.mo" \

@@ -1,10 +1,10 @@
 RUNFLAGS =
 
 all:
-	../run.sh $(RUNFLAGS) *.cmp
+	run-test $(RUNFLAGS) *.cmp
 
 accept:
-	../run.sh $(RUNFLAGS) -a *.cmp
+	run-test $(RUNFLAGS) -a *.cmp
 
 clean:
 	rm -rf _out

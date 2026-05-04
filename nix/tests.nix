@@ -59,8 +59,8 @@ let
         export ESM=${esm}
         export MOTOKO_CORE="${core-src}"
         type -p moc && moc --version
-        ${if dir == "run-drun" 
-          then "make -C ${dir}${pkgs.lib.optionalString (pkgs.stdenv.hostPlatform.system != "x86_64-darwin") " parallel -j4"} ${pkgs.lib.optionalString accept " accept"}"
+        ${if dir == "run-drun" && pkgs.stdenv.hostPlatform.system != "x86_64-darwin" && !accept
+          then "test-runner -b --single-mode -j 4 ${dir}"
           else "make -C ${dir}${pkgs.lib.optionalString accept " accept"}"
         }
       '';
@@ -198,9 +198,12 @@ let
     src = ../test;
     buildInputs =
       builtins.attrValues coverage_bins ++
-      [ pkgs.ocamlPackages.bisect_ppx ] ++
+      [ pkgs.ocamlPackages.bisect_ppx test-runner pkgs.pocket-ic.server pkgs.cacert ] ++
       testDerivationDeps ++
       ldTestDeps;
+
+    POCKET_IC_BIN = "${pkgs.pocket-ic.server}/bin/pocket-ic-server";
+    SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
 
     checkPhase = ''
       patchShebangs .
@@ -224,10 +227,10 @@ let
 in
 fix_names
   {
-    run-release = test_subdir "run" [ moc ];
-    run-debug = snty_subdir "run" [ moc ];
-    run-eop-release = enhanced_orthogonal_persistence_subdir "run" [ moc ];
-    run-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run" [ moc ];
+    run-release = test_subdir "run" [ moc test-runner ];
+    run-debug = snty_subdir "run" [ moc test-runner ];
+    run-eop-release = enhanced_orthogonal_persistence_subdir "run" [ moc test-runner ];
+    run-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run" [ moc test-runner ];
     drun-release = test_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-debug = snty_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-compacting-gc = snty_compacting_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
@@ -235,16 +238,16 @@ fix_names
     drun-incremental-gc = snty_incremental_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-eop-release = enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    fail = test_subdir "fail" [ moc ];
-    repl = test_subdir "repl" [ moc ];
-    ld = test_subdir "ld" ([ mo-ld ] ++ ldTestDeps);
-    ld-eop = enhanced_orthogonal_persistence_subdir "ld" ([ mo-ld ] ++ ldTestDeps);
-    idl = test_subdir "idl" [ didc ];
-    mo-idl = test_subdir "mo-idl" [ moc didc ];
-    mo-idl-eop = enhanced_orthogonal_persistence_subdir "mo-idl" [ moc didc ];
+    fail = test_subdir "fail" [ moc test-runner ];
+    repl = test_subdir "repl" [ moc test-runner ];
+    ld = test_subdir "ld" ([ mo-ld test-runner ] ++ ldTestDeps);
+    ld-eop = enhanced_orthogonal_persistence_subdir "ld" ([ mo-ld test-runner ] ++ ldTestDeps);
+    idl = test_subdir "idl" [ didc test-runner ];
+    mo-idl = test_subdir "mo-idl" [ moc didc test-runner ];
+    mo-idl-eop = enhanced_orthogonal_persistence_subdir "mo-idl" [ moc didc test-runner ];
     mo-doc = test_subdir "mo-doc" [ mo-doc ];
-    trap = test_subdir "trap" [ moc ];
-    trap-eop = enhanced_orthogonal_persistence_subdir "trap" [ moc ];
+    trap = test_subdir "trap" [ moc test-runner ];
+    trap-eop = enhanced_orthogonal_persistence_subdir "trap" [ moc test-runner ];
     run-deser = test_subdir "run-deser" [ deser ];
     perf = perf_subdir false "perf" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     # TODO: profiling-graph is excluded because the underlying parity_wasm is deprecated and does not support passive data segments and memory64.

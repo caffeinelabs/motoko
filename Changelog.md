@@ -1,12 +1,37 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
+## 1.7.0 (2026-04-29)
+
+* motoko (`moc`)
+
+  * feat: Add null-coalescing operator `??` (#5722).
+    `e1 ?? e2` evaluates to the unwrapped contents of `e1` when `e1` is `?v`,
+    otherwise to `e2`. The right-hand side is evaluated lazily (short-circuit).
+    For example, `opt ?? defaultValue` replaces the verbose
+    `switch opt { case (?v) v; case null defaultValue }`.
+    The right-hand side may be a block (e.g. `opt ?? { let x = 1; x }`),
+    a `do`-block, or a `Prim.trap` for fail-fast unwrapping. Because `{ ... }`
+    on the right is parsed as a block, a bare record literal must be wrapped
+    in extra braces or parentheses, e.g. `opt ?? ({ x = 0 })` or
+    `opt ?? {{ x = 0 }}`.
+
+  * perf: Compile enhanced multi-migration chains as per-step functions instead of one deeply-nested inlined expression, avoiding the wasm-function complexity limit hit by long chains (#6065).
+
+  * bugfix: Preserve GC-only roots (blob deduplication table, migration functions list) across graph-copy upgrades, and defer actor type compatibility checks to `ICStableRead` so enhanced multi-migration chains with multiple pending steps are accepted (#5993).
+
+  * bugfix: Clearer error when installing a Motoko canister over a non-Motoko or otherwise incompatible canister (#6044).
+
 ## 1.6.0 (2026-04-21)
 
 * motoko (`moc`)
 
-  * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files.
+  * feat: expose caller attributes feature through primitives (#5970).
 
-  * feat: expose caller attributes feature through prim (#5970)
+  * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files (#6015).
 
 ## 1.5.1 (2026-04-13)
 

@@ -6,6 +6,13 @@ use crate::{
     types::{FwdPtr, Tag, Value, TAG_CLOSURE, TAG_FWD_PTR},
 };
 
+#[repr(C)]
+pub struct SerializationRoots {
+    pub actor: Value,
+    pub dedup_table: Value,
+    pub migrations_list: Value,
+}
+
 use self::stable_memory_stream::{ScanStream, StableMemoryStream};
 
 use super::{
@@ -18,6 +25,8 @@ pub struct Serialization {
     to_space: StableMemoryStream,
     limit: ExecutionMonitor,
     array_slice: Option<ArraySlice>,
+    pub dedup_table_address: StableValue,
+    pub migrations_list_address: StableValue,
 }
 
 pub struct ArraySlice {
@@ -63,15 +72,29 @@ impl Serialization {
     /// Start the graph-copy-based heap serialization from the stable `root` object
     /// by writing the serialized data to the stable memory at offset `stable_start`.
     /// The start is followed by a series of copy increments before the serialization is completed.
-    pub fn start<M: Memory>(mem: &mut M, root: Value, stable_start: u64) -> Serialization {
+    pub fn start<M: Memory>(
+        mem: &mut M,
+        roots: SerializationRoots,
+        stable_start: u64,
+    ) -> Serialization {
         let to_space = StableMemoryStream::open(stable_start);
         let limit = ExecutionMonitor::new();
         let mut serialization = Serialization {
             limit,
             to_space,
             array_slice: None,
+            // Dummy start values. Will be overwritten later via serialization.start().
+            dedup_table_address: StableValue::from_raw(0),
+            migrations_list_address: StableValue::from_raw(0),
         };
-        serialization.start(mem, root);
+        // Start serializing from all three roots: the actor and the GC helper roots.
+        let _ = serialization.start(mem, roots.actor);
+        if roots.dedup_table.is_non_null_ptr() {
+            serialization.dedup_table_address = serialization.start(mem, roots.dedup_table);
+        }
+        if roots.migrations_list.is_non_null_ptr() {
+            serialization.migrations_list_address = serialization.start(mem, roots.migrations_list);
+        }
         serialization
     }
 
