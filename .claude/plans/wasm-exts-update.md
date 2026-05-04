@@ -181,9 +181,12 @@ stack, not a performance regression to chase down.
   heuristics (e.g. limit to functions known to be in a mutual-recursion
   cycle) would help, but explicit annotation is strictly better — it
   documents intent and verifies it.
-- **`return_call_indirect`.** Extend `Closure.call_closure` so the
-  closure-call path can use `return_call_indirect` when the prim is
-  `TailCallPrim`. Currently those fall through to ordinary `call_indirect`.
+- **`return_call_indirect` for computed tail-calls.** See §
+  *`return_call_indirect` — enabling computed tail-calls* below. Today
+  closure-typed tail calls silently degrade to non-tail
+  `call_indirect`; emitting the indirect tail-call form covers the
+  complement of the direct-call case (the callee chosen at runtime,
+  not statically known).
 
 ## Source-level annotation: `(with tailcall)` — *proposed*
 
@@ -284,6 +287,94 @@ already in place (commit `ef2c7fb0c`) does the rest. When `false`
    `Closure.call_closure`. Suggested interim behaviour: emit warning
    *"annotation honoured only for direct calls; closure-call tail
    support pending"*.
+
+## `return_call_indirect` — enabling computed tail-calls — *proposed*
+
+### Motivation
+
+The wasm-exts AST/encoder/decoder for `ReturnCallIndirect` already exist
+(commit `f2c69f3e7`), but no codegen path emits the instruction. The
+natural use case is **computed tail-calls**: tail-positioned invocations
+where the callee is selected *at runtime*, not statically known.
+
+Direct `return_call` (delivered) handles the case where the callee is
+known at compile time — the existing bench's `step → opPush → step`
+pattern is the canonical example, and the codegen specialisation lives
+in the `SR.Const Const.Fun (..., mk_fi, _)` arm.
+
+Computed tail-calls are the complementary case. Examples:
+
+- VM dispatchers that **index into a table of opcode handlers** and
+  tail-call the looked-up handler (rather than `switch`-ing on the
+  opcode tag and tail-calling a static function).
+- **CPS-transformed code** where the next continuation is a closure
+  value computed at runtime.
+- **Trampoline-free dynamic dispatch** in interpreters, combinator
+  libraries, and effect handlers.
+
+Today, when a `TailCallPrim` reaches the closure-call arm
+(`_, Type.Local` → `Closure.call_closure`), it silently degrades to
+non-tail `call_indirect`. The user (or producer) requested a tail
+call, but the stack-bounded property is lost.
+
+### What changes
+
+- **`Closure.call_closure`**: add an `is_tail` parameter (or paired
+  `tail_call_closure`).
+- **Inside the closure-call sequence**: replace
+  `G.i (CallIndirect (table_idx, type_idx))` with conditional
+  `ReturnCallIndirect` emission, gated on `is_tail`.
+- **Trailing `FakeMultiVal.load`**: omit when tail-calling, same logic
+  as the direct case (control never returns).
+- Both `compile_classical.ml` and `compile_enhanced.ml` need symmetric
+  treatment; the closure-call helper module is shared in spirit, and
+  may need symmetric edits per backend.
+
+### Wasm validation gotcha
+
+`return_call_indirect` requires the type-table entry referenced by the
+indirect call to have a *result* type that matches the enclosing
+function's. Motoko's all-multival-via-side-channel ABI gives every
+wasm function the result type `[]` (or a single `i64`/`i32` for
+arity-1 returns), so the constraint should hold in practice — but
+it's a *precondition the codegen must enforce*, not an invariant
+we get for free. Worth a check at emission time, with a clear error
+if violated, rather than a runtime trap.
+
+### Bench coverage
+
+`test/bench/tailcall.mo`'s dispatcher is a `switch` over the opcode
+variant and tail-calls top-level non-capturing functions, so 100% of
+its tail-call sites are *direct*. To exercise computed tail-calls,
+add a sibling bench — say `tailcall-computed.mo` — that stores
+opcode handlers as closures in a record or array (one entry per
+opcode) and dispatches through closure invocation. The Bahr/Hutton
+calculation supports both shapes; only the *Motoko encoding* of the
+dispatcher decides whether the wasm-level call is direct or indirect.
+
+That makes the comparison clean: same VM, same number of dispatched
+opcodes, different wasm-level call shape. Differences in cycle count
+between the two benches isolate the indirect-call premium.
+
+### Cycle-cost expectation
+
+On the IC, `call_indirect` is already meaningfully pricier than `call`
+(the extra dispatch-table indirection has a per-instruction cost
+multiplier). The *relative* tail-call premium of `return_call_indirect`
+over `call_indirect` may be smaller (the per-instruction baseline is
+already higher), the same, or larger — not predictable from first
+principles. Worth measuring once the codegen path is in place; the
+result informs whether `(with tailcall)` on closure calls is a
+sensible recommendation for the `mo:core` library or only for niche
+deep-recursion cases.
+
+### Interaction with `(with tailcall)` annotation
+
+Once this work lands, the annotation honours both direct and indirect
+calls uniformly. The interim warning sketched in the annotation
+section's open question 4 — *"annotation honoured only for direct
+calls; closure-call tail support pending"* — becomes unnecessary and
+should be dropped at the same time.
 
 ## Risks
 
