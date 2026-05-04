@@ -239,39 +239,6 @@ struct
     done;
     Buffer.contents buf
 
-  (* Courtesy of Claude.ai *)
-  let levenshtein_distance s t =
-    let m = String.length s
-    and n = String.length t in
-
-    (* Ensure s is the shorter string for optimization *)
-    let (s, t, m, n) = if m > n then (t, s, n, m) else (s, t, m, n) in
-
-    (* Initialize the previous row *)
-    let previous_row = Array.init (m + 1) (fun i -> i) in
-
-    (* Compute the distance *)
-    for i = 1 to n do
-      let current_row = Array.make (m + 1) 0 in
-      current_row.(0) <- i;
-
-      for j = 1 to m do
-        let cost = if s.[j-1] = t.[i-1] then 0 else 1 in
-        current_row.(j) <- min
-          (min
-            (previous_row.(j) + 1)     (* Deletion *)
-            (current_row.(j-1) + 1)    (* Insertion *)
-          )
-          (previous_row.(j-1) + cost)  (* Substitution *)
-      done;
-
-      (* Swap rows *)
-      Array.blit current_row 0 previous_row 0 (m + 1)
-    done;
-
-    (* Return the distance *)
-    previous_row.(m)
-
 end
 
 module Utf8 =

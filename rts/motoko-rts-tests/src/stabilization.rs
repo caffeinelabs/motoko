@@ -14,7 +14,10 @@ use crate::{
 use motoko_rts::{
     memory::{alloc_array, Memory},
     stabilization::{
-        deserialization::Deserialization, graph_copy::GraphCopy, serialization::Serialization,
+        deserialization::Deserialization,
+        graph_copy::GraphCopy,
+        layout::StableValue,
+        serialization::{Serialization, SerializationRoots},
     },
     types::{Value, Words, TAG_ARRAY_M},
 };
@@ -141,12 +144,32 @@ fn random_heap(random: &mut Rand32, max_objects: usize) -> RandomHeap {
 }
 
 fn test_stabilization() {
-    println!("  Testing serialization and deserialization ...");
-    const RANDOM_SEED: u64 = 4711;
-    let mut random = Rand32::new(RANDOM_SEED);
+    test_stabilization_small();
+    test_stabilization_20k();
+}
+
+/// Derive a seed from the git hash, varying tests across commits.
+fn git_seed() -> u64 {
+    let hash = env!("RTS_TEST_GIT_HASH");
+    hash.bytes()
+        .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64))
+}
+
+pub fn test_stabilization_small() {
+    let seed = git_seed();
+    println!(
+        "  Testing serialization and deserialization (small, seed={}) ...",
+        seed
+    );
+    let mut random = Rand32::new(seed);
     test_serialization_deserialization(&mut random, 100, 0);
     test_serialization_deserialization(&mut random, 1000, 200);
     test_serialization_deserialization(&mut random, 10_000, 5_000);
+}
+
+pub fn test_stabilization_20k() {
+    println!("  Testing serialization and deserialization (20k, seed=4711) ...");
+    let mut random = Rand32::new(4711);
     test_serialization_deserialization(&mut random, 20_000, 7_000);
 }
 
@@ -168,14 +191,25 @@ fn test_serialization_deserialization(random: &mut Rand32, max_objects: usize, s
 
 fn serialize(old_stable_root: Value, stable_start: u64) -> u64 {
     let mut memory = TestMemory::new(Words(0));
-    let mut serialization = Serialization::start(&mut memory, old_stable_root, stable_start);
+    let roots = SerializationRoots {
+        actor: old_stable_root,
+        dedup_table: Value::from_raw(0),
+        migrations_list: Value::from_raw(0),
+    };
+    let mut serialization = Serialization::start(&mut memory, roots, stable_start);
     serialization.copy_increment(&mut memory);
     assert!(serialization.is_completed());
     serialization.serialized_data_length()
 }
 
 fn deserialize<M: Memory>(mem: &mut M, stable_start: u64, stable_size: u64) -> Value {
-    let mut deserialization = Deserialization::start(mem, stable_start, stable_size);
+    let mut deserialization = Deserialization::start(
+        mem,
+        stable_start,
+        stable_size,
+        StableValue::from_raw(0),
+        StableValue::from_raw(0),
+    );
     deserialization.copy_increment(mem);
     assert!(deserialization.is_completed());
     deserialization.get_stable_root()

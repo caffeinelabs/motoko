@@ -1,0 +1,85 @@
+error[M0065]: expected option type before '??', but expression produces type
+  T
+    ┌─ null-coalesce.mo:12:31
+ 12 │    func m4<T>(t : T) { let _ = t ?? 42 };
+    │                                ^ 
+error[M0245]: cannot find best common type for
+  Text
+and
+  Int
+    ┌─ null-coalesce.mo:15:23
+ 15 │    func m7() { let _ = stringOptNull ?? int };
+    │                        ^^^^^^^^^^^^^^^^^^^^ has type `Int`
+    │                        │                
+    │                        
+    │                        has type `Text`
+error[M0065]: expected option type before '??', but expression produces type
+  Nat
+    ┌─ null-coalesce.mo:16:23
+ 16 │    func m8() { let _ = 42 ?? 5 };
+    │                        ^^ 
+error[M0065]: expected option type before '??', but expression produces type
+  Text
+    ┌─ null-coalesce.mo:17:23
+ 17 │    func m9() { let _ = "hello" ?? "world" };
+    │                        ^^^^^^^ 
+error[M0065]: expected option type before '??', but expression produces type
+  Bool
+    ┌─ null-coalesce.mo:18:24
+ 18 │    func m10() { let _ = true ?? false };
+    │                         ^^^^ 
+error[M0096]: expression of type
+  T
+cannot produce expected type
+  ?Int
+because type variable 
+  T
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  ?Int
+    ┌─ null-coalesce.mo:24:29
+ 24 │    func m3<T>(t : T) : Int { t ?? 42 };
+    │                              ^ 
+error[M0096]: expression of type
+  ?Int
+cannot produce expected type
+  ?Nat
+because the type 
+  Int
+ is not compatible with type 
+  Nat
+    ┌─ null-coalesce.mo:27:22
+ 27 │    func m51() : Nat { intOptNull ?? 42 };
+    │                       ^^^^^^^^^^ 
+error[M0096]: expression of type
+  Int
+cannot produce expected type
+  Text
+    ┌─ null-coalesce.mo:29:40
+ 29 │    func m61() : Text { stringOptNull ?? int };
+    │                                         ^^^ 
+error[M0050]: literal of type
+  Nat
+does not have expected type
+  ?Nat
+    ┌─ null-coalesce.mo:30:21
+ 30 │    func m7() : Nat { 42 ?? 5 };
+    │                      ^^ 
+error[M0096]: expression of type
+  T
+cannot produce expected type
+  ?Nat
+because type variable 
+  T
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  ?Nat
+    ┌─ null-coalesce.mo:31:29
+ 31 │    func m8<T>(t : T) : Nat { t ?? 42 };
+    │                              ^ 

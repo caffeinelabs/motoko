@@ -123,14 +123,18 @@ module {
 
 ```motoko
 // main.mo
+import Map "mo:core/Map";
+import Types "types";
 import Migration "migration";
 
 (with migration = Migration.run)
 actor {
-  var tasks : Map.Map<Nat, Types.Task>;
+  var tasks = Map.empty<Nat, Types.Task>();
   var nextId : Nat = 0;
 };
 ```
+
+Fields must have initializers — the migration function runs only on **upgrade**. On fresh install the initializers are used.
 
 ## Common Patterns
 

@@ -20,30 +20,30 @@ Run these either in the top level directory, or in one of the subdirectories.
 
 You can also run individual tests, for example:
 
-    ./run.sh run/fac.mo
+    run-test run/fac.mo
 
 to run and
 
-    ./run.sh -a run/fac.mo
+    run-test -a run/fac.mo
 
-to accept. Check `run.sh` for other flags (e.g. drun-mode), and see `Makefile`
-in each subdirectory for the right flags for that directory.
+to accept. Check `run-test --help` for other flags (e.g. drun-mode), and see
+`Makefile` in each subdirectory for the right flags for that directory.
 
 Adding a new test
 -----------------
 
 1. Create `foo.mo` (or similar, see below)
-2. Run `make accept` (or, more targeted, `../run.sh -a foo.mo`)
+2. Run `make accept` (or, more targeted, `run-test -a foo.mo`)
 3. Add `foo.mo` and `ok/foo.*.ok` to git.
 
-The `run.sh` script takes various flags, e.g. `-d` to compile actors instead of
-program, `-p` for performance measurements. See the comment at the top of that
-file. The each subdirectory has a `Makefile` specifying these flags.
+`run-test` takes various flags, e.g. `-d` to compile actors instead of program,
+`-p` for performance measurements. Each subdirectory has a `Makefile` specifying
+these flags.
 
 Kinds of tests
 --------------
 
-The `run.sh` script supports different kinds of tests:
+`run-test` supports different kinds of tests:
 
 ### Single Motoko file tests
 
@@ -66,8 +66,8 @@ remove that line. This allows different behavior with the interpreter and in
 
 These only make sense with `-d`. Create a `foo.drun` file that is a mostly
 unmodified input with one exception: You can reference `foo/bar.mo` files where
-`drun` expects a `.wasm` file. `run.sh` will find these files, compile them to
-`.wasm` and put that file name into the script before passing it to `drun`.
+`drun` expects a `.wasm` file. `run-test` will find these files, compile them
+to `.wasm` and put that file name into the script before passing it to `drun`.
 
 ### Shell files
 
@@ -113,7 +113,7 @@ You can easily run any of the tests in `test/run` in the browser as follows:
   ```
   make -C run
   ```
-  (or just `./run.sh run/empty.mo` to just build a single one.)
+  (or just `run-test run/empty.mo` to just build a single one.)
 
 * Run the python web server:
   ```

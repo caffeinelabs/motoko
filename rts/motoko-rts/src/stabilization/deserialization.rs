@@ -6,7 +6,7 @@ use crate::{
     gc::incremental::array_slicing::slice_array,
     memory::Memory,
     stabilization::deserialization::scan_stack::STACK_EMPTY,
-    types::{FwdPtr, Tag, Value, TAG_ARRAY_SLICE_MIN, TAG_FWD_PTR},
+    types::{FwdPtr, Tag, Value, NULL_POINTER, TAG_ARRAY_SLICE_MIN, TAG_FWD_PTR},
     visitor::visit_pointer_fields,
 };
 
@@ -26,6 +26,9 @@ pub struct Deserialization {
     stable_root: Option<Value>,
     limit: ExecutionMonitor,
     clear_position: u64,
+    /// Heap addresses for the helper GC roots.
+    pub dedup_table_address: Value,
+    pub migrations_list_address: Value,
 }
 
 /// Helper type to pass serialization context instead of closures.
@@ -58,7 +61,13 @@ impl<'a, M: Memory> DeserializationContext<'a, M> {
 /// mechanism to avoid instruction limit exceeding.
 impl Deserialization {
     /// Start the deserialization, followed by a series of copy increments.
-    pub fn start<M: Memory>(mem: &mut M, stable_start: u64, stable_size: u64) -> Deserialization {
+    pub fn start<M: Memory>(
+        mem: &mut M,
+        stable_start: u64,
+        stable_size: u64,
+        dedup_table_address: StableValue,
+        migrations_list_address: StableValue,
+    ) -> Deserialization {
         let from_space = StableMemoryAccess::open(stable_start, stable_size);
         let scan_stack = unsafe { ScanStack::new(mem) };
         let limit = ExecutionMonitor::new();
@@ -70,8 +79,18 @@ impl Deserialization {
             stable_root: None,
             limit,
             clear_position: stable_start,
+            dedup_table_address: NULL_POINTER,
+            migrations_list_address: NULL_POINTER,
         };
-        deserialization.start(mem, StableValue::serialize(Value::from_ptr(0)));
+        let _ = deserialization.start(mem, StableValue::serialize(Value::from_ptr(0)));
+        // Load up the heap addresses of the GC helper roots.
+        if dedup_table_address != StableValue::from_raw(0) {
+            deserialization.dedup_table_address = deserialization.start(mem, dedup_table_address);
+        }
+        if migrations_list_address != StableValue::from_raw(0) {
+            deserialization.migrations_list_address =
+                deserialization.start(mem, migrations_list_address);
+        }
         deserialization
     }
 
