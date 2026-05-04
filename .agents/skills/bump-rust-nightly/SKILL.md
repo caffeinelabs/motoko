@@ -75,37 +75,33 @@ Use `NIGHTLY_RELEASE_CARGO_OPTIONS` in `rts/Makefile`.
 #### `failed to select version for rustc-literal-escaper = "^0.0.7"`
 The vendored std deps are stale — re-run the `rustStdDepsHash` probe (step 4).
 
-### 7. macOS test slowness
-The wasm64 debug test suite runs under `wasmtime` in the nix sandbox. On
-macOS/arm64 it can be **~10x slower** than Linux, sometimes appearing to hang.
-This is likely due to the system virus scanner (XProtect/MRT) intercepting
-wasm memory operations, not a code regression.
+### 7. `.#rts` vs `.#rts-checked` on macOS
 
-**Do not reduce the test object counts** — instead push to CI and let Linux
-confirm correctness. Then trigger the `nightly-macos-test` GitHub Actions
-workflow on the branch to populate cachix with macOS binaries:
+`flake.nix` distinguishes two derivations:
+
+- **`.#rts`** — the build alone. On darwin this skips the host-side `cargo
+  test` suite, so `nix build .#rts` is fast and is what you iterate on locally.
+- **`.#rts-checked`** — always runs the `cargo test` suite. On darwin this
+  exercises the wasm64 debug tests under `wasmtime` in the nix sandbox, which
+  can be **~10× slower** than Linux (likely due to XProtect/MRT intercepting
+  wasm memory ops). Triggered in CI by the `nightly-macos-test` workflow's
+  `rts-checked` job; not normally needed locally.
+
+**Local bump loop:** `nix build .#rts` until green. Push and let CI's
+`rts-checked` exercise the slow path on macOS.
+
+**If `nightly-macos-test` jobs fail or time out**, re-trigger — each run
+caches more derivations, so subsequent runs make progress:
 ```sh
 gh workflow run nightly-macos-test --repo caffeinelabs/motoko --ref <branch>
 ```
-Once cachix is populated, local `nix build` downloads pre-built artifacts
-instead of running the slow tests.
+Two known failure modes that are *not* code regressions:
 
-**`nightly-macos-test` has two distinct macOS failure modes:**
-
-1. **OOM on `systems-go-tests`** — fails in ~4 min with `patch: **** out of memory`
-   while building `ocaml4.14.2-merlin-*` from scratch (before any tests run).
-   Runner memory pressure, not a code issue. Re-trigger the workflow; each run
-   pushes more artifacts to cachix, and eventually merlin gets cached too.
-
-2. **Slow `gc-tests` / `common-tests`** — same XProtect/wasm64 malaise as local:
-   these jobs run but take 10× longer than Linux. They will eventually finish and
-   push their artifacts to cachix. Be patient — do not cancel them.
-
-**Re-trigger pattern:** keep re-triggering until all jobs pass; each run makes
-progress by caching more derivations:
-```sh
-gh workflow run nightly-macos-test --repo caffeinelabs/motoko --ref <branch>
-```
+1. **OOM on `systems-go-tests`** — fails in ~4 min with `patch: **** out of
+   memory` while building `ocaml4.14.2-merlin-*` from scratch (before any
+   tests run). Runner memory pressure. Re-trigger.
+2. **Slow `gc-tests` / `common-tests`** — same XProtect/wasm64 malaise; they
+   eventually finish. Be patient, don't cancel.
 
 ### 8. Commit
 ```
