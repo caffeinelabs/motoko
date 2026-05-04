@@ -75,9 +75,6 @@ Use `NIGHTLY_RELEASE_CARGO_OPTIONS` in `rts/Makefile`.
 #### `failed to select version for rustc-literal-escaper = "^0.0.7"`
 The vendored std deps are stale — re-run the `rustStdDepsHash` probe (step 4).
 
-#### Lifetime warning `mismatched_lifetime_syntaxes`
-Add explicit `'_` to `Ref<Box<[u8]>>` → `Ref<'_, Box<[u8]>>` return types.
-
 ### 7. macOS test slowness
 The wasm64 debug test suite runs under `wasmtime` in the nix sandbox. On
 macOS/arm64 it can be **~10x slower** than Linux, sometimes appearing to hang.
