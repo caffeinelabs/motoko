@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -99,7 +99,14 @@
         export CLANG="${pkgs.clang_19}/bin/clang"
       '';
 
-      rts = import ./nix/rts.nix { inherit pkgs llvmEnv; };
+      rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv; };
+      # `.#rts-checked` always runs the host-side `cargo test` suite.
+      # `.#rts` is the same on Linux (Hydra-cached, fast) but skips the
+      # check phase on darwin where the cargo test suite has no cache and
+      # dominates wall-clock — the `nightly-macos-test` schedule covers
+      # darwin checks separately by building `.#rts-checked` directly.
+      rts-checked = rts-set.checked;
+      rts = if pkgs.stdenv.isDarwin then rts-set.build else rts-checked;
 
       commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo ] ++ (with ocamlPackages; [
         ocaml
@@ -143,7 +150,7 @@
       };
 
       # Define test-runner package.
-      test-runner = pkgs.rustPlatform-stable.buildRustPackage {
+      test-runner = pkgs.rustPlatform.buildRustPackage {
         pname = "test-runner";
         version = "0.1.0";
         src = ./test-runner;
@@ -223,7 +230,7 @@
         base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
         report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
-        inherit rts base-src core-src docs shell;
+        inherit rts rts-checked base-src core-src docs shell;
       };
     in
     {

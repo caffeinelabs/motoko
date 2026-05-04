@@ -1,0 +1,14 @@
+error[M0230]: Cannot determine implicit argument `chain` of type
+  Nat -> Nat
+    ┌─ implicit-derivation-bimatch.mo:14:8
+ 14 │  ignore needsChain(42);
+    │         ^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 `step : Nat -> None` not found
+                 `finish : None -> None` not found
+error[M0230]: Cannot determine implicit argument `wrap` of type
+  Nat -> Bool
+    ┌─ implicit-derivation-bimatch.mo:23:8
+ 23 │  ignore needsWrap(42);
+    │         ^^^^^^^^^^^^^ 
+    = note: If you're trying to omit an implicit argument named `wrap` you need to have a matching declaration named `wrap` in scope.

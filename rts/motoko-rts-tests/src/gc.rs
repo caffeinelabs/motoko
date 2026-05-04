@@ -30,34 +30,43 @@ use fxhash::{FxHashMap, FxHashSet};
 use heap::MotokoHeap;
 use utils::ObjectIdx;
 
-pub fn test() {
-    println!("Testing garbage collection ...");
+pub const SEEDS_PER_CHUNK: u64 = 10;
+pub const NUM_CHUNKS: u64 = 10;
 
+pub fn test() {
+    test_predefined();
+    test_random_range(0, SEEDS_PER_CHUNK * NUM_CHUNKS);
+    test_gc_components();
+}
+
+/// Run just the pre-defined heap tests + GC component tests (no random seeds).
+pub fn test_predefined() {
+    println!("Testing garbage collection ...");
     println!("  Testing pre-defined heaps...");
     for test_heap in test_heaps() {
         run_gc_tests(&test_heap);
     }
+}
 
-    println!("  Testing random heaps...");
-    let max_seed = 100;
-    for seed in 0..max_seed {
-        print!("\r{}/{}", seed + 1, max_seed);
+/// Run random heap tests for seeds in [start, end).
+pub fn test_random_range(start: u64, end: u64) {
+    println!("  Testing random heaps {}-{}...", start, end);
+    for seed in start..end {
+        print!("\r{}/{}", seed - start + 1, end - start);
         std::io::Write::flush(&mut std::io::stdout()).unwrap();
         test_random_heap(seed, 180);
     }
     print!("\r");
-
-    test_gc_components();
 }
 
 #[non_incremental_gc]
-fn test_gc_components() {
+pub fn test_gc_components() {
     compacting::test();
     generational::test();
 }
 
 #[incremental_gc]
-fn test_gc_components() {
+pub fn test_gc_components() {
     incremental::test();
 }
 

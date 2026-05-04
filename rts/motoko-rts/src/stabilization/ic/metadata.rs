@@ -22,18 +22,27 @@
 //!   Serialized data length L (u64)
 //!   Type descriptor address M (u64)
 //!   First word of page 0
-//!   Version 3 or 4 (u32) (match with `VERSION_GRAPH_COPY_NO_REGIONS` and `VERSION_GRAPH_COPY_REGIONS` in `region.rs` and `compile.ml`.
+//!   Version 3, 4, 7, or 8 (u32) (match with `VERSION_GRAPH_COPY_{,V1_}{NO_REGIONS,REGIONS}` in `region.rs` and `compile.ml`.
 //! -- page end
+//!
+//! V1 addendum (versions 7/8): a 16-byte extension block is written
+//! immediately before the legacy 40-byte record, carrying extra GC roots
+//! preserved across the graph-copy upgrade:
+//!   Dedup table address (u64)
+//!   Migrations list address (u64)
+//! V0 records (versions 3/4) carry no extension; the reader clears those
+//! fields back to zero after reading when it sees a V0 `Version`.
 
 use crate::{
     barriers::allocation_barrier,
     memory::{alloc_blob, Memory},
     persistence::compatibility::TypeDescriptor,
     region::{
-        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS, VERSION_STABLE_HEAP_NO_REGIONS,
-        VERSION_STABLE_HEAP_REGIONS,
+        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS,
+        VERSION_GRAPH_COPY_V1_NO_REGIONS, VERSION_GRAPH_COPY_V1_REGIONS,
+        VERSION_STABLE_HEAP_NO_REGIONS, VERSION_STABLE_HEAP_REGIONS,
     },
-    stabilization::{clear_stable_memory, grant_stable_space},
+    stabilization::{clear_stable_memory, grant_stable_space, StableValue},
     stable_mem::{
         get_version, ic0_stable64_read, ic0_stable64_size, ic0_stable64_write, read_u32, read_u64,
         set_version, write_u32, write_u64, PAGE_SIZE,
@@ -49,10 +58,31 @@ pub struct UpgradeStatistics {
     pub stabilization_instructions: u64,
 }
 
+/// `#[repr(C)]` laid out to mirror the full V1 last-page record in stable
+/// memory: the 16-byte extension (extra GC roots) sits in the first two
+/// fields, followed by the legacy 40-byte core ending with `first_word_backup`
+/// and `version` at the compiler-hard-coded offsets. This ordering lets a
+/// single `ic0_stable64_read`/`write` move the whole record in one go.
+///
+/// The extension must be at the *start* of the struct because the record is
+/// anchored at the *end* of the last stable-memory page (so that `version`
+/// lands at `PAGE_SIZE-4`, as the OCaml compiler hard-codes). The extension
+/// therefore precedes the legacy core in stable memory too, and only a
+/// struct that opens with the extension yields a 1:1 byte mapping over a
+/// single `ic0_stable64_read`/`write`.
 #[repr(C)]
 #[derive(Default)]
-struct LastPageRecord {
-    statistics: UpgradeStatistics,
+pub struct LastPageRecord {
+    /// Extra arguments to handle extra GC roots:
+    ///     * dedup_table_address
+    ///     * migrations_list_address
+    /// The two fields are tracking the addresses of
+    /// the saved extra GC-roots used specifically for
+    /// handling the auxiliary runtime data, i.e., the blob dedup table and the migrations list.
+    /// The value is 0 if not present, or a u64 integer with the address.
+    pub dedup_table_address: StableValue,
+    pub migrations_list_address: StableValue,
+    pub statistics: UpgradeStatistics,
     serialized_data_address: u64,
     serialized_data_length: u64,
     type_descriptor_address: u64,
@@ -159,6 +189,16 @@ impl StabilizationMetadata {
         unsafe {
             ic0_stable64_read(&mut value as *mut LastPageRecord as u64, offset, size);
         }
+        // V0 records did not write the extension; the bytes we just read as
+        // `dedup_table_address` / `migrations_list_address` are unrelated
+        // data, so force them back to their "absent" sentinel.
+        if matches!(
+            value.version as usize,
+            VERSION_GRAPH_COPY_NO_REGIONS | VERSION_GRAPH_COPY_REGIONS
+        ) {
+            value.dedup_table_address = StableValue::from_raw(0);
+            value.migrations_list_address = StableValue::from_raw(0);
+        }
         value
     }
 
@@ -166,7 +206,12 @@ impl StabilizationMetadata {
         Self::write_metadata(&LastPageRecord::default());
     }
 
-    pub fn store(&self, measurement: &mut InstructionMeter) {
+    pub fn store(
+        &self,
+        measurement: &mut InstructionMeter,
+        dedup_table_address: StableValue,
+        migrations_list_address: StableValue,
+    ) {
         measurement.start();
         let mut offset = self.serialized_data_start + self.serialized_data_length;
         Self::align_page_start(&mut offset);
@@ -187,17 +232,25 @@ impl StabilizationMetadata {
             serialized_data_address: self.serialized_data_start,
             serialized_data_length: self.serialized_data_length,
             type_descriptor_address,
+            dedup_table_address,
+            migrations_list_address,
             first_word_backup,
             version: Self::stabilization_version() as u32,
         };
         Self::write_metadata(&last_page_record);
     }
 
-    pub fn load<M: Memory>(mem: &mut M) -> (StabilizationMetadata, UpgradeStatistics) {
+    pub fn load<M: Memory>(mem: &mut M) -> (StabilizationMetadata, LastPageRecord) {
         let last_page_record = Self::read_metadata();
         Self::clear_metadata();
         let version = last_page_record.version as usize;
-        assert!(version == VERSION_GRAPH_COPY_NO_REGIONS || version == VERSION_GRAPH_COPY_REGIONS);
+        assert!(matches!(
+            version,
+            VERSION_GRAPH_COPY_NO_REGIONS
+                | VERSION_GRAPH_COPY_REGIONS
+                | VERSION_GRAPH_COPY_V1_NO_REGIONS
+                | VERSION_GRAPH_COPY_V1_REGIONS
+        ));
         set_version(version);
         write_u32(0, last_page_record.first_word_backup);
         let mut offset = last_page_record.type_descriptor_address;
@@ -207,13 +260,13 @@ impl StabilizationMetadata {
             serialized_data_length: last_page_record.serialized_data_length,
             type_descriptor,
         };
-        (metadata, last_page_record.statistics)
+        (metadata, last_page_record)
     }
 
     fn stabilization_version() -> usize {
         match get_version() {
-            VERSION_STABLE_HEAP_NO_REGIONS => VERSION_GRAPH_COPY_NO_REGIONS,
-            VERSION_STABLE_HEAP_REGIONS => VERSION_GRAPH_COPY_REGIONS,
+            VERSION_STABLE_HEAP_NO_REGIONS => VERSION_GRAPH_COPY_V1_NO_REGIONS,
+            VERSION_STABLE_HEAP_REGIONS => VERSION_GRAPH_COPY_V1_REGIONS,
             _ => unreachable!(),
         }
     }

@@ -1,10 +1,10 @@
-mod array_slicing;
-mod mark_bitmap;
-mod mark_stack;
-mod partitioned_heap;
-mod roots;
-mod sort;
-mod time;
+pub mod array_slicing;
+pub mod mark_bitmap;
+pub mod mark_stack;
+pub mod partitioned_heap;
+pub mod roots;
+pub mod sort;
+pub mod time;
 
 pub fn test() {
     println!("Testing incremental GC ...");
