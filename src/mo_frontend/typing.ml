@@ -1603,7 +1603,7 @@ let module_exp in_libs module_ref =
     ImplicitLibE module_ref
 
 let dot_module_exp module_exp name =
-  DotE(module_exp @? name.at, name, ref None) @? name.at
+  DotE(module_exp @? name.at, name, ref None)
 
 let module_ref_of_dot_module_exp (path : exp) =
   match path.it with
@@ -1893,31 +1893,40 @@ module ImplicitHoles = struct
   open Lib.Option.Syntax
 
   module MakeFromModule (M : CandidateSource) = struct
-    let fields_from_module (n, entry) =
-      match T.normalize (M.get_typ entry) with
-      | T.Obj (T.Module, fs, _) -> Some (n, fs)
-      | _ -> None
+    let make_field_candidate module_ref desc T.{lab; typ; _} =
+      let path = dot_module_exp module_ref (lab @@ no_region) @? no_region in
+      ({ path; typ; module_ref_opt = Some desc; id = lab} : hole_candidate)
 
-    let make_field_candidate module_ref T.{lab; typ; _} =
-      let path = dot_module_exp (M.make_ref_exp module_ref) (lab @@ no_region) in
-      ({ path; typ; module_ref_opt = Some module_ref; id = lab} : hole_candidate)
+    (* Searches nested modules up to a given depth to find fields named [name] *)
+    let rec find_candidates depth path desc t name = match T.normalize t with
+      | T.Obj (T.Module, fs, _) when depth > 0 ->
+        let direct = match T.find_val_field_opt name fs with
+        | Some f when not (T.is_mut f.T.typ) -> Seq.return (path, desc, f)
+        | _ -> Seq.empty in
+        let nested = Seq.concat_map (fun f ->
+          let path = dot_module_exp path (f.T.lab @@ no_region) in
+          let desc = desc ^ "." ^ f.T.lab in
+          find_candidates (depth - 1) path desc f.T.typ name) (List.to_seq fs) in
+        Seq.append direct nested
+      | _ -> Seq.empty
+
+    (* Modules can be defined recursively, so we set a conservative limit for search depth *)
+    let max_search_depth = 8
 
     let filter_fields hole on_field (entries : M.entry T.Env.t) =
       T.Env.to_seq entries
-      |> Seq.filter_map fields_from_module
-      |> Seq.filter_map (fun (module_ref, fs) ->
-        let* field = T.find_val_field_opt hole.hole_name fs in
-        if T.is_mut field.T.typ then None else
-        on_field module_ref field)
+      |> Seq.concat_map (fun (lab, entry) ->
+        find_candidates max_search_depth (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name)
+      |> Seq.filter_map on_field
       |> List.of_seq
 
-    let matching_fields hole = filter_fields hole (fun module_ref field ->
+    let matching_fields hole = filter_fields hole (fun (module_ref, desc, field) ->
       if not (is_matching_typ hole field.T.typ) then None else
-      Some (make_field_candidate module_ref field))
+      Some (make_field_candidate module_ref desc field))
 
-    let matching_fields_with_holes hole = filter_fields hole (fun module_ref field ->
+    let matching_fields_with_holes hole = filter_fields hole (fun (module_ref, desc, field) ->
       is_matching_typ_with_holes hole field.T.typ
-      |> Option.map (fun holes -> holes, make_field_candidate module_ref field))
+      |> Option.map (fun holes -> holes, make_field_candidate module_ref desc field))
 
     let matching_fields_structural info hole = filter_fields hole (fun module_ref field ->
       is_matching_structural_combiner info field.T.typ
@@ -2185,7 +2194,7 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
   let find_candidate in_libs (module_ref, fs) =
     let* field = T.find_val_field_opt name.it fs in
     let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func field.T.typ receiver_ty in
-    let path = dot_module_exp (module_exp in_libs module_ref) name in
+    let path = dot_module_exp (module_exp in_libs module_ref) name @? name.at in
     Some { module_ref = Some module_ref; path; func_ty; arg_ty; inst } in
 
   let local_candidate =
