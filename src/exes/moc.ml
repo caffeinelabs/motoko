@@ -198,7 +198,7 @@ let argspec =
 
   "--experimental-tailcalls",
   Arg.Unit (fun () -> Flags.experimental_tailcalls := true),
-  " enable experimental support for non-self (mutual / cross-function) tail calls (currently a no-op; IR primitive and backend codegen pending)";
+  " enable wasm tail-call codegen (`return_call` for tail-positioned calls, both self and cross-function); gives bounded stack and a small cycle reduction; closure-call tail-calls still fall through to non-tail `call_indirect`";
 
   "--experimental-rtti",
   Arg.Unit (fun () -> Flags.rtti := true),

@@ -2,13 +2,13 @@
 //
 // Why this benchmark: the dispatcher is written in *mutual* tail-recursion
 // style — `step` matches the opcode and tail-calls a per-opcode handler
-// (`opPush`, `opMul`, …); each handler tail-calls `step` again. Today's
-// `Tailcall` IR pass (`src/ir_passes/tailcall.ml`) only rewrites *self*
-// tail-calls into loops, so each cross-function hop currently allocates a
-// fresh frame. Once the optimiser is extended to emit `return_call` for
-// general tail calls (TODO at `tailcall.ml:13-14`, unblocked by wasm-exts
-// `ReturnCall` landing on this branch), this same dispatcher would lose
-// those per-hop frames and the cycle count should drop measurably.
+// (`opPush`, `opMul`, …); each handler tail-calls `step` again. With the
+// `//MOC-FLAG --experimental-tailcalls` directive at the bottom of this
+// file, the `Tailcall` IR pass (`src/ir_passes/tailcall.ml`) emits
+// `TailCallPrim` for every tail-positioned call — both self and
+// cross-function — and codegen lowers them to wasm `return_call`.
+// Without the flag, cross-function tail-calls would compile to ordinary
+// `call` and the dispatcher would grow the wasm stack on every hop.
 //
 // First-order, mutually tail-recursive, no closures — the textbook shape
 // where mutual TCO pays off.
@@ -136,13 +136,14 @@ persistent actor {
   // 5-Year-Old Gauss bench: sum [1..100] via naïve self-recursive `foldLeft`.
   //
   // Why this complements the VM bench above: `foldLeft` is *self*-tail-
-  // recursive (calls itself with the same type-args), so it hits the
-  // existing `Tailcall.transform` loop-rewrite path
-  // (`src/ir_passes/tailcall.ml:185-200`) — today the recursion is
-  // compiled as a wasm `loop { … local.set; br 0 }`, no actual call
-  // frames. Once the loop-rewrite is removed in favour of uniform
-  // `return_call` codegen, the cycle delta on this bench is the cost of
-  // swapping the `loop` for `return_call $foldLeft`.
+  // recursive (calls itself with the same type-args). Without the flag
+  // it would hit the `Tailcall.transform` self-tail → loop rewrite path
+  // (`src/ir_passes/tailcall.ml:185-200`) and compile to a wasm
+  // `loop { … local.set; br 0 }`. With the flag on, that rewrite is
+  // skipped and `foldLeft` compiles to `return_call $foldLeft` directly
+  // — same bounded stack, no mutable arg-temps, no `loop`/`block`
+  // wrapper. The cycle count below is the with-flag (`return_call`)
+  // baseline.
 
   type List = ?(Nat, List);
 
