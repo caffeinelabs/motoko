@@ -563,7 +563,7 @@ fn handle_mo(ctx: &mut Ctx, cli: &Cli, src: &str, d: &Directives) {
 
     if !skip_validate {
         let mut valid = Command::new("wasm-validate");
-        valid.args(["--enable-memory64", "--enable-multi-memory"]).arg(&wasm_path);
+        valid.args(["--enable-memory64", "--enable-multi-memory", "--enable-tail-call"]).arg(&wasm_path);
         let _ = run_phase(ctx, "valid", d, Some("wasm"), |outp| spawn_to_file(outp, valid));
     }
 

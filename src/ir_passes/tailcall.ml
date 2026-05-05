@@ -117,9 +117,19 @@ and exp' env e  : exp' = match e.it with
                            DeclareE (i, t, tailexp env1 e)
   | DefineE (i, m, e)   -> DefineE (i, m, exp env e)
   | FuncE (x, s, c, tbs, as_, ret_tys, exp0) ->
-    let env1 = { tail_pos = true; info = None} in
+    (* Shared functions (post async-lowering: Shared+Replies / Shared+Returns)
+       are wrapped at the wasm level by `message_start ; … ; message_cleanup`
+       (state-machine transition + GC). The user body is therefore *not*
+       in tail position from the wasm function's perspective: cleanup runs
+       below it. Setting tail_pos = true here would let the producer arm
+       emit TailCallPrim for the body's last call, which codegen lowers to
+       `return_call` — bypassing the cleanup and leaving the lifecycle in
+       InUpdate, so the next message traps. Only Local function bodies are
+       genuinely in tail position. *)
+    let body_in_tail_pos = s = Type.Local in
+    let env1 = { tail_pos = body_in_tail_pos; info = None } in
     let env2 = args env1 as_ in
-    let exp0' = tailexp env2 exp0 in
+    let exp0' = if body_in_tail_pos then tailexp env2 exp0 else exp env2 exp0 in
     FuncE (x, s, c, tbs, as_, ret_tys, exp0')
   | SelfCallE (ts, exp1, exp2, exp3, exp4) ->
     let env1 = { tail_pos = true; info = None} in

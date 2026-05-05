@@ -133,6 +133,55 @@ persistent actor {
     step(fakCode, 0, ?(n, null), null);
 
   // ----------------------------------------------------------
+  // 5-Year-Old Gauss bench: sum [1..100] via naïve self-recursive `foldLeft`.
+  //
+  // Why this complements the VM bench above: `foldLeft` is *self*-tail-
+  // recursive (calls itself with the same type-args), so it hits the
+  // existing `Tailcall.transform` loop-rewrite path
+  // (`src/ir_passes/tailcall.ml:185-200`) — today the recursion is
+  // compiled as a wasm `loop { … local.set; br 0 }`, no actual call
+  // frames. Once the loop-rewrite is removed in favour of uniform
+  // `return_call` codegen, the cycle delta on this bench is the cost of
+  // swapping the `loop` for `return_call $foldLeft`.
+
+  type List = ?(Nat, List);
+
+  func consUp(n : Nat) : List {
+    var xs : List = null;
+    var i : Nat = 1;
+    while (i <= n) {
+      xs := ?(i, xs);
+      i += 1;
+    };
+    xs
+  };
+
+  func foldLeft<A>(f : (A, Nat) -> A, acc : A, xs : List) : A =
+    switch xs {
+      case null acc;
+      case (?(x, rest)) foldLeft<A>(f, f(acc, x), rest);
+    };
+
+  transient let oneToHundred : List = consUp 100;
+
+  // Run `foldLeft (+) 0 [1..100]` 10_000 times. Σ = 5050.
+  public func gauss() : async () {
+    let n0 = counters();
+    var s : Nat = 0;
+    var i = 0;
+    while (i < 10_000) {
+      s := foldLeft<Nat>(func (a, x) = a + x, 0, oneToHundred);
+      i += 1;
+    };
+    let n1 = counters();
+    debugPrint(debug_show {
+      gauss100 = s;
+      iters    = 10_000;
+      cycles   = n1 - n0;
+    });
+  };
+
+  // ----------------------------------------------------------
 
   func counters() : Nat64 = performanceCounter(0);
 
@@ -155,4 +204,5 @@ persistent actor {
 };
 
 //CALL ingress go 0x4449444C0000
+//CALL ingress gauss 0x4449444C0000
 //MOC-FLAG --experimental-tailcalls
