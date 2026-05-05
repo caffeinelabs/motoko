@@ -1,3 +1,4 @@
 .PHONY: %.only
+
 %.only: %.mo
-	../run.sh $(RUNFLAGS) $<
+	run-test $(RUNFLAGS) $<
