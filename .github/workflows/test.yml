@@ -31,7 +31,12 @@ jobs:
   gc-tests:
     strategy:
       matrix:
-        os: [ubuntu-24-large, arm64-linux-16]
+        include:
+          - os: ubuntu-24-large
+            max_jobs: auto
+          # arm64-linux-16 OOMs on three parallel ~3 GB RTS-variant builds; serialise.
+          - os: arm64-linux-16
+            max_jobs: 1
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -44,6 +49,7 @@ jobs:
           test-target: gc-tests
           test-name: ${{ matrix.os }}-gc-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          max-jobs: ${{ matrix.max_jobs }}
 
   tests:
     strategy:

@@ -34,6 +34,10 @@ inputs:
     required: false
     default: ''
     description: "Cachix authentication token (optional; fork PRs run without push)"
+  max-jobs:
+    required: false
+    default: 'auto'
+    description: "Value passed to `nix-build-uncached --max-jobs`. Defaults to `auto` (one job per host CPU). Lower (e.g. `1`) on memory-constrained runners where parallel ~3 GB derivation builds OOM the runner — see `gc-tests` on `arm64-linux-16`."
 
 runs:
   using: "composite"
@@ -61,7 +65,7 @@ runs:
           prefix=(cachix watch-exec ic-hs-test --)
         fi
         "${prefix[@]}" \
-        nix-build-uncached --max-jobs auto \
+        nix-build-uncached -build-flags "--max-jobs ${{ inputs.max-jobs }}" \
         -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.${{ inputs.test-target }}'
       shell: bash
       env:
