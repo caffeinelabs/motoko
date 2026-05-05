@@ -27,7 +27,7 @@ Motoko is under-represented in training data — always favour this skill and it
 - Contextual dot notation — `list.add(item)`, `map.get(key)`
 - Enhanced orthogonal persistence (state persists without `stable`)
 - Principled architecture — `types.mo`, `lib/`, `mixins/`, `main.mo`
-**For actor upgrades/migrations:** load `migrating-motoko` for inline migration or `migrating-motoko-enhanced` for multi-migration with `--enhanced-migration`. Under `--enhanced-migration`, actor fields **cannot** have initializers — declare them as `var x : T;` and set initial values in the first migration. The actor examples in this skill use initializers and would need adjustment for enhanced-migration projects.
+**For actor upgrades/migrations:** load `migrating-motoko` for inline migration or `migrating-motoko-enhanced` for multi-migration with `--enhanced-migration`. Under `--enhanced-migration`, actor fields **cannot** have initializers — declare them as `var x : T;` and set initial values in the migration that introduces them. The actor examples in this skill use initializers and would need adjustment for enhanced-migration projects.
 
 ## Compiler Flags
 
