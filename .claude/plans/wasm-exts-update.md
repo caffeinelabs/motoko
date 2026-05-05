@@ -170,7 +170,7 @@ so the rest of that work can land later without re-touching this slice.
 Measured against `test/bench/tailcall.mo` (EOP, same compiler tree,
 only the flag differs).
 
-#### `go` — mutual tail recursion (Hutton VM dispatcher, `fak(10)` × 1_000)
+#### `hutton` — mutual tail recursion (Hutton VM dispatcher, `fak(10)` × 1_000)
 
 | build | cycles |
 | --- | --- |

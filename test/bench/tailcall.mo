@@ -186,7 +186,7 @@ persistent actor {
   func counters() : Nat64 = performanceCounter(0);
 
   // Run `fak 10` 1_000 times. fak(10) = 3_628_800.
-  public func go() : async () {
+  public func hutton() : async () {
     let n0 = counters();
     var r : Int = 0;
     var i = 0;
@@ -203,6 +203,6 @@ persistent actor {
   };
 };
 
-//CALL ingress go 0x4449444C0000
+//CALL ingress hutton 0x4449444C0000
 //CALL ingress gauss 0x4449444C0000
 //MOC-FLAG --experimental-tailcalls
