@@ -2,6 +2,8 @@
 
 Complete working examples demonstrating modern Motoko patterns. All examples verified with moc 1.5.0.
 
+> **Heads-up — enhanced migration:** the actor examples below declare fields with initializers (`let users = List.empty(); var nextId = 0;`). Under `--enhanced-migration`, actor fields **cannot** have initializers — declare them as `var nextId : Nat;` and set initial values in the migration file that introduces them. See the `migrating-motoko-enhanced` skill.
+
 ## Principled Architecture
 
 ### types.mo
