@@ -15,7 +15,7 @@ Manage canister state evolution through a chain of migration modules. Each migra
 - Adding, removing, or renaming persistent actor fields
 - Changing a field's type
 - Restructuring state across canister upgrades
-- Project has `--enhanced-migration=migrations` in canister args in `mops.toml`
+- Project has `[canisters.<name>.migrations]` configured in `mops.toml`
 
 ## Critical Rules
 
@@ -311,26 +311,24 @@ Final state: `{ var nextId : Nat; tasks : Map.Map<Nat, { id : Nat; text : Text; 
 - **Fast-forward**: safe to skip intermediate deployments — all unapplied migrations run sequentially
 - If a migration traps, the upgrade is aborted and the canister stays on the old version
 
-## Compiling
-
-```bash
-moc --enhanced-orthogonal-persistence \
-    --default-persistent-actors \
-    --enhanced-migration=migrations \
-    src/main.mo -o main.wasm
-```
-
-With mops, split args between global `[moc]` and per-canister `[canisters.backend]`. The migration flag is per-canister because different canisters may use different migration directories:
+## mops.toml Setup
 
 ```toml
 [moc]
-args = ["--enhanced-orthogonal-persistence", "--default-persistent-actors"]
+args = ["--default-persistent-actors"]
 
 [canisters.backend]
-args = ["--enhanced-migration=migrations"]
+main = "src/backend/main.mo"
+
+[canisters.backend.migrations]
+chain = "src/backend/migrations"
 ```
 
-Then `mops check --fix` and `mops build` work as usual.
+When `[canisters.<name>.migrations]` is configured, mops auto-injects `--enhanced-migration` into check/build/check-stable. Do **not** add `--enhanced-migration` to `[canisters.<name>].args` — mops will error.
+
+`--enhanced-orthogonal-persistence` is on by default.
+
+Then `mops check --fix` and `mops build` work as usual. Add new migration files directly under `migrations/` with timestamp prefixes.
 
 ## Restrictions
 
@@ -349,7 +347,7 @@ Then `mops check --fix` and `mops build` work as usual.
 - [ ] Files named with timestamp prefixes for correct ordering
 - [ ] Each file exports `public func migration({...}) : {...}`
 - [ ] Actor variables declared without initializers
-- [ ] `--enhanced-migration=migrations` in `[canisters.backend] args` in `mops.toml`
+- [ ] `[canisters.<name>.migrations]` configured in `mops.toml` (mops injects `--enhanced-migration`)
 - [ ] Run `mops check --fix` to verify chain consistency
 - [ ] Run `mops build` to compile
 

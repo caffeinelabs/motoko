@@ -40,6 +40,15 @@ libm = "=0.2.16"
 motoko-rts-macros = { path = "../motoko-rts-macros" }
 
 [profile.dev]
+# `--sanity-checks` in moc links the dev-profile RTS into every test canister.
+# At the default opt-level = 0, the overhead is very large,
+# e.g. `test/run-drun/trap-on-oneway-failure.mo` runs
+# on aarch64-darwin past pocket-ic timeout defaults and fails.
+# opt-level = 1 speeds up the test.
+opt-level = 1
+# retain debug assertioins and overflow checks to true explicitly.
+debug-assertions = true
+overflow-checks = true
 panic = "abort"
 
 [profile.release]
