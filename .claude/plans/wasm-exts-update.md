@@ -125,8 +125,10 @@ so the rest of that work can land later without re-touching this slice.
 | `a7ebc369d` | CLI | `--experimental-tailcalls` flag wired in `flags.ml` + `moc.ml`. |
 | `dd2d8337a` | IR | New `prim` constructor `TailCallPrim of Type.typ list`; consumer arms in interpreter, type-checker, effect inference, async lowering, both backends merged via or-patterns; `arrange_ir.ml` renders it. |
 | `ef2c7fb0c` | codegen | `compile_classical.ml` and `compile_enhanced.ml` direct-call arm: `is_tail` derived from prim, emits `ReturnCall <fi>` and skips `FakeMultiVal.load` (control never returns). |
-| `4dbdb1712` | producer | `tailcall.ml` gains a third arm: in tail position, when the self-recursion loop-rewrite doesn't apply and `--experimental-tailcalls` is set, emit `TailCallPrim` instead of `CallPrim`. |
-| `fb38c1b24` | bench | `test/bench/tailcall.mo` — Hutton/Bahr-style stack VM running `fak`. Mutually tail-recursive dispatcher (`step` → `opPush` → `step` → …), first-order, no closures. |
+| `4dbdb1712` | producer | `tailcall.ml` gains an arm: in tail position, when the self-tail loop-rewrite doesn't apply and `--experimental-tailcalls` is set, emit `TailCallPrim` instead of `CallPrim`. |
+| `fb38c1b24` | bench (VM) | `test/bench/tailcall.mo` — Hutton/Bahr-style stack VM running `fak`. Mutually tail-recursive dispatcher (`step` → `opPush` → `step` → …), first-order, no closures. |
+| `6491d605c` | Shared-fn fix + gauss bench | `tailcall.ml` `FuncE` arm gates `tail_pos = true` on `s = Type.Local` — Shared bodies are descended with `tail_pos = false`. Fixes a cleanup-bypass trap (`'unexpected state entering InUpdate'`) where `return_call` from the message wrapper to the user-body lambda skipped the `Lifecycle.trans Idle` epilogue. Test runner now passes `--enable-tail-call` to `wasm-validate`. Adds `gauss` bench (naïve self-recursive `foldLeft (+) 0 [1..100]` × 10_000) — exercises the loop-rewrite path. |
+| `e84769da5` | flag-gated loop elision | `tailcall.ml` self-tail-call → loop rewrite now gated `not !Flags.experimental_tailcalls`. With the flag on, self-tail calls fall through to `TailCallPrim` and become `return_call`; with the flag off, the legacy loop rewrite still fires. |
 
 ### Design notes
 
@@ -145,16 +147,30 @@ so the rest of that work can land later without re-touching this slice.
   ABI gives every wasm function the result type `[]` (or a single `i64`),
   so the constraint holds trivially for direct calls between Motoko
   functions.
-- **Self-recursion still loops.** The pre-existing self-tail-call → loop
-  rewrite is strictly cheaper than `return_call` to self (no call mechanism
-  at all), so the producer arm only fires when the loop rewrite *cannot*
-  apply: cross-function tail calls, mutually-recursive cycles, or self-calls
-  with mismatched type instantiation.
+- **Shared function bodies are excluded** from TCO. A Motoko `public func`
+  compiles to a wasm wrapper of the form `message_start ; user-body ;
+  message_cleanup` (state-machine transition + GC). The user body is
+  *not* in tail position from the wrapper's perspective. Letting
+  `return_call` escape the body would skip the cleanup, leaving the
+  lifecycle stuck at `InUpdate` — the next message traps with
+  `'internal error: unexpected state entering InUpdate'`. The fix
+  (`6491d605c`) descends Shared `FuncE` bodies with `tail_pos = false`
+  in `tailcall.ml`, so the producer never tags the wrapper-to-body call
+  as tail-position. Local function bodies are unaffected.
+- **Self-tail recursion: flag-gated choice between loop and `return_call`.**
+  When the flag is *off*, the pre-existing self-tail-call → loop rewrite
+  fires (current default behaviour preserved). When the flag is *on*,
+  the loop rewrite is skipped and self-tail calls fall through to the
+  `TailCallPrim` arm, becoming `return_call` like everything else.
+  Empirically (see below) the loop rewrite is *not* the cheaper of the
+  two — `return_call` saves ~8% on the `gauss` bench.
 
 ### Empirical: IC instruction-counter cost
 
-Measured against `test/bench/tailcall.mo` (fak(10) ×1000), same compiler
-tree, same EOP setting, only the flag differs:
+Measured against `test/bench/tailcall.mo` (EOP, same compiler tree,
+only the flag differs).
+
+#### `go` — mutual tail recursion (Hutton VM dispatcher, `fak(10)` × 1_000)
 
 | build | cycles |
 | --- | --- |
@@ -167,15 +183,33 @@ them flipping `0x10` (`Call`) to `0x12` (`ReturnCall`) at one of 26
 static call sites in the dispatcher. Same length, same operand encoding,
 no other deltas. The ~600k cycle reduction matches the prediction from
 `instruction_to_cost` (`Call=5 → ReturnCall=3`, ~170k dynamic dispatches
-per bench × 2 cycles ≈ 340k–680k saved).
+× 2 cycles ≈ 340k–680k saved).
 
-**Implication:** the IC's metering does what `instruction_to_cost` says.
-TCO is mildly *cheaper* on the cycle axis; not a perf regression. But
-the more interesting property is **bounded stack** — code that would
-otherwise blow the wasm stack (VM dispatchers, CPS-transformed programs,
-deep mutual recursion) runs in constant frame depth. Pitch
-`--experimental-tailcalls` as a *bounded-stack opt-in*, with the ~2.5%
-cycle reduction as a small bonus.
+#### `gauss` — self-tail recursion (`foldLeft (+) 0 [1..100]` × 10_000)
+
+| build | cycles |
+| --- | --- |
+| no `--experimental-tailcalls` (loop rewrite) | 110_520_270 |
+| `--experimental-tailcalls` (`return_call`) | 101_400_270 |
+| **delta** | **−9_120_000 (return_call cheaper, ~8.2%)** |
+
+The flag-off path uses the existing self-tail-call → loop rewrite
+(`tailcall.ml:185-200`) — args copied to mutable temps, body wrapped
+in `loop { … local.set; br 0 }`. The flag-on path skips the rewrite,
+emits `return_call $foldLeft` instead. The loop rewrite's own
+overhead (mutable temps + `loop`/`block` wrapper) costs more than the
+`return_call` opcode plus its built-in arg passing — so the flag is
+*cheaper* here too, contradicting the intuition that "loop is
+strictly better than return_call for self-tail."
+
+**Implication:** the IC's metering does what `instruction_to_cost` says,
+and `return_call` is a real win on both bench shapes. Mutual TCO buys
+~2.5%, self-tail TCO buys ~8.2%. Combined with the bounded-stack
+guarantee for code that would otherwise blow the wasm stack (VM
+dispatchers, CPS-transformed programs, deep mutual recursion),
+`--experimental-tailcalls` is a clear opt-in win for the targeted
+shapes — and the long-term path is to make it the default once the
+proposal is universally available on the IC.
 
 (Earlier read of this section claimed a "65% regression"; that was a
 methodology error — it compared a stale committed `.ok` from before
@@ -185,20 +219,23 @@ honest same-tree comparison is the table above.)
 
 ### Future work (not part of this slice)
 
-- **Source-level annotation `(with tailcall)`** — the most useful next
-  step; supersedes the "producer heuristics" idea below by giving the
-  user direct control. See § *Source-level annotation* below.
-- **Producer heuristics.** Today the producer emits `TailCallPrim` for
-  every tail-positioned non-self `CallPrim` under the flag. Smarter
-  heuristics (e.g. limit to functions known to be in a mutual-recursion
-  cycle) would help, but explicit annotation is strictly better — it
-  documents intent and verifies it.
+- **Source-level annotation `(with tailcall)`** — per-call surface
+  knob (presence-form via record-punning on a `let tailcall = true`)
+  with a compile-time `Bool`-const constraint and a tail-position
+  warning. Useful workaround for `mo:core` recursive algorithms.
+  See § *Source-level annotation* below.
 - **`return_call_indirect` for computed tail-calls.** See §
   *`return_call_indirect` — enabling computed tail-calls* below. Today
   closure-typed tail calls silently degrade to non-tail
   `call_indirect`; emitting the indirect tail-call form covers the
   complement of the direct-call case (the callee chosen at runtime,
   not statically known).
+- **Default-on `--experimental-tailcalls`.** Once IC support is
+  universal and the proposal is no longer "experimental", flip the
+  default and remove the legacy self-tail loop-rewrite path entirely.
+  The empirical numbers above already favour `return_call` on the
+  cycle axis, so the migration is a strict improvement plus
+  bounded-stack.
 
 ## Source-level annotation: `(with tailcall)` — *proposed*
 
