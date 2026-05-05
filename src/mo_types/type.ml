@@ -1377,7 +1377,7 @@ and eq_kind' eq k1 k2 : bool =
 
 and eq_con' d eq c1 c2 =
   match Cons.kind c1, Cons.kind c2 with
-  | (Def (tbs1, t1)) as k1, (Def (tbs2, t2) as k2) ->
+  | Def (tbs1, t1) as k1, (Def (tbs2, t2) as k2) ->
     eq_kind' eq k1 k2
   | Abs _, Abs _ ->
     Cons.eq c1 c2
@@ -1639,7 +1639,7 @@ let rec combine rel lubs glbs t1 t2 =
       Opt (combine rel lubs glbs t1' t2')
     | Weak t1', Weak t2' ->
       Weak (combine rel lubs glbs t1' t2')
-    | (Opt _ as t), (Prim Null as t')
+    | Opt _ as t, (Prim Null as t')
     | (Prim Null as t'), (Opt _ as t) ->
       if rel == lubs then t else t'
     | Array t1', Array t2' ->
@@ -2059,7 +2059,7 @@ let string_of_con c =
 
 let rec can_sugar = function
   | Func(s, Promises, tbs, ts1, ts2)
-  | Func((Shared _ as s), Returns, tbs, ts1, ([] as ts2))
+  | Func(Shared _ as s, Returns, tbs, ts1, ([] as ts2))
   | Func(s, Returns, (_::_ as tbs), ts1, ([Async (_, Var(_, 0),_)] as ts2)) ->
     List.for_all (fun tb -> can_omit 0 tb.bound) tbs &&
     List.for_all (can_omit 0) ts1 &&
@@ -2169,7 +2169,7 @@ and pp_typ_pre vs ppf t =
           (pp_typ' vs) t1
           (pp_typ_pre vs) t2
     else fprintf ppf "@[<2>async%s@ %a@]" (string_of_async_sort s) (pp_typ_pre vs) t2
-  | Obj ((Module | Actor | Mixin | Memory) as os, fs, tfs) ->
+  | Obj (Module | Actor | Mixin | Memory as os, fs, tfs) ->
     pp_typ_obj vs ppf (os, fs, tfs)
   | t ->
     pp_typ_un vs ppf t
