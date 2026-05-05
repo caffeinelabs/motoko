@@ -153,23 +153,35 @@ so the rest of that work can land later without re-touching this slice.
 
 ### Empirical: IC instruction-counter cost
 
-Measured against `test/bench/tailcall.mo` (fak(10) ×1000):
+Measured against `test/bench/tailcall.mo` (fak(10) ×1000), same compiler
+tree, same EOP setting, only the flag differs:
 
 | build | cycles |
 | --- | --- |
-| baseline (no flag) | 15_439_607 |
+| no `--experimental-tailcalls` | 26_052_088 |
 | `--experimental-tailcalls` | 25_416_088 |
+| **delta** | **−636_000 (TCO cheaper, ~2.5%)** |
 
-The diff between the two wasm outputs is **a single instruction per dispatch
-hop**: `call $step` → `return_call $step`. Everything else (locals,
-allocation for the option-tuple, arg passing) is identical. So the ~65%
-cycle overhead is purely the IC's metering charging more for `return_call`.
+The diff between the two wasm outputs is exactly 26 bytes — every one of
+them flipping `0x10` (`Call`) to `0x12` (`ReturnCall`) at one of 26
+static call sites in the dispatcher. Same length, same operand encoding,
+no other deltas. The ~600k cycle reduction matches the prediction from
+`instruction_to_cost` (`Call=5 → ReturnCall=3`, ~170k dynamic dispatches
+per bench × 2 cycles ≈ 340k–680k saved).
 
-**Implication:** `--experimental-tailcalls` is a *bounded-stack* opt-in,
-not a perf optimisation. The win is for code that would otherwise blow
-the wasm stack — virtual-machine dispatchers, CPS-transformed programs,
-deep mutual recursion. Treat the cycle cost as the price of bounded
-stack, not a performance regression to chase down.
+**Implication:** the IC's metering does what `instruction_to_cost` says.
+TCO is mildly *cheaper* on the cycle axis; not a perf regression. But
+the more interesting property is **bounded stack** — code that would
+otherwise blow the wasm stack (VM dispatchers, CPS-transformed programs,
+deep mutual recursion) runs in constant frame depth. Pitch
+`--experimental-tailcalls` as a *bounded-stack opt-in*, with the ~2.5%
+cycle reduction as a small bonus.
+
+(Earlier read of this section claimed a "65% regression"; that was a
+methodology error — it compared a stale committed `.ok` from before
+the producer + backend landed against the with-flag run on the current
+tree, conflating intervening codegen drift with the flag effect. The
+honest same-tree comparison is the table above.)
 
 ### Future work (not part of this slice)
 
