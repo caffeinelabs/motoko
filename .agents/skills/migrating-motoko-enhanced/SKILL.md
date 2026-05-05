@@ -15,7 +15,7 @@ Manage canister state evolution through a chain of migration modules. Each migra
 - Adding, removing, or renaming persistent actor fields
 - Changing a field's type
 - Restructuring state across canister upgrades
-- Project has `--enhanced-migration=migrations` in canister args in `mops.toml`
+- Project has `[canisters.<name>.migrations]` configured in `mops.toml`
 
 ## Critical Rules
 
