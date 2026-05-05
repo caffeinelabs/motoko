@@ -351,6 +351,17 @@ val match_stab_fields : field list -> (bool * field) list -> bool
 
 val string_of_stab_sig : stab_sig -> string
 
+(* Render a stable signature, applying a cons-to-cons substitution at every
+   reference. Used by [Stab_sig_dedup] to fold structurally-equivalent
+   constructors onto a canonical representative without mutating any
+   [Cons.kind]. *)
+val string_of_stab_sig_with_subst :
+  (con -> con option) -> stab_sig -> string
+
+(* Pure cons-to-cons substitution: rewrites every [Con] reference in [t]
+   using [s], without mutating any [Cons.kind]. *)
+val cons_subst : (con -> con option) -> typ -> typ
+
 val motoko_runtime_information_type : typ
 
 (* Well-known labels *)

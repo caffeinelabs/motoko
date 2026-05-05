@@ -530,6 +530,48 @@ and subst_kind sigma k =
     Abs (List.map (subst_bind sigma') tbs, subst sigma' t)
  *)
 
+(* Cons-to-cons substitution: applies [s] at every [Con] reference in [t].
+   Pure — does not mutate any [Cons.kind]. Unlike [subst] above (which
+   substitutes a [con] with a [typ] for type-parameter instantiation), this
+   only redirects one cons name to another and is used to fold structurally
+   equivalent constructors onto a canonical representative when rendering
+   stable-type signatures. *)
+let rec cons_subst s t =
+  match t with
+  | Var _ | Prim _ | Any | Non | Pre -> t
+  | Con (c, ts) ->
+    let c = match s c with Some c' -> c' | None -> c in
+    Con (c, List.map (cons_subst s) ts)
+  | Opt t -> Opt (cons_subst s t)
+  | Mut t -> Mut (cons_subst s t)
+  | Array t -> Array (cons_subst s t)
+  | Weak t -> Weak (cons_subst s t)
+  | Tup ts -> Tup (List.map (cons_subst s) ts)
+  | Async (sort, t1, t2) -> Async (sort, cons_subst s t1, cons_subst s t2)
+  | Func (sort, c, tbs, ts1, ts2) ->
+    Func (sort, c,
+          List.map (fun b -> { b with bound = cons_subst s b.bound }) tbs,
+          List.map (cons_subst s) ts1,
+          List.map (cons_subst s) ts2)
+  | Obj (sort, fs, tfs) ->
+    Obj (sort,
+         List.map (cons_subst_field s) fs,
+         List.map (fun f ->
+           let c = match s f.typ with Some c' -> c' | None -> f.typ in
+           { f with typ = c }) tfs)
+  | Variant fs -> Variant (List.map (cons_subst_field s) fs)
+  | Named (n, t) -> Named (n, cons_subst s t)
+
+and cons_subst_field s f = { f with typ = cons_subst s f.typ }
+
+let cons_subst_kind s = function
+  | Def (tbs, t) ->
+    Def (List.map (fun b -> { b with bound = cons_subst s b.bound }) tbs,
+         cons_subst s t)
+  | Abs (tbs, t) ->
+    Abs (List.map (fun b -> { b with bound = cons_subst s b.bound }) tbs,
+         cons_subst s t)
+
 (* Handling binders *)
 
 let close cs t =
@@ -841,6 +883,47 @@ let cons t = cons' true t ConSet.empty
 let cons_kind k = cons_kind' true k ConSet.empty
 let cons_typs ts = List.fold_left (fun acc t -> cons t |> ConSet.union acc) ConSet.empty ts
 let cons_con t = cons_con' true t ConSet.empty
+
+(* Subst-aware reachability: like [cons'] but follows a cons-to-cons
+   substitution [s] at every [Con] visit. Used by stable-sig rendering to
+   compute reachability against virtually-substituted bodies, without
+   mutating any [Cons.kind]. *)
+let rec cons_subst' s inTyp t cs =
+  match t with
+  | Var _ | Prim _ | Any | Non | Pre -> cs
+  | Con (c, ts) ->
+    let c = match s c with Some c' -> c' | None -> c in
+    List.fold_right (cons_subst' s inTyp) ts (cons_con_subst' s inTyp c cs)
+  | Opt t | Mut t | Array t | Weak t -> cons_subst' s inTyp t cs
+  | Async (_, t1, t2) -> cons_subst' s inTyp t2 (cons_subst' s inTyp t1 cs)
+  | Tup ts -> List.fold_right (cons_subst' s inTyp) ts cs
+  | Func (_, _, tbs, ts1, ts2) ->
+    let cs = List.fold_right (cons_bind_subst' s inTyp) tbs cs in
+    let cs = List.fold_right (cons_subst' s inTyp) ts1 cs in
+    List.fold_right (cons_subst' s inTyp) ts2 cs
+  | Obj (_, fs, ts) ->
+    let cs = List.fold_right (cons_field_subst' s inTyp) fs cs in
+    List.fold_right (cons_typ_field_subst' s inTyp) ts cs
+  | Variant fs -> List.fold_right (cons_field_subst' s inTyp) fs cs
+  | Named (_, t) -> cons_subst' s inTyp t cs
+
+and cons_con_subst' s inTyp c cs =
+  if ConSet.mem c cs then cs
+  else cons_kind_subst' s inTyp (Cons.kind c) (ConSet.add c cs)
+
+and cons_bind_subst' s inTyp tb cs = cons_subst' s inTyp tb.bound cs
+
+and cons_field_subst' s inTyp {typ; _} cs = cons_subst' s inTyp typ cs
+
+and cons_typ_field_subst' s inTyp {typ = c; _} cs =
+  let c = match s c with Some c' -> c' | None -> c in
+  if inTyp then cons_con_subst' s inTyp c cs
+  else cons_kind_subst' s inTyp (Cons.kind c) cs
+
+and cons_kind_subst' s inTyp k cs =
+  match k with
+  | Def (tbs, t) | Abs (tbs, t) ->
+    cons_subst' s inTyp t (List.fold_right (cons_bind_subst' s inTyp) tbs cs)
 
 
 (* Checking for concrete types *)
@@ -2364,6 +2447,84 @@ and pp_stab_sig ppf sig_ =
     (if tfs = [] then fun ppf () -> () else semi) ()
     pp_stab_actor sig_
 
+(* Like [pp_typ_field], but applies the cons-to-cons substitution [s] to
+   the body of [c]'s kind before formatting. The cons graph is left
+   untouched: substitution is a render-time concern. *)
+and pp_typ_field_subst s vs ppf {lab; typ = c; _} =
+  let op, sbs, st = pps_of_kind' vs (cons_subst_kind s (Cons.kind c)) in
+  fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
+
+(* Substitution-aware variant of [pp_stab_sig]. The [subst] callback
+   redirects every cons reference encountered in top-level fields,
+   reachability, and printed bodies onto a canonical representative.
+
+   This lets stable-sig deduplication ([Stab_sig_dedup]) collapse
+   structurally-equivalent constructors onto a single rep without ever
+   mutating [Cons.kind]. *)
+and pp_stab_sig_subst subst ppf sig_ =
+  let all_fields = match sig_ with
+    | Single tfs -> tfs
+    | PrePost (pre, post) -> List.map snd pre @ post
+    | Multi {chain; post} -> chain @ post
+  in
+  (* Reachability follows [subst] on every Con visit, so deduped non-reps
+     never enter the printed set. *)
+  let cs = List.fold_right
+    (cons_field_subst' subst false)
+    all_fields ConSet.empty in
+  let vs = vs_of_cs cs in
+  let ds =
+    let cs' = ConSet.filter (fun c ->
+      match cons_subst_kind subst (Cons.kind c) with
+      | Def ([], Prim p) when string_of_con c = string_of_prim p -> false
+      | Def ([], Any) when string_of_con c = "Any" -> false
+      | Def ([], Non) when string_of_con c = "None" -> false
+      | Def _ -> true
+      | Abs _ -> false) cs in
+    ConSet.elements cs' in
+  let tfs =
+    List.sort compare_field
+      (List.map (fun c ->
+        { lab = string_of_con c;
+          typ = c;
+          src = empty_src }) ds)
+  in
+  (* Top-level stable fields are rendered with subst pre-applied so they
+     reference reps in the output. [pp_stab_field] et al. only render
+     [Con] names, not bodies, so subst at the type level is sufficient
+     for them. *)
+  let subst_field f = { f with typ = cons_subst subst f.typ } in
+  let sig_ = match sig_ with
+    | Single fs -> Single (List.map subst_field fs)
+    | PrePost (pre, post) ->
+      PrePost (List.map (fun (req, f) -> (req, subst_field f)) pre,
+               List.map subst_field post)
+    | Multi { chain; post } ->
+      Multi { chain = List.map subst_field chain;
+              post = List.map subst_field post }
+  in
+  let pp_stab_actor ppf sig_ =
+    match sig_ with
+    | Single tfs ->
+      fprintf ppf "@[<v 2>%s{@;<0 0>%a@;<0 -2>}@]"
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) tfs
+    | PrePost (pre, post) ->
+      fprintf ppf "@[<v 2>%s({@;<0 0>%a@;<0 -2>}, {@;<0 0>%a@;<0 -2>})@]"
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_pre_stab_field vs)) pre
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+    | Multi {chain; post} ->
+      fprintf ppf "@[<v 2>{@;<0 0>%a@;<0 -2>}@;<0-2>%s {@;<0 0>%a@;<0 -2>}@]"
+        (pp_print_list ~pp_sep:semi (pp_mig_field vs)) chain
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+  in
+  fprintf ppf "@[<v 0>%a%a%a;@]"
+    (pp_print_list ~pp_sep:semi (pp_typ_field_subst subst vs)) tfs
+    (if tfs = [] then fun ppf () -> () else semi) ()
+    pp_stab_actor sig_
+
 let rec pp_typ_expand' vs ppf t =
   match t with
   | Con (c, ts) ->
@@ -2671,4 +2832,17 @@ let string_of_stab_sig stab_sig : string =
   | PrePost _ -> "// Version: 3.0.0\n"
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
+
+(* Substitution-aware variant. The [subst] callback redirects each
+   con-to-con substitution to a canonical representative (e.g. the result
+   of [Stab_sig_dedup.build_subst]). [Cons.kind] is not mutated; the
+   substitution is applied virtually during reachability and emission. *)
+let string_of_stab_sig_with_subst subst stab_sig : string =
+  let module Pretty = MakePretty(ParseableStamps) in
+  (match stab_sig with
+  | Single _ -> "// Version: 1.0.0\n"
+  | PrePost _ -> "// Version: 3.0.0\n"
+  | Multi _ -> "// Version: 4.0.0\n") ^
+  Format.asprintf "@[<v 0>%a@]@\n"
+    (fun ppf -> Pretty.pp_stab_sig_subst subst ppf) stab_sig
 
