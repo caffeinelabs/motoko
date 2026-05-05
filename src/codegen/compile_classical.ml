@@ -11287,10 +11287,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
          code1 ^^
          compile_unboxed_zero ^^ (* A dummy closure *)
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^ (* the args *)
-         (if is_tail
-          then G.i (ReturnCall (nr (mk_fi ())))
-          else G.i (Call (nr (mk_fi ()))) ^^
-               FakeMultiVal.load env (Lib.List.make return_arity I32Type))
+         G.i (if is_tail then ReturnCall (nr (mk_fi ())) else Call (nr (mk_fi ()))) ^^
+         FakeMultiVal.load env (Lib.List.make return_arity I32Type)
       | _, Type.Local ->
          let (set_clos, get_clos) = new_local env "clos" in
 
