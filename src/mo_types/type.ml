@@ -564,13 +564,11 @@ let rec cons_subst s t =
 
 and cons_subst_field s f = { f with typ = cons_subst s f.typ }
 
-let cons_subst_kind s = function
-  | Def (tbs, t) ->
-    Def (List.map (fun b -> { b with bound = cons_subst s b.bound }) tbs,
-         cons_subst s t)
-  | Abs (tbs, t) ->
-    Abs (List.map (fun b -> { b with bound = cons_subst s b.bound }) tbs,
-         cons_subst s t)
+let cons_subst_kind s k =
+  let map_tbs = List.map (fun b -> { b with bound = cons_subst s b.bound }) in
+  match k with
+  | Def (tbs, t) -> Def (map_tbs tbs, cons_subst s t)
+  | Abs (tbs, t) -> Abs (map_tbs tbs, cons_subst s t)
 
 (* Handling binders *)
 
@@ -883,48 +881,6 @@ let cons t = cons' true t ConSet.empty
 let cons_kind k = cons_kind' true k ConSet.empty
 let cons_typs ts = List.fold_left (fun acc t -> cons t |> ConSet.union acc) ConSet.empty ts
 let cons_con t = cons_con' true t ConSet.empty
-
-(* Subst-aware reachability: like [cons'] but follows a cons-to-cons
-   substitution [s] at every [Con] visit. Used by stable-sig rendering to
-   compute reachability against virtually-substituted bodies, without
-   mutating any [Cons.kind]. *)
-let rec cons_subst' s inTyp t cs =
-  match t with
-  | Var _ | Prim _ | Any | Non | Pre -> cs
-  | Con (c, ts) ->
-    let c = match s c with Some c' -> c' | None -> c in
-    List.fold_right (cons_subst' s inTyp) ts (cons_con_subst' s inTyp c cs)
-  | Opt t | Mut t | Array t | Weak t -> cons_subst' s inTyp t cs
-  | Async (_, t1, t2) -> cons_subst' s inTyp t2 (cons_subst' s inTyp t1 cs)
-  | Tup ts -> List.fold_right (cons_subst' s inTyp) ts cs
-  | Func (_, _, tbs, ts1, ts2) ->
-    let cs = List.fold_right (cons_bind_subst' s inTyp) tbs cs in
-    let cs = List.fold_right (cons_subst' s inTyp) ts1 cs in
-    List.fold_right (cons_subst' s inTyp) ts2 cs
-  | Obj (_, fs, ts) ->
-    let cs = List.fold_right (cons_field_subst' s inTyp) fs cs in
-    List.fold_right (cons_typ_field_subst' s inTyp) ts cs
-  | Variant fs -> List.fold_right (cons_field_subst' s inTyp) fs cs
-  | Named (_, t) -> cons_subst' s inTyp t cs
-
-and cons_con_subst' s inTyp c cs =
-  if ConSet.mem c cs then cs
-  else cons_kind_subst' s inTyp (Cons.kind c) (ConSet.add c cs)
-
-and cons_bind_subst' s inTyp tb cs = cons_subst' s inTyp tb.bound cs
-
-and cons_field_subst' s inTyp {typ; _} cs = cons_subst' s inTyp typ cs
-
-and cons_typ_field_subst' s inTyp {typ = c; _} cs =
-  let c = match s c with Some c' -> c' | None -> c in
-  if inTyp then cons_con_subst' s inTyp c cs
-  else cons_kind_subst' s inTyp (Cons.kind c) cs
-
-and cons_kind_subst' s inTyp k cs =
-  match k with
-  | Def (tbs, t) | Abs (tbs, t) ->
-    cons_subst' s inTyp t (List.fold_right (cons_bind_subst' s inTyp) tbs cs)
-
 
 (* Checking for concrete types *)
 
@@ -2396,7 +2352,27 @@ and pp_mig_field vs ppf {lab; typ; src} =
     let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
     fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
-and pp_stab_sig ppf sig_ =
+(* Render a stable signature.
+
+   When [hash] is supplied, structurally deduplicate zero-arity Def
+   constructors: cons with bodies whose [hash] coincides are folded onto
+   a canonical rep (smallest under [Cons.compare]). Substitution is
+   applied at render time — the Motoko cons graph is never mutated.
+   The chosen rep's user-visible name is implementation-defined (it
+   depends on stamps), so callers shouldn't grep for a specific name.
+
+   Bare aliases ([type X = Y]) are excluded from grouping: collapsing
+   them would produce trivial [type X = X] cycles. We also bail out of
+   dedup entirely when any reachable cons body contains an [Obj] with
+   non-empty type-component fields, because nested type-fields are
+   rendered by inlining [Cons.kind c] (in [pp_typ_field]) which would
+   bypass the substitution and could leak non-rep names.
+
+   The hash function is injected by the caller (typically
+   [Typ_hash.typ_hash]) to keep [Mo_types.Type] free of upward
+   dependencies. *)
+and pp_stab_sig ?hash ppf sig_ =
+  let module HM = Map.Make (String) in
   let all_fields = match sig_ with
     | Single tfs -> tfs
     | PrePost (pre, post) -> List.map snd pre @ post
@@ -2407,6 +2383,52 @@ and pp_stab_sig ppf sig_ =
     (* false here ^ means ignore unreferenced type field components
        that would produce unreferenced bindings when unfolded *)
     all_fields ConSet.empty in
+  (* Stops at [Con _]: nested kinds are reached through [cs] separately. *)
+  let rec has_nested_tfs = function
+    | Obj (_, _, _ :: _) -> true
+    | Obj (_, fs, _) | Variant fs -> List.exists (fun f -> has_nested_tfs f.typ) fs
+    | Tup ts -> List.exists has_nested_tfs ts
+    | Opt t | Mut t | Array t | Weak t | Named (_, t) -> has_nested_tfs t
+    | Async (_, t1, t2) -> has_nested_tfs t1 || has_nested_tfs t2
+    | Func (_, _, tbs, ts1, ts2) ->
+      List.exists (fun b -> has_nested_tfs b.bound) tbs ||
+      List.exists has_nested_tfs ts1 || List.exists has_nested_tfs ts2
+    | Var _ | Prim _ | Any | Non | Pre | Con _ -> false
+  in
+  let unsafe_to_dedup =
+    List.exists (fun f -> has_nested_tfs f.typ) all_fields ||
+    ConSet.exists (fun c ->
+      match Cons.kind c with
+      | Def (_, body) | Abs (_, body) -> has_nested_tfs body) cs in
+  let cmap =
+    if unsafe_to_dedup then ConEnv.empty else
+    match hash with
+    | None -> ConEnv.empty
+    | Some hash ->
+      let groups = ConSet.fold (fun c acc ->
+        match Cons.kind c with
+        | Def ([], (Con _)) -> acc  (* bare alias: skip to avoid type X = X cycles *)
+        | Def ([], body) ->
+          (try
+            HM.update (hash body) (function
+              | Some xs -> Some (c :: xs)
+              | None -> Some [c]) acc
+          with Invalid_argument _ -> acc)  (* hash bails on Async; play safe *)
+        | _ -> acc) cs HM.empty in
+      HM.fold (fun _ members acc ->
+        match members with
+        | [] | [_] -> acc
+        | first :: rest ->
+          let rep = List.fold_left
+            (fun best c -> if Cons.compare c best < 0 then c else best)
+            first rest in
+          List.fold_left (fun acc c ->
+            if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members
+      ) groups ConEnv.empty
+  in
+  let subst c = ConEnv.find_opt c cmap in
+  (* Drop non-reps; reps are by construction already in [cs]. *)
+  let cs = ConSet.filter (fun c -> not (ConEnv.mem c cmap)) cs in
   let vs = vs_of_cs cs in
   let ds =
     let cs' = ConSet.filter (fun c ->
@@ -2423,6 +2445,24 @@ and pp_stab_sig ppf sig_ =
         { lab = string_of_con c;
           typ = c;
           src = empty_src }) ds)
+  in
+  let pp_typ_field =
+    if ConEnv.is_empty cmap then pp_typ_field
+    else fun vs ppf {lab; typ = c; _} ->
+      let op, sbs, st = pps_of_kind' vs (cons_subst_kind subst (Cons.kind c)) in
+      fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
+  in
+  (* Top-level stable fields render only [Con] names (not bodies), so
+     a shallow rewrite of field types suffices. *)
+  let sig_ = if ConEnv.is_empty cmap then sig_ else
+    let f fld = { fld with typ = cons_subst subst fld.typ } in
+    match sig_ with
+    | Single fs -> Single (List.map f fs)
+    | PrePost (pre, post) ->
+      PrePost (List.map (fun (req, fld) -> (req, f fld)) pre,
+               List.map f post)
+    | Multi {chain; post} ->
+      Multi {chain = List.map f chain; post = List.map f post}
   in
   let pp_stab_actor ppf sig_ =
     match sig_ with
@@ -2444,84 +2484,6 @@ and pp_stab_sig ppf sig_ =
   in
   fprintf ppf "@[<v 0>%a%a%a;@]"
     (pp_print_list ~pp_sep:semi (pp_typ_field vs)) tfs
-    (if tfs = [] then fun ppf () -> () else semi) ()
-    pp_stab_actor sig_
-
-(* Like [pp_typ_field], but applies the cons-to-cons substitution [s] to
-   the body of [c]'s kind before formatting. The cons graph is left
-   untouched: substitution is a render-time concern. *)
-and pp_typ_field_subst s vs ppf {lab; typ = c; _} =
-  let op, sbs, st = pps_of_kind' vs (cons_subst_kind s (Cons.kind c)) in
-  fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
-
-(* Substitution-aware variant of [pp_stab_sig]. The [subst] callback
-   redirects every cons reference encountered in top-level fields,
-   reachability, and printed bodies onto a canonical representative.
-
-   This lets stable-sig deduplication ([Stab_sig_dedup]) collapse
-   structurally-equivalent constructors onto a single rep without ever
-   mutating [Cons.kind]. *)
-and pp_stab_sig_subst subst ppf sig_ =
-  let all_fields = match sig_ with
-    | Single tfs -> tfs
-    | PrePost (pre, post) -> List.map snd pre @ post
-    | Multi {chain; post} -> chain @ post
-  in
-  (* Reachability follows [subst] on every Con visit, so deduped non-reps
-     never enter the printed set. *)
-  let cs = List.fold_right
-    (cons_field_subst' subst false)
-    all_fields ConSet.empty in
-  let vs = vs_of_cs cs in
-  let ds =
-    let cs' = ConSet.filter (fun c ->
-      match cons_subst_kind subst (Cons.kind c) with
-      | Def ([], Prim p) when string_of_con c = string_of_prim p -> false
-      | Def ([], Any) when string_of_con c = "Any" -> false
-      | Def ([], Non) when string_of_con c = "None" -> false
-      | Def _ -> true
-      | Abs _ -> false) cs in
-    ConSet.elements cs' in
-  let tfs =
-    List.sort compare_field
-      (List.map (fun c ->
-        { lab = string_of_con c;
-          typ = c;
-          src = empty_src }) ds)
-  in
-  (* Top-level stable fields are rendered with subst pre-applied so they
-     reference reps in the output. [pp_stab_field] et al. only render
-     [Con] names, not bodies, so subst at the type level is sufficient
-     for them. *)
-  let subst_field f = { f with typ = cons_subst subst f.typ } in
-  let sig_ = match sig_ with
-    | Single fs -> Single (List.map subst_field fs)
-    | PrePost (pre, post) ->
-      PrePost (List.map (fun (req, f) -> (req, subst_field f)) pre,
-               List.map subst_field post)
-    | Multi { chain; post } ->
-      Multi { chain = List.map subst_field chain;
-              post = List.map subst_field post }
-  in
-  let pp_stab_actor ppf sig_ =
-    match sig_ with
-    | Single tfs ->
-      fprintf ppf "@[<v 2>%s{@;<0 0>%a@;<0 -2>}@]"
-        (string_of_obj_sort Actor)
-        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) tfs
-    | PrePost (pre, post) ->
-      fprintf ppf "@[<v 2>%s({@;<0 0>%a@;<0 -2>}, {@;<0 0>%a@;<0 -2>})@]"
-        (string_of_obj_sort Actor)
-        (pp_print_list ~pp_sep:semi (pp_pre_stab_field vs)) pre
-        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
-    | Multi {chain; post} ->
-      fprintf ppf "@[<v 2>{@;<0 0>%a@;<0 -2>}@;<0-2>%s {@;<0 0>%a@;<0 -2>}@]"
-        (pp_print_list ~pp_sep:semi (pp_mig_field vs)) chain
-        (string_of_obj_sort Actor)
-        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
-  in
-  fprintf ppf "@[<v 0>%a%a%a;@]"
-    (pp_print_list ~pp_sep:semi (pp_typ_field_subst subst vs)) tfs
     (if tfs = [] then fun ppf () -> () else semi) ()
     pp_stab_actor sig_
 
@@ -2825,24 +2787,12 @@ and match_stab_fields tfs1 tfs2 =
       | Lib.That (required, _) -> not required
       | Lib.Both (tf1, (_, tf2)) -> stable_sub (as_immut tf1.typ) (as_immut tf2.typ))
 
-let string_of_stab_sig stab_sig : string =
-  let module Pretty = MakePretty(ParseableStamps) in
-  (match stab_sig with
-  | Single _ -> "// Version: 1.0.0\n"
-  | PrePost _ -> "// Version: 3.0.0\n"
-  | Multi _ -> "// Version: 4.0.0\n") ^
-  Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
-
-(* Substitution-aware variant. The [subst] callback redirects each
-   con-to-con substitution to a canonical representative (e.g. the result
-   of [Stab_sig_dedup.build_subst]). [Cons.kind] is not mutated; the
-   substitution is applied virtually during reachability and emission. *)
-let string_of_stab_sig_with_subst subst stab_sig : string =
+let string_of_stab_sig ?hash stab_sig : string =
   let module Pretty = MakePretty(ParseableStamps) in
   (match stab_sig with
   | Single _ -> "// Version: 1.0.0\n"
   | PrePost _ -> "// Version: 3.0.0\n"
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n"
-    (fun ppf -> Pretty.pp_stab_sig_subst subst ppf) stab_sig
+    (fun ppf -> Pretty.pp_stab_sig ?hash ppf) stab_sig
 

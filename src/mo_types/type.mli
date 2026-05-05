@@ -349,18 +349,11 @@ val mem_typ_of_pre : (bool * field) list -> typ
 val match_stab_sig : stab_sig -> stab_sig -> bool
 val match_stab_fields : field list -> (bool * field) list -> bool
 
-val string_of_stab_sig : stab_sig -> string
-
-(* Render a stable signature, applying a cons-to-cons substitution at every
-   reference. Used by [Stab_sig_dedup] to fold structurally-equivalent
-   constructors onto a canonical representative without mutating any
-   [Cons.kind]. *)
-val string_of_stab_sig_with_subst :
-  (con -> con option) -> stab_sig -> string
-
-(* Pure cons-to-cons substitution: rewrites every [Con] reference in [t]
-   using [s], without mutating any [Cons.kind]. *)
-val cons_subst : (con -> con option) -> typ -> typ
+(* If [~hash] is supplied (typically [Typ_hash.typ_hash]), structurally
+   equivalent zero-arity type constructors are collapsed onto a canonical
+   representative. The cons graph is not mutated; substitution is applied
+   only at render time. *)
+val string_of_stab_sig : ?hash:(typ -> string) -> stab_sig -> string
 
 val motoko_runtime_information_type : typ
 
