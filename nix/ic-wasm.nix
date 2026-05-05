@@ -1,4 +1,4 @@
-pkgs: with pkgs.llvmPackages_19; pkgs.rustPlatform.buildRustPackage rec {
+pkgs: with pkgs.llvmPackages_20; pkgs.rustPlatform.buildRustPackage rec {
   pname = "ic-wasm";
   version = builtins.substring 0 7 src.rev;
   src = pkgs.sources.ic-wasm-src;
