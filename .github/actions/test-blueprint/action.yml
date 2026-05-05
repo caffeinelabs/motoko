@@ -65,7 +65,7 @@ runs:
           prefix=(cachix watch-exec ic-hs-test --)
         fi
         "${prefix[@]}" \
-        nix-build-uncached --max-jobs ${{ inputs.max-jobs }} \
+        nix-build-uncached -build-flags "--max-jobs ${{ inputs.max-jobs }}" \
         -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.${{ inputs.test-target }}'
       shell: bash
       env:
