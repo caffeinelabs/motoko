@@ -351,6 +351,11 @@ val match_stab_fields : field list -> (bool * field) list -> bool
 
 val string_of_stab_sig : stab_sig -> string
 
+val string_of_stab_sig_factored :
+  extras:ConSet.t ->
+  factor:(con -> (con list * field list) option) ->
+  stab_sig -> string
+
 val motoko_runtime_information_type : typ
 
 (* Well-known labels *)

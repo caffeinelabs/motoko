@@ -2238,6 +2238,22 @@ and pp_typ_field vs ppf {lab; typ = c; src} =
   let op, sbs, st = pps_of_kind' vs (Cons.kind c) in
   fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
 
+and pp_typ_field_factored factor vs ppf ({lab; typ = c; src} as tf) =
+  match factor c with
+  | None ->
+    pp_typ_field vs ppf tf
+  | Some (parents, delta_fs) ->
+    let pp_parent ppf p = pr ppf (string_of_con p) in
+    let pp_and ppf () = fprintf ppf "@ and " in
+    if delta_fs = [] then
+      fprintf ppf "@[<2>type %s =@ %a@]" lab
+        (pp_print_list ~pp_sep:pp_and pp_parent) parents
+    else
+      fprintf ppf "@[<2>type %s =@ %a%a%a@]" lab
+        (pp_print_list ~pp_sep:pp_and pp_parent) parents
+        pp_and ()
+        (pp_typ' vs) (Obj (Object, delta_fs, []))
+
 and pp_stab_field vs ppf {lab; typ; src} =
   match typ with
   | Mut t' ->
@@ -2361,6 +2377,86 @@ and pp_stab_sig ppf sig_ =
   in
   fprintf ppf "@[<v 0>%a%a%a;@]"
     (pp_print_list ~pp_sep:semi (pp_typ_field vs)) tfs
+    (if tfs = [] then fun ppf () -> () else semi) ()
+    pp_stab_actor sig_
+
+(* Like [pp_stab_sig] but accepts additional [extras] cons (synthetic bases)
+   to print as type-decls, and a [factor] callback that, if it returns
+   [Some (parents, delta_fs)] for a cons, renders that cons's body as
+   [parents and ... and { delta_fs }]. Cons whose factor returns [None] are
+   rendered the standard way (using [Cons.kind c]).
+
+   Type-decls are emitted in stable topological order: a cons whose factor
+   names parents is emitted only after all those parents have been emitted. *)
+and pp_stab_sig_factored extras factor ppf sig_ =
+  let all_fields = match sig_ with
+    | Single tfs -> tfs
+    | PrePost (pre, post) -> List.map snd pre @ post
+    | Multi {chain; post} -> chain @ post
+  in
+  let cs = List.fold_right (cons_field false) all_fields ConSet.empty in
+  let cs = ConSet.union cs extras in
+  let vs = vs_of_cs cs in
+  let ds =
+    let cs' = ConSet.filter (fun c ->
+      match Cons.kind c with
+      | Def ([], Prim p) when string_of_con c = string_of_prim p -> false
+      | Def ([], Any) when string_of_con c = "Any" -> false
+      | Def ([], Non) when string_of_con c = "None" -> false
+      | Def _ -> true
+      | Abs _ -> false) cs in
+    ConSet.elements cs' in
+  let tfs0 =
+    List.sort compare_field
+      (List.map (fun c ->
+        { lab = string_of_con c;
+          typ = c;
+          src = empty_src }) ds)
+  in
+  let tfs =
+    let emitted = ref ConSet.empty in
+    let result = ref [] in
+    let pending = ref tfs0 in
+    let progress = ref true in
+    while !pending <> [] && !progress do
+      progress := false;
+      let next = ref [] in
+      List.iter (fun tf ->
+        let ready = match factor tf.typ with
+          | None -> true
+          | Some (parents, _) ->
+            List.for_all (fun p -> ConSet.mem p !emitted) parents
+        in
+        if ready then begin
+          result := tf :: !result;
+          emitted := ConSet.add tf.typ !emitted;
+          progress := true
+        end else
+          next := tf :: !next
+      ) !pending;
+      pending := List.rev !next
+    done;
+    List.rev !result @ !pending
+  in
+  let pp_stab_actor ppf sig_ =
+    match sig_ with
+    | Single tfs ->
+      fprintf ppf "@[<v 2>%s{@;<0 0>%a@;<0 -2>}@]"
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) tfs
+    | PrePost (pre, post) ->
+      fprintf ppf "@[<v 2>%s({@;<0 0>%a@;<0 -2>}, {@;<0 0>%a@;<0 -2>})@]"
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_pre_stab_field vs)) pre
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+    | Multi {chain; post} ->
+       fprintf ppf "@[<v 2>{@;<0 0>%a@;<0 -2>}@;<0-2>%s {@;<0 0>%a@;<0 -2>}@]"
+        (pp_print_list ~pp_sep:semi (pp_mig_field vs)) chain
+        (string_of_obj_sort Actor)
+        (pp_print_list ~pp_sep:semi (pp_stab_field vs)) post
+  in
+  fprintf ppf "@[<v 0>%a%a%a;@]"
+    (pp_print_list ~pp_sep:semi (pp_typ_field_factored factor vs)) tfs
     (if tfs = [] then fun ppf () -> () else semi) ()
     pp_stab_actor sig_
 
@@ -2671,4 +2767,13 @@ let string_of_stab_sig stab_sig : string =
   | PrePost _ -> "// Version: 3.0.0\n"
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
+
+let string_of_stab_sig_factored ~extras ~factor stab_sig : string =
+  let module Pretty = MakePretty(ParseableStamps) in
+  (match stab_sig with
+  | Single _ -> "// Version: 1.0.0\n"
+  | PrePost _ -> "// Version: 3.0.0\n"
+  | Multi _ -> "// Version: 4.0.0\n") ^
+  Format.asprintf "@[<v 0>%a@]@\n"
+    (fun ppf -> Pretty.pp_stab_sig_factored extras factor ppf) stab_sig
 
