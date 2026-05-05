@@ -3,8 +3,8 @@
 // Why this benchmark: the dispatcher is written in *mutual* tail-recursion
 // style — `step` matches the opcode and tail-calls a per-opcode handler
 // (`opPush`, `opMul`, …); each handler tail-calls `step` again. With the
-// `//MOC-FLAG --experimental-tailcalls` directive at the bottom of this
-// file, the `Tailcall` IR pass (`src/ir_passes/tailcall.ml`) emits
+// `--experimental-tailcalls` flag (set via the directive at the bottom
+// of this file), the `Tailcall` IR pass (`src/ir_passes/tailcall.ml`) emits
 // `TailCallPrim` for every tail-positioned call — both self and
 // cross-function — and codegen lowers them to wasm `return_call`.
 // Without the flag, cross-function tail-calls would compile to ordinary
