@@ -97,7 +97,8 @@ and exp' env e  : exp' = match e.it with
     begin match e1.it, env with
     | VarE (_, f1), { tail_pos = true;
                       info = Some { func; typ_binds; temps; label; tail_called } }
-         when f1 = func && are_generic_insts typ_binds insts  ->
+         when not !Mo_config.Flags.experimental_tailcalls
+           && f1 = func && are_generic_insts typ_binds insts  ->
       tail_called := true;
       (blockE (assignEs temps (exp env e2)) (breakE label (unitE ()))).it
     | _, { tail_pos = true; _ } when !Mo_config.Flags.experimental_tailcalls ->

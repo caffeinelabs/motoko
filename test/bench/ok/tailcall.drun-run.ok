@@ -2,5 +2,5 @@ ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a000000000000000001
 ingress Completed: Reply: 0x4449444c0000
 debug.print: {cycles = 25_416_088; fak10 = +3_628_800; iters = 1_000}
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {cycles = 110_520_270; gauss100 = 5_050; iters = 10_000}
+debug.print: {cycles = 101_400_270; gauss100 = 5_050; iters = 10_000}
 ingress Completed: Reply: 0x4449444c0000
