@@ -1,5 +1,6 @@
 //! Runs Motoko test files (`.mo .drun .sh .wat .did .cmp`).
 //! CLI: `run-test [-adpitsrv] <file>...`.
+// cache-bust experiment: arm64 max-jobs=2 probe — revert before merging.
 
 use clap::Parser;
 use regex::Regex;
