@@ -230,7 +230,13 @@
         base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
         report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
-        inherit rts rts-checked base-src core-src docs shell;
+        # `rts-checked` is intentionally NOT included here: it is the slow,
+        # cargo-test-running variant, and on darwin its check phase is uncached
+        # and dominates wall-clock. Pulling it via `common-constituents` would
+        # drag it into the `*-systems-go` aggregates and force every test job
+        # to wait on it. The `nightly-macos-test` schedule has a dedicated
+        # `rts-checked` job that builds `.#rts-checked` directly.
+        inherit rts base-src core-src docs shell;
       };
     in
     {
@@ -238,7 +244,7 @@
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
-        inherit nix-update tests js test-runner;
+        inherit nix-update tests js test-runner rts-checked;
 
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 
