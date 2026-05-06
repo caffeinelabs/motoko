@@ -59,5 +59,24 @@
 
     # ic-wasm
     (self: super: { ic-wasm = import ./ic-wasm.nix self; })
+
+    # wabt with WebAssembly/wabt#2744 patched in (return_call_indirect
+    # + table64 validator fix). Patches nixpkgs's wabt source rather
+    # than swapping it out so the third_party/* submodules nixpkgs
+    # already fetches stay intact. Drop this overlay once #2744 lands
+    # and propagates to nixpkgs.
+    (self: super: {
+      wabt = super.wabt.overrideAttrs (old: {
+        patches = (old.patches or []) ++ [
+          (super.fetchpatch {
+            name = "wabt-pr-2744-return_call_indirect-table64.patch";
+            url = "https://github.com/WebAssembly/wabt/pull/2744.patch";
+            hash = "sha256-RzGaVgitOcv2KkHV1HT77A2WLPwJtBxYB9rS0u42tko=";
+          })
+        ];
+        version = "${old.version}-pre-2744";
+        __intentionallyOverridingVersion = true;
+      });
+    })
   ];
 }
