@@ -36,7 +36,7 @@ jobs:
             max_jobs: auto
           # arm64-linux-16 OOMs on three parallel ~3 GB RTS-variant builds; serialise.
           - os: arm64-linux-16
-            max_jobs: 1
+            max_jobs: 2
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -61,7 +61,7 @@ jobs:
             max_jobs: auto
           # arm64-linux-16 OOMs on three parallel ~3 GB derivation builds; serialise.
           - os: arm64-linux-16
-            max_jobs: 1
+            max_jobs: 2
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
