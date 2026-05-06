@@ -2540,9 +2540,8 @@ module Closure = struct
     Tagged.load_field env (funptr_field env) ^^
     (* All done: Call! *)
     let table_index = 0l in
-    G.i (if is_tail
-         then ReturnCallIndirect (nr table_index, nr ty)
-         else CallIndirect (nr table_index, nr ty)) ^^
+    G.i (let table = nr table_index and tyv = nr ty in
+         if is_tail then ReturnCallIndirect (table, tyv) else CallIndirect (table, tyv)) ^^
     FakeMultiVal.load env (Lib.List.make n_res I32Type)
 
   let static_closure env fi : int32 =
@@ -11289,7 +11288,8 @@ and compile_prim_invocation (env : E.t) ae p es at =
          code1 ^^
          compile_unboxed_zero ^^ (* A dummy closure *)
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^ (* the args *)
-         G.i (if is_tail then ReturnCall (nr (mk_fi ())) else Call (nr (mk_fi ()))) ^^
+         G.i (let fi = nr (mk_fi ()) in
+              if is_tail then ReturnCall fi else Call fi) ^^
          FakeMultiVal.load env (Lib.List.make return_arity I32Type)
       | _, Type.Local ->
          let (set_clos, get_clos) = new_local env "clos" in
