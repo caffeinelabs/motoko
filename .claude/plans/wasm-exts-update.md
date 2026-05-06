@@ -129,6 +129,7 @@ so the rest of that work can land later without re-touching this slice.
 | `fb38c1b24` | bench (VM) | `test/bench/tailcall.mo` — Hutton/Bahr-style stack VM running `fak`. Mutually tail-recursive dispatcher (`step` → `opPush` → `step` → …), first-order, no closures. |
 | `6491d605c` | Shared-fn fix + gauss bench | `tailcall.ml` `FuncE` arm gates `tail_pos = true` on `s = Type.Local` — Shared bodies are descended with `tail_pos = false`. Fixes a cleanup-bypass trap (`'unexpected state entering InUpdate'`) where `return_call` from the message wrapper to the user-body lambda skipped the `Lifecycle.trans Idle` epilogue. Test runner now passes `--enable-tail-call` to `wasm-validate`. Adds `gauss` bench (naïve self-recursive `foldLeft (+) 0 [1..100]` × 10_000) — exercises the loop-rewrite path. |
 | `e84769da5` | flag-gated loop elision | `tailcall.ml` self-tail-call → loop rewrite now gated `not !Flags.experimental_tailcalls`. With the flag on, self-tail calls fall through to `TailCallPrim` and become `return_call`; with the flag off, the legacy loop rewrite still fires. |
+| `113d56dc9` | indirect tail-calls + linker fix + mccarthy bench | `Closure.call_closure` (both backends) gains `~is_tail`, threading through to `ReturnCallIndirect`. The `_, Type.Local` arm in `compile_*.ml` now emits indirect tail-calls. Critically, `linkModule.ml`'s `rename_types` also gets a `ReturnCallIndirect` arm — without it the linker's RTS-merge type renumbering left `ReturnCallIndirect` pointing at stale pre-merge type indices and the binary failed wasmtime validation. New `mccarthy` bench (mutually tail-recursive `isEven`/`isOdd` in `async* Bool`, chained via `await*`) runs 100k mutual hops without stack growth. |
 
 ### Design notes
 
@@ -136,12 +137,14 @@ so the rest of that work can land later without re-touching this slice.
   `async_lowering` (`pipeline.ml:796-797`), so by the time the producer arm
   sees a `CallPrim`, awaitable/IC calls have already been desugared. The
   producer therefore cannot mistakenly tag a shared call as a tail call.
-- **Codegen scope: direct calls only.** `TailCallPrim` is honoured in the
-  `SR.Const Const.Fun (..., mk_fi, _)` arm (known function index → emit
-  `ReturnCall <fi>`). Closure calls (`Type.Local` via `call_indirect`) and
-  shared calls fall through to the regular path even if the prim is
-  `TailCallPrim`. Extending to `return_call_indirect` is a follow-up if the
-  cost/benefit ever justifies it.
+- **Codegen scope.** `TailCallPrim` is honoured in both:
+  - the `SR.Const Const.Fun (..., mk_fi, _)` arm (known function index → emit
+    `ReturnCall <fi>`); and
+  - the `_, Type.Local` arm (closure dispatch → emit `ReturnCallIndirect`
+    via `Closure.call_closure ~is_tail:true`). Shared calls still fall
+    through to the regular path because the `tailcall.ml` `FuncE` arm
+    gates `tail_pos = true` on `s = Type.Local` and never produces
+    `TailCallPrim` inside Shared bodies in the first place.
 - **Validation.** Wasm `return_call` requires the callee's wasm result type
   to match the enclosing function's. Motoko's all-multival-via-side-channel
   ABI gives every wasm function the result type `[]` (or a single `i64`),
@@ -224,12 +227,6 @@ honest same-tree comparison is the table above.)
   with a compile-time `Bool`-const constraint and a tail-position
   warning. Useful workaround for `mo:core` recursive algorithms.
   See § *Source-level annotation* below.
-- **`return_call_indirect` for computed tail-calls.** See §
-  *`return_call_indirect` — enabling computed tail-calls* below. Today
-  closure-typed tail calls silently degrade to non-tail
-  `call_indirect`; emitting the indirect tail-call form covers the
-  complement of the direct-call case (the callee chosen at runtime,
-  not statically known).
 - **Default-on `--experimental-tailcalls`.** Once IC support is
   universal and the proposal is no longer "experimental", flip the
   default and remove the legacy self-tail loop-rewrite path entirely.
@@ -337,7 +334,7 @@ already in place (commit `ef2c7fb0c`) does the rest. When `false`
    *"annotation honoured only for direct calls; closure-call tail
    support pending"*.
 
-## `return_call_indirect` — enabling computed tail-calls — *proposed*
+## `return_call_indirect` — enabling computed tail-calls — *delivered (commit `113d56dc9`)*
 
 ### Motivation
 
