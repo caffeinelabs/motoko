@@ -2529,7 +2529,7 @@ module Closure = struct
      * and arguments (n-ary!)
      * the function closure again!
   *)
-  let call_closure env n_args n_res =
+  let call_closure env ?(is_tail = false) n_args n_res =
     (* Calculate the wasm type for a given calling convention.
        An extra first argument for the closure! *)
     let ty = E.func_type env (FuncType (
@@ -2540,7 +2540,9 @@ module Closure = struct
     Tagged.load_field env (funptr_field env) ^^
     (* All done: Call! *)
     let table_index = 0l in
-    G.i (CallIndirect (nr table_index, nr ty)) ^^
+    G.i (if is_tail
+         then ReturnCallIndirect (nr table_index, nr ty)
+         else CallIndirect (nr table_index, nr ty)) ^^
     FakeMultiVal.load env (Lib.List.make n_res I32Type)
 
   let static_closure env fi : int32 =
@@ -11299,7 +11301,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
          Closure.prepare_closure_call env ^^
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^
          get_clos ^^
-         Closure.call_closure env n_args return_arity
+         Closure.call_closure env ~is_tail n_args return_arity
       | _, Type.Shared _ ->
          (* Non-one-shot functions have been rewritten in async.ml *)
          assert (control = Type.Returns);

@@ -183,6 +183,41 @@ persistent actor {
   };
 
   // ----------------------------------------------------------
+  // McCarthy parity: classic mutually-tail-recursive `isEven`/`isOdd`,
+  // each wrapped in `async* Bool`. `await*` is a synchronous force
+  // (no scheduler yield), so the `CPSAsync Cmp` lowering at
+  // `src/ir_passes/async.ml:325` reduces each body to a Local lambda
+  // taking three continuations — exactly the FuncE shape where
+  // `tailcall.ml`'s `s = Type.Local` gate sets `tail_pos = true`,
+  // and the producer arm rewrites every `await*` site to
+  // `TailCallPrim`. Codegen then emits `return_call`, so the parity
+  // chain runs in bounded stack.
+
+  func isEven(n : Nat) : async* Bool = async* {
+    if (n == 0) true else await* isOdd(n - 1)
+  };
+  func isOdd(n : Nat) : async* Bool = async* {
+    if (n == 0) false else await* isEven(n - 1)
+  };
+
+  // Run `isEven 1_000` 100 times — 100_000 mutual hops total.
+  public func mccarthy() : async () {
+    let n0 = counters();
+    var b : Bool = false;
+    var i = 0;
+    while (i < 100) {
+      b := await* isEven 1_000;
+      i += 1;
+    };
+    let n1 = counters();
+    debugPrint(debug_show {
+      isEven1000 = b;
+      iters      = 100;
+      cycles     = n1 - n0;
+    });
+  };
+
+  // ----------------------------------------------------------
 
   func counters() : Nat64 = performanceCounter(0);
 
@@ -206,4 +241,5 @@ persistent actor {
 
 //CALL ingress hutton 0x4449444C0000
 //CALL ingress gauss 0x4449444C0000
+//CALL ingress mccarthy 0x4449444C0000
 //MOC-FLAG --experimental-tailcalls

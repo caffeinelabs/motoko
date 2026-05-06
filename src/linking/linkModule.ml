@@ -494,6 +494,7 @@ let rename_types rn m =
 
   let rec instr' = function
     | CallIndirect (table_index, tv) -> CallIndirect (table_index, (ty_var tv))
+    | ReturnCallIndirect (table_index, tv) -> ReturnCallIndirect (table_index, (ty_var tv))
     | Block (bty, is) -> Block (block_type bty, instrs is)
     | Loop (bty, is) -> Loop (block_type bty, instrs is)
     | If (bty, is1, is2) -> If (block_type bty, instrs is1, instrs is2)
