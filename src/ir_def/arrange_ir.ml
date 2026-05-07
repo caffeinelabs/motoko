@@ -67,6 +67,7 @@ and prim = function
   | RelPrim (t, ro)   -> "RelPrim"    $$ [typ t; Arrange_ops.relop ro]
   | TupPrim           -> Atom "TupPrim"
   | ProjPrim i        -> "ProjPrim"   $$ [Atom (string_of_int i)]
+  | StorePrim         -> Atom "StorePrim"
   | OptPrim           -> Atom "OptPrim"
   | TagPrim i         -> "TagE" $$ [id i]
   | DotPrim n         -> "DotPrim" $$ [Atom n]

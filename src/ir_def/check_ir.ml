@@ -490,6 +490,11 @@ let rec check_exp env (exp:Ir.exp) : unit =
                  error env exp.at "tuple projection %n is out of bounds for type\n  %s"
                    n (T.string_of_typ_expand t1) in
       tn <: t
+    | StorePrim, [_; _] ->
+      (* Lax type rule: load slot's type T and new value's type T' are
+         independent. Soundness comes from the rewrite predicate (the
+         spine matches a constructor whose slot we own), not from T = T'. *)
+      T.unit <: t
     | OptPrim, [exp1] ->
       T.Opt (typ exp1) <: t
     | TagPrim i, [exp1] ->
