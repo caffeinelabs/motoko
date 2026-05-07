@@ -145,8 +145,8 @@ and pat' rho = function
     let rho' = ids_bind rho is1 in
     (AltP (pat_subst rho' p1, pat_subst rho' p2), rho')
   | AndP (p1, p2) ->
-    let (p1', rho')  = pat rho p1 in
-    let (p2', rho'') = pat rho' p2 in
+    let p1', rho'  = pat rho p1 in
+    let p2', rho'' = pat rho' p2 in
     (AndP (p1', p2'), rho'')
 
 and pats rho ps  =
