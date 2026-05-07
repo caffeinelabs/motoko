@@ -237,7 +237,8 @@
         "nix-update-flake": "nix-update-flake",
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay",
+        "wabt-package-src": "wabt-package-src"
       }
     },
     "rust-overlay": {
@@ -294,6 +295,18 @@
         "owner": "numtide",
         "repo": "treefmt-nix",
         "type": "github"
+      }
+    },
+    "wabt-package-src": {
+      "flake": false,
+      "locked": {
+        "narHash": "sha256-jeQ9tFpIEJ+WvWXQvrEBavcUiGRq34OUBkNnbCXczSY=",
+        "type": "file",
+        "url": "https://raw.githubusercontent.com/ggreif/nixpkgs/d26416cf58028c701e637fdec99801467e710ec6/pkgs/by-name/wa/wabt/package.nix"
+      },
+      "original": {
+        "type": "file",
+        "url": "https://raw.githubusercontent.com/ggreif/nixpkgs/d26416cf58028c701e637fdec99801467e710ec6/pkgs/by-name/wa/wabt/package.nix"
       }
     }
   },

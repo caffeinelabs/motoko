@@ -49,6 +49,17 @@
       url = "github:serokell/ocaml-recovery-parser";
       flake = false;
     };
+
+    # Single-file fetch of the wabt `package.nix` from NixOS/nixpkgs#517726
+    # (wabt 1.0.41, which carries the WebAssembly/wabt#2744 fix for
+    # return_call_indirect + table64 validation). `type = "file"` pulls just
+    # the .nix expression — no second nixpkgs tarball, no second evaluation.
+    # Drop this input + its overlay once 1.0.41 lands in nixos-unstable.
+    wabt-package-src = {
+      type = "file";
+      url = "https://raw.githubusercontent.com/ggreif/nixpkgs/d26416cf58028c701e637fdec99801467e710ec6/pkgs/by-name/wa/wabt/package.nix";
+      flake = false;
+    };
   };
 
   outputs =
@@ -66,10 +77,11 @@
     , motoko-matchers-src
     , grace-src
     , ocaml-recovery-parser-src
+    , wabt-package-src
     }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import ./nix/pkgs.nix {
-        inherit nixpkgs system rust-overlay;
+        inherit nixpkgs system rust-overlay wabt-package-src;
         sources = {
           inherit
             candid-src
