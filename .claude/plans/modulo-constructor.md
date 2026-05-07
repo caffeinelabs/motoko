@@ -74,7 +74,9 @@ func map'<A, B>(parent : (B, List<A>), f : A -> B) : () =
     case null         ()                              // bullet already null
     case (?(h, t)) ->
       let cell : (B, List<A>) = (f h, t);             // new bullet := next input tail
-      StorePrim (parent.1, (cell : List<B>));         // close previous output cell
+      StorePrim (parent.1, ?cell);                    // close previous output cell
+                                                      //   T = List<A>, T' = ?(B, List<A>)
+                                                      //   (OptPrim is a nop)
       return_call map'<A, B>(cell, f)                 // tail call → return_call
   }
 ```
@@ -89,14 +91,13 @@ Initialising the bullet to `t` (the input tail at this position) makes the slot 
 
 Capturing `root` to make `map'` return it from the base case (so the wrapper could `return_call`) was considered and rejected: the closure cell would cost a heap allocation per outer `map` call. Instead, the wrapper holds `root` in its own local across an *ordinary* call to `map'` — one stack frame stays alive for the whole operation, which is fine.
 
-### Two typed nop cast sites
+### One typed nop cast site
 
-The IR is fully typed at every step. There are exactly two heap-pointer casts that have no runtime effect:
+`StorePrim` is typed flexibly (`T` for the load slot, `T'` for the new value — see below), so the worker body needs no explicit cast at the store. The only cast in the rewrite is at the wrapper tail:
 
-1. `(cell : List<B>)` at the `StorePrim` — `(B, List<A>) → List<B>`; both are `?(_, _)` heap pairs. The `Opt` wrap implicit in the `List<B>` type is an `OptPrim` typed-identity (no allocation, no instruction).
-2. `(root : List<B>)` at the wrapper tail — same shape.
+- `(root : List<B>)` — `(B, List<A>) → List<B>`; both are `?(_, _)` heap pairs at runtime. Rides on `OptPrim`'s typed-identity property; no allocation, no instruction.
 
-Both can ride on the existing typed-identity property of `OptPrim`, so we may not need a new `UnsafeCast` IR node at all.
+So we may not need a new `UnsafeCast` IR node at all.
 
 ## IR primitive: `StorePrim`
 
@@ -111,10 +112,12 @@ where `load_expr` is *syntactically* a load expression — for v0, `PrimE (ProjP
 ### Type rule
 
 ```
-load_expr : T      new_value : T
-————————————————————————————————
+load_expr : T      new_value : T'
+—————————————————————————————————
        StorePrim (…) : ()
 ```
+
+`T` and `T'` are independent. The IR primitive is intentionally lax: at runtime, all heap-pointer types share the same wasm-level representation (`i32`), and the constructor-spine rewrite legitimately stores values of type `T'` into a slot statically typed `T` (e.g., `?(B, List<A>)` into a slot of `List<A>`). Type-narrowing the rule would force ceremonial casts in the rewriter that buy nothing at runtime. Soundness comes from the rewrite predicate (the spine matches a constructor whose slot we own), not from `T = T'`.
 
 ### Codegen contract (non-incremental GC)
 
@@ -194,7 +197,7 @@ No closures, no `call_indirect`, no GC barriers (in v0).
 
 - **Multi-arity constructors / slot index ≠ 1.** Generalise the bullet to "initialise slot `S` to the corresponding input field; pass parent + `S`". The `map` case (`S = 1`, init = `t`) is the simplest; other shapes (e.g., `Cons`-like records, n-tuples) have analogous initialisations.
 - **Multiple TRMC sites in the same body.** If `f` has two recursive arms each in modulo-constructor position, the worker has both rewritten arms; no fundamental issue, just bookkeeping.
-- **Type-checking the worker.** `parent` has type `(B, List<A>)` — well-typed in IR. The two casts (`cell : List<B>`, `root : List<B>`) sit on `OptPrim`'s typed-identity property; whether `check_ir` already accepts that or needs a small extension is the only typing question for v0.
+- **Type-checking the worker.** `parent` has type `(B, List<A>)` — well-typed in IR. The flexible `StorePrim` type rule (`T` and `T'` independent) absorbs the slot/value type mismatch; the only cast (`root : List<B>` at the wrapper tail) sits on `OptPrim`'s typed-identity property. Whether `check_ir` already accepts that or needs a small extension is the only typing question for v0.
 - **Interaction with `--experimental-tailcalls` outer flag.** TRMC stays implied by `--experimental-tailcalls` rather than gated on a separate flag, to keep the surface small. Worth confirming in PR review.
 - **Mutual recursion modulo constructor.** Out of scope for v0; the `return_call_indirect` slice already in `gabor/wasm-exts-sync` is the prerequisite.
 - **Counter-examples / soundness.** What happens if `f` captures the bullet and stores it elsewhere (e.g., logging) — should be ruled out by the "exactly one occurrence in the spine, no escape" constraint, but we want a clear predicate.
