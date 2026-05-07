@@ -121,14 +121,18 @@ load_expr : T      new_value : T'
 
 ### Codegen contract (non-incremental GC)
 
-For `PrimE (StorePrim, [ProjE obj n; v])`:
+For `PrimE (StorePrim, [ProjE obj n; v])` the backend internally synthesises a `ProjLE`-shaped lvalue from the `ProjE` subexpression and dispatches to the existing `AssignE` codegen path. Concretely:
 
 1. Emit `obj`'s value-producing code (push base pointer).
-2. Emit address-of-slot-`n` math (constant-offset add) — same as `ProjPrim` codegen would have.
+2. Emit address-of-slot-`n` math (constant-offset add) — same address computation as `ProjPrim` codegen would have done for the load, but stopped before the trailing `i32.load`.
 3. Emit `v`'s value-producing code.
-4. Emit `i32.store` (instead of the `i32.load` `ProjE` would have ended with).
+4. Emit `i32.store`.
 
-The "flip trailing load to store" lives entirely in the backend — middle-end emits `StorePrim` regardless of GC variant. Generalisation to `IdxPrim` (arrays) and `DotPrim` (records) is mechanical.
+The address-computation + store sequence is the *same wasm* as `AssignE (IdxLE arr i) v` for arrays, just with a compile-time-constant offset instead of a runtime-computed one. Sharing a `compile_field_store` helper between the two paths is the natural factoring; the synthetic `ProjLE` is purely codegen-internal and never reaches the IR.
+
+Generalisation to `IdxPrim` (arrays) and `DotPrim` (records) as the first child of `StorePrim` is mechanical via the same dispatch table.
+
+Future-flexibility note: should a different IR shape turn out cleaner — e.g. exposing `ProjLE` as a real `lexp'` case and letting the rewriter emit `AssignE (ProjLE _) _` directly — the change is local. `StorePrim` is intentionally a thin escape-hatch primitive so the alternative remains open.
 
 ### Codegen contract (incremental GC) — punted
 
