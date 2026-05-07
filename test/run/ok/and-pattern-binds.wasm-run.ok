@@ -13,3 +13,4 @@ ok 7
 {a7 = 7; b7 = 7; c7 = "world"}
 {x8 = ?11; y8 = 11; z8 = ?11}
 null
+{t1v = 99; t2v = "type-and"}
