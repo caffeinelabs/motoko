@@ -83,3 +83,14 @@ func peelOpt(o : ?Nat) : Text =
   };
 debugPrint (peelOpt (?11));
 debugPrint (peelOpt null);
+
+// Type-level bindings via TypPF on each AndP leg. Exercises the
+// `check_pat_typ_dec` AndP arm in `typing.ml` — both legs contribute
+// type identifiers that must end up in scope after the pattern. If the
+// arm dropped one of `te1`/`te2`, the post-pattern reference would
+// fail with M0030 (unbound type identifier).
+let { type T1 } and { type T2 } : module { type T1 = Nat; type T2 = Text } =
+  module { public type T1 = Nat; public type T2 = Text };
+let t1v : T1 = 99;
+let t2v : T2 = "type-and";
+debugPrint (debug_show {t1v; t2v});
