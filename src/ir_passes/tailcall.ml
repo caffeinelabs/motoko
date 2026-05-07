@@ -74,6 +74,17 @@ let are_generic_insts (tbs : typ_bind list) insts =
       |  _ -> false
       ) tbs insts
 
+(* Tail-call modulo constructor: does [e] place a self-call to [func]
+   inside a fresh heap-allocator spine? `OptPrim` is operationally the
+   identity on heap-allocated payloads, so it transparently extends the
+   spine over `TupPrim`. Detection only — no rewrite (yet). *)
+let rec self_call_in_modulo_constructor func e =
+  match e.it with
+  | PrimE (CallPrim _, [{it = VarE (_, f1); _}; _]) -> f1 = func
+  | PrimE (TupPrim, es) -> List.exists (self_call_in_modulo_constructor func) es
+  | PrimE (OptPrim, [inner]) -> self_call_in_modulo_constructor func inner
+  | _ -> false
+
 let rec tailexp env e =
   {e with it = exp' env e}
 
@@ -144,7 +155,15 @@ and exp' env e  : exp' = match e.it with
     let u = { u with preupgrade = exp env u.preupgrade; postupgrade = exp env u.postupgrade; stable_record = exp env u.stable_record } in
     ActorE (snd (decs env ds), fs, u, t)
   | NewObjE (s,is,t)    -> NewObjE (s, is, t)
-  | PrimE (p, es)       -> PrimE (p, List.map (exp env) es)
+  | PrimE (p, es)       ->
+    (match p, env with
+     | (TupPrim | OptPrim),
+       { tail_pos = true; info = Some { func; _ } }
+       when !Mo_config.Flags.experimental_tailcalls
+         && self_call_in_modulo_constructor func e ->
+       Printf.eprintf "tailcall: TRMC candidate in `%s`\n%!" func
+     | _ -> ());
+    PrimE (p, List.map (exp env) es)
 
 and lexp env le : lexp = {le with it = lexp' env le}
 
