@@ -599,8 +599,8 @@ and rename_pat' pat =
     assert(Freevars.(M.is_empty (pat pat2)));
     (PatEnv.empty,pat.it)
   | AndP (pat1, pat2) ->
-    let (patenv1, pat1') = rename_pat pat1 in
-    let (patenv2, pat2') = rename_pat pat2 in
+    let patenv1, pat1' = rename_pat pat1 in
+    let patenv2, pat2' = rename_pat pat2 in
     (PatEnv.disjoint_union patenv1 patenv2, AndP (pat1', pat2'))
 
 and rename_pats pats =
