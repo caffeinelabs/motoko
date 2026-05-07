@@ -3639,9 +3639,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
         error env pat.at "M0260"
           "variable `%s` bound in both branches of and-pattern" k
     ) ve1;
-    t, T.Env.merge (fun _ o1 o2 -> match o1, o2 with
-      | Some v, _ | _, Some v -> Some v
-      | None, None -> None) ve1 ve2
+    t, T.Env.union (fun _ v _ -> Some v) ve1 ve2
   | AnnotP ({it = VarP id; _} as pat1, typ) when name_types ->
     let t = check_typ env typ in
     T.Named (id.it, t), check_pat env t pat1
@@ -3809,9 +3807,7 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
         error env pat.at "M0260"
           "variable `%s` bound in both branches of and-pattern" k
     ) ve1;
-    T.Env.merge (fun _ o1 o2 -> match o1, o2 with
-      | Some v, _ | _, Some v -> Some v
-      | None, None -> None) ve1 ve2
+    T.Env.union (fun _ v _ -> Some v) ve1 ve2
   | AnnotP (pat1, typ) ->
     let t' = check_typ env typ in
     if not (sub env pat.at t t') then
@@ -3942,9 +3938,7 @@ and check_pat_typ_dec env t pat : Scope.typ_env =
         error env pat.at "M0260"
           "type identifier `%s` bound in both branches of and-pattern" k
     ) te1;
-    T.Env.merge (fun _ o1 o2 -> match o1, o2 with
-      | Some v, _ | _, Some v -> Some v
-      | None, None -> None) te1 te2
+    T.Env.union (fun _ v _ -> Some v) te1 te2
   | _, _ -> T.Env.empty
 
 and check_pats_typ_dec env ts pats te at : Scope.typ_env =
