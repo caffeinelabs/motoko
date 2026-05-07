@@ -21,12 +21,6 @@ do {
   // single arg
   ignore Map.size(m); // warn M0236
 
-  // single arg, no parens
-  ignore Map.size m; // warn M0236
-
-  // single arg, no parens, with type instantiation
-  ignore Map.size<Nat, Text> m; // warn M0236
-
   // multi arg, no implicit in scope -> M0230 error + M0236 warn
   ignore Map.get(m2, 1); // warn M0236
 
@@ -152,4 +146,16 @@ do {
     1,
     "John",
   ); // warn M0223 + M0236 + M0237
+};
+
+// --- M0236: regression — unparenthesized single-arg call (#6096) ---
+
+do {
+  let m = Map.empty<Nat, Text>();
+
+  // single arg, no parens
+  ignore Map.size m; // warn M0236
+
+  // single arg, no parens, with type instantiation
+  ignore Map.size<Nat, Text> m; // warn M0236
 };
