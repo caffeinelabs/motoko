@@ -21,6 +21,12 @@ do {
   // single arg
   ignore Map.size(m); // warn M0236
 
+  // single arg, no parens
+  ignore Map.size m; // warn M0236
+
+  // single arg, no parens, with type instantiation
+  ignore Map.size<Nat, Text> m; // warn M0236
+
   // multi arg, no implicit in scope -> M0230 error + M0236 warn
   ignore Map.get(m2, 1); // warn M0236
 
