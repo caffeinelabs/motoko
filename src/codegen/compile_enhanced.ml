@@ -11736,6 +11736,26 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae e1 ^^ (* offset to tuple (an array) *)
     Tuple.load_n env (Int64.of_int n)
 
+  (* TRMC's unsafe heap-slot store. Tuples and (mutable) arrays share heap
+     layout, so we cast the load expression's tuple to a `[var Any]` and
+     reuse the existing AssignE/IdxLE codegen path. *)
+  | StorePrim, [{it = PrimE (ProjPrim n, [obj]); _}; v] ->
+    let arr_typ = Type.(Array (Mut Any)) in
+    let casted_obj =
+      { it = PrimE (CastPrim (obj.note.Note.typ, arr_typ), [obj]);
+        at = obj.at;
+        note = Note.{ def with typ = arr_typ; eff = obj.note.eff } } in
+    let idx_e = Construct.natE (Numerics.Nat.of_int n) in
+    let lhs =
+      { it = IdxLE (casted_obj, idx_e);
+        at = no_region;
+        note = Type.(Mut Any) } in
+    let assign =
+      { it = AssignE (lhs, v);
+        at = no_region;
+        note = Note.{ def with typ = Type.unit; eff = v.note.eff } } in
+    compile_exp env ae assign
+
   | OptPrim, [e] ->
     SR.Vanilla,
     Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)
