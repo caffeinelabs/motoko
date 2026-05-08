@@ -52,6 +52,8 @@ type trmc_info = { trmc_called: bool ref;        (* set when at least one spine 
                    parent_var: Construct.var;    (* (parent_id, (B, List<A>)) *)
                    parent_typ: Type.typ;         (* (B, List<A>) *)
                    result_typ: Type.typ;         (* List<B>, for the wrapper-tail cast *)
+                   bullet_slot: int;             (* slot index of the bullet in the cell *)
+                   cell_arity: int;              (* number of slots in the cell *)
                  }
 
 type func_info = { func: id;
@@ -120,7 +122,10 @@ let try_v0_trmc_setup id funexp tbs =
            worker_var;
            parent_var;
            parent_typ;
-           result_typ }
+           result_typ;
+           bullet_slot = 1;        (* v0 hardcoding: ?(_, recur) shape *)
+           cell_arity = 2;         (* v0 hardcoding *)
+         }
   with _ -> None
 
 (* Tail-call modulo constructor: does [e] place a self-call to [func]
@@ -134,36 +139,114 @@ let rec self_call_in_modulo_constructor func e =
   | PrimE (OptPrim, [inner]) -> self_call_in_modulo_constructor func inner
   | _ -> false
 
+(* Structured recognition of a TRMC spine. Extracted from the spine IR
+   directly — no function-signature heuristics. *)
+type recognised_spine = {
+  rs_cell_arity   : int;            (* number of slots in the cell tuple *)
+  rs_bullet_slot  : int;            (* index of the recursive call within the cell *)
+  rs_cursor_typ   : Type.typ;       (* the cursor arg's static type — becomes the bullet's parent slot type *)
+  rs_recur_insts  : Type.typ list;  (* type instantiation of the recursive call *)
+  rs_ord_args     : exp list;       (* args of the recursive call in original order *)
+  rs_build_cell   : (exp -> exp) -> exp -> exp;
+                                    (* IR→IR: given (slot transformer, cursor), build the fresh cell.
+                                       Transformer is applied to head_exprs (non-bullet slots);
+                                       use [Fun.id] when no traversal is needed. *)
+}
+
+let find_index pred xs =
+  let rec aux i = function
+    | [] -> None
+    | x :: _ when pred x -> Some i
+    | _ :: rest -> aux (i + 1) rest
+  in aux 0 xs
+
+(* Shallow copy of an exp giving it a fresh `note` record. Used when the
+   same source expression is referenced from two synthesised IR sites
+   (wrapper + worker) — without fresh notes, `check_ir`'s alias detector
+   warns about double-visits. *)
+let copy_exp (e : exp) : exp =
+  { e with note = { e.note with Note.check_run = 0 } }
+
+(* Match a v1 spine: `OptPrim (TupPrim slots)` with exactly one slot
+   being a self-call to [func]. The cursor is conventionally the
+   first arg of the recursive call (v0 convention; type-based
+   detection is a v2 follow-up). Returns None if the shape doesn't
+   match or there's no (or more than one) self-call. *)
+let recognise_spine func e =
+  let is_self_call e = match e.it with
+    | PrimE (CallPrim _, [{it = VarE (_, f1); _}; _]) -> f1 = func
+    | _ -> false in
+  let inner = match e.it with
+    | PrimE (OptPrim, [inner]) -> Some inner
+    | _ -> None in
+  match inner with
+  | Some {it = PrimE (TupPrim, slots); _} ->
+    let recur_count = List.length (List.filter is_self_call slots) in
+    if recur_count <> 1 then None
+    else begin
+      match find_index is_self_call slots with
+      | None -> None
+      | Some bullet_slot ->
+        let recur = List.nth slots bullet_slot in
+        match recur.it with
+        | PrimE (CallPrim insts, [_; {it = PrimE (TupPrim, args); _}]) ->
+          let cursor_idx = 0 in
+          let cursor_typ = (List.nth args cursor_idx).note.Note.typ in
+          let build_cell transform cursor_e =
+            let new_slots =
+              List.mapi (fun i s ->
+                if i = bullet_slot then cursor_e
+                else transform (copy_exp s)) slots in
+            tupE new_slots
+          in
+          Some {
+            rs_cell_arity = List.length slots;
+            rs_bullet_slot = bullet_slot;
+            rs_cursor_typ = cursor_typ;
+            rs_recur_insts = insts;
+            rs_ord_args = args;
+            rs_build_cell = build_cell;
+          }
+        | _ -> None
+    end
+  | _ -> None
+
+(* Pass through the recursive call's args, substituting the cursor
+   position with [new_cursor]. Passenger args get fresh-note copies
+   so the wrapper and worker can both reference them without
+   tripping `check_ir`'s alias detector. *)
+let recur_args_with_cursor rec_spine new_cursor =
+  List.mapi (fun i a ->
+    if i = 0 (* cursor_idx — v0/v1 convention *) then new_cursor
+    else copy_exp a)
+    rec_spine.rs_ord_args
+
 (* Build the worker body from the original exp0 (un-rewritten).
-   v0: requires the body to be `SwitchE _ cases`. Each case is rewritten:
-   - Recognised spine `?(head, self<Ts>(t, f))` →
-       let cell = (head, t); StorePrim (parent.1, ?cell); return_call worker(cell, f)
+   v1: requires the body to be `SwitchE _ cases`. Each case is rewritten:
+   - Recognised spine ?(head, self(t, …)) →
+       let cell = (…head, t, …); StorePrim (parent.<slot>, ?cell);
+       return_call worker(cell, …)
    - Otherwise → unitE () (assumes the bullet was pre-set correctly). *)
-let build_worker_body trmc func_id orig_body =
-  let bullet () = projE (varE trmc.parent_var) 1 in
+let build_worker_body (trmc : trmc_info) func_id orig_body =
+  let bullet () = projE (varE trmc.parent_var) trmc.bullet_slot in
   let rewrite_case (c : case) =
     let { pat; exp = arm_body } = c.it in
-    let new_arm = match arm_body.it with
-      | PrimE (OptPrim, [{it = PrimE (TupPrim, [head_e; recur]); _}])
-        when (match recur.it with
-              | PrimE (CallPrim _, [{it = VarE (_, f1); _}; _]) -> f1 = func_id
-              | _ -> false) ->
-        let recur_args = match recur.it with
-          | PrimE (CallPrim _, [_; {it = PrimE (TupPrim, args); _}]) -> args
-          | _ -> assert false in
-        let t_arg = List.nth recur_args 0 in
-        let f_arg = List.nth recur_args 1 in
-        let cell = fresh_var "cell" trmc.parent_typ in
+    let new_arm = match recognise_spine func_id arm_body with
+      | Some rec_spine when rec_spine.rs_bullet_slot = trmc.bullet_slot
+                         && rec_spine.rs_cell_arity = trmc.cell_arity ->
+        let cursor_e = List.nth rec_spine.rs_ord_args 0 in  (* cursor_idx = 0 *)
+        let cell_e = rec_spine.rs_build_cell Fun.id cursor_e in
+        let cell = fresh_var "cell" cell_e.note.Note.typ in
+        let cell_decl = letD cell cell_e in
         let opt_cell = optE (varE cell) in
         let store = primE StorePrim [bullet (); opt_cell] in
+        let new_args = recur_args_with_cursor rec_spine (varE cell) in
         let tail_call =
-          let ce = callE (varE trmc.worker_var) [] (tupE [varE cell; f_arg]) in
+          let ce = callE (varE trmc.worker_var) [] (tupE new_args) in
           { ce with it = match ce.it with
             | PrimE (CallPrim ts, args) -> PrimE (TailCallPrim ts, args)
             | _ -> assert false } in
-        blockE
-          [letD cell (tupE [head_e; t_arg])]
-          (blockE [expD store] tail_call)
+        blockE [cell_decl] (blockE [expD store] tail_call)
       | _ -> unitE ()
     in
     { c with it = { pat; exp = new_arm } }
@@ -246,34 +329,44 @@ and exp' env e  : exp' = match e.it with
     let u = { u with preupgrade = exp env u.preupgrade; postupgrade = exp env u.postupgrade; stable_record = exp env u.stable_record } in
     ActorE (snd (decs env ds), fs, u, t)
   | NewObjE (s,is,t)    -> NewObjE (s, is, t)
-  (* TRMC v0 spine rewrite: `?(head, self<Ts>(t, f))` →
-     `let root = (head, t); worker<Ts>(root, f); (root : ResultTy)` *)
-  | PrimE (OptPrim, [{it = PrimE (TupPrim, [head_e; recur]); _}])
-       when env.tail_pos
-         && !Mo_config.Flags.experimental_tailcalls
-         && (match env.info, recur.it with
-             | Some { func; trmc = Some _; _ },
-               PrimE (CallPrim _, [{it = VarE (_, f1); _}; _]) -> f1 = func
-             | _ -> false) ->
-    let trmc = match env.info with
-      | Some { trmc = Some t; _ } -> t
+  (* TRMC v0 spine rewrite: `?(…head, self<Ts>(t, …))` →
+     `let root = (…head, t, …); worker(root, …); (root : ResultTy)` *)
+  | PrimE _ when env.tail_pos
+              && !Mo_config.Flags.experimental_tailcalls
+              && (match env.info with
+                  | Some { trmc = Some _; func; _ } ->
+                    Option.is_some (recognise_spine func e)
+                  | _ -> false) ->
+    let func, (trmc : trmc_info) = match env.info with
+      | Some { func; trmc = Some t; _ } -> func, t
       | _ -> assert false in
-    trmc.trmc_called := true;
-    let recur_args = match recur.it with
-      | PrimE (CallPrim _, [_; {it = PrimE (TupPrim, args); _}]) -> args
-      | _ -> assert false in
-    let t_arg = exp env (List.nth recur_args 0) in
-    let f_arg = exp env (List.nth recur_args 1) in
-    let head_e' = exp env head_e in
-    let root = fresh_var "root" trmc.parent_typ in
-    let worker_call =
-      callE (varE trmc.worker_var) [] (tupE [varE root; f_arg]) in
-    let cast_root =
-      primE (CastPrim (trmc.parent_typ, trmc.result_typ)) [varE root] in
-    let block = blockE
-      [letD root (tupE [head_e'; t_arg])]
-      (blockE [expD worker_call] cast_root) in
-    block.it
+    let rec_spine = match recognise_spine func e with
+      | Some r -> r
+      | None -> assert false in
+    if rec_spine.rs_bullet_slot <> trmc.bullet_slot
+    || rec_spine.rs_cell_arity <> trmc.cell_arity then
+      (* Inconsistent shape across spines — v1 rejects (per plan). *)
+      PrimE (List.hd (match e.it with PrimE (p, _) -> [p] | _ -> []),
+             List.map (exp env)
+               (match e.it with PrimE (_, es) -> es | _ -> []))
+    else begin
+      trmc.trmc_called := true;
+      let cursor_e = exp env (List.nth rec_spine.rs_ord_args 0) in
+      let new_args = recur_args_with_cursor rec_spine cursor_e in
+      let cell_e = rec_spine.rs_build_cell (exp env) cursor_e in
+      let root = fresh_var "root" cell_e.note.Note.typ in
+      (* Drop the cursor from the worker's args (it lives in root.bullet_slot now). *)
+      let passenger_args =
+        List.filteri (fun i _ -> i <> 0 (* cursor_idx *)) new_args in
+      let worker_call =
+        callE (varE trmc.worker_var) [] (tupE (varE root :: passenger_args)) in
+      let cast_root =
+        primE (CastPrim (trmc.parent_typ, trmc.result_typ)) [varE root] in
+      let block = blockE
+        [letD root cell_e]
+        (blockE [expD worker_call] cast_root) in
+      block.it
+    end
   | PrimE (p, es)       -> PrimE (p, List.map (exp env) es)
 
 and lexp env le : lexp = {le with it = lexp' env le}
