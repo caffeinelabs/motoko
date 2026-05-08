@@ -262,6 +262,16 @@ For the v1 generalisation past hardcoded `?(_, recur)`, the recogniser produces 
 
 If a body has two arms with **different** spine shapes (different constructor/slot/passenger configuration), v1 rejects the rewrite for the whole function. The alternative — specialise into two workers, one per spine shape — doubles the worker code, multiplies the bookkeeping, and corresponds to a much rarer source pattern. Filing as a *future opportunity* rather than v1 work; revisit if profiling shows the rejection biting real code.
 
+## v2 backlog
+
+Beyond the current v1 (TupPrim spines, single recursive call, immutable cells), the following are explicitly v2-or-later:
+
+1. **Type-based recogniser (regular and nested datatypes).** Today the recogniser pattern-matches the spine syntactically (`OptPrim (TupPrim …)` etc.). A type-driven version would consult the function's type alone — `f : List<A> -> List<B>`, where `List` is a recursive type with one recursive component — and *derive* the bullet path from the result type's recursive position. Generalises naturally to **nested datatypes** (Bird & Paterson sense, e.g. `Nest<A> = ?(A, Nest<(A, A)>)`) where the recursion transforms the type parameter; the recogniser would walk the type's recursive Cons to find the recursive position regardless of source-level pattern shape.
+2. **Spina bifurcata (binary-tree-style fork TRMC).** For `Tree<A> = ?(A, Tree<A>, Tree<A>)`, the spine `?(f x, map left, map right)` has *two* recursive calls. v1 rejects this. v2 strategy: the **rightmost** recursive call becomes the worker's tail call (`return_call worker_n …`), while the leftmost (and any middle ones) remain ordinary recursive calls — each leftward subtree's `map` is a *non-tail* call that returns its `?Tree<B>`, written into the cell at its slot before the rightmost's `return_call` fires. Effectively: leftward spine slots are filled eagerly, rightward slot is the bullet, recursion proceeds rightward only. Multiple workers (`worker_1`, `worker_2`, …) may be needed if the spine shape varies across arms; for one fixed shape, one worker suffices. Naming: "spina bifurcata" since the spine has two (or more) recursive forks but only one becomes the tail spine.
+3. **`var`-field recursion (input and output).** Mutable record fields go through `VarD`-bound indirection cells in Motoko's IR (`(NewObjE Object [(field $var)])` with `var` declared via prior `VarD`). For TRMC over types like `class L { var head; var tail }`, the recogniser must thread through this indirection — both for **input** (cursor read goes through the input cell's mutable VarD) and **output** (the `StorePrim` writes via the VarD's identity, not directly into the heap object's slot). Simpler than it sounds because the codegen already treats `DotLE` of mutable fields specially; the recogniser just has to identify the right `VarD` from the spine's `NewObjE` field reference.
+
+Cross-cutting: type-based recognition (item 1) is a precondition for clean handling of (2) and (3) — once the recogniser walks types rather than syntax, fork detection and var-field handling are straightforward extensions of the same machinery.
+
 ## Branch / PR strategy
 
 - Base on `gabor/wasm-exts-sync` (PR #6043) which already wires `return_call`.
