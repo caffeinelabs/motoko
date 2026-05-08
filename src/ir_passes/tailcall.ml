@@ -89,45 +89,6 @@ let are_generic_insts (tbs : typ_bind list) insts =
       |  _ -> false
       ) tbs insts
 
-(* v0 TRMC eligibility:
-   - Single-result function whose result type promotes to `?(B, _)`
-   - At least one argument; first argument's type becomes the bullet's slot type
-   Returns trmc_info if eligible, else None. *)
-let try_v0_trmc_setup id funexp tbs =
-  try
-    let (sort, ctrl, _binds, dom, cod) =
-      match Type.promote (typ funexp) with
-      | Type.Func (a, b, c, d, e) -> (a, b, c, d, e)
-      | _ -> raise Exit in
-    (* Open the wrapper's closed function type using the wrapper's cons,
-       so the worker's empty-bind signature can reference the same outer
-       binders directly (the worker is nested in the wrapper's scope). *)
-    let outer_cs =
-      List.map (fun (tb : typ_bind) -> Type.Con (tb.it.con, [])) tbs in
-    let dom_open = List.map (Type.open_ outer_cs) dom in
-    let cod_open = List.map (Type.open_ outer_cs) cod in
-    let first_arg_typ = match dom_open with t :: _ -> t | _ -> raise Exit in
-    let result_typ = match cod_open with [t] -> t | _ -> raise Exit in
-    (* Extract B from result_typ = ?(B, _); follow type aliases. *)
-    let opt_inner = Type.as_opt_sub result_typ in
-    let tup = Type.as_tup_sub 2 opt_inner in
-    let b_ty = match tup with t :: _ :: _ -> t | _ -> raise Exit in
-    let parent_typ = Type.Tup [b_ty; first_arg_typ] in
-    let worker_id = fresh_id (id ^ "'") () in
-    let parent_var = fresh_var "parent" parent_typ in
-    let worker_fn_typ =
-      Type.Func (sort, ctrl, [], parent_typ :: List.tl dom_open, [Type.unit]) in
-    let worker_var = Construct.var worker_id worker_fn_typ in
-    Some { trmc_called = ref false;
-           worker_var;
-           parent_var;
-           parent_typ;
-           result_typ;
-           bullet_slot = 1;        (* v0 hardcoding: ?(_, recur) shape *)
-           cell_arity = 2;         (* v0 hardcoding *)
-         }
-  with _ -> None
-
 (* Tail-call modulo constructor: does [e] place a self-call to [func]
    inside a fresh heap-allocator spine? `OptPrim` is operationally the
    identity on heap-allocated payloads, so it transparently extends the
@@ -142,15 +103,16 @@ let rec self_call_in_modulo_constructor func e =
 (* Structured recognition of a TRMC spine. Extracted from the spine IR
    directly — no function-signature heuristics. *)
 type recognised_spine = {
-  rs_cell_arity   : int;            (* number of slots in the cell tuple *)
-  rs_bullet_slot  : int;            (* index of the recursive call within the cell *)
-  rs_cursor_typ   : Type.typ;       (* the cursor arg's static type — becomes the bullet's parent slot type *)
-  rs_recur_insts  : Type.typ list;  (* type instantiation of the recursive call *)
-  rs_ord_args     : exp list;       (* args of the recursive call in original order *)
-  rs_build_cell   : (exp -> exp) -> exp -> exp;
-                                    (* IR→IR: given (slot transformer, cursor), build the fresh cell.
-                                       Transformer is applied to head_exprs (non-bullet slots);
-                                       use [Fun.id] when no traversal is needed. *)
+  rs_cell_arity     : int;            (* number of slots in the cell tuple *)
+  rs_bullet_slot    : int;            (* index of the recursive call within the cell *)
+  rs_cursor_typ     : Type.typ;       (* the cursor arg's static type — becomes the bullet's parent slot type *)
+  rs_cell_slot_typs : Type.typ list;  (* the cell's slot types (cell_arity entries; bullet slot has the recursive type) *)
+  rs_recur_insts    : Type.typ list;  (* type instantiation of the recursive call *)
+  rs_ord_args       : exp list;       (* args of the recursive call in original order *)
+  rs_build_cell     : (exp -> exp) -> exp -> exp;
+                                      (* IR→IR: given (slot transformer, cursor), build the fresh cell.
+                                         Transformer is applied to head_exprs (non-bullet slots);
+                                         use [Fun.id] when no traversal is needed. *)
 }
 
 let find_index pred xs =
@@ -203,6 +165,7 @@ let recognise_spine func e =
             rs_cell_arity = List.length slots;
             rs_bullet_slot = bullet_slot;
             rs_cursor_typ = cursor_typ;
+            rs_cell_slot_typs = List.map (fun s -> s.note.Note.typ) slots;
             rs_recur_insts = insts;
             rs_ord_args = args;
             rs_build_cell = build_cell;
@@ -210,6 +173,68 @@ let recognise_spine func e =
         | _ -> None
     end
   | _ -> None
+
+(* v1 TRMC eligibility, data-driven from the body's spines.
+   Pre-walks [body] for the first recognised spine; uses its
+   `cell_slot_typs` (with the bullet position retyped to the cursor's
+   type) to build `parent_typ` and the worker's wasm signature.
+   Returns trmc_info if a spine is found, else None.
+
+   Other spines in the body are checked for shape consistency
+   (same `bullet_slot` + `cell_arity`) at synthesis time; mismatches
+   are rejected per the v1 plan ("reject inconsistent multi-spine"). *)
+let try_v1_trmc_setup id funexp tbs body =
+  try
+    let (sort, ctrl, _binds, dom, cod) =
+      match Type.promote (typ funexp) with
+      | Type.Func (a, b, c, d, e) -> (a, b, c, d, e)
+      | _ -> raise Exit in
+    (* Open the wrapper's closed function type using the wrapper's cons,
+       so the worker's empty-bind signature can reference the same outer
+       binders directly (the worker is nested in the wrapper's scope). *)
+    let outer_cs =
+      List.map (fun (tb : typ_bind) -> Type.Con (tb.it.con, [])) tbs in
+    let dom_open = List.map (Type.open_ outer_cs) dom in
+    let cod_open = List.map (Type.open_ outer_cs) cod in
+    let result_typ = match cod_open with [t] -> t | _ -> raise Exit in
+    (* Find the first recognised spine in the body. *)
+    let rec find_first_spine e =
+      match recognise_spine id e with
+      | Some r -> Some r
+      | None ->
+        match e.it with
+        | SwitchE (_, cases) ->
+          List.find_map (fun (c : case) -> find_first_spine c.it.exp) cases
+        | BlockE (_, e1) -> find_first_spine e1
+        | IfE (_, e2, e3) ->
+          (match find_first_spine e2 with
+           | Some _ as r -> r
+           | None -> find_first_spine e3)
+        | _ -> None
+    in
+    let rec_spine = match find_first_spine body with
+      | Some r -> r
+      | None -> raise Exit in
+    (* parent_typ = cell shape with bullet retyped to cursor type. *)
+    let parent_slot_typs =
+      List.mapi (fun i t ->
+        if i = rec_spine.rs_bullet_slot then rec_spine.rs_cursor_typ else t)
+        rec_spine.rs_cell_slot_typs in
+    let parent_typ = Type.Tup parent_slot_typs in
+    let worker_id = fresh_id (id ^ "'") () in
+    let parent_var = fresh_var "parent" parent_typ in
+    let worker_fn_typ =
+      Type.Func (sort, ctrl, [], parent_typ :: List.tl dom_open, [Type.unit]) in
+    let worker_var = Construct.var worker_id worker_fn_typ in
+    Some { trmc_called = ref false;
+           worker_var;
+           parent_var;
+           parent_typ;
+           result_typ;
+           bullet_slot = rec_spine.rs_bullet_slot;
+           cell_arity = rec_spine.rs_cell_arity;
+         }
+  with _ -> None
 
 (* Pass through the recursive call's args, substituting the cursor
    position with [new_cursor]. Passenger args get fresh-note copies
@@ -427,7 +452,7 @@ and dec' env d =
       let tail_called = ref false in
       let trmc =
         if !Mo_config.Flags.experimental_tailcalls
-        then try_v0_trmc_setup id funexp tbs
+        then try_v1_trmc_setup id funexp tbs exp0
         else None in
       let env2 = { tail_pos = true;
                    info = Some { func = id;
