@@ -26,7 +26,7 @@ let
 
   # extra deps for test/ld
   ldTestDeps =
-    with pkgs.llvmPackages_20; [ lld clang ];
+    with pkgs.llvmPackages_21; [ lld clang ];
 
   testDerivation = args:
     pkgs.stdenv.mkDerivation (testDerivationArgs // args);

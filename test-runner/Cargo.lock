@@ -1319,7 +1319,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 [[package]]
 name = "pocket-ic"
 version = "13.0.0"
-source = "git+https://github.com/dfinity/ic?tag=release-2026-04-16_04-20-base#719ff387aab462ce5759c4c20c30de959fe9538c"
+source = "git+https://github.com/dfinity/ic?tag=release-2026-04-30_04-26-base#f31310fe9d4237e1352477ae9a9b009bbe78c968"
 dependencies = [
  "backoff",
  "base64 0.13.1",
