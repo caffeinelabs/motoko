@@ -42,11 +42,24 @@ TODO: optimize for multiple arguments using multiple temps (not a tuple).
 
 *)
 
+(* TRMC = tail recursion modulo constructor.
+   When the function shape admits the v0 transform (List<A> -> List<B>),
+   `trmc_info` carries the synthesised worker's identity and the parent's
+   static type so that an in-place spine rewrite can build the wrapper-side
+   code and a separate body construction can build the worker. *)
+type trmc_info = { trmc_called: bool ref;        (* set when at least one spine fires *)
+                   worker_var: Construct.var;    (* (worker_id, worker_fn_typ) *)
+                   parent_var: Construct.var;    (* (parent_id, (B, List<A>)) *)
+                   parent_typ: Type.typ;         (* (B, List<A>) *)
+                   result_typ: Type.typ;         (* List<B>, for the wrapper-tail cast *)
+                 }
+
 type func_info = { func: id;
                    typ_binds: typ_bind list;
                    temps: var list;
                    label: id;
                    tail_called: bool ref;
+                   trmc: trmc_info option;
                  }
 
 type env = { tail_pos:bool;          (* is the expression in tail position *)
@@ -74,6 +87,42 @@ let are_generic_insts (tbs : typ_bind list) insts =
       |  _ -> false
       ) tbs insts
 
+(* v0 TRMC eligibility:
+   - Single-result function whose result type promotes to `?(B, _)`
+   - At least one argument; first argument's type becomes the bullet's slot type
+   Returns trmc_info if eligible, else None. *)
+let try_v0_trmc_setup id funexp tbs =
+  try
+    let (sort, ctrl, _binds, dom, cod) =
+      match Type.promote (typ funexp) with
+      | Type.Func (a, b, c, d, e) -> (a, b, c, d, e)
+      | _ -> raise Exit in
+    (* Open the wrapper's closed function type using the wrapper's cons,
+       so the worker's empty-bind signature can reference the same outer
+       binders directly (the worker is nested in the wrapper's scope). *)
+    let outer_cs =
+      List.map (fun (tb : typ_bind) -> Type.Con (tb.it.con, [])) tbs in
+    let dom_open = List.map (Type.open_ outer_cs) dom in
+    let cod_open = List.map (Type.open_ outer_cs) cod in
+    let first_arg_typ = match dom_open with t :: _ -> t | _ -> raise Exit in
+    let result_typ = match cod_open with [t] -> t | _ -> raise Exit in
+    (* Extract B from result_typ = ?(B, _); follow type aliases. *)
+    let opt_inner = Type.as_opt_sub result_typ in
+    let tup = Type.as_tup_sub 2 opt_inner in
+    let b_ty = match tup with t :: _ :: _ -> t | _ -> raise Exit in
+    let parent_typ = Type.Tup [b_ty; first_arg_typ] in
+    let worker_id = fresh_id (id ^ "'") () in
+    let parent_var = fresh_var "parent" parent_typ in
+    let worker_fn_typ =
+      Type.Func (sort, ctrl, [], parent_typ :: List.tl dom_open, [Type.unit]) in
+    let worker_var = Construct.var worker_id worker_fn_typ in
+    Some { trmc_called = ref false;
+           worker_var;
+           parent_var;
+           parent_typ;
+           result_typ }
+  with _ -> None
+
 (* Tail-call modulo constructor: does [e] place a self-call to [func]
    inside a fresh heap-allocator spine? `OptPrim` is operationally the
    identity on heap-allocated payloads, so it transparently extends the
@@ -84,6 +133,48 @@ let rec self_call_in_modulo_constructor func e =
   | PrimE (TupPrim, es) -> List.exists (self_call_in_modulo_constructor func) es
   | PrimE (OptPrim, [inner]) -> self_call_in_modulo_constructor func inner
   | _ -> false
+
+(* Build the worker body from the original exp0 (un-rewritten).
+   v0: requires the body to be `SwitchE _ cases`. Each case is rewritten:
+   - Recognised spine `?(head, self<Ts>(t, f))` →
+       let cell = (head, t); StorePrim (parent.1, ?cell); return_call worker(cell, f)
+   - Otherwise → unitE () (assumes the bullet was pre-set correctly). *)
+let build_worker_body trmc func_id orig_body =
+  let bullet () = projE (varE trmc.parent_var) 1 in
+  let rewrite_case (c : case) =
+    let { pat; exp = arm_body } = c.it in
+    let new_arm = match arm_body.it with
+      | PrimE (OptPrim, [{it = PrimE (TupPrim, [head_e; recur]); _}])
+        when (match recur.it with
+              | PrimE (CallPrim _, [{it = VarE (_, f1); _}; _]) -> f1 = func_id
+              | _ -> false) ->
+        let recur_args = match recur.it with
+          | PrimE (CallPrim _, [_; {it = PrimE (TupPrim, args); _}]) -> args
+          | _ -> assert false in
+        let t_arg = List.nth recur_args 0 in
+        let f_arg = List.nth recur_args 1 in
+        let cell = fresh_var "cell" trmc.parent_typ in
+        let opt_cell = optE (varE cell) in
+        let store = primE StorePrim [bullet (); opt_cell] in
+        let tail_call =
+          let ce = callE (varE trmc.worker_var) [] (tupE [varE cell; f_arg]) in
+          { ce with it = match ce.it with
+            | PrimE (CallPrim ts, args) -> PrimE (TailCallPrim ts, args)
+            | _ -> assert false } in
+        blockE
+          [letD cell (tupE [head_e; t_arg])]
+          (blockE [expD store] tail_call)
+      | _ -> unitE ()
+    in
+    { c with it = { pat; exp = new_arm } }
+  in
+  match orig_body.it with
+  | SwitchE (_, cases) ->
+    let new_cases = List.map rewrite_case cases in
+    { orig_body with
+      it = SwitchE (bullet (), new_cases);
+      note = { orig_body.note with Note.typ = Type.unit } }
+  | _ -> failwith "TRMC: worker body shape unsupported (v0)"
 
 let rec tailexp env e =
   {e with it = exp' env e}
@@ -107,7 +198,7 @@ and exp' env e  : exp' = match e.it with
   | PrimE (CallPrim insts, [e1; e2])  ->
     begin match e1.it, env with
     | VarE (_, f1), { tail_pos = true;
-                      info = Some { func; typ_binds; temps; label; tail_called } }
+                      info = Some { func; typ_binds; temps; label; tail_called; _ } }
          when not !Mo_config.Flags.experimental_tailcalls
            && f1 = func && are_generic_insts typ_binds insts  ->
       tail_called := true;
@@ -155,15 +246,35 @@ and exp' env e  : exp' = match e.it with
     let u = { u with preupgrade = exp env u.preupgrade; postupgrade = exp env u.postupgrade; stable_record = exp env u.stable_record } in
     ActorE (snd (decs env ds), fs, u, t)
   | NewObjE (s,is,t)    -> NewObjE (s, is, t)
-  | PrimE (p, es)       ->
-    (match p, env with
-     | (TupPrim | OptPrim),
-       { tail_pos = true; info = Some { func; _ } }
-       when !Mo_config.Flags.experimental_tailcalls
-         && self_call_in_modulo_constructor func e ->
-       Printf.eprintf "tailcall: TRMC candidate in `%s`\n%!" func
-     | _ -> ());
-    PrimE (p, List.map (exp env) es)
+  (* TRMC v0 spine rewrite: `?(head, self<Ts>(t, f))` →
+     `let root = (head, t); worker<Ts>(root, f); (root : ResultTy)` *)
+  | PrimE (OptPrim, [{it = PrimE (TupPrim, [head_e; recur]); _}])
+       when env.tail_pos
+         && !Mo_config.Flags.experimental_tailcalls
+         && (match env.info, recur.it with
+             | Some { func; trmc = Some _; _ },
+               PrimE (CallPrim _, [{it = VarE (_, f1); _}; _]) -> f1 = func
+             | _ -> false) ->
+    let trmc = match env.info with
+      | Some { trmc = Some t; _ } -> t
+      | _ -> assert false in
+    trmc.trmc_called := true;
+    let recur_args = match recur.it with
+      | PrimE (CallPrim _, [_; {it = PrimE (TupPrim, args); _}]) -> args
+      | _ -> assert false in
+    let t_arg = exp env (List.nth recur_args 0) in
+    let f_arg = exp env (List.nth recur_args 1) in
+    let head_e' = exp env head_e in
+    let root = fresh_var "root" trmc.parent_typ in
+    let worker_call =
+      callE (varE trmc.worker_var) [] (tupE [varE root; f_arg]) in
+    let cast_root =
+      primE (CastPrim (trmc.parent_typ, trmc.result_typ)) [varE root] in
+    let block = blockE
+      [letD root (tupE [head_e'; t_arg])]
+      (blockE [expD worker_call] cast_root) in
+    block.it
+  | PrimE (p, es)       -> PrimE (p, List.map (exp env) es)
 
 and lexp env le : lexp = {le with it = lexp' env le}
 
@@ -221,17 +332,34 @@ and dec' env d =
       let temps = fresh_vars "temp" (List.map (fun a -> Mut a.note) as_) in
       let label = fresh_id "tailcall" () in
       let tail_called = ref false in
+      let trmc =
+        if !Mo_config.Flags.experimental_tailcalls
+        then try_v0_trmc_setup id funexp tbs
+        else None in
       let env2 = { tail_pos = true;
                    info = Some { func = id;
                                  typ_binds = tbs;
                                  temps;
                                  label;
-                                 tail_called } }
+                                 tail_called;
+                                 trmc } }
       in
       let env3 = args env2 as_ in (* shadow id if necessary *)
       let exp0' = tailexp env3 exp0 in
       let cs = List.map (fun (tb : typ_bind) -> Con (tb.it.con, [])) tbs in
-      if !tail_called then
+      let trmc_fired = match trmc with
+        | Some t -> !(t.trmc_called)
+        | None -> false in
+      if trmc_fired then
+        let trmc = match trmc with Some t -> t | None -> assert false in
+        let worker_body = build_worker_body trmc id exp0 in
+        let worker_args = arg_of_var trmc.parent_var :: List.tl as_ in
+        let worker_funexp =
+          funcE (id_of_var trmc.worker_var) Local c [] worker_args [Type.unit] worker_body in
+        let body_with_worker =
+          blockE [letD trmc.worker_var worker_funexp] exp0' in
+        LetD (id_pat, {funexp with it = FuncE (x, Local, c, tbs, as_, typT, body_with_worker)})
+      else if !tail_called then
         let ids = match typ funexp with
           | Func( _, _, _, dom, _) ->
             fresh_vars "id" (List.map (fun t -> open_ cs t) dom)
