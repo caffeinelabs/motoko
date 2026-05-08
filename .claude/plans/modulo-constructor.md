@@ -121,14 +121,19 @@ load_expr : T      new_value : T'
 
 ### Codegen contract (non-incremental GC)
 
-For `PrimE (StorePrim, [ProjE obj n; v])` the backend internally synthesises a `ProjLE`-shaped lvalue from the `ProjE` subexpression and dispatches to the existing `AssignE` codegen path. Concretely:
+For `PrimE (StorePrim, [ProjE obj n; v])` the backend retags `obj.note.typ` to `[var Any]` (tuples and mutable arrays share heap layout) and dispatches via the existing `AssignE (IdxLE _ _) _` codegen path. No IR-level `CastPrim` is synthesised — `check_ir` does not re-run on backend-internal IR, so the note-only retag is sufficient and avoids a wasted node.
+
+Concretely the address-store sequence emitted by `compile_lexp`'s `IdxLE` arm is:
 
 1. Emit `obj`'s value-producing code (push base pointer).
-2. Emit address-of-slot-`n` math (constant-offset add) — same address computation as `ProjPrim` codegen would have done for the load, but stopped before the trailing `i32.load`.
+2. Emit address-of-slot-`n` math (the existing `Arr.idx_bigint` path, with the index as a `Construct.natE n`).
 3. Emit `v`'s value-producing code.
-4. Emit `i32.store`.
+4. Emit either `i64.store` or `call $write_with_barrier`, selected by the existing `running_gc` runtime check.
 
-The address-computation + store sequence is the *same wasm* as `AssignE (IdxLE arr i) v` for arrays, just with a compile-time-constant offset instead of a runtime-computed one. Sharing a `compile_field_store` helper between the two paths is the natural factoring; the synthetic `ProjLE` is purely codegen-internal and never reaches the IR.
+Two consequences land for free:
+
+- **Incremental GC barrier** — the `running_gc` selector means we get the barriered store under incremental GC without writing any new code; (3) below for v0 is therefore *not* a "non-incremental only" restriction in practice.
+- **Bounds check** — the `IdxLE` path traps on out-of-bounds. For our compile-time-constant slot index this is unreachable, but the check is emitted. v1 fast-path elides it.
 
 Generalisation to `IdxPrim` (arrays) and `DotPrim` (records) as the first child of `StorePrim` is mechanical via the same dispatch table.
 
@@ -220,7 +225,7 @@ No closures, no `call_indirect`, no GC barriers (in v0).
 1. ✅ **Detector** — recognise modulo-constructor spines containing a self-call; eprintf the function name. Committed `191754d6a`.
 2. ✅ **`StorePrim` IR primitive** — declaration + plumbing in `Ir` / `arrange_ir` / `check_ir` (lax `T`/`T'` rule). Committed `af0df0ffe`.
 3. ✅ **Worker synthesis** — `tailcall.ml`'s `LetD … FuncE` arm now emits the wrapper + nested-worker pair, rewrites the spine to call the worker, and recognises the v0 spine `?(head, self<Ts>(t, f))`. Committed `493e90b8f`.
-4. ✅ **Codegen (enhanced)** — `StorePrim` lowered via `CastPrim (tup_ty, [var Any])` + `IdxLE` + `AssignE`, reusing the existing array-store path (which gives us the incremental-GC write barrier for free). Committed `51aad1630`.
+4. ✅ **Codegen (enhanced)** — `StorePrim` lowered via `IdxLE` + `AssignE` over an `obj` whose `note.typ` has been retagged to `[var Any]`. Reuses the existing array-store path, including the incremental-GC write barrier. No IR-level `CastPrim` needed — `check_ir` doesn't re-run on backend-synthesised IR, so a note-only retag suffices. Committed `51aad1630` + later cast-removal.
 5. **Tests** — `test/run/trmc-map.mo` and friends; FileCheck the IR; benchmark vs. naïve `map` on the IC instruction counter.
 6. **Multi-spine generalisation (v1)** — extend recognition + synthesis to `NewObjE`, `ArrayPrim`, arbitrary slot indices, head expressions beyond `f h`.
 7. **Codegen fast-path (v1)** — bypass the `IdxLE` boxed-Nat unbox dance + bounds check for compile-time-constant slot indices; emit a direct constant-offset store like `Tuple.load_n` does for loads.

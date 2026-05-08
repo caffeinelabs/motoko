@@ -11737,17 +11737,16 @@ and compile_prim_invocation (env : E.t) ae p es at =
     Tuple.load_n env (Int64.of_int n)
 
   (* TRMC's unsafe heap-slot store. Tuples and (mutable) arrays share heap
-     layout, so we cast the load expression's tuple to a `[var Any]` and
-     reuse the existing AssignE/IdxLE codegen path. *)
+     layout. We only need `obj` to *look* array-typed to the IdxLE
+     codegen path (which reads `e1.note.Note.typ` for `Arr.element_type`);
+     no IR-level CastPrim is needed since check_ir doesn't run on what
+     we synthesise here. We just retag obj's note. *)
   | StorePrim, [{it = PrimE (ProjPrim n, [obj]); _}; v] ->
     let arr_typ = Type.(Array (Mut Any)) in
-    let casted_obj =
-      { it = PrimE (CastPrim (obj.note.Note.typ, arr_typ), [obj]);
-        at = obj.at;
-        note = Note.{ def with typ = arr_typ; eff = obj.note.eff } } in
+    let arr_obj = { obj with note = Note.{ obj.note with typ = arr_typ } } in
     let idx_e = Construct.natE (Numerics.Nat.of_int n) in
     let lhs =
-      { it = IdxLE (casted_obj, idx_e);
+      { it = IdxLE (arr_obj, idx_e);
         at = no_region;
         note = Type.(Mut Any) } in
     let assign =
