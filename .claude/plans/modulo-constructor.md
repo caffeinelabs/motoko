@@ -226,6 +226,42 @@ No closures, no `call_indirect`, no GC barriers (in v0).
   ```
   Saves two `local.get`s per store site *and* both wasm locals (`written_value`, `write_location`) per call site, smaller wasm, one less instruction-counter tick on the hot path. The codegen helper `E.if0` only supports `[] → results` block signatures today; would need a sibling `E.ifP` (or similar) that emits a `(param ...)` block type and trusts the arms to consume from the stack. Same RTS-barrier-hot-path issue as the global trick — they pair naturally in one standalone fix.
 
+## v1 recogniser interface
+
+For the v1 generalisation past hardcoded `?(_, recur)`, the recogniser produces a structured `trmc_recognised` record so the synthesis is data-driven rather than pattern-coupled.
+
+### Extracted fields
+
+1. **Bullet path** — sequence of constructor hops from the outermost expression to the recursive call:
+   ```
+   spine_step ::= OptStep                  -- operationally the identity
+                | TupStep of int           -- TupPrim, slot index
+                | ObjStep of label         -- NewObjE, field name
+                | ArrStep of int           -- ArrayPrim, element index
+   bullet_path = spine_step list           -- outermost to innermost
+   ```
+   v0 is always `[OptStep; TupStep 1]`.
+2. **Bullet's static type** — derived from the cursor-position arg's type at the recursive call site.
+3. **Cell allocator template** — how to build a fresh parent given (head_exprs, bullet_init):
+   ```
+   cell_template ::= TupAlloc of int * int
+                   | ObjAlloc of (label * mut) list * label
+                   | ArrAlloc of typ * int * int
+   ```
+4. **Recursive-call arg map** — for each position in the original recur args, classify as either the **cursor** (its value at the wrapper site becomes the bullet's initial value, and on each iteration the next cursor is read from `parent.<bullet_slot>`) or a **passenger** (flows through unchanged across iterations). Exactly one cursor.
+5. **Head expressions** — the non-recursive constructor children, reusing the case-pattern bindings via lexical scope.
+6. **Result type + outer-wrap relationship** — for the wrapper's final cast. v0: cell `(B, List<A>)` → result `List<B>` via `OptPrim` typed-identity.
+
+### Synthesis additionally needs
+
+7. **Per-arm rewrite recipes for non-spine arms.** Each non-TRMC arm produces value `V`; worker version is `StorePrim parent.<bullet_slot> V; ()` — always emit the store. A peephole can elide when `V` structurally matches `bullet_init` (v0's null-arm no-op is exactly this case, pre-baked).
+8. **Single-recursive-call assertion.** v1 rejects fork TRMC (multiple recursive calls in one constructor — different problem, deferred).
+9. **Multiple TRMC arms with consistent shape.** A body can have several recursive arms each in modulo-constructor position; they share the worker as long as their bullet_paths, cell_templates, and arg maps all agree.
+
+### v1 decision: reject inconsistent multi-spine
+
+If a body has two arms with **different** spine shapes (different constructor/slot/passenger configuration), v1 rejects the rewrite for the whole function. The alternative — specialise into two workers, one per spine shape — doubles the worker code, multiplies the bookkeeping, and corresponds to a much rarer source pattern. Filing as a *future opportunity* rather than v1 work; revisit if profiling shows the rejection biting real code.
+
 ## Branch / PR strategy
 
 - Base on `gabor/wasm-exts-sync` (PR #6043) which already wires `return_call`.
