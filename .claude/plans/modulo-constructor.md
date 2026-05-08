@@ -217,9 +217,125 @@ No closures, no `call_indirect`, no GC barriers (in v0).
 ## Implementation roadmap
 
 1. ✅ **Detector** — recognise modulo-constructor spines containing a self-call; eprintf the function name. Committed `191754d6a`.
-2. **`StorePrim` IR primitive** — declaration + plumbing in `Ir`, `arrange_ir`, `check_ir` (admit `load_expr : T, new_value : T → ()`), interpreter (for `-iR` testing).
-3. **Codegen for `StorePrim`** — non-incremental: emit address-computation + `i32.store`, suppressing the trailing load that `ProjPrim` codegen would have emitted.
-4. **Worker synthesis** — extend `tailcall.ml`'s `LetD … FuncE` arm: when the body has TRMC candidates, emit the wrapper + worker pair and rewrite the spine into `let cell = … ; StorePrim (parent.S, cell) ; return_call f'(cell, …)`.
-5. **Tests** — `test/run/trmc-map.mo` and friends; FileCheck the IR; `-iR` verify semantics; benchmark vs. naïve `map` on the IC instruction counter.
-6. **Multi-spine generalisation (v1)** — extend recognition + synthesis to `NewObjE`, `ArrayPrim`, arbitrary slot indices.
-7. **Incremental GC barrier (v1)** — codegen variant for `StorePrim` that follows `parent[0]`.
+2. ✅ **`StorePrim` IR primitive** — declaration + plumbing in `Ir` / `arrange_ir` / `check_ir` (lax `T`/`T'` rule). Committed `af0df0ffe`.
+3. ✅ **Worker synthesis** — `tailcall.ml`'s `LetD … FuncE` arm now emits the wrapper + nested-worker pair, rewrites the spine to call the worker, and recognises the v0 spine `?(head, self<Ts>(t, f))`. Committed `493e90b8f`.
+4. ✅ **Codegen (enhanced)** — `StorePrim` lowered via `CastPrim (tup_ty, [var Any])` + `IdxLE` + `AssignE`, reusing the existing array-store path (which gives us the incremental-GC write barrier for free). Committed `51aad1630`.
+5. **Tests** — `test/run/trmc-map.mo` and friends; FileCheck the IR; benchmark vs. naïve `map` on the IC instruction counter.
+6. **Multi-spine generalisation (v1)** — extend recognition + synthesis to `NewObjE`, `ArrayPrim`, arbitrary slot indices, head expressions beyond `f h`.
+7. **Codegen fast-path (v1)** — bypass the `IdxLE` boxed-Nat unbox dance + bounds check for compile-time-constant slot indices; emit a direct constant-offset store like `Tuple.load_n` does for loads.
+8. **Classical backend** — currently only enhanced has the `StorePrim` codegen. Classical needs a parallel arm.
+
+## Compiled output (v0, enhanced backend)
+
+End-to-end check on a small actor that calls a TRMC `map` over `List<Nat>`:
+
+- Wasm validates with `--enable-memory64 --enable-tail-call`.
+- 25 `return_call` instructions in the worker's hot path.
+- `i64.store offset={1,9,17}` for the `StorePrim` sites (heap header + bullet writes).
+- Without `--experimental-tailcalls`: zero `return_call` (no regression on the default path).
+
+### Heap layout (enhanced GC, skew = 1)
+
+For a 2-element tuple/cell:
+
+| slot | byte offset | content |
+|---|---|---|
+| 0 | 1  | tag = 7 (Array) |
+| 1 | 9  | forwarding pointer (deref point under incremental GC) |
+| 2 | 17 | array length (= 2) |
+| 3 | 25 | field 0 — head |
+| 4 | 33 | field 1 — tail / **bullet** |
+
+So `i64.load offset=9` follows the forwarding pointer; the next `i64.load offset={25,33}` reads field 0 / 1 of the canonical object.
+
+### Wrapper `$map (clos, xs, f) -> root`
+
+```wat
+(func $map (param $clos i64) (param $xs i64) (param $f i64) (result i64)
+  ;; case null → return null (-5 is the null sentinel)
+  ;; case ?(h, t) →
+  i64.load offset=9  i64.load offset=25  ;; h := xs.0
+  i64.load offset=9  i64.load offset=33  ;; t := xs.1
+
+  ;; f(h)
+  i64.load offset=9  ...  call_indirect (type 14)
+
+  ;; Allocate root = (f(h), t)  — bullet := input tail
+  i64.const 5  call $alloc_words
+  i64.const 7   i64.store offset=1       ;; tag
+  ... i64.store offset=9                 ;; forwarding := self
+  ... i64.const 2  i64.store offset=17   ;; length
+  ... i64.store offset=25                ;; root.0 := f(h)
+  ... i64.store offset=33                ;; root.1 := t  ← bullet
+  call $allocation_barrier
+
+  ;; Call worker (NOT a return_call — wrapper still has work)
+  i64.const 0  local.get $$root/0  local.get $f
+  call $$map'/0
+  drop                                    ;; discard worker's () return
+
+  ;; Return root.  CastPrim (B, List<A>) → List<B> is a wasm nop.
+  local.get $$root/0)
+```
+
+### Worker `$$map'/0 (clos, parent, f) -> ()`
+
+```wat
+(func $$map'/0 (param $clos i64) (param $$parent/0 i64) (param $f i64) (result i64)
+  ;; Read input tail FROM the bullet:  switch_in := parent.1
+  local.get $$parent/0
+  i64.load offset=9                       ;; deref parent's forwarding
+  i64.load offset=33                      ;; load slot 1 = the bullet
+
+  ;; case null → return ()  (bullet already null, no work)
+  ;; case ?(h, t) →
+  i64.load offset=9  i64.load offset=25   ;; h
+  i64.load offset=9  i64.load offset=33   ;; t
+
+  ;; f(h)
+  ...  call_indirect (type 14)
+
+  ;; Allocate cell = (f(h), t)
+  i64.const 5  call $alloc_words
+  i64.const 7   i64.store offset=1
+  ... i64.store offset=9                  ;; forwarding := self
+  ... i64.const 2  i64.store offset=17
+  ... i64.store offset=25                 ;; cell.0 := f(h)
+  ... i64.store offset=33                 ;; cell.1 := t  ← next bullet
+
+  ;; ===== StorePrim (parent.1, ?cell) =====
+  ;; Lowered via CastPrim + IdxLE + AssignE.
+  ;; Boxed-Nat dance to recover idx = 1 from the encoded value 6:
+  i64.const 6  ...  i64.shr_s             ;; 6 >> 2 = 1
+
+  ;; Bounds check (idx < array.length); traps on OOB. Overhead inherited
+  ;; from going through IdxLE — v1 fast-path elides this for constant idx.
+  ...  i64.lt_u  if  else  ...trap... end
+
+  ;; Compute write address: base + (header + idx) * 8 + skew
+  i64.const 3  i64.add  i64.const 3  i64.shl
+  i64.load offset=9  i64.add
+  i64.const 1  i64.add                     ;; skew
+  local.get $$cell/0
+
+  ;; Incremental-GC-aware store: barriered when GC is running, raw otherwise.
+  call $running_gc
+  if    call $write_with_barrier           ;; ← barrier inherited for free
+  else  i64.store                          ;; raw
+  end
+
+  ;; ===== Tail call =====
+  i64.const 0  local.get $$cell/0  local.get $f
+  return_call $$map'/0)                     ;; ← the win
+```
+
+### What this buys us
+
+- **Per element**: 1 heap alloc (5 words), 1 `StorePrim` (raw or barriered store), 1 `return_call`. Linear in list length, no stack growth.
+- **Incremental-GC barrier for free**: by lowering `StorePrim` through `compile_lexp`'s `IdxLE` path, the worker's bullet store becomes a `call $running_gc → write_with_barrier else i64.store` runtime selector — exactly the policy live mutators already use.
+- **Wrapper-side `call`, worker-side `return_call`** — exactly the design: one wrapper frame alive across the whole list, the worker self-recurses without stack growth.
+
+### Remaining cost (v1 work)
+
+- The cast-to-array trick pays for: a boxed-Nat unbox at runtime (`shr_s` of the literal 6 → 1), and a per-iteration bounds check that always succeeds. Both are fixed-cost, both can be elided by a constant-index fast-path in the `StorePrim` codegen (skip the IdxLE indirection, emit `Tuple.load_n`-style address math directly).
+- Classical backend doesn't yet implement `StorePrim`.
