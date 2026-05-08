@@ -302,11 +302,11 @@
       "locked": {
         "narHash": "sha256-jeQ9tFpIEJ+WvWXQvrEBavcUiGRq34OUBkNnbCXczSY=",
         "type": "file",
-        "url": "https://raw.githubusercontent.com/ggreif/nixpkgs/d26416cf58028c701e637fdec99801467e710ec6/pkgs/by-name/wa/wabt/package.nix"
+        "url": "https://raw.githubusercontent.com/NixOS/nixpkgs/5a610f5b4fb2bd64d8c57ae50daf820e93f47026/pkgs/by-name/wa/wabt/package.nix"
       },
       "original": {
         "type": "file",
-        "url": "https://raw.githubusercontent.com/ggreif/nixpkgs/d26416cf58028c701e637fdec99801467e710ec6/pkgs/by-name/wa/wabt/package.nix"
+        "url": "https://raw.githubusercontent.com/NixOS/nixpkgs/5a610f5b4fb2bd64d8c57ae50daf820e93f47026/pkgs/by-name/wa/wabt/package.nix"
       }
     }
   },
