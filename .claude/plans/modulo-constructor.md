@@ -275,10 +275,11 @@ If a body has two arms with **different** spine shapes (different constructor/sl
 2. ✅ **`StorePrim` IR primitive** — declaration + plumbing in `Ir` / `arrange_ir` / `check_ir` (lax `T`/`T'` rule). Committed `af0df0ffe`.
 3. ✅ **Worker synthesis** — `tailcall.ml`'s `LetD … FuncE` arm now emits the wrapper + nested-worker pair, rewrites the spine to call the worker, and recognises the v0 spine `?(head, self<Ts>(t, f))`. Committed `493e90b8f`.
 4. ✅ **Codegen (enhanced)** — `StorePrim` lowered via `IdxLE` + `AssignE` over an `obj` whose `note.typ` has been retagged to `[var Any]`. Reuses the existing array-store path, including the incremental-GC write barrier. No IR-level `CastPrim` needed — `check_ir` doesn't re-run on backend-synthesised IR, so a note-only retag suffices. Committed `51aad1630` + later cast-removal.
-5. **Tests** — `test/run/trmc-map.mo` and friends; FileCheck the IR; benchmark vs. naïve `map` on the IC instruction counter.
-6. **Multi-spine generalisation (v1)** — extend recognition + synthesis to `NewObjE`, `ArrayPrim`, arbitrary slot indices, head expressions beyond `f h`.
-7. **Codegen fast-path (v1)** — bypass the `IdxLE` boxed-Nat unbox dance + bounds check for compile-time-constant slot indices; emit a direct constant-offset store like `Tuple.load_n` does for loads.
-8. **Classical backend** — currently only enhanced has the `StorePrim` codegen. Classical needs a parallel arm.
+5. ✅ (partial) **Tests** — `test/run/map-trmc.mo` (2-tuple, slot 1) + `test/run/triple-trmc.mo` (3-tuple, slot 2) FileCheck-asserts wrapper/worker shape and `return_call` emission. Test-runner gained `--enable-tail-call` on its FileCheck `wasm2wat`. Bench vs. naïve `map` on the IC instruction counter still pending.
+6. ✅ (partial) **v1 recogniser + data-driven setup** — `recognise_spine` + `recognised_spine` extracted; `try_v1_trmc_setup` uses a body pre-walk to find the first spine and derive `parent_typ` from its slot types. Arity ≠ 2 and slot ≠ 1 within `OptPrim (TupPrim …)` spines now work (verified by `triple-trmc.mo`). Inconsistent multi-spine bodies are rejected at synthesis time per the v1 plan.
+7. **`NewObjE` and `ArrayPrim` spines** — recogniser currently only handles `OptPrim (TupPrim …)`. The motivating example is `recordMap` over `RecordList<T> = ?{ head : T; tail : RecordList<T> }`; needs a recogniser arm for `OptPrim (NewObjE …)` plus a cell-builder that emits `NewObjE` instead of `tupE`.
+8. **Codegen fast-path (v1)** — bypass the `IdxLE` boxed-Nat unbox dance + bounds check for compile-time-constant slot indices; emit a direct constant-offset store like `Tuple.load_n` does for loads.
+9. **Classical backend** — currently only enhanced has the `StorePrim` codegen. Classical needs a parallel arm.
 
 ## Compiled output (v0, enhanced backend)
 
