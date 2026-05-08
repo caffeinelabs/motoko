@@ -20,7 +20,7 @@ let suggest_id desc id ids =
   else
   let suggestions =
     let limit = Lib.Int.log2 (String.length id) in
-    let distance = Lib.String.levenshtein_distance id in
+    let distance = String.edit_distance id in
     let weighted_ids = List.filter_map (fun id0 ->
       let d = distance id0 in
       if String.starts_with ~prefix:id id0 || d <= limit then
