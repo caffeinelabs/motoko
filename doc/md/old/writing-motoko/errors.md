@@ -70,7 +70,7 @@ type Result<Ok, Err> = { #ok : Ok; #err : Err }
 
 Because of the second type parameter, `Err`, the `Result` type lets you select the type used to describe errors. Define a `TodoError` type that the `markDone` function will use to signal errors:
 
-``` motoko no-repl file=../../examples/todo-error.mo#L60-L60
+``` motoko no-repl file=../../examples/todo-error.mo#L59-L59
 ```
 
 The original example is now revised as:

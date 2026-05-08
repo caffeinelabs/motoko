@@ -17,23 +17,22 @@ Browse https://github.com/dfinity/ic/releases and pick a release tagged
 
 ### 2. Get the SHA256 hashes
 
-**Option A — from the GitHub release page (recommended for verification):**
-The release page lists checksums. Look for or fetch `SHA256SUMS`:
-```sh
-curl -sL "https://github.com/dfinity/ic/releases/download/<tag>/SHA256SUMS" | grep "pocket-ic"
-```
-These are standard hex SHA256 hashes of the `.gz` files.
-
-**Option B — via nix-prefetch-url (cross-check):**
+**Default — via `nix-prefetch-url`:**
 ```sh
 for name in pocket-ic-x86_64-linux pocket-ic-arm64-linux pocket-ic-x86_64-darwin pocket-ic-arm64-darwin; do
-  hash=$(nix-prefetch-url --print-path \
-    "https://github.com/dfinity/ic/releases/download/<tag>/${name}.gz" 2>/dev/null | head -1)
-  hex=$(nix hash to-base16 --type sha256 "$hash")
+  base32=$(nix-prefetch-url "https://github.com/dfinity/ic/releases/download/<tag>/${name}.gz" 2>/dev/null)
+  hex=$(nix hash to-base16 --type sha256 "$base32")
   echo "$name: $hex"
 done
 ```
-**Always compare Option A and Option B — they must match exactly.**
+
+**Optional cross-check — `SHA256SUMS` if the release ships one:**
+```sh
+curl -sL "https://github.com/dfinity/ic/releases/download/<tag>/SHA256SUMS" | grep "pocket-ic"
+```
+Recent `release-*-base` tags **do not publish `SHA256SUMS`** (the URL 404s), so
+do not block on this — `nix-prefetch-url` alone is authoritative because nix
+will reject any tampered download at build time anyway.
 
 ### 3. Update `nix/pocket-ic.nix`
 
@@ -63,16 +62,22 @@ pocket-ic = { git = "https://github.com/dfinity/ic", tag = "release-YYYY-MM-DD_H
 
 Then regenerate the lockfile:
 ```sh
-cd test-runner && cargo update
+cd test-runner && cargo update -p pocket-ic
 ```
+
+Run **plain `cargo`**, not `nix develop --command cargo …` — the nix
+development shell runs offline-sandboxed and `cargo update` cannot reach
+crates.io / GitHub from inside it.
 
 ### 6. Fix the `flake.nix` output hash
 
 `flake.nix` contains a `test-runner-cargo-lock` block that pins the
-`pocket-ic-<version>` crate hash. After bumping the tag the version number
-may change (e.g. `pocket-ic-12.0.0` → `pocket-ic-13.0.0`). Read the new
-version from `test-runner/Cargo.lock` (the `version` field under
-`name = "pocket-ic"`), then update both the key and the hash in `flake.nix`:
+`pocket-ic-<version>` crate hash. The crate version usually stays the same
+across consecutive `release-*-base` tags (e.g. 13.0.0 → 13.0.0); only the
+underlying git commit moves, so the **hash always changes**. Occasionally
+the version itself bumps (e.g. 12.0.0 → 13.0.0) — read the current value
+from `test-runner/Cargo.lock` (the `version` field under
+`name = "pocket-ic"`) and update both the key and the hash in `flake.nix`:
 
 ```nix
 test-runner-cargo-lock = {

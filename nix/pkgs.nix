@@ -5,7 +5,7 @@
 
     # Selecting the ocaml version
     # Also update ocaml-version in src/*/.ocamlformat!
-    (self: super: { ocamlPackages = self.ocaml-ng.ocamlPackages_5_3; })
+    (self: super: { ocamlPackages = self.ocaml-ng.ocamlPackages_5_4; })
 
     (self: super: rec {
       # Additional ocaml packages
@@ -40,21 +40,14 @@
     }
     )
 
-    # Rust Nightly & Stable
+    # Rust Nightly
     rust-overlay.overlays.default
     (self: super: {
       # When you change the rust-nightly version,
       # make sure to change the rustStdDepsHash in ./rts.nix accordingly.
-      rust-nightly = self.rust-bin.nightly."2026-04-08".default.override {
+      rust-nightly = self.rust-bin.nightly."2026-05-04".default.override {
         extensions = [ "rust-src" ];
         targets = [ "wasm32-wasip1" ];
-      };
-
-      rust-stable = self.rust-bin.stable."1.94.1".default;
-
-      rustPlatform-stable = self.makeRustPlatform rec {
-        rustc = self.rust-stable;
-        cargo = rustc;
       };
     })
 

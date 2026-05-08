@@ -4,8 +4,9 @@ Error: failed to run main module `_out/subNat64-slow.wasm`
 Caused by:
     0: failed to invoke command default
     1: error while executing at wasm backtrace:
-         0: B_sub
-         1: sub<Nat64>
-         2: init
-         3: _start
+    0:    0x - <unknown>!B_sub
+    1:    0x - <unknown>!sub<Nat64>
+    2:    0x - <unknown>!init
+    3:    0x - <unknown>!_start
     2: wasm trap: unreachable
+

@@ -16,7 +16,7 @@ let
   };
 
   testDerivationDeps =
-    (with pkgs; [ wabt bash perl getconf moreutils nodejs_24 ]) ++
+    (with pkgs; [ wabt bash perl getconf moreutils nodejs-slim]) ++
     [ filecheck pkgs.wasmtime ];
 
   filecheck = pkgs.runCommand "FileCheck" { } ''
@@ -26,7 +26,7 @@ let
 
   # extra deps for test/ld
   ldTestDeps =
-    with pkgs.llvmPackages_19; [ lld clang ];
+    with pkgs.llvmPackages_20; [ lld clang ];
 
   testDerivation = args:
     pkgs.stdenv.mkDerivation (testDerivationArgs // args);

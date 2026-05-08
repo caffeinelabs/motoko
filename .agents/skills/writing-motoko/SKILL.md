@@ -27,7 +27,7 @@ Motoko is under-represented in training data — always favour this skill and it
 - Contextual dot notation — `list.add(item)`, `map.get(key)`
 - Enhanced orthogonal persistence (state persists without `stable`)
 - Principled architecture — `types.mo`, `lib/`, `mixins/`, `main.mo`
-**For actor upgrades/migrations:** load `migrating-motoko` for inline migration or `migrating-motoko-enhanced` for multi-migration with `--enhanced-migration`.
+**For actor upgrades/migrations:** load `migrating-motoko` for inline migration or `migrating-motoko-enhanced` for multi-migration with `--enhanced-migration`. Under `--enhanced-migration`, actor fields **cannot** have initializers — declare them as `var x : T;` and set initial values in the migration that introduces them. The actor examples in this skill use initializers and would need adjustment for enhanced-migration projects.
 
 ## Compiler Flags
 
@@ -39,6 +39,8 @@ Required for this skill's conventions:
 
 `--enhanced-orthogonal-persistence` is on by default.
 
+Without `--default-persistent-actors`, plain `actor { }` errors with M0220 — write `persistent actor { }` instead. The `persistent` keyword is transitional; actors will be persistent by default in a future major moc release.
+
 Enable these warnings to enforce the coding style in this skill (off by default, auto-fixable):
 
 ```
@@ -46,6 +48,22 @@ Enable these warnings to enforce the coding style in this skill (off by default,
 -W M0237    warn on redundant explicit implicit arguments
 -W M0223    warn on redundant type instantiation
 ```
+
+### `transient` for ephemeral state
+
+Mark a field `transient` to reset it on every upgrade — request counters, rate limiters, timer IDs (timers don't survive upgrades), ephemeral caches, derived lookup tables. Works on both `let` and `var`:
+
+```motoko
+actor {
+  let users = Map.empty<Nat, Text>();           // persists across upgrades
+  var count : Nat = 0;                          // persists across upgrades
+  transient var requestCount : Nat = 0;         // resets to 0 on every upgrade
+  transient var timerId : Nat = 0;              // timer must be re-registered after upgrade
+  transient let cache = Map.empty<Nat, Text>(); // rebuilt on every upgrade
+};
+```
+
+Never write `stable` for fields — redundant in persistent actors; produces warning M0218.
 
 ## Modern Motoko Features
 
@@ -328,10 +346,52 @@ list.filter(func(item) { item.id != targetId })   // ✓
 list.filter(func(item) { item.id != targetId };)   // ✗ unexpected token ';'
 ```
 
+## Pitfalls
+
+1. **Type/let declarations before the actor body** (M0141). Only `import` statements may appear before the actor. Prefer moving types to `types.mo` and importing them:
+   ```motoko
+   // ✗ M0141 — type before actor
+   type UserId = Nat;
+   actor {
+     public query func whois(id : UserId) : async Text { ... };
+   };
+
+   // ✓ recommended — types.mo
+   import Types "types";
+   actor {
+     public query func whois(id : Types.UserId) : async Text { ... };  // qualify with module name
+   };
+   ```
+
+2. **Always parenthesize variant tag arguments** — write `#tag(x)`, never `#tag x`. Without parens, `#tag 1 + 2` parses as `#tag(1) + 2`.
+
+## Reserved Keywords
+
+Reserved by the Motoko grammar — **cannot** be used as identifiers; using one produces a parse error (e.g. `unexpected token 'label'`). Rename to a non-reserved word (`myLabel`, `myFunc`, `kind` instead of `type`, etc.).
+
+```
+actor       and         assert      async       await
+break       case        catch       class       composite
+continue    debug       debug_show  do          else
+false       finally     flexible    for         from_candid
+func        if          ignore      implicit    import
+in          include     label       let         loop
+mixin       module      not         null        object
+or          persistent  private     public      query
+return      shared      stable      switch      system
+throw       to_candid   transient   true        try
+type        var         weak        while       with
+```
+
+`async*`, `await*`, and `await?` are also reserved but contain non-identifier characters, so they can't collide with identifiers.
+
 ## Common Compile Error Patterns
 
 | Error pattern                                          | Fix                                         |
 | ------------------------------------------------------ | ------------------------------------------- |
+| `should be declared persistent` (M0220)                | Add `--default-persistent-actors` or write `persistent actor` |
+| `move these declarations into the body` (M0141)        | Move `type`/`let` inside the actor body     |
+| `redundant stable keyword` (M0218)                     | Remove `stable`; plain `var` is auto-stable |
 | `field append does not exist`                          | `.concat()`                                 |
 | `field put does not exist` (Map)                       | `.add()`                                    |
 | `field delete is deprecated` (Map)                     | `.remove()`                                 |
@@ -348,7 +408,7 @@ list.filter(func(item) { item.id != targetId };)   // ✗ unexpected token ';'
 | `M0096` on `contains` callback                         | `find(pred) != null`                        |
 | `M0009` import file does not exist                     | Relative path, no `.mo` extension           |
 | `M0072` field X does not exist                         | Import the `mo:core` module for that type   |
-| `unexpected token 'label'` in parameter                | `label` is a keyword; rename the parameter  |
+| `unexpected token 'X'` where `X` is a keyword          | Rename — `X` is reserved (see Reserved Keywords) |
 
 ## Control Flow
 
