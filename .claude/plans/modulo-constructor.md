@@ -277,7 +277,16 @@ If a body has two arms with **different** spine shapes (different constructor/sl
 4. ✅ **Codegen (enhanced)** — `StorePrim` lowered via `IdxLE` + `AssignE` over an `obj` whose `note.typ` has been retagged to `[var Any]`. Reuses the existing array-store path, including the incremental-GC write barrier. No IR-level `CastPrim` needed — `check_ir` doesn't re-run on backend-synthesised IR, so a note-only retag suffices. Committed `51aad1630` + later cast-removal.
 5. ✅ (partial) **Tests** — `test/run/map-trmc.mo` (2-tuple, slot 1) + `test/run/triple-trmc.mo` (3-tuple, slot 2) FileCheck-asserts wrapper/worker shape and `return_call` emission. Test-runner gained `--enable-tail-call` on its FileCheck `wasm2wat`. Bench vs. naïve `map` on the IC instruction counter still pending.
 6. ✅ (partial) **v1 recogniser + data-driven setup** — `recognise_spine` + `recognised_spine` extracted; `try_v1_trmc_setup` uses a body pre-walk to find the first spine and derive `parent_typ` from its slot types. Arity ≠ 2 and slot ≠ 1 within `OptPrim (TupPrim …)` spines now work (verified by `triple-trmc.mo`). Inconsistent multi-spine bodies are rejected at synthesis time per the v1 plan.
-7. **`NewObjE` and `ArrayPrim` spines** — recogniser currently only handles `OptPrim (TupPrim …)`. The motivating example is `recordMap` over `RecordList<T> = ?{ head : T; tail : RecordList<T> }`; needs a recogniser arm for `OptPrim (NewObjE …)` plus a cell-builder that emits `NewObjE` instead of `tupE`.
+7. **`NewObjE` and `ArrayPrim` spines** — recogniser currently only handles `OptPrim (TupPrim …)`. The motivating example is `recordMap` over `RecordList<T> = ?{ head : T; tail : RecordList<T> }`; the test `test/run/record-map-trmc.mo` pins down the source-level behaviour (compiles + runs correctly via ordinary recursion) and documents the IR shape we'd need to recognise. After desugar, the spine arm is:
+   ```
+   PrimE (OptPrim, [
+     BlockE
+       [ LetD (VarP $head/0) (PrimE (CallPrim) (VarE f) (VarE head));
+         LetD (VarP $tail/0) (PrimE (CallPrim A B) (VarE recordMap) (TupPrim (VarE tail) (VarE f))) ]
+       (NewObjE Object [(tail $tail/0); (head $head/0)] {head : B; tail : RecordList<B>})
+   ])
+   ```
+   The recogniser would need to match `OptPrim (BlockE prelude (NewObjE …))`, identify the LetD whose RHS is the recursive call, and map its bound var-id to the field position in the `NewObjE`. The cell builder would emit a parallel BlockE+NewObjE structure. Codegen for `StorePrim` would extend to recognise `DotPrim`-shaped lvalues (in addition to today's `ProjPrim`), reusing `compile_lexp`'s existing `DotLE` path.
 8. **Codegen fast-path (v1)** — bypass the `IdxLE` boxed-Nat unbox dance + bounds check for compile-time-constant slot indices; emit a direct constant-offset store like `Tuple.load_n` does for loads.
 9. **Classical backend** — currently only enhanced has the `StorePrim` codegen. Classical needs a parallel arm.
 
