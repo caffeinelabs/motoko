@@ -2002,10 +2002,11 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
             | Some receiver_text ->
               if not (Syntax.is_postfix_exp e) then "(" ^ receiver_text ^ ")", [] else
               let replace_receiver = edit old_receiver.at receiver_text in
-              let remove_argument = edit (match es with
-                | [] -> e.at
-                | next :: _ -> { left = e.at.left; right = next.at.left }) "" (* remove the argument + the comma *)
-              in receiver_text, [replace_receiver; remove_argument]
+              let argument_edit = match es with
+                | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
+                | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
+                | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
+              in receiver_text, [replace_receiver; argument_edit]
           in
           warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
             ~edits

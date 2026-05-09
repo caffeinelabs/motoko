@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -49,17 +49,6 @@
       url = "github:serokell/ocaml-recovery-parser";
       flake = false;
     };
-
-    # Single-file fetch of the wabt `package.nix` from NixOS/nixpkgs#517726
-    # (wabt 1.0.41, which carries the WebAssembly/wabt#2744 fix for
-    # return_call_indirect + table64 validation). `type = "file"` pulls just
-    # the .nix expression — no second nixpkgs tarball, no second evaluation.
-    # Drop this input + its overlay once 1.0.41 lands in nixos-unstable.
-    wabt-package-src = {
-      type = "file";
-      url = "https://raw.githubusercontent.com/ggreif/nixpkgs/d26416cf58028c701e637fdec99801467e710ec6/pkgs/by-name/wa/wabt/package.nix";
-      flake = false;
-    };
   };
 
   outputs =
@@ -77,11 +66,10 @@
     , motoko-matchers-src
     , grace-src
     , ocaml-recovery-parser-src
-    , wabt-package-src
     }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import ./nix/pkgs.nix {
-        inherit nixpkgs system rust-overlay wabt-package-src;
+        inherit nixpkgs system rust-overlay;
         sources = {
           inherit
             candid-src
@@ -98,17 +86,17 @@
       llvmEnv = ''
         # When compiling to wasm, we want to have more control over the flags,
         # so we do not use the nix-provided wrapper in clang
-        export WASM_CLANG="clang-20"
+        export WASM_CLANG="clang-21"
         export WASM_LD=wasm-ld
         # because we use the unwrapped clang, we have to pass in some flags/paths
         # that otherwise the wrapped clang would take care for us
-        export WASM_CLANG_LIB="${pkgs.llvmPackages_20.clang-unwrapped.lib}"
+        export WASM_CLANG_LIB="${pkgs.llvmPackages_21.clang-unwrapped.lib}"
 
         # When compiling natively, we want to use `clang` (which is a nixpkgs
         # provided wrapper that sets various include paths etc).
         # But for some reason it does not handle building for Wasm well, so
-        # there we use plain clang-20. There is no stdlib there anyways.
-        export CLANG="${pkgs.clang_20}/bin/clang"
+        # there we use plain clang-21. There is no stdlib there anyways.
+        export CLANG="${pkgs.clang_21}/bin/clang"
       '';
 
       rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv; };
@@ -157,7 +145,7 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-13.0.0" = "sha256-QMJWB1yRAgrvmugmGqG6zvk7Z3hzXkGTsGej5EJ3z8g=";
+          "pocket-ic-13.0.0" = "sha256-9DpJeFJ1AcUbcjUapE20UI/gE7j0glCFWU9FhbdOtHE=";
         };
       };
 
@@ -242,7 +230,13 @@
         base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
         report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
-        inherit rts rts-checked base-src core-src docs shell;
+        # `rts-checked` is intentionally NOT included here: it is the slow,
+        # cargo-test-running variant, and on darwin its check phase is uncached
+        # and dominates wall-clock. Pulling it via `common-constituents` would
+        # drag it into the `*-systems-go` aggregates and force every test job
+        # to wait on it. The `nightly-macos-test` schedule has a dedicated
+        # `rts-checked` job that builds `.#rts-checked` directly.
+        inherit rts base-src core-src docs shell;
       };
     in
     {
@@ -250,7 +244,7 @@
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
-        inherit nix-update tests js test-runner;
+        inherit nix-update tests js test-runner rts-checked;
 
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 

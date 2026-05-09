@@ -52,8 +52,8 @@ let
     nativeBuildInputs = [ pkgs.makeWrapper pkgs.removeReferencesTo pkgs.cacert ];
 
     buildInputs = with pkgs; [
-      llvmPackages_20.clang
-      llvmPackages_20.bintools
+      llvmPackages_21.clang
+      llvmPackages_21.bintools
       rust-nightly
       wasmtime
       rust-bindgen

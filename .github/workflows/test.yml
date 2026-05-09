@@ -56,6 +56,12 @@ jobs:
       matrix:
         os: [ubuntu-24-large, arm64-linux-16]
         build_type: [release, debug]
+        include:
+          - os: ubuntu-24-large
+            max_jobs: auto
+          # arm64-linux-16 OOMs on three parallel ~3 GB derivation builds; serialise.
+          - os: arm64-linux-16
+            max_jobs: 1
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -73,6 +79,7 @@ jobs:
           test-target: ${{ matrix.build_type }}-systems-go
           test-name: ${{ matrix.os }}-${{ matrix.build_type }}-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          max-jobs: ${{ matrix.max_jobs }}
 
       - name: Create GitHub App Token
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
