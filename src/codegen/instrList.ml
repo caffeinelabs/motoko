@@ -98,6 +98,9 @@ let optimize : instr list -> instr list = fun is ->
       go ({a with it = Unary (I32 I32Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
     | ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
       go ({a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
+    (* Same, with an intervening i32.wrap_i64 (semantically irrelevant for the LSB test) *)
+    | ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
+      go (w :: {a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
     (* `If` blocks after pushed constants are simplifiable *)
     | { it = Const {it = I32 0l; _}; _} :: l', ({it = If (res,_,else_); _} as i) :: r' ->
       go l' ({i with it = Block (res, else_)} :: r')
