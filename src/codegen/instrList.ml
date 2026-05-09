@@ -96,9 +96,8 @@ let optimize : instr list -> instr list = fun is ->
     (* LSBit masking before `If` is `Ctz` and switched `If` legs *)
     | ({ it = Binary (I32 I32Op.And); _} as a) :: { it = Const {it = I32 1l; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
       go ({a with it = Unary (I32 I32Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
-    | ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
-      go ({a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
-    (* Same, with an intervening i32.wrap_i64 (semantically irrelevant for the LSB test) *)
+    (* i64 variant: `if` takes an i32 condition, so the i64 LSB test is always followed
+       by `i32.wrap_i64` (injected by `E.if_` in the EOP backend). *)
     | ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
       go (w :: {a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
     (* `If` blocks after pushed constants are simplifiable *)
