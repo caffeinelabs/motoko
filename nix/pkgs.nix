@@ -1,4 +1,4 @@
-{ nixpkgs, system, rust-overlay, sources, wabt-package-src }: import nixpkgs {
+{ nixpkgs, system, rust-overlay, sources }: import nixpkgs {
   inherit system;
   overlays = [
     (self: super: { inherit sources; })
@@ -59,16 +59,5 @@
 
     # ic-wasm
     (self: super: { ic-wasm = import ./ic-wasm.nix self; })
-
-    # wabt 1.0.41 (carries WebAssembly/wabt#2744 — return_call_indirect
-    # + table64 validator fix) sourced from NixOS/nixpkgs#517726's
-    # `package.nix`. `super.callPackage` injects stdenv, cmake, python3,
-    # gtest, fetchFromGitHub, … from the host nixpkgs, so the build
-    # tree is identical to what the merged PR would produce.
-    # Drop this overlay (and the `wabt-package-src` flake input) once
-    # 1.0.41 propagates to nixos-unstable.
-    (self: super: {
-      wabt = super.callPackage wabt-package-src {};
-    })
   ];
 }
