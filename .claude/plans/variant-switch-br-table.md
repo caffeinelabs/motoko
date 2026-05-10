@@ -554,6 +554,62 @@ count as the effective `n`).
 
 *Not yet implemented — tracked here for future work.*
 
+### Refinement: `BitTest` strategy for n = 2
+
+A degenerate case the candidate list above does not yet cover: when the
+effective arm count is exactly 2 and the two hashes differ at any single
+bit, dispatch reduces to one bit test and a `br_if` — strictly cheaper
+than every `br_table`-based strategy.
+
+```ocaml
+| BitTest of { bit : int; cmp : Ctz | Clz; on_bit_set : int }
+    (* runtime (LSB, bit=0):  i32.load hash;  i32.ctz;  br_if           — 3 wasm ops *)
+    (* runtime (MSB, bit=31): i32.load hash;  i32.clz;  br_if           — 3 wasm ops *)
+    (* runtime (mid):         i32.load hash;  i32.const bit; i32.shr_u; *)
+    (*                        i32.ctz; br_if                            — 5 wasm ops *)
+```
+
+cost:
+```
+cost(BitTest{bit=0|31})  = 2   (* ctz/clz + br_if, after peephole *)
+cost(BitTest{bit=other}) = 4   (* shr_u + const + ctz + br_if *)
+```
+
+**EOP-specific cleanness.** Variant hashes are 31-bit so the runtime
+hash field is stored and loaded as `i32` even under EOP's 64-bit memory
+model. The dispatch stays in i32 end-to-end: `i32.load` → `i32.ctz` /
+`i32.clz` → `br_if` consumes the i32 condition directly. No
+`i32.wrap_i64`, no `i64.extend_i32_u`, no per-side widening — the
+cheapest path the codegen offers. Every other strategy
+(`MaskShift`, `ModPrime`, `RotLow`) feeds a `br_table` whose index
+lookup pulls at least one i64 path in EOP (table offset arithmetic);
+`BitTest` skips `br_table` entirely.
+
+**Generator.** Enumerate `bit ∈ [0..31]`; check whether
+`(h₀ >> bit) & 1 ≠ (h₁ >> bit) & 1`. Prefer `bit = 0` (Ctz form) or
+`bit = 31` (Clz form) when either works, since those forms reduce to 2
+wasm ops via the existing peepholes in `src/codegen/instrList.ml`.
+
+**Real-world hit.** `mo:core/Result` (`{ #ok; #err }`) —
+`hash("ok") = 0x611C` (LSB 0), `hash("err") = 0x4D0765` (LSB 1). Every
+Result switch dispatches in 3 wasm instructions:
+`i32.load offset=H; i32.ctz; br_if Lerr`. Given Result is *the*
+canonical 2-arm variant, this is high-frequency.
+
+**Threshold.** n = 2 specifically — fills the gap below the existing
+`max(64, 4n)` Gosper threshold. Same-body merging may bring an
+effectively-2-arm case from a larger arm count (e.g. a 5-arm
+Result-like grouped into ok/err equivalence classes); BitTest applies
+after merging.
+
+**Interaction with peepholes.** This strategy assumes the existing
+`[i64.and 1; (wrap_i64;) if]` → `[ctz; (wrap_i64;) if]` peephole
+(PR #6103) plus a proposed sibling
+`[i32.and 1; i32.eqz; br_if]` → `[i32.ctz; br_if]`
+(and the symmetric `i32.clz` variant for MSB). Without the `br_if`-aware
+peephole, the strategy still emits correct code but pays one extra wasm
+instruction per dispatch site (the `i32.eqz`) until the peephole lands.
+
 ## Future Optimisation: Pre-shortening before Gosper's iteration
 
 *(Subsumed by Multi-strategy search above — ModPrime and RotLow are the
