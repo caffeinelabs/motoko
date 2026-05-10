@@ -610,6 +610,41 @@ after merging.
 peephole, the strategy still emits correct code but pays one extra wasm
 instruction per dispatch site (the `i32.eqz`) until the peephole lands.
 
+**Future composition: end-to-end pipeline for value-producing 2-arm
+switches.** When a `switch r { case (#tagA) val_a; case (#tagB) val_b }`
+produces a *value* (not a unit/branch), a 5-stage chain collapses it to
+a branch-free flag-test + conditional move:
+
+1. **`BitTest` (this entry)** — detects n=2, picks the discriminating
+   bit, emits
+   `i32.load hash; i32.const bit; i32.shr_u; i32.const 1; i32.and; i32.eqz; if (val_a) else (val_b)`
+   (or the LSB/MSB short form when `bit ∈ {0, 31}`).
+2. **`if`→`select` abstract machine (PR #5961)** — when both arms are
+   *cheap* and have *idempotent side-effects*, rewrites
+   `if (cond) cheap_a else cheap_b` → `select b a cond`. This is the
+   missing rung that lets a BitTest dispatch participate in
+   value-producing contexts without leaving control flow on the floor.
+3. **LSB→ctz peephole (PR #6103)** — already collapses the `and-1-eqz`
+   prefix to `ctz`. After (2) the consumer is `select` rather than `if`,
+   so this PR's existing rules don't fire on it yet — the operand
+   reorder (deferred case in the boolean-consumer audit) is needed
+   first.
+4. **`select`-reorder peephole (deferred follow-up)** —
+   `[and 1; eqz; select v1 v2]` → `[ctz; select v2 v1]`. Non-local in
+   the zipper (must reach back past the condition expression to swap
+   the two value operands), so a wider window than the current
+   peephole framework supports. The natural follow-up commit once
+   #5961 and the BitTest strategy have both landed.
+5. **End shape**: for `let x = switch r { case (#ok v) v; case (#err _) 0 }`
+   on a `Result<Nat, _>` →
+   `i32.load offset=H_hash; i32.ctz; select 0 v` — **three wasm
+   instructions, no branches, no `if`/`else` blocks**. Native lowering:
+   one load, one `tzcnt`-or-equivalent, one conditional move.
+
+Each rung is independently useful, and they compose to a strict
+improvement at every intermediate stage — no rung depends on the
+later ones to justify its existence.
+
 ## Future Optimisation: Pre-shortening before Gosper's iteration
 
 *(Subsumed by Multi-strategy search above — ModPrime and RotLow are the
