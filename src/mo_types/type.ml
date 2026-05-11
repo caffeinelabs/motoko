@@ -530,45 +530,45 @@ and subst_kind sigma k =
     Abs (List.map (subst_bind sigma') tbs, subst sigma' t)
  *)
 
-(* Cons-to-cons substitution: applies [s] at every [Con] reference in [t].
-   Pure — does not mutate any [Cons.kind]. Unlike [subst] above (which
-   substitutes a [con] with a [typ] for type-parameter instantiation), this
-   only redirects one cons name to another and is used to fold structurally
-   equivalent constructors onto a canonical representative when rendering
-   stable-type signatures. *)
-let rec cons_subst s t =
+(* Rename cons references throughout a typ.
+
+   Unlike [subst], also rewrites the [con] in type-component fields and
+   skips de Bruijn shifting — cons references are closed. *)
+let rec cons_subst sigma t =
+  if sigma = ConEnv.empty then t else
   match t with
-  | Var _ | Prim _ | Any | Non | Pre -> t
+  | Prim _ | Var _ | Any | Non | Pre -> t
   | Con (c, ts) ->
-    let c = match s c with Some c' -> c' | None -> c in
-    Con (c, List.map (cons_subst s) ts)
-  | Opt t -> Opt (cons_subst s t)
-  | Mut t -> Mut (cons_subst s t)
-  | Array t -> Array (cons_subst s t)
-  | Weak t -> Weak (cons_subst s t)
-  | Tup ts -> Tup (List.map (cons_subst s) ts)
-  | Async (sort, t1, t2) -> Async (sort, cons_subst s t1, cons_subst s t2)
-  | Func (sort, c, tbs, ts1, ts2) ->
-    Func (sort, c,
-          List.map (fun b -> { b with bound = cons_subst s b.bound }) tbs,
-          List.map (cons_subst s) ts1,
-          List.map (cons_subst s) ts2)
-  | Obj (sort, fs, tfs) ->
-    Obj (sort,
-         List.map (cons_subst_field s) fs,
+    let c = try ConEnv.find c sigma with Not_found -> c in
+    Con (c, List.map (cons_subst sigma) ts)
+  | Array t -> Array (cons_subst sigma t)
+  | Tup ts -> Tup (List.map (cons_subst sigma) ts)
+  | Func (s, c, tbs, ts1, ts2) ->
+    Func (s, c,
+          List.map (fun b -> { b with bound = cons_subst sigma b.bound }) tbs,
+          List.map (cons_subst sigma) ts1,
+          List.map (cons_subst sigma) ts2)
+  | Opt t -> Opt (cons_subst sigma t)
+  | Async (s, t1, t2) -> Async (s, cons_subst sigma t1, cons_subst sigma t2)
+  | Obj (s, fs, tfs) ->
+    Obj (s,
+         List.map (cons_subst_field sigma) fs,
          List.map (fun f ->
-           let c = match s f.typ with Some c' -> c' | None -> f.typ in
-           { f with typ = c }) tfs)
-  | Variant fs -> Variant (List.map (cons_subst_field s) fs)
-  | Named (n, t) -> Named (n, cons_subst s t)
+           match ConEnv.find_opt f.typ sigma with
+           | Some c -> { f with typ = c }
+           | None -> f) tfs)
+  | Variant fs -> Variant (List.map (cons_subst_field sigma) fs)
+  | Mut t -> Mut (cons_subst sigma t)
+  | Named (n, t) -> Named (n, cons_subst sigma t)
+  | Weak t -> Weak (cons_subst sigma t)
 
-and cons_subst_field s f = { f with typ = cons_subst s f.typ }
+and cons_subst_field sigma f = { f with typ = cons_subst sigma f.typ }
 
-let cons_subst_kind s k =
-  let map_tbs = List.map (fun b -> { b with bound = cons_subst s b.bound }) in
+let cons_subst_kind sigma k =
+  let map_tbs = List.map (fun b -> { b with bound = cons_subst sigma b.bound }) in
   match k with
-  | Def (tbs, t) -> Def (map_tbs tbs, cons_subst s t)
-  | Abs (tbs, t) -> Abs (map_tbs tbs, cons_subst s t)
+  | Def (tbs, t) -> Def (map_tbs tbs, cons_subst sigma t)
+  | Abs (tbs, t) -> Abs (map_tbs tbs, cons_subst sigma t)
 
 (* Handling binders *)
 
@@ -2352,84 +2352,85 @@ and pp_mig_field vs ppf {lab; typ; src} =
     let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
     fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
-(* Render a stable signature.
+(* Render a stable signature, deduplicating structurally-equal types.
 
-   When [hash] is supplied, structurally deduplicate zero-arity Def
-   constructors: cons with bodies whose [hash] coincides are folded onto
-   a canonical rep (smallest under [Cons.compare]). Substitution is
-   applied at render time — the Motoko cons graph is never mutated.
-   The chosen rep's user-visible name is implementation-defined (it
-   depends on stamps), so callers shouldn't grep for a specific name.
+   Zero-arity Def cons sharing both [Cons.name] and [hash body] fold onto
+   one canonical rep (like #5013). [Event__1] and [Event__2] collapse;
+   [Foo] and [Bar] don't.
 
-   Bare aliases ([type X = Y]) are excluded from grouping: collapsing
-   them would produce trivial [type X = X] cycles. We also bail out of
-   dedup entirely when any reachable cons body contains an [Obj] with
-   non-empty type-component fields, because nested type-fields are
-   rendered by inlining [Cons.kind c] (in [pp_typ_field]) which would
-   bypass the substitution and could leak non-rep names.
+   The motoko cons graph is untouched: every survivor gets a [Cons.clone]
+   referencing other clones. The only mutation is [unsafe_set_kind] on
+   freshly-allocated clones.
 
-   The hash function is injected by the caller (typically
-   [Typ_hash.typ_hash]) to keep [Mo_types.Type] free of upward
-   dependencies. *)
-and pp_stab_sig ?hash ppf sig_ =
-  let module HM = Map.Make (String) in
+   [hash] is injected to avoid a cycle ([Typ_hash] is downstream of
+   [Type]). *)
+and pp_stab_sig hash ppf sig_ =
+  let module HM = Map.Make (struct
+    type t = string * string
+    let compare = compare
+  end) in
   let all_fields = match sig_ with
     | Single tfs -> tfs
     | PrePost (pre, post) -> List.map snd pre @ post
     | Multi {chain; post} -> chain @ post
   in
-  let cs = List.fold_right
-    (cons_field false)
-    (* false here ^ means ignore unreferenced type field components
-       that would produce unreferenced bindings when unfolded *)
-    all_fields ConSet.empty in
-  (* Stops at [Con _]: nested kinds are reached through [cs] separately. *)
-  let rec has_nested_tfs = function
-    | Obj (_, _, _ :: _) -> true
-    | Obj (_, fs, _) | Variant fs -> List.exists (fun f -> has_nested_tfs f.typ) fs
-    | Tup ts -> List.exists has_nested_tfs ts
-    | Opt t | Mut t | Array t | Weak t | Named (_, t) -> has_nested_tfs t
-    | Async (_, t1, t2) -> has_nested_tfs t1 || has_nested_tfs t2
-    | Func (_, _, tbs, ts1, ts2) ->
-      List.exists (fun b -> has_nested_tfs b.bound) tbs ||
-      List.exists has_nested_tfs ts1 || List.exists has_nested_tfs ts2
-    | Var _ | Prim _ | Any | Non | Pre | Con _ -> false
-  in
-  let unsafe_to_dedup =
-    List.exists (fun f -> has_nested_tfs f.typ) all_fields ||
-    ConSet.exists (fun c ->
+  (* [cs_top] gets top-level decls; [cs_all] adds tf-only cons (inlined by
+     [pp_typ_field], no decl needed, but still substituted). *)
+  let cs_top = List.fold_right (cons_field false) all_fields ConSet.empty in
+  let cs_all = List.fold_right (cons_field true) all_fields ConSet.empty in
+  let dedup =
+    let groups = ConSet.fold (fun c acc ->
       match Cons.kind c with
-      | Def (_, body) | Abs (_, body) -> has_nested_tfs body) cs in
-  let cmap =
-    if unsafe_to_dedup then ConEnv.empty else
-    match hash with
-    | None -> ConEnv.empty
-    | Some hash ->
-      let groups = ConSet.fold (fun c acc ->
-        match Cons.kind c with
-        | Def ([], (Con _)) -> acc  (* bare alias: skip to avoid type X = X cycles *)
-        | Def ([], body) ->
-          (try
-            HM.update (hash body) (function
-              | Some xs -> Some (c :: xs)
-              | None -> Some [c]) acc
-          with Invalid_argument _ -> acc)  (* hash bails on Async; play safe *)
-        | _ -> acc) cs HM.empty in
-      HM.fold (fun _ members acc ->
-        match members with
-        | [] | [_] -> acc
-        | first :: rest ->
-          let rep = List.fold_left
-            (fun best c -> if Cons.compare c best < 0 then c else best)
-            first rest in
-          List.fold_left (fun acc c ->
-            if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members
-      ) groups ConEnv.empty
+      | Def ([], (Con _)) -> acc  (* bare alias: avoid [type X = X] *)
+      | Def ([], body) ->
+        (try
+          (* Group by [(name, hash)] to keep user-visible names. *)
+          HM.update (Cons.name c, hash body) (function
+            | Some xs -> Some (c :: xs)
+            | None -> Some [c]) acc
+        with Invalid_argument _ -> acc)  (* [hash] bails on [Async] *)
+      | _ -> acc) cs_all HM.empty in
+    HM.fold (fun _ members acc ->
+      match members with
+      | [] | [_] -> acc
+      | first :: rest ->
+        (* Smallest stamp wins: prefers [Event] over [Event__N]. *)
+        let rep = List.fold_left
+          (fun best c -> if Cons.compare c best < 0 then c else best)
+          first rest in
+        List.fold_left (fun acc c ->
+          if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members
+    ) groups ConEnv.empty
   in
-  let subst c = ConEnv.find_opt c cmap in
-  (* Drop non-reps; reps are by construction already in [cs]. *)
-  let cs = ConSet.filter (fun c -> not (ConEnv.mem c cmap)) cs in
-  let vs = vs_of_cs cs in
+  let cs_top, sig_ =
+    if ConEnv.is_empty dedup then cs_top, sig_
+    else begin
+      (* Clone every survivor (non-reps don't get one). *)
+      let clones = ConSet.fold (fun c m ->
+        if ConEnv.mem c dedup then m
+        else ConEnv.add c (Cons.clone c (Cons.kind c)) m) cs_all ConEnv.empty in
+      (* [c -> clone-of-rep-or-self]. *)
+      let sigma = ConSet.fold (fun c acc ->
+        let target = ConEnv.find_opt c dedup |> Option.value ~default:c in
+        ConEnv.add c (ConEnv.find target clones) acc) cs_all ConEnv.empty in
+      (* Rewrite each clone's kind to reference other clones. *)
+      ConEnv.iter (fun orig clone ->
+        Cons.unsafe_set_kind clone (cons_subst_kind sigma (Cons.kind orig))) clones;
+      let cs_top = ConSet.fold (fun c acc ->
+        ConSet.add (ConEnv.find c sigma) acc) cs_top ConSet.empty in
+      let f fld = { fld with typ = cons_subst sigma fld.typ } in
+      let sig_ = match sig_ with
+        | Single fs -> Single (List.map f fs)
+        | PrePost (pre, post) ->
+          PrePost (List.map (fun (req, fld) -> (req, f fld)) pre,
+                   List.map f post)
+        | Multi {chain; post} ->
+          Multi {chain = List.map f chain; post = List.map f post}
+      in
+      cs_top, sig_
+    end
+  in
+  let vs = vs_of_cs cs_top in
   let ds =
     let cs' = ConSet.filter (fun c ->
       match Cons.kind c with
@@ -2437,7 +2438,7 @@ and pp_stab_sig ?hash ppf sig_ =
       | Def ([], Any) when string_of_con c = "Any" -> false
       | Def ([], Non) when string_of_con c = "None" -> false
       | Def _ -> true
-      | Abs _ -> false) cs in
+      | Abs _ -> false) cs_top in
     ConSet.elements cs' in
   let tfs =
     List.sort compare_field
@@ -2445,24 +2446,6 @@ and pp_stab_sig ?hash ppf sig_ =
         { lab = string_of_con c;
           typ = c;
           src = empty_src }) ds)
-  in
-  let pp_typ_field =
-    if ConEnv.is_empty cmap then pp_typ_field
-    else fun vs ppf {lab; typ = c; _} ->
-      let op, sbs, st = pps_of_kind' vs (cons_subst_kind subst (Cons.kind c)) in
-      fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
-  in
-  (* Top-level stable fields render only [Con] names (not bodies), so
-     a shallow rewrite of field types suffices. *)
-  let sig_ = if ConEnv.is_empty cmap then sig_ else
-    let f fld = { fld with typ = cons_subst subst fld.typ } in
-    match sig_ with
-    | Single fs -> Single (List.map f fs)
-    | PrePost (pre, post) ->
-      PrePost (List.map (fun (req, fld) -> (req, f fld)) pre,
-               List.map f post)
-    | Multi {chain; post} ->
-      Multi {chain = List.map f chain; post = List.map f post}
   in
   let pp_stab_actor ppf sig_ =
     match sig_ with
@@ -2787,12 +2770,12 @@ and match_stab_fields tfs1 tfs2 =
       | Lib.That (required, _) -> not required
       | Lib.Both (tf1, (_, tf2)) -> stable_sub (as_immut tf1.typ) (as_immut tf2.typ))
 
-let string_of_stab_sig ?hash stab_sig : string =
+let string_of_stab_sig hash stab_sig : string =
   let module Pretty = MakePretty(ParseableStamps) in
   (match stab_sig with
   | Single _ -> "// Version: 1.0.0\n"
   | PrePost _ -> "// Version: 3.0.0\n"
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n"
-    (fun ppf -> Pretty.pp_stab_sig ?hash ppf) stab_sig
+    (fun ppf -> Pretty.pp_stab_sig hash ppf) stab_sig
 
