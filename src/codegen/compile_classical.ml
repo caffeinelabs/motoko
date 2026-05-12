@@ -11170,6 +11170,74 @@ let compile_load_field env typ name =
   Object.load_idx env typ name
 
 
+(* ===== Variant switch: masked br_table dispatch =====
+   See .claude/plans/variant-switch-br-table.md for full design notes. *)
+
+(* ceil(log₂ n) — minimum bits needed to index n distinct values *)
+let bits_needed n =
+  let rec f k = if 1 lsl k >= n then k else f (k + 1) in
+  if n <= 1 then 0 else f 1
+
+(* Iterate all int32 bit-masks with exactly k bits set, in increasing
+   numerical order (Gosper's hack).  Calls [f m] for each; stops early
+   if [f] returns true. *)
+let iter_masks_with_popcount k f =
+  if k <= 0 || k > 32 then ()
+  else
+    (* smallest k-bit mask: bits 0..k-1 set *)
+    let m = ref (Int32.sub (Int32.shift_left 1l k) 1l) in
+    let stop = ref false in
+    let iters = ref 0 in
+    while not !stop && !m > 0l && !iters < 0x10000 do  (* 0l == wrapped; <0l == bit31 set (hashes are 31-bit) *)
+      incr iters;
+      if f !m then stop := true
+      else begin
+        (* Gosper's hack: next int32 with same popcount *)
+        let n = !m in
+        let c = Int32.logand n (Int32.neg n) in   (* lowest set bit *)
+        let r = Int32.add n c in                   (* clear run, advance *)
+        m := Int32.logor r
+               (Int32.shift_right_logical
+                  (Int32.div (Int32.logxor r n) c) 2)
+      end
+    done
+
+(* True iff all (h & mask) values in [hashes] are distinct *)
+let is_injective mask hashes =
+  let masked = List.map (Int32.logand mask) hashes in
+  List.length masked = List.length (List.sort_uniq Int32.compare masked)
+
+(* Table size after applying mask+shift: max((hᵢ & mask) >> shift) + 1 *)
+let compact_table_size mask shift hashes =
+  List.fold_left (fun acc h ->
+    max acc (Int32.to_int (Int32.shift_right_logical (Int32.logand h mask) shift))
+  ) 0 hashes + 1
+
+(* Find mask M and shift S for an n-arm variant switch.
+   Returns Some (mask, shift, table_size) or None if no suitable mask found.
+   Iterates masks of minimal popcount first (smallest integer = low bits =
+   compact table), accepting the first that is injective and within threshold. *)
+let find_variant_mask n hashes =
+  let threshold = max 64 (4 * n) in
+  let rec try_popcount req =
+    if req > 8 then None
+    else
+      let result = ref None in
+      iter_masks_with_popcount req (fun mask ->
+        if is_injective mask hashes then begin
+          let shift = Int32.to_int Numerics.Nat32.(of_int32 mask |> ctz |> to_int32) in
+          let tbl = compact_table_size mask shift hashes in
+          if tbl <= threshold then begin
+            result := Some (mask, shift, tbl); true   (* stop *)
+          end else false
+        end else false
+      );
+      match !result with
+      | Some _ as r -> r
+      | None -> try_popcount (req + 1)
+  in
+  try_popcount (bits_needed n)
+
 (* compile_lexp is used for expressions on the left of an assignment operator.
    Produces
    * preparation code, to run first
@@ -12776,6 +12844,20 @@ and single_case e (cs : Ir.case list) =
 
 and known_tag_pat p = TagP ("", p)
 
+(* Flatten a pattern into the list of tag-label leaves it matches, or None if
+   any leaf is not a non-empty TagP. AltP trees are collapsed left-to-right.
+   This turns `(#mon | #tue | ... | #fri)` into `[("mon", _); ("tue", _); ...]`
+   so the SwitchE handler can count it as 5 dispatch targets for mask-finding,
+   while still compiling the arm body just once. *)
+and flatten_tag_leaves (p : Ir.pat) : (string * Ir.pat) list option =
+  match p.it with
+  | TagP (l, sub) when l <> "" -> Some [(l, sub)]
+  | AltP (p1, p2) ->
+    (match flatten_tag_leaves p1, flatten_tag_leaves p2 with
+     | Some l1, Some l2 -> Some (l1 @ l2)
+     | _ -> None)
+  | _ -> None
+
 and simplify_cases e (cs : Ir.case list) =
   match cs, e.note.Note.typ with
   (* for a 2-cased variant type, the second comparison can be omitted when the first pattern
@@ -12871,6 +12953,92 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
        ) [sr, CannotFail code1 ^^^ pat_code ^^^ CannotFail rhs_code]) ^^
        G.i Unreachable (* We should always exit using the branch_code *)
+    )
+
+  (* Variant switch with 4+ tag leaves (post or-pattern flattening):
+     use masked br_table dispatch (O(1)).
+     Guard pre-checks find_variant_mask so that None falls through naturally
+     to the regular SwitchE handler below (no broken known_tag_pat fallback).
+     Or-patterns like `(#mon | #tue | ... | #fri) true` count as multiple
+     dispatch targets (one per leaf) but compile to a single arm body — the
+     dispatch table has multiple slots pointing to the same arm block. *)
+  | SwitchE (e, cs) when
+      (let per_case = List.map (fun {it=({pat; _} : case'); _} -> flatten_tag_leaves pat) cs in
+       List.for_all Option.is_some per_case &&
+       let all_leaves = List.concat_map Option.get per_case in
+       let n = List.length all_leaves in
+       n >= 4 &&
+       let hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) all_leaves in
+       find_variant_mask n hashes <> None) ->
+    let code1 = compile_exp_vanilla env ae e in
+    let (set_i, get_i) = new_local env "switch_in" in
+
+    (* Per case: compile the body once (using the first leaf's sub-pattern
+       — Motoko or-pattern typing ensures all legs bind the same variables).
+       Record the set of leaf hashes that dispatch to this case. *)
+    let cases = List.map (fun {it={pat; exp=arm_exp}; _} ->
+      let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+      let [@warning "-8"] (_, first_sub_pat) :: _ = leaves in
+      let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat first_sub_pat} in
+      let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint arm_exp in
+      let leaf_hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves in
+      (leaf_hashes, sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
+    ) cs in
+
+    let n_cases = List.length cases in
+    let all_hashes = List.concat_map (fun (hs, _, _) -> hs) cases in
+    let n_leaves = List.length all_hashes in
+
+    let final_sr = match sr_hint with
+      | Some sr -> sr
+      | None -> StackRep.joins (List.map (fun (_, sr, _) -> sr) cases)
+    in
+
+    let [@warning "-8"] Some (mask, shift, table_size) = find_variant_mask n_leaves all_hashes in
+    (* Build dispatch table: slot j -> case index (0..n_cases-1) or n_cases (default).
+       Every leaf of case k contributes one slot pointing to k. *)
+    let slot_for_case = Array.make table_size n_cases in
+    List.iteri (fun case_idx (leaf_hashes, _, _) ->
+      List.iter (fun hash ->
+        let slot = Int32.to_int
+          (Int32.shift_right_logical (Int32.logand hash mask) shift) in
+        slot_for_case.(slot) <- case_idx
+      ) leaf_hashes
+    ) cases;
+
+    final_sr,
+    code1 ^^ set_i ^^
+    FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+
+      (* Dispatch code: load tag, mask, optional shift, br_table *)
+      let dispatch =
+        get_i ^^
+        Variant.get_variant_tag env ^^
+        compile_bitand_const mask ^^
+        (if shift > 0 then compile_shrU_const (Int32.of_int shift) else G.nop) ^^
+        G.i (BrTable (
+          List.init table_size (fun j -> nr (Int32.of_int slot_for_case.(j))),
+          nr (Int32.of_int n_cases)  (* default: unreachable *)
+        ))
+      in
+
+      (* Arm body codes: sub-pattern match + rhs + SR-adjust + exit.
+         On sub-pattern failure (impossible for well-typed code): trap. *)
+      let arm_body_codes = List.map (fun (_, sr, c) ->
+        with_fail (G.i Unreachable)
+          (c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code))
+      ) cases in
+
+      (* Build nested blocks from inside out:
+           block_default { block_case_{k-1} { ... block_case_0 { dispatch }
+             body_0 ... } body_{k-1} } unreachable
+         Inside dispatch: label k -> case k, label n_cases -> default.
+         fold starts with dispatch (not an extra wrapper), so case_0 is label 0. *)
+      let with_arms = List.fold_left (fun acc body_code ->
+        G.block0 acc ^^ body_code
+      ) dispatch arm_body_codes in
+      G.block0 with_arms ^^
+      G.i Unreachable
     )
 
   | SwitchE (e, cs) ->

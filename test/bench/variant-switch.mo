@@ -120,6 +120,30 @@ persistent actor Core {
       case (#Sat or #Sun) true;
     };
 
+  // 7-way distinct-outcome dispatch (richer than the 2-way isWeekend Bool).
+  // Bodies include two natural same-body groups: {Tue, Thu} → 'T' and
+  // {Sat, Sun} → 'S'. Useful to compare flat-arm vs or-pattern compilation
+  // when the payload is varied rather than collapsed to a Bool.
+  func startLetter(d : Weekday) : Char =
+    switch d {
+      case (#Mon) 'M';
+      case (#Tue) 'T';
+      case (#Wed) 'W';
+      case (#Thu) 'T';
+      case (#Fri) 'F';
+      case (#Sat) 'S';
+      case (#Sun) 'S';
+    };
+
+  func startLetterOr(d : Weekday) : Char =
+    switch d {
+      case (#Mon) 'M';
+      case (#Tue or #Thu) 'T';
+      case (#Wed) 'W';
+      case (#Fri) 'F';
+      case (#Sat or #Sun) 'S';
+    };
+
   transient let week : [Weekday] =
     [#Mon, #Tue, #Wed, #Thu, #Fri, #Sat, #Sun];
 
@@ -326,10 +350,26 @@ persistent actor Core {
       j += 1;
     };
     let (_m2, n2) = counters();
+    var last3 : Char = 'X';
+    var k = 0;
+    while (k < 10_000) {
+      for (d in week.vals()) { last3 := startLetter d };
+      k += 1;
+    };
+    let (_m3, n3) = counters();
+    var last4 : Char = 'X';
+    var l = 0;
+    while (l < 10_000) {
+      for (d in week.vals()) { last4 := startLetterOr d };
+      l += 1;
+    };
+    let (_m4, n4) = counters();
     debugPrint(debug_show {
-      acc1; acc2;
-      instr_isWeekend   = n1 - n0;
-      instr_isWeekendOr = n2 - n1;
+      acc1; acc2; last3; last4;
+      instr_isWeekend      = n1 - n0;
+      instr_isWeekendOr    = n2 - n1;
+      instr_startLetter    = n3 - n2;
+      instr_startLetterOr  = n4 - n3;
     });
   };
 };

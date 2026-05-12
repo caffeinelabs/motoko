@@ -11574,6 +11574,232 @@ let compile_load_field env typ name =
   Object.load_idx env typ name
 
 
+(* ===== Variant switch: masked br_table dispatch =====
+   See .claude/plans/variant-switch-br-table.md for full design notes.
+   NB: EOP backend uses int64 hashes throughout (unlike classical int32). *)
+
+(* ceil(log₂ n) — minimum bits needed to index n distinct values *)
+let bits_needed n =
+  let rec f k = if 1 lsl k >= n then k else f (k + 1) in
+  if n <= 1 then 0 else f 1
+
+(* Iterate all int64 bit-masks with exactly k bits set, in increasing
+   numerical order (Gosper's hack).  Calls [f m] for each; stops early
+   if [f] returns true. *)
+let iter_masks_with_popcount k f =
+  if k <= 0 || k > 32 then ()   (* EOP hashes are extend_i32_u: bits 0-31 only *)
+  else
+    (* smallest k-bit mask: bits 0..k-1 set *)
+    let m = ref (Int64.sub (Int64.shift_left 1L k) 1L) in
+    let stop = ref false in
+    let iters = ref 0 in
+    while not !stop && !m <> 0L && Int64.compare !m 0x1_0000_0000L < 0 && !iters < 0x10000 do
+      incr iters;
+      if f !m then stop := true
+      else begin
+        (* Gosper's hack: next int64 with same popcount *)
+        let n = !m in
+        let c = Int64.logand n (Int64.neg n) in   (* lowest set bit *)
+        let r = Int64.add n c in                   (* clear run, advance *)
+        m := Int64.logor r
+               (Int64.shift_right_logical
+                  (Int64.div (Int64.logxor r n) c) 2)
+      end
+    done
+
+(* True iff all (h & mask) values in [hashes] are distinct *)
+let is_injective mask hashes =
+  let masked = List.map (Int64.logand mask) hashes in
+  List.length masked = List.length (List.sort_uniq Int64.compare masked)
+
+(* Table size after applying mask+shift: max((hᵢ & mask) >> shift) + 1 *)
+let compact_table_size mask shift hashes =
+  List.fold_left (fun acc h ->
+    max acc (Int64.to_int (Int64.shift_right_logical (Int64.logand h mask) shift))
+  ) 0 hashes + 1
+
+(* Count trailing zeros of a non-zero int64 (works for any bit pattern). *)
+let ctz64 m =
+  let c = ref (Int64.logand m (Int64.neg m)) in   (* isolate lowest set bit *)
+  let s = ref 0 in
+  while !c <> 1L do c := Int64.shift_right_logical !c 1; incr s done;
+  !s
+
+(* Find mask M and shift S for an n-arm variant switch.
+   Returns Some (mask, shift, table_size) or None if no suitable mask found.
+   Iterates masks of minimal popcount first (smallest integer = low bits =
+   compact table), accepting the first that is injective and within threshold. *)
+let find_variant_mask n hashes =
+  let threshold = max 64 (4 * n) in
+  let rec try_popcount req =
+    if req > 8 then None
+    else
+      let result = ref None in
+      iter_masks_with_popcount req (fun mask ->
+        if is_injective mask hashes then begin
+          let shift = ctz64 mask in
+          let tbl = compact_table_size mask shift hashes in
+          if tbl <= threshold then begin
+            result := Some (mask, shift, tbl); true   (* stop *)
+          end else false
+        end else false
+      );
+      match !result with
+      | Some _ as r -> r
+      | None -> try_popcount (req + 1)
+  in
+  try_popcount (bits_needed n)
+
+(* Dispatch strategy protocol (effect-based, streaming).
+
+   Recognizer — the code that walks a multi-way match (today: the
+   SwitchE variant case; tomorrow: and-patterns, literal-match chains)
+   — streams one case at a time via `Match_arm`, then signals
+   completion with `Match_join` to receive the strategy plan. Each
+   `Match_arm hashes` hands the handler one case's token set (or-pattern
+   legs contribute multiple hashes in a single `Match_arm` call).
+
+   This streaming shape is cheap ceremony for whole-switch recognizers
+   like SwitchE (which already knows all cases upfront), but leaves
+   room for future recognizers that surface decisions incrementally —
+   AND-pattern sub-components, nested literal chains, etc. — without
+   protocol churn.
+
+   Handler — maintains mutable state across `Match_arm` calls and
+   returns a `plan` at `Match_join`. The default handler runs
+   Gosper-based mask-finding. Outer scopes may override by installing
+   their own handler before the recognizer fires (e.g. a test wanting
+   to pin a specific plan, or a `--preserve-switch-shape` debug flag
+   that forces `Linear`). *)
+module Dispatch = struct
+  type plan =
+    | MaskShift of {
+        mask : int64;
+        shift : int;
+        table_size : int;
+        (* For each slot j in the br_table, which case index receives it.
+           Slot value `n_cases` means "default" (unreachable for
+           exhaustive variant matches). *)
+        slot_for_case : int array;
+      }
+    | ModPrime of {
+        p : int;
+        (* For each residue r in 0..p-1, which case index receives it. *)
+        case_for_residue : int array;
+      }
+    | Linear   (* fall back to the default linear-chain SwitchE emission *)
+
+  type _ Effect.t +=
+    | Match_arm : int64 list -> unit Effect.t
+    | Match_join : plan Effect.t
+
+  let gosper_plan (case_hashes : int64 list list) : plan =
+    let flat = List.concat case_hashes in
+    let n = List.length flat in
+    let n_cases = List.length case_hashes in
+    if n < 4 then Linear
+    else match find_variant_mask n flat with
+      | None -> Linear
+      | Some (mask, shift, table_size) ->
+        let slot_for_case = Array.make table_size n_cases in
+        List.iteri (fun case_idx hashes ->
+          List.iter (fun hash ->
+            let slot = Int64.to_int
+              (Int64.shift_right_logical (Int64.logand hash mask) shift) in
+            slot_for_case.(slot) <- case_idx
+          ) hashes
+        ) case_hashes;
+        MaskShift { mask; shift; table_size; slot_for_case }
+
+  (* Try `hash mod p` for small primes p ≥ n_cases. Succeeds when all
+     leaf hashes of the same case share a residue AND different cases
+     land on different residues — i.e. mod p naturally clusters or-
+     pattern branches together into the right case. The br_table is
+     then tiny: exactly p slots. Primes are tried smallest-first so
+     the emitted table is as compact as possible.
+
+     Cost trade-off vs MaskShift: `rem_u` is slower than `and`+`shr_u`
+     on most Wasm engines (engine-dependent; roughly 5–20× per op),
+     but ModPrime's table can be drastically smaller when or-patterns
+     reduce the effective continuation count. For tiny c (say c ≤ 8)
+     the size win is real; for larger c MaskShift wins. *)
+  let modprime_plan (case_hashes : int64 list list) : plan option =
+    let n_cases = List.length case_hashes in
+    let candidates = [2; 3; 5; 7; 11; 13; 17; 19; 23; 29; 31] in
+    let try_prime p =
+      if p < n_cases then None
+      else
+        let case_for_residue = Array.make p n_cases in
+        let ok = ref true in
+        List.iteri (fun case_idx hashes ->
+          if !ok then
+            List.iter (fun hash ->
+              let r = Int64.to_int (Int64.rem hash (Int64.of_int p)) in
+              if case_for_residue.(r) = n_cases then
+                case_for_residue.(r) <- case_idx
+              else if case_for_residue.(r) <> case_idx then
+                ok := false
+            ) hashes
+        ) case_hashes;
+        if !ok then Some (ModPrime { p; case_for_residue })
+        else None
+    in
+    List.find_map try_prime candidates
+
+  (* Pick a plan.
+
+     This policy is deliberately ad-hoc: its only job is to demonstrate
+     that the `Dispatch` protocol can pick *different* strategies for
+     or-patterns vs flat-arm expansions of the same switch, producing
+     measurably different cycle counts. It is NOT tuned for real
+     workloads yet — ModPrime's `rem_u` is more expensive than
+     MaskShift's `and`+`shr_u` under the ICP cycle model, so routing
+     or-patterns to ModPrime makes them *slower* than the flat form.
+
+     Why keep it anyway: the split is visible in the benchmark
+     (`startLetterOr` > `startLetter` after this patch), which proves
+     the mechanism branches on `c < n`. A follow-up commit can replace
+     this with a smarter policy (e.g. case-aware Gosper that finds
+     smaller masks when or-patterns allow same-case hashes to share a
+     slot) without touching the protocol or the emitter.
+
+     Concretely:
+       - `n` = total leaves across all cases
+       - `c` = number of cases (distinct continuations)
+       - `c < n` ↔ at least one case has an or-pattern
+
+     When `c < n` we route through ModPrime (fallback to MaskShift if
+     no prime works); when `c = n` we take the MaskShift fast path. *)
+  let choose_plan (case_hashes : int64 list list) : plan =
+    let c = List.length case_hashes in
+    let n = List.length (List.concat case_hashes) in
+    if n < 4 then Linear
+    else if c < n then
+      match modprime_plan case_hashes with
+      | Some p -> p
+      | None -> gosper_plan case_hashes
+    else
+      gosper_plan case_hashes
+
+  (* Install the default handler around `body`. Arms submitted via
+     `Match_arm` accumulate in reverse; `Match_join` reverses once and
+     commits a plan. Each `with_handler` scope has its own accumulator
+     — nested switches don't leak state. *)
+  let with_handler (type r) (body : unit -> r) : r =
+    let arms_rev = ref [] in
+    let effc : type a. a Effect.t -> ((a, r) Effect.Deep.continuation -> r) option = function
+      | Match_arm hashes ->
+        Some (fun k ->
+          arms_rev := hashes :: !arms_rev;
+          Effect.Deep.continue k ())
+      | Match_join ->
+        Some (fun k ->
+          Effect.Deep.continue k (choose_plan (List.rev !arms_rev)))
+      | _ -> None
+    in
+    Effect.Deep.try_with body () { Effect.Deep.effc = effc }
+end
+
 (* compile_lexp is used for expressions on the left of an assignment operator.
    Produces
    * preparation code, to run first
@@ -13116,6 +13342,20 @@ and single_case e (cs : Ir.case list) =
 
 and known_tag_pat p = TagP ("", p)
 
+(* Flatten a pattern into the list of tag-label leaves it matches, or None if
+   any leaf is not a non-empty TagP. AltP trees are collapsed left-to-right.
+   This turns `(#mon | #tue | ... | #fri)` into `[("mon", _); ("tue", _); ...]`
+   so the SwitchE handler can count it as 5 dispatch targets for mask-finding,
+   while still compiling the arm body just once. *)
+and flatten_tag_leaves (p : Ir.pat) : (string * Ir.pat) list option =
+  match p.it with
+  | TagP (l, sub) when l <> "" -> Some [(l, sub)]
+  | AltP (p1, p2) ->
+    (match flatten_tag_leaves p1, flatten_tag_leaves p2 with
+     | Some l1, Some l2 -> Some (l1 @ l2)
+     | _ -> None)
+  | _ -> None
+
 and simplify_cases e (cs : Ir.case list) =
   match cs, e.note.Note.typ with
   (* for a 2-cased variant type, the second comparison can be omitted when the first pattern
@@ -13217,29 +13457,116 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let code1 = compile_exp_vanilla env ae e in
     let (set_i, get_i) = new_local env "switch_in" in
 
-    (* compile subexpressions and collect the provided stack reps *)
-    let codes = List.map (fun {it={pat; exp=e}; _} ->
-      let (ae1, pat_code) = compile_pat_local env ae pat in
-      let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
-      (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
-      ) (simplify_cases e cs) in
-
-    (* Use the expected stackrep, if given, else infer from the branches *)
-    let final_sr = match sr_hint with
-      | Some sr -> sr
-      | None -> StackRep.joins (List.map fst codes)
+    (* Recognizer: if every case is tag-leafy (`TagP` possibly wrapped in
+       nested `AltP` legs), stream each case's leaf hashes to the
+       `Dispatch` handler via `Match_arm`, then request the plan via
+       `Match_join`. Or-patterns contribute multiple hashes in one
+       `Match_arm` but compile to a single arm body. A `MaskShift` plan
+       fires br_table dispatch; a `Linear` plan or a non-tag-leafy case
+       falls through to the linear-chain emission below. *)
+    let maybe_plan : Dispatch.plan option =
+      if List.for_all (fun {it=({pat; _} : case'); _} ->
+           Option.is_some (flatten_tag_leaves pat)) cs then
+        Some (Dispatch.with_handler (fun () ->
+          List.iter (fun {it=({pat; _} : case'); _} ->
+            let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+            let hashes = List.map (fun (l, _) -> Variant.hash_variant_label env l) leaves in
+            Effect.perform (Dispatch.Match_arm hashes)
+          ) cs;
+          Effect.perform Dispatch.Match_join))
+      else None
     in
 
-    final_sr,
-    (* Run scrut *)
-    code1 ^^ set_i ^^
-    (* Run rest in block to exit from *)
-    FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
-       orsPatternFailure env (List.map (fun (sr, c) ->
-          c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
-       ) codes) ^^
-       G.i Unreachable (* We should always exit using the branch_code *)
-    )
+    (match maybe_plan with
+    | Some ((Dispatch.MaskShift _ | Dispatch.ModPrime _) as plan) ->
+      (* Per case: compile the body once (using the first leaf's sub-pattern
+         — Motoko or-pattern typing ensures all legs bind the same variables). *)
+      let cases = List.map (fun {it={pat; exp=arm_exp}; _} ->
+        let [@warning "-8"] Some leaves = flatten_tag_leaves pat in
+        let [@warning "-8"] (_, first_sub_pat) :: _ = leaves in
+        let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat first_sub_pat} in
+        let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint arm_exp in
+        (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
+      ) cs in
+
+      let n_cases = List.length cases in
+
+      let final_sr = match sr_hint with
+        | Some sr -> sr
+        | None -> StackRep.joins (List.map fst cases)
+      in
+
+      (* Build the dispatch prologue + br_table per plan. Both strategies
+         arrive at the same (case_idx, default) br_table interface — only
+         the index-computation prologue differs. *)
+      let dispatch_code =
+        let prologue_plus_table =
+          match plan with
+          | Dispatch.MaskShift { mask; shift; table_size; slot_for_case } ->
+            compile_bitand_const mask ^^
+            (if shift > 0 then compile_shrU_const (Int64.of_int shift) else G.nop) ^^
+            G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+            G.i (BrTable (
+              List.init table_size (fun j -> nr (Int32.of_int slot_for_case.(j))),
+              nr (Int32.of_int n_cases)  (* default: unreachable *)
+            ))
+          | Dispatch.ModPrime { p; case_for_residue } ->
+            compile_unboxed_const (Int64.of_int p) ^^
+            G.i (Binary (Wasm_exts.Values.I64 I64Op.RemU)) ^^
+            G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+            G.i (BrTable (
+              List.init p (fun r -> nr (Int32.of_int case_for_residue.(r))),
+              nr (Int32.of_int n_cases)
+            ))
+          | Dispatch.Linear -> assert false
+        in
+        get_i ^^ Variant.get_variant_tag env ^^ prologue_plus_table
+      in
+
+      final_sr,
+      code1 ^^ set_i ^^
+      FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+
+        (* Arm body codes: sub-pattern match + rhs + SR-adjust + exit.
+           On sub-pattern failure (impossible for well-typed code): trap. *)
+        let arm_body_codes = List.map (fun (sr, c) ->
+          with_fail (G.i Unreachable)
+            (c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code))
+        ) cases in
+
+        (* Build nested blocks from inside out:
+             block_default { block_case_{k-1} { ... block_case_0 { dispatch }
+               body_0 ... } body_{k-1} } unreachable
+           Inside dispatch: label k -> case k, label n_cases -> default.
+           fold starts with dispatch (not an extra wrapper), so case_0 is label 0. *)
+        let with_arms = List.fold_left (fun acc body_code ->
+          G.block0 acc ^^ body_code
+        ) dispatch_code arm_body_codes in
+        G.block0 with_arms ^^
+        G.i Unreachable
+      )
+
+    | Some Dispatch.Linear | None ->
+      (* Linear hash-compare chain (default). *)
+      let codes = List.map (fun {it={pat; exp=e}; _} ->
+        let (ae1, pat_code) = compile_pat_local env ae pat in
+        let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
+        (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
+      ) (simplify_cases e cs) in
+
+      let final_sr = match sr_hint with
+        | Some sr -> sr
+        | None -> StackRep.joins (List.map fst codes)
+      in
+
+      final_sr,
+      code1 ^^ set_i ^^
+      FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+         orsPatternFailure env (List.map (fun (sr, c) ->
+            c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
+         ) codes) ^^
+         G.i Unreachable (* We should always exit using the branch_code *)
+      ))
   (* Async-wait lowering support features *)
   | DeclareE (name, typ, e) ->
     let ae1, i = VarEnv.add_local_with_heap_ind env ae name typ in
