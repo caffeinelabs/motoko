@@ -9543,14 +9543,12 @@ module Var = struct
       MutBox.store_field env ^^
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^ (* not needed for this GC, but only for forward pointer sanity checks *)
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size) ^^
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)) ^^
       E.call_rts env "post_write_barrier"
     | (Some ((HeapInd i), typ), Flags.Incremental) when potential_pointer typ ->
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size),
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
     | (Some ((HeapInd i), typ), _) ->
@@ -9563,14 +9561,12 @@ module Var = struct
       MutBox.store_field env ^^
       compile_unboxed_const ptr ^^
       Tagged.load_forwarding_pointer env ^^ (* not needed for this GC, but only for forward pointer sanity checks *)
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size) ^^
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)) ^^
       E.call_rts env "post_write_barrier"
     | (Some ((HeapStatic ptr), typ), Flags.Incremental) when potential_pointer typ ->
       compile_unboxed_const ptr ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size),
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
     | (Some ((HeapStatic ptr), typ), _) ->

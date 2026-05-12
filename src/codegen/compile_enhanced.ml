@@ -6907,8 +6907,7 @@ module Var = struct
     | Some ((HeapInd i), typ) when potential_pointer typ ->
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int64.mul MutBox.field Heap.word_size),
+      compile_add_const Int64.(add ptr_unskew (mul MutBox.field Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
     | Some ((HeapInd i), typ) ->
@@ -6918,8 +6917,7 @@ module Var = struct
     | Some ((Static index), typ) when potential_pointer typ ->
       Heap.get_static_variable env index ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int64.mul MutBox.field Heap.word_size),
+      compile_add_const Int64.(add ptr_unskew (mul MutBox.field Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
     | Some ((Static index), typ) ->
