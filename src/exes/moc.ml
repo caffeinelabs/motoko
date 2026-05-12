@@ -129,7 +129,7 @@ let argspec =
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
   "--experimental-multi-value",
   Arg.Set Flags.multi_value,
-  " enable the wasm multi-value extension in codegen (disables `FakeMultiVal` global-stash emulation; experimental — requires IC replica support)";
+  " enable the wasm multi-value extension in codegen (disables `FakeMultiVal` global-stash emulation)";
   "--no-experimental-multi-value",
   Arg.Clear Flags.multi_value,
   " force `FakeMultiVal` emulation even if a future default flips on multi-value (default)";
