@@ -596,6 +596,14 @@ module E = struct
   let add_global64 (env : t) name mut init =
     add_global64_delayed env name mut init
 
+  let add_global32 (env : t) name mut init =
+    let p = Lib.Promise.make () in
+    add_global env name p;
+    Lib.Promise.fulfill p (nr {
+      gtype = GlobalType (I32Type, mut);
+      value = nr (G.to_instr_list (G.i (Const (nr (Wasm_exts.Values.I32 init)))))
+    })
+
   let get_global (env : t) name : int32 =
     match NameEnv.find_opt name !(env.global_names) with
     | Some gi -> gi
@@ -1145,7 +1153,6 @@ module RTS = struct
     add_rts_import "incremental_gc" [] [];
     add_rts_import "write_with_barrier" [I64Type; I64Type] [];
     add_rts_import "allocation_barrier" [I64Type] [I64Type];
-    add_rts_import "running_gc" [] [I32Type];
     add_rts_import "register_stable_type" [I64Type; I64Type] [];
     add_rts_import "assign_stable_type" [I64Type; I64Type] [];
     add_rts_import "has_stable_actor" [] [I32Type];
@@ -2134,13 +2141,12 @@ module Tagged = struct
     E.call_rts env "allocation_barrier"
 
   let write_with_barrier env =
-    (* Stack on entry: [location, value]. Thread both straight through the
-       branch via a multi-value `if (param i64 i64)` block-type, avoiding the
-       set/get-local round-trip the GC-not-running fast path otherwise pays.
-       performance gain by first checking the GC state *)
-    E.call_rts env "running_gc" ^^
-    Bool.from_rts_int32 ^^
-    G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+    (* Stack on entry: [location, value]. Read the backend-cached
+       running-GC flag (i32) and dispatch via a multi-value
+       `if (param i64 i64)` block-type so the operands flow through
+       without locals. The RTS pushes the flag via `set_running_gc`
+       on every Pause↔non-Pause transition. *)
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     G.if_
       (VarBlockType (nr (E.func_type env (FuncType ([I64Type; I64Type], [])))))
       (E.call_rts env "write_with_barrier")
@@ -6320,6 +6326,23 @@ module RTS_Exports = struct
     E.add_export env (nr {
       name = Lib.Utf8.decode "bigint_trap";
       edesc = nr (FuncExport (nr bigint_trap_fi))
+    });
+
+    (* GC-running flag.
+       Cache of `state.phase != Phase::Pause` on the RTS side, pushed
+       to this i32 global via the `set_running_gc` export below on every
+       Pause↔non-Pause transition. The write_with_barrier fast path
+       reads this global instead of round-tripping through an RTS call. *)
+    E.add_global32 env "__running_gc" Mutable 0l;
+    let set_running_gc_fi = E.add_fun env "set_running_gc" (
+      Func.of_body env ["state", I32Type] [] (fun env ->
+        G.i (LocalGet (nr 0l)) ^^
+        G.i (GlobalSet (nr (E.get_global env "__running_gc")))
+      )
+    ) in
+    E.add_export env (nr {
+      name = Lib.Utf8.decode "set_running_gc";
+      edesc = nr (FuncExport (nr set_running_gc_fi))
     });
 
     (* Keep a memory reserve when in update or init state.
