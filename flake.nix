@@ -240,7 +240,21 @@
       };
     in
     {
-      packages = checks // common-constituents // rec {
+      packages =
+        let
+          # `-mv` helpers append `--experimental-multi-value` to every
+          # constituent test derivation's `EXTRA_MOC_ARGS`. Used by
+          # `nightly-macos-test.yml` to exercise the multi-value
+          # codegen path across the test matrix on macOS. Non-test
+          # derivations accept the override harmlessly — they don't
+          # read `EXTRA_MOC_ARGS`. Hidden in a `let` so they don't show
+          # up as flake outputs.
+          appendMultiValue = drv: drv.overrideAttrs (oa: {
+            EXTRA_MOC_ARGS = (oa.EXTRA_MOC_ARGS or "") + " --experimental-multi-value";
+          });
+          withMultiValue = pkgs.lib.map appendMultiValue;
+        in
+        checks // common-constituents // rec {
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
@@ -292,17 +306,6 @@
               filterTests "debug"  # Only include debug tests
               ++ builtins.attrValues js;
         };
-
-        # `-mv` variants append `--experimental-multi-value` to every
-        # constituent test derivation's `EXTRA_MOC_ARGS`. Used by
-        # `nightly-macos-test.yml` to exercise the multi-value codegen
-        # path across the test matrix on macOS. Non-test derivations
-        # (moc packages, docs, checks) accept the override harmlessly —
-        # they don't read `EXTRA_MOC_ARGS`.
-        appendMultiValue = drv: drv.overrideAttrs (oa: {
-          EXTRA_MOC_ARGS = (oa.EXTRA_MOC_ARGS or "") + " --experimental-multi-value";
-        });
-        withMultiValue = pkgs.lib.map appendMultiValue;
 
         common-tests-mv = pkgs.releaseTools.aggregate {
           name = "common-tests-mv";
