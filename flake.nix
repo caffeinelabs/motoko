@@ -293,6 +293,47 @@
               ++ builtins.attrValues js;
         };
 
+        # `-mv` variants append `--experimental-multi-value` to every
+        # constituent test derivation's `EXTRA_MOC_ARGS`. Used by
+        # `nightly-macos-test.yml` to exercise the multi-value codegen
+        # path across the test matrix on macOS. Non-test derivations
+        # (moc packages, docs, checks) accept the override harmlessly —
+        # they don't read `EXTRA_MOC_ARGS`.
+        appendMultiValue = drv: drv.overrideAttrs (oa: {
+          EXTRA_MOC_ARGS = (oa.EXTRA_MOC_ARGS or "") + " --experimental-multi-value";
+        });
+        withMultiValue = pkgs.lib.map appendMultiValue;
+
+        common-tests-mv = pkgs.releaseTools.aggregate {
+          name = "common-tests-mv";
+          constituents = withMultiValue (filterTests "common");
+        };
+
+        gc-tests-mv = pkgs.releaseTools.aggregate {
+          name = "gc-tests-mv";
+          constituents = withMultiValue (filterTests "gc");
+        };
+
+        release-systems-go-mv = pkgs.releaseTools.aggregate {
+          name = "release-systems-go-mv";
+          constituents = withMultiValue (
+            pkgs.lib.attrValues common-constituents ++
+              pkgs.lib.attrValues checks ++
+              pkgs.lib.attrValues buildableReleaseMoPackages ++
+              filterTests "release"
+              ++ builtins.attrValues js);
+        };
+
+        debug-systems-go-mv = pkgs.releaseTools.aggregate {
+          name = "debug-systems-go-mv";
+          constituents = withMultiValue (
+            pkgs.lib.attrValues common-constituents ++
+              pkgs.lib.attrValues checks ++
+              pkgs.lib.attrValues buildableDebugMoPackages ++
+              filterTests "debug"
+              ++ builtins.attrValues js);
+        };
+
         inherit (debug) moc;
 
         default = release-systems-go;
