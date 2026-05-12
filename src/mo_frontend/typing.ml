@@ -4973,24 +4973,40 @@ and gather_pat_aux env val_kind scope pat : Scope.t =
   | TagP (_, pat1) | AltP (pat1, _) | OptP pat1
   | AnnotP (pat1, _) | ParP pat1 -> gather_pat env scope pat1
   | AndP (pat1, pat2) ->
-    (* Gather each leg against the outer scope independently, then
-       enforce disjoint leg-contributions with the AndP-specific M0260
-       diagnostic (mirrors check_pat). Otherwise `gather_id` would fire
-       the generic M0051 in let-context on a duplicate. *)
     let scope1 = gather_pat env scope pat1 in
     let scope2 = gather_pat env scope pat2 in
-    T.Env.iter (fun k _ ->
-      if not (T.Env.mem k scope.Scope.val_env)
-      && T.Env.mem k scope2.Scope.val_env then
-        error env pat.at "M0260"
-          "variable `%s` bound in both branches of and-pattern" k)
-      scope1.Scope.val_env;
-    T.Env.iter (fun k _ ->
-      if not (T.Env.mem k scope.Scope.typ_env)
-      && T.Env.mem k scope2.Scope.typ_env then
-        error env pat.at "M0260"
-          "type identifier `%s` bound in both branches of and-pattern" k)
-      scope1.Scope.typ_env;
+    let check_val () =
+      try_all (fun (k, _) ->
+        if not (T.Env.mem k scope.Scope.val_env)
+        && T.Env.mem k scope2.Scope.val_env then
+          let _, at, _ = T.Env.find k scope2.Scope.val_env in
+          error env at "M0260"
+            "variable `%s` bound in both branches of and-pattern" k
+      ) (T.Env.bindings scope1.Scope.val_env)
+    in
+    let rec find_typ_id_at k p =
+      match p.it with
+      | ObjP pfs ->
+        List.find_map (fun pf -> match pf.it with
+          | TypPF id when id.it = k -> Some id.at
+          | ValPF (_, pat) -> find_typ_id_at k pat
+          | _ -> None) pfs
+      | AndP (p1, p2) | AltP (p1, p2) ->
+        (match find_typ_id_at k p1 with Some _ as at -> at | None -> find_typ_id_at k p2)
+      | TupP pats -> List.find_map (find_typ_id_at k) pats
+      | OptP p1 | TagP (_, p1) | AnnotP (p1, _) | ParP p1 -> find_typ_id_at k p1
+      | _ -> None
+    in
+    let check_typ () =
+      try_all (fun (k, _) ->
+        if not (T.Env.mem k scope.Scope.typ_env)
+        && T.Env.mem k scope2.Scope.typ_env then
+          let at = Option.value (find_typ_id_at k pat2) ~default:pat.at in
+          error env at "M0260"
+            "type identifier `%s` bound in both branches of and-pattern" k
+      ) (T.Env.bindings scope1.Scope.typ_env)
+    in
+    let _, _ = try_both (fun f -> f ()) check_val check_typ in
     Scope.adjoin scope1 scope2
 
 and gather_pat_field env scope pf : Scope.t =
