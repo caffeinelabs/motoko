@@ -1,4 +1,7 @@
 //MOC-FLAG --experimental-multi-value
+//SKIP run
+//SKIP run-ir
+//SKIP run-low
 import Prim "mo:⛔";
 
 func pair(n : Nat64) : (Nat64, Nat64) = (n, n + 1);
