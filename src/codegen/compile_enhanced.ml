@@ -686,6 +686,24 @@ module E = struct
     G.if1 return_type then_block else_block
 
   let if_ env tys thn els = prepare_branch_condition ^^ G.if_ (as_block_type env tys) thn els
+  (* [if' ?param ?return thn els] — block-type-aware multi-value `if`.
+     Each of [param] and [return] is an optional `(env, types)`
+     bundle. With both omitted the result is `G.if_ (ValBlockType None)
+     thn els` — a regular nullary-result `if`. Unlike `if_`, does
+     *not* `prepare_branch_condition` (no `i32.wrap_i64`): the caller
+     must put an i32 condition on top of the wasm stack themselves.
+     Use this for raw-wasm conditions like `global.get` of an i32 flag. *)
+  let if' ?param ?return thn els =
+    let bt = match param, return with
+      | None,           None              -> ValBlockType None
+      | None,           Some (_,   [])    -> ValBlockType None
+      | None,           Some (_,   [t])   -> ValBlockType (Some t)
+      | None,           Some (env, rs)    -> VarBlockType (nr (func_type env (FuncType ([], rs))))
+      | Some (env, ps), None              -> VarBlockType (nr (func_type env (FuncType (ps, []))))
+      | Some (env, ps), Some (_,   rs)    -> VarBlockType (nr (func_type env (FuncType (ps, rs))))
+    in
+    G.if_ bt thn els
+  let i64s n = Lib.List.make n I64Type
   let block_ env tys bdy = G.block_ (as_block_type env tys) bdy
 
 
@@ -2153,8 +2171,7 @@ module Tagged = struct
        without locals. The RTS pushes the flag via `set_running_gc`
        on every Pause↔non-Pause transition. *)
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
-    G.if_
-      (VarBlockType (nr (E.func_type env (FuncType ([I64Type; I64Type], [])))))
+    E.if' ~param:(env, E.i64s 2)
       (E.call_rts env "write_with_barrier")
       store_unskewed_ptr
 
