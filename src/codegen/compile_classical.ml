@@ -1050,7 +1050,6 @@ module RTS = struct
     add_rts_import "write_with_barrier" [I32Type; I32Type] [];
     add_rts_import "allocation_barrier" [I32Type] [I32Type];
     add_rts_import "stop_gc_on_upgrade" [] [];
-    add_rts_import "running_gc" [] [I32Type];
     ()
 
   let non_incremental_gc_imports env =
@@ -1229,6 +1228,12 @@ module GC = struct
     E.add_global64 env "__lifetime_instructions" Mutable 0L;
     if !Flags.gc_strategy <> Flags.Incremental then
       E.add_global32 env "_HP" Mutable 0l
+    else
+      (* GC-running flag. RTS-side cache of `phase != Pause`, written
+         via `set_running_gc` (RTS_Exports). Registered early so
+         `Tagged.write_with_barrier` can resolve it during expression
+         compilation. *)
+      E.add_global32 env "__running_gc" Mutable 0l
 
   let get_mutator_instructions env =
     G.i (GlobalGet (nr (E.get_global env "__mutator_instructions")))
@@ -2233,8 +2238,10 @@ module Tagged = struct
     let (set_value, get_value) = new_local env "written_value" in
     let (set_location, get_location) = new_local env "write_location" in
     set_value ^^ set_location ^^
-    (* performance gain by first checking the GC state *)
-    E.call_rts env "running_gc" ^^
+    (* Read the backend-cached running-GC flag (i32). The RTS pushes
+       the flag via `set_running_gc` on every Pause↔non-Pause
+       transition, so the fast path avoids the RTS round-trip. *)
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     G.if0 (
       get_location ^^ get_value ^^
       E.call_rts env "write_with_barrier"
@@ -6521,6 +6528,25 @@ module RTS_Exports = struct
       name = Lib.Utf8.decode "bigint_trap";
       edesc = nr (FuncExport (nr bigint_trap_fi))
     });
+
+    (* GC-running flag export (incremental GC only). The RTS pushes
+       cached `phase != Pause` here on every Pause↔non-Pause
+       transition; the write_with_barrier fast path reads
+       `__running_gc` directly instead of round-tripping through an
+       RTS call. The global itself is registered in
+       `GC.register_globals`. *)
+    if !Flags.gc_strategy = Flags.Incremental then begin
+      let set_running_gc_fi = E.add_fun env "set_running_gc" (
+        Func.of_body env ["state", I32Type] [] (fun env ->
+          G.i (LocalGet (nr 0l)) ^^
+          G.i (GlobalSet (nr (E.get_global env "__running_gc")))
+        )
+      ) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode "set_running_gc";
+        edesc = nr (FuncExport (nr set_running_gc_fi))
+      })
+    end;
 
     let rts_trap_fi = E.add_fun env "rts_trap" (
       Func.of_body env ["str", I32Type; "len", I32Type] [] (fun env ->
