@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Determinate Nix
-        uses: DeterminateSystems/nix-installer-action@b6e4494ddccc51b56de1189099089a3514a69245 # main
+        uses: DeterminateSystems/nix-installer-action@aa0e5400805113bf2d5d8f9ba11ff9148bd372a3 # main
       - name: Create GitHub App Token
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
         id: app-token
