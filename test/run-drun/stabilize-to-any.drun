@@ -1,5 +1,4 @@
 # ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
-# SKIP-SANITY-CHECKS
 
 install $ID stabilize-to-any/version0.mo ""
 ingress $ID check "DIDL\x00\x00"

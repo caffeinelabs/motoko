@@ -15,4 +15,12 @@ pkgs: with pkgs.llvmPackages_21; pkgs.rustPlatform.buildRustPackage rec {
   '';
   CXX_x86_64-apple-darwin = CXX_aarch64-apple-darwin;
   CXXFLAGS_x86_64-apple-darwin = CXXFLAGS_aarch64-apple-darwin;
+
+  # The C++ files in `wasm-opt-{sys,cxx-sys}` are compiled with libc++ 21
+  # headers (see `CXXFLAGS_*-apple-darwin` above), which reference symbols
+  # like `std::__1::__hash_memory` that the macOS SDK's libc++ does not
+  # provide. Without this, the final link picks `-lc++` from the SDK and
+  # fails with "Undefined symbols for architecture arm64". Force the
+  # linker to resolve `-lc++` against `llvmPackages_21.libcxx`.
+  NIX_LDFLAGS = pkgs.lib.optionalString pkgs.stdenv.isDarwin "-L${libcxx}/lib";
 }
