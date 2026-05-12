@@ -1320,7 +1320,13 @@ module GC = struct
   let register_globals env =
     E.add_global64 env "__mutator_instructions" Mutable 0L;
     E.add_global64 env "__collector_instructions" Mutable 0L;
-    E.add_global64 env "__lifetime_instructions" Mutable 0L
+    E.add_global64 env "__lifetime_instructions" Mutable 0L;
+    (* GC-running flag. RTS-side cache of `phase != Pause`, written via
+       the `set_running_gc` export below (registered in RTS_Exports).
+       Registered here so `Tagged.write_with_barrier` can resolve the
+       global during expression compilation, which runs before
+       `conclude_module`. *)
+    E.add_global32 env "__running_gc" Mutable 0l
 
   let get_mutator_instructions env =
     G.i (GlobalGet (nr (E.get_global env "__mutator_instructions")))
@@ -6328,12 +6334,12 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr bigint_trap_fi))
     });
 
-    (* GC-running flag.
-       Cache of `state.phase != Phase::Pause` on the RTS side, pushed
-       to this i32 global via the `set_running_gc` export below on every
-       Pause↔non-Pause transition. The write_with_barrier fast path
-       reads this global instead of round-tripping through an RTS call. *)
-    E.add_global32 env "__running_gc" Mutable 0l;
+    (* GC-running flag export. The `__running_gc` global itself is
+       registered in `GC.register_globals` so `Tagged.write_with_barrier`
+       can resolve it during expression compilation. The RTS pushes
+       cached `phase != Pause` here on every Pause↔non-Pause transition;
+       the write_with_barrier fast path reads the global instead of
+       round-tripping through an RTS call. *)
     let set_running_gc_fi = E.add_fun env "set_running_gc" (
       Func.of_body env ["state", I32Type] [] (fun env ->
         G.i (LocalGet (nr 0l)) ^^
