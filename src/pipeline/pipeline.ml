@@ -875,7 +875,7 @@ and compile_unit mode (enhanced_migration:string option) do_link imports u : Was
     adjust_flags ();
     let rts = if do_link then Some (load_as_rts ()) else None in
     Diag.return (if !Flags.enhanced_orthogonal_persistence then
-      Codegen.Compile_enhanced.compile mode ~enhanced_migration rts prog_ir
+      Codegen.Compile_enhanced_64.compile mode ~enhanced_migration rts prog_ir
     else
       Codegen.Compile_classical.compile mode rts prog_ir))
 

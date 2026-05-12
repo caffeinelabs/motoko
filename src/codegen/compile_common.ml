@@ -15,7 +15,7 @@ let (^^) = G.(^^) (* is this how we import a single operator from a module that 
 (* Our code depends on OCaml int having at least 32 bits *)
 let _ = assert (Sys.int_size >= 32)
 
-(* Generating function names for functions parametrized by prim types *)
+(* Generating function names for functions parameterized by prim types *)
 let prim_fun_name p stem = Printf.sprintf "%s<%s>" stem (Type.string_of_prim p)
 
 (* Helper functions to produce annotated terms (Wasm.AST) *)
