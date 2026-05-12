@@ -270,13 +270,6 @@ let rec match_pat ctxt desc pat t sets =
     sets.alts <- AtSet.add pat1.at (AtSet.add pat2.at sets.alts);
     match_pat (InAlt1 (ctxt, pat1.at, pat2, t)) desc pat1 t sets
   | AndP (pat1, pat2) ->
-    (* AndP accepts v iff both pat1 and pat2 accept v.
-       Match pat1 first under an InAnd1 context; on success, continue
-       with pat2 on the narrowed `desc` under the outer context; on
-       failure, the whole AndP fails for that desc-slice. Non-covering
-       content in pat2 (e.g. a variant tag incompatible with what pat1
-       already admitted) surfaces as uncovered via the normal ctxt
-       flow — no special casing needed. *)
     match_pat (InAnd1 (ctxt, pat2, t)) desc pat1 t sets
   | AnnotP (pat1, _)
   | ParP pat1 ->
@@ -343,7 +336,6 @@ and succeed ctxt desc sets : bool =
     sets.reached_alts <- AtSet.add at2 sets.reached_alts;
     succeed ctxt' desc sets
   | InAnd1 (ctxt', pat2, t) ->
-    (* pat1 accepted `desc`; now pat2 must also accept it *)
     match_pat ctxt' desc pat2 t sets
   | InCase (at, cases, _t) ->
     sets.reached_cases <- AtSet.add at sets.reached_cases;

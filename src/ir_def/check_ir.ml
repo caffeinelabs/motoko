@@ -1099,8 +1099,6 @@ and check_pat env pat : val_env =
     let common i1 i2 = { typ = lub env i1.typ i2.typ; loc_known = i1.loc_known && i2.loc_known; const = i1.const && i2.const } in
     T.Env.merge (fun _ -> Lib.Option.map2 common) ve1 ve2
   | AndP (pat1, pat2) ->
-    (* both legs must accept the scrutinee; verify_pair enforces
-       disjoint bindings without trusting the frontend *)
     let ve1 = check_pat env pat1 in
     let ve2 = check_pat env pat2 in
     t <: pat1.note;

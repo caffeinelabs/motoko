@@ -13509,10 +13509,6 @@ and fill_pat env ae pat : patternCode =
       orElse (CannotFail get_i ^^^ code1)
              (CannotFail get_i ^^^ code2)
   | AndP (p1, p2) ->
-      (* Both legs must match the same scrutinee; bindings from both
-         are available. Stash the scrutinee once, feed it to each leg
-         in sequence. `(^^^)` threads failure through — either leg's
-         failure cancels the whole match. *)
       let code1, code2 = fill_pat env ae p1, fill_pat env ae p2 in
       let set_i, get_i = new_local env "and_scrut" in
       CannotFail set_i ^^^
@@ -13794,7 +13790,6 @@ and destruct_const_pat ae pat const : VarEnv.t option = match pat.it with
     if l = None then destruct_const_pat ae p2 const
     else l
   | AndP (p1, p2) ->
-    (* Both legs must accept; fold bindings left-to-right. *)
     Option.bind (destruct_const_pat ae p1 const) (fun ae' ->
       destruct_const_pat ae' p2 const)
   | TupP ps ->
