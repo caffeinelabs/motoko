@@ -650,6 +650,98 @@ later ones to justify its existence.
 *(Subsumed by Multi-strategy search above — ModPrime and RotLow are the
 concrete pre-shortening strategies described there.)*
 
+## Future Optimisation: Smart `immut_local` constructor
+
+The current variant-dispatch emission allocates a fresh local per arm's
+scrutinee binding and immediately fills it from the outer scrutinee
+local. Each arm thus pays one redundant `local.set` + `local.get`
+round-trip whose source and value are statically identical to a
+pre-existing local — the outer scrutinee, which is itself never
+mutated inside arms.
+
+A smart constructor
+
+```ocaml
+val immut_local : E.t -> string -> G.t -> G.t * G.t
+(* [immut_local env name init] returns (prelude, getter).
+   - If [init] is structurally a single pure read instruction
+     (LocalGet _ | GlobalGet _ | Const _), then [prelude = G.nop]
+     and [getter = init] — no local allocated, init is re-emitted
+     verbatim at each use site (cost: one wasm op per use).
+   - Otherwise: allocate fresh local l;
+     [prelude = init ^^ LocalSet l], [getter = LocalGet l]
+     — the existing `let (set, get) = new_local env name in (init ^^ set, get)`
+     shape, just hidden behind one combinator. *)
+```
+
+elides the round-trip whenever the source is a single pure read.
+
+### Soundness
+
+Inlining is sound iff no instruction in the dynamic scope of `getter`
+mutates the source. Per source kind:
+
+- `Const c` — always safe (no source).
+- `GlobalGet g` — safe unless some `GlobalSet g` appears between the
+  binding point and the last use. In practice every mutable global in
+  the moc backend (e.g. `__running_gc` from PR #6111) is written only
+  by dedicated helpers outside arm bodies, so the property holds by
+  construction wherever `immut_local` is invoked downstream of the
+  global's declared writers.
+- `LocalGet x` — safe unless some `LocalSet x` appears between the
+  binding point and the last use. The variant-dispatch path satisfies
+  this trivially: the outer scrutinee local is read-only during arm
+  emission. Other callers must verify the property themselves; the
+  smart constructor is opt-in, the caller carries the obligation.
+
+Anything beyond a single pure instruction (calls, loads, arithmetic,
+multi-instruction sequences) must materialize, because either the
+per-use duplication cost is non-zero or the operation has observable
+side effects / evaluation-order dependencies.
+
+### Implementation sketch
+
+1. Materialize `init` via `G.to_instr_list` and pattern-match the head
+   (after stripping leading `Nop`s, if any combinator produces them).
+2. If the result is a single-element list whose element is one of
+   `LocalGet _ | GlobalGet _ | Const _`, return `(G.nop, init)`.
+3. Otherwise fall back to the existing
+   `let (set, get) = new_local env name in (init ^^ set, get)` shape.
+
+`name` is consumed only on the materialization branch (for
+debug-symbol / local-name table purposes); when init is reused as the
+getter, `name` is dropped on the floor.
+
+### Variant-dispatch fit
+
+The per-arm scrutinee bindings emitted by `Dispatch`'s arm-compiler
+are exactly the `LocalGet outer_scr` shape. Migrating them through
+`immut_local` removes one `local.set` + one `local.get` + one
+local-slot declaration per arm — proportional to arm count,
+multiplied by every variant `switch` site that takes the `br_table`
+path. For a 12-arm dispatch (`NNS Action_`) that is 12 saved locals
+and 24 saved op-codes per emission site, repeated at every call site.
+
+### Beyond variant dispatch
+
+The same anti-pattern shows up in `compile_pat_local`, parameter
+binding for inlined call sites, and many `let (set_x, get_x) =
+new_local …` sites whose filling expression boils down to a single
+`LocalGet` or `Const`. After landing `immut_local` for the dispatch
+path, a `git grep` for `let (set_.*, get_.*) = new_local` followed by
+manual audit of the filling expression's shape produces a reasonable
+candidate list for incremental migration.
+
+### Interaction with the dispatch protocol
+
+The current `Dispatch` effect machinery is opaque to the difference
+between "arm binds a fresh local" and "arm reuses the outer-scrutinee
+getter" — the protocol speaks in `G.t` payloads. So `immut_local` is
+a pure recognizer-side change: zero impact on `Match_arm` /
+`Match_join` / handler logic.
+
+*Not yet implemented — tracked here for future work.*
+
 ## Non-goals
 
 - Nested/wildcard patterns in variant arms (handled by `compile_pat_local`)
