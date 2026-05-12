@@ -1178,7 +1178,7 @@ let rec is_explicit_pat p =
   | TupP ps -> List.for_all is_explicit_pat ps
   | ObjP pfs -> List.for_all is_explicit_pat_field pfs
   | AltP (p1, p2) -> is_explicit_pat p1 && is_explicit_pat p2
-  | AndP (p1, p2) -> is_explicit_pat p1 && is_explicit_pat p2
+  | AndP (p1, p2) -> is_explicit_pat p1 || is_explicit_pat p2
   | AnnotP _ -> true
 
 and is_explicit_pat_field pf =
