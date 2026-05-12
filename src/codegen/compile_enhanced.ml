@@ -2134,19 +2134,17 @@ module Tagged = struct
     E.call_rts env "allocation_barrier"
 
   let write_with_barrier env =
-    let (set_value, get_value) = new_local env "written_value" in
-    let (set_location, get_location) = new_local env "write_location" in
-    set_value ^^ set_location ^^
-    (* performance gain by first checking the GC state *)
+    (* Stack on entry: [location, value]. Thread both straight through the
+       branch via a multi-value `if (param i64 i64)` block-type, avoiding the
+       set/get-local round-trip the GC-not-running fast path otherwise pays.
+       performance gain by first checking the GC state *)
     E.call_rts env "running_gc" ^^
     Bool.from_rts_int32 ^^
-    E.if0 (
-      get_location ^^ get_value ^^
-      E.call_rts env "write_with_barrier"
-    ) (
-      get_location ^^ get_value ^^
+    G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+    G.if_
+      (VarBlockType (nr (E.func_type env (FuncType ([I64Type; I64Type], [])))))
+      (E.call_rts env "write_with_barrier")
       store_unskewed_ptr
-    )
 
   let obj env tag element_instructions : G.t =
     let n = List.length element_instructions in
