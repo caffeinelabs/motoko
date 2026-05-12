@@ -8,6 +8,8 @@
 
   * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
 
+  * perf: Tighter pointer-write barrier — multi-value `if (param i64 i64)` keeps `[location, value]` on the wasm stack, and the running-GC check reads a cached `__running_gc` global instead of calling the RTS. −7.7% cycles on barrier-dense `test/bench/iter` (#6111).
+
 ## 1.7.0 (2026-04-29)
 
 * motoko (`moc`)
