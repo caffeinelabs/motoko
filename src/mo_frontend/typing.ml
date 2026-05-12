@@ -3618,7 +3618,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
         let t1, ve1 = infer_pat false env pat1 in
         let t2, ve2 = infer_pat false env pat2 in
         if not (T.compatible t1 t2) then
-          error env pat.at "M0104"
+          error env pat.at "M0262"
             "and-pattern legs have incompatible types,\nleft accepts%a\nright accepts%a"
             display_typ_expand t1
             display_typ_expand t2;
