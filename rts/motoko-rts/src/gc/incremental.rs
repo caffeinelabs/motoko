@@ -289,7 +289,8 @@ impl<'a, M: Memory + 'a> IncrementalGC<'a, M> {
     }
 
     unsafe fn mark_completed(&mut self) -> bool {
-        self.state.phase() == Phase::Mark && MarkIncrement::<M>::mark_completed(self.mem, self.state)
+        self.state.phase() == Phase::Mark
+            && MarkIncrement::<M>::mark_completed(self.mem, self.state)
     }
 
     unsafe fn check_mark_completion(&mut self, _roots: Roots) {
