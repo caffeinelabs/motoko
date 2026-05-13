@@ -610,13 +610,20 @@ module E = struct
     | ts -> VarBlockType (nr (func_type env (FuncType ([], ts))))
 
   let if_ env tys thn els = G.if_ (as_block_type env tys) thn els
-
-  (* NB: confuses wasm-opt, don't use for now
-  let _multi_if_ env tys1 tys2 thn els =
-    G.if_
-      (VarBlockType (nr (func_type env (FuncType (tys1, tys2)))))
-      thn els
-  *)
+  (* Multi-value-aware `if`: each of [param] and [return] is an
+     optional `(env, types)` bundle. With both omitted this is just
+     a nullary `if`. Mirror of `compile_enhanced.ml`'s `E.if'`. *)
+  let if' ?param ?return thn els =
+    let bt = match param, return with
+      | None,           None              -> ValBlockType None
+      | None,           Some (_,   [])    -> ValBlockType None
+      | None,           Some (_,   [t])   -> ValBlockType (Some t)
+      | None,           Some (env, rs)    -> VarBlockType (nr (func_type env (FuncType ([], rs))))
+      | Some (env, ps), None              -> VarBlockType (nr (func_type env (FuncType (ps, []))))
+      | Some (env, ps), Some (_,   rs)    -> VarBlockType (nr (func_type env (FuncType (ps, rs))))
+    in
+    G.if_ bt thn els
+  let i32s n = Lib.List.make n I32Type
 
   let block_ env tys bdy = G.block_ (as_block_type env tys) bdy
 
@@ -2230,7 +2237,12 @@ module Tagged = struct
 
   let allocation_barrier env =
     (if !Flags.gc_strategy = Flags.Incremental then
-      E.call_rts env "allocation_barrier"
+      (* Inline running-GC fast path. RTS body returns the argument
+         unchanged on Pause, so skip the call. *)
+      G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+      E.if' ~param:(env, E.i32s 1) ~return:(env, E.i32s 1)
+        (E.call_rts env "allocation_barrier")
+        G.nop
     else
       G.nop)
 

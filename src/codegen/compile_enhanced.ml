@@ -2162,7 +2162,15 @@ module Tagged = struct
     go cases
 
   let allocation_barrier env =
-    E.call_rts env "allocation_barrier"
+    (* Inline running-GC fast path. The RTS function returns its
+       argument unchanged when `state.phase() == Pause`, so a single
+       `global.get __running_gc` + multi-value `if (param i64) (result i64)`
+       elides the function-call overhead on the common (paused) path,
+       leaving the new_object on the stack identity-wise. *)
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' ~param:(env, E.i64s 1) ~return:(env, E.i64s 1)
+      (E.call_rts env "allocation_barrier")
+      G.nop
 
   let write_with_barrier env =
     (* Stack on entry: [location, value]. Read the backend-cached
