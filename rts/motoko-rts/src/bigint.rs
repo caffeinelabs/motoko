@@ -32,11 +32,11 @@ This scheme makes the following assumptions:
 */
 
 use crate::barriers::allocation_barrier;
-use crate::buf::{read_byte, Buf};
+use crate::buf::{Buf, read_byte};
 use crate::mem_utils::memcpy_bytes;
 use crate::memory::Memory;
 use crate::tommath_bindings::*;
-use crate::types::{size_of, BigInt, Bytes, Value, TAG_BIGINT};
+use crate::types::{BigInt, Bytes, TAG_BIGINT, Value, size_of};
 
 use crate::libc_declarations::c_void;
 

@@ -28,12 +28,12 @@
 
 use crate::barriers::allocation_barrier;
 use crate::mem_utils::memcpy_bytes;
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::rts_trap_with;
-use crate::types::{size_of, Blob, Bytes, Concat, Value, TAG_BLOB_T, TAG_CONCAT};
+use crate::types::{Blob, Bytes, Concat, TAG_BLOB_T, TAG_CONCAT, Value, size_of};
 
 use alloc::string::String;
-use core::cmp::{min, Ordering};
+use core::cmp::{Ordering, min};
 use core::{slice, str};
 use motoko_rts_macros::classical_persistence;
 

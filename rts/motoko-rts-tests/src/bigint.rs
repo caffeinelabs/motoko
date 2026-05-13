@@ -1,4 +1,4 @@
-use crate::memory::{initialize_test_memory, reset_test_memory, TestMemory};
+use crate::memory::{TestMemory, initialize_test_memory, reset_test_memory};
 use std::ffi::c_void;
 
 use motoko_rts::bigint::{self, *};

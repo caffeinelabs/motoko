@@ -28,7 +28,7 @@ use core::cmp::min;
 use crate::{
     constants::KB,
     rts_trap_with,
-    stable_mem::{self, ic0_stable64_write, PAGE_SIZE},
+    stable_mem::{self, PAGE_SIZE, ic0_stable64_write},
 };
 
 use self::layout::StableValue;

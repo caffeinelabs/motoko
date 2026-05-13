@@ -36,10 +36,10 @@
 use crate::barriers::allocation_barrier;
 use crate::bigint::{check, mp_get_u32, mp_isneg, mp_iszero};
 use crate::mem_utils::memcpy_bytes;
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::rts_trap_with;
 use crate::tommath_bindings::{mp_div_2d, mp_int};
-use crate::types::{size_of, Blob, Bytes, Stream, Value, TAG_BLOB_B};
+use crate::types::{Blob, Bytes, Stream, TAG_BLOB_B, Value, size_of};
 
 use motoko_rts_macros::ic_mem_fn;
 

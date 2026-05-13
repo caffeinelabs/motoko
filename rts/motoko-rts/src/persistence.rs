@@ -10,8 +10,8 @@ use crate::gc::incremental::mark_stack::MarkStack;
 use crate::{
     barriers::write_with_barrier,
     constants::{KB, MB},
-    gc::incremental::{partitioned_heap::allocate_initial_memory, State},
-    memory::{alloc_blob, Memory},
+    gc::incremental::{State, partitioned_heap::allocate_initial_memory},
+    memory::{Memory, alloc_blob},
     persistence::compatibility::memory_compatible,
     region::{
         LEGACY_VERSION_NO_STABLE_MEMORY, LEGACY_VERSION_REGIONS, LEGACY_VERSION_SOME_STABLE_MEMORY,
@@ -21,7 +21,7 @@ use crate::{
     },
     rts_trap_with,
     stable_mem::read_persistence_version,
-    types::{Bytes, Value, NULL_POINTER, TAG_BLOB_B},
+    types::{Bytes, NULL_POINTER, TAG_BLOB_B, Value},
 };
 
 use self::compatibility::TypeDescriptor;

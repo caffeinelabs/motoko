@@ -1,6 +1,6 @@
 //! LEB1128 encoding. Reference: https://en.wikipedia.org/wiki/LEB128
 
-use crate::buf::{read_byte, Buf};
+use crate::buf::{Buf, read_byte};
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn leb128_encode(mut val: usize, mut buf: *mut u8) {

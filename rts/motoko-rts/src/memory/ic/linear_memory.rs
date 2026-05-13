@@ -1,4 +1,4 @@
-use super::{get_aligned_heap_base, IcMemory, Memory};
+use super::{IcMemory, Memory, get_aligned_heap_base};
 use crate::{memory::GENERAL_MEMORY_RESERVE, types::*};
 
 /// Amount of garbage collected so far.

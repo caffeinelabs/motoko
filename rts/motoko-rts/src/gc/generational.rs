@@ -12,7 +12,7 @@ pub mod write_barrier;
 
 use crate::gc::generational::mark_stack::{alloc_mark_stack, push_mark_stack};
 use crate::gc::mark_compact::bitmap::{
-    alloc_bitmap, free_bitmap, get_bit, iter_bits, set_bit, BITMAP_ITER_END,
+    BITMAP_ITER_END, alloc_bitmap, free_bitmap, get_bit, iter_bits, set_bit,
 };
 
 use crate::constants::WORD_SIZE;
@@ -321,10 +321,12 @@ impl<'a, M: Memory> GenerationalGC<'a, M> {
             && (field_address as usize) < self.heap.limits.last_free
             && (*field_address).points_to_or_beyond(self.heap.limits.last_free)
         {
-            assert!(REMEMBERED_SET
-                .as_ref()
-                .unwrap()
-                .contains(Value::from_raw(field_address as usize)));
+            assert!(
+                REMEMBERED_SET
+                    .as_ref()
+                    .unwrap()
+                    .contains(Value::from_raw(field_address as usize))
+            );
         }
     }
 

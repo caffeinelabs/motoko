@@ -14,7 +14,7 @@ use crate::{
     rts_trap_with,
     stabilization::ic::metadata::StabilizationMetadata,
     stabilization::serialization::SerializationRoots,
-    stable_mem::{self, moc_stable_mem_set_size, PAGE_SIZE},
+    stable_mem::{self, PAGE_SIZE, moc_stable_mem_set_size},
     types::Value,
 };
 
@@ -229,7 +229,7 @@ unsafe fn memory_sanity_check<M: Memory>(_mem: &mut M) {
     {
         use crate::gc::incremental::{
             get_partitioned_heap,
-            sanity_checks::{check_memory, CheckerMode},
+            sanity_checks::{CheckerMode, check_memory},
         };
 
         let state = DESTABILIZATION_STATE.as_mut().unwrap();

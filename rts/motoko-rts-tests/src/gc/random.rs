@@ -1,5 +1,5 @@
-use super::utils::ObjectIdx;
 use super::TestHeap;
+use super::utils::ObjectIdx;
 
 use oorandom::Rand32;
 
