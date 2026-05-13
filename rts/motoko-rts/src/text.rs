@@ -175,7 +175,7 @@ unsafe extern "C" fn text_to_buf(mut s: Value, mut buf: *mut u8) {
 }
 
 #[unsafe(no_mangle)]
-#[cfg(not(feature = "enhanced_orthogonal_persistence"))]
+#[classical_persistence]
 unsafe extern "C" fn stream_write_text(stream: *mut Stream, mut s: Value) {
     use crate::types::TAG_BLOB_B;
     loop {

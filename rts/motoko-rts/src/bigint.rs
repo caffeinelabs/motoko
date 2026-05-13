@@ -207,7 +207,7 @@ pub(crate) unsafe fn persist_bigint(i: mp_int) -> Value {
 }
 
 #[unsafe(no_mangle)]
-#[cfg(not(feature = "enhanced_orthogonal_persistence"))]
+#[classical_persistence]
 pub unsafe extern "C" fn bigint_of_word32(w: u32) -> Value {
     let mut i = tmp_bigint();
     mp_set_u32(&mut i, w);
@@ -216,7 +216,7 @@ pub unsafe extern "C" fn bigint_of_word32(w: u32) -> Value {
 
 #[cfg(feature = "ic")]
 #[unsafe(no_mangle)]
-#[cfg(not(feature = "enhanced_orthogonal_persistence"))]
+#[classical_persistence]
 unsafe extern "C" fn bigint_of_int32(j: i32) -> Value {
     let mut i = tmp_bigint();
     mp_set_i32(&mut i, j);
@@ -531,7 +531,7 @@ pub unsafe extern "C" fn bigint_leb128_encode(n: Value, buf: *mut u8) {
 }
 
 #[unsafe(no_mangle)]
-#[cfg(not(feature = "enhanced_orthogonal_persistence"))]
+#[classical_persistence]
 pub unsafe extern "C" fn bigint_leb128_stream_encode(stream: *mut Stream, n: Value) {
     debug_assert!(!stream.is_forwarded());
     let mut tmp: mp_int = core::mem::zeroed(); // or core::mem::uninitialized?
@@ -576,7 +576,7 @@ pub unsafe extern "C" fn bigint_sleb128_encode(n: Value, buf: *mut u8) {
 }
 
 #[unsafe(no_mangle)]
-#[cfg(not(feature = "enhanced_orthogonal_persistence"))]
+#[classical_persistence]
 pub unsafe extern "C" fn bigint_sleb128_stream_encode(stream: *mut Stream, n: Value) {
     debug_assert!(!stream.is_forwarded());
     let mut tmp: mp_int = core::mem::zeroed(); // or core::mem::uninitialized?
