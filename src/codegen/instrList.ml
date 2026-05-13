@@ -12,6 +12,20 @@ open Wasm.Source
 open Wasm_exts.Values
 open Wasm_exts.Types
 
+(* If [c] = -1 << n for some n in [1, 63], return Some n. Used to recognise
+   "high masks" like 0xFFFF_FFFF_FFFF_0000 that, in a zero-test context,
+   are equivalent to `i64.shrU n` followed by the same test.
+   A high mask has n trailing zeros in c and 64-n leading zeros in ~c, so
+   the test is ctz(c) + clz(~c) = 64 (with the c ∈ {0, -1} edge cases ruled
+   out explicitly). *)
+let high_mask_shift c =
+  if c = 0L || c = Int64.minus_one then None
+  else
+    let ctz_c = Wasm.I64.ctz c in
+    let clz_notc = Wasm.I64.clz (Int64.lognot c) in
+    if Int64.add ctz_c clz_notc = 64L then Some (Int64.to_int ctz_c)
+    else None
+
 let combine_shifts const op = function
   | I32 opl, ({it = I32 l'; _} as cl), I32 opr, I32 r' when opl = opr ->
     let l, r = Int32.(to_int l', to_int r') in
@@ -290,6 +304,21 @@ let optimize : instr list -> instr list = fun is ->
     | ({it = Test (I64 I64Op.Eqz); _} as e) :: ({it = Binary (I64 I64Op.And); _} as a) :: {it = Const {it = I64 (-9223372036854775808L); _}; _} :: l',
       ({it = BrIf _; _} as br) :: r' ->
       go ({e with it = Convert (I32 I32Op.WrapI64)} :: {a with it = Unary (I64 I64Op.Clz)} :: l') (br :: r')
+
+    (* `i64.const (-1<<n); i64.and; i64.eqz` → `i64.const n; i64.shrU; i64.eqz`.
+       The high-mask preserves bits [n,63]; eqz tests whether they're all zero.
+       `shrU n` brings the same bits to [0, 63-n] and eqz asks the same question.
+       Saves bytes when the mask is wider than `n` (sleb128 of small `n` is 1 byte,
+       sleb128 of `-1<<n` is up to 9). Fires on every `enforce_unsigned_bits env n`
+       in `compile_enhanced.ml`'s small-word arithmetic kernels.
+       Must come AFTER the MSB-`and (1<<63)` rules above: for n=63 those produce
+       the more specific `clz; wrap; eqz` form, and we don't want this rule to
+       intercept first. *)
+    | ({it = Test (I64 I64Op.Eqz); _} as e) :: ({it = Binary (I64 I64Op.And); _} as a) :: ({it = Const ({it = I64 c; _} as cv); _} as const) :: l', r'
+      when Option.is_some (high_mask_shift c) ->
+      let n = Option.get (high_mask_shift c) in
+      go (e :: {a with it = Binary (I64 I64Op.ShrU)} :: {const with it = Const {cv with it = I64 (Int64.of_int n)}} :: l') r'
+
     (* Null shifts can be eliminated *)
     | l', {it = Const {it = I32 0l; _}; _} :: {it = Binary (I32 I32Op.(Shl|ShrS|ShrU)); _} :: r' ->
       go l' r'
