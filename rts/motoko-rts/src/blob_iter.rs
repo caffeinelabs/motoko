@@ -28,7 +28,7 @@ unsafe fn blob_iter<M: crate::memory::Memory>(mem: &mut M, blob: Value) -> Value
 }
 
 /// Returns whether the iterator is finished
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn blob_iter_done(iter: Value) -> usize {
     let iter_array = iter.as_array();
 

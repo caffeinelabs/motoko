@@ -133,7 +133,7 @@ struct Crumb {
     next: *const Crumb,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn text_to_buf(mut s: Value, mut buf: *mut u8) {
     let mut next_crumb: *const Crumb = core::ptr::null();
 
@@ -174,8 +174,8 @@ unsafe extern "C" fn text_to_buf(mut s: Value, mut buf: *mut u8) {
     }
 }
 
-#[no_mangle]
-#[classical_persistence]
+#[unsafe(no_mangle)]
+#[cfg(not(feature = "enhanced_orthogonal_persistence"))]
 unsafe extern "C" fn stream_write_text(stream: *mut Stream, mut s: Value) {
     use crate::types::TAG_BLOB_B;
     loop {
@@ -207,7 +207,7 @@ pub unsafe fn blob_of_text<M: Memory>(mem: &mut M, s: Value) -> Value {
 }
 
 /// Size of the text, in bytes
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_size(s: Value) -> Bytes<usize> {
     // We don't know whether the string is a blob or concat, but both types have the length in same
     // location so using any of the types to get the length is fine
@@ -322,7 +322,7 @@ unsafe fn text_get_range(
     (s, offset)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_compare(s1: Value, s2: Value) -> isize {
     let n1 = text_size(s1);
     let n2 = text_size(s2);
@@ -343,7 +343,7 @@ pub unsafe extern "C" fn text_compare(s1: Value, s2: Value) -> isize {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
     let n1 = text_size(s1);
     let n2 = text_size(s2);
@@ -367,7 +367,7 @@ pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
 }
 
 /// Length in characters
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_len(text: Value) -> usize {
     if text.tag() == TAG_BLOB_T {
         let blob = text.as_blob();

@@ -2,10 +2,10 @@
 name = "motoko-rts-macros"
 version = "0.1.0"
 authors = ["dfinity <team-motoko@dfinity.org>"]
-edition = "2021"
+edition = "2024"
 
 [lib]
-proc_macro = true
+proc-macro = true
 
 [dependencies]
 proc-macro2 = "1.0.66"

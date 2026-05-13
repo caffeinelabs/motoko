@@ -15,12 +15,12 @@ pub unsafe fn set_bigint_heap(heap: *mut TestMemory) {
     HEAP = heap;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn mp_calloc(n_elems: usize, elem_size: Bytes<usize>) -> *mut c_void {
     bigint::mp_calloc(&mut *HEAP, n_elems, elem_size)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn mp_realloc(
     ptr: *mut c_void,
     old_size: Bytes<usize>,

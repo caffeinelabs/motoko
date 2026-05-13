@@ -32,24 +32,24 @@ pub unsafe fn test() {
     reset_memory();
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn moc_stabilization_instruction_limit() -> u64 {
     u64::MAX
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn moc_stable_memory_access_limit() -> u64 {
     u64::MAX
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn ic0_performance_counter(_counter: u32) -> u64 {
     0
 }
 
 // This is only called for graph copy increment limit testing.
 // Not used during RTS testing.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn deserialized_size() -> usize {
     0
 }

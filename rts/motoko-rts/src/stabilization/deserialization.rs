@@ -236,6 +236,6 @@ unsafe fn deserialized_size() -> usize {
 
 // Injection point for RTS unit testing.
 #[cfg(not(feature = "ic"))]
-extern "C" {
+unsafe extern "C" {
     fn deserialized_size() -> usize;
 }

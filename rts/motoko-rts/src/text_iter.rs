@@ -75,7 +75,7 @@ pub unsafe fn text_iter<M: Memory>(mem: &mut M, text: Value) -> Value {
 }
 
 /// Returns whether the iterator is finished
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_iter_done(iter: Value) -> usize {
     let array = iter.as_array();
     let pos = array.get(ITER_POS_IDX).get_scalar();

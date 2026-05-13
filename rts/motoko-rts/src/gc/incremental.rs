@@ -466,9 +466,9 @@ pub unsafe fn is_gc_stopped() -> bool {
 /// Safety guard before Candid-stabilization with classical persistence.
 /// For graph copying, a different GC stop function is used, see
 /// `stabilization::ic::stop_gc_before_stabilization()`.
-#[classical_persistence]
+#[cfg(not(feature = "enhanced_orthogonal_persistence"))]
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn stop_gc_on_upgrade() {
     stop_gc();
 }

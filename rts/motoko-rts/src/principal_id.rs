@@ -11,7 +11,7 @@ use motoko_rts_macros::ic_mem_fn;
 
 // CRC32 for blobs. Loosely based on https://rosettacode.org/wiki/CRC-32#Implementation_2
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn compute_crc32(blob: Value) -> u32 {
     if !blob.is_blob() {
         panic!("compute_crc32: Blob expected");
