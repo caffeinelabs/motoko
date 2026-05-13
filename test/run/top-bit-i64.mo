@@ -12,9 +12,8 @@ let i : Int64 = -1;
 assert (i >> 63 != 0);
 assert (i & -9223372036854775808 != 0);  // Int64.min_int form of 1 << 63
 
-// br_if shape via let-else with MSB-clear values so the else branch
-// is not taken. Both i64.eqz and wrap+eqz routes should collapse to
-// `clz ; wrap_i64 ; br_if else`.
+// Runtime sanity for let-else with MSB-clear `j`; the else trap is
+// unreachable, the scrutinee path still goes through the MSB peephole.
 let j : Int64 = 1;
 do {
   let 0 = j >> 63 else { Prim.trap "msb set (i64 shr_s)" };
@@ -30,16 +29,4 @@ do {
 // CHECK: i64.clz
 // CHECK: i32.wrap_i64
 // CHECK-NEXT: if  ;;
-// CHECK: i64.clz
-// CHECK: i32.wrap_i64
-// CHECK-NEXT: if  ;;
-// CHECK: i64.clz
-// CHECK: i32.wrap_i64
-// CHECK-NEXT: if  ;;
-// CHECK: i64.clz
-// CHECK: i32.wrap_i64
-// CHECK-NEXT: br_if
-// CHECK: i64.clz
-// CHECK: i32.wrap_i64
-// CHECK-NEXT: br_if
 // CHECK: end)

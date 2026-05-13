@@ -12,12 +12,9 @@ let i : Int32 = -1;
 assert (i >> 31 != 0);
 assert (i & -2147483648 != 0);
 
-// br_if shape via let-else: pattern `0` matches when value is 0;
-// the else branch fires when value != 0. moc emits
-//   `value ; eqz ; br_if else_label`
-// and the new rules collapse the eqz so the final shape is
-//   `clz ; br_if else_label`. Use an MSB-clear value so the else
-// branch is NOT taken at runtime.
+// Runtime sanity for let-else (the pattern runs twice — see Int-boxing
+// in the disassembly — but the MSB peephole still fires for the
+// scrutinee path and the trap is unreachable).
 let j : Int32 = 1;
 do {
   let 0 = j >> 31 else { Prim.trap "msb set (shr_s)" };
@@ -35,8 +32,4 @@ do {
 // CHECK-NEXT: if  ;;
 // CHECK: i32.clz
 // CHECK-NEXT: if  ;;
-// CHECK: i32.clz
-// CHECK-NEXT: br_if
-// CHECK: i32.clz
-// CHECK-NEXT: br_if
 // CHECK: end)

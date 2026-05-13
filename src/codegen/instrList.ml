@@ -175,6 +175,21 @@ let optimize : instr list -> instr list = fun is ->
     (* `If` blocks with empty legs just drop *)
     | l', ({it = If (_,[],[]); _} as i) :: r' ->
        go l' ({i with it = Drop} :: r')
+    (* `if (cond) (br N) else ()`  →  `br_if (N-1)`. moc never emits
+       `BrIf` directly, so this is currently the only source of `br_if`
+       in moc-generated code. Fires on internal codegen with no-result
+       blocks (e.g. `trans_state4`'s state-equality checks). Does NOT
+       fire on user-level break/continue/let-else because those lower
+       to `if [const 0; br N] []` (the unit value for the target
+       block's result type) — that needs locals to rewrite, out of
+       scope here.
+       DeBruijn: removing the if's implicit label decrements all br
+       targets by 1; `Br 0` (which targets the if itself) is a no-op
+       fall-through, so just drop the cond. *)
+    | l', ({it = If (_, [{it = Br x; _}], []); _} as i) :: r' when x.it = 0l ->
+      go l' ({i with it = Drop} :: r')
+    | l', ({it = If (_, [{it = Br x; _}], []); _} as i) :: r' ->
+      go l' ({i with it = BrIf {x with it = Int32.sub x.it 1l}} :: r')
     (* `If` blocks with empty then after comparison can invert the comparison and swap legs *)
     | { it = Compare (I32 I32Op.Eq); _} as comp :: l', ({it = If (res,[],else_); _} as i) :: r' ->
       go ({comp with it = Compare (I32 I32Op.Ne)} :: l') ({i with it = If (res,else_,[])} :: r')
