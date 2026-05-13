@@ -26,6 +26,15 @@ let high_mask_shift c =
     if Int64.add ctz_c clz_notc = 64L then Some (Int64.to_int ctz_c)
     else None
 
+(* i32 mirror of [high_mask_shift]: returns Some n if [c] = -1l << n for some n in [1, 31]. *)
+let high_mask_shift_i32 c =
+  if c = 0l || c = Int32.minus_one then None
+  else
+    let ctz_c = Wasm.I32.ctz c in
+    let clz_notc = Wasm.I32.clz (Int32.lognot c) in
+    if Int32.add ctz_c clz_notc = 32l then Some (Int32.to_int ctz_c)
+    else None
+
 let combine_shifts const op = function
   | I32 opl, ({it = I32 l'; _} as cl), I32 opr, I32 r' when opl = opr ->
     let l, r = Int32.(to_int l', to_int r') in
@@ -318,6 +327,23 @@ let optimize : instr list -> instr list = fun is ->
       when Option.is_some (high_mask_shift c) ->
       let n = Option.get (high_mask_shift c) in
       go (e :: {a with it = Binary (I64 I64Op.ShrU)} :: {const with it = Const {cv with it = I64 (Int64.of_int n)}} :: l') r'
+
+    (* i32 mirror: `i32.and (-1<<n); <i32-bool-context>` → `i32.shrU n; <same>`.
+       Bool contexts are `i32.eqz`, `if`, and `br_if` — all interpret the
+       i32 as "non-zero?". `and (-1<<n)` and `shrU n` agree on that predicate
+       (both nonzero iff input has any bit in [n, 31] set). Targets classical's
+       `enforce_unsigned_bits env n` (mask fed directly into `if (trap)` —
+       no intervening eqz, unlike the EOP shape). All three contexts collapse
+       into a single or-pattern by matching the bool op *after* it has been
+       consumed into l'; the rule preserves it untouched.
+       Must come AFTER the i32 MSB-`and 0x80000000` rules above so for n=31
+       those produce `clz; if e t` (with arm swap) instead. *)
+    | ({it = Test (I32 I32Op.Eqz) | If _ | BrIf _; _} as bool_op)
+      :: ({it = Binary (I32 I32Op.And); _} as a)
+      :: ({it = Const ({it = I32 c; _} as cv); _} as const) :: l', r'
+      when Option.is_some (high_mask_shift_i32 c) ->
+      let n = Option.get (high_mask_shift_i32 c) in
+      go (bool_op :: {a with it = Binary (I32 I32Op.ShrU)} :: {const with it = Const {cv with it = I32 (Int32.of_int n)}} :: l') r'
 
     (* Null shifts can be eliminated *)
     | l', {it = Const {it = I32 0l; _}; _} :: {it = Binary (I32 I32Op.(Shl|ShrS|ShrU)); _} :: r' ->
