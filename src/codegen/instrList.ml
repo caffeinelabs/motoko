@@ -10,6 +10,7 @@ features are
 open Wasm_exts.Ast
 open Wasm.Source
 open Wasm_exts.Values
+open Wasm_exts.Types
 
 let combine_shifts const op = function
   | I32 opl, ({it = I32 l'; _} as cl), I32 opr, I32 r' when opl = opr ->
@@ -48,6 +49,21 @@ let optimize : instr list -> instr list = fun is ->
     (* The following is not semantics preserving for general Wasm (due to out-of-memory)
        but should be fine for the code that we create *)
     | { it = Load _; _} :: l', { it = Drop; _ } :: _ -> go l' r
+    (* `i64.load*; i32.wrap_i64`  →  `i32.load*` with the same access size.
+       Spec semantics-preserving for the packed loads (load reads exactly
+       4 / 2 / 1 bytes either way; the wrap drops the upper-32 extension).
+       The full `i64.load` narrows the read from 8 to 4 bytes — same OOM
+       caveat as the `Load; Drop` rule above (moc never reads past valid
+       memory). Common in Candid deserialization. *)
+    | ({ it = Load ({ ty = I64Type; sz = None; _ } as lop); _ } as ld) :: l',
+      { it = Convert (I32 I32Op.WrapI64); _ } :: r' ->
+      go l' ({ ld with it = Load { lop with ty = I32Type; align = min lop.align 2 } } :: r')
+    | ({ it = Load ({ ty = I64Type; sz = Some (Pack32, _); _ } as lop); _ } as ld) :: l',
+      { it = Convert (I32 I32Op.WrapI64); _ } :: r' ->
+      go l' ({ ld with it = Load { lop with ty = I32Type; sz = None } } :: r')
+    | ({ it = Load ({ ty = I64Type; sz = Some ((Pack8 | Pack16), _); _ } as lop); _ } as ld) :: l',
+      { it = Convert (I32 I32Op.WrapI64); _ } :: r' ->
+      go l' ({ ld with it = Load { lop with ty = I32Type } } :: r')
     (* Introduce LocalTee *)
     | { it = LocalSet n1; _} :: l', ({ it = LocalGet n2; _ } as i) :: r' when n1 = n2 ->
       go l' ({i with it = LocalTee n2 } :: r')
