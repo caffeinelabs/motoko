@@ -4,6 +4,7 @@
 * [Base64](Base64.md) Module for Base64 encoding of byte sequences.
 * [Blob](Blob.md) Module for working with Blobs (immutable sequences of bytes).
 * [Bool](Bool.md) Boolean type and operations.
+* [CallerAttributes](CallerAttributes.md) Allows accessing the Internet Computer's caller attributes.
 * [CertifiedData](CertifiedData.md) Certified data.
 * [Char](Char.md) Module for working with Characters (Unicode code points).
 * [Cycles](Cycles.md) Managing cycles within actors in the Internet Computer Protocol (ICP).

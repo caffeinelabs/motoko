@@ -20,6 +20,7 @@ Motoko supports several types of patterns:
 | Named  | Introduces identifiers into a new scope. | `age`, `x` |
 | Tuple                   | Must have at least two components.   | `( component0, component1, …​ )` |
 | Alternative (`or`-pattern) | Match multiple patterns. | `0 or 1`                        |
+| Conjunctive (`and`-pattern) | Match both patterns; bindings combine. | `?x and s`                    |
 
 ## Concepts
 
@@ -29,7 +30,7 @@ Unlike traditional `enum` types in other languages, which define fixed sets of v
 
 ### Irrefutable and refutable patterns
 
-Patterns are either refutable** or irrefutable. A refutable pattern can fail to match (like literal patterns or specific variant tags). An irrefutable pattern always matches any value of its type. Examples include the wildcard `_`, simple variable names, or structured patterns (like records or tuples) made only from irrefutable parts.
+Patterns are either **refutable** or **irrefutable**. A refutable pattern can fail to match (like literal patterns or specific variant tags). An irrefutable pattern always matches any value of its type. Examples include the wildcard `_`, simple variable names, or structured patterns (like records or tuples) made only from irrefutable parts.
 
 ### Singleton types
 

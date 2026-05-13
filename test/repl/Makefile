@@ -1,10 +1,10 @@
 RUNFLAGS =
 
 all:
-	../run.sh $(RUNFLAGS) *.sh
+	run-test $(RUNFLAGS) *.sh
 
 accept:
-	../run.sh $(RUNFLAGS) -a *.sh
+	run-test $(RUNFLAGS) -a *.sh
 
 clean:
 	rm -rf _out

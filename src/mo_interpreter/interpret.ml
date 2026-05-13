@@ -845,6 +845,7 @@ and declare_pat pat : val_env =
   | AltP (pat1, _) (* pat2 has the same identifiers *)
   | AnnotP (pat1, _)
   | ParP pat1 -> declare_pat pat1
+  | AndP (pat1, pat2) -> V.Env.adjoin (declare_pat pat1) (declare_pat pat2)
 
 and declare_pats pats ve : val_env =
   match pats with
@@ -935,6 +936,9 @@ and match_pat pat v : val_env option =
     | None -> match_pat pat2 v
     | some -> some
     )
+  | AndP (pat1, pat2) ->
+    Option.(bind (match_pat pat1 v) (fun ve1 ->
+      map (V.Env.adjoin ve1) (match_pat pat2 v)))
   | AnnotP (pat1, _)
   | ParP pat1 ->
     match_pat pat1 v

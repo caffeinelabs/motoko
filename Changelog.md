@@ -1,6 +1,14 @@
 # Motoko compiler changelog
 
-## Next
+* motoko (`moc`)
+
+  * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
+  * feat: `and`-patterns — `p1 and p2` matches when both legs match, binding from both (#6049).
+
+  * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
+
+## 1.7.0 (2026-04-29)
 
 * motoko (`moc`)
 
@@ -14,6 +22,12 @@
     on the right is parsed as a block, a bare record literal must be wrapped
     in extra braces or parentheses, e.g. `opt ?? ({ x = 0 })` or
     `opt ?? {{ x = 0 }}`.
+
+  * perf: Compile enhanced multi-migration chains as per-step functions instead of one deeply-nested inlined expression, avoiding the wasm-function complexity limit hit by long chains (#6065).
+
+  * bugfix: Preserve GC-only roots (blob deduplication table, migration functions list) across graph-copy upgrades, and defer actor type compatibility checks to `ICStableRead` so enhanced multi-migration chains with multiple pending steps are accepted (#5993).
+
+  * bugfix: Clearer error when installing a Motoko canister over a non-Motoko or otherwise incompatible canister (#6044).
 
 ## 1.6.0 (2026-04-21)
 

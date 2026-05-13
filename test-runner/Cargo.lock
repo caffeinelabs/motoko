@@ -1319,7 +1319,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 [[package]]
 name = "pocket-ic"
 version = "13.0.0"
-source = "git+https://github.com/dfinity/ic?tag=release-2026-04-16_04-20-base#719ff387aab462ce5759c4c20c30de959fe9538c"
+source = "git+https://github.com/dfinity/ic?tag=release-2026-04-30_04-26-base#f31310fe9d4237e1352477ae9a9b009bbe78c968"
 dependencies = [
  "backoff",
  "base64 0.13.1",
@@ -1736,9 +1736,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.12"
+version = "0.103.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8279bb85272c9f10811ae6a6c547ff594d6a7f3c6c6b02ee9726d1d0dcfcdd06"
+checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -2162,6 +2162,7 @@ dependencies = [
  "ic-management-canister-types",
  "indicatif",
  "inquire",
+ "libc",
  "pocket-ic",
  "rayon",
  "regex",

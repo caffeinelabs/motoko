@@ -1618,7 +1618,17 @@ The or pattern `<pat1> or <pat2>` is a disjunctive pattern.
 
 The result of matching `<pat1> or <pat2>` against a value is the result of matching `<pat1>`, if it succeeds, or the result of matching `<pat2>`, if the first match fails.
 
-An `or`-pattern may contain identifier (`<id>`) patterns with the restriction that both alternatives must bind the same set of identifiers. Each identifier's type is the least upper bound of its type in `<pat1>` and `<pat2>`.
+An `or`-pattern may contain identifier (`<id>`) patterns with the restriction that both alternatives must bind the same set of identifiers. Each identifier's type is the least upper bound of the types assigned to it by `<pat1>` and `<pat2>`.
+
+### And pattern
+
+The and pattern `<pat1> and <pat2>` is a conjunctive pattern.
+
+The result of matching `<pat1> and <pat2>` against a value is the union of the bindings produced by matching `<pat1>` and then `<pat2>`, both against the same value. The match fails if either sub-match fails.
+
+Unlike an `or`-pattern, the two sides of an `and`-pattern must bind *disjoint* sets of identifiers; a name bound in both sides is a type error.
+
+`and` binds tighter than `or`, so `<pat1> or <pat2> and <pat3>` parses as `<pat1> or (<pat2> and <pat3>)`.
 
 ### Expression declaration
 
@@ -2372,6 +2382,11 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
     *  Cs is the set of candidate module `<mid>` named `<mid>`, with type `V` whose field `<mid>.<idi>` matches hole type `Ui` (after type instantiation).
     *  Ds is the disambiguated set of candidates, filtered by generality.
     * `<mid>.<idi>` is the name of the unique disambiguation, if one exists (that is, when Ds is a singleton set).
+
+    **Implicit derivation**: When no direct candidate is found (neither from local values, module fields, nor library fields of unimported modules when `--implicit-package` is set), the compiler additionally searches for *derivable* candidates — first among local values, then among module fields, then among library fields.
+    A derivable candidate is a function (possibly polymorphic) that has implicit parameters of its own, and whose type, after removing its implicit parameters and instantiating its type parameters, matches the required hole type.
+    If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
+    This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.
 
 The call expression `<exp1> <T0,…​,Tn>? <exp2>` evaluates `<exp1>` to a result `r1`. If `r1` is `trap`, then the result is `trap`.
 

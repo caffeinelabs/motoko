@@ -39,7 +39,7 @@ runs:
       shell: bash
 
     - name: Commit `test/bench` changes
-      uses: EndBug/add-and-commit@v9
+      uses: EndBug/add-and-commit@0a145b91207725ab63102736ff2ddcf18f90cdb5 # v10.0.0
       with:
         default_author: github_actions
         author_name: Cycle and memory benchmark updater
@@ -68,7 +68,7 @@ runs:
 
     - name: Find performance comment
       if: ${{ inputs.is_fork == 'false' }}
-      uses: peter-evans/find-comment@v3
+      uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
       id: fc
       with:
         issue-number: ${{ inputs.pr_number }}
@@ -79,7 +79,7 @@ runs:
     # motoko#2864.
     - name: Create or update performance comment
       if: ${{ inputs.is_fork == 'false' }}
-      uses: peter-evans/create-or-update-comment@v4
+      uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
       with:
         comment-id: ${{ steps.fc.outputs.comment-id }}
         issue-number: ${{ inputs.pr_number }}

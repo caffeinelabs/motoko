@@ -217,6 +217,9 @@ let error_codes : (string * string option) list =
     "M0257", None; (* Misplaced uninitialized dec *)
     "M0258", None; (* Uninitialized `let` with non <id> : <typ> pattern *)
     "M0259", None; (* Uninitialized dec requires type annotation *)
+    "M0260", None; (* `and`-pattern binds the same variable in both legs *)
+    "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
+    "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

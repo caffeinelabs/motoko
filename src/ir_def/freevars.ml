@@ -86,6 +86,7 @@ let rec pat p : td = match p.it with
   | OptP p
   | TagP (_, p)     -> pat p
   | AltP (p1, p2)   -> pat p1 +- pat p2
+  | AndP (p1, p2)   -> pat p1 +- pat p2
 
 and pats ps : td = List.(fold_left (+-) M.empty (map pat ps))
 
