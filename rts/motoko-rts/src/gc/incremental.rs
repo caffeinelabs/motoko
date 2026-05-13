@@ -151,8 +151,12 @@ pub enum Phase {
 /// Use a long-term representation by relying on C layout.
 #[repr(C)]
 pub struct State {
-    // Private — all access goes through `phase()` / `set_phase()` so the
-    // backend's `__running_gc` global stays in sync via `set_running_gc`.
+    /// Current GC phase. **DO NOT assign directly** — always go through
+    /// [`State::set_phase`], which keeps the backend-side `__running_gc`
+    /// global in sync via the `set_running_gc` export on every
+    /// `Pause ↔ non-Pause` transition. The field privacy (no `pub`)
+    /// enforces this within the module; the rule is repeated here for
+    /// future contributors to make the invariant explicit.
     phase_inner: Phase,
     partitioned_heap: PartitionedHeap,
     allocation_count: usize, // Number of allocations during an active GC run.
