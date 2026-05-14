@@ -454,20 +454,68 @@ and exp' at note = function
                        | _ -> assert false) in
     (blockE (ds @ rs) { at; note; it }).it
   | S.AwaitE (sort, e) ->
-    (* Self-actor worker exception (phase-1 lowering): when the typechecker's
-       `AwaitE` rule greenlit an `await*` on an `async T` (not `async*`) callee
-       — Obvious-self or Maybe-self — the surface sort `AwaitCmp` would be
-       ill-typed at IR level (`AwaitPrim AwaitCmp` requires `async*`). Mirror
-       the AST interpreter's polymorphic `await*` by translating to the
-       long-form `AwaitPrim (AwaitFut false)` when the value is `async`. This
-       gives up the worker fast path (worker emission + retargeting is a
-       follow-up) but keeps `await*` semantically equivalent to `await` in
-       this regime — sound for any consumer. *)
-    let sort' = match sort, T.promote e.note.S.note_typ with
-      | T.AwaitCmp, T.Async (T.Fut, _, _) -> T.AwaitFut false
-      | _ -> sort
+    (* Self-actor worker (phase-1 lowering). When the typechecker greenlit
+       AwaitCmp on an `async T` (not async-cmp) callee, the call is either
+       Obvious-self (statically resolvable to a public method of the
+       enclosing actor — VarE id with id in public_methods, or DotE on
+       self_id) or Maybe-self (callee receiver typed as some actor but not
+       known to be self). In the Obvious-self case we retarget the call to
+       the generated private async-cmp worker `foo+star` emitted by
+       split_demanded_method; the result is a well-typed AwaitPrim AwaitCmp
+       on an async-cmp callee. In the Maybe-self case (and any non-actor
+       context), we fall back to the polymorphic-await translation:
+       AwaitCmp on async-fut T becomes AwaitPrim (AwaitFut false), keeping
+       AwaitCmp semantically equivalent to AwaitFut. *)
+    let obvious_self_target =
+      match sort, T.promote e.note.S.note_typ, !current_actor_context with
+      | T.AwaitCmp, T.Async (T.Fut, _, _), Some (public_methods, self_id_opt) ->
+          (match e.it with
+           | S.CallE (_par, callee, _inst, (_s, e2_ref)) ->
+               (match callee.it with
+                | S.VarE id when StringSet.mem id.it public_methods ->
+                    Some (id.it, callee, !e2_ref)
+                | S.DotE ({ it = S.VarE recv; _ }, mname, _)
+                  when self_id_opt = Some recv.it ->
+                    Some (mname.it, callee, !e2_ref)
+                | _ -> None)
+           | _ -> None)
+      | _ -> None
     in
-    I.PrimE I.(AwaitPrim sort', [exp e])
+    (match obvious_self_target with
+     | Some (target_name, callee, args_e) ->
+         (* Retarget to the worker. Worker's function type is the callee's
+            type with codomain wrapped in `async* _ T` and sort/control
+            switched to Local/Returns. Structural match with the worker
+            emitted by `split_demanded_method` is sufficient — physical
+            cons identity is not required by `check_ir`. *)
+         let callee_typ = T.promote callee.note.S.note_typ in
+         let (_sort_orig, _ctrl_orig, tbs, doms, rng_typs) = T.as_func callee_typ in
+         let content_typ = match rng_typs with
+           | [t] -> t
+           | _ -> assert false in
+         let scope_var = T.Var (T.default_scope_var, 0) in
+         let worker_typ =
+           T.Func (T.Local, T.Returns, tbs, doms,
+                   [T.Async (T.Cmp, scope_var, content_typ)]) in
+         let worker_name = target_name ^ "*" in
+         let worker_var_e = varE (var worker_name worker_typ) in
+         (* Find a scope type-arg: take it from the surrounding async block
+            via the callee's CallE inst.note (already lowered for the
+            original call). Easier: use the callee's original inst.note
+            unchanged. *)
+         let inst_note = match e.it with
+           | S.CallE (_, _, inst, _) -> inst.note
+           | _ -> assert false in
+         let call_worker =
+           callE worker_var_e inst_note (exp args_e) in
+         let await_call = awaitE T.AwaitCmp call_worker in
+         await_call.it
+     | None ->
+         let sort' = match sort, T.promote e.note.S.note_typ with
+           | T.AwaitCmp, T.Async (T.Fut, _, _) -> T.AwaitFut false
+           | _ -> sort
+         in
+         I.PrimE I.(AwaitPrim sort', [exp e]))
   | S.AssertE (Runtime, e) -> I.PrimE (I.AssertPrim, [exp e])
   | S.AnnotE (e, _) -> assert false
   | S.ImportE (f, ir) -> raise (Invalid_argument (Printf.sprintf "Import expression found in unit body: %s" f))
@@ -892,15 +940,19 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
      continue to lower via the polymorphic-await* fallback (`AwaitCmp` on
      `async _ T` → `AwaitFut false`). Retargeting those call sites to the
      worker is a follow-up. *)
-  let demand =
-    let self_id_opt = Option.map (fun (i : S.id) -> i.it) self_id in
-    let (_, tfs0, _) = T.as_obj' obj_typ0 in
-    let public_methods =
-      List.fold_left (fun s T.{lab; _} -> StringSet.add lab s) StringSet.empty tfs0 in
-    collect_obvious_self_demand self_id_opt public_methods es
-  in
+  let self_id_opt = Option.map (fun (i : S.id) -> i.it) self_id in
+  let (_, tfs0, _) = T.as_obj' obj_typ0 in
+  let public_methods =
+    List.fold_left (fun s T.{lab; _} -> StringSet.add lab s) StringSet.empty tfs0 in
+  let demand = collect_obvious_self_demand self_id_opt public_methods es in
+  (* Plant `current_actor_context` for the duration of this actor's
+     dec_fields lowering so the `S.AwaitE` handler can recognise
+     Obvious-self call sites and retarget them to the generated worker. *)
+  let saved_context = !current_actor_context in
+  current_actor_context := Some (public_methods, self_id_opt);
   let stabs = List.concat_map build_stabs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
+  current_actor_context := saved_context;
   (* Apply the wrapper/worker split alongside stabs adjustment so the two
      lists stay equal-length for `List.map2 stabilize` below. The worker
      is a private/flexible dec; the wrapper keeps the original method's
