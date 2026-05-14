@@ -1,5 +1,5 @@
 // Exercises all three branches of the syntactic AwaitE classifier on an
-// `actor class` with two instances:
+// `actor class A` with two instances:
 //   - the first instance receives `null` as its prior-sibling argument;
 //   - the second receives `?first`.
 // Inside `go()`:
@@ -8,12 +8,14 @@
 //   - `await* self.foo()`   — Obvious self via DotE on env.self_id;
 //   - `await* s.foo()`      — Maybe self via DotE on an actor-typed
 //                             receiver (s : A, unwrapped from `prior`).
-// AST interpreter runs all three via the polymorphic `await*` (Async
-// fallback to plain `await`); worker fast-path is a phase-2 lowering
-// concern that doesn't affect observable semantics here.
+// The Maybe-self path lowers to a runtime `Prim.thisActor ==
+// principalOfActor recv` check that picks the worker fast path when the
+// receiver is `self`, and the ordinary message-send slow path otherwise.
 
 persistent actor class A(prior : ?A) = self {
-  public func foo() : async Nat { switch prior { case (?_) 42; case _ 21 } };
+  public func foo() : async Nat {
+    switch prior { case (?_) 42; case _ 21 }
+  };
 
   public func go() : async Nat {
     let n_unqual = await* foo();

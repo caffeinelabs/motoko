@@ -11,6 +11,4 @@ persistent actor a {
   };
 };
 
-a.go();
-
-//SKIP comp
+a.go(); //OR-CALL ingress go "DIDL\x00\x00"
