@@ -9,7 +9,45 @@ open Operator
 module S = Syntax
 module I = Ir
 module T = Type
+module Traversals = Mo_frontend.Traversals
 open Construct
+
+(* String set used for collecting the per-actor "worker demand": names of
+   public methods that are `await*`'d as Obvious-self call sites somewhere
+   in the actor body. Built by `collect_obvious_self_demand`; consumed by
+   the wrapper/worker split in `build_actor` / `build_obj`. *)
+module StringSet = Set.Make (String)
+
+(* Walk the surface dec_fields of an actor body and collect the names of
+   public methods that appear as the target of an Obvious-self `await*`
+   (matching the same syntactic classifier as `typing.ml`'s AwaitE rule).
+
+   Quadratic in the number of methods (each AwaitE call site checks
+   membership in `public_methods`), but N is small in practice. *)
+let collect_obvious_self_demand
+    (self_id_opt : string option)
+    (public_methods : StringSet.t)
+    (dec_fields : S.dec_field list)
+    : StringSet.t =
+  let demand = ref StringSet.empty in
+  let visit (e : S.exp) : S.exp =
+    (match e.it with
+     | S.AwaitE (T.AwaitCmp, e1) ->
+        (match e1.it with
+         | S.CallE (_, callee, _, _) ->
+            (match callee.it with
+             | S.VarE id when StringSet.mem id.it public_methods ->
+                demand := StringSet.add id.it !demand
+             | S.DotE ({ it = S.VarE recv; _ }, mname, _)
+                when self_id_opt = Some recv.it ->
+                demand := StringSet.add mname.it !demand
+             | _ -> ())
+         | _ -> ())
+     | _ -> ());
+    e
+  in
+  List.iter (fun df -> ignore (Traversals.over_dec_field visit df)) dec_fields;
+  !demand
 
 (*
 As a first scaffolding, we translate imported files into let-bound
@@ -765,6 +803,20 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let fs0 = build_fields obj_typ0 in
+  (* Worker/wrapper-split scaffolding: identify which public methods are
+     `await*`'d as Obvious-self call sites somewhere in this actor body.
+     Currently collected but not consumed — the actual IR transformation
+     (emit private `foo*`, replace wrapper body with `async { await* foo*(...) }`)
+     is a follow-up. The AST-interpreter polymorphic `await*` and the
+     desugar fallback (`AwaitCmp` on `async _ T` → `AwaitFut false`) keep
+     soundness while the optimisation is offline. *)
+  let _demand =
+    let self_id_opt = Option.map (fun (i : S.id) -> i.it) self_id in
+    let (_, tfs0, _) = T.as_obj' obj_typ0 in
+    let public_methods =
+      List.fold_left (fun s T.{lab; _} -> StringSet.add lab s) StringSet.empty tfs0 in
+    collect_obvious_self_demand self_id_opt public_methods es
+  in
   let stabs = List.concat_map build_stabs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
   let pairs = List.map2 stabilize stabs ds in
