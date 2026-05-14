@@ -18,6 +18,8 @@ open Construct
    the wrapper/worker split in `build_actor` / `build_obj`. *)
 module StringSet = Set.Make (String)
 
+(* ----- helpers used by the self-actor worker split -------------------- *)
+
 (* Walk the surface dec_fields of an actor body and collect the names of
    public methods that appear as the target of an Obvious-self `await*`
    (matching the same syntactic classifier as `typing.ml`'s AwaitE rule).
@@ -48,6 +50,75 @@ let collect_obvious_self_demand
   in
   List.iter (fun df -> ignore (Traversals.over_dec_field visit df)) dec_fields;
   !demand
+
+(* Given an IR `LetD (VarP name) (FuncE name Shared … (AsyncE Fut tb body t))`
+   for a demanded public method, return two decs: a private worker `name*`
+   wrapping `body` in `AsyncE Cmp`, and a modified wrapper whose body is
+   `async { await* name*(args) }` calling the worker.
+
+   Phase-1 limitation: the worker's body literally inherits the surface
+   `body` expression from the original wrapper's `AsyncE`. That is sound
+   as long as `body` does not reference the wrapper's `AsyncE` scope
+   variable directly (e.g. simple-returns like `{ 42 }`). For bodies that
+   do (e.g. they themselves `await` inner async calls), the references
+   would dangle — that case is handled by falling back to leaving the dec
+   untouched. *)
+let split_demanded_method (demand : StringSet.t) (d : I.dec) : I.dec list =
+  match d.it with
+  | I.LetD ({ it = I.VarP name; _ },
+            ({ it = I.FuncE (_fname, sort, _ctrl, tbs, args, typs, body); _ } as _fexp))
+    when StringSet.mem name demand && T.is_shared_sort sort ->
+      (match body.it with
+       | I.AsyncE (T.Fut, async_tb, user_body, scope_typ) ->
+           (* `scope_typ` is the wrapper's outer scope used as the AsyncE's
+              type-scope (typically `T.Con (tbs[0].it.con, [])`); `async_tb`
+              is the AsyncE's inner binder. *)
+           let content_typ = user_body.note.Note.typ in
+           (* Build the worker. Fresh outer typ_binds (its own function-scope
+              binder) and a fresh AsyncE inner binder. *)
+           let worker_name = name ^ "*" in
+           let worker_outer_con =
+             Cons.fresh T.default_scope_var (T.Abs ([], T.scope_bound)) in
+           let worker_outer_tb =
+             typ_arg worker_outer_con T.Scope T.scope_bound in
+           let worker_outer_typ = T.Con (worker_outer_con, []) in
+           let worker_async_con =
+             Cons.fresh T.default_scope_var (T.Abs ([], T.scope_bound)) in
+           let worker_async_tb =
+             typ_arg worker_async_con T.Scope T.scope_bound in
+           let worker_body =
+             asyncE T.Cmp worker_async_tb user_body worker_outer_typ in
+           let worker_return_typ =
+             T.Async (T.Cmp, worker_outer_typ, content_typ) in
+           let worker_func =
+             funcE worker_name T.Local T.Returns [worker_outer_tb]
+               args [worker_return_typ] worker_body in
+           let worker_var = var worker_name worker_func.note.Note.typ in
+           let worker_dec = letD worker_var worker_func in
+           (* New wrapper body: `async { await* worker(args) }`. The call
+              instantiates the worker's outer scope binder with the
+              wrapper's AsyncE scope. *)
+           let arg_forward = match args with
+             | [] -> tupE []
+             | _ -> tupE (List.map (fun a -> varE (var_of_arg a)) args) in
+           let call_worker =
+             (* Instantiate the worker's outer scope binder with the
+                wrapper's *current* AsyncE scope (the inner async_tb's con),
+                not the wrapper FuncE's outer scope. *)
+             callE (varE worker_var)
+               [T.Con (async_tb.it.I.con, [])]
+               arg_forward in
+           let await_call = awaitE T.AwaitCmp call_worker in
+           let new_wrapper_body =
+             asyncE T.Fut async_tb await_call scope_typ in
+           let new_wrapper_func =
+             funcE name sort T.Promises tbs args typs new_wrapper_body in
+           let new_wrapper_var = var name new_wrapper_func.note.Note.typ in
+           let new_wrapper_dec = letD new_wrapper_var new_wrapper_func in
+           [{ worker_dec with at = d.at };
+            { new_wrapper_dec with at = d.at }]
+       | _ -> [d])
+  | _ -> [d]
 
 (*
 As a first scaffolding, we translate imported files into let-bound
@@ -803,14 +874,17 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let fs0 = build_fields obj_typ0 in
-  (* Worker/wrapper-split scaffolding: identify which public methods are
-     `await*`'d as Obvious-self call sites somewhere in this actor body.
-     Currently collected but not consumed — the actual IR transformation
-     (emit private `foo*`, replace wrapper body with `async { await* foo*(...) }`)
-     is a follow-up. The AST-interpreter polymorphic `await*` and the
-     desugar fallback (`AwaitCmp` on `async _ T` → `AwaitFut false`) keep
-     soundness while the optimisation is offline. *)
-  let _demand =
+  (* Self-actor worker/wrapper split: collect the set of `public` methods
+     that are `await*`'d as Obvious-self call sites in this actor body, and
+     after lowering the dec_fields, replace each demanded method's
+     `LetD (VarP foo) (FuncE foo Shared … (AsyncE Fut tb body t))` with two
+     decs: a private worker `foo*` carrying `body` in `AsyncE Cmp`, and a
+     modified wrapper whose body is `async { await* foo*(args) }`. The
+     Obvious-self call sites in *other* methods are left untouched; they
+     continue to lower via the polymorphic-await* fallback (`AwaitCmp` on
+     `async _ T` → `AwaitFut false`). Retargeting those call sites to the
+     worker is a follow-up. *)
+  let demand =
     let self_id_opt = Option.map (fun (i : S.id) -> i.it) self_id in
     let (_, tfs0, _) = T.as_obj' obj_typ0 in
     let public_methods =
@@ -819,6 +893,19 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   in
   let stabs = List.concat_map build_stabs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
+  (* Apply the wrapper/worker split alongside stabs adjustment so the two
+     lists stay equal-length for `List.map2 stabilize` below. The worker
+     is a private/flexible dec; the wrapper keeps the original method's
+     stability annotation (none for `public func`, etc.). *)
+  let stabs, ds =
+    List.combine stabs ds
+    |> List.concat_map (fun (st, d) ->
+        match split_demanded_method demand d with
+        | [worker; wrapper] ->
+            let flex = Some (S.Flexible @@ no_region) in
+            [(flex, worker); (st, wrapper)]
+        | ds' -> List.map (fun d -> (st, d)) ds')
+    |> List.split in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
