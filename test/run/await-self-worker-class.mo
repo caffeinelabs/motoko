@@ -1,25 +1,29 @@
-// Exercises both branches of the syntactic AwaitE classifier on an
+// Exercises all three branches of the syntactic AwaitE classifier on an
 // `actor class` with two instances:
 //   - the first instance receives `null` as its prior-sibling argument;
 //   - the second receives `?first`.
 // Inside `go()`:
-//   - `await* foo()` is an Obvious self-call (unqualified, foo ∈ public_methods);
-//   - `await* s.foo()` (where `s : A` is unwrapped from the optional sibling)
-//     is a Maybe-self call (DotE on an actor-typed receiver, static method name).
-// AST interpreter runs both via the polymorphic `await*` (Async fallback to
-// plain await); the worker fast-path is a phase-2 lowering concern.
+//   - `await* foo()`        — Obvious self via unqualified VarE
+//                             (foo ∈ env.public_methods);
+//   - `await* self.foo()`   — Obvious self via DotE on env.self_id;
+//   - `await* s.foo()`      — Maybe self via DotE on an actor-typed
+//                             receiver (s : A, unwrapped from `prior`).
+// AST interpreter runs all three via the polymorphic `await*` (Async
+// fallback to plain `await`); worker fast-path is a phase-2 lowering
+// concern that doesn't affect observable semantics here.
 
-persistent actor class A(prior : ?A) {
+persistent actor class A(prior : ?A) = self {
   public func foo() : async Nat { 42 };
 
   public func go() : async Nat {
-    let n_self = await* foo();
+    let n_unqual = await* foo();
+    let n_self   = await* self.foo();
     switch prior {
       case (?s) {
         let n_other = await* s.foo();
-        n_self + n_other
+        n_unqual + n_self + n_other
       };
-      case null { n_self };
+      case null { n_unqual + n_self };
     }
   };
 };
@@ -27,6 +31,6 @@ persistent actor class A(prior : ?A) {
 let first = await A(null);
 let second = await A(?first);
 let total = await second.go();
-assert total == 84;
+assert total == 126;
 
 //SKIP comp
