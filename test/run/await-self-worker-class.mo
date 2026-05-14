@@ -13,7 +13,7 @@
 // concern that doesn't affect observable semantics here.
 
 persistent actor class A(prior : ?A) = self {
-  public func foo() : async Nat { 42 };
+  public func foo() : async Nat { switch prior { case (?_) 42; case _ 21 } };
 
   public func go() : async Nat {
     let n_unqual = await* foo();
@@ -31,6 +31,9 @@ persistent actor class A(prior : ?A) = self {
 let first = await A(null);
 let second = await A(?first);
 let total = await second.go();
-assert total == 126;
+// second.foo() = 42 (prior = ?first matches `?_`) called twice (Obvious self
+// via VarE and via DotE self), plus first.foo() = 21 (prior = null matches
+// the wildcard) via Maybe-self DotE: 42 + 42 + 21 = 105.
+assert total == 105;
 
 //SKIP comp

@@ -18,6 +18,14 @@ open Construct
    the wrapper/worker split in `build_actor` / `build_obj`. *)
 module StringSet = Set.Make (String)
 
+(* Context for the AwaitE retargeting at desugar time. Set by `build_actor`
+   for the duration of its dec_fields lowering; carries the actor's set of
+   public-method names (for matching unqualified `await* foo()` callees) and
+   the optional self-id binding (for matching `await* self.foo()`). Restored
+   to the previous value at the end of each actor scope to support nested
+   actors. *)
+let current_actor_context : (StringSet.t * string option) option ref = ref None
+
 (* ----- helpers used by the self-actor worker split -------------------- *)
 
 (* Walk the surface dec_fields of an actor body and collect the names of
