@@ -29,8 +29,14 @@ let current_actor_context : (StringSet.t * string option) option ref = ref None
 (* ----- helpers used by the self-actor worker split -------------------- *)
 
 (* Walk the surface dec_fields of an actor body and collect the names of
-   public methods that appear as the target of an Obvious-self `await*`
-   (matching the same syntactic classifier as `typing.ml`'s AwaitE rule).
+   public methods that need a worker emitted because they appear as the
+   target of an `await*` somewhere in the body. The classifier matches:
+
+   - Obvious self via unqualified `VarE id` with `id ∈ public_methods`;
+   - Obvious self via `DotE (VarE recv, _, _)` with `recv = self_id`;
+   - Maybe-self via `DotE (recv, _, _)` where `recv` has actor type and
+     the method name is in `public_methods` (recv may or may not be self
+     at runtime; phase-2 lowering emits a runtime-checked dual path).
 
    Quadratic in the number of methods (each AwaitE call site checks
    membership in `public_methods`), but N is small in practice. *)
@@ -50,6 +56,12 @@ let collect_obvious_self_demand
                 demand := StringSet.add id.it !demand
              | S.DotE ({ it = S.VarE recv; _ }, mname, _)
                 when self_id_opt = Some recv.it ->
+                demand := StringSet.add mname.it !demand
+             | S.DotE (recv, mname, _)
+                when StringSet.mem mname.it public_methods
+                     && (match T.promote recv.note.S.note_typ with
+                         | T.Obj (T.Actor, _, _) -> true
+                         | _ -> false) ->
                 demand := StringSet.add mname.it !demand
              | _ -> ())
          | _ -> ())
@@ -511,11 +523,83 @@ and exp' at note = function
          let await_call = awaitE T.AwaitCmp call_worker in
          await_call.it
      | None ->
-         let sort' = match sort, T.promote e.note.S.note_typ with
-           | T.AwaitCmp, T.Async (T.Fut, _, _) -> T.AwaitFut false
-           | _ -> sort
+         (* Phase-2 Maybe-self: callee is `DotE (recv, mname, _)` whose
+            receiver is dynamically typed as an actor but is *not*
+            statically `self_id`, and `mname` is a public method of the
+            current actor. Emit a runtime dual path:
+              let r = recv;
+              if (selfRef == principalOfActor r)
+              then await* foo*(args)           // fast path
+              else await r.foo(args)           // slow path
+            Both branches return the same content T. The receiver is
+            let-bound to avoid double-evaluation in the two branches. *)
+         let maybe_self_target =
+           match sort, T.promote e.note.S.note_typ, !current_actor_context with
+           | T.AwaitCmp, T.Async (T.Fut, _, _), Some (public_methods, _self_id_opt) ->
+               (match e.it with
+                | S.CallE (_par, callee, _inst, (_s, e2_ref)) ->
+                    (match callee.it with
+                     | S.DotE (recv, mname, _)
+                       when StringSet.mem mname.it public_methods
+                            && (match T.promote recv.note.S.note_typ with
+                                | T.Obj (T.Actor, _, _) -> true
+                                | _ -> false) ->
+                         Some (mname.it, recv, callee, !e2_ref)
+                     | _ -> None)
+                | _ -> None)
+           | _ -> None
          in
-         I.PrimE I.(AwaitPrim sort', [exp e]))
+         (match maybe_self_target with
+          | Some (target_name, recv, callee, args_e) ->
+              let callee_typ_orig = T.promote callee.note.S.note_typ in
+              let (_sort_orig, _ctrl_orig, tbs, doms, rng_typs) =
+                T.as_func callee_typ_orig in
+              let content_typ = match rng_typs with
+                | [t] -> t
+                | _ -> assert false in
+              let scope_var = T.Var (T.default_scope_var, 0) in
+              let worker_typ =
+                T.Func (T.Local, T.Returns, tbs, doms,
+                        [T.Async (T.Cmp, scope_var, content_typ)]) in
+              let worker_name = target_name ^ "*" in
+              let inst_note = match e.it with
+                | S.CallE (_, _, inst, _) -> inst.note
+                | _ -> assert false in
+              let recv_typ = T.promote recv.note.S.note_typ in
+              let recv_var = fresh_var "recv" recv_typ in
+              let recv_letd = letD recv_var (exp recv) in
+              (* Condition: selfRefE principal == principalOfActor recv *)
+              let self_p = selfRefE T.principal in
+              let recv_p =
+                primE (I.OtherPrim "principalOfActor") [varE recv_var] in
+              let cond =
+                primE (I.RelPrim (T.principal, Operator.EqOp))
+                  [self_p; recv_p] in
+              (* Fast path: await* foo*(args) *)
+              let fast_call =
+                callE (varE (var worker_name worker_typ))
+                  inst_note (exp args_e) in
+              let fast_await = awaitE T.AwaitCmp fast_call in
+              (* Slow path: `await recv.foo(args)`. Rebuild the dot access
+                 on the let-bound `recv_var` so we don't re-evaluate `recv`.
+                 Must use `ActorDotPrim` (not `DotPrim`) since the receiver
+                 has actor sort. *)
+              let slow_callee =
+                { it = I.PrimE (I.ActorDotPrim target_name, [varE recv_var]);
+                  at = no_region;
+                  note = Note.{ def with typ = callee_typ_orig;
+                                          eff = T.Triv } } in
+              let slow_call =
+                callE slow_callee inst_note (exp args_e) in
+              let slow_await = awaitE (T.AwaitFut false) slow_call in
+              let if_expr = ifE cond fast_await slow_await in
+              (blockE [recv_letd] if_expr).it
+          | None ->
+              let sort' = match sort, T.promote e.note.S.note_typ with
+                | T.AwaitCmp, T.Async (T.Fut, _, _) -> T.AwaitFut false
+                | _ -> sort
+              in
+              I.PrimE I.(AwaitPrim sort', [exp e])))
   | S.AssertE (Runtime, e) -> I.PrimE (I.AssertPrim, [exp e])
   | S.AnnotE (e, _) -> assert false
   | S.ImportE (f, ir) -> raise (Invalid_argument (Printf.sprintf "Import expression found in unit body: %s" f))

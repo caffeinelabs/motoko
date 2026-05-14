@@ -136,6 +136,7 @@ let primE prim es =
     | OtherPrim "env_var" -> T.text
     | OtherPrim "caller_info_signer" -> T.blob
     | OtherPrim "caller_info_data" -> T.blob
+    | OtherPrim "principalOfActor" -> T.principal
     | OtherPrim "set_migrations" -> T.unit
     | OtherPrim "get_migrations" -> T.text_list
     | _ -> assert false (* implement more as needed *)
