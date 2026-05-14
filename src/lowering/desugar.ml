@@ -336,7 +336,21 @@ and exp' at note = function
                        | T.Async (_, t, _) -> t
                        | _ -> assert false) in
     (blockE (ds @ rs) { at; note; it }).it
-  | S.AwaitE (sort, e) -> I.PrimE I.(AwaitPrim sort, [exp e])
+  | S.AwaitE (sort, e) ->
+    (* Self-actor worker exception (phase-1 lowering): when the typechecker's
+       `AwaitE` rule greenlit an `await*` on an `async T` (not `async*`) callee
+       — Obvious-self or Maybe-self — the surface sort `AwaitCmp` would be
+       ill-typed at IR level (`AwaitPrim AwaitCmp` requires `async*`). Mirror
+       the AST interpreter's polymorphic `await*` by translating to the
+       long-form `AwaitPrim (AwaitFut false)` when the value is `async`. This
+       gives up the worker fast path (worker emission + retargeting is a
+       follow-up) but keeps `await*` semantically equivalent to `await` in
+       this regime — sound for any consumer. *)
+    let sort' = match sort, T.promote e.note.S.note_typ with
+      | T.AwaitCmp, T.Async (T.Fut, _, _) -> T.AwaitFut false
+      | _ -> sort
+    in
+    I.PrimE I.(AwaitPrim sort', [exp e])
   | S.AssertE (Runtime, e) -> I.PrimE (I.AssertPrim, [exp e])
   | S.AnnotE (e, _) -> assert false
   | S.ImportE (f, ir) -> raise (Invalid_argument (Printf.sprintf "Import expression found in unit body: %s" f))

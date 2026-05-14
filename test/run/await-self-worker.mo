@@ -14,5 +14,3 @@ persistent actor a {
 a.go();
 
 //SKIP comp
-//SKIP run-ir
-//SKIP run-low

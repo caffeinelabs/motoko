@@ -30,5 +30,3 @@ let total = await second.go();
 assert total == 84;
 
 //SKIP comp
-//SKIP run-ir
-//SKIP run-low
