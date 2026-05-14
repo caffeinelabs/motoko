@@ -55,6 +55,12 @@ type env =
     rets : ret_env;
     async : C.async_cap;
     in_actor : bool;
+    (* Canonical `Shared <sort>` cells for the immediately-enclosing actor body.
+       Allocated once per actor entry; reused as the func_sort for all of the
+       actor's shared methods. Physical equality on these cells is the
+       discriminator that lights up `await*` on self-actor method calls
+       (see AwaitE in `infer_exp''`). Empty list when not in an actor body. *)
+    self_shared : T.func_sort list;
     in_prog : bool;
     context : exp' list;
     pre : bool;
@@ -89,6 +95,7 @@ let env_of_scope msgs scope =
     rets = NoRet;
     async = Async_cap.NullCap;
     in_actor = false;
+    self_shared = [];
     in_prog = true;
     context = [];
     pre = false;
@@ -2550,16 +2557,59 @@ and infer_exp'' env exp : T.typ =
        end;
        t3
      with Invalid_argument _ ->
-       error env exp1.at "M0088"
-         "expected async%s type, but expression has type%a%s"
-         (if s1 = T.Fut then "" else "*")
-         display_typ_expand t1
-         (if T.is_async t1 then
-            (if s1 = T.Fut then
-              "\nUse keyword 'await*' (not 'await' or 'await?') to consume this type."
-            else
-              "\nUse keyword 'await' or 'await?' (not 'await*') to consume this type.")
-          else "")
+       (* Self-actor worker exception: `await*` on a call to a self-actor
+          shared method that returns `async T` is allowed. The discriminator
+          is physical equality between the callee's func_sort cell and one of
+          the canonical `Shared <sort>` cells planted on env.self_shared at
+          actor-body entry (see `infer_obj` and `check_shared_pat`). The cell
+          survives let-aliasing because `T.open'`/`T.subst`/`T.promote` all
+          pass it through by reference.
+          The lowering performs the analogous check to retarget direct call
+          sites to the generated worker `foo*` and emit the split. *)
+       (* In the pre-pass the typed-AST notes inside the callee are not yet
+          populated, so the physical-equality check below can't run. Defer
+          the worker greenlight to the regular pass; in the pre-pass we just
+          extract the content type when t1 is some `async _ T` so block-level
+          typing can proceed. *)
+       if env.pre && T.is_async t1 then
+         let (_, _, t3) = T.as_async t1 in t3
+       else
+       let worker_ok =
+         s = T.AwaitCmp &&
+         T.is_async t1 &&
+         (let (s_async, _, _) = T.as_async t1 in s_async = T.Fut) &&
+         (match exp1.it with
+          | CallE (_, callee, _, _) ->
+              (match T.promote callee.note.note_typ with
+               | T.Func (sort, _, _, _, _) ->
+                   List.exists (fun s -> s == sort) env.self_shared
+               | _ -> false)
+          | _ -> false)
+       in
+       if worker_ok then begin
+         let (t2, t3) = T.as_async_sub T.Fut t0 t1 in
+         if not (eq env exp.at t0 t2) then begin
+            local_error env exp1.at "M0087"
+              "ill-scoped await: expected async type from current scope %a, found async type from other scope %a%a%a"
+              T.pp_typ t0
+              T.pp_typ t2
+              (associated_region env exp.at) t0
+              (associated_region env exp.at) t2;
+           scope_info env t0 exp.at;
+           scope_info env t2 exp.at;
+         end;
+         t3
+       end else
+         error env exp1.at "M0088"
+           "expected async%s type, but expression has type%a%s"
+           (if s1 = T.Fut then "" else "*")
+           display_typ_expand t1
+           (if T.is_async t1 then
+              (if s1 = T.Fut then
+                "\nUse keyword 'await*' (not 'await' or 'await?') to consume this type."
+              else
+                "\nUse keyword 'await' or 'await?' (not 'await*') to consume this type.")
+            else "")
     )
   | AssertE (_, exp1) ->
     if not env.pre then check_exp_strong env T.bool exp1;
@@ -3679,7 +3729,17 @@ and check_shared_pat env shared_pat : T.func_sort * Scope.val_env =
     if pat.it <> WildP then
       error_in Flags.[WASIMode; WasmMode] env pat.at "M0106" "shared function cannot take a context pattern";
     env.shared_pat_regions := pat.at :: !(env.shared_pat_regions);
-    T.Shared ss, check_pat_exhaustive local_error env T.ctxt pat
+    (* Reuse the enclosing actor's canonical `Shared ss` cell so that physical
+       equality on the resulting func_sort discriminates self-actor methods
+       later (in the AwaitE rule and at lowering). Falls back to a fresh cell
+       when there is no enclosing actor (which is a typing error anyway, but
+       this code path still runs in the pre-pass). *)
+    let sort =
+      match List.find_opt (fun s -> match s with T.Shared ss' -> ss' = ss | _ -> false) env.self_shared with
+      | Some s -> s
+      | None -> T.Shared ss
+    in
+    sort, check_pat_exhaustive local_error env T.ctxt pat
 
 and check_class_shared_pat env shared_pat obj_sort : Scope.val_env =
   match shared_pat.it, obj_sort.it with
@@ -4131,12 +4191,18 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
   in
   let env =
     if s <> T.Actor && s <> T.Mixin then
-      { env with in_actor = false }
+      { env with in_actor = false; self_shared = [] }
     else
       { env with
         in_actor = true;
         labs = T.Env.empty;
         rets = NoRet;
+        (* Allocate fresh canonical `Shared <sort>` cells, one per shared_sort.
+           These get planted as the `func_sort` of every shared method declared
+           in this actor body (via `check_shared_pat`); physical equality on
+           the cell is then a reliable "this is a self-actor method" test in
+           the AwaitE rule and at lowering. *)
+        self_shared = T.[Shared Query; Shared Write; Shared Composite];
       }
   in
   let decs = List.map (fun (df : dec_field) -> df.it.dec) dec_fields in
