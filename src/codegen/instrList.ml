@@ -62,8 +62,8 @@ let optimize : instr list -> instr list = fun is ->
       go l' r'
     | { it = GlobalGet n1; _} :: l', ({ it = GlobalSet n2; _ }) :: r' when n1 = n2 ->
       go l' r'
-    (* Code after Return, Br or Unreachable is dead *)
-    | _, ({ it = Return | Br _ | Unreachable; _ } as i) :: t ->
+    (* Code after Return, Br, BrTable or Unreachable is dead *)
+    | _, ({ it = Return | Br _ | BrTable _ | Unreachable; _ } as i) :: t ->
       (* see Note [funneling DIEs through Wasm.Ast] *)
       List.(rev (i :: l) @ find_all (fun instr -> Wasm_exts.Ast.is_dwarf_like instr.it) t)
     (* Equals zero has a dedicated operation (and works well with leg swapping) *)
