@@ -2701,6 +2701,34 @@ let lookup_gadt_arm_existentials c lab =
    Returns the substitution, or None on mismatch / non-uniform unification. *)
 exception Unify_fail
 
+(* Prune GADT variant arms whose refinement is incompatible with the
+   given instantiation [ts] of type-binds [tbs]. Each arm's refinement
+   `(var, T_rhs)` requires the slot for `var` in [ts] to equal T_rhs;
+   if the slot is concrete and differs, the arm is unreachable for this
+   instantiation and is removed from the returned variant. Arms with no
+   refinement (parametric) are always kept. *)
+let prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field list) : field list =
+  let indexed_tbs = List.mapi (fun i tb -> (i, tb)) tbs in
+  let slot_for var =
+    match List.find_opt (fun (_, tb) -> tb.var = var) indexed_tbs with
+    | Some (i, _) when i < List.length ts -> Some (List.nth ts i)
+    | _ -> None
+  in
+  let arm_reachable (f : field) =
+    let arm_cs = lookup_gadt_arm c f.lab in
+    List.for_all (fun (var, refined_t) ->
+      match slot_for var with
+      | Some slot_t ->
+        let slot_is_skolem = match slot_t with
+          | Con (sc, _) -> (match Cons.kind sc with Abs _ -> true | _ -> false)
+          | _ -> false
+        in
+        slot_is_skolem || eq slot_t refined_t
+      | None -> true
+    ) arm_cs
+  in
+  List.filter arm_reachable fs
+
 let unify_existentials expected actual existentials : typ ConEnv.t option =
   let sigma = ref ConEnv.empty in
   let rec walk e a =

@@ -270,10 +270,16 @@ machinery (br_table or linear) operates on tags as before.
         parameter. Workaround: ascribe `: Expr<Bool>` at construction.
         Tracked as a sub-item for a future milestone.
 
-- [ ] **M5 — Refinement-aware exhaustiveness**: `switch (e : Expr<Bool>)` can
-      omit `#int`/`#add` cases because their `type A = Nat` is incompatible.
-      Coverage analyzer needs to consult the GADT side-table and prune
-      statically unreachable arms from "missing" lists.
+- [x] **M5 — Refinement-aware exhaustiveness**: implemented as **type-level
+      pruning** before the coverage analyzer sees the variant.
+      `T.prune_gadt_variant` filters out arms whose refinement is
+      incompatible with the scrutinee's type-args; `gadt_prune_for_coverage`
+      wires it into the SwitchE handler in typing.ml. Pleasant side effect:
+      coverage error messages now show the *reachable* sub-variant instead
+      of the full one, so the user sees only the cases that matter.
+      Existing non-exhaustiveness warnings still fire for genuinely missing
+      reachable arms. `desugar.ml` needs no change — pruning happens at the
+      typechecker layer; lowering sees only the source-level cases.
 
 - [ ] **M6 — Multi-parameter GADTs**: comma-separated `type A = T, type B = U`
       across multiple outer type-parameters. Parser already accepts it;

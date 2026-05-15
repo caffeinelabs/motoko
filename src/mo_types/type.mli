@@ -429,3 +429,4 @@ val register_gadt_arm_existentials : con -> lab -> con list -> unit
 val lookup_gadt_arm : con -> lab -> (var * typ) list
 val lookup_gadt_arm_existentials : con -> lab -> con list
 val unify_existentials : typ -> typ -> con list -> typ ConEnv.t option
+val prune_gadt_variant : con -> bind list -> typ list -> field list -> field list

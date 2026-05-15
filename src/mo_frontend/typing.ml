@@ -2824,6 +2824,21 @@ and gadt_check_existentials env exp t c ts id exp1 =
        | _ -> false)
     | _ -> false
 
+(* M5: filter unreachable arms from a variant scrutinee type before
+   coverage analysis. When the un-promoted form is [Con(c, ts)] and
+   the promoted form is a Variant, drop arms whose GADT refinement is
+   incompatible with [ts]. *)
+and gadt_prune_for_coverage t_orig t =
+  match t_orig, t with
+  | T.Con (c, ts), T.Variant fs ->
+    (match Cons.kind c with
+     | T.Def (tbs, _) ->
+       let fs' = T.prune_gadt_variant c tbs ts fs in
+       if List.length fs' = List.length fs then t
+       else T.Variant fs'
+     | _ -> t)
+  | _ -> t
+
 and check_exp' env0 t exp : T.typ =
   let env = {env0 with in_prog = false; in_actor = false; context = exp.it :: env0.context } in
   match exp.it, t with
@@ -2963,7 +2978,10 @@ and check_exp' env0 t exp : T.typ =
     let t1 = T.promote t1_orig in
     let env' = { env with closest_scrutinee = Some (exp1.at, t1) } in
     check_cases ~orig_pat_t:t1_orig env' t1 t cases;
-    coverage_cases "switch" env cases t1 exp.at;
+    (* M5: prune GADT-unreachable arms before coverage analysis so
+       a switch over Expr<Bool> doesn't warn about missing #int. *)
+    let t1_for_coverage = gadt_prune_for_coverage t1_orig t1 in
+    coverage_cases "switch" env cases t1_for_coverage exp.at;
     t
   | TryE (exp1, cases, exp2_opt), _ ->
     check_ErrorCap env "try" exp.at;
