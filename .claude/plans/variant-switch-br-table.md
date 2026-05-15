@@ -740,7 +740,12 @@ getter" — the protocol speaks in `G.t` payloads. So `immut_local` is
 a pure recognizer-side change: zero impact on `Match_arm` /
 `Match_join` / handler logic.
 
-*Not yet implemented — tracked here for future work.*
+*Implemented in [PR #6121](https://github.com/caffeinelabs/motoko/pull/6121) (`gabor/immut-local-helper`).* The shipped form differs from this sketch in three ways:
+- Inspection of `init` uses an algebraic effect (`InstrList.Inspecting`) routed through `G.effectful`-wrapped `remember_depth`/`branch_to_`, rather than a raw `G.to_instr_list` materialise — needed because some inits contain unfulfilled depth-promises that would crash a naive inspection.
+- Applied not just to variant dispatch but to the whole `fill_pat` / `compile_pat_local` / SwitchE path on both `compile_enhanced.ml` and `compile_classical.ml` backends; `compile_unboxed_pat` keeps the stack convention by passing `G.nop` as `init`.
+- `GlobalGet ^^ Drop` added to the existing `Const|LocalGet ^^ Drop` peephole for symmetry on the irrefutable-nonbinding fallback.
+
+Measured wins on `test/bench/variant-switch.mo`: −6.70% on `isWeekendOr` (or-pattern), −3.0% on the AST-eval ×10k loop, −1.85% on fib7_eval.
 
 ## Non-goals
 
