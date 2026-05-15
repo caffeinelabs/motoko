@@ -1,11 +1,16 @@
-# GADTs for Motoko Variants (1-parameter PoC)
+# GADTs for Motoko Variants
 
 ## Goal
 
-Allow each arm of a parametric variant to **refine** the type parameter, so that
-pattern-matching can recover the refined type in the case body. Target use-case:
-a type-safe tagless evaluator over an `Expr<A>` AST, where each constructor's arm
-constrains `A` to the type its value carries.
+Allow each arm of a parametric variant to **refine** the type parameter(s), so
+that pattern-matching can recover the refined types in the case body. Target
+use-case: a type-safe tagless evaluator over an `Expr<A>` AST, where each
+constructor's arm constrains `A` to the type its value carries.
+
+Multi-parameter generics like `Pair<A, B>` are supported — the syntax is
+comma-separated `type` clauses (e.g. `type A = Nat, type B = Bool`), and the
+implementation handles arbitrary arity uniformly via list-based data
+structures throughout the typechecker and side-tables.
 
 ```motoko
 type Expr<A> = {
@@ -281,10 +286,15 @@ machinery (br_table or linear) operates on tags as before.
       reachable arms. `desugar.ml` needs no change — pruning happens at the
       typechecker layer; lowering sees only the source-level cases.
 
-- [ ] **M6 — Multi-parameter GADTs**: comma-separated `type A = T, type B = U`
-      across multiple outer type-parameters. Parser already accepts it;
-      typechecker side may need a few generalisations of the single-param
-      assumptions in `gadt_sigma_for_case`.
+- [x] **M6 — Multi-parameter GADTs**: turned out to need **no extra work** —
+      the AST stores `constraints : typ_constraint list`, both side-tables
+      key by `(con, lab)` returning lists, and the typechecker helpers
+      (`gadt_check_refinements`, `gadt_sigma_for_case`,
+      `T.prune_gadt_variant`) all iterate over the constraint list and look
+      up slots in `tbs` by name. So `Pair<A, B>` with comma-separated
+      `type A = Nat, type B = Bool` clauses works on both construction and
+      pattern-match sides, and exhaustiveness pruning fires per-parameter.
+      Verified with `/tmp/gadt-multi.mo`.
 
 - [ ] **M7 — Coverage analyzer fixup**: revisit `coverage_cases` to handle
       GADT-pruned-arm scenarios (a partial match is still exhaustive when
