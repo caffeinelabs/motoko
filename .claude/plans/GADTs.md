@@ -316,6 +316,15 @@ machinery (br_table or linear) operates on tags as before.
       - **Existential collision**: `type B, type B` (two existentials with
         the same name) → either error or treat as one var with two binders
         (probably error, like duplicate VarP).
+      - **Skolem escape (information hiding)**: a case body whose body-type
+        mentions a skolem introduced by an existential clause leaks the
+        skolem out of its scope. Even if subtyping then widens it (e.g.
+        the result type is `Any` or `Expr<A>` with A the outer param), the
+        type-level fact "this value witnessed B" should not survive the
+        case arm. Error iff `freevars(t_body) ∩ existentials(arm) ≠ ∅`.
+        Implementation: after computing the body's inferred type, walk it
+        and check no skolem con (those in `T.lookup_gadt_arm_existentials
+        c lab`) appears.
 
 - [ ] **M9 — Soundness axioms**: state the GADT round-trip invariants
       explicitly, and verify by property-based tests.
