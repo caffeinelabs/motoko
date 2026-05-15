@@ -5,7 +5,7 @@ func matchNat(n : Nat) : Bool =
          switch n { case 1073741823 true
                   ; case _ false };
 // CHECK-LABEL: (func $matchNat
-// CHECK:        local.get $switch_in
+// CHECK:        local.get $n
 // CHECK-NEXT:   i64.const 4294967294
 // CHECK-NEXT:   call $B_eq
 
@@ -14,10 +14,10 @@ func matchInt(n : Int) : Bool =
                   ; case 1073741823 true
                   ; case _ false };
 // CHECK-LABEL: (func $matchInt
-// CHECK:        local.get $switch_in
+// CHECK:        local.get $n
 // CHECK-NEXT:   i64.const -4294967294
 // CHECK-NEXT:   $B_eq
-// CHECK:        local.get $switch_in
+// CHECK:        local.get $n
 // CHECK-NEXT:   i64.const 4294967294
 // CHECK-NEXT:   $B_eq
 

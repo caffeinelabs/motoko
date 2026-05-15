@@ -227,13 +227,23 @@ let loop0 (body : t) : t =
   fun d pos rest ->
     (Loop (ValBlockType None, to_nested_list d pos body) @@ pos) :: rest
 
+(* Signals that a [t] mutates state (depth-promise refs) when invoked,
+   so it cannot be safely materialised at inspection time. Speculative
+   callers install a handler that aborts on this effect. *)
+type _ Effect.t += Inspecting : unit Effect.t
+
+let effectful (is : t) : t =
+  fun d pos rest ->
+    (try Effect.perform Inspecting with Effect.Unhandled _ -> ());
+    is d pos rest
+
 (* Remember depth *)
 type depth = int32 Lib.Promise.t
 
 let new_depth_label () : depth =  Lib.Promise.make ()
 
 let remember_depth depth (is : t) : t =
-  fun d rest -> Lib.Promise.fulfill depth d; is d rest
+  effectful (fun d pos rest -> Lib.Promise.fulfill depth d; is d pos rest)
 
 let with_current_depth (k : depth -> t) : t =
   let depth = new_depth_label () in
@@ -245,8 +255,8 @@ let with_current_depth' (k : depth -> ('a * t)) : ('a * t) =
   (x, remember_depth depth is)
 
 let branch_to_ (p : depth) : t =
-  fun d pos rest ->
-    (Br (Int32.(sub d (Lib.Promise.value p)) @@ pos) @@ pos) :: rest
+  effectful (fun d pos rest ->
+    (Br (Int32.(sub d (Lib.Promise.value p)) @@ pos) @@ pos) :: rest)
 
 (* Convenience combinators *)
 
