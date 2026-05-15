@@ -932,6 +932,23 @@ let new_local32 env name =
   let (set_i, get_i, _) = new_local_ env I32Type name
   in (set_i, get_i)
 
+(* Smart scrutinee-binding constructor for pattern-matching emission.
+
+   [immut_local env name init] returns [(prelude, getter)].
+
+   Caller's obligation: between binding point and last use, no
+   instruction may mutate [init]'s source. In the pattern-matching
+   scrutinee paths where this is used, the scrutinee local is
+   read-only during arm emission, so the property holds trivially. *)
+let immut_local env name (init : G.t) : G.t * G.t =
+  let materialise () =
+    let set_l, get_l = new_local env name in
+    init ^^ set_l, get_l in
+  let open Wasm.Source in
+  match init 0l no_region [] with
+  | [{it = (LocalGet _ | GlobalGet _ | Const _); _}] -> G.nop, init
+  | _ -> materialise ()
+
 (* Some common code macros *)
 
 (* Iterates while cond is true. *)
@@ -13215,7 +13232,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
 
   | SwitchE (e, cs) ->
     let code1 = compile_exp_vanilla env ae e in
-    let (set_i, get_i) = new_local env "switch_in" in
+    let scr_prelude, get_i = immut_local env "switch_in" code1 in
 
     (* compile subexpressions and collect the provided stack reps *)
     let codes = List.map (fun {it={pat; exp=e}; _} ->
@@ -13231,8 +13248,8 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     in
 
     final_sr,
-    (* Run scrut *)
-    code1 ^^ set_i ^^
+    (* Bind scrutinee (no-op when [code1] is a pure read) *)
+    scr_prelude ^^
     (* Run rest in block to exit from *)
     FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->
