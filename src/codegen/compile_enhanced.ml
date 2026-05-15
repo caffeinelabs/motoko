@@ -940,11 +940,25 @@ let new_local32 env name =
    read-only during arm emission, so the property holds trivially. *)
 let immut_local env name (init : G.t) : G.t * G.t =
   let open Wasm.Source in
-  match init 0l no_region [] with
-  | [{it = (LocalGet _ | GlobalGet _ | Const _); _}] -> G.nop, init
-  | is ->
+  let exception Bail in
+  let inspect () =
+    let open Effect.Deep in
+    try_with
+      (fun () -> init 0l no_region [])
+      ()
+      { effc = fun (type a) (eff : a Effect.t) ->
+          match eff with
+          | InstrList.Inspecting -> Some (fun (_ : (a, _) continuation) -> raise Bail)
+          | _ -> None }
+  in
+  match (try Some (inspect ()) with Bail -> None) with
+  | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> G.nop, init
+  | Some is ->
     let set_l, get_l = new_local env name in
     (fun _ _ rest -> is @ rest) ^^ set_l, get_l
+  | None ->
+    let set_l, get_l = new_local env name in
+    init ^^ set_l, get_l
 
 (* Some common code macros *)
 
@@ -13575,20 +13589,16 @@ and compile_unboxed_pat env ae how pat
       (* We have to fill the pattern in reverse order, to take things off the
          stack. This is only ok as long as patterns have no side effects.
       *)
-      G.concat_mapi (fun _ p ->
-        let set_x, get_x = new_local env "tup_unboxed" in
-        set_x ^^ orPatternFailure env (fill_pat env ae1 get_x p)
-      ) (List.rev ps)
+      G.concat_mapi (fun _ p -> orPatternFailure env (fill_pat env ae1 G.nop p)) (List.rev ps)
     (* Variable patterns *)
     | VarP name ->
       let pre_code, sr, code = Var.set_val env ae1 name in
       pre_code, Some sr, code
     (* The general case: Create a single value, match that. *)
     | _ ->
-      let set_x, get_x = new_local env "scrut" in
       G.nop,
       Some SR.Vanilla,
-      set_x ^^ orPatternFailure env (fill_pat env ae1 get_x pat) in
+      orPatternFailure env (fill_pat env ae1 G.nop pat) in
   let pre_code = G.with_region pat.at pre_code in
   let fill_code = G.with_region pat.at fill_code in
   (ae1, alloc_code, pre_code, sr, fill_code)
