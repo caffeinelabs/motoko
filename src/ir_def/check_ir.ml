@@ -207,7 +207,7 @@ let rec check_typ env typ : unit =
         check_con env c;
         check_typ_bounds env tbs typs no_region
       | T.Abs (tbs, _) ->
-        if not (T.ConSet.mem c env.cons) then
+        if not (T.ConSet.mem c env.cons) && not (T.is_gadt_existential c) then
           error env no_region "free type constructor %s " (T.string_of_typ typ);
         check_typ_bounds env tbs typs no_region
     end
@@ -499,7 +499,11 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | OptPrim, [exp1] ->
       T.Opt (typ exp1) <: t
     | TagPrim i, [exp1] ->
-      T.Variant [{T.lab = i; typ = typ exp1; src = T.empty_src}] <: t
+      let t' = match T.lookup_refinement_at exp.at with
+        | Some sigma -> T.subst sigma (T.promote t)
+        | None -> t
+      in
+      T.Variant [{T.lab = i; typ = typ exp1; src = T.empty_src}] <: t'
     | ActorDotPrim n, [exp1]
     | DotPrim n, [exp1] ->
       begin
@@ -1002,11 +1006,17 @@ and check_lexp env (lexp:Ir.lexp) : unit =
 and check_cases env t_pat t cases =
   List.iter (check_case env t_pat t) cases
 
-and check_case env t_pat t {it = {pat; exp}; _} =
+and check_case env t_pat t ({it = {pat; exp}; _} as case) =
   let ve = check_pat env pat in
   check_sub env pat.at t_pat pat.note;
-  check_exp (adjoin_vals env ve) exp;
-  check env pat.at (sub env (typ exp) t) "bad case"
+  let t', ve' = match T.lookup_refinement_at case.at with
+    | Some sigma ->
+      T.subst sigma t,
+      T.Env.map (fun vi -> { vi with typ = T.subst sigma vi.typ }) ve
+    | None -> t, ve
+  in
+  check_exp (adjoin_vals env ve') exp;
+  check env pat.at (sub env (typ exp) t') "bad case"
 
 (* Arguments *)
 

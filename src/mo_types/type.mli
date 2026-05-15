@@ -428,6 +428,10 @@ val register_gadt_arm : con -> lab -> (var * typ) list -> unit
 val register_gadt_arm_existentials : con -> lab -> con list -> unit
 val lookup_gadt_arm : con -> lab -> (var * typ) list
 val lookup_gadt_arm_existentials : con -> lab -> con list
+val is_gadt_existential : con -> bool
+val register_refinement_at : Source.region -> typ ConEnv.t -> unit
+val lookup_refinement_at : Source.region -> typ ConEnv.t option
+val rewrite_gadt_side_tables : rename_con:(con -> con) -> rewrite_typ:(typ -> typ) -> unit
 val unify_existentials : typ -> typ -> con list -> typ ConEnv.t option
 val prune_gadt_variant : con -> bind list -> typ list -> field list -> field list
 val mentions_any_con : con list -> typ -> bool

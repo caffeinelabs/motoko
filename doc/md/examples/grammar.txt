@@ -96,7 +96,11 @@
     <id> <typ_params_opt> <typ_nullary> ':' <typ>
 
 <typ_tag> ::= 
-    '#' <id> (':' <typ>)?
+    '#' <id> (<list1(<typ_constraint>, ',')>)? (':' <typ>)?
+
+<typ_constraint> ::= 
+    'type' <id> '=' <typ>
+    'type' <id>
 
 <typ_bind> ::= 
     <id> '<:' <typ>

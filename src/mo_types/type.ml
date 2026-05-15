@@ -2679,12 +2679,18 @@ let string_of_stab_sig stab_sig : string =
 
 let gadt_arm_constraints : (con * lab, (var * typ) list) Hashtbl.t = Hashtbl.create 16
 let gadt_arm_existentials : (con * lab, con list) Hashtbl.t = Hashtbl.create 16
+let gadt_existential_set : ConSet.t ref = ref ConSet.empty
 
 let register_gadt_arm c lab cs =
   if cs <> [] then Hashtbl.replace gadt_arm_constraints (c, lab) cs
 
 let register_gadt_arm_existentials c lab es =
-  if es <> [] then Hashtbl.replace gadt_arm_existentials (c, lab) es
+  if es <> [] then begin
+    Hashtbl.replace gadt_arm_existentials (c, lab) es;
+    List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es
+  end
+
+let is_gadt_existential c = ConSet.mem c !gadt_existential_set
 
 let lookup_gadt_arm c lab =
   match Hashtbl.find_opt gadt_arm_constraints (c, lab) with
@@ -2695,6 +2701,56 @@ let lookup_gadt_arm_existentials c lab =
   match Hashtbl.find_opt gadt_arm_existentials (c, lab) with
   | Some es -> es
   | None -> []
+
+(* GADT refinement, indexed by source region of an AST node.
+   Registered by surface typechecker (cases applying refinement, TagE applying
+   existential-witness substitution); consulted by the IR type-checker to
+   refine an expected type before subtype check. *)
+let gadt_refinement_at : (Source.region, typ ConEnv.t) Hashtbl.t = Hashtbl.create 16
+
+let register_refinement_at reg sigma =
+  if not (ConEnv.is_empty sigma) then
+    Hashtbl.replace gadt_refinement_at reg sigma
+
+let lookup_refinement_at reg =
+  Hashtbl.find_opt gadt_refinement_at reg
+
+(* Apply a cons-renaming + type-rewrite to all GADT side-tables. Called by
+   IR passes (e.g. Erase_typ_field) that clone cons; otherwise side-table
+   keys/values drift out of sync with the post-transform IR. *)
+let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
+  let migrate_constraints () =
+    let xs = Hashtbl.fold (fun (c, lab) cs acc -> (c, lab, cs) :: acc) gadt_arm_constraints [] in
+    Hashtbl.clear gadt_arm_constraints;
+    List.iter (fun (c, lab, cs) ->
+      let cs' = List.map (fun (v, t) -> (v, rewrite_typ t)) cs in
+      Hashtbl.replace gadt_arm_constraints (rename_con c, lab) cs'
+    ) xs
+  in
+  let migrate_existentials () =
+    let xs = Hashtbl.fold (fun (c, lab) es acc -> (c, lab, es) :: acc) gadt_arm_existentials [] in
+    Hashtbl.clear gadt_arm_existentials;
+    let new_set = ref ConSet.empty in
+    List.iter (fun (c, lab, es) ->
+      let es' = List.map rename_con es in
+      List.iter (fun e -> new_set := ConSet.add e !new_set) es';
+      Hashtbl.replace gadt_arm_existentials (rename_con c, lab) es'
+    ) xs;
+    gadt_existential_set := !new_set
+  in
+  let migrate_refinement_at () =
+    let xs = Hashtbl.fold (fun reg sigma acc -> (reg, sigma) :: acc) gadt_refinement_at [] in
+    Hashtbl.clear gadt_refinement_at;
+    List.iter (fun (reg, sigma) ->
+      let sigma' = ConEnv.fold (fun c t acc ->
+        ConEnv.add (rename_con c) (rewrite_typ t) acc
+      ) sigma ConEnv.empty in
+      Hashtbl.replace gadt_refinement_at reg sigma'
+    ) xs
+  in
+  migrate_constraints ();
+  migrate_existentials ();
+  migrate_refinement_at ()
 
 (* Structural matcher: walk [expected] and [actual] in parallel; where
    [expected] is `Con(c, [])` with c ∈ existentials, record `c → actual`.

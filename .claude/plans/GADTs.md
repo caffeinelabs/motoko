@@ -347,12 +347,13 @@ machinery (br_table or linear) operates on tags as before.
             name in a misleading way → optional warning, low priority.
 
 - [ ] **M10 — Existentials in tuples and records**: lift `type X` clauses
-      from variant arms to the top of any type definition, mirroring the
-      arm syntax exactly:
+      from variant arms to the top of any type definition. **Separator is
+      `,` (comma), not `:`** — `:` already means "has type" in Motoko, and
+      reusing it here for "binds existential" would be visually confusing:
 
       ```motoko
-      type Tup = type B : (B, B -> Text);
-      type Rec = type B, type C = Nat : { value : B; size : C };
+      type Tup = type B, (B, B -> Text);
+      type Rec = type B, type C = Nat, { value : B; size : C };
       ```
 
       Semantics: `Tup` is an existential pack `∃B. (B, B → Text)`. Any
@@ -376,8 +377,37 @@ machinery (br_table or linear) operates on tags as before.
         only one constructor.
       - **Diagnostics M8**: same suite applies.
 
-- [ ] **M9 — Soundness axioms**: state the GADT round-trip invariants
-      explicitly, and verify by property-based tests.
+- [x] **M9 — Soundness axioms**: state the GADT round-trip invariants
+      explicitly, and verify by property-based tests. Three hand-written
+      tests cover construct⇒dissect, dissect⇒construct, and round-trip
+      through an existential arm:
+
+      - `test/run/gadt-axiom-construct-dissect.mo` (axiom 1)
+      - `test/run/gadt-axiom-dissect-construct.mo` (axiom 2)
+      - `test/run/gadt-axiom-roundtrip.mo` (axiom 3 — `#eq` with `B`)
+
+      Skolem-escape check (M9007) was dropped: structural subtyping
+      already catches the leak for any non-`Any` return type, and an
+      `Any`-typed leg is an explicit opt-out (the user erased the
+      witness on purpose).
+
+      **Implementation cost paid for axiom 3:** the IR type-checker was
+      naïve about GADT refinement and existential packing. Three changes
+      to keep IR happy across the post-typing transforms:
+      - **`T.is_gadt_existential`**: relax `check_ir`'s `T.Abs` "free
+        type constructor" check to admit registered existential cons.
+      - **`gadt_refinement_at` side-table** keyed by source region:
+        surface `check_case` registers σ for the arm; surface
+        `gadt_check_existentials` registers σ at `TagE.at`. IR's
+        `check_case` substitutes σ into both `t` (switch return) and
+        `ve` (pattern bindings); IR's `TagPrim` branch substitutes σ
+        into `T.promote t` before sub-check.
+      - **`T.rewrite_gadt_side_tables`**: invoked at the end of
+        `async.ml` and `erase_typ_field.ml` (both pasess clone cons)
+        to migrate side-table keys/values onto the renamed cons.
+
+      Side-tables are global mutable state — pragmatic short-term;
+      removed in M11.
 
       **Axioms:**
 
@@ -413,6 +443,36 @@ machinery (br_table or linear) operates on tags as before.
       - Optional: a fuzzer that generates random GADT-shaped types and
         randomly constructs / destructures values, asserting round-trip
         equality.
+
+- [ ] **M11 — Remove side-tables**: the current `gadt_arm_constraints`,
+      `gadt_arm_existentials`, `gadt_existential_set`, and
+      `gadt_refinement_at` in `type.ml` are global mutable hash tables.
+      They bridge surface-typing and IR-checking pragmatically, but:
+      - Need explicit `rewrite_gadt_side_tables` hooks at every IR pass
+        that clones cons (currently `async.ml`, `erase_typ_field.ml`).
+        Any future pass that renames cons silently breaks GADT-typed code
+        until someone notices and adds the hook.
+      - Compilation units share the table — fine for a single `moc`
+        invocation, dangerous if pipeline gains multi-unit reuse.
+      - Surface-side registration is implicit; the AST itself doesn't
+        carry the refinement, so transformations that rewrite AST
+        (region-preserving but otherwise structural) cannot know about
+        the σ they should drag along.
+
+      Replacement directions:
+      - Carry σ on the IR `case'` and `TagE`/`TagPrim` node directly
+        (an extra `refinement : T.con_env` field). All sites that
+        construct cases (4 places in `construct.ml`, 1 in `desugar.ml`)
+        get a `~refinement` argument with `T.ConEnv.empty` default.
+        IR passes that clone the AST already walk types — they walk
+        refinements naturally.
+      - Move arm-level GADT info from `type.ml` side-tables onto the
+        `T.Con` definition body: extend `T.field` (variant arms) with
+        the same `(var * typ) list` and `con list` per-arm. Then the
+        cons-renaming passes handle them as part of `t_typ`/`t_field`.
+      - Same applies to `T.is_gadt_existential` — replace the global
+        `gadt_existential_set` check with "cons is reachable from a
+        Variant arm's existential list," checkable at the IR site.
 
 ## Open knobs (deferred)
 

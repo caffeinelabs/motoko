@@ -2881,6 +2881,7 @@ and gadt_check_existentials env exp t c ts id exp1 =
                    "expression of type%a\ncannot produce expected type%a"
                    display_typ_expand actual_t
                    display_typ_expand refined_payload;
+               T.register_refinement_at exp.at sigma;
                let e = A.infer_effect_exp exp in
                exp.note <- {exp.note with note_typ = t; note_eff = e};
                true
@@ -3729,6 +3730,7 @@ and check_case ?orig_pat_t env t_pat t case =
      expected return type, the pattern bindings, and env.vals.
      Mirrors the construction-side check. *)
   let sigma = gadt_sigma_for_case (Option.value orig_pat_t ~default:t_pat) pat in
+  T.register_refinement_at case.at sigma;
   let env_for_body, ve_for_body, t_for_body =
     if T.ConEnv.is_empty sigma then env, ve, t
     else
@@ -3742,28 +3744,8 @@ and check_case ?orig_pat_t env t_pat t case =
       env', ve', t'
   in
   let t' = recover (check_exp (adjoin_vals env_for_body ve_for_body) t_for_body) exp in
-  (* M8 skolem escape: the body's inferred type must not mention any
-     skolem introduced by this arm's existentials. If it does, the
-     existential witness is leaking out of its scope, breaking
-     parametricity. *)
-  gadt_check_no_skolem_escape env (Option.value orig_pat_t ~default:t_pat) pat exp;
   leave_scope env ve initial_usage;
   t'
-
-and gadt_check_no_skolem_escape env t_pat pat exp =
-  let rec unwrap p =
-    match p.it with
-    | ParP inner | AnnotP (inner, _) -> unwrap inner
-    | _ -> p
-  in
-  match (unwrap pat).it, t_pat with
-  | TagP (tag_id, _), T.Con (c, _) ->
-    let skolems = T.lookup_gadt_arm_existentials c tag_id.it in
-    if skolems <> [] && T.mentions_any_con skolems exp.note.note_typ then
-      local_error env exp.at "M9007"
-        "value of type%a\nescapes the case arm — its type mentions an existential skolem (information hiding violated)"
-        display_typ_expand exp.note.note_typ
-  | _ -> ()
 
 and gadt_sigma_for_case t_pat pat : T.typ T.ConEnv.t =
   let rec unwrap p =
