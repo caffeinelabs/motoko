@@ -985,7 +985,14 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
     Either.Right(T.{lab = id.it; typ = c; src = {empty_src with track_region = id.at}})
 
 and check_typ_tag env typ_tag =
-  let {tag; constraints = _; typ} = typ_tag.it in
+  let {tag; constraints; typ} = typ_tag.it in
+  (* Elaborate refinement RHS types so the side-table can read them
+     via [rhs.note] in the enclosing TypD handler. *)
+  List.iter (fun c ->
+    match c.it.refines with
+    | Some rhs -> ignore (check_typ env rhs)
+    | None -> ()
+  ) constraints;
   let t = check_typ env typ in
   Field_sources.add_src env.srcs tag.at;
   T.{lab = tag.it; typ = t; src = {empty_src with track_region = tag.at}}
@@ -2726,6 +2733,32 @@ and check_exp env t exp =
   assert (not env.pre);
   assert (exp.note.note_typ = T.Pre);
   assert (t <> T.Pre);
+  (* GADT eager check: when constructing a variant against a known
+     [Con(c, ts)] type, consult the side-table for arm refinements.
+     Each refinement [A = T_rhs] must be compatible with the slot
+     in [ts] corresponding to [A]; if not, reject. *)
+  (match exp.it, t with
+   | TagE (id, _), T.Con (c, ts) ->
+     let arm_cs = T.lookup_gadt_arm c id.it in
+     if arm_cs <> [] then begin
+       match Cons.kind c with
+       | T.Def (tbs, _) ->
+         List.iter (fun (vname, refined_t) ->
+           let indexed = List.mapi (fun i (tb : T.bind) -> (i, tb)) tbs in
+           match List.find_opt (fun (_, tb) -> tb.T.var = vname) indexed with
+           | Some (i, _) when i < List.length ts ->
+             let slot_t = List.nth ts i in
+             if not (T.eq slot_t refined_t) then
+               local_error env exp.at "M9001"
+                 "GADT arm `%s` refines `%s = %a`, but its slot in this instantiation is %a"
+                 id.it vname
+                 display_typ refined_t
+                 display_typ slot_t
+           | _ -> ()
+         ) arm_cs
+       | _ -> ()
+     end
+   | _ -> ());
   let t' = check_exp' env (T.normalize t) exp in
   let e = A.infer_effect_exp exp in
   exp.note <- {exp.note with note_typ = t'; note_eff = e}
@@ -5094,6 +5127,20 @@ and infer_dec_typdecs env dec : Scope.t =
   | TypD (id, typ_binds, typ) ->
     let k = check_typ_def env dec.at (id, typ_binds, typ) in
     let c = T.Env.find id.it env.typs in
+    (* Populate GADT side-table: per-arm refinement equations. *)
+    (match typ.it with
+     | VariantT tags ->
+       List.iter (fun tag ->
+         let cs =
+           List.filter_map (fun cstr ->
+             match cstr.it.refines with
+             | Some rhs -> Some (cstr.it.tv.it, rhs.note)
+             | None -> None
+           ) tag.it.constraints
+         in
+         T.register_gadt_arm c tag.it.tag.it cs
+       ) tags
+     | _ -> ());
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;

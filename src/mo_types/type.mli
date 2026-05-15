@@ -422,3 +422,7 @@ module ElideStampsAndHashes : PrettyConfig
 module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
+
+(* GADT side-table *)
+val register_gadt_arm : con -> lab -> (var * typ) list -> unit
+val lookup_gadt_arm : con -> lab -> (var * typ) list

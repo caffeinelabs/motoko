@@ -2672,3 +2672,19 @@ let string_of_stab_sig stab_sig : string =
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
+
+(* GADT side-table: per-arm refinement equations on variant types.
+   Indexed by (con × arm-label). The list pairs the outer type-var
+   (or its slot index) with the refinement RHS. Populated at
+   type-declaration elaboration; consulted at variant-construction
+   type-checking. *)
+
+let gadt_arm_constraints : (con * lab, (var * typ) list) Hashtbl.t = Hashtbl.create 16
+
+let register_gadt_arm c lab cs =
+  if cs <> [] then Hashtbl.replace gadt_arm_constraints (c, lab) cs
+
+let lookup_gadt_arm c lab =
+  match Hashtbl.find_opt gadt_arm_constraints (c, lab) with
+  | Some cs -> cs
+  | None -> []
