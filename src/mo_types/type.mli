@@ -423,6 +423,9 @@ module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
 
-(* GADT side-table *)
+(* GADT side-tables *)
 val register_gadt_arm : con -> lab -> (var * typ) list -> unit
+val register_gadt_arm_existentials : con -> lab -> con list -> unit
 val lookup_gadt_arm : con -> lab -> (var * typ) list
+val lookup_gadt_arm_existentials : con -> lab -> con list
+val unify_existentials : typ -> typ -> con list -> typ ConEnv.t option

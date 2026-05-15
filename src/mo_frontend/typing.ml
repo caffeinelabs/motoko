@@ -2744,35 +2744,85 @@ and check_exp env t exp =
   assert (not env.pre);
   assert (exp.note.note_typ = T.Pre);
   assert (t <> T.Pre);
-  (* GADT eager check: when constructing a variant against a known
-     [Con(c, ts)] type, consult the side-table for arm refinements.
-     Each refinement [A = T_rhs] must be compatible with the slot
-     in [ts] corresponding to [A]; if not, reject. *)
-  (match exp.it, t with
-   | TagE (id, _), T.Con (c, ts) ->
-     let arm_cs = T.lookup_gadt_arm c id.it in
-     if arm_cs <> [] then begin
-       match Cons.kind c with
-       | T.Def (tbs, _) ->
-         List.iter (fun (vname, refined_t) ->
-           let indexed = List.mapi (fun i (tb : T.bind) -> (i, tb)) tbs in
-           match List.find_opt (fun (_, tb) -> tb.T.var = vname) indexed with
-           | Some (i, _) when i < List.length ts ->
-             let slot_t = List.nth ts i in
-             if not (T.eq slot_t refined_t) then
-               local_error env exp.at "M9001"
-                 "GADT arm `%s` refines `%s = %a`, but its slot in this instantiation is %a"
-                 id.it vname
-                 display_typ refined_t
-                 display_typ slot_t
-           | _ -> ()
-         ) arm_cs
-       | _ -> ()
-     end
-   | _ -> ());
-  let t' = check_exp' env (T.normalize t) exp in
-  let e = A.infer_effect_exp exp in
-  exp.note <- {exp.note with note_typ = t'; note_eff = e}
+  (* GADT eager check: refinements (M2) and existentials (M4-use). *)
+  let handled =
+    match exp.it, t with
+    | TagE (id, exp1), T.Con (c, ts) ->
+      gadt_check_refinements env exp c ts id;
+      gadt_check_existentials env exp t c ts id exp1
+    | _ -> false
+  in
+  if not handled then begin
+    let t' = check_exp' env (T.normalize t) exp in
+    let e = A.infer_effect_exp exp in
+    exp.note <- {exp.note with note_typ = t'; note_eff = e}
+  end
+
+and gadt_check_refinements env exp c ts id =
+  let arm_cs = T.lookup_gadt_arm c id.it in
+  if arm_cs <> [] then begin
+    match Cons.kind c with
+    | T.Def (tbs, _) ->
+      List.iter (fun (vname, refined_t) ->
+        let indexed = List.mapi (fun i (tb : T.bind) -> (i, tb)) tbs in
+        match List.find_opt (fun (_, tb) -> tb.T.var = vname) indexed with
+        | Some (i, _) when i < List.length ts ->
+          let slot_t = List.nth ts i in
+          let slot_is_skolem = match slot_t with
+            | T.Con (sc, _) ->
+              (match Cons.kind sc with T.Abs _ -> true | _ -> false)
+            | _ -> false
+          in
+          if not slot_is_skolem && not (T.eq slot_t refined_t) then
+            local_error env exp.at "M9001"
+              "GADT arm `%s` refines `%s = %a`, but its slot in this instantiation is %a"
+              id.it vname
+              display_typ refined_t
+              display_typ slot_t
+        | _ -> ()
+      ) arm_cs
+    | _ -> ()
+  end
+
+and gadt_check_existentials env exp t c ts id exp1 =
+  let arm_es = T.lookup_gadt_arm_existentials c id.it in
+  if arm_es = [] then false
+  else
+    match Cons.kind c with
+    | T.Def (_, body) ->
+      let body' = T.open_ ts body in
+      (match T.promote body' with
+       | T.Variant fs ->
+         (match List.find_opt (fun (f : T.field) -> f.T.lab = id.it) fs with
+          | Some f ->
+            let arm_payload = f.T.typ in
+            let actual_t = infer_exp env exp1 in
+            (match T.unify_existentials arm_payload actual_t arm_es with
+             | Some sigma ->
+               let refined_payload = T.subst sigma arm_payload in
+               (* Use subtyping rather than a recursive check_exp — the
+                  payload's sub-expressions already have notes set by
+                  infer_exp, and a re-check would trip the "note = Pre"
+                  precondition cascade. *)
+               if not (T.sub actual_t refined_payload) then
+                 local_error env exp1.at "M0096"
+                   "expression of type%a\ncannot produce expected type%a"
+                   display_typ_expand actual_t
+                   display_typ_expand refined_payload;
+               let e = A.infer_effect_exp exp in
+               exp.note <- {exp.note with note_typ = t; note_eff = e};
+               true
+             | None ->
+               local_error env exp.at "M9002"
+                 "GADT arm `%s`: cannot infer existential witness from payload of type%a"
+                 id.it
+                 display_typ actual_t;
+               (* Fall back to standard path so the user also sees the
+                  resulting subtype error in the usual format. *)
+               false)
+          | None -> false)
+       | _ -> false)
+    | _ -> false
 
 and check_exp' env0 t exp : T.typ =
   let env = {env0 with in_prog = false; in_actor = false; context = exp.it :: env0.context } in
@@ -5181,7 +5231,8 @@ and infer_dec_typdecs env dec : Scope.t =
   | TypD (id, typ_binds, typ) ->
     let k = check_typ_def env dec.at (id, typ_binds, typ) in
     let c = T.Env.find id.it env.typs in
-    (* Populate GADT side-table: per-arm refinement equations. *)
+    (* Populate GADT side-tables: per-arm refinement equations and
+       existential skolems. *)
     (match typ.it with
      | VariantT tags ->
        List.iter (fun tag ->
@@ -5192,7 +5243,15 @@ and infer_dec_typdecs env dec : Scope.t =
              | None -> None
            ) tag.it.constraints
          in
-         T.register_gadt_arm c tag.it.tag.it cs
+         let es =
+           List.filter_map (fun cstr ->
+             match cstr.it.refines, cstr.note with
+             | None, Some skolem -> Some skolem
+             | _ -> None
+           ) tag.it.constraints
+         in
+         T.register_gadt_arm c tag.it.tag.it cs;
+         T.register_gadt_arm_existentials c tag.it.tag.it es
        ) tags
      | _ -> ());
     Scope.{ empty with

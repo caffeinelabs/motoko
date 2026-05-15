@@ -2673,18 +2673,56 @@ let string_of_stab_sig stab_sig : string =
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
 
-(* GADT side-table: per-arm refinement equations on variant types.
-   Indexed by (con × arm-label). The list pairs the outer type-var
-   (or its slot index) with the refinement RHS. Populated at
-   type-declaration elaboration; consulted at variant-construction
-   type-checking. *)
+(* GADT side-tables: per-arm refinement equations + existential skolems.
+   Indexed by (con × arm-label). Populated at type-declaration
+   elaboration; consulted at variant construction & pattern matching. *)
 
 let gadt_arm_constraints : (con * lab, (var * typ) list) Hashtbl.t = Hashtbl.create 16
+let gadt_arm_existentials : (con * lab, con list) Hashtbl.t = Hashtbl.create 16
 
 let register_gadt_arm c lab cs =
   if cs <> [] then Hashtbl.replace gadt_arm_constraints (c, lab) cs
+
+let register_gadt_arm_existentials c lab es =
+  if es <> [] then Hashtbl.replace gadt_arm_existentials (c, lab) es
 
 let lookup_gadt_arm c lab =
   match Hashtbl.find_opt gadt_arm_constraints (c, lab) with
   | Some cs -> cs
   | None -> []
+
+let lookup_gadt_arm_existentials c lab =
+  match Hashtbl.find_opt gadt_arm_existentials (c, lab) with
+  | Some es -> es
+  | None -> []
+
+(* Structural matcher: walk [expected] and [actual] in parallel; where
+   [expected] is `Con(c, [])` with c ∈ existentials, record `c → actual`.
+   Returns the substitution, or None on mismatch / non-uniform unification. *)
+exception Unify_fail
+
+let unify_existentials expected actual existentials : typ ConEnv.t option =
+  let sigma = ref ConEnv.empty in
+  let rec walk e a =
+    match e, a with
+    | Con (c, []), _ when List.mem c existentials ->
+      (match ConEnv.find_opt c !sigma with
+       | None -> sigma := ConEnv.add c a !sigma
+       | Some prev -> if not (eq prev a) then raise Unify_fail)
+    | Tup ts1, Tup ts2 when List.length ts1 = List.length ts2 ->
+      List.iter2 walk ts1 ts2
+    | Opt t1, Opt t2 -> walk t1 t2
+    | Mut t1, Mut t2 -> walk t1 t2
+    | Async (_, t1a, t1b), Async (_, t2a, t2b) -> walk t1a t2a; walk t1b t2b
+    | Func (_, _, _, ts1a, ts1b), Func (_, _, _, ts2a, ts2b)
+        when List.length ts1a = List.length ts2a
+          && List.length ts1b = List.length ts2b ->
+      List.iter2 walk ts1a ts2a;
+      List.iter2 walk ts1b ts2b
+    | Con (c1, ts1), Con (c2, ts2) when Cons.eq c1 c2
+        && List.length ts1 = List.length ts2 ->
+      List.iter2 walk ts1 ts2
+    | _ -> ()  (* leaves / mismatches — let later sub-check do its job *)
+  in
+  try walk expected actual; Some !sigma
+  with Unify_fail -> None
