@@ -317,6 +317,44 @@ machinery (br_table or linear) operates on tags as before.
         the same name) → either error or treat as one var with two binders
         (probably error, like duplicate VarP).
 
+- [ ] **M9 — Soundness axioms**: state the GADT round-trip invariants
+      explicitly, and verify by property-based tests.
+
+      **Axioms:**
+
+      1. **Construct ⇒ Dissect.** If `v = #tag(args) : Expr<T>` typechecks,
+         then `switch v { case (#tag(p)) ... }` binds `p` to the same
+         values, with `p`'s type refined appropriately. The destructor
+         recovers what the constructor packed.
+
+      2. **Dissect ⇒ Construct (same arm).** Inside `case (#tag(p)) body`,
+         the expression `#tag(p)` reconstructs a value of type `Expr<T>`
+         that is observationally equal to the original scrutinee — same
+         tag, same payload values, same refined type-parameter slot.
+
+      3. **Round-trippable.** The composition
+         `construct ∘ dissect ∘ construct = construct` on types — i.e.
+         the type-system view of a value after one construct-dissect-
+         construct cycle equals the type after the first construct.
+         Existentials add a subtle wrinkle: the witness type at
+         re-construct is the skolem from pattern-match, not the
+         original concrete type, but both inhabit the same outer GADT
+         instance (`Expr<T>` is the same), so externally indistinguishable.
+
+      **Failure modes to detect via these axioms:**
+      - Refinement applied at construction but not at pattern match (or
+        vice-versa) → axiom 1 or 2 breaks.
+      - Type erasure of existentials losing parametricity → axiom 3 leaks
+        a witness identity.
+      - Coverage pruning that admits values it shouldn't → axiom 1 or 2.
+
+      **Verification strategy:**
+      - Hand-written test cases per axiom × per arm shape (refinement,
+        existential, parametric, mixed) live under `test/run/gadt-*.mo`.
+      - Optional: a fuzzer that generates random GADT-shaped types and
+        randomly constructs / destructures values, asserting round-trip
+        equality.
+
 ## Open knobs (deferred)
 
 1. **Variance** of the type parameter when GADTs are present. Sidestepped by
