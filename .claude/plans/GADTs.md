@@ -296,9 +296,21 @@ machinery (br_table or linear) operates on tags as before.
       pattern-match sides, and exhaustiveness pruning fires per-parameter.
       Verified with `/tmp/gadt-multi.mo`.
 
-- [ ] **M7 — Coverage analyzer fixup**: revisit `coverage_cases` to handle
-      GADT-pruned-arm scenarios (a partial match is still exhaustive when
-      missing arms are statically unreachable).
+- [x] **M7 — Coverage analyzer fixup**: subsumed by M5. Type-level pruning
+      hands `coverage_cases` a variant already restricted to the reachable
+      arms, so the analyzer's existing logic transparently handles every
+      coverage scenario:
+
+      - Partial match over reachable arms → exhaustive (no false missing).
+      - Explicit `case (#int _)` for `Expr<Bool>` (an arm with `type A = Nat`)
+        → M0146 "this pattern is never matched", because the pruned variant
+        doesn't contain `#int`.
+      - Wildcard `case _` after a partial GADT match → reachable, no false
+        unreached warning.
+      - Or-patterns `case (#bool _ or #int _)` for `Expr<Bool>` → the `#int`
+        leg gets M0146; the `#bool` leg is fine.
+
+      No code change needed beyond M5.
 
 - [ ] **M8 — Diagnostics: errors & warnings on `type` clauses**:
       - **Unused constraint**: `type A = T` on an arm where `A` is the outer
