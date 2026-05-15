@@ -77,9 +77,12 @@ and typ_field' =
 and typ_tag = typ_tag' phrase
 and typ_tag' = {tag : id; constraints : typ_constraint list; typ : typ}
 
-and typ_constraint = typ_constraint' phrase
+and typ_constraint = (typ_constraint', Type.con option) annotated_phrase
 and typ_constraint' = {tv : id; refines : typ option}
-(* refines = Some T : `type tv = T` (refinement); None : `type tv` (existential) *)
+(* refines = Some T : `type tv = T` (refinement);
+   refines = None    : `type tv` (existential). For existentials, the
+   note slot caches the fresh skolem [Type.con] introduced at the first
+   pass, so subsequent passes reuse the same con (eq_kind stability). *)
 
 and bind_sort = Type.bind_sort phrase
 and typ_bind = (typ_bind', Type.con option) annotated_phrase

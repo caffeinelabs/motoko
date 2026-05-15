@@ -986,14 +986,25 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
 
 and check_typ_tag env typ_tag =
   let {tag; constraints; typ} = typ_tag.it in
-  (* Elaborate refinement RHS types so the side-table can read them
-     via [rhs.note] in the enclosing TypD handler. *)
-  List.iter (fun c ->
+  (* Existentials: introduce a fresh skolem (abstract con) into env.typs
+     for the payload elaboration. Cache the con on the AST so subsequent
+     passes reuse the same con (eq_kind stability). *)
+  let env' = List.fold_left (fun env c ->
     match c.it.refines with
-    | Some rhs -> ignore (check_typ env rhs)
-    | None -> ()
-  ) constraints;
-  let t = check_typ env typ in
+    | None ->
+      let con = match c.note with
+        | Some c' -> c'
+        | None ->
+          let c' = Cons.fresh c.it.tv.it (T.Abs ([], T.Any)) in
+          c.note <- Some c';
+          c'
+      in
+      add_typs env [c.it.tv.it] [con]
+    | Some rhs ->
+      ignore (check_typ env rhs);  (* set rhs.note for side-table reader *)
+      env
+  ) env constraints in
+  let t = check_typ env' typ in
   Field_sources.add_src env.srcs tag.at;
   T.{lab = tag.it; typ = t; src = {empty_src with track_region = tag.at}}
 

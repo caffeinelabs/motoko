@@ -539,8 +539,8 @@ typ_constraints_opt :
   | cs=seplist1(typ_constraint, COMMA) { cs }
 
 typ_constraint :
-  | TYPE x=id EQ t=typ { {tv = x; refines = Some t} @@ at $sloc }
-  | TYPE x=id          { {tv = x; refines = None} @@ at $sloc }
+  | TYPE x=id EQ t=typ { {tv = x; refines = Some t} @= at $sloc }
+  | TYPE x=id          { {tv = x; refines = None} @= at $sloc }
 
 typ_bind :
   | x=id SUB t=typ
