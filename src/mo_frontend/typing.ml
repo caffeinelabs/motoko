@@ -986,6 +986,31 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
 
 and check_typ_tag env typ_tag =
   let {tag; constraints; typ} = typ_tag.it in
+  (* M8: detect duplicate `type X` clauses on the same arm. *)
+  if not env.pre then begin
+    let seen = ref [] in
+    List.iter (fun c ->
+      let name = c.it.tv.it in
+      if List.mem name !seen then
+        local_error env c.at "M9003"
+          "duplicate `type %s` clause on arm `%s`"
+          name tag.it
+      else
+        seen := name :: !seen
+    ) constraints
+  end;
+  (* M8: occurs check on refinement RHS (`type A = Foo<A>` would be infinite). *)
+  if not env.pre then
+    List.iter (fun c ->
+      match c.it.refines with
+      | Some rhs ->
+        let name = c.it.tv.it in
+        if mentions_id name rhs then
+          local_error env c.at "M9006"
+            "circular refinement: `type %s = ...` mentions `%s` on its right-hand side"
+            name name
+      | None -> ()
+    ) constraints;
   (* Existentials: introduce a fresh skolem (abstract con) into env.typs
      for the payload elaboration. Cache the con on the AST so subsequent
      passes reuse the same con (eq_kind stability). *)
@@ -1005,8 +1030,55 @@ and check_typ_tag env typ_tag =
       env
   ) env constraints in
   let t = check_typ env' typ in
+  (* M8: warn on unused existentials. A refinement `type A = T` is still
+     useful even when A doesn't appear in the payload — it constrains
+     which outer instantiation can use this arm. An existential `type B`
+     that doesn't appear in the payload, by contrast, is genuinely dead:
+     it introduces a type with no use site. *)
+  if not env.pre then
+    List.iter (fun c ->
+      match c.it.refines with
+      | None ->
+        let name = c.it.tv.it in
+        if not (mentions_id_typ name typ) then
+          warn env c.at "M9004"
+            "unused existential `type %s` on arm `%s` — does not appear in payload"
+            name tag.it
+      | Some _ -> ()
+    ) constraints;
   Field_sources.add_src env.srcs tag.at;
   T.{lab = tag.it; typ = t; src = {empty_src with track_region = tag.at}}
+
+(* Syntactic check: does AST type [typ] textually mention the identifier [name]? *)
+and mentions_id_typ name typ = mentions_id name typ
+
+and mentions_id name typ =
+  let rec mentions_path_it = function
+    | IdH x -> x.it = name
+    | DotH (p, _) -> mentions_path_it p.it
+  in
+  let rec go t =
+    match t.it with
+    | PathT (path, args) ->
+      mentions_path_it path.it || List.exists go args
+    | PrimT _ -> false
+    | ParT t -> go t
+    | NamedT (_, t) -> go t
+    | OptT t -> go t
+    | ArrayT (_, t) -> go t
+    | WeakT t -> go t
+    | TupT items -> List.exists (fun (_, t) -> go t) items
+    | FuncT (_, _, t1, t2) -> go t1 || go t2
+    | ObjT (_, fields) ->
+      List.exists (fun (f : typ_field) ->
+        match f.it with
+        | ValF (_, t, _) -> go t
+        | TypF (_, _, t) -> go t
+      ) fields
+    | VariantT tags -> List.exists (fun (tt : typ_tag) -> go tt.it.typ) tags
+    | AsyncT (_, t1, t2) -> go t1 || go t2
+    | AndT (t1, t2) | OrT (t1, t2) -> go t1 || go t2
+  in go typ
 
 and check_typ_binds_acyclic env typ_binds cs ts  =
   let n = List.length cs in
