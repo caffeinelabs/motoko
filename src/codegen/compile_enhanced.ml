@@ -946,9 +946,9 @@ let immut_local env name (init : G.t) : G.t * G.t =
     try_with
       (fun () -> init 0l no_region [])
       ()
-      { effc = fun (type a) (eff : a Effect.t) ->
-          match eff with
-          | InstrList.Inspecting -> Some (fun (_ : (a, _) continuation) -> raise Bail)
+      { effc = fun (type a) -> function
+          | (InstrList.Inspecting : a Effect.t) ->
+              Some (fun (_ : (a, _) continuation) -> raise Bail)
           | _ -> None }
   in
   match (try Some (inspect ()) with Bail -> None) with
@@ -13589,7 +13589,7 @@ and compile_unboxed_pat env ae how pat
       (* We have to fill the pattern in reverse order, to take things off the
          stack. This is only ok as long as patterns have no side effects.
       *)
-      G.concat_mapi (fun _ p -> orPatternFailure env (fill_pat env ae1 G.nop p)) (List.rev ps)
+      G.concat_map (fun p -> orPatternFailure env (fill_pat env ae1 G.nop p)) (List.rev ps)
     (* Variable patterns *)
     | VarP name ->
       let pre_code, sr, code = Var.set_val env ae1 name in
