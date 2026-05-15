@@ -2701,6 +2701,21 @@ let lookup_gadt_arm_existentials c lab =
    Returns the substitution, or None on mismatch / non-uniform unification. *)
 exception Unify_fail
 
+(* True iff any con in [cons] appears in [t]. *)
+let mentions_any_con cons t =
+  let set = List.fold_left (fun s c -> ConSet.add c s) ConSet.empty cons in
+  let rec go t =
+    match t with
+    | Pre | Any | Non | Prim _ | Var _ -> false
+    | Con (c, ts) -> ConSet.mem c set || List.exists go ts
+    | Tup ts -> List.exists go ts
+    | Opt t | Mut t | Weak t | Named (_, t) | Array t -> go t
+    | Async (_, t1, t2) -> go t1 || go t2
+    | Func (_, _, _, ts1, ts2) -> List.exists go ts1 || List.exists go ts2
+    | Variant fs -> List.exists (fun f -> go f.typ) fs
+    | Obj (_, fs, _) -> List.exists (fun f -> go f.typ) fs
+  in go t
+
 (* Prune GADT variant arms whose refinement is incompatible with the
    given instantiation [ts] of type-binds [tbs]. Each arm's refinement
    `(var, T_rhs)` requires the slot for `var` in [ts] to equal T_rhs;

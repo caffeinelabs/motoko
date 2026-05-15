@@ -3742,8 +3742,28 @@ and check_case ?orig_pat_t env t_pat t case =
       env', ve', t'
   in
   let t' = recover (check_exp (adjoin_vals env_for_body ve_for_body) t_for_body) exp in
+  (* M8 skolem escape: the body's inferred type must not mention any
+     skolem introduced by this arm's existentials. If it does, the
+     existential witness is leaking out of its scope, breaking
+     parametricity. *)
+  gadt_check_no_skolem_escape env (Option.value orig_pat_t ~default:t_pat) pat exp;
   leave_scope env ve initial_usage;
   t'
+
+and gadt_check_no_skolem_escape env t_pat pat exp =
+  let rec unwrap p =
+    match p.it with
+    | ParP inner | AnnotP (inner, _) -> unwrap inner
+    | _ -> p
+  in
+  match (unwrap pat).it, t_pat with
+  | TagP (tag_id, _), T.Con (c, _) ->
+    let skolems = T.lookup_gadt_arm_existentials c tag_id.it in
+    if skolems <> [] && T.mentions_any_con skolems exp.note.note_typ then
+      local_error env exp.at "M9007"
+        "value of type%a\nescapes the case arm — its type mentions an existential skolem (information hiding violated)"
+        display_typ_expand exp.note.note_typ
+  | _ -> ()
 
 and gadt_sigma_for_case t_pat pat : T.typ T.ConEnv.t =
   let rec unwrap p =

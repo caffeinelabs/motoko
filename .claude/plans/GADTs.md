@@ -330,14 +330,19 @@ machinery (br_table or linear) operates on tags as before.
             existential or removing the clause. When the payload *also*
             mentions `U`, the existing M0029 "unbound type" fires first
             during elaboration and masks M9005; both are informative.
-      - [ ] **Skolem escape (information hiding)**: a case body whose body-type
-            mentions a skolem introduced by an existential clause leaks the
-            skolem out of its scope. Even if subtyping then widens it (e.g.
-            the result type is `Any` or `Expr<A>` with A the outer param),
-            the type-level fact "this value witnessed B" should not survive
-            the case arm. Error iff `freevars(t_body) ∩ existentials(arm)
-            ≠ ∅`. Implementation: after computing the body's inferred type,
-            walk it and check no skolem con appears.
+      - [x] **Skolem escape — direct return** (M9007 error): after the
+            case body is checked, walk `exp.note.note_typ` and reject if
+            any of the arm's existential skolem cons appears in it.
+            Catches `case (#eq (_, x, _)) x` where the body is just a
+            variable whose type still mentions the skolem.
+            **Known gap**: when the body wraps the skolem-typed value in
+            a structure that the checker widens at sub-position (e.g.
+            returning `(true, x)` against `(Bool, Any)`), the TupE's
+            note_typ is set to the expected widened type, so the skolem
+            disappears from the note before the check sees it.
+            Operationally inert (Motoko erases types; the Any-typed value
+            is opaque at runtime), but type-theoretically still a leak.
+            Closing this gap would need a sub-expression walker.
       - [ ] **Shadowing warning**: `type A = T` where `A` shadows an outer
             name in a misleading way → optional warning, low priority.
 
