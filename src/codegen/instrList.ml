@@ -42,9 +42,9 @@ let optimize : instr list -> instr list = fun is ->
       go ({ n2 with it = Meta combined } :: l') r'
 
     (* Loading and dropping is pointless *)
-    | { it = Const _ | LocalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' r'
+    | { it = Const _ | LocalGet _ | GlobalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' r'
     (* Loading and dropping is pointless, even with intervening Meta *)
-    | { it = Meta _; _} as m :: { it = Const _ | LocalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' (m :: r')
+    | { it = Meta _; _} as m :: { it = Const _ | LocalGet _ | GlobalGet _; _} :: l', { it = Drop; _ } :: r' -> go l' (m :: r')
     (* The following is not semantics preserving for general Wasm (due to out-of-memory)
        but should be fine for the code that we create *)
     | { it = Load _; _} :: l', { it = Drop; _ } :: _ -> go l' r

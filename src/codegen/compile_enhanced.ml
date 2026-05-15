@@ -13247,9 +13247,9 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
 
     (* compile subexpressions and collect the provided stack reps *)
     let codes = List.map (fun {it={pat; exp=e}; _} ->
-      let (ae1, pat_code) = compile_pat_local env ae get_i pat in
-      let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
-      (sr, pat_code ^^^ CannotFail rhs_code)
+      let ae1, pat_code = compile_pat_local env ae get_i pat in
+      let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint e in
+      sr, pat_code ^^^ CannotFail rhs_code
       ) (simplify_cases e cs) in
 
     (* Use the expected stackrep, if given, else infer from the branches *)
@@ -13532,14 +13532,12 @@ and fill_pat env ae (init : G.t) pat : patternCode =
       CannotFail scr_prelude ^^^ go pfs
   | AltP (p1, p2) ->
       let scr_prelude, get_i = immut_local env "alt_scrut" init in
-      let code1 = fill_pat env ae get_i p1 in
-      let code2 = fill_pat env ae get_i p2 in
+      let code1, code2 = fill_pat env ae get_i p1, fill_pat env ae get_i p2 in
       CannotFail scr_prelude ^^^
       orElse code1 code2
   | AndP (p1, p2) ->
       let scr_prelude, get_i = immut_local env "and_scrut" init in
-      let code1 = fill_pat env ae get_i p1 in
-      let code2 = fill_pat env ae get_i p2 in
+      let code1, code2 = fill_pat env ae get_i p1, fill_pat env ae get_i p2 in
       CannotFail scr_prelude ^^^ code1 ^^^ code2
 
 and alloc_pat_local env ae pat =
