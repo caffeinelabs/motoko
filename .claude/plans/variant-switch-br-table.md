@@ -747,6 +747,8 @@ a pure recognizer-side change: zero impact on `Match_arm` /
 
 Measured wins on `test/bench/variant-switch.mo`: −6.70% on `isWeekendOr` (or-pattern), −3.0% on the AST-eval ×10k loop, −1.85% on fib7_eval.
 
+Follow-up: [#6124](https://github.com/caffeinelabs/motoko/issues/6124).
+
 ## Non-goals
 
 - Nested/wildcard patterns in variant arms (handled by `compile_pat_local`)
