@@ -338,6 +338,36 @@ machinery (br_table or linear) operates on tags as before.
         and check no skolem con (those in `T.lookup_gadt_arm_existentials
         c lab`) appears.
 
+- [ ] **M10 — Existentials in tuples and records**: lift `type X` clauses
+      from variant arms to the top of any type definition, mirroring the
+      arm syntax exactly:
+
+      ```motoko
+      type Tup = type B : (B, B -> Text);
+      type Rec = type B, type C = Nat : { value : B; size : C };
+      ```
+
+      Semantics: `Tup` is an existential pack `∃B. (B, B → Text)`. Any
+      concrete `B` can construct a value (`(5, Nat.toText)` → witness
+      `B = Nat`); destructuring (`let (x, f) = tup`) introduces a fresh
+      skolem `B` into the body's scope, with `x : B` and `f : B → Text`
+      parametric.
+
+      Work splits along the same M1–M9 axes:
+      - **Parser/AST**: allow `type X (= T)?` clauses on `TypD`'s RHS, not
+        just on variant arms. Probably a small extension to the grammar.
+      - **Side-table**: extend or generalise — currently keyed by
+        `(con × tag-label)`, would need a tag-less form keyed by `con`
+        alone for non-variant types.
+      - **Construction-side**: same `T.unify_existentials` machinery; just
+        feed it from a non-variant payload.
+      - **Destructure-side**: `let`-pattern over a tuple/record type with
+        existentials brings a fresh skolem into scope (mirror M3's
+        env-transformer).
+      - **Exhaustiveness/coverage**: not applicable — these types have
+        only one constructor.
+      - **Diagnostics M8**: same suite applies.
+
 - [ ] **M9 — Soundness axioms**: state the GADT round-trip invariants
       explicitly, and verify by property-based tests.
 
