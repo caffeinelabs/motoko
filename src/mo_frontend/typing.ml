@@ -5321,16 +5321,30 @@ and infer_dec_typdecs env dec : Scope.t =
   | TypD (id, typ_binds, typ) ->
     let k = check_typ_def env dec.at (id, typ_binds, typ) in
     let c = T.Env.find id.it env.typs in
+    (* M8: refinement's tv name must match an outer type-parameter,
+       otherwise the refinement is meaningless. *)
+    let outer_names = List.map (fun (tb : typ_bind) -> tb.it.var.it) typ_binds in
     (* Populate GADT side-tables: per-arm refinement equations and
        existential skolems. *)
     (match typ.it with
      | VariantT tags ->
        List.iter (fun tag ->
+         if not env.pre then
+           List.iter (fun cstr ->
+             match cstr.it.refines with
+             | Some _ when not (List.mem cstr.it.tv.it outer_names) ->
+               local_error env cstr.at "M9005"
+                 "invalid refinement `type %s = ...` on arm `%s`: `%s` is not a type-parameter of `%s` — did you mean an existential `type %s` (no `= ...`)?"
+                 cstr.it.tv.it tag.it.tag.it cstr.it.tv.it id.it
+                 cstr.it.tv.it
+             | _ -> ()
+           ) tag.it.constraints;
          let cs =
            List.filter_map (fun cstr ->
              match cstr.it.refines with
-             | Some rhs -> Some (cstr.it.tv.it, rhs.note)
-             | None -> None
+             | Some rhs when List.mem cstr.it.tv.it outer_names ->
+               Some (cstr.it.tv.it, rhs.note)
+             | _ -> None
            ) tag.it.constraints
          in
          let es =
