@@ -845,6 +845,34 @@ let new_local64 env name =
   let (set_i, get_i, _) = new_local_ env I64Type name
   in (set_i, get_i)
 
+(* Smart scrutinee-binding constructor for pattern-matching emission.
+
+   Caller's obligation: between binding point and last use, no
+   instruction may mutate [init]'s source. In the pattern-matching
+   scrutinee paths where this is used, the scrutinee local is
+   read-only during arm emission, so the property holds trivially. *)
+let immut_local env name (init : G.t) : G.t * G.t =
+  let open Wasm.Source in
+  let exception Bail in
+  let inspect () =
+    let open Effect.Deep in
+    try_with
+      (fun () -> init 0l no_region [])
+      ()
+      { effc = fun (type a) -> function
+          | (InstrList.Inspecting : a Effect.t) ->
+              Some (fun (_ : (a, _) continuation) -> raise Bail)
+          | _ -> None }
+  in
+  match (try Some (inspect ()) with Bail -> None) with
+  | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> G.nop, init
+  | Some is ->
+    let set_l, get_l = new_local env name in
+    (fun _ _ rest -> is @ rest) ^^ set_l, get_l
+  | None ->
+    let set_l, get_l = new_local env name in
+    init ^^ set_l, get_l
+
 (* Some common code macros *)
 
 (* Iterates while cond is true. *)
@@ -12855,50 +12883,44 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
   | SwitchE (e, cs) when single_case e cs ->
     let code1 = compile_exp_vanilla env ae e in
     let [@warning "-8"] [{it={pat={it=TagP (_, pat');_} as pat; exp}; _}] = cs in
-    let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat pat'} in
+    let ae1, pat_code = compile_pat_local env ae code1 {pat with it = known_tag_pat pat'} in
     let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint exp in
 
-    (* Use the expected stackrep, if given, else infer from the branches *)
     let final_sr = match sr_hint with
       | Some sr -> sr
       | None -> sr
     in
 
     final_sr,
-    (* Run rest in block to exit from *)
     FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
-       ) [sr, CannotFail code1 ^^^ pat_code ^^^ CannotFail rhs_code]) ^^
-       G.i Unreachable (* We should always exit using the branch_code *)
+       ) [sr, pat_code ^^^ CannotFail rhs_code]) ^^
+       G.i Unreachable
     )
 
   | SwitchE (e, cs) ->
     let code1 = compile_exp_vanilla env ae e in
-    let (set_i, get_i) = new_local env "switch_in" in
+    let scr_prelude, get_i = immut_local env "switch_in" code1 in
 
-    (* compile subexpressions and collect the provided stack reps *)
     let codes = List.map (fun {it={pat; exp=e}; _} ->
-      let (ae1, pat_code) = compile_pat_local env ae pat in
-      let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
-      (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)
+      let ae1, pat_code = compile_pat_local env ae get_i pat in
+      let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint e in
+      sr, pat_code ^^^ CannotFail rhs_code
       ) (simplify_cases e cs) in
 
-    (* Use the expected stackrep, if given, else infer from the branches *)
     let final_sr = match sr_hint with
       | Some sr -> sr
       | None -> StackRep.joins (List.map fst codes)
     in
 
     final_sr,
-    (* Run scrut *)
-    code1 ^^ set_i ^^
-    (* Run rest in block to exit from *)
+    scr_prelude ^^
     FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
        ) codes) ^^
-       G.i Unreachable (* We should always exit using the branch_code *)
+       G.i Unreachable
     )
   (* Async-wait lowering support features *)
   | DeclareE (name, typ, e) ->
@@ -13091,87 +13113,85 @@ and compile_lit_pat env l =
   | Float32Lit _ ->
     todo_trap env "compile_lit_pat" (Arrange_ir.lit l)
 
-and fill_pat env ae pat : patternCode =
+and fill_pat env ae (init : G.t) pat : patternCode =
   PatCode.with_region pat.at @@
   match pat.it with
-  | _ when Ir_utils.is_irrefutable_nonbinding pat -> CannotFail (G.i Drop)
+  | _ when Ir_utils.is_irrefutable_nonbinding pat ->
+      CannotFail (init ^^ G.i Drop)
   | WildP -> assert false (* matched above *)
   | OptP p when Ir_utils.is_irrefutable_nonbinding p ->
       CanFail (fun fail_code ->
+        init ^^
         Opt.is_some env ^^
         G.if0 G.nop fail_code)
   | OptP p ->
-      let (set_x, get_x) = new_local env "opt_scrut" in
+      let scr_prelude, get_x = immut_local env "opt_scrut" init in
       CanFail (fun fail_code ->
-        set_x ^^
+        scr_prelude ^^
         get_x ^^
         Opt.is_some env ^^
         G.if0
-          ( get_x ^^
-            Opt.project env p.note ^^
-            with_fail fail_code (fill_pat env ae p)
+          ( with_fail fail_code
+              (fill_pat env ae (get_x ^^ Opt.project env p.note) p)
           )
           fail_code
       )
   | TagP ("", p) -> (* these only come from known_tag_pat *)
     if Ir_utils.is_irrefutable_nonbinding p
-    then CannotFail (G.i Drop)
-    else CannotFail (Variant.project env) ^^^ fill_pat env ae p
+    then CannotFail (init ^^ G.i Drop)
+    else fill_pat env ae (init ^^ Variant.project env) p
   | TagP (l, p) when Ir_utils.is_irrefutable_nonbinding p ->
       CanFail (fun fail_code ->
+        init ^^
         Variant.test_is env l ^^
         G.if0 G.nop fail_code)
   | TagP (l, p) ->
-      let (set_x, get_x) = new_local env "tag_scrut" in
+      let scr_prelude, get_x = immut_local env "tag_scrut" init in
       CanFail (fun fail_code ->
-        set_x ^^
+        scr_prelude ^^
         get_x ^^
         Variant.test_is env l ^^
         G.if0
-          ( get_x ^^
-            Variant.project env ^^
-            with_fail fail_code (fill_pat env ae p)
+          ( with_fail fail_code
+              (fill_pat env ae (get_x ^^ Variant.project env) p)
           )
           fail_code
       )
   | LitP l ->
       CanFail (fun fail_code ->
+        init ^^
         compile_lit_pat env l ^^
         G.if0 G.nop fail_code)
   | VarP name ->
-      CannotFail (Var.set_val_vanilla_from_stack env ae name)
+      CannotFail (init ^^ Var.set_val_vanilla_from_stack env ae name)
   | TupP ps ->
-      let (set_i, get_i) = new_local env "tup_scrut" in
+      let scr_prelude, get_i = immut_local env "tup_scrut" init in
       let rec go i = function
         | [] -> CannotFail G.nop
         | p::ps ->
-          let code1 = fill_pat env ae p in
+          let code1 = fill_pat env ae (get_i ^^ Tuple.load_n env i) p in
           let code2 = go (Int32.add i 1l) ps in
-          CannotFail (get_i ^^ Tuple.load_n env i) ^^^ code1 ^^^ code2 in
-      CannotFail set_i ^^^ go 0l ps
+          code1 ^^^ code2 in
+      CannotFail scr_prelude ^^^ go 0l ps
   | ObjP pfs ->
       let project = compile_load_field env pat.note in
-      let (set_i, get_i) = new_local env "obj_scrut" in
+      let scr_prelude, get_i = immut_local env "obj_scrut" init in
       let rec go = function
         | [] -> CannotFail G.nop
         | {it={name; pat}; _}::pfs' ->
-          let code1 = fill_pat env ae pat in
+          let code1 = fill_pat env ae (get_i ^^ project name) pat in
           let code2 = go pfs' in
-          CannotFail (get_i ^^ project name) ^^^ code1 ^^^ code2 in
-      CannotFail set_i ^^^ go pfs
+          code1 ^^^ code2 in
+      CannotFail scr_prelude ^^^ go pfs
   | AltP (p1, p2) ->
-      let code1 = fill_pat env ae p1 in
-      let code2 = fill_pat env ae p2 in
-      let (set_i, get_i) = new_local env "alt_scrut" in
-      CannotFail set_i ^^^
-      orElse (CannotFail get_i ^^^ code1)
-             (CannotFail get_i ^^^ code2)
+      let scr_prelude, get_i = immut_local env "alt_scrut" init in
+      let code1, code2 = fill_pat env ae get_i p1, fill_pat env ae get_i p2 in
+      CannotFail scr_prelude ^^^
+      orElse code1 code2
   | AndP (p1, p2) ->
-      let code1, code2 = fill_pat env ae p1, fill_pat env ae p2 in
-      let set_i, get_i = new_local env "and_scrut" in
-      CannotFail set_i ^^^
-      (CannotFail get_i ^^^ code1) ^^^
-      (CannotFail get_i ^^^ code2)
+      let scr_prelude, get_i = immut_local env "and_scrut" init in
+      let code1, code2 = fill_pat env ae get_i p1, fill_pat env ae get_i p2 in
+      CannotFail scr_prelude ^^^ code1 ^^^ code2
 
 and alloc_pat_local env ae pat =
   let d = Freevars.pat pat in
@@ -13188,18 +13208,9 @@ and alloc_pat env ae how pat : VarEnv.t * G.t  =
     in (ae1, code0 ^^ code1)
   ) d (ae, G.nop)
 
-and compile_pat_local env ae pat : VarEnv.t * patternCode =
-  (* It returns:
-     - the extended environment
-     - the patternCode to do the pattern matching.
-       This expects the  undestructed value is on top of the stack,
-       consumes it, and fills the heap.
-       If the pattern matches, execution continues (with nothing on the stack).
-       If the pattern does not match, it fails (in the sense of PatCode.CanFail)
-  *)
+and compile_pat_local env ae (init : G.t) pat : VarEnv.t * patternCode =
   let ae1 = alloc_pat_local env ae pat in
-  let fill_code = fill_pat env ae1 pat in
-  (ae1, fill_code)
+  ae1, fill_pat env ae1 init pat
 
 (* Used for let patterns:
    If the pattern can consume its scrutinee in a better form than vanilla (e.g.
@@ -13229,7 +13240,7 @@ and compile_unboxed_pat env ae how pat
       (* We have to fill the pattern in reverse order, to take things off the
          stack. This is only ok as long as patterns have no side effects.
       *)
-      G.concat_mapi (fun i p -> orPatternFailure env (fill_pat env ae1 p)) (List.rev ps)
+      G.concat_map (fun p -> orPatternFailure env (fill_pat env ae1 G.nop p)) (List.rev ps)
     (* Variable patterns *)
     | VarP name ->
       let pre_code, sr, code = Var.set_val env ae1 name in
@@ -13238,7 +13249,7 @@ and compile_unboxed_pat env ae how pat
     | _ ->
       G.nop,
       Some SR.Vanilla,
-      orPatternFailure env (fill_pat env ae1 pat) in
+      orPatternFailure env (fill_pat env ae1 G.nop pat) in
   let pre_code = G.with_region pat.at pre_code in
   let fill_code = G.with_region pat.at fill_code in
   (ae1, alloc_code, pre_code, sr, fill_code)
