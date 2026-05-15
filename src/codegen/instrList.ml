@@ -93,24 +93,77 @@ let optimize : instr list -> instr list = fun is ->
       go l' ({ i with it = Compare (F64 F64Op.Ne)} :: r')
     | ({it = Test (I32 I32Op.Eqz); _} as i) :: {it = Compare (F64 F64Op.Ne); _} :: l', r' ->
       go l' ({ i with it = Compare (F64 F64Op.Eq)} :: r')
-    (* LSBit masking before `If` is `Ctz` and switched `If` legs *)
-    | ({ it = Binary (I32 I32Op.And); _} as a) :: { it = Const {it = I32 1l; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
+    (* === LSBit-and-1 → Ctz family =====================================
+       `and 1` of x is nonzero iff LSB set. `ctz x` returns 0 iff LSB
+       set. Same boolean information, but `ctz` enables further folding
+       (see e.g. wasmtime PR #13332 for the cranelift JIT side). For
+       `if`, the leg swap is needed because `ctz` flips the test. For
+       `br_if` an extra `eqz` in the input cancels with the flip — no
+       leg swap. *)
+
+    (* `i32.and 1; if t e`  ≡  "branch t when LSB set"  →  `ctz; if e t`. *)
+    | ({ it = Binary (I32 I32Op.And); _} as a) :: { it = Const {it = I32 1l; _}; _} :: l',
+      ({it = If (res,then_,else_); _} as i) :: r' ->
       go ({a with it = Unary (I32 I32Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
-    | ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
-      go ({a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
-    (* Same, with an intervening i32.wrap_i64 (semantically irrelevant for the LSB test) *)
-    | ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
+
+    (* Same i64, with an EOP-mandated `i32.wrap_i64` between `and` and
+       `if` (since `if` consumes i32; wrap is identity on the LSB test). *)
+    | ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l',
+      ({it = If (res,then_,else_); _} as i) :: r' ->
       go (w :: {a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
-    (* `br_if` variants: `[and 1; eqz; br_if]` collapses to `[ctz; br_if]`.
-       Unlike the `if` forms above there is no leg to swap — `br_if` has only
-       one branch direction, and `ctz` already inverts the LSB test the right way. *)
-    | { it = Test (I32 I32Op.Eqz); _} :: ({ it = Binary (I32 I32Op.And); _} as a) :: { it = Const {it = I32 1l; _}; _} :: l', ({it = BrIf _; _} as br) :: r' ->
+    (* `i32.and 1; eqz; br_if l`  ≡  "branch when LSB clear"  →
+       `ctz; br_if l` (ctz≠0 iff LSB clear; eqz consumed). *)
+    | { it = Test (I32 I32Op.Eqz); _} :: ({ it = Binary (I32 I32Op.And); _} as a) :: { it = Const {it = I32 1l; _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
       go ({a with it = Unary (I32 I32Op.Ctz)} :: l') (br :: r')
-    | ({ it = Test (I64 I64Op.Eqz); _} as e) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = BrIf _; _} as br) :: r' ->
+
+    (* Same i64 form, two routes from i64 boolean to the i32 cond br_if
+       wants: `i64.eqz` or `i32.wrap_i64; i32.eqz`. Both end up at
+       `i64.ctz; wrap_i64; br_if`. *)
+    | ({ it = Test (I64 I64Op.Eqz); _} as e) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
       go ({e with it = Convert (I32 I32Op.WrapI64)} :: {a with it = Unary (I64 I64Op.Ctz)} :: l') (br :: r')
-    (* Same i64 form, with an intervening `i32.wrap_i64; i32.eqz` (instead of `i64.eqz`) *)
-    | { it = Test (I32 I32Op.Eqz); _} :: ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = BrIf _; _} as br) :: r' ->
+    | { it = Test (I32 I32Op.Eqz); _} :: ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
       go (w :: {a with it = Unary (I64 I64Op.Ctz)} :: l') (br :: r')
+
+    (* === LSB-via-`shl (N-1)` family =====================================
+       `shl 31` / `shl 63` of x puts the LSB at the top of the word, so
+       the result is nonzero iff LSB was set — equivalent to `and 1` for
+       boolean purposes. moc emits this shape from `compile_classical.ml`
+       and `compile_enhanced.ml`'s `pow` body (LSB-test on the exponent
+       for the square-and-multiply iteration). For the `if t e` case
+       upstream's `eqz; if t e` → `if e t` swap rule fires first, so
+       this rule sees the post-swap shape. *)
+
+    (* `i32.shl 31; if t e`  ≡  "branch t when LSB set"  →  `ctz; if e t`.
+       Reached via `compile_shl_const 31l ^^ Test I32Op.Eqz ^^ G.if0 …`
+       in `compile_classical.ml`'s `pow` body (LSB test on the exponent),
+       after the upstream `eqz; if t e` → `if e t` swap rule fires. *)
+    | ({ it = Binary (I32 I32Op.Shl); _} as s) :: { it = Const {it = I32 31l; _}; _} :: l',
+      ({ it = If (res,then_,else_); _} as i) :: r' ->
+      go ({s with it = Unary (I32 I32Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
+
+    (* `i32.shl 31; eqz; br_if l`  ≡  "branch when LSB clear"  →  `ctz; br_if l`. *)
+    | { it = Test (I32 I32Op.Eqz); _} :: ({ it = Binary (I32 I32Op.Shl); _} as s) :: { it = Const {it = I32 31l; _}; _} :: l',
+      ({ it = BrIf _; _} as br) :: r' ->
+      go ({s with it = Unary (I32 I32Op.Ctz)} :: l') (br :: r')
+
+    (* `i64.shl 63; i64.eqz; if t e`  ≡  "branch t when LSB clear"  →
+       `i64.ctz; wrap; if t e` (no swap — eqz inverts).
+       `i64.shl 63; wrap; …` is omitted on purpose: wrap of the shifted
+       value would discard bit 63 and always read 0.
+       Source: `compile_enhanced.ml`'s `pow` body emits exactly this shape
+       to LSB-test the exponent — `compile_shl_const 63L ^^ compile_test
+       I64Op.Eqz ^^ E.if0 …`. *)
+    | ({ it = Test (I64 I64Op.Eqz); _} as e) :: ({ it = Binary (I64 I64Op.Shl); _} as s) :: { it = Const {it = I64 63L; _}; _} :: l',
+      ({ it = If _; _} as i) :: r' ->
+      go ({e with it = Convert (I32 I32Op.WrapI64)} :: {s with it = Unary (I64 I64Op.Ctz)} :: l') (i :: r')
+
+    (* `i64.shl 63; i64.eqz; br_if l`  →  `i64.ctz; wrap; br_if l`. *)
+    | ({ it = Test (I64 I64Op.Eqz); _} as e) :: ({ it = Binary (I64 I64Op.Shl); _} as s) :: { it = Const {it = I64 63L; _}; _} :: l',
+      ({ it = BrIf _; _} as br) :: r' ->
+      go ({e with it = Convert (I32 I32Op.WrapI64)} :: {s with it = Unary (I64 I64Op.Ctz)} :: l') (br :: r')
     (* `If` blocks after pushed constants are simplifiable *)
     | { it = Const {it = I32 0l; _}; _} :: l', ({it = If (res,_,else_); _} as i) :: r' ->
       go l' ({i with it = Block (res, else_)} :: r')
@@ -122,6 +175,30 @@ let optimize : instr list -> instr list = fun is ->
     (* `If` blocks with empty legs just drop *)
     | l', ({it = If (_,[],[]); _} as i) :: r' ->
        go l' ({i with it = Drop} :: r')
+    (* `if (cond) (br N) else ()`  →  `br_if (N-1)`. moc never emits
+       `BrIf` directly, so this is currently the only source of `br_if`
+       in moc-generated code. Fires on internal codegen with no-result
+       blocks (e.g. `trans_state4`'s state-equality checks). Does NOT
+       fire on user-level break/continue/let-else because those lower
+       to `if [const 0; br N] []` (the unit value for the target
+       block's result type) — that needs locals to rewrite, out of
+       scope here.
+       DeBruijn: removing the if's implicit label decrements all br
+       targets by 1; `Br 0` (which targets the if itself) is a no-op
+       fall-through, so just drop the cond. *)
+    | l', ({it = If (_, [{it = Br x; _}], []); _} as i) :: r' when x.it = 0l ->
+      go l' ({i with it = Drop} :: r')
+    | l', ({it = If (_, [{it = Br x; _}], []); _} as i) :: r' ->
+      go l' ({i with it = BrIf {x with it = Int32.sub x.it 1l}} :: r')
+    (* Probe: `if (cond) (br N) else <non-empty>`. Would generalise the
+       rule above by wrapping the else body in a `block` to preserve the
+       if's implicit label (so `Br 0` inside the body still falls
+       through, and higher depths stay correct). Add the rewrite once
+       we've seen a concrete moc-emitted instance and confirmed the
+       block-type encoding is no longer than the if's. *)
+    | l', ({it = If (_, [{it = Br _; _}], _ :: _); _}) :: _ ->
+      failwith "instrList: probe — `If (_, [Br N], non-empty else)` seen; \
+                consider extending the BrIf rule with a block wrapper"
     (* `If` blocks with empty then after comparison can invert the comparison and swap legs *)
     | { it = Compare (I32 I32Op.Eq); _} as comp :: l', ({it = If (res,[],else_); _} as i) :: r' ->
       go ({comp with it = Compare (I32 I32Op.Ne)} :: l') ({i with it = If (res,else_,[])} :: r')
@@ -138,13 +215,74 @@ let optimize : instr list -> instr list = fun is ->
       ({it = Const cr; _} as const) :: ({it = Binary opr; _} as op) :: r'
         when Option.is_some (combine_shifts const op (opl, cl, opr, cr.it)) ->
       go l' (Option.get (combine_shifts const op (opl, cl, opr, cr.it)) @ r')
-    (* Examining topmost bit *)
-    | {it = Binary (I32 I32Op.ShrU); _} as shift :: {it = Const {it = I32 31l; _}; _} :: l',
+    (* === MSB-extraction → Clz family ==================================
+       `shr_(u|s) (N-1)` or `and (1 << (N-1))` produces a value that's
+       nonzero iff bit N-1 was set. `clz x` returns 0 iff bit N-1 was
+       set. Same logic as the LSB family but mirrored to the top of
+       the word — `if` arms swap because clz inverts; `eqz; br_if`
+       cancels the swap. *)
+
+    (* `i32.(shr_u|shr_s) 31; if t e`  ≡  "branch t when MSB set"  →
+       `clz; if e t` (swap arms because clz=0 iff MSB set). *)
+    | ({it = Binary (I32 (I32Op.ShrU | I32Op.ShrS)); _} as shift) :: {it = Const {it = I32 31l; _}; _} :: l',
       ({it = If (res,then_,else_); _} as if_) :: r' ->
-      go l' ({ shift with it = Unary (I32 I32Op.Clz) } :: { if_ with it = If (res,else_,then_) } :: r')
-    | {it = Binary (I32 I32Op.And); _} as and_ :: {it = Const {it = I32 2147483648l; _}; _} :: l',
+      go l' ({shift with it = Unary (I32 I32Op.Clz)} :: {if_ with it = If (res,else_,then_)} :: r')
+
+    (* `i32.and 0x80000000; if t e`  ≡  same  →  `clz; if e t`. *)
+    | ({it = Binary (I32 I32Op.And); _} as a) :: {it = Const {it = I32 2147483648l; _}; _} :: l',
       ({it = If (res,then_,else_); _} as if_) :: r' ->
-      go l' ({ and_ with it = Unary (I32 I32Op.Clz) } :: { if_ with it = If (res,else_,then_) } :: r')
+      go l' ({a with it = Unary (I32 I32Op.Clz)} :: {if_ with it = If (res,else_,then_)} :: r')
+
+    (* `i32.(shr_u|shr_s) 31; eqz; br_if l`  ≡  "branch when MSB clear"  →
+       `clz; br_if l` (clz≠0 iff MSB clear; eqz consumed, no leg swap). *)
+    | { it = Test (I32 I32Op.Eqz); _} :: ({it = Binary (I32 (I32Op.ShrU | I32Op.ShrS)); _} as shift) :: {it = Const {it = I32 31l; _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
+      go ({shift with it = Unary (I32 I32Op.Clz)} :: l') (br :: r')
+
+    (* `i32.and 0x80000000; eqz; br_if l`  →  `clz; br_if l`. *)
+    | { it = Test (I32 I32Op.Eqz); _} :: ({it = Binary (I32 I32Op.And); _} as a) :: {it = Const {it = I32 2147483648l; _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
+      go ({a with it = Unary (I32 I32Op.Clz)} :: l') (br :: r')
+
+    (* i64 (EOP): MSB test via `shr_(u|s) 63` then `i32.wrap_i64` →
+       `clz; wrap; if e t` (swap arms). *)
+    | ({it = Convert (I32 I32Op.WrapI64); _} as w) :: ({it = Binary (I64 (I64Op.ShrU | I64Op.ShrS)); _} as shift) :: {it = Const {it = I64 63L; _}; _} :: l',
+      ({it = If (res,then_,else_); _} as if_) :: r' ->
+      go (w :: {shift with it = Unary (I64 I64Op.Clz)} :: l') ({if_ with it = If (res,else_,then_)} :: r')
+
+    (* i64 (EOP): MSB test via `and (1 << 63)` then `wrap_i64` → same target. *)
+    | ({it = Convert (I32 I32Op.WrapI64); _} as w) :: ({it = Binary (I64 I64Op.And); _} as a) :: {it = Const {it = I64 (-9223372036854775808L); _}; _} :: l',
+      ({it = If (res,then_,else_); _} as if_) :: r' ->
+      go (w :: {a with it = Unary (I64 I64Op.Clz)} :: l') ({if_ with it = If (res,else_,then_)} :: r')
+
+    (* i64 (EOP): same MSB tests but via `i64.eqz` (inverts the
+       boolean) → `i64.clz; wrap; if t e` (no swap). *)
+    | ({it = Test (I64 I64Op.Eqz); _} as e) :: ({it = Binary (I64 (I64Op.ShrU | I64Op.ShrS)); _} as shift) :: {it = Const {it = I64 63L; _}; _} :: l',
+      ({it = If _; _} as if_) :: r' ->
+      go ({e with it = Convert (I32 I32Op.WrapI64)} :: {shift with it = Unary (I64 I64Op.Clz)} :: l') (if_ :: r')
+
+    (* `i64.and (1 << 63); i64.eqz; if`. The `wrap; eqz` variant is
+       omitted on purpose: `wrap` of an MSB-set value gives 0, so that
+       composite would always say "MSB clear". *)
+    | ({it = Test (I64 I64Op.Eqz); _} as e) :: ({it = Binary (I64 I64Op.And); _} as a) :: {it = Const {it = I64 (-9223372036854775808L); _}; _} :: l',
+      ({it = If _; _} as if_) :: r' ->
+      go ({e with it = Convert (I32 I32Op.WrapI64)} :: {a with it = Unary (I64 I64Op.Clz)} :: l') (if_ :: r')
+
+    (* i64 (EOP) br_if: MSB clear via `shr 63; wrap; eqz` or
+       `shr 63; i64.eqz` — both give the same boolean. Target:
+       `clz; wrap; br_if l`. *)
+    | { it = Test (I32 I32Op.Eqz); _} :: ({it = Convert (I32 I32Op.WrapI64); _} as w) :: ({it = Binary (I64 (I64Op.ShrU | I64Op.ShrS)); _} as shift) :: {it = Const {it = I64 63L; _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
+      go (w :: {shift with it = Unary (I64 I64Op.Clz)} :: l') (br :: r')
+
+    | ({it = Test (I64 I64Op.Eqz); _} as e) :: ({it = Binary (I64 (I64Op.ShrU | I64Op.ShrS)); _} as shift) :: {it = Const {it = I64 63L; _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
+      go ({e with it = Convert (I32 I32Op.WrapI64)} :: {shift with it = Unary (I64 I64Op.Clz)} :: l') (br :: r')
+
+    (* `i64.and (1 << 63); i64.eqz; br_if l`. Only the `i64.eqz` path is meaningful. *)
+    | ({it = Test (I64 I64Op.Eqz); _} as e) :: ({it = Binary (I64 I64Op.And); _} as a) :: {it = Const {it = I64 (-9223372036854775808L); _}; _} :: l',
+      ({it = BrIf _; _} as br) :: r' ->
+      go ({e with it = Convert (I32 I32Op.WrapI64)} :: {a with it = Unary (I64 I64Op.Clz)} :: l') (br :: r')
     (* Null shifts can be eliminated *)
     | l', {it = Const {it = I32 0l; _}; _} :: {it = Binary (I32 I32Op.(Shl|ShrS|ShrU)); _} :: r' ->
       go l' r'
@@ -229,7 +367,7 @@ let loop0 (body : t) : t =
 
 (* Signals that a [t] mutates state (depth-promise refs) when invoked,
    so it cannot be safely materialised at inspection time. Speculative
-   callers install a handler that aborts on this effect. *)
+   callers (see [Inspecting] effect) install a handler that aborts. *)
 type _ Effect.t += Inspecting : unit Effect.t
 
 let effectful (is : t) : t =
