@@ -231,6 +231,44 @@ Nothing new. Erasure means the codegen sees only the structural variant
 representation; refinements are typechecker-only. The variant-dispatch
 machinery (br_table or linear) operates on tags as before.
 
+## Milestones
+
+- [x] **M1 — Parser & AST**: variant arms accept `type X = T` / `type X` clauses,
+      comma-separated. AST gains `typ_tag'.constraints` and `typ_constraint'`.
+      Branch: `gabor/gadt`, commit `4085892ec`.
+
+- [x] **M2 — Construction-side eager check**: side-table `gadt_arm_constraints`
+      in `Type`, populated by `TypD` handler. `check_exp` consults at variant
+      construction against an expected `Con(c, ts)` type and rejects with M9001
+      if an arm's refinement is incompatible with the slot.
+      Commit `fa9abc5f3`.
+
+- [x] **M3 — Pattern-match side env-transformer**: `gadt_sigma_for_case`
+      distills refinements into `Σ : T.ConEnv.t`; `check_case` applies Σ to
+      `env.vals`, the pattern's `ve`, and the expected return type. A complete
+      `func eval<A>(e : Expr<A>) : A` over a GADT typechecks.
+      Strictly additive — empty Σ short-circuits to the pre-existing behavior.
+      Commit `80006ae92`.
+
+- [ ] **M4 — Existentials**: `type X` (no RHS) brings a fresh abstract type
+      `X` into scope for the payload at declaration time and into the case
+      body at pattern match. Currently rejected with M0029 ("unbound type B").
+      Parser & AST already support the syntax — purely typechecker work.
+
+- [ ] **M5 — Refinement-aware exhaustiveness**: `switch (e : Expr<Bool>)` can
+      omit `#int`/`#add` cases because their `type A = Nat` is incompatible.
+      Coverage analyzer needs to consult the GADT side-table and prune
+      statically unreachable arms from "missing" lists.
+
+- [ ] **M6 — Multi-parameter GADTs**: comma-separated `type A = T, type B = U`
+      across multiple outer type-parameters. Parser already accepts it;
+      typechecker side may need a few generalisations of the single-param
+      assumptions in `gadt_sigma_for_case`.
+
+- [ ] **M7 — Coverage analyzer fixup**: revisit `coverage_cases` to handle
+      GADT-pruned-arm scenarios (a partial match is still exhaustive when
+      missing arms are statically unreachable).
+
 ## Open knobs (deferred)
 
 1. **Variance** of the type parameter when GADTs are present. Sidestepped by
