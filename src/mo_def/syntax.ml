@@ -75,7 +75,11 @@ and typ_field' =
   | TypF of typ_id * typ_bind list * typ
 
 and typ_tag = typ_tag' phrase
-and typ_tag' = {tag : id; typ : typ}
+and typ_tag' = {tag : id; constraints : typ_constraint list; typ : typ}
+
+and typ_constraint = typ_constraint' phrase
+and typ_constraint' = {tv : id; refines : typ option}
+(* refines = Some T : `type tv = T` (refinement); None : `type tv` (existential) *)
 
 and bind_sort = Type.bind_sort phrase
 and typ_bind = (typ_bind', Type.con option) annotated_phrase

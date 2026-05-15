@@ -985,7 +985,7 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
     Either.Right(T.{lab = id.it; typ = c; src = {empty_src with track_region = id.at}})
 
 and check_typ_tag env typ_tag =
-  let {tag; typ} = typ_tag.it in
+  let {tag; constraints = _; typ} = typ_tag.it in
   let t = check_typ env typ in
   Field_sources.add_src env.srcs tag.at;
   T.{lab = tag.it; typ = t; src = {empty_src with track_region = tag.at}}

@@ -1,0 +1,8 @@
+gadt.mo:6.35-6.36: type error [M0029], unbound type B
+help: did you mean type Blob or Bool?
+gadt.mo:6.38-6.39: type error [M0029], unbound type B
+help: did you mean type Blob or Bool?
+gadt.mo:6.55-6.56: type error [M0029], unbound type B
+help: did you mean type Blob or Bool?
+gadt.mo:6.64-6.65: type error [M0029], unbound type B
+help: did you mean type Blob or Bool?

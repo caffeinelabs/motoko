@@ -283,6 +283,8 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.typ> typ_un typ_nullary typ typ_pre typ_nobin
 %type<Mo_def.Syntax.vis> vis
 %type<Mo_def.Syntax.typ_tag> typ_tag
+%type<Mo_def.Syntax.typ_constraint> typ_constraint
+%type<Mo_def.Syntax.typ_constraint list> typ_constraints_opt seplist1(typ_constraint,COMMA)
 %type<Mo_def.Syntax.typ_tag list> typ_variant
 %type<Mo_def.Syntax.typ_field> typ_field
 %type<Mo_def.Syntax.typ_bind> typ_bind
@@ -529,8 +531,16 @@ typ_field :
       ValF (x, t, Const @@ no_region) @@ at $sloc }
 
 typ_tag :
-  | HASH x=id t=annot_opt
-    { {tag = x; typ = Lib.Option.get t (TupT [] @! at $sloc)} @@ at $sloc }
+  | HASH x=id cs=typ_constraints_opt t=annot_opt
+    { {tag = x; constraints = cs; typ = Lib.Option.get t (TupT [] @! at $sloc)} @@ at $sloc }
+
+typ_constraints_opt :
+  | (* empty *) { [] }
+  | cs=seplist1(typ_constraint, COMMA) { cs }
+
+typ_constraint :
+  | TYPE x=id EQ t=typ { {tv = x; refines = Some t} @@ at $sloc }
+  | TYPE x=id          { {tv = x; refines = None} @@ at $sloc }
 
 typ_bind :
   | x=id SUB t=typ
@@ -1119,7 +1129,7 @@ pre_stab_field :
 mig_lab : t=TEXT { t @@ at $sloc }
 mig_field :
   | mt=mig_lab COLON t=typ
-    { {tag=mt; typ=t} @@ at $sloc }
+    { {tag=mt; constraints=[]; typ=t} @@ at $sloc }
 
 parse_stab_sig :
   | start ds=seplist(typ_dec, semicolon) ACTOR LCURLY sfs=seplist(stab_field, semicolon) RCURLY
