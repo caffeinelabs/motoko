@@ -250,10 +250,25 @@ machinery (br_table or linear) operates on tags as before.
       Strictly additive — empty Σ short-circuits to the pre-existing behavior.
       Commit `80006ae92`.
 
-- [ ] **M4 — Existentials**: `type X` (no RHS) brings a fresh abstract type
-      `X` into scope for the payload at declaration time and into the case
-      body at pattern match. Currently rejected with M0029 ("unbound type B").
-      Parser & AST already support the syntax — purely typechecker work.
+- [x] **M4 — Existentials**: `type X` (no RHS) brings a fresh skolem (abstract
+      con) into scope for the payload at declaration time and into the case
+      body at pattern match. Construction-side does ad-hoc inference of the
+      existential's witness from the inferred payload type.
+      - **M4-decl** (commit `69ff492b4`): skolem cached on `typ_constraint`
+        AST node (`(typ_constraint', Type.con option) annotated_phrase`)
+        for cross-pass `eq_kind` stability. Declaration with `type B`
+        elaborates without M0029.
+      - **M4-use**: `T.unify_existentials` structurally walks expected vs
+        actual to extract witnesses for each existential con, substitutes,
+        then sub-checks. `T.gadt_arm_existentials` side-table mirrors the
+        refinement table. New error code M9002 for unification failure.
+        `#eq (natEq, #int 5, #int 5) : Expr<Bool>` now typechecks; pattern
+        match in eval returns the right type per arm.
+      - **Known gap**: when `#eq (...)` is the bare argument to a generic
+        function (no explicit type ascription), Motoko's inference doesn't
+        yet propagate the GADT refinement upward to instantiate the type
+        parameter. Workaround: ascribe `: Expr<Bool>` at construction.
+        Tracked as a sub-item for a future milestone.
 
 - [ ] **M5 — Refinement-aware exhaustiveness**: `switch (e : Expr<Bool>)` can
       omit `#int`/`#add` cases because their `type A = Nat` is incompatible.
@@ -268,6 +283,23 @@ machinery (br_table or linear) operates on tags as before.
 - [ ] **M7 — Coverage analyzer fixup**: revisit `coverage_cases` to handle
       GADT-pruned-arm scenarios (a partial match is still exhaustive when
       missing arms are statically unreachable).
+
+- [ ] **M8 — Diagnostics: errors & warnings on `type` clauses**:
+      - **Unused constraint**: `type A = T` on an arm where `A` is the outer
+        type-parameter but `A` doesn't appear in the payload (and no other
+        constraint uses it) — refinement adds nothing → warn.
+      - **Unused existential**: `type B` introduces B but B doesn't appear in
+        the payload → either dead-code or a typo → warn.
+      - **Circular constraint**: `type A = Foo<A>` or `type A = T<A>` where
+        the RHS references A itself, producing an infinite type → error.
+        Same family as the regular occurs check, but specific to GADT arms.
+      - **Conflicting refinement**: `type A = Nat, type A = Bool` (same name,
+        two RHS) — internally inconsistent → error.
+      - **Shadowing warning**: `type A = T` where `A` shadows an outer name
+        in a misleading way → optional warning, low priority.
+      - **Existential collision**: `type B, type B` (two existentials with
+        the same name) → either error or treat as one var with two binders
+        (probably error, like duplicate VarP).
 
 ## Open knobs (deferred)
 
