@@ -589,6 +589,7 @@ func fromIter<T>(iter : Types.Iter<T>) : [var T]
 ```
 
 Converts an iterator to a mutable array.
+@deprecated M0235
 
 ## Function `keys`
 ``` motoko no-repl
@@ -894,6 +895,24 @@ assert array == [0, 1, 3];
 Runtime: O(size)
 
 Space: O(1)
+
+## Function `toBlob`
+``` motoko no-repl
+func toBlob(self : [var Nat8]) : Blob
+```
+
+Creates a `Blob` from a mutable array of bytes (`[var Nat8]`), by copying each element.
+
+```motoko include=import
+let bytes : [var Nat8] = [var 0, 255, 0];
+let blob = VarArray.toBlob(bytes);
+assert blob == "\00\FF\00";
+assert bytes.toBlob() == "\00\FF\00";
+```
+
+Runtime: O(size)
+
+Space: O(size)
 
 ## Function `toText`
 ``` motoko no-repl
