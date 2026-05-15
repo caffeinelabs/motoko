@@ -2898,9 +2898,10 @@ and check_exp' env0 t exp : T.typ =
     check_exp env t exp3;
     t
   | SwitchE (exp1, cases), _ ->
-    let t1 = infer_exp_promote env exp1 in
+    let t1_orig = infer_exp env exp1 in
+    let t1 = T.promote t1_orig in
     let env' = { env with closest_scrutinee = Some (exp1.at, t1) } in
-    check_cases env' t1 t cases;
+    check_cases ~orig_pat_t:t1_orig env' t1 t cases;
     coverage_cases "switch" env cases t1 exp.at;
     t
   | TryE (exp1, cases, exp2_opt), _ ->
@@ -3565,16 +3566,58 @@ and infer_case env t_pat t case =
       display_typ_expand t';
   t''
 
-and check_cases env t_pat t cases =
-  List.iter (check_case env t_pat t) cases
+and check_cases ?orig_pat_t env t_pat t cases =
+  List.iter (check_case ?orig_pat_t env t_pat t) cases
 
-and check_case env t_pat t case =
+and check_case ?orig_pat_t env t_pat t case =
   let {pat; exp} = case.it in
   let initial_usage = enter_scope env in
   let ve = check_pat env t_pat pat in
-  let t' = recover (check_exp (adjoin_vals env ve) t) exp in
+  (* GADT env-transformer: when the pattern tags a GADT arm, distill
+     the arm's refinements into a substitution Σ and apply it to the
+     expected return type, the pattern bindings, and env.vals.
+     Mirrors the construction-side check. *)
+  let sigma = gadt_sigma_for_case (Option.value orig_pat_t ~default:t_pat) pat in
+  let env_for_body, ve_for_body, t_for_body =
+    if T.ConEnv.is_empty sigma then env, ve, t
+    else
+      let env' = { env with vals = T.Env.map
+                     (fun (typ, r, k, a) -> (T.subst sigma typ, r, k, a))
+                     env.vals } in
+      let ve' = T.Env.map
+                  (fun (typ, r, k) -> (T.subst sigma typ, r, k))
+                  ve in
+      let t' = T.subst sigma t in
+      env', ve', t'
+  in
+  let t' = recover (check_exp (adjoin_vals env_for_body ve_for_body) t_for_body) exp in
   leave_scope env ve initial_usage;
   t'
+
+and gadt_sigma_for_case t_pat pat : T.typ T.ConEnv.t =
+  let rec unwrap p =
+    match p.it with
+    | ParP inner | AnnotP (inner, _) -> unwrap inner
+    | _ -> p
+  in
+  match (unwrap pat).it, t_pat with
+  | TagP (tag_id, _), T.Con (c, ts) ->
+    let arm_cs = T.lookup_gadt_arm c tag_id.it in
+    if arm_cs = [] then T.ConEnv.empty
+    else
+      (match Cons.kind c with
+       | T.Def (tbs, _) ->
+         List.fold_left (fun sigma (vname, rhs_t) ->
+           let indexed = List.mapi (fun i (tb : T.bind) -> (i, tb)) tbs in
+           match List.find_opt (fun (_, tb) -> tb.T.var = vname) indexed with
+           | Some (i, _) when i < List.length ts ->
+             (match List.nth ts i with
+              | T.Con (c_slot, []) -> T.ConEnv.add c_slot rhs_t sigma
+              | _ -> sigma)
+           | _ -> sigma
+         ) T.ConEnv.empty arm_cs
+       | _ -> T.ConEnv.empty)
+  | _ -> T.ConEnv.empty
 
 and inconsistent t ts =
   T.opaque t && not (List.exists T.opaque ts)
