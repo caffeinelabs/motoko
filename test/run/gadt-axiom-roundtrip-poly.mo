@@ -9,21 +9,19 @@ type Expr<A> = {
   #eq   type A = Bool, type B : ((B, B) -> Bool, Expr<B>, Expr<B>);
 };
 
-func roundtrip<T>(e : Expr<T>) : Expr<T> {
+func roundtrip<T>(e : Expr<T>) : Expr<T> =
   switch e {
     case (#int n) #int n;
     case (#bool b) #bool b;
     case (#eq (cmp, x, y)) #eq (cmp, x, y);
   };
-};
 
-func eval<A>(e : Expr<A>) : A {
+func eval<A>(e : Expr<A>) : A =
   switch e {
     case (#int n) n;
     case (#bool b) b;
     case (#eq (cmp, x, y)) cmp(eval x, eval y);
   };
-};
 
 // Round-trip at concrete instantiations: T = Nat
 let n1 : Expr<Nat> = #int 7;
@@ -38,7 +36,7 @@ assert eval b1 == eval b2;
 assert eval b2 == false;
 
 // T = Bool, existential arm — witness B is hidden by the outer Expr
-func natEq(a : Nat, b : Nat) : Bool { a == b };
+func natEq(a : Nat, b : Nat) : Bool = a == b;
 let e1 : Expr<Bool> = #eq (natEq, #int 3, #int 3);
 let e2 = roundtrip e1;
 assert eval e1 == eval e2;

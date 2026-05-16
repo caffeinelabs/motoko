@@ -7,8 +7,8 @@
 
 type Tup = type X in (X, X -> Text);
 
-func natToText(n : Nat) : Text { debug_show n };
-func boolToText(b : Bool) : Text { debug_show b };
+func natToText(n : Nat) : Text = debug_show n;
+func boolToText(b : Bool) : Text = debug_show b;
 
 // Construction unifies the existential — X = Nat for t1, X = Bool for t2.
 let t1 : Tup = (5, natToText);
