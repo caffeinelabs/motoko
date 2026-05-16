@@ -667,12 +667,76 @@ machinery (br_table or linear) operates on tags as before.
       First cut of M11b shipped for M10 destructures only —
       see `test/fail/gadt-m11-cross-entangle.mo` for the now-rejected
       cross-feed and a region-keyed `gadt_fresh_skolems` cache plus
-      σ application at the IR LetD check. Variant-arm destructures
-      (`case (#eq (cmp, x, y)) ...`) still share the schema's
-      existential cons across sibling cases — the equivalent
-      cross-feed there is harder to construct as a clean test
-      (variant payloads carry `Expr<B>`, not raw B-typed values),
-      but the same fix applies via `gadt_sigma_for_case`. Pending.
+      σ application at the IR LetD check.
+
+      **Variant-arm un-entangling — attempted, rolled back, pending
+      M11a.** Extending `gadt_sigma_for_case` to also mint fresh
+      skolems for each schema existential (mirror of the M10
+      destructure path) breaks every roundtrip-style test for
+      reasons that took some tracing. Recording the pitfalls so a
+      future attempt doesn't relearn them:
+
+      1. **`pat.note` for the outer `TagP` must stay at `t_pat`**
+         (the un-refined scrutinee variant), because IR's `check_pat`
+         calls `check_sub env pat.at t_pat pat.note` directly on it.
+         Refining the outer pat.note with σ makes that sub-check fail
+         (un-refined `t_pat` is not a subtype of refined pat.note).
+         So the rewrite has to skip the *outermost* pat.note —
+         tempting first stab.
+
+      2. **But that's not enough.** IR's `check_pat_tag` (called from
+         the TagP arm of IR's `check_pat`) does:
+
+             match T.lookup_val_field_opt l (T.as_variant_sub l t) with
+             | Some t -> t <: pat.note
+
+         where `t` is the *outer* TagP.note and `pat.note` is the
+         *inner* pattern's note. The `t` (outer) carries the schema
+         existential `B_schema`; the inner note, if σ-refined, has
+         `B_site`. The arm-payload extracted from the outer is
+         `(B_schema, ...) -> Bool` — comparing against `(B_site,
+         ...) -> Bool` fails. So we'd also have to skip refining
+         the inner notes — but those *are* what IR's `VarE` check
+         needs refined to bind `cmp`/`x`/`y` at site cons.
+
+      3. **`T.normalize` on `Con(Expr, [B_schema])` unfolds the Def
+         body**, turning the inner `Expr<B_schema>` pat.note into a
+         full opened `Variant{...with B_schema in #bool, #eq, #if_...}`.
+         IR's `check_pat`'s structural assumption is that pat.note
+         describes the value matched at this position, and the
+         opened form *does* describe it. But this means σ-refining
+         the inner pat.note refines the *entire opened variant* — and
+         the IR's outer arm-payload-extraction expects the
+         *un-refined* variant. Surface and IR end up with mismatched
+         views of the same nested type.
+
+      4. **IR's existing post-process of `ve` (in `check_case`) is
+         correct** — applying σ to the ve from `check_pat` gives the
+         right binding types for the body. The problem is that the
+         IR's `check_pat` itself runs invariant checks (TagP arm
+         payload <: inner pat.note, `t <: T.Tup ts` for TupP, etc.)
+         *before* the ve post-process, using the un-refined inner
+         pat.notes. We can't refine the inner notes without breaking
+         those internal checks, and we can't leave them un-refined
+         without breaking the binding-types story.
+
+      **The clean resolution is M11a, not more region-keyed hacks.**
+      Moving σ onto the IR `case'` node as an explicit field
+      (rather than discovering it via `lookup_refinement_at case.at`
+      after the fact) lets IR's `check_pat` know during its walk
+      that this arm is GADT-refined. Then:
+      - `check_pat_tag` can extract the arm payload, σ-refine it,
+        and compare against the inner pat.note — both sides at
+        site cons, consistent.
+      - VarE/VarP binding types come out refined naturally, no
+        retroactive ve rewriting.
+      - The case's σ flows with the AST through transforms — same
+        cons-renaming passes that already migrate types migrate σ.
+
+      So: do M11a refactor first (mostly mechanical — σ as a node
+      field, drop the side-table hash lookups). M11b's variant-arm
+      slice then becomes "add σ_es to the σ that already lives on
+      the case node" — the structural impedance mismatch disappears.
 
       Status: M11a — current `gadt_arm_constraints`,
       `gadt_arm_existentials`, `gadt_existential_set`,
