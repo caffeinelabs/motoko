@@ -778,14 +778,10 @@ let rec check_exp env (exp:Ir.exp) : unit =
     let env' = adjoin env scope in
     check_decs env' ds;
     check_exp env' exp1;
-    (* M10: a BlockE that desugars from a GADT-existential ObjE has a
-       σ registered at its region; refine the expected [t] before the
-       sub-check so the σ-refined block result matches. *)
-    let t' = match T.lookup_refinement_at exp.at with
-      | Some sigma -> T.subst sigma (T.promote t)
-      | None -> t
-    in
-    typ exp1 <: t'
+    (* M11a: σ-refine the expected [t] when this BlockE desugared from
+       an existential-bearing ObjBlockE (the σ comes from the surface
+       ObjBlockE's note). *)
+    typ exp1 <: refine_target t
   | IfE (exp1, exp2, exp3) ->
     check_exp env exp1;
     typ exp1 <: T.bool;

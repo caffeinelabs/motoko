@@ -2960,10 +2960,8 @@ and gadt_check_existentials env exp t c ts id exp1 =
                    "expression of type%a\ncannot produce expected type%a"
                    display_typ_expand actual_t
                    display_typ_expand refined_payload;
-               T.register_refinement_at exp.at sigma;
                let e = A.infer_effect_exp exp in
-               (* M11a: also stash σ on the note. During migration we
-                  dual-write side-table + note; consumers prefer note. *)
+               (* M11a: σ lives on the exp's note (post-migration). *)
                exp.note <- {exp.note with note_typ = t; note_eff = e;
                                           note_sigma = Some sigma};
                true
@@ -2998,11 +2996,10 @@ and gadt_check_typd_existentials env exp t c ts =
            "expression of type%a\ncannot produce expected type%a"
            display_typ_expand actual_t
            display_typ_expand refined;
-       T.register_refinement_at exp.at sigma;
        let e = A.infer_effect_exp exp in
        (* Normalise to the structural form (Obj / Tup / Variant / ...)
           for desugar — it walks the note expecting the open body, not
-          the [Con] wrapper. M11a: σ also lives on the note. *)
+          the [Con] wrapper. M11a: σ lives on the note. *)
        exp.note <- {exp.note with note_typ = T.normalize t; note_eff = e;
                                   note_sigma = Some sigma};
        true
@@ -3847,10 +3844,8 @@ and check_case ?orig_pat_t env t_pat t case =
      expected return type, the pattern bindings, and env.vals.
      Mirrors the construction-side check. *)
   let sigma = gadt_sigma_for_case (Option.value orig_pat_t ~default:t_pat) pat in
-  (* M11a: σ on case node (single source of truth). Side-table write
-     kept for now so any reader that hasn't migrated still sees it. *)
+  (* M11a: σ on case node (single source of truth). *)
   case.it.gadt_sigma <- (if T.ConEnv.is_empty sigma then None else Some sigma);
-  T.register_refinement_at case.at sigma;
   let env_for_body, ve_for_body, t_for_body =
     if T.ConEnv.is_empty sigma then env, ve, t
     else
@@ -5158,7 +5153,10 @@ and infer_dec env dec : T.typ =
                let es = T.lookup_typd_existentials c in
                (match T.unify_existentials body' t' es with
                 | Some sigma ->
-                  T.register_refinement_at dec.at sigma;
+                  (* M11a: σ at dec.at had no consumers; drop the
+                     register. The body sub-check is the only thing
+                     needed at the class-declaration site; the
+                     call-site σ lives on its own CallE note. *)
                   T.subst sigma body'
                 | None -> t'')
              | _ -> t'')

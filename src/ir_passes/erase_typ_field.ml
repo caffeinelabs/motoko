@@ -88,10 +88,18 @@ let transform prog =
   in
 
   let rec t_exp (exp : exp) =
+    (* M11a: preserve σ on the note, rewriting its cons keys/value
+       types under this pass's cons-renaming. *)
+    let gadt_sigma' = Option.map (fun sigma ->
+      T.ConEnv.fold (fun c t acc ->
+        T.ConEnv.add (t_con c) (t_typ t) acc
+      ) sigma T.ConEnv.empty
+    ) exp.note.Note.gadt_sigma in
     { it = t_exp' exp;
       note = Note.{ def with
         typ = t_typ exp.note.typ;
-        eff = exp.note.eff
+        eff = exp.note.eff;
+        gadt_sigma = gadt_sigma'
       };
       at = exp.at;
     }
