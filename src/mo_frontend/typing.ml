@@ -960,10 +960,52 @@ and check_typ' env typ : T.typ =
   | WeakT typ ->
     T.Weak (check_typ env typ)
 
-and check_typ_def env at (id, typ_binds, typ) : T.kind =
+and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
   let env' = adjoin_typs env te ce in
-  let t = check_typ env' typ in
+  if not env.pre then begin
+    let seen = ref [] in
+    List.iter (fun c ->
+      let name = c.it.tv.it in
+      if List.mem name !seen then
+        local_error env c.at "M9003"
+          "duplicate `type %s` clause on type `%s`" name id.it
+      else seen := name :: !seen
+    ) cs_top;
+    List.iter (fun c ->
+      match c.it.refines with
+      | Some _ ->
+        local_error env c.at "M9008"
+          "refinement `type %s = ...` is not meaningful at the top of a type definition (no outer type-parameter to refine) — drop the `= ...` to make it existential, or substitute the RHS into the body"
+          c.it.tv.it
+      | None -> ()
+    ) cs_top
+  end;
+  let env'' = List.fold_left (fun env c ->
+    match c.it.refines with
+    | None ->
+      let con = match c.note with
+        | Some c' -> c'
+        | None ->
+          let c' = Cons.fresh c.it.tv.it (T.Abs ([], T.Any)) in
+          c.note <- Some c';
+          c'
+      in
+      add_typs env [c.it.tv.it] [con]
+    | Some _ -> env
+  ) env' cs_top in
+  let t = check_typ env'' typ in
+  if not env.pre then
+    List.iter (fun c ->
+      match c.it.refines with
+      | None ->
+        let name = c.it.tv.it in
+        if not (mentions_id_typ name typ) then
+          warn env c.at "M9004"
+            "unused existential `type %s` on type `%s` — does not appear in body"
+            name id.it
+      | Some _ -> ()
+    ) cs_top;
   let k = T.Def (T.close_binds cs tbs, T.close cs t) in
   check_closed env id k at;
   k
@@ -979,7 +1021,7 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
     Field_sources.add_src env.srcs id.at;
     Either.Left(T.{lab = id.it; typ = t; src = {empty_src with track_region = id.at}})
   | TypF (id, typ_binds, typ) ->
-    let k = check_typ_def env typ_field.at (id, typ_binds, typ) in
+    let k = check_typ_def env typ_field.at (id, typ_binds, [], typ) in
     let c = Cons.fresh id.it k in
     Field_sources.add_src env.srcs id.at;
     Either.Right(T.{lab = id.it; typ = c; src = {empty_src with track_region = id.at}})
@@ -4250,7 +4292,7 @@ and vis_dec src dec xs : visibility_env =
   | VarD (id, _) -> vis_val_id src id xs
   | ClassD (_, _, _, id, _, _, _, _, _) ->
     vis_val_id src {id with note = ()} (vis_typ_id src id xs)
-  | TypD (id, _, _) -> vis_typ_id src id xs
+  | TypD (id, _, _, _) -> vis_typ_id src id xs
   | MixinD _
   | IncludeD _ -> xs
 
@@ -5137,7 +5179,7 @@ and gather_dec env scope dec : Scope.t =
     }
   | LetD (pat, exp, _) -> gather_pat env scope pat
   | VarD (id, _) -> Scope.adjoin_val_env scope (gather_id env scope.Scope.val_env id Scope.Declaration)
-  | TypD (id, binds, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
+  | TypD (id, binds, _, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
     let open Scope in
     if T.Env.mem id.it scope.typ_env then
       error_duplicate env "type " id;
@@ -5320,8 +5362,8 @@ and infer_dec_typdecs env dec : Scope.t =
        end
   | ExpD _ | VarD _ ->
     Scope.empty
-  | TypD (id, typ_binds, typ) ->
-    let k = check_typ_def env dec.at (id, typ_binds, typ) in
+  | TypD (id, typ_binds, cs_top, typ) ->
+    let k = check_typ_def env dec.at (id, typ_binds, cs_top, typ) in
     let c = T.Env.find id.it env.typs in
     (* M8: refinement's tv name must match an outer type-parameter,
        otherwise the refinement is meaningless. *)
@@ -5443,7 +5485,7 @@ and infer_dec_valdecs env dec : Scope.t =
   | VarD (id, exp) ->
     let t = infer_exp {env with pre = true} exp in
     Scope.{empty with val_env = singleton id (T.Mut t)}
-  | TypD (id, _, _) ->
+  | TypD (id, _, _, _) ->
     let c = Option.get id.note in
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;

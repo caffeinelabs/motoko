@@ -347,14 +347,23 @@ machinery (br_table or linear) operates on tags as before.
             name in a misleading way → optional warning, low priority.
 
 - [ ] **M10 — Existentials in tuples and records**: lift `type X` clauses
-      from variant arms to the top of any type definition. **Separator is
-      `,` (comma), not `:`** — `:` already means "has type" in Motoko, and
-      reusing it here for "binds existential" would be visually confusing:
+      from variant arms to the top of any type definition. **Syntax: a
+      comma-separated list of `type X` bindings, then `in`, then the
+      body type.** `in` (already a keyword from `for (x in xs)`) reads
+      naturally as "hide X *in* this type"; comma between bindings
+      mirrors the variant-arm syntax:
 
       ```motoko
-      type Tup = type B, (B, B -> Text);
-      type Rec = type B, type C = Nat, { value : B; size : C };
+      type Tup = type X in (X, X -> Text);
+      type Rec = type X, type Y in { value : X; size : Y };
       ```
+
+      **Refinement (`type X = T in body`) is rejected at top level**:
+      there is no outer type variable for the refinement to bind — at
+      most it's a let-style substitution sugar (`X` everywhere becomes
+      `T`), which doesn't need a new mechanism. The constraint can
+      always be substituted in. Only existential `type X` clauses
+      carry semantic content here.
 
       Semantics: `Tup` is an existential pack `∃B. (B, B → Text)`. Any
       concrete `B` can construct a value (`(5, Nat.toText)` → witness

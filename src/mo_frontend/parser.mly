@@ -496,6 +496,11 @@ typ :
   | t1=typ OR t2=typ
     { OrT(t1, t2) @! at $sloc }
 
+typ_def_rhs :
+  | t=typ { [], t }
+  | cs=seplist1(typ_constraint, COMMA) IN t=typ
+    { cs, t }
+
 typ_item :
   | i=implicit COLON t = typ { Some i, t }
   | i=id COLON t=typ { Some i, t }
@@ -996,8 +1001,8 @@ dec_nonvar :
        we parse a full pat but reject during typing *)
     { let p', e' = normalize_let p (PrimE "_" @? at $sloc) in
       LetD (p', e', None) @? at $sloc }
-  | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
-    { TypD(x, tps, t) @? at $sloc }
+  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs
+    { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body
     { (* This is a hack to support local func declarations that return a computed async.
@@ -1111,8 +1116,8 @@ parse_module_header :
 (* stable signatures (.most files) *)
 
 typ_dec :
-  | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
-    { TypD(x, tps, t) @? at $sloc }
+  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs
+    { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
 
 stab_field :
   | STABLE mut=var_opt x=id COLON t=typ

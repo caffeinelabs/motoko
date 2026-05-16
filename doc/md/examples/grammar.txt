@@ -73,6 +73,10 @@
     <typ> 'and' <typ>
     <typ> 'or' <typ>
 
+<typ_def_rhs> ::= 
+    <typ>
+    <list1(<typ_constraint>, ',')> 'in' <typ>
+
 <typ_item> ::= 
     <implicit> ':' <typ>
     <id> ':' <typ>
@@ -345,7 +349,7 @@
 <dec_nonvar> ::= 
     'let' <pat> '=' <exp>
     'let' <pat>
-    'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
+    'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ_def_rhs>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
     <parenthetical>? <obj_or_class_dec>
     'mixin' <pat_plain> <obj_body>

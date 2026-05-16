@@ -547,7 +547,7 @@ module Make (Cfg : Config) = struct
         to_js_object "LetD" [| pat_js p; exp_js e; exp_js f |]
     | LetD (p, e, None) -> to_js_object "LetD" [| pat_js p; exp_js e |]
     | VarD (x, e) -> to_js_object "VarD" [| id x; exp_js e |]
-    | TypD (x, tp, t) ->
+    | TypD (x, tp, _cs, t) ->
         to_js_object "TypD"
           ([ id x ] @ List.map typ_bind_js tp @ [ syntax_typ_js t ]
           |> Array.of_list)

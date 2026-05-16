@@ -279,6 +279,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_seplist_mig_field_semicolon_) -> seplist ("<mig_field>", eg_mig_field) semi
   | X (N N_mig_lab) -> "<mig_lab>", "\"<filename>\""
   | X (N N_mig_field) -> "<mig_field>", eg_mig_field
+  | X (N N_typ_def_rhs) -> "<typ_def_rhs>", eg_typ
 (* In order to print a view of the stack that includes semantic values,
    we need an element printer. (If we don't need this feature, then
    [print_symbol] above suffices.) *)

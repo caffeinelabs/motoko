@@ -287,8 +287,10 @@ module Make (Cfg : Config) = struct
     | LetD (p, e, Some f) -> "LetD" $$ [pat p; exp e; exp f]
     | LetD (p, e, None) -> "LetD" $$ [pat p; exp e]
     | VarD (x, e) -> "VarD" $$ [id x; exp e]
-    | TypD (x, tp, t) ->
-      "TypD" $$ [id x] @ List.map typ_bind tp @ [typ t]
+    | TypD (x, tp, cs, t) ->
+      let con c = source c.at (c.it.tv.it $$
+        match c.it.refines with None -> [] | Some r -> [typ r]) in
+      "TypD" $$ [id x] @ List.map typ_bind tp @ List.map con cs @ [typ t]
     | ClassD (eo, sp, s, x, tp, p, rt, i, dfs) ->
       "ClassD" $$
         parenthetical eo
