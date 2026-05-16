@@ -597,7 +597,7 @@ machinery (br_table or linear) operates on tags as before.
         `gadt_existential_set` check with "cons is reachable from a
         Variant arm's existential list," checkable at the IR site.
 
-- [ ] **M12 — Candid / share-typing**: implement the Candid rules
+- [x] **M12 — Candid / share-typing**: implement the Candid rules
       spelled out in [Interactions with existing Motoko → Candid](#candid).
       Three touch-points, one new function, no Candid spec changes:
 
