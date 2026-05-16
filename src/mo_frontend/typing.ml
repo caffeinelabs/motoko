@@ -2956,7 +2956,9 @@ and gadt_check_typd_existentials env exp t c ts =
   match Cons.kind c with
   | T.Def (_, body) ->
     let body' = T.open_ ts body in
-    let actual_t = infer_exp env exp in
+    (* Promote [actual_t] so a class-typed [Con (MkRec, [])] gets
+       walked structurally against [body']. *)
+    let actual_t = T.promote (infer_exp env exp) in
     (match T.unify_existentials body' actual_t es with
      | Some sigma ->
        let refined = T.subst sigma body' in

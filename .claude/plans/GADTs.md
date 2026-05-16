@@ -439,10 +439,10 @@ machinery (br_table or linear) operates on tags as before.
       - [ ] **Shadowing warning**: `type A = T` where `A` shadows an outer
             name in a misleading way → optional warning, low priority.
 
-- [x] **M10 — Existentials in tuples and records** (record-literal +
-  tuple construction/destructuring done; `object`/`class` recursive
-  form and projection-error guard remain deferred — see end of this
-  bullet): lift `type X` clauses
+- [x] **M10 — Existentials in tuples and records** (record-literal,
+  tuple, and `object {...}` construction/destructuring done; `class`
+  return-type form and projection-error guard remain deferred — see
+  end of this bullet): lift `type X` clauses
       from variant arms to the top of any type definition. **Syntax: a
       comma-separated list of `type X` bindings, then `in`, then the
       body type.** `in` (already a keyword from `for (x in xs)`) reads
@@ -502,6 +502,81 @@ machinery (br_table or linear) operates on tags as before.
       two sibling `case (#eq ...)` arms also share the schema's `B`,
       reachable via the same cross-mixing path. Current test corpus
       doesn't exercise it.
+
+      **Surprises landed during implementation:**
+
+      - **`as_seq` normalises through Cons** — the FromCandidE desugar
+        looked innocent (`T.as_seq t`) but internally called
+        `normalize` and opened `Con(Expr, [Bool])` to its Variant
+        body, losing the cons identity that the codegen's pruning
+        needs. Fix was local (peek through normalize once, unpack
+        only on `Tup`), but the failure mode was silent: pruning
+        looked active everywhere downstream and just didn't fire.
+
+      - **Multiple normalize sites in `Serialization`** — pruning at
+        `type_desc` is necessary but not sufficient; the wire-format
+        emitter has separate normalize calls in `buffer_size`,
+        `serialize_go`, `deserialize_go`, plus an `add_idx` /`idx`
+        pair, each independently keying the function-name hash off a
+        type. All must agree on the pruned form or encoder and
+        decoder synthesise inconsistent function names → bad wire
+        format. `T.normalize_pruned` exists to make swap-in
+        uniform.
+
+      - **`tagE` and `tupE` synthesise their own IR notes** — those
+        smart constructors compute the IR node's note from the
+        children rather than copying the surface note. The σ
+        registration only "fires" because the *outer* `typed_phrase'`
+        in desugar preserves the surface region; the IR check then
+        looks up σ at that outer region. If a future refactor were
+        to push σ application down into the smart constructors,
+        the lookup would suddenly miss.
+
+      - **Variant-arm subtype check needs σ on the *promoted* form,
+        not the surface note** — `T.subst σ t` on a `T.Con (Expr,
+        [Bool])` doesn't recurse into the Cons's Def body, so the
+        σ ends up applied to nothing observable. `T.subst σ
+        (T.promote t)` is the working incantation; the first attempt
+        silently passed σ through and produced no refinement.
+
+      - **`unify_existentials` originally walked only `Tup`/`Func`/
+        etc.** — extending to records meant adding `Obj` and
+        `Variant` to the walker. Without that, the witness inference
+        for records found no mappings and silently returned the
+        empty σ, after which the sub-check rejected the concrete
+        record as not-a-subtype of the existential-laden schema.
+
+      - **The IR `Variant` deser path is the one place where Candid's
+        existing trapping does the right thing for us** — once the
+        sender's wire type-table is pruned (just `#int` / `#if_`
+        for `Expr<Nat>`) and the receiver's expected variant is the
+        pruned-for-`Bool` form (`#bool` / `#if_`), the existing
+        "wire tag-hash not in expected arms → coercion failure"
+        path traps cleanly. No new runtime check needed; we just
+        had to feed both ends the pruned form. The original "negative
+        test returns Some not null" mystery resolved to "the
+        FromCandidE desugar normalised early and pruning never
+        applied" — once pruning fired, Candid did the rest.
+
+      - **The IR `BlockE` hook is the broadest tripwire** — applying
+        σ at every BlockE works because of region-uniqueness, but
+        any future IR pass that synthesises a BlockE and inherits the
+        parent's region could trip it. The hook is necessary because
+        record literals desugar to a BlockE-wrapped newObjE, and the
+        σ has to refine the block's expected type for the result
+        sub-check. M11 eliminates this whole pattern (σ as a field
+        on the relevant IR nodes).
+
+      - **`class MkRec(args) : Rec = {...}`** doesn't fall out for
+        free even though it shares the ObjBlockE desugar path —
+        the class declaration's body-vs-declared-return-type check
+        at M0134 is a separate site that needs its own σ
+        registration, and the synthesised class type is a fresh
+        `Con(MkRec, [])` whose subtype check against `Rec` happens
+        at call sites, not at the class declaration. Deferred —
+        full support needs a cons-result coercion step or making
+        the class function's return type the declared `Rec` rather
+        than the synthesised body alias.
 
 - [x] **M9 — Soundness axioms**: state the GADT round-trip invariants
       explicitly, and verify by property-based tests. Three hand-written

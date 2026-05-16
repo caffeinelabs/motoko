@@ -145,7 +145,13 @@ and exp' at note = function
       (varP v) (varE v) ty).it
   | S.ObjBlockE (exp_opt, s, (self_id_opt, _), dfs) ->
     let eo = Option.map exp exp_opt in
-    obj_block at s eo self_id_opt dfs note.Note.typ
+    (* M10: σ-refine the obj_typ when a GADT existential refinement is
+       registered. Mirror of the ObjE path. *)
+    let obj_typ = match T.lookup_refinement_at at with
+      | Some sigma -> T.subst sigma note.Note.typ
+      | None -> note.Note.typ
+    in
+    obj_block at s eo self_id_opt dfs obj_typ
   | S.ObjE (bs, efs) ->
     (* M10: when this record literal has a GADT existential refinement
        registered, apply σ to the obj_typ so per-field LetDs are typed
