@@ -177,9 +177,13 @@ the actual `B` chosen at construction. No witnesses, no Refl, no extra fields.
 
 ### Candid
 
-GADTs slot into Motoko's existing Candid machinery — no protocol-level change —
-but the rules need stating precisely, because the interactions between
-refinement, existentials, recursion, and the IC wire format are subtle.
+GADTs slot into Motoko's existing Candid machinery — **no protocol-level
+change, the Candid spec is untouched**. All GADT-aware logic lives on the
+Motoko side: deciding *which* type to hand to the Candid encoder/decoder,
+not changing what the encoder/decoder does with it. Defaulting, subtyping,
+optional / record / variant wire rules — all unchanged. The pruned forms
+we produce must be expressible in the existing Candid type grammar (they
+are: recursive variants, no new constructors needed).
 
 **Outgoing: existentials are unshareable, whole-type.** Any type whose
 declaration mentions an existential ("black-hole type") fails the existing
