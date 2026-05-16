@@ -415,15 +415,10 @@ let rec check_exp env (exp:Ir.exp) : unit =
 *)
   in
   (* M11a: σ-refine the expected ambient type before construction-side
-     sub-checks (CallPrim / TupPrim / TagPrim). σ may live on the
-     exp's note (post-M11a) or in the region-keyed side-table
-     (pre-migration fallback). *)
+     sub-checks (CallPrim / TupPrim / TagPrim / BlockE). σ lives on
+     the exp's note. *)
   let refine_target t =
-    let sigma_opt = match exp.note.Note.gadt_sigma with
-      | Some _ as s -> s
-      | None -> T.lookup_refinement_at exp.at
-    in
-    match sigma_opt with
+    match exp.note.Note.gadt_sigma with
     | Some sigma -> T.subst sigma (T.promote t)
     | None -> t
   in
@@ -1018,16 +1013,11 @@ and check_lexp env (lexp:Ir.lexp) : unit =
 and check_cases env t_pat t cases =
   List.iter (check_case env t_pat t) cases
 
-and check_case env t_pat t ({it = {pat; exp; gadt_sigma}; _} as case) =
+and check_case env t_pat t {it = {pat; exp; gadt_sigma}; _} =
   let ve = check_pat env pat in
   check_sub env pat.at t_pat pat.note;
-  (* M11a: prefer σ on the case node; fall back to the region-keyed
-     side-table during migration. *)
-  let sigma_opt = match gadt_sigma with
-    | Some _ as s -> s
-    | None -> T.lookup_refinement_at case.at
-  in
-  let t', ve' = match sigma_opt with
+  (* M11a: σ lives on the case node. *)
+  let t', ve' = match gadt_sigma with
     | Some sigma ->
       T.subst sigma t,
       T.Env.map (fun vi -> { vi with typ = T.subst sigma vi.typ }) ve

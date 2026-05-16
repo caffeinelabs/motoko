@@ -146,28 +146,18 @@ and exp' at note = function
       (varP v) (varE v) ty).it
   | S.ObjBlockE (exp_opt, s, (self_id_opt, _), dfs) ->
     let eo = Option.map exp exp_opt in
-    (* M10/M11a: σ-refine the obj_typ when a GADT existential
-       refinement is recorded on the note. Fall back to the side-table
-       for σ writers not yet migrated. *)
-    let sigma_opt = match note.Note.gadt_sigma with
-      | Some _ as s -> s
-      | None -> T.lookup_refinement_at at
-    in
-    let obj_typ = match sigma_opt with
+    (* M11a: σ-refine the obj_typ when a GADT existential refinement
+       is recorded on the note. *)
+    let obj_typ = match note.Note.gadt_sigma with
       | Some sigma -> T.subst sigma note.Note.typ
       | None -> note.Note.typ
     in
     obj_block at s eo self_id_opt dfs obj_typ
   | S.ObjE (bs, efs) ->
-    (* M10/M11a: same σ-on-note (with side-table fallback) — refines
-       the obj_typ so per-field LetDs are typed at the refined
-       (concrete) field types rather than the schema's existential
-       cons. *)
-    let sigma_opt = match note.Note.gadt_sigma with
-      | Some _ as s -> s
-      | None -> T.lookup_refinement_at at
-    in
-    let obj_typ = match sigma_opt with
+    (* M11a: refine the obj_typ so per-field LetDs are typed at the
+       refined (concrete) field types rather than the schema's
+       existential cons. *)
+    let obj_typ = match note.Note.gadt_sigma with
       | Some sigma -> T.subst sigma note.Note.typ
       | None -> note.Note.typ
     in
