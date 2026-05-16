@@ -118,7 +118,16 @@ and exp' at note = function
     (primE (I.SerializePrim ts) [seqE args]).it
   | S.FromCandidE e ->
     begin match T.normalize note.Note.typ with
-    | T.Opt t -> (primE (I.DeserializeOptPrim (T.as_seq t)) [exp e]).it
+    | T.Opt t ->
+      (* M12: [T.as_seq] would normalise a [Con] body — fine for tuple
+         aliases (`type Pair = (Nat, Bool)`) which become a seq of
+         separate wire values, but bad for GADT [Con]s where pruning
+         needs the cons identity. Compromise: peek through normalize
+         to detect a [Tup] alias and unpack it; otherwise pass the
+         original (possibly [Con]) type through. Codegen prunes via
+         [Type.normalize_pruned]. *)
+      let ts = match T.normalize t with T.Tup ts -> ts | _ -> [t] in
+      (primE (I.DeserializeOptPrim ts) [exp e]).it
     | _ -> assert false
     end
   | S.TupE es -> (tupE (exps es)).it
