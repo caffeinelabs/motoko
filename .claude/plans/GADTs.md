@@ -386,6 +386,27 @@ machinery (br_table or linear) operates on tags as before.
         only one constructor.
       - **Diagnostics M8**: same suite applies.
 
+      **Deferred — projection on existential-bearing types**: bare
+      `t.0` / `r.field` cannot soundly escape an existential. The two
+      principled paths are (a) internally rewrite any such expression
+      into a block-with-destructure (`{ let (_0, _1, _2) = t; … }`) or
+      (b) reject bare projection and require the user to write the
+      `let (...) = t` themselves. **We pick (b)** — Cardelli's `open`
+      discipline. Simpler implementation, clearer error messages, no
+      rewrite-engine debt.
+
+      **Cross-skolem-mixing soundness (deferred to M11)**: today the
+      schema-side existential `B` is cached on the AST and re-used by
+      every destructure-site, so two destructures of the same type
+      bind at the *same* skolem — type-checks but unsound under
+      cross-mixing (`let (x1, f1) = t1; let (x2, f2) = t2; f1 x2` is
+      accepted, crashes at runtime). The fix is fresh-per-site skolems
+      on every destructure, which falls out naturally once M11 moves
+      σ onto AST nodes. The same fix tightens variant-arm code: today
+      two sibling `case (#eq ...)` arms also share the schema's `B`,
+      reachable via the same cross-mixing path. Current test corpus
+      doesn't exercise it.
+
 - [x] **M9 — Soundness axioms**: state the GADT round-trip invariants
       explicitly, and verify by property-based tests. Three hand-written
       tests cover construct⇒dissect, dissect⇒construct, and round-trip
