@@ -414,6 +414,19 @@ let rec check_exp env (exp:Ir.exp) : unit =
       raise e)
 *)
   in
+  (* M11a: σ-refine the expected ambient type before construction-side
+     sub-checks (CallPrim / TupPrim / TagPrim). σ may live on the
+     exp's note (post-M11a) or in the region-keyed side-table
+     (pre-migration fallback). *)
+  let refine_target t =
+    let sigma_opt = match exp.note.Note.gadt_sigma with
+      | Some _ as s -> s
+      | None -> T.lookup_refinement_at exp.at
+    in
+    match sigma_opt with
+    | Some sigma -> T.subst sigma (T.promote t)
+    | None -> t
+  in
   (* check for aliasing *)
   if exp.note.Note.check_run = env.check_run
   then
@@ -457,15 +470,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
             check_concrete env exp.at t_ret;
           end;
           typ exp2 <: t_arg;
-          (* M10: if typing recorded a GADT existential refinement at
-             this call's region (e.g. `MkRec 7 : Rec` where `Rec` has
-             a top-level `type X`), apply σ to the expected ambient
-             type before the sub-check — mirror of TupPrim/TagPrim. *)
-          let t' = match T.lookup_refinement_at exp.at with
-            | Some sigma -> T.subst sigma (T.promote t)
-            | None -> t
-          in
-          t_ret <: t'
+          t_ret <: refine_target t
         | T.Non -> () (* dead code, not much to check here *)
         | t1 -> error env exp1.at "expected function type, but expression produces type\n  %s"
              (T.string_of_typ_expand t1)
@@ -492,11 +497,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
       typ exp2 <: ot;
       T.bool <: t
     | TupPrim, exps ->
-      let t' = match T.lookup_refinement_at exp.at with
-        | Some sigma -> T.subst sigma (T.promote t)
-        | None -> t
-      in
-      T.Tup (List.map typ exps) <: t'
+      T.Tup (List.map typ exps) <: refine_target t
     | ProjPrim n, [exp1] ->
       let t1 = T.promote (immute_typ exp1) in
       let ts = try T.as_tup_sub n t1
@@ -511,11 +512,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | OptPrim, [exp1] ->
       T.Opt (typ exp1) <: t
     | TagPrim i, [exp1] ->
-      let t' = match T.lookup_refinement_at exp.at with
-        | Some sigma -> T.subst sigma (T.promote t)
-        | None -> t
-      in
-      T.Variant [{T.lab = i; typ = typ exp1; src = T.empty_src}] <: t'
+      T.Variant [{T.lab = i; typ = typ exp1; src = T.empty_src}] <: refine_target t
     | ActorDotPrim n, [exp1]
     | DotPrim n, [exp1] ->
       begin

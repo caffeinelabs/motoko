@@ -2184,7 +2184,7 @@ and infer_exp_wrapper inf f env exp : T.typ =
     let t'' = T.normalize t' in
     assert (t'' <> T.Pre);
     let note_eff = A.infer_effect_exp exp in
-    exp.note <- {note_typ = t''; note_eff}
+    exp.note <- {note_typ = t''; note_eff; note_sigma = None}
   end;
   t'
 
@@ -2225,7 +2225,7 @@ and infer_exp'' env exp : T.typ =
       match candidate_libs with
       | [(name, typ)] ->
         id.note <-
-          (Const, Some { it = ImplicitLibE name; at = exp.at; note = {note_typ = typ; note_eff = T.Triv} });
+          (Const, Some { it = ImplicitLibE name; at = exp.at; note = {note_typ = typ; note_eff = T.Triv; note_sigma = None} });
         typ
       | c1::c2::cs ->
         let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
@@ -2962,7 +2962,10 @@ and gadt_check_existentials env exp t c ts id exp1 =
                    display_typ_expand refined_payload;
                T.register_refinement_at exp.at sigma;
                let e = A.infer_effect_exp exp in
-               exp.note <- {exp.note with note_typ = t; note_eff = e};
+               (* M11a: also stash σ on the note. During migration we
+                  dual-write side-table + note; consumers prefer note. *)
+               exp.note <- {exp.note with note_typ = t; note_eff = e;
+                                          note_sigma = Some sigma};
                true
              | None ->
                local_error env exp.at "M9002"
@@ -2999,9 +3002,9 @@ and gadt_check_typd_existentials env exp t c ts =
        let e = A.infer_effect_exp exp in
        (* Normalise to the structural form (Obj / Tup / Variant / ...)
           for desugar — it walks the note expecting the open body, not
-          the [Con] wrapper. The σ-refinement is preserved on
-          [gadt_refinement_at]. *)
-       exp.note <- {exp.note with note_typ = T.normalize t; note_eff = e};
+          the [Con] wrapper. M11a: σ also lives on the note. *)
+       exp.note <- {exp.note with note_typ = T.normalize t; note_eff = e;
+                                  note_sigma = Some sigma};
        true
      | None ->
        local_error env exp.at "M9002"
@@ -3405,7 +3408,7 @@ and infer_callee env exp =
         if not env.pre then begin
           check_exp env func_ty path;
           let note_eff = A.infer_effect_exp exp in
-          exp.note <- {note_typ = func_ty; note_eff}
+          exp.note <- {note_typ = func_ty; note_eff; note_sigma = None}
         end;
         func_ty, Some (exp1, t1, id.it, inst)
      end
@@ -4974,7 +4977,8 @@ and infer_viewer env scope mut id viewer =
            let varE =
              { (VarE {it = id.it; at; note = (mut, None)} @? at)
                with note = { note_typ = typ;
-                             note_eff = T.Triv} }
+                             note_eff = T.Triv;
+                             note_sigma = None } }
            in
            use_identifier env id.it;
            viewer := Some
@@ -5672,7 +5676,7 @@ let infer_import env dec = match dec.it with
     in
     let t' = T.normalize t in
     assert (t' <> T.Pre);
-    exp.note <- {note_typ = t'; note_eff = T.Triv};
+    exp.note <- {note_typ = t'; note_eff = T.Triv; note_sigma = None};
     dec.note <- {empty_typ_note with note_typ = t; note_eff = T.Triv};
     scope
   | _ -> assert false

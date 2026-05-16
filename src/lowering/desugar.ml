@@ -35,7 +35,8 @@ let apply_sign op l = Syntax.(match op, l with
 let phrase f x = { x with it = f x.it }
 
 let typ_note : S.typ_note -> Note.t =
-  fun S.{ note_typ; note_eff; _ } -> Note.{ def with typ = note_typ; eff = note_eff }
+  fun S.{ note_typ; note_eff; note_sigma } ->
+    Note.{ def with typ = note_typ; eff = note_eff; gadt_sigma = note_sigma }
 
 let phrase' f x =
   { x with it = f x.at x.note x.it }
@@ -77,7 +78,7 @@ let desugar_loop_flags at note body flags with_body =
   in
   if not has_break then `Body body else
   let () = flags.has_break <- false in
-  `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
+  `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff; note_sigma = note.Note.gadt_sigma } }))
 
 let rec exps es = List.map exp es
 
@@ -145,19 +146,28 @@ and exp' at note = function
       (varP v) (varE v) ty).it
   | S.ObjBlockE (exp_opt, s, (self_id_opt, _), dfs) ->
     let eo = Option.map exp exp_opt in
-    (* M10: σ-refine the obj_typ when a GADT existential refinement is
-       registered. Mirror of the ObjE path. *)
-    let obj_typ = match T.lookup_refinement_at at with
+    (* M10/M11a: σ-refine the obj_typ when a GADT existential
+       refinement is recorded on the note. Fall back to the side-table
+       for σ writers not yet migrated. *)
+    let sigma_opt = match note.Note.gadt_sigma with
+      | Some _ as s -> s
+      | None -> T.lookup_refinement_at at
+    in
+    let obj_typ = match sigma_opt with
       | Some sigma -> T.subst sigma note.Note.typ
       | None -> note.Note.typ
     in
     obj_block at s eo self_id_opt dfs obj_typ
   | S.ObjE (bs, efs) ->
-    (* M10: when this record literal has a GADT existential refinement
-       registered, apply σ to the obj_typ so per-field LetDs are typed
-       at the refined (concrete) field types rather than the schema's
-       existential cons. *)
-    let obj_typ = match T.lookup_refinement_at at with
+    (* M10/M11a: same σ-on-note (with side-table fallback) — refines
+       the obj_typ so per-field LetDs are typed at the refined
+       (concrete) field types rather than the schema's existential
+       cons. *)
+    let sigma_opt = match note.Note.gadt_sigma with
+      | Some _ as s -> s
+      | None -> T.lookup_refinement_at at
+    in
+    let obj_typ = match sigma_opt with
       | Some sigma -> T.subst sigma note.Note.typ
       | None -> note.Note.typ
     in
