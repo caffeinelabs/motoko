@@ -177,10 +177,94 @@ the actual `B` chosen at construction. No witnesses, no Refl, no extra fields.
 
 ### Candid
 
-Same wire format as today's variants. Serialisation emits the variant tag +
-payload; deserialisation does *extra* type-checking against the receiving type's
-refinements and can trap if a tag's payload doesn't fit the expected refinement.
-No protocol-level change.
+GADTs slot into Motoko's existing Candid machinery — no protocol-level change —
+but the rules need stating precisely, because the interactions between
+refinement, existentials, recursion, and the IC wire format are subtle.
+
+**Outgoing: existentials are unshareable, whole-type.** Any type whose
+declaration mentions an existential ("black-hole type") fails the existing
+`is_shared` check at message boundaries. This is *whole-type, not per-arm*:
+if `Expr<A>` has one arm with an existential clause, `Expr<X>` is unshareable
+for every `X`, even when in practice you only construct refinement-only arms.
+This matches how Motoko already treats records with one non-shareable field —
+the type is the unit of shareability, no per-instance cleverness.
+
+Refinement-only declarations stay fully shareable.
+
+**Outgoing wire format: pruned per instantiation.** For a shareable GADT
+`Expr<Bool>`, mo_to_idl emits the *pruned* variant — arms whose refinement
+clauses conflict with the receiver's instantiation are dropped. Same mechanism
+as M5 coverage pruning, just applied at IDL generation. So `Expr<Bool>`
+exports as `{#bool : Bool; #if_ : ...}` rather than the full declaration.
+
+**Incoming: receiver's pruned form drives Candid's existing decoder.** No
+new runtime type-table check is needed; the existing Candid wire-vs-expected
+subtype check does the work, provided the *expected* type fed to the decoder
+is the receiver's refinement-pruned form. A wire arm that doesn't appear in
+the pruned form fails Candid's variant-tag check and traps — exactly the
+right behaviour.
+
+**Receiver parameters are fixed.** `from_candid : Expr<Bool>` locks `A = Bool`;
+there is no inference. Pruning is a syntactic walk over the declared variant
+against a known instantiation.
+
+**Recursion and the `#if_`-style arm.** An arm without its own refinement
+clause but whose *payload* mentions the GADT recursively forces per-
+instantiation pruning to be honest:
+
+```motoko
+type Expr<A> = {
+  #int  : type A = Nat in Nat;
+  #bool : type A = Bool in A;
+  #if_  : (Expr<Bool>, Expr<A>, Expr<A>);   // no clause, payload refers back
+};
+```
+
+`Pruned[Expr<Bool>]` is recursive: `μX. {#bool : Bool; #if_ : (X, X, X)}` —
+`#if_`'s payload mentions `Expr<Bool>` again, which is the recursive knot.
+
+Three things this forces:
+
+1. **Per-instantiation, not in-place.** Mutating `Expr`'s `T.Def` body to its
+   pruned form would corrupt `Expr<Nat>`'s pruning (which keeps `#int`, drops
+   `#bool`). `gadt_prune_for_coverage` already does per-call pruning; the
+   IDL/Candid layer must commit to a fresh pruned form per `Con(Expr, ts)`.
+
+2. **Mixed instantiations in one payload.** `Expr<Nat>`'s `#if_` arm is
+   `(Expr<Bool>, Expr<Nat>, Expr<Nat>)`. The Candid type table carries *both*
+   `Pruned[Expr<Bool>]` and `Pruned[Expr<Nat>]` as distinct recursive defs.
+   mo_to_idl must not dedupe on source cons alone.
+
+3. **Termination.** Walking `Pruned[Expr<Bool>]` recursively needs memoisation
+   keyed by `(c, ts)` so the inner recursive reference reuses the outer one,
+   otherwise the pruner loops.
+
+**.did file consequence.** External (non-Motoko) clients see the *pruned*
+declaration. A non-Motoko sender that conforms to the published .did
+literally cannot encode an unreachable arm — there's no `#int` tag in
+the published wire type for `Expr<Bool>`. Adversarial / malformed wire
+data is what would trip the Candid decoder, and trap is the right
+response. Document this explicitly: the .did is refinement-aware.
+
+**Test matrix** (M12 captures):
+
+- Outgoing positive: refinement-only `Expr<Bool>` crosses an actor
+  boundary cleanly, with `#bool` and recursive `#if_` payloads.
+- Outgoing negative: any `Expr<X>` (for any `X`) carrying an `#eq`-with-
+  existential arm rejected by `is_shared`, error message contains
+  "black-hole".
+- Outgoing negative: M10 `type Tup = type X in ...` as message arg,
+  same rejection. Existential nested inside array / tuple / opt /
+  record field / function return — each path through `is_shared`
+  exercised.
+- Incoming positive: `from_candid : Expr<Bool>` on a wire `#bool true`
+  succeeds; recursive `#if_(b1, b2, b3)` succeeds.
+- Incoming negative: `from_candid : Expr<Bool>` on wire data carrying
+  an `#int 5` tag — traps. Symmetric for `Expr<Nat>` with a `#bool`
+  arm on the wire.
+- Mixed-instantiation positive: a value of `Expr<Nat>` whose `#if_`
+  payload contains `Expr<Bool>` nested inside, all pruning consistent
+  end-to-end.
 
 ### `switch type T` unification
 
@@ -509,38 +593,25 @@ machinery (br_table or linear) operates on tags as before.
         `gadt_existential_set` check with "cons is reachable from a
         Variant arm's existential list," checkable at the IR site.
 
-- [ ] **M12 — Candid / share-typing rejection**: any type carrying an
-      existential ("black-hole type") is not shareable — it cannot be
-      sent over the wire because the receiver has no binding to fix
-      the hidden type to. Refinement-only arms (`#int : type A = Nat
-      in Nat`) stay fully shareable; the rejection applies only when
-      the type, after full normalisation, mentions a registered
-      existential cons.
+- [ ] **M12 — Candid / share-typing**: implement the Candid rules
+      spelled out in [Interactions with existing Motoko → Candid](#candid).
+      Two layers of work:
 
-      Implementation: hook into the existing `is_shared` walk (the
-      same path that already rejects `Func`, mutable fields, etc. at
-      message boundaries). For each `T.Con (c, ts)` encountered,
-      promote and recurse, plus check whether any registered
-      existential cons appears free in the result.
+      - **`is_shared` rejection**: walk existing share-typing path; reject
+        types whose declaration mentions any registered existential cons.
+        Whole-type, not per-arm. Error message: **"black-hole type not
+        shareable"**.
+      - **Refinement-aware pruning at the IDL/Candid boundary**: feed
+        `mo_to_idl` and `from_candid`'s expected-type the per-instantiation
+        pruned form (same as M5 coverage pruning, applied at IDL gen and
+        deserialisation). Per-`(c, ts)` memoisation to keep recursive
+        types like `Pruned[Expr<Bool>]` terminating.
 
-      **Error message: "black-hole type not shareable"** — "existential"
-      is a term of art that users won't know, but "black hole" is
-      universally legible: a value whose type is opaque from the
-      outside, that swallows up the witness identity. Phrase the
-      message and any subsequent hints in those terms.
-
-      Test coverage (must include):
-      - **Positive**: refinement-only variant (e.g. `Expr<Bool>`
-        restricted to `#int | #bool` arms) crosses an actor boundary
-        cleanly.
-      - **Negative**: `Expr<Bool>` with the `#eq` arm in scope —
-        rejected at the inter-actor signature, error message contains
-        "black-hole".
-      - **Negative**: an M10 `type Tup = type X in ...` value as a
-        message argument — same rejection.
-      - **Negative**: existential nested inside an array, tuple, opt,
-        record field, function return — each path through the
-        `is_shared` walk gets exercised.
+      Test matrix per the Candid section: positive outgoing for
+      refinement-only `Expr<Bool>`, recursive `#if_` payloads,
+      mixed-instantiation arms; negative outgoing for any existential-
+      bearing type at every `is_shared` walk path; positive/negative
+      incoming for `from_candid` with refinement-violating wire data.
 
 ## Open knobs (deferred)
 
