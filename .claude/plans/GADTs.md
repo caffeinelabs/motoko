@@ -599,23 +599,28 @@ machinery (br_table or linear) operates on tags as before.
 
 - [ ] **M12 — Candid / share-typing**: implement the Candid rules
       spelled out in [Interactions with existing Motoko → Candid](#candid).
-      Two layers of work:
+      Three touch-points, one new function, no Candid spec changes:
 
-      - **`is_shared` rejection**: walk existing share-typing path; reject
-        types whose declaration mentions any registered existential cons.
-        Whole-type, not per-arm. Error message: **"black-hole type not
-        shareable"**.
-      - **Refinement-aware pruning at the IDL/Candid boundary**: feed
-        `mo_to_idl` and `from_candid`'s expected-type the per-instantiation
-        pruned form (same as M5 coverage pruning, applied at IDL gen and
-        deserialisation). Per-`(c, ts)` memoisation to keep recursive
-        types like `Pruned[Expr<Bool>]` terminating.
+      1. **`is_shared` extension**: existing share-typing walk gains a
+         "registered existential cons appears free" check. Whole-type,
+         not per-arm. Error message: **"black-hole type not shareable"**.
+         Orthogonal to the wire format — runs *before* anything reaches
+         Candid.
+      2. **`T.monomorphise : typ -> typ`**: new function. Walks the
+         type, replaces each `Con(c, ts)` whose body carries GADT
+         refinements with its per-instantiation pruned form. Identity
+         on non-GADT types. Memoised by `(c, ts)` so recursive variants
+         terminate.
+      3. **Call sites**: `monomorphise` is applied as a pre-massage at
+         both wire boundaries:
+         - Outgoing: `mo_to_idl` (and `to_candid`) before handing types
+           to the IDL emitter.
+         - Incoming: `from_candid`'s expected-type before Candid's
+           wire-vs-expected subtype check.
+         Symmetric application keeps the two ends' .did declarations
+         in sync.
 
-      Test matrix per the Candid section: positive outgoing for
-      refinement-only `Expr<Bool>`, recursive `#if_` payloads,
-      mixed-instantiation arms; negative outgoing for any existential-
-      bearing type at every `is_shared` walk path; positive/negative
-      incoming for `from_candid` with refinement-violating wire data.
+      Test matrix per the Candid section.
 
 ## Open knobs (deferred)
 
