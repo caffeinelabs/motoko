@@ -2333,7 +2333,18 @@ and infer_exp'' env exp : T.typ =
     Field_sources.add_src env.srcs id.at;
     T.Variant [T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}}]
   | ProjE (exp1, n) ->
-    let t1 = infer_exp_promote env exp1 in
+    let t1_raw, t1 = infer_exp_and_promote env exp1 in
+    (* M10: bare projection on an existential-bearing type would let
+       the existential `X` escape into the surrounding scope without
+       a controlled `open`. Reject and direct the user to a
+       destructuring `let (...) = ...`. *)
+    (match t1_raw with
+     | T.Con (c, _) when T.lookup_typd_existentials c <> [] ->
+       error env exp.at "M9010"
+         "bare projection on existential-bearing type%a\nis forbidden — destructure with `let (...) = %s` to open the existential"
+         display_typ_expand t1_raw
+         (match exp1.it with VarE id -> id.it | _ -> "...")
+     | _ -> ());
     (try
       let ts = T.as_tup_sub n t1 in
       match List.nth_opt ts n with
@@ -2743,6 +2754,19 @@ and infer_bin_exp env exp1 exp2 =
    to report. This is used to delay the reporting for contextual dot resulution *)
 and try_infer_dot_exp env at exp id (desc, pred) =
   let t0, t1 = infer_exp_and_promote env exp in
+  (* M10: bare field projection on an existential-bearing type
+     would let the existential `X` escape into the surrounding
+     scope without a controlled `open`. Reject and direct the
+     user to a destructuring `let { ... } = ...`. Mirror of the
+     ProjE guard. *)
+  (match t0 with
+   | T.Con (c, _) when T.lookup_typd_existentials c <> [] ->
+     error env at "M9010"
+       "bare projection on existential-bearing type%a\nis forbidden — destructure with `let { %s; ... } = %s` to open the existential"
+       display_typ_expand t0
+       id.it
+       (match exp.it with VarE i -> i.it | _ -> "...")
+   | _ -> ());
   let fields =
     try Ok(T.as_obj_sub [id.it] t1) with Invalid_argument _ ->
     try Ok(array_obj (T.as_array_sub t1)) with Invalid_argument _ ->

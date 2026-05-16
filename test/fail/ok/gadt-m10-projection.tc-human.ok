@@ -1,0 +1,6 @@
+error[M9010]: bare projection on existential-bearing type
+  Tup = (X, X -> Text)
+is forbidden — destructure with `let (...) = tup` to open the existential
+    ┌─ gadt-m10-projection.mo:12:10
+ 12 │  let _x = tup.0;
+    │           ^^^^^ 

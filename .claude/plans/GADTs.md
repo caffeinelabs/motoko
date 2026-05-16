@@ -482,14 +482,20 @@ machinery (br_table or linear) operates on tags as before.
         only one constructor.
       - **Diagnostics M8**: same suite applies.
 
-      **Deferred — projection on existential-bearing types**: bare
-      `t.0` / `r.field` cannot soundly escape an existential. The two
-      principled paths are (a) internally rewrite any such expression
-      into a block-with-destructure (`{ let (_0, _1, _2) = t; … }`) or
-      (b) reject bare projection and require the user to write the
-      `let (...) = t` themselves. **We pick (b)** — Cardelli's `open`
-      discipline. Simpler implementation, clearer error messages, no
-      rewrite-engine debt.
+      **Projection on existential-bearing types — shipped
+      2026-05-16** (`test/fail/gadt-m10-projection.mo`). Cardelli's
+      `open` discipline: bare `t.0` / `r.field` on a `Con(c, ts)`
+      with non-empty `lookup_typd_existentials c` is rejected with
+      M9010, pointing at the destructuring fix. Two guards: one in
+      `ProjE` (typing.ml ~2335) on the pre-promote type, one in
+      `try_infer_dot_exp` (~2755) for `DotE`. The two rejected
+      alternatives — (a) internally rewrite into a block-with-
+      destructure (`{ let (_0, _1, _2) = t; … }`), (b) reject and
+      require the explicit destructure — we picked (b). Simpler
+      implementation, clearer error messages, no rewrite-engine
+      debt. The error suggests the form (`let (...) = t` for
+      tuples, `let { f; ... } = r` for records) using the variable
+      name when the receiver is a `VarE`.
 
       **Cross-skolem-mixing soundness (deferred to M11)**: today the
       schema-side existential `B` is cached on the AST and re-used by
@@ -592,6 +598,30 @@ machinery (br_table or linear) operates on tags as before.
         No cons-result coercion needed; the function's range stays
         `Con(MkRec, [])` and the σ-at-call-site makes the result
         sub-check go through.
+
+        **Two non-obvious findings worth recording for next time:**
+
+        - **`let p : T = e` is parser-rewritten** to `let p = (e : T)`
+          via `normalize_let` in `parser.mly`. The annotation moves
+          off the pattern and onto an `AnnotE` on the expression. So
+          `let r : Rec = MkRec 7` never hits `AnnotP`'s sub-check;
+          it hits `check_exp Rec (MkRec 7)`, which dispatches to
+          `gadt_check_typd_existentials`. This is why typing
+          accepted the cross-type sub without anything in the
+          pattern path being aware of GADTs — and why a debug
+          print on `T.sub` showed *no* `Con(MkRec)` calls at all.
+          The σ that makes it work is registered at the call's
+          `exp.at`, not the pattern's region.
+        - **CallPrim is the third IR-check site repeating the
+          σ-lookup pattern** (after TupPrim and TagPrim). Each
+          construct that can carry a typd-existential refinement
+          needs another copy of
+          `match T.lookup_refinement_at exp.at with Some σ → subst
+          σ (promote t) | None → t`. This is the cleanest concrete
+          argument for **M11a** (σ on AST nodes): when σ lives on
+          the IR node itself, every sub-check inherits it without a
+          site-specific arm. Next σ-bearing construct added without
+          M11a will be the fourth.
 
         **Gotchas mapped during a 2026-05-16 investigation pass (not
         yet shipped — recorded so a future attempt doesn't relearn
