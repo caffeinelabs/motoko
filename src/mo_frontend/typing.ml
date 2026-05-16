@@ -5524,7 +5524,32 @@ and infer_dec_valdecs env dec : Scope.t =
     let _ve = check_pat env obj_typ pat in
     Scope.{empty with val_env = singleton id obj_typ}
   | LetD (pat, exp, fail) ->
-     let t = infer_exp {env with pre = true; check_unused = false} exp in
+     let t0 = infer_exp {env with pre = true; check_unused = false} exp in
+     (* M11b — "Overly Entangled Black Holes" fix. When destructuring a
+        value whose type carries top-level existentials, mint a fresh
+        skolem per schema-existential, keyed by this pattern's region.
+        Bindings then have site-local cons, so two sibling destructures
+        of the same type live in *different* black holes — cross-mixing
+        their values is rejected by the type checker. *)
+     let rec is_destructuring p =
+       match p.it with
+       | TupP _ | ObjP _ -> true
+       | ParP p1 | AnnotP (p1, _) -> is_destructuring p1
+       | _ -> false
+     in
+     let t =
+       match t0 with
+       | T.Con (c, _) when T.lookup_typd_existentials c <> []
+                        && is_destructuring pat ->
+         let es = T.lookup_typd_existentials c in
+         let sigma = List.fold_left (fun s c_schema ->
+           let c_site = T.fresh_destructure_skolem pat.at c_schema in
+           T.ConEnv.add c_schema (T.Con (c_site, [])) s
+         ) T.ConEnv.empty es in
+         T.register_refinement_at pat.at sigma;
+         T.subst sigma (T.normalize t0)
+       | _ -> t0
+     in
      let env' = { env with closest_scrutinee = Some (exp.at, t) } in
      let ve' = match fail with
        | None -> check_pat_exhaustive warn env' t pat

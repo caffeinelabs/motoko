@@ -1200,7 +1200,15 @@ and check_dec env dec  =
   | LetD (pat, exp) ->
     ignore (check_pat_exhaustive env pat);
     check_exp env exp;
-    typ exp <: pat.note
+    (* M11b — fresh-per-site existential skolem. When a destructure
+       site has a σ registered, [pat.note] is at site-local cons while
+       [typ exp] still references the schema's cons; promote+substitute
+       to bring them into agreement. *)
+    let exp_typ = match T.lookup_refinement_at pat.at with
+      | Some sigma -> T.subst sigma (T.promote (typ exp))
+      | None -> typ exp
+    in
+    exp_typ <: pat.note
   | VarD (id, t, exp) ->
     check_exp env exp;
     typ exp <: t

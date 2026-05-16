@@ -431,6 +431,7 @@ val lookup_gadt_arm_existentials : con -> lab -> con list
 val register_typd_existentials : con -> con list -> unit
 val lookup_typd_existentials : con -> con list
 val is_gadt_existential : con -> bool
+val fresh_destructure_skolem : Source.region -> con -> con
 val mentions_blackhole : typ -> bool
 val register_refinement_at : Source.region -> typ ConEnv.t -> unit
 val lookup_refinement_at : Source.region -> typ ConEnv.t option

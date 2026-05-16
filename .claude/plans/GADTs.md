@@ -645,9 +645,39 @@ machinery (br_table or linear) operates on tags as before.
         randomly constructs / destructures values, asserting round-trip
         equality.
 
-- [ ] **M11 — Remove side-tables**: the current `gadt_arm_constraints`,
-      `gadt_arm_existentials`, `gadt_existential_set`, and
-      `gadt_refinement_at` in `type.ml` are global mutable hash tables.
+- [ ] **M11 — Remove side-tables + un-entangle the black holes**:
+      two distinct sub-goals, related by both replacing the
+      "schema-cons-as-shared-skolem" status quo.
+
+      **M11a — refactor only (low risk).** Move σ from
+      region-keyed side-tables onto IR AST nodes. Removes the
+      tripwire class (the BlockE / TupPrim / TagPrim hooks become
+      `match node with | { refinement; ... } -> ...`, no region
+      matchmaking). Doesn't change soundness yet.
+
+      **M11b — "Just Let Them Be Their Own Black Hole" (Overly
+      Entangled Black Holes fix).** Each destructure site mints a
+      *fresh* skolem cons per schema-existential, so two sibling
+      destructures of the same type live in *different* black
+      holes. Cross-feeding values across the holes
+      (`let (x1, f1) = t1; let (x2, f2) = t2; f1 x2`) becomes a
+      type error, where today it silently accepts and the runtime
+      crashes when the witnesses turn out different.
+
+      First cut of M11b shipped for M10 destructures only —
+      see `test/fail/gadt-m11-cross-entangle.mo` for the now-rejected
+      cross-feed and a region-keyed `gadt_fresh_skolems` cache plus
+      σ application at the IR LetD check. Variant-arm destructures
+      (`case (#eq (cmp, x, y)) ...`) still share the schema's
+      existential cons across sibling cases — the equivalent
+      cross-feed there is harder to construct as a clean test
+      (variant payloads carry `Expr<B>`, not raw B-typed values),
+      but the same fix applies via `gadt_sigma_for_case`. Pending.
+
+      Status: M11a — current `gadt_arm_constraints`,
+      `gadt_arm_existentials`, `gadt_existential_set`,
+      `gadt_refinement_at`, and `gadt_fresh_skolems` in `type.ml`
+      are global mutable hash tables.
       They bridge surface-typing and IR-checking pragmatically, but:
       - Need explicit `rewrite_gadt_side_tables` hooks at every IR pass
         that clones cons (currently `async.ml`, `erase_typ_field.ml`).

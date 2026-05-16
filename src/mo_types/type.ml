@@ -2693,6 +2693,20 @@ let register_gadt_arm_existentials c lab es =
 
 let is_gadt_existential c = ConSet.mem c !gadt_existential_set
 
+(* M11b — fresh-per-site existential skolems. Cache by (destructure
+   site region × schema cons) so multi-pass typing returns the same
+   cons on subsequent invocations. *)
+let gadt_fresh_skolems : (Source.region * con, con) Hashtbl.t = Hashtbl.create 16
+
+let fresh_destructure_skolem reg c_schema =
+  match Hashtbl.find_opt gadt_fresh_skolems (reg, c_schema) with
+  | Some c_site -> c_site
+  | None ->
+    let c_site = Cons.fresh (Cons.name c_schema) (Abs ([], Any)) in
+    Hashtbl.replace gadt_fresh_skolems (reg, c_schema) c_site;
+    gadt_existential_set := ConSet.add c_site !gadt_existential_set;
+    c_site
+
 (* True iff [t] mentions a registered GADT existential cons anywhere.
    Black-hole detection: a type that carries a hidden type variable
    from a GADT arm's `type X` clause cannot cross actor boundaries. *)
@@ -2786,6 +2800,16 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
       Hashtbl.replace gadt_typd_existentials (rename_con c) es'
     ) xs
   in
+  let migrate_fresh_skolems () =
+    let xs = Hashtbl.fold (fun (reg, c) v acc -> (reg, c, v) :: acc) gadt_fresh_skolems [] in
+    Hashtbl.clear gadt_fresh_skolems;
+    List.iter (fun (reg, c_schema, c_site) ->
+      let c_schema' = rename_con c_schema in
+      let c_site' = rename_con c_site in
+      gadt_existential_set := ConSet.add c_site' !gadt_existential_set;
+      Hashtbl.replace gadt_fresh_skolems (reg, c_schema') c_site'
+    ) xs
+  in
   let migrate_refinement_at () =
     let xs = Hashtbl.fold (fun reg sigma acc -> (reg, sigma) :: acc) gadt_refinement_at [] in
     Hashtbl.clear gadt_refinement_at;
@@ -2799,6 +2823,7 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
   migrate_constraints ();
   migrate_existentials ();
   migrate_typd_existentials ();
+  migrate_fresh_skolems ();
   migrate_refinement_at ()
 
 (* Structural matcher: walk [expected] and [actual] in parallel; where
