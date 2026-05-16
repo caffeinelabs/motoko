@@ -678,9 +678,13 @@ let error_shared env t at code fmt =
   match T.find_unshared t with
   | None -> error env at code fmt
   | Some t1 ->
+    let kind =
+      if T.mentions_blackhole t1 then "black-hole" else "non-shared"
+    in
     let s =
-      Format.asprintf env "\ntype%a\nis or contains non-shared type%a"
+      Format.asprintf env "\ntype%a\nis or contains %s type%a"
         display_typ_expand t
+        kind
         display_typ_expand t1
     in
     Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] [] []); raise Recover) fmt

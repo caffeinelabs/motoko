@@ -1,0 +1,6 @@
+gadt-blackhole-share.mo:14.22-14.38: type error [M0031], shared function has non-shared parameter type
+  (e : Expr<Bool>)
+type
+  (e : Expr<Bool>)
+is or contains black-hole type
+  (B, B) -> Bool

@@ -2693,6 +2693,33 @@ let register_gadt_arm_existentials c lab es =
 
 let is_gadt_existential c = ConSet.mem c !gadt_existential_set
 
+(* True iff [t] mentions a registered GADT existential cons anywhere.
+   Black-hole detection: a type that carries a hidden type variable
+   from a GADT arm's `type X` clause cannot cross actor boundaries. *)
+let mentions_blackhole t =
+  let seen = ref ConSet.empty in
+  let rec go t =
+    match t with
+    | Pre | Var _ | Any | Non | Prim _ -> false
+    | Con (c, ts) ->
+      is_gadt_existential c ||
+      List.exists go ts ||
+      (match Cons.kind c with
+       | Abs _ -> false
+       | Def _ ->
+         if ConSet.mem c !seen then false
+         else begin
+           seen := ConSet.add c !seen;
+           go (normalize (Con (c, ts)))
+         end)
+    | Array t | Opt t | Mut t | Weak t | Named (_, t) -> go t
+    | Tup ts -> List.exists go ts
+    | Func (_, _, _, ts1, ts2) -> List.exists go ts1 || List.exists go ts2
+    | Async (_, t1, t2) -> go t1 || go t2
+    | Obj (_, fs, _) -> List.exists (fun f -> go f.typ) fs
+    | Variant fs -> List.exists (fun f -> go f.typ) fs
+  in go t
+
 let lookup_gadt_arm c lab =
   match Hashtbl.find_opt gadt_arm_constraints (c, lab) with
   | Some cs -> cs
