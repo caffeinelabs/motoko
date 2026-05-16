@@ -3,8 +3,8 @@
 // expected refined type. The runtime value is preserved.
 
 type Expr<A> = {
-  #int  type A = Nat  : Nat;
-  #bool type A = Bool : A;
+  #int : type A = Nat in Nat;
+  #bool : type A = Bool in A;
 };
 
 // Refinement-only arm: #int refines A to Nat.

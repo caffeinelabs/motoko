@@ -6,9 +6,9 @@
 // re-construct.
 
 type Expr<A> = {
-  #int  type A = Nat  : Nat;
-  #bool type A = Bool : A;
-  #eq   type A = Bool, type B : ((B, B) -> Bool, Expr<B>, Expr<B>);
+  #int : type A = Nat in Nat;
+  #bool : type A = Bool in A;
+  #eq : type A = Bool, type B in ((B, B) -> Bool, Expr<B>, Expr<B>);
 };
 
 func natEq(a : Nat, b : Nat) : Bool = a == b;

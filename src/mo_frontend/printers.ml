@@ -266,7 +266,6 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_typ_pre) -> "<typ_pre>", eg_typ
   | X (N N_typ_tag) -> "<typ_tag>", eg_typ_tag
   | X (N N_typ_constraint) -> "<typ_constraint>", "type X = T"
-  | X (N N_typ_constraints_opt) -> "<typ_constraints_opt>", ""
   | X (N N_seplist1_typ_constraint_COMMA_) -> seplist ("<typ_constraint>", "type X = T") comma
   | X (N N_seplist_typ_constraint_COMMA_) -> seplist ("<typ_constraint>", "type X = T") comma
   | X (N N_typ_un) -> "<typ_un>", eg_typ

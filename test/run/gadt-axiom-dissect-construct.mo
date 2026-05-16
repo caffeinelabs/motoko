@@ -3,8 +3,8 @@
 // value that fits the same outer GADT type as the scrutinee.
 
 type Expr<A> = {
-  #int  type A = Nat  : Nat;
-  #bool type A = Bool : A;
+  #int : type A = Nat in Nat;
+  #bool : type A = Bool in A;
 };
 
 // Identity over Expr<Bool>: dissect and re-construct each arm. The

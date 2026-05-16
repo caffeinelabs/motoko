@@ -100,7 +100,8 @@
     <id> <typ_params_opt> <typ_nullary> ':' <typ>
 
 <typ_tag> ::= 
-    '#' <id> (<list1(<typ_constraint>, ',')>)? (':' <typ>)?
+    '#' <id>
+    '#' <id> ':' <typ_def_rhs>
 
 <typ_constraint> ::= 
     'type' <id> '=' <typ>

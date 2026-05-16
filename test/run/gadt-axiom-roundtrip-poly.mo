@@ -4,9 +4,9 @@
 // `T` returns to abstract. This is the canonical "what GADTs are for".
 
 type Expr<A> = {
-  #int  type A = Nat  : Nat;
-  #bool type A = Bool : A;
-  #eq   type A = Bool, type B : ((B, B) -> Bool, Expr<B>, Expr<B>);
+  #int : type A = Nat in Nat;
+  #bool : type A = Bool in A;
+  #eq : type A = Bool, type B in ((B, B) -> Bool, Expr<B>, Expr<B>);
 };
 
 func roundtrip<T>(e : Expr<T>) : Expr<T> =

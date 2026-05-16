@@ -14,11 +14,11 @@ structures throughout the typechecker and side-tables.
 
 ```motoko
 type Expr<A> = {
-  #int  type A = Nat        : Nat;
-  #bool type A = Bool       : A;
-  #add  type A = Nat        : (Expr<A>, Expr<A>);
+  #int  : type A = Nat in Nat;
+  #bool : type A = Bool in A;
+  #add  : type A = Nat in (Expr<A>, Expr<A>);
   #if_                      : (Expr<Bool>, Expr<A>, Expr<A>);
-  #eq   type A = Bool, B    : ((B, B) -> Bool, Expr<B>, Expr<B>);
+  #eq   : type A = Bool, type B in ((B, B) -> Bool, Expr<B>, Expr<B>);
 };
 
 func eval<A>(e : Expr<A>) : A = switch e {
@@ -34,24 +34,29 @@ No `assert false`, no coercion, no boxing — `eval` returns the right type per 
 
 ## Syntax
 
-### Variant arm grammar extension
+### Variant arm grammar extension (Flavor B4)
 
-A variant arm gains an optional **type clause** between the tag and the `:`:
+A variant arm gains an optional **type clause** after the `:`, separated
+from the payload by `in`. Same shape as a TypD top-level `= constraints
+in body` — single mental model across both sites.
 
 ```
-arm  ::=  '#' Ident type-clause? ':' Payload
-type-clause ::= 'type' type-decl (',' type-decl)*
-type-decl   ::= Ident '=' Type      // refinement: outer X is set to Type
-             | Ident                // existential: introduce fresh X
+arm  ::=  '#' Ident (':' Payload-or-Constrained)?
+Payload-or-Constrained ::= Type
+                        | type-clause 'in' Type
+type-clause ::= type-decl (',' type-decl)*
+type-decl   ::= 'type' Ident '=' Type   // refinement: outer X is set to Type
+             | 'type' Ident             // existential: introduce fresh X
 ```
 
 Examples:
 
 ```motoko
-#int  type A = Nat       : Nat         // refinement: A ≡ Nat for this arm
-#bool type A = Bool      : A           // refinement; payload uses the refined name
-#if_                     : ...         // no clause = parametric
-#eq   type A = Bool, B   : ...         // refinement + fresh existential, mixed
+#int  : type A = Nat in Nat                    // refinement: A ≡ Nat
+#bool : type A = Bool in A                     // refinement; payload uses A
+#if_                                            // no payload (unit)
+#plain : Text                                   // no clause = parametric
+#eq   : type A = Bool, type B in ((B, B) -> Bool, Expr<B>, Expr<B>)
 ```
 
 ### Semantics
@@ -533,7 +538,30 @@ disambiguate without breaking change. **Rejected.**
 
 Workable but the `with` keyword has other Motoko uses (`actor with`). Putting
 the refinement *after* the payload is also harder to read: by the time you parse
-`A`, you've already committed to the payload type. **Superseded by B3.**
+`A`, you've already committed to the payload type. **Superseded by B3, then B4.**
+
+### Flavor B3 — constraints before colon
+
+```motoko
+#int  type A = Nat       : Nat
+#eq   type A = Bool, type B : ((B, B) -> Bool, Expr<B>, Expr<B>)
+```
+
+The form shipped in M1–M9. Constraints sit between the tag and `:`, payload
+after. Works, but asymmetric with TypD's `= constraints in body` form
+introduced for M10. **Superseded by B4** — pure surface change, no
+typechecker impact, parser-only refactor.
+
+### Flavor B4 (current) — introducer-first
+
+```motoko
+#int  : type A = Nat in Nat
+#eq   : type A = Bool, type B in ((B, B) -> Bool, Expr<B>, Expr<B>)
+```
+
+Unified with TypD: `: constraints in payload` (arm) and `= constraints
+in body` (TypD top). One mental model. `in` is unambiguous separator
+between bindings and payload — no COMMA / COLON dance. **Chosen.**
 
 ### Flavor C — refinement in switch only
 
@@ -549,7 +577,7 @@ abandoning structural variant typing or doing whole-program analysis.
 ### Existential shorthand: RHS-unbound = fresh
 
 ```motoko
-#if_ type A = B : (Expr<Bool>, Expr<A>, Expr<A>)   // B unbound, treated as fresh
+#if_ : type A = B in (Expr<Bool>, Expr<A>, Expr<A>)   // B unbound, treated as fresh
 ```
 
 Implicit; if `B` happens to be in scope from an outer declaration, the meaning

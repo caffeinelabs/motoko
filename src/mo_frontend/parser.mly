@@ -284,7 +284,7 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.vis> vis
 %type<Mo_def.Syntax.typ_tag> typ_tag
 %type<Mo_def.Syntax.typ_constraint> typ_constraint
-%type<Mo_def.Syntax.typ_constraint list> typ_constraints_opt seplist1(typ_constraint,COMMA)
+%type<Mo_def.Syntax.typ_constraint list> seplist1(typ_constraint,COMMA)
 %type<Mo_def.Syntax.typ_tag list> typ_variant
 %type<Mo_def.Syntax.typ_field> typ_field
 %type<Mo_def.Syntax.typ_bind> typ_bind
@@ -536,12 +536,10 @@ typ_field :
       ValF (x, t, Const @@ no_region) @@ at $sloc }
 
 typ_tag :
-  | HASH x=id cs=typ_constraints_opt t=annot_opt
-    { {tag = x; constraints = cs; typ = Lib.Option.get t (TupT [] @! at $sloc)} @@ at $sloc }
-
-typ_constraints_opt :
-  | (* empty *) { [] }
-  | cs=seplist1(typ_constraint, COMMA) { cs }
+  | HASH x=id
+    { {tag = x; constraints = []; typ = TupT [] @! at $sloc} @@ at $sloc }
+  | HASH x=id COLON cs_t=typ_def_rhs
+    { let cs, t = cs_t in {tag = x; constraints = cs; typ = t} @@ at $sloc }
 
 typ_constraint :
   | TYPE x=id EQ t=typ { {tv = x; refines = Some t} @= at $sloc }
