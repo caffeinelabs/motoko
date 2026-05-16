@@ -439,7 +439,10 @@ machinery (br_table or linear) operates on tags as before.
       - [ ] **Shadowing warning**: `type A = T` where `A` shadows an outer
             name in a misleading way → optional warning, low priority.
 
-- [ ] **M10 — Existentials in tuples and records**: lift `type X` clauses
+- [x] **M10 — Existentials in tuples and records** (record-literal +
+  tuple construction/destructuring done; `object`/`class` recursive
+  form and projection-error guard remain deferred — see end of this
+  bullet): lift `type X` clauses
       from variant arms to the top of any type definition. **Syntax: a
       comma-separated list of `type X` bindings, then `in`, then the
       body type.** `in` (already a keyword from `for (x in xs)`) reads

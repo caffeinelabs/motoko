@@ -147,7 +147,15 @@ and exp' at note = function
     let eo = Option.map exp exp_opt in
     obj_block at s eo self_id_opt dfs note.Note.typ
   | S.ObjE (bs, efs) ->
-    obj note.Note.typ efs bs
+    (* M10: when this record literal has a GADT existential refinement
+       registered, apply σ to the obj_typ so per-field LetDs are typed
+       at the refined (concrete) field types rather than the schema's
+       existential cons. *)
+    let obj_typ = match T.lookup_refinement_at at with
+      | Some sigma -> T.subst sigma note.Note.typ
+      | None -> note.Note.typ
+    in
+    obj obj_typ efs bs
   | S.TagE (c, e) -> (tagE c.it (exp e)).it
   | S.DotE (e, x, _) when T.is_array e.note.S.note_typ ->
     (array_dotE e.note.S.note_typ x.it (exp e)).it

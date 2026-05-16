@@ -2894,6 +2894,21 @@ let unify_existentials expected actual existentials : typ ConEnv.t option =
     | Con (c1, ts1), Con (c2, ts2) when Cons.eq c1 c2
         && List.length ts1 = List.length ts2 ->
       List.iter2 walk ts1 ts2
+    | Obj (_, fs1, _), Obj (_, fs2, _) ->
+      (* Match fields by label; ignore fields absent on either side
+         (later subtype check handles those). *)
+      List.iter (fun f1 ->
+        match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+        | Some f2 -> walk f1.typ f2.typ
+        | None -> ()
+      ) fs1
+    | Variant fs1, Variant fs2 ->
+      List.iter (fun f1 ->
+        match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+        | Some f2 -> walk f1.typ f2.typ
+        | None -> ()
+      ) fs1
+    | Array t1, Array t2 -> walk t1 t2
     | _ -> ()  (* leaves / mismatches — let later sub-check do its job *)
   in
   try walk expected actual; Some !sigma

@@ -2967,7 +2967,11 @@ and gadt_check_typd_existentials env exp t c ts =
            display_typ_expand refined;
        T.register_refinement_at exp.at sigma;
        let e = A.infer_effect_exp exp in
-       exp.note <- {exp.note with note_typ = t; note_eff = e};
+       (* Normalise to the structural form (Obj / Tup / Variant / ...)
+          for desugar — it walks the note expecting the open body, not
+          the [Con] wrapper. The σ-refinement is preserved on
+          [gadt_refinement_at]. *)
+       exp.note <- {exp.note with note_typ = T.normalize t; note_eff = e};
        true
      | None ->
        local_error env exp.at "M9002"
