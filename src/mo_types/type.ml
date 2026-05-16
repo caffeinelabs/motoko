@@ -2842,6 +2842,15 @@ let rec monomorphise_open c ts t =
      | _ -> t)
   | _ -> t
 
+(* Normalize + GADT-prune in one step. For wire-facing consumers
+   (Candid mo_to_idl, codegen ser/deser): they want the body of any
+   GADT cons pruned to just the arms reachable for the current
+   instantiation. Identity on non-GADT [Con] and on non-[Con] types. *)
+and normalize_pruned t =
+  match t with
+  | Con (c, ts) -> monomorphise_open c ts (normalize t)
+  | _ -> normalize t
+
 and prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field list) : field list =
   let indexed_tbs = List.mapi (fun i tb -> (i, tb)) tbs in
   let slot_for var =

@@ -2539,10 +2539,13 @@ and infer_exp'' env exp : T.typ =
         display_typ_expand t3;
     t
   | SwitchE (exp1, cases) ->
-    let t1 = infer_exp_promote env exp1 in
+    let t1_orig = infer_exp env exp1 in
+    let t1 = T.promote t1_orig in
     let t = infer_cases env t1 T.Non cases in
-    if not env.pre then
-      coverage_cases "switch" env cases t1 exp.at;
+    if not env.pre then begin
+      let t1_for_coverage = gadt_prune_for_coverage t1_orig t1 in
+      coverage_cases "switch" env cases t1_for_coverage exp.at
+    end;
     t
   | TryE (exp1, cases, exp2_opt) ->
     let t1 = infer_exp env exp1 in

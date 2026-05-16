@@ -7446,13 +7446,7 @@ module Serialization = struct
       let typs = ref Table.empty in
       let idx = ref TM.empty in
       let rec go t =
-        let t =
-          (* M12: prune GADT-incompatible variant arms before describing
-             the type to the Candid wire. Mirrors mo_to_idl. *)
-          match t with
-          | Con (c, ts) -> Type.monomorphise_open c ts (Type.normalize t)
-          | _ -> Type.normalize t
-        in
+        let t = Type.normalize_pruned t in
         if to_idl_prim mode t <> None then () else
         if TM.mem t !idx then () else begin
           let (i, tbl) = Table.add !typs t in
@@ -7513,16 +7507,16 @@ module Serialization = struct
     (* Actual binary data *)
 
     let add_idx t =
-      let t = Type.normalize t in
+      let t = Type.normalize_pruned t in
       match to_idl_prim mode t with
       | Some i -> add_sleb128 (Int32.neg i)
-      | None -> add_sleb128 (TM.find (normalize t) idx) in
+      | None -> add_sleb128 (TM.find (Type.normalize_pruned t) idx) in
 
     let idx t =
-      let t = Type.normalize t in
+      let t = Type.normalize_pruned t in
       match to_idl_prim mode t with
       | Some i -> Int32.neg i
-      | None -> TM.find (normalize t) idx in
+      | None -> TM.find (Type.normalize_pruned t) idx in
 
     let rec add_typ t =
       match t with
@@ -7636,7 +7630,7 @@ module Serialization = struct
   (* Returns data (in bytes) and reference buffer size (in entries) needed *)
   let rec buffer_size env t =
     let open Type in
-    let t = Type.normalize t in
+    let t = Type.normalize_pruned t in
     let name = "@buffer_size<" ^ typ_hash t ^ ">" in
     Func.share_code1 Func.Always env name ("x", I64Type) [I64Type; I64Type]
     (fun env get_x ->
@@ -7814,7 +7808,7 @@ module Serialization = struct
   (* Copies x to the data_buffer, storing references after ref_count entries in ref_base *)
   let rec serialize_go env t =
     let open Type in
-    let t = Type.normalize t in
+    let t = Type.normalize_pruned t in
     let name = Strm.name_for "serialize_go" [t] in
     Func.share_code3 Func.Always env name (("x", I64Type), ("data_buffer", I64Type), ("ref_buffer", I64Type)) [I64Type; I64Type]
     (fun env get_x get_data_buf get_ref_buf ->
@@ -8071,7 +8065,7 @@ module Serialization = struct
 
   let rec deserialize_go env t =
     let open Type in
-    let t = Type.normalize t in
+    let t = Type.normalize_pruned t in
     let name = "@deserialize_go<" ^ typ_hash t ^ ">" in
     Func.share_code0 Func.Always env name
       [I64Type]

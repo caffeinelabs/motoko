@@ -7081,13 +7081,7 @@ module MakeSerialization (Strm : Stream) = struct
       let typs = ref [] in
       let idx = ref TM.empty in
       let rec go t =
-        let t =
-          (* M12: prune GADT-incompatible variant arms before describing
-             the type to the Candid wire. Mirrors enhanced backend. *)
-          match t with
-          | Con (c, ts) -> Type.monomorphise_open c ts (Type.normalize t)
-          | _ -> Type.normalize t
-        in
+        let t = Type.normalize_pruned t in
         if to_idl_prim t <> None then () else
         if TM.mem t !idx then () else begin
           idx := TM.add t (Lib.List32.length !typs) !idx;
@@ -7146,16 +7140,16 @@ module MakeSerialization (Strm : Stream) = struct
     (* Actual binary data *)
 
     let add_idx t =
-      let t = Type.normalize t in
+      let t = Type.normalize_pruned t in
       match to_idl_prim t with
       | Some i -> add_sleb128 (Int32.neg i)
-      | None -> add_sleb128 (TM.find (normalize t) idx) in
+      | None -> add_sleb128 (TM.find (Type.normalize_pruned t) idx) in
 
     let idx t =
-      let t = Type.normalize t in
+      let t = Type.normalize_pruned t in
       match to_idl_prim t with
       | Some i -> Int32.neg i
-      | None -> TM.find (normalize t) idx in
+      | None -> TM.find (Type.normalize_pruned t) idx in
 
     let rec add_typ t =
       match t with
@@ -7257,7 +7251,7 @@ module MakeSerialization (Strm : Stream) = struct
   (* Returns data (in bytes) and reference buffer size (in entries) needed *)
   let rec buffer_size env t =
     let open Type in
-    let t = Type.normalize t in
+    let t = Type.normalize_pruned t in
     let name = "@buffer_size<" ^ typ_hash t ^ ">" in
     Func.share_code1 Func.Always env name ("x", I32Type) [I32Type; I32Type]
     (fun env get_x ->
@@ -7426,7 +7420,7 @@ module MakeSerialization (Strm : Stream) = struct
   (* Copies x to the data_buffer, storing references after ref_count entries in ref_base *)
   let rec serialize_go env t =
     let open Type in
-    let t = Type.normalize t in
+    let t = Type.normalize_pruned t in
     let name = Strm.name_for "serialize_go" [t] in
     Func.share_code3 Func.Always env name (("x", I32Type), ("data_buffer", I32Type), ("ref_buffer", I32Type)) [I32Type; I32Type]
     (fun env get_x get_data_buf get_ref_buf ->
@@ -7670,7 +7664,7 @@ module MakeSerialization (Strm : Stream) = struct
 
   let rec deserialize_go env t =
     let open Type in
-    let t = Type.normalize t in
+    let t = Type.normalize_pruned t in
     let name = "@deserialize_go<" ^ typ_hash t ^ ">" in
     Func.share_code0 Func.Always env name
       [I32Type]
