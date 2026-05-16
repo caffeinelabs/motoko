@@ -5110,7 +5110,30 @@ and infer_dec env dec : T.typ =
           warn env dec.at "M0135"
             "actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'";
         let t'' = check_typ env'' typ in
-        if not (sub env dec.at t' t'') then
+        (* M10 class form: when the declared return type carries
+           top-level [type X] existentials, the body's inferred type
+           [t'] is concrete while [t''] is the existential pack.
+           Run witness inference to discover σ and check the body
+           against the refined pack. Mirror of
+           [gadt_check_typd_existentials]. The call-site coercion
+           (`MkRec 7 : Rec`) is handled separately by check_exp
+           registering σ at the call's exp.at; the IR check's
+           CallPrim arm applies it before the result sub-check. *)
+        let refined_t'' = match t'' with
+          | T.Con (c, ts) when T.lookup_typd_existentials c <> [] ->
+            (match Cons.kind c with
+             | T.Def (_, body) ->
+               let body' = T.open_ ts body in
+               let es = T.lookup_typd_existentials c in
+               (match T.unify_existentials body' t' es with
+                | Some sigma ->
+                  T.register_refinement_at dec.at sigma;
+                  T.subst sigma body'
+                | None -> t'')
+             | _ -> t'')
+          | _ -> t''
+        in
+        if not (sub env dec.at t' refined_t'') then
           local_error env dec.at "M0134"
             "class body of type%a\ndoes not match expected type%a"
             display_typ_expand t'

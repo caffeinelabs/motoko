@@ -573,10 +573,25 @@ machinery (br_table or linear) operates on tags as before.
         at M0134 is a separate site that needs its own σ
         registration, and the synthesised class type is a fresh
         `Con(MkRec, [])` whose subtype check against `Rec` happens
-        at call sites, not at the class declaration. Deferred —
-        full support needs a cons-result coercion step or making
-        the class function's return type the declared `Rec` rather
-        than the synthesised body alias.
+        at call sites, not at the class declaration. **Shipped
+        2026-05-16** (`test/run/gadt-class-existential.mo` passes
+        all phases). The fix turned out to be smaller than the
+        deferral note assumed — two narrow patches:
+
+        1. **typing.ml M0134 site:** before the raw `sub t' t''`,
+           if `t''` is `Con(c, ts)` with non-empty
+           `lookup_typd_existentials c`, run
+           `T.unify_existentials body' t' es` and check `t'` against
+           the σ-refined body.
+        2. **check_ir.ml CallPrim arm:** apply σ to the expected
+           ambient type before the `t_ret <: t` sub-check (mirror
+           of TupPrim/TagPrim). The call-site σ is registered by
+           `gadt_check_typd_existentials` when typing
+           `(MkRec 7 : Rec)` — the IR check just has to consult it.
+
+        No cons-result coercion needed; the function's range stays
+        `Con(MkRec, [])` and the σ-at-call-site makes the result
+        sub-check go through.
 
         **Gotchas mapped during a 2026-05-16 investigation pass (not
         yet shipped — recorded so a future attempt doesn't relearn

@@ -457,7 +457,15 @@ let rec check_exp env (exp:Ir.exp) : unit =
             check_concrete env exp.at t_ret;
           end;
           typ exp2 <: t_arg;
-          t_ret <: t
+          (* M10: if typing recorded a GADT existential refinement at
+             this call's region (e.g. `MkRec 7 : Rec` where `Rec` has
+             a top-level `type X`), apply σ to the expected ambient
+             type before the sub-check — mirror of TupPrim/TagPrim. *)
+          let t' = match T.lookup_refinement_at exp.at with
+            | Some sigma -> T.subst sigma (T.promote t)
+            | None -> t
+          in
+          t_ret <: t'
         | T.Non -> () (* dead code, not much to check here *)
         | t1 -> error env exp1.at "expected function type, but expression produces type\n  %s"
              (T.string_of_typ_expand t1)
