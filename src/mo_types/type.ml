@@ -2679,6 +2679,7 @@ let string_of_stab_sig stab_sig : string =
 
 let gadt_arm_constraints : (con * lab, (var * typ) list) Hashtbl.t = Hashtbl.create 16
 let gadt_arm_existentials : (con * lab, con list) Hashtbl.t = Hashtbl.create 16
+let gadt_typd_existentials : (con, con list) Hashtbl.t = Hashtbl.create 16
 let gadt_existential_set : ConSet.t ref = ref ConSet.empty
 
 let register_gadt_arm c lab cs =
@@ -2699,6 +2700,17 @@ let lookup_gadt_arm c lab =
 
 let lookup_gadt_arm_existentials c lab =
   match Hashtbl.find_opt gadt_arm_existentials (c, lab) with
+  | Some es -> es
+  | None -> []
+
+let register_typd_existentials c es =
+  if es <> [] then begin
+    Hashtbl.replace gadt_typd_existentials c es;
+    List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es
+  end
+
+let lookup_typd_existentials c =
+  match Hashtbl.find_opt gadt_typd_existentials c with
   | Some es -> es
   | None -> []
 
@@ -2738,6 +2750,15 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
     ) xs;
     gadt_existential_set := !new_set
   in
+  let migrate_typd_existentials () =
+    let xs = Hashtbl.fold (fun c es acc -> (c, es) :: acc) gadt_typd_existentials [] in
+    Hashtbl.clear gadt_typd_existentials;
+    List.iter (fun (c, es) ->
+      let es' = List.map rename_con es in
+      List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es';
+      Hashtbl.replace gadt_typd_existentials (rename_con c) es'
+    ) xs
+  in
   let migrate_refinement_at () =
     let xs = Hashtbl.fold (fun reg sigma acc -> (reg, sigma) :: acc) gadt_refinement_at [] in
     Hashtbl.clear gadt_refinement_at;
@@ -2750,6 +2771,7 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
   in
   migrate_constraints ();
   migrate_existentials ();
+  migrate_typd_existentials ();
   migrate_refinement_at ()
 
 (* Structural matcher: walk [expected] and [actual] in parallel; where

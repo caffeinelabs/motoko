@@ -484,7 +484,11 @@ let rec check_exp env (exp:Ir.exp) : unit =
       typ exp2 <: ot;
       T.bool <: t
     | TupPrim, exps ->
-      T.Tup (List.map typ exps) <: t
+      let t' = match T.lookup_refinement_at exp.at with
+        | Some sigma -> T.subst sigma (T.promote t)
+        | None -> t
+      in
+      T.Tup (List.map typ exps) <: t'
     | ProjPrim n, [exp1] ->
       let t1 = T.promote (immute_typ exp1) in
       let ts = try T.as_tup_sub n t1

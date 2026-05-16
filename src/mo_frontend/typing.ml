@@ -2864,6 +2864,8 @@ and check_exp env t exp =
     | TagE (id, exp1), T.Con (c, ts) ->
       gadt_check_refinements env exp c ts id;
       gadt_check_existentials env exp t c ts id exp1
+    | _, T.Con (c, ts) when T.lookup_typd_existentials c <> [] ->
+      gadt_check_typd_existentials env exp t c ts
     | _ -> false
   in
   if not handled then begin
@@ -2938,6 +2940,35 @@ and gadt_check_existentials env exp t c ts id exp1 =
           | None -> false)
        | _ -> false)
     | _ -> false
+
+(* M10: construction-side check for top-level existentials. Mirrors
+   [gadt_check_existentials] but without the per-variant-arm wrapper —
+   the body of the TypD itself is the existential pack. *)
+and gadt_check_typd_existentials env exp t c ts =
+  let es = T.lookup_typd_existentials c in
+  match Cons.kind c with
+  | T.Def (_, body) ->
+    let body' = T.open_ ts body in
+    let actual_t = infer_exp env exp in
+    (match T.unify_existentials body' actual_t es with
+     | Some sigma ->
+       let refined = T.subst sigma body' in
+       if not (T.sub actual_t refined) then
+         local_error env exp.at "M0096"
+           "expression of type%a\ncannot produce expected type%a"
+           display_typ_expand actual_t
+           display_typ_expand refined;
+       T.register_refinement_at exp.at sigma;
+       let e = A.infer_effect_exp exp in
+       exp.note <- {exp.note with note_typ = t; note_eff = e};
+       true
+     | None ->
+       local_error env exp.at "M9002"
+         "type `%s`: cannot infer existential witness from value of type%a"
+         (T.string_of_typ (T.Con (c, ts)))
+         display_typ actual_t;
+       false)
+  | _ -> false
 
 (* M5: filter unreachable arms from a variant scrutinee type before
    coverage analysis. When the un-promoted form is [Con(c, ts)] and
@@ -5402,6 +5433,15 @@ and infer_dec_typdecs env dec : Scope.t =
          T.register_gadt_arm_existentials c tag.it.tag.it es
        ) tags
      | _ -> ());
+    (* M10: top-level existentials live on the type's con itself. *)
+    let typd_es =
+      List.filter_map (fun cstr ->
+        match cstr.it.refines, cstr.note with
+        | None, Some skolem -> Some skolem
+        | _ -> None
+      ) cs_top
+    in
+    T.register_typd_existentials c typd_es;
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;

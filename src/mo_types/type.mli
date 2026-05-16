@@ -428,6 +428,8 @@ val register_gadt_arm : con -> lab -> (var * typ) list -> unit
 val register_gadt_arm_existentials : con -> lab -> con list -> unit
 val lookup_gadt_arm : con -> lab -> (var * typ) list
 val lookup_gadt_arm_existentials : con -> lab -> con list
+val register_typd_existentials : con -> con list -> unit
+val lookup_typd_existentials : con -> con list
 val is_gadt_existential : con -> bool
 val register_refinement_at : Source.region -> typ ConEnv.t -> unit
 val lookup_refinement_at : Source.region -> typ ConEnv.t option
