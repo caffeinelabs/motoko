@@ -647,7 +647,7 @@ and interpret_cases env cases at v (k : V.value V.cont) =
   match cases with
   | [] ->
     trap at "switch value %s does not match any case" (string_of_val env v)
-  | {it = {pat; exp}; at; _}::cases' ->
+  | {it = {pat; exp; _}; at; _}::cases' ->
     match match_pat pat v with
     | Some ve -> interpret_exp (adjoin_vals env ve) exp k
     | None -> interpret_cases env cases' at v k
@@ -658,7 +658,7 @@ and interpret_catches env cases at v (k : V.value V.cont) =
   match cases with
   | [] ->
     Option.get env.throws v (* re-throw v *)
-  | {it = {pat; exp}; at; _}::cases' ->
+  | {it = {pat; exp; _}; at; _}::cases' ->
     match match_pat pat v with
     | Some ve -> interpret_exp (adjoin_vals env ve) exp k
     | None -> interpret_catches env cases' at v k

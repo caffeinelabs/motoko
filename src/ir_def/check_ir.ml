@@ -1022,10 +1022,16 @@ and check_lexp env (lexp:Ir.lexp) : unit =
 and check_cases env t_pat t cases =
   List.iter (check_case env t_pat t) cases
 
-and check_case env t_pat t ({it = {pat; exp}; _} as case) =
+and check_case env t_pat t ({it = {pat; exp; gadt_sigma}; _} as case) =
   let ve = check_pat env pat in
   check_sub env pat.at t_pat pat.note;
-  let t', ve' = match T.lookup_refinement_at case.at with
+  (* M11a: prefer σ on the case node; fall back to the region-keyed
+     side-table during migration. *)
+  let sigma_opt = match gadt_sigma with
+    | Some _ as s -> s
+    | None -> T.lookup_refinement_at case.at
+  in
+  let t', ve' = match sigma_opt with
     | Some sigma ->
       T.subst sigma t,
       T.Env.map (fun vi -> { vi with typ = T.subst sigma vi.typ }) ve

@@ -272,16 +272,16 @@ and t_exp' env = function
   | SwitchE (exp1, cases) ->
     let cases' =
       List.map
-        (fun {it = {pat;exp}; at; note} ->
-          {it = {pat = pat; exp = t_exp env exp}; at; note})
+        (fun {it = {pat; exp; gadt_sigma}; at; note} ->
+          {it = {pat = pat; exp = t_exp env exp; gadt_sigma}; at; note})
         cases
     in
     SwitchE (t_exp env exp1, cases')
   | TryE (exp1, cases, vt) ->
     let cases' =
       List.map
-        (fun {it = {pat;exp}; at; note} ->
-          {it = {pat; exp = t_exp env exp}; at; note})
+        (fun {it = {pat; exp; gadt_sigma}; at; note} ->
+          {it = {pat; exp = t_exp env exp; gadt_sigma}; at; note})
         cases
     in
     TryE (t_exp env exp1, cases', vt)

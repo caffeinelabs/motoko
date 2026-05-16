@@ -185,10 +185,10 @@ and pats_subst rho ps =
 
 and case rho (c : case) =
   {c with it = case' rho c.it}
-and case' rho { pat = p; exp = e} =
+and case' rho { pat = p; exp = e; gadt_sigma } =
   let (p', rho') = pat rho p in
   let e' = exp rho' e in
-  {pat=p'; exp=e'}
+  {pat=p'; exp=e'; gadt_sigma}
 
 and cases rho cs = List.map (case rho) cs
 

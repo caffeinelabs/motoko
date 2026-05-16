@@ -389,5 +389,5 @@ let (@?) it at = {it; at; note = empty_typ_note}
 
 let check_pat pat t =
   let uncovered, unreached =
-    check_cases [{pat; exp = TupE [] @? no_region} @@ no_region] t
+    check_cases [{pat; exp = TupE [] @? no_region; gadt_sigma = None} @@ no_region] t
   in uncovered, List.filter ((<>) pat.at) unreached
