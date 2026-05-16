@@ -1,0 +1,12 @@
+type Expr = 
+ variant {
+   "bool": bool;
+   if: record {
+         Expr;
+         Expr;
+         Expr;
+       };
+ };
+service : {
+  receive: (Expr) -> ();
+}

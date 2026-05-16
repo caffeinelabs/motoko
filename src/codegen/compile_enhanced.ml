@@ -7446,7 +7446,13 @@ module Serialization = struct
       let typs = ref Table.empty in
       let idx = ref TM.empty in
       let rec go t =
-        let t = Type.normalize t in
+        let t =
+          (* M12: prune GADT-incompatible variant arms before describing
+             the type to the Candid wire. Mirrors mo_to_idl. *)
+          match t with
+          | Con (c, ts) -> Type.monomorphise_open c ts (Type.normalize t)
+          | _ -> Type.normalize t
+        in
         if to_idl_prim mode t <> None then () else
         if TM.mem t !idx then () else begin
           let (i, tbl) = Table.add !typs t in

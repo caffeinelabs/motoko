@@ -2827,7 +2827,22 @@ let mentions_any_con cons t =
    if the slot is concrete and differs, the arm is unreachable for this
    instantiation and is removed from the returned variant. Arms with no
    refinement (parametric) are always kept. *)
-let prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field list) : field list =
+(* M12: prune GADT-incompatible arms when expanding [Con(c, ts)].
+   Given the already-opened body [t] of c with type-args [ts], return
+   [t] with any variant arms whose refinement clauses conflict with
+   [ts] removed. Identity on non-GADT cons / non-variant bodies.
+
+   Use at every Cons-opening site that feeds the type to Candid (or
+   any wire-facing consumer): mo_to_idl, codegen ser/deser, etc. *)
+let rec monomorphise_open c ts t =
+  match Cons.kind c with
+  | Def (tbs, _) ->
+    (match t with
+     | Variant fs -> Variant (prune_gadt_variant c tbs ts fs)
+     | _ -> t)
+  | _ -> t
+
+and prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field list) : field list =
   let indexed_tbs = List.mapi (fun i tb -> (i, tb)) tbs in
   let slot_for var =
     match List.find_opt (fun (_, tb) -> tb.var = var) indexed_tbs with

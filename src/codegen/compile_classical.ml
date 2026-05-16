@@ -7081,7 +7081,13 @@ module MakeSerialization (Strm : Stream) = struct
       let typs = ref [] in
       let idx = ref TM.empty in
       let rec go t =
-        let t = Type.normalize t in
+        let t =
+          (* M12: prune GADT-incompatible variant arms before describing
+             the type to the Candid wire. Mirrors enhanced backend. *)
+          match t with
+          | Con (c, ts) -> Type.monomorphise_open c ts (Type.normalize t)
+          | _ -> Type.normalize t
+        in
         if to_idl_prim t <> None then () else
         if TM.mem t !idx then () else begin
           idx := TM.add t (Lib.List32.length !typs) !idx;
