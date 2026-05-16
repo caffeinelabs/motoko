@@ -961,6 +961,88 @@ shape; refining `A` there is just defining a non-generic type — no GADT-ness.
 Explicit witness in patterns. Verbose; refinement should be inferred from the
 arm declaration. **Rejected** in favour of implicit refinement scoping.
 
+## Review feedback (2026-05-16)
+
+External review of the experiment PR raised four threads. Recording
+both the questions and our current responses so the design intent is
+captured in-tree (and so we don't relearn the answers on the next
+pass).
+
+### 1. Equality bounds vs upper bounds
+
+**Reviewer:** "I sort of assumed GADTs require the type constructor
+(`Exp<_>`) to be injective hence nominal but maybe that's not the
+case. How do you encode the equality bounds — a new sort of bound,
+or upper and (new) lower bound? I wonder if you actually need
+equality in the constraint and can just use an upper bound. Worth
+trying to minimize the changes."
+
+**Response:** Equality is load-bearing for *substitution*, not just
+pruning. The refinement `type N = Succ<M>` in a `#cons` arm is used
+to replace `N` with `Succ<M>` inside the arm's payload — that's how
+`head : List<A, Succ<M>> -> A` type-checks: the body sees `N`
+unified to `Succ<M>` and the payload's `List<A, M>` becomes
+well-typed in the surrounding context. An upper-bound `N <:
+Succ<M>` is strictly weaker; `Non` satisfies it but doesn't give
+us the substitution. Pruning (M5 arm-unreachability) could in
+principle be done with sub alone, but the "type equality witness"
+semantics that GADT pattern matching depends on requires the
+equation.
+
+Injectivity question: yes, `Con` identities are nominal in Motoko
+(via `Cons.eq`), so `Exp<Nat>` and `Exp<Bool>` are distinct cons
+instantiations and pattern-matching can discriminate. The schema
+itself doesn't need a separate injectivity check — it falls out of
+the existing Cons machinery.
+
+### 2. Reuse type-binder syntax in patterns and variant declarations
+
+**Reviewer:** "Why not just reuse the syntax for type binders in
+patterns and variant declarations?"
+
+**Response:** Already in place on the variant-declaration side —
+`type M, type N = Succ<M>` is the type-binder grammar (a comma-
+separated list of `type X (= T)?` clauses, then `in`, then the
+body type), the same shape used in `type Tup = type X in ...`.
+On the *pattern* side it's currently implicit: the case body's σ
+comes from the arm's declared existentials, not from a binder in
+the pattern. Explicit pattern binders (`case (#cons<M> (x, xs)) →
+...`) would make skolem scope more legible and let users name the
+existential. Tracked as an M11a companion question — implementation
+cost is small, but worth pinning down whether the implicit form
+should remain the default.
+
+### 3. Coverage of impossible cases
+
+**Reviewer:** "I guess the hard part will be coverage checking if
+you want to allow omission of impossible cases. But I don't think
+that's strictly necessary."
+
+**Response:** Agreed — not part of the first cut. M5 already prunes
+unreachable arms from *coverage* checking (a `#nil` arm with `N =
+Zero` is dropped from coverage when the scrutinee type forces
+`N = Succ<M>`), but the syntactic requirement that every arm be
+listed is unchanged. Allowing omission would need the coverage
+checker to consult arm-refinement against the scrutinee's
+instantiation and certify exhaustiveness for the surviving arms.
+Real "GADT exhaustiveness" feature, deferrable to a later pass.
+
+### 4. Subtyping termination
+
+**Reviewer:** "And ensuring subtyping terminates …"
+
+**Response:** Known soft-spot — `rel_typ` in `type.ml` already
+carries `(* TBR this may fail to terminate *)` markers on the
+Def-recursion arms. The new refinement machinery substitutes σ
+into the body before sub-check, but σ's image is closed under
+existing type constructors, so we haven't expanded the termination
+surface. Parameterised refinement RHS (`type N = Succ<M>` referring
+to another existential) is the kind of construct that could trip
+the existing depth limit on adversarial inputs; worth a separate
+"termination audit" issue if anyone trips it in practice. Not
+adding new fixed-point combinators or recursive unification rules
+that change the asymptotic shape.
+
 ## Cross-references
 
 - [shared-generics.md](shared-generics.md) — the dynamic-`switch type` design;
