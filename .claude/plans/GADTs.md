@@ -894,6 +894,54 @@ machinery (br_table or linear) operates on tags as before.
         during its walk rather than after-the-fact via
         region-keyed lookup.
 
+      **Variant-arm fresh-skolem — second attempt 2026-05-17, also
+      reverted; recording the new pitfall.** Tried extending
+      `gadt_sigma_for_case` to mint fresh skolems per arm-existential
+      via `T.fresh_destructure_skolem pat.at`, mirror of M11b
+      destructure-pat. The cross-arm test in `test/fail/gadt-cross-
+      arm-mixing.mo` correctly started rejecting (good). But
+      `test/run/gadt-axiom-roundtrip.mo` regressed inside the `#eq`
+      arm body at `eval x`: IR sub-check `Expr<all-site-B> <:
+      Expr<site-B-only-at-A-pos>` failed.
+
+      Root cause: in the user-natural notation
+      `#eq : type B in ((B, B) -> Bool, Expr<B>, Expr<B>)`, the
+      same `B_schema` cons plays two roles:
+        (i) the arm's existential declaration (`type B`), and
+        (ii) the type-arg of the inner `Expr<B>` reference.
+      They share one cons identity by construction.
+
+      Typing's view of `x : Expr<site-B>` (after σ-substitute on
+      the Con form, then `T.normalize` at use site): opens the
+      outer Def with `Var 0 → site-B` (the type-arg slot) and
+      leaves the inner Cons references at `B_schema` (since
+      `T.normalize` walks Vars, not Cons). So `x` looks like
+      `{#bool : site-B; #eq : (B_schema, B_schema) → ...; #int :
+      Nat}`.
+
+      IR's `check_case` post-process — `T.Env.map (T.subst σ_ir)
+      ve` — walks the *already-normalized* `pat.note` and
+      substitutes `B_schema → site-B` uniformly. So the IR's view
+      of `x` is `{#bool : site-B; #eq : (site-B, site-B) → ...;
+      #int : Nat}`. All B's at site-B.
+
+      Sub-check between the two views fails. The IR view is
+      arguably "more correct" (consistent X across the whole type),
+      but typing's view is what every consumer expects.
+
+      Reconciling the views requires either:
+        - making `T.normalize`/`open_` σ-aware so the inner-cons
+          substitution happens during opening, not as
+          post-processing (touches every normalize callsite), or
+        - making `pat.note` carry the un-normalized Con form so
+          `T.subst σ` on it stops at the outer cons (touches
+          every IR consumer of `pat.note`).
+
+      Both are wider than a slice. Five-line σ extension isn't
+      enough. Cross-mixing variant-arm soundness gap remains
+      open; M11a's σ-on-case-node is necessary infrastructure
+      but not sufficient on its own.
+
       Still-global tables in `type.ml`: `gadt_arm_constraints`,
       `gadt_arm_existentials`, `gadt_existential_set`,
       `gadt_typd_existentials`, `gadt_fresh_skolems`,
