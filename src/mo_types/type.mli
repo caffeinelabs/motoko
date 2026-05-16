@@ -438,6 +438,7 @@ val lookup_refinement_at : Source.region -> typ ConEnv.t option
 val rewrite_gadt_side_tables : rename_con:(con -> con) -> rewrite_typ:(typ -> typ) -> unit
 val unify_existentials : typ -> typ -> con list -> typ ConEnv.t option
 val prune_gadt_variant : con -> bind list -> typ list -> field list -> field list
+val arm_compat : con list -> typ -> typ -> bool
 val monomorphise_open : con -> typ list -> typ -> typ
 val normalize_pruned : typ -> typ
 val mentions_any_con : con list -> typ -> bool

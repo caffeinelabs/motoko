@@ -2883,6 +2883,7 @@ and check_exp env t exp =
 
 and gadt_check_refinements env exp c ts id =
   let arm_cs = T.lookup_gadt_arm c id.it in
+  let arm_es = T.lookup_gadt_arm_existentials c id.it in
   if arm_cs <> [] then begin
     match Cons.kind c with
     | T.Def (tbs, _) ->
@@ -2896,7 +2897,10 @@ and gadt_check_refinements env exp c ts id =
               (match Cons.kind sc with T.Abs _ -> true | _ -> false)
             | _ -> false
           in
-          if not slot_is_skolem && not (T.eq slot_t refined_t) then
+          (* Treat arm existentials in refined_t as wildcards — e.g.
+             #cons refines N = Succ<M> and any [Succ<...>] slot is
+             compatible. *)
+          if not slot_is_skolem && not (T.arm_compat arm_es refined_t slot_t) then
             local_error env exp.at "M9001"
               "GADT arm `%s` refines `%s = %a`, but its slot in this instantiation is %a"
               id.it vname

@@ -2677,17 +2677,40 @@ let string_of_stab_sig stab_sig : string =
    Indexed by (con × arm-label). Populated at type-declaration
    elaboration; consulted at variant construction & pattern matching. *)
 
-let gadt_arm_constraints : (con * lab, (var * typ) list) Hashtbl.t = Hashtbl.create 16
-let gadt_arm_existentials : (con * lab, con list) Hashtbl.t = Hashtbl.create 16
-let gadt_typd_existentials : (con, con list) Hashtbl.t = Hashtbl.create 16
+(* Cons-aware Hashtbl modules. Default Stdlib Hashtbl uses structural
+   equality on keys; recursive types (e.g. `type List<A> = { ... List<A> ... }`)
+   form cyclic Cons structures that send `=` into an unbounded walk and
+   OOM `Hashtbl.replace_bucket`. The custom modules below use
+   [Cons.eq] (stamp-based) for equality and a name-derived hash. *)
+module ConLabHash = Hashtbl.Make (struct
+  type t = con * lab
+  let equal (c1, l1) (c2, l2) = Cons.eq c1 c2 && l1 = l2
+  let hash (c, l) = Hashtbl.hash (Cons.name c, l)
+end)
+
+module ConHash = Hashtbl.Make (struct
+  type t = con
+  let equal = Cons.eq
+  let hash c = Hashtbl.hash (Cons.name c)
+end)
+
+module RegConHash = Hashtbl.Make (struct
+  type t = Source.region * con
+  let equal (r1, c1) (r2, c2) = r1 = r2 && Cons.eq c1 c2
+  let hash (r, c) = Hashtbl.hash (r, Cons.name c)
+end)
+
+let gadt_arm_constraints : (var * typ) list ConLabHash.t = ConLabHash.create 16
+let gadt_arm_existentials : con list ConLabHash.t = ConLabHash.create 16
+let gadt_typd_existentials : con list ConHash.t = ConHash.create 16
 let gadt_existential_set : ConSet.t ref = ref ConSet.empty
 
 let register_gadt_arm c lab cs =
-  if cs <> [] then Hashtbl.replace gadt_arm_constraints (c, lab) cs
+  if cs <> [] then ConLabHash.replace gadt_arm_constraints (c, lab) cs
 
 let register_gadt_arm_existentials c lab es =
   if es <> [] then begin
-    Hashtbl.replace gadt_arm_existentials (c, lab) es;
+    ConLabHash.replace gadt_arm_existentials (c, lab) es;
     List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es
   end
 
@@ -2696,14 +2719,14 @@ let is_gadt_existential c = ConSet.mem c !gadt_existential_set
 (* M11b — fresh-per-site existential skolems. Cache by (destructure
    site region × schema cons) so multi-pass typing returns the same
    cons on subsequent invocations. *)
-let gadt_fresh_skolems : (Source.region * con, con) Hashtbl.t = Hashtbl.create 16
+let gadt_fresh_skolems : con RegConHash.t = RegConHash.create 16
 
 let fresh_destructure_skolem reg c_schema =
-  match Hashtbl.find_opt gadt_fresh_skolems (reg, c_schema) with
+  match RegConHash.find_opt gadt_fresh_skolems (reg, c_schema) with
   | Some c_site -> c_site
   | None ->
     let c_site = Cons.fresh (Cons.name c_schema) (Abs ([], Any)) in
-    Hashtbl.replace gadt_fresh_skolems (reg, c_schema) c_site;
+    RegConHash.replace gadt_fresh_skolems (reg, c_schema) c_site;
     gadt_existential_set := ConSet.add c_site !gadt_existential_set;
     c_site
 
@@ -2735,23 +2758,23 @@ let mentions_blackhole t =
   in go t
 
 let lookup_gadt_arm c lab =
-  match Hashtbl.find_opt gadt_arm_constraints (c, lab) with
+  match ConLabHash.find_opt gadt_arm_constraints (c, lab) with
   | Some cs -> cs
   | None -> []
 
 let lookup_gadt_arm_existentials c lab =
-  match Hashtbl.find_opt gadt_arm_existentials (c, lab) with
+  match ConLabHash.find_opt gadt_arm_existentials (c, lab) with
   | Some es -> es
   | None -> []
 
 let register_typd_existentials c es =
   if es <> [] then begin
-    Hashtbl.replace gadt_typd_existentials c es;
+    ConHash.replace gadt_typd_existentials c es;
     List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es
   end
 
 let lookup_typd_existentials c =
-  match Hashtbl.find_opt gadt_typd_existentials c with
+  match ConHash.find_opt gadt_typd_existentials c with
   | Some es -> es
   | None -> []
 
@@ -2773,41 +2796,41 @@ let lookup_refinement_at reg =
    keys/values drift out of sync with the post-transform IR. *)
 let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
   let migrate_constraints () =
-    let xs = Hashtbl.fold (fun (c, lab) cs acc -> (c, lab, cs) :: acc) gadt_arm_constraints [] in
-    Hashtbl.clear gadt_arm_constraints;
+    let xs = ConLabHash.fold (fun (c, lab) cs acc -> (c, lab, cs) :: acc) gadt_arm_constraints [] in
+    ConLabHash.clear gadt_arm_constraints;
     List.iter (fun (c, lab, cs) ->
       let cs' = List.map (fun (v, t) -> (v, rewrite_typ t)) cs in
-      Hashtbl.replace gadt_arm_constraints (rename_con c, lab) cs'
+      ConLabHash.replace gadt_arm_constraints (rename_con c, lab) cs'
     ) xs
   in
   let migrate_existentials () =
-    let xs = Hashtbl.fold (fun (c, lab) es acc -> (c, lab, es) :: acc) gadt_arm_existentials [] in
-    Hashtbl.clear gadt_arm_existentials;
+    let xs = ConLabHash.fold (fun (c, lab) es acc -> (c, lab, es) :: acc) gadt_arm_existentials [] in
+    ConLabHash.clear gadt_arm_existentials;
     let new_set = ref ConSet.empty in
     List.iter (fun (c, lab, es) ->
       let es' = List.map rename_con es in
       List.iter (fun e -> new_set := ConSet.add e !new_set) es';
-      Hashtbl.replace gadt_arm_existentials (rename_con c, lab) es'
+      ConLabHash.replace gadt_arm_existentials (rename_con c, lab) es'
     ) xs;
     gadt_existential_set := !new_set
   in
   let migrate_typd_existentials () =
-    let xs = Hashtbl.fold (fun c es acc -> (c, es) :: acc) gadt_typd_existentials [] in
-    Hashtbl.clear gadt_typd_existentials;
+    let xs = ConHash.fold (fun c es acc -> (c, es) :: acc) gadt_typd_existentials [] in
+    ConHash.clear gadt_typd_existentials;
     List.iter (fun (c, es) ->
       let es' = List.map rename_con es in
       List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es';
-      Hashtbl.replace gadt_typd_existentials (rename_con c) es'
+      ConHash.replace gadt_typd_existentials (rename_con c) es'
     ) xs
   in
   let migrate_fresh_skolems () =
-    let xs = Hashtbl.fold (fun (reg, c) v acc -> (reg, c, v) :: acc) gadt_fresh_skolems [] in
-    Hashtbl.clear gadt_fresh_skolems;
+    let xs = RegConHash.fold (fun (reg, c) v acc -> (reg, c, v) :: acc) gadt_fresh_skolems [] in
+    RegConHash.clear gadt_fresh_skolems;
     List.iter (fun (reg, c_schema, c_site) ->
       let c_schema' = rename_con c_schema in
       let c_site' = rename_con c_site in
       gadt_existential_set := ConSet.add c_site' !gadt_existential_set;
-      Hashtbl.replace gadt_fresh_skolems (reg, c_schema') c_site'
+      RegConHash.replace gadt_fresh_skolems (reg, c_schema') c_site'
     ) xs
   in
   let migrate_refinement_at () =
@@ -2885,6 +2908,7 @@ and prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field l
   in
   let arm_reachable (f : field) =
     let arm_cs = lookup_gadt_arm c f.lab in
+    let es = lookup_gadt_arm_existentials c f.lab in
     List.for_all (fun (var, refined_t) ->
       match slot_for var with
       | Some slot_t ->
@@ -2892,13 +2916,50 @@ and prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field l
           | Con (sc, _) -> (match Cons.kind sc with Abs _ -> true | _ -> false)
           | _ -> false
         in
-        slot_is_skolem || eq slot_t refined_t
+        slot_is_skolem || arm_compat es refined_t slot_t
       | None -> true
     ) arm_cs
   in
   List.filter arm_reachable fs
 
-let unify_existentials expected actual existentials : typ ConEnv.t option =
+(* Strict structural compatibility, treating the listed cons as
+   wildcards. Used by [prune_gadt_variant] and the construction-side
+   refinement check: the refinement RHS may mention arm existentials
+   (`type N = Succ<M>, type M ...`); those existentials match anything
+   structural, the rest must match cons-identically. Distinct from
+   [unify_existentials], which is intentionally loose so the later
+   sub-check can finish the job. *)
+and arm_compat es e a =
+  match e, a with
+  | Con (c, []), _ when List.mem c es -> true
+  | Tup ts1, Tup ts2 when List.length ts1 = List.length ts2 ->
+    List.for_all2 (arm_compat es) ts1 ts2
+  | Opt t1, Opt t2 | Mut t1, Mut t2 | Array t1, Array t2 ->
+    arm_compat es t1 t2
+  | Async (_, t1a, t1b), Async (_, t2a, t2b) ->
+    arm_compat es t1a t2a && arm_compat es t1b t2b
+  | Func (_, _, _, a1, b1), Func (_, _, _, a2, b2)
+      when List.length a1 = List.length a2
+        && List.length b1 = List.length b2 ->
+    List.for_all2 (arm_compat es) a1 a2 && List.for_all2 (arm_compat es) b1 b2
+  | Con (c1, ts1), Con (c2, ts2) when Cons.eq c1 c2
+      && List.length ts1 = List.length ts2 ->
+    List.for_all2 (arm_compat es) ts1 ts2
+  | Obj (_, fs1, _), Obj (_, fs2, _) ->
+    List.for_all (fun f1 ->
+      match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+      | Some f2 -> arm_compat es f1.typ f2.typ
+      | None -> false
+    ) fs1
+  | Variant fs1, Variant fs2 ->
+    List.for_all (fun f1 ->
+      match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+      | Some f2 -> arm_compat es f1.typ f2.typ
+      | None -> false
+    ) fs1
+  | _ -> eq e a
+
+and unify_existentials expected actual existentials : typ ConEnv.t option =
   let sigma = ref ConEnv.empty in
   let rec walk e a =
     match e, a with
