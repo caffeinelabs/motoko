@@ -845,36 +845,61 @@ machinery (br_table or linear) operates on tags as before.
       slice then becomes "add σ_es to the σ that already lives on
       the case node" — the structural impedance mismatch disappears.
 
-      Status: M11a — current `gadt_arm_constraints`,
-      `gadt_arm_existentials`, `gadt_existential_set`,
-      `gadt_refinement_at`, and `gadt_fresh_skolems` in `type.ml`
-      are global mutable hash tables.
-      They bridge surface-typing and IR-checking pragmatically, but:
-      - Need explicit `rewrite_gadt_side_tables` hooks at every IR pass
-        that clones cons (currently `async.ml`, `erase_typ_field.ml`).
-        Any future pass that renames cons silently breaks GADT-typed code
-        until someone notices and adds the hook.
-      - Compilation units share the table — fine for a single `moc`
-        invocation, dangerous if pipeline gains multi-unit reuse.
-      - Surface-side registration is implicit; the AST itself doesn't
-        carry the refinement, so transformations that rewrite AST
-        (region-preserving but otherwise structural) cannot know about
-        the σ they should drag along.
+      Status: M11a — partial migration shipped 2026-05-16, four
+      slices (`gabor/gadt` `4787726f9` → `50e965ec9`):
 
-      Replacement directions:
-      - Carry σ on the IR `case'` and `TagE`/`TagPrim` node directly
-        (an extra `refinement : T.con_env` field). All sites that
-        construct cases (4 places in `construct.ml`, 1 in `desugar.ml`)
-        get a `~refinement` argument with `T.ConEnv.empty` default.
-        IR passes that clone the AST already walk types — they walk
-        refinements naturally.
-      - Move arm-level GADT info from `type.ml` side-tables onto the
-        `T.Con` definition body: extend `T.field` (variant arms) with
-        the same `(var * typ) list` and `con list` per-arm. Then the
-        cons-renaming passes handle them as part of `t_typ`/`t_field`.
-      - Same applies to `T.is_gadt_existential` — replace the global
-        `gadt_existential_set` check with "cons is reachable from a
-        Variant arm's existential list," checkable at the IR site.
+      1. **Slice 1: σ field on note.** Added `note_sigma : T.typ
+         T.ConEnv.t option` to surface `typ_note` and IR `Note.t`.
+         Construction-side writers (gadt_check_existentials,
+         gadt_check_typd_existentials) write to both side-table and
+         note. Consumers (desugar ObjE/ObjBlockE, check_ir
+         CallPrim/TupPrim/TagPrim) prefer note over side-table.
+      2. **Slice 2: σ field on case node.** Added `mutable gadt_sigma`
+         to both surface `case'` and IR `case'`. ~22 case'
+         construction sites updated. Cons-rewriting passes
+         (erase_typ_field, async) rewrite σ keys/values during
+         migration to keep them coherent.
+      3. **Slice 3: drop side-table writes for migrated paths.**
+         Construction-side and case-arm σ writes removed from typing.
+         Check_ir's BlockE arm migrated to the refine_target helper.
+         Cons-rewriting passes preserve exp.note.gadt_sigma through
+         t_exp clones.
+      4. **Slice 4: drop side-table read fallbacks.** check_ir's
+         refine_target, check_case, and desugar's ObjE/ObjBlockE all
+         read note σ only — no side-table fallback.
+
+      **Residual on side-table: destructure-pat σ only.**
+      typing.ml's M11b LetD writer (~5605) and check_ir.ml's LetD
+      reader (~1204) are the last two callsites. Migrating them
+      needs either:
+      - changing `pat = (pat', Type.typ) annotated_phrase` to carry
+        a record note (~86 pat.note touchpoints across the tree), or
+      - converting IR `LetD of pat * exp` to an inline-record
+        variant or 3-tuple with σ (~35 LetD construction sites).
+      Both are wider than a single slice; deferred.
+
+      **What this fixed:**
+      - The "third σ-lookup site" concern (CallPrim, after TupPrim
+        and TagPrim) is now a single `refine_target` helper at the
+        top of `check_exp`. Adding a fourth would touch one call,
+        not duplicate a block.
+      - Cons-renaming passes (`async.ml`, `erase_typ_field.ml`)
+        still need `rewrite_gadt_side_tables` for the destructure-σ
+        residual *and* must also rewrite σ on exp/case notes
+        through `t_exp` and `t_case` — this is the pattern future
+        cons-renamers should copy.
+      - Variant-arm un-entangling (the rolled-back M11b extension
+        above) is now unblocked: σ on case node is structural, so
+        IR `check_pat` can consult `case.it.gadt_sigma` directly
+        during its walk rather than after-the-fact via
+        region-keyed lookup.
+
+      Still-global tables in `type.ml`: `gadt_arm_constraints`,
+      `gadt_arm_existentials`, `gadt_existential_set`,
+      `gadt_typd_existentials`, `gadt_fresh_skolems`,
+      `gadt_refinement_at`. Only the last is σ-storage; the
+      others are name-resolution tables read at typing time and
+      not currently a soundness liability the way σ-on-region was.
 
 - [x] **M12 — Candid / share-typing**: implement the Candid rules
       spelled out in [Interactions with existing Motoko → Candid](#candid).
