@@ -578,6 +578,68 @@ machinery (br_table or linear) operates on tags as before.
         the class function's return type the declared `Rec` rather
         than the synthesised body alias.
 
+        **Gotchas mapped during a 2026-05-16 investigation pass (not
+        yet shipped — recorded so a future attempt doesn't relearn
+        them):**
+
+        - **ClassD bypasses `check_exp`.** The typd-existentials
+          check is wired into `check_exp` (typing.ml ~2864): when
+          the expected type is `Con(c, ts)` with non-empty
+          `lookup_typd_existentials c`, it dispatches to
+          `gadt_check_typd_existentials`. `ClassD` in `infer_dec`
+          (typing.ml ~5073) instead **infers** the body type
+          `t'` via `infer_obj`, then runs a raw `sub t' t''` at
+          the M0134 site. No witness inference fires. The fix
+          is local: before the raw `sub`, if `t''` is a
+          `Con(c, ts)` with typd existentials, run
+          `T.unify_existentials body' t' es`, check
+          `sub t' (subst σ body')`, and `register_refinement_at`
+          σ at a region the desugar can find.
+        - **The σ-key region question is real.** Record literals
+          key σ off the ObjBlockE's surface region; lowering
+          looks it up at the same region. The class desugar
+          (desugar.ml ~1297) builds an internal `obj_block at s
+          eo (Some self_id) dfs rng_typ` where `at` is the class
+          declaration's region — the same as `dec.at` in typing.
+          That's the natural key. But the enclosing FuncE
+          synthesised at the same region might also try to read
+          σ, which would be wrong. Mitigation: only ObjBlockE/ObjE
+          lowering reads σ today, so collision is unlikely in
+          practice — verify before declaring done.
+        - **`rng_typ` is already promoted at desugar.** Line
+          1314 computes `rng_typ = T.promote (T.open_ inst rng)`.
+          For `class MkRec() : Rec = {...}` the promoted form is
+          already the `Obj` body — the `Con(Rec, [])` wrapper is
+          gone by the time the obj_block sees it. So σ must be
+          applied to a *promoted* form. Mirror of the variant-arm
+          gotcha ("σ on the promoted form, not the surface
+          note").
+        - **Class function signature stays at `Rec`.** The
+          function's range type at typing is the user-declared
+          `rng = Con(Rec, [])` (existential pack form), not the
+          synthesised body. So callers receive `Rec` as expected.
+          The coercion is needed only at the body-return site,
+          not at the class identifier's type — there's nothing
+          to do at the FuncE wrapper.
+        - **No fresh `Con(MkRec, [])` for plain `class`.** The
+          original deferral note above mentions "the synthesised
+          class type is a fresh `Con(MkRec, [])` whose subtype
+          check against `Rec` happens at call sites". For
+          *actor* classes there's a `Cons.fresh id (T.Def([],
+          class_typ))` (desugar.ml line 1544), but ordinary
+          `class MkRec(...) : Rec = {...}` doesn't synthesise
+          one — the function's range is already `Rec`. So
+          "cons-result coercion" is a red herring for the
+          non-actor case; the actual missing piece is just the
+          M0134 witness-inference branch + the desugar σ-lookup.
+        - **Minimal repro:** `type Rec = type X in { value : X;
+          toText : X -> Text }; class MkRec(v : Nat) : Rec = {
+          public let value = v; public let toText = func (n :
+          Nat) : Text = debug_show n; };` currently fails with
+          M0134 (`class body of type {toText : Nat -> Text;
+          value : Nat} does not match expected type Rec =
+          {toText : X -> Text; value : X}`).
+
 - [x] **M9 — Soundness axioms**: state the GADT round-trip invariants
       explicitly, and verify by property-based tests. Three hand-written
       tests cover construct⇒dissect, dissect⇒construct, and round-trip
