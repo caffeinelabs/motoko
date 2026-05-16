@@ -509,6 +509,39 @@ machinery (br_table or linear) operates on tags as before.
         `gadt_existential_set` check with "cons is reachable from a
         Variant arm's existential list," checkable at the IR site.
 
+- [ ] **M12 — Candid / share-typing rejection**: any type carrying an
+      existential ("black-hole type") is not shareable — it cannot be
+      sent over the wire because the receiver has no binding to fix
+      the hidden type to. Refinement-only arms (`#int : type A = Nat
+      in Nat`) stay fully shareable; the rejection applies only when
+      the type, after full normalisation, mentions a registered
+      existential cons.
+
+      Implementation: hook into the existing `is_shared` walk (the
+      same path that already rejects `Func`, mutable fields, etc. at
+      message boundaries). For each `T.Con (c, ts)` encountered,
+      promote and recurse, plus check whether any registered
+      existential cons appears free in the result.
+
+      **Error message: "black-hole type not shareable"** — "existential"
+      is a term of art that users won't know, but "black hole" is
+      universally legible: a value whose type is opaque from the
+      outside, that swallows up the witness identity. Phrase the
+      message and any subsequent hints in those terms.
+
+      Test coverage (must include):
+      - **Positive**: refinement-only variant (e.g. `Expr<Bool>`
+        restricted to `#int | #bool` arms) crosses an actor boundary
+        cleanly.
+      - **Negative**: `Expr<Bool>` with the `#eq` arm in scope —
+        rejected at the inter-actor signature, error message contains
+        "black-hole".
+      - **Negative**: an M10 `type Tup = type X in ...` value as a
+        message argument — same rejection.
+      - **Negative**: existential nested inside an array, tuple, opt,
+        record field, function return — each path through the
+        `is_shared` walk gets exercised.
+
 ## Open knobs (deferred)
 
 1. **Variance** of the type parameter when GADTs are present. Sidestepped by
