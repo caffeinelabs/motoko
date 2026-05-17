@@ -37,17 +37,17 @@ assert (1 : Nat, "x").toJson().toText() == "[1,\"x\"]";
 // Tuple3<Nat, Text, Int>
 assert (42 : Nat, "hello", -3 : Int).toJson().toText() == "[42,\"hello\",-3]";
 
-// Map<Nat, Nat>
+// Map<Nat, Nat> — keys and values both serialise via _toJson.
 let m1 = Map.empty<Nat, Nat>();
 m1.add(1, 10);
 m1.add(2, 20);
-assert m1.toJson().toText() == "{\"1\":10,\"2\":20}";
+assert m1.toJson().toText() == "[[1,10],[2,20]]";
 
-// Map<Text, Nat> — Text keys serialise via Text.toText (identity)
+// Map<Text, Nat>
 let m2 = Map.empty<Text, Nat>();
 m2.add("a", 1);
 m2.add("b", 2);
-assert m2.toJson().toText() == "{\"a\":1,\"b\":2}";
+assert m2.toJson().toText() == "[[\"a\",1],[\"b\",2]]";
 
 // Array<(Nat, Text)>
 let tuples : [(Nat, Text)] = [(1, "one"), (2, "two")];
@@ -60,7 +60,7 @@ let items = List.empty<(Int, Text, Map.Map<Text, Nat>)>();
 items.add((-1, "hello", inner));
 let deep = Map.empty<Nat, List.List<(Int, Text, Map.Map<Text, Nat>)>>();
 deep.add(1, items);
-assert deep.toJson().toText() == "{\"1\":[[-1,\"hello\",{\"score\":99}]]}";
+assert deep.toJson().toText() == "[[1,[[-1,\"hello\",[[\"score\",99]]]]]]";
 
 // Records — compiler synthesizes a wrapper that serialises each field via _toJson.
 // Fields appear in alphabetical order (Motoko sorts object-type fields).
@@ -87,7 +87,7 @@ let scores = Map.empty<Text, Nat>();
 scores.add("alice", 90);
 scores.add("bob", 85);
 let r5 : { data : Map.Map<Text, Nat>; version : Nat } = { data = scores; version = 1 };
-assert r5.toJson().toText() == "{\"data\":{\"alice\":90,\"bob\":85},\"version\":1}";
+assert r5.toJson().toText() == "{\"data\":[[\"alice\",90],[\"bob\",85]],\"version\":1}";
 
 // Nested record: inner field is itself a record
 let r6 : { inner : { value : Nat }; outer : Text } =

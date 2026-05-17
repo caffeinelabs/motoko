@@ -1733,12 +1733,12 @@ module ImplicitHoles = struct
       | _ -> None in
     match T.promote candidate_typ with
     | T.Func (T.Local, T.Returns, [], [T.Named ("__record", inner_typ)], [ret_typ]) ->
-      (match T.promote inner_typ with
+      (match T.normalize inner_typ with
       | T.Array (T.Tup [txt; thunk_typ]) when T.normalize txt = T.Prim T.Text ->
         with_thunk_elem `Record thunk_typ ret_typ
       | _ -> None)
     | T.Func (T.Local, T.Returns, [], [T.Named ("__tuple", inner_typ)], [ret_typ]) ->
-      (match T.promote inner_typ with
+      (match T.normalize inner_typ with
       | T.Array thunk_typ ->
         with_thunk_elem `Tuple thunk_typ ret_typ
       | _ -> None)

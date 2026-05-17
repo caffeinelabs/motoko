@@ -4,11 +4,11 @@ import Iter "mo:core/Iter";
 module {
   public func _toJson<K, V>(
     self : Map.Map<K, V>,
-    toText : (implicit : K -> Text),
-    _toJson : (implicit : V -> Json.Json),
+    _toJsonK : (implicit : (_toJson : K -> Json.Json)),
+    _toJsonV : (implicit : (_toJson : V -> Json.Json)),
   ) : Json.Json {
-    #obj(
-      self.entries().map(func(k, v) { (toText(k), _toJson(v)) }).toArray()
+    #array(
+      self.entries().map(func((k, v)) : Json.Json { #array([_toJsonK(k), _toJsonV(v)]) }).toArray()
     );
   };
 }
