@@ -970,6 +970,46 @@ machinery (br_table or linear) operates on tags as before.
       (1) is the cheap first step. (2) is the principled fix and
       requires inference-side surgery.
 
+- [ ] **VSCode plugin / playground hygiene — GADT side tables
+      survive `Cons.session`.** `Cons.session` in
+      `src/mo_types/cons.ml:32` saves/restores the cons-stamp
+      counter via `Fun.protect`, giving the JS bundles
+      (`js_check`, `moc_interpreter`, etc.) a clean slate per
+      compilation. But it resets *only* the stamps — the six
+      GADT side tables in `type.ml`
+      (`gadt_arm_constraints`, `gadt_arm_existentials`,
+      `gadt_typd_existentials`, `gadt_existential_set`,
+      `gadt_fresh_skolems`, `gadt_refinement_at`) are global
+      mutable state and persist across session boundaries.
+
+      **Footgun shape.** After a session ends and stamps roll
+      back, the next session's fresh cons can re-use a stamp
+      from the prior session. `Cons.compare` is
+      `(hash, stamp, scope, name)` with hash =
+      `Hashtbl.hash (name, stamp)`; a new cons with the same
+      name + stamp compares equal to a dead one. So the new
+      session would silently retrieve the prior session's
+      side-table entry under a `ConHash`/`ConLabHash`/`ConSet`
+      lookup. Subtle in repeated-recompile flows
+      (VSCode-extension save-on-edit, playground iterate).
+
+      **Fix shape.** ~10 lines: extend `Cons.session` (or add a
+      sibling `Type.session` that wraps it) so its `finally`
+      block also clears the six GADT tables. Defensive,
+      independent of representation choice.
+
+      **Sequencing.** Deferred until after the Monday
+      management buy-in. Path A (when shipped) eliminates three
+      of the six tables structurally
+      (`gadt_arm_constraints`, `gadt_arm_existentials`,
+      `gadt_existential_set` — and the `is_gadt_existential`
+      predicate falls out too), shrinking the session-reset
+      surface. The other three
+      (`gadt_typd_existentials`, `gadt_refinement_at`,
+      `gadt_fresh_skolems`) survive Path A and still need
+      session handling. Either order works; doing this *after*
+      Path A means enumerating fewer tables.
+
 - [x] **M12 — Candid / share-typing**: implement the Candid rules
       spelled out in [Interactions with existing Motoko → Candid](#candid).
       Three touch-points, one new function, no Candid spec changes:
