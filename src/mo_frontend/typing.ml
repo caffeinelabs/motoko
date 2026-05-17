@@ -1093,7 +1093,19 @@ and check_typ_tag env typ_tag =
       | Some _ -> ()
     ) constraints;
   Field_sources.add_src env.srcs tag.at;
-  T.{lab = tag.it; binds = []; typ = t; src = {empty_src with track_region = tag.at}}
+  (* Path A slice 2: populate arm.binds structurally for each
+     existential `type X` clause on this arm.  Side-table
+     [gadt_arm_existentials] still authoritative for consumers
+     (slice 3 migrates them). *)
+  let binds =
+    List.filter_map (fun c ->
+      match c.it.refines, c.note with
+      | None, Some skolem ->
+        Some ({T.var = c.it.tv.it; sort = T.Type; bound = T.Any} : T.bind)
+      | _ -> None
+    ) constraints
+  in
+  T.{lab = tag.it; binds; typ = t; src = {empty_src with track_region = tag.at}}
 
 (* Syntactic check: does AST type [typ] textually mention the identifier [name]? *)
 and mentions_id_typ name typ = mentions_id name typ
