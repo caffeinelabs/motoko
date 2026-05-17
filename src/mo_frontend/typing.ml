@@ -3219,34 +3219,16 @@ and check_exp' env0 t exp : T.typ =
     if not env.pre then check_parenthetical env (Some exp1.note.note_typ) par_opt;
     t'
   | TagE (id, exp1), T.Variant fs when List.exists (fun T.{lab; _} -> lab = id.it) fs ->
-    let {T.typ = arm_typ; _} = List.find (fun T.{lab; typ;_} -> lab = id.it) fs in
+    let arm_field = List.find (fun T.{lab; _} -> lab = id.it) fs in
+    let arm_typ = arm_field.T.typ in
     (* M11b path B: existential bridge at TagE+Variant fall-through.
        This path is taken when the body's expected [t] arrived as a
        Variant body (e.g., the body of a switch case where the
        function's return type got normalised by check_exp's
        dispatcher before reaching SwitchE → check_case → body).
-       The dispatcher's TagE+Con arm (which routes through
-       gadt_check_existentials) was bypassed. Replicate the unify
-       bridge here so reassembly works when bindings have fresh
-       skolems from destruction. Wildcards discovered by walking
-       arm_typ's shallow cons through is_gadt_existential — no need
-       for the (Con, lab) index. *)
-    let arm_es =
-      let rec shallow t acc = match t with
-        | T.Var _ | T.Prim _ | T.Any | T.Non | T.Pre -> acc
-        | T.Con (c, ts) ->
-          let acc = if T.is_gadt_existential c then T.ConSet.add c acc else acc in
-          List.fold_right shallow ts acc
-        | T.Opt t | T.Mut t | T.Array t | T.Weak t | T.Named (_, t) -> shallow t acc
-        | T.Async (_, t1, t2) -> shallow t1 (shallow t2 acc)
-        | T.Tup ts -> List.fold_right shallow ts acc
-        | T.Func (_, _, _, ts1, ts2) ->
-          List.fold_right shallow ts1 (List.fold_right shallow ts2 acc)
-        | T.Obj (_, fs, _) -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
-        | T.Variant fs -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
-      in
-      T.ConSet.elements (shallow arm_typ T.ConSet.empty)
-    in
+       Path A: arm existentials read structurally from
+       [arm_field.binds]. *)
+    let arm_es = T.existentials_of_binds arm_field.T.binds in
     if arm_es = [] then
       check_exp env arm_typ exp1
     else begin
@@ -4189,42 +4171,23 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
-    let t1 =
+    let arm_field_opt =
       try
-        match T.lookup_val_field_opt id.it (T.as_variant_sub id.it t) with
-        | Some t1 -> t1
-        | None -> T.Non
+        let fs = T.as_variant_sub id.it t in
+        List.find_opt (fun (f : T.field) -> T.(f.lab) = id.it) fs
       with Invalid_argument _ ->
         let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
         error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
     in
-    (* M11b path B: variant-arm fresh-skolem mint at destruction. Walk
-       the arm payload's *shallow* cons (no Def-body recursion — we
-       only want this arm's existentials, not nested types' arm-
-       existentials), filter through is_gadt_existential to collect
-       schema cons, then mint a fresh skolem per (pat.at, schema_cons)
-       via fresh_destructure_skolem and substitute schema → fresh in
-       [t1]. Substitution is on the Con form (T.subst doesn't traverse
-       inner Def bodies), so the matching arm's outer references get
-       fresh cons while nested types stay at schema. Outer pat.note
-       is unaffected (set from [t] in check_pat_aux), so IR
-       check_case's `check_sub t_pat pat.note` still passes. *)
-    let arm_es =
-      let rec shallow t acc = match t with
-        | T.Var _ | T.Prim _ | T.Any | T.Non | T.Pre -> acc
-        | T.Con (c, ts) ->
-          let acc = if T.is_gadt_existential c then T.ConSet.add c acc else acc in
-          List.fold_right shallow ts acc
-        | T.Opt t | T.Mut t | T.Array t | T.Weak t | T.Named (_, t) -> shallow t acc
-        | T.Async (_, t1, t2) -> shallow t1 (shallow t2 acc)
-        | T.Tup ts -> List.fold_right shallow ts acc
-        | T.Func (_, _, _, ts1, ts2) ->
-          List.fold_right shallow ts1 (List.fold_right shallow ts2 acc)
-        | T.Obj (_, fs, _) -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
-        | T.Variant fs -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
-      in
-      T.ConSet.elements (shallow t1 T.ConSet.empty)
+    let t1, arm_es = match arm_field_opt with
+      | None -> T.Non, []
+      | Some f -> f.T.typ, T.existentials_of_binds f.T.binds
     in
+    (* M11b path B: variant-arm fresh-skolem mint at destruction.
+       Path A: arm existentials read from arm_field.binds directly —
+       no shallow-walk filter needed. Substitution still on the Con
+       form of [t1] (matching arm's outer references get fresh cons
+       while nested types stay at schema). *)
     let t1 =
       if arm_es = [] then t1
       else

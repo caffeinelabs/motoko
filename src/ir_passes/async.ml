@@ -237,7 +237,13 @@ let transform prog =
   and t_prim p = Ir.map_prim t_typ (fun id -> id) p
 
   and t_field {lab; binds; typ; src} =
-    let t_bind (b : T.bind) = T.{ b with bound = t_typ b.bound } in
+    let t_bind (b : T.bind) =
+      let sort' = match b.T.sort with
+        | T.Existential c -> T.Existential (t_con c)
+        | T.Type | T.Scope as s -> s
+      in
+      T.{ b with sort = sort'; bound = t_typ b.bound }
+    in
     { lab; binds = List.map t_bind binds; typ = t_typ typ; src }
 
   and t_typ_field {lab; typ; src; _} =

@@ -2757,11 +2757,16 @@ let gadt_typd_existentials : con list ConHash.t = ConHash.create 16
 let register_gadt_arm c lab cs =
   if cs <> [] then ConLabHash.replace gadt_arm_constraints (c, lab) cs
 
-let register_gadt_arm_existentials c lab es =
-  if es <> [] then begin
-    ConLabHash.replace gadt_arm_existentials (c, lab) es;
-    List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es
-  end
+(* Path A slice 4: register cons as a GADT existential (adds to the
+   global set used by [is_gadt_existential]).  The legacy
+   [register_gadt_arm_existentials] also wrote to the now-unused
+   [gadt_arm_existentials] table — kept as a no-op-on-table forwarder
+   until slice 5 deletes the table. *)
+let register_existential c =
+  gadt_existential_set := ConSet.add c !gadt_existential_set
+
+let register_gadt_arm_existentials _c _lab es =
+  List.iter register_existential es
 
 (* is_gadt_existential hoisted earlier (see comment above) *)
 
@@ -3001,7 +3006,8 @@ and prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field l
   in
   let arm_reachable (f : field) =
     let arm_cs = lookup_gadt_arm c f.lab in
-    let es = lookup_gadt_arm_existentials c f.lab in
+    (* Path A: existentials read structurally from arm.binds. *)
+    let es = existentials_of_binds f.binds in
     List.for_all (fun (var, refined_t) ->
       match slot_for var with
       | Some slot_t ->
