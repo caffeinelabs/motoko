@@ -984,12 +984,61 @@ machinery (br_table or linear) operates on tags as before.
         (`gadt_arm_constraints`) follow the same path once a
         future slice migrates them onto the same `binds` slot or a
         sibling `constraints` field.
-      - **Slice 5 — σ-derivability + cache deletion.**
-        `check_case` and `refine_target` derive σ on demand from
-        `(scrutinee_typ, arm.binds, pat.at)`. Once green: signal to
-        user, who `patch -R`s the M11a slices (`4787726f9`,
-        `a36f15507`, `8201193ab`, `50e965ec9`) to drop the
-        `case'.gadt_sigma` and `note_sigma` caches.
+      - **Slice 5 — Refinement binders + 3-phase elaboration.**
+        Extend `bind_sort` with `Refinement of typ` so refinement
+        constraints (`type A = T`) ride alongside `Existential of con`
+        on the arm's bind list.  Migrate the three refinement
+        consumers (`gadt_check_refinements`, `gadt_sigma_for_case`,
+        `prune_gadt_variant`) to read structurally via
+        `arm_refinements` / `refinements_of_binds`.
+
+        **3-phase kind elaboration protocol.**  Adding refinement
+        binds at `check_typ_tag` time doesn't work: `rhs.note` is
+        only reliably elaborated *after* check_typ runs, and the
+        existing 2-pass scheme (Pre → Final, enforced by the
+        `eq_kind` assert in `infer_id_typdecs`) breaks if pre- and
+        final-pass produce different binds.  Resolution: extend the
+        protocol to a third phase.
+
+            Pre  →  Final  →  Refinement-Augment
+
+        - Pre / Final: unchanged.  The placeholder→final transition
+          via `set_kind`; subsequent re-elaborations confluence-
+          checked via `eq_kind`.
+        - Refinement-Augment: `Type.augment_arm_binds c lab binds`,
+          called at the variant-decl registration site *after*
+          `infer_id_typdecs` has returned.  Uses `Cons.unsafe_set_kind`
+          to mutate the variant Def's matching arm in place.
+
+        The third phase is justified by three invariants:
+
+        1. **Gated**: only fires for variant Def-kinds.
+        2. **Monotonic**: appends-only, prior existential binds
+           survive at the head.
+        3. **Post-confluence**: typing's 2-pass scheme has run to
+           completion by the time augment runs; no later `set_kind`
+           or `eq_kind` check observes the mutated cons-kind.
+
+        Plus a deBruijn-scope correction: appending arm-local
+        binders shifts the local scope index, so the payload's
+        outer-Var references must be `shift 0 |new_binds| f.typ` to
+        keep pointing at the right outer type-parameter.  (Without
+        this shift, opening a `Con(Variant, [Bool])` would fail to
+        substitute `Var(A, 0)` because the deBruijn index now sits
+        below the inner arm-scope; the type leaks `Var` into walks
+        like `serializable`, tripping the `Var | Pre -> assert false`
+        invariant.)
+
+        Side-tables `gadt_arm_existentials` and `gadt_arm_constraints`
+        are now redundant (no readers); deletion deferred to a
+        cleanup slice along with `is_gadt_existential` /
+        `gadt_existential_set` once the escape-check exception at
+        `check_ir.ml:210` is replaced by proper arm-binder scoping
+        (requires `close_`-ing the arm payload — separate refactor).
+
+        σ-derivability and `patch -R M11a` step deferred — still
+        needs case'.gadt_sigma migration to derive on-demand from
+        the now-fully-populated arm.binds.
 
       **Slice 6+ (out of scope of initial Path A).** Anticipating
       record-field existentials, the same `binds` slot serves Obj

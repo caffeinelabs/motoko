@@ -208,6 +208,15 @@ val align_fields : 'a gen_field list -> 'a gen_field list -> ('a gen_field, 'a g
 
 val set_kind : con -> kind -> unit
 
+(** Path A slice 5: append refinement binders to a variant arm.
+    Runs at the variant-decl registration site, *after* all
+    elaboration passes have settled the cons-kind via [set_kind].
+    Gated (variant Def-kinds only), monotonic (appends, never
+    removes), and post-confluence (no later [eq_kind] check will
+    observe the change).  See the implementation note for the
+    3-phase elaboration protocol. *)
+val augment_arm_binds : con -> lab -> bind list -> unit
+
 module ConEnv : Env.S with type key = con
 module ConSet = ConEnv.Dom
 

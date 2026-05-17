@@ -480,6 +480,59 @@ and shift_field i n {lab; binds; typ; src} =
   let i' = i + List.length binds in
   {lab; binds = List.map (shift_bind i' n) binds; typ = shift i' n typ; src}
 
+(* Path A slice 5 — augment_arm_binds.
+
+   Kind elaboration is a 3-phase protocol:
+
+     Pre  →  Final  →  Refinement-Augment
+
+   - Pre / Final ([set_kind] above + the eq_kind assert in
+     [typing.ml]'s [infer_id_typdecs]) handle the placeholder
+     → final transition for forward-reference resolution.
+     Subsequent re-elaborations must produce the same kind;
+     confluence is enforced by [eq_kind].
+
+   - Refinement-Augment ([augment_arm_binds] here) runs *after*
+     all elaboration is settled — at the variant-decl
+     registration site in typing.ml.  It exists because
+     refinement RHS typs ([rhs.note]) are only reliable
+     post-elaboration: stamping them into arm.binds during
+     [check_typ_tag] would diverge between pre-pass and final
+     pass, tripping the [eq_kind] assert.
+
+   The augment phase is gated, monotonic, and post-confluence:
+
+   - Gated: only fires for variant Def-kinds with the specified
+     arm label present.
+   - Monotonic: only *appends* refinement binders.  Existing
+     existential binders (slice 2) survive at the head.
+   - Post-confluence: typing's two-pass scheme has run to
+     completion by the time augment runs; no later
+     [set_kind] / [eq_kind] check will observe the change.
+
+   The payload's outer-Var deBruijn indices are shifted by
+   [List.length new_binds] to compensate for the new arm-local
+   binders extending the scope (otherwise opening the Def with
+   type-args would fail to substitute outer references that now
+   sit beyond the inner scope).
+
+   This justifies the use of [Cons.unsafe_set_kind] beyond the
+   placeholder→final scope: targeted, monotonic, post-confluence
+   mutation of an already-settled cons. *)
+and augment_arm_binds c lab (new_binds : bind list) : unit =
+  match Cons.kind c with
+  | Def (tbs, Variant fs) ->
+    let n = List.length new_binds in
+    let fs' = List.map (fun (f : field) ->
+      if f.lab = lab then
+        { f with
+          binds = f.binds @ new_binds;
+          typ = shift 0 n f.typ }
+      else f
+    ) fs in
+    Cons.unsafe_set_kind c (Def (tbs, Variant fs'))
+  | _ -> ()  (* not a variant Def — silently skip *)
+
 (*
 and shift_kind i n k =
   match k with
@@ -839,6 +892,10 @@ and cons_con' inTyp c cs =
   else cons_kind' inTyp (Cons.kind c) (ConSet.add c cs)
 
 and cons_bind inTyp tb cs =
+  let cs = match tb.sort with
+    | Refinement t -> cons' inTyp t cs
+    | _ -> cs
+  in
   cons' inTyp tb.bound cs
 
 and cons_field inTyp {binds; typ; _} cs =
@@ -3028,8 +3085,9 @@ and prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field l
     | _ -> None
   in
   let arm_reachable (f : field) =
-    let arm_cs = lookup_gadt_arm c f.lab in
-    (* Path A: existentials read structurally from arm.binds. *)
+    (* Path A: refinements and existentials both read structurally
+       from arm.binds. *)
+    let arm_cs = refinements_of_binds f.binds in
     let es = existentials_of_binds f.binds in
     List.for_all (fun (var, refined_t) ->
       match slot_for var with

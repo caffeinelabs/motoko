@@ -2925,7 +2925,7 @@ and check_exp env t exp =
   end
 
 and gadt_check_refinements env exp c ts id =
-  let arm_cs = T.lookup_gadt_arm c id.it in
+  let arm_cs = T.arm_refinements c id.it in
   let arm_es = T.arm_existentials c id.it in
   if arm_cs <> [] then begin
     match Cons.kind c with
@@ -3920,7 +3920,7 @@ and gadt_sigma_for_case t_pat pat : T.typ T.ConEnv.t =
   in
   match (unwrap pat).it, t_pat with
   | TagP (tag_id, _), T.Con (c, ts) ->
-    let arm_cs = T.lookup_gadt_arm c tag_id.it in
+    let arm_cs = T.arm_refinements c tag_id.it in
     if arm_cs = [] then T.ConEnv.empty
     else
       (match Cons.kind c with
@@ -5580,10 +5580,32 @@ and infer_dec_typdecs env dec : Scope.t =
       ) cs_top
     in
     T.register_typd_existentials c typd_es;
-    Scope.{ empty with
+    let scope = Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
-    }
+    } in
+    (* Path A slice 5: augment-phase population of refinement binds.
+       Runs AFTER [infer_id_typdecs] so the [eq_kind] assert inside
+       can compare pre- vs final-pass kinds before mutation.
+       Post-confluence: typing's two-pass scheme has run to
+       completion by here; no later pass will observe the mutated
+       cons-kind via [eq_kind]. See type.ml's [augment_arm_binds]. *)
+    (match typ.it with
+     | VariantT tags when not env.pre ->
+       List.iter (fun tag ->
+         let refinement_binds =
+           List.filter_map (fun cstr ->
+             match cstr.it.refines with
+             | Some rhs when List.mem cstr.it.tv.it outer_names
+                          && rhs.note <> T.Pre ->
+               Some ({T.var = cstr.it.tv.it; sort = T.Refinement rhs.note; bound = T.Any} : T.bind)
+             | _ -> None
+           ) tag.it.constraints
+         in
+         T.augment_arm_binds c tag.it.tag.it refinement_binds
+       ) tags
+     | _ -> ());
+    scope
   | ClassD (exp_opt, shared_pat, obj_sort, id, binds, pat, _typ_opt, self_id, dec_fields) ->
      (*TODO exp_opt *)
     let c = T.Env.find id.it env.typs in
