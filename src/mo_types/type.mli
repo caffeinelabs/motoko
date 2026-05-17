@@ -61,7 +61,7 @@ and typ =
 
 and scope = typ
 
-and bind_sort = Scope | Type
+and bind_sort = Scope | Type | Existential of con
 and bind = {var : var; sort: bind_sort; bound : typ}
 
 and src = {depr : string option; track_region : region; region : region}
@@ -429,6 +429,11 @@ val register_gadt_arm : con -> lab -> (var * typ) list -> unit
 val register_gadt_arm_existentials : con -> lab -> con list -> unit
 val lookup_gadt_arm : con -> lab -> (var * typ) list
 val lookup_gadt_arm_existentials : con -> lab -> con list
+
+(** Extract `Existential c` cons from a bind list — the structural
+    counterpart to [lookup_gadt_arm_existentials] (Path A). *)
+val existentials_of_binds : bind list -> con list
+val arm_existentials : con -> lab -> con list
 val register_typd_existentials : con -> con list -> unit
 val lookup_typd_existentials : con -> con list
 val is_gadt_existential : con -> bool

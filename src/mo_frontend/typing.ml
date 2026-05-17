@@ -1101,7 +1101,7 @@ and check_typ_tag env typ_tag =
     List.filter_map (fun c ->
       match c.it.refines, c.note with
       | None, Some skolem ->
-        Some ({T.var = c.it.tv.it; sort = T.Type; bound = T.Any} : T.bind)
+        Some ({T.var = c.it.tv.it; sort = T.Existential skolem; bound = T.Any} : T.bind)
       | _ -> None
     ) constraints
   in
@@ -2925,7 +2925,7 @@ and check_exp env t exp =
 
 and gadt_check_refinements env exp c ts id =
   let arm_cs = T.lookup_gadt_arm c id.it in
-  let arm_es = T.lookup_gadt_arm_existentials c id.it in
+  let arm_es = T.arm_existentials c id.it in
   if arm_cs <> [] then begin
     match Cons.kind c with
     | T.Def (tbs, _) ->
@@ -2954,7 +2954,7 @@ and gadt_check_refinements env exp c ts id =
   end
 
 and gadt_check_existentials env exp t c ts id exp1 =
-  let arm_es = T.lookup_gadt_arm_existentials c id.it in
+  let arm_es = T.arm_existentials c id.it in
   if arm_es = [] then false
   else
     match Cons.kind c with

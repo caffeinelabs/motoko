@@ -69,7 +69,11 @@ and typ =
   | Pre                                       (* pre-type *)
 
 and scope = typ
-and bind_sort = Scope | Type
+(* [Existential c] carries the schema cons originally minted for an
+   arm/field's `type X` clause.  Consumers recover the cons via
+   pattern-matching on the bind's sort.  Same shape applies to
+   future record-field existentials — not Variant-specific. *)
+and bind_sort = Scope | Type | Existential of con
 
 and bind = {var : var; sort: bind_sort; bound : typ}
 and src = {depr : string option; track_region : region; region : region}
@@ -183,8 +187,11 @@ let compare_bind_sort s1 s2 =
   match s1, s2 with
   | Type, Type
   | Scope, Scope -> 0
-  | Type, Scope -> -1
-  | Scope, Type -> 1
+  | Existential c1, Existential c2 -> Cons.compare c1 c2
+  | Scope, _ -> -1
+  | _, Scope -> 1
+  | Type, _ -> -1
+  | _, Type -> 1
 
 let compare_src s1 s2 =
   match (s1.depr, s2.depr) with
@@ -2831,6 +2838,29 @@ let lookup_gadt_arm_existentials c lab =
   match ConLabHash.find_opt gadt_arm_existentials (c, lab) with
   | Some es -> es
   | None -> []
+
+(* Path A slice 3: structural reads of arm existentials. Extracts
+   [Existential c] cons from a bind list — the [Existential] sort
+   carries the original schema cons populated at construction. *)
+let existentials_of_binds (bs : bind list) =
+  List.filter_map (fun (b : bind) ->
+    match b.sort with
+    | Existential c -> Some c
+    | _ -> None
+  ) bs
+
+(* Walk a variant-type alias's body for an arm and read its
+   structural existentials.  Mirror of [lookup_gadt_arm_existentials]
+   without the side-table indirection. *)
+let arm_existentials c lab =
+  match Cons.kind c with
+  | Def (_, body) | Abs (_, body) ->
+    (match body with
+     | Variant fs ->
+       (match List.find_opt (fun f -> f.lab = lab) fs with
+        | Some f -> existentials_of_binds f.binds
+        | None -> [])
+     | _ -> [])
 
 let register_typd_existentials c es =
   if es <> [] then begin
