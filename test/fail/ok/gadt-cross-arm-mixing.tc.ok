@@ -1,0 +1,12 @@
+gadt-cross-arm-mixing.mo:21.14-21.16: type error [M0096], expression of type
+  X
+cannot produce expected type
+  X
+because type variable 
+  X
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  X

@@ -3201,8 +3201,57 @@ and check_exp' env0 t exp : T.typ =
     if not env.pre then check_parenthetical env (Some exp1.note.note_typ) par_opt;
     t'
   | TagE (id, exp1), T.Variant fs when List.exists (fun T.{lab; _} -> lab = id.it) fs ->
-    let {T.typ; _} = List.find (fun T.{lab; typ;_} -> lab = id.it) fs in
-    check_exp env typ exp1;
+    let {T.typ = arm_typ; _} = List.find (fun T.{lab; typ;_} -> lab = id.it) fs in
+    (* M11b path B: existential bridge at TagE+Variant fall-through.
+       This path is taken when the body's expected [t] arrived as a
+       Variant body (e.g., the body of a switch case where the
+       function's return type got normalised by check_exp's
+       dispatcher before reaching SwitchE → check_case → body).
+       The dispatcher's TagE+Con arm (which routes through
+       gadt_check_existentials) was bypassed. Replicate the unify
+       bridge here so reassembly works when bindings have fresh
+       skolems from destruction. Wildcards discovered by walking
+       arm_typ's shallow cons through is_gadt_existential — no need
+       for the (Con, lab) index. *)
+    let arm_es =
+      let rec shallow t acc = match t with
+        | T.Var _ | T.Prim _ | T.Any | T.Non | T.Pre -> acc
+        | T.Con (c, ts) ->
+          let acc = if T.is_gadt_existential c then T.ConSet.add c acc else acc in
+          List.fold_right shallow ts acc
+        | T.Opt t | T.Mut t | T.Array t | T.Weak t | T.Named (_, t) -> shallow t acc
+        | T.Async (_, t1, t2) -> shallow t1 (shallow t2 acc)
+        | T.Tup ts -> List.fold_right shallow ts acc
+        | T.Func (_, _, _, ts1, ts2) ->
+          List.fold_right shallow ts1 (List.fold_right shallow ts2 acc)
+        | T.Obj (_, fs, _) -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
+        | T.Variant fs -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
+      in
+      T.ConSet.elements (shallow arm_typ T.ConSet.empty)
+    in
+    if arm_es = [] then
+      check_exp env arm_typ exp1
+    else begin
+      let actual = infer_exp env exp1 in
+      (match T.unify_existentials arm_typ actual arm_es with
+       | Some sigma ->
+         let refined = T.subst sigma arm_typ in
+         if not (T.sub actual refined) then
+           local_error env exp1.at "M0096"
+             "expression of type%a\ncannot produce expected type%a"
+             display_typ_expand actual
+             display_typ_expand refined;
+         (* Stash σ on the TagE's note so IR's refine_target can
+            bridge fresh ← schema at the TagPrim sub-check. *)
+         let e = A.infer_effect_exp exp in
+         exp.note <- {exp.note with note_typ = t; note_eff = e;
+                                    note_sigma = Some sigma}
+       | None ->
+         local_error env exp.at "M9002"
+           "GADT arm `%s`: cannot infer existential witness from payload of type%a"
+           id.it
+           display_typ actual)
+    end;
     t
   | (ImportE _ | ImplicitLibE _), t ->
     t
@@ -4130,7 +4179,44 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       with Invalid_argument _ ->
         let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
         error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
-    in check_pat env t1 pat1
+    in
+    (* M11b path B: variant-arm fresh-skolem mint at destruction. Walk
+       the arm payload's *shallow* cons (no Def-body recursion — we
+       only want this arm's existentials, not nested types' arm-
+       existentials), filter through is_gadt_existential to collect
+       schema cons, then mint a fresh skolem per (pat.at, schema_cons)
+       via fresh_destructure_skolem and substitute schema → fresh in
+       [t1]. Substitution is on the Con form (T.subst doesn't traverse
+       inner Def bodies), so the matching arm's outer references get
+       fresh cons while nested types stay at schema. Outer pat.note
+       is unaffected (set from [t] in check_pat_aux), so IR
+       check_case's `check_sub t_pat pat.note` still passes. *)
+    let arm_es =
+      let rec shallow t acc = match t with
+        | T.Var _ | T.Prim _ | T.Any | T.Non | T.Pre -> acc
+        | T.Con (c, ts) ->
+          let acc = if T.is_gadt_existential c then T.ConSet.add c acc else acc in
+          List.fold_right shallow ts acc
+        | T.Opt t | T.Mut t | T.Array t | T.Weak t | T.Named (_, t) -> shallow t acc
+        | T.Async (_, t1, t2) -> shallow t1 (shallow t2 acc)
+        | T.Tup ts -> List.fold_right shallow ts acc
+        | T.Func (_, _, _, ts1, ts2) ->
+          List.fold_right shallow ts1 (List.fold_right shallow ts2 acc)
+        | T.Obj (_, fs, _) -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
+        | T.Variant fs -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
+      in
+      T.ConSet.elements (shallow t1 T.ConSet.empty)
+    in
+    let t1 =
+      if arm_es = [] then t1
+      else
+        let fresh_cons = List.map (T.fresh_destructure_skolem pat.at) arm_es in
+        let sigma = List.fold_left2 (fun s schema fresh ->
+          T.ConEnv.add schema (T.Con (fresh, [])) s
+        ) T.ConEnv.empty arm_es fresh_cons in
+        T.subst sigma t1
+    in
+    check_pat env t1 pat1
   | AltP (pat1, pat2) ->
     let ve1 = check_pat env t pat1 in
     let ve2 = check_pat env t pat2 in

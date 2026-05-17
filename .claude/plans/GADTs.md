@@ -982,6 +982,47 @@ machinery (br_table or linear) operates on tags as before.
    reuse Σ machinery for dynamic case.
 3. **Uninhabited-type collapsing** (`Expr<Text>` → `None`) — skip; the user
    can't construct, so the distinction is moot.
+4. **Variant-arm existential-pack as a first-class internal type
+   (path A)** — record retroactively from the 2026-05-18 design pass.
+   The principled internal representation of a variant arm with
+   existentials is the existential pack `∃binds. payload(binds)`:
+   variant arm fields carry `bind list × typ_with_Vars`, mirroring
+   how `Func` carries `bind list × arg-typs × ret-typs`. Construction
+   packs (witnesses inferred and *hidden* in the resulting `Variant`
+   type — user always sees `#eq val : Expr<A>`, never an HKT-typed
+   arm). Destruction opens with fresh skolems per match site, giving
+   cross-arm soundness "for free" via stamp inequality.
+
+   Why we *didn't* take path A in this session: the audit would touch
+   ~20 walker sites in `type.ml` plus downstream consumers (similar
+   in scope to the abandoned closure-in-typ attempt before it).
+   Refactoring debt worth taking later, but not required for the
+   semantics — see path B for the minimum-churn version we shipped.
+
+   **Path B (shipped 2026-05-18):** keep today's representation
+   (`Variant of field list` with schema cons referenced in arm
+   payload). Two targeted patches in `typing.ml`:
+   - `check_pat`'s `TagP` case: before recursing on the inner
+     pattern, mint a fresh skolem per schema cons present in the
+     extracted arm payload (via `fresh_destructure_skolem pat.at`
+     so the cons is stable per region), substitute schema → fresh
+     in the arm payload, recurse with the substituted form. Outer
+     `pat.note` stays at schema (so IR `check_case`'s
+     `check_sub t_pat pat.note` still passes); inner pat.notes
+     and `ve` bindings have fresh cons (so cross-arm `f1 x2` is
+     rejected by stamp inequality).
+   - `check_exp'`'s `TagE+Variant` fall-through (the dispatcher's
+     other-than-TagE+Con path): walk `f.typ`'s cons, filter
+     through `is_gadt_existential` to collect the arm's
+     wildcards, then route through `unify_existentials` to bridge
+     fresh-cons-typed actual against schema-cons arm payload.
+     Mirror of `gadt_check_existentials` but reachable without
+     the Con identity.
+
+   Path B reuses existing machinery (`gadt_existential_set`,
+   `fresh_destructure_skolem`, `unify_existentials`) and adds zero
+   new typ constructors / field shapes. Future refactor to path A
+   is pure form-over-function: same semantics, cleaner internals.
 
 ## Rejected designs (blind alleys, with reasons)
 

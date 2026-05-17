@@ -1148,7 +1148,36 @@ and check_pat_field env t (pf : pat_field) =
 and check_pat_tag env t l pat =
   let (<:) = check_sub env pat.at in
   match T.lookup_val_field_opt l (T.as_variant_sub l t) with
-  | Some t -> t <: pat.note
+  | Some arm_typ ->
+    (* M11b path B: the IR scrutinee [t]'s arm payload uses schema
+       cons; [pat.note] (set by typing's check_pat after fresh-mint
+       substitution) carries fresh cons per case region. Bridge via
+       unify_existentials using is_gadt_existential to identify
+       wildcards in the arm payload. *)
+    let arm_es =
+      let rec shallow t acc = match t with
+        | T.Var _ | T.Prim _ | T.Any | T.Non | T.Pre -> acc
+        | T.Con (c, ts) ->
+          let acc = if T.is_gadt_existential c then T.ConSet.add c acc else acc in
+          List.fold_right shallow ts acc
+        | T.Opt t | T.Mut t | T.Array t | T.Weak t | T.Named (_, t) -> shallow t acc
+        | T.Async (_, t1, t2) -> shallow t1 (shallow t2 acc)
+        | T.Tup ts -> List.fold_right shallow ts acc
+        | T.Func (_, _, _, ts1, ts2) ->
+          List.fold_right shallow ts1 (List.fold_right shallow ts2 acc)
+        | T.Obj (_, fs, _) -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
+        | T.Variant fs -> List.fold_right (fun (f : T.field) -> shallow f.T.typ) fs acc
+      in
+      T.ConSet.elements (shallow arm_typ T.ConSet.empty)
+    in
+    let refined = match arm_es with
+      | [] -> arm_typ
+      | _ ->
+        (match T.unify_existentials arm_typ pat.note arm_es with
+         | Some sigma -> T.subst sigma arm_typ
+         | None -> arm_typ)
+    in
+    refined <: pat.note
   | None -> ()
 
 (* Objects *)
