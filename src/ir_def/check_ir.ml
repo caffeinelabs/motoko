@@ -1014,30 +1014,22 @@ and check_lexp env (lexp:Ir.lexp) : unit =
 and check_cases env ~t_pat_raw t_pat t cases =
   List.iter (check_case env ~t_pat_raw t_pat t) cases
 
-and check_case env ~t_pat_raw t_pat t {it = {pat; exp; gadt_sigma}; _} =
+and check_case env ~t_pat_raw t_pat t {it = {pat; exp; gadt_sigma = _}; _} =
   let ve = check_pat env pat in
   check_sub env pat.at t_pat pat.note;
-  (* Path A slice 6: prefer derived σ from (t_pat, arm label) over
-     the M11a cache.  Fall back to the cache while we verify
-     equivalence on the regression suite — once green this branch
-     and the [gadt_sigma] field both go away (patch -R M11a). *)
-  let label_opt = match pat.it with
-    | Ir.TagP (lab, _) -> Some lab
-    | _ -> None
+  (* Path A slice 6: σ is derived on demand from
+     (scrutinee typ, arm label).  The M11a [case'.gadt_sigma]
+     cache is no longer consulted — patch -R the M11a slice
+     commits to delete the field once this is settled. *)
+  let sigma = match pat.it with
+    | Ir.TagP (lab, _) -> T.derive_case_sigma t_pat_raw lab
+    | _ -> T.ConEnv.empty
   in
-  let derived = match label_opt with
-    | Some lab -> T.derive_case_sigma t_pat_raw lab
-    | None -> T.ConEnv.empty
-  in
-  let sigma_opt =
-    if T.ConEnv.is_empty derived then gadt_sigma
-    else Some derived
-  in
-  let t', ve' = match sigma_opt with
-    | Some sigma ->
+  let t', ve' =
+    if T.ConEnv.is_empty sigma then t, ve
+    else
       T.subst sigma t,
       T.Env.map (fun vi -> { vi with typ = T.subst sigma vi.typ }) ve
-    | None -> t, ve
   in
   check_exp (adjoin_vals env ve') exp;
   check env pat.at (sub env (typ exp) t') "bad case"
