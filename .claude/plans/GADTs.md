@@ -779,74 +779,14 @@ machinery (br_table or linear) operates on tags as before.
       cross-feed and a region-keyed `gadt_fresh_skolems` cache plus
       σ application at the IR LetD check.
 
-      **Variant-arm un-entangling — attempted, rolled back, pending
-      M11a.** Extending `gadt_sigma_for_case` to also mint fresh
-      skolems for each schema existential (mirror of the M10
-      destructure path) breaks every roundtrip-style test for
-      reasons that took some tracing. Recording the pitfalls so a
-      future attempt doesn't relearn them:
-
-      1. **`pat.note` for the outer `TagP` must stay at `t_pat`**
-         (the un-refined scrutinee variant), because IR's `check_pat`
-         calls `check_sub env pat.at t_pat pat.note` directly on it.
-         Refining the outer pat.note with σ makes that sub-check fail
-         (un-refined `t_pat` is not a subtype of refined pat.note).
-         So the rewrite has to skip the *outermost* pat.note —
-         tempting first stab.
-
-      2. **But that's not enough.** IR's `check_pat_tag` (called from
-         the TagP arm of IR's `check_pat`) does:
-
-             match T.lookup_val_field_opt l (T.as_variant_sub l t) with
-             | Some t -> t <: pat.note
-
-         where `t` is the *outer* TagP.note and `pat.note` is the
-         *inner* pattern's note. The `t` (outer) carries the schema
-         existential `B_schema`; the inner note, if σ-refined, has
-         `B_site`. The arm-payload extracted from the outer is
-         `(B_schema, ...) -> Bool` — comparing against `(B_site,
-         ...) -> Bool` fails. So we'd also have to skip refining
-         the inner notes — but those *are* what IR's `VarE` check
-         needs refined to bind `cmp`/`x`/`y` at site cons.
-
-      3. **`T.normalize` on `Con(Expr, [B_schema])` unfolds the Def
-         body**, turning the inner `Expr<B_schema>` pat.note into a
-         full opened `Variant{...with B_schema in #bool, #eq, #if_...}`.
-         IR's `check_pat`'s structural assumption is that pat.note
-         describes the value matched at this position, and the
-         opened form *does* describe it. But this means σ-refining
-         the inner pat.note refines the *entire opened variant* — and
-         the IR's outer arm-payload-extraction expects the
-         *un-refined* variant. Surface and IR end up with mismatched
-         views of the same nested type.
-
-      4. **IR's existing post-process of `ve` (in `check_case`) is
-         correct** — applying σ to the ve from `check_pat` gives the
-         right binding types for the body. The problem is that the
-         IR's `check_pat` itself runs invariant checks (TagP arm
-         payload <: inner pat.note, `t <: T.Tup ts` for TupP, etc.)
-         *before* the ve post-process, using the un-refined inner
-         pat.notes. We can't refine the inner notes without breaking
-         those internal checks, and we can't leave them un-refined
-         without breaking the binding-types story.
-
-      **The clean resolution is M11a, not more region-keyed hacks.**
-      Moving σ onto the IR `case'` node as an explicit field
-      (rather than discovering it via `lookup_refinement_at case.at`
-      after the fact) lets IR's `check_pat` know during its walk
-      that this arm is GADT-refined. Then:
-      - `check_pat_tag` can extract the arm payload, σ-refine it,
-        and compare against the inner pat.note — both sides at
-        site cons, consistent.
-      - VarE/VarP binding types come out refined naturally, no
-        retroactive ve rewriting.
-      - The case's σ flows with the AST through transforms — same
-        cons-renaming passes that already migrate types migrate σ.
-
-      So: do M11a refactor first (mostly mechanical — σ as a node
-      field, drop the side-table hash lookups). M11b's variant-arm
-      slice then becomes "add σ_es to the σ that already lives on
-      the case node" — the structural impedance mismatch disappears.
+      **Two abandoned σ-extension attempts.** Both tried minting
+      fresh skolems per arm-existential by extending
+      `gadt_sigma_for_case`, mirror of the M10 destructure path.
+      Both broke roundtrip tests via IR's `check_pat` /
+      `check_case` impedance mismatches between σ-refined inner
+      pat.notes and un-refined arm-payload extractions (see git
+      log between 2026-05-16 and 2026-05-17 for the full pitfall
+      traces). Path B (below) sidesteps by minting at TagP only.
 
       Status: M11a — partial migration shipped 2026-05-16, four
       slices (`gabor/gadt` `4787726f9` → `50e965ec9`):
@@ -881,69 +821,13 @@ machinery (br_table or linear) operates on tags as before.
         variant or 3-tuple with σ (~35 LetD construction sites).
       Both are wider than a single slice; deferred.
 
-      **What this fixed:**
-      - The "third σ-lookup site" concern (CallPrim, after TupPrim
-        and TagPrim) is now a single `refine_target` helper at the
-        top of `check_exp`. Adding a fourth would touch one call,
-        not duplicate a block.
-      - Cons-renaming passes (`async.ml`, `erase_typ_field.ml`)
-        still need `rewrite_gadt_side_tables` for the destructure-σ
-        residual *and* must also rewrite σ on exp/case notes
-        through `t_exp` and `t_case` — this is the pattern future
-        cons-renamers should copy.
-      - Variant-arm un-entangling (the rolled-back M11b extension
-        above) is now unblocked: σ on case node is structural, so
-        IR `check_pat` can consult `case.it.gadt_sigma` directly
-        during its walk rather than after-the-fact via
-        region-keyed lookup.
-
-      **Variant-arm fresh-skolem — second attempt 2026-05-17, also
-      reverted; recording the new pitfall.** Tried extending
-      `gadt_sigma_for_case` to mint fresh skolems per arm-existential
-      via `T.fresh_destructure_skolem pat.at`, mirror of M11b
-      destructure-pat. The cross-arm test in `test/fail/gadt-cross-
-      arm-mixing.mo` correctly started rejecting (good). But
-      `test/run/gadt-axiom-roundtrip.mo` regressed inside the `#eq`
-      arm body at `eval x`: IR sub-check `Expr<all-site-B> <:
-      Expr<site-B-only-at-A-pos>` failed.
-
-      Root cause: in the user-natural notation
-      `#eq : type B in ((B, B) -> Bool, Expr<B>, Expr<B>)`, the
-      same `B_schema` cons plays two roles:
-        (i) the arm's existential declaration (`type B`), and
-        (ii) the type-arg of the inner `Expr<B>` reference.
-      They share one cons identity by construction.
-
-      Typing's view of `x : Expr<site-B>` (after σ-substitute on
-      the Con form, then `T.normalize` at use site): opens the
-      outer Def with `Var 0 → site-B` (the type-arg slot) and
-      leaves the inner Cons references at `B_schema` (since
-      `T.normalize` walks Vars, not Cons). So `x` looks like
-      `{#bool : site-B; #eq : (B_schema, B_schema) → ...; #int :
-      Nat}`.
-
-      IR's `check_case` post-process — `T.Env.map (T.subst σ_ir)
-      ve` — walks the *already-normalized* `pat.note` and
-      substitutes `B_schema → site-B` uniformly. So the IR's view
-      of `x` is `{#bool : site-B; #eq : (site-B, site-B) → ...;
-      #int : Nat}`. All B's at site-B.
-
-      Sub-check between the two views fails. The IR view is
-      arguably "more correct" (consistent X across the whole type),
-      but typing's view is what every consumer expects.
-
-      Reconciling the views requires either:
-        - making `T.normalize`/`open_` σ-aware so the inner-cons
-          substitution happens during opening, not as
-          post-processing (touches every normalize callsite), or
-        - making `pat.note` carry the un-normalized Con form so
-          `T.subst σ` on it stops at the outer cons (touches
-          every IR consumer of `pat.note`).
-
-      Both are wider than a slice. Five-line σ extension isn't
-      enough. Cross-mixing variant-arm soundness gap remains
-      open; M11a's σ-on-case-node is necessary infrastructure
-      but not sufficient on its own.
+      **What M11a fixed:** the "third σ-lookup site" concern
+      (CallPrim, after TupPrim and TagPrim) is now a single
+      `refine_target` helper at the top of `check_exp`. Cons-
+      renaming passes (`async.ml`, `erase_typ_field.ml`) still
+      need `rewrite_gadt_side_tables` for the destructure-σ
+      residual *and* must rewrite σ on exp/case notes through
+      `t_exp` / `t_case` — pattern for future cons-renamers.
 
       Still-global tables in `type.ml`: `gadt_arm_constraints`,
       `gadt_arm_existentials`, `gadt_existential_set`,
@@ -980,14 +864,11 @@ machinery (br_table or linear) operates on tags as before.
          `unify_existentials` derives σ and the refined arm
          payload is sub-checked against pat.note.
 
-      Why this is "minimum churn": zero new typ rep, zero new
-      field shape, no `T.normalize` σ-awareness. Reuses
-      `gadt_existential_set`, `fresh_destructure_skolem`,
-      `unify_existentials`. The pitfall from the second attempt
-      (σ over-substitutes through `T.normalize`'s opened form)
-      is avoided because subst lives only on the EXTRACTED arm
-      payload, not on the schema-bound type — the outer pat.note
-      stays at schema, the IR view stays consistent.
+      Minimum churn: zero new typ rep, no `T.normalize` σ-awareness.
+      σ-substitute lives only on the EXTRACTED arm payload, not on
+      the schema-bound type, so the outer pat.note stays at schema
+      and the IR view stays consistent — the impedance mismatch
+      that killed the two σ-extension attempts doesn't arise.
 
       **Regression tests:**
       - `test/fail/gadt-cross-arm-mixing.mo` — original
