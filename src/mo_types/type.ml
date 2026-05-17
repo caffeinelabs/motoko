@@ -73,7 +73,13 @@ and bind_sort = Scope | Type
 
 and bind = {var : var; sort: bind_sort; bound : typ}
 and src = {depr : string option; track_region : region; region : region}
-and 'a gen_field = {lab : lab; typ : 'a; src : src}
+(* Path A slice 1: every field (Obj fields, Variant arms, and
+   future record-field existentials) carries a [bind list]. For
+   non-GADT uses [binds] is [[]] — the prior [field] shape. For
+   variant arms with [type X in body] declarations [binds]
+   captures the arm's existentials and refinements (mirror of
+   [Func]'s binder slot). *)
+and 'a gen_field = {lab : lab; binds : bind list; typ : 'a; src : src}
 and field = typ gen_field
 and typ_field = con gen_field
 
@@ -361,7 +367,7 @@ let text_list =
 
 let fields flds =
   List.sort compare_field
-    (List.map (fun (lab, typ) -> {lab; typ; src = empty_src}) flds)
+    (List.map (fun (lab, typ) -> {lab; binds = []; typ; src = empty_src}) flds)
 
 let obj sort flds =
   Obj (sort, fields flds, [])
@@ -373,20 +379,20 @@ let sum flds =
   Variant (fields flds)
 
 let throwErrorCodes = List.sort compare_field [
-  { lab = "canister_reject"; typ = unit; src = empty_src}
+  { lab = "canister_reject"; binds = []; typ = unit; src = empty_src}
 ]
 
 let call_error = obj Object [("err_code", Prim Nat32)]
 
 let catchErrorCodes = List.sort compare_field (
   throwErrorCodes @ [
-    { lab = "system_fatal"; typ = unit; src = empty_src};
-    { lab = "system_transient"; typ = unit; src = empty_src};
-    { lab = "destination_invalid"; typ = unit; src = empty_src};
-    { lab = "canister_error"; typ = unit; src = empty_src};
-    { lab = "system_unknown"; typ = unit; src = empty_src};
-    { lab = "future"; typ = Prim Nat32; src = empty_src};
-    { lab = "call_error"; typ = call_error; src = empty_src};
+    { lab = "system_fatal"; binds = []; typ = unit; src = empty_src};
+    { lab = "system_transient"; binds = []; typ = unit; src = empty_src};
+    { lab = "destination_invalid"; binds = []; typ = unit; src = empty_src};
+    { lab = "canister_error"; binds = []; typ = unit; src = empty_src};
+    { lab = "system_unknown"; binds = []; typ = unit; src = empty_src};
+    { lab = "future"; binds = []; typ = Prim Nat32; src = empty_src};
+    { lab = "call_error"; binds = []; typ = call_error; src = empty_src};
   ])
 
 let throw = Prim Error
@@ -459,8 +465,9 @@ let rec shift i n t =
 and shift_bind i n tb =
   {tb with bound = shift i n tb.bound}
 
-and shift_field i n {lab; typ; src} =
-  {lab; typ = shift i n typ; src}
+and shift_field i n {lab; binds; typ; src} =
+  let i' = i + List.length binds in
+  {lab; binds = List.map (shift_bind i' n) binds; typ = shift i' n typ; src}
 
 (*
 and shift_kind i n k =
@@ -516,8 +523,9 @@ let rec subst sigma t =
 and subst_bind sigma tb =
   { tb with bound = subst sigma tb.bound}
 
-and subst_field sigma {lab; typ; src} =
-  {lab; typ = subst sigma typ; src}
+and subst_field sigma {lab; binds; typ; src} =
+  let sigma' = ConEnv.map (shift 0 (List.length binds)) sigma in
+  {lab; binds = List.map (subst_bind sigma') binds; typ = subst sigma' typ; src}
 
 (*
 and subst_kind sigma k =
@@ -566,8 +574,9 @@ let rec open' i ts t =
 and open_bind i ts tb  =
   {tb with bound = open' i ts tb.bound}
 
-and open_field i ts {lab; typ; src} =
-  {lab; typ = open' i ts typ; src}
+and open_field i ts {lab; binds; typ; src} =
+  let i' = i + List.length binds in
+  {lab; binds = List.map (open_bind i' ts) binds; typ = open' i' ts typ; src}
 
 (*
 and open_kind i ts k =
@@ -674,11 +683,11 @@ let as_prim_sub p t = match promote t with
   | _ -> invalid "as_prim_sub"
 let as_obj_sub ls t = match promote t with
   | Obj (s, fs, _) -> s, fs
-  | Non -> Object, List.map (fun l -> {lab = l; typ = Non; src = empty_src}) ls
+  | Non -> Object, List.map (fun l -> {lab = l; binds = []; typ = Non; src = empty_src}) ls
   | _ -> invalid "as_obj_sub"
 let as_variant_sub l t = match promote t with
   | Variant tfs -> tfs
-  | Non -> [{lab = l; typ = Non; src = empty_src}]
+  | Non -> [{lab = l; binds = []; typ = Non; src = empty_src}]
   | _ -> invalid "as_variant_sub"
 let as_array_sub t = match promote t with
   | Array t -> t
@@ -821,7 +830,8 @@ and cons_con' inTyp c cs =
 and cons_bind inTyp tb cs =
   cons' inTyp tb.bound cs
 
-and cons_field inTyp {lab; typ; src} cs =
+and cons_field inTyp {lab = _; binds; typ; src = _} cs =
+  let cs = List.fold_right (cons_bind inTyp) binds cs in
   cons' inTyp typ cs
 
 and cons_typ_field inTyp {typ = c; _} cs =
@@ -1746,7 +1756,7 @@ and combine_fields rel lubs glbs fs1 fs2 =
         | typ ->
           add_src_field rel lubs glbs f1 f2;
           let src = {empty_src with track_region = f1.src.track_region} in
-          {lab = f1.lab; typ; src} :: acc
+          {lab = f1.lab; binds = f1.binds; typ; src} :: acc
         | exception Mismatch when rel == lubs -> acc)
       | Lib.This f1 -> cons_if (rel == glbs) f1 acc
       | Lib.That f2 -> cons_if (rel == glbs) f2 acc) []
@@ -1759,7 +1769,7 @@ and combine_tags rel lubs glbs fs1 fs2 =
       let typ = combine rel lubs glbs f1.typ f2.typ in
       add_src_field rel lubs glbs f1 f2;
       let src = {empty_src with track_region = f1.src.track_region} in
-      {lab = f1.lab; typ; src} :: acc
+      {lab = f1.lab; binds = f1.binds; typ; src} :: acc
     | Lib.This(f1) -> cons_if (rel == lubs) f1 acc
     | Lib.That(f2) -> cons_if (rel == lubs) f2 acc) []
   |> List.rev
@@ -1806,6 +1816,7 @@ let low_memory_type =
 let motoko_async_helper_fld =
   { lab = "__motoko_async_helper";
     typ = Func(Shared Write, Promises, [scope_bind], [Prim Nat32], []);
+    binds = [];
     src = empty_src;
   }
 
@@ -1814,12 +1825,14 @@ let motoko_stable_var_info_fld =
     typ =
       Func(Shared Query, Promises, [scope_bind], [],
         [ obj Object [("size", nat64)] ]);
+    binds = [];
     src = empty_src;
   }
 
 let motoko_gc_trigger_fld =
   { lab = "__motoko_gc_trigger";
     typ = Func(Shared Write, Promises, [scope_bind], [], []);
+    binds = [];
     src = empty_src;
   }
 
@@ -1846,6 +1859,7 @@ let motoko_runtime_information_fld =
   { lab = "__motoko_runtime_information";
     typ = Func(Shared Query, Promises, [scope_bind], [],
       [ motoko_runtime_information_type ]);
+    binds = [];
     src = empty_src;
   }
 
@@ -1908,8 +1922,8 @@ let cycles_lab = "cycles"
 let migration_lab = "migration"
 let timeout_lab = "timeout"
 
-let cycles_fld = { lab = cycles_lab; typ = nat; src = empty_src }
-let timeout_fld = { lab = timeout_lab; typ = nat32; src = empty_src }
+let cycles_fld = { lab = cycles_lab; binds = []; typ = nat; src = empty_src }
+let timeout_fld = { lab = timeout_lab; binds = []; typ = nat32; src = empty_src }
 
 (* Pretty printing *)
 
@@ -2245,25 +2259,25 @@ and pp_con' vs ppf c =
   let op, sbs, st = pps_of_kind' vs (Cons.kind c) in
   fprintf ppf "@[<1>type %s%a %s@ %a@]" (Cons.name c) sbs () op st ()
 
-and pp_field vs ppf {lab; typ; src} =
+and pp_field vs ppf {lab; binds = _; typ; src = _} =
   match typ with
   | Mut t' ->
     fprintf ppf "@[<2>var %s :@ %a@]" lab (pp_typ' vs) t'
   | _ ->
     fprintf ppf "@[<2>%s :@ %a@]" lab (pp_typ' vs) typ
 
-and pp_typ_field vs ppf {lab; typ = c; src} =
+and pp_typ_field vs ppf {lab; binds = _; typ = c; src = _} =
   let op, sbs, st = pps_of_kind' vs (Cons.kind c) in
   fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
 
-and pp_stab_field vs ppf {lab; typ; src} =
+and pp_stab_field vs ppf {lab; binds = _; typ; src = _} =
   match typ with
   | Mut t' ->
     fprintf ppf "@[<2>stable var %s :@ %a@]" lab (pp_typ' vs) t'
   | _ ->
     fprintf ppf "@[<2>stable %s :@ %a@]" lab (pp_typ' vs) typ
 
-and pp_pre_stab_field vs ppf (required, {lab; typ; src}) =
+and pp_pre_stab_field vs ppf (required, {lab; binds = _; typ; src = _}) =
   let req = if required then "in" else "stable" in
   match typ with
   | Mut t' ->
@@ -2272,12 +2286,17 @@ and pp_pre_stab_field vs ppf (required, {lab; typ; src}) =
     fprintf ppf "@[<2>%s %s :@ %a@]" req lab (pp_typ' vs) typ
 
 
-and pp_tag vs ppf {lab; typ; src} =
+and pp_tag vs ppf {lab; binds; typ; src = _} =
+  let binds_prefix ppf () =
+    if binds = [] then () else
+    fprintf ppf "@[<2>%s in@ @]"
+      (String.concat ", " (List.map (fun (b : bind) -> "type " ^ b.var) binds))
+  in
   match typ with
   | Tup [] ->
     fprintf ppf "#%s" lab
   | _ ->
-    fprintf ppf "@[<2>#%s :@ %a@]" lab (pp_typ' vs) typ
+    fprintf ppf "@[<2>#%s :@ %a%a@]" lab binds_prefix () (pp_typ' vs) typ
 
 and vars_of_binds vs bs =
   List.map (fun b -> name_of_var vs (b.var, 0)) bs
@@ -2327,7 +2346,7 @@ and pp_kind ppf k =
   let vs = vs_of_cs cs in
   pp_kind' vs ppf k
 
-and pp_mig_field vs ppf {lab; typ; src} =
+and pp_mig_field vs ppf {lab; binds = _; typ; src = _} =
     let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
     fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
@@ -2356,6 +2375,7 @@ and pp_stab_sig ppf sig_ =
     List.sort compare_field
       (List.map (fun c ->
         { lab = string_of_con c;
+          binds = [];
           typ = c;
           src = empty_src }) ds)
   in

@@ -753,7 +753,7 @@ and export_view viewer_opt =
                  (mk_body vs))
               (Con (scope_con1, []))))
       )],
-      [T.{lab;typ; src = empty_src}],
+      [T.{lab; binds = []; typ; src = empty_src}],
       [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
@@ -788,7 +788,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let obj_typ = T.Obj(sort, List.sort T.compare_field (tfs0@view_fields), tfs1) in
   let fs = fs0@view_fs in
   let stab_fields = List.sort T.compare_field
-    (List.map (fun (i, t) -> T.{lab = i; typ = t; src = empty_src}) ids)
+    (List.map (fun (i, t) -> T.{lab = i; binds = []; typ = t; src = empty_src}) ids)
   in
   let mem_fields =
     List.map
@@ -827,6 +827,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
         List.map
           (fun (filename, _, typ) ->
             T.{lab = T.migration_lab_of_filename filename;
+               binds = [];
                typ;
                src = T.empty_src})
           chain

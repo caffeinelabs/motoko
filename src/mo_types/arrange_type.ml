@@ -100,9 +100,10 @@ module Make (Cfg : Config) = struct
   and typ_bind (tb : Type.bind) =
     tb.var $$ [typ tb.bound]
 
-  and field ({lab; typ = t; src = s} : Type.field) =
-    lab $$ typ t :: src s
-  and typ_field ({lab; typ = c; src = s} : Type.typ_field) =
+  and field ({lab; binds; typ = t; src = s} : Type.field) =
+    let binds_node = if binds = [] then [] else ["binds" $$ List.map typ_bind binds] in
+    lab $$ binds_node @ (typ t :: src s)
+  and typ_field ({lab; binds = _; typ = c; src = s} : Type.typ_field) =
     lab $$ ("Typ" $$ [con c]) :: src s
 end
 

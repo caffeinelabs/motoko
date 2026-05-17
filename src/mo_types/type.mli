@@ -65,7 +65,7 @@ and bind_sort = Scope | Type
 and bind = {var : var; sort: bind_sort; bound : typ}
 
 and src = {depr : string option; track_region : region; region : region}
-and 'a gen_field = {lab : lab; typ : 'a; src : src}
+and 'a gen_field = {lab : lab; binds : bind list; typ : 'a; src : src}
 and field = typ gen_field
 and typ_field = con gen_field
 

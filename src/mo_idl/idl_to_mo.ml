@@ -91,13 +91,13 @@ and check_arg_typ env occs (arg_typ : arg_typ) =
   | None -> check_typ' env occs arg_typ.it.typ
 and check_arg_typs env occs ats = List.map (check_arg_typ env occs) ats
 and check_field env occs f =
-  M.{lab = check_label f.it.label; typ = check_typ' env occs f.it.typ; src = empty_src}
+  M.{lab = check_label f.it.label; binds = []; typ = check_typ' env occs f.it.typ; src = empty_src}
 and check_variant_field env occs f =
   match f.it.typ.it with
-  | PrimT Null -> M.{lab = check_label f.it.label; typ = M.Tup []; src = empty_src}
+  | PrimT Null -> M.{lab = check_label f.it.label; binds = []; typ = M.Tup []; src = empty_src}
   | _ -> check_field env occs f
 and check_meth env occs (m: typ_meth) =
-  M.{lab = Idllib.Escape.escape_method m.it.var.at m.it.var.it; typ = check_typ' env occs m.it.meth; src = empty_src}
+  M.{lab = Idllib.Escape.escape_method m.it.var.at m.it.var.it; binds = []; typ = check_typ' env occs m.it.meth; src = empty_src}
 
 let check_prog (env: typ I.Env.t) actor : M.typ =
   let occs = ref M.Env.empty in
@@ -124,7 +124,7 @@ let check_prog (env: typ I.Env.t) actor : M.typ =
   let tfs = M.Env.fold (fun id t fs ->
        match t with
        | M.Con (c, _) ->
-          M.{lab = id; typ = c; src = empty_src}::fs
+          M.{lab = id; binds = []; typ = c; src = empty_src}::fs
        | _ -> assert false) !occs [] in
   M.Obj(M.Actor, List.sort M.compare_field fs, List.sort M.compare_field tfs)
 

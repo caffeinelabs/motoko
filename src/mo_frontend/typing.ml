@@ -1023,12 +1023,12 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
           id.it (T.string_of_typ_expand t)
     end;
     Field_sources.add_src env.srcs id.at;
-    Either.Left(T.{lab = id.it; typ = t; src = {empty_src with track_region = id.at}})
+    Either.Left(T.{lab = id.it; binds = []; typ = t; src = {empty_src with track_region = id.at}})
   | TypF (id, typ_binds, typ) ->
     let k = check_typ_def env typ_field.at (id, typ_binds, [], typ) in
     let c = Cons.fresh id.it k in
     Field_sources.add_src env.srcs id.at;
-    Either.Right(T.{lab = id.it; typ = c; src = {empty_src with track_region = id.at}})
+    Either.Right(T.{lab = id.it; binds = []; typ = c; src = {empty_src with track_region = id.at}})
 
 and check_typ_tag env typ_tag =
   let {tag; constraints; typ} = typ_tag.it in
@@ -1093,7 +1093,7 @@ and check_typ_tag env typ_tag =
       | Some _ -> ()
     ) constraints;
   Field_sources.add_src env.srcs tag.at;
-  T.{lab = tag.it; typ = t; src = {empty_src with track_region = tag.at}}
+  T.{lab = tag.it; binds = []; typ = t; src = {empty_src with track_region = tag.at}}
 
 (* Syntactic check: does AST type [typ] textually mention the identifier [name]? *)
 and mentions_id_typ name typ = mentions_id name typ
@@ -1481,32 +1481,32 @@ let check_lit env t lit at suggest =
 let array_obj t =
   let open T in
   let immut t =
-    [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src};
-      {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
-      {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
-      {lab = "vals"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
-      {lab = "values"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
+    [ {lab = "get"; binds = []; typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src};
+      {lab = "size"; binds = []; typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
+      {lab = "keys"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
+      {lab = "vals"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
+      {lab = "values"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
     ] in
   let mut t = immut t @
-    [ {lab = "put"; typ = Func (Local, Returns, [], [Prim Nat; t], []); src = empty_src} ] in
+    [ {lab = "put"; binds = []; typ = Func (Local, Returns, [], [Prim Nat; t], []); src = empty_src} ] in
   Object,
   List.sort compare_field (match t with Mut t' -> mut t' | t -> immut t)
 
 let blob_obj () =
   let open T in
   Object,
-  [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [Prim Nat8]); src = empty_src};
-    {lab = "vals"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
-    {lab = "values"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
-    {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
-    {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
+  [ {lab = "get"; binds = []; typ = Func (Local, Returns, [], [Prim Nat], [Prim Nat8]); src = empty_src};
+    {lab = "vals"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
+    {lab = "values"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
+    {lab = "size"; binds = []; typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
+    {lab = "keys"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
   ]
 
 let text_obj () =
   let open T in
   Object,
-  [ {lab = "chars"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Char)]); src = empty_src};
-    {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
+  [ {lab = "chars"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Char)]); src = empty_src};
+    {lab = "size"; binds = []; typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
   ]
 
 
@@ -2331,7 +2331,7 @@ and infer_exp'' env exp : T.typ =
   | TagE (id, exp1) ->
     let t1 = infer_exp env exp1 in
     Field_sources.add_src env.srcs id.at;
-    T.Variant [T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}}]
+    T.Variant [T.{lab = id.it; binds = []; typ = t1; src = {empty_src with track_region = id.at}}]
   | ProjE (exp1, n) ->
     let t1_raw, t1 = infer_exp_and_promote env exp1 in
     (* M10: bare projection on an existential-bearing type would let
@@ -2822,7 +2822,7 @@ and infer_exp_field env rf =
   let t = infer_exp env exp in
   let t1 = if mut.it = Syntax.Var then T.Mut t else t in
   Field_sources.add_src env.srcs id.at;
-  T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}}
+  T.{lab = id.it; binds = []; typ = t1; src = {empty_src with track_region = id.at}}
 
 and infer_check_bases_fields env (check_fields : T.field list) exp_at exp_bases exp_fields =
   let open List in
@@ -3332,14 +3332,14 @@ and check_exp_field env (ef : exp_field) fts =
   in
   let ft_opt = List.find_opt (fun ft -> ft.T.lab = id.it) fts in
   match ft_opt with
-  | Some { T.lab = _; typ = T.Mut t; src } ->
+  | Some { T.lab = _; binds = _; typ = T.Mut t; src } ->
     if mut.it <> Syntax.Var then
       error env ef.at "M0149" "expected mutable 'var' field %s of type%a\nbut found immutable field (insert 'var'?)"
         id.it
         display_typ t;
     update_srcs src;
     check_exp env t exp
-  | Some { T.lab = _; typ = t; src } ->
+  | Some { T.lab = _; binds = _; typ = t; src } ->
     if mut.it = Syntax.Var then
       error env ef.at "M0150" "expected immutable field %s of type%a\nbut found mutable 'var' field (delete 'var'?)"
         id.it
@@ -3989,7 +3989,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
   | TagP (id, pat1) ->
     let t1, ve = infer_pat false env pat1 in
     Field_sources.add_src env.srcs id.at;
-    T.Variant [T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}}], ve
+    T.Variant [T.{lab = id.it; binds = []; typ = t1; src = {empty_src with track_region = id.at}}], ve
   | AltP (pat1, pat2) ->
     error env pat.at "M0184"
         "cannot infer the type of this or-pattern, please add a type annotation";
@@ -4069,7 +4069,7 @@ and infer_pat_fields at env pfs ts ve : (T.obj_sort * T.field list) * Scope.val_
     let typ, ve1 = infer_pat false env pat in
     let ve' = disjoint_union env id.at "M0017" "duplicate binding for %s in pattern" ve ve1 in
     Field_sources.add_src env.srcs id.at;
-    infer_pat_fields at env pfs' (T.{lab = id.it; typ; src = {empty_src with track_region = id.at}}::ts) ve'
+    infer_pat_fields at env pfs' (T.{lab = id.it; binds = []; typ; src = {empty_src with track_region = id.at}}::ts) ve'
 
 and check_shared_pat env shared_pat : T.func_sort * Scope.val_env =
   match shared_pat.it with
@@ -4326,7 +4326,7 @@ and check_pat_fields env t fs pfs ve at : Scope.val_env =
           "object field %s is not contained in expected type%a"
           id.it
           display_typ_expand t
-    | Lib.Both(T.{ lab; typ; src }, (id, pat, pf)) ->
+    | Lib.Both(T.{ lab; binds = _; typ; src }, (id, pat, pf)) ->
       last_field := lab;
       if T.is_mut typ then
         error env pf.at "M0120" "cannot pattern match mutable field %s" lab;
@@ -4403,7 +4403,7 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   (* Collect types in nested patterns *)
   let te = Lib.List.align cmp fs val_pfs |>
     Seq.fold_left (fun te -> function
-      | Lib.Both(T.{ lab; typ; src }, (_, p)) ->
+      | Lib.Both(T.{ lab; binds = _; typ; src }, (_, p)) ->
         let te1 = check_pat_typ_dec env typ p in
         disjoint_union env at "M0017" "duplicate type binding for %s in pattern" te te1
       | _ -> te) te in
@@ -4411,7 +4411,7 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   let last_field = ref "" in
   Lib.List.align cmp tfs typ_pfs |>
     Seq.fold_left (fun te -> function
-      | Lib.Both(T.{ lab; typ; src }, (id, at)) ->
+      | Lib.Both(T.{ lab; binds = _; typ; src }, (id, at)) ->
         if !last_field = id.it then
           error env at "M0121" "duplicate type field %s in object pattern" id.it
         else
@@ -4504,9 +4504,9 @@ and object_of_scope env sort dec_fields scope at =
         match T.Env.find_opt id pub_typ with
         | Some src ->
           Field_sources.add_src env.srcs src.id_region;
-          T.{lab = id; typ = c; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
+          T.{lab = id; binds = []; typ = c; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
         | _ when sort = T.Mixin ->
-           T.{lab = id; typ = c; src = {depr = None; track_region = at; region = at}}::tfs
+           T.{lab = id; binds = []; typ = c; src = {depr = None; track_region = at; region = at}}::tfs
         | _ -> tfs
       ) scope.Scope.typ_env []
   in
@@ -4516,9 +4516,9 @@ and object_of_scope env sort dec_fields scope at =
         match T.Env.find_opt id pub_val with
         | Some src ->
           Field_sources.add_src env.srcs src.id_region;
-          T.{lab = id; typ = t; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
+          T.{lab = id; binds = []; typ = t; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
         | _ when sort = T.Mixin ->
-          T.{lab = id; typ = t; src = {depr = None; track_region = at; region = at}}::tfs
+          T.{lab = id; binds = []; typ = t; src = {depr = None; track_region = at; region = at}}::tfs
         | _ -> tfs
       ) scope.Scope.val_env []
   in
@@ -4793,7 +4793,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
          post
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
-        let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
+        let mf = T.{lab = T.migration_lab_of_filename file; binds = []; typ; src = T.empty_src } in
         (* is this a migration function *)
         let (dom_mf, rng_mf) = check_migration_function env mf.T.typ file_at in
         let out =
@@ -4873,7 +4873,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
     check_ids env "pre actor type" "stable variable" pre_ids;
     (* Reject any fields in range not in post signature (unintended data loss) *)
     let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
-    List.iter (fun T.{lab;typ;src} ->
+    List.iter (fun T.{lab; binds = _; typ; src} ->
       match T.lookup_val_field_opt lab stab_tfs with
       | Some _ -> ()
       | None ->
@@ -4886,7 +4886,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
       rng_tfs;
     (* Warn about any field in domain, not in range, and declared stable in actor *)
     (* This may indicate unintentional data loss. *)
-    List.iter (fun T.{lab;typ;src} ->
+    List.iter (fun T.{lab; binds = _; typ; src} ->
       match T.lookup_val_field_opt lab rng_tfs with
       | Some _ -> ()
       | None ->
@@ -5016,6 +5016,7 @@ and check_stab env sort scope dec_fields =
          let typ, _, _ = T.Env.find id.it scope.Scope.val_env in
          Field_sources.add_src env.srcs id.at;
          T.{ lab = id.it;
+             binds = [];
              typ;
              src = {depr = None; track_region = id.at; region = id.at}})
       ids)
@@ -5034,7 +5035,7 @@ and infer_viewer env scope mut id viewer =
         (* approximate non-shared returns to Any, if necessary *)
         let shared_ret =
           List.map (fun ty -> if T.shared ty then ty else T.Any) ret in
-        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
+        T.{ lab; binds = []; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->
           (* checkpoint env.used_identifiers *)
