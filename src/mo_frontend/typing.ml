@@ -2340,9 +2340,12 @@ and infer_exp'' env exp : T.typ =
        destructuring `let (...) = ...`. *)
     (match t1_raw with
      | T.Con (c, _) when T.lookup_typd_existentials c <> [] ->
+       let es = T.lookup_typd_existentials c in
+       let binders = String.concat ", " (List.map (fun e -> "type " ^ Cons.name e) es) in
        error env exp.at "M9010"
-         "bare projection on existential-bearing type%a\nis forbidden — destructure with `let (...) = %s` to open the existential"
+         "bare projection on black-hole type%a\ndeclared with existential `%s in ...`; the witness is sealed.\nDestructure with `let (...) = %s` to open it"
          display_typ_expand t1_raw
+         binders
          (match exp1.it with VarE id -> id.it | _ -> "...")
      | _ -> ());
     (try
@@ -2761,9 +2764,12 @@ and try_infer_dot_exp env at exp id (desc, pred) =
      ProjE guard. *)
   (match t0 with
    | T.Con (c, _) when T.lookup_typd_existentials c <> [] ->
+     let es = T.lookup_typd_existentials c in
+     let binders = String.concat ", " (List.map (fun e -> "type " ^ Cons.name e) es) in
      error env at "M9010"
-       "bare projection on existential-bearing type%a\nis forbidden — destructure with `let { %s; ... } = %s` to open the existential"
+       "bare projection on black-hole type%a\ndeclared with existential `%s in ...`; the witness is sealed.\nDestructure with `let { %s; ... } = %s` to open it"
        display_typ_expand t0
+       binders
        id.it
        (match exp.it with VarE i -> i.it | _ -> "...")
    | _ -> ());

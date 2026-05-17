@@ -1,6 +1,7 @@
-error[M9010]: bare projection on existential-bearing type
+error[M9010]: bare projection on black-hole type
   Tup = (X, X -> Text)
-is forbidden — destructure with `let (...) = tup` to open the existential
+declared with existential `type X in ...`; the witness is sealed.
+Destructure with `let (...) = tup` to open it
     ┌─ gadt-m10-projection.mo:12:10
  12 │  let _x = tup.0;
     │           ^^^^^ 
