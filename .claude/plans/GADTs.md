@@ -752,9 +752,12 @@ machinery (br_table or linear) operates on tags as before.
         randomly constructs / destructures values, asserting round-trip
         equality.
 
-- [ ] **M11 — Remove side-tables + un-entangle the black holes**:
+- [~] **M11 — Remove side-tables + un-entangle the black holes**:
       two distinct sub-goals, related by both replacing the
-      "schema-cons-as-shared-skolem" status quo.
+      "schema-cons-as-shared-skolem" status quo. Soundness goal
+      (un-entangling) shipped 2026-05-17 via path B; refactor
+      goal (side-table elimination) partially shipped — four
+      slices done, destructure-pat σ residual deferred.
 
       **M11a — refactor only (low risk).** Move σ from
       region-keyed side-tables onto IR AST nodes. Removes the
@@ -949,6 +952,104 @@ machinery (br_table or linear) operates on tags as before.
       others are name-resolution tables read at typing time and
       not currently a soundness liability the way σ-on-region was.
 
+      **Variant-arm un-entangling — SHIPPED 2026-05-17 via path B**
+      (`4a24c1426`). Sidesteps the σ-extension impedance mismatch
+      from the two reverted attempts by minting fresh skolems at
+      `TagP` *only*, leaving the σ machinery untouched.
+
+      Three patches, all consumer-side:
+
+      1. `check_pat`'s `TagP` case in typing.ml: walk the
+         extracted arm payload's shallow cons through
+         `is_gadt_existential` to collect this arm's
+         schema-existential cons; mint a fresh skolem per
+         `(pat.at, schema_cons)` via `fresh_destructure_skolem`;
+         substitute schema → fresh on the arm payload and recurse
+         with the substituted form. Outer `pat.note` stays at the
+         un-touched `t`, so IR's `check_case` `check_sub t_pat
+         pat.note` keeps passing. Inner `pat.note`s and `ve`
+         bindings carry fresh cons.
+      2. `check_exp'`'s `TagE+Variant` fall-through: replicates
+         `gadt_check_existentials`' unify bridge for the path
+         where the body's expected `t` arrived as a Variant body
+         (e.g., switch case body, after the dispatcher's
+         normalize). Stashes σ on the TagE's note so IR's
+         `refine_target` at TagPrim bridges fresh ← schema.
+      3. IR's `check_pat_tag`: mirror of (2). When the scrutinee
+         uses schema cons but pat.note carries fresh cons,
+         `unify_existentials` derives σ and the refined arm
+         payload is sub-checked against pat.note.
+
+      Why this is "minimum churn": zero new typ rep, zero new
+      field shape, no `T.normalize` σ-awareness. Reuses
+      `gadt_existential_set`, `fresh_destructure_skolem`,
+      `unify_existentials`. The pitfall from the second attempt
+      (σ over-substitutes through `T.normalize`'s opened form)
+      is avoided because subst lives only on the EXTRACTED arm
+      payload, not on the schema-bound type — the outer pat.note
+      stays at schema, the IR view stays consistent.
+
+      **Regression tests:**
+      - `test/fail/gadt-cross-arm-mixing.mo` — original
+        cross-feed (variant + arrow): `f1 x2` where x2 has
+        different stamp than f1's param type. Rejected.
+      - `test/fail/gadt-existential-leak-pair.mo` — single-arm
+        reassembly into a concrete tuple: `(different, payload) :
+        Pair<Nat>` rejected because fresh-X </: Nat.
+      - `test/fail/gadt-existential-leak-pair-bare.mo` — mirror of
+        the above but with a bare top-level existential alias
+        (`type Pack = type X in (X, X)`). Different mechanism —
+        alias-instantiation already gives fresh cons per use, no
+        TagP mint needed — same outcome.
+      - `test/fail/gadt-existential-leak-poly.mo` — known leak,
+        currently passes (see "Skolem→Any subsumption" below).
+
+      **Future refactor — path A (deferred).** First-class
+      `(bind list, typ_with_Vars)` on variant arm fields. Same
+      semantics as path B, cleaner internals (mirror of `Func`'s
+      binders). Documented to revisit later when the typ-rep
+      churn budget is available.
+
+- [ ] **Skolem→Any subsumption — open soundness gap (M13 candidate).**
+      `test/fail/gadt-existential-leak-poly.mo` currently
+      type-checks cleanly with no diagnostic. Two `#pack` arms in
+      one switch produce distinct skolems `X1`, `X2`; a parametric
+      `consume<T>(_ : Pair<(T, T)>) : ()` needs `(X1, X1) <:
+      (T, T)` and `(X2, X2) <: (T, T)` for one `T`. Inference
+      picks `T = Any` (universal upper bound of two abstract-bound
+      cons) and accepts.
+
+      **Why this is conceptually wrong.** Same family as the `.0`
+      M9010 rule: `.0` rejection forbids naming a position inside
+      a still-packed existential because that lets the witness
+      escape; here, inference quietly coalesces two distinct
+      *opened* witnesses through the universal upper bound. The
+      witnesses leave their `case` scopes via a lossy subsumption
+      that erases their identities. Strict Cardelli would say:
+      a skolem may flow into a generic parameter, but inference
+      must not promote it to `Any` to satisfy the bound when
+      multiple distinct skolems would coalesce.
+
+      **Strictly safe today** (parametricity — `consume<T>`
+      cannot observe T). But invisible: no warning, no
+      breadcrumb, exit 0.
+
+      **Two staged mitigations:**
+      1. **Warning.** Fire when inference's chosen solution for a
+         type variable is `Any` *and* the only reason was that
+         multiple distinct abstract-bound cons had to coalesce.
+         New W code (e.g. M0197 "type variable inferred to Any to
+         satisfy multiple distinct skolems"). Surfaces the leak
+         in builds with warnings-as-errors; doesn't break
+         existing code.
+      2. **Hard error.** Mark inference variables that arose from
+         generic-param solving; refuse the `Any` solution when
+         multiple distinct skolems would merge. Caller is forced
+         to either pass one skolem or explicitly annotate.
+
+      (1) is the cheap first step. (2) is the principled fix and
+      requires inference-side surgery.
+
 - [x] **M12 — Candid / share-typing**: implement the Candid rules
       spelled out in [Interactions with existing Motoko → Candid](#candid).
       Three touch-points, one new function, no Candid spec changes:
@@ -983,7 +1084,7 @@ machinery (br_table or linear) operates on tags as before.
 3. **Uninhabited-type collapsing** (`Expr<Text>` → `None`) — skip; the user
    can't construct, so the distinction is moot.
 4. **Variant-arm existential-pack as a first-class internal type
-   (path A)** — record retroactively from the 2026-05-18 design pass.
+   (path A)** — record retroactively from the 2026-05-17 design pass.
    The principled internal representation of a variant arm with
    existentials is the existential pack `∃binds. payload(binds)`:
    variant arm fields carry `bind list × typ_with_Vars`, mirroring
@@ -999,7 +1100,7 @@ machinery (br_table or linear) operates on tags as before.
    Refactoring debt worth taking later, but not required for the
    semantics — see path B for the minimum-churn version we shipped.
 
-   **Path B (shipped 2026-05-18):** keep today's representation
+   **Path B (shipped 2026-05-17, commit `4a24c1426`):** keep today's representation
    (`Variant of field list` with schema cons referenced in arm
    payload). Two targeted patches in `typing.ml`:
    - `check_pat`'s `TagP` case: before recursing on the inner
