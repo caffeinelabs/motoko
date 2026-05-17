@@ -3957,7 +3957,7 @@ and infer_pat name_types env pat : T.typ * Scope.val_env =
   assert (pat.note = T.Pre);
   let t, ve = infer_pat' name_types env pat in
   if not env.pre then
-    pat.note <- T.normalize t;
+    pat.note <- T.path_compress t;
   t, ve
 
 and infer_pat' name_types env pat : T.typ * Scope.val_env =
@@ -4110,7 +4110,12 @@ and check_pat_aux env t pat val_kind : Scope.val_env =
   if t = T.Pre then snd (infer_pat false env pat) else
   let t' = T.normalize t in
   let ve = check_pat_aux' env t' t pat val_kind in
-  if not env.pre then pat.note <- t';
+  (* Path A slice 6: stash the path-compressed form on pat.note
+     (preserves the outer Con for GADT-bearing cons).  Downstream
+     consumers that need the opened structural form already call
+     [as_tup_sub] / [as_variant_sub] / [as_obj_sub] / [promote],
+     which handle the Con form via internal unfolding. *)
+  if not env.pre then pat.note <- T.path_compress t;
   ve
 
 and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =

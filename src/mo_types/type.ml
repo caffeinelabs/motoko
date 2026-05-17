@@ -690,22 +690,13 @@ let rec normalize_stop_at stop_at t =
 
 let normalize t = normalize_stop_at (fun _ -> false) t
 
-(* Path A slice 6: a Con is "GADT-bearing" if its Def body is a
-   Variant with at least one arm carrying structural [binds]
-   (existentials or refinements).  Used as a [stop_at] predicate to
-   [normalize] when preserving the outer Con form for σ
-   derivation. *)
-let is_gadt_con c =
-  match Cons.kind c with
-  | Def (_, Variant fs) -> List.exists (fun (f : field) -> f.binds <> []) fs
-  | _ -> false
-
-(* Like [normalize] but stops unfolding at GADT-bearing cons.
-   Useful for [exp.note.note_typ] so IR's σ derivation in
-   [check_case] can recover the slot context.  Non-GADT cons
-   (regular type aliases) and non-Con typs fall through to full
-   normalization — backward compatible with downstream consumers
-   that expect the opened structural form. *)
+(* [is_gadt_con] + [path_compress] are defined later in the file
+   (after [lookup_typd_existentials]) — they need that predicate to
+   detect top-level existential aliases.  Forward declaration via
+   refs so callers in [normalize_stop_at]'s neighbourhood compile;
+   the actual implementations bind these refs below. *)
+let is_gadt_con_ref : (con -> bool) ref = ref (fun _ -> false)
+let is_gadt_con c = !is_gadt_con_ref c
 let path_compress t = normalize_stop_at is_gadt_con t
 
 let rec promote = function
@@ -2985,6 +2976,21 @@ let lookup_typd_existentials c =
   | Some es -> es
   | None -> []
 
+(* Path A slice 6: bind the [is_gadt_con] forward-ref now that
+   [lookup_typd_existentials] is available.  A Con is GADT-bearing if:
+   - its Def body is a Variant with at least one arm carrying
+     non-empty [binds] (slice 2 existentials / slice 5 refinements),
+     or
+   - it's a top-level existential alias
+     ([gadt_typd_existentials] non-empty). *)
+let () = is_gadt_con_ref := (fun c ->
+  match Cons.kind c with
+  | Def (_, Variant fs) ->
+    lookup_typd_existentials c <> [] ||
+    List.exists (fun (f : field) -> f.binds <> []) fs
+  | Def _ -> lookup_typd_existentials c <> []
+  | _ -> false)
+
 (* GADT refinement, indexed by source region of an AST node.
    Registered by surface typechecker (cases applying refinement, TagE applying
    existential-witness substitution); consulted by the IR type-checker to
@@ -3188,3 +3194,46 @@ and unify_existentials expected actual existentials : typ ConEnv.t option =
   in
   try walk expected actual; Some !sigma
   with Unify_fail -> None
+
+(* Path A slice 6: derive existential σ on demand for a TagPrim
+   construction site.  Bridges schema cons in the expected target
+   typ's arm payload to fresh cons in the actual payload — the
+   refine_target σ flow for variant arms.  Replaces the variant
+   half of M11a's [note_sigma] cache. *)
+let derive_tag_sigma (target_t : typ) (label : lab) (actual : typ)
+    : typ ConEnv.t =
+  match promote target_t with
+  | Variant fs ->
+    (match List.find_opt (fun (f : field) -> f.lab = label) fs with
+     | Some f ->
+       let arm_es = existentials_of_binds f.binds in
+       if arm_es = [] then ConEnv.empty
+       else
+         (match unify_existentials f.typ actual arm_es with
+          | Some sigma -> sigma
+          | None -> ConEnv.empty)
+     | None -> ConEnv.empty)
+  | _ -> ConEnv.empty
+
+(* Path A slice 6: derive existential σ for non-variant construction
+   into a top-level existential alias (e.g.,
+   [type Pack = type X in (X, X -> Text)] constructed via
+   [(5, natToText)]).  Reads the alias's existential cons list from
+   [gadt_typd_existentials] (still a side table; gadt_typd
+   migration to structural binds is a future slice), opens the
+   Def's body, unifies with the actual exp typ to recover σ.
+   Replaces the top-level-alias half of M11a's [note_sigma] cache. *)
+let derive_typd_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
+  match target_t with
+  | Con (c, ts) ->
+    let es = lookup_typd_existentials c in
+    if es = [] then ConEnv.empty
+    else
+      (match Cons.kind c with
+       | Def (tbs, body) ->
+         let opened = reduce tbs body ts in
+         (match unify_existentials opened actual es with
+          | Some sigma -> sigma
+          | None -> ConEnv.empty)
+       | _ -> ConEnv.empty)
+  | _ -> ConEnv.empty

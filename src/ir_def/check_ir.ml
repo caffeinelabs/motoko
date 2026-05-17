@@ -414,13 +414,25 @@ let rec check_exp env (exp:Ir.exp) : unit =
       raise e)
 *)
   in
-  (* M11a: σ-refine the expected ambient type before construction-side
-     sub-checks (CallPrim / TupPrim / TagPrim / BlockE). σ lives on
-     the exp's note. *)
-  let refine_target t =
-    match exp.note.Note.gadt_sigma with
-    | Some sigma -> T.subst sigma (T.promote t)
-    | None -> t
+  (* Path A slice 6: σ-refine the expected ambient type before
+     construction-side sub-checks.  Variant-arm σ (TagPrim) is
+     derived structurally via [derive_tag_sigma].  Top-level
+     existential alias σ (TupPrim / ObjPrim / …) still reads
+     [exp.note.note_sigma] — typing's [gadt_check_typd_existentials]
+     stamps it because desugar walks the note expecting the opened
+     structural body, not the Con form, so path_compress can't
+     preserve enough info here.  Full migration awaits a desugar
+     audit (separate refactor). *)
+  let refine_target ?(tag_info : (T.lab * T.typ) option = None) t =
+    let sigma = match tag_info with
+      | Some (lab, actual) -> T.derive_tag_sigma t lab actual
+      | None ->
+        (match exp.note.Note.gadt_sigma with
+         | Some s -> s
+         | None -> T.ConEnv.empty)
+    in
+    if T.ConEnv.is_empty sigma then t
+    else T.subst sigma (T.promote t)
   in
   (* check for aliasing *)
   if exp.note.Note.check_run = env.check_run
@@ -507,7 +519,8 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | OptPrim, [exp1] ->
       T.Opt (typ exp1) <: t
     | TagPrim i, [exp1] ->
-      T.Variant [{T.lab = i; binds = []; typ = typ exp1; src = T.empty_src}] <: refine_target t
+      T.Variant [{T.lab = i; binds = []; typ = typ exp1; src = T.empty_src}]
+        <: refine_target ~tag_info:(Some (i, typ exp1)) t
     | ActorDotPrim n, [exp1]
     | DotPrim n, [exp1] ->
       begin
