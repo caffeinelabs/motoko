@@ -44,3 +44,27 @@ let orig3 : Expr<Bool> = #bool false;
 let trip3 = roundtrip orig3;
 assert eval orig3 == eval trip3;
 assert eval trip3 == false;
+
+// let-else mirror of `roundtrip`: refutable pattern with explicit
+// fallback. Path B's fresh-skolem mint at TagP must fire here too;
+// the re-pack `#eq (cmp, x, y)` lands back at Expr<Bool> with the
+// destructured skolem as the new witness.
+func roundtripLetElse(e : Expr<Bool>) : Expr<Bool> {
+  let #eq (cmp, x, y) = e else {
+    let #bool b = e else { return e };
+    return #bool b
+  };
+  #eq (cmp, x, y)
+};
+
+let trip1_le = roundtripLetElse orig1;
+assert eval orig1 == eval trip1_le;
+assert eval trip1_le == true;
+
+let trip2_le = roundtripLetElse orig2;
+assert eval orig2 == eval trip2_le;
+assert eval trip2_le == true;
+
+let trip3_le = roundtripLetElse orig3;
+assert eval orig3 == eval trip3_le;
+assert eval trip3_le == false;

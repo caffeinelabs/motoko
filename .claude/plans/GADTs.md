@@ -1007,8 +1007,47 @@ machinery (br_table or linear) operates on tags as before.
       **Future refactor — path A (deferred).** First-class
       `(bind list, typ_with_Vars)` on variant arm fields. Same
       semantics as path B, cleaner internals (mirror of `Func`'s
-      binders). Documented to revisit later when the typ-rep
-      churn budget is available.
+      binders).
+
+      **Scope audit (2026-05-17).** Wider than a single session;
+      needs a dedicated branch with explicit checkpoints. Three
+      rep options for plumbing `binds` onto variant arms:
+      1. Add `binds` to `gen_field` itself — affects all 93
+         field-record-literal sites tree-wide (shared by Obj +
+         Variant; Obj gets always-empty `binds`).
+      2. New `variant_field` record, `Variant of variant_field
+         list` — ~30 Variant constructor/walker sites across
+         type.ml + downstream (typing.ml, idl_to_mo, show.ml,
+         die.ml, check_ir.ml, arrange_type.ml).
+      3. Encode binds as `Func(_, _, binds, [], [payload])` on
+         the arm — minimum rep change, semantically hacky.
+
+      Plus ~10 type.ml walker sites need binder discipline
+      mirrored from Func (compare/shift/subst/open/sub/
+      free_cons/prune_gadt_variant). Templates already exist at
+      type.ml:255, 459, 516, 570 (Func's bind handling).
+
+      **The win**: eliminates `gadt_arm_existentials`,
+      `gadt_arm_constraints`, the global `gadt_existential_set`,
+      and the `is_gadt_existential` predicate. The escape check
+      at check_ir.ml:210 and the shallow-cons filters at
+      check_ir.ml:1161 / typing.ml:3220, 4198 currently
+      exception-list registered existentials; with binds
+      properly scoped by their arm, normal scope rules handle it
+      and these special cases go away.
+
+      **Out of scope for Path A**: `gadt_typd_existentials`
+      (keyed by con, not arm — needs binds-on-Def-kind, separate
+      refactor), `gadt_refinement_at` (destructure-pat σ,
+      orthogonal), `gadt_fresh_skolems` (per-region memo, needs
+      structural pat-node carrier).
+
+      Suggested branch sequencing (`gabor/gadt-path-a` off
+      `gabor/gadt`): rep slice → walker slice → producer slice
+      (parallel side-table writes for safety) → consumer slice
+      (structural reads) → cleanup slice (drop tables). Each
+      slice individually regression-green; rolling back mid-way
+      must leave the tree green.
 
 - [ ] **Skolem→Any subsumption — open soundness gap (M13 candidate).**
       `test/fail/gadt-existential-leak-poly.mo` currently

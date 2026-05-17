@@ -20,3 +20,14 @@ let e : Expr<Bool> = #bool false;
 let e2 = id_expr e;
 let b : Bool = switch e2 { case (#bool b) b };
 assert b == false;
+
+// let-else mirror of `id_expr`: dissect via refutable let-else,
+// re-construct from the binding. Must land back at Expr<Bool>.
+func id_expr_le(e : Expr<Bool>) : Expr<Bool> {
+  let #bool b = e else { return e };
+  #bool b
+};
+
+let e3 = id_expr_le e;
+let b2 : Bool = switch e3 { case (#bool b) b };
+assert b2 == false;

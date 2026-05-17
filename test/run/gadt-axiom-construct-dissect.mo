@@ -16,3 +16,20 @@ assert n == 42;
 let e_bool : Expr<Bool> = #bool true;
 let b : Bool = switch e_bool { case (#bool y) y };
 assert b == true;
+
+// let-else mirror: the refutable form must dissect via the same
+// refinement path. `#int y` is statically pruned by M5 from
+// Expr<Bool>, so the else clause covers only the type-system
+// "shouldn't-happen" — useful as a soundness witness even if
+// unreachable at runtime.
+let bool_le : Bool = do {
+  let #bool y = e_bool else { assert false; loop () };
+  y
+};
+assert bool_le == true;
+
+let int_le : Nat = do {
+  let #int x = e_int else { assert false; loop () };
+  x
+};
+assert int_le == 42;
