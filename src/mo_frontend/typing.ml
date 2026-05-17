@@ -3332,14 +3332,14 @@ and check_exp_field env (ef : exp_field) fts =
   in
   let ft_opt = List.find_opt (fun ft -> ft.T.lab = id.it) fts in
   match ft_opt with
-  | Some { T.lab = _; binds = _; typ = T.Mut t; src } ->
+  | Some T.{ typ = T.Mut t; src; _ } ->
     if mut.it <> Syntax.Var then
       error env ef.at "M0149" "expected mutable 'var' field %s of type%a\nbut found immutable field (insert 'var'?)"
         id.it
         display_typ t;
     update_srcs src;
     check_exp env t exp
-  | Some { T.lab = _; binds = _; typ = t; src } ->
+  | Some T.{ typ = t; src; _ } ->
     if mut.it = Syntax.Var then
       error env ef.at "M0150" "expected immutable field %s of type%a\nbut found mutable 'var' field (delete 'var'?)"
         id.it
@@ -4326,7 +4326,7 @@ and check_pat_fields env t fs pfs ve at : Scope.val_env =
           "object field %s is not contained in expected type%a"
           id.it
           display_typ_expand t
-    | Lib.Both(T.{ lab; binds = _; typ; src }, (id, pat, pf)) ->
+    | Lib.Both(T.{ lab; typ; src; _ }, (id, pat, pf)) ->
       last_field := lab;
       if T.is_mut typ then
         error env pf.at "M0120" "cannot pattern match mutable field %s" lab;
@@ -4403,7 +4403,7 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   (* Collect types in nested patterns *)
   let te = Lib.List.align cmp fs val_pfs |>
     Seq.fold_left (fun te -> function
-      | Lib.Both(T.{ lab; binds = _; typ; src }, (_, p)) ->
+      | Lib.Both(T.{ lab; typ; src; _ }, (_, p)) ->
         let te1 = check_pat_typ_dec env typ p in
         disjoint_union env at "M0017" "duplicate type binding for %s in pattern" te te1
       | _ -> te) te in
@@ -4411,7 +4411,7 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   let last_field = ref "" in
   Lib.List.align cmp tfs typ_pfs |>
     Seq.fold_left (fun te -> function
-      | Lib.Both(T.{ lab; binds = _; typ; src }, (id, at)) ->
+      | Lib.Both(T.{ lab; typ; src; _ }, (id, at)) ->
         if !last_field = id.it then
           error env at "M0121" "duplicate type field %s in object pattern" id.it
         else
@@ -4873,7 +4873,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
     check_ids env "pre actor type" "stable variable" pre_ids;
     (* Reject any fields in range not in post signature (unintended data loss) *)
     let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
-    List.iter (fun T.{lab; binds = _; typ; src} ->
+    List.iter (fun T.{lab; typ; src; _} ->
       match T.lookup_val_field_opt lab stab_tfs with
       | Some _ -> ()
       | None ->
@@ -4886,7 +4886,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
       rng_tfs;
     (* Warn about any field in domain, not in range, and declared stable in actor *)
     (* This may indicate unintentional data loss. *)
-    List.iter (fun T.{lab; binds = _; typ; src} ->
+    List.iter (fun T.{lab; typ; src; _} ->
       match T.lookup_val_field_opt lab rng_tfs with
       | Some _ -> ()
       | None ->

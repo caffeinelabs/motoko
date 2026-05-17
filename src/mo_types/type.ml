@@ -830,7 +830,7 @@ and cons_con' inTyp c cs =
 and cons_bind inTyp tb cs =
   cons' inTyp tb.bound cs
 
-and cons_field inTyp {lab = _; binds; typ; src = _} cs =
+and cons_field inTyp {binds; typ; _} cs =
   let cs = List.fold_right (cons_bind inTyp) binds cs in
   cons' inTyp typ cs
 
@@ -2259,25 +2259,25 @@ and pp_con' vs ppf c =
   let op, sbs, st = pps_of_kind' vs (Cons.kind c) in
   fprintf ppf "@[<1>type %s%a %s@ %a@]" (Cons.name c) sbs () op st ()
 
-and pp_field vs ppf {lab; binds = _; typ; src = _} =
+and pp_field vs ppf {lab; typ; _} =
   match typ with
   | Mut t' ->
     fprintf ppf "@[<2>var %s :@ %a@]" lab (pp_typ' vs) t'
   | _ ->
     fprintf ppf "@[<2>%s :@ %a@]" lab (pp_typ' vs) typ
 
-and pp_typ_field vs ppf {lab; binds = _; typ = c; src = _} =
+and pp_typ_field vs ppf {lab; typ = c; _} =
   let op, sbs, st = pps_of_kind' vs (Cons.kind c) in
   fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
 
-and pp_stab_field vs ppf {lab; binds = _; typ; src = _} =
+and pp_stab_field vs ppf {lab; typ; _} =
   match typ with
   | Mut t' ->
     fprintf ppf "@[<2>stable var %s :@ %a@]" lab (pp_typ' vs) t'
   | _ ->
     fprintf ppf "@[<2>stable %s :@ %a@]" lab (pp_typ' vs) typ
 
-and pp_pre_stab_field vs ppf (required, {lab; binds = _; typ; src = _}) =
+and pp_pre_stab_field vs ppf (required, {lab; typ; _}) =
   let req = if required then "in" else "stable" in
   match typ with
   | Mut t' ->
@@ -2346,7 +2346,7 @@ and pp_kind ppf k =
   let vs = vs_of_cs cs in
   pp_kind' vs ppf k
 
-and pp_mig_field vs ppf {lab; binds = _; typ; src = _} =
+and pp_mig_field vs ppf {lab; typ; _} =
     let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
     fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 

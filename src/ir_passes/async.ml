@@ -240,7 +240,7 @@ let transform prog =
     let t_bind (b : T.bind) = T.{ b with bound = t_typ b.bound } in
     { lab; binds = List.map t_bind binds; typ = t_typ typ; src }
 
-  and t_typ_field {lab; binds = _; typ; src} =
+  and t_typ_field {lab; typ; src; _} =
     { lab; binds = []; typ = t_con typ; src }
   in
 
