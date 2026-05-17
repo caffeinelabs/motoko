@@ -2738,19 +2738,42 @@ let register_gadt_arm_existentials c lab es =
 
 (* is_gadt_existential hoisted earlier (see comment above) *)
 
-(* M11b — fresh-per-site existential skolems. Cache by (destructure
-   site region × schema cons) so multi-pass typing returns the same
-   cons on subsequent invocations. *)
-let gadt_fresh_skolems : con RegConHash.t = RegConHash.create 16
+(* M11b — fresh-per-site existential skolems. Each typing pass installs
+   its own pool via `with_skolem_pool`; calls to
+   `fresh_destructure_skolem` route through the OCaml-5 effect
+   handler, which memoises by (destructure-site region × schema cons)
+   so multi-pass typing returns the same cons on subsequent
+   invocations. Pool dies with the handler frame — no cross-session
+   leakage, unlike the global table this replaced.
+
+   Future: when stamp generation becomes deterministic (encode
+   (region, schema_stamp) into the cons.scope string), the memo
+   becomes redundant and this handler can be deleted. The deferred
+   refactor is the principled destination; the handler is the
+   convenience step that gets us scoped lifetimes today. *)
+type _ Effect.t += Fresh_skolem : Source.region * con -> con Effect.t
 
 let fresh_destructure_skolem reg c_schema =
-  match RegConHash.find_opt gadt_fresh_skolems (reg, c_schema) with
-  | Some c_site -> c_site
-  | None ->
-    let c_site = Cons.fresh (Cons.name c_schema) (Abs ([], Any)) in
-    RegConHash.replace gadt_fresh_skolems (reg, c_schema) c_site;
-    gadt_existential_set := ConSet.add c_site !gadt_existential_set;
-    c_site
+  Effect.perform (Fresh_skolem (reg, c_schema))
+
+let with_skolem_pool (f : unit -> 'a) : 'a =
+  let pool : con RegConHash.t = RegConHash.create 16 in
+  let open Effect.Deep in
+  try_with f ()
+    { effc = fun (type b) (eff : b Effect.t) ->
+        match eff with
+        | Fresh_skolem (reg, c_schema) ->
+          Some (fun (k : (b, _) continuation) ->
+            let c_site = match RegConHash.find_opt pool (reg, c_schema) with
+              | Some s -> s
+              | None ->
+                let s = Cons.fresh (Cons.name c_schema) (Abs ([], Any)) in
+                RegConHash.replace pool (reg, c_schema) s;
+                gadt_existential_set := ConSet.add s !gadt_existential_set;
+                s
+            in
+            continue k c_site)
+        | _ -> None }
 
 (* True iff [t] mentions a registered GADT existential cons anywhere.
    Black-hole detection: a type that carries a hidden type variable
@@ -2828,7 +2851,12 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
   let migrate_existentials () =
     let xs = ConLabHash.fold (fun (c, lab) es acc -> (c, lab, es) :: acc) gadt_arm_existentials [] in
     ConLabHash.clear gadt_arm_existentials;
-    let new_set = ref ConSet.empty in
+    (* Seed the new set by renaming every entry in the old one — this
+       preserves fresh destructure skolems (minted by `with_skolem_pool`'s
+       handler) which are in the set but not in any side table. *)
+    let new_set = ref (ConSet.fold
+      (fun c acc -> ConSet.add (rename_con c) acc)
+      !gadt_existential_set ConSet.empty) in
     List.iter (fun (c, lab, es) ->
       let es' = List.map rename_con es in
       List.iter (fun e -> new_set := ConSet.add e !new_set) es';
@@ -2845,16 +2873,10 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
       ConHash.replace gadt_typd_existentials (rename_con c) es'
     ) xs
   in
-  let migrate_fresh_skolems () =
-    let xs = RegConHash.fold (fun (reg, c) v acc -> (reg, c, v) :: acc) gadt_fresh_skolems [] in
-    RegConHash.clear gadt_fresh_skolems;
-    List.iter (fun (reg, c_schema, c_site) ->
-      let c_schema' = rename_con c_schema in
-      let c_site' = rename_con c_site in
-      gadt_existential_set := ConSet.add c_site' !gadt_existential_set;
-      RegConHash.replace gadt_fresh_skolems (reg, c_schema') c_site'
-    ) xs
-  in
+  (* migrate_fresh_skolems removed — gadt_fresh_skolems is now a
+     handler-local pool (with_skolem_pool in type.ml). Cons-renaming
+     passes that run AFTER the pool's handler frame has exited see
+     only the cons baked into AST nodes; the pool itself is gone. *)
   let migrate_refinement_at () =
     let xs = Hashtbl.fold (fun reg sigma acc -> (reg, sigma) :: acc) gadt_refinement_at [] in
     Hashtbl.clear gadt_refinement_at;
@@ -2868,7 +2890,6 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
   migrate_constraints ();
   migrate_existentials ();
   migrate_typd_existentials ();
-  migrate_fresh_skolems ();
   migrate_refinement_at ()
 
 (* Structural matcher: walk [expected] and [actual] in parallel; where

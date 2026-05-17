@@ -433,6 +433,17 @@ val register_typd_existentials : con -> con list -> unit
 val lookup_typd_existentials : con -> con list
 val is_gadt_existential : con -> bool
 val fresh_destructure_skolem : Source.region -> con -> con
+(** Mint (or recall, within a `with_skolem_pool` handler frame) the
+    site-local skolem cons for a destructure-site region paired with a
+    schema existential. MUST be called from within `with_skolem_pool`;
+    otherwise the underlying [Fresh_skolem] effect goes unhandled. *)
+
+val with_skolem_pool : (unit -> 'a) -> 'a
+(** Install a per-handler memoisation pool for the [Fresh_skolem]
+    effect performed by [fresh_destructure_skolem]. The pool dies when
+    [f ()] returns; nested calls give nested pools. Typing passes wrap
+    their entry point with this so the pool's lifetime is bounded by
+    the pass. *)
 val mentions_blackhole : typ -> bool
 val register_refinement_at : Source.region -> typ ConEnv.t -> unit
 val lookup_refinement_at : Source.region -> typ ConEnv.t option

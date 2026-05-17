@@ -930,6 +930,42 @@ machinery (br_table or linear) operates on tags as before.
       slice individually regression-green; rolling back mid-way
       must leave the tree green.
 
+- [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
+      First side-table retired via a scoped handler rather than a
+      structural representation change. `fresh_destructure_skolem`
+      now performs a `Fresh_skolem` effect; `with_skolem_pool`
+      installs a per-handler memo table that dies with the handler
+      frame. `Typing.infer_prog` wraps its body so each typing pass
+      has its own pool — VSCode-extension / playground recompile
+      flows can't pick up a previous pass's stamps.
+
+      Knock-on: `migrate_existentials` in `rewrite_gadt_side_tables`
+      now seeds the new `gadt_existential_set` by renaming every
+      entry of the old set (rather than rebuilding only from
+      `gadt_arm_existentials`), so fresh skolems minted by the pool
+      survive cons-renaming passes (`async.ml`, `erase_typ_field.ml`)
+      even though their source table no longer exists.
+
+      **Future cleanup: deterministic stamping makes the handler
+      redundant.** If skolem cons identity is encoded as a structural
+      function of `(pat.at, schema_cons.stamp)` — e.g. the scope
+      string `$skolem:<region>:<schema-stamp>` plus a tag — then
+      `Cons.compare` will treat re-minted cons as equal *by
+      construction*, no memo needed. Pros: deletes the handler + ~30
+      lines net, no effect-tracking discipline at callsites. Cons:
+      partitions the stamp space (counter-driven stamps vs
+      deterministic skolem stamps) and overloads `Cons.t.stamp.scope`
+      with a second meaning (currently filename / module-name only,
+      would need either a sum-typed scope or a documented prefix
+      convention). Path A's binders-on-arms refactor doesn't subsume
+      this — fresh-cons stable-identity is orthogonal to where arm
+      binders live.
+
+      First-time use of OCaml-5 effects on the `gabor/gadt` branch
+      (effects are used on `gabor/variant-switch` for the dispatch
+      protocol). Sets a precedent other side-table refactors can
+      follow.
+
 - [ ] **Skolem→Any subsumption — open soundness gap (M13 candidate).**
       `test/fail/gadt-existential-leak-poly.mo` currently
       type-checks cleanly with no diagnostic. Two `#pack` arms in

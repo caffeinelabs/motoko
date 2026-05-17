@@ -5799,6 +5799,10 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     fun f y -> recover_with (Some (T.unit, Scope.empty)) (fun y -> Some (f y)) y;
     else recover_opt;
   in
+  (* Install per-typing-pass skolem pool. Replaces the global
+     `gadt_fresh_skolems` table — fresh-cons memo now dies with this
+     handler frame, no cross-session leakage. *)
+  T.with_skolem_pool (fun () ->
   Diag.with_message_store ~allow_errors:enable_type_recovery
     (fun msgs ->
       recovery_fn
@@ -5816,7 +5820,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
           t, {sscope with Scope.fld_src_env}
         ) prog
-    )
+    ))
 
 let is_actor_dec d =
   match d.it with
