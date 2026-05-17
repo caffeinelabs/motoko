@@ -786,18 +786,19 @@ let rec check_exp env (exp:Ir.exp) : unit =
     typ exp3 <: t
   | SwitchE (exp1, cases) ->
     check_exp env exp1;
-    let t1 = T.promote (typ exp1) in
+    let t1_raw = typ exp1 in
+    let t1 = T.promote t1_raw in
 (*    if not env.pre then
       if not (Coverage.check_cases env.cons cases t1) then
         warn env exp.at "the cases in this switch do not cover all possible values";
  *)
-    check_cases env t1 t cases
+    check_cases env ~t_pat_raw:t1_raw t1 t cases
   | TryE (exp1, cases, vt) ->
     check env.flavor.has_await "try in non-await flavor";
     check (env.async <> None) "misplaced try";
     check_exp env exp1;
     typ exp1 <: t;
-    check_cases env T.catch t cases;
+    check_cases env ~t_pat_raw:T.catch T.catch t cases;
     Option.iter (fun (_, t) -> t <: Construct.bail_contT) vt
   | LoopE exp1 ->
     check_exp { env with lvl = NotTopLvl } exp1;
@@ -1010,14 +1011,29 @@ and check_lexp env (lexp:Ir.lexp) : unit =
 
 (* Cases *)
 
-and check_cases env t_pat t cases =
-  List.iter (check_case env t_pat t) cases
+and check_cases env ~t_pat_raw t_pat t cases =
+  List.iter (check_case env ~t_pat_raw t_pat t) cases
 
-and check_case env t_pat t {it = {pat; exp; gadt_sigma}; _} =
+and check_case env ~t_pat_raw t_pat t {it = {pat; exp; gadt_sigma}; _} =
   let ve = check_pat env pat in
   check_sub env pat.at t_pat pat.note;
-  (* M11a: σ lives on the case node. *)
-  let t', ve' = match gadt_sigma with
+  (* Path A slice 6: prefer derived σ from (t_pat, arm label) over
+     the M11a cache.  Fall back to the cache while we verify
+     equivalence on the regression suite — once green this branch
+     and the [gadt_sigma] field both go away (patch -R M11a). *)
+  let label_opt = match pat.it with
+    | Ir.TagP (lab, _) -> Some lab
+    | _ -> None
+  in
+  let derived = match label_opt with
+    | Some lab -> T.derive_case_sigma t_pat_raw lab
+    | None -> T.ConEnv.empty
+  in
+  let sigma_opt =
+    if T.ConEnv.is_empty derived then gadt_sigma
+    else Some derived
+  in
+  let t', ve' = match sigma_opt with
     | Some sigma ->
       T.subst sigma t,
       T.Env.map (fun vi -> { vi with typ = T.subst sigma vi.typ }) ve

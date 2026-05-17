@@ -682,6 +682,27 @@ let rec normalize = function
   | Named (_, t) -> normalize t
   | t -> t
 
+(* Path A slice 6: a Con is "GADT-bearing" if its Def body is a
+   Variant with at least one arm carrying structural [binds]
+   (existentials or refinements).  Used by [path_compress] to
+   decide whether to preserve the outer Con form. *)
+let is_gadt_con c =
+  match Cons.kind c with
+  | Def (_, Variant fs) -> List.exists (fun (f : field) -> f.binds <> []) fs
+  | _ -> false
+
+(* Like [normalize] but preserves the outer [Con(c, ts)] form for
+   GADT-bearing cons so IR's σ derivation in [check_case] can
+   recover the slot context (which arm's refinement RHS substitutes
+   for which outer cons).  Non-GADT cons (regular type aliases) and
+   non-Con typs fall through to full [normalize] — backward
+   compatibility with downstream consumers that expect the opened
+   structural form. *)
+let path_compress t =
+  match t with
+  | Con (con, _) when is_gadt_con con -> t
+  | _ -> normalize t
+
 let rec promote = function
   | Con (con, ts) ->
     let Def (tbs, t) | Abs (tbs, t) = Cons.kind con
@@ -2946,6 +2967,35 @@ let arm_refinements c lab =
         | Some f -> refinements_of_binds f.binds
         | None -> [])
      | _ -> [])
+
+(* Path A slice 6: derive refinement σ on demand from a scrutinee
+   variant typ and an arm label.  Replaces the M11a case'.gadt_sigma
+   cache: σ is a pure function of (t_pat, label).
+
+   For each refinement [(vname, rhs_t)] on the arm, locate vname in
+   the outer Def's tbs (it must be an outer type-parameter of the
+   variant), grab the corresponding slot from ts (the type-args at
+   the use site), and σ maps that slot's cons to rhs_t.  Mirrors
+   [gadt_sigma_for_case] in typing.ml, reading structurally. *)
+let derive_case_sigma (t_pat : typ) (label : lab) : typ ConEnv.t =
+  match t_pat with
+  | Con (c, ts) ->
+    let arm_cs = arm_refinements c label in
+    if arm_cs = [] then ConEnv.empty
+    else
+      (match Cons.kind c with
+       | Def (tbs, _) ->
+         List.fold_left (fun sigma (vname, rhs_t) ->
+           let indexed = List.mapi (fun i (tb : bind) -> (i, tb)) tbs in
+           match List.find_opt (fun (_, tb) -> tb.var = vname) indexed with
+           | Some (i, _) when i < List.length ts ->
+             (match List.nth ts i with
+              | Con (c_slot, []) -> ConEnv.add c_slot rhs_t sigma
+              | _ -> sigma)
+           | _ -> sigma
+         ) ConEnv.empty arm_cs
+       | _ -> ConEnv.empty)
+  | _ -> ConEnv.empty
 
 let register_typd_existentials c es =
   if es <> [] then begin

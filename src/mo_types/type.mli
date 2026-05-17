@@ -231,6 +231,11 @@ module S : Set.S with type elt = typ
 val normalize : typ -> typ
 val promote : typ -> typ
 
+(** Path A slice 6: like [normalize] but stops at the last [Con] —
+    keeps the outer-Con context on [exp.note.note_typ] so IR's σ
+    derivation can recover the slot info. *)
+val path_compress : typ -> typ
+
 val opaque : typ -> bool
 val concrete : typ -> bool
 
@@ -449,6 +454,13 @@ val arm_existentials : con -> lab -> con list
     pairs — structural counterpart to [lookup_gadt_arm]. *)
 val refinements_of_binds : bind list -> (var * typ) list
 val arm_refinements : con -> lab -> (var * typ) list
+
+(** Path A slice 6: derive refinement σ on demand from a scrutinee
+    variant typ + arm label.  Replaces the M11a case'.gadt_sigma
+    cache — σ is a pure function of these inputs.  Returns
+    [ConEnv.empty] when t_pat isn't a Con-typed variant or the arm
+    has no refinements. *)
+val derive_case_sigma : typ -> lab -> typ ConEnv.t
 val register_typd_existentials : con -> con list -> unit
 val lookup_typd_existentials : con -> con list
 val is_gadt_existential : con -> bool

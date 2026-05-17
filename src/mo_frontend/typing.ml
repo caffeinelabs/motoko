@@ -2194,7 +2194,11 @@ and infer_exp_wrapper inf f env exp : T.typ =
   assert (t <> T.Pre);
   let t' = f t in
   if not env.pre then begin
-    let t'' = T.normalize t' in
+    (* Path A slice 6: use [path_compress] in place of [normalize]
+       so the outer [Con(c, ts)] form survives on the note.  IR's
+       σ derivation in [check_case] needs the slot context to
+       recover the outer-cons → refinement-rhs mapping. *)
+    let t'' = T.path_compress t' in
     assert (t'' <> T.Pre);
     let note_eff = A.infer_effect_exp exp in
     exp.note <- {note_typ = t''; note_eff; note_sigma = None}
