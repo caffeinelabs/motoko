@@ -1040,6 +1040,67 @@ machinery (br_table or linear) operates on tags as before.
         needs case'.gadt_sigma migration to derive on-demand from
         the now-fully-populated arm.binds.
 
+      **Status update (2026-05-18) — Path A slices 1-5 shipped,
+      slice 6 partial, cleanup of dead tables done.**
+
+      - Slices 1-5 fully shipped on `gabor/gadt`.
+      - `gadt_arm_existentials` and `gadt_arm_constraints` side
+        tables retired (`bea205c19`); writers and readers are gone.
+        Surviving registration is a single
+        `List.iter T.register_existential` for the global
+        `gadt_existential_set` (still needed for
+        `is_gadt_existential` at check_ir.ml:210).
+      - Slice 6 partial (`bc5e6a540`): variant-arm σ derives
+        structurally via `derive_case_sigma` from
+        `(t_pat_raw, arm label)`.  Path-compression
+        (`normalize_stop_at is_gadt_con`) preserves outer Con on
+        `exp.note.note_typ` and `pat.note` for GADT-bearing cons,
+        so derivation sees the slot context.
+      - **Top-level alias σ still uses `note_sigma` cache**.
+        Blocker is `typing.ml:3026` —
+        `gadt_check_typd_existentials` writes `T.normalize t` to
+        `note_typ` precisely because desugar / codegen walk the
+        note's structural body (Tup, Obj, Variant) directly, not
+        through Con.  Preserving Con there needs either a wider
+        desugar audit *or* the HKT-style Def-binder extension
+        below.
+
+      **HKT-style Def-binder extension (next slice, not yet
+      started).** Top-level existential aliases should wear their
+      binders structurally on the Def kind, mirroring slice 1's
+      `gen_field+binds` one layer up:
+
+          and kind =
+            | Def of bind list * typ   (* binds can now contain
+                                          [Existential c] entries *)
+            | Abs of bind list * typ
+
+      Bind list already supports `Existential of con` (slice 5).
+      Def becomes
+      `Def([{var="X"; sort=Existential X_cons; bound=Any}], body)`
+      for `type Pack = type X in body`.  Consequences:
+
+      - `gadt_typd_existentials` side table becomes redundant —
+        the existentials live structurally on the Def kind.
+      - `is_gadt_con` becomes a pure structural test on the Def's
+        binders (no `lookup_typd_existentials` indirection).
+      - `derive_typd_sigma` reads existentials from
+        `Cons.kind c`'s binders directly — fully structural.
+      - 3-phase elaboration story applies at the Def level too —
+        `augment_def_binds` mirror of `augment_arm_binds`.
+      - Desugar / codegen audits are localized: most consumers
+        destructure `Def (_, body)` and walk `body`, unchanged;
+        only those that explicitly check for an empty bind list
+        need teaching that binders may contain `Existential`.
+
+      With this slice landed, full σ-derivability for both variant
+      arms and top-level aliases is achieved, the `note_sigma`
+      field becomes dead weight, and the M11a slice `patch -R` can
+      complete.
+
+      Tag `WIP-gadt-path-a-variant-derived` at `bc5e6a540` —
+      rollback / continuation anchor for the next session.
+
       **Slice 6+ (out of scope of initial Path A).** Anticipating
       record-field existentials, the same `binds` slot serves Obj
       fields too. No further rep change needed — only syntactic
