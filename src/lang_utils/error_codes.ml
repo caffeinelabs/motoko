@@ -220,6 +220,7 @@ let error_codes : (string * string option) list =
     "M0260", None; (* `and`-pattern binds the same variable in both legs *)
     "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
     "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
+    "M9010", None; (* TEMP — GADT: bare projection on existential-bearing type (renumber on upstream) *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
