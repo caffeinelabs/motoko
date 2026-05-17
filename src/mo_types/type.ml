@@ -1100,6 +1100,7 @@ and explanation =
   | IncompatibleTypes of context * typ * typ
   | IncompatibleCons of context * con * con
   | FailedPromote of typ * typ * explanation
+  | BlackHoleEscape of typ * typ
   | MissingTag of context * desc * lab * typ
   | MissingField of context * desc * lab * typ * bool
   | FewerItems of context * string
@@ -1159,6 +1160,14 @@ struct
   let explanation arg = !(arg.error)
 end
 
+(* GADT existential set — kept here (rather than near its registrators
+   below) so that `rel_typ` can consult it to specialise diagnostics
+   for black-hole witnesses. The actual set + registrators live in
+   the GADT side-tables section further down; only the set ref and
+   the predicate need to be visible to the sub-typing relation. *)
+let gadt_existential_set : ConSet.t ref = ref ConSet.empty
+let is_gadt_existential c = ConSet.mem c !gadt_existential_set
+
 let incompatible_types d t1 t2 =
   RelArg.false_with d (IncompatibleTypes (RelArg.context d, t1, t2))
 
@@ -1172,6 +1181,9 @@ let failed_promote d t1 bound t2 =
     | None -> IncompatibleTypes (RelArg.context d, t1, t2)
   in
   RelArg.false_with d (FailedPromote (t1, bound, inner_explanation))
+
+let black_hole_escape d t1 t2 =
+  RelArg.false_with d (BlackHoleEscape (t1, t2))
 
 let missing_tag d desc lab t =
   RelArg.false_with d (MissingTag (RelArg.context d, desc, lab, t))
@@ -1258,7 +1270,10 @@ let rec rel_typ d rel eq t1 t2 =
       rel_list "type arguments" d eq_typ rel eq ts1 ts2
     | Abs (tbs, t), _ when rel != eq ->
       let bound = open_ ts1 t in
-      rel_typ d rel eq bound t2 || failed_promote d t1 bound t2
+      rel_typ d rel eq bound t2 ||
+      (if is_gadt_existential con1
+       then black_hole_escape d t1 t2
+       else failed_promote d t1 bound t2)
     | _ ->
       incompatible_types d t1 t2
     )
@@ -1268,7 +1283,10 @@ let rec rel_typ d rel eq t1 t2 =
       rel_typ d rel eq (open_ ts1 t) t2
     | Abs (tbs, t), _ when rel != eq ->
       let bound = open_ ts1 t in
-      rel_typ d rel eq bound t2 || failed_promote d t1 bound t2
+      rel_typ d rel eq bound t2 ||
+      (if is_gadt_existential con1
+       then black_hole_escape d t1 t2
+       else failed_promote d t1 bound t2)
     | _ -> incompatible_types d t1 t2
     )
   | t1, Con (con2, ts2) ->
@@ -2458,6 +2476,8 @@ let rec string_of_explanation explanation =
     Format.asprintf "the type %a\n is not compatible with type %a%s" display_con c1 display_con c2 (string_of_context "in" context)
   | FailedPromote (t1, bound, inner_explanation) ->
     Format.asprintf "type variable %a\n was promoted to its bound %a\n and %s" display_typ t1 display_typ bound (string_of_explanation inner_explanation)
+  | BlackHoleEscape (t1, t2) ->
+    Format.asprintf "black-hole witness %a\n (from a `type X` existential arm) cannot escape its case scope to satisfy %a" display_typ t1 display_typ t2
   | MissingTag (context, desc, lab, t) ->
     Format.asprintf "%scase `#%s` is missing from %stype %a%s" (string_of_desc desc) lab (string_of_desc (flip desc)) display_typ t (string_of_context "of" context)
   | MissingField (context, desc, lab, t, is_typ) ->
@@ -2703,7 +2723,9 @@ end)
 let gadt_arm_constraints : (var * typ) list ConLabHash.t = ConLabHash.create 16
 let gadt_arm_existentials : con list ConLabHash.t = ConLabHash.create 16
 let gadt_typd_existentials : con list ConHash.t = ConHash.create 16
-let gadt_existential_set : ConSet.t ref = ref ConSet.empty
+(* gadt_existential_set + is_gadt_existential are hoisted earlier in
+   the file so `rel_typ` can consult the predicate for black-hole
+   diagnostics. *)
 
 let register_gadt_arm c lab cs =
   if cs <> [] then ConLabHash.replace gadt_arm_constraints (c, lab) cs
@@ -2714,7 +2736,7 @@ let register_gadt_arm_existentials c lab es =
     List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es
   end
 
-let is_gadt_existential c = ConSet.mem c !gadt_existential_set
+(* is_gadt_existential hoisted earlier (see comment above) *)
 
 (* M11b — fresh-per-site existential skolems. Cache by (destructure
    site region × schema cons) so multi-pass typing returns the same

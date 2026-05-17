@@ -261,6 +261,7 @@ and explanation =
   | IncompatibleTypes of context * typ * typ
   | IncompatibleCons of context * con * con
   | FailedPromote of typ * typ * explanation
+  | BlackHoleEscape of typ * typ
   | MissingTag of context * desc * lab * typ
   | MissingField of context * desc * lab * typ * bool
   | FewerItems of context * string

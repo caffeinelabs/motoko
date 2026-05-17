@@ -2,11 +2,7 @@ gadt-existential-leak-same-value.mo:18.39-18.40: type error [M0096], expression 
   X
 cannot produce expected type
   X
-because type variable 
+because black-hole witness 
   X
- was promoted to its bound 
-  Any
- and the type 
-  Any
- is not compatible with type 
+ (from a `type X` existential arm) cannot escape its case scope to satisfy 
   X

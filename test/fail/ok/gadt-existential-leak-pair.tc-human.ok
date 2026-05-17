@@ -2,13 +2,9 @@ error[M0096]: expression of type
   X
 cannot produce expected type
   Nat
-because type variable 
+because black-hole witness 
   X
- was promoted to its bound 
-  Any
- and the type 
-  Any
- is not compatible with type 
+ (from a `type X` existential arm) cannot escape its case scope to satisfy 
   Nat
     ┌─ gadt-existential-leak-pair.mo:20:28
  20 │     case (#pack different) (different, payload)
