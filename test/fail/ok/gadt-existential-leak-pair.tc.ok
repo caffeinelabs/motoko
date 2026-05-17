@@ -1,0 +1,12 @@
+gadt-existential-leak-pair.mo:20.28-20.37: type error [M0096], expression of type
+  X
+cannot produce expected type
+  Nat
+because type variable 
+  X
+ was promoted to its bound 
+  Any
+ and the type 
+  Any
+ is not compatible with type 
+  Nat
