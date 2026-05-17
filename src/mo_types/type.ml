@@ -70,10 +70,11 @@ and typ =
 
 and scope = typ
 (* [Existential c] carries the schema cons originally minted for an
-   arm/field's `type X` clause.  Consumers recover the cons via
-   pattern-matching on the bind's sort.  Same shape applies to
-   future record-field existentials — not Variant-specific. *)
-and bind_sort = Scope | Type | Existential of con
+   arm/field's `type X` clause.  [Refinement t] carries the RHS of a
+   `type A = T` refinement constraint; the bind's [var] is A.
+   Same shape applies to future record-field existentials/refinements
+   — not Variant-specific. *)
+and bind_sort = Scope | Type | Existential of con | Refinement of typ
 
 and bind = {var : var; sort: bind_sort; bound : typ}
 and src = {depr : string option; track_region : region; region : region}
@@ -183,16 +184,6 @@ let compare_func_sort s1 s2 =
   let d = tag_func_sort s1 - tag_func_sort s2 in
   if d > 0 then 1 else if d < 0 then -1 else 0
 
-let compare_bind_sort s1 s2 =
-  match s1, s2 with
-  | Type, Type
-  | Scope, Scope -> 0
-  | Existential c1, Existential c2 -> Cons.compare c1 c2
-  | Scope, _ -> -1
-  | _, Scope -> 1
-  | Type, _ -> -1
-  | _, Type -> 1
-
 let compare_src s1 s2 =
   match (s1.depr, s2.depr) with
   | None, None -> 0
@@ -200,7 +191,20 @@ let compare_src s1 s2 =
   | None, Some _ -> -1
   | _ -> 1
 
-let rec compare_typ (t1 : typ) (t2 : typ) =
+let rec compare_bind_sort s1 s2 =
+  match s1, s2 with
+  | Type, Type
+  | Scope, Scope -> 0
+  | Existential c1, Existential c2 -> Cons.compare c1 c2
+  | Refinement t1, Refinement t2 -> compare_typ t1 t2
+  | Scope, _ -> -1
+  | _, Scope -> 1
+  | Type, _ -> -1
+  | _, Type -> 1
+  | Existential _, _ -> -1
+  | _, Existential _ -> 1
+
+and compare_typ (t1 : typ) (t2 : typ) =
   if t1 == t2 then 0
   else match (t1, t2) with
   | Prim p1, Prim p2 ->
@@ -2854,6 +2858,15 @@ let existentials_of_binds (bs : bind list) =
     | _ -> None
   ) bs
 
+(* Path A slice 5: refinements [(var, rhs_t)] from [Refinement t]
+   sort.  Counterpart to [lookup_gadt_arm]. *)
+let refinements_of_binds (bs : bind list) =
+  List.filter_map (fun (b : bind) ->
+    match b.sort with
+    | Refinement t -> Some (b.var, t)
+    | _ -> None
+  ) bs
+
 (* Walk a variant-type alias's body for an arm and read its
    structural existentials.  Mirror of [lookup_gadt_arm_existentials]
    without the side-table indirection. *)
@@ -2864,6 +2877,16 @@ let arm_existentials c lab =
      | Variant fs ->
        (match List.find_opt (fun f -> f.lab = lab) fs with
         | Some f -> existentials_of_binds f.binds
+        | None -> [])
+     | _ -> [])
+
+let arm_refinements c lab =
+  match Cons.kind c with
+  | Def (_, body) | Abs (_, body) ->
+    (match body with
+     | Variant fs ->
+       (match List.find_opt (fun f -> f.lab = lab) fs with
+        | Some f -> refinements_of_binds f.binds
         | None -> [])
      | _ -> [])
 

@@ -240,6 +240,7 @@ let transform prog =
     let t_bind (b : T.bind) =
       let sort' = match b.T.sort with
         | T.Existential c -> T.Existential (t_con c)
+        | T.Refinement t -> T.Refinement (t_typ t)
         | T.Type | T.Scope as s -> s
       in
       T.{ b with sort = sort'; bound = t_typ b.bound }

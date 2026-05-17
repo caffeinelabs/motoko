@@ -61,7 +61,7 @@ and typ =
 
 and scope = typ
 
-and bind_sort = Scope | Type | Existential of con
+and bind_sort = Scope | Type | Existential of con | Refinement of typ
 and bind = {var : var; sort: bind_sort; bound : typ}
 
 and src = {depr : string option; track_region : region; region : region}
@@ -435,6 +435,11 @@ val lookup_gadt_arm_existentials : con -> lab -> con list
     counterpart to [lookup_gadt_arm_existentials] (Path A). *)
 val existentials_of_binds : bind list -> con list
 val arm_existentials : con -> lab -> con list
+
+(** Extract `Refinement t` constraints from a bind list as (var, rhs)
+    pairs — structural counterpart to [lookup_gadt_arm]. *)
+val refinements_of_binds : bind list -> (var * typ) list
+val arm_refinements : con -> lab -> (var * typ) list
 val register_typd_existentials : con -> con list -> unit
 val lookup_typd_existentials : con -> con list
 val is_gadt_existential : con -> bool

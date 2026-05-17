@@ -1093,10 +1093,11 @@ and check_typ_tag env typ_tag =
       | Some _ -> ()
     ) constraints;
   Field_sources.add_src env.srcs tag.at;
-  (* Path A slice 2: populate arm.binds structurally for each
-     existential `type X` clause on this arm.  Side-table
-     [gadt_arm_existentials] still authoritative for consumers
-     (slice 3 migrates them). *)
+  (* Path A slice 2: populate arm.binds structurally with existentials
+     ([Existential skolem]).  Refinements (`type A = T`) are stamped
+     in later by the late-pass arm-binder fixup at variant-type
+     registration time (see typing.ml's registration of arm
+     constraints) — rhs.note is only fully elaborated by then. *)
   let binds =
     List.filter_map (fun c ->
       match c.it.refines, c.note with
