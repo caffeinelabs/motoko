@@ -891,17 +891,43 @@ machinery (br_table or linear) operates on tags as before.
       binders).
 
       **Scope audit (2026-05-17).** Wider than a single session;
-      needs a dedicated branch with explicit checkpoints. Three
-      rep options for plumbing `binds` onto variant arms:
-      1. Add `binds` to `gen_field` itself — affects all 93
-         field-record-literal sites tree-wide (shared by Obj +
-         Variant; Obj gets always-empty `binds`).
-      2. New `variant_field` record, `Variant of variant_field
-         list` — ~30 Variant constructor/walker sites across
-         type.ml + downstream (typing.ml, idl_to_mo, show.ml,
-         die.ml, check_ir.ml, arrange_type.ml).
-      3. Encode binds as `Func(_, _, binds, [], [payload])` on
-         the arm — minimum rep change, semantically hacky.
+      needs a dedicated branch with explicit checkpoints.
+
+      **Rep choice (revised after slice-1 attempt 2026-05-17, rolled
+      back at `WIP-gadt-pre-Path-A`):** add `binds : bind list` to
+      `gen_field` itself, so there is one record type used uniformly
+      by Obj fields, Variant arms, and (anticipating) record fields
+      that may themselves grow existentials. Affects all 93
+      field-record-literal sites tree-wide (each one trivial:
+      `{lab; typ; src}` → `{lab; binds=[]; typ; src}`). No
+      disambiguation gymnastics — single record type, single rule.
+
+      **Why not the per-rep-shape variants tried first.** Slice-1
+      attempted a fresh `variant_field` record alongside `field`
+      with shared field names (`lab`, `typ`, `src`). OCaml's record
+      field disambiguation requires explicit type annotations at
+      every ambiguous site (warning 41 treated as error). The
+      annotations cascade across `compare_*`, `align_*`, `inhabited_*`,
+      `singleton_*`, `combine_*`, `rel_*`, plus codegen / IDL / docs
+      / value consumers — a thousands-site noise floor *before*
+      touching producer/consumer logic. Renaming the fields to
+      `arm_lab`/`arm_binds`/`arm_typ`/`arm_src` works but pushes the
+      same churn into every walker that reads them.
+
+      **Anticipated future use — record-field existentials.** Once
+      `gen_field` has `binds`, syntactic extensions like
+      `type Counter = { state : type S in S; tick : S -> S; show : S -> Text }`
+      (Mitchell-Plotkin object encoding) or phantom-tagged record
+      fields fall out as natural uses of the slot — no further rep
+      change. Variant arms and record fields share one mechanism.
+      Doing the rep change once, with this end-state in mind,
+      avoids a second rewrite later.
+
+      **Alternative rep (deferred):** keeping the rep as
+      `Variant of (gen_typ gen_field) list` (closure-in-typ
+      thunks) was tried in the abandoned stash@{0} stage-2; rejected
+      because OCaml's structural compare crashes on values
+      containing closures.
 
       Plus ~10 type.ml walker sites need binder discipline
       mirrored from Func (compare/shift/subst/open/sub/
@@ -923,12 +949,63 @@ machinery (br_table or linear) operates on tags as before.
       orthogonal), `gadt_fresh_skolems` (per-region memo, needs
       structural pat-node carrier).
 
-      Suggested branch sequencing (`gabor/gadt-path-a` off
-      `gabor/gadt`): rep slice → walker slice → producer slice
-      (parallel side-table writes for safety) → consumer slice
-      (structural reads) → cleanup slice (drop tables). Each
-      slice individually regression-green; rolling back mid-way
-      must leave the tree green.
+      **Slice plan (revised for gen_field+binds rep).** No sub-branch
+      needed — work proceeds on `gabor/gadt` with `WIP-gadt-pre-Path-A`
+      as the rollback anchor. Each slice individually
+      regression-green via `test-runner -bf gadt`.
+
+      - **Slice 1 — Rep change.** `gen_field` grows `binds : bind list`.
+        Walker helpers (`shift_field`, `subst_field`, `open_field`,
+        `compare_field`) become binder-aware, mirroring Func's
+        discipline. All 93 field-record-literal sites updated to
+        include `binds = []` — find/replace, no semantic change.
+        Build green, tests green, `binds` is `[]` everywhere.
+      - **Slice 2 — Populate arm.binds at variant arm registration.**
+        At `register_gadt_arm_existentials`'s call site in typing.ml,
+        also write the existentials into the constructed
+        `Variant fs`'s arm `binds` field. Side table
+        `gadt_arm_existentials` still written in parallel. Consumers
+        still read from side table. No behaviour change.
+      - **Slice 3 — Migrate consumers to structural reads.**
+        Replace `lookup_gadt_arm_existentials c lab` with structural
+        reads of the matching arm's `binds`. Sites: typing.ml's
+        Path B TagP fresh-mint (≈4197-4213), `gadt_check_existentials`
+        (2910, 2939), check_ir.ml's escape check (210) and shallow-
+        cons filters (1161). Side table still written but no longer
+        read — confirms the structural data is correct.
+      - **Slice 4 — Drop side-table writes + global predicate.**
+        Remove `register_gadt_arm_existentials` and
+        `register_gadt_arm` writes. Delete the two tables, the
+        global `gadt_existential_set`, `is_gadt_existential`, and
+        `migrate_existentials` in `rewrite_gadt_side_tables`.
+        Escape check at check_ir.ml:210 no longer exception-lists
+        — arm-bound cons appear inside their arm's scope via
+        normal lookup. Refinement constraints
+        (`gadt_arm_constraints`) follow the same path once a
+        future slice migrates them onto the same `binds` slot or a
+        sibling `constraints` field.
+      - **Slice 5 — σ-derivability + cache deletion.**
+        `check_case` and `refine_target` derive σ on demand from
+        `(scrutinee_typ, arm.binds, pat.at)`. Once green: signal to
+        user, who `patch -R`s the M11a slices (`4787726f9`,
+        `a36f15507`, `8201193ab`, `50e965ec9`) to drop the
+        `case'.gadt_sigma` and `note_sigma` caches.
+
+      **Slice 6+ (out of scope of initial Path A).** Anticipating
+      record-field existentials, the same `binds` slot serves Obj
+      fields too. No further rep change needed — only syntactic
+      surface work and typing-side propagation to flow binders into
+      field-level scopes the way they currently flow into arm
+      scopes. Worth keeping in mind during Slice 1's walker design
+      so the binder discipline is uniform (don't special-case the
+      Variant arm; treat any field with non-empty binds the same).
+
+      **Out of scope: `gadt_typd_existentials`** still requires a
+      parallel `binds`-on-`Def`-kind refactor (top-level alias
+      Defs carry binds in `Def of bind list * typ` already — adding
+      a separate "existentials" slot mirrors the same idea but is a
+      distinct surgery). `gadt_refinement_at` retires once both
+      Path A and the Def-side refactor land.
 
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
