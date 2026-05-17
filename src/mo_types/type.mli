@@ -229,11 +229,17 @@ module S : Set.S with type elt = typ
 (* Normalization and Classification *)
 
 val normalize : typ -> typ
+(** [normalize_stop_at p t] unfolds Def kinds and strips Named/Mut
+    wrappers; the predicate [p] (when true for a Con's cons) halts
+    unfolding at that point.  Used by Path A's [path_compress] to
+    preserve GADT-bearing Cons. *)
+val normalize_stop_at : (con -> bool) -> typ -> typ
 val promote : typ -> typ
 
-(** Path A slice 6: like [normalize] but stops at the last [Con] —
-    keeps the outer-Con context on [exp.note.note_typ] so IR's σ
-    derivation can recover the slot info. *)
+(** Path A slice 6: [normalize ~stop_at:is_gadt_con] — keeps the
+    outer-Con context on [exp.note.note_typ] so IR's σ derivation
+    can recover the slot info. *)
+val is_gadt_con : con -> bool
 val path_compress : typ -> typ
 
 val opaque : typ -> bool

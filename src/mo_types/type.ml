@@ -672,36 +672,41 @@ let reduce tbs t ts =
   assert (List.length ts = List.length tbs);
   open_ ts t
 
-let rec normalize = function
+(* [normalize_stop_at stop_at t] is like [normalize] except the
+   predicate [stop_at] (when true for a Con's cons) halts unfolding
+   at that point.  The classic [normalize] is recovered by passing
+   the always-false predicate. *)
+let rec normalize_stop_at stop_at t =
+  match t with
   | Con (con, ts) as t ->
-    (match Cons.kind con with
-    | Def (tbs, t) -> normalize (reduce tbs t ts)
-    | _ -> t
-    )
-  | Mut t -> Mut (normalize t)
-  | Named (_, t) -> normalize t
+    if stop_at con then t
+    else
+      (match Cons.kind con with
+       | Def (tbs, body) -> normalize_stop_at stop_at (reduce tbs body ts)
+       | _ -> t)
+  | Mut t -> Mut (normalize_stop_at stop_at t)
+  | Named (_, t) -> normalize_stop_at stop_at t
   | t -> t
+
+let normalize t = normalize_stop_at (fun _ -> false) t
 
 (* Path A slice 6: a Con is "GADT-bearing" if its Def body is a
    Variant with at least one arm carrying structural [binds]
-   (existentials or refinements).  Used by [path_compress] to
-   decide whether to preserve the outer Con form. *)
+   (existentials or refinements).  Used as a [stop_at] predicate to
+   [normalize] when preserving the outer Con form for σ
+   derivation. *)
 let is_gadt_con c =
   match Cons.kind c with
   | Def (_, Variant fs) -> List.exists (fun (f : field) -> f.binds <> []) fs
   | _ -> false
 
-(* Like [normalize] but preserves the outer [Con(c, ts)] form for
-   GADT-bearing cons so IR's σ derivation in [check_case] can
-   recover the slot context (which arm's refinement RHS substitutes
-   for which outer cons).  Non-GADT cons (regular type aliases) and
-   non-Con typs fall through to full [normalize] — backward
-   compatibility with downstream consumers that expect the opened
-   structural form. *)
-let path_compress t =
-  match t with
-  | Con (con, _) when is_gadt_con con -> t
-  | _ -> normalize t
+(* Like [normalize] but stops unfolding at GADT-bearing cons.
+   Useful for [exp.note.note_typ] so IR's σ derivation in
+   [check_case] can recover the slot context.  Non-GADT cons
+   (regular type aliases) and non-Con typs fall through to full
+   normalization — backward compatible with downstream consumers
+   that expect the opened structural form. *)
+let path_compress t = normalize_stop_at is_gadt_con t
 
 let rec promote = function
   | Con (con, ts) ->
