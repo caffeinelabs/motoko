@@ -5556,23 +5556,17 @@ and infer_dec_typdecs env dec : Scope.t =
                  cstr.it.tv.it
              | _ -> ()
            ) tag.it.constraints;
-         let cs =
-           List.filter_map (fun cstr ->
-             match cstr.it.refines with
-             | Some rhs when List.mem cstr.it.tv.it outer_names ->
-               Some (cstr.it.tv.it, rhs.note)
-             | _ -> None
-           ) tag.it.constraints
-         in
-         let es =
-           List.filter_map (fun cstr ->
-             match cstr.it.refines, cstr.note with
-             | None, Some skolem -> Some skolem
-             | _ -> None
-           ) tag.it.constraints
-         in
-         T.register_gadt_arm c tag.it.tag.it cs;
-         T.register_gadt_arm_existentials c tag.it.tag.it es
+         (* Path A: arm refinements + existentials are written
+            structurally to [arm.binds] by check_typ_tag (slice 2,
+            existentials) and augment_arm_binds (slice 5,
+            refinements).  Here we only need to add existential cons
+            to [gadt_existential_set] so [is_gadt_existential] / the
+            escape check at check_ir.ml:210 keep working. *)
+         List.iter (fun cstr ->
+           match cstr.it.refines, cstr.note with
+           | None, Some skolem -> T.register_existential skolem
+           | _ -> ()
+         ) tag.it.constraints
        ) tags
      | _ -> ());
     (* M10: top-level existentials live on the type's con itself. *)

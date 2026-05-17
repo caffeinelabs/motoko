@@ -2807,21 +2807,14 @@ let string_of_stab_sig stab_sig : string =
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
 
-(* GADT side-tables: per-arm refinement equations + existential skolems.
-   Indexed by (con × arm-label). Populated at type-declaration
-   elaboration; consulted at variant construction & pattern matching. *)
+(* GADT side-tables (legacy).  The per-arm refinement and existential
+   tables ([gadt_arm_constraints], [gadt_arm_existentials]) have been
+   migrated to structural arm.binds via Path A slices 1-5 and are
+   gone.  [gadt_typd_existentials] (top-level alias existentials)
+   and [gadt_existential_set] survive for now — see notes in the
+   plan. *)
 
-(* Cons-aware Hashtbl modules. Default Stdlib Hashtbl uses structural
-   equality on keys; recursive types (e.g. `type List<A> = { ... List<A> ... }`)
-   form cyclic Cons structures that send `=` into an unbounded walk and
-   OOM `Hashtbl.replace_bucket`. The custom modules below use
-   [Cons.eq] (stamp-based) for equality and a name-derived hash. *)
-module ConLabHash = Hashtbl.Make (struct
-  type t = con * lab
-  let equal (c1, l1) (c2, l2) = Cons.eq c1 c2 && l1 = l2
-  let hash (c, l) = Hashtbl.hash (Cons.name c, l)
-end)
-
+(* Cons-aware Hashtbl modules. *)
 module ConHash = Hashtbl.Make (struct
   type t = con
   let equal = Cons.eq
@@ -2834,28 +2827,17 @@ module RegConHash = Hashtbl.Make (struct
   let hash (r, c) = Hashtbl.hash (r, Cons.name c)
 end)
 
-let gadt_arm_constraints : (var * typ) list ConLabHash.t = ConLabHash.create 16
-let gadt_arm_existentials : con list ConLabHash.t = ConLabHash.create 16
 let gadt_typd_existentials : con list ConHash.t = ConHash.create 16
 (* gadt_existential_set + is_gadt_existential are hoisted earlier in
    the file so `rel_typ` can consult the predicate for black-hole
    diagnostics. *)
 
-let register_gadt_arm c lab cs =
-  if cs <> [] then ConLabHash.replace gadt_arm_constraints (c, lab) cs
-
-(* Path A slice 4: register cons as a GADT existential (adds to the
-   global set used by [is_gadt_existential]).  The legacy
-   [register_gadt_arm_existentials] also wrote to the now-unused
-   [gadt_arm_existentials] table — kept as a no-op-on-table forwarder
-   until slice 5 deletes the table. *)
+(* Register cons as a GADT existential (adds to the global set used
+   by [is_gadt_existential]).  Called both from variant-arm
+   elaboration (slice 2's check_typ_tag) and from
+   [fresh_destructure_skolem]. *)
 let register_existential c =
   gadt_existential_set := ConSet.add c !gadt_existential_set
-
-let register_gadt_arm_existentials _c _lab es =
-  List.iter register_existential es
-
-(* is_gadt_existential hoisted earlier (see comment above) *)
 
 (* M11b — fresh-per-site existential skolems. Each typing pass installs
    its own pool via `with_skolem_pool`; calls to
@@ -2920,16 +2902,6 @@ let mentions_blackhole t =
     | Obj (_, fs, _) -> List.exists (fun f -> go f.typ) fs
     | Variant fs -> List.exists (fun f -> go f.typ) fs
   in go t
-
-let lookup_gadt_arm c lab =
-  match ConLabHash.find_opt gadt_arm_constraints (c, lab) with
-  | Some cs -> cs
-  | None -> []
-
-let lookup_gadt_arm_existentials c lab =
-  match ConLabHash.find_opt gadt_arm_existentials (c, lab) with
-  | Some es -> es
-  | None -> []
 
 (* Path A slice 3: structural reads of arm existentials. Extracts
    [Existential c] cons from a bind list — the [Existential] sort
@@ -3030,29 +3002,16 @@ let lookup_refinement_at reg =
    IR passes (e.g. Erase_typ_field) that clone cons; otherwise side-table
    keys/values drift out of sync with the post-transform IR. *)
 let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
-  let migrate_constraints () =
-    let xs = ConLabHash.fold (fun (c, lab) cs acc -> (c, lab, cs) :: acc) gadt_arm_constraints [] in
-    ConLabHash.clear gadt_arm_constraints;
-    List.iter (fun (c, lab, cs) ->
-      let cs' = List.map (fun (v, t) -> (v, rewrite_typ t)) cs in
-      ConLabHash.replace gadt_arm_constraints (rename_con c, lab) cs'
-    ) xs
-  in
-  let migrate_existentials () =
-    let xs = ConLabHash.fold (fun (c, lab) es acc -> (c, lab, es) :: acc) gadt_arm_existentials [] in
-    ConLabHash.clear gadt_arm_existentials;
-    (* Seed the new set by renaming every entry in the old one — this
-       preserves fresh destructure skolems (minted by `with_skolem_pool`'s
-       handler) which are in the set but not in any side table. *)
-    let new_set = ref (ConSet.fold
+  (* Path A: per-arm refinement / existential tables are gone —
+     migrated to structural arm.binds by slices 1-5 and cons-cloned
+     by t_field in async.ml / erase_typ_field.ml.  Rename the
+     surviving global state. *)
+  let migrate_existential_set () =
+    let new_set = ConSet.fold
       (fun c acc -> ConSet.add (rename_con c) acc)
-      !gadt_existential_set ConSet.empty) in
-    List.iter (fun (c, lab, es) ->
-      let es' = List.map rename_con es in
-      List.iter (fun e -> new_set := ConSet.add e !new_set) es';
-      ConLabHash.replace gadt_arm_existentials (rename_con c, lab) es'
-    ) xs;
-    gadt_existential_set := !new_set
+      !gadt_existential_set ConSet.empty
+    in
+    gadt_existential_set := new_set
   in
   let migrate_typd_existentials () =
     let xs = ConHash.fold (fun c es acc -> (c, es) :: acc) gadt_typd_existentials [] in
@@ -3063,10 +3022,6 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
       ConHash.replace gadt_typd_existentials (rename_con c) es'
     ) xs
   in
-  (* migrate_fresh_skolems removed — gadt_fresh_skolems is now a
-     handler-local pool (with_skolem_pool in type.ml). Cons-renaming
-     passes that run AFTER the pool's handler frame has exited see
-     only the cons baked into AST nodes; the pool itself is gone. *)
   let migrate_refinement_at () =
     let xs = Hashtbl.fold (fun reg sigma acc -> (reg, sigma) :: acc) gadt_refinement_at [] in
     Hashtbl.clear gadt_refinement_at;
@@ -3077,8 +3032,7 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
       Hashtbl.replace gadt_refinement_at reg sigma'
     ) xs
   in
-  migrate_constraints ();
-  migrate_existentials ();
+  migrate_existential_set ();
   migrate_typd_existentials ();
   migrate_refinement_at ()
 

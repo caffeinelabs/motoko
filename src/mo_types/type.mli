@@ -444,20 +444,21 @@ module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
 
-(* GADT side-tables *)
-val register_gadt_arm : con -> lab -> (var * typ) list -> unit
-val register_gadt_arm_existentials : con -> lab -> con list -> unit
+(* GADT existential registration.  Per-arm refinement / existential
+   side tables are gone (Path A slices 1-5); arm metadata lives on
+   the variant arm's [binds : bind list].  [register_existential]
+   adds a cons to [gadt_existential_set] for the [is_gadt_existential]
+   predicate. *)
 val register_existential : con -> unit
-val lookup_gadt_arm : con -> lab -> (var * typ) list
-val lookup_gadt_arm_existentials : con -> lab -> con list
 
-(** Extract `Existential c` cons from a bind list — the structural
-    counterpart to [lookup_gadt_arm_existentials] (Path A). *)
+(** Extract `Existential c` cons from a bind list — Path A's
+    structural counterpart to the deleted [lookup_gadt_arm_existentials]. *)
 val existentials_of_binds : bind list -> con list
 val arm_existentials : con -> lab -> con list
 
 (** Extract `Refinement t` constraints from a bind list as (var, rhs)
-    pairs — structural counterpart to [lookup_gadt_arm]. *)
+    pairs — Path A's structural counterpart to the deleted
+    [lookup_gadt_arm]. *)
 val refinements_of_binds : bind list -> (var * typ) list
 val arm_refinements : con -> lab -> (var * typ) list
 
