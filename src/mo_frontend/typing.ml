@@ -5720,7 +5720,6 @@ and infer_dec_valdecs env dec : Scope.t =
            let c_site = T.fresh_destructure_skolem pat.at c_schema in
            T.ConEnv.add c_schema (T.Con (c_site, [])) s
          ) T.ConEnv.empty es in
-         T.register_refinement_at pat.at sigma;
          T.subst sigma (T.normalize t0)
        | _ -> t0
      in

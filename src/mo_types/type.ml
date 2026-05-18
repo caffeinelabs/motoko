@@ -3014,46 +3014,15 @@ let () = is_gadt_con_ref := (fun c ->
   | Def (tbs, _) -> has_existential_bind tbs
   | _ -> false)
 
-(* GADT refinement, indexed by source region of an AST node.
-   Registered by surface typechecker (cases applying refinement, TagE applying
-   existential-witness substitution); consulted by the IR type-checker to
-   refine an expected type before subtype check. *)
-let gadt_refinement_at : (Source.region, typ ConEnv.t) Hashtbl.t = Hashtbl.create 16
-
-let register_refinement_at reg sigma =
-  if not (ConEnv.is_empty sigma) then
-    Hashtbl.replace gadt_refinement_at reg sigma
-
-let lookup_refinement_at reg =
-  Hashtbl.find_opt gadt_refinement_at reg
-
-(* Apply a cons-renaming + type-rewrite to all GADT side-tables. Called by
-   IR passes (e.g. Erase_typ_field) that clone cons; otherwise side-table
-   keys/values drift out of sync with the post-transform IR. *)
-let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
-  (* Path A: per-arm refinement / existential tables are gone —
-     migrated to structural arm.binds by slices 1-5 and cons-cloned
-     by t_field in async.ml / erase_typ_field.ml.  Rename the
-     surviving global state. *)
-  let migrate_existential_set () =
-    let new_set = ConSet.fold
-      (fun c acc -> ConSet.add (rename_con c) acc)
-      !gadt_existential_set ConSet.empty
-    in
-    gadt_existential_set := new_set
+(* Apply a cons-renaming to surviving GADT side state. Called by IR
+   passes (e.g. Erase_typ_field) that clone cons; otherwise the global
+   existential set drifts out of sync with the post-transform IR. *)
+let rewrite_gadt_side_tables ~rename_con ~rewrite_typ:_ =
+  let new_set = ConSet.fold
+    (fun c acc -> ConSet.add (rename_con c) acc)
+    !gadt_existential_set ConSet.empty
   in
-  let migrate_refinement_at () =
-    let xs = Hashtbl.fold (fun reg sigma acc -> (reg, sigma) :: acc) gadt_refinement_at [] in
-    Hashtbl.clear gadt_refinement_at;
-    List.iter (fun (reg, sigma) ->
-      let sigma' = ConEnv.fold (fun c t acc ->
-        ConEnv.add (rename_con c) (rewrite_typ t) acc
-      ) sigma ConEnv.empty in
-      Hashtbl.replace gadt_refinement_at reg sigma'
-    ) xs
-  in
-  migrate_existential_set ();
-  migrate_refinement_at ()
+  gadt_existential_set := new_set
 
 (* Structural matcher: walk [expected] and [actual] in parallel; where
    [expected] is `Con(c, [])` with c ∈ existentials, record `c → actual`.
@@ -3251,4 +3220,21 @@ let derive_typd_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
           | Some sigma -> sigma
           | None -> ConEnv.empty)
      | _ -> ConEnv.empty)
+  | _ -> ConEnv.empty
+
+(* Inverse of typing's destructure-pat substitution.  Typing computed
+   σ = {schema_cons → fresh skolem} and stamped pat.note via
+   [subst σ (normalize t0)].  Here we recover σ by unifying the
+   schema's fully-normalised body against the already-substituted
+   pat.note.  Replaces the [gadt_refinement_at] side table for the
+   M11b LetD path. *)
+let derive_destructure_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
+  match target_t with
+  | Con (c, _) ->
+    let es = typd_existentials c in
+    if es = [] then ConEnv.empty
+    else
+      (match unify_existentials (normalize target_t) actual es with
+       | Some sigma -> sigma
+       | None -> ConEnv.empty)
   | _ -> ConEnv.empty

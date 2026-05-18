@@ -56,8 +56,13 @@ let transform prog =
     | Pre -> Pre
     | Weak t -> Weak (t_typ t)
 
-  and t_bind tb =
-    { tb with bound = t_typ tb.bound }
+  and t_bind (tb : T.bind) =
+    let sort' = match tb.sort with
+      | T.Existential c -> T.Existential (t_con c)
+      | T.Refinement t -> T.Refinement (t_typ t)
+      | T.Type | T.Scope as s -> s
+    in
+    T.{ tb with sort = sort'; bound = t_typ tb.bound }
 
   and t_binds typbinds = List.map t_bind typbinds
 
@@ -84,14 +89,6 @@ let transform prog =
   and t_prim p = Ir.map_prim t_typ Fun.id p
 
   and t_field {lab; binds; typ; src} =
-    let t_bind (b : T.bind) =
-      let sort' = match b.T.sort with
-        | T.Existential c -> T.Existential (t_con c)
-        | T.Refinement t -> T.Refinement (t_typ t)
-        | T.Type | T.Scope as s -> s
-      in
-      T.{ b with sort = sort'; bound = t_typ b.bound }
-    in
     { lab; binds = List.map t_bind binds; typ = t_typ typ; src }
   in
 

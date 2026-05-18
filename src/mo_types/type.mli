@@ -487,6 +487,14 @@ val derive_tag_sigma : typ -> lab -> typ -> typ ConEnv.t
     by [augment_def_binds]) and unifies.  Replaces the
     top-level-alias half of M11a's [note_sigma] cache. *)
 val derive_typd_sigma : typ -> typ -> typ ConEnv.t
+
+(** Inverse of typing's destructure-pat substitution: given the
+    schema's Con form ([target_t]) and the already-substituted
+    pat.note ([actual]), recover the schema→site σ that typing
+    minted at the pattern's region.  Replaces [gadt_refinement_at]
+    for the M11b LetD path. *)
+val derive_destructure_sigma : typ -> typ -> typ ConEnv.t
+
 val typd_existentials : con -> con list
 (** Structural list of top-level-alias existential cons for [c],
     derived from its [Def.binds].  Returns [] for non-Def kinds and
@@ -505,8 +513,6 @@ val with_skolem_pool : (unit -> 'a) -> 'a
     their entry point with this so the pool's lifetime is bounded by
     the pass. *)
 val mentions_blackhole : typ -> bool
-val register_refinement_at : Source.region -> typ ConEnv.t -> unit
-val lookup_refinement_at : Source.region -> typ ConEnv.t option
 val rewrite_gadt_side_tables : rename_con:(con -> con) -> rewrite_typ:(typ -> typ) -> unit
 val unify_existentials : typ -> typ -> con list -> typ ConEnv.t option
 val prune_gadt_variant : con -> bind list -> typ list -> field list -> field list

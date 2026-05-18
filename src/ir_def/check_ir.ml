@@ -1235,13 +1235,15 @@ and check_dec env dec  =
   | LetD (pat, exp) ->
     ignore (check_pat_exhaustive env pat);
     check_exp env exp;
-    (* M11b — fresh-per-site existential skolem. When a destructure
-       site has a σ registered, [pat.note] is at site-local cons while
-       [typ exp] still references the schema's cons; promote+substitute
-       to bring them into agreement. *)
-    let exp_typ = match T.lookup_refinement_at pat.at with
-      | Some sigma -> T.subst sigma (T.promote (typ exp))
-      | None -> typ exp
+    (* M11b — fresh-per-site existential skolem. At destructure sites
+       [pat.note] is at site-local cons while [typ exp] still references
+       the schema's cons; recover σ structurally from
+       (schema Con, pat.note) and promote+substitute to bring them into
+       agreement.  No side-table read — σ is derived on demand. *)
+    let sigma = T.derive_destructure_sigma (typ exp) pat.note in
+    let exp_typ =
+      if T.ConEnv.is_empty sigma then typ exp
+      else T.subst sigma (T.promote (typ exp))
     in
     exp_typ <: pat.note
   | VarD (id, t, exp) ->
