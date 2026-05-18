@@ -115,6 +115,20 @@ as an **abstract primitive type**, analogous to Motoko's existing
 `Error` type. `Type` is to `switch type` as `Error` is to `catch`: same
 "abstract primitive with a distinguished elimination form" pattern.
 
+> **Internal mechanism — `prim switch byte`.** The user-facing
+> `switch type T { ... }` is a *skin* over an internal
+> compiler primitive `prim switch byte { case 0xNN : type T = … }` —
+> a value-driven refinement form sketched in
+> [GADTs.md → "Value-driven refinement: `prim switch`"](GADTs.md#value-driven-refinement-prim-switch-sketch-internal-only).
+> The internal form is what reads the Candid wire bytes
+> (`0x7d = nat`, `0x7c = int`, `0x6d = vec`, …); the surface
+> `switch type T` is its user-facing presentation, dispatching on a
+> `Type` value rather than on a raw byte but using the same σ
+> refinement machinery underneath (the existing GADT arm-refinement
+> clauses `type T = …`).  Closing this loop means the surface
+> elimination form falls out as sugar over a primitive we'd ship
+> anyway for runtime Candid decoders.
+
 ```
 // Existing in Motoko:
 type Error = ...      // abstract primitive; inhabitants from `throw` / arrive via `catch (e) { ... }`
