@@ -2349,11 +2349,15 @@ and pp_mig_field vs ppf {lab; typ; src} =
     let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
     fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
-(* Dedup zero-arity Def cons sharing [(name, hash body)] (see #5013).
-   Cons whose body refs a non-rep get cloned with their kind rewritten;
-   others (incl. prelude prim aliases like [Nat]) stay original so the
-   prim filter at top-level elides them. [hash] is injected to avoid
-   a cycle: [Typ_hash] is downstream of [Type]. *)
+(* Render a stable signature, collapsing structurally-equal type aliases.
+
+   Group zero-arity Def cons by [(name, hash body)] and pick one rep per
+   group. Cons whose body transitively refs a non-rep get cloned with
+   their kind rewritten to point at the rep; others stay on their
+   original cons (notably prelude prim aliases like [Nat], so the prim
+   filter below still elides their decls).
+
+   [hash] is injected to avoid a cycle: [Typ_hash] depends on [Type]. *)
 and pp_stab_sig hash ppf sig_ =
   let module HM = Map.Make (struct
     type t = string * string
