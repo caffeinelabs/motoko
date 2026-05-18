@@ -1896,6 +1896,87 @@ destructure, the compiler reads `byte`, looks up its arm, and σ
 gives the concrete T.  At construction, the compiler validates that
 the supplied value's type matches the supplied byte's arm.
 
+### Trace: `switch type T` wraps `prim switch (typCode T)`
+
+The user-facing [`switch type T`](shared-generics.md#the-type-abstract-primitive)
+desugars to `prim switch (typCode T)` plus a small surface decoder.
+Tracing two call sites of the same polymorphic function shows how
+the polymorphic type parameter `T` gets refined at each dispatch:
+
+```motoko
+public func add_or_concat<T with type>(arg : T) : T {
+  switch type T {
+    case Nat  arg + 1;
+    case Text arg # "!";
+    case [X]  switch type X { case Nat  arg[0] + 1; case _ 0 };
+    case _    arg;
+  }
+}
+```
+
+`arg` has *polymorphic* type `T` (declared by `<T with type>`).  At
+runtime, the `T with type` binder gives the body a `Type` value
+witnessing T — internally `{ table : Blob; index : Int }`, a stream
+cursor pointing at T's encoding in the Candid type table.
+
+**Call site `add_or_concat<Nat>(5)`:**
+
+1. T's runtime witness: `{table = ⟨empty⟩; index = -3}` — the
+   interned primitive `Type` for `Nat`.
+2. `switch type T` reads T as a `Candid` stream; `typCode T = -3`.
+3. `prim switch -3` matches arm `case -3 : type T = Nat in T`.
+4. Refinement `type T = Nat` applies to the local env.  Inside the
+   user's `case Nat` body, `arg : T` is now `arg : Nat`.
+5. `arg + 1` typechecks.
+
+**Call site `add_or_concat<[Bool]>([true, false])`:**
+
+1. T's runtime witness: `{table = ⟨[vec entry, ...]⟩; index = 0}` —
+   index 0 points at a vec entry in the type table.
+2. `typCode T = -19` (read from the vec entry's head).
+3. `prim switch -19` matches
+   `case -19 : type T = [TyDesc(stream)] in T`.
+4. The refinement says `T = [TyDesc(stream)]` where `stream` is the
+   cursor advanced past the vec tag.  The compiler binds the user's
+   surface `X` to `TyDesc(advance T)` — itself a refined `Type`
+   witness for the element type.
+5. Inside the user's `case [X]` body, `T` is now `[X]` where `X` is
+   a fresh polymorphic-but-now-witnessed type variable; the user
+   nests another `switch type X` to dispatch further.  At that
+   inner dispatch, X's witness is the recursive call's stream
+   position; `typCode X = -2` (Bool), arm `case -2 : type X = Bool`
+   matches.  `arg[0] + 1` would *not* typecheck (Bool + Nat fails)
+   — the example deliberately mis-types to show how the σ machinery
+   prevents the user from confusing arms.  The inner `case _ → 0`
+   covers it for the runtime path.
+
+**The schematic desugaring:**
+
+```
+switch type T { case <typat_i> → e_i }
+  ⇝
+prim switch (typCode T) {                      // T is the stream cursor
+  case <idx_i> : <refinement_i> in e_i;        // idx_i ↔ typat_i via fixed table
+  ...
+}
+```
+
+where:
+- `<idx_i>` is the LEB128 `Int` for the user's type pattern
+  (e.g., `Nat ↔ -3`, `Text ↔ -15`, `[X] ↔ -19`).
+- `<refinement_i>` is the `prim switch` arm's own `type T = …`
+  clause (e.g., `type T = Nat`, `type T = Text`,
+  `type T = [TyDesc(stream)]`).
+- `e_i` typechecks under the refined env.
+
+**The compiler's new work:** just the table from user-facing type
+patterns to `prim switch` idxs (step 1 of the elaboration).  Steps
+2-4 are the existing GADT machinery — arm-refinement clauses,
+local-env σ application — already shipped through M11 / Path A.
+The surface form is sugar; the engine underneath is the GADT
+variant-arm refinement machine, keyed on a value the way
+coverage.ml's `match_lit` keys on a literal.
+
 ### Mechanism reuse
 
 Almost everything maps onto existing GADT machinery:
