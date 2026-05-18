@@ -283,6 +283,14 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_mig_field) -> "<mig_field>", eg_mig_field
   | X (N N_typ_def_rhs_typ_constraint_) -> "<typ_def_rhs(typ_constraint)>", eg_typ
   | X (N N_typ_def_rhs_typ_constraint_existential_) -> "<typ_def_rhs(typ_constraint_existential)>", eg_typ
+  | X (N N_prim_discr) -> "<prim_discr>", "typCode stream"
+  | X (N N_prim_idx_pat) -> "<prim_idx_pat>", "-3"
+  | X (N N_prim_switch_arm) -> "<prim_switch_arm>", "case -3 : type T = Nat"
+  | X (N N_prim_type_body) -> "<prim_type_body>", "prim switch (typCode stream) { case -3 : type T = Nat }"
+  | X (N N_prim_val_param) -> "<prim_val_param>", "stream : Candid"
+  | X (N N_prim_val_params) -> "<prim_val_params>", "(stream : Candid)"
+  | X (N N_seplist_prim_switch_arm_semicolon_) -> seplist ("<prim_switch_arm>", "case -3 : type T = Nat") semi
+  | X (N N_seplist_prim_val_param_COMMA_) -> seplist ("<prim_val_param>", "stream : Candid") comma
 (* In order to print a view of the stack that includes semantic values,
    we need an element printer. (If we don't need this feature, then
    [print_symbol] above suffices.) *)

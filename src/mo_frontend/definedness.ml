@@ -187,6 +187,7 @@ and dec msgs d = match d.it with
   | LetD (p, e, Some f) -> pat msgs p +++ exp msgs e +++ exp msgs f
   | VarD (i, e) -> (M.empty, S.singleton i.it) +++ exp msgs e
   | TypD (i, tp, cs, t) -> (M.empty, S.empty)
+  | PrimTypD _ -> (M.empty, S.empty)
   | ClassD (eo, csp, s, i, tp, p, t, i', dfs) ->
      ((M.empty, S.singleton i.it) +++
      (* TBR: treatment of eo *)

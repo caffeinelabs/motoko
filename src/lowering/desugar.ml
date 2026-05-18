@@ -1270,6 +1270,7 @@ and dec' d =
     end
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
+  | S.PrimTypD _ -> []
   | S.MixinD _ -> []
   | S.IncludeD(_, args, note) ->
     let { imports = is; pat = p; decs } = Option.get !note in

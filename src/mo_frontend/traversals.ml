@@ -71,6 +71,7 @@ let rec over_exp (f : exp -> exp) (exp : exp) : exp = match exp.it with
 
 and over_dec (f : exp -> exp) (d : dec) : dec = match d.it with
   | TypD _ -> d
+  | PrimTypD _ -> d
   | ExpD e -> { d with it = ExpD (over_exp f e)}
   | VarD (x, e) ->
      { d with it = VarD (x, over_exp f e)}

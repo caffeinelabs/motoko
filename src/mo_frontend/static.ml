@@ -117,7 +117,7 @@ and exp_fields env efs = List.iter (fun (ef : exp_field) ->
   exp env ef.it.exp) efs
 
 and dec env d = match d.it with
-  | TypD _ | ClassD _ | MixinD _ -> ()
+  | TypD _ | PrimTypD _ | ClassD _ | MixinD _ -> ()
   | IncludeD _ ->
     if env.allow_include
     then ()

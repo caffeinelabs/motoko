@@ -974,6 +974,12 @@ and check_typ' env typ : T.typ =
     T.Named (name.it, check_typ env typ)
   | WeakT typ ->
     T.Weak (check_typ env typ)
+  | PrimSwitchT _ ->
+    (* PrimSwitchT is internal-only and may appear only as the body of a
+       [PrimTypD] decl, where [check_typ_prim_def] handles it directly.
+       Reaching here means user code uttered the form — currently rejected. *)
+    error env typ.at "M0228"
+      "`prim switch` is an internal compiler construct and may not appear here"
 
 and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
   (* Compiler invariant: the parser's [typ_constraint_existential]
@@ -1184,6 +1190,11 @@ and mentions_id name typ =
     | VariantT tags -> List.exists (fun (tt : typ_tag) -> go tt.it.typ) tags
     | AsyncT (_, t1, t2) -> go t1 || go t2
     | AndT (t1, t2) | OrT (t1, t2) -> go t1 || go t2
+    | PrimSwitchT (_, arms) ->
+      List.exists (fun (a : prim_switch_arm) ->
+        match a.it.refinement.it.refines with
+        | Some r -> go r
+        | None -> false) arms
   in go typ
 
 and check_typ_binds_acyclic env typ_binds cs ts  =
@@ -1429,6 +1440,7 @@ and is_explicit_dec d =
   match d.it with
   | ExpD e | LetD (_, e, _) | VarD (_, e) -> is_explicit_exp e
   | TypD _ -> true
+  | PrimTypD _ -> true
   | ClassD (_, _, _, _, _, p, _, _, dfs) ->
     is_explicit_pat p &&
     List.for_all (fun (df : dec_field) -> is_explicit_dec df.it.dec) dfs
@@ -4539,6 +4551,7 @@ and vis_dec src dec xs : visibility_env =
   | ClassD (_, _, _, id, _, _, _, _, _) ->
     vis_val_id src {id with note = ()} (vis_typ_id src id xs)
   | TypD (id, _, _, _) -> vis_typ_id src id xs
+  | PrimTypD (id, _, _, _) -> vis_typ_id src id xs
   | MixinD _
   | IncludeD _ -> xs
 
@@ -5359,6 +5372,8 @@ and infer_dec env dec : T.typ =
     T.normalize t'
   | TypD _ ->
     T.unit
+  | PrimTypD _ ->
+    T.unit
   in
   let eff = A.infer_effect_dec dec in
   dec.note <- {empty_typ_note with note_typ = t; note_eff = eff};
@@ -5455,7 +5470,7 @@ and gather_dec env scope dec : Scope.t =
     }
   | LetD (pat, exp, _) -> gather_pat env scope pat
   | VarD (id, _) -> Scope.adjoin_val_env scope (gather_id env scope.Scope.val_env id Scope.Declaration)
-  | TypD (id, binds, _, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
+  | TypD (id, binds, _, _) | PrimTypD (id, binds, _, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
     let open Scope in
     if T.Env.mem id.it scope.typ_env then
       error_duplicate env "type " id;
@@ -5743,6 +5758,12 @@ and infer_dec_typdecs env dec : Scope.t =
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
     }
+  | PrimTypD _ ->
+    (* `prim type` elaboration is not yet implemented; the parser
+       doesn't emit it yet either.  Reaching this arm means
+       compiler-internal scaffolding was wired prematurely. *)
+    error env dec.at "M0229"
+      "`prim type` elaboration is not yet implemented"
 
 and infer_id_typdecs env at id c k : Scope.con_env =
   assert (match k with T.Abs (_, T.Pre) -> false | _ -> true);
@@ -5823,6 +5844,12 @@ and infer_dec_valdecs env dec : Scope.t =
     let t = infer_exp {env with pre = true} exp in
     Scope.{empty with val_env = singleton id (T.Mut t)}
   | TypD (id, _, _, _) ->
+    let c = Option.get id.note in
+    Scope.{ empty with
+      typ_env = T.Env.singleton id.it c;
+      con_env = T.ConSet.singleton c;
+    }
+  | PrimTypD (id, _, _, _) ->
     let c = Option.get id.note in
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;

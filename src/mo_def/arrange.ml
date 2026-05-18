@@ -280,7 +280,25 @@ module Make (Cfg : Config) = struct
   | OrT (t1, t2) -> "OrT" $$ [typ t1; typ t2]
   | ParT t -> "ParT" $$ [typ t]
   | NamedT (id, t) -> "NamedT" $$ [Atom id.it; typ t]
-  | WeakT t -> "WeakT" $$ [typ t]))
+  | WeakT t -> "WeakT" $$ [typ t]
+  | PrimSwitchT (discr, arms) -> prim_switch_typ discr arms))
+
+  and prim_switch_typ discr arms =
+    let discr_node = match discr with
+      | TypCode i -> "TypCode" $$ [id i]
+    in
+    let pat_node : prim_idx_pat -> sexpr = function
+      | IdxLitP n -> Atom (string_of_int n)
+      | IdxWildP -> Atom "_"
+      | IdxGuardP (i, Geq n) -> i.it $$ [Atom (Printf.sprintf ">= %d" n)]
+      | IdxGuardP (i, Lt n) -> i.it $$ [Atom (Printf.sprintf "< %d" n)]
+    in
+    let con (c : typ_constraint) = source c.at (c.it.tv.it $$
+      match c.it.refines with None -> [] | Some r -> [typ r]) in
+    let arm (a : prim_switch_arm) =
+      source a.at ("Arm" $$ [pat_node a.it.pat; con a.it.refinement])
+    in
+    "PrimSwitchT" $$ [discr_node] @ List.map arm arms
 
   and dec d = trivia d.at (source d.at (match d.it with
     | ExpD e -> "ExpD" $$ [exp e]
@@ -301,7 +319,10 @@ module Make (Cfg : Config) = struct
         id i
       ] @ List.map dec_field dfs)
     | MixinD (_, dfs) -> "MixinD" $$ List.map dec_field dfs
-    | IncludeD (i, e, _) -> "IncludeD" $$ [id i; exp e]))
+    | IncludeD (i, e, _) -> "IncludeD" $$ [id i; exp e]
+    | PrimTypD (x, tp, vps, t) ->
+      let val_param (i, ti) = source i.at (i.it $$ [typ ti]) in
+      "PrimTypD" $$ [id x] @ List.map typ_bind tp @ List.map val_param vps @ [typ t]))
 
   and prog p = "Prog" $$ List.map dec p.it
 end

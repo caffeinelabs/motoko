@@ -552,6 +552,38 @@ typ_constraint :
   | TYPE x=id EQ t=typ
     { {tv = x; refines = Some t; bound = PrimT "Any" @! at $sloc} @= at $sloc }
 
+(* prim switch — internal value-driven refinement (see plans/GADTs.md
+   §Value-driven refinement).  Currently parses-only; typing rejects
+   M0229.  Only the [PrimTypD] decl form admits a [PrimSwitchT] body. *)
+
+prim_val_params :
+  | (* empty *) { [] }
+  | LPAR ps=seplist(prim_val_param, COMMA) RPAR { ps }
+
+prim_val_param :
+  | id=id COLON t=typ { (id, t) }
+
+prim_type_body :
+  | PRIM SWITCH LPAR discr=prim_discr RPAR
+        LCURLY arms=seplist(prim_switch_arm, semicolon) RCURLY
+    { PrimSwitchT(discr, arms) @! at $sloc }
+
+prim_discr :
+  | i=id LPAR x=id RPAR
+    { (* [i] is the stream operation name, [x] the stream binder.
+         Only [typCode] is recognised today; other names are
+         accepted at parse time and rejected at typing (M0229). *)
+      let _ = i in TypCode x }
+
+prim_switch_arm :
+  | CASE pat=prim_idx_pat COLON c=typ_constraint
+    { annotate () {pat; refinement = c} (at $sloc) }
+
+prim_idx_pat :
+  | SUBOP n=NAT     { IdxLitP (- (int_of_string n)) }
+  | n=NAT           { IdxLitP (int_of_string n) }
+  | UNDERSCORE      { IdxWildP }
+
 typ_bind :
   | x=id SUB t=typ
     { {var = x; sort = Type.Type @@ no_region; bound = t} @= at $sloc }
@@ -1008,6 +1040,8 @@ dec_nonvar :
       LetD (p', e', None) @? at $sloc }
   | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs(typ_constraint_existential)
     { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
+  | PRIM TYPE x=typ_id tps=type_typ_params_opt vps=prim_val_params EQ body=prim_type_body
+    { PrimTypD(x, tps, vps, body) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body
     { (* This is a hack to support local func declarations that return a computed async.

@@ -71,6 +71,11 @@ and typ' =
   | ParT of typ                                    (* parentheses, used to control function arity only *)
   | NamedT of id * typ                             (* parenthesized single element named "tuple" *)
   | WeakT of typ                                   (* weak reference *)
+  | PrimSwitchT of prim_discr * prim_switch_arm list
+    (* INTERNAL ONLY.  Body of a [PrimTypD] alias: dispatches on a
+       compile-time-known scalar (e.g. a Candid type-table index)
+       to a refinement of the alias's type-parameter.  Not user-
+       parseable outside a [PrimTypD] body. *)
 
 and scope = typ
 and typ_field = typ_field' phrase
@@ -103,6 +108,32 @@ and typ_bind = (typ_bind', Type.con option) annotated_phrase
 and typ_bind' = {var : id; sort : bind_sort; bound : typ;}
 
 and typ_item = id option * typ
+
+(* prim switch — internal value-driven refinement (see plans/GADTs.md
+   §Value-driven refinement).  Each arm matches a compile-time-known
+   scalar (typically a Candid type-table index) and carries refinement
+   clauses identical to variant-arm existentials. *)
+and prim_discr =
+  | TypCode of id      (* `typCode stream` — LEB128-read the head idx *)
+
+and prim_switch_arm = prim_switch_arm' phrase
+and prim_switch_arm' = {
+  pat : prim_idx_pat;
+  refinement : typ_constraint;
+  (* The arm body is just the refinement (`type T = …`); the alias's
+     refined type follows from applying the refinement to T.  No
+     `in <typ>` because that would always be `T` after refinement. *)
+}
+
+and prim_idx_pat =
+  | IdxLitP of int               (* `case -3` *)
+  | IdxWildP                     (* `case _` *)
+  | IdxGuardP of id * prim_idx_guard
+                                 (* `case N when N >= 0` *)
+
+and prim_idx_guard =
+  | Geq of int
+  | Lt of int
 
 
 (* Literals *)
@@ -300,6 +331,11 @@ and dec' =
     (* type; constraints are existential/refinement bindings scoped over
        the body (same machinery as variant-arm clauses, lifted to the
        top of a type declaration). *)
+  | PrimTypD of typ_id * typ_bind list * (id * typ) list * typ
+    (* INTERNAL ONLY.  Value-driven refinement alias:
+         `prim type X<T..>(v..) = prim switch (typCode v) { case .. : .. }`
+       Value parameters are compile-time-known singletons at each
+       elaboration site; body is a [PrimSwitchT]. *)
   | ClassD of                                  (* class *)
       exp option * sort_pat * obj_sort * typ_id * typ_bind list * pat * typ option * id * dec_field list
   | MixinD of pat * dec_field list             (* mixin *)

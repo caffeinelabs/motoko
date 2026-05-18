@@ -1028,6 +1028,7 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
+  | PrimTypD _
   | MixinD (_) -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
@@ -1063,6 +1064,8 @@ and interpret_dec env dec (k : V.value V.cont) =
       k V.unit
     )
   | TypD _ ->
+    k V.unit
+  | PrimTypD _ ->
     k V.unit
   | MixinD _ -> k V.unit
   | IncludeD (_, _arg, _note) ->
