@@ -233,6 +233,66 @@ as an **abstract primitive type**, analogous to Motoko's existing
 > (the value-side that macro expansion implicitly creates) and the
 > recurse sigil must use parser-mangled names that user code cannot
 > collide with.
+>
+> **Roadmap for the second half:**
+>
+> | Step | What | Touches |
+> |------|------|---------|
+> | 8a   | real multi-byte SLEB128 + cursor return | `internals.mo` |
+> | 8b   | `@Candid = { blob; ptr }` with hygienic body-T binder | `internals.mo`, expander |
+> | 8c   | `prim_recurse` sigil + per-arm fresh `<U with type>` minting | expander_builder, parser, AST |
+> | 8d   | `[Int]` arm (vec, `-19`) | `internals.mo`, test |
+> | 8e   | `?Int` arm (opt, `-18`) | `internals.mo`, test |
+> | 8f   | caller-side type-table-only witness synthesis | typing's `infer_call` |
+> | 8g   | ingress witness recovery from message Candid header | codegen / async-lowering |
+> | 8h   | egress T — outgoing T-typed values serialise via witness | codegen (probably small) |
+>
+> Hard part: 8c (recursive arm spawns a fresh `<U with type>` whose
+> witness is the cursor-advanced stream — touches macro_registry,
+> typing's fresh-cons minting, and `RefineE` chains).  8a/8b are
+> bounded mechanical work.  8f/8g/8h are the runtime-witness story
+> at actor boundaries.
+>
+> **Tech debt accumulated through slice 7 — clean before slice 8 ramps:**
+>
+> *Typing side*
+> - `infer_call` synthesis dispatches on `path_name` string match
+>   (`Nat`/`Int`/`Char`).  Should consult typed `T.typ` after a proper
+>   `check_typ` on the inst.
+> - `Named` wrapper stripping in FuncE dom — workaround for
+>   desugar/`to_args` mismatch.  Fix at `to_args` level so `Named`
+>   survives round-trip.
+> - Hardcoded `"@TyDesc"` lookup in `SWITCH TYPE` parser action —
+>   should come from the binder's typing info (multiple `prim_type`s
+>   may live alongside one another).
+> - `check_typ_prim_def` ignores the result of typechecking
+>   value-param types; should retain for synth dispatch.
+>
+> *Desugar side*
+> - `deflated_typ` dance — drops leading dom entries to fool
+>   `to_args` into matching arity, then prepends witness IR args
+>   manually.  Should be a `to_args` extension that knows about
+>   witnesses natively.
+> - Witness arg type sourced from `note.Note.typ` dom — fragile if
+>   dom shape changes.
+>
+> *IR side*
+> - `Ir.RefineE` propagates through every pass but is **dead at
+>   runtime** (codegen ignores).  Should be erased in a single
+>   designated pass rather than threaded mechanically through every
+>   transform.
+>
+> *Registry*
+> - `Macro_registry.allocate` + parser-time invocation is a
+>   deferred-ref pattern — clever but unusual.  Mutable module-level
+>   `Hashtbl` is more global state than ideal.
+>
+> *General*
+> - `T.Witness` bind-sort treated as `T.Type` by equality / printing.
+>   Conflating runtime-Witness vs type-Type at this level may bite
+>   when binders nest.
+> - Expander's `@T` placeholder is renamed manually at expansion.
+>   A de Bruijn approach would be more principled.
 
 ```
 // Existing in Motoko:
