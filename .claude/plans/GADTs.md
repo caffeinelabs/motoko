@@ -1158,17 +1158,43 @@ machinery (br_table or linear) operates on tags as before.
       sort-renaming logic from `t_field`'s shadowing `t_bind` to
       the top-level definition (deleted the shadow).
 
-      **Remaining GADT side state.** `gadt_existential_set`
-      survives because `is_gadt_existential` drives the Cardelli
-      stamp-identity exemption in `sub`/`eq` and the free-cons
-      bypass at `check_ir.ml:210` — retiring it needs cons to
-      carry their own "is-existential" bit, a wider surgery.
-      The per-expr `Note.gadt_sigma` cache (read at
-      `check_ir.ml:432` for non-TagPrim refine_target) is the
-      next σ-cache retirement target.  Deferred sibling: making
+      **`Note.gadt_sigma` retired (`7b32b4455`, 2026-05-18).** The
+      per-expression construction-side σ cache is gone — typing
+      inlines σ into `note_typ` at the construction site
+      (`gadt_check_typd_existentials` writes `note_typ = refined`
+      where `refined = subst σ (open_ ts body)`), so desugar and
+      check_ir see the already-substituted structural form.  Side
+      effects of the retirement:
+      - `Note.t` and surface `typ_note` lose their `gadt_sigma`
+        field
+      - `desugar.ml`'s ObjBlockE/ObjE σ-branches collapse to
+        `obj_block / obj` on `note.Note.typ` directly
+      - `check_ir.ml`'s `refine_target` simplifies — the non-TagPrim
+        branch is just `t` (no σ recovery needed; substitution is
+        already in `note_typ`); TagPrim still uses
+        `derive_tag_sigma`
+      - `async.ml` + `erase_typ_field.ml` lose the per-exp σ-rewrite
+        blocks (no field to maintain)
+      - All `note_sigma = None` initialisations in typing.ml,
+        surface AST builders, etc. dropped
+
+      Cost: typing's σ-inlining makes the LetD subtype check
+      asymmetric — `pat.note` for a construction may still be the
+      alias `Con` form (single VarP), while `typ exp` is the
+      substituted structural form; for a destructure it's the other
+      way around.  `check_ir.ml`'s LetD now derives σ in either
+      direction via `derive_destructure_sigma`, unfolding whichever
+      side carries the Con.
+
+      **Remaining GADT side state.** `gadt_existential_set` is the
+      sole surviving Hashtbl/Set; `is_gadt_existential` drives the
+      Cardelli stamp-identity exemption in `sub`/`eq` and the
+      free-cons bypass at `check_ir.ml:210`.  Retiring it needs
+      cons to carry their own "is-existential" bit — a wider
+      surgery.  Deferred sibling: making
       `fresh_destructure_skolem` stamping deterministic so the
-      `Fresh_skolem` effect handler can go too (see type.ml
-      TODO at the handler definition).
+      `Fresh_skolem` effect handler can go too (see type.ml TODO
+      at the handler definition).
 
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
