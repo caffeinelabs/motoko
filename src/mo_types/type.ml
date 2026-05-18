@@ -3155,8 +3155,10 @@ and unify_existentials expected actual (binds : bind list) : typ ConEnv.t option
          Bound lives on the bind ([b.bound]); for parametric bounds
          (e.g. [type X <: A] where A is an outer type-param), the
          bound has been opened via [open_field] to reflect the
-         alias's instantiation. *)
-      let bound = Option.get (bound_of c) in
+         alias's instantiation.  Also substitute the running σ into
+         the bound, so chained sibling bounds (e.g. [type G <:
+         OUTER, type H <: G]) see [G]'s already-collected witness. *)
+      let bound = subst !sigma (Option.get (bound_of c)) in
       if not (sub a bound) then raise Unify_fail;
       (match ConEnv.find_opt c !sigma with
        | None -> sigma := ConEnv.add c a !sigma
@@ -3256,8 +3258,6 @@ let derive_destructure_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
     (match Cons.kind c with
      | Def (tbs, _) ->
        let alias_es = existentials_of_binds tbs in
-       (* Open the body via reduce/normalize and look for field-level
-          existentials too. *)
        let opened_body = normalize target_t in
        let opened_binds_tbs =
          List.map (fun (b : bind) -> { b with bound = open_ ts b.bound }) tbs
@@ -3268,6 +3268,17 @@ let derive_destructure_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
               | Some sigma -> sigma
               | None -> ConEnv.empty
        in
+       (* Per-field σ.  Field-level existentials may have bounds that
+          mention alias-level existentials (e.g. `type G <: OUTER`),
+          so substitute [alias_sigma] into each bind's bound before
+          unifying — only then does the bound check at the field level
+          see the alias's witness (e.g. OUTER → Int) rather than the
+          abstract schema cons. *)
+       let subst_binds (binds : bind list) =
+         if ConEnv.is_empty alias_sigma then binds
+         else List.map (fun (b : bind) ->
+           { b with bound = subst alias_sigma b.bound }) binds
+       in
        let field_sigma =
          match opened_body, actual with
          | Obj (_, fs_e, _), Obj (_, fs_a, _) ->
@@ -3277,7 +3288,10 @@ let derive_destructure_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
                match lookup_val_field_opt f_e.lab fs_a with
                | None -> acc
                | Some actual_typ ->
-                 (match unify_existentials f_e.typ actual_typ f_e.binds with
+                 let f_e_typ = if ConEnv.is_empty alias_sigma then f_e.typ
+                               else subst alias_sigma f_e.typ in
+                 (match unify_existentials f_e_typ actual_typ
+                          (subst_binds f_e.binds) with
                   | Some s -> ConEnv.union (fun _ a _ -> Some a) acc s
                   | None -> acc)
            ) ConEnv.empty fs_e

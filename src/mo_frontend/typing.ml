@@ -1022,6 +1022,10 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
        arms; parser's [typ_constraint_existential] guarantees no refinements
        here (refines = None). *)
     let env' = List.fold_left (fun env (c : typ_constraint) ->
+      (* Sequential elaboration: each constraint's bound sees the
+         previous siblings — e.g. `type G <: OUTER, type H <: G`
+         needs G in scope for H's bound check.  check_typ stamps
+         the bound's note, which the binds-construction below reads. *)
       let _bound_t = check_typ env c.it.bound in
       let con = match c.note with
         | Some c' -> c'
@@ -1043,7 +1047,10 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
       List.filter_map (fun (cstr : typ_constraint) ->
         match cstr.it.refines, cstr.note with
         | None, Some skolem ->
-          let bound_t = check_typ env cstr.it.bound in
+          (* Bound was elaborated above under env' (with siblings in
+             scope); read the typed form from cstr.it.bound.note
+             rather than re-elaborating in the outer env. *)
+          let bound_t = cstr.it.bound.note in
           Some ({T.var = cstr.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
         | _ -> None
       ) constraints
@@ -1128,7 +1135,10 @@ and check_typ_tag env typ_tag =
     List.filter_map (fun (c : typ_constraint) ->
       match c.it.refines, c.note with
       | None, Some skolem ->
-        let bound_t = check_typ env c.it.bound in
+        (* Bound elaborated above under the env that progressively
+           added siblings; read from the AST note instead of
+           re-elaborating in env (which doesn't have siblings). *)
+        let bound_t = c.it.bound.note in
         Some ({T.var = c.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
       | _ -> None
     ) constraints
@@ -3041,41 +3051,45 @@ and gadt_check_existentials env exp t c ts id exp1 =
    the body of the TypD itself is the existential pack. *)
 and gadt_check_typd_existentials env exp t c ts =
   match Cons.kind c with
-  | T.Def (tbs, body) ->
+  | T.Def (_, body) ->
     let body' = T.open_ ts body in
-    let opened_binds =
-      List.map (fun (b : T.bind) -> { b with T.bound = T.open_ ts b.T.bound }) tbs
-    in
     (* Promote [actual_t] so a class-typed [Con (MkRec, [])] gets
        walked structurally against [body']. *)
     let actual_t = T.promote (infer_exp env exp) in
-    (match T.unify_existentials body' actual_t opened_binds with
-     | Some sigma ->
-       let refined = T.subst sigma body' in
-       if not (T.sub actual_t refined) then
-         local_error env exp.at "M0096"
-           "expression of type%a\ncannot produce expected type%a"
-           display_typ_expand actual_t
-           display_typ_expand refined;
-       let e = A.infer_effect_exp exp in
-       (* Inline σ into the structural form for desugar — desugar walks
-          the note expecting the opened body (Obj / Tup / Variant / ...)
-          with concrete witness types in existential slots. *)
-       exp.note <- {exp.note with note_typ = refined; note_eff = e};
-       true
-     | None ->
-       local_error env exp.at "M9002"
-         "type `%s`: cannot infer existential witness from value of type%a"
-         (T.string_of_typ (T.Con (c, ts)))
-         display_typ actual_t;
-       (* infer_exp has already populated the exp tree's notes; falling
-          through to [check_exp'] on the same tree would re-invoke
-          check_exp on its sub-expressions and trip the
-          [note_typ = Pre] assert.  Mark handled to suppress the
-          re-walk. *)
-       let e = A.infer_effect_exp exp in
-       exp.note <- {exp.note with note_typ = actual_t; note_eff = e};
-       true)
+    (* [derive_destructure_sigma] chains alias-level σ → field-level
+       σ, substituting the former into the latter's bind bounds.
+       Handles e.g. `type Chain = type OUTER in { link : type G <:
+       OUTER, type H <: G in (OUTER, G, H) }` where G's effective
+       bound at the construction site is the alias's witness for
+       OUTER. *)
+    let sigma = T.derive_destructure_sigma t actual_t in
+    let declared_es = T.typd_existentials c in
+    let unresolved =
+      List.filter (fun e_con -> not (T.ConEnv.mem e_con sigma)) declared_es in
+    if unresolved <> [] then
+      local_error env exp.at "M9002"
+        "type `%s`: cannot infer existential witness from value of type%a"
+        (T.string_of_typ (T.Con (c, ts)))
+        display_typ actual_t
+    else begin
+      let refined = T.subst sigma body' in
+      if not (T.sub actual_t refined) then
+        local_error env exp.at "M0096"
+          "expression of type%a\ncannot produce expected type%a"
+          display_typ_expand actual_t
+          display_typ_expand refined
+    end;
+    let e = A.infer_effect_exp exp in
+    (* infer_exp has already populated the exp tree's notes; falling
+       through to [check_exp'] would re-walk and trip [note_typ = Pre],
+       so we return [true].  Set the note to [refined] on success,
+       [actual_t] otherwise so a downstream consumer sees a concrete
+       type rather than the schema's open form. *)
+    let note_t =
+      if unresolved = [] then T.subst sigma body' else actual_t
+    in
+    exp.note <- {exp.note with note_typ = note_t; note_eff = e};
+    true
   | _ -> false
 
 (* M5: filter unreachable arms from a variant scrutinee type before

@@ -60,6 +60,21 @@ let _p : Pair = {
   snd = (true, func (b : Bool) : Text = if b "yes" else "no")
 };
 
+// --- Chained bounds: sibling existentials in the same pack -------
+// G's bound is OUTER (alias-level existential), H's bound is G.
+// At construction OUTER, G, H are inferred sequentially; each
+// witness must satisfy the previous bound.
+
+type Chain = type OUTER in {
+  link : type G <: OUTER, type H <: G in (OUTER, G, H);
+  tag : Text
+};
+
+let _c : Chain = {
+  link = (5 : Int, 3 : Nat, 7 : Nat);  // OUTER=Int, G=Nat<:Int, H=Nat<:Nat
+  tag = "demo"
+};
+
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
