@@ -533,6 +533,29 @@ and augment_arm_binds c lab (new_binds : bind list) : unit =
     Cons.unsafe_set_kind c (Def (tbs, Variant fs'))
   | _ -> ()  (* not a variant Def — silently skip *)
 
+(* HKT extension of Path A: append existential binders to a top-level
+   alias's Def kind.  Mirror of [augment_arm_binds] but one layer up
+   — for [type Pack = type X in body], the Def grows
+   `binds = [...; {var="X"; sort=Existential X_cons; bound=Any}]`.
+
+   No shift on body: existentials in the alias body are referenced
+   via [Con(X_cons, [])], not [Var], so adding the binder doesn't
+   change the body's deBruijn indices.  Same 3-phase elaboration
+   discipline as augment_arm_binds: post-confluence, monotonic,
+   asserted gating to Def kinds.
+
+   Existentials are appended AT THE END (after type-parameters) so
+   that the existing [reduce]/[open_] logic — which substitutes
+   ts[i] for Var positions [0..len(ts)-1] — continues to work for
+   the type-parameter prefix.  Existential positions [n..n+m-1]
+   have no Var references in the body, so they're harmless to
+   leave un-substituted at use sites. *)
+and augment_def_binds c (new_binds : bind list) : unit =
+  match Cons.kind c with
+  | Def (tbs, body) ->
+    Cons.unsafe_set_kind c (Def (tbs @ new_binds, body))
+  | _ -> ()  (* not a Def — silently skip *)
+
 (*
 and shift_kind i n k =
   match k with
@@ -669,7 +692,12 @@ let open_binds tbs =
 (* Normalization and Classification *)
 
 let reduce tbs t ts =
-  assert (List.length ts = List.length tbs);
+  (* HKT extension: existential binds (sort = Existential _) don't
+     accept a type-arg at use sites — they're decorative metadata on
+     the Def kind.  Count only non-existential binds against ts. *)
+  let type_param_count = List.fold_left (fun n (tb : bind) ->
+    match tb.sort with Existential _ -> n | _ -> n + 1) 0 tbs in
+  assert (List.length ts = type_param_count);
   open_ ts t
 
 (* [normalize_stop_at stop_at t] is like [normalize] except the
@@ -2976,19 +3004,23 @@ let lookup_typd_existentials c =
   | Some es -> es
   | None -> []
 
-(* Path A slice 6: bind the [is_gadt_con] forward-ref now that
-   [lookup_typd_existentials] is available.  A Con is GADT-bearing if:
-   - its Def body is a Variant with at least one arm carrying
-     non-empty [binds] (slice 2 existentials / slice 5 refinements),
+(* Path A slice 6 / HKT extension: bind the [is_gadt_con]
+   forward-ref.  A Con is GADT-bearing if:
+   - its Def kind has any [Existential _] entry in its binds
+     (top-level alias existentials, HKT-extension structural form),
      or
-   - it's a top-level existential alias
-     ([gadt_typd_existentials] non-empty). *)
+   - its Def body is a Variant with at least one arm carrying
+     non-empty [binds] (slice 2 existentials / slice 5 refinements). *)
 let () = is_gadt_con_ref := (fun c ->
+  let has_existential_bind (tbs : bind list) =
+    List.exists (fun (tb : bind) ->
+      match tb.sort with Existential _ -> true | _ -> false) tbs
+  in
   match Cons.kind c with
-  | Def (_, Variant fs) ->
-    lookup_typd_existentials c <> [] ||
+  | Def (tbs, Variant fs) ->
+    has_existential_bind tbs ||
     List.exists (fun (f : field) -> f.binds <> []) fs
-  | Def _ -> lookup_typd_existentials c <> []
+  | Def (tbs, _) -> has_existential_bind tbs
   | _ -> false)
 
 (* GADT refinement, indexed by source region of an AST node.
@@ -3226,14 +3258,16 @@ let derive_tag_sigma (target_t : typ) (label : lab) (actual : typ)
 let derive_typd_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
   match target_t with
   | Con (c, ts) ->
-    let es = lookup_typd_existentials c in
-    if es = [] then ConEnv.empty
-    else
-      (match Cons.kind c with
-       | Def (tbs, body) ->
+    (match Cons.kind c with
+     | Def (tbs, body) ->
+       (* HKT extension: existential cons live structurally in the
+          Def's binds (Existential sort).  Read them directly. *)
+       let es = existentials_of_binds tbs in
+       if es = [] then ConEnv.empty
+       else
          let opened = reduce tbs body ts in
          (match unify_existentials opened actual es with
           | Some sigma -> sigma
           | None -> ConEnv.empty)
-       | _ -> ConEnv.empty)
+     | _ -> ConEnv.empty)
   | _ -> ConEnv.empty

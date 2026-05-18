@@ -1202,10 +1202,15 @@ and check_typ_bind env typ_bind : T.con * T.bind * Scope.typ_env * Scope.con_env
   | _ -> assert false
 
 and check_typ_bounds env (tbs : T.bind list) (ts : T.typ list) ats at =
-  let pars = List.length tbs in
+  (* HKT extension: existential binds (added by augment_def_binds)
+     are not user-provided at use sites — filter them out of the
+     arity check. *)
+  let tbs_check = List.filter (fun (tb : T.bind) ->
+    match tb.T.sort with T.Existential _ -> false | _ -> true) tbs in
+  let pars = List.length tbs_check in
   let args = List.length ts in
   if pars <> args then begin
-    let consider_scope x = match tbs with
+    let consider_scope x = match tbs_check with
       | hd :: _ when hd.T.sort = T.Scope -> x - 1
       | _ -> x in
     error env at "M0045"
@@ -1226,7 +1231,7 @@ and check_typ_bounds env (tbs : T.bind list) (ts : T.typ list) ats at =
         go tbs' ts' ats'
     | [], [], [] -> ()
     | _  -> assert false
-  in go tbs ts ats
+  in go tbs_check ts ats
 
 (* Check type definitions productive and non-expansive *)
 and check_con_env env at ce =
@@ -5608,6 +5613,21 @@ and infer_dec_typdecs env dec : Scope.t =
          T.augment_arm_binds c tag.it.tag.it refinement_binds
        ) tags
      | _ -> ());
+    (* HKT extension of Path A: augment-phase population of
+       existential binds on the alias's Def kind itself.  Same
+       post-confluence rationale as augment_arm_binds.  Runs only
+       in the final (non-pre) pass. *)
+    if not env.pre then begin
+      let typd_binds =
+        List.filter_map (fun cstr ->
+          match cstr.it.refines, cstr.note with
+          | None, Some skolem ->
+            Some ({T.var = cstr.it.tv.it; sort = T.Existential skolem; bound = T.Any} : T.bind)
+          | _ -> None
+        ) cs_top
+      in
+      T.augment_def_binds c typd_binds
+    end;
     scope
   | ClassD (exp_opt, shared_pat, obj_sort, id, binds, pat, _typ_opt, self_id, dec_fields) ->
      (*TODO exp_opt *)

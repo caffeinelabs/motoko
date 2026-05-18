@@ -217,6 +217,12 @@ val set_kind : con -> kind -> unit
     3-phase elaboration protocol. *)
 val augment_arm_binds : con -> lab -> bind list -> unit
 
+(** HKT extension of Path A: append existential binders to a top-level
+    alias's Def kind.  Mirror of [augment_arm_binds] one layer up.
+    Existentials at the END of the bind list so type-parameter
+    instantiation via [reduce]/[open_] continues to work. *)
+val augment_def_binds : con -> bind list -> unit
+
 module ConEnv : Env.S with type key = con
 module ConSet = ConEnv.Dom
 

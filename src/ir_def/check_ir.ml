@@ -339,7 +339,9 @@ and check_typ_binds env typ_binds : T.con list * con_env =
   cs, T.ConSet.of_list cs
 
 and check_typ_bounds env (tbs : T.bind list) typs at : unit =
-  let pars = List.length tbs in
+  let tbs_check = List.filter (fun (tb : T.bind) ->
+    match tb.T.sort with T.Existential _ -> false | _ -> true) tbs in
+  let pars = List.length tbs_check in
   let args = List.length typs in
   if pars < args then
     error env at "too many type arguments";
@@ -349,7 +351,7 @@ and check_typ_bounds env (tbs : T.bind list) typs at : unit =
     (fun tb typ ->
       check env at (sub env typ (T.open_ typs tb.T.bound))
         "type argument does not match parameter bound")
-    tbs typs
+    tbs_check typs
 
 
 and check_inst_bounds env tbs typs at =
