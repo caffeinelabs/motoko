@@ -177,7 +177,27 @@ and exp' at note = function
     let tbs' = typ_binds tbs in
     let vars = List.map (fun (tb : I.typ_bind) -> T.Con (tb.it.I.con, [])) tbs' in
     let tys = List.map (T.open_ vars) res_tys in
-    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e))
+    (* Slice-6.5: for each `<T with type>` binder, prepend a synthetic
+       `let T = to_candid(42 : Nat)` to the function body.  The witness
+       value is a placeholder Candid blob; future slices will plumb the
+       real witness from the call site. *)
+    let body_ir = wrap (exp e) in
+    let witness_binders = List.filter
+      (fun (tb : S.typ_bind) -> tb.it.S.has_witness) tbs in
+    let body_with_witnesses =
+      if witness_binders = [] then body_ir
+      else
+        let witness_decs = List.map (fun (tb : S.typ_bind) ->
+          let v = var tb.it.S.var.it T.blob in
+          let nat42 = natE (Numerics.Nat.of_int 42) in
+          let witness =
+            primE (I.SerializePrim [T.nat]) [seqE [nat42]]
+          in
+          letD v witness
+        ) witness_binders in
+        blockE witness_decs body_ir
+    in
+    I.FuncE (name, s, control, tbs', args, tys, body_with_witnesses)
   (* Primitive functions in the prelude have particular shapes *)
   | S.CallE (None, {it=S.AnnotE ({it=S.PrimE p;_}, _);note;_}, _, (_, e))
     when Lib.String.chop_prefix "num_conv" p <> None ->

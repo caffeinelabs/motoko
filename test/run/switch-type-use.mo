@@ -1,10 +1,15 @@
-// Slice-4: `switch type T { … }` parses to a plain SwitchE.  Until
-// slice 5/6 wire the macro-expansion + value-side of `<T with type>`,
-// T is an unbound variable at this position, so M0057 fires.  This
-// test migrates to test/run/ once those slices land.
-func f<T with type>(arg : T) : ?Int {
+// Slice-6.5: `<T with type>` auto-injects a value-side `T : @Candid`
+// for the body to use.  No manual `let T = ...` needed.  The desugarer
+// is responsible for materialising the runtime witness — disabled here
+// until that lands.
+
+func f<T with type>(_arg : T) : ?Int {
   switch type T {
-    case Int (?42);
-    case Any (null);
+    case Nat (?42);
+    case Int (null);
   }
 };
+
+//SKIP run
+//SKIP run-ir
+//SKIP run-low

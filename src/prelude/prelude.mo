@@ -26,7 +26,7 @@ type Error = prim "Error";
 type Principal = prim "Principal";
 type Region = prim "Region";
 
-type @Candid = { blob : Blob; ptr : Nat };
+type @Candid = Blob;
 
 func @typCode(_stream : @Candid) : Int = -3;
 

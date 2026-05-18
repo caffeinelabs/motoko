@@ -2575,6 +2575,21 @@ and infer_exp'' env exp : T.typ =
     check_shared_return env typ.at sort c ts2;
     let env' = infer_async_cap (adjoin_typs env te ce) sort cs tbs (Some exp1) exp.at in
     let t1, ve1 = infer_pat_exhaustive (if T.is_shared_sort sort then local_error else warn) env' pat in
+    (* Slice-6.5: each `<T with type>` binder gets a synthetic value-side
+       `T : @Candid` injected into the body's env.  Desugar materialises
+       the runtime value. *)
+    let ve1 =
+      let candid_typ =
+        match T.Env.find_opt "@Candid" env'.typs with
+        | Some c -> T.Con (c, [])
+        | None -> T.blob
+      in
+      List.fold_left (fun ve (tb : typ_bind) ->
+        if tb.it.has_witness then
+          T.Env.add tb.it.var.it (candid_typ, tb.at, Scope.Declaration) ve
+        else ve
+      ) ve1 typ_binds
+    in
     let ve2 = T.Env.adjoin ve ve1 in
     let ts2 = List.map (check_typ_item env') ts2 in
     typ.note <- T.seq ts2; (* HACK *)

@@ -1,6 +1,6 @@
-switch-type-use.mo:11.3-14.4: warning [M0145], this switch of type
+switch-type-use.mo:7.3-10.4: warning [M0145], this switch of type
   Int
 does not cover value
   0 or 1 or _
-switch-type-use.mo:7.6-7.7: warning [M0194], unused identifier: `f`
+switch-type-use.mo:6.6-6.7: warning [M0194], unused identifier: `f`
 help: if this is intentional, prefix it with an underscore: `_f`
