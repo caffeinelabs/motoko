@@ -1658,6 +1658,133 @@ slice.
       the existing 696/696 sweep — no test compiles its own dead
       arm and inspects the IR.
 
+## Value-driven refinement: `prim switch` (sketch, internal-only)
+
+Dual to today's *type-driven* refinement (variant arm pattern → σ
+substitution), an **internal-only** alias form where a value
+parameter selects the refinement.  Motivation: binary parsers,
+protocol analysers, Candid wire-tag decoders, the
+[`switch type` machinery in shared-generics](shared-generics.md).
+Not user-facing — only the compiler / RTS generates these.
+
+### Surface form (internal)
+
+```motoko
+type TyDesc<T>(byte : Int8) = prim switch byte {
+  case 0x7d : type T = Int;
+  case 0x7c : type T = Nat;
+  case 0x7e : type T = Bool;
+  ...
+};
+```
+
+- `type TyDesc<T>(byte : Int8)`: an alias with both a type-parameter
+  `T` and a *value-parameter* `byte`.  The value is a compile-time
+  singleton (`prim` marker forbids user-facing instantiation; the
+  compiler uses these only at known-byte sites).
+- `prim switch byte { case 0xNN : <refinement> }`: dispatches on the
+  byte value; each arm carries a refinement of `T` (the standard
+  `type T = …` GADT refinement clause, *same shape* as variant-arm
+  refinements).
+- No payload — purely a *type-level commitment* indexed by a byte.
+
+### Relationship to existing GADTs
+
+The refinement *clauses* are exactly today's variant-arm refinements
+— `type T = Int` is the M2/M3 mechanism, unchanged.  What's new is
+the *dispatcher*: today's GADT dispatcher is *pattern-match on a
+tag* (`#int n` → arm with `A = Nat`); the proposed one is *equal to
+a byte value* (`byte == 0x7d` → arm with `T = Int`).
+
+The σ machinery (`derive_tag_sigma`, `gadt_sigma_for_case`,
+`prune_gadt_variant`) already keys refinements by arm label.  For
+`prim switch` we'd key by byte value instead.  Symmetric:
+`prim_switch_sigma : Int8 -> typ ConEnv.t` returning σ for the
+byte's matching arm.
+
+### Construction question — sketch
+
+The open question the user raised: *how does payload data get
+constructed?*  TyDesc has no payload — it's a pure type-tag.  The
+USE shape is "pair the value with its tag":
+
+```motoko
+// Internal API (compiler-generated for Candid/shared-generics):
+type Tagged = type T in (TyDesc<T>(byte), T);
+// — but [byte] is a singleton, so this needs a refinement of the
+// existential T to match the byte's arm.
+```
+
+A cleaner formulation: existential pack the byte and value together,
+where the *type T* is determined by the byte:
+
+```motoko
+type Tagged = type T in {
+  byte : Int8;
+  value : T;
+  // Coherence constraint (compiler-internal, not user-visible):
+  // prim switch byte { case 0x7d : type T = Int; ... } refines T
+};
+```
+
+The coherence constraint is what the `prim switch` clause expresses:
+"the value of `byte` *witnesses* the type of `value`".  At
+destructure, the compiler reads `byte`, looks up its arm, and σ
+gives the concrete T.  At construction, the compiler validates that
+the supplied value's type matches the supplied byte's arm.
+
+### Mechanism reuse
+
+Almost everything maps onto existing GADT machinery:
+
+| Existing mechanism | Value-driven analog |
+|---|---|
+| variant arm with `type N = T` refinement | `case 0xNN : type T = …` |
+| `arm_existentials`, `arm_refinements` | byte-keyed analogs |
+| `prune_gadt_variant` (refinement → arm reachability) | byte-keyed pruning when byte is statically known |
+| `derive_tag_sigma` (tag → σ) | `derive_byte_sigma` (byte → σ) |
+| TagP / TagPrim (destructure side) | a literal-pattern dispatch on the byte |
+
+The new piece is just the *keying function* — byte value instead of
+arm label.  Could be expressed in the rep as `field.binds` extended
+to carry a `Literal of value | Label of lab` discriminator, or as a
+parallel kind of "switch arm" in the AST/IR.
+
+### Open design questions
+
+- **Singleton typing of `byte`**: Motoko has no dependent types
+  proper.  Either (a) `byte` is implicitly a compile-time constant
+  (only `prim`-generated sites use this), or (b) we introduce a
+  light singleton mechanism `Int8(0x7d)` for value-indexed types.
+  (a) is the lowest-friction internal path.
+- **Open-world byte values**: what's the default arm?  Candid has a
+  bounded set of type bytes; out-of-range should trap.  The
+  compiler can emit the trap from the elaboration site.
+- **Coverage at the byte switch**: the existing M5 + M15 machinery
+  generalises — typing can prune byte-arms by reachability when the
+  byte is statically known; desugar can drop unreached byte-arms
+  the same way it drops unreached tag-arms.
+- **Interaction with bounded existentials**: a `prim switch byte`
+  arm could have `type T <: Nat` instead of `type T = Nat`,
+  allowing "this byte commits T to a Nat-subtype" semantics.
+  Useful for parsing where the wire tag pins a *family* of types.
+- **Composition**: `prim switch` arms could themselves be `prim
+  switch` over a follow-on byte, giving variable-length tag decoders
+  (Candid's nested constructor types).
+
+### Not a near-term slice
+
+This is a *concept* placeholder for the shared-generics work.  The
+existing M11/M14 machinery handles user-facing GADTs; the
+`prim switch` form would extend the dispatcher's keying function
+without touching the σ substitution / soundness story.  Cost
+estimate: roughly the size of M14's parser+typing+IR work, but
+internal-only (no surface syntax adjustments, no docs).
+
+See also: [shared-generics.md](shared-generics.md) — the dynamic
+`switch type` design, which would consume this primitive at runtime
+Candid boundaries.
+
 ## Open knobs (deferred)
 
 1. **Variance** of the type parameter when GADTs are present. Sidestepped by
