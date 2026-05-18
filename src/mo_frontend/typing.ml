@@ -2878,14 +2878,22 @@ and infer_exp'' env exp : T.typ =
     (* Apply the refinement's σ to env.vals and elaborate [exp1] under
        the refined env.  Final type is the inferred type with σ applied,
        so refined occurrences of the existential surface to the caller.
-       Pre-mode: just infer through; macro-expansion fills [cstr.note]
-       with the skolem con, so a missing note degenerates gracefully. *)
+       Lookup target: prefer [cstr.note] (set by variant-arm elaboration);
+       otherwise fall back to [cstr.it.tv] resolved in [env.typs] (this
+       is the macro-expansion path — the constraint was synthesised at
+       parse-time and carries only the syntactic [tv] name). *)
     let sigma =
-      match cstr.it.refines, cstr.note with
-      | Some rhs, Some skol ->
+      match cstr.it.refines with
+      | Some rhs ->
         let rhs_t = check_typ env rhs in
-        T.ConEnv.singleton skol rhs_t
-      | _ -> T.ConEnv.empty
+        let con_opt = match cstr.note with
+          | Some c -> Some c
+          | None -> T.Env.find_opt cstr.it.tv.it env.typs
+        in
+        (match con_opt with
+         | Some con -> T.ConEnv.singleton con rhs_t
+         | None -> T.ConEnv.empty)
+      | None -> T.ConEnv.empty
     in
     let env_for_body =
       if T.ConEnv.is_empty sigma then env
