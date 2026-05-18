@@ -7,18 +7,13 @@ open Source
 
 (* Notes *)
 
-(* M11a: GADT existential refinement σ may be attached to an exp's
-   note. Replaces the region-keyed side-table for construction-side
-   σ writes (variant-arm payloads, top-level existential packs).
-   None means "no refinement". *)
 type typ_note = {
   note_typ : Type.typ;
   note_eff : Type.eff;
-  note_sigma : Type.typ Type.ConEnv.t option;
 }
 
 let empty_typ_note =
-  {note_typ = Type.Pre; note_eff = Type.Triv; note_sigma = None}
+  {note_typ = Type.Pre; note_eff = Type.Triv}
 
 (* Resolved imports (filled in separately after parsing) *)
 
@@ -452,11 +447,11 @@ let contextual_dot_args e1 e2 dot_note =
   in
   let args = match e2 with
     | { it = TupE []; at; note = { note_eff; _ } } ->
-       { it = e1.it; at; note = { note_eff = effec note_eff; note_typ = e1.note.note_typ; note_sigma = None } }
-    | { it = TupE exps; at; note = { note_eff; note_typ = T.Tup ts; _ } } when arity <> 2 ->
-       { it = TupE (e1::exps); at; note = { note_eff = effec note_eff; note_typ = T.Tup (e1.note.note_typ::ts); note_sigma = None } }
+       { it = e1.it; at; note = { note_eff = effec note_eff; note_typ = e1.note.note_typ } }
+    | { it = TupE exps; at; note = { note_eff; note_typ = T.Tup ts } } when arity <> 2 ->
+       { it = TupE (e1::exps); at; note = { note_eff = effec note_eff; note_typ = T.Tup (e1.note.note_typ::ts) } }
     | { at; note = { note_eff; _ }; _ } ->
-       { it = TupE ([e1; e2]); at; note = { note_eff = effec note_eff; note_typ = T.Tup ([e1.note.note_typ; e2.note.note_typ]); note_sigma = None } }
+       { it = TupE ([e1; e2]); at; note = { note_eff = effec note_eff; note_typ = T.Tup ([e1.note.note_typ; e2.note.note_typ]) } }
   in args
 
 let is_import d =

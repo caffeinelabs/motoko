@@ -416,25 +416,19 @@ let rec check_exp env (exp:Ir.exp) : unit =
       raise e)
 *)
   in
-  (* Path A slice 6: σ-refine the expected ambient type before
-     construction-side sub-checks.  Variant-arm σ (TagPrim) is
-     derived structurally via [derive_tag_sigma].  Top-level
-     existential alias σ (TupPrim / ObjPrim / …) still reads
-     [exp.note.note_sigma] — typing's [gadt_check_typd_existentials]
-     stamps it because desugar walks the note expecting the opened
-     structural body, not the Con form, so path_compress can't
-     preserve enough info here.  Full migration awaits a desugar
-     audit (separate refactor). *)
+  (* Path A: σ-refine the expected ambient type before construction-
+     side sub-checks.  Variant-arm σ (TagPrim) is derived structurally
+     via [derive_tag_sigma].  Top-level existential alias σ
+     (TupPrim / ObjPrim / CallPrim-return) is no longer needed here —
+     typing inlines σ into [exp.note.note_typ] at the construction
+     site, so [t = E.typ exp] is already the substituted form. *)
   let refine_target ?(tag_info : (T.lab * T.typ) option = None) t =
-    let sigma = match tag_info with
-      | Some (lab, actual) -> T.derive_tag_sigma t lab actual
-      | None ->
-        (match exp.note.Note.gadt_sigma with
-         | Some s -> s
-         | None -> T.ConEnv.empty)
-    in
-    if T.ConEnv.is_empty sigma then t
-    else T.subst sigma (T.promote t)
+    match tag_info with
+    | None -> t
+    | Some (lab, actual) ->
+      let sigma = T.derive_tag_sigma t lab actual in
+      if T.ConEnv.is_empty sigma then t
+      else T.subst sigma (T.promote t)
   in
   (* check for aliasing *)
   if exp.note.Note.check_run = env.check_run
@@ -1235,17 +1229,30 @@ and check_dec env dec  =
   | LetD (pat, exp) ->
     ignore (check_pat_exhaustive env pat);
     check_exp env exp;
-    (* M11b — fresh-per-site existential skolem. At destructure sites
-       [pat.note] is at site-local cons while [typ exp] still references
-       the schema's cons; recover σ structurally from
-       (schema Con, pat.note) and promote+substitute to bring them into
-       agreement.  No side-table read — σ is derived on demand. *)
-    let sigma = T.derive_destructure_sigma (typ exp) pat.note in
-    let exp_typ =
-      if T.ConEnv.is_empty sigma then typ exp
-      else T.subst sigma (T.promote (typ exp))
+    (* Asymmetric σ-bridging at the LetD subtype check.  Exactly one
+       side carries the alias Con form for a top-level existential
+       alias; the other has been substituted to its structural form
+       (typing inlines σ for construction RHS, and via the destructure
+       path for pat.note when the pattern is TupP/ObjP).  Whichever
+       side is still in Con form gets σ-unfolded against the other
+       side before the sub-check. *)
+    let pat_typ =
+      match pat.note with
+      | T.Con (c, _) when T.typd_existentials c <> [] ->
+        let sigma = T.derive_destructure_sigma pat.note (typ exp) in
+        if T.ConEnv.is_empty sigma then pat.note
+        else T.subst sigma (T.normalize pat.note)
+      | _ -> pat.note
     in
-    exp_typ <: pat.note
+    let exp_typ =
+      match typ exp with
+      | T.Con (c, _) when T.typd_existentials c <> [] ->
+        let sigma = T.derive_destructure_sigma (typ exp) pat.note in
+        if T.ConEnv.is_empty sigma then typ exp
+        else T.subst sigma (T.promote (typ exp))
+      | _ -> typ exp
+    in
+    exp_typ <: pat_typ
   | VarD (id, t, exp) ->
     check_exp env exp;
     typ exp <: t

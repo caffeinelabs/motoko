@@ -2206,7 +2206,7 @@ and infer_exp_wrapper inf f env exp : T.typ =
     let t'' = T.path_compress t' in
     assert (t'' <> T.Pre);
     let note_eff = A.infer_effect_exp exp in
-    exp.note <- {note_typ = t''; note_eff; note_sigma = None}
+    exp.note <- {note_typ = t''; note_eff}
   end;
   t'
 
@@ -2247,7 +2247,7 @@ and infer_exp'' env exp : T.typ =
       match candidate_libs with
       | [(name, typ)] ->
         id.note <-
-          (Const, Some { it = ImplicitLibE name; at = exp.at; note = {note_typ = typ; note_eff = T.Triv; note_sigma = None} });
+          (Const, Some { it = ImplicitLibE name; at = exp.at; note = {note_typ = typ; note_eff = T.Triv} });
         typ
       | c1::c2::cs ->
         let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
@@ -2989,9 +2989,9 @@ and gadt_check_existentials env exp t c ts id exp1 =
                    display_typ_expand actual_t
                    display_typ_expand refined_payload;
                let e = A.infer_effect_exp exp in
-               (* M11a: σ lives on the exp's note (post-migration). *)
-               exp.note <- {exp.note with note_typ = t; note_eff = e;
-                                          note_sigma = Some sigma};
+               (* Slice 6: check_ir derives variant-arm σ structurally via
+                  derive_tag_sigma; no need to stash σ on the note. *)
+               exp.note <- {exp.note with note_typ = t; note_eff = e};
                true
              | None ->
                local_error env exp.at "M9002"
@@ -3025,11 +3025,10 @@ and gadt_check_typd_existentials env exp t c ts =
            display_typ_expand actual_t
            display_typ_expand refined;
        let e = A.infer_effect_exp exp in
-       (* Normalise to the structural form (Obj / Tup / Variant / ...)
-          for desugar — it walks the note expecting the open body, not
-          the [Con] wrapper. M11a: σ lives on the note. *)
-       exp.note <- {exp.note with note_typ = T.normalize t; note_eff = e;
-                                  note_sigma = Some sigma};
+       (* Inline σ into the structural form for desugar — desugar walks
+          the note expecting the opened body (Obj / Tup / Variant / ...)
+          with concrete witness types in existential slots. *)
+       exp.note <- {exp.note with note_typ = refined; note_eff = e};
        true
      | None ->
        local_error env exp.at "M9002"
@@ -3251,11 +3250,11 @@ and check_exp' env0 t exp : T.typ =
              "expression of type%a\ncannot produce expected type%a"
              display_typ_expand actual
              display_typ_expand refined;
-         (* Stash σ on the TagE's note so IR's refine_target can
-            bridge fresh ← schema at the TagPrim sub-check. *)
+         (* M11a: σ used to be stashed on the note for IR's refine_target
+            to bridge fresh ← schema at TagPrim. Slice 6 made check_ir
+            derive σ structurally via derive_tag_sigma; no σ stash needed. *)
          let e = A.infer_effect_exp exp in
-         exp.note <- {exp.note with note_typ = t; note_eff = e;
-                                    note_sigma = Some sigma}
+         exp.note <- {exp.note with note_typ = t; note_eff = e}
        | None ->
          local_error env exp.at "M9002"
            "GADT arm `%s`: cannot infer existential witness from payload of type%a"
@@ -3464,7 +3463,7 @@ and infer_callee env exp =
         if not env.pre then begin
           check_exp env func_ty path;
           let note_eff = A.infer_effect_exp exp in
-          exp.note <- {note_typ = func_ty; note_eff; note_sigma = None}
+          exp.note <- {note_typ = func_ty; note_eff}
         end;
         func_ty, Some (exp1, t1, id.it, inst)
      end
@@ -5057,8 +5056,7 @@ and infer_viewer env scope mut id viewer =
            let varE =
              { (VarE {it = id.it; at; note = (mut, None)} @? at)
                with note = { note_typ = typ;
-                             note_eff = T.Triv;
-                             note_sigma = None } }
+                             note_eff = T.Triv } }
            in
            use_identifier env id.it;
            viewer := Some
@@ -5794,7 +5792,7 @@ let infer_import env dec = match dec.it with
     in
     let t' = T.normalize t in
     assert (t' <> T.Pre);
-    exp.note <- {note_typ = t'; note_eff = T.Triv; note_sigma = None};
+    exp.note <- {note_typ = t'; note_eff = T.Triv};
     dec.note <- {empty_typ_note with note_typ = t; note_eff = T.Triv};
     scope
   | _ -> assert false

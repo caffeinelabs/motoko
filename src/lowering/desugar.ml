@@ -35,8 +35,8 @@ let apply_sign op l = Syntax.(match op, l with
 let phrase f x = { x with it = f x.it }
 
 let typ_note : S.typ_note -> Note.t =
-  fun S.{ note_typ; note_eff; note_sigma } ->
-    Note.{ def with typ = note_typ; eff = note_eff; gadt_sigma = note_sigma }
+  fun S.{ note_typ; note_eff } ->
+    Note.{ def with typ = note_typ; eff = note_eff }
 
 let phrase' f x =
   { x with it = f x.at x.note x.it }
@@ -78,7 +78,7 @@ let desugar_loop_flags at note body flags with_body =
   in
   if not has_break then `Body body else
   let () = flags.has_break <- false in
-  `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff; note_sigma = note.Note.gadt_sigma } }))
+  `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
 
 let rec exps es = List.map exp es
 
@@ -146,22 +146,9 @@ and exp' at note = function
       (varP v) (varE v) ty).it
   | S.ObjBlockE (exp_opt, s, (self_id_opt, _), dfs) ->
     let eo = Option.map exp exp_opt in
-    (* M11a: σ-refine the obj_typ when a GADT existential refinement
-       is recorded on the note. *)
-    let obj_typ = match note.Note.gadt_sigma with
-      | Some sigma -> T.subst sigma note.Note.typ
-      | None -> note.Note.typ
-    in
-    obj_block at s eo self_id_opt dfs obj_typ
+    obj_block at s eo self_id_opt dfs note.Note.typ
   | S.ObjE (bs, efs) ->
-    (* M11a: refine the obj_typ so per-field LetDs are typed at the
-       refined (concrete) field types rather than the schema's
-       existential cons. *)
-    let obj_typ = match note.Note.gadt_sigma with
-      | Some sigma -> T.subst sigma note.Note.typ
-      | None -> note.Note.typ
-    in
-    obj obj_typ efs bs
+    obj note.Note.typ efs bs
   | S.TagE (c, e) -> (tagE c.it (exp e)).it
   | S.DotE (e, x, _) when T.is_array e.note.S.note_typ ->
     (array_dotE e.note.S.note_typ x.it (exp e)).it
