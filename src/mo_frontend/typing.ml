@@ -3761,22 +3761,49 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | TupE es when not parenthesized -> es
     | _ -> [exp2]
   in
-  (* Slice-6.6: for each `T.Witness` binder on the callee, prepend a
-     synthetic `to_candid(42 : Nat)` to the syntactic args. *)
+  (* Slice-7: for each `T.Witness` binder on the callee, prepend a
+     synthetic `to_candid(sample : <type-arg>)` to the syntactic args,
+     where the sample value is chosen so its Candid type-table byte
+     hits the right arm of the prim_type's switch.  Currently
+     recognises Nat / Int / Char syntactically. *)
   let syntax_args =
-    let n_witnesses = List.fold_left (fun n (tb : T.bind) ->
-      match tb.T.sort with T.Witness -> n + 1 | _ -> n) 0 tbs in
-    if n_witnesses = 0 then syntax_args
-    else
-      let synth () =
-        let lit = { it = LitE (ref (NatLit (Numerics.Nat.of_int 42)));
-                    at = no_region; note = empty_typ_note } in
-        { it = ToCandidE [lit]; at = no_region; note = empty_typ_note }
+    let typ_args = match inst.it with
+      | Some (_, ts) -> ts
+      | None -> []
+    in
+    let path_name typ_ast = match typ_ast.it with
+      | PathT ({it = IdH id; _}, _) -> Some id.it
+      | _ -> None
+    in
+    let sample_for typ_opt =
+      let mk_lit l =
+        { it = LitE (ref l); at = no_region; note = empty_typ_note }
       in
-      let rec mk_witnesses n =
-        if n <= 0 then [] else synth () :: mk_witnesses (n - 1)
+      let mk_annot inner name =
+        let path = { it = IdH ({it = name; at = no_region; note = ()});
+                     at = no_region; note = None } in
+        let typ = { it = PathT (path, []); at = no_region; note = T.Pre } in
+        { it = AnnotE (inner, typ); at = no_region; note = empty_typ_note }
       in
-      mk_witnesses n_witnesses @ syntax_args
+      match Option.bind typ_opt path_name with
+      | Some "Int"  -> mk_annot (mk_lit (IntLit (Numerics.Int.of_int 42))) "Int"
+      | Some "Char" -> mk_annot (mk_lit (CharLit 65)) "Char"
+      | _ (* Nat or unknown *) ->
+        mk_annot (mk_lit (NatLit (Numerics.Nat.of_int 42))) "Nat"
+    in
+    let witness_args =
+      List.filteri (fun _ _ -> true) (
+        List.mapi (fun i (tb : T.bind) ->
+          if tb.T.sort = T.Witness then
+            let typ_opt = List.nth_opt typ_args i in
+            let sample = sample_for typ_opt in
+            Some { it = ToCandidE [sample];
+                   at = no_region; note = empty_typ_note }
+          else None
+        ) tbs
+        |> List.filter_map (fun x -> x))
+    in
+    witness_args @ syntax_args
   in
   let t_args, extra_subtype_problems = match ctx_dot with
     | None ->
