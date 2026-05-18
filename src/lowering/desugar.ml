@@ -1343,7 +1343,7 @@ and cases cs = List.map (case Fun.id) cs
 
 and case f c = phrase (case' f) c
 
-and case' f c = S.{ I.pat = pat c.pat; I.exp = f (exp c.exp); I.gadt_sigma = c.gadt_sigma }
+and case' f c = S.{ I.pat = pat c.pat; I.exp = f (exp c.exp) }
 
 and pats ps = List.map pat ps
 

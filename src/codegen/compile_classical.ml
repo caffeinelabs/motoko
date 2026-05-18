@@ -12780,11 +12780,11 @@ and simplify_cases e (cs : Ir.case list) =
   match cs, e.note.Note.typ with
   (* for a 2-cased variant type, the second comparison can be omitted when the first pattern
      (with irrefutable subpattern) didn't match, and the pattern types line up *)
-  | [{it={pat={it=TagP (l1, ip); _}; _}; _} as c1; {it={pat={it=TagP (l2, pat'); _} as pat2; exp; gadt_sigma}; _} as c2], Type.(Variant [{lab=el1; _}; {lab=el2; _}])
+  | [{it={pat={it=TagP (l1, ip); _}; _}; _} as c1; {it={pat={it=TagP (l2, pat'); _} as pat2; exp}; _} as c2], Type.(Variant [{lab=el1; _}; {lab=el2; _}])
        when Ir_utils.is_irrefutable ip
             && (l1 = el1 || l1 = el2)
             && (l2 = el1 || l2 = el2) ->
-     [c1; {c2 with it = {exp; pat = {pat2 with it = known_tag_pat pat'}; gadt_sigma}}]
+     [c1; {c2 with it = {exp; pat = {pat2 with it = known_tag_pat pat'}}}]
   | _ -> cs
 
 (* Compile, infer and return stack representation, taking the hint into account *)
@@ -12854,7 +12854,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
 
   | SwitchE (e, cs) when single_case e cs ->
     let code1 = compile_exp_vanilla env ae e in
-    let [@warning "-8"] [{it={pat={it=TagP (_, pat');_} as pat; exp; _}; _}] = cs in
+    let [@warning "-8"] [{it={pat={it=TagP (_, pat');_} as pat; exp}; _}] = cs in
     let ae1, pat_code = compile_pat_local env ae {pat with it = known_tag_pat pat'} in
     let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint exp in
 
@@ -12878,7 +12878,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let (set_i, get_i) = new_local env "switch_in" in
 
     (* compile subexpressions and collect the provided stack reps *)
-    let codes = List.map (fun {it={pat; exp=e; _}; _} ->
+    let codes = List.map (fun {it={pat; exp=e}; _} ->
       let (ae1, pat_code) = compile_pat_local env ae pat in
       let (sr, rhs_code) = compile_exp_with_hint env ae1 sr_hint e in
       (sr, CannotFail get_i ^^^ pat_code ^^^ CannotFail rhs_code)

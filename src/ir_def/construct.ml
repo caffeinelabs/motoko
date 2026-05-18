@@ -404,15 +404,13 @@ let switch_optE exp1 exp2 pat exp3 typ1  =
          [{ it = {pat = {it = LitP NullLit;
                          at = no_region;
                          note = typ exp1};
-                  exp = exp2;
-                  gadt_sigma = None};
+                  exp = exp2};
             at = no_region;
            note = () };
           { it = {pat = {it = OptP pat;
                         at = no_region;
                         note = typ exp1};
-                  exp = exp3;
-                  gadt_sigma = None};
+                  exp = exp3};
             at = no_region;
             note = () }]
         );
@@ -430,8 +428,7 @@ let switch_variantE exp1 cases typ1 =
           { it = {pat = {it = TagP (l, p);
                          at = no_region;
                          note = typ exp1};
-                  exp = e;
-                  gadt_sigma = None};
+                  exp = e};
             at = no_region;
             note = ()
           })
@@ -451,12 +448,11 @@ let switch_textE exp1 cases (pat, exp2) typ1 =
         {it = LitP (TextLit t);
          at = no_region;
          note = typ exp1};
-         exp = e;
-         gadt_sigma = None};
+         exp = e};
          at = no_region;
          note = ()})
       cases) @
-    [{it = {pat = pat; exp = exp2; gadt_sigma = None};
+    [{it = {pat = pat; exp = exp2};
       at = no_region;
       note = ()}]
   in
@@ -587,8 +583,8 @@ and let_else_switch p e f =
       it = SwitchE(
         varE v,
         [
-          { it = { pat = p; exp = varE v; gadt_sigma = None }; at = e.at; note = () };
-          { it = { pat = wildP; exp = f; gadt_sigma = None }; at = f.at ; note = () }
+          { it = { pat = p; exp = varE v }; at = e.at; note = () };
+          { it = { pat = wildP; exp = f }; at = f.at ; note = () }
         ]
       );
       note = Note.{ def with

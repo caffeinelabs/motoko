@@ -1029,13 +1029,11 @@ and check_lexp env (lexp:Ir.lexp) : unit =
 and check_cases env ~t_pat_raw t_pat t cases =
   List.iter (check_case env ~t_pat_raw t_pat t) cases
 
-and check_case env ~t_pat_raw t_pat t {it = {pat; exp; gadt_sigma = _}; _} =
+and check_case env ~t_pat_raw t_pat t {it = {pat; exp}; _} =
   let ve = check_pat env pat in
   check_sub env pat.at t_pat pat.note;
   (* Path A slice 6: σ is derived on demand from
-     (scrutinee typ, arm label).  The M11a [case'.gadt_sigma]
-     cache is no longer consulted — patch -R the M11a slice
-     commits to delete the field once this is settled. *)
+     (scrutinee typ, arm label). *)
   let sigma = match pat.it with
     | Ir.TagP (lab, _) -> T.derive_case_sigma t_pat_raw lab
     | _ -> T.ConEnv.empty

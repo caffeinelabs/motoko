@@ -167,10 +167,10 @@ and pats env ps  =
 
 and case env (c : case) =
   { c with it = case' env c.it }
-and case' env {pat=p;exp=e;gadt_sigma} =
+and case' env {pat=p;exp=e} =
   let env1 = pat env p in
   let e' = tailexp env1 e in
-  { pat=p; exp=e'; gadt_sigma }
+  { pat=p; exp=e' }
 
 
 and cases env cs = List.map (case env) cs

@@ -156,10 +156,9 @@ let eq_for : T.typ -> Ir.dec * T.typ list = fun t ->
                   ; { it = TagP (f.Type.lab, varP y2); at = no_region; note = t }
                   ]; at = no_region; note = T.Tup [t;t] };
                 exp = eq_func_body t' (varE y1) (varE y2);
-                gadt_sigma = None;
               }; at = no_region; note = ()
             }) fs @
-            [ { it = { pat = wildP; exp = falseE (); gadt_sigma = None };
+            [ { it = { pat = wildP; exp = falseE () };
                 at = no_region; note = () } ]
         );
       at = no_region;
@@ -223,16 +222,16 @@ and t_exp' env = function
   | SwitchE (exp1, cases) ->
     let cases' =
       List.map
-        (fun {it = {pat; exp; gadt_sigma}; at; note} ->
-          {it = {pat = pat; exp = t_exp env exp; gadt_sigma}; at; note})
+        (fun {it = {pat;exp}; at; note} ->
+          {it = {pat = pat; exp = t_exp env exp}; at; note})
         cases
     in
     SwitchE (t_exp env exp1, cases')
   | TryE (exp1, cases, vt) ->
     let cases' =
       List.map
-        (fun {it = {pat; exp; gadt_sigma}; at; note} ->
-          {it = {pat = pat; exp = t_exp env exp; gadt_sigma}; at; note})
+        (fun {it = {pat;exp}; at; note} ->
+          {it = {pat = pat; exp = t_exp env exp}; at; note})
         cases
     in
     TryE (t_exp env exp1, cases', vt)

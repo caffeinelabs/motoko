@@ -89,10 +89,10 @@ and pats rho ps  = List.fold_left pat rho ps
 
 and case rho (c : case) =
   {c with it = case' rho c.it}
-and case' rho { pat = p; exp = e; gadt_sigma } =
+and case' rho { pat = p; exp = e} =
   let rho' = pat rho p in
   let e' = exp rho' e in
-  {pat=p; exp=e'; gadt_sigma}
+  {pat=p; exp=e'}
 
 and cases rho cs = List.map (case rho) cs
 

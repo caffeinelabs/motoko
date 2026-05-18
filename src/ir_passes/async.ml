@@ -385,15 +385,8 @@ let transform prog =
     | IfE (exp1, exp2, exp3) ->
       IfE (t_exp exp1, t_exp exp2, t_exp exp3)
     | SwitchE (exp1, cases) ->
-      let cases' = List.map (fun {it = {pat; exp; gadt_sigma}; at; note} ->
-        (* M11a: rewrite σ's cons keys / value types under this pass's
-           cons-renaming. Mirror of migrate_refinement_at. *)
-        let gadt_sigma' = Option.map (fun sigma ->
-          T.ConEnv.fold (fun c t acc ->
-            T.ConEnv.add (t_con c) (t_typ t) acc
-          ) sigma T.ConEnv.empty
-        ) gadt_sigma in
-        { it = {pat = t_pat pat ; exp = t_exp exp; gadt_sigma = gadt_sigma'}; at; note })
+      let cases' = List.map (fun {it = {pat; exp}; at; note} ->
+        { it = {pat = t_pat pat ; exp = t_exp exp}; at; note })
         cases
       in
       SwitchE (t_exp exp1, cases')

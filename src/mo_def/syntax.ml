@@ -272,10 +272,7 @@ and exp_field = exp_field' phrase
 and exp_field' = {mut : mut; id : id; exp : exp}
 
 and case = case' phrase
-(* M11a: GADT case-arm σ lives on the case node itself (mutable;
-   typing assigns it after pattern-match). Replaces the region-keyed
-   side-table for case σ. None means "no refinement". *)
-and case' = {pat : pat; exp : exp; mutable gadt_sigma : Type.typ Type.ConEnv.t option}
+and case' = {pat : pat; exp : exp}
 
 (* When `Some`, this holds the expression that produces the function to apply to the receiver.
    eg. when `x.f(args...)` desugars to `M.f(x, args...)` the note will hold `M.f` *)

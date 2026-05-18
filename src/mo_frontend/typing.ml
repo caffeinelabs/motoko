@@ -3877,7 +3877,7 @@ and infer_cases env t_pat t cases : T.typ =
   List.fold_left (infer_case env t_pat) t cases
 
 and infer_case env t_pat t case =
-  let {pat; exp; _} = case.it in
+  let {pat; exp} = case.it in
   let ve = check_pat env t_pat pat in
   let initial_usage = enter_scope env in
   let t' = recover_with T.Non (infer_exp (adjoin_vals env ve)) exp in
@@ -3895,16 +3895,15 @@ and check_cases ?orig_pat_t env t_pat t cases =
   List.iter (check_case ?orig_pat_t env t_pat t) cases
 
 and check_case ?orig_pat_t env t_pat t case =
-  let {pat; exp; _} = case.it in
+  let {pat; exp} = case.it in
   let initial_usage = enter_scope env in
   let ve = check_pat env t_pat pat in
   (* GADT env-transformer: when the pattern tags a GADT arm, distill
      the arm's refinements into a substitution Σ and apply it to the
      expected return type, the pattern bindings, and env.vals.
-     Mirrors the construction-side check. *)
+     Mirrors the construction-side check.  No persistent write — IR's
+     check_case re-derives σ via [derive_case_sigma] (Path A slice 6). *)
   let sigma = gadt_sigma_for_case (Option.value orig_pat_t ~default:t_pat) pat in
-  (* M11a: σ on case node (single source of truth). *)
-  case.it.gadt_sigma <- (if T.ConEnv.is_empty sigma then None else Some sigma);
   let env_for_body, ve_for_body, t_for_body =
     if T.ConEnv.is_empty sigma then env, ve, t
     else

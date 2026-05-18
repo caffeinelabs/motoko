@@ -873,11 +873,11 @@ block :
 
 case :
   | CASE p=pat_nullary e=exp_nest
-    { {pat = p; exp = e; gadt_sigma = None} @@ at $sloc }
+    { {pat = p; exp = e} @@ at $sloc }
 
 catch :
   | CATCH p=pat_nullary e=exp_nest
-    { {pat = p; exp = e; gadt_sigma = None} @@ at $sloc }
+    { {pat = p; exp = e} @@ at $sloc }
 
 exp_field :
   | m=var_opt x=id t=annot_opt

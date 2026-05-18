@@ -111,8 +111,7 @@ and field = (field', Type.typ) annotated_phrase
 and field' = {name : Type.lab; var : id} (* the var is by reference, not by value *)
 
 and case = case' Source.phrase
-(* M11a: GADT case-arm σ lives on the case node itself. *)
-and case' = {pat : pat; exp : exp; mutable gadt_sigma : Type.typ Type.ConEnv.t option}
+and case' = {pat : pat; exp : exp}
 
 and lexp = (lexp', Type.typ) annotated_phrase
 and lexp' =

@@ -119,8 +119,8 @@ and t_exp' context exp =
     IfE (t_exp context exp1, t_exp context exp2, t_exp context exp3)
   | SwitchE (exp1, cases) ->
     let cases' = List.map
-      (fun {it = {pat; exp; gadt_sigma}; at; note} ->
-        {it = {pat; exp = t_exp context exp; gadt_sigma}; at; note})
+      (fun {it = {pat;exp}; at; note} ->
+        {it = {pat;exp = t_exp context exp}; at; note})
       cases
     in
     SwitchE (t_exp context exp1, cases')
@@ -331,12 +331,12 @@ and c_exp' context exp k =
   | SwitchE (exp1, cases) ->
     letcont k (fun k ->
     let cases' = List.map
-      (fun {it = {pat; exp; gadt_sigma}; at; note} ->
+      (fun {it = {pat;exp}; at; note} ->
         let exp' = match eff exp with
           | T.Triv -> varE k -*- (t_exp context exp)
           | T.Await -> c_exp context exp (ContVar k)
         in
-        {it = { pat; exp = exp'; gadt_sigma }; at; note})
+        {it = { pat; exp = exp' }; at; note})
       cases
     in
     let typ' = typ_cases cases' in
@@ -381,19 +381,19 @@ and c_exp' context exp k =
       c_exp context exp1 (ContVar k)
     | T.Await ->
       let error = fresh_var "v" T.catch in
-      let rethrow = { it = { pat = varP error; exp = varE f -*- varE error; gadt_sigma = None };
+      let rethrow = { it = { pat = varP error; exp = varE f -*- varE error };
                       at = no_region;
                       note = ()
                     } in
-      let omit_rethrow = List.exists (fun (c : case) -> Ir_utils.is_irrefutable c.it.pat) cases in
+      let omit_rethrow = List.exists (fun {it = {pat; exp}; _} -> Ir_utils.is_irrefutable pat) cases in
       let cases' =
         List.map
-          (fun {it = { pat; exp; gadt_sigma }; at; note} ->
+          (fun {it = { pat; exp }; at; note} ->
             let exp' = match eff exp with
               | T.Triv -> varE k -*- t_exp context exp
               | T.Await -> c_exp context exp (ContVar k)
             in
-            { it = { pat; exp = exp'; gadt_sigma }; at; note })
+            { it = { pat; exp = exp' }; at; note })
           cases
         @ if omit_rethrow then [] else [rethrow] in
       let throw = fresh_err_cont (answerT (typ_of_var k)) in

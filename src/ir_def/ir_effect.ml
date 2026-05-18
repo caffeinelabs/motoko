@@ -95,7 +95,7 @@ and effect_cases cases =
   match cases with
   | [] ->
     T.Triv
-  | {it = {pat; exp; _}; _}::cases' ->
+  | {it = {pat; exp}; _}::cases' ->
     let e = effect_exp exp in
     max_eff e (effect_cases cases')
 

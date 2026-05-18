@@ -161,16 +161,8 @@ let transform prog =
       NewObjE (sort, t_fields ids, t_typ t)
     | SelfCallE _ -> assert false
 
-  and t_case {it = {pat; exp; gadt_sigma}; at; note} =
-    (* M11a: rewrite σ's cons keys and value types so they reference
-       the new (renamed) cons after this pass clones types. Mirror of
-       what migrate_refinement_at does for the side-table. *)
-    let gadt_sigma' = Option.map (fun sigma ->
-      T.ConEnv.fold (fun c t acc ->
-        T.ConEnv.add (t_con c) (t_typ t) acc
-      ) sigma T.ConEnv.empty
-    ) gadt_sigma in
-    { it = {pat = t_pat pat; exp = t_exp exp; gadt_sigma = gadt_sigma'}; at; note}
+  and t_case {it = {pat; exp}; at; note} =
+    { it = {pat = t_pat pat; exp = t_exp exp}; at; note}
 
   and t_lexp lexp =
     { it = t_lexp' lexp.it;
