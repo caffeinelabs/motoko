@@ -10,6 +10,8 @@ func f<T with type>(_arg : T) : ?Int {
   }
 };
 
+let _ = f<Nat>(0);
+
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
