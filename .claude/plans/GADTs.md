@@ -1648,6 +1648,16 @@ slice.
       desugar.  Drives the variant-switch `br_table` dispatch
       tighter under GADT pruning.
 
+      **End-to-end observability test deferred to the
+      `gabor/variant-switch` branch** (PR #5927, memory note
+      `project_variant_switch_dispatch.md`): the test that
+      observes a *shrinking dispatch table* under GADT pruning
+      belongs there — that's where `br_table` lowering lives and
+      where the win is measurable.  Today's behaviour test
+      (M15 case dropped vs trapped in `--debug`) is implicit in
+      the existing 696/696 sweep — no test compiles its own dead
+      arm and inspects the IR.
+
 ## Open knobs (deferred)
 
 1. **Variance** of the type parameter when GADTs are present. Sidestepped by
