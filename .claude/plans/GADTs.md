@@ -1186,15 +1186,43 @@ machinery (br_table or linear) operates on tags as before.
       direction via `derive_destructure_sigma`, unfolding whichever
       side carries the Con.
 
-      **Remaining GADT side state.** `gadt_existential_set` is the
-      sole surviving Hashtbl/Set; `is_gadt_existential` drives the
-      Cardelli stamp-identity exemption in `sub`/`eq` and the
-      free-cons bypass at `check_ir.ml:210`.  Retiring it needs
-      cons to carry their own "is-existential" bit — a wider
-      surgery.  Deferred sibling: making
-      `fresh_destructure_skolem` stamping deterministic so the
-      `Fresh_skolem` effect handler can go too (see type.ml TODO
-      at the handler definition).
+      **`gadt_existential_set` retired (`7939af651`, 2026-05-18).**
+      Skolem cons identity now lives in their stamp value via a
+      partition introduced in `mo_types/cons.ml`:
+      - `>= 1`: counter-driven, freshly minted (regular cons)
+      - `<= 0`: skolem reserve, today populated by
+        `Cons.fresh_skolem`'s decrementing counter (`-1, -2, …`)
+
+      `is_gadt_existential c := Cons.is_skolem c = fst c.stamp <= 0`
+      — pure function of cons identity, no set lookup.  All call
+      sites unchanged.  `register_existential`,
+      `rewrite_gadt_side_tables`, and their callers in `async.ml` /
+      `erase_typ_field.ml` deleted.  Cons clone preserves
+      skolem-ness by routing to the appropriate counter based on
+      the original's stamp sign.
+
+      Side cosmetic: `M0137`'s "references type parameters …" cons
+      list was implicitly hash-ordered (so its order shifted with
+      the stamp re-numbering); now sorted alphabetically — also
+      matches source-declaration order.  `test/fail/issue-2391.ok`
+      updated.
+
+      **The `<= 0` reserve future-proofs deterministic stamping.**
+      Today's decrementing counter gives skolems unique stamps in
+      the reserve; future deterministic encoding (e.g.
+      `-Hashtbl.hash (region, schema_stamp)`) will live in the
+      same range without touching `is_skolem`'s predicate.  Only
+      the *minter* changes when that slice ships.  The
+      `Fresh_skolem` effect handler still memoises per-site
+      identity across typing passes; it goes when stamping becomes
+      deterministic (see `type.ml`'s comment on
+      `with_skolem_pool`).
+
+      **Remaining GADT state: none in side tables.** All Path A
+      side tables retired.  Surviving infrastructure:
+      `Fresh_skolem` effect handler (per-typing-pass memo for
+      skolem identity; deferred per above) and `is_gadt_existential`
+      itself, now a one-liner over the stamp.
 
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
