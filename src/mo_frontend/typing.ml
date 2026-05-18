@@ -1020,7 +1020,8 @@ and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match ty
        skolem cons per constraint, elaborate the field type in the env extended
        with the existentials in scope.  Mirror of [check_typ_tag] for variant
        arms; parser's [typ_constraint_existential] guarantees no refinements
-       here (refines = None). *)
+       here (refines = None).  Mirror of check_typ_def's TypD-top-level assert. *)
+    assert (List.for_all (fun c -> c.it.refines = None) constraints);
     let env' = List.fold_left (fun env (c : typ_constraint) ->
       (* Sequential elaboration: each constraint's bound sees the
          previous siblings — e.g. `type G <: OUTER, type H <: G`

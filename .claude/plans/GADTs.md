@@ -1224,6 +1224,160 @@ machinery (br_table or linear) operates on tags as before.
       skolem identity; deferred per above) and `is_gadt_existential`
       itself, now a one-liner over the stamp.
 
+- [x] **Parser-level refinement exclusion (`bec65e410`,
+      2026-05-18).**  Refinements (`type X = T`) are now structurally
+      forbidden in two places where they had no meaning, via Menhir
+      parametrised productions:
+      - TypD top-level constraints (`type Pair = type X, type Y = T
+        in body` — `Y = T` was M9008 at typing time, now a parse
+        error)
+      - Record-field constraints (`f : type X, type Y = T in T` —
+        same shape, same outcome)
+
+      `typ_constraint_existential` admits only `TYPE x [<: B]` (no
+      `EQ t`); `typ_def_rhs` is parametrised over the constraint
+      flavour.  Three call sites take the restricted form:
+      - `typ_tag` (variant arm — *keeps* the full `typ_constraint`
+        since refinements are valid there)
+      - `TypD` decl + `typ_dec` for .most stable signatures
+      - `typ_field` ValF case (record fields)
+
+      typing.ml's M9008 emission deleted in favour of defensive
+      `assert (List.for_all (fun c -> c.it.refines = None) ...)`
+      in both `check_typ_def` (TypD) and `check_typ_field` (ValF)
+      — pure invariant pinning since the parser now guarantees
+      it.
+
+- [x] **Bounded existentials (`2947a7ca7`, 2026-05-18).**
+      Existential constraints carry an upper bound:
+
+          type Boxed = type X <: Nat in (X, X -> Nat);
+          type Signed = type X <: Int in X;
+          type Pair = type X <: Int in { fst : X; snd : X -> Int };
+
+      Bare `type X` defaults to `<: Any` — backwards-compatible.
+      The bound is enforced at construction via
+      `unify_existentials`'s sub check on each witness candidate
+      against the existential's bound.  Witness types that don't
+      satisfy the bound trip M9002 ("cannot infer existential
+      witness").
+
+      Wire-up:
+      - `syntax.ml` `typ_constraint'` grows `bound : typ`
+      - Parser admits `TYPE x SUB t` in
+        `typ_constraint_existential`; bare `TYPE x` defaults
+        `bound = PrimT "Any"`
+      - Schema-existential mint sites pass the elaborated bound to
+        the cons's `Abs ([], <bound>)` kind (initially), then later
+        the bind-refactor moves it to `bind.bound` for
+        instantiation tracking
+      - `productive.ml` `visit_con` updated to treat skolem (Abs)
+        cons as Productive — they're not recursive Defs
+
+      Tests: `test/run/gadt-bounded-existential.mo` (Nat-in-Nat,
+      Nat-in-Int, tuple + record bodies);
+      `test/fail/gadt-bounded-existential-bound-violation.mo`
+      (Bool/Text vs Int).
+
+- [x] **Field-level existentials (`405d4e49f`, 2026-05-18).**
+      Obj fields can carry their own existentials:
+
+          type Box = {
+            data : type X in (X, X -> Nat);
+            meta : Text
+          };
+          type Bag<A> = {
+            item : type X <: A in (X, X -> A);
+            tag : Text
+          };
+
+      User-visible scope is per-field; cons identity (fresh
+      stamps) keeps independently-scoped same-named existentials
+      distinct.  The existential cons sits on `T.field.binds` —
+      same slot that variant-arm existentials use (slice 1's
+      `gen_field+binds` rep).  σ is derived per-field at
+      construction; the user's intuition is "existentials get
+      hoisted at construction time" (not at type-def time —
+      `field.binds` stays populated throughout).
+
+      Wire-up:
+      - `syntax.ml` ValF grows `typ_constraint list` slot;
+        parser-side uses the same
+        `typ_def_rhs(typ_constraint_existential)` production as
+        TypD
+      - `check_typ_field` mints skolems, elaborates the field type
+        in env extended with the existentials, populates
+        `T.field.binds`
+      - ObjE construction: drop binds-bearing fields from
+        `check_fields` before inference (otherwise schema X trips
+        the value's typecheck), then refine per field via
+        unification
+      - `is_gadt_con` extended to recognise Obj-with-field-binds
+        (parallel to Variant case); `derive_destructure_sigma`
+        unions alias-level + per-field σ
+      - `check_ir.ml`'s LetD path triggers σ-bridging on
+        `is_gadt_con` instead of `typd_existentials`, so
+        field-level existentials are bridged at IR sub-check too
+
+      Tests: `test/run/gadt-field-existential.mo` (unbounded,
+      concrete-bounded, parametric `<: A`, two independent
+      same-named existentials, dissect-assemble axioms for each
+      of unbounded/concrete-bounded/parametric-bounded,
+      record subtyping witness, variant subtyping witness);
+      `test/fail/gadt-field-existential-bound-violation.mo`
+      (concrete + parametric bound violations, record
+      missing-field, variant extra-tag).
+
+- [x] **Chained bounds (`f6eb58024`, 2026-05-18).**  Sibling and
+      cross-level existential bounds can reference each other:
+
+          type Chain = type OUTER in {
+            link : type G <: OUTER, type H <: G in (OUTER, G, H);
+            tag : Text
+          };
+
+      H's bound is G; G's bound is OUTER (alias-level).  Three
+      chaining mechanisms cooperate:
+
+      1. **Intra-bind-list** (within a single `binds` slot):
+         `unify_existentials` substitutes the running σ into each
+         subsequent bound before its sub-check.  Once G→Nat is
+         collected, H's bound check sees Nat (not the abstract
+         G cons).
+      2. **Alias↔field**: `derive_destructure_sigma` substitutes
+         the alias-level σ into each field's bind bounds *and*
+         into the field's expected typ before per-field
+         unification.  OUTER→Int makes G's effective bound Int
+         before G's per-field unify runs.
+      3. **Elaboration-time, siblings in scope**:
+         `check_typ_field` and `check_typ_tag` now read the
+         elaborated bound from `cstr.it.bound.note` (stamped by
+         the progressive env-fold that adds each sibling as it
+         goes) rather than re-elaborating in the outer env which
+         lacks siblings.
+
+      Drive-by: M9002 vs M0096 distinction restored — when σ
+      derivation doesn't cover all declared existentials,
+      `gadt_check_typd_existentials` emits M9002 (witness
+      inference failed) instead of letting the generic M0096
+      sub-check error take over.
+
+- [x] **`unify_existentials` bind-list refactor (rolled into the
+      bounded-existentials / field-existentials slices).**  The
+      function's signature went from `typ -> typ -> con list ->
+      ...` to `typ -> typ -> bind list -> ...`.  Reason: bounds
+      must follow alias instantiation through `open_field` /
+      `reduce`, and the bind's `bound` slot does — `Cons.kind`'s
+      bound is frozen at mint time.
+
+      Callers updated: `derive_tag_sigma`, `derive_typd_sigma`,
+      `derive_destructure_sigma`, `gadt_check_existentials`,
+      `gadt_check_typd_existentials`, ClassD M10 path,
+      `check_ir.ml` M11b path B + LetD.  New helper
+      `T.arm_binds : con -> lab -> bind list` returns the full
+      bind list for a variant arm (parallel to the existing
+      `arm_existentials` cons-list helper).
+
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
       structural representation change. `fresh_destructure_skolem`
@@ -1530,6 +1684,23 @@ instantiations and pattern-matching can discriminate. The schema
 itself doesn't need a separate injectivity check — it falls out of
 the existing Cons machinery.
 
+**Update (2026-05-18):** Upper bounds are now also shipped — as a
+*separate* concept from refinements.  Bounded existentials
+(`2947a7ca7`): `type X <: B in body` constrains the witness to
+satisfy `X <: B`.  So we have *both*:
+- Refinement `type N = T` (variant arms): equality, drives σ
+  substitution into the arm's payload.
+- Upper-bound `type X <: B` (existentials, top-level or
+  field-level): constrains the witness; the existential's
+  identity is preserved (no substitution), only the bound is
+  enforced at construction.
+
+These complement rather than replace each other: refinements
+discriminate across constructor tracks; upper bounds restrict the
+*choice* of witness within an existential pack.  Chained bounds
+(`f6eb58024`) generalise this to inter-existential references
+(`type G <: OUTER, type H <: G in ...` — H's bound is G).
+
 ### 2. Reuse type-binder syntax in patterns and variant declarations
 
 **Reviewer:** "Why not just reuse the syntax for type binders in
@@ -1546,6 +1717,18 @@ the pattern. Explicit pattern binders (`case (#cons<M> (x, xs)) →
 existential. Tracked as an M11a companion question — implementation
 cost is small, but worth pinning down whether the implicit form
 should remain the default.
+
+**Update (2026-05-18):** The reuse is now even more uniform.
+The same `typ_def_rhs(typ_constraint_existential)` production is
+used by all three sites: TypD top-level
+(`type Pair = type X <: Nat in body`), variant arm
+(`#tag : type X <: A in payload`), and record field
+(`f : type X <: B in T`).  Parametrised over the constraint
+flavour: `typ_constraint` (with refinements) is allowed only in
+variant arms; `typ_constraint_existential` (no refinements) is
+the form used by TypD + field.  Refinements being forbidden at
+TypD and at field is now structural — caught at parse time, with
+defensive `assert` mirrors in typing (`bec65e410`).
 
 ### 3. Coverage of impossible cases
 
@@ -1577,6 +1760,21 @@ the existing depth limit on adversarial inputs; worth a separate
 "termination audit" issue if anyone trips it in practice. Not
 adding new fixed-point combinators or recursive unification rules
 that change the asymptotic shape.
+
+**Update (2026-05-18):** Bounded existentials added a new
+substitution surface: `unify_existentials` now applies the
+running σ to each existential's bound before its sub-check (so
+`type G <: OUTER, type H <: G` works — H's bound check sees the
+σ-applied bound).  Substitution is linear in the bound's size and
+σ doesn't grow during the walk (only `add`/`find` are called), so
+the per-step cost is bounded and the walk terminates with the
+unification.  Chained alias↔field substitution in
+`derive_destructure_sigma` follows the same shape — alias σ is
+substituted into field bind bounds *once* before per-field
+unification, no fixed-point iteration.  Adversarial cases would
+still be bounded by `rel_typ`'s existing depth limit; haven't
+expanded the asymptotic shape, just added one substitution layer
+inside the existing walk.
 
 ## Cross-references
 
