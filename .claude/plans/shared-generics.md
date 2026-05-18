@@ -217,6 +217,45 @@ decode; production probably wants hashing.
 Since the representation is hidden behind the abstract-type wall,
 swapping among these strategies is non-breaking.
 
+### Calling convention for `<T with type>` — aliased Blob passing
+
+Operationally, at every call site of a `func<T with type>(…)` (or
+the analogous class), the compiler threads an extra hidden value
+parameter alongside the user's value arguments:
+
+- A `Candid` stream value, abstractly typed (no user-visible
+  operations beyond what `prim type` / `prim switch` consume).
+- Its representation is exactly the `Type` shape:
+  `{ table : Blob; index : Int }`.  The user-facing `Type` abstract
+  primitive and the internal `Candid` stream type share *one*
+  runtime layout — only their surface affordances differ
+  (`switch type T` on `Type`, `prim switch (typCode stream)` on
+  `Candid`).
+- The `Blob` is **aliased**, not copied.  When a polymorphic call
+  crosses an actor boundary, the type table arrives on the wire as
+  bytes; the receiver hosts it once as a `Blob` and every `Candid`
+  value derived from it carries a reference to that same Blob plus
+  its own `index` cursor.  Inner `switch type X` arms on
+  recursively-derived `Type`s allocate only a fresh `{table; index}`
+  pair — the Blob is shared.
+- Locally-synthesised `Type`s (e.g. when a non-shared call passes
+  `<Nat>`) get interned/global `{empty; -<primcode>}` for primitives;
+  for compound types the compiler may either build a fresh Blob or
+  share one from a known type-table cache.
+
+So the dual binding `T with type` is, operationally:
+
+```
+   surface:    func foo<T with type>(arg : T) : T { … switch type T … }
+   lowered:    func foo(T_witness : Candid, arg : T) : T { … prim switch (typCode T_witness) … }
+```
+
+The user sees one binder; the compiler emits two (a type-level
+binder and a value-level parameter).  `class` already does the
+analogous dual binding (type + constructor); `<T with type>` is
+the corresponding move at the function level for the *witness*
+dimension.
+
 ## Refinement semantics — open design questions
 
 The mechanism is settled at the spec level; the open questions are about
