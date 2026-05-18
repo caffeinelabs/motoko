@@ -1129,14 +1129,27 @@ machinery (br_table or linear) operates on tags as before.
       so the binder discipline is uniform (don't special-case the
       Variant arm; treat any field with non-empty binds the same).
 
+      **M11a slice 2 reverted (`3d3b9137e`, 2026-05-18).** The
+      `case'.gadt_sigma` field on both surface AST and IR became
+      dead state after slice 6 retired the only consumer
+      (variant-arm σ now derived on-demand via
+      `derive_case_sigma` from the scrutinee type + arm label).
+      `git revert -n a36f15507` cleanly removed the field + all
+      ~22 threading sites; two conflicts (check_ir.ml,
+      typing.ml) were resolved by keeping slice 6's derivation
+      path and dropping both stale writers (no `register_refinement_at
+      case.at` write — the case-path reader was gone since slice 4).
+
       **Remaining GADT side state.** `gadt_existential_set`
       survives because `is_gadt_existential` drives the Cardelli
       stamp-identity exemption in `sub`/`eq` and the free-cons
       bypass at `check_ir.ml:210` — retiring it needs cons to
       carry their own "is-existential" bit, a wider surgery.
-      `gadt_refinement_at` (region-keyed σ for refinements) and
-      the per-expr `note_sigma` cache are the next two retirement
-      targets.
+      `gadt_refinement_at` (region-keyed σ for refinements;
+      writers at typing.ml:5728 destructure path + reader at
+      check_ir.ml:1242) and the per-expr `Note.gadt_sigma`
+      cache (read at `check_ir.ml:432` for non-TagPrim
+      refine_target) are the next two retirement targets.
 
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
