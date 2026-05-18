@@ -36,7 +36,8 @@ let persistent bool at = { it = bool; at = at; note = [] }
 let scope_bind x at =
   { var = Type.scope_var x @@ at;
     sort = Type.Scope @@ at;
-    bound = PrimT "Any" @! at
+    bound = PrimT "Any" @! at;
+    has_witness = false
   } @= at
 
 let ensure_scope_bind var tbs =
@@ -586,9 +587,19 @@ prim_idx_pat :
 
 typ_bind :
   | x=id SUB t=typ
-    { {var = x; sort = Type.Type @@ no_region; bound = t} @= at $sloc }
+    { {var = x; sort = Type.Type @@ no_region; bound = t;
+       has_witness = false} @= at $sloc }
   | x=id
-    { {var = x; sort = Type.Type @@ no_region; bound = PrimT "Any" @! at $sloc} @= at $sloc }
+    { {var = x; sort = Type.Type @@ no_region;
+       bound = PrimT "Any" @! at $sloc;
+       has_witness = false} @= at $sloc }
+  | x=id WITH TYPE
+    { (* T with type: T binds both an abstract type and a runtime
+         [Candid]-stream witness.  Dual-binding (type + value) parallels
+         how `class` binds both a type and a constructor. *)
+      {var = x; sort = Type.Type @@ no_region;
+       bound = PrimT "Any" @! at $sloc;
+       has_witness = true} @= at $sloc }
 
 annot_opt :
   | COLON t=typ { Some t }

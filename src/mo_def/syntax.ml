@@ -105,7 +105,16 @@ and typ_constraint' = {tv : id; refines : typ option; bound : typ}
 
 and bind_sort = Type.bind_sort phrase
 and typ_bind = (typ_bind', Type.con option) annotated_phrase
-and typ_bind' = {var : id; sort : bind_sort; bound : typ;}
+and typ_bind' = {var : id; sort : bind_sort; bound : typ; has_witness : bool}
+(* [has_witness] flags a type-binder declared `<T with type>` —
+   T is simultaneously an abstract type and a runtime [Candid]
+   stream witness (the singleton describing T's identity).  The
+   user-facing dual binding is what [switch type T] dispatches
+   on; under the hood the value-side is a hidden value-parameter
+   threaded into the call site (parallel to how `class` binds
+   both a type and a constructor).  Future slices promote this
+   to a proper [Type.bind_sort] variant once the elaboration
+   semantics are wired. *)
 
 and typ_item = id option * typ
 
