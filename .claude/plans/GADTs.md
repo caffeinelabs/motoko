@@ -1669,11 +1669,26 @@ Not user-facing — only the compiler / RTS generates these.
 
 ### Surface form (internal)
 
+Canonical Candid SLEB128 wire bytes (from
+`compile_enhanced.ml:7395-7430`: primitive index `n` ↔ wire byte
+`-n` SLEB128-encoded, fitting in one byte for the small magnitudes
+Candid uses):
+
 ```motoko
 type TyDesc<T>(byte : Int8) = prim switch byte {
-  case 0x7d : type T = Int;
-  case 0x7c : type T = Nat;
-  case 0x7e : type T = Bool;
+  // Primitives — wire byte is SLEB128 of [-idx]:
+  case 0x7f : type T = Null in T;     // null  (-1)
+  case 0x7e : type T = Bool in T;     // bool  (-2)
+  case 0x7d : type T = Nat in T;      // nat   (-3)
+  case 0x7c : type T = Int in T;      // int   (-4)
+  case 0x7b : type T = Nat8 in T;     // nat8  (-5)
+  case 0x71 : type T = Text in T;     // text  (-15)
+  case 0x68 : type T = Principal in T;// principal (-24)
+  // Compound — body carries follow-on bytes recursively:
+  case 0x6d : type T = [TyDesc(nextByte)] in T;     // vec    (-19)
+  case 0x6e : type T = ?TyDesc(nextByte) in T;      // opt    (-18)
+  // record / variant / func / service follow similar recursion
+  // (-20, -21, -22, -23 — bytes 0x6c .. 0x69)
   ...
 };
 ```
@@ -1686,7 +1701,14 @@ type TyDesc<T>(byte : Int8) = prim switch byte {
   byte value; each arm carries a refinement of `T` (the standard
   `type T = …` GADT refinement clause, *same shape* as variant-arm
   refinements).
-- No payload — purely a *type-level commitment* indexed by a byte.
+- The body of each arm is `type T = … in T` — same `typ_def_rhs`
+  production used by today's TypD; the alias *returns* the refined
+  type, no separate payload.
+- Compound arms (`vec`, `opt`, `record`, …) recursively invoke
+  `TyDesc(nextByte)` — the type follows the wire's recursive
+  structure.  `nextByte` is the *next byte from the same stream*,
+  not a fresh parameter; see below for the open question on stream
+  threading.
 
 ### Relationship to existing GADTs
 
@@ -1701,6 +1723,39 @@ The σ machinery (`derive_tag_sigma`, `gadt_sigma_for_case`,
 `prim switch` we'd key by byte value instead.  Symmetric:
 `prim_switch_sigma : Int8 -> typ ConEnv.t` returning σ for the
 byte's matching arm.
+
+### "Primitive dependent types" framing
+
+The `TyDesc<T>(byte)` shape is a *restricted* form of dependent
+type: the type-level value `T` is determined by the term-level
+value `byte`.  The restriction is what keeps it tractable for
+Motoko's existing type system:
+
+- `byte` is a *singleton* at type-elaboration time — the compiler
+  knows its value because `prim switch` only fires at sites where
+  it's a compile-time-known stream position.  No general
+  Π-types, no value-parameter-polymorphic functions.
+- The dispatch (`prim switch byte`) is *closed* over a finite set
+  of byte values, all listed at elaboration time.  Out-of-set
+  bytes trap.  No type-level computation beyond the lookup.
+- The recursive case (`[TyDesc(nextByte)]`) makes the type's
+  *shape* depend on the stream — but the recursion structure is
+  exactly the Candid wire format's, which is bounded by the
+  encoded input.  No general structural recursion at the
+  type level.
+
+So we get a *primitive* dependent-type capability (enough to
+express Candid type descriptors), without committing to full
+Π-types or type-level evaluation.  Cousins in other languages:
+Haskell's GADT-encoded singletons (`Sing :: Nat -> Type`), Idris's
+restricted dependent matching, OCaml's GADTs witnessed by integers
+in low-level deserialisation code.
+
+The σ machinery already in place handles the type-side: each arm
+refines `T` to a concrete (possibly recursive) type via the
+standard GADT refinement clauses.  The *new* compiler work is
+threading the byte value as a singleton through arm selection — a
+keying-function generalisation, not a soundness extension.
 
 ### Construction question — sketch
 
@@ -1752,11 +1807,37 @@ parallel kind of "switch arm" in the AST/IR.
 
 ### Open design questions
 
+- **Stream threading for compound arms**.  In
+  `case 0x6d : type T = [TyDesc(nextByte)] in T`, `nextByte` isn't
+  a fresh parameter — it's the *next byte from the same stream*
+  the outer `byte` came from.  Three ways to model this:
+  - (a) **Implicit stream parameter**: the alias is really
+    `TyDesc<T>(stream : Stream<Int8>)`, the body pops the head
+    byte for dispatch and threads the tail to inner calls.
+    Cleanest semantically but introduces a `Stream` type
+    primitive.
+  - (b) **Explicit cursor index**: `TyDesc<T>(buf : [Int8], i :
+    Nat)` — index advances per arm.  Concrete and matches how the
+    RTS parser actually walks a buffer, but the alias's value
+    parameters multiply.
+  - (c) **Effect-handler keyed**: dispatch uses a `Read_byte`
+    effect, the RTS installs a handler over the buffer.  Matches
+    the `Fresh_skolem` pattern we already have but with mutable
+    cursor state — semantically iffy at type-elaboration time.
+  - Lowest friction for a first cut: (a) with `Stream` a
+    compiler-internal abstract type.  The Candid wire-format
+    nature (length-prefixed compound types) means each arm knows
+    *how many* bytes to consume; the alias body can express that
+    in the recursion shape.
+
 - **Singleton typing of `byte`**: Motoko has no dependent types
   proper.  Either (a) `byte` is implicitly a compile-time constant
   (only `prim`-generated sites use this), or (b) we introduce a
   light singleton mechanism `Int8(0x7d)` for value-indexed types.
-  (a) is the lowest-friction internal path.
+  (a) is the lowest-friction internal path.  The "primitive
+  dependent types" framing (above) is what (a) gives us — enough
+  for Candid descriptors, not enough to express user-side
+  dependent functions.
 - **Open-world byte values**: what's the default arm?  Candid has a
   bounded set of type bytes; out-of-range should trap.  The
   compiler can emit the trap from the elaboration site.
