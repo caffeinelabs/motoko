@@ -483,12 +483,14 @@ val derive_tag_sigma : typ -> lab -> typ -> typ ConEnv.t
 
 (** Path A slice 6: derive existential σ for a non-variant
     construction into a top-level existential alias (TupPrim /
-    ObjPrim / etc.).  Reads from [gadt_typd_existentials] (still a
-    side table) and unifies.  Replaces the top-level-alias half of
-    M11a's [note_sigma] cache. *)
+    ObjPrim / etc.).  Reads structurally from [Def.binds] (populated
+    by [augment_def_binds]) and unifies.  Replaces the
+    top-level-alias half of M11a's [note_sigma] cache. *)
 val derive_typd_sigma : typ -> typ -> typ ConEnv.t
-val register_typd_existentials : con -> con list -> unit
-val lookup_typd_existentials : con -> con list
+val typd_existentials : con -> con list
+(** Structural list of top-level-alias existential cons for [c],
+    derived from its [Def.binds].  Returns [] for non-Def kinds and
+    for aliases without existential binders. *)
 val is_gadt_existential : con -> bool
 val fresh_destructure_skolem : Source.region -> con -> con
 (** Mint (or recall, within a `with_skolem_pool` handler frame) the

@@ -2361,8 +2361,8 @@ and infer_exp'' env exp : T.typ =
        a controlled `open`. Reject and direct the user to a
        destructuring `let (...) = ...`. *)
     (match t1_raw with
-     | T.Con (c, _) when T.lookup_typd_existentials c <> [] ->
-       let es = T.lookup_typd_existentials c in
+     | T.Con (c, _) when T.typd_existentials c <> [] ->
+       let es = T.typd_existentials c in
        let binders = String.concat ", " (List.map (fun e -> "type " ^ Cons.name e) es) in
        error env exp.at "M9010"
          "bare projection on black-hole type%a\ndeclared with existential `%s in ...`; the witness is sealed.\nDestructure with `let (...) = %s` to open it"
@@ -2785,8 +2785,8 @@ and try_infer_dot_exp env at exp id (desc, pred) =
      user to a destructuring `let { ... } = ...`. Mirror of the
      ProjE guard. *)
   (match t0 with
-   | T.Con (c, _) when T.lookup_typd_existentials c <> [] ->
-     let es = T.lookup_typd_existentials c in
+   | T.Con (c, _) when T.typd_existentials c <> [] ->
+     let es = T.typd_existentials c in
      let binders = String.concat ", " (List.map (fun e -> "type " ^ Cons.name e) es) in
      error env at "M9010"
        "bare projection on black-hole type%a\ndeclared with existential `%s in ...`; the witness is sealed.\nDestructure with `let { %s; ... } = %s` to open it"
@@ -2923,7 +2923,7 @@ and check_exp env t exp =
     | TagE (id, exp1), T.Con (c, ts) ->
       gadt_check_refinements env exp c ts id;
       gadt_check_existentials env exp t c ts id exp1
-    | _, T.Con (c, ts) when T.lookup_typd_existentials c <> [] ->
+    | _, T.Con (c, ts) when T.typd_existentials c <> [] ->
       gadt_check_typd_existentials env exp t c ts
     | _ -> false
   in
@@ -3009,7 +3009,7 @@ and gadt_check_existentials env exp t c ts id exp1 =
    [gadt_check_existentials] but without the per-variant-arm wrapper —
    the body of the TypD itself is the existential pack. *)
 and gadt_check_typd_existentials env exp t c ts =
-  let es = T.lookup_typd_existentials c in
+  let es = T.typd_existentials c in
   match Cons.kind c with
   | T.Def (_, body) ->
     let body' = T.open_ ts body in
@@ -5229,11 +5229,11 @@ and infer_dec env dec : T.typ =
            registering σ at the call's exp.at; the IR check's
            CallPrim arm applies it before the result sub-check. *)
         let refined_t'' = match t'' with
-          | T.Con (c, ts) when T.lookup_typd_existentials c <> [] ->
+          | T.Con (c, ts) when T.typd_existentials c <> [] ->
             (match Cons.kind c with
              | T.Def (_, body) ->
                let body' = T.open_ ts body in
-               let es = T.lookup_typd_existentials c in
+               let es = T.typd_existentials c in
                (match T.unify_existentials body' t' es with
                 | Some sigma ->
                   (* M11a: σ at dec.at had no consumers; drop the
@@ -5579,7 +5579,12 @@ and infer_dec_typdecs env dec : Scope.t =
          ) tag.it.constraints
        ) tags
      | _ -> ());
-    (* M10: top-level existentials live on the type's con itself. *)
+    (* M10: top-level existentials live on the type's con itself.
+       The cons-list itself lives on the alias's [Def.binds] (populated
+       below by [augment_def_binds] in the final pass); here we only
+       feed [gadt_existential_set] so [is_gadt_existential] / the
+       escape check at check_ir.ml:210 keep working — including during
+       the pre-pass, before augment runs. *)
     let typd_es =
       List.filter_map (fun cstr ->
         match cstr.it.refines, cstr.note with
@@ -5587,7 +5592,7 @@ and infer_dec_typdecs env dec : Scope.t =
         | _ -> None
       ) cs_top
     in
-    T.register_typd_existentials c typd_es;
+    List.iter T.register_existential typd_es;
     let scope = Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
@@ -5709,9 +5714,9 @@ and infer_dec_valdecs env dec : Scope.t =
      in
      let t =
        match t0 with
-       | T.Con (c, _) when T.lookup_typd_existentials c <> []
+       | T.Con (c, _) when T.typd_existentials c <> []
                         && is_destructuring pat ->
-         let es = T.lookup_typd_existentials c in
+         let es = T.typd_existentials c in
          let sigma = List.fold_left (fun s c_schema ->
            let c_site = T.fresh_destructure_skolem pat.at c_schema in
            T.ConEnv.add c_schema (T.Con (c_site, [])) s

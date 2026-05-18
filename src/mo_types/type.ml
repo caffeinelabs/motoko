@@ -2826,19 +2826,13 @@ let string_of_stab_sig stab_sig : string =
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
 
-(* GADT side-tables (legacy).  The per-arm refinement and existential
-   tables ([gadt_arm_constraints], [gadt_arm_existentials]) have been
-   migrated to structural arm.binds via Path A slices 1-5 and are
-   gone.  [gadt_typd_existentials] (top-level alias existentials)
-   and [gadt_existential_set] survive for now — see notes in the
-   plan. *)
-
-(* Cons-aware Hashtbl modules. *)
-module ConHash = Hashtbl.Make (struct
-  type t = con
-  let equal = Cons.eq
-  let hash c = Hashtbl.hash (Cons.name c)
-end)
+(* GADT side-tables (legacy).  The per-arm refinement / existential
+   tables and the top-level alias [gadt_typd_existentials] table have
+   all been retired in favour of structural reps:
+   - arm refinements + existentials live on [arm.binds] (slices 1-5)
+   - top-level alias existentials live on [Def.binds] (HKT extension)
+   Only [gadt_existential_set] and [gadt_refinement_at] survive — see
+   notes in the plan. *)
 
 module RegConHash = Hashtbl.Make (struct
   type t = Source.region * con
@@ -2846,7 +2840,6 @@ module RegConHash = Hashtbl.Make (struct
   let hash (r, c) = Hashtbl.hash (r, Cons.name c)
 end)
 
-let gadt_typd_existentials : con list ConHash.t = ConHash.create 16
 (* gadt_existential_set + is_gadt_existential are hoisted earlier in
    the file so `rel_typ` can consult the predicate for black-hole
    diagnostics. *)
@@ -2993,16 +2986,14 @@ let derive_case_sigma (t_pat : typ) (label : lab) : typ ConEnv.t =
        | _ -> ConEnv.empty)
   | _ -> ConEnv.empty
 
-let register_typd_existentials c es =
-  if es <> [] then begin
-    ConHash.replace gadt_typd_existentials c es;
-    List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es
-  end
-
-let lookup_typd_existentials c =
-  match ConHash.find_opt gadt_typd_existentials c with
-  | Some es -> es
-  | None -> []
+(* Top-level alias existentials, read structurally from [Def.binds].
+   Populated at the augment phase of TypD elaboration via
+   [augment_def_binds].  Returns [] for non-Def kinds and for aliases
+   that have no existential binders. *)
+let typd_existentials c =
+  match Cons.kind c with
+  | Def (tbs, _) -> existentials_of_binds tbs
+  | _ -> []
 
 (* Path A slice 6 / HKT extension: bind the [is_gadt_con]
    forward-ref.  A Con is GADT-bearing if:
@@ -3051,15 +3042,6 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
     in
     gadt_existential_set := new_set
   in
-  let migrate_typd_existentials () =
-    let xs = ConHash.fold (fun c es acc -> (c, es) :: acc) gadt_typd_existentials [] in
-    ConHash.clear gadt_typd_existentials;
-    List.iter (fun (c, es) ->
-      let es' = List.map rename_con es in
-      List.iter (fun e -> gadt_existential_set := ConSet.add e !gadt_existential_set) es';
-      ConHash.replace gadt_typd_existentials (rename_con c) es'
-    ) xs
-  in
   let migrate_refinement_at () =
     let xs = Hashtbl.fold (fun reg sigma acc -> (reg, sigma) :: acc) gadt_refinement_at [] in
     Hashtbl.clear gadt_refinement_at;
@@ -3071,7 +3053,6 @@ let rewrite_gadt_side_tables ~rename_con ~rewrite_typ =
     ) xs
   in
   migrate_existential_set ();
-  migrate_typd_existentials ();
   migrate_refinement_at ()
 
 (* Structural matcher: walk [expected] and [actual] in parallel; where
