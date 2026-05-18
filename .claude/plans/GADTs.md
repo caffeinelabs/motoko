@@ -1669,26 +1669,26 @@ Not user-facing — only the compiler / RTS generates these.
 
 ### Surface form (internal) — Candid type table as compositional stream
 
-The Candid type table is a **compositional stream format** with
-just two operations:
+The Candid type table is a **compositional stream format** with two
+operations on a `Candid` stream type:
 
-- `jump : Nat → Stream` — set the cursor to type-table entry `n`
-  (random access; doesn't consume).
-- `leb128 : Stream → Int × Stream` — consuming read of one
-  LEB128-encoded `Int` from the cursor; advances by the bytes that
-  encoded the number.  (Haskell-style view pattern: writing
-  `(leb128 → x)` binds the decoded `Int` to `x` and threads the
-  remaining stream.)
+- `jump : Nat → Candid → Candid` — relocate the cursor to type-table
+  entry `n` (random access; doesn't consume).
+- `typCode : Candid → Int` — consuming view-pattern read: decodes
+  the LEB128-encoded `Int` at the cursor, advances past it.
+  (Haskell-style view pattern in the arm head: writing
+  `prim switch (typCode stream)` reads the head idx and dispatches
+  on it.)
 
-The dispatcher consumes a single `idx : Int` and refines `T` based
-on whether `idx` is a primitive (negative, decided in one step) or
-a back-reference into the table (non-negative, requires `jump` +
-re-dispatch).  Compound primitive arms (vec, opt, record, …) use
-`leb128`-reads to consume their follow-on data from the same
-stream:
+The dispatcher takes the *stream itself* as its value-parameter —
+not a pre-decoded `idx` — and reads the head type-code as part of
+its arm selection.  Each arm then refers to the (advanced) stream
+for its own follow-on reads.  Compound arms compose `typCode`-reads
+with recursive `TyDesc(stream)` invocations; back-reference arms
+compose `jump n` (random access) and re-dispatch:
 
 ```motoko
-type TyDesc<T>(idx : Int) = prim switch idx {
+type TyDesc<T>(stream : Candid) = prim switch (typCode stream) {
   // Primitives — refinement is immediate, no further stream reads:
   case -1  : type T = Null      in T;   // wire 0x7f
   case -2  : type T = Bool      in T;   // wire 0x7e
@@ -1698,45 +1698,51 @@ type TyDesc<T>(idx : Int) = prim switch idx {
   case -15 : type T = Text      in T;   // wire 0x71
   case -24 : type T = Principal in T;   // wire 0x68
 
-  // Compound primitives — body consumes follow-on data from the
-  // *same* stream via `leb128`-reads (Haskell view-pattern shown
-  // in pseudo-syntax for clarity):
-  case -19 (leb128 → elemIdx)
-    : type T = [TyDesc(elemIdx)] in T;             // vec   (wire 0x6d)
-  case -18 (leb128 → elemIdx)
-    : type T = ?TyDesc(elemIdx)  in T;             // opt   (wire 0x6e)
+  // Compound primitives — arm body recurses on the same stream;
+  // [typCode] inside the recursive call advances the cursor:
+  case -19 : type T = [TyDesc(stream)] in T;        // vec   (wire 0x6d)
+  case -18 : type T = ?TyDesc(stream)  in T;        // opt   (wire 0x6e)
   // record / variant / func / service follow similar recursion
   // (each reads field-count + sequence of (label-hash, type-idx)
   // pairs from the stream — -20 .. -23, wire 0x6c .. 0x69)
 
-  // Back-reference into the type table — `jump` first, then
-  // re-enter the dispatcher on whatever idx that entry starts with:
-  case N when N >= 0
-    : type T = TyDesc(leb128 (jump N))  in T;
+  // Back-reference into the type table — relocate to entry N, then
+  // recurse from there.  `jump N stream` is `stream` with the
+  // cursor moved; the recursive call's `typCode` reads from the
+  // new position:
+  case N when N >= 0 : type T = TyDesc(jump N stream) in T;
 };
 ```
 
-- `type TyDesc<T>(idx : Int)`: an alias with both a type-parameter
-  `T` and a *value-parameter* `idx`.  The value is a compile-time
-  singleton (`prim` marker forbids user-facing instantiation; the
-  compiler uses these only at known-`idx` elaboration sites).
-- `prim switch idx { case N : <refinement> }`: dispatches on the
-  scalar value; each arm carries a refinement of `T` (the standard
-  `type T = …` GADT refinement clause, *same shape* as variant-arm
-  refinements).
-- Compound arms compose `leb128`-reads (for inline data) with
-  recursive `TyDesc(...)` invocations.  Back-reference arms
-  compose `jump` (random access) with a `leb128`-read of the
-  entry's head idx (which itself drives the dispatcher).
+- `type TyDesc<T>(stream : Candid)`: an alias with both a
+  type-parameter `T` and a *value-parameter* `stream : Candid`
+  (an internal abstract stream type).  The stream is a
+  compile-time singleton at elaboration sites (`prim` marker forbids
+  user-facing instantiation; the compiler uses these only where the
+  stream position is statically known).
+- `prim switch (typCode stream) { case N : <refinement> }`:
+  reads the head idx from the stream and dispatches; each arm
+  carries a refinement of `T` (the standard `type T = …` GADT
+  refinement clause, *same shape* as variant-arm refinements).
+- Compound arms recurse on `stream` directly — the next `typCode`
+  call inside the recursive `TyDesc(stream)` invocation reads the
+  follow-on idx from the advanced cursor.  No need for the
+  dispatcher's arm to bind the next idx explicitly; it falls out
+  of the recursion.
+- Back-reference arms compose `jump N stream` (relocate cursor)
+  with a recursive `TyDesc` that re-runs `typCode` at the new
+  position.
 - The two stream operations are compositional: any entry of the
   table is resolvable as a `TyDesc<T>` starting from its position,
   with references between entries threaded by index alone.  The
-  whole table is a navigable graph; the stream is its serialised
-  form.
-- The primitive-only subset (no compound types, no back-references)
-  fits in `byte : Int8` — a useful shorthand for trivial
-  dispatchers.  The general dispatcher's keying value is `Int`,
-  decoded from the stream via `leb128`.
+  whole table is a navigable graph; the wire stream is its
+  serialised form.
+- A primitive-only subset (no compound types, no back-references)
+  collapses `stream` to just the head byte — `byte : Int8` is a
+  useful shorthand for trivial dispatchers.  The general
+  dispatcher's value-parameter is `Candid` (the live stream); the
+  decoded head type-code is what `prim switch` reads via
+  `typCode`.
 - The body of each arm is `type T = … in T` — same `typ_def_rhs`
   production used by today's TypD; the alias *returns* the refined
   type, no separate payload.
