@@ -3,10 +3,10 @@
 // build a variant value whose tag depends on T.
 import Prim "mo:⛔";
 
-func f<T with type>(_arg : T) : { #int : Int; #nat : Nat } {
+func f<T with type>(arg : T) : { #int : Int; #nat : Nat } {
   switch type T {
-    case Nat (#nat 42);
-    case Int (#int 0);
+    case Nat (#nat arg);
+    case Int (#int arg);
   }
 };
 

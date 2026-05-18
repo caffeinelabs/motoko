@@ -13302,6 +13302,10 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
         then Var.get_aliased_box env ae f.it.var
         else Var.get_val_vanilla env ae f.it.var)) in
     Object.lit_raw env fs'
+  | RefineE (_, _, e) ->
+    (* Typing-only wrapper — propagate the refinement context's
+       request to compile the body. *)
+    compile_exp_with_hint env ae sr_hint e
   | _ -> SR.unit, todo_trap env "compile_exp" (Arrange_ir.exp exp)
 
 and compile_exp_ignore env ae e =

@@ -890,7 +890,7 @@ exp_un(B) :
       assert (!slot <> None);
       let expander = Option.get !slot in
       let actual_scrut = expander.Macro_registry.scrut_of scrutinee in
-      let cases = expander.Macro_registry.cases_of cs in
+      let cases = expander.Macro_registry.cases_of x cs in
       SwitchE(actual_scrut, cases) @? at $sloc }
   | SWITCH e=exp_nullary(ob) LCURLY cs=seplist(case, semicolon) RCURLY
     { SwitchE(e, cs) @? at $sloc }

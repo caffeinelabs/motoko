@@ -148,6 +148,8 @@ and t_exp' context exp =
   | AsyncE (T.Fut, _, _, _) ->
      assert false  (* must have effect T.Await *)
   | TryE _ -> assert false (* these never have effect T.Triv *)
+  | RefineE (c, typ, exp1) ->
+    RefineE (c, typ, t_exp context exp1)
   | DeclareE (id, typ, exp1) ->
     DeclareE (id, typ, t_exp context exp1)
   | DefineE (id, mut ,exp1) ->
@@ -494,6 +496,9 @@ and c_exp' context exp k =
     nary context k' (fun vs -> e (PrimE (p, vs))) exps
   | PrimE (p, exps) ->
     nary context k (fun vs -> e (PrimE (p, vs))) exps
+  | RefineE (_, _, exp1) ->
+    (* Strip — typing-only wrapper. *)
+    c_exp context exp1 k
 
 and c_block context decs exp k =
   declare_decs decs (c_decs context decs (meta T.unit (fun _ -> c_exp context exp k)))

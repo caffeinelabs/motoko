@@ -2881,14 +2881,19 @@ and infer_exp'' env exp : T.typ =
        Lookup target: prefer [cstr.note] (set by variant-arm elaboration);
        otherwise fall back to [cstr.it.tv] resolved in [env.typs] (this
        is the macro-expansion path — the constraint was synthesised at
-       parse-time and carries only the syntactic [tv] name). *)
+       parse-time and carries only the syntactic [tv] name).  Persist
+       the resolved con on [cstr.note] so downstream passes (desugar,
+       IR check) can apply the same σ. *)
     let sigma =
       match cstr.it.refines with
       | Some rhs ->
         let rhs_t = check_typ env rhs in
         let con_opt = match cstr.note with
           | Some c -> Some c
-          | None -> T.Env.find_opt cstr.it.tv.it env.typs
+          | None ->
+            let c = T.Env.find_opt cstr.it.tv.it env.typs in
+            cstr.note <- c;
+            c
         in
         (match con_opt with
          | Some con -> T.ConEnv.singleton con rhs_t

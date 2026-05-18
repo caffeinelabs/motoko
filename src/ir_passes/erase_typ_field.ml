@@ -123,6 +123,8 @@ let transform prog =
       AsyncE (s, t_typ_bind tb, t_exp exp1, t_typ typ)
     | TryE (exp1, cases, vt) ->
       TryE (t_exp exp1, List.map t_case cases, vt)
+    | RefineE (c, typ, exp1) ->
+      RefineE (t_con c, t_typ typ, t_exp exp1)
     | DeclareE (id, typ, exp1) ->
       DeclareE (id, t_typ typ, t_exp exp1)
     | DefineE (id, mut ,exp1) ->

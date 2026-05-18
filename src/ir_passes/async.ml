@@ -385,6 +385,8 @@ let transform prog =
       LabelE (id, t_typ typ, t_exp exp1)
     | AsyncE _
     | TryE _ -> assert false
+    | RefineE (c, typ, exp1) ->
+      RefineE (t_con c, t_typ typ, t_exp exp1)
     | DeclareE (id, typ, exp1) ->
       DeclareE (id, t_typ typ, t_exp exp1)
     | DefineE (id, mut ,exp1) ->

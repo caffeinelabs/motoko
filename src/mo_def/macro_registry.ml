@@ -32,7 +32,11 @@ open Syntax
 
 type expander = {
   scrut_of : exp -> exp;
-  cases_of : case list -> case list;
+  cases_of : id -> case list -> case list;
+    (* [cases_of user_id legs] compiles the legs and renames each
+       refinement's [tv] from the prim-type's placeholder (e.g. `@T`)
+       to [user_id] so the resulting [RefineE] σ targets the user's
+       in-scope type-binder. *)
 }
 
 let registry : (string, expander option ref) Hashtbl.t = Hashtbl.create 8

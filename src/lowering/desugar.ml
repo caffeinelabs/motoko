@@ -386,10 +386,19 @@ and exp' at note = function
     I.BlockE ([
       { it = I.LetD ({it = I.WildP; at = e.at; note = T.Any}, exp e);
         at = e.at; note = ()}], (unitE ()))
-  | S.RefineE (_, e) ->
-    (* Refinements are purely a typing-time scoping device; at IR level
-       there is no value-carrying remnant.  Strip the wrapper. *)
-    (exp e).it
+  | S.RefineE (cstr, e) ->
+    (* Slice-6.6: keep the refinement at IR level so [check_ir] can
+       apply σ to env.vals when checking the body — same behaviour as
+       variant-arm GADT refinement, but sourced from an explicit
+       [(con, typ)] pair.  Typing populates [cstr.note] with the
+       resolved con; the refined RHS lives in [cstr.it.refines]. *)
+    (match cstr.note, cstr.it.refines with
+     | Some con, Some rhs ->
+       I.RefineE (con, rhs.note, exp e)
+     | _ ->
+       (* Lookup failed (no in-scope binder named [cstr.it.tv]) —
+          skip the wrapper. *)
+       (exp e).it)
 
 and parenthetical send = function
   | None -> [], []

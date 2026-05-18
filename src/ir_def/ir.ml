@@ -81,6 +81,7 @@ and exp' =
   | ActorE of dec list * field list * system * Type.typ (* actor *)
   | NewObjE of Type.obj_sort * field list * Type.typ     (* make an object *)
   | TryE of exp * case list * (id * Type.typ) option (* try/catch/cleanup *)
+  | RefineE of Type.con * Type.typ * exp       (* apply σ = {con ↦ typ} to env when checking [exp] *)
 
 and stable_actor_typ = { pre: Type.typ; post: Type.typ }
 

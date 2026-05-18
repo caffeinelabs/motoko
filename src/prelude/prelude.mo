@@ -30,7 +30,7 @@ type @Candid = Blob;
 
 func @typCode(_stream : @Candid) : Int = -3;
 
-prim type @TyDesc<T>(stream : @Candid) = prim switch (@typCode(stream)) {
-  case -3 : type T = Nat;
-  case -4 : type T = Int;
+prim type @TyDesc<@T>(stream : @Candid) = prim switch (@typCode(stream)) {
+  case -3 : type @T = Nat;
+  case -4 : type @T = Int;
 };

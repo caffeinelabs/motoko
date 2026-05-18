@@ -809,6 +809,17 @@ let rec check_exp env (exp:Ir.exp) : unit =
     typ exp1 <: t;
     check_cases env ~t_pat_raw:T.catch T.catch t cases;
     Option.iter (fun (_, t) -> t <: Construct.bail_contT) vt
+  | RefineE (c, refined_t, exp1) ->
+    (* Slice-6.6: apply σ = {c ↦ refined_t} to env.vals before checking
+       the body — same machinery as variant-arm GADT refinement, just
+       sourced from an explicit (con, typ) pair. *)
+    let sigma = T.ConEnv.singleton c refined_t in
+    let env' = { env with
+      vals = T.Env.map (fun vi ->
+        { vi with typ = T.subst sigma vi.typ }) env.vals }
+    in
+    check_exp env' exp1;
+    T.subst sigma (typ exp1) <: t
   | LoopE exp1 ->
     check_exp { env with lvl = NotTopLvl } exp1;
     typ exp1 <: T.unit;

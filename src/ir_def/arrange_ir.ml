@@ -33,6 +33,7 @@ let rec exp e = match e.it with
   | NewObjE (s, fs, t)  -> "NewObjE" $$ (Arrange_type.obj_sort s :: fields fs @ [typ t])
   | TryE (e, cs, None) -> "TryE" $$ [exp e] @ List.map case cs
   | TryE (e, cs, Some (i, _)) -> "TryE" $$ [exp e] @ List.map case cs @ Atom ";" :: [id i]
+  | RefineE (c, t, e) -> "RefineE" $$ [Atom (Type.string_of_con c); typ t; exp e]
 
 and system { meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; stable_type} = (* TODO: show meta? *)
   "System" $$ [

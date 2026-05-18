@@ -77,6 +77,8 @@ and infer_effect_exp (exp: exp) : T.eff =
     T.Await
   | DeclareE (_, _, exp1) ->
     effect_exp exp1
+  | RefineE (_, _, exp1) ->
+    effect_exp exp1
   | DefineE (_, _, exp1) ->
     effect_exp exp1
   | FuncE _ ->

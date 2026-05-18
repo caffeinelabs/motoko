@@ -43,15 +43,23 @@ let build (discr : exp) (val_param_name : string)
       (* TODO slice 7: emit a guarded leg via [WhenP]. *)
       { it = WildP; at; note = Type.Pre }
   in
-  let cases_of (legs : case list) : case list =
+  let cases_of (user_id : id) (legs : case list) : case list =
     if List.length arms <> List.length legs then
       raise (Invalid_argument
         (Printf.sprintf "expander_builder: arms=%d legs=%d"
            (List.length arms) (List.length legs)));
     List.map2 (fun (arm : prim_switch_arm) (leg : case) ->
       let body = leg.it.exp in
+      (* Rename the prim-type's placeholder tv (`@T`) to the user's
+         in-scope binder name so RefineE targets the right con. *)
+      let old_cstr = arm.it.refinement in
+      let cstr' =
+        { it = { old_cstr.it with tv = user_id };
+          at = old_cstr.at;
+          note = None }
+      in
       let refined =
-        { it = RefineE (arm.it.refinement, body);
+        { it = RefineE (cstr', body);
           at = body.at;
           note = empty_typ_note }
       in
