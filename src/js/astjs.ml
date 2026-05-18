@@ -144,10 +144,10 @@ module Make (Cfg : Config) = struct
     | Named (n, t) -> to_js_object "Name" [| js_string n; typ_js t |]
     | Weak t -> to_js_object "Weak" [| typ_js t |]
 
-  and field_js { Type.lab; typ = t; src = s } =
+  and field_js { Type.lab; typ = t; src = s; _ } =
     to_js_object lab (typ_js t :: src s |> Array.of_list)
 
-  and typ_field_js { Type.lab; typ = t; src = s } =
+  and typ_field_js { Type.lab; typ = t; src = s; _ } =
     let con = to_js_object "Typ" [| Type.string_of_con t |> js_string |] in
     to_js_object lab (con :: src s |> Array.of_list)
 
