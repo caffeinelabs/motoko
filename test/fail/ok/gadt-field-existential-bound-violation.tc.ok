@@ -16,3 +16,21 @@ because the type
  is not compatible with type 
   X
  in `item`
+gadt-field-existential-bound-violation.mo:40.23-42.2: type error [M0096], expression of type
+  {shape : {x : Nat}}
+cannot produce expected type
+  {shape : X}
+because the type 
+  {x : Nat}
+ is not compatible with type 
+  X
+ in `shape`
+gadt-field-existential-bound-violation.mo:52.23-54.2: type error [M0096], expression of type
+  {choice : {#a; #b; #c}}
+cannot produce expected type
+  {choice : Y}
+because the type 
+  {#a; #b; #c}
+ is not compatible with type 
+  Y
+ in `choice`

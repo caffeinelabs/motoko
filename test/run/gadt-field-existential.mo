@@ -75,6 +75,80 @@ let _c : Chain = {
   tag = "demo"
 };
 
+// --- Record subtyping: witness has more fields than the bound ----
+// Bound is the record [{x : Nat}].  Witness [{x : Nat; y : Text}]
+// has *more* fields — Motoko's width-subtyping makes it a subtype
+// of the bound, so the construction is accepted.
+
+type RecBound = {
+  shape : type X <: { x : Nat } in X
+};
+
+let _rec : RecBound = {
+  shape = { x = 5; y = "extra" } : { x : Nat; y : Text }
+};
+
+// --- Variant subtyping: witness has fewer tags than the bound ----
+// Bound is the variant [{#a; #b; #c}].  Witness [#a : {#a; #b}]
+// has *fewer* tags — by variant subtyping, the narrower variant is
+// a subtype of the wider one, so the construction is accepted.
+
+type VarBound = {
+  choice : type Y <: { #a; #b; #c } in Y
+};
+
+let _var : VarBound = {
+  choice = (#a : { #a; #b })
+};
+
+// --- Dissect-assemble axiom (unbounded field existential) --------
+// Destructure a Box, immediately re-construct from the parts.
+// Field-level X becomes a site-skolem in the destructure; the
+// re-pack mints a fresh schema-X again — round-trip lands at Box.
+
+func roundtrip(b : Box) : Box {
+  let { data = (witness, next); meta } = b;
+  { data = (witness, next); meta }
+};
+
+let orig : Box = {
+  data = (10 : Nat, func (n : Nat) : Nat = n + 1);
+  meta = "round"
+};
+let _tripped = roundtrip orig;
+
+// --- Dissect-assemble with a bound -------------------------------
+// Same shape, but the field existential carries a bound.  The
+// site-skolem inherits the bound at destructure; re-pack supplies
+// it back to the schema's bound check.
+
+func roundtripBoxed(b : Boxed) : Boxed {
+  let { data = (witness, next); count } = b;
+  { data = (witness, next); count }
+};
+
+let origB : Boxed = {
+  data = (3 : Nat, func (n : Nat) : Nat = n * 2);
+  count = 1
+};
+let _trippedB = roundtripBoxed origB;
+
+// --- Dissect-assemble with an outer-param bound ------------------
+// Bag<A>'s field bound is A; the round-trip must preserve A across
+// destructure/re-construct.  Specifically for Bag<Int>, the
+// site-skolem's bound is Int (the alias-instantiated bound).
+
+func roundtripBag(b : Bag<Int>) : Bag<Int> {
+  let { item = (w, fn); tag } = b;
+  { item = (w, fn); tag }
+};
+
+let origBag : Bag<Int> = {
+  item = (4 : Nat, func (n : Nat) : Int = -n);
+  tag = "bag-trip"
+};
+let _trippedBag = roundtripBag origBag;
+
 //SKIP run
 //SKIP run-ir
 //SKIP run-low

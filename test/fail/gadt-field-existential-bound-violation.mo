@@ -27,3 +27,28 @@ let _bag : Bag<Int> = {
   item = (true, func (n : Bool) : Int = if n 1 else 0);
   tag = "boom"
 };
+
+// --- Record subtyping violated: witness missing a required field --
+// Bound is [{x : Nat; y : Text}].  Witness [{x : Nat}] has *fewer*
+// fields than the bound — it's a *supertype*, not a subtype, so
+// rejected.
+
+type RecBound = {
+  shape : type X <: { x : Nat; y : Text } in X
+};
+
+let _rec : RecBound = {
+  shape = { x = 5 } : { x : Nat }
+};
+
+// --- Variant subtyping violated: witness has tags outside the bound
+// Bound is [{#a; #b}].  Witness [#c : {#a; #b; #c}] has *more* tags
+// than the bound — it's a *supertype*, not a subtype, so rejected.
+
+type VarBound = {
+  choice : type Y <: { #a; #b } in Y
+};
+
+let _var : VarBound = {
+  choice = (#c : { #a; #b; #c })
+};

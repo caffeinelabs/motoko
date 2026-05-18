@@ -34,3 +34,37 @@ because the type
  29 │ │  };
     │ ╰──^ 
  30 │    
+error[M0096]: expression of type
+  {shape : {x : Nat}}
+cannot produce expected type
+  {shape : X}
+because the type 
+  {x : Nat}
+ is not compatible with type 
+  X
+ in `shape`
+    ┌─ gadt-field-existential-bound-violation.mo:40:23
+ 39 │    
+ 40 │    let _rec : RecBound = {
+    │ ╭────────────────────────^
+ 41 │ │    shape = { x = 5 } : { x : Nat }
+ 42 │ │  };
+    │ ╰──^ 
+ 43 │    
+error[M0096]: expression of type
+  {choice : {#a; #b; #c}}
+cannot produce expected type
+  {choice : Y}
+because the type 
+  {#a; #b; #c}
+ is not compatible with type 
+  Y
+ in `choice`
+    ┌─ gadt-field-existential-bound-violation.mo:52:23
+ 51 │    
+ 52 │    let _var : VarBound = {
+    │ ╭────────────────────────^
+ 53 │ │    choice = (#c : { #a; #b; #c })
+ 54 │ │  };
+    │ ╰──^ 
+ 55 │    
