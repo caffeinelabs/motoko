@@ -1065,8 +1065,8 @@ machinery (br_table or linear) operates on tags as before.
         desugar audit *or* the HKT-style Def-binder extension
         below.
 
-      **HKT-style Def-binder extension (next slice, not yet
-      started).** Top-level existential aliases should wear their
+      **HKT-style Def-binder extension (shipped 2026-05-18 at
+      `3b66ef817`).** Top-level existential aliases now wear their
       binders structurally on the Def kind, mirroring slice 1's
       `gen_field+binds` one layer up:
 
@@ -1078,28 +1078,37 @@ machinery (br_table or linear) operates on tags as before.
       Bind list already supports `Existential of con` (slice 5).
       Def becomes
       `Def([{var="X"; sort=Existential X_cons; bound=Any}], body)`
-      for `type Pack = type X in body`.  Consequences:
+      for `type Pack = type X in body`. Populated by
+      `T.augment_def_binds c typd_binds` during the augment phase
+      of TypD elaboration (mirror of `augment_arm_binds`).
 
-      - `gadt_typd_existentials` side table becomes redundant —
-        the existentials live structurally on the Def kind.
-      - `is_gadt_con` becomes a pure structural test on the Def's
-        binders (no `lookup_typd_existentials` indirection).
+      Consequences (now realized):
+
+      - `is_gadt_con` is a pure structural test on the Def's
+        binders (still falls back to the side-table set for
+        Abs-kinded skolem cons).
       - `derive_typd_sigma` reads existentials from
         `Cons.kind c`'s binders directly — fully structural.
-      - 3-phase elaboration story applies at the Def level too —
-        `augment_def_binds` mirror of `augment_arm_binds`.
-      - Desugar / codegen audits are localized: most consumers
-        destructure `Def (_, body)` and walk `body`, unchanged;
-        only those that explicitly check for an empty bind list
-        need teaching that binders may contain `Existential`.
+      - `reduce` / `check_typ_bounds` (both frontend and IR
+        `check_ir.ml`) filter Existential binds before the arity
+        comparison; user-visible callers still pass only the
+        type-param actuals.
+      - `gadt_typd_existentials` side table is now redundant for
+        the σ-derivation path; remaining references are the
+        next cleanup slice.
 
       With this slice landed, full σ-derivability for both variant
-      arms and top-level aliases is achieved, the `note_sigma`
-      field becomes dead weight, and the M11a slice `patch -R` can
-      complete.
+      arms and top-level aliases is achieved. `note_sigma` field
+      becomes dead weight (next: drop fallback in `refine_target`);
+      `gadt_typd_existentials` side table can be retired.
 
-      Tag `WIP-gadt-path-a-variant-derived` at `bc5e6a540` —
-      rollback / continuation anchor for the next session.
+      Sweep on commit: 23 `gadt-*` tests green; `test/run` quick
+      (310 .mo) and `test/fail` quick (382 .mo) both clean.
+
+      Rollback anchor: tag `WIP-gadt-pre-hkt-defbinds` at
+      `a3c34746d`. Previous anchor
+      `WIP-gadt-path-a-variant-derived` at `bc5e6a540` still
+      relevant for going back further.
 
       **Slice 6+ (out of scope of initial Path A).** Anticipating
       record-field existentials, the same `binds` slot serves Obj
