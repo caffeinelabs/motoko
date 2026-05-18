@@ -61,7 +61,7 @@ and typ =
 
 and scope = typ
 
-and bind_sort = Scope | Type | Existential of con | Refinement of typ
+and bind_sort = Scope | Type | Existential of con | Refinement of typ | Witness
 and bind = {var : var; sort: bind_sort; bound : typ}
 
 and src = {depr : string option; track_region : region; region : region}

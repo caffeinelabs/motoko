@@ -74,7 +74,7 @@ and scope = typ
    `type A = T` refinement constraint; the bind's [var] is A.
    Same shape applies to future record-field existentials/refinements
    — not Variant-specific. *)
-and bind_sort = Scope | Type | Existential of con | Refinement of typ
+and bind_sort = Scope | Type | Existential of con | Refinement of typ | Witness
 
 and bind = {var : var; sort: bind_sort; bound : typ}
 and src = {depr : string option; track_region : region; region : region}
@@ -194,7 +194,8 @@ let compare_src s1 s2 =
 let rec compare_bind_sort s1 s2 =
   match s1, s2 with
   | Type, Type
-  | Scope, Scope -> 0
+  | Scope, Scope
+  | Witness, Witness -> 0
   | Existential c1, Existential c2 -> Cons.compare c1 c2
   | Refinement t1, Refinement t2 -> compare_typ t1 t2
   | Scope, _ -> -1
@@ -203,6 +204,8 @@ let rec compare_bind_sort s1 s2 =
   | _, Type -> 1
   | Existential _, _ -> -1
   | _, Existential _ -> 1
+  | Refinement _, _ -> -1
+  | _, Refinement _ -> 1
 
 and compare_typ (t1 : typ) (t2 : typ) =
   if t1 == t2 then 0

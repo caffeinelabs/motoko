@@ -60,7 +60,7 @@ let transform prog =
     let sort' = match tb.sort with
       | T.Existential c -> T.Existential (t_con c)
       | T.Refinement t -> T.Refinement (t_typ t)
-      | T.Type | T.Scope as s -> s
+      | T.Type | T.Scope | T.Witness as s -> s
     in
     T.{ tb with sort = sort'; bound = t_typ tb.bound }
 

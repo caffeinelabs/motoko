@@ -173,31 +173,39 @@ and exp' at note = function
       | T.Shared (ss, {it = S.WildP; _} ) -> (* don't bother with ctxt pat *)
         (T.Shared ss, None)
       | T.Shared (ss, sp) -> (T.Shared ss, Some sp) in
-    let args, _, wrap, control, res_tys = to_args note.Note.typ po None p in
+    (* Slice-6.6: a function with `<T with type>` binders has its
+       domain inflated at typing time with leading `@Candid` entries.
+       [to_args] expects dom-length to match the user-written pat, so
+       deflate before calling, then prepend synthetic IR args bound
+       to the witness type-binder names. *)
+    let witness_binders = List.filter
+      (fun (tb : S.typ_bind) -> tb.it.S.has_witness) tbs in
+    let n_witnesses = List.length witness_binders in
+    let deflated_typ =
+      if n_witnesses = 0 then note.Note.typ
+      else match note.Note.typ with
+        | T.Func (sort, control, tbs_t, dom, res) ->
+          let rec drop n xs = if n <= 0 then xs else drop (n - 1) (List.tl xs) in
+          T.Func (sort, control, tbs_t, drop n_witnesses dom, res)
+        | t -> t
+    in
+    let args, _, wrap, control, res_tys = to_args deflated_typ po None p in
+    let witness_typs =
+      match note.Note.typ with
+      | T.Func (_, _, _, dom, _) ->
+        let rec take n xs = if n <= 0 then [] else match xs with
+          | x :: rest -> x :: take (n - 1) rest | [] -> [] in
+        take n_witnesses dom
+      | _ -> List.map (fun _ -> T.blob) witness_binders
+    in
+    let witness_args = List.map2 (fun (tb : S.typ_bind) wt ->
+      { it = tb.it.S.var.it; at = tb.at; note = wt }
+    ) witness_binders witness_typs in
+    let args = witness_args @ args in
     let tbs' = typ_binds tbs in
     let vars = List.map (fun (tb : I.typ_bind) -> T.Con (tb.it.I.con, [])) tbs' in
     let tys = List.map (T.open_ vars) res_tys in
-    (* Slice-6.5: for each `<T with type>` binder, prepend a synthetic
-       `let T = to_candid(42 : Nat)` to the function body.  The witness
-       value is a placeholder Candid blob; future slices will plumb the
-       real witness from the call site. *)
-    let body_ir = wrap (exp e) in
-    let witness_binders = List.filter
-      (fun (tb : S.typ_bind) -> tb.it.S.has_witness) tbs in
-    let body_with_witnesses =
-      if witness_binders = [] then body_ir
-      else
-        let witness_decs = List.map (fun (tb : S.typ_bind) ->
-          let v = var tb.it.S.var.it T.blob in
-          let nat42 = natE (Numerics.Nat.of_int 42) in
-          let witness =
-            primE (I.SerializePrim [T.nat]) [seqE [nat42]]
-          in
-          letD v witness
-        ) witness_binders in
-        blockE witness_decs body_ir
-    in
-    I.FuncE (name, s, control, tbs', args, tys, body_with_witnesses)
+    I.FuncE (name, s, control, tbs', args, tys, wrap (exp e))
   (* Primitive functions in the prelude have particular shapes *)
   | S.CallE (None, {it=S.AnnotE ({it=S.PrimE p;_}, _);note;_}, _, (_, e))
     when Lib.String.chop_prefix "num_conv" p <> None ->
@@ -1203,7 +1211,9 @@ and typ_bind tb =
     | Some c -> c
     | _ -> assert false
   in
-  { it = { Ir.con = c; Ir.sort = tb.it.S.sort.it; Ir.bound = tb.it.S.bound.note}
+  let sort =
+    if tb.it.S.has_witness then T.Witness else tb.it.S.sort.it in
+  { it = { Ir.con = c; Ir.sort = sort; Ir.bound = tb.it.S.bound.note}
   ; at = tb.at
   ; note = ()
   }

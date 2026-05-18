@@ -1262,8 +1262,10 @@ and check_typ_binds env typ_binds : T.con list * T.bind list * Scope.typ_env * S
     ) T.Env.empty typ_binds cs in
   let pre_env' = add_typs {env with pre = true} xs cs  in
   let tbs = List.map (fun typ_bind ->
+    let sort = if typ_bind.it.has_witness then T.Witness
+               else typ_bind.it.sort.it in
     { T.var = typ_bind.it.var.it;
-      T.sort = typ_bind.it.sort.it;
+      T.sort;
       T.bound = check_typ pre_env' typ_bind.it.bound }) typ_binds
   in
   check_typ_bind_sorts env tbs;
@@ -1373,7 +1375,7 @@ and infer_inst env sort tbs typs t_ret at =
           "send capability required, but not available\n (need an enclosing async expression or function body)"
     )
   | tbs', typs' ->
-    assert (List.for_all (fun tb -> tb.T.sort = T.Type) tbs');
+    assert (List.for_all (fun tb -> tb.T.sort = T.Type || tb.T.sort = T.Witness) tbs');
     ts, ats
 
 and check_inst_bounds env sort tbs inst t_ret at =
@@ -2632,6 +2634,23 @@ and infer_exp'' env exp : T.typ =
       end
     end;
     let ts1 = match pat.it with TupP _ -> T.seq_of_tup t1 | _ -> [t1] in
+    (* Slice-6.6: each `<T with type>` binder prepends a leading
+       `@Candid` value parameter to the function's domain.  Strip
+       Named wrappers so the synthesised dom matches what desugar
+       reconstructs from the un-named [VarE]s it injects. *)
+    let ts1 =
+      let candid_typ =
+        match T.Env.find_opt "@Candid" env'.typs with
+        | Some c -> T.Con (c, [])
+        | None -> T.blob
+      in
+      let witnesses = List.filter_map (fun (tb : typ_bind) ->
+        if tb.it.has_witness then Some candid_typ else None
+      ) typ_binds in
+      let strip_named = function T.Named (_, t) -> t | t -> t in
+      let ts1 = if witnesses = [] then ts1 else List.map strip_named ts1 in
+      witnesses @ ts1
+    in
     T.Func (sort, c, T.close_binds cs tbs, List.map (T.close cs) ts1, List.map (T.close cs) ts2)
   | CallE (par_opt, exp1, inst, exp2) ->
     let t = infer_call env exp1 inst exp2 exp.at None in
@@ -3728,6 +3747,23 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let syntax_args = match exp2.it with
     | TupE es when not parenthesized -> es
     | _ -> [exp2]
+  in
+  (* Slice-6.6: for each `T.Witness` binder on the callee, prepend a
+     synthetic `to_candid(42 : Nat)` to the syntactic args. *)
+  let syntax_args =
+    let n_witnesses = List.fold_left (fun n (tb : T.bind) ->
+      match tb.T.sort with T.Witness -> n + 1 | _ -> n) 0 tbs in
+    if n_witnesses = 0 then syntax_args
+    else
+      let synth () =
+        let lit = { it = LitE (ref (NatLit (Numerics.Nat.of_int 42)));
+                    at = no_region; note = empty_typ_note } in
+        { it = ToCandidE [lit]; at = no_region; note = empty_typ_note }
+      in
+      let rec mk_witnesses n =
+        if n <= 0 then [] else synth () :: mk_witnesses (n - 1)
+      in
+      mk_witnesses n_witnesses @ syntax_args
   in
   let t_args, extra_subtype_problems = match ctx_dot with
     | None ->
