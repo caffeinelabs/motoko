@@ -1093,22 +1093,32 @@ machinery (br_table or linear) operates on tags as before.
         `check_ir.ml`) filter Existential binds before the arity
         comparison; user-visible callers still pass only the
         type-param actuals.
-      - `gadt_typd_existentials` side table is now redundant for
-        the σ-derivation path; remaining references are the
-        next cleanup slice.
+      - `gadt_typd_existentials` side table **retired
+        (`b90cac552`).** Replaced by `T.typd_existentials c` which
+        reads `Def.binds` via `existentials_of_binds`. The TypD
+        register site now does `List.iter T.register_existential
+        typd_es` to keep feeding `gadt_existential_set` in both
+        passes (binds-on-Def population still lives in the augment
+        block guarded by `not env.pre`). Six call sites in
+        `typing.ml` migrated.
 
       With this slice landed, full σ-derivability for both variant
       arms and top-level aliases is achieved. `note_sigma` field
-      becomes dead weight (next: drop fallback in `refine_target`);
-      `gadt_typd_existentials` side table can be retired.
+      becomes dead weight (next: drop fallback in `refine_target`).
 
-      Sweep on commit: 23 `gadt-*` tests green; `test/run` quick
-      (310 .mo) and `test/fail` quick (382 .mo) both clean.
+      Sweep on commit (HKT slice): 23 `gadt-*` tests green;
+      `test/run` quick (310 .mo) and `test/fail` quick (382 .mo)
+      both clean.
 
-      Rollback anchor: tag `WIP-gadt-pre-hkt-defbinds` at
-      `a3c34746d`. Previous anchor
-      `WIP-gadt-path-a-variant-derived` at `bc5e6a540` still
-      relevant for going back further.
+      Sweep on commit (table retirement, `b90cac552`):
+      `test-runner -b` 24/24 `gadt-*`; full `test/run` +
+      `test/fail` 692/692.
+
+      Rollback anchors:
+      - `WIP-gadt-pre-hkt-defbinds` at `a3c34746d` — before HKT
+        Def-binder slice
+      - `WIP-gadt-path-a-variant-derived` at `bc5e6a540` — before
+        either of HKT or table retirement
 
       **Slice 6+ (out of scope of initial Path A).** Anticipating
       record-field existentials, the same `binds` slot serves Obj
@@ -1119,12 +1129,14 @@ machinery (br_table or linear) operates on tags as before.
       so the binder discipline is uniform (don't special-case the
       Variant arm; treat any field with non-empty binds the same).
 
-      **Out of scope: `gadt_typd_existentials`** still requires a
-      parallel `binds`-on-`Def`-kind refactor (top-level alias
-      Defs carry binds in `Def of bind list * typ` already — adding
-      a separate "existentials" slot mirrors the same idea but is a
-      distinct surgery). `gadt_refinement_at` retires once both
-      Path A and the Def-side refactor land.
+      **Remaining GADT side state.** `gadt_existential_set`
+      survives because `is_gadt_existential` drives the Cardelli
+      stamp-identity exemption in `sub`/`eq` and the free-cons
+      bypass at `check_ir.ml:210` — retiring it needs cons to
+      carry their own "is-existential" bit, a wider surgery.
+      `gadt_refinement_at` (region-keyed σ for refinements) and
+      the per-expr `note_sigma` cache are the next two retirement
+      targets.
 
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
