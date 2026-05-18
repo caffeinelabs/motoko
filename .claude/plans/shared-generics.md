@@ -115,19 +115,42 @@ as an **abstract primitive type**, analogous to Motoko's existing
 `Error` type. `Type` is to `switch type` as `Error` is to `catch`: same
 "abstract primitive with a distinguished elimination form" pattern.
 
-> **Internal mechanism — `prim switch byte`.** The user-facing
-> `switch type T { ... }` is a *skin* over an internal
-> compiler primitive `prim switch byte { case 0xNN : type T = … }` —
-> a value-driven refinement form sketched in
+> **Internal mechanism — `prim switch (typCode stream)`.** The user-
+> facing `switch type T { ... }` is a *skin* over an internal
+> compiler primitive
+> `prim type X<T>(stream : Candid) = prim switch (typCode stream) { case N : type T = … }` —
+> a value-driven refinement form sketched and reasoned about in
 > [GADTs.md → "Value-driven refinement: `prim switch`"](GADTs.md#value-driven-refinement-prim-switch-sketch-internal-only).
-> The internal form is what reads the Candid wire bytes
-> (`0x7d = nat`, `0x7c = int`, `0x6d = vec`, …); the surface
-> `switch type T` is its user-facing presentation, dispatching on a
-> `Type` value rather than on a raw byte but using the same σ
-> refinement machinery underneath (the existing GADT arm-refinement
-> clauses `type T = …`).  Closing this loop means the surface
-> elimination form falls out as sugar over a primitive we'd ship
-> anyway for runtime Candid decoders.
+> The internal form reads the Candid type-table indices (LEB128-
+> encoded `Int`s — `-3 = nat`, `-4 = int`, `-19 = vec`, non-negative
+> = back-reference into the type table); the surface `switch type T`
+> is its user-facing presentation, dispatching on a `Type` value
+> rather than on a raw idx but using the same σ refinement machinery
+> underneath (the existing GADT arm-refinement clauses `type T = …`).
+> Closing this loop means the surface elimination form falls out as
+> sugar over a primitive we'd ship anyway for runtime Candid
+> decoders.
+>
+> **Progress (gabor/gadt branch, 2026-05-18, commit `1ce451fb4`):**
+> The parser and AST for `prim type` + `prim switch` are landed,
+> behind the existing `MOC_UNLOCK_PRIM=1` privilege gate.  The form
+> currently parses end-to-end; typing emits M0229 ("not yet
+> implemented") at elaboration.  Next slices replace M0229 with real
+> semantics (arm selection, σ application, witness threading) — the
+> M11/Path A refinement-clause machinery already in place is what
+> feeds those.  AST shape settled:
+> ```ocaml
+> dec'.PrimTypD of typ_id * typ_bind list * (id * typ) list * typ
+> typ'.PrimSwitchT of prim_discr * prim_switch_arm list
+> prim_discr = TypCode of id        (* extensible — jump, etc. later *)
+> prim_switch_arm' = { pat; refinement : typ_constraint }
+> prim_idx_pat = IdxLitP of int | IdxWildP | IdxGuardP …
+> ```
+> The value-parameter slot (`(id * typ) list` on `PrimTypD`) is new
+> — TypD has no value-parameter grammar; `prim type` introduces it
+> behind the privilege gate without disturbing the user-facing
+> `type` decl form.  Future slices will compose `switch type T`
+> elaboration on top of this primitive when it has real semantics.
 
 ```
 // Existing in Motoko:
