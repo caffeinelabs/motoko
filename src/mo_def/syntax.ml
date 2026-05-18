@@ -75,7 +75,13 @@ and typ' =
 and scope = typ
 and typ_field = typ_field' phrase
 and typ_field' =
-  | ValF of id * typ * mut
+  | ValF of id * typ_constraint list * typ * mut
+        (* `constraints` carries field-level existentials (M-field):
+           `name : type X [<: B] in T`.  Constraints lift to the
+           enclosing alias's [Def.binds] at TypD elaboration —
+           user-visible scope is per-field, internal rep is at the
+           alias level (cons identity keeps independently-scoped
+           same-named existentials distinct). *)
   | TypF of typ_id * typ_bind list * typ
 
 and typ_tag = typ_tag' phrase

@@ -1172,11 +1172,10 @@ and check_pat_tag env t l pat =
        substitution) carries fresh cons per case region.  Path A:
        arm existentials read structurally from arm_field.binds —
        no shallow walk needed. *)
-    let arm_es = T.existentials_of_binds arm_field.T.binds in
-    let refined = match arm_es with
-      | [] -> arm_typ
-      | _ ->
-        (match T.unify_existentials arm_typ pat.note arm_es with
+    let refined =
+      if T.existentials_of_binds arm_field.T.binds = [] then arm_typ
+      else
+        (match T.unify_existentials arm_typ pat.note arm_field.T.binds with
          | Some sigma -> T.subst sigma arm_typ
          | None -> arm_typ)
     in
@@ -1238,7 +1237,7 @@ and check_dec env dec  =
        side before the sub-check. *)
     let pat_typ =
       match pat.note with
-      | T.Con (c, _) when T.typd_existentials c <> [] ->
+      | T.Con (c, _) when T.is_gadt_con c ->
         let sigma = T.derive_destructure_sigma pat.note (typ exp) in
         if T.ConEnv.is_empty sigma then pat.note
         else T.subst sigma (T.normalize pat.note)
@@ -1246,7 +1245,7 @@ and check_dec env dec  =
     in
     let exp_typ =
       match typ exp with
-      | T.Con (c, _) when T.typd_existentials c <> [] ->
+      | T.Con (c, _) when T.is_gadt_con c ->
         let sigma = T.derive_destructure_sigma (typ exp) pat.note in
         if T.ConEnv.is_empty sigma then typ exp
         else T.subst sigma (T.promote (typ exp))

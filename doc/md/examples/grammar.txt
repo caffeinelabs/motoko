@@ -96,7 +96,7 @@
 
 <typ_field> ::= 
     'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
-    'var'? <id> ':' <typ>
+    'var'? <id> ':' <typ_def_rhs<typ_constraint_existential>>
     <id> <typ_params_opt> <typ_nullary> ':' <typ>
 
 <typ_tag> ::= 
@@ -105,6 +105,7 @@
 
 <typ_constraint_existential> ::= 
     'type' <id>
+    'type' <id> '<:' <typ>
 
 <typ_constraint> ::= 
     <typ_constraint_existential>

@@ -147,7 +147,7 @@ let share_typ t =
 
 let share_typfield' = function
   | TypF (c, tps, t) -> TypF (c, tps, t)
-  | ValF (x, t, m) -> ValF (x, share_typ t, m)
+  | ValF (x, cs, t, m) -> ValF (x, cs, share_typ t, m)
 
 let share_typfield (tf : typ_field) = { tf with it = share_typfield' tf.it }
 
@@ -528,12 +528,12 @@ inst :
 typ_field :
   | TYPE c=typ_id  tps=type_typ_params_opt EQ t=typ
     { TypF (c, tps, t) @@ at $sloc }
-  | mut=var_opt x=id COLON t=typ
-    { ValF (x, t, mut) @@ at $sloc }
+  | mut=var_opt x=id COLON cs_t=typ_def_rhs(typ_constraint_existential)
+    { let cs, t = cs_t in ValF (x, cs, t, mut) @@ at $sloc }
   | x=id tps=typ_params_opt t1=typ_nullary COLON t2=typ
     { let t = funcT(Type.Local @@ no_region, tps, t1, t2)
               @! span x.at t2.at in
-      ValF (x, t, Const @@ no_region) @@ at $sloc }
+      ValF (x, [], t, Const @@ no_region) @@ at $sloc }
 
 typ_tag :
   | HASH x=id
@@ -1126,11 +1126,11 @@ typ_dec :
 
 stab_field :
   | STABLE mut=var_opt x=id COLON t=typ
-    { ValF (x, t, mut) @@ at $sloc }
+    { ValF (x, [], t, mut) @@ at $sloc }
 
 pre_stab_field :
   | r=req mut=var_opt x=id COLON t=typ
-    { (r, ValF (x, t, mut) @@ at $sloc) }
+    { (r, ValF (x, [], t, mut) @@ at $sloc) }
 
 %inline req :
   | STABLE { false @@ at $sloc }

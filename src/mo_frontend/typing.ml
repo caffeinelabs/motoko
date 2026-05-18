@@ -924,7 +924,7 @@ and check_typ' env typ : T.typ =
   | ObjT (sort, fields) ->
     check_ids env "object type" "field"
       (List.filter_map (fun (field : typ_field) ->
-        match field.it with ValF (x, _, _) -> Some x | _ -> None
+        match field.it with ValF (x, _, _, _) -> Some x | _ -> None
       ) fields);
     check_ids env "object type" "type field"
       (List.filter_map (fun (field : typ_field) ->
@@ -1015,15 +1015,40 @@ and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
   k
 
 and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match typ_field.it with
-  | ValF (id, typ, mut) ->
-    let t = infer_mut mut (check_typ env typ) in
+  | ValF (id, constraints, typ, mut) ->
+    (* Field-level existentials (HKT on the field): mint a schema-existential
+       skolem cons per constraint, elaborate the field type in the env extended
+       with the existentials in scope.  Mirror of [check_typ_tag] for variant
+       arms; parser's [typ_constraint_existential] guarantees no refinements
+       here (refines = None). *)
+    let env' = List.fold_left (fun env (c : typ_constraint) ->
+      let _bound_t = check_typ env c.it.bound in
+      let con = match c.note with
+        | Some c' -> c'
+        | None ->
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], T.Any)) in
+          c.note <- Some c';
+          c'
+      in
+      add_typs env [c.it.tv.it] [con]
+    ) env constraints in
+    let t = infer_mut mut (check_typ env' typ) in
     if not env.pre && s = T.Actor then begin
       if not (T.is_shared_func t) then
         error env typ.at "M0042" "actor field %s must have shared function type, but has type\n  %s"
           id.it (T.string_of_typ_expand t)
     end;
     Field_sources.add_src env.srcs id.at;
-    Either.Left(T.{lab = id.it; binds = []; typ = t; src = {empty_src with track_region = id.at}})
+    let binds =
+      List.filter_map (fun (cstr : typ_constraint) ->
+        match cstr.it.refines, cstr.note with
+        | None, Some skolem ->
+          let bound_t = check_typ env cstr.it.bound in
+          Some ({T.var = cstr.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
+        | _ -> None
+      ) constraints
+    in
+    Either.Left(T.{lab = id.it; binds; typ = t; src = {empty_src with track_region = id.at}})
   | TypF (id, typ_binds, typ) ->
     let k = check_typ_def env typ_field.at (id, typ_binds, [], typ) in
     let c = Cons.fresh id.it k in
@@ -1100,10 +1125,11 @@ and check_typ_tag env typ_tag =
      registration time (see typing.ml's registration of arm
      constraints) — rhs.note is only fully elaborated by then. *)
   let binds =
-    List.filter_map (fun c ->
+    List.filter_map (fun (c : typ_constraint) ->
       match c.it.refines, c.note with
       | None, Some skolem ->
-        Some ({T.var = c.it.tv.it; sort = T.Existential skolem; bound = T.Any} : T.bind)
+        let bound_t = check_typ env c.it.bound in
+        Some ({T.var = c.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
       | _ -> None
     ) constraints
   in
@@ -1132,7 +1158,7 @@ and mentions_id name typ =
     | ObjT (_, fields) ->
       List.exists (fun (f : typ_field) ->
         match f.it with
-        | ValF (_, t, _) -> go t
+        | ValF (_, _, t, _) -> go t
         | TypF (_, _, t) -> go t
       ) fields
     | VariantT tags -> List.exists (fun (tt : typ_tag) -> go tt.it.typ) tags
@@ -2966,6 +2992,10 @@ and gadt_check_refinements env exp c ts id =
 
 and gadt_check_existentials env exp t c ts id exp1 =
   let arm_es = T.arm_existentials c id.it in
+  let arm_binds =
+    List.map (fun (b : T.bind) -> { b with T.bound = T.open_ ts b.T.bound })
+      (T.arm_binds c id.it)
+  in
   if arm_es = [] then false
   else
     match Cons.kind c with
@@ -2977,7 +3007,7 @@ and gadt_check_existentials env exp t c ts id exp1 =
           | Some f ->
             let arm_payload = f.T.typ in
             let actual_t = infer_exp env exp1 in
-            (match T.unify_existentials arm_payload actual_t arm_es with
+            (match T.unify_existentials arm_payload actual_t arm_binds with
              | Some sigma ->
                let refined_payload = T.subst sigma arm_payload in
                (* Use subtyping rather than a recursive check_exp — the
@@ -3010,14 +3040,16 @@ and gadt_check_existentials env exp t c ts id exp1 =
    [gadt_check_existentials] but without the per-variant-arm wrapper —
    the body of the TypD itself is the existential pack. *)
 and gadt_check_typd_existentials env exp t c ts =
-  let es = T.typd_existentials c in
   match Cons.kind c with
-  | T.Def (_, body) ->
+  | T.Def (tbs, body) ->
     let body' = T.open_ ts body in
+    let opened_binds =
+      List.map (fun (b : T.bind) -> { b with T.bound = T.open_ ts b.T.bound }) tbs
+    in
     (* Promote [actual_t] so a class-typed [Con (MkRec, [])] gets
        walked structurally against [body']. *)
     let actual_t = T.promote (infer_exp env exp) in
-    (match T.unify_existentials body' actual_t es with
+    (match T.unify_existentials body' actual_t opened_binds with
      | Some sigma ->
        let refined = T.subst sigma body' in
        if not (T.sub actual_t refined) then
@@ -3111,17 +3143,46 @@ and check_exp' env0 t exp : T.typ =
     List.iter2 (check_exp env) ts exps;
     t
   | ObjE (exp_bases, exp_fields), T.Obj(T.Object, fs, tfs) ->
-    let t' = infer_check_bases_fields env fs exp.at exp_bases exp_fields in
+    (* Field-level existentials: drop binds-bearing fields from the
+       check-fields list so [infer_or_check] routes them through
+       [infer_exp_field] (avoids tripping on schema skolems).  After
+       inference, refine each binds-bearing expected field's payload
+       via σ derived from the actual inferred type. *)
+    let has_field_existentials =
+      List.exists (fun (f : T.field) -> f.T.binds <> []) fs in
+    let check_fields_for_infer =
+      if has_field_existentials then
+        List.filter (fun (f : T.field) -> f.T.binds = []) fs
+      else fs
+    in
+    let t' = infer_check_bases_fields env check_fields_for_infer exp.at exp_bases exp_fields in
     let fs', tfs' = match T.promote t' with
       | T.Obj(T.Object, fs', tfs') -> fs', tfs'
       | _ -> [], []
+    in
+    let t_refined =
+      if has_field_existentials then
+        let fs_refined = List.map (fun (f : T.field) ->
+          if f.T.binds = [] then f
+          else
+            match T.lookup_val_field_opt f.T.lab fs' with
+            | None -> f
+            | Some actual_t ->
+              (* Field-level binds already carry the alias-opened
+                 bound on [bind.bound] (open_field threaded ts). *)
+              (match T.unify_existentials f.T.typ actual_t f.T.binds with
+               | Some sigma -> { f with T.typ = T.subst sigma f.T.typ }
+               | None -> f)
+        ) fs in
+        T.Obj(T.Object, fs_refined, tfs)
+      else t
     in
     let missing_val_field_labs = fs
       |> List.filter T.(fun ft -> Option.is_none (lookup_val_field_opt ft.lab fs'))
       |> List.map (fun ft -> Printf.sprintf "'%s'" ft.T.lab)
     in
     begin match missing_val_field_labs with
-    | [] -> check_inferred env0 env t t' exp
+    | [] -> check_inferred env0 env t_refined t' exp
     | fts ->
       (* Future work: Replace this error with a general subtyping error once better explanations are available. *)
       let s = if List.length fts = 1 then "" else "s" in
@@ -3250,7 +3311,7 @@ and check_exp' env0 t exp : T.typ =
       check_exp env arm_typ exp1
     else begin
       let actual = infer_exp env exp1 in
-      (match T.unify_existentials arm_typ actual arm_es with
+      (match T.unify_existentials arm_typ actual arm_field.T.binds with
        | Some sigma ->
          let refined = T.subst sigma arm_typ in
          if not (T.sub actual refined) then
@@ -5236,10 +5297,13 @@ and infer_dec env dec : T.typ =
         let refined_t'' = match t'' with
           | T.Con (c, ts) when T.typd_existentials c <> [] ->
             (match Cons.kind c with
-             | T.Def (_, body) ->
+             | T.Def (tbs, body) ->
                let body' = T.open_ ts body in
-               let es = T.typd_existentials c in
-               (match T.unify_existentials body' t' es with
+               let opened_binds =
+                 List.map (fun (b : T.bind) ->
+                   { b with T.bound = T.open_ ts b.T.bound }) tbs
+               in
+               (match T.unify_existentials body' t' opened_binds with
                 | Some sigma ->
                   (* M11a: σ at dec.at had no consumers; drop the
                      register. The body sub-check is the only thing
@@ -5611,11 +5675,20 @@ and infer_dec_typdecs env dec : Scope.t =
        post-confluence rationale as augment_arm_binds.  Runs only
        in the final (non-pre) pass. *)
     if not env.pre then begin
+      (* The alias's typ_binds' cons — used to close the existential
+         bound's free references so [open_ ts] at use sites
+         substitutes the alias's type-args into the bound (e.g.
+         `type Bag<A> = type X <: A in ...` — X's bound must follow
+         A through `Bag<Nat>`). *)
+      let typ_bind_cons =
+        List.filter_map (fun (tb : typ_bind) -> tb.note) typ_binds
+      in
       let typd_binds =
-        List.filter_map (fun cstr ->
+        List.filter_map (fun (cstr : typ_constraint) ->
           match cstr.it.refines, cstr.note with
           | None, Some skolem ->
-            Some ({T.var = cstr.it.tv.it; sort = T.Existential skolem; bound = T.Any} : T.bind)
+            let bound_t = T.close typ_bind_cons cstr.it.bound.note in
+            Some ({T.var = cstr.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
           | _ -> None
         ) cs_top
       in
@@ -5979,7 +6052,7 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
           let check_fields sfs =
             check_ids env "object type" "field"
               (List.filter_map (fun (field : typ_field) ->
-                   match field.it with ValF (id, _, _) -> Some id | _ -> None)
+                   match field.it with ValF (id, _, _, _) -> Some id | _ -> None)
                  sfs);
             let _ = List.map (check_typ_field {env1 with pre = true} T.Object) sfs in
             (* NOTE: It's correct to drop type fields here, because the parser for stable signatures
@@ -5988,7 +6061,7 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
             List.iter (fun (field : Syntax.typ_field) ->
                 match field.it with
                 | TypF _ -> assert false
-                | ValF (id, typ, _) ->
+                | ValF (id, _, typ, _) ->
                   if not (T.stable typ.note) then
                      error env id.at "M0131" "variable %s is declared stable but has non-stable type%a"
                      id.it

@@ -1,0 +1,36 @@
+error[M0096]: expression of type
+  {data : (Bool, (n : Bool) -> Nat); meta : Text}
+cannot produce expected type
+  {data : (X, X -> Nat); meta : Text}
+because the type 
+  Bool
+ is not compatible with type 
+  X
+ in `data`
+    ┌─ gadt-field-existential-bound-violation.mo:14:16
+ 13 │    
+ 14 │    let _b : Box = {
+    │ ╭─────────────────^
+ 15 │ │    data = (true, func (n : Bool) : Nat = if n 1 else 0);
+ 16 │ │    meta = "hi"
+ 17 │ │  };
+    │ ╰──^ 
+ 18 │    
+error[M0096]: expression of type
+  {item : (Bool, (n : Bool) -> Int); tag : Text}
+cannot produce expected type
+  {item : (X, X -> Int); tag : Text}
+because the type 
+  Bool
+ is not compatible with type 
+  X
+ in `item`
+    ┌─ gadt-field-existential-bound-violation.mo:26:23
+ 25 │    
+ 26 │    let _bag : Bag<Int> = {
+    │ ╭────────────────────────^
+ 27 │ │    item = (true, func (n : Bool) : Int = if n 1 else 0);
+ 28 │ │    tag = "boom"
+ 29 │ │  };
+    │ ╰──^ 
+ 30 │    

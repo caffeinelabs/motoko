@@ -454,6 +454,9 @@ include Pretty
     structural counterpart to the deleted [lookup_gadt_arm_existentials]. *)
 val existentials_of_binds : bind list -> con list
 val arm_existentials : con -> lab -> con list
+val arm_binds : con -> lab -> bind list
+(** Like [arm_existentials] but returns the full [bind list] for the
+    arm, with each existential's bound on its [bind.bound] slot. *)
 
 (** Extract `Refinement t` constraints from a bind list as (var, rhs)
     pairs — Path A's structural counterpart to the deleted
@@ -506,7 +509,14 @@ val with_skolem_pool : (unit -> 'a) -> 'a
     their entry point with this so the pool's lifetime is bounded by
     the pass. *)
 val mentions_blackhole : typ -> bool
-val unify_existentials : typ -> typ -> con list -> typ ConEnv.t option
+val unify_existentials : typ -> typ -> bind list -> typ ConEnv.t option
+(** Walk [expected] and [actual] in parallel; where [expected] has
+    [Con(c, [])] with [c] matching an [Existential] bind in the third
+    argument, record [c → <subterm of actual>] in the returned σ.
+    Enforces each existential's bound (read from the bind's [bound]
+    field — caller is responsible for opening it under the relevant
+    type-arg instantiation).  Returns [None] on conflicting candidates
+    or bound violations. *)
 val prune_gadt_variant : con -> bind list -> typ list -> field list -> field list
 val arm_compat : con list -> typ -> typ -> bool
 val monomorphise_open : con -> typ list -> typ -> typ

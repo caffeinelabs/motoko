@@ -501,7 +501,7 @@ module Make (Cfg : Config) = struct
   and typ_field'_js =
     let open Syntax in
     function
-    | ValF (lab, t, m) ->
+    | ValF (lab, _cs, t, m) ->
         to_js_object "ValF" [| id lab; syntax_typ_js t; mut_js m |]
     | TypF (lab, tbs, t) ->
         to_js_object "TypF"

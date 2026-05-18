@@ -2940,6 +2940,20 @@ let arm_existentials c lab =
         | None -> [])
      | _ -> [])
 
+(* Like [arm_existentials] but returns the full [bind list] for the arm
+   (Existential entries + any Refinement entries), so callers can feed
+   it to [unify_existentials] which reads each existential's bound from
+   [bind.bound]. *)
+let arm_binds c lab =
+  match Cons.kind c with
+  | Def (_, body) | Abs (_, body) ->
+    (match body with
+     | Variant fs ->
+       (match List.find_opt (fun f -> f.lab = lab) fs with
+        | Some f -> f.binds
+        | None -> [])
+     | _ -> [])
+
 let arm_refinements c lab =
   match Cons.kind c with
   | Def (_, body) | Abs (_, body) ->
@@ -3000,10 +3014,14 @@ let () = is_gadt_con_ref := (fun c ->
     List.exists (fun (tb : bind) ->
       match tb.sort with Existential _ -> true | _ -> false) tbs
   in
+  let any_field_has_binds (fs : field list) =
+    List.exists (fun (f : field) -> f.binds <> []) fs
+  in
   match Cons.kind c with
   | Def (tbs, Variant fs) ->
-    has_existential_bind tbs ||
-    List.exists (fun (f : field) -> f.binds <> []) fs
+    has_existential_bind tbs || any_field_has_binds fs
+  | Def (tbs, Obj (_, fs, _)) ->
+    has_existential_bind tbs || any_field_has_binds fs
   | Def (tbs, _) -> has_existential_bind tbs
   | _ -> false)
 
@@ -3119,18 +3137,26 @@ and arm_compat es e a =
     ) fs1
   | _ -> eq e a
 
-and unify_existentials expected actual existentials : typ ConEnv.t option =
+and unify_existentials expected actual (binds : bind list) : typ ConEnv.t option =
   let sigma = ref ConEnv.empty in
+  let bound_of c =
+    let rec find = function
+      | [] -> None
+      | (b : bind) :: rest ->
+        (match b.sort with
+         | Existential c' when Cons.eq c c' -> Some b.bound
+         | _ -> find rest)
+    in find binds
+  in
   let rec walk e a =
     match e, a with
-    | Con (c, []), _ when List.mem c existentials ->
+    | Con (c, []), _ when Option.is_some (bound_of c) ->
       (* Enforce the existential's bound on the witness candidate.
-         Schema cons live as [Abs ([], <bound>)]; default bound is
-         [Any], which makes [sub a Any] vacuous. *)
-      let bound = match Cons.kind c with
-        | Abs ([], b) -> b
-        | _ -> Any
-      in
+         Bound lives on the bind ([b.bound]); for parametric bounds
+         (e.g. [type X <: A] where A is an outer type-param), the
+         bound has been opened via [open_field] to reflect the
+         alias's instantiation. *)
+      let bound = Option.get (bound_of c) in
       if not (sub a bound) then raise Unify_fail;
       (match ConEnv.find_opt c !sigma with
        | None -> sigma := ConEnv.add c a !sigma
@@ -3179,10 +3205,9 @@ let derive_tag_sigma (target_t : typ) (label : lab) (actual : typ)
   | Variant fs ->
     (match List.find_opt (fun (f : field) -> f.lab = label) fs with
      | Some f ->
-       let arm_es = existentials_of_binds f.binds in
-       if arm_es = [] then ConEnv.empty
+       if existentials_of_binds f.binds = [] then ConEnv.empty
        else
-         (match unify_existentials f.typ actual arm_es with
+         (match unify_existentials f.typ actual f.binds with
           | Some sigma -> sigma
           | None -> ConEnv.empty)
      | None -> ConEnv.empty)
@@ -3202,12 +3227,18 @@ let derive_typd_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
     (match Cons.kind c with
      | Def (tbs, body) ->
        (* HKT extension: existential cons live structurally in the
-          Def's binds (Existential sort).  Read them directly. *)
-       let es = existentials_of_binds tbs in
-       if es = [] then ConEnv.empty
+          Def's binds (Existential sort).  Pass the binds directly so
+          [unify_existentials] can read each existential's bound from
+          [bind.bound] (which gets opened with the alias's type-args). *)
+       if existentials_of_binds tbs = [] then ConEnv.empty
        else
          let opened = reduce tbs body ts in
-         (match unify_existentials opened actual es with
+         (* Open the binds too, so bound references to the alias's
+            type-params are substituted with [ts]. *)
+         let opened_binds =
+           List.map (fun (b : bind) -> { b with bound = open_ ts b.bound }) tbs
+         in
+         (match unify_existentials opened actual opened_binds with
           | Some sigma -> sigma
           | None -> ConEnv.empty)
      | _ -> ConEnv.empty)
@@ -3221,11 +3252,37 @@ let derive_typd_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
    M11b LetD path. *)
 let derive_destructure_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
   match target_t with
-  | Con (c, _) ->
-    let es = typd_existentials c in
-    if es = [] then ConEnv.empty
-    else
-      (match unify_existentials (normalize target_t) actual es with
-       | Some sigma -> sigma
-       | None -> ConEnv.empty)
+  | Con (c, ts) ->
+    (match Cons.kind c with
+     | Def (tbs, _) ->
+       let alias_es = existentials_of_binds tbs in
+       (* Open the body via reduce/normalize and look for field-level
+          existentials too. *)
+       let opened_body = normalize target_t in
+       let opened_binds_tbs =
+         List.map (fun (b : bind) -> { b with bound = open_ ts b.bound }) tbs
+       in
+       let alias_sigma =
+         if alias_es = [] then ConEnv.empty
+         else match unify_existentials opened_body actual opened_binds_tbs with
+              | Some sigma -> sigma
+              | None -> ConEnv.empty
+       in
+       let field_sigma =
+         match opened_body, actual with
+         | Obj (_, fs_e, _), Obj (_, fs_a, _) ->
+           List.fold_left (fun acc (f_e : field) ->
+             if f_e.binds = [] then acc
+             else
+               match lookup_val_field_opt f_e.lab fs_a with
+               | None -> acc
+               | Some actual_typ ->
+                 (match unify_existentials f_e.typ actual_typ f_e.binds with
+                  | Some s -> ConEnv.union (fun _ a _ -> Some a) acc s
+                  | None -> acc)
+           ) ConEnv.empty fs_e
+         | _ -> ConEnv.empty
+       in
+       ConEnv.union (fun _ a _ -> Some a) alias_sigma field_sigma
+     | _ -> ConEnv.empty)
   | _ -> ConEnv.empty
