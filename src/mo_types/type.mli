@@ -450,13 +450,6 @@ module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
 
-(* GADT existential registration.  Per-arm refinement / existential
-   side tables are gone (Path A slices 1-5); arm metadata lives on
-   the variant arm's [binds : bind list].  [register_existential]
-   adds a cons to [gadt_existential_set] for the [is_gadt_existential]
-   predicate. *)
-val register_existential : con -> unit
-
 (** Extract `Existential c` cons from a bind list — Path A's
     structural counterpart to the deleted [lookup_gadt_arm_existentials]. *)
 val existentials_of_binds : bind list -> con list
@@ -513,7 +506,6 @@ val with_skolem_pool : (unit -> 'a) -> 'a
     their entry point with this so the pool's lifetime is bounded by
     the pass. *)
 val mentions_blackhole : typ -> bool
-val rewrite_gadt_side_tables : rename_con:(con -> con) -> rewrite_typ:(typ -> typ) -> unit
 val unify_existentials : typ -> typ -> con list -> typ ConEnv.t option
 val prune_gadt_variant : con -> bind list -> typ list -> field list -> field list
 val arm_compat : con list -> typ -> typ -> bool

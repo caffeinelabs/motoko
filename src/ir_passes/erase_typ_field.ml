@@ -238,6 +238,4 @@ let transform prog =
         t_typ t)
   and t_prog (cu, flavor) = (t_comp_unit cu, { flavor with has_typ_field = false } )
 in
-  let result = t_prog prog in
-  T.rewrite_gadt_side_tables ~rename_con:t_con ~rewrite_typ:t_typ;
-  result
+  t_prog prog

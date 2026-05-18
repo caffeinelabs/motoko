@@ -556,6 +556,4 @@ let transform prog =
 
   and t_prog (cu, flavor) = (t_comp_unit cu, { flavor with has_async_typ = false } )
 in
-  let result = t_prog prog in
-  Type.rewrite_gadt_side_tables ~rename_con:t_con ~rewrite_typ:t_typ;
-  result
+  t_prog prog

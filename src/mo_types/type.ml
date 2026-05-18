@@ -1283,13 +1283,11 @@ struct
   let explanation arg = !(arg.error)
 end
 
-(* GADT existential set — kept here (rather than near its registrators
-   below) so that `rel_typ` can consult it to specialise diagnostics
-   for black-hole witnesses. The actual set + registrators live in
-   the GADT side-tables section further down; only the set ref and
-   the predicate need to be visible to the sub-typing relation. *)
-let gadt_existential_set : ConSet.t ref = ref ConSet.empty
-let is_gadt_existential c = ConSet.mem c !gadt_existential_set
+(* A GADT existential is a cons whose stamp lives in the [<= 0] reserve
+   — minted via [Cons.fresh_skolem] either by typing's destructure-pat
+   path ([fresh_destructure_skolem]) or at schema-existential elaboration
+   sites in typing.ml.  Pure function of the cons; no side table. *)
+let is_gadt_existential c = Cons.is_skolem c
 
 let incompatible_types d t1 t2 =
   RelArg.false_with d (IncompatibleTypes (RelArg.context d, t1, t2))
@@ -2840,30 +2838,23 @@ module RegConHash = Hashtbl.Make (struct
   let hash (r, c) = Hashtbl.hash (r, Cons.name c)
 end)
 
-(* gadt_existential_set + is_gadt_existential are hoisted earlier in
-   the file so `rel_typ` can consult the predicate for black-hole
-   diagnostics. *)
-
-(* Register cons as a GADT existential (adds to the global set used
-   by [is_gadt_existential]).  Called both from variant-arm
-   elaboration (slice 2's check_typ_tag) and from
-   [fresh_destructure_skolem]. *)
-let register_existential c =
-  gadt_existential_set := ConSet.add c !gadt_existential_set
-
 (* M11b — fresh-per-site existential skolems. Each typing pass installs
    its own pool via `with_skolem_pool`; calls to
    `fresh_destructure_skolem` route through the OCaml-5 effect
    handler, which memoises by (destructure-site region × schema cons)
    so multi-pass typing returns the same cons on subsequent
    invocations. Pool dies with the handler frame — no cross-session
-   leakage, unlike the global table this replaced.
+   leakage.
+
+   The minted cons uses [Cons.fresh_skolem] so its stamp lands in the
+   [<= 0] reserve.  [is_gadt_existential] is then a pure function of
+   cons identity ([Cons.is_skolem]) — no side table.
 
    Future: when stamp generation becomes deterministic (encode
-   (region, schema_stamp) into the cons.scope string), the memo
-   becomes redundant and this handler can be deleted. The deferred
-   refactor is the principled destination; the handler is the
-   convenience step that gets us scoped lifetimes today. *)
+   (region, schema_stamp) into the stamp via [-Hashtbl.hash …]), the
+   memo becomes redundant and this handler can be deleted.  The
+   predicate [is_skolem c = fst c.stamp <= 0] already future-proofs
+   that transition — only the *minter* changes. *)
 type _ Effect.t += Fresh_skolem : Source.region * con -> con Effect.t
 
 let fresh_destructure_skolem reg c_schema =
@@ -2880,9 +2871,8 @@ let with_skolem_pool (f : unit -> 'a) : 'a =
             let c_site = match RegConHash.find_opt pool (reg, c_schema) with
               | Some s -> s
               | None ->
-                let s = Cons.fresh (Cons.name c_schema) (Abs ([], Any)) in
+                let s = Cons.fresh_skolem (Cons.name c_schema) (Abs ([], Any)) in
                 RegConHash.replace pool (reg, c_schema) s;
-                gadt_existential_set := ConSet.add s !gadt_existential_set;
                 s
             in
             continue k c_site)
@@ -3013,16 +3003,6 @@ let () = is_gadt_con_ref := (fun c ->
     List.exists (fun (f : field) -> f.binds <> []) fs
   | Def (tbs, _) -> has_existential_bind tbs
   | _ -> false)
-
-(* Apply a cons-renaming to surviving GADT side state. Called by IR
-   passes (e.g. Erase_typ_field) that clone cons; otherwise the global
-   existential set drifts out of sync with the post-transform IR. *)
-let rewrite_gadt_side_tables ~rename_con ~rewrite_typ:_ =
-  let new_set = ConSet.fold
-    (fun c acc -> ConSet.add (rename_con c) acc)
-    !gadt_existential_set ConSet.empty
-  in
-  gadt_existential_set := new_set
 
 (* Structural matcher: walk [expected] and [actual] in parallel; where
    [expected] is `Con(c, [])` with c ∈ existentials, record `c → actual`.

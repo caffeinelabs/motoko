@@ -11,6 +11,17 @@ val session : ?scope:scope -> (unit -> 'a) -> 'a
 val fresh : string -> 'a -> 'a t
 val clone: 'a t -> 'a -> 'a t
 
+(** Mint a "skolem" cons — stamp drawn from the [<= 0] reserve.
+    [is_skolem] returns [true] for the result.  Today the only
+    caller is the GADT existential machinery; future deterministic
+    stamping (e.g. [-Hashtbl.hash (region, schema_stamp)]) will live
+    in the same range without changing [is_skolem]'s contract. *)
+val fresh_skolem : string -> 'a -> 'a t
+
+(** [true] iff [c]'s stamp is in the [<= 0] reserve (i.e., minted via
+    [fresh_skolem] or — eventually — a deterministic stamping helper). *)
+val is_skolem : 'a t -> bool
+
 val name : 'a t -> string
 
 val to_string : bool -> string -> 'a t -> string

@@ -578,7 +578,9 @@ let check_closed env id k at =
       "type %s%s %s %s references type parameter%s %s from an outer scope"
       id.it sbs op st
       (plural free_params)
-      (String.concat ", " (T.ConSet.fold (fun c cs -> T.string_of_con c::cs) free_params []))
+      (String.concat ", "
+         (List.sort Stdlib.compare
+            (T.ConSet.fold (fun c cs -> T.string_of_con c::cs) free_params [])))
 
 (* Imports *)
 
@@ -991,7 +993,7 @@ and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
       let con = match c.note with
         | Some c' -> c'
         | None ->
-          let c' = Cons.fresh c.it.tv.it (T.Abs ([], T.Any)) in
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], T.Any)) in
           c.note <- Some c';
           c'
       in
@@ -1066,7 +1068,7 @@ and check_typ_tag env typ_tag =
       let con = match c.note with
         | Some c' -> c'
         | None ->
-          let c' = Cons.fresh c.it.tv.it (T.Abs ([], T.Any)) in
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], T.Any)) in
           c.note <- Some c';
           c'
       in
@@ -5566,30 +5568,13 @@ and infer_dec_typdecs env dec : Scope.t =
          (* Path A: arm refinements + existentials are written
             structurally to [arm.binds] by check_typ_tag (slice 2,
             existentials) and augment_arm_binds (slice 5,
-            refinements).  Here we only need to add existential cons
-            to [gadt_existential_set] so [is_gadt_existential] / the
-            escape check at check_ir.ml:210 keep working. *)
-         List.iter (fun cstr ->
-           match cstr.it.refines, cstr.note with
-           | None, Some skolem -> T.register_existential skolem
-           | _ -> ()
-         ) tag.it.constraints
+            refinements).  Skolem cons identity now lives in the
+            stamp ([Cons.fresh_skolem] mints them in the [<= 0]
+            reserve), so [is_gadt_existential] is a pure function
+            of cons — no registration needed. *)
+         ()
        ) tags
      | _ -> ());
-    (* M10: top-level existentials live on the type's con itself.
-       The cons-list itself lives on the alias's [Def.binds] (populated
-       below by [augment_def_binds] in the final pass); here we only
-       feed [gadt_existential_set] so [is_gadt_existential] / the
-       escape check at check_ir.ml:210 keep working — including during
-       the pre-pass, before augment runs. *)
-    let typd_es =
-      List.filter_map (fun cstr ->
-        match cstr.it.refines, cstr.note with
-        | None, Some skolem -> Some skolem
-        | _ -> None
-      ) cs_top
-    in
-    List.iter T.register_existential typd_es;
     let scope = Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;

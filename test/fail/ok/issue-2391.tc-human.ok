@@ -6,7 +6,7 @@ error[M0137]: type C<U> = {y : T} references type parameter T from an outer scop
     ┌─ issue-2391.mo:10:3
  10 │    class C<U>(x : T, u: U){ public let y = x; }; // reject
     │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-error[M0137]: type C<U> = {y : (T1, T2)} references type parameters T2, T1 from an outer scope
+error[M0137]: type C<U> = {y : (T1, T2)} references type parameters T1, T2 from an outer scope
     ┌─ issue-2391.mo:16:3
  16 │    class C<U>(x1 : T1, x2: T2, u: U){ public let y = (x1, x2); }; // reject
     │    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
