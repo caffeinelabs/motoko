@@ -73,9 +73,9 @@
     <typ> 'and' <typ>
     <typ> 'or' <typ>
 
-<typ_def_rhs> ::= 
+<typ_def_rhsC> ::= 
     <typ>
-    <list1(<typ_constraint>, ',')> 'in' <typ>
+    <list1(C, ',')> 'in' <typ>
 
 <typ_item> ::= 
     <implicit> ':' <typ>
@@ -101,11 +101,14 @@
 
 <typ_tag> ::= 
     '#' <id>
-    '#' <id> ':' <typ_def_rhs>
+    '#' <id> ':' <typ_def_rhs<typ_constraint>>
+
+<typ_constraint_existential> ::= 
+    'type' <id>
 
 <typ_constraint> ::= 
+    <typ_constraint_existential>
     'type' <id> '=' <typ>
-    'type' <id>
 
 <typ_bind> ::= 
     <id> '<:' <typ>
@@ -350,7 +353,7 @@
 <dec_nonvar> ::= 
     'let' <pat> '=' <exp>
     'let' <pat>
-    'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ_def_rhs>
+    'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ_def_rhs<typ_constraint_existential>>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
     <parenthetical>? <obj_or_class_dec>
     'mixin' <pat_plain> <obj_body>

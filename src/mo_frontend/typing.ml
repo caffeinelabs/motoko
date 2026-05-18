@@ -967,6 +967,11 @@ and check_typ' env typ : T.typ =
     T.Weak (check_typ env typ)
 
 and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
+  (* Compiler invariant: the parser's [typ_constraint_existential]
+     production guarantees TypD top-level [cs_top] entries carry
+     [refines = None].  Variant-arm constraints (where refinements
+     are valid) live on the [typ_tag.constraints] list, not here. *)
+  assert (List.for_all (fun c -> c.it.refines = None) cs_top);
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
   let env' = adjoin_typs env te ce in
   if not env.pre then begin
@@ -977,14 +982,6 @@ and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
         local_error env c.at "M9003"
           "duplicate `type %s` clause on type `%s`" name id.it
       else seen := name :: !seen
-    ) cs_top;
-    List.iter (fun c ->
-      match c.it.refines with
-      | Some _ ->
-        local_error env c.at "M9008"
-          "refinement `type %s = ...` is not meaningful at the top of a type definition (no outer type-parameter to refine) — drop the `= ...` to make it existential, or substitute the RHS into the body"
-          c.it.tv.it
-      | None -> ()
     ) cs_top
   end;
   let env'' = List.fold_left (fun env c ->

@@ -283,8 +283,8 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.typ> typ_un typ_nullary typ typ_pre typ_nobin
 %type<Mo_def.Syntax.vis> vis
 %type<Mo_def.Syntax.typ_tag> typ_tag
-%type<Mo_def.Syntax.typ_constraint> typ_constraint
-%type<Mo_def.Syntax.typ_constraint list> seplist1(typ_constraint,COMMA)
+%type<Mo_def.Syntax.typ_constraint> typ_constraint typ_constraint_existential
+%type<Mo_def.Syntax.typ_constraint list> seplist1(typ_constraint,COMMA) seplist1(typ_constraint_existential,COMMA)
 %type<Mo_def.Syntax.typ_tag list> typ_variant
 %type<Mo_def.Syntax.typ_field> typ_field
 %type<Mo_def.Syntax.typ_bind> typ_bind
@@ -496,9 +496,9 @@ typ :
   | t1=typ OR t2=typ
     { OrT(t1, t2) @! at $sloc }
 
-typ_def_rhs :
+typ_def_rhs(C) :
   | t=typ { [], t }
-  | cs=seplist1(typ_constraint, COMMA) IN t=typ
+  | cs=seplist1(C, COMMA) IN t=typ
     { cs, t }
 
 typ_item :
@@ -538,12 +538,15 @@ typ_field :
 typ_tag :
   | HASH x=id
     { {tag = x; constraints = []; typ = TupT [] @! at $sloc} @@ at $sloc }
-  | HASH x=id COLON cs_t=typ_def_rhs
+  | HASH x=id COLON cs_t=typ_def_rhs(typ_constraint)
     { let cs, t = cs_t in {tag = x; constraints = cs; typ = t} @@ at $sloc }
 
+typ_constraint_existential :
+  | TYPE x=id { {tv = x; refines = None} @= at $sloc }
+
 typ_constraint :
-  | TYPE x=id EQ t=typ { {tv = x; refines = Some t} @= at $sloc }
-  | TYPE x=id          { {tv = x; refines = None} @= at $sloc }
+  | c=typ_constraint_existential { c }
+  | TYPE x=id EQ t=typ           { {tv = x; refines = Some t} @= at $sloc }
 
 typ_bind :
   | x=id SUB t=typ
@@ -999,7 +1002,7 @@ dec_nonvar :
        we parse a full pat but reject during typing *)
     { let p', e' = normalize_let p (PrimE "_" @? at $sloc) in
       LetD (p', e', None) @? at $sloc }
-  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs
+  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs(typ_constraint_existential)
     { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body
@@ -1114,7 +1117,7 @@ parse_module_header :
 (* stable signatures (.most files) *)
 
 typ_dec :
-  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs
+  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs(typ_constraint_existential)
     { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
 
 stab_field :

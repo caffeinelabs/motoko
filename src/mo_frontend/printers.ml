@@ -266,8 +266,11 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_typ_pre) -> "<typ_pre>", eg_typ
   | X (N N_typ_tag) -> "<typ_tag>", eg_typ_tag
   | X (N N_typ_constraint) -> "<typ_constraint>", "type X = T"
+  | X (N N_typ_constraint_existential) -> "<typ_constraint_existential>", "type X"
   | X (N N_seplist1_typ_constraint_COMMA_) -> seplist ("<typ_constraint>", "type X = T") comma
+  | X (N N_seplist1_typ_constraint_existential_COMMA_) -> seplist ("<typ_constraint_existential>", "type X") comma
   | X (N N_seplist_typ_constraint_COMMA_) -> seplist ("<typ_constraint>", "type X = T") comma
+  | X (N N_seplist_typ_constraint_existential_COMMA_) -> seplist ("<typ_constraint_existential>", "type X") comma
   | X (N N_typ_un) -> "<typ_un>", eg_typ
   | X (N N_typ_variant) -> "<typ_variant>", "{ " ^ eg_typ_tag ^ " }"
   | X (N N_vis) -> "<vis>", "public"
@@ -278,7 +281,8 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_seplist_mig_field_semicolon_) -> seplist ("<mig_field>", eg_mig_field) semi
   | X (N N_mig_lab) -> "<mig_lab>", "\"<filename>\""
   | X (N N_mig_field) -> "<mig_field>", eg_mig_field
-  | X (N N_typ_def_rhs) -> "<typ_def_rhs>", eg_typ
+  | X (N N_typ_def_rhs_typ_constraint_) -> "<typ_def_rhs(typ_constraint)>", eg_typ
+  | X (N N_typ_def_rhs_typ_constraint_existential_) -> "<typ_def_rhs(typ_constraint_existential)>", eg_typ
 (* In order to print a view of the stack that includes semantic values,
    we need an element printer. (If we don't need this feature, then
    [print_symbol] above suffices.) *)
