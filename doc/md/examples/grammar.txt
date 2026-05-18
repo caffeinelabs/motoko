@@ -116,9 +116,6 @@
 
 <prim_type_body> ::=  <list(<prim_switch_arm>, ';')> '}'
 
-<prim_discr> ::= 
-    <id> '(' <id> ')'
-
 <prim_switch_arm> ::= 
     'case' <prim_idx_pat> ':' <typ_constraint>
 

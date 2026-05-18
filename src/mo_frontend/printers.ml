@@ -285,7 +285,6 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_mig_field) -> "<mig_field>", eg_mig_field
   | X (N N_typ_def_rhs_typ_constraint_) -> "<typ_def_rhs(typ_constraint)>", eg_typ
   | X (N N_typ_def_rhs_typ_constraint_existential_) -> "<typ_def_rhs(typ_constraint_existential)>", eg_typ
-  | X (N N_prim_discr) -> "<prim_discr>", "typCode stream"
   | X (N N_prim_idx_pat) -> "<prim_idx_pat>", "-3"
   | X (N N_prim_switch_arm) -> "<prim_switch_arm>", "case -3 : type T = Nat"
   | X (N N_prim_type_body) -> "<prim_type_body>", "prim switch (typCode stream) { case -3 : type T = Nat }"

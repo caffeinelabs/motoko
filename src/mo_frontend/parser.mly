@@ -565,16 +565,9 @@ prim_val_param :
   | id=id COLON t=typ { (id, t) }
 
 prim_type_body :
-  | PRIM SWITCH LPAR discr=prim_discr RPAR
+  | PRIM SWITCH LPAR discr=exp(ob) RPAR
         LCURLY arms=seplist(prim_switch_arm, semicolon) RCURLY
-    { PrimSwitchT(discr, arms) @! at $sloc }
-
-prim_discr :
-  | i=id LPAR x=id RPAR
-    { (* [i] is the stream operation name, [x] the stream binder.
-         Only [typCode] is recognised today; other names are
-         accepted at parse time and rejected at typing (M0229). *)
-      let _ = i in TypCode x }
+    { (discr, arms) }
 
 prim_switch_arm :
   | CASE pat=prim_idx_pat COLON c=typ_constraint
@@ -896,7 +889,9 @@ exp_un(B) :
       in
       assert (!slot <> None);
       let expander = Option.get !slot in
-      expander ~scrutinee ~legs:cs ~at:(at $sloc) }
+      let actual_scrut = expander.Macro_registry.scrut_of scrutinee in
+      let cases = expander.Macro_registry.cases_of cs in
+      SwitchE(actual_scrut, cases) @? at $sloc }
   | SWITCH e=exp_nullary(ob) LCURLY cs=seplist(case, semicolon) RCURLY
     { SwitchE(e, cs) @? at $sloc }
   | WHILE e1=exp_nullary(ob) e2=exp_nest
@@ -1078,7 +1073,8 @@ dec_nonvar :
   | PRIM TYPE x=typ_id tps=type_typ_params_opt vps=prim_val_params EQ body=prim_type_body
     { (* Reserve an expander slot now; typing fills it on success. *)
       ignore (Macro_registry.allocate x.it);
-      PrimTypD(x, tps, vps, body) @? at $sloc }
+      let (discr, arms) = body in
+      PrimTypD(x, tps, vps, discr, arms) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body
     { (* This is a hack to support local func declarations that return a computed async.

@@ -974,12 +974,6 @@ and check_typ' env typ : T.typ =
     T.Named (name.it, check_typ env typ)
   | WeakT typ ->
     T.Weak (check_typ env typ)
-  | PrimSwitchT _ ->
-    (* PrimSwitchT is internal-only and may appear only as the body of a
-       [PrimTypD] decl, where [check_typ_prim_def] handles it directly.
-       Reaching here means user code uttered the form — currently rejected. *)
-    error env typ.at "M0228"
-      "`prim switch` is an internal compiler construct and may not appear here"
 
 and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
   (* Compiler invariant: the parser's [typ_constraint_existential]
@@ -1029,48 +1023,39 @@ and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
   check_closed env id k at;
   k
 
-and check_typ_prim_def env at (id, typ_binds, value_params, typ) : T.kind =
-  (* Elaborate a [prim type X<T..>(v..) = prim switch (typCode v) { … }]
-     body and register a macro expander for slice-5's `switch type T`
-     surface to consume.  All validation happens *before* registration
-     — a malformed body never produces an expander. *)
+and check_typ_prim_def env at (id, typ_binds, value_params, discr, arms) : T.kind =
+  (* Elaborate a [prim type X<T..>(v..) = prim switch (DISCR) { … }]
+     body and register a macro expander.  All validation happens
+     *before* registration — a malformed body never produces an
+     expander. *)
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
   let env' = adjoin_typs env te ce in
-  let val_names = List.map (fun (vid, vtyp) ->
-    let _ = check_typ env' vtyp in
-    vid.it
-  ) value_params in
+  ignore (List.map (fun (_, vtyp) -> check_typ env' vtyp) value_params);
   let outer_names = List.map (fun (tb : typ_bind) -> tb.it.var.it) typ_binds in
-  (match typ.it with
-   | PrimSwitchT (discr, arms) ->
-     if not env.pre then begin
-       (match discr with
-        | TypCode vid ->
-          if not (List.mem vid.it val_names) then
-            local_error env vid.at "M0230"
-              "`prim switch` discriminator `typCode %s` references unknown value parameter of `%s`"
-              vid.it id.it);
-       List.iter (fun (arm : prim_switch_arm) ->
-         let cstr = arm.it.refinement in
-         match cstr.it.refines with
-         | None ->
-           local_error env cstr.at "M0231"
-             "`prim switch` arm refinement must take the `type %s = ...` form"
-             cstr.it.tv.it
-         | Some rhs ->
-           if not (List.mem cstr.it.tv.it outer_names) then
-             local_error env cstr.at "M0232"
-               "`prim switch` arm refines `type %s = ...`, but `%s` is not a type parameter of `%s`"
-               cstr.it.tv.it cstr.it.tv.it id.it;
-           let _ = check_typ env' rhs in ()
-       ) arms;
-       Mo_def.Macro_registry.set id.it
-         (Mo_def.Macro_registry.build_expander discr arms)
-     end
-   | _ ->
-     if not env.pre then
-       error env typ.at "M0233"
-         "`prim type %s` body must be `prim switch (...)`" id.it);
+  if not env.pre then begin
+    List.iter (fun (arm : prim_switch_arm) ->
+      let cstr = arm.it.refinement in
+      match cstr.it.refines with
+      | None ->
+        local_error env cstr.at "M0231"
+          "`prim switch` arm refinement must take the `type %s = ...` form"
+          cstr.it.tv.it
+      | Some rhs ->
+        if not (List.mem cstr.it.tv.it outer_names) then
+          local_error env cstr.at "M0232"
+            "`prim switch` arm refines `type %s = ...`, but `%s` is not a type parameter of `%s`"
+            cstr.it.tv.it cstr.it.tv.it id.it;
+        let _ = check_typ env' rhs in ()
+    ) arms;
+    (* For slice-6 simplicity: use the first value-parameter's name as
+       the substitution target inside the discr expression. *)
+    let val_param_name = match value_params with
+      | (vid, _) :: _ -> vid.it
+      | [] -> ""
+    in
+    Mo_def.Macro_registry.set id.it
+      (Expander_builder.build discr val_param_name arms)
+  end;
   let k = T.Def (T.close_binds cs tbs, T.close cs T.Any) in
   check_closed env id k at;
   k
@@ -1236,11 +1221,6 @@ and mentions_id name typ =
     | VariantT tags -> List.exists (fun (tt : typ_tag) -> go tt.it.typ) tags
     | AsyncT (_, t1, t2) -> go t1 || go t2
     | AndT (t1, t2) | OrT (t1, t2) -> go t1 || go t2
-    | PrimSwitchT (_, arms) ->
-      List.exists (fun (a : prim_switch_arm) ->
-        match a.it.refinement.it.refines with
-        | Some r -> go r
-        | None -> false) arms
   in go typ
 
 and check_typ_binds_acyclic env typ_binds cs ts  =
@@ -4619,7 +4599,7 @@ and vis_dec src dec xs : visibility_env =
   | ClassD (_, _, _, id, _, _, _, _, _) ->
     vis_val_id src {id with note = ()} (vis_typ_id src id xs)
   | TypD (id, _, _, _) -> vis_typ_id src id xs
-  | PrimTypD (id, _, _, _) -> vis_typ_id src id xs
+  | PrimTypD (id, _, _, _, _) -> vis_typ_id src id xs
   | MixinD _
   | IncludeD _ -> xs
 
@@ -5538,7 +5518,7 @@ and gather_dec env scope dec : Scope.t =
     }
   | LetD (pat, exp, _) -> gather_pat env scope pat
   | VarD (id, _) -> Scope.adjoin_val_env scope (gather_id env scope.Scope.val_env id Scope.Declaration)
-  | TypD (id, binds, _, _) | PrimTypD (id, binds, _, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
+  | TypD (id, binds, _, _) | PrimTypD (id, binds, _, _, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
     let open Scope in
     if T.Env.mem id.it scope.typ_env then
       error_duplicate env "type " id;
@@ -5826,8 +5806,8 @@ and infer_dec_typdecs env dec : Scope.t =
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
     }
-  | PrimTypD (id, typ_binds, value_params, typ) ->
-    let k = check_typ_prim_def env dec.at (id, typ_binds, value_params, typ) in
+  | PrimTypD (id, typ_binds, value_params, discr, arms) ->
+    let k = check_typ_prim_def env dec.at (id, typ_binds, value_params, discr, arms) in
     let c = T.Env.find id.it env.typs in
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
@@ -5918,7 +5898,7 @@ and infer_dec_valdecs env dec : Scope.t =
       typ_env = T.Env.singleton id.it c;
       con_env = T.ConSet.singleton c;
     }
-  | PrimTypD (id, _, _, _) ->
+  | PrimTypD (id, _, _, _, _) ->
     let c = Option.get id.note in
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
