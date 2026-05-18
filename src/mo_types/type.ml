@@ -530,12 +530,9 @@ and subst_kind sigma k =
     Abs (List.map (subst_bind sigma') tbs, subst sigma' t)
  *)
 
-(* Rename cons references throughout a typ.
-
-   Unlike [subst], also rewrites the [con] in type-component fields and
-   skips de Bruijn shifting — cons references are closed. *)
+(* Rename cons in a typ; rewrites tf cons too, no de Bruijn shifting.
+   Caller should short-circuit on empty [sigma]. *)
 let rec cons_subst sigma t =
-  if sigma = ConEnv.empty then t else
   match t with
   | Prim _ | Var _ | Any | Non | Pre -> t
   | Con (c, ts) ->
@@ -2352,30 +2349,24 @@ and pp_mig_field vs ppf {lab; typ; src} =
     let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
     fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
-(* Render a stable signature, deduplicating structurally-equal types.
-
-   Zero-arity Def cons sharing both [Cons.name] and [hash body] fold onto
-   one canonical rep (like #5013). [Event__1] and [Event__2] collapse;
-   [Foo] and [Bar] don't.
-
-   The motoko cons graph is untouched: every survivor gets a [Cons.clone]
-   referencing other clones. The only mutation is [unsafe_set_kind] on
-   freshly-allocated clones.
-
-   [hash] is injected to avoid a cycle ([Typ_hash] is downstream of
-   [Type]). *)
+(* Dedup zero-arity Def cons sharing [(name, hash body)] (see #5013).
+   Cons whose body refs a non-rep get cloned with their kind rewritten;
+   others (incl. prelude prim aliases like [Nat]) stay original so the
+   prim filter at top-level elides them. [hash] is injected to avoid
+   a cycle: [Typ_hash] is downstream of [Type]. *)
 and pp_stab_sig hash ppf sig_ =
   let module HM = Map.Make (struct
     type t = string * string
-    let compare = compare
+    let compare (n1, h1) (n2, h2) =
+      match String.compare n1 n2 with 0 -> String.compare h1 h2 | c -> c
   end) in
   let all_fields = match sig_ with
     | Single tfs -> tfs
     | PrePost (pre, post) -> List.map snd pre @ post
     | Multi {chain; post} -> chain @ post
   in
-  (* [cs_top] gets top-level decls; [cs_all] adds tf-only cons (inlined by
-     [pp_typ_field], no decl needed, but still substituted). *)
+  (* [cs_top]: top-level decls. [cs_all]: also tf-only cons (inlined by
+     [pp_typ_field], no decl but still substituted). *)
   let cs_top = List.fold_right (cons_field false) all_fields ConSet.empty in
   let cs_all = List.fold_right (cons_field true) all_fields ConSet.empty in
   let dedup =
@@ -2384,7 +2375,6 @@ and pp_stab_sig hash ppf sig_ =
       | Def ([], (Con _)) -> acc  (* bare alias: avoid [type X = X] *)
       | Def ([], body) ->
         (try
-          (* Group by [(name, hash)] to keep user-visible names. *)
           HM.update (Cons.name c, hash body) (function
             | Some xs -> Some (c :: xs)
             | None -> Some [c]) acc
@@ -2394,7 +2384,7 @@ and pp_stab_sig hash ppf sig_ =
       match members with
       | [] | [_] -> acc
       | first :: rest ->
-        (* Smallest stamp wins: prefers [Event] over [Event__N]. *)
+        (* [Cons.compare] orders by hash, stamp, name — deterministic. *)
         let rep = List.fold_left
           (fun best c -> if Cons.compare c best < 0 then c else best)
           first rest in
@@ -2405,19 +2395,25 @@ and pp_stab_sig hash ppf sig_ =
   let cs_top, sig_ =
     if ConEnv.is_empty dedup then cs_top, sig_
     else begin
-      (* Clone every survivor (non-reps don't get one). *)
+      (* Clone only cons whose body transitively refs a non-rep; leaving
+         the rest pinned to their original cons preserves the prim filter
+         for prelude aliases. *)
+      let needs_clone c =
+        let reachable = cons_kind' true (Cons.kind c) ConSet.empty in
+        ConSet.exists (fun c' -> ConEnv.mem c' dedup) reachable
+      in
       let clones = ConSet.fold (fun c m ->
-        if ConEnv.mem c dedup then m
+        if ConEnv.mem c dedup || not (needs_clone c) then m
         else ConEnv.add c (Cons.clone c (Cons.kind c)) m) cs_all ConEnv.empty in
-      (* [c -> clone-of-rep-or-self]. *)
       let sigma = ConSet.fold (fun c acc ->
         let target = ConEnv.find_opt c dedup |> Option.value ~default:c in
-        ConEnv.add c (ConEnv.find target clones) acc) cs_all ConEnv.empty in
-      (* Rewrite each clone's kind to reference other clones. *)
+        let target' = ConEnv.find_opt target clones |> Option.value ~default:target in
+        if Cons.eq c target' then acc else ConEnv.add c target' acc) cs_all ConEnv.empty in
       ConEnv.iter (fun orig clone ->
         Cons.unsafe_set_kind clone (cons_subst_kind sigma (Cons.kind orig))) clones;
       let cs_top = ConSet.fold (fun c acc ->
-        ConSet.add (ConEnv.find c sigma) acc) cs_top ConSet.empty in
+        ConSet.add (ConEnv.find_opt c sigma |> Option.value ~default:c) acc)
+        cs_top ConSet.empty in
       let f fld = { fld with typ = cons_subst sigma fld.typ } in
       let sig_ = match sig_ with
         | Single fs -> Single (List.map f fs)

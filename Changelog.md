@@ -6,6 +6,8 @@
 
   * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
 
+  * bugfix: Stable type signatures (`.most`) collapse structurally-equal zero-arity type aliases produced by re-imports or repeated module instantiations, so semantically-equivalent upgrades are no longer rejected as incompatible (#6074).
+
 ## 1.7.0 (2026-04-29)
 
 * motoko (`moc`)
