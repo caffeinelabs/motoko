@@ -151,6 +151,88 @@ as an **abstract primitive type**, analogous to Motoko's existing
 > behind the privilege gate without disturbing the user-facing
 > `type` decl form.  Future slices will compose `switch type T`
 > elaboration on top of this primitive when it has real semantics.
+>
+> **Progress (gabor/gadt branch, 2026-05-19, commits `8bc2ac761`
+> through `bce6ed27c`).**  Half of the project is operational
+> end-to-end.  The runtime witness routes a real call to the right
+> refinement arm and produces the correct variant value:
+>
+> ```motoko
+> func f<T with type>(arg : T) : { #int : Int; #nat : Nat; #char : Char } {
+>   switch type T {
+>     case Nat  (#nat arg);    // arg refines T -> Nat
+>     case Int  (#int arg);
+>     case Char (#char arg);
+>   }
+> };
+> Prim.debugPrint(debug_show (f<Nat>(7)));     // -> #nat(7)
+> Prim.debugPrint(debug_show (f<Int>(-3)));    // -> #int(-3)
+> Prim.debugPrint(debug_show (f<Char>('Z')));  // -> #char('Z')
+> ```
+>
+> **What landed:**
+> - **Parse-time macro expansion**: `switch type T` becomes a plain
+>   `SwitchE`+`RefineE` tree before the typechecker sees it.  No
+>   transient AST node — the parser emits the final shape, driven by
+>   a deferred-ref registry (`Mo_def.Macro_registry`).  Each `prim
+>   type X` allocates a `ref None` slot at parse time; on successful
+>   typecheck of the body, [check_typ_prim_def] fills the slot with
+>   the built expander.  Subsequent `switch type T` parser actions
+>   dereference and invoke immediately.  Expander record now has two
+>   savvy methods:
+>     ```ocaml
+>     type expander = {
+>       scrut_of : exp -> exp;
+>       cases_of : id -> case list -> case list;
+>     }
+>     ```
+>   `scrut_of` substitutes the prim-type's value-param name with the
+>   user's scrutinee in the discriminator template
+>   (`@typCode(stream)` → `@typCode(T)`); `cases_of` renames the
+>   prim-type's placeholder type-binder (`@T`) to the user's
+>   in-scope binder name and reifies each `arm.pat` as an `IntLit`
+>   pattern wrapping each leg body in `RefineE`.
+> - **`<T with type>` parser**: `typ_bind' = { var; sort; bound;
+>   has_witness : bool }` — the `with type` flag.
+> - **`T.Witness` bind-sort**: variant added to `Type.bind_sort` so
+>   the witness marker propagates to the function type via the
+>   ordinary typing pipeline (`check_typ_binds` maps
+>   `has_witness=true → T.Witness`).  Only two consumers needed
+>   extending (`erase_typ_field`, `async`).
+> - **Function signature inflation**: typing's FuncE arm prepends a
+>   leading `@Candid` parameter to the function's domain for each
+>   `T.Witness` binder.  Symmetric inflation in desugar's FuncE arm
+>   prepends a synthetic IR `arg` slot bound to the witness type-binder
+>   name — no body-side let injection.
+> - **Call-site massager**: typing's `infer_call` arm detects
+>   `T.Witness` binders on the callee and prepends synthetic
+>   `to_candid(<sample> : <type-arg>)` expressions, one per witness
+>   slot.  Currently dispatches on the type arg's path-head
+>   (`Nat`/`Int`/`Char`) to pick a sample value whose Candid wire
+>   byte at offset 6 hits the right `@TyDesc` arm.
+> - **IR-level `RefineE`**: `Ir.RefineE of Type.con * Type.typ *
+>   exp` propagates σ through every IR pass; `Check_ir` derives σ at
+>   each `RefineE` and applies it to `env.vals` (same mechanism as
+>   variant-arm `derive_case_sigma`, just sourced from an explicit
+>   `(con, typ)` pair).  Codegen treats `RefineE` as a transparent
+>   wrapper — just compiles the inner expression.
+> - **`@TyDesc` / `@typCode`** live in `prelude/internals.mo`.
+>   `@typCode` is a real **one-byte SLEB128** decoder reading offset
+>   6 of the Candid stream (past `DIDL\00\01`).  Arms for
+>   `case -3 / -4 / -7` → Nat / Int / Char.
+>
+> **The other half (8a–8h):**  multi-byte LEB128 + cursor
+> movements, recursion sigil for `[Int]` / `?T`, type-table-only
+> witness synthesis at call sites, **ingress witness recovery** (peel
+> Candid header from incoming shared-method messages, hand to the
+> method's `<T with type>` binder), and **egress T** (serialise the
+> outbound T-typed value via the witness — "might just work" once
+> the witness threads through codegen).
+>
+> **Hygiene principle for the second half:** the body-level T binder
+> (the value-side that macro expansion implicitly creates) and the
+> recurse sigil must use parser-mangled names that user code cannot
+> collide with.
 
 ```
 // Existing in Motoko:
