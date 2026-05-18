@@ -1378,6 +1378,103 @@ machinery (br_table or linear) operates on tags as before.
       bind list for a variant arm (parallel to the existing
       `arm_existentials` cons-list helper).
 
+### Bound-driven impossibility (deferred coverage extension)
+
+Today's `prune_gadt_variant` only consults *refinements* — an arm is
+pruned when its declared `type N = T` equation is incompatible with
+the scrutinee's instantiation.  An orthogonal pruning axis becomes
+available with bounded existentials: an arm whose *bound* is
+unsatisfiable under the scrutinee's instantiation is equally
+impossible.
+
+Example:
+
+```motoko
+type Box<A> = {
+  #ints  : type X <: Nat in (X, A);
+  #bools : type X <: Bool in (X, A);
+};
+
+func describe(b : Box<Text>) : Text =
+  switch b {
+    case (#ints (_, a)) "ints: " # a;
+    case (#bools (_, a)) "bools: " # a;
+  };
+
+// Suppose another instantiation pins A statically:
+func only_ints(b : Box<Text>) : Text =
+  switch b {
+    case (#ints (_, a)) "ints: " # a;
+    // omit #bools — but coverage today still requires it,
+    // because Box<Text>'s variant has *both* arms reachable per
+    // refinement analysis (no refinements at all here).
+  };
+```
+
+A more illustrative example uses bounds that crystallise to
+incompatible types under instantiation:
+
+```motoko
+type Constrained<A> = {
+  #must_be_nat : type X = A, type Y <: X in (Y, X -> Nat);
+  #must_be_bool : type X = A, type Y <: X in (Y, X -> Bool);
+};
+
+let _ : Constrained<Nat> = ...;
+// At Constrained<Nat>, both arms have X = A = Nat, Y <: Nat.
+// Both compatible.
+
+let _ : Constrained<Text> = ...;
+// At Constrained<Text>, both arms have X = A = Text, Y <: Text.
+// Reaching the arm bodies requires returning Nat (resp. Bool) from
+// a Text-shaped Y — the *result* type's bound is incompatible.
+```
+
+The principled extension: `arm_reachable` (in `prune_gadt_variant`)
+also checks each `Existential c` bind's bound under the scrutinee's
+instantiation.  If the bound, after applying the alias-σ from the
+refinements *and* the scrutinee's type-args, is `Non` (or otherwise
+uninhabited / inconsistent with the arm payload's other constraints),
+prune the arm.
+
+Practical applications stay narrow today because Motoko's bound
+language is straightforward — bounds are upper bounds, not
+intersection types, so "the bound is inconsistent" usually requires
+chained bound-references that crystallise contradictorily.  Worth
+shipping when (a) chained-bound use cases produce arms that are
+"obviously dead" but the current coverage doesn't know it, or
+(b) users start writing `type X <: Non` as an idiom for "this arm
+is closed off in this instantiation".
+
+Not blocking M11 / Path A.  Tracked here for the future-coverage
+slice.
+
+- [x] **Coverage-driven case-elimination (`HEAD`, 2026-05-18).**
+      Typing's coverage analysis already flags unreachable arms
+      (M0146).  Desugar now *consumes* this — typing stamps each
+      unreached case's `case'.unreached` mutable flag, and
+      `desugar.ml`'s `cases` filter the source list:
+      - `--release`: drop the unreached case entirely (smaller IR,
+        tighter variant dispatch / `br_table`)
+      - `--debug`: replace the case body with `unreachableE ()` (an
+        infinite loop yielding `Non`, kept structurally so any
+        wayward runtime path traps loudly)
+
+      Mechanism: `mo_def/syntax.ml` grows `mutable unreached : bool`
+      on `case'`; parser threads `unreached = false`;
+      `coverage_cases` in `mo_frontend/typing.ml` cross-references
+      each case's `pat.at` against `Coverage.check_cases`'s
+      `unreached` return and flips the flag.  Desugar's
+      `cases` filter uses `Mo_config.Flags.release_mode` to choose
+      between drop and trap.
+
+      The change is *consumer-only*: desugar makes no new
+      type-driven decisions — it just realises typing's existing
+      M0146 verdicts.  No new soundness obligations.  Drives the
+      `variant-switch` br_table dispatch (memory note
+      `project_variant_switch_dispatch.md`) tighter under GADT
+      pruning (smaller `n` → cheaper dispatch).
+
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
       structural representation change. `fresh_destructure_skolem`
@@ -1518,6 +1615,38 @@ machinery (br_table or linear) operates on tags as before.
          in sync.
 
       Test matrix per the Candid section.
+
+- [x] **M13 — Bounded existentials** (`2947a7ca7`, 2026-05-18):
+      `type X <: B in body` constrains the witness.  Default `<: Any`
+      is backwards-compatible.  Bounds enforced at construction via
+      `unify_existentials`; M9002 fires on bound violations.
+      Productivity check updated to handle skolem (Abs) cons in Def
+      bodies.  Full detail in the Path A retirement chronicle above.
+
+- [x] **M14 — Field-level existentials + chained bounds**
+      (`405d4e49f`, `f6eb58024`, 2026-05-18):
+      `f : type X [<: B] in T` on Obj fields.  Same
+      `typ_def_rhs(typ_constraint_existential)` production as TypD;
+      `T.field.binds` populated; ObjE construction-side σ derivation;
+      `is_gadt_con` + `derive_destructure_sigma` extended for
+      Obj-with-field-binds.  Chained bounds — sibling and
+      cross-level (`type G <: OUTER, type H <: G`) — handled via
+      progressive σ substitution in `unify_existentials` plus
+      alias↔field σ chaining in `derive_destructure_sigma`.
+      `unify_existentials` refactored from `con list` to `bind list`
+      so bounds follow alias instantiation via `open_field`.  Full
+      detail in the Path A retirement chronicle.
+
+- [x] **M15 — Coverage-driven case-elimination** (`HEAD`,
+      2026-05-18): typing's coverage analysis flags unreached arms
+      (M0146 source) on the `S.case` AST node — added as a
+      `case.note : bool` (note, not data; the inner `case'` stays
+      `{pat; exp}`).  Desugar consumes the note: `--release` drops
+      the dead arm from the lowered switch entirely; `--debug`
+      replaces its body with `unreachableE ()` for paranoid runtime
+      traps.  Consumer-only: no new type-driven decisions in
+      desugar.  Drives the variant-switch `br_table` dispatch
+      tighter under GADT pruning.
 
 ## Open knobs (deferred)
 

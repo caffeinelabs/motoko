@@ -514,13 +514,22 @@ let coverage' warnOrError category env f x t at =
       ("this %s of type%a\ndoes not cover value\n  %s" : (_, _, _, _) format4 )
       category
       display_typ_expand t
-      (String.concat " or\n  " uncovered)
+      (String.concat " or\n  " uncovered);
+  unreached
 
 let coverage_cases category env cases t at =
-  coverage' warn category env Coverage.check_cases cases t at
+  let unreached = coverage' warn category env Coverage.check_cases cases t at in
+  (* Mark unreached arms on the AST so desugar can drop them from the
+     lowered switch (release mode) or replace their body with
+     [unreachableE ()] (debug mode).  [Coverage.check_cases] returns
+     each unreached arm's [pat.at]; cross-reference with each case. *)
+  List.iter (fun (case : case) ->
+    if List.mem case.it.pat.at unreached then
+      case.note <- true
+  ) cases
 
 let coverage_pat warnOrError env pat t =
-  coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at
+  ignore (coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at)
 
 let coverage_pat_is_exhaustive pat t =
   let uncovered, _ = Coverage.check_pat pat t in
@@ -3960,7 +3969,7 @@ and infer_cases env t_pat t cases : T.typ =
   List.fold_left (infer_case env t_pat) t cases
 
 and infer_case env t_pat t case =
-  let {pat; exp} = case.it in
+  let {pat; exp; _} = case.it in
   let ve = check_pat env t_pat pat in
   let initial_usage = enter_scope env in
   let t' = recover_with T.Non (infer_exp (adjoin_vals env ve)) exp in
@@ -3978,7 +3987,7 @@ and check_cases ?orig_pat_t env t_pat t cases =
   List.iter (check_case ?orig_pat_t env t_pat t) cases
 
 and check_case ?orig_pat_t env t_pat t case =
-  let {pat; exp} = case.it in
+  let {pat; exp; _} = case.it in
   let initial_usage = enter_scope env in
   let ve = check_pat env t_pat pat in
   (* GADT env-transformer: when the pattern tags a GADT arm, distill

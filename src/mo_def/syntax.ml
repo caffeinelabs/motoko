@@ -276,7 +276,13 @@ and dec_field' = {dec : dec; vis : vis; stab: stab option}
 and exp_field = exp_field' phrase
 and exp_field' = {mut : mut; id : id; exp : exp}
 
-and case = case' phrase
+and case = (case', bool) annotated_phrase
+(* [case.note] is the [unreached] flag: typing's coverage analysis
+   flags arms whose pattern can't match any value of the scrutinee's
+   type (M0146 source).  Desugar consumes this — in release mode the
+   arm is dropped from the lowered switch entirely; in debug mode
+   its body is replaced with [unreachableE()] for paranoid runtime
+   traps. *)
 and case' = {pat : pat; exp : exp}
 
 (* When `Some`, this holds the expression that produces the function to apply to the receiver.

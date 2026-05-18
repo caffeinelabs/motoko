@@ -1326,9 +1326,23 @@ and dec' d =
     } in
     [I.LetD (varPat, fn)]
 
-and cases cs = List.map (case Fun.id) cs
+and cases cs =
+  (* Consume typing's coverage decisions: arms it flagged as [unreached]
+     can never fire (M0146 fired at typing).  In [--release] drop them
+     from the lowered switch entirely (smaller IR / Wasm, tighter
+     variant dispatch).  In [--debug] keep the arm structure but
+     replace the body with [unreachableE ()] so any wayward runtime
+     path traps loudly.  [unreachableE] has type [Non] which is a
+     subtype of any return type. *)
+  let release = !Mo_config.Flags.release_mode in
+  List.filter_map (fun (c : S.case) ->
+    if c.note then
+      if release then None
+      else Some (case (fun _ -> unreachableE ()) c)
+    else Some (case Fun.id c)
+  ) cs
 
-and case f c = phrase (case' f) c
+and case f c = { it = case' f c.it; at = c.at; note = () }
 
 and case' f c = S.{ I.pat = pat c.pat; I.exp = f (exp c.exp) }
 
