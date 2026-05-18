@@ -987,10 +987,11 @@ and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
   let env'' = List.fold_left (fun env c ->
     match c.it.refines with
     | None ->
+      let bound_t = check_typ env' c.it.bound in
       let con = match c.note with
         | Some c' -> c'
         | None ->
-          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], T.Any)) in
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], bound_t)) in
           c.note <- Some c';
           c'
       in
@@ -1062,10 +1063,11 @@ and check_typ_tag env typ_tag =
   let env' = List.fold_left (fun env c ->
     match c.it.refines with
     | None ->
+      let bound_t = check_typ env c.it.bound in
       let con = match c.note with
         | Some c' -> c'
         | None ->
-          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], T.Any)) in
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], bound_t)) in
           c.note <- Some c';
           c'
       in
@@ -1191,7 +1193,7 @@ and check_typ_binds env typ_binds : T.con list * T.bind list * Scope.typ_env * S
     | k' -> assert (eq_kind env no_region k k')
   ) cs ks;
   let env' = add_typs env xs cs in
-  let _ = List.map (fun typ_bind -> check_typ env' typ_bind.it.bound) typ_binds in
+  let _ = List.map (fun (typ_bind : typ_bind) -> check_typ env' typ_bind.it.bound) typ_binds in
   List.iter2 (fun typ_bind c -> typ_bind.note <- Some c) typ_binds cs;
   cs, tbs, te, T.ConSet.of_list cs
 
@@ -3034,7 +3036,14 @@ and gadt_check_typd_existentials env exp t c ts =
          "type `%s`: cannot infer existential witness from value of type%a"
          (T.string_of_typ (T.Con (c, ts)))
          display_typ actual_t;
-       false)
+       (* infer_exp has already populated the exp tree's notes; falling
+          through to [check_exp'] on the same tree would re-invoke
+          check_exp on its sub-expressions and trip the
+          [note_typ = Pre] assert.  Mark handled to suppress the
+          re-walk. *)
+       let e = A.infer_effect_exp exp in
+       exp.note <- {exp.note with note_typ = actual_t; note_eff = e};
+       true)
   | _ -> false
 
 (* M5: filter unreachable arms from a variant scrutinee type before

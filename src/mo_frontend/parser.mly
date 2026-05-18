@@ -542,11 +542,15 @@ typ_tag :
     { let cs, t = cs_t in {tag = x; constraints = cs; typ = t} @@ at $sloc }
 
 typ_constraint_existential :
-  | TYPE x=id { {tv = x; refines = None} @= at $sloc }
+  | TYPE x=id
+    { {tv = x; refines = None; bound = PrimT "Any" @! at $sloc} @= at $sloc }
+  | TYPE x=id SUB t=typ
+    { {tv = x; refines = None; bound = t} @= at $sloc }
 
 typ_constraint :
   | c=typ_constraint_existential { c }
-  | TYPE x=id EQ t=typ           { {tv = x; refines = Some t} @= at $sloc }
+  | TYPE x=id EQ t=typ
+    { {tv = x; refines = Some t; bound = PrimT "Any" @! at $sloc} @= at $sloc }
 
 typ_bind :
   | x=id SUB t=typ

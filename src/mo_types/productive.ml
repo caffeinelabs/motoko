@@ -59,11 +59,9 @@ let non_productive cs =
         if ConSet.mem c cs then
           Nonproductive
         else
-          let t = match Cons.kind c with
-            | Def (_, t) -> t
-            | _ -> assert false
-          in
-          rhs (ConSet.add c cs) t
+          match Cons.kind c with
+          | Def (_, t) -> rhs (ConSet.add c cs) t
+          | Abs _ -> Productive  (* abstract / skolem cons; not a recursive Def *)
       in
       map := ConEnv.add c info !map
   in

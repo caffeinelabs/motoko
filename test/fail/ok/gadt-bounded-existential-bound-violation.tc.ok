@@ -1,0 +1,8 @@
+gadt-bounded-existential-bound-violation.mo:10.20-10.65: type error [M9002], type `Signed`: cannot infer existential witness from value of type
+  (Bool, (n : Bool) -> Int)
+gadt-bounded-existential-bound-violation.mo:13.20-13.53: type error [M9002], type `Signed`: cannot infer existential witness from value of type
+  (Text, (n : Text) -> Int)
+gadt-bounded-existential-bound-violation.mo:19.18-19.65: type error [M9002], type `Pair`: cannot infer existential witness from value of type
+  {fst : Bool; snd : (n : Bool) -> Int}
+gadt-bounded-existential-bound-violation.mo:21.18-21.65: type error [M9002], type `Pair`: cannot infer existential witness from value of type
+  {fst : Text; snd : (n : Text) -> Int}

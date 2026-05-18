@@ -82,11 +82,15 @@ and typ_tag = typ_tag' phrase
 and typ_tag' = {tag : id; constraints : typ_constraint list; typ : typ}
 
 and typ_constraint = (typ_constraint', Type.con option) annotated_phrase
-and typ_constraint' = {tv : id; refines : typ option}
-(* refines = Some T : `type tv = T` (refinement);
-   refines = None    : `type tv` (existential). For existentials, the
-   note slot caches the fresh skolem [Type.con] introduced at the first
-   pass, so subsequent passes reuse the same con (eq_kind stability). *)
+and typ_constraint' = {tv : id; refines : typ option; bound : typ}
+(* refines = Some T : `type tv = T` (refinement; only valid in variant
+                     arms — guarded against TypD top-level by the
+                     parser's [typ_constraint_existential] production);
+   refines = None    : `type tv [<: B]` (existential, bound defaults to
+                     `Any`).  For existentials, the note slot caches the
+                     fresh skolem [Type.con] introduced at the first
+                     pass, so subsequent passes reuse the same con
+                     (eq_kind stability). *)
 
 and bind_sort = Type.bind_sort phrase
 and typ_bind = (typ_bind', Type.con option) annotated_phrase

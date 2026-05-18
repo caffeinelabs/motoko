@@ -2871,7 +2871,10 @@ let with_skolem_pool (f : unit -> 'a) : 'a =
             let c_site = match RegConHash.find_opt pool (reg, c_schema) with
               | Some s -> s
               | None ->
-                let s = Cons.fresh_skolem (Cons.name c_schema) (Abs ([], Any)) in
+                (* Inherit the schema's kind so the site skolem carries
+                   the same bound (default Any, or whatever the user
+                   declared via `type X <: B`). *)
+                let s = Cons.fresh_skolem (Cons.name c_schema) (Cons.kind c_schema) in
                 RegConHash.replace pool (reg, c_schema) s;
                 s
             in
@@ -3121,6 +3124,14 @@ and unify_existentials expected actual existentials : typ ConEnv.t option =
   let rec walk e a =
     match e, a with
     | Con (c, []), _ when List.mem c existentials ->
+      (* Enforce the existential's bound on the witness candidate.
+         Schema cons live as [Abs ([], <bound>)]; default bound is
+         [Any], which makes [sub a Any] vacuous. *)
+      let bound = match Cons.kind c with
+        | Abs ([], b) -> b
+        | _ -> Any
+      in
+      if not (sub a bound) then raise Unify_fail;
       (match ConEnv.find_opt c !sigma with
        | None -> sigma := ConEnv.add c a !sigma
        | Some prev -> if not (eq prev a) then raise Unify_fail)

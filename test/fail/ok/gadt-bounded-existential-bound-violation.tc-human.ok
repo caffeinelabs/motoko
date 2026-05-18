@@ -1,0 +1,20 @@
+error[M9002]: type `Signed`: cannot infer existential witness from value of type
+  (Bool, (n : Bool) -> Int)
+    ┌─ gadt-bounded-existential-bound-violation.mo:10:20
+ 10 │  let _t1 : Signed = (true, func (n : Bool) : Int = if n 1 else 0);
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M9002]: type `Signed`: cannot infer existential witness from value of type
+  (Text, (n : Text) -> Int)
+    ┌─ gadt-bounded-existential-bound-violation.mo:13:20
+ 13 │  let _t2 : Signed = ("hi", func (n : Text) : Int = 0);
+    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M9002]: type `Pair`: cannot infer existential witness from value of type
+  {fst : Bool; snd : (n : Bool) -> Int}
+    ┌─ gadt-bounded-existential-bound-violation.mo:19:18
+ 19 │  let _r1 : Pair = { fst = true; snd = func (n : Bool) : Int = 0 };
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M9002]: type `Pair`: cannot infer existential witness from value of type
+  {fst : Text; snd : (n : Text) -> Int}
+    ┌─ gadt-bounded-existential-bound-violation.mo:21:18
+ 21 │  let _r2 : Pair = { fst = "hi"; snd = func (n : Text) : Int = 0 };
+    │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
