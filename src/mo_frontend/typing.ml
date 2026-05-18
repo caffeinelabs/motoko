@@ -1754,12 +1754,12 @@ module ImplicitHoles = struct
 
   let structural_info_of_hole hole_typ = match hole_typ with
     | T.Func (T.Local, T.Returns, [], [dom], [ret]) ->
-      (match T.promote dom with
+      (match T.normalize dom with
        | T.Obj (T.Object, fs, _) -> Some { kind = `Record fs; arity = `Unary; ret }
        | T.Tup elems when List.length elems >= 2 -> Some { kind = `Tuple elems; arity = `Unary; ret }
        | _ -> None)
     | T.Func (T.Local, T.Returns, [], [d1; d2], [ret]) ->
-      (match T.promote d1, T.promote d2 with
+      (match T.normalize d1, T.normalize d2 with
        | T.Obj (T.Object, fs, _), T.Obj (T.Object, _, _) when T.eq d1 d2 -> Some { kind = `Record fs; arity = `Binary; ret }
        | T.Tup e1, T.Tup _ when List.length e1 >= 2 && T.eq d1 d2 -> Some { kind = `Tuple e1; arity = `Binary; ret }
        | _ -> None)
