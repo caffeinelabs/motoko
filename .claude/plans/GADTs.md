@@ -1669,38 +1669,46 @@ Not user-facing — only the compiler / RTS generates these.
 
 ### Surface form (internal)
 
-Canonical Candid SLEB128 wire bytes (from
-`compile_enhanced.ml:7395-7430`: primitive index `n` ↔ wire byte
-`-n` SLEB128-encoded, fitting in one byte for the small magnitudes
-Candid uses):
+The Candid type-table index `idx` is a **LEB128-encoded `Int`**:
+small negative values denote primitives (table lookup by sign +
+magnitude), non-negative values reference structured entries in
+the same table.  For primitives the magnitude fits in one byte —
+canonical SLEB128 wire bytes per `compile_enhanced.ml:7395-7430`:
 
 ```motoko
-type TyDesc<T>(byte : Int8) = prim switch byte {
-  // Primitives — wire byte is SLEB128 of [-idx]:
-  case 0x7f : type T = Null in T;     // null  (-1)
-  case 0x7e : type T = Bool in T;     // bool  (-2)
-  case 0x7d : type T = Nat in T;      // nat   (-3)
-  case 0x7c : type T = Int in T;      // int   (-4)
-  case 0x7b : type T = Nat8 in T;     // nat8  (-5)
-  case 0x71 : type T = Text in T;     // text  (-15)
-  case 0x68 : type T = Principal in T;// principal (-24)
-  // Compound — body carries follow-on bytes recursively:
-  case 0x6d : type T = [TyDesc(nextByte)] in T;     // vec    (-19)
-  case 0x6e : type T = ?TyDesc(nextByte) in T;      // opt    (-18)
+type TyDesc<T>(idx : Int) = prim switch idx {
+  // Primitives (idx ∈ [-24, -1] ish — wire is one SLEB128 byte):
+  case -1  : type T = Null      in T;   // wire 0x7f
+  case -2  : type T = Bool      in T;   // wire 0x7e
+  case -3  : type T = Nat       in T;   // wire 0x7d
+  case -4  : type T = Int       in T;   // wire 0x7c
+  case -5  : type T = Nat8      in T;   // wire 0x7b
+  case -15 : type T = Text      in T;   // wire 0x71
+  case -24 : type T = Principal in T;   // wire 0x68
+  // Compound — body recurses on a follow-on idx read from the
+  // same stream:
+  case -19 : type T = [TyDesc(nextIdx)] in T;   // vec    (wire 0x6d)
+  case -18 : type T = ?TyDesc(nextIdx)  in T;   // opt    (wire 0x6e)
   // record / variant / func / service follow similar recursion
-  // (-20, -21, -22, -23 — bytes 0x6c .. 0x69)
-  ...
+  // (-20 .. -23 — wire bytes 0x6c .. 0x69)
+  // Non-negative idx is a back-reference into the type table:
+  case  N when N >= 0 : type T = ⟨type-table[N]⟩ in T;
 };
 ```
 
-- `type TyDesc<T>(byte : Int8)`: an alias with both a type-parameter
-  `T` and a *value-parameter* `byte`.  The value is a compile-time
+- `type TyDesc<T>(idx : Int)`: an alias with both a type-parameter
+  `T` and a *value-parameter* `idx`.  The value is a compile-time
   singleton (`prim` marker forbids user-facing instantiation; the
-  compiler uses these only at known-byte sites).
-- `prim switch byte { case 0xNN : <refinement> }`: dispatches on the
-  byte value; each arm carries a refinement of `T` (the standard
+  compiler uses these only at known-`idx` elaboration sites).
+- `prim switch idx { case N : <refinement> }`: dispatches on the
+  scalar value; each arm carries a refinement of `T` (the standard
   `type T = …` GADT refinement clause, *same shape* as variant-arm
   refinements).
+- The primitive-only subset can be expressed with `byte : Int8`
+  when the implementation knows it's not handling table references
+  — a useful shorthand for the simpler dispatchers, but the
+  general dispatcher's keying value is `Int` (LEB128-decoded on the
+  wire).
 - The body of each arm is `type T = … in T` — same `typ_def_rhs`
   production used by today's TypD; the alias *returns* the refined
   type, no separate payload.
@@ -1723,6 +1731,72 @@ The σ machinery (`derive_tag_sigma`, `gadt_sigma_for_case`,
 `prim switch` we'd key by byte value instead.  Symmetric:
 `prim_switch_sigma : Int8 -> typ ConEnv.t` returning σ for the
 byte's matching arm.
+
+### Below the type system's granularity — at level with `coverage.ml`
+
+A sharper framing of what makes `prim switch idx` distinct from
+the user-facing variant-tag GADTs we already ship:
+
+| | Discriminator | Type system sees it as |
+|---|---|---|
+| Today's GADTs (M2/M3/M11) | variant arm tag (`#int`, `#bool`, …) | a structural part of the variant type — `Expr<Bool>`'s `#int` arm is *structurally distinct* from its `#bool` arm; pruning, subtyping, exhaustiveness all reason about tag sets natively |
+| `prim switch idx` | scalar value (the LEB128-decoded Candid type-table index — `-3` = nat, `-4` = int, `-19` = vec, or non-negative for table-references) | opaque scalar data — `Int` has no per-value subtype structure; the type system has no native facility to refine on a particular value |
+
+So `prim switch` reaches *below* what the type system normally
+discriminates on — but it's exactly at the level **`coverage.ml`**
+already operates at.  Coverage's `match_lit` walks value patterns
+against the scrutinee's type-and-descriptor, decides reachability,
+records unreached arms (M0146).  It's the existing piece of the
+compiler that does value-level reasoning *in service of* the type
+system without being part of it.
+
+That parallel is the actual key insight: the variant-tag
+discriminator is *inside* the type system's natural vocabulary
+(variant tags are first-class structural type components); the
+value-level discriminator is *outside* it (a flat scalar) — but
+the compiler already has machinery that handles value-level
+discrimination soundly, just for a different purpose (exhaustiveness
+& dead-arm detection).  `prim switch` reuses that level.
+
+What lets us drive type refinement from it nonetheless: the
+**compiler-side singleton pin**.  The `prim switch idx` form is
+internal-only and only fires at elaboration sites where `idx` is
+statically known (the wire offset position is decided at
+elaboration time, the Candid stream's bytes are constants by then).
+The compiler treats that one position as if it were a singleton
+type, drives arm selection, refines `T`.  Outside this controlled
+elaboration site, `Int` remains opaque to the type system —
+there's no user-facing way to refine on an `Int` value.
+
+So the structural reading is: **same σ machinery, same arm
+refinement clauses, same soundness story as variant-tag GADTs —
+just keying on the value-level discriminator that coverage.ml
+already knows how to walk.**  The slice adds no type-system
+extensions; the dispatcher is the only new piece, and the
+keying-function generalisation borrows its level of operation from
+the existing coverage machinery.
+
+**On the value's encoding.**  The example uses `byte : Int8`
+shorthand because Candid's primitive tags (`nat = -3 = 0x7d`,
+`int = -4 = 0x7c`, `vec = -19 = 0x6d`, …) all fit in a single
+SLEB128 byte.  But the general Candid type-table index is a
+**LEB128-encoded `Int`** — primitives are the small negative cases
+(one byte suffices), and non-negative values reference structured
+entries in the same type table, with magnitude unbounded in
+principle.  So:
+
+```motoko
+type TyDesc<T>(idx : Int) = prim switch idx {
+  // ... primitive cases, idx ∈ [-24, -1] roughly ...
+  case  N : type T = ⟨lookup type-table[N]⟩ in T;   // N ≥ 0: ref into table
+};
+```
+
+The wire format reads a LEB128-encoded `Int` (variable length); the
+compiler-singleton pin still applies — at any elaboration site the
+decoded `idx` is a known constant.  The dispatcher's keying value
+is just *generalised* from `Int8` to `Int`; coverage.ml-level
+machinery still handles the value-pattern walk.
 
 ### "Primitive dependent types" framing
 
