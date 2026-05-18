@@ -1140,16 +1140,35 @@ machinery (br_table or linear) operates on tags as before.
       path and dropping both stale writers (no `register_refinement_at
       case.at` write — the case-path reader was gone since slice 4).
 
+      **`gadt_refinement_at` retired (`06c33e29f`, 2026-05-18).**
+      The M11b destructure-pat σ — previously stashed at pat.at in
+      a region-keyed hashtable for check_ir to replay — is now
+      recovered structurally on demand via
+      `T.derive_destructure_sigma (typ exp) pat.note`, which
+      unifies the schema's normalised body against the already-
+      substituted pat.note.  `register_refinement_at` /
+      `lookup_refinement_at` / `migrate_refinement_at` all gone.
+
+      Collateral fix in `erase_typ_field.ml` and `async.ml`: the
+      top-level `t_bind` didn't rename `Existential` / `Refinement`
+      sorts when cloning Def kinds, so after Erase the Def's binds
+      carried stale schema cons while the body had renamed cons.
+      `T.typd_existentials` then returned the wrong list and σ
+      derivation found nothing to unify.  Promoted the local
+      sort-renaming logic from `t_field`'s shadowing `t_bind` to
+      the top-level definition (deleted the shadow).
+
       **Remaining GADT side state.** `gadt_existential_set`
       survives because `is_gadt_existential` drives the Cardelli
       stamp-identity exemption in `sub`/`eq` and the free-cons
       bypass at `check_ir.ml:210` — retiring it needs cons to
       carry their own "is-existential" bit, a wider surgery.
-      `gadt_refinement_at` (region-keyed σ for refinements;
-      writers at typing.ml:5728 destructure path + reader at
-      check_ir.ml:1242) and the per-expr `Note.gadt_sigma`
-      cache (read at `check_ir.ml:432` for non-TagPrim
-      refine_target) are the next two retirement targets.
+      The per-expr `Note.gadt_sigma` cache (read at
+      `check_ir.ml:432` for non-TagPrim refine_target) is the
+      next σ-cache retirement target.  Deferred sibling: making
+      `fresh_destructure_skolem` stamping deterministic so the
+      `Fresh_skolem` effect handler can go too (see type.ml
+      TODO at the handler definition).
 
 - [x] **`gadt_fresh_skolems` → OCaml-5 effect handler (2026-05-17).**
       First side-table retired via a scoped handler rather than a
