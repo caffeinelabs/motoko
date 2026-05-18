@@ -1977,6 +1977,182 @@ The surface form is sugar; the engine underneath is the GADT
 variant-arm refinement machine, keyed on a value the way
 coverage.ml's `match_lit` keys on a literal.
 
+### Parser + AST sketch (concrete)
+
+Two design questions to settle first; the parser/AST falls out of
+the answers.
+
+**Q1: Where does `prim switch` parse?**  Two options:
+
+- **(a) Extend TypD's body grammar.**  TypD currently uses
+  `typ_def_rhs(typ_constraint_existential)`; we add a *third*
+  `typ_def_rhs` arm for `prim switch`.  Surface form unchanged at
+  the decl level; only the body grammar grows.  Internal-only is
+  enforced by a flag/context — e.g., reject the `prim` keyword
+  outside compiler-generated prelude files.
+- **(b) New top-level decl `prim type`.**  `prim type
+  TyDesc<T>(stream : Candid) = prim switch …`.  Keeps the
+  user-facing `type X = …` grammar clean; the `prim type` decl
+  form is parseable only in internal contexts.  Slightly more
+  invasive (a new decl kind) but cleaner separation of concerns.
+
+Lean toward **(b)**: the value-parameter `(stream : Candid)`
+already breaks today's TypD grammar (no value parameters on
+aliases), so we're going to extend it either way — better to
+isolate the extension behind a new keyword than to clutter
+`typ_def`.
+
+**Q2: How is the value-parameter typed?**  The `stream : Candid`
+binder is *not* a real polymorphic parameter — there's no surface
+way to instantiate `TyDesc(some_stream)` from user code.  At
+elaboration, the compiler substitutes a known stream cursor.  So
+the value-parameter is essentially a *binder for the dispatcher's
+scope*, not a generic abstraction.  Two flavours:
+
+- **(a') Surface binder, semantic singleton.**  Parse it as a
+  regular `id : typ` value-parameter; at type elaboration,
+  enforce that the only callers are the compiler itself.  Lowest
+  syntactic friction.
+- **(b') De-Bruijn-style implicit.**  `prim switch` is the only
+  construct that introduces a stream; `stream` is an *implicit*
+  name in scope inside the arms, no binder syntax.  Cleaner
+  semantically (no false hint of user-facing parameterisation)
+  but loses the documentation value of a named binder.
+
+Lean toward **(a')**: the binder syntax aids readability of
+compiler-generated source; the elaboration check is one extra
+guard.
+
+### Parser sketch
+
+```menhir
+(* mo_frontend/parser.mly — additions *)
+
+prim_dec :
+  | PRIM TYPE x=typ_id tps=type_typ_params_opt
+        val_params=prim_val_params
+        EQ body=prim_type_body
+    { PrimTypD(x, tps, val_params, body) @? at $sloc }
+
+prim_val_params :
+  | LPAREN ps=seplist(prim_val_param, COMMA) RPAREN { ps }
+  | (* empty *) { [] }
+
+prim_val_param :
+  | id=id COLON t=typ { (id, t) }
+
+prim_type_body :
+  | PRIM SWITCH LPAREN discr=prim_discr RPAREN
+        LCURLY arms=seplist(prim_switch_arm, SEMICOLON) RCURLY
+    { PrimSwitchT(discr, arms) @! at $sloc }
+
+prim_discr :
+  | TYPCODE id=id   { TypCode id }
+  (* Future: more stream operations as keywords *)
+
+prim_switch_arm :
+  | CASE pat=prim_idx_pat COLON cs_t=typ_def_rhs(typ_constraint_existential)
+    { let cs, t = cs_t in
+      { pat; binds = cs; typ = t } @@ at $sloc }
+
+prim_idx_pat :
+  | n=INT_LIT                                    { IdxLitP n }
+  | UNDERSCORE                                   { IdxWildP }
+  | id=id WHEN g=prim_idx_guard                  { IdxGuardP (id, g) }
+
+prim_idx_guard :
+  | GE n=INT_LIT { Geq n }                       (* idx >= n *)
+  | LT n=INT_LIT { Lt n }                        (* idx <  n *)
+  (* enough for primitive-vs-tableref distinction *)
+```
+
+New keywords reserved: `prim` (already a keyword for `PrimE`),
+`switch` (already a keyword for value switch), `typCode` (new —
+only recognised in `prim_discr` position; outside it stays a
+regular identifier).
+
+### AST sketch
+
+```ocaml
+(* mo_def/syntax.ml — additions to the typ + dec ADTs *)
+
+and typ' =
+  | ... (* existing variants unchanged *)
+  | PrimSwitchT of prim_discr * prim_switch_arm list
+        (* internal-only; only parseable inside a [PrimTypD] body. *)
+
+and prim_discr =
+  | TypCode of id      (* [typCode stream]: read head LEB128 idx *)
+  (* Future stream ops can be added here without disturbing the
+     existing surface grammar. *)
+
+and prim_switch_arm = prim_switch_arm' phrase
+and prim_switch_arm' = {
+  pat : prim_idx_pat;
+  binds : typ_constraint list;  (* the [type T = …] refinement *)
+  typ : typ;                    (* arm body — usually just `T` *)
+}
+
+and prim_idx_pat =
+  | IdxLitP of int             (* `case -3` *)
+  | IdxWildP                   (* `case _` *)
+  | IdxGuardP of id * prim_idx_guard
+                               (* `case N when N >= 0` *)
+
+and prim_idx_guard =
+  | Geq of int
+  | Lt of int
+```
+
+And on the dec side:
+
+```ocaml
+and dec' =
+  | ... (* existing decs unchanged *)
+  | PrimTypD of typ_id
+              * typ_bind list           (* type parameters: <T> *)
+              * (id * typ) list         (* value parameters: (stream : Candid) *)
+              * typ                     (* body: a PrimSwitchT *)
+```
+
+The `typ` body is typed as `PrimSwitchT` exclusively (other typ
+shapes are rejected at elaboration for `PrimTypD`).  Reusing `typ`
+keeps the shape parallel to TypD; the body-shape restriction is a
+semantic invariant enforced at typing rather than at the grammar.
+
+### Elaboration sketch
+
+`PrimTypD` elaboration mirrors `TypD` with three additions:
+
+1. **Type parameters** (`<T>`): same as TypD — add to env, close
+   over the body.
+2. **Value parameters** (`(stream : Candid)`): elaborate each
+   `typ` in env, bind the `id` to its type *as a singleton* —
+   inside the body, `stream` refers to a compile-time-known
+   `Candid` value at each elaboration site.
+3. **Body** (`PrimSwitchT`): for each arm,
+   - Evaluate the arm's `prim_idx_pat` against the discriminator
+     evaluated at elaboration: at the compiler-generated call
+     site, `typCode stream` reduces to a known `Int`.  Pick the
+     matching arm (literal match first, then guarded var, then
+     wildcard).
+   - The matched arm's `binds : typ_constraint list` carries the
+     `type T = …` refinement clauses — same shape as variant-arm
+     refinements (M2/M3 machinery).
+   - The arm's `typ` (usually just the refined `T`) is the body
+     of the resulting `TyDesc<T>(stream)` instantiation.
+
+The compiler's new work is:
+- Two new AST variants (`PrimTypD`, `PrimSwitchT`) — both
+  internal-only.
+- The parser additions above.
+- An elaboration routine that picks the matching arm given a
+  known discriminator and applies the arm's refinement clauses
+  to produce the alias's resolved type.
+
+Everything else — σ substitution, refinement-clause elaboration,
+arm-body type-checking — is the existing M11/Path A machinery.
+
 ### Mechanism reuse
 
 Almost everything maps onto existing GADT machinery:
