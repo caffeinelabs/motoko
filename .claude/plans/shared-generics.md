@@ -253,6 +253,18 @@ as an **abstract primitive type**, analogous to Motoko's existing
 > bounded mechanical work.  8f/8g/8h are the runtime-witness story
 > at actor boundaries.
 >
+> **Alternative for 8c (idea, 2026-05-19):** the expander walks the
+> user's leg pattern statically and unrolls composite patterns into
+> nested `switch`+`RefineE` chains.  For `case [Int] e`, the
+> expander emits an outer arm matching vec (`-19`) whose body is a
+> *synthesised inner* `switch type <fresh>` with `case Int e` —
+> driven by the user's static pattern AST.  The recursion lives in
+> the source structure of the pattern, not in runtime type-binder
+> spawning.  Sidesteps fresh-binder minting and per-arm
+> macro_registry recursion; the expander just does compile-time
+> tree-traversal of the leg pattern.  Worth thinking through
+> properly before settling 8c.
+>
 > **Tech debt accumulated through slice 7 — clean before slice 8 ramps:**
 >
 > *Typing side*
