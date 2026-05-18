@@ -358,6 +358,10 @@ and exp' at note = function
     I.BlockE ([
       { it = I.LetD ({it = I.WildP; at = e.at; note = T.Any}, exp e);
         at = e.at; note = ()}], (unitE ()))
+  | S.RefineE (_, e) ->
+    (* Refinements are purely a typing-time scoping device; at IR level
+       there is no value-carrying remnant.  Strip the wrapper. *)
+    (exp e).it
 
 and parenthetical send = function
   | None -> [], []

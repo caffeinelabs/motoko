@@ -777,6 +777,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     interpret_exp env exp1 k
   | IgnoreE exp1 ->
     interpret_exp env exp1 (fun _v -> k V.unit)
+  | RefineE (_, exp1) ->
+    interpret_exp env exp1 k
 
 and add_loop_labels env flags k_break k_continue =
   let labs = if flags.has_break then V.Env.add Syntax.auto_s k_break env.labs else env.labs in

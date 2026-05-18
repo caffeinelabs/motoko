@@ -1,0 +1,4 @@
+error[M0057]: unbound variable T
+    ┌─ switch-type-parse.mo:6:15
+  6 │    switch type T {
+    │                ^ 

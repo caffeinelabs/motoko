@@ -302,6 +302,7 @@ and exp' =
   | ThrowE of exp                              (* throw exception *)
   | TryE of exp * case list * exp option       (* catch exception / finally *)
   | IgnoreE of exp                             (* ignore *)
+  | RefineE of typ_constraint * exp            (* elaborate [exp] under a type refinement *)
 (*
   | AtomE of string                            (* atom *)
  *)

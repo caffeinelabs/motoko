@@ -149,7 +149,11 @@ module Make (Cfg : Config) = struct
     | ThrowE e            -> "ThrowE"  $$ [exp e]
     | TryE (e, cs, None)  -> "TryE"    $$ [exp e] @ List.map catch cs
     | TryE (e, cs, Some f)-> "TryE"    $$ [exp e] @ List.map catch cs @ Atom ";" :: [exp f]
-    | IgnoreE e           -> "IgnoreE" $$ [exp e]))
+    | IgnoreE e           -> "IgnoreE" $$ [exp e]
+    | RefineE (c, e)      ->
+      let c_node = c.it.tv.it $$
+        match c.it.refines with None -> [] | Some r -> [typ r] in
+      "RefineE" $$ [c_node; exp e]))
 
   and exps es = List.map exp es
 

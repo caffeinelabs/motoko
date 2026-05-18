@@ -1,0 +1,4 @@
+error[M0232]: `prim switch` arm refines `type Z = ...`, but `Z` is not a type parameter of `Bad`
+    ┌─ prim-type-bad-tv.mo:5:13
+  5 │    case -3 : type Z = Nat;
+    │              ^^^^^^^^^^^^ 

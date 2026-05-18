@@ -78,6 +78,7 @@ let rec infer_effect_exp (exp:Syntax.exp) : T.eff =
   | RetE exp1
   | AnnotE (exp1, _)
   | IgnoreE exp1
+  | RefineE (_, exp1)
   | LoopE (exp1, None, _) ->
     effect_exp exp1
   | BinE (_, exp1, _, exp2)

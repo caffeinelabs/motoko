@@ -1029,6 +1029,52 @@ and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
   check_closed env id k at;
   k
 
+and check_typ_prim_def env at (id, typ_binds, value_params, typ) : T.kind =
+  (* Elaborate a [prim type X<T..>(v..) = prim switch (typCode v) { … }]
+     body and register a macro expander for slice-5's `switch type T`
+     surface to consume.  All validation happens *before* registration
+     — a malformed body never produces an expander. *)
+  let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
+  let env' = adjoin_typs env te ce in
+  let val_names = List.map (fun (vid, vtyp) ->
+    let _ = check_typ env' vtyp in
+    vid.it
+  ) value_params in
+  let outer_names = List.map (fun (tb : typ_bind) -> tb.it.var.it) typ_binds in
+  (match typ.it with
+   | PrimSwitchT (discr, arms) ->
+     if not env.pre then begin
+       (match discr with
+        | TypCode vid ->
+          if not (List.mem vid.it val_names) then
+            local_error env vid.at "M0230"
+              "`prim switch` discriminator `typCode %s` references unknown value parameter of `%s`"
+              vid.it id.it);
+       List.iter (fun (arm : prim_switch_arm) ->
+         let cstr = arm.it.refinement in
+         match cstr.it.refines with
+         | None ->
+           local_error env cstr.at "M0231"
+             "`prim switch` arm refinement must take the `type %s = ...` form"
+             cstr.it.tv.it
+         | Some rhs ->
+           if not (List.mem cstr.it.tv.it outer_names) then
+             local_error env cstr.at "M0232"
+               "`prim switch` arm refines `type %s = ...`, but `%s` is not a type parameter of `%s`"
+               cstr.it.tv.it cstr.it.tv.it id.it;
+           let _ = check_typ env' rhs in ()
+       ) arms;
+       Mo_def.Macro_registry.set id.it
+         (Mo_def.Macro_registry.build_expander discr arms)
+     end
+   | _ ->
+     if not env.pre then
+       error env typ.at "M0233"
+         "`prim type %s` body must be `prim switch (...)`" id.it);
+  let k = T.Def (T.close_binds cs tbs, T.close cs T.Any) in
+  check_closed env id k at;
+  k
+
 and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match typ_field.it with
   | ValF (id, constraints, typ, mut) ->
     (* Field-level existentials (HKT on the field): mint a schema-existential
@@ -1415,7 +1461,8 @@ let rec is_explicit_exp e =
   | LitE l -> is_explicit_lit !l
   | UnE (_, _, e1) | OptE e1 | DoOptE e1
   | ProjE (e1, _) | DotE (e1, _, _) | BangE e1 | IdxE (e1, _) | CallE (_, e1, _, _)
-  | LabelE (_, _, e1) | AsyncE (_, _, _, e1) | AwaitE (_, e1) ->
+  | LabelE (_, _, e1) | AsyncE (_, _, _, e1) | AwaitE (_, e1)
+  | RefineE (_, e1) ->
     is_explicit_exp e1
   | BinE (_, e1, _, e2) | IfE (_, e1, e2) ->
     is_explicit_exp e1 || is_explicit_exp e2
@@ -2813,6 +2860,27 @@ and infer_exp'' env exp : T.typ =
     T.unit
   | ImportE (f, ri) ->
     check_import env exp.at f ri
+  | RefineE (cstr, exp1) ->
+    (* Apply the refinement's σ to env.vals and elaborate [exp1] under
+       the refined env.  Final type is the inferred type with σ applied,
+       so refined occurrences of the existential surface to the caller.
+       Pre-mode: just infer through; macro-expansion fills [cstr.note]
+       with the skolem con, so a missing note degenerates gracefully. *)
+    let sigma =
+      match cstr.it.refines, cstr.note with
+      | Some rhs, Some skol ->
+        let rhs_t = check_typ env rhs in
+        T.ConEnv.singleton skol rhs_t
+      | _ -> T.ConEnv.empty
+    in
+    let env_for_body =
+      if T.ConEnv.is_empty sigma then env
+      else { env with vals = T.Env.map
+                       (fun (typ, r, k, a) -> (T.subst sigma typ, r, k, a))
+                       env.vals }
+    in
+    let t = infer_exp env_for_body exp1 in
+    T.subst sigma t
   | ImplicitLibE lib ->
     match T.Env.find_opt lib env.libs with
     | Some t -> t
@@ -5758,12 +5826,13 @@ and infer_dec_typdecs env dec : Scope.t =
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
     }
-  | PrimTypD _ ->
-    (* `prim type` elaboration is not yet implemented; the parser
-       doesn't emit it yet either.  Reaching this arm means
-       compiler-internal scaffolding was wired prematurely. *)
-    error env dec.at "M0229"
-      "`prim type` elaboration is not yet implemented"
+  | PrimTypD (id, typ_binds, value_params, typ) ->
+    let k = check_typ_prim_def env dec.at (id, typ_binds, value_params, typ) in
+    let c = T.Env.find id.it env.typs in
+    Scope.{ empty with
+      typ_env = T.Env.singleton id.it c;
+      con_env = infer_id_typdecs env dec.at id c k;
+    }
 
 and infer_id_typdecs env at id c k : Scope.con_env =
   assert (match k with T.Abs (_, T.Pre) -> false | _ -> true);

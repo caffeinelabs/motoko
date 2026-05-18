@@ -25,3 +25,10 @@ type Blob = prim "Blob";
 type Error = prim "Error";
 type Principal = prim "Principal";
 type Region = prim "Region";
+
+func @typCode(_stream : Blob) : Int = -3;
+
+prim type @TyDesc<T>(stream : Blob) = prim switch (@typCode(stream)) {
+  case -3 : type T = Nat;
+  case -4 : type T = Int;
+};

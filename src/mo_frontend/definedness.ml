@@ -139,6 +139,7 @@ let rec exp msgs e : f = match e.it with
   | TagE (_, e)
   | ActorUrlE e
   | IgnoreE e           -> exp msgs e
+  | RefineE (_, e)      -> exp msgs e
 
 and exps msgs es : f = unions (exp msgs) es
 

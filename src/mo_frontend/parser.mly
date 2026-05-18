@@ -882,6 +882,21 @@ exp_un(B) :
 *)
   | THROW e=exp_nest
     { ThrowE(e) @? at $sloc }
+  | SWITCH TYPE x=id LCURLY cs=seplist(typ_case, semicolon) RCURLY
+    { (* Surface form `switch type T { case <typ> <exp>; … }`.  Parser
+         invokes the registered expander directly; the AST it emits is
+         a plain [SwitchE]+[RefineE] tree.  Pre-condition: the prim
+         type whose expander we look up has already been typechecked
+         (e.g. in a previously-loaded prelude or library). *)
+      let scrutinee = VarE (x.it @~ x.at) @? x.at in
+      let key = "@TyDesc" (* slice-5: hardcoded *) in
+      let slot = match Macro_registry.get key with
+        | Some r -> r
+        | None -> failwith ("no `prim type " ^ key ^ "` in scope")
+      in
+      assert (!slot <> None);
+      let expander = Option.get !slot in
+      expander ~scrutinee ~legs:cs ~at:(at $sloc) }
   | SWITCH e=exp_nullary(ob) LCURLY cs=seplist(case, semicolon) RCURLY
     { SwitchE(e, cs) @? at $sloc }
   | WHILE e1=exp_nullary(ob) e2=exp_nest
@@ -924,6 +939,15 @@ block :
 case :
   | CASE p=pat_nullary e=exp_nest
     { annotate false {pat = p; exp = e} (at $sloc) }
+
+typ_case :
+  | CASE t=typ_nullary e=exp_nest
+    { (* Leg of `switch type T`: encode the leg type as an
+         [AnnotP(WildP, t)] value-pattern.  Slice-5 inspects this
+         shape to recover the leg-type before calling the expander. *)
+      let wild = WildP @! t.at in
+      let pat = AnnotP(wild, t) @! at $sloc in
+      annotate false {pat; exp = e} (at $sloc) }
 
 catch :
   | CATCH p=pat_nullary e=exp_nest
@@ -1052,7 +1076,9 @@ dec_nonvar :
   | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs(typ_constraint_existential)
     { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
   | PRIM TYPE x=typ_id tps=type_typ_params_opt vps=prim_val_params EQ body=prim_type_body
-    { PrimTypD(x, tps, vps, body) @? at $sloc }
+    { (* Reserve an expander slot now; typing fills it on success. *)
+      ignore (Macro_registry.allocate x.it);
+      PrimTypD(x, tps, vps, body) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body
     { (* This is a hack to support local func declarations that return a computed async.

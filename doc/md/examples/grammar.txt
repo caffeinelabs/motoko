@@ -111,9 +111,26 @@
     <typ_constraint_existential>
     'type' <id> '=' <typ>
 
+<prim_val_param> ::= 
+    <id> ':' <typ>
+
+<prim_type_body> ::=  <list(<prim_switch_arm>, ';')> '}'
+
+<prim_discr> ::= 
+    <id> '(' <id> ')'
+
+<prim_switch_arm> ::= 
+    'case' <prim_idx_pat> ':' <typ_constraint>
+
+<prim_idx_pat> ::= 
+    '-' <nat>
+    <nat>
+    '_'
+
 <typ_bind> ::= 
     <id> '<:' <typ>
     <id>
+    <id> 'with' 'type'
 
 <lit> ::= 
     'null'
@@ -263,6 +280,7 @@
     'try' <exp_nest> <catch> 'finally' <exp_nest>
     'try' <exp_nest> 'finally' <exp_nest>
     'throw' <exp_nest>
+    'switch' 'type' <id> '{' <list(<typ_case>, ';')> '}'
     'switch' <exp_nullary> '{' <list(<case>, ';')> '}'
     'while' <exp_nullary> <exp_nest>
     'loop' <exp_nest>
@@ -289,6 +307,9 @@
 
 <case> ::= 
     'case' <pat_nullary> <exp_nest>
+
+<typ_case> ::= 
+    'case' <typ_nullary> <exp_nest>
 
 <catch> ::= 
     'catch' <pat_nullary> <exp_nest>
@@ -354,7 +375,7 @@
 <dec_nonvar> ::= 
     'let' <pat> '=' <exp>
     'let' <pat>
-    'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ_def_rhs<typ_constraint_existential>>
+    'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ_def_rhs<typ_constraint_existential>> ('(' <list(<prim_val_param>, ',')> ')')? '=' <prim_type_body>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
     <parenthetical>? <obj_or_class_dec>
     'mixin' <pat_plain> <obj_body>
