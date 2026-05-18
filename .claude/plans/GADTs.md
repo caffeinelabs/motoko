@@ -1667,17 +1667,29 @@ protocol analysers, Candid wire-tag decoders, the
 [`switch type` machinery in shared-generics](shared-generics.md).
 Not user-facing — only the compiler / RTS generates these.
 
-### Surface form (internal)
+### Surface form (internal) — Candid type table as compositional stream
 
-The Candid type-table index `idx` is a **LEB128-encoded `Int`**:
-small negative values denote primitives (table lookup by sign +
-magnitude), non-negative values reference structured entries in
-the same table.  For primitives the magnitude fits in one byte —
-canonical SLEB128 wire bytes per `compile_enhanced.ml:7395-7430`:
+The Candid type table is a **compositional stream format** with
+just two operations:
+
+- `jump : Nat → Stream` — set the cursor to type-table entry `n`
+  (random access; doesn't consume).
+- `leb128 : Stream → Int × Stream` — consuming read of one
+  LEB128-encoded `Int` from the cursor; advances by the bytes that
+  encoded the number.  (Haskell-style view pattern: writing
+  `(leb128 → x)` binds the decoded `Int` to `x` and threads the
+  remaining stream.)
+
+The dispatcher consumes a single `idx : Int` and refines `T` based
+on whether `idx` is a primitive (negative, decided in one step) or
+a back-reference into the table (non-negative, requires `jump` +
+re-dispatch).  Compound primitive arms (vec, opt, record, …) use
+`leb128`-reads to consume their follow-on data from the same
+stream:
 
 ```motoko
 type TyDesc<T>(idx : Int) = prim switch idx {
-  // Primitives (idx ∈ [-24, -1] ish — wire is one SLEB128 byte):
+  // Primitives — refinement is immediate, no further stream reads:
   case -1  : type T = Null      in T;   // wire 0x7f
   case -2  : type T = Bool      in T;   // wire 0x7e
   case -3  : type T = Nat       in T;   // wire 0x7d
@@ -1685,14 +1697,22 @@ type TyDesc<T>(idx : Int) = prim switch idx {
   case -5  : type T = Nat8      in T;   // wire 0x7b
   case -15 : type T = Text      in T;   // wire 0x71
   case -24 : type T = Principal in T;   // wire 0x68
-  // Compound — body recurses on a follow-on idx read from the
-  // same stream:
-  case -19 : type T = [TyDesc(nextIdx)] in T;   // vec    (wire 0x6d)
-  case -18 : type T = ?TyDesc(nextIdx)  in T;   // opt    (wire 0x6e)
+
+  // Compound primitives — body consumes follow-on data from the
+  // *same* stream via `leb128`-reads (Haskell view-pattern shown
+  // in pseudo-syntax for clarity):
+  case -19 (leb128 → elemIdx)
+    : type T = [TyDesc(elemIdx)] in T;             // vec   (wire 0x6d)
+  case -18 (leb128 → elemIdx)
+    : type T = ?TyDesc(elemIdx)  in T;             // opt   (wire 0x6e)
   // record / variant / func / service follow similar recursion
-  // (-20 .. -23 — wire bytes 0x6c .. 0x69)
-  // Non-negative idx is a back-reference into the type table:
-  case  N when N >= 0 : type T = ⟨type-table[N]⟩ in T;
+  // (each reads field-count + sequence of (label-hash, type-idx)
+  // pairs from the stream — -20 .. -23, wire 0x6c .. 0x69)
+
+  // Back-reference into the type table — `jump` first, then
+  // re-enter the dispatcher on whatever idx that entry starts with:
+  case N when N >= 0
+    : type T = TyDesc(leb128 (jump N))  in T;
 };
 ```
 
@@ -1704,11 +1724,19 @@ type TyDesc<T>(idx : Int) = prim switch idx {
   scalar value; each arm carries a refinement of `T` (the standard
   `type T = …` GADT refinement clause, *same shape* as variant-arm
   refinements).
-- The primitive-only subset can be expressed with `byte : Int8`
-  when the implementation knows it's not handling table references
-  — a useful shorthand for the simpler dispatchers, but the
-  general dispatcher's keying value is `Int` (LEB128-decoded on the
-  wire).
+- Compound arms compose `leb128`-reads (for inline data) with
+  recursive `TyDesc(...)` invocations.  Back-reference arms
+  compose `jump` (random access) with a `leb128`-read of the
+  entry's head idx (which itself drives the dispatcher).
+- The two stream operations are compositional: any entry of the
+  table is resolvable as a `TyDesc<T>` starting from its position,
+  with references between entries threaded by index alone.  The
+  whole table is a navigable graph; the stream is its serialised
+  form.
+- The primitive-only subset (no compound types, no back-references)
+  fits in `byte : Int8` — a useful shorthand for trivial
+  dispatchers.  The general dispatcher's keying value is `Int`,
+  decoded from the stream via `leb128`.
 - The body of each arm is `type T = … in T` — same `typ_def_rhs`
   production used by today's TypD; the alias *returns* the refined
   type, no separate payload.
