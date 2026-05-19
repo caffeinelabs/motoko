@@ -124,15 +124,6 @@ let optimize : instr list -> instr list = fun is ->
        go l' ({i with it = Drop} :: r')
     | l', ({it = If (_, [{it = Br x; _}], []); _} as i) :: r' ->
       go l' ({i with it = BrIf {x with it = Int32.sub x.it 1l}} :: r')
-    (* Probe: `if (cond) (br N) else <non-empty>`. Would generalise the
-       rule above by wrapping the else body in a `block` to preserve the
-       if's implicit label (so `Br 0` inside the body still falls
-       through, and higher depths stay correct). Add the rewrite once
-       we've seen a concrete moc-emitted instance and confirmed the
-       block-type encoding is no longer than the if's. *)
-    | l', ({it = If (_, [{it = Br _; _}], _ :: _); _}) :: _ ->
-      failwith "instrList: probe — `If (_, [Br N], non-empty else)` seen; \
-                consider extending the BrIf rule with a block wrapper"
     (* `If` blocks with empty then after comparison can invert the comparison and swap legs *)
     | { it = Compare (I32 I32Op.Eq); _} as comp :: l', ({it = If (res,[],else_); _} as i) :: r' ->
       go ({comp with it = Compare (I32 I32Op.Ne)} :: l') ({i with it = If (res,else_,[])} :: r')
