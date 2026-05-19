@@ -178,8 +178,6 @@ persistent actor {
   };
 
   type Smurf = {
-    blob         : () -> Blob;                  // self, Candid-encoded; thunk so VarAccessor-class
-                                                // children can return "" when nobody pulls
     class4cc     : Text;                        // wire 4cc, "" for primitives
     accessors    : [Accessor];                  // per-class navigation hooks (incl. property leaves)
     toDesc       : () -> async* ObjectSpec;     // render self: #obj/#root for nodes, #value for leaves;
@@ -191,8 +189,8 @@ persistent actor {
   type Accessor = {
     form    : { #indexed; #named; #test };
     fourcc  : Text;                       // 'cntr', 'age ', 'inco', 'name', …
-    // Takes the whole parent Smurf so the child can close over `parent.toDesc()`
-    // (the zipper edge) and pull `parent.blob()` lazily only when from_candid<P> needs it.
+    // Takes the whole parent Smurf so the child can close over
+    // `parent.toDesc()` (the zipper edge).
     lookUp  : (parent : Smurf, key : LookupKey) -> Smurf;
   };
 
@@ -202,7 +200,6 @@ persistent actor {
   // class4cc means findAccessor on it always returns null, so chained
   // misses fall through without special-casing.
   func notFoundSmurf(parent : Smurf) : Smurf = {
-    blob        = func() : Blob = "";
     class4cc    = "";
     accessors   = [];
     toDesc      = func() : async* ObjectSpec { throw error ("Error (errAENoSuchObject = -1728) in " # debug_show (await* parent.toDesc())) };
@@ -218,7 +215,6 @@ persistent actor {
   // a CollectionSmurf<Char>.  Materialisation is cached once per instance
   // (TODO: lazy iterator cache to avoid quadratic indexed access).
   class ValueSmurf(value : CandidValue) {
-    public func blob() : Blob = to_candid (value);
     public let  class4cc                      = "";
     let chars : [Char] = switch value { case (#text t) arrayOfChars t; case _ [] };
     public let accessors : [Accessor] = switch value {
@@ -284,7 +280,6 @@ persistent actor {
 
   func clientSmurf(c : Client, parent : Smurf) : Smurf {
     let self : Smurf = {
-      blob        = func() : Blob = to_candid (c);
       class4cc    = "clnt";
       accessors   = [
         // "name" returns a SmartLeaf — the full-name text plus a schema
@@ -379,17 +374,11 @@ persistent actor {
       { form = #named; fourcc; lookUp = func _ = ValueSmurf(parse text) }
     });
     let total = base.accessors.size() + schemaAccs.size();
-    let combined : [Accessor] = Array_tabulate<Accessor>(total, func i =
+    let accessors : [Accessor] = Array_tabulate<Accessor>(total, func i =
       if (i < base.accessors.size()) base.accessors[i]
       else schemaAccs[i - base.accessors.size()]
     );
-    {
-      blob       = base.blob;
-      class4cc   = base.class4cc;
-      accessors  = combined;
-      toDesc     = base.toDesc;
-      filter     = base.filter;
-    }
+    { base with accessors }
   };
 
   // smurfMap — the Functor's lifted view.  Wraps a list of already-
@@ -441,7 +430,6 @@ persistent actor {
       }
     });
     {
-      blob       = func() : Blob = "";
       class4cc   = "";
       accessors;
       toDesc     = func() : async* ObjectSpec {
@@ -459,7 +447,6 @@ persistent actor {
   // chars carry no stable index.
   func charSmurf(c : Char, parent : Smurf) : Smurf {
     let self : Smurf = {
-      blob        = func() : Blob = "";   // char identity is its codepoint; bench ignores
       class4cc    = "char";
       accessors   = [
         {
@@ -481,9 +468,9 @@ persistent actor {
   };
 
   // VarAccessor<T>: typed escape hatch over a stable [T]. Captures the
-  // collection at construction and ignores `parent.blob()` — no Candid
-  // round-trip on input. `wrap : T -> Smurf` is supplied per entity to
-  // build the appropriate child Smurf (e.g. a clientSmurf wrapping a Client).
+  // collection at construction — no Candid round-trip on input.
+  // `wrap : T -> Smurf` is supplied per entity to build the appropriate
+  // child Smurf (e.g. a clientSmurf wrapping a Client).
   class VarAccessor<T>(
     stab    : [T],
     fourcc_ : Text,
@@ -611,7 +598,6 @@ persistent actor {
         case _ notFoundSmurf par;
       };
 
-    public func blob() : Blob              = "";
     public let  class4cc                   = classCC;
     // Inherited element accessors mirror only the (classCC, form) pairs
     // the parent actually exposes — never fabricate.  E.g. characters
@@ -697,7 +683,6 @@ persistent actor {
   // over evalBoolExpr — the per-entity-typed predicate evaluator — so the
   // library never sees BoolExpr semantics.
   transient let actorSmurf : Smurf = {
-    blob        = func() : Blob = "";
     class4cc    = "";
     accessors   = [
       VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
