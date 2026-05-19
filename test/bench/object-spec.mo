@@ -894,6 +894,39 @@ persistent actor {
             case _ notFoundSmurf parent;
           };
       },
+      // #indexed / #named "card" delegate to an unfiltered global
+      // FlattenedSmurf.  Exposing them here lets selective inheritance
+      // on the filtered FlattenedSmurf (the `#test "card"` accessor
+      // above) mirror these forms, so `first card whose <P>` and
+      // `card "<pk>" of root` both compose cleanly.
+      {
+        form   = #indexed;
+        fourcc = "card";
+        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+          let view = FlattenedSmurf<Client, CreditCard>(
+            clients, func c = c.cards,
+            "card", parent, cardSmurf, evalCardPred,
+            func k = debug_show k.number, null);
+          switch (findAccessor(view, "card", #indexed)) {
+            case (?acc) acc.lookUp(view, key);
+            case null notFoundSmurf parent;
+          };
+        };
+      },
+      {
+        form   = #named;
+        fourcc = "card";
+        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+          let view = FlattenedSmurf<Client, CreditCard>(
+            clients, func c = c.cards,
+            "card", parent, cardSmurf, evalCardPred,
+            func k = debug_show k.number, null);
+          switch (findAccessor(view, "card", #named)) {
+            case (?acc) acc.lookUp(view, key);
+            case null notFoundSmurf parent;
+          };
+        };
+      },
     ];
     toDesc      = func() : async* ObjectSpec { #root };
     // Root has no own attributes — predicate doesn't apply, fall through.
@@ -942,9 +975,9 @@ persistent actor {
   // formAbsolutePosition machinery: 'indx' is the form code; 'abso' is
   // typeAbsoluteOrdinal carrying one of the five enum constants below.
   transient let (INDX, ABSO) : (Nat32, Nat32) = (0x696e6478, 0x6162736f);
-  transient let (AE_ALL, AE_FST, AE_LAST, AE_ANY, AE_MIDD)
+  transient let (AE_ALL, AE_FIRST, AE_LAST, AE_ANY, AE_MIDD)
     : (Nat32, Nat32, Nat32, Nat32, Nat32) =
-    (0x616c6c20, 0x66737420, 0x6c617374, 0x616e7920, 0x6d696464);
+    (0x616c6c20, 0x66697273, 0x6c617374, 0x616e7920, 0x6d696464);
   // 4cc predicate descriptors: 'logi' (logical), 'cmpd' (comparison), 'list'
   transient let (LOGI, CMPD, LIST) : (Nat32, Nat32, Nat32) =
     (0x6c6f6769, 0x636d7064, 0x6c697374);
@@ -1017,7 +1050,7 @@ persistent actor {
             let enumVal = u32 r;
             key :=
               if (enumVal == AE_ALL)  #every
-              else if (enumVal == AE_FST)  #absolutePosition 1
+              else if (enumVal == AE_FIRST) #absolutePosition 1
               else if (enumVal == AE_LAST) #absolutePosition (-1)
               // FUDGE: AE 'any ' is *random* selection; the bench deterministically
               // picks position 1.  Not semantically faithful — restore RNG once
@@ -1074,6 +1107,12 @@ persistent actor {
     } else if (typeCode == ENUM) {
       if (length != 4) trap "AE: enum must be 4 bytes";
       #text (cc4ToText (u32 r))
+    } else if (typeCode == AE_TRUE) {
+      if (length != 0) trap "AE: 'tru ' value with non-zero length";
+      #bool true
+    } else if (typeCode == AE_FALSE) {
+      if (length != 0) trap "AE: 'fals' value with non-zero length";
+      #bool false
     } else {
       trap "AE: unsupported value type"
     }
@@ -1835,6 +1874,31 @@ persistent actor {
     result
   };
 
+  // tiny27 — Motoko-side `first card that is not valid` mirror of the
+  // AE-wire fixture `//CALL ingress go` below.  Builds the same
+  // two-layer spec directly and emits both the query and the result
+  // via debug_show, so the test log carries the full round-trip.
+  //   inner: #obj{class="card"; container=#root;
+  //              key=#test(vald == false)}     — the 6 invalid cards
+  //   outer: #obj{class="card"; container=<inner>;
+  //              key=#absolutePosition 1}      — first of those
+  (with encoder)
+  public func tiny27() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "card";
+        container = #obj {
+          class_    = "card";
+          container = #root;
+          key       = #test (#compare { prop = "vald"; op = #eq; value = #bool false });
+        };
+        key       = #absolutePosition 1;
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny27"; spec; result });
+    result
+  };
+
   // tiny24 — Motoko-side rendering of `every card`.  Mirrors the
   // AE-wire fixture (`//CALL ingress go …` below) but builds the spec
   // directly: since the bench has no `#every` keyform yet, we use
@@ -2004,6 +2068,17 @@ persistent actor {
 // 2 cards in the bench data match: Marie Martin's first card (i=1)
 // and Marie Roux's first card (i=61).
 //CALL ingress go 0x646c6532000000006f626a20000000be000000040000000077616e74747970650000000463617264666f726d656e756d000000047465737473656c64636d70640000007e00000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c64747970650000000476616c6966726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a32757478740000000a00300032002f0032003766726f6d6e756c6c00000000
+
+// tiny27 — `first card that is not valid`, AE-encoded via
+// `nix run .#ae-encoder` (`.byfilter(vald == False).first`).  Outer
+// wraps `obj { form='indx'; seld=abso 'firs' }` around the inner
+// vald-filter; decoder lifts to #absolutePosition 1 on the filtered
+// collection, which selective-inherits #indexed from FlattenedSmurf.
+// First invalid card by FlattenedSmurf iteration order: i=25 j=0 —
+// number 4_111_111_111_110_250, owned by Helga Weber, validity "02/26".
+//CALL ingress go 0x646c6532000000006f626a20000000f8000000040000000077616e74747970650000000463617264666f726d656e756d00000004696e647873656c646162736f000000046669727366726f6d6f626a20000000b4000000040000000077616e74747970650000000463617264666f726d656e756d000000047465737473656c64636d70640000007400000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c64747970650000000476616c6466726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a3266616c730000000066726f6d6e756c6c00000000
+// Motoko-side mirror with debug_show of query AND result:
+//CALL ingress tiny27 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55

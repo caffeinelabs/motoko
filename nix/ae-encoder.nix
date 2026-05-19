@@ -91,11 +91,19 @@ let
             its.property('vali').eq('02/27')
         )
 
+    def first_invalid_card():
+        """first card that is not valid — formAbsolutePosition + 'fst '
+        applied to the (vald == false) filter."""
+        return app.elements('card').byfilter(
+            its.property('vald').eq(False)
+        ).first
+
     QUERIES = {
         'german_midlife_client_income': german_midlife_client_income,
         'every_card': every_card,
         'count_cards': count_cards,
         'cards_validity_02_27': cards_validity_02_27,
+        'first_invalid_card': first_invalid_card,
     }
 
     codecs = Codecs()
