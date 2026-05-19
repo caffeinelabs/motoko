@@ -75,8 +75,13 @@ let
         )
         return clients.property(PR_INCOME)
 
+    def every_card():
+        """every card — formAbsolutePosition + enum 'all ' from root."""
+        return app.elements('card')
+
     QUERIES = {
         'german_midlife_client_income': german_midlife_client_income,
+        'every_card': every_card,
     }
 
     codecs = Codecs()
