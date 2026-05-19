@@ -1399,6 +1399,31 @@ persistent actor {
     result
   };
 
+  // tiny12 — `client "Anne Martin" of (every client whose country is
+  // "France")`.  Exercises #named inheritance on CollectionSmurf<Client>:
+  //   #root → French CollectionSmurf
+  //         → #named "Anne Martin" → namedLookup over the filtered view
+  //         → clientSmurf(parent = CollectionSmurf)
+  // The result's toDesc wraps the picked client with its parent #list
+  // context — same wire shape as tiny10's reply, just keyed by #name
+  // rather than #absolutePosition.
+  (with encoder)
+  public func tiny12() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "clnt";
+        container = #obj {
+          class_    = "clnt";
+          container = #root;
+          key       = #test (#compare { prop = "cntr"; op = #eq; value = #text "France" });
+        };
+        key       = #name "Anne Martin";
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny12" });
+    result
+  };
+
   // tiny11 — SmartLeaf demo: `firstName of name of (first client whose
   // country is "France")`.  Pure structural navigation — no firstName
   // ever touches the predicate evaluator.  Walks:
@@ -1486,6 +1511,9 @@ persistent actor {
 //CALL ingress tiny10 0x4449444c0000
 // tiny11 — SmartLeaf demo (`firstName of name of first French client`).
 //CALL ingress tiny11 0x4449444c0000
+// tiny12 — #named inheritance on CollectionSmurf
+// (`client "Anne Martin" of (every French client)`).
+//CALL ingress tiny12 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
