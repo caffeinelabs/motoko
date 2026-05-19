@@ -1854,7 +1854,7 @@ persistent actor {
         key       = #test tautology;
       };
     let result = await* eval(spec, actorSmurf);
-    debugPrint(debug_show { stage = "tiny24"; spec });
+    debugPrint(debug_show { stage = "tiny24"; spec; result });
     result
   };
 
@@ -1998,6 +1998,12 @@ persistent actor {
 // the eval falls through to notFoundSmurf — captured here as a fixture
 // for the gap, to be re-accepted once decoder support lands.
 //CALL ingress go 0x646c6532000000006f626a2000000044000000040000000077616e74747970650000000463617264666f726d656e756d00000004696e647873656c646162736f00000004616c6c2066726f6d6e756c6c00000000
+
+// tiny26 — `every card whose validity = "02/27"`, AE-encoded via
+// `nix run .#ae-encoder` (`app.elements('card').byfilter(its.property('vali').eq('02/27'))`).
+// 2 cards in the bench data match: Marie Martin's first card (i=1)
+// and Marie Roux's first card (i=61).
+//CALL ingress go 0x646c6532000000006f626a20000000be000000040000000077616e74747970650000000463617264666f726d656e756d000000047465737473656c64636d70640000007e00000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c64747970650000000476616c6966726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a32757478740000000a00300032002f0032003766726f6d6e756c6c00000000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55

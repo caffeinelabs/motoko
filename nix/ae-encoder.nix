@@ -84,10 +84,18 @@ let
         on the every-cards collection."""
         return app.elements('card').property('pcnt')
 
+    def cards_validity_02_27():
+        """every card whose validity = "02/27" — 2 matches in the bench data
+        (Marie Martin i=1 j=0 and Marie Roux i=61 j=0, both yy=27 mm=2)."""
+        return app.elements('card').byfilter(
+            its.property('vali').eq('02/27')
+        )
+
     QUERIES = {
         'german_midlife_client_income': german_midlife_client_income,
         'every_card': every_card,
         'count_cards': count_cards,
+        'cards_validity_02_27': cards_validity_02_27,
     }
 
     codecs = Codecs()
