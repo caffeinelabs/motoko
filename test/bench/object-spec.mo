@@ -826,7 +826,7 @@ persistent actor {
     evalPred : (BoolExpr, E) -> Bool,
     getName  : E -> Text,
     pred     : ?BoolExpr,
-  ) {
+  ) : CollectionSmurf<E> {
     // Materialise per-parent extractions, then flatten by index
     // decomposition (no default-E required — Array_tabulate's body
     // computes each output position from the perParent slices).
