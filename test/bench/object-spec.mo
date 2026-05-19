@@ -27,6 +27,7 @@ import {
   charIsUppercase;
   charToText;
   charToNat32;
+  int32ToInt;
 } = "mo:⛔";
 
 persistent actor {
@@ -48,6 +49,7 @@ persistent actor {
     #and_ : (BoolExpr, BoolExpr);
     #or_ : (BoolExpr, BoolExpr);
     #not_ : BoolExpr;
+    #always : Bool;     // literal; used by the OSL when resolving #every
   };
 
   type KeyForm = {
@@ -57,6 +59,8 @@ persistent actor {
     #property : Text;
     #range : (ObjectSpec, ObjectSpec);
     #test : BoolExpr;
+    #every;             // semantically "every element of <container>"; OSL
+                        // resolves via the #test accessor with `#always true`.
   };
 
   type ObjectSpec = {
@@ -211,6 +215,7 @@ persistent actor {
       case (#and_ (a, b)) evalBoolExpr(a, c) and evalBoolExpr(b, c);
       case (#or_  (a, b)) evalBoolExpr(a, c) or  evalBoolExpr(b, c);
       case (#not_ a)      not (evalBoolExpr(a, c));
+      case (#always b)    b;
       case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
     }
   };
@@ -413,6 +418,7 @@ persistent actor {
       case (#and_ (a, b)) evalCardPred(a, c) and evalCardPred(b, c);
       case (#or_  (a, b)) evalCardPred(a, c) or  evalCardPred(b, c);
       case (#not_ a)      not (evalCardPred(a, c));
+      case (#always b)    b;
       case (#compare { prop; op; value }) cmp(lookupCardPropReader(prop) c, op, value);
     }
   };
@@ -460,6 +466,7 @@ persistent actor {
       case (#and_ (a, b)) evalCharPred(a, c) and evalCharPred(b, c);
       case (#or_  (a, b)) evalCharPred(a, c) or  evalCharPred(b, c);
       case (#not_ a)      not (evalCharPred(a, c));
+      case (#always b)    b;
       case (#compare { prop; op; value }) cmp(lookupCharPropReader(prop) c, op, value);
     }
   };
@@ -931,6 +938,12 @@ persistent actor {
   // AE boolean literals (0-length): 'tru ' / 'fals'.
   transient let (AE_TRUE, AE_FALSE) : (Nat32, Nat32) =
     (0x74727520, 0x66616c73);
+  // formAbsolutePosition machinery: 'indx' is the form code; 'abso' is
+  // typeAbsoluteOrdinal carrying one of the five enum constants below.
+  transient let (INDX, ABSO) : (Nat32, Nat32) = (0x696e6478, 0x6162736f);
+  transient let (AE_ALL, AE_FST, AE_LAST, AE_ANY, AE_MIDD)
+    : (Nat32, Nat32, Nat32, Nat32, Nat32) =
+    (0x616c6c20, 0x66737420, 0x6c617374, 0x616e7920, 0x6d696464);
   // 4cc predicate descriptors: 'logi' (logical), 'cmpd' (comparison), 'list'
   transient let (LOGI, CMPD, LIST) : (Nat32, Nat32, Nat32) =
     (0x6c6f6769, 0x636d7064, 0x6c697374);
@@ -997,10 +1010,27 @@ persistent actor {
         } else if (formCode == TEST) {
           // valueType is typically 'logi'; reuse it for parseBoolExprBody
           key := #test (parseBoolExprBody(valueType, r));
-        } else {
-          let len = u32 r;
-          let ?_ = r.take(nat32ToNat len) else trap "AE: short read on seld body";
-        };
+        } else if (formCode == INDX) {
+          if (valueType == ABSO) {
+            let _len = u32 r;          // expect 4
+            let enumVal = u32 r;
+            key :=
+              if (enumVal == AE_ALL)  #every
+              else if (enumVal == AE_FST)  #absolutePosition 1
+              else if (enumVal == AE_LAST) #absolutePosition (-1)
+              // FUDGE: AE 'any ' is *random* selection; the bench deterministically
+              // picks position 1.  Not semantically faithful — restore RNG once
+              // the bench has entropy.
+              else if (enumVal == AE_ANY)  #absolutePosition 1
+              // FUDGE: AE 'midd' is the *middle* element; we approximate by
+              // -1 (last).  Same caveat as 'any '.
+              else if (enumVal == AE_MIDD) #absolutePosition (-1)
+              else trap ("AE: unsupported 'abso' enum " # cc4ToText enumVal);
+          } else if (valueType == LONG) {
+            let _len = u32 r;          // expect 4
+            key := #absolutePosition (int32ToInt (nat32ToInt32 (u32 r)));
+          } else trap ("AE: unsupported 'indx' seld type " # cc4ToText valueType);
+        } else trap ("AE: unsupported form code " # cc4ToText formCode);
       } else {
         trap "AE: unknown obj field key"
       };
@@ -1170,6 +1200,7 @@ persistent actor {
       case (#and_ (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
       case (#or_  (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
       case (#not_ a)      52 + boolExprDescLen a;
+      case (#always _)    trap "AE: #always is OSL-internal, not wire-encodable";
       case (#compare { prop = _; op = _; value }) 116 + valueDescLen value;
     }
   };
@@ -1179,6 +1210,8 @@ persistent actor {
       case (#property _) 4;
       case (#name n) 2 * encodeUtf8(n).size();   // ASCII assumption (see textToUtf16)
       case (#test e) boolExprDescLen e;
+      case (#every) 4;                            // abso enum 'all '
+      case (#absolutePosition _) 4;               // typeSInt32
       case _ trap "AE: encoder unsupported key form";
     }
   };
@@ -1276,14 +1309,17 @@ persistent actor {
         w.writeU32s([RELO, ENUM, 4, compareOpCC op, OBJ2]);
         writeValue(w, value);
       };
+      case (#always _) trap "AE: #always is OSL-internal, not wire-encodable";
     }
   };
 
   func writeObjBody(w : Writer, class_ : Text, container : ObjectSpec, key : KeyForm) {
     let formCode = switch key {
-      case (#property _) PROP;
-      case (#name _)     NAME;
-      case (#test _)     TEST;
+      case (#property _)          PROP;
+      case (#name _)              NAME;
+      case (#test _)              TEST;
+      case (#every)               INDX;
+      case (#absolutePosition _)  INDX;
       case _ trap "AE: encoder key form unsupported";
     };
     w.writeU32s([
@@ -1300,6 +1336,8 @@ persistent actor {
         w.writeBytes bytes;
       };
       case (#test e) writeBoolExpr(w, e);
+      case (#every) w.writeU32s([ABSO, 4, AE_ALL]);
+      case (#absolutePosition i) w.writeU32s([LONG, 4, int32ToNat32 (intToInt32Wrap i)]);
       case _ trap "AE: encoder unsupported key form";
     };
     // from = recursive descriptor
@@ -1376,6 +1414,7 @@ persistent actor {
       case (#property _)         #named;
       case (#range _)            #indexed;
       case (#test _)             #test;
+      case (#every)              #test;       // OSL routes #every via #test
     };
 
   // Spec-side KeyForm → runtime LookupKey for the matched accessor.
@@ -1386,6 +1425,7 @@ persistent actor {
       case (#name n)             ?(#named n);
       case (#property p)         ?(#named p);
       case (#test e)             ?(#test e);
+      case (#every)              ?(#test (#always true));   // resolve-time rewrite
       case (#uniqueID _)         null;
       case (#range _)            null;
     };
