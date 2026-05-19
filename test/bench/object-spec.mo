@@ -123,6 +123,7 @@ persistent actor {
   };
 
   transient let propReaders : [PropReader] = [
+    { fourcc = "name"; read = func(c : Client) : CandidValue = #text (c.name) },
     { fourcc = "cntr"; read = func(c : Client) : CandidValue = #text (c.country) },
     { fourcc = "age "; read = func(c : Client) : CandidValue = #int32 (c.age) },
     { fourcc = "inco"; read = func(c : Client) : CandidValue = #int32 (c.yearlyIncome) },
@@ -137,6 +138,10 @@ persistent actor {
     switch (a, op, b) {
       case (#text x,  #eq, #text y)  x == y;
       case (#text x,  #ne, #text y)  x != y;
+      case (#text x,  #lt, #text y)  x <  y;
+      case (#text x,  #gt, #text y)  x >  y;
+      case (#text x,  #le, #text y)  x <= y;
+      case (#text x,  #ge, #text y)  x >= y;
       case (#int32 x, #eq, #int32 y) x == y;
       case (#int32 x, #ne, #int32 y) x != y;
       case (#int32 x, #lt, #int32 y) x <  y;
