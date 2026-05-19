@@ -1286,6 +1286,42 @@ persistent actor {
     result
   };
 
+  // tiny10 — nested filter:
+  //   `first client whose firstName is "Anne" of (every client whose
+  //    country is "France")`.
+  // Three layers, both inner #objs filter clnt:
+  //  (a) #root → every clnt whose country=France → CollectionSmurf<Client> A.
+  //  (b) A → every clnt whose firstName="Anne" → would need a `#test`
+  //      "clnt" accessor on the CollectionSmurf (currently NOT inherited;
+  //      see the deferred `#test` work).  Resolve falls through to
+  //      notFoundSmurf here.
+  //  (c) (would have been) #absolutePosition 1 → pick the first.
+  // Aspirational: exposes the missing #test inheritance.  Expressed via
+  // the lex-range trick ("Anne" .. "Annf") since the bench has no separate
+  // firstName property.
+  (with encoder)
+  public func tiny10() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "clnt";
+        container = #obj {
+          class_    = "clnt";
+          container = #obj {
+            class_    = "clnt";
+            container = #root;
+            key       = #test (#compare { prop = "cntr"; op = #eq; value = #text "France" });
+          };
+          key       = #test (#and_ (
+                       #compare { prop = "name"; op = #ge; value = #text "Anne" },
+                       #compare { prop = "name"; op = #lt; value = #text "Annf" }));
+        };
+        key       = #absolutePosition 1;
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny10" });
+    result
+  };
+
   // tiny9 — deep query:
   //   `every character of name of fifth client whose upperCase is true`.
   // Four-layer walk, predicate at the char level:
@@ -1333,8 +1369,11 @@ persistent actor {
 //CALL ingress tiny7 0x4449444c0002717101410142
 // tiny8(3, "France") — name of third client in France.
 //CALL ingress tiny8 0x4449444c00027c7103064672616e6365
-// tiny9 — aspirational deep query (expected to trap on missing PropReader).
+// tiny9 — deep query (`every char ... whose isUpper`).
 //CALL ingress tiny9 0x4449444c0000
+// tiny10 — nested filter (`first ... whose ... of every ... whose ...`)
+// — exposes the missing #test inheritance on CollectionSmurf.
+//CALL ingress tiny10 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
