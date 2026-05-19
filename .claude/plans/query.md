@@ -372,6 +372,75 @@ The shape is converging:
 
 ---
 
+## Library axioms
+
+The object-support library is **data-model-agnostic**.  It knows
+nothing about the canister's entities — the sole way it learns
+about them is by asking Smurfs via their common interface.
+
+1. **Smurfs self-describe.** A Smurf exposes `accessors`, `class4cc`,
+   `toDesc`, `isNotFound`, `filter` (and `blob` for Candid-backed
+   children).  Those six fields are the library's entire surface.
+
+2. **Accessors own navigation.** `Accessor.lookUp(parent, key)` is
+   opaque to the library.  The accessor decides whether the result
+   is a scalar entity, a leaf value, or a collection.
+
+3. **Collections are Smurfs.** A `#test`-form accessor's `lookUp`
+   returns one Smurf whose `toDesc` renders as `#list`.  Iteration
+   lives inside the collection-Smurf — the library never iterates.
+
+4. **Property leaves are Smurfs.** Property projection across a
+   collection is a `"prop"` accessor on the collection-Smurf; given
+   `#named propName` it iterates source, calls `wrap`, finds the
+   element's named-accessor, gathers the resulting `ValueSmurf`s
+   into a `listSmurf`.  Single-entity property reads end at a
+   `ValueSmurf` whose `toDesc` is `#value(...)`.
+
+5. **Errors propagate via `notFoundSmurf`** (`isNotFound = true`,
+   `toDesc = #root`).  Type-level mismatches the library can't
+   honour (`#uniqueID`, `#range` today) trap.
+
+The library reduces to:
+
+- `formOfKey : KeyForm → AccessorForm` — pure
+- `lookupOfKey : KeyForm → ?LookupKey` — pure
+- `resolve(spec, root) : Smurf` — walks the spec, asks each parent
+  for the matching accessor, delegates `lookUp`
+- `eval(spec, root) : ObjectSpec` — resolve then `target.toDesc()`
+
+No predicate evaluation, no schema awareness, no entity catalog in
+the library.  Per-entity hooks (`clientSmurf`, root `VarAccessor`s,
+the `#test` clnt accessor on the root) wire all the typed bits.
+
+### `Smurf*` — parallel async interface (future)
+
+Today's `Smurf` is synchronous.  Once a Smurf needs to make an
+IC call (cross-canister federation, certified-data lookup,
+inter-actor query forwarding), introduce a parallel `Smurf*` whose
+methods return `async*`:
+
+```motoko
+type Smurf* = {
+  blob       : ()       -> async* Blob;
+  class4cc   : Text;
+  accessors  : [Accessor*];
+  toDesc     : ()       -> async* ObjectSpec;
+  filter     : BoolExpr -> async* Smurf*;
+  isNotFound : Bool;
+};
+```
+
+The library gains a parallel `resolve*`/`eval*`.  Synchronous Smurfs
+lift trivially.  Async-native Smurfs (one that does `await
+someCanister.get(id)` inside `lookUp`) plug in directly.
+
+M0033 currently rejects `async* Smurf` because Smurf's function
+fields aren't shared; the `Smurf*` form sidesteps this by making
+the async boundary explicit on each method.
+
+---
+
 ## Apple Events Compact Binary Encoding
 
 For interoperability with macOS AppleScript/Automator (Use Case 7), the

@@ -104,14 +104,6 @@ persistent actor {
     if (count != 1) trap("AE: primary key '" # c.name # "' appears " # debug_show count # " times");
   };
 
-  func countMatchers() : Nat {
-    var n = 0;
-    for (c in clients.vals()) {
-      if (c.country == "Germany" and c.age >= 45 and c.age <= 55) n += 1;
-    };
-    n
-  };
-
   // PropReader: a typed accessor for one Client property, indexed by the
   // 4cc the AE wire uses (decoder's #compare prop string). Bridges wire-form
   // 4cc names ("cntr"/"age "/"inco") to Motoko Client fields.
@@ -156,73 +148,6 @@ persistent actor {
       case (#not_ a)      not (evalBoolExpr(a, c));
       case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
     }
-  };
-
-  // Extract the test predicate from a decoded query of the running shape.
-  func extractPredicate(spec : ObjectSpec) : ?BoolExpr {
-    switch spec {
-      case (#obj { class_ = _; container; key = _ }) {
-        switch container {
-          case (#obj { class_ = _; container = _; key = #test e }) ?e;
-          case _ null;
-        }
-      };
-      case _ null;
-    }
-  };
-
-  func countMatchersDecoded(e : BoolExpr) : Nat {
-    var n = 0;
-    for (c in clients.vals()) if (evalBoolExpr(e, c)) n += 1;
-    n
-  };
-
-  // Run the running-query shape (#obj prop → #obj clnt #test → #root) and
-  // return one CandidValue per matching client (the requested property).
-  // Two-pass: count, allocate, fill (no Buffer in `mo:⛔`).
-  func runQuery(spec : ObjectSpec) : [CandidValue] {
-    let propReader = switch spec {
-      case (#obj { class_ = _; container = _; key = #property name }) lookupPropReader name;
-      case _ trap "AE: outer key not #property";
-    };
-    let predicate = switch spec {
-      case (#obj { class_ = _; container; key = _ }) {
-        switch container {
-          case (#obj { class_ = _; container = _; key = #test e }) e;
-          case _ trap "AE: container not #test";
-        }
-      };
-      case _ trap "AE: spec not #obj";
-    };
-    var count = 0;
-    for (c in clients.vals()) if (evalBoolExpr(predicate, c)) count += 1;
-    let buf = Array_init<CandidValue>(count, #null_);
-    var i = 0;
-    for (c in clients.vals()) {
-      if (evalBoolExpr(predicate, c)) { buf[i] := propReader.read c; i += 1 };
-    };
-    Array_tabulate<CandidValue>(count, func(j : Nat) : CandidValue = buf[j])
-  };
-
-  // every client's yearly income whose country == "Germany"
-  // and 45 <= age <= 55
-  func _germanMidlifeClientIncome() : ObjectSpec {
-    let predicate : BoolExpr =
-      #and_ (
-        #compare { prop = "country"; op = #eq; value = #text "Germany" },
-        #and_ (
-          #compare { prop = "age"; op = #ge; value = #int32 45 },
-          #compare { prop = "age"; op = #le; value = #int32 55 }));
-    let clients : ObjectSpec = #obj {
-      class_ = "client";
-      container = #root;
-      key = #test predicate;
-    };
-    #obj {
-      class_ = "property";
-      container = clients;
-      key = #property "yearlyIncome";
-    };
   };
 
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
@@ -290,6 +215,18 @@ persistent actor {
       if (a.fourcc == fourcc and a.form == form) return ?a;
     };
     null
+  };
+
+  // listSmurf: terminal collection of pre-computed specs.  Its toDesc
+  // renders as the AE `list` data descriptor.  No accessors — once a
+  // list of values has been materialised, no further navigation.
+  func listSmurf(elems : [ObjectSpec]) : Smurf = {
+    blob        = func() : Blob = "";
+    class4cc    = "";
+    accessors   = [];
+    toDesc      = func() : ObjectSpec = #list elems;
+    filter      = func _ = notFoundSmurf;
+    isNotFound  = false;
   };
 
   // Wraps a single Client as an existential Smurf. toDesc closes over `parent`
@@ -397,11 +334,45 @@ persistent actor {
     public let  class4cc                   = classCC;
     // 'pcnt' is the AE generic-property "count" — `count of <collection>`.
     // Resolution is a #value(#int32) data descriptor.
-    public let  accessors  : [Accessor]    = [{
-      form   = #named;
-      fourcc = "pcnt";
-      lookUp = func _ = ValueSmurf(#int32 (intToInt32Wrap (cardinality())));
-    }];
+    //
+    // 'prop' is the property-projection accessor: `<propName> of every <elem>`.
+    // Maps the requested property across matched elements, returning a list
+    // Smurf.  Entirely protocol-driven — uses `wrap` + `findAccessor` on
+    // each element Smurf, no per-T schema baked into the collection.
+    public let  accessors  : [Accessor]    = [
+      {
+        form   = #named;
+        fourcc = "pcnt";
+        lookUp = func _ = ValueSmurf(#int32 (intToInt32Wrap (cardinality())));
+      },
+      {
+        form   = #named;
+        fourcc = "prop";
+        lookUp = func(_ : Smurf, key : LookupKey) : Smurf =
+          switch key {
+            case (#named propName) {
+              let count = cardinality();
+              let buf = Array_init<ObjectSpec>(count, #root);
+              var i = 0;
+              for (t in source.vals()) {
+                let m = switch pred { case null true; case (?p) evalPred(p, t) };
+                if m {
+                  let elem = wrap(t, parent);
+                  switch (findAccessor(elem, propName, #named)) {
+                    case (?propAcc) {
+                      buf[i] := propAcc.lookUp(elem, #named propName).toDesc();
+                    };
+                    case null ();      // leave #root sentinel — TODO error
+                  };
+                  i += 1;
+                };
+              };
+              listSmurf(Array_tabulate<ObjectSpec>(count, func j = buf[j]))
+            };
+            case _ notFoundSmurf;
+          };
+      },
+    ];
     public func toDesc() : ObjectSpec {
       let count = cardinality();
       let buf = Array_init<ObjectSpec>(count, #root);
@@ -422,14 +393,27 @@ persistent actor {
     public let isNotFound = false;
   };
 
-  // The canister's root Smurf. Hosts two "clnt" accessors over the stable
-  // clients array — one #indexed and one #named (lookup by primary key).
+  // The canister's root Smurf. Hosts three "clnt" accessors over the stable
+  // clients array — one #indexed, one #named (lookup by primary key), one
+  // #test (returns a filtered CollectionSmurf).  The #test accessor closes
+  // over evalBoolExpr — the per-entity-typed predicate evaluator — so the
+  // library never sees BoolExpr semantics.
   transient let actorSmurf : Smurf = {
     blob        = func() : Blob = "";
     class4cc    = "";
     accessors   = [
       VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
       VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
+      {
+        form   = #test;
+        fourcc = "clnt";
+        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+          switch key {
+            case (#test pred)
+              CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, evalBoolExpr, ?pred);
+            case _ notFoundSmurf;
+          };
+      },
     ];
     toDesc      = func() : ObjectSpec = #root;
     // Root has no own attributes — predicate doesn't apply, fall through.
@@ -896,6 +880,69 @@ persistent actor {
     spec
   };
 
+  // ============================================================
+  // Object support library — data-model-agnostic ObjectSpec walker.
+  //
+  // Knows nothing about Client / "clnt" / "name".  Walks the spec
+  // tree, asks each parent Smurf for an accessor matching
+  // (class_, form-of-key), and delegates lookup to the accessor.
+  // ============================================================
+
+  // Spec-side KeyForm → runtime Accessor.form.  Multiple spec forms
+  // collapse to the existing 3-way accessor form (`#named` covers
+  // both navigation-by-name and property projection — the bench
+  // convention until the protocol grows a `#property` form).
+  func formOfKey(k : KeyForm) : { #indexed; #named; #test } =
+    switch k {
+      case (#absolutePosition _) #indexed;
+      case (#name _)             #named;
+      case (#uniqueID _)         #named;
+      case (#property _)         #named;
+      case (#range _)            #indexed;
+      case (#test _)             #test;
+    };
+
+  // Spec-side KeyForm → runtime LookupKey for the matched accessor.
+  // Returns `null` for keyforms not (yet) representable in LookupKey.
+  func lookupOfKey(k : KeyForm) : ?LookupKey =
+    switch k {
+      case (#absolutePosition i) ?(#indexed i);
+      case (#name n)             ?(#named n);
+      case (#property p)         ?(#named p);
+      case (#test e)             ?(#test e);
+      case (#uniqueID _)         null;
+      case (#range _)            null;
+    };
+
+  // Walk the spec from `root`.  Synchronous for now; promote to
+  // `async*` once a Smurf actually crosses an IC-call boundary
+  // (M0033 currently rejects `async* Smurf` since Smurf's function
+  // fields aren't shared).
+  func resolve(spec : ObjectSpec, root : Smurf) : Smurf {
+    switch spec {
+      case (#root) root;
+      case (#value _ or #list _)
+        trap "AE: non-navigable spec at navigation position";
+      case (#obj { class_; container; key }) {
+        let parent = resolve(container, root);
+        if (parent.isNotFound) return notFoundSmurf;
+        let form = formOfKey(key);
+        let ?lk = lookupOfKey(key)
+          else trap "AE: unsupported keyform (uniqueID/range)";
+        let ?acc = findAccessor(parent, class_, form)
+          else return notFoundSmurf;
+        acc.lookUp(parent, lk)
+      };
+    }
+  };
+
+  // Library entry point: resolve, then ask the result Smurf to
+  // render itself back as a spec for the wire encoder.
+  func eval(spec : ObjectSpec, root : Smurf) : ObjectSpec {
+    let target = resolve(spec, root);
+    target.toDesc()
+  };
+
   // Tiny demo: drive `actorSmurf.accessors[0].lookUp` ("clnt", #indexed i)
   // and return the resulting clientSmurf's stable reference (toDesc).
   // Negative i counts from the end (AppleScript convention).
@@ -953,26 +1000,13 @@ persistent actor {
     spec
   };
 
+  // Public entry point: hand the spec to the library; let the
+  // (data-model-agnostic) walker resolve it against the root Smurf.
+  // Errors propagate as traps; the actor's caller sees them as
+  // ingress rejects.
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
-    debugPrint(debug_show { stage = "db"; size = dbSize; matchers = countMatchers() });
-    switch (extractPredicate spec) {
-      case (?e) {
-        let (h0, c0) = counters();
-        let n = countMatchersDecoded e;
-        let (h1, c1) = counters();
-        debugPrint(debug_show { stage = "eval"; matchers = n; heap = h1 - h0; cycles = c1 - c0 });
-      };
-      case null debugPrint("AE: no predicate to evaluate");
-    };
-    let (qh0, qc0) = counters();
-    let result = runQuery spec;
-    let (qh1, qc1) = counters();
-    debugPrint(debug_show { stage = "query"; count = result.size(); heap = qh1 - qh0; cycles = qc1 - qc0; values = result });
-    // round-trip visibility: encode `spec`, decode the result, print it
-    let roundtrip = parseTopLevel(Reader((encodeAE spec).vals()));
-    debugPrint(debug_show { stage = "roundtrip"; decoded = roundtrip });
-    spec
+    eval(spec, actorSmurf)
   };
 }
 
@@ -982,6 +1016,9 @@ persistent actor {
 //CALL ingress tiny2 0x4449444c0001710c48616e73204dc3bc6c6c6572
 //CALL ingress tiny3 0x4449444c000171064672616e6365
 //CALL ingress tiny4 0x4449444c000171064672616e6365
+
+// every client's yearly income whose country == "Germany"
+// and 45 <= age <= 55
 //CALL ingress go 0x646c6532000000006f626a200000026e000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004696e636f66726f6d6f626a200000022a000000040000000077616e747479706500000004636c6e74666f726d656e756d000000047465737473656c646c6f6769000001ea00000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001c600000002000000006c6f67690000013600000002000000006c6f6763656e756d00000004414e44207465726d6c697374000001120000000200000000636d70640000008200000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c647479706500000004636e747266726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a32757478740000000e004700650072006d0061006e0079636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043e3d20206f626a326c6f6e67000000040000002d636d70640000007800000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c6474797065000000046167652066726f6d65786d6e0000000072656c6f656e756d000000043c3d20206f626a326c6f6e67000000040000003766726f6d6e756c6c00000000
 
 //SKIP run
