@@ -392,15 +392,15 @@ persistent actor {
     }
   };
 
-  // listSmurf — the Functor's lifted view.  Wraps a list of already-
+  // smurfMap — the Functor's lifted view.  Wraps a list of already-
   // built Smurfs and synthesises a *distributive* accessor for every
   // (fourcc, form) pair any element exposes.  Each distributive
   // lookUp forwards the key to each element's matching accessor,
   // skipping silent misses (AppleScript-lenient), and re-wraps the
-  // resulting [Smurf] in another listSmurf — recursive `fmap`.
+  // resulting [Smurf] in another smurfMap — recursive `fmap`.
   // toDesc renders #list of each element's toDesc.  filter is left
   // as notFound for now (predicate-over-Smurf isn't in scope yet).
-  func listSmurf(parent : Smurf, elements : [Smurf]) : Smurf {
+  func smurfMap(parent : Smurf, elements : [Smurf]) : Smurf {
     // Collect distinct (fourcc, form) pairs across all elements.
     // Upper bound on count = sum of element accessor sizes; we then
     // tabulate to the actual unique-count.
@@ -436,7 +436,7 @@ persistent actor {
             };
           };
           let results = Array_tabulate<Smurf>(present, func j = resBuf[j]);
-          listSmurf(par, results)
+          smurfMap(par, results)
         };
       }
     });
@@ -641,7 +641,7 @@ persistent actor {
         switch key {
           case (#named propName) {
             // Project propName across each matching element and wrap
-            // the resulting [Smurf] in a listSmurf — Functor lift, so
+            // the resulting [Smurf] in a smurfMap — Functor lift, so
             // subsequent navigation (e.g. `nth char of every name`)
             // distributes through.
             let count = cardinality();
@@ -657,7 +657,7 @@ persistent actor {
               };
             };
             let results = Array_tabulate<Smurf>(present, func j = resBuf[j]);
-            listSmurf(par, results)
+            smurfMap(par, results)
           };
           case _ notFoundSmurf par;
         };
