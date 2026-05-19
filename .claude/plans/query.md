@@ -378,9 +378,9 @@ The object-support library is **data-model-agnostic**.  It knows
 nothing about the canister's entities — the sole way it learns
 about them is by asking Smurfs via their common interface.
 
-1. **Smurfs self-describe.** A Smurf exposes `accessors`, `class4cc`,
-   `toDesc`, `isNotFound`, `filter` (and `blob` for Candid-backed
-   children).  Those six fields are the library's entire surface.
+1. **Smurfs self-describe.** A Smurf exposes `class4cc`, `accessors`,
+   `toDesc`, `filter`.  Those four fields are the library's entire
+   surface.
 
 2. **Accessors own navigation.** `Accessor.lookUp(parent, key)` is
    opaque to the library.  The accessor decides whether the result
@@ -390,16 +390,47 @@ about them is by asking Smurfs via their common interface.
    returns one Smurf whose `toDesc` renders as `#list`.  Iteration
    lives inside the collection-Smurf — the library never iterates.
 
-4. **Property leaves are Smurfs.** Property projection across a
-   collection is a `"prop"` accessor on the collection-Smurf; given
-   `#named propName` it iterates source, calls `wrap`, finds the
-   element's named-accessor, gathers the resulting `ValueSmurf`s
-   into a `listSmurf`.  Single-entity property reads end at a
-   `ValueSmurf` whose `toDesc` is `#value(...)`.
+4. **Property leaves are Smurfs.** Single-entity property reads
+   end at a `ValueSmurf` whose `toDesc` is `#value(...)`.
+   Property *projection* across a collection is the `"prop"`
+   accessor on a `CollectionSmurf`; it iterates source, calls
+   `wrap`, finds each element's named-accessor, and gathers the
+   resulting `Smurf`s into a `smurfMap` (see below).
 
-5. **Errors propagate via `notFoundSmurf`** (`isNotFound = true`,
-   `toDesc = #root`).  Type-level mismatches the library can't
+5. **Errors propagate via `notFoundSmurf`** (empty accessors,
+   throwing `toDesc`).  Type-level mismatches the library can't
    honour (`#uniqueID`, `#range` today) trap.
+
+### Two collection shapes: 1→many vs many→many
+
+The bench has two kinds of "list of Smurfs", and the distinction
+matters because they map to the two AppleScript composition
+patterns:
+
+| | `CollectionSmurf<T>` (**1→many**) | `smurfMap` (**many→many**) |
+|---|---|---|
+| Origin | `actorSmurf.#test` over `[T]` | `CollectionSmurf.#prop/#named` broadcast |
+| Backing | `[T]` (raw, typed) | `[Smurf]` (already-wrapped) |
+| Parent context | one (the spec's container) | many (one per element) |
+| `#test` (filter) | typed predicate over `T` — cheap | none today; would need predicate-over-Smurf |
+| Accessor surface | curated + inherited from parent | distributive — union of elements' accessors |
+| Composition | predicates AND-compose | functorial map across N contexts |
+| AS pattern | `every X whose P` | `every X of every Y` |
+
+`smurfMap(parent, elements)` is the Functor's lifted view: for every
+`(fourcc, form)` pair *any* element exposes, it synthesises a
+distributive accessor whose `lookUp` forwards the key to each
+element's matching accessor and re-wraps the resulting `[Smurf]`
+into another `smurfMap` — recursive `fmap`.  That's what makes
+`third character of name of every client` compose: each
+navigation step lifts through.
+
+The typed-fast-path naturally lives in `CollectionSmurf` and not
+in `smurfMap` because the broadcast wraps each element via
+`wrap : T -> Smurf` — the raw `[T]` is *lost* the moment we cross
+that boundary.  Predicates over a `smurfMap` would have to
+structurally navigate each element (heavyweight) instead of
+poking the raw value directly.  We defer that.
 
 The library reduces to:
 
@@ -422,12 +453,10 @@ methods return `async*`:
 
 ```motoko
 type Smurf* = {
-  blob       : ()       -> async* Blob;
-  class4cc   : Text;
-  accessors  : [Accessor*];
-  toDesc     : ()       -> async* ObjectSpec;
-  filter     : BoolExpr -> async* Smurf*;
-  isNotFound : Bool;
+  class4cc  : Text;
+  accessors : [Accessor*];
+  toDesc    : ()       -> async* ObjectSpec;
+  filter    : BoolExpr -> async* Smurf*;
 };
 ```
 
