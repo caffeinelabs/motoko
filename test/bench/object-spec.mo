@@ -1399,10 +1399,10 @@ persistent actor {
     result
   };
 
-  // tiny12 — `client "Anne Martin" of (every client whose country is
+  // tiny12 — `client "Paul Dubois" of (every client whose country is
   // "France")`.  Exercises #named inheritance on CollectionSmurf<Client>:
   //   #root → French CollectionSmurf
-  //         → #named "Anne Martin" → namedLookup over the filtered view
+  //         → #named "Paul Dubois" → namedLookup over the filtered view
   //         → clientSmurf(parent = CollectionSmurf)
   // The result's toDesc wraps the picked client with its parent #list
   // context — same wire shape as tiny10's reply, just keyed by #name
@@ -1417,7 +1417,7 @@ persistent actor {
           container = #root;
           key       = #test (#compare { prop = "cntr"; op = #eq; value = #text "France" });
         };
-        key       = #name "Anne Martin";
+        key       = #name "Paul Dubois";
       };
     let result = await* eval(spec, actorSmurf);
     debugPrint(debug_show { stage = "tiny12" });
