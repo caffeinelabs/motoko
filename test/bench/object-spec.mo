@@ -287,7 +287,16 @@ persistent actor {
       blob        = func() : Blob = to_candid (c);
       class4cc    = "clnt";
       accessors   = [
-        clientPropAccessor("name", c, func c = #text (c.name)),
+        // "name" returns a SmartLeaf — the full-name text plus a schema
+        // exposing "fiNa"/"laNa" sub-properties (parsed on demand).
+        {
+          form   = #named;
+          fourcc = "name";
+          lookUp = func _ = smartValueSmurf(c.name, [
+            ("fiNa", func t = #text (firstWord t)),
+            ("laNa", func t = #text (lastWord t)),
+          ]);
+        },
         clientPropAccessor("cntr", c, func c = #text (c.country)),
         clientPropAccessor("age ", c, func c = #int32 (c.age)),
         clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
@@ -336,6 +345,51 @@ persistent actor {
     var i = 0;
     for (c in t.chars()) { buf[i] := c; i += 1 };
     Array_tabulate<Char>(n, func j = buf[j])
+  };
+
+  // Trivial ASCII parsers used by the SmartLeaf nameSchema.  Both
+  // single-pass over `.chars()`.
+  func firstWord(t : Text) : Text {
+    var result : Text = "";
+    label l for (c in t.chars()) {
+      if (c == ' ') break l;
+      result #= charToText c;
+    };
+    result
+  };
+
+  func lastWord(t : Text) : Text {
+    var result : Text = "";
+    for (c in t.chars()) {
+      if (c == ' ') result := ""
+      else result #= charToText c;
+    };
+    result
+  };
+
+  // SmartLeaf: a `ValueSmurf(#text …)` augmented with a schema of
+  // typed sub-properties (e.g. firstName/lastName parsers over a
+  // full-name text).  Forwards blob/class4cc/toDesc/filter to the
+  // wrapped ValueSmurf; only the accessor list grows.  Schema accessors
+  // are `#named` so they fire on `key = #property <fourcc>` navigation.
+  func smartValueSmurf(text : Text, schema : [(Text, Text -> CandidValue)]) : Smurf {
+    let base = ValueSmurf(#text text);
+    let schemaAccs : [Accessor] = Array_tabulate<Accessor>(schema.size(), func i {
+      let (fourcc, parse) = schema[i];
+      { form = #named; fourcc; lookUp = func _ = ValueSmurf(parse text) }
+    });
+    let total = base.accessors.size() + schemaAccs.size();
+    let combined : [Accessor] = Array_tabulate<Accessor>(total, func i =
+      if (i < base.accessors.size()) base.accessors[i]
+      else schemaAccs[i - base.accessors.size()]
+    );
+    {
+      blob       = base.blob;
+      class4cc   = base.class4cc;
+      accessors  = combined;
+      toDesc     = base.toDesc;
+      filter     = base.filter;
+    }
   };
 
   // Wraps a single Char as a Smurf.  One property accessor: "uppr"
@@ -1345,6 +1399,39 @@ persistent actor {
     result
   };
 
+  // tiny11 — SmartLeaf demo: `firstName of name of (first client whose
+  // country is "France")`.  Pure structural navigation — no firstName
+  // ever touches the predicate evaluator.  Walks:
+  //   #root → CollectionSmurf<Client> (France filter)
+  //         → first French client (#absolutePosition 1)
+  //         → SmartLeaf wrapping ValueSmurf(#text c.name)
+  //         → "fiNa" accessor → ValueSmurf(#text "Anne")
+  //         → toDesc → #value (#text "Anne")
+  (with encoder)
+  public func tiny11() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "fiNa";
+        container = #obj {
+          class_    = "name";
+          container = #obj {
+            class_    = "clnt";
+            container = #obj {
+              class_    = "clnt";
+              container = #root;
+              key       = #test (#compare { prop = "cntr"; op = #eq; value = #text "France" });
+            };
+            key       = #absolutePosition 1;
+          };
+          key       = #property "name";
+        };
+        key       = #property "fiNa";
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny11" });
+    result
+  };
+
   // tiny9 — deep query:
   //   `every character of name of fifth client whose upperCase is true`.
   // Four-layer walk, predicate at the char level:
@@ -1395,8 +1482,10 @@ persistent actor {
 // tiny9 — deep query (`every char ... whose isUpper`).
 //CALL ingress tiny9 0x4449444c0000
 // tiny10 — nested filter (`first ... whose ... of every ... whose ...`)
-// — exposes the missing #test inheritance on CollectionSmurf.
+// — uses #test inheritance on CollectionSmurf.
 //CALL ingress tiny10 0x4449444c0000
+// tiny11 — SmartLeaf demo (`firstName of name of first French client`).
+//CALL ingress tiny11 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
