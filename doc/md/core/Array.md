@@ -105,6 +105,24 @@ Runtime: O(size)
 
 Space: O(1)
 
+## Function `toBlob`
+``` motoko no-repl
+func toBlob(self : [Nat8]) : Blob
+```
+
+Creates a `Blob` from an array of bytes (`[Nat8]`), by copying each element.
+
+```motoko include=import
+let bytes : [Nat8] = [0, 255, 0];
+let blob = Array.toBlob(bytes);
+assert blob == "\00\FF\00";
+assert bytes.toBlob() == "\00\FF\00";
+```
+
+Runtime: O(size)
+
+Space: O(size)
+
 ## Function `equal`
 ``` motoko no-repl
 func equal<T>(self : [T], other : [T], equal : (implicit : (T, T) -> Bool)) : Bool
