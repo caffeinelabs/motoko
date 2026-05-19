@@ -26,6 +26,7 @@ import {
   error;
   charIsUppercase;
   charToText;
+  charToNat32;
 } = "mo:⛔";
 
 persistent actor {
@@ -65,6 +66,15 @@ persistent actor {
     #list : [ObjectSpec];          // 'list' descriptor (typeAEList): N nested descriptors
   };
 
+  // Credit card.  Primary key is the Nat `number`.  Each client owns
+  // 0–2 cards (deterministic by `i % 3`).
+  type CreditCard = {
+    number     : Nat;        // primary key
+    nameOnCard : Text;
+    validity   : Text;       // "MM/YY"
+    cvv        : Nat32;
+  };
+
   // Mock client DB. Deterministic generation tuned for ~30% match rate
   // against the running query (country=="Germany" AND 45<=age<=55):
   // 60% land in Germany (i % 5 < 3), 50% have age in [45,55] (offset
@@ -74,6 +84,7 @@ persistent actor {
     country : Text;
     age : Int32;
     yearlyIncome : Int32;
+    cards : [CreditCard]; // 0–2 cards per client; numbers unique across the DB
   };
 
   let dbSize : Nat = 100;
@@ -85,6 +96,13 @@ persistent actor {
   let frenchFirstNames : [Text] = ["Jean", "Marie", "Pierre", "Anne", "Michel", "Claire", "Henri", "Sophie", "Paul", "Camille"];
   let frenchLastNames  : [Text] = ["Martin", "Bernard", "Dubois", "Petit", "Moreau", "Leroy", "Roux", "Vincent", "Fournier", "Girard"];
 
+  // 2-digit zero-padded text — "07", "12", etc.  Used for MM and YY
+  // pieces of a card's validity field.
+  func twoDigits(n : Nat) : Text {
+    let m = n % 100;
+    if (m < 10) "0" # debug_show m else debug_show m
+  };
+
   let clients : [Client] = Array_tabulate<Client>(dbSize, func(i : Nat) : Client {
     let inGermany = i % 5 < 3;
     let ageOffset = (i * 13) % 22;     // 0..21, spread by *13
@@ -92,11 +110,26 @@ persistent actor {
     let lasts  = if inGermany germanLastNames  else frenchLastNames;
     let firstName = firsts[i % firsts.size()];
     let lastName  = lasts[(i / firsts.size()) % lasts.size()];
+    let fullName = firstName # " " # lastName;
+    // 0–2 cards per client; numbers are 16-digit Visa-shaped Nats
+    // unique across the DB by construction.
+    let cardCount = i % 3;
+    let cards : [CreditCard] = Array_tabulate<CreditCard>(cardCount, func(j : Nat) : CreditCard {
+      let mm = (i + j) % 12 + 1;
+      let yy = 26 + (i % 5);
+      {
+        number     = 4_111_111_111_110_000 + i * 10 + j;
+        nameOnCard = fullName;
+        validity   = twoDigits mm # "/" # twoDigits yy;
+        cvv        = intToNat32Wrap(100 + (i * 13 + j * 17) % 900);
+      }
+    });
     {
-      name = firstName # " " # lastName;
+      name = fullName;
       country = if inGermany "Germany" else "France";
       age = intToInt32Wrap(35 + ageOffset);     // 35..56
       yearlyIncome = intToInt32Wrap(50000 + i * 1000);
+      cards;
     }
   });
 
@@ -108,6 +141,19 @@ persistent actor {
       if (other.name == c.name) count += 1;
     };
     if (count != 1) trap("AE: primary key '" # c.name # "' appears " # debug_show count # " times");
+  };
+
+  // Same sanity for card numbers across the whole DB.
+  for (c in clients.vals()) {
+    for (card in c.cards.vals()) {
+      var seen = 0;
+      for (other in clients.vals()) {
+        for (otherCard in other.cards.vals()) {
+          if (otherCard.number == card.number) seen += 1;
+        };
+      };
+      if (seen != 1) trap("AE: card number " # debug_show card.number # " appears " # debug_show seen # " times");
+    };
   };
 
   // PropReader: a typed accessor for one Client property, indexed by the
@@ -150,6 +196,12 @@ persistent actor {
       case (#int32 x, #ge, #int32 y) x >= y;
       case (#bool  x, #eq, #bool  y) x == y;
       case (#bool  x, #ne, #bool  y) x != y;
+      case (#nat   x, #eq, #nat   y) x == y;
+      case (#nat   x, #ne, #nat   y) x != y;
+      case (#nat   x, #lt, #nat   y) x <  y;
+      case (#nat   x, #gt, #nat   y) x >  y;
+      case (#nat   x, #le, #nat   y) x <= y;
+      case (#nat   x, #ge, #nat   y) x >= y;
       case _ trap "AE: cmp type mismatch";
     }
   };
@@ -295,6 +347,21 @@ persistent actor {
         clientPropAccessor("cntr", c, func c = #text (c.country)),
         clientPropAccessor("age ", c, func c = #int32 (c.age)),
         clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
+        // Card navigation: indexed and predicate.  Cards aren't
+        // addressable by name (#named) — selective inheritance on
+        // any CollectionSmurf<CreditCard> built off this client will
+        // mirror only #indexed, never #named.
+        VarAccessor<CreditCard>(c.cards, "card", #indexed, cardSmurf, func k = debug_show k.number),
+        {
+          form   = #test;
+          fourcc = "card";
+          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+            switch key {
+              case (#test pred)
+                CollectionSmurf<CreditCard>(c.cards, "card", par, cardSmurf, evalCardPred, func k = debug_show k.number, ?pred);
+              case _ notFoundSmurf par;
+            };
+        },
       ];
       toDesc      = func() : async* ObjectSpec {
         #obj {
@@ -305,6 +372,72 @@ persistent actor {
       };
       // Singleton filter: predicate against the typed Client; pass-or-empty.
       filter      = func p = if (evalBoolExpr(p, c)) self else notFoundSmurf self;
+    };
+    self
+  };
+
+  // "Today" used by cardIsValid — hardcoded since the bench doesn't
+  // link the IC time primitive.  (MM, YY).
+  let today : (Nat, Nat) = (5, 26);
+
+  // Digit char → 0..9 value.
+  func digitOfChar(c : Char) : Nat = nat32ToNat (charToNat32 c) - 48;
+
+  // Computed: card's expiry MM/YY is at or after `today`.
+  func cardIsValid(card : CreditCard) : Bool {
+    let chars = arrayOfChars (card.validity);
+    let mm = digitOfChar(chars[0]) * 10 + digitOfChar(chars[1]);
+    let yy = digitOfChar(chars[3]) * 10 + digitOfChar(chars[4]);
+    let (tMM, tYY) = today;
+    yy > tYY or (yy == tYY and mm >= tMM)
+  };
+
+  // Card-level predicate stack.  Parallel to the Client/Char ones.
+  // "vald" is the *computed* validity boolean — not a stored field.
+  transient let cardPropReaders : [(Text, CreditCard -> CandidValue)] = [
+    ("cnum", func c = #nat   (c.number)),
+    ("noac", func c = #text  (c.nameOnCard)),
+    ("vali", func c = #text  (c.validity)),
+    ("cvv ", func c = #int32 (nat32ToInt32 (c.cvv))),
+    ("vald", func c = #bool  (cardIsValid c)),
+  ];
+
+  func lookupCardPropReader(fourcc : Text) : CreditCard -> CandidValue {
+    for ((fcc, r) in cardPropReaders.vals()) if (fcc == fourcc) return r;
+    trap ("AE: no CardPropReader for " # fourcc)
+  };
+
+  func evalCardPred(e : BoolExpr, c : CreditCard) : Bool {
+    switch e {
+      case (#and_ (a, b)) evalCardPred(a, c) and evalCardPred(b, c);
+      case (#or_  (a, b)) evalCardPred(a, c) or  evalCardPred(b, c);
+      case (#not_ a)      not (evalCardPred(a, c));
+      case (#compare { prop; op; value }) cmp(lookupCardPropReader(prop) c, op, value);
+    }
+  };
+
+  // Wraps a single CreditCard as a Smurf.  Five property accessors —
+  // four storage fields + the computed "vald".  toDesc keys by the
+  // numeric primary key, rendered as text for #name (the bench's
+  // encoder has no #uniqueID yet; #name is structurally equivalent).
+  func cardSmurf(card : CreditCard, parent : Smurf) : Smurf {
+    let self : Smurf = {
+      class4cc    = "card";
+      accessors   = [
+        { form = #named; fourcc = "cnum"; lookUp = func _ = ValueSmurf(#nat   (card.number)) },
+        { form = #named; fourcc = "noac"; lookUp = func _ = ValueSmurf(#text  (card.nameOnCard)) },
+        { form = #named; fourcc = "vali"; lookUp = func _ = ValueSmurf(#text  (card.validity)) },
+        { form = #named; fourcc = "cvv "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32 (card.cvv))) },
+        { form = #named; fourcc = "vald"; lookUp = func _ = ValueSmurf(#bool  (cardIsValid card)) },
+      ];
+      toDesc      = func() : async* ObjectSpec {
+        #obj {
+          class_    = self.class4cc;
+          container = await* parent.toDesc();
+          key       = #name (debug_show card.number);
+        }
+      };
+      filter      = func p = if (evalCardPred(p, card)) self else notFoundSmurf self;
     };
     self
   };
@@ -1552,6 +1685,31 @@ persistent actor {
     result
   };
 
+  // tiny20 — `cards of client 42`.  All cards of the 42nd client,
+  // no predicate.  The bench has no `#every` keyform yet, so we use
+  // `#test (tautology)` — `P or (not P)` — which always passes; the
+  // resulting CollectionSmurf<CreditCard> contains every card.
+  (with encoder)
+  public func tiny20() : async ObjectSpec {
+    let allTrue : BoolExpr = #or_ (
+      #compare { prop = "vald"; op = #eq; value = #bool true },
+      #compare { prop = "vald"; op = #ne; value = #bool true }
+    );
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "card";
+        container = #obj {
+          class_    = "clnt";
+          container = #root;
+          key       = #absolutePosition 42;
+        };
+        key       = #test allTrue;
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny20" });
+    result
+  };
+
   // tiny9 — deep query:
   //   `every character of name of fifth client whose upperCase is true`.
   // Four-layer walk, predicate at the char level:
@@ -1615,6 +1773,8 @@ persistent actor {
 // tiny14 — aspirational distributive (`3rd char of name of every French
 // client`) — exposes non-navigable broadcast-result Smurf.
 //CALL ingress tiny14 0x4449444c0000
+// tiny20 — `cards of client 42` (all cards of the 42nd client).
+//CALL ingress tiny20 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
