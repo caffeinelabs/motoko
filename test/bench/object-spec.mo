@@ -845,10 +845,9 @@ persistent actor {
 
     let inner : Smurf = CollectionSmurf<E>(flat, classCC, parent, wrap, evalPred, getName, pred);
 
-    public let class4cc  = inner.class4cc;
-    public let accessors = inner.accessors;
+    public let {class4cc; accessors}  = inner;
     public func toDesc() : async* ObjectSpec { await* inner.toDesc() };
-    public func filter(p : BoolExpr) : Smurf { inner.filter(p) };
+    public func filter(p : BoolExpr) : Smurf { inner.filter p };
   };
 
   // The canister's root Smurf. Hosts three "clnt" accessors over the stable
