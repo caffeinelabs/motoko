@@ -3,9 +3,11 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import remarkIncludeFile from "./plugins/remark-include-file.mjs";
 import remarkHeadingId from "./plugins/remark-heading-id.mjs";
+import rehypeExternalLinks from "./plugins/rehype-external-links.mjs";
 
 export default defineConfig({
   markdown: {
+    rehypePlugins: [rehypeExternalLinks],
     remarkPlugins: [remarkHeadingId, remarkIncludeFile],
   },
   integrations: [
@@ -134,11 +136,6 @@ export default defineConfig({
           label: "ICP features",
           collapsed: true,
           autogenerate: { directory: "icp-features" },
-        },
-        {
-          label: "Tooling",
-          collapsed: true,
-          autogenerate: { directory: "motoko-tooling" },
         },
         {
           label: "Reference",
