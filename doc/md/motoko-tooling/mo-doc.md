@@ -1,45 +1,42 @@
 ---
-sidebar_position: 3
+title: "Generating Motoko documentation"
+description: "mo-doc is a command-line tool for generating documentation for Motoko source code in HTML, Markdown, or AsciiDoc format."
+sidebar:
+  order: 3
 ---
-
-# Generating Motoko documentation
 
 `mo-doc` is a command-line tool for generating documentation for Motoko source code. It processes source files and generates documentation in various formats.
 
-Download `mo-doc` from Motoko's [GitHub releases page](https://github.com/dfinity/motoko/releases) or simply use the binary included in your [dfx](https://github.com/dfinity/sdk) installation:
-
-``` bash
-$(dfx cache show)/mo-doc [options]
-```
+Download `mo-doc` from Motoko's [GitHub releases page](https://github.com/caffeinelabs/motoko/releases).
 
 ### Generate in HTML format (default)
 
 ```bash
-$(dfx cache show)/mo-doc
+mo-doc
 ```
 
 ### Generate in Markdown format
 
-```
-$(dfx cache show)/mo-doc --format plain
+```bash
+mo-doc --format plain
 ```
 
 ### Generate in AsciiDoc format
 
-```
-$(dfx cache show)/mo-doc --format adoc
+```bash
+mo-doc --format adoc
 ```
 
 ### Use a custom source code directory (defaults to `src`)
 
-```
-$(dfx cache show)/mo-doc --src path/to/motoko/files
+```bash
+mo-doc --src path/to/motoko/files
 ```
 
 ### Use a custom output directory (defaults to `docs`)
 
-```
-$(dfx cache show)/mo-doc --output path/to/custom/output
+```bash
+mo-doc --output path/to/custom/output
 ```
 
 ## Options
@@ -65,13 +62,13 @@ $(dfx cache show)/mo-doc --output path/to/custom/output
    mo-doc
    ```
 
-2. Generate AsciiDoc documentation from a specific source directory:
+2. Generate Markdown documentation from a specific source directory:
 
    ```bash
    mo-doc --format plain --source ./motoko-code
    ```
 
-3. Generate Markdown documentation in a custom output directory:
+3. Generate AsciiDoc documentation in a custom output directory:
 
    ```bash
    mo-doc --format adoc --output ./public
@@ -97,7 +94,7 @@ func factorial(n : Nat) : ?Nat {
 ```
 
 ## Resources
-Check out Motoko's [core package source code](https://github.com/dfinity/motoko-core/tree/main/src) for additional examples and best practices.
 
-The source code for `mo-doc` is available in the [dfinity/motoko](https://github.com/dfinity/motoko/tree/master/src/docs) GitHub repository. Contributions are welcome!
+Check out Motoko's [core package source code](https://github.com/caffeinelabs/motoko-core/tree/main/src) for additional examples and best practices.
 
+The source code for `mo-doc` is available in the [caffeinelabs/motoko](https://github.com/caffeinelabs/motoko/tree/master/src/docs) GitHub repository. Contributions are welcome!

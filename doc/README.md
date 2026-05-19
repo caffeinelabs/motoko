@@ -1,24 +1,26 @@
-# Building the documentation locally
+# Motoko documentation
 
-You can build the basic documentation locally as follows:
+Source for the Motoko language documentation at
+[https://docs.internetcomputer.org/languages/motoko/](https://docs.internetcomputer.org/languages/motoko/).
 
+Content lives in `doc/md/` and is synced to the consumer site via a plain rsync — no post-processing pipeline needed.
+
+## Previewing locally
+
+`doc/site/` is a self-contained Starlight site that renders `doc/md/` with the same navigation and ICP brand styling as the consumer site.
+
+```bash
+cd doc/site
+npm install
+npm run dev
+# open http://localhost:4321
 ```
-make
-python3 -m http.server --directory html
-# now open http://0.0.0.0:8000/motoko.html
+
+To validate the build (catches broken file embeds and config errors):
+
+```bash
+npm run build
 ```
-
-CI pushes these docs for latest master to
-[https://hydra.dfinity.systems/job/dfinity-ci-build/motoko/docs/latest/download/1/overview-slides.html](https://hydra.dfinity.systems/job/dfinity-ci-build/motoko/docs/latest/download/1/overview-slides.html).
-
-## Published documentation
-
-The canonical Motoko language documentation is published at
-[https://docs.internetcomputer.org/languages/motoko/](https://docs.internetcomputer.org/languages/motoko/)
-and synced from `doc/md/` in this repository.
-
-The documentation uses [Starlight](https://starlight.astro.build/) on the consumer site.
-Code fences use `no-repl` to indicate static syntax-highlighted blocks.
 
 ## Code fence conventions
 
@@ -26,6 +28,22 @@ Code fences use `no-repl` to indicate static syntax-highlighted blocks.
 |---|---|
 | ```` ```motoko no-repl ```` | Static syntax-highlighted Motoko code (most common) |
 | ```` ```motoko file=<motokoExamples>/foo.mo ```` | Embed a `.mo` example file from `doc/md/examples/` |
+| ```` ```motoko file=<motokoExamples>/foo.mo#L10-L20 ```` | Embed specific lines from an example file |
 | ```` ```md file=<motokoRoot>/Changelog.md ```` | Inline the root `Changelog.md` as rendered prose |
 
-`<motokoExamples>` and `<motokoRoot>` are placeholders resolved by the consumer site's build plugin.
+`<motokoExamples>` resolves to `doc/md/examples/`.
+`<motokoRoot>` resolves to the repository root (where `Changelog.md` lives).
+
+Both placeholders are resolved by `doc/site/plugins/remark-include-file.mjs` locally and by the consumer site's equivalent plugin at build time.
+
+## Pandoc fallback
+
+For a lightweight HTML snapshot without Node.js:
+
+```bash
+make
+python3 -m http.server --directory html
+# open http://0.0.0.0:8000/motoko.html
+```
+
+This uses pandoc and produces a basic unstyled preview. The Starlight preview above is preferred for reviewing content as it will appear on the live site.

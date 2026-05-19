@@ -1,0 +1,84 @@
+---
+title: "Canpack"
+description: "Canpack is a code generation tool that simplifies calling Rust crates from Motoko canisters."
+sidebar:
+  order: 1
+---
+
+Canpack is a code generation tool designed to simplify communication across canisters written in different languages. It currently supports calling a Rust crate from Motoko code. Canpack generates a separate canister for the host language, then combines the other language's code fragments that are defined across different libraries.
+
+Canpack supports the [Mops](https://mops.one/) package manager.
+
+:::caution
+Canpack is still in early development. Breaking changes may be introduced at any time.
+:::
+
+## Installation
+
+**Prerequisites:**
+
+- [Install the ICP development environment](https://docs.internetcomputer.org/getting-started/).
+- [Download and install Rust](https://doc.rust-lang.org/book/ch01-01-installation.html).
+- Add the WebAssembly target: `rustup target add wasm32-unknown-unknown`
+
+Then, install the Canpack CLI using `npm`:
+
+```
+npm install -g canpack
+```
+
+## Using Canpack
+
+In a project directory that contains a `dfx.json` and `mops.toml` file, create a new file called `canpack.json` with the following content:
+
+```json
+{
+    "canisters": {
+        "motoko_rust": {
+            "type": "rust",
+            "parts": [{
+                "package": "canpack-example-hello",
+                "version": "^0.1"
+            }]
+        }
+    }
+}
+```
+
+Then, generate the required files:
+
+```bash
+canpack
+```
+
+In the project's `dfx.json` file, configure the `"dependencies"` for your project's Motoko canister:
+
+```json
+{
+    "canisters": {
+        "my_project_backend": {
+            "dependencies": ["motoko_rust"],
+            "main": "src/my_project_backend/main.mo",
+            "type": "motoko"
+        }
+    },
+}
+```
+
+Then, to write a Motoko canister that imports Rust crates, import `Rust` from the `motoko_rust` canister:
+
+```motoko no-repl
+import Rust "canister:motoko_rust";
+
+actor {
+    public composite query func hello(name : Text) : async Text {
+        await Rust.canpack_example_hello(name)
+    }
+}
+```
+
+Motoko canisters can import any Rust crate that is compatible with Canpack. Canpack supports any ICP Wasm-compatible crate.
+
+## Resources
+
+Canpack is open to [contributions](https://github.com/dfinity/canpack/blob/main/.github/CONTRIBUTING.md) and encourages you to report bugs, ask questions, or request features using the project's [GitHub issues](https://github.com/dfinity/canpack/issues).

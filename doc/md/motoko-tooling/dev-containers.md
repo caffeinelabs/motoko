@@ -1,11 +1,11 @@
 ---
-sidebar: 2
-hide_table_of_contents: true
+title: "Developer containers"
+description: "Developer containers use Docker and VS Code to provide a portable, isolated local development environment for Motoko canisters."
+sidebar:
+  order: 2
 ---
 
-# Developer containers
-
-Developer containers are a local development option that uses [Docker](https://www.docker.com/get-started/) and [VS Code](https://code.visualstudio.com/) to run local containerized environments. Containers are isolated from the rest of your local environment, and files within a container cannot be used by applications outside of the container unless explicitly mounted and given access. Developer containers are a good option for developers on Windows systems, since `dfx` is not natively supported for local development on Windows.
+Developer containers are a local development option that uses [Docker](https://www.docker.com/get-started/) and [VS Code](https://code.visualstudio.com/) to run local containerized environments. Containers are isolated from the rest of your local environment, and files within a container cannot be used by applications outside of the container unless explicitly mounted and given access. Developer containers are a good option for developers on Windows systems, since the ICP development environment is not natively supported on Windows.
 
 Dev containers have additional benefits, including:
 
@@ -32,7 +32,7 @@ Make sure Docker is running, then navigate into your project's directory. Create
   "forwardPorts": [4943, 5173],
   "portsAttributes": {
     "4943": {
-      "label": "dfx",
+      "label": "icp",
       "onAutoForward": "ignore"
     },
     "5173": {
