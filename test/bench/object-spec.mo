@@ -316,6 +316,7 @@ persistent actor {
     parent   : Smurf,
     wrap     : (T, Smurf) -> Smurf,
     evalPred : (BoolExpr, T) -> Bool,
+    getName  : T -> Text,                   // for #named lookup over the filtered view
     pred     : ?BoolExpr,
   ) {
     func cardinality() : Nat {
@@ -327,14 +328,64 @@ persistent actor {
       n
     };
 
+    func passes(t : T) : Bool =
+      switch pred { case null true; case (?p) evalPred(p, t) };
+
+    // Inherited element accessors (same identity as the parent's
+    // VarAccessor<T> for this classCC, but iterating the filtered local
+    // view instead of the full stable [T]).  Position math mirrors
+    // VarAccessor exactly: 1-based, negative-from-end.
+    func indexedLookup(par : Smurf, key : LookupKey) : Smurf =
+      switch key {
+        case (#indexed i) {
+          let total = cardinality();
+          let target : Nat =
+            if (i > 0) abs i
+            else if (i < 0 and abs i <= total) total - abs i + 1
+            else 0;
+          if (target == 0 or target > total) notFoundSmurf par
+          else {
+            var seen : Nat = 0;
+            var result : Smurf = notFoundSmurf par;
+            label l for (t in source.vals()) {
+              if (passes t) {
+                seen += 1;
+                if (seen == target) { result := wrap(t, par); break l };
+              };
+            };
+            result
+          }
+        };
+        case _ notFoundSmurf par;
+      };
+
+    func namedLookup(par : Smurf, key : LookupKey) : Smurf =
+      switch key {
+        case (#named target) {
+          var result : Smurf = notFoundSmurf par;
+          label l for (t in source.vals()) {
+            if (passes t and getName t == target) {
+              result := wrap(t, par); break l;
+            };
+          };
+          result
+        };
+        case _ notFoundSmurf par;
+      };
+
     public func blob() : Blob              = "";
     public let  class4cc                   = classCC;
-    // 'pcnt' is the AE generic-property "count" — `count of <collection>`.
-    // 'prop' is the property-projection accessor: `<propName> of every <elem>`.
-    // Maps the requested property across matched elements, returning a list
-    // Smurf.  Entirely protocol-driven — uses `wrap` + `findAccessor` on
-    // each element Smurf, no per-T schema baked into the collection.
+    // First two accessors are "inherited" — same (classCC, #indexed/#named)
+    // identity as the parent VarAccessor<T>, but resolving over the
+    // filtered local view so navigation composes with prior #test
+    // filters.  Last two are collection-only:
+    //   'pcnt' — `count of <collection>`.
+    //   'prop' — `<propName> of every <elem>`: maps the requested
+    //            property across matched elements via `findAccessor`
+    //            on each child Smurf (no per-T schema baked in).
     public let  accessors  : [Accessor]    = [
+      { form = #indexed; fourcc = classCC; lookUp = indexedLookup },
+      { form = #named;   fourcc = classCC; lookUp = namedLookup   },
       {
         form   = #named;
         fourcc = "pcnt";
@@ -358,8 +409,7 @@ persistent actor {
                   let buf = Array_init<ObjectSpec>(count, #root);
                   var i = 0;
                   for (t in source.vals()) {
-                    let m = switch pred { case null true; case (?p) evalPred(p, t) };
-                    if m {
+                    if (passes t) {
                       let elem = wrap(t, parent);
                       switch (findAccessor(elem, propName, #named)) {
                         case (?propAcc) {
@@ -385,8 +435,7 @@ persistent actor {
       let buf = Array_init<ObjectSpec>(count, #root);
       var i = 0;
       for (t in source.vals()) {
-        let m = switch pred { case null true; case (?p) evalPred(p, t) };
-        if m { buf[i] := await* wrap(t, parent).toDesc(); i += 1 };
+        if (passes t) { buf[i] := await* wrap(t, parent).toDesc(); i += 1 };
       };
       #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
     };
@@ -395,7 +444,7 @@ persistent actor {
         case null ?p;
         case (?old) ?(#and_ (old, p));
       };
-      CollectionSmurf<T>(source, classCC, parent, wrap, evalPred, newPred)
+      CollectionSmurf<T>(source, classCC, parent, wrap, evalPred, getName, newPred)
     };
   };
 
@@ -416,7 +465,7 @@ persistent actor {
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#test pred)
-              CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, evalBoolExpr, ?pred);
+              CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, evalBoolExpr, func c = c.name, ?pred);
             case _ notFoundSmurf parent;
           };
       },
@@ -430,7 +479,7 @@ persistent actor {
   // accessor on actorSmurf; for now exposed top-level so tiny3 can route
   // through `filter` without inventing a new accessor form.
   transient let clntCollection : Smurf =
-    CollectionSmurf<Client>(clients, "clnt", actorSmurf, clientSmurf, evalBoolExpr, null);
+    CollectionSmurf<Client>(clients, "clnt", actorSmurf, clientSmurf, evalBoolExpr, func c = c.name, null);
 
   class Reader(src : Iter<Nat8>) {
     public let next = src.next;
@@ -1101,7 +1150,12 @@ persistent actor {
   public func tiny8(pos : Int, country : Text) : async ObjectSpec {
     let spec : ObjectSpec =
       #obj {
-        class_    = "prop";   // see tiny6 — outer wrapper for "<prop> of …" is "prop".
+        // Singleton property access (the position-picked client is a
+        // single clientSmurf, not a collection): bench convention uses
+        // the typed property class here, matching tiny2's shape.  The
+        // collection-broadcast `class_ = "prop"` (tiny6/tiny7) only
+        // applies when the container is a CollectionSmurf.
+        class_    = "name";
         container = #obj {
           class_    = "clnt";
           container = #obj {
