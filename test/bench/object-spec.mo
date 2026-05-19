@@ -49,7 +49,8 @@ persistent actor {
     #and_ : (BoolExpr, BoolExpr);
     #or_ : (BoolExpr, BoolExpr);
     #not_ : BoolExpr;
-    #always : Bool;     // literal; used by the OSL when resolving #every
+    #always;            // synthetic literal-true; used only by the OSL
+                        // when resolving #every.  Not in the AE spec.
   };
 
   type KeyForm = {
@@ -60,7 +61,7 @@ persistent actor {
     #range : (ObjectSpec, ObjectSpec);
     #test : BoolExpr;
     #every;             // semantically "every element of <container>"; OSL
-                        // resolves via the #test accessor with `#always true`.
+                        // resolves via the #test accessor with `#always`.
   };
 
   type ObjectSpec = {
@@ -215,7 +216,7 @@ persistent actor {
       case (#and_ (a, b)) evalBoolExpr(a, c) and evalBoolExpr(b, c);
       case (#or_  (a, b)) evalBoolExpr(a, c) or  evalBoolExpr(b, c);
       case (#not_ a)      not (evalBoolExpr(a, c));
-      case (#always b)    b;
+      case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
     }
   };
@@ -418,7 +419,7 @@ persistent actor {
       case (#and_ (a, b)) evalCardPred(a, c) and evalCardPred(b, c);
       case (#or_  (a, b)) evalCardPred(a, c) or  evalCardPred(b, c);
       case (#not_ a)      not (evalCardPred(a, c));
-      case (#always b)    b;
+      case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupCardPropReader(prop) c, op, value);
     }
   };
@@ -466,7 +467,7 @@ persistent actor {
       case (#and_ (a, b)) evalCharPred(a, c) and evalCharPred(b, c);
       case (#or_  (a, b)) evalCharPred(a, c) or  evalCharPred(b, c);
       case (#not_ a)      not (evalCharPred(a, c));
-      case (#always b)    b;
+      case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupCharPropReader(prop) c, op, value);
     }
   };
@@ -1200,7 +1201,7 @@ persistent actor {
       case (#and_ (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
       case (#or_  (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
       case (#not_ a)      52 + boolExprDescLen a;
-      case (#always _)    trap "AE: #always is OSL-internal, not wire-encodable";
+      case (#always)      trap "AE: #always is OSL-internal, not wire-encodable";
       case (#compare { prop = _; op = _; value }) 116 + valueDescLen value;
     }
   };
@@ -1425,7 +1426,7 @@ persistent actor {
       case (#name n)             ?(#named n);
       case (#property p)         ?(#named p);
       case (#test e)             ?(#test e);
-      case (#every)              ?(#test (#always true));   // resolve-time rewrite
+      case (#every)              ?(#test (#always));        // resolve-time rewrite
       case (#uniqueID _)         null;
       case (#range _)            null;
     };
