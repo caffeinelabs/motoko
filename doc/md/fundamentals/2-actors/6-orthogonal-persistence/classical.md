@@ -12,7 +12,7 @@ Upon upgrade, the classical orthogonal persistence mechanism serializes all stab
 * Shared immutable heap objects can duplicated, leading to potential state explosion on upgrades.
 * Deeply nested structures can lead to a call stack overflow.
 * The serialization and deserialization is expensive and can hit ICP's instruction limits.
-* There is no built-in stable compatibility check in the runtime system. If users ignore the `dfx` upgrade warning, data may be lost or an upgrade fails.
+* There is no built-in stable compatibility check in the runtime system. If users ignore the `icp` upgrade warning, data may be lost or an upgrade fails.
 
 :::danger
 The above-mentioned issues can lead to a stuck canister that can no longer be upgraded.
@@ -29,14 +29,16 @@ previously available only with `moc` compiler flag `--enhanced-orthogonal-persis
 
 Users unwilling or unable to migrate their code can re-enable support for classical orthogonal persistence using the new compiler flag `--legacy-persistence`.
 
-To re-activate classical orthogonal persistence under `dfx`, the following command-line argument needs to be specified in `dfx.json`:
+To re-activate classical orthogonal persistence under `icp`, the following command-line argument needs to be specified in `icp.yaml`:
 
-```
-...
-    "type" : "motoko"
-    ...
-    "args" : "--legacy-persistence"
-...
+```yaml
+canisters:
+  - name: my_canister
+    recipe:
+      type: "@dfinity/motoko@v4.1.0"
+      configuration:
+        main: src/my_canister/main.mo
+        args: "--legacy-persistence"
 ```
 :::
 

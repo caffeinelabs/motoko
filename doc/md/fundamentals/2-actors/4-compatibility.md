@@ -11,7 +11,7 @@ When upgrading a canister, it is important to verify that the upgrade can procee
 -   Introducing an incompatible change in stable declarations.
 -   Breaking clients due to a Candid interface change.
 
-`dfx` checks these properties statically before attempting the upgrade.
+`icp` checks these properties statically before attempting the upgrade.
 Moreover, with [enhanced orthogonal persistence](./6-orthogonal-persistence/enhanced.md), Motoko rejects incompatible changes of stable declarations.
 
 ## Upgrade example
@@ -129,14 +129,14 @@ This is to guarantee that the stable state is always kept safe.
 Error from Canister ...: Canister called `ic0.trap` with message: RTS error: Memory-incompatible program upgrade.
 ```
 
-In addition to Motoko's runtime check, `dfx` raises a warning message for these incompatible changes, including the breaking Candid change.
+In addition to Motoko's runtime check, `icp` raises a warning message for these incompatible changes, including the breaking Candid change.
 
 Motoko tolerates Candid interface changes, since these are more likely to be intentional, breaking changes.
 
 :::danger
-Versions of Motoko using [classical orthogonal persistence](./6-orthogonal-persistence/classical.md) will drop the state and reinitialize the counter with `0.0`, if the `dfx` warning is ignored.
+Versions of Motoko using [classical orthogonal persistence](./6-orthogonal-persistence/classical.md) will drop the state and reinitialize the counter with `0.0`, if the `icp` warning is ignored.
 
-For this reason, users should always heed any compatibility warnings issued by `dfx`.
+For this reason, users should always heed any compatibility warnings issued by `icp`.
 :::
 
 
@@ -284,7 +284,7 @@ The `actor` section after the chain lists the final stable fields, just like a V
 
 ### How compatibility is checked
 
-When upgrading from one version to another, `dfx` and `moc --stable-compatible` compare the old and new stable signatures:
+When upgrading from one version to another, `icp` and `moc --stable-compatible` compare the old and new stable signatures:
 
 - **Old Version 4.0.0 to new Version 4.0.0:** The post-signature (final `actor` fields) of the old code must be compatible with the pre-signature of the new code. The pre-signature of the new code is derived by walking backward through its migration chain: the last unapplied migration determines which fields must be present. Migrations that were already applied (present in the old signature's chain) are skipped automatically.
 
@@ -343,15 +343,15 @@ The upgrade from the second to the third signature is valid: migration `02_Chang
 
 ## Upgrade tooling
 
-`dfx` incorporates an upgrade check. For this purpose, it uses the Motoko compiler (`moc`) that supports:
+`icp` incorporates an upgrade check. For this purpose, it uses the Motoko compiler (`moc`) that supports:
 
 -   `moc --stable-types …​`: Emits stable types to a `.most` file.
 
 -   `moc --stable-compatible <pre> <post>`: Checks two `.most` files for upgrade compatibility.
 
-Motoko embeds `.did` and `.most` files as Wasm custom sections for use by `dfx` or other tools. The `--stable-compatible` check works across all [stable signature versions](#stable-signature-versions) (1.0.0, 3.0.0, and 4.0.0), so `dfx` can verify compatibility regardless of the migration style used by either version.
+Motoko embeds `.did` and `.most` files as Wasm custom sections for use by `icp` or other tools. The `--stable-compatible` check works across all [stable signature versions](#stable-signature-versions) (1.0.0, 3.0.0, and 4.0.0), so `icp` can verify compatibility regardless of the migration style used by either version.
 
-To upgrade e.g. from `cur.wasm` to `nxt.wasm`, `dfx` checks that both the Candid interface and stable variables are compatible:
+To upgrade e.g. from `cur.wasm` to `nxt.wasm`, `icp` checks that both the Candid interface and stable variables are compatible:
 
 ```
 didc check nxt.did cur.did  // nxt <: cur
@@ -371,7 +371,7 @@ cannot be consumed at new type
 With [enhanced orthogonal persistence](./6-orthogonal-persistence/enhanced.md), compatibility errors of stable variables are always detected in the runtime system and if failing, the upgrade is safely rolled back.
 
 :::danger
-With [classical orthogonal persistence](./6-orthogonal-persistence/classical.md), however, an upgrade attempt from `v2.wasm` to `v3.wasm` is unpredictable and may lead to partial or complete data loss if the `dfx` warning is ignored.
+With [classical orthogonal persistence](./6-orthogonal-persistence/classical.md), however, an upgrade attempt from `v2.wasm` to `v3.wasm` is unpredictable and may lead to partial or complete data loss if the `icp` warning is ignored.
 :::
 
 ## Adding record fields
@@ -390,7 +390,7 @@ to *incompatible* stable type interface:
 
 ### Problem
 
-When trying this upgrade, `dfx` issues the following warning:
+When trying this upgrade, `icp` issues the following warning:
 
 ```
 Stable interface compatibility check issued an ERROR for canister ...
@@ -428,7 +428,7 @@ There are two solutions: using a sequence of simple upgrades, or the second, rec
 ``` motoko no-repl file=../../examples/Card-v1b.mo
 ```
 
-`dfx` will issue a warning that `map` will be dropped.
+`icp` will issue a warning that `map` will be dropped.
 
 Make sure you have previously migrated the old state to `newMap` before applying this final reduced version.
 

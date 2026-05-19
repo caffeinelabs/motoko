@@ -10,9 +10,9 @@ import { OsType, useOs } from "/src/hooks/useOs";
 
 Follow these steps to set up your local Motoko development environment.
 
-### 1. Install the IC SDK
+### 1. Install icp-cli and Mops
 
-To develop Motoko projects, you need the [Motoko compiler (`moc`)](https://github.com/dfinity/motoko/releases). The Internet Computer Software Development Kit (IC SDK) includes the latest version of `moc` along with utilities for creating, deploying, and managing applications.
+To develop Motoko projects, you need [icp-cli](https://github.com/dfinity/icp-cli) for deploying and managing canisters, and [Mops](https://mops.one/) as the Motoko package manager. Mops also manages the Motoko compiler (`moc`) via its toolchain — icp-cli's Motoko recipe invokes `moc` through `mops toolchain bin moc`.
 
 <AdornedTabs defaultValue={useOs().current}>
 <TabItem value={OsType.Linux} label="Linux">
@@ -22,20 +22,19 @@ To develop Motoko projects, you need the [Motoko compiler (`moc`)](https://githu
 <input type="checkbox"/> Open a terminal window.
 <div>
 </div>
-<input type="checkbox"/> Download and <a href="https://nodejs.org/en/download/package-manager">install Node.js</a>.
+<input type="checkbox"/> Download and <a href="https://nodejs.org/en/download/package-manager">install Node.js</a> (version 22 or later).
 
 ---------
 
 ```bash
-sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm ic-mops
 ```
 
-To customize your IC SDK installation, you can use the interactive installation prompt or set [environment variables](/building-apps/developer-tools/dfx/dfx-envars) for a terminal session.
-
-Confirm the IC SDK has been installed (you may need to open a new terminal window):
+Confirm the tools have been installed:
 
 ```bash
-dfx --version
+icp --version
+mops --version
 ```
 
 </TabItem>
@@ -46,7 +45,7 @@ dfx --version
 <input type="checkbox"/> Open a terminal window.
 <div>
 </div>
-<input type="checkbox"/> Download and <a href="https://nodejs.org/en/download/package-manager">install Node.js</a>. Using <a href="https://brew.sh/"> HomeBrew </a> is recommended.
+<input type="checkbox"/> Download and <a href="https://nodejs.org/en/download/package-manager">install Node.js</a> (version 22 or later). Using <a href="https://brew.sh/"> HomeBrew </a> is recommended.
 <div>
 </div>
 <input type="checkbox"/> Apple silicon machines: Download and install Rosetta: <code>softwareupdate --install-rosetta</code>
@@ -54,15 +53,14 @@ dfx --version
 ---------
 
 ```bash
-sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm ic-mops
 ```
 
-To customize your IC SDK installation, you can use the interactive installation prompt or set [environment variables](/building-apps/developer-tools/dfx/dfx-envars) for a terminal session.
-
-Confirm the IC SDK has been installed (you may need to open a new terminal window):
+Confirm the tools have been installed:
 
 ```bash
-dfx --version
+icp --version
+mops --version
 ```
 
 </TabItem>
@@ -71,7 +69,7 @@ dfx --version
 
 #### Prerequisites
 
-`dfx` is not natively supported on Windows. You will need to install a Linux instance via Windows Subsystem for Linux and run all commands within that Linux instance.
+`icp` requires WSL for local development on Windows. You will need to install a Linux instance via Windows Subsystem for Linux and run all commands within that Linux instance.
 
 <input type="checkbox"/> Download and install <a href="https://docs.microsoft.com/en-us/windows/wsl/install"> Windows Subsystem for Linux</a>.
 <div>
@@ -85,20 +83,19 @@ dfx --version
 <input type="checkbox"/> Open the WSL Linux environment. Run all following commands within this environment.
 <div>
 </div>
-<input type="checkbox"/> Download and <a href="https://learn.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl">install Node.js</a> within your WSL Linux environment.
+<input type="checkbox"/> Download and <a href="https://learn.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl">install Node.js</a> (version 22 or later) within your WSL Linux environment.
 
 ---------
 
 ```bash
-sh -ci "$(curl -fsSL https://internetcomputer.org/install.sh)"
+npm install -g @icp-sdk/icp-cli @icp-sdk/ic-wasm ic-mops
 ```
 
-To customize your IC SDK installation, you can use the interactive installation prompt or set [environment variables](/building-apps/developer-tools/dfx/dfx-envars) for a terminal session.
-
-Confirm the IC SDK has been installed (you may need to open a new terminal window):
+Confirm the tools have been installed:
 
 ```bash
-dfx --version
+icp --version
+mops --version
 ```
 
 </TabItem>
@@ -156,4 +153,3 @@ Develop cross-chain applications and integrate directly with other blockchains.
 - **[Motoko core package](./core/index.md)**
 
 - **[Motoko example projects](https://github.com/dfinity/examples/tree/master/motoko)**
-

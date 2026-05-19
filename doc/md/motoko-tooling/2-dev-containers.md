@@ -5,7 +5,7 @@ hide_table_of_contents: true
 
 # Developer containers
 
-Developer containers are a local development option that uses [Docker](https://www.docker.com/get-started/) and [VS Code](https://code.visualstudio.com/) to run local containerized environments. Containers are isolated from the rest of your local environment, and files within a container cannot be used by applications outside of the container unless explicitly mounted and given access. Developer containers are a good option for developers on Windows systems, since `dfx` is not natively supported for local development on Windows.
+Developer containers are a local development option that uses [Docker](https://www.docker.com/get-started/) and [VS Code](https://code.visualstudio.com/) to run local containerized environments. Containers are isolated from the rest of your local environment, and files within a container cannot be used by applications outside of the container unless explicitly mounted and given access. Developer containers are a good option for developers on Windows systems, since `icp` requires WSL for local development on Windows.
 
 Dev containers have additional benefits, including:
 
@@ -29,10 +29,10 @@ Make sure Docker is running, then navigate into your project's directory. Create
 {
   "name": "ICP Dev Environment",
   "image": "ghcr.io/dfinity/icp-dev-env-slim:latest",
-  "forwardPorts": [4943, 5173],
+  "forwardPorts": [8000, 5173],
   "portsAttributes": {
-    "4943": {
-      "label": "dfx",
+    "8000": {
+      "label": "icp",
       "onAutoForward": "ignore"
     },
     "5173": {

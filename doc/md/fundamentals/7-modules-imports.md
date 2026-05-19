@@ -66,7 +66,7 @@ import Render "mo:redraw/Render";
 import Mono5x5 "mo:redraw/glyph/Mono5x5";
 ```
 
-You can define dependencies for a project using a package manager or in the project `dfx.json` configuration file.
+You can define dependencies for a project using a package manager or in the project `icp.yaml` configuration file.
 
 In this example, the `Render` module is in the default location for source code in the `redraw` package and the `Mono5x5` module is in a `redraw` package subdirectory called `glyph`.
 
@@ -74,19 +74,7 @@ In this example, the `Render` module is in the default location for source code 
 
 Modules can also be imported from other packages, such as those imported from a package manager.
 
-Dependencies are managed using a package manager or defined in the project's `dfx.json` file. Motoko supports package managers like [Mops](https://mops.one/) to install third-party libraries.
-
-### Configuring the package manager in `dfx.json`
-
-```json
-{
-  "defaults": {
-    "build": {
-      "packtool": "mops sources"
-    }
-  }
-}
-```
+Dependencies are managed using a package manager or defined in the project's `icp.yaml` file. Motoko supports package managers like [Mops](https://mops.one/) to install third-party libraries.
 
 ### Installing a package with a package manager
 
@@ -97,6 +85,16 @@ Then import the package into your Motoko code:
 ```motoko no-repl
 import Vec "mo:vector";
 ```
+
+:::tip Pinning the Motoko compiler version
+Mops manages the `moc` compiler used to build your project. You can pin a specific version by adding a `[toolchain]` section to your `mops.toml`:
+
+```toml
+[toolchain]
+moc = "0.15.1"
+```
+:::
+
 
 ## Naming imported modules
 
@@ -117,7 +115,7 @@ import BigMap "canister:BigMap";
 import Connectd "canister:Connectd";
 ```
 
-`BigMap` and `Connectd` are separate canisters defined in `dfx.json`. Canister functions are shared and may require `await` to call them.
+`BigMap` and `Connectd` are separate canisters defined in `icp.yaml`. Canister functions are shared and may require `await` to call them.
 
 Unlike a Motoko module, an imported canister:
 
@@ -125,21 +123,21 @@ Unlike a Motoko module, an imported canister:
 - Has its type derived from a `.did` file, not from Motoko itself.
 
 :::danger
-When importing from another canister, the canister must be listed as a dependency in the importing canister's `dfx.json`. These must both:
+When importing from another canister, both canisters must be defined in the same `icp.yaml` project file.
 
-1. Be listed in the `dependencies` array of `my_canister`.
-2. Have their own canister definitions specified elsewhere in the same file.
-
-```json
-{
-  "canisters": {
-    "my_canister": {
-      "main": "src/my_canister/main.mo",
-      "type": "motoko",
-      "dependencies": ["BigMap", "Connectd"]
-    }
-  }
-}
+```yaml
+canisters:
+  - name: my_canister
+    recipe:
+      type: "@dfinity/motoko@v4.1.0"
+      configuration:
+        main: src/my_canister/main.mo
+  - name: BigMap
+    recipe:
+      # BigMap canister definition
+  - name: Connectd
+    recipe:
+      # Connectd canister definition
 ```
 
 :::
