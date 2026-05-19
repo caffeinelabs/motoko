@@ -4,10 +4,11 @@ import starlight from "@astrojs/starlight";
 import remarkIncludeFile from "./plugins/remark-include-file.mjs";
 import remarkHeadingId from "./plugins/remark-heading-id.mjs";
 import rehypeExternalLinks from "./plugins/rehype-external-links.mjs";
+import rehypeRewriteLinks from "./plugins/rehype-rewrite-links.mjs";
 
 export default defineConfig({
   markdown: {
-    rehypePlugins: [rehypeExternalLinks],
+    rehypePlugins: [rehypeExternalLinks, rehypeRewriteLinks],
     remarkPlugins: [remarkHeadingId, remarkIncludeFile],
   },
   integrations: [
