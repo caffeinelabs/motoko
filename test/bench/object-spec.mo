@@ -24,6 +24,8 @@ import {
   abs;
   trap;
   error;
+  charIsUppercase;
+  charToText;
 } = "mo:⛔";
 
 persistent actor {
@@ -141,6 +143,8 @@ persistent actor {
       case (#int32 x, #gt, #int32 y) x >  y;
       case (#int32 x, #le, #int32 y) x <= y;
       case (#int32 x, #ge, #int32 y) x >= y;
+      case (#bool  x, #eq, #bool  y) x == y;
+      case (#bool  x, #ne, #bool  y) x != y;
       case _ trap "AE: cmp type mismatch";
     }
   };
@@ -203,10 +207,47 @@ persistent actor {
   // ValueSmurf: terminal leaf. Identity is its data — toDesc renders as a
   // `#value` data descriptor (utxt/long/…), not the path. If we ever want
   // path-aware leaves we'll introduce a separate ContextValueSmurf.
+  //
+  // Text-valued ValueSmurfs grow two "char"-class accessors so a text leaf
+  // remains navigable: `#indexed n` picks the n-th char; `#test pred` yields
+  // a CollectionSmurf<Char>.  Materialisation is cached once per instance
+  // (TODO: lazy iterator cache to avoid quadratic indexed access).
   class ValueSmurf(value : CandidValue) {
     public func blob() : Blob = to_candid (value);
     public let  class4cc                      = "";
-    public let  accessors   : [Accessor]      = [];
+    let chars : [Char] = switch value { case (#text t) arrayOfChars t; case _ [] };
+    public let accessors : [Accessor] = switch value {
+      case (#text _) [
+        {
+          form   = #indexed;
+          fourcc = "char";
+          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+            switch key {
+              case (#indexed i) {
+                let size = chars.size();
+                let n : Nat =
+                  if (i > 0) abs i
+                  else if (i < 0 and abs i <= size) size - abs i + 1
+                  else 0;
+                if (n == 0 or n > size) notFoundSmurf par
+                else charSmurf(chars[n - 1], par)
+              };
+              case _ notFoundSmurf par;
+            };
+        },
+        {
+          form   = #test;
+          fourcc = "char";
+          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+            switch key {
+              case (#test pred)
+                CollectionSmurf<Char>(chars, "char", par, charSmurf, evalCharPred, charToText, ?pred);
+              case _ notFoundSmurf par;
+            };
+        },
+      ];
+      case _ [];
+    };
     // Block-body syntax (`{ … }`) binds the async* scope locally and
     // avoids the M0137 outer-scope leak that `= expr` triggers.  See #6133.
     public func toDesc() : async* ObjectSpec  { #value value };
@@ -255,6 +296,66 @@ persistent actor {
       };
       // Singleton filter: predicate against the typed Client; pass-or-empty.
       filter      = func p = if (evalBoolExpr(p, c)) self else notFoundSmurf self;
+    };
+    self
+  };
+
+  // Char-level predicate stack.  Parallel to the Client one: a small
+  // table of (4cc, reader) pairs so evalCharPred can resolve a typed
+  // CandidValue from each Char without a Candid round-trip.
+  transient let charPropReaders : [(Text, Char -> CandidValue)] = [
+    ("uppr", func c = #bool (charIsUppercase c)),
+  ];
+
+  func lookupCharPropReader(fourcc : Text) : Char -> CandidValue {
+    for ((fcc, r) in charPropReaders.vals()) if (fcc == fourcc) return r;
+    trap ("AE: no CharPropReader for " # fourcc)
+  };
+
+  func evalCharPred(e : BoolExpr, c : Char) : Bool {
+    switch e {
+      case (#and_ (a, b)) evalCharPred(a, c) and evalCharPred(b, c);
+      case (#or_  (a, b)) evalCharPred(a, c) or  evalCharPred(b, c);
+      case (#not_ a)      not (evalCharPred(a, c));
+      case (#compare { prop; op; value }) cmp(lookupCharPropReader(prop) c, op, value);
+    }
+  };
+
+  // Materialise a Text as a [Char] so CollectionSmurf<Char> can iterate
+  // it like any other typed array.  Manual loop; the moc prelude exposes
+  // `.chars()` on Text but no direct `Text -> [Char]` conversion.
+  func arrayOfChars(t : Text) : [Char] {
+    var n = 0;
+    for (_ in t.chars()) n += 1;
+    let buf = Array_init<Char>(n, ' ');
+    var i = 0;
+    for (c in t.chars()) { buf[i] := c; i += 1 };
+    Array_tabulate<Char>(n, func j = buf[j])
+  };
+
+  // Wraps a single Char as a Smurf.  One property accessor: "uppr"
+  // (isUppercase).  toDesc renders as `#obj { class_ = "char"; key =
+  // #name <one-char-text> }` — using the char value as the key, since
+  // chars carry no stable index.
+  func charSmurf(c : Char, parent : Smurf) : Smurf {
+    let self : Smurf = {
+      blob        = func() : Blob = "";   // char identity is its codepoint; bench ignores
+      class4cc    = "char";
+      accessors   = [
+        {
+          form   = #named;
+          fourcc = "uppr";
+          lookUp = func _ = ValueSmurf(#bool (charIsUppercase c));
+        },
+      ];
+      toDesc      = func() : async* ObjectSpec {
+        #obj {
+          class_    = self.class4cc;
+          container = await* parent.toDesc();
+          key       = #name (charToText c);
+        }
+      };
+      filter      = func p = if (evalCharPred(p, c)) self else notFoundSmurf self;
     };
     self
   };
@@ -1180,18 +1281,17 @@ persistent actor {
     result
   };
 
-  // tiny9 — aspirational deep query:
+  // tiny9 — deep query:
   //   `every character of name of fifth client whose upperCase is true`.
-  // Stresses four layers in one walk:
-  //  (a) Client-level predicate on a non-existent property "upcs"
-  //      (we have no upperCase on Client) — first place this can trap.
-  //  (b) #absolutePosition 5 on a CollectionSmurf — works after the
-  //      selective-inheritance fix.
-  //  (c) #property "name" on the picked clientSmurf — works.
-  //  (d) `every character of <name>` — would need a CollectionSmurf<Char>
-  //      hanging off the ValueSmurf(#text …); no such Smurf exists, so
-  //      findAccessor falls through to notFound here.
-  // Expected first failure: (a) — trap "AE: no PropReader for upcs".
+  // Four-layer walk, predicate at the char level:
+  //  (a) actorSmurf #indexed "clnt" → fifth client.
+  //  (b) clientSmurf #named "name" → ValueSmurf(#text c.name).
+  //  (c) ValueSmurf(#text …) #test "char" → CollectionSmurf<Char>(chars, pred).
+  //  (d) CollectionSmurf<Char>.toDesc → #list of charSmurf-rendered chars,
+  //      each `#obj { class_ = "char"; key = #name <one-char-text> }`.
+  // Selective inheritance: the parent ValueSmurf exposes only #indexed for
+  // "char" (no #named — chars aren't addressable by name), so the resulting
+  // CollectionSmurf<Char> mirrors only #indexed.
   (with encoder)
   public func tiny9() : async ObjectSpec {
     let spec : ObjectSpec =
@@ -1201,16 +1301,12 @@ persistent actor {
           class_    = "name";
           container = #obj {
             class_    = "clnt";
-            container = #obj {
-              class_    = "clnt";
-              container = #root;
-              key       = #test (#compare { prop = "upcs"; op = #eq; value = #bool true });
-            };
+            container = #root;
             key       = #absolutePosition 5;
           };
           key       = #property "name";
         };
-        key       = #test (#compare { prop = "char"; op = #eq; value = #bool true });
+        key       = #test (#compare { prop = "uppr"; op = #eq; value = #bool true });
       };
     let result = await* eval(spec, actorSmurf);
     debugPrint(debug_show { stage = "tiny9" });
