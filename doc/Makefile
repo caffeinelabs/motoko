@@ -24,4 +24,16 @@ html:
 	for f in md/*/*.md; do pandoc -f gfm --toc -t html -s --metadata title="$$f" -o html/$$(basename $$f .md).html $$f; done
 
 
-.PHONY: html
+site-install:
+	npm --prefix site install
+
+site-dev: site-install
+	npm --prefix site run dev
+
+site-build: site-install
+	npm --prefix site run build
+
+site-preview: site-build
+	npm --prefix site run preview
+
+.PHONY: html site-install site-dev site-build site-preview
