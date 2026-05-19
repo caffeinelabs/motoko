@@ -207,7 +207,7 @@ let rec check_typ env typ : unit =
         check_con env c;
         check_typ_bounds env tbs typs no_region
       | T.Abs (tbs, _) ->
-        if not (T.ConSet.mem c env.cons) then
+        if not (T.ConSet.mem c env.cons) && not (T.is_gadt_existential c) then
           error env no_region "free type constructor %s " (T.string_of_typ typ);
         check_typ_bounds env tbs typs no_region
     end
@@ -339,7 +339,9 @@ and check_typ_binds env typ_binds : T.con list * con_env =
   cs, T.ConSet.of_list cs
 
 and check_typ_bounds env (tbs : T.bind list) typs at : unit =
-  let pars = List.length tbs in
+  let tbs_check = List.filter (fun (tb : T.bind) ->
+    match tb.T.sort with T.Existential _ -> false | _ -> true) tbs in
+  let pars = List.length tbs_check in
   let args = List.length typs in
   if pars < args then
     error env at "too many type arguments";
@@ -349,7 +351,7 @@ and check_typ_bounds env (tbs : T.bind list) typs at : unit =
     (fun tb typ ->
       check env at (sub env typ (T.open_ typs tb.T.bound))
         "type argument does not match parameter bound")
-    tbs typs
+    tbs_check typs
 
 
 and check_inst_bounds env tbs typs at =
@@ -414,6 +416,20 @@ let rec check_exp env (exp:Ir.exp) : unit =
       raise e)
 *)
   in
+  (* Path A: σ-refine the expected ambient type before construction-
+     side sub-checks.  Variant-arm σ (TagPrim) is derived structurally
+     via [derive_tag_sigma].  Top-level existential alias σ
+     (TupPrim / ObjPrim / CallPrim-return) is no longer needed here —
+     typing inlines σ into [exp.note.note_typ] at the construction
+     site, so [t = E.typ exp] is already the substituted form. *)
+  let refine_target ?(tag_info : (T.lab * T.typ) option = None) t =
+    match tag_info with
+    | None -> t
+    | Some (lab, actual) ->
+      let sigma = T.derive_tag_sigma t lab actual in
+      if T.ConEnv.is_empty sigma then t
+      else T.subst sigma (T.promote t)
+  in
   (* check for aliasing *)
   if exp.note.Note.check_run = env.check_run
   then
@@ -457,7 +473,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
             check_concrete env exp.at t_ret;
           end;
           typ exp2 <: t_arg;
-          t_ret <: t
+          t_ret <: refine_target t
         | T.Non -> () (* dead code, not much to check here *)
         | t1 -> error env exp1.at "expected function type, but expression produces type\n  %s"
              (T.string_of_typ_expand t1)
@@ -484,7 +500,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
       typ exp2 <: ot;
       T.bool <: t
     | TupPrim, exps ->
-      T.Tup (List.map typ exps) <: t
+      T.Tup (List.map typ exps) <: refine_target t
     | ProjPrim n, [exp1] ->
       let t1 = T.promote (immute_typ exp1) in
       let ts = try T.as_tup_sub n t1
@@ -499,7 +515,8 @@ let rec check_exp env (exp:Ir.exp) : unit =
     | OptPrim, [exp1] ->
       T.Opt (typ exp1) <: t
     | TagPrim i, [exp1] ->
-      T.Variant [{T.lab = i; typ = typ exp1; src = T.empty_src}] <: t
+      T.Variant [{T.lab = i; binds = []; typ = typ exp1; src = T.empty_src}]
+        <: refine_target ~tag_info:(Some (i, typ exp1)) t
     | ActorDotPrim n, [exp1]
     | DotPrim n, [exp1] ->
       begin
@@ -765,7 +782,10 @@ let rec check_exp env (exp:Ir.exp) : unit =
     let env' = adjoin env scope in
     check_decs env' ds;
     check_exp env' exp1;
-    typ exp1 <: t
+    (* M11a: σ-refine the expected [t] when this BlockE desugared from
+       an existential-bearing ObjBlockE (the σ comes from the surface
+       ObjBlockE's note). *)
+    typ exp1 <: refine_target t
   | IfE (exp1, exp2, exp3) ->
     check_exp env exp1;
     typ exp1 <: T.bool;
@@ -775,19 +795,31 @@ let rec check_exp env (exp:Ir.exp) : unit =
     typ exp3 <: t
   | SwitchE (exp1, cases) ->
     check_exp env exp1;
-    let t1 = T.promote (typ exp1) in
+    let t1_raw = typ exp1 in
+    let t1 = T.promote t1_raw in
 (*    if not env.pre then
       if not (Coverage.check_cases env.cons cases t1) then
         warn env exp.at "the cases in this switch do not cover all possible values";
  *)
-    check_cases env t1 t cases
+    check_cases env ~t_pat_raw:t1_raw t1 t cases
   | TryE (exp1, cases, vt) ->
     check env.flavor.has_await "try in non-await flavor";
     check (env.async <> None) "misplaced try";
     check_exp env exp1;
     typ exp1 <: t;
-    check_cases env T.catch t cases;
+    check_cases env ~t_pat_raw:T.catch T.catch t cases;
     Option.iter (fun (_, t) -> t <: Construct.bail_contT) vt
+  | RefineE (c, refined_t, exp1) ->
+    (* Slice-6.6: apply σ = {c ↦ refined_t} to env.vals before checking
+       the body — same machinery as variant-arm GADT refinement, just
+       sourced from an explicit (con, typ) pair. *)
+    let sigma = T.ConEnv.singleton c refined_t in
+    let env' = { env with
+      vals = T.Env.map (fun vi ->
+        { vi with typ = T.subst sigma vi.typ }) env.vals }
+    in
+    check_exp env' exp1;
+    T.subst sigma (typ exp1) <: t
   | LoopE exp1 ->
     check_exp { env with lvl = NotTopLvl } exp1;
     typ exp1 <: T.unit;
@@ -999,14 +1031,26 @@ and check_lexp env (lexp:Ir.lexp) : unit =
 
 (* Cases *)
 
-and check_cases env t_pat t cases =
-  List.iter (check_case env t_pat t) cases
+and check_cases env ~t_pat_raw t_pat t cases =
+  List.iter (check_case env ~t_pat_raw t_pat t) cases
 
-and check_case env t_pat t {it = {pat; exp}; _} =
+and check_case env ~t_pat_raw t_pat t {it = {pat; exp}; _} =
   let ve = check_pat env pat in
   check_sub env pat.at t_pat pat.note;
-  check_exp (adjoin_vals env ve) exp;
-  check env pat.at (sub env (typ exp) t) "bad case"
+  (* Path A slice 6: σ is derived on demand from
+     (scrutinee typ, arm label). *)
+  let sigma = match pat.it with
+    | Ir.TagP (lab, _) -> T.derive_case_sigma t_pat_raw lab
+    | _ -> T.ConEnv.empty
+  in
+  let t', ve' =
+    if T.ConEnv.is_empty sigma then t, ve
+    else
+      T.subst sigma t,
+      T.Env.map (fun vi -> { vi with typ = T.subst sigma vi.typ }) ve
+  in
+  check_exp (adjoin_vals env ve') exp;
+  check env pat.at (sub env (typ exp) t') "bad case"
 
 (* Arguments *)
 
@@ -1120,7 +1164,7 @@ and check_pat_fields env t = List.iter (check_pat_field env t)
 
 and check_pat_field env t (pf : pat_field) =
   let lab = pf.it.name in
-  let tf = T.{lab; typ = pf.it.pat.note; src = empty_src} in
+  let tf = T.{lab; binds = []; typ = pf.it.pat.note; src = empty_src} in
   let s, tfs = T.as_obj_sub [lab] t in
   let (<:) = check_sub env pf.it.pat.at in
   t <: T.Obj (s, [tf], []);
@@ -1129,8 +1173,24 @@ and check_pat_field env t (pf : pat_field) =
 
 and check_pat_tag env t l pat =
   let (<:) = check_sub env pat.at in
-  match T.lookup_val_field_opt l (T.as_variant_sub l t) with
-  | Some t -> t <: pat.note
+  let fs = T.as_variant_sub l t in
+  let arm_field_opt = List.find_opt (fun (f : T.field) -> T.(f.lab) = l) fs in
+  match arm_field_opt with
+  | Some arm_field ->
+    let arm_typ = arm_field.T.typ in
+    (* M11b path B: the IR scrutinee [t]'s arm payload uses schema
+       cons; [pat.note] (set by typing's check_pat after fresh-mint
+       substitution) carries fresh cons per case region.  Path A:
+       arm existentials read structurally from arm_field.binds —
+       no shallow walk needed. *)
+    let refined =
+      if T.existentials_of_binds arm_field.T.binds = [] then arm_typ
+      else
+        (match T.unify_existentials arm_typ pat.note arm_field.T.binds with
+         | Some sigma -> T.subst sigma arm_typ
+         | None -> arm_typ)
+    in
+    refined <: pat.note
   | None -> ()
 
 (* Objects *)
@@ -1153,7 +1213,7 @@ and type_exp_field env s f : T.field =
   check_sub env f.at t f.note;
   check env f.at ((s = T.Actor) ==> T.is_shared_func t)
     "public actor field must have shared function type";
-  T.{lab = name; typ = t; src = empty_src}
+  T.{lab = name; binds = []; typ = t; src = empty_src}
 
 (* Declarations *)
 
@@ -1179,7 +1239,30 @@ and check_dec env dec  =
   | LetD (pat, exp) ->
     ignore (check_pat_exhaustive env pat);
     check_exp env exp;
-    typ exp <: pat.note
+    (* Asymmetric σ-bridging at the LetD subtype check.  Exactly one
+       side carries the alias Con form for a top-level existential
+       alias; the other has been substituted to its structural form
+       (typing inlines σ for construction RHS, and via the destructure
+       path for pat.note when the pattern is TupP/ObjP).  Whichever
+       side is still in Con form gets σ-unfolded against the other
+       side before the sub-check. *)
+    let pat_typ =
+      match pat.note with
+      | T.Con (c, _) when T.is_gadt_con c ->
+        let sigma = T.derive_destructure_sigma pat.note (typ exp) in
+        if T.ConEnv.is_empty sigma then pat.note
+        else T.subst sigma (T.normalize pat.note)
+      | _ -> pat.note
+    in
+    let exp_typ =
+      match typ exp with
+      | T.Con (c, _) when T.is_gadt_con c ->
+        let sigma = T.derive_destructure_sigma (typ exp) pat.note in
+        if T.ConEnv.is_empty sigma then typ exp
+        else T.subst sigma (T.promote (typ exp))
+      | _ -> typ exp
+    in
+    exp_typ <: pat_typ
   | VarD (id, t, exp) ->
     check_exp env exp;
     typ exp <: t

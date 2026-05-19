@@ -285,6 +285,7 @@ and t_exp' env = function
         cases
     in
     TryE (t_exp env exp1, cases', vt)
+  | RefineE (c, t, exp1) -> RefineE (c, t, t_exp env exp1)
   | LoopE exp1 ->
     LoopE (t_exp env exp1)
   | LabelE (id, typ, exp1) ->

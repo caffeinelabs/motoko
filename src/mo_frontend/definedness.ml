@@ -139,6 +139,7 @@ let rec exp msgs e : f = match e.it with
   | TagE (_, e)
   | ActorUrlE e
   | IgnoreE e           -> exp msgs e
+  | RefineE (_, e)      -> exp msgs e
 
 and exps msgs es : f = unions (exp msgs) es
 
@@ -186,7 +187,8 @@ and dec msgs d = match d.it with
   | LetD (p, e, None) -> pat msgs p +++ exp msgs e
   | LetD (p, e, Some f) -> pat msgs p +++ exp msgs e +++ exp msgs f
   | VarD (i, e) -> (M.empty, S.singleton i.it) +++ exp msgs e
-  | TypD (i, tp, t) -> (M.empty, S.empty)
+  | TypD (i, tp, cs, t) -> (M.empty, S.empty)
+  | PrimTypD _ -> (M.empty, S.empty)
   | ClassD (eo, csp, s, i, tp, p, t, i', dfs) ->
      ((M.empty, S.singleton i.it) +++
      (* TBR: treatment of eo *)

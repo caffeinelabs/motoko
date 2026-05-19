@@ -61,11 +61,11 @@ and typ =
 
 and scope = typ
 
-and bind_sort = Scope | Type
+and bind_sort = Scope | Type | Existential of con | Refinement of typ | Witness
 and bind = {var : var; sort: bind_sort; bound : typ}
 
 and src = {depr : string option; track_region : region; region : region}
-and 'a gen_field = {lab : lab; typ : 'a; src : src}
+and 'a gen_field = {lab : lab; binds : bind list; typ : 'a; src : src}
 and field = typ gen_field
 and typ_field = con gen_field
 
@@ -208,6 +208,21 @@ val align_fields : 'a gen_field list -> 'a gen_field list -> ('a gen_field, 'a g
 
 val set_kind : con -> kind -> unit
 
+(** Path A slice 5: append refinement binders to a variant arm.
+    Runs at the variant-decl registration site, *after* all
+    elaboration passes have settled the cons-kind via [set_kind].
+    Gated (variant Def-kinds only), monotonic (appends, never
+    removes), and post-confluence (no later [eq_kind] check will
+    observe the change).  See the implementation note for the
+    3-phase elaboration protocol. *)
+val augment_arm_binds : con -> lab -> bind list -> unit
+
+(** HKT extension of Path A: append existential binders to a top-level
+    alias's Def kind.  Mirror of [augment_arm_binds] one layer up.
+    Existentials at the END of the bind list so type-parameter
+    instantiation via [reduce]/[open_] continues to work. *)
+val augment_def_binds : con -> bind list -> unit
+
 module ConEnv : Env.S with type key = con
 module ConSet = ConEnv.Dom
 
@@ -220,7 +235,18 @@ module S : Set.S with type elt = typ
 (* Normalization and Classification *)
 
 val normalize : typ -> typ
+(** [normalize_stop_at p t] unfolds Def kinds and strips Named/Mut
+    wrappers; the predicate [p] (when true for a Con's cons) halts
+    unfolding at that point.  Used by Path A's [path_compress] to
+    preserve GADT-bearing Cons. *)
+val normalize_stop_at : (con -> bool) -> typ -> typ
 val promote : typ -> typ
+
+(** Path A slice 6: [normalize ~stop_at:is_gadt_con] — keeps the
+    outer-Con context on [exp.note.note_typ] so IR's σ derivation
+    can recover the slot info. *)
+val is_gadt_con : con -> bool
+val path_compress : typ -> typ
 
 val opaque : typ -> bool
 val concrete : typ -> bool
@@ -261,6 +287,7 @@ and explanation =
   | IncompatibleTypes of context * typ * typ
   | IncompatibleCons of context * con * con
   | FailedPromote of typ * typ * explanation
+  | BlackHoleEscape of typ * typ
   | MissingTag of context * desc * lab * typ
   | MissingField of context * desc * lab * typ * bool
   | FewerItems of context * string
@@ -422,3 +449,76 @@ module ElideStampsAndHashes : PrettyConfig
 module MakePretty(_ : PrettyConfig) : Pretty
 
 include Pretty
+
+(** Extract `Existential c` cons from a bind list — Path A's
+    structural counterpart to the deleted [lookup_gadt_arm_existentials]. *)
+val existentials_of_binds : bind list -> con list
+val arm_existentials : con -> lab -> con list
+val arm_binds : con -> lab -> bind list
+(** Like [arm_existentials] but returns the full [bind list] for the
+    arm, with each existential's bound on its [bind.bound] slot. *)
+
+(** Extract `Refinement t` constraints from a bind list as (var, rhs)
+    pairs — Path A's structural counterpart to the deleted
+    [lookup_gadt_arm]. *)
+val refinements_of_binds : bind list -> (var * typ) list
+val arm_refinements : con -> lab -> (var * typ) list
+
+(** Path A slice 6: derive refinement σ on demand from a scrutinee
+    variant typ + arm label.  Replaces the M11a case'.gadt_sigma
+    cache — σ is a pure function of these inputs.  Returns
+    [ConEnv.empty] when t_pat isn't a Con-typed variant or the arm
+    has no refinements. *)
+val derive_case_sigma : typ -> lab -> typ ConEnv.t
+
+(** Path A slice 6: derive existential σ for a TagPrim construction
+    site.  Bridges schema cons in the expected target's arm payload
+    to fresh cons in the actual payload via [unify_existentials].
+    Replaces the variant half of M11a's [note_sigma] cache. *)
+val derive_tag_sigma : typ -> lab -> typ -> typ ConEnv.t
+
+(** Path A slice 6: derive existential σ for a non-variant
+    construction into a top-level existential alias (TupPrim /
+    ObjPrim / etc.).  Reads structurally from [Def.binds] (populated
+    by [augment_def_binds]) and unifies.  Replaces the
+    top-level-alias half of M11a's [note_sigma] cache. *)
+val derive_typd_sigma : typ -> typ -> typ ConEnv.t
+
+(** Inverse of typing's destructure-pat substitution: given the
+    schema's Con form ([target_t]) and the already-substituted
+    pat.note ([actual]), recover the schema→site σ that typing
+    minted at the pattern's region.  Replaces [gadt_refinement_at]
+    for the M11b LetD path. *)
+val derive_destructure_sigma : typ -> typ -> typ ConEnv.t
+
+val typd_existentials : con -> con list
+(** Structural list of top-level-alias existential cons for [c],
+    derived from its [Def.binds].  Returns [] for non-Def kinds and
+    for aliases without existential binders. *)
+val is_gadt_existential : con -> bool
+val fresh_destructure_skolem : Source.region -> con -> con
+(** Mint (or recall, within a `with_skolem_pool` handler frame) the
+    site-local skolem cons for a destructure-site region paired with a
+    schema existential. MUST be called from within `with_skolem_pool`;
+    otherwise the underlying [Fresh_skolem] effect goes unhandled. *)
+
+val with_skolem_pool : (unit -> 'a) -> 'a
+(** Install a per-handler memoisation pool for the [Fresh_skolem]
+    effect performed by [fresh_destructure_skolem]. The pool dies when
+    [f ()] returns; nested calls give nested pools. Typing passes wrap
+    their entry point with this so the pool's lifetime is bounded by
+    the pass. *)
+val mentions_blackhole : typ -> bool
+val unify_existentials : typ -> typ -> bind list -> typ ConEnv.t option
+(** Walk [expected] and [actual] in parallel; where [expected] has
+    [Con(c, [])] with [c] matching an [Existential] bind in the third
+    argument, record [c → <subterm of actual>] in the returned σ.
+    Enforces each existential's bound (read from the bind's [bound]
+    field — caller is responsible for opening it under the relevant
+    type-arg instantiation).  Returns [None] on conflicting candidates
+    or bound violations. *)
+val prune_gadt_variant : con -> bind list -> typ list -> field list -> field list
+val arm_compat : con list -> typ -> typ -> bool
+val monomorphise_open : con -> typ list -> typ -> typ
+val normalize_pruned : typ -> typ
+val mentions_any_con : con list -> typ -> bool

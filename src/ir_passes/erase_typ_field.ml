@@ -56,8 +56,13 @@ let transform prog =
     | Pre -> Pre
     | Weak t -> Weak (t_typ t)
 
-  and t_bind tb =
-    { tb with bound = t_typ tb.bound }
+  and t_bind (tb : T.bind) =
+    let sort' = match tb.sort with
+      | T.Existential c -> T.Existential (t_con c)
+      | T.Refinement t -> T.Refinement (t_typ t)
+      | T.Type | T.Scope | T.Witness as s -> s
+    in
+    T.{ tb with sort = sort'; bound = t_typ tb.bound }
 
   and t_binds typbinds = List.map t_bind typbinds
 
@@ -83,15 +88,15 @@ let transform prog =
 
   and t_prim p = Ir.map_prim t_typ Fun.id p
 
-  and t_field {lab; typ; src} =
-    { lab; typ = t_typ typ; src }
+  and t_field {lab; binds; typ; src} =
+    { lab; binds = List.map t_bind binds; typ = t_typ typ; src }
   in
 
   let rec t_exp (exp : exp) =
     { it = t_exp' exp;
       note = Note.{ def with
         typ = t_typ exp.note.typ;
-        eff = exp.note.eff
+        eff = exp.note.eff;
       };
       at = exp.at;
     }
@@ -118,6 +123,8 @@ let transform prog =
       AsyncE (s, t_typ_bind tb, t_exp exp1, t_typ typ)
     | TryE (exp1, cases, vt) ->
       TryE (t_exp exp1, List.map t_case cases, vt)
+    | RefineE (c, typ, exp1) ->
+      RefineE (t_con c, t_typ typ, t_exp exp1)
     | DeclareE (id, typ, exp1) ->
       DeclareE (id, t_typ typ, t_exp exp1)
     | DefineE (id, mut ,exp1) ->

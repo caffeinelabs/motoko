@@ -240,7 +240,7 @@ let optE e =
 
 let tagE i e =
  { it = PrimE (TagPrim i, [e]);
-   note = Note.{ def with typ = T.Variant [{T.lab = i; typ = typ e; src = T.empty_src}]; eff = eff e };
+   note = Note.{ def with typ = T.Variant [{T.lab = i; binds = []; typ = typ e; src = T.empty_src}]; eff = eff e };
    at = no_region;
  }
 

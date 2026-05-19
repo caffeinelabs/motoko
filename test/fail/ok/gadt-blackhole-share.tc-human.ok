@@ -1,0 +1,9 @@
+error[M0031]: shared function has non-shared parameter type
+  (e : Expr<Bool>)
+type
+  (e : Expr<Bool>)
+is or contains black-hole type
+  (B, B) -> Bool
+    ┌─ gadt-blackhole-share.mo:14:22
+ 14 │    public func receive(e : Expr<Bool>) : async () {};
+    │                       ^^^^^^^^^^^^^^^^ 

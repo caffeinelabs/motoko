@@ -1,0 +1,36 @@
+gadt-field-existential-bound-violation.mo:14.16-17.2: type error [M0096], expression of type
+  {data : (Bool, (n : Bool) -> Nat); meta : Text}
+cannot produce expected type
+  {data : (X, X -> Nat); meta : Text}
+because the type 
+  Bool
+ is not compatible with type 
+  X
+ in `data`
+gadt-field-existential-bound-violation.mo:26.23-29.2: type error [M0096], expression of type
+  {item : (Bool, (n : Bool) -> Int); tag : Text}
+cannot produce expected type
+  {item : (X, X -> Int); tag : Text}
+because the type 
+  Bool
+ is not compatible with type 
+  X
+ in `item`
+gadt-field-existential-bound-violation.mo:40.23-42.2: type error [M0096], expression of type
+  {shape : {x : Nat}}
+cannot produce expected type
+  {shape : X}
+because the type 
+  {x : Nat}
+ is not compatible with type 
+  X
+ in `shape`
+gadt-field-existential-bound-violation.mo:52.23-54.2: type error [M0096], expression of type
+  {choice : {#a; #b; #c}}
+cannot produce expected type
+  {choice : Y}
+because the type 
+  {#a; #b; #c}
+ is not compatible with type 
+  Y
+ in `choice`

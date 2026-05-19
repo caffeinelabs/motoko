@@ -1,0 +1,4 @@
+switch-type-use.mo:8.3-12.4: warning [M0145], this switch of type
+  Int
+does not cover value
+  0 or 1 or _

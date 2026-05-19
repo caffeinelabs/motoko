@@ -106,6 +106,7 @@ and exp' env e  : exp' = match e.it with
   | IfE (e1, e2, e3)    -> IfE (exp env e1, tailexp env e2, tailexp env e3)
   | SwitchE (e, cs)     -> SwitchE (exp env e, cases env cs)
   | TryE (e, cs, vt)    -> TryE (exp env e, cases env cs, vt) (* TBR *)
+  | RefineE (c, t, e)   -> RefineE (c, t, exp env e)
   | LoopE e1            -> LoopE (exp env e1)
   | LabelE (i, t, e)    -> let env1 = bind env i None in
                            LabelE(i, t, exp env1 e)

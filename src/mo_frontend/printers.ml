@@ -175,6 +175,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   (* non-terminals *)
   | X (N N_bl) -> "<bl>", "<bl>"
   | X (N N_case) -> "<case>", eg_case
+  | X (N N_typ_case) -> "<typ_case>", "case " ^ eg_typ ^ " {}"
   | X (N N_catch) -> "<catch>", "catch " ^ eg_pat ^ " {}"
   | X (N N_class_body) -> "<class_body>", "= {}"
   | X (N N_dec) -> "<dec>", eg_dec
@@ -230,6 +231,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_typ_path) -> "<path>", "A.B.C"
   | X (N N_annot_opt) -> "<annot_opt>", eg_annot
   | X (N N_seplist_case_semicolon_) -> seplist ("<case>", eg_case) semi
+  | X (N N_seplist_typ_case_semicolon_) -> seplist ("<typ_case>", "case " ^ eg_typ ^ " {}") semi
   | X (N N_seplist_dec_SEMICOLON_) -> seplist ("<dec>", eg_dec) semi2
   | X (N N_seplist_dec_semicolon_) -> seplist ("<dec>", eg_dec) semi
   | X (N N_seplist_typ_dec_semicolon_) -> seplist ("<typ_dec>", eg_typ_dec) semi
@@ -265,6 +267,12 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_typ_obj) -> "<typ_obj>", "{}"
   | X (N N_typ_pre) -> "<typ_pre>", eg_typ
   | X (N N_typ_tag) -> "<typ_tag>", eg_typ_tag
+  | X (N N_typ_constraint) -> "<typ_constraint>", "type X = T"
+  | X (N N_typ_constraint_existential) -> "<typ_constraint_existential>", "type X"
+  | X (N N_seplist1_typ_constraint_COMMA_) -> seplist ("<typ_constraint>", "type X = T") comma
+  | X (N N_seplist1_typ_constraint_existential_COMMA_) -> seplist ("<typ_constraint_existential>", "type X") comma
+  | X (N N_seplist_typ_constraint_COMMA_) -> seplist ("<typ_constraint>", "type X = T") comma
+  | X (N N_seplist_typ_constraint_existential_COMMA_) -> seplist ("<typ_constraint_existential>", "type X") comma
   | X (N N_typ_un) -> "<typ_un>", eg_typ
   | X (N N_typ_variant) -> "<typ_variant>", "{ " ^ eg_typ_tag ^ " }"
   | X (N N_vis) -> "<vis>", "public"
@@ -275,6 +283,15 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_seplist_mig_field_semicolon_) -> seplist ("<mig_field>", eg_mig_field) semi
   | X (N N_mig_lab) -> "<mig_lab>", "\"<filename>\""
   | X (N N_mig_field) -> "<mig_field>", eg_mig_field
+  | X (N N_typ_def_rhs_typ_constraint_) -> "<typ_def_rhs(typ_constraint)>", eg_typ
+  | X (N N_typ_def_rhs_typ_constraint_existential_) -> "<typ_def_rhs(typ_constraint_existential)>", eg_typ
+  | X (N N_prim_idx_pat) -> "<prim_idx_pat>", "-3"
+  | X (N N_prim_switch_arm) -> "<prim_switch_arm>", "case -3 : type T = Nat"
+  | X (N N_prim_type_body) -> "<prim_type_body>", "prim switch (typCode stream) { case -3 : type T = Nat }"
+  | X (N N_prim_val_param) -> "<prim_val_param>", "stream : Candid"
+  | X (N N_prim_val_params) -> "<prim_val_params>", "(stream : Candid)"
+  | X (N N_seplist_prim_switch_arm_semicolon_) -> seplist ("<prim_switch_arm>", "case -3 : type T = Nat") semi
+  | X (N N_seplist_prim_val_param_COMMA_) -> seplist ("<prim_val_param>", "stream : Candid") comma
 (* In order to print a view of the stack that includes semantic values,
    we need an element printer. (If we don't need this feature, then
    [print_symbol] above suffices.) *)

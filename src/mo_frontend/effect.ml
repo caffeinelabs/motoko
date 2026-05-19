@@ -78,6 +78,7 @@ let rec infer_effect_exp (exp:Syntax.exp) : T.eff =
   | RetE exp1
   | AnnotE (exp1, _)
   | IgnoreE exp1
+  | RefineE (_, exp1)
   | LoopE (exp1, None, _) ->
     effect_exp exp1
   | BinE (_, exp1, _, exp2)
@@ -127,7 +128,7 @@ and effect_cases cases =
   match cases with
   | [] ->
     T.Triv
-  | {it = {pat; exp}; _}::cases' ->
+  | {it = {pat; exp; _}; _}::cases' ->
     let e = effect_exp exp in
     max_eff e (effect_cases cases')
 
@@ -149,6 +150,7 @@ and infer_effect_dec dec =
   | VarD (_, e) ->
     effect_exp e
   | TypD _
+  | PrimTypD _
   | ClassD _
   | MixinD _
   | IncludeD _ ->

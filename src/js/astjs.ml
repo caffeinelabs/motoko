@@ -144,10 +144,10 @@ module Make (Cfg : Config) = struct
     | Named (n, t) -> to_js_object "Name" [| js_string n; typ_js t |]
     | Weak t -> to_js_object "Weak" [| typ_js t |]
 
-  and field_js { Type.lab; typ = t; src = s } =
+  and field_js { Type.lab; typ = t; src = s; _ } =
     to_js_object lab (typ_js t :: src s |> Array.of_list)
 
-  and typ_field_js { Type.lab; typ = t; src = s } =
+  and typ_field_js { Type.lab; typ = t; src = s; _ } =
     let con = to_js_object "Typ" [| Type.string_of_con t |> js_string |] in
     to_js_object lab (con :: src s |> Array.of_list)
 
@@ -501,7 +501,7 @@ module Make (Cfg : Config) = struct
   and typ_field'_js =
     let open Syntax in
     function
-    | ValF (lab, t, m) ->
+    | ValF (lab, _cs, t, m) ->
         to_js_object "ValF" [| id lab; syntax_typ_js t; mut_js m |]
     | TypF (lab, tbs, t) ->
         to_js_object "TypF"
@@ -547,7 +547,7 @@ module Make (Cfg : Config) = struct
         to_js_object "LetD" [| pat_js p; exp_js e; exp_js f |]
     | LetD (p, e, None) -> to_js_object "LetD" [| pat_js p; exp_js e |]
     | VarD (x, e) -> to_js_object "VarD" [| id x; exp_js e |]
-    | TypD (x, tp, t) ->
+    | TypD (x, tp, _cs, t) ->
         to_js_object "TypD"
           ([ id x ] @ List.map typ_bind_js tp @ [ syntax_typ_js t ]
           |> Array.of_list)

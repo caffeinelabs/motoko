@@ -1,0 +1,4 @@
+gadt-m10-projection.mo:12.10-12.15: type error [M9010], bare projection on black-hole type
+  Tup = (X, X -> Text)
+declared with existential `type X in ...`; the witness is sealed.
+Destructure with `let (...) = tup` to open it

@@ -591,6 +591,9 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     interpret_actor env ds fs k
   | NewObjE (sort, fs, _) ->
     k (interpret_fields env fs)
+  | RefineE (_, _, exp1) ->
+    (* RefineE is a typing-only wrapper; at runtime, skip past it. *)
+    interpret_exp env exp1 k
 
 and interpret_actor env ds fs k =
     let self = V.fresh_id () in

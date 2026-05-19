@@ -225,7 +225,7 @@ struct
                   } )
         | _ -> Some (mk_xref (Xref.XValue name), extract_value_doc Var rhs name)
         )
-    | { it = Syntax.TypD (name, ty_args, typ); _ } ->
+    | { it = Syntax.TypD (name, ty_args, _cs, typ); _ } ->
         let doc_typ =
           match typ.it with
           | Syntax.ObjT (_, fields) ->

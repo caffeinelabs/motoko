@@ -175,7 +175,7 @@ and html_of_typ_field : env -> Syntax.typ_field -> t =
  fun env field ->
   (* TODO mut might be wrong here *)
   match field.it with
-  | Syntax.ValF (id, typ, mut) ->
+  | Syntax.ValF (id, _cs, typ, mut) ->
       html_of_mut mut ++ string (id.it ^ " : ") ++ html_of_type env typ
   | Syntax.TypF (id, tbs, typ) ->
       let ty_args = html_of_typ_binders env tbs in

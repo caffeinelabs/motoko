@@ -78,6 +78,21 @@ func @blob_keys(b : Blob) : () -> @Iter<Nat> = func() : @Iter<Nat> = object {
   public func next() : ?Nat { if (i >= l) null else { let j = i; i += 1; ?j } };
 };
 func @blob_get(b : Blob) : Nat -> Nat8 = func(n : Nat) : Nat8 = b[n];
+
+type @Candid = Blob;
+
+/* One-byte SLEB128 decoder at offset 6 (past `DIDL\00\01`).
+   Bit 6 of the byte is the sign bit; bit 7 must be 0 (single-byte). */
+func @typCode(stream : @Candid) : Int {
+  let b = (prim "num_conv_Nat8_Nat" : Nat8 -> Nat) (@blob_get(stream)(6));
+  if (b >= 64) b - 128 else b
+};
+
+prim type @TyDesc<@T>(stream : @Candid) = prim switch (@typCode(stream)) {
+  case -3 : type @T = Nat;
+  case -4 : type @T = Int;
+  case -7 : type @T = Char;  // Char ↔ Candid Nat32
+};
 func @blob_vals(xs : Blob) : () -> @Iter<Nat8> = func() : @Iter<Nat8> = object {
   type BlobIter = Any; // not exposed
   let i = (prim "blob_vals_iter" : Blob -> BlobIter) xs;

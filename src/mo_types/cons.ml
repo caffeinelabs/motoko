@@ -38,7 +38,18 @@ let fresh_stamp name =
   let scope = !stamps.scope in
   let n = Lib.Option.get (Stamps.find_opt (name, scope) !stamps.stamps) 0 in
   stamps := {!stamps with stamps = Stamps.add (name, scope) (n + 1) !stamps.stamps};
-  n, scope
+  (n + 1, scope)
+
+(* Skolem counter: decrements into the [<= 0] reserve for non-counter-
+   minted cons.  Today only GADT existential skolems live here, via
+   [fresh_skolem]; future deterministic stamping (e.g.,
+   [-Hashtbl.hash (region, schema_stamp)]) will populate the same
+   range without changing [is_skolem]. *)
+let skolem_counter = ref 0
+
+let fresh_skolem_stamp () =
+  decr skolem_counter;
+  (!skolem_counter, !stamps.scope)
 
 let hash name stamp = Hashtbl.hash (name, stamp)
 
@@ -47,9 +58,17 @@ let fresh name k =
   {name; stamp;
    hash = hash name stamp;
    kind = ref k}
+let fresh_skolem name k =
+  let stamp = fresh_skolem_stamp () in
+  {name; stamp;
+   hash = hash name stamp;
+   kind = ref k}
 let clone c k =
   let name = c.name in
-  let stamp = fresh_stamp c.name in
+  let stamp =
+    if fst c.stamp <= 0 then fresh_skolem_stamp ()
+    else fresh_stamp c.name
+  in
   {name;
    stamp;
    hash = hash name stamp;
@@ -60,8 +79,10 @@ let unsafe_set_kind c k = c.kind := k
 
 let name c = c.name
 
+let is_skolem c = fst c.stamp <= 0
+
 let to_string show_stamps sep c =
-  if not show_stamps || c.stamp = (0, Some "prelude")
+  if not show_stamps || c.stamp = (1, Some "prelude")
   then c.name else Printf.sprintf "%s%s%i" c.name sep c.hash
 
 let compare c1 c2 =

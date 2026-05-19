@@ -25,3 +25,4 @@ type Blob = prim "Blob";
 type Error = prim "Error";
 type Principal = prim "Principal";
 type Region = prim "Region";
+

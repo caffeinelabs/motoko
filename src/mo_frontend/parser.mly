@@ -36,7 +36,8 @@ let persistent bool at = { it = bool; at = at; note = [] }
 let scope_bind x at =
   { var = Type.scope_var x @@ at;
     sort = Type.Scope @@ at;
-    bound = PrimT "Any" @! at
+    bound = PrimT "Any" @! at;
+    has_witness = false
   } @= at
 
 let ensure_scope_bind var tbs =
@@ -147,7 +148,7 @@ let share_typ t =
 
 let share_typfield' = function
   | TypF (c, tps, t) -> TypF (c, tps, t)
-  | ValF (x, t, m) -> ValF (x, share_typ t, m)
+  | ValF (x, cs, t, m) -> ValF (x, cs, share_typ t, m)
 
 let share_typfield (tf : typ_field) = { tf with it = share_typfield' tf.it }
 
@@ -283,6 +284,8 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.typ> typ_un typ_nullary typ typ_pre typ_nobin
 %type<Mo_def.Syntax.vis> vis
 %type<Mo_def.Syntax.typ_tag> typ_tag
+%type<Mo_def.Syntax.typ_constraint> typ_constraint typ_constraint_existential
+%type<Mo_def.Syntax.typ_constraint list> seplist1(typ_constraint,COMMA) seplist1(typ_constraint_existential,COMMA)
 %type<Mo_def.Syntax.typ_tag list> typ_variant
 %type<Mo_def.Syntax.typ_field> typ_field
 %type<Mo_def.Syntax.typ_bind> typ_bind
@@ -494,6 +497,11 @@ typ :
   | t1=typ OR t2=typ
     { OrT(t1, t2) @! at $sloc }
 
+typ_def_rhs(C) :
+  | t=typ { [], t }
+  | cs=seplist1(C, COMMA) IN t=typ
+    { cs, t }
+
 typ_item :
   | i=implicit COLON t = typ { Some i, t }
   | i=id COLON t=typ { Some i, t }
@@ -521,22 +529,70 @@ inst :
 typ_field :
   | TYPE c=typ_id  tps=type_typ_params_opt EQ t=typ
     { TypF (c, tps, t) @@ at $sloc }
-  | mut=var_opt x=id COLON t=typ
-    { ValF (x, t, mut) @@ at $sloc }
+  | mut=var_opt x=id COLON cs_t=typ_def_rhs(typ_constraint_existential)
+    { let cs, t = cs_t in ValF (x, cs, t, mut) @@ at $sloc }
   | x=id tps=typ_params_opt t1=typ_nullary COLON t2=typ
     { let t = funcT(Type.Local @@ no_region, tps, t1, t2)
               @! span x.at t2.at in
-      ValF (x, t, Const @@ no_region) @@ at $sloc }
+      ValF (x, [], t, Const @@ no_region) @@ at $sloc }
 
 typ_tag :
-  | HASH x=id t=annot_opt
-    { {tag = x; typ = Lib.Option.get t (TupT [] @! at $sloc)} @@ at $sloc }
+  | HASH x=id
+    { {tag = x; constraints = []; typ = TupT [] @! at $sloc} @@ at $sloc }
+  | HASH x=id COLON cs_t=typ_def_rhs(typ_constraint)
+    { let cs, t = cs_t in {tag = x; constraints = cs; typ = t} @@ at $sloc }
+
+typ_constraint_existential :
+  | TYPE x=id
+    { {tv = x; refines = None; bound = PrimT "Any" @! at $sloc} @= at $sloc }
+  | TYPE x=id SUB t=typ
+    { {tv = x; refines = None; bound = t} @= at $sloc }
+
+typ_constraint :
+  | c=typ_constraint_existential { c }
+  | TYPE x=id EQ t=typ
+    { {tv = x; refines = Some t; bound = PrimT "Any" @! at $sloc} @= at $sloc }
+
+(* prim switch — internal value-driven refinement (see plans/GADTs.md
+   §Value-driven refinement).  Currently parses-only; typing rejects
+   M0229.  Only the [PrimTypD] decl form admits a [PrimSwitchT] body. *)
+
+prim_val_params :
+  | (* empty *) { [] }
+  | LPAR ps=seplist(prim_val_param, COMMA) RPAR { ps }
+
+prim_val_param :
+  | id=id COLON t=typ { (id, t) }
+
+prim_type_body :
+  | PRIM SWITCH LPAR discr=exp(ob) RPAR
+        LCURLY arms=seplist(prim_switch_arm, semicolon) RCURLY
+    { (discr, arms) }
+
+prim_switch_arm :
+  | CASE pat=prim_idx_pat COLON c=typ_constraint
+    { annotate () {pat; refinement = c} (at $sloc) }
+
+prim_idx_pat :
+  | SUBOP n=NAT     { IdxLitP (- (int_of_string n)) }
+  | n=NAT           { IdxLitP (int_of_string n) }
+  | UNDERSCORE      { IdxWildP }
 
 typ_bind :
   | x=id SUB t=typ
-    { {var = x; sort = Type.Type @@ no_region; bound = t} @= at $sloc }
+    { {var = x; sort = Type.Type @@ no_region; bound = t;
+       has_witness = false} @= at $sloc }
   | x=id
-    { {var = x; sort = Type.Type @@ no_region; bound = PrimT "Any" @! at $sloc} @= at $sloc }
+    { {var = x; sort = Type.Type @@ no_region;
+       bound = PrimT "Any" @! at $sloc;
+       has_witness = false} @= at $sloc }
+  | x=id WITH TYPE
+    { (* T with type: T binds both an abstract type and a runtime
+         [Candid]-stream witness.  Dual-binding (type + value) parallels
+         how `class` binds both a type and a constructor. *)
+      {var = x; sort = Type.Type @@ no_region;
+       bound = PrimT "Any" @! at $sloc;
+       has_witness = true} @= at $sloc }
 
 annot_opt :
   | COLON t=typ { Some t }
@@ -819,6 +875,23 @@ exp_un(B) :
 *)
   | THROW e=exp_nest
     { ThrowE(e) @? at $sloc }
+  | SWITCH TYPE x=id LCURLY cs=seplist(typ_case, semicolon) RCURLY
+    { (* Surface form `switch type T { case <typ> <exp>; … }`.  Parser
+         invokes the registered expander directly; the AST it emits is
+         a plain [SwitchE]+[RefineE] tree.  Pre-condition: the prim
+         type whose expander we look up has already been typechecked
+         (e.g. in a previously-loaded prelude or library). *)
+      let scrutinee = VarE (x.it @~ x.at) @? x.at in
+      let key = "@TyDesc" (* slice-5: hardcoded *) in
+      let slot = match Macro_registry.get key with
+        | Some r -> r
+        | None -> failwith ("no `prim type " ^ key ^ "` in scope")
+      in
+      assert (!slot <> None);
+      let expander = Option.get !slot in
+      let actual_scrut = expander.Macro_registry.scrut_of scrutinee in
+      let cases = expander.Macro_registry.cases_of x cs in
+      SwitchE(actual_scrut, cases) @? at $sloc }
   | SWITCH e=exp_nullary(ob) LCURLY cs=seplist(case, semicolon) RCURLY
     { SwitchE(e, cs) @? at $sloc }
   | WHILE e1=exp_nullary(ob) e2=exp_nest
@@ -860,11 +933,20 @@ block :
 
 case :
   | CASE p=pat_nullary e=exp_nest
-    { {pat = p; exp = e} @@ at $sloc }
+    { annotate false {pat = p; exp = e} (at $sloc) }
+
+typ_case :
+  | CASE t=typ_nullary e=exp_nest
+    { (* Leg of `switch type T`: encode the leg type as an
+         [AnnotP(WildP, t)] value-pattern.  Slice-5 inspects this
+         shape to recover the leg-type before calling the expander. *)
+      let wild = WildP @! t.at in
+      let pat = AnnotP(wild, t) @! at $sloc in
+      annotate false {pat; exp = e} (at $sloc) }
 
 catch :
   | CATCH p=pat_nullary e=exp_nest
-    { {pat = p; exp = e} @@ at $sloc }
+    { annotate false {pat = p; exp = e} (at $sloc) }
 
 exp_field :
   | m=var_opt x=id t=annot_opt
@@ -986,8 +1068,13 @@ dec_nonvar :
        we parse a full pat but reject during typing *)
     { let p', e' = normalize_let p (PrimE "_" @? at $sloc) in
       LetD (p', e', None) @? at $sloc }
-  | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
-    { TypD(x, tps, t) @? at $sloc }
+  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs(typ_constraint_existential)
+    { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
+  | PRIM TYPE x=typ_id tps=type_typ_params_opt vps=prim_val_params EQ body=prim_type_body
+    { (* Reserve an expander slot now; typing fills it on success. *)
+      ignore (Macro_registry.allocate x.it);
+      let (discr, arms) = body in
+      PrimTypD(x, tps, vps, discr, arms) @? at $sloc }
   | sp=shared_pat_opt FUNC
       xf_tps_p=func_pat t=annot_opt fb=func_body
     { (* This is a hack to support local func declarations that return a computed async.
@@ -1101,16 +1188,16 @@ parse_module_header :
 (* stable signatures (.most files) *)
 
 typ_dec :
-  | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
-    { TypD(x, tps, t) @? at $sloc }
+  | TYPE x=typ_id tps=type_typ_params_opt EQ cs_t=typ_def_rhs(typ_constraint_existential)
+    { let cs, t = cs_t in TypD(x, tps, cs, t) @? at $sloc }
 
 stab_field :
   | STABLE mut=var_opt x=id COLON t=typ
-    { ValF (x, t, mut) @@ at $sloc }
+    { ValF (x, [], t, mut) @@ at $sloc }
 
 pre_stab_field :
   | r=req mut=var_opt x=id COLON t=typ
-    { (r, ValF (x, t, mut) @@ at $sloc) }
+    { (r, ValF (x, [], t, mut) @@ at $sloc) }
 
 %inline req :
   | STABLE { false @@ at $sloc }
@@ -1119,7 +1206,7 @@ pre_stab_field :
 mig_lab : t=TEXT { t @@ at $sloc }
 mig_field :
   | mt=mig_lab COLON t=typ
-    { {tag=mt; typ=t} @@ at $sloc }
+    { {tag=mt; constraints=[]; typ=t} @@ at $sloc }
 
 parse_stab_sig :
   | start ds=seplist(typ_dec, semicolon) ACTOR LCURLY sfs=seplist(stab_field, semicolon) RCURLY

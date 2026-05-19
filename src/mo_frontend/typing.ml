@@ -514,13 +514,22 @@ let coverage' warnOrError category env f x t at =
       ("this %s of type%a\ndoes not cover value\n  %s" : (_, _, _, _) format4 )
       category
       display_typ_expand t
-      (String.concat " or\n  " uncovered)
+      (String.concat " or\n  " uncovered);
+  unreached
 
 let coverage_cases category env cases t at =
-  coverage' warn category env Coverage.check_cases cases t at
+  let unreached = coverage' warn category env Coverage.check_cases cases t at in
+  (* Mark unreached arms on the AST so desugar can drop them from the
+     lowered switch (release mode) or replace their body with
+     [unreachableE ()] (debug mode).  [Coverage.check_cases] returns
+     each unreached arm's [pat.at]; cross-reference with each case. *)
+  List.iter (fun (case : case) ->
+    if List.mem case.it.pat.at unreached then
+      case.note <- true
+  ) cases
 
 let coverage_pat warnOrError env pat t =
-  coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at
+  ignore (coverage' warnOrError "pattern" env Coverage.check_pat pat t pat.at)
 
 let coverage_pat_is_exhaustive pat t =
   let uncovered, _ = Coverage.check_pat pat t in
@@ -578,7 +587,9 @@ let check_closed env id k at =
       "type %s%s %s %s references type parameter%s %s from an outer scope"
       id.it sbs op st
       (plural free_params)
-      (String.concat ", " (T.ConSet.fold (fun c cs -> T.string_of_con c::cs) free_params []))
+      (String.concat ", "
+         (List.sort Stdlib.compare
+            (T.ConSet.fold (fun c cs -> T.string_of_con c::cs) free_params [])))
 
 (* Imports *)
 
@@ -678,9 +689,13 @@ let error_shared env t at code fmt =
   match T.find_unshared t with
   | None -> error env at code fmt
   | Some t1 ->
+    let kind =
+      if T.mentions_blackhole t1 then "black-hole" else "non-shared"
+    in
     let s =
-      Format.asprintf env "\ntype%a\nis or contains non-shared type%a"
+      Format.asprintf env "\ntype%a\nis or contains %s type%a"
         display_typ_expand t
+        kind
         display_typ_expand t1
     in
     Format.kasprintf env (fun s1 -> Diag.add_msg env.msgs (type_error at code (s1^s) [] [] []); raise Recover) fmt
@@ -918,7 +933,7 @@ and check_typ' env typ : T.typ =
   | ObjT (sort, fields) ->
     check_ids env "object type" "field"
       (List.filter_map (fun (field : typ_field) ->
-        match field.it with ValF (x, _, _) -> Some x | _ -> None
+        match field.it with ValF (x, _, _, _) -> Some x | _ -> None
       ) fields);
     check_ids env "object type" "type field"
       (List.filter_map (fun (field : typ_field) ->
@@ -960,35 +975,253 @@ and check_typ' env typ : T.typ =
   | WeakT typ ->
     T.Weak (check_typ env typ)
 
-and check_typ_def env at (id, typ_binds, typ) : T.kind =
+and check_typ_def env at (id, typ_binds, cs_top, typ) : T.kind =
+  (* Compiler invariant: the parser's [typ_constraint_existential]
+     production guarantees TypD top-level [cs_top] entries carry
+     [refines = None].  Variant-arm constraints (where refinements
+     are valid) live on the [typ_tag.constraints] list, not here. *)
+  assert (List.for_all (fun c -> c.it.refines = None) cs_top);
   let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
   let env' = adjoin_typs env te ce in
-  let t = check_typ env' typ in
+  if not env.pre then begin
+    let seen = ref [] in
+    List.iter (fun c ->
+      let name = c.it.tv.it in
+      if List.mem name !seen then
+        local_error env c.at "M9003"
+          "duplicate `type %s` clause on type `%s`" name id.it
+      else seen := name :: !seen
+    ) cs_top
+  end;
+  let env'' = List.fold_left (fun env c ->
+    match c.it.refines with
+    | None ->
+      let bound_t = check_typ env' c.it.bound in
+      let con = match c.note with
+        | Some c' -> c'
+        | None ->
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], bound_t)) in
+          c.note <- Some c';
+          c'
+      in
+      add_typs env [c.it.tv.it] [con]
+    | Some _ -> env
+  ) env' cs_top in
+  let t = check_typ env'' typ in
+  if not env.pre then
+    List.iter (fun c ->
+      match c.it.refines with
+      | None ->
+        let name = c.it.tv.it in
+        if not (mentions_id_typ name typ) then
+          warn env c.at "M9004"
+            "unused existential `type %s` on type `%s` — does not appear in body"
+            name id.it
+      | Some _ -> ()
+    ) cs_top;
   let k = T.Def (T.close_binds cs tbs, T.close cs t) in
   check_closed env id k at;
   k
 
+and check_typ_prim_def env at (id, typ_binds, value_params, discr, arms) : T.kind =
+  (* Elaborate a [prim type X<T..>(v..) = prim switch (DISCR) { … }]
+     body and register a macro expander.  All validation happens
+     *before* registration — a malformed body never produces an
+     expander. *)
+  let cs, tbs, te, ce = check_typ_binds {env with pre = true} typ_binds in
+  let env' = adjoin_typs env te ce in
+  ignore (List.map (fun (_, vtyp) -> check_typ env' vtyp) value_params);
+  let outer_names = List.map (fun (tb : typ_bind) -> tb.it.var.it) typ_binds in
+  if not env.pre then begin
+    List.iter (fun (arm : prim_switch_arm) ->
+      let cstr = arm.it.refinement in
+      match cstr.it.refines with
+      | None ->
+        local_error env cstr.at "M0231"
+          "`prim switch` arm refinement must take the `type %s = ...` form"
+          cstr.it.tv.it
+      | Some rhs ->
+        if not (List.mem cstr.it.tv.it outer_names) then
+          local_error env cstr.at "M0232"
+            "`prim switch` arm refines `type %s = ...`, but `%s` is not a type parameter of `%s`"
+            cstr.it.tv.it cstr.it.tv.it id.it;
+        let _ = check_typ env' rhs in ()
+    ) arms;
+    (* For slice-6 simplicity: use the first value-parameter's name as
+       the substitution target inside the discr expression. *)
+    let val_param_name = match value_params with
+      | (vid, _) :: _ -> vid.it
+      | [] -> ""
+    in
+    Mo_def.Macro_registry.set id.it
+      (Expander_builder.build discr val_param_name arms)
+  end;
+  let k = T.Def (T.close_binds cs tbs, T.close cs T.Any) in
+  check_closed env id k at;
+  k
+
 and check_typ_field env s typ_field : (T.field, T.typ_field) Either.t = match typ_field.it with
-  | ValF (id, typ, mut) ->
-    let t = infer_mut mut (check_typ env typ) in
+  | ValF (id, constraints, typ, mut) ->
+    (* Field-level existentials (HKT on the field): mint a schema-existential
+       skolem cons per constraint, elaborate the field type in the env extended
+       with the existentials in scope.  Mirror of [check_typ_tag] for variant
+       arms; parser's [typ_constraint_existential] guarantees no refinements
+       here (refines = None).  Mirror of check_typ_def's TypD-top-level assert. *)
+    assert (List.for_all (fun c -> c.it.refines = None) constraints);
+    let env' = List.fold_left (fun env (c : typ_constraint) ->
+      (* Sequential elaboration: each constraint's bound sees the
+         previous siblings — e.g. `type G <: OUTER, type H <: G`
+         needs G in scope for H's bound check.  check_typ stamps
+         the bound's note, which the binds-construction below reads. *)
+      let _bound_t = check_typ env c.it.bound in
+      let con = match c.note with
+        | Some c' -> c'
+        | None ->
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], T.Any)) in
+          c.note <- Some c';
+          c'
+      in
+      add_typs env [c.it.tv.it] [con]
+    ) env constraints in
+    let t = infer_mut mut (check_typ env' typ) in
     if not env.pre && s = T.Actor then begin
       if not (T.is_shared_func t) then
         error env typ.at "M0042" "actor field %s must have shared function type, but has type\n  %s"
           id.it (T.string_of_typ_expand t)
     end;
     Field_sources.add_src env.srcs id.at;
-    Either.Left(T.{lab = id.it; typ = t; src = {empty_src with track_region = id.at}})
+    let binds =
+      List.filter_map (fun (cstr : typ_constraint) ->
+        match cstr.it.refines, cstr.note with
+        | None, Some skolem ->
+          (* Bound was elaborated above under env' (with siblings in
+             scope); read the typed form from cstr.it.bound.note
+             rather than re-elaborating in the outer env. *)
+          let bound_t = cstr.it.bound.note in
+          Some ({T.var = cstr.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
+        | _ -> None
+      ) constraints
+    in
+    Either.Left(T.{lab = id.it; binds; typ = t; src = {empty_src with track_region = id.at}})
   | TypF (id, typ_binds, typ) ->
-    let k = check_typ_def env typ_field.at (id, typ_binds, typ) in
+    let k = check_typ_def env typ_field.at (id, typ_binds, [], typ) in
     let c = Cons.fresh id.it k in
     Field_sources.add_src env.srcs id.at;
-    Either.Right(T.{lab = id.it; typ = c; src = {empty_src with track_region = id.at}})
+    Either.Right(T.{lab = id.it; binds = []; typ = c; src = {empty_src with track_region = id.at}})
 
 and check_typ_tag env typ_tag =
-  let {tag; typ} = typ_tag.it in
-  let t = check_typ env typ in
+  let {tag; constraints; typ} = typ_tag.it in
+  (* M8: detect duplicate `type X` clauses on the same arm. *)
+  if not env.pre then begin
+    let seen = ref [] in
+    List.iter (fun c ->
+      let name = c.it.tv.it in
+      if List.mem name !seen then
+        local_error env c.at "M9003"
+          "duplicate `type %s` clause on arm `%s`"
+          name tag.it
+      else
+        seen := name :: !seen
+    ) constraints
+  end;
+  (* M8: occurs check on refinement RHS (`type A = Foo<A>` would be infinite). *)
+  if not env.pre then
+    List.iter (fun c ->
+      match c.it.refines with
+      | Some rhs ->
+        let name = c.it.tv.it in
+        if mentions_id name rhs then
+          local_error env c.at "M9006"
+            "circular refinement: `type %s = ...` mentions `%s` on its right-hand side"
+            name name
+      | None -> ()
+    ) constraints;
+  (* Existentials: introduce a fresh skolem (abstract con) into env.typs
+     for the payload elaboration. Cache the con on the AST so subsequent
+     passes reuse the same con (eq_kind stability). *)
+  let env' = List.fold_left (fun env c ->
+    match c.it.refines with
+    | None ->
+      let bound_t = check_typ env c.it.bound in
+      let con = match c.note with
+        | Some c' -> c'
+        | None ->
+          let c' = Cons.fresh_skolem c.it.tv.it (T.Abs ([], bound_t)) in
+          c.note <- Some c';
+          c'
+      in
+      add_typs env [c.it.tv.it] [con]
+    | Some rhs ->
+      ignore (check_typ env rhs);  (* set rhs.note for side-table reader *)
+      env
+  ) env constraints in
+  let t = check_typ env' typ in
+  (* M8: warn on unused existentials. A refinement `type A = T` is still
+     useful even when A doesn't appear in the payload — it constrains
+     which outer instantiation can use this arm. An existential `type B`
+     that doesn't appear in the payload, by contrast, is genuinely dead:
+     it introduces a type with no use site. *)
+  if not env.pre then
+    List.iter (fun c ->
+      match c.it.refines with
+      | None ->
+        let name = c.it.tv.it in
+        if not (mentions_id_typ name typ) then
+          warn env c.at "M9004"
+            "unused existential `type %s` on arm `%s` — does not appear in payload"
+            name tag.it
+      | Some _ -> ()
+    ) constraints;
   Field_sources.add_src env.srcs tag.at;
-  T.{lab = tag.it; typ = t; src = {empty_src with track_region = tag.at}}
+  (* Path A slice 2: populate arm.binds structurally with existentials
+     ([Existential skolem]).  Refinements (`type A = T`) are stamped
+     in later by the late-pass arm-binder fixup at variant-type
+     registration time (see typing.ml's registration of arm
+     constraints) — rhs.note is only fully elaborated by then. *)
+  let binds =
+    List.filter_map (fun (c : typ_constraint) ->
+      match c.it.refines, c.note with
+      | None, Some skolem ->
+        (* Bound elaborated above under the env that progressively
+           added siblings; read from the AST note instead of
+           re-elaborating in env (which doesn't have siblings). *)
+        let bound_t = c.it.bound.note in
+        Some ({T.var = c.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
+      | _ -> None
+    ) constraints
+  in
+  T.{lab = tag.it; binds; typ = t; src = {empty_src with track_region = tag.at}}
+
+(* Syntactic check: does AST type [typ] textually mention the identifier [name]? *)
+and mentions_id_typ name typ = mentions_id name typ
+
+and mentions_id name typ =
+  let rec mentions_path_it = function
+    | IdH x -> x.it = name
+    | DotH (p, _) -> mentions_path_it p.it
+  in
+  let rec go t =
+    match t.it with
+    | PathT (path, args) ->
+      mentions_path_it path.it || List.exists go args
+    | PrimT _ -> false
+    | ParT t -> go t
+    | NamedT (_, t) -> go t
+    | OptT t -> go t
+    | ArrayT (_, t) -> go t
+    | WeakT t -> go t
+    | TupT items -> List.exists (fun (_, t) -> go t) items
+    | FuncT (_, _, t1, t2) -> go t1 || go t2
+    | ObjT (_, fields) ->
+      List.exists (fun (f : typ_field) ->
+        match f.it with
+        | ValF (_, _, t, _) -> go t
+        | TypF (_, _, t) -> go t
+      ) fields
+    | VariantT tags -> List.exists (fun (tt : typ_tag) -> go tt.it.typ) tags
+    | AsyncT (_, t1, t2) -> go t1 || go t2
+    | AndT (t1, t2) | OrT (t1, t2) -> go t1 || go t2
+  in go typ
 
 and check_typ_binds_acyclic env typ_binds cs ts  =
   let n = List.length cs in
@@ -1029,8 +1262,10 @@ and check_typ_binds env typ_binds : T.con list * T.bind list * Scope.typ_env * S
     ) T.Env.empty typ_binds cs in
   let pre_env' = add_typs {env with pre = true} xs cs  in
   let tbs = List.map (fun typ_bind ->
+    let sort = if typ_bind.it.has_witness then T.Witness
+               else typ_bind.it.sort.it in
     { T.var = typ_bind.it.var.it;
-      T.sort = typ_bind.it.sort.it;
+      T.sort;
       T.bound = check_typ pre_env' typ_bind.it.bound }) typ_binds
   in
   check_typ_bind_sorts env tbs;
@@ -1043,7 +1278,7 @@ and check_typ_binds env typ_binds : T.con list * T.bind list * Scope.typ_env * S
     | k' -> assert (eq_kind env no_region k k')
   ) cs ks;
   let env' = add_typs env xs cs in
-  let _ = List.map (fun typ_bind -> check_typ env' typ_bind.it.bound) typ_binds in
+  let _ = List.map (fun (typ_bind : typ_bind) -> check_typ env' typ_bind.it.bound) typ_binds in
   List.iter2 (fun typ_bind c -> typ_bind.note <- Some c) typ_binds cs;
   cs, tbs, te, T.ConSet.of_list cs
 
@@ -1053,10 +1288,15 @@ and check_typ_bind env typ_bind : T.con * T.bind * Scope.typ_env * Scope.con_env
   | _ -> assert false
 
 and check_typ_bounds env (tbs : T.bind list) (ts : T.typ list) ats at =
-  let pars = List.length tbs in
+  (* HKT extension: existential binds (added by augment_def_binds)
+     are not user-provided at use sites — filter them out of the
+     arity check. *)
+  let tbs_check = List.filter (fun (tb : T.bind) ->
+    match tb.T.sort with T.Existential _ -> false | _ -> true) tbs in
+  let pars = List.length tbs_check in
   let args = List.length ts in
   if pars <> args then begin
-    let consider_scope x = match tbs with
+    let consider_scope x = match tbs_check with
       | hd :: _ when hd.T.sort = T.Scope -> x - 1
       | _ -> x in
     error env at "M0045"
@@ -1077,7 +1317,7 @@ and check_typ_bounds env (tbs : T.bind list) (ts : T.typ list) ats at =
         go tbs' ts' ats'
     | [], [], [] -> ()
     | _  -> assert false
-  in go tbs ts ats
+  in go tbs_check ts ats
 
 (* Check type definitions productive and non-expansive *)
 and check_con_env env at ce =
@@ -1135,7 +1375,7 @@ and infer_inst env sort tbs typs t_ret at =
           "send capability required, but not available\n (need an enclosing async expression or function body)"
     )
   | tbs', typs' ->
-    assert (List.for_all (fun tb -> tb.T.sort = T.Type) tbs');
+    assert (List.for_all (fun tb -> tb.T.sort = T.Type || tb.T.sort = T.Witness) tbs');
     ts, ats
 
 and check_inst_bounds env sort tbs inst t_ret at =
@@ -1203,7 +1443,8 @@ let rec is_explicit_exp e =
   | LitE l -> is_explicit_lit !l
   | UnE (_, _, e1) | OptE e1 | DoOptE e1
   | ProjE (e1, _) | DotE (e1, _, _) | BangE e1 | IdxE (e1, _) | CallE (_, e1, _, _)
-  | LabelE (_, _, e1) | AsyncE (_, _, _, e1) | AwaitE (_, e1) ->
+  | LabelE (_, _, e1) | AsyncE (_, _, _, e1) | AwaitE (_, e1)
+  | RefineE (_, e1) ->
     is_explicit_exp e1
   | BinE (_, e1, _, e2) | IfE (_, e1, e2) ->
     is_explicit_exp e1 || is_explicit_exp e2
@@ -1228,6 +1469,7 @@ and is_explicit_dec d =
   match d.it with
   | ExpD e | LetD (_, e, _) | VarD (_, e) -> is_explicit_exp e
   | TypD _ -> true
+  | PrimTypD _ -> true
   | ClassD (_, _, _, _, _, p, _, _, dfs) ->
     is_explicit_pat p &&
     List.for_all (fun (df : dec_field) -> is_explicit_dec df.it.dec) dfs
@@ -1345,32 +1587,32 @@ let check_lit env t lit at suggest =
 let array_obj t =
   let open T in
   let immut t =
-    [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src};
-      {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
-      {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
-      {lab = "vals"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
-      {lab = "values"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
+    [ {lab = "get"; binds = []; typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src};
+      {lab = "size"; binds = []; typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
+      {lab = "keys"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
+      {lab = "vals"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
+      {lab = "values"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
     ] in
   let mut t = immut t @
-    [ {lab = "put"; typ = Func (Local, Returns, [], [Prim Nat; t], []); src = empty_src} ] in
+    [ {lab = "put"; binds = []; typ = Func (Local, Returns, [], [Prim Nat; t], []); src = empty_src} ] in
   Object,
   List.sort compare_field (match t with Mut t' -> mut t' | t -> immut t)
 
 let blob_obj () =
   let open T in
   Object,
-  [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [Prim Nat8]); src = empty_src};
-    {lab = "vals"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
-    {lab = "values"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
-    {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
-    {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
+  [ {lab = "get"; binds = []; typ = Func (Local, Returns, [], [Prim Nat], [Prim Nat8]); src = empty_src};
+    {lab = "vals"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
+    {lab = "values"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat8)]); src = empty_src};
+    {lab = "size"; binds = []; typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
+    {lab = "keys"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
   ]
 
 let text_obj () =
   let open T in
   Object,
-  [ {lab = "chars"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Char)]); src = empty_src};
-    {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
+  [ {lab = "chars"; binds = []; typ = Func (Local, Returns, [], [], [iter_obj (Prim Char)]); src = empty_src};
+    {lab = "size"; binds = []; typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
   ]
 
 
@@ -2045,7 +2287,11 @@ and infer_exp_wrapper inf f env exp : T.typ =
   assert (t <> T.Pre);
   let t' = f t in
   if not env.pre then begin
-    let t'' = T.normalize t' in
+    (* Path A slice 6: use [path_compress] in place of [normalize]
+       so the outer [Con(c, ts)] form survives on the note.  IR's
+       σ derivation in [check_case] needs the slot context to
+       recover the outer-cons → refinement-rhs mapping. *)
+    let t'' = T.path_compress t' in
     assert (t'' <> T.Pre);
     let note_eff = A.infer_effect_exp exp in
     exp.note <- {note_typ = t''; note_eff}
@@ -2195,9 +2441,23 @@ and infer_exp'' env exp : T.typ =
   | TagE (id, exp1) ->
     let t1 = infer_exp env exp1 in
     Field_sources.add_src env.srcs id.at;
-    T.Variant [T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}}]
+    T.Variant [T.{lab = id.it; binds = []; typ = t1; src = {empty_src with track_region = id.at}}]
   | ProjE (exp1, n) ->
-    let t1 = infer_exp_promote env exp1 in
+    let t1_raw, t1 = infer_exp_and_promote env exp1 in
+    (* M10: bare projection on an existential-bearing type would let
+       the existential `X` escape into the surrounding scope without
+       a controlled `open`. Reject and direct the user to a
+       destructuring `let (...) = ...`. *)
+    (match t1_raw with
+     | T.Con (c, _) when T.typd_existentials c <> [] ->
+       let es = T.typd_existentials c in
+       let binders = String.concat ", " (List.map (fun e -> "type " ^ Cons.name e) es) in
+       error env exp.at "M9010"
+         "bare projection on black-hole type%a\ndeclared with existential `%s in ...`; the witness is sealed.\nDestructure with `let (...) = %s` to open it"
+         display_typ_expand t1_raw
+         binders
+         (match exp1.it with VarE id -> id.it | _ -> "...")
+     | _ -> ());
     (try
       let ts = T.as_tup_sub n t1 in
       match List.nth_opt ts n with
@@ -2317,6 +2577,21 @@ and infer_exp'' env exp : T.typ =
     check_shared_return env typ.at sort c ts2;
     let env' = infer_async_cap (adjoin_typs env te ce) sort cs tbs (Some exp1) exp.at in
     let t1, ve1 = infer_pat_exhaustive (if T.is_shared_sort sort then local_error else warn) env' pat in
+    (* Slice-6.5: each `<T with type>` binder gets a synthetic value-side
+       `T : @Candid` injected into the body's env.  Desugar materialises
+       the runtime value. *)
+    let ve1 =
+      let candid_typ =
+        match T.Env.find_opt "@Candid" env'.typs with
+        | Some c -> T.Con (c, [])
+        | None -> T.blob
+      in
+      List.fold_left (fun ve (tb : typ_bind) ->
+        if tb.it.has_witness then
+          T.Env.add tb.it.var.it (candid_typ, tb.at, Scope.Declaration) ve
+        else ve
+      ) ve1 typ_binds
+    in
     let ve2 = T.Env.adjoin ve ve1 in
     let ts2 = List.map (check_typ_item env') ts2 in
     typ.note <- T.seq ts2; (* HACK *)
@@ -2359,6 +2634,23 @@ and infer_exp'' env exp : T.typ =
       end
     end;
     let ts1 = match pat.it with TupP _ -> T.seq_of_tup t1 | _ -> [t1] in
+    (* Slice-6.6: each `<T with type>` binder prepends a leading
+       `@Candid` value parameter to the function's domain.  Strip
+       Named wrappers so the synthesised dom matches what desugar
+       reconstructs from the un-named [VarE]s it injects. *)
+    let ts1 =
+      let candid_typ =
+        match T.Env.find_opt "@Candid" env'.typs with
+        | Some c -> T.Con (c, [])
+        | None -> T.blob
+      in
+      let witnesses = List.filter_map (fun (tb : typ_bind) ->
+        if tb.it.has_witness then Some candid_typ else None
+      ) typ_binds in
+      let strip_named = function T.Named (_, t) -> t | t -> t in
+      let ts1 = if witnesses = [] then ts1 else List.map strip_named ts1 in
+      witnesses @ ts1
+    in
     T.Func (sort, c, T.close_binds cs tbs, List.map (T.close cs) ts1, List.map (T.close cs) ts2)
   | CallE (par_opt, exp1, inst, exp2) ->
     let t = infer_call env exp1 inst exp2 exp.at None in
@@ -2403,10 +2695,13 @@ and infer_exp'' env exp : T.typ =
         display_typ_expand t3;
     t
   | SwitchE (exp1, cases) ->
-    let t1 = infer_exp_promote env exp1 in
+    let t1_orig = infer_exp env exp1 in
+    let t1 = T.promote t1_orig in
     let t = infer_cases env t1 T.Non cases in
-    if not env.pre then
-      coverage_cases "switch" env cases t1 exp.at;
+    if not env.pre then begin
+      let t1_for_coverage = gadt_prune_for_coverage t1_orig t1 in
+      coverage_cases "switch" env cases t1_for_coverage exp.at
+    end;
     t
   | TryE (exp1, cases, exp2_opt) ->
     let t1 = infer_exp env exp1 in
@@ -2579,6 +2874,40 @@ and infer_exp'' env exp : T.typ =
     T.unit
   | ImportE (f, ri) ->
     check_import env exp.at f ri
+  | RefineE (cstr, exp1) ->
+    (* Apply the refinement's σ to env.vals and elaborate [exp1] under
+       the refined env.  Final type is the inferred type with σ applied,
+       so refined occurrences of the existential surface to the caller.
+       Lookup target: prefer [cstr.note] (set by variant-arm elaboration);
+       otherwise fall back to [cstr.it.tv] resolved in [env.typs] (this
+       is the macro-expansion path — the constraint was synthesised at
+       parse-time and carries only the syntactic [tv] name).  Persist
+       the resolved con on [cstr.note] so downstream passes (desugar,
+       IR check) can apply the same σ. *)
+    let sigma =
+      match cstr.it.refines with
+      | Some rhs ->
+        let rhs_t = check_typ env rhs in
+        let con_opt = match cstr.note with
+          | Some c -> Some c
+          | None ->
+            let c = T.Env.find_opt cstr.it.tv.it env.typs in
+            cstr.note <- c;
+            c
+        in
+        (match con_opt with
+         | Some con -> T.ConEnv.singleton con rhs_t
+         | None -> T.ConEnv.empty)
+      | None -> T.ConEnv.empty
+    in
+    let env_for_body =
+      if T.ConEnv.is_empty sigma then env
+      else { env with vals = T.Env.map
+                       (fun (typ, r, k, a) -> (T.subst sigma typ, r, k, a))
+                       env.vals }
+    in
+    let t = infer_exp env_for_body exp1 in
+    T.subst sigma t
   | ImplicitLibE lib ->
     match T.Env.find_opt lib env.libs with
     | Some t -> t
@@ -2604,6 +2933,22 @@ and infer_bin_exp env exp1 exp2 =
    to report. This is used to delay the reporting for contextual dot resulution *)
 and try_infer_dot_exp env at exp id (desc, pred) =
   let t0, t1 = infer_exp_and_promote env exp in
+  (* M10: bare field projection on an existential-bearing type
+     would let the existential `X` escape into the surrounding
+     scope without a controlled `open`. Reject and direct the
+     user to a destructuring `let { ... } = ...`. Mirror of the
+     ProjE guard. *)
+  (match t0 with
+   | T.Con (c, _) when T.typd_existentials c <> [] ->
+     let es = T.typd_existentials c in
+     let binders = String.concat ", " (List.map (fun e -> "type " ^ Cons.name e) es) in
+     error env at "M9010"
+       "bare projection on black-hole type%a\ndeclared with existential `%s in ...`; the witness is sealed.\nDestructure with `let { %s; ... } = %s` to open it"
+       display_typ_expand t0
+       binders
+       id.it
+       (match exp.it with VarE i -> i.it | _ -> "...")
+   | _ -> ());
   let fields =
     try Ok(T.as_obj_sub [id.it] t1) with Invalid_argument _ ->
     try Ok(array_obj (T.as_array_sub t1)) with Invalid_argument _ ->
@@ -2653,7 +2998,7 @@ and infer_exp_field env rf =
   let t = infer_exp env exp in
   let t1 = if mut.it = Syntax.Var then T.Mut t else t in
   Field_sources.add_src env.srcs id.at;
-  T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}}
+  T.{lab = id.it; binds = []; typ = t1; src = {empty_src with track_region = id.at}}
 
 and infer_check_bases_fields env (check_fields : T.field list) exp_at exp_bases exp_fields =
   let open List in
@@ -2726,9 +3071,158 @@ and check_exp env t exp =
   assert (not env.pre);
   assert (exp.note.note_typ = T.Pre);
   assert (t <> T.Pre);
-  let t' = check_exp' env (T.normalize t) exp in
-  let e = A.infer_effect_exp exp in
-  exp.note <- {exp.note with note_typ = t'; note_eff = e}
+  (* GADT eager check: refinements (M2) and existentials (M4-use). *)
+  let handled =
+    match exp.it, t with
+    | TagE (id, exp1), T.Con (c, ts) ->
+      gadt_check_refinements env exp c ts id;
+      gadt_check_existentials env exp t c ts id exp1
+    | _, T.Con (c, ts) when T.typd_existentials c <> [] ->
+      gadt_check_typd_existentials env exp t c ts
+    | _ -> false
+  in
+  if not handled then begin
+    let t' = check_exp' env (T.normalize t) exp in
+    let e = A.infer_effect_exp exp in
+    exp.note <- {exp.note with note_typ = t'; note_eff = e}
+  end
+
+and gadt_check_refinements env exp c ts id =
+  let arm_cs = T.arm_refinements c id.it in
+  let arm_es = T.arm_existentials c id.it in
+  if arm_cs <> [] then begin
+    match Cons.kind c with
+    | T.Def (tbs, _) ->
+      List.iter (fun (vname, refined_t) ->
+        let indexed = List.mapi (fun i (tb : T.bind) -> (i, tb)) tbs in
+        match List.find_opt (fun (_, tb) -> tb.T.var = vname) indexed with
+        | Some (i, _) when i < List.length ts ->
+          let slot_t = List.nth ts i in
+          let slot_is_skolem = match slot_t with
+            | T.Con (sc, _) ->
+              (match Cons.kind sc with T.Abs _ -> true | _ -> false)
+            | _ -> false
+          in
+          (* Treat arm existentials in refined_t as wildcards — e.g.
+             #cons refines N = Succ<M> and any [Succ<...>] slot is
+             compatible. *)
+          if not slot_is_skolem && not (T.arm_compat arm_es refined_t slot_t) then
+            local_error env exp.at "M9001"
+              "GADT arm `%s` refines `%s = %a`, but its slot in this instantiation is %a"
+              id.it vname
+              display_typ refined_t
+              display_typ slot_t
+        | _ -> ()
+      ) arm_cs
+    | _ -> ()
+  end
+
+and gadt_check_existentials env exp t c ts id exp1 =
+  let arm_es = T.arm_existentials c id.it in
+  let arm_binds =
+    List.map (fun (b : T.bind) -> { b with T.bound = T.open_ ts b.T.bound })
+      (T.arm_binds c id.it)
+  in
+  if arm_es = [] then false
+  else
+    match Cons.kind c with
+    | T.Def (_, body) ->
+      let body' = T.open_ ts body in
+      (match T.promote body' with
+       | T.Variant fs ->
+         (match List.find_opt (fun (f : T.field) -> f.T.lab = id.it) fs with
+          | Some f ->
+            let arm_payload = f.T.typ in
+            let actual_t = infer_exp env exp1 in
+            (match T.unify_existentials arm_payload actual_t arm_binds with
+             | Some sigma ->
+               let refined_payload = T.subst sigma arm_payload in
+               (* Use subtyping rather than a recursive check_exp — the
+                  payload's sub-expressions already have notes set by
+                  infer_exp, and a re-check would trip the "note = Pre"
+                  precondition cascade. *)
+               if not (T.sub actual_t refined_payload) then
+                 local_error env exp1.at "M0096"
+                   "expression of type%a\ncannot produce expected type%a"
+                   display_typ_expand actual_t
+                   display_typ_expand refined_payload;
+               let e = A.infer_effect_exp exp in
+               (* Slice 6: check_ir derives variant-arm σ structurally via
+                  derive_tag_sigma; no need to stash σ on the note. *)
+               exp.note <- {exp.note with note_typ = t; note_eff = e};
+               true
+             | None ->
+               local_error env exp.at "M9002"
+                 "GADT arm `%s`: cannot infer existential witness from payload of type%a"
+                 id.it
+                 display_typ actual_t;
+               (* Fall back to standard path so the user also sees the
+                  resulting subtype error in the usual format. *)
+               false)
+          | None -> false)
+       | _ -> false)
+    | _ -> false
+
+(* M10: construction-side check for top-level existentials. Mirrors
+   [gadt_check_existentials] but without the per-variant-arm wrapper —
+   the body of the TypD itself is the existential pack. *)
+and gadt_check_typd_existentials env exp t c ts =
+  match Cons.kind c with
+  | T.Def (_, body) ->
+    let body' = T.open_ ts body in
+    (* Promote [actual_t] so a class-typed [Con (MkRec, [])] gets
+       walked structurally against [body']. *)
+    let actual_t = T.promote (infer_exp env exp) in
+    (* [derive_destructure_sigma] chains alias-level σ → field-level
+       σ, substituting the former into the latter's bind bounds.
+       Handles e.g. `type Chain = type OUTER in { link : type G <:
+       OUTER, type H <: G in (OUTER, G, H) }` where G's effective
+       bound at the construction site is the alias's witness for
+       OUTER. *)
+    let sigma = T.derive_destructure_sigma t actual_t in
+    let declared_es = T.typd_existentials c in
+    let unresolved =
+      List.filter (fun e_con -> not (T.ConEnv.mem e_con sigma)) declared_es in
+    if unresolved <> [] then
+      local_error env exp.at "M9002"
+        "type `%s`: cannot infer existential witness from value of type%a"
+        (T.string_of_typ (T.Con (c, ts)))
+        display_typ actual_t
+    else begin
+      let refined = T.subst sigma body' in
+      if not (T.sub actual_t refined) then
+        local_error env exp.at "M0096"
+          "expression of type%a\ncannot produce expected type%a"
+          display_typ_expand actual_t
+          display_typ_expand refined
+    end;
+    let e = A.infer_effect_exp exp in
+    (* infer_exp has already populated the exp tree's notes; falling
+       through to [check_exp'] would re-walk and trip [note_typ = Pre],
+       so we return [true].  Set the note to [refined] on success,
+       [actual_t] otherwise so a downstream consumer sees a concrete
+       type rather than the schema's open form. *)
+    let note_t =
+      if unresolved = [] then T.subst sigma body' else actual_t
+    in
+    exp.note <- {exp.note with note_typ = note_t; note_eff = e};
+    true
+  | _ -> false
+
+(* M5: filter unreachable arms from a variant scrutinee type before
+   coverage analysis. When the un-promoted form is [Con(c, ts)] and
+   the promoted form is a Variant, drop arms whose GADT refinement is
+   incompatible with [ts]. *)
+and gadt_prune_for_coverage t_orig t =
+  match t_orig, t with
+  | T.Con (c, ts), T.Variant fs ->
+    (match Cons.kind c with
+     | T.Def (tbs, _) ->
+       let fs' = T.prune_gadt_variant c tbs ts fs in
+       if List.length fs' = List.length fs then t
+       else T.Variant fs'
+     | _ -> t)
+  | _ -> t
 
 and check_exp' env0 t exp : T.typ =
   let env = {env0 with in_prog = false; in_actor = false; context = exp.it :: env0.context } in
@@ -2780,17 +3274,46 @@ and check_exp' env0 t exp : T.typ =
     List.iter2 (check_exp env) ts exps;
     t
   | ObjE (exp_bases, exp_fields), T.Obj(T.Object, fs, tfs) ->
-    let t' = infer_check_bases_fields env fs exp.at exp_bases exp_fields in
+    (* Field-level existentials: drop binds-bearing fields from the
+       check-fields list so [infer_or_check] routes them through
+       [infer_exp_field] (avoids tripping on schema skolems).  After
+       inference, refine each binds-bearing expected field's payload
+       via σ derived from the actual inferred type. *)
+    let has_field_existentials =
+      List.exists (fun (f : T.field) -> f.T.binds <> []) fs in
+    let check_fields_for_infer =
+      if has_field_existentials then
+        List.filter (fun (f : T.field) -> f.T.binds = []) fs
+      else fs
+    in
+    let t' = infer_check_bases_fields env check_fields_for_infer exp.at exp_bases exp_fields in
     let fs', tfs' = match T.promote t' with
       | T.Obj(T.Object, fs', tfs') -> fs', tfs'
       | _ -> [], []
+    in
+    let t_refined =
+      if has_field_existentials then
+        let fs_refined = List.map (fun (f : T.field) ->
+          if f.T.binds = [] then f
+          else
+            match T.lookup_val_field_opt f.T.lab fs' with
+            | None -> f
+            | Some actual_t ->
+              (* Field-level binds already carry the alias-opened
+                 bound on [bind.bound] (open_field threaded ts). *)
+              (match T.unify_existentials f.T.typ actual_t f.T.binds with
+               | Some sigma -> { f with T.typ = T.subst sigma f.T.typ }
+               | None -> f)
+        ) fs in
+        T.Obj(T.Object, fs_refined, tfs)
+      else t
     in
     let missing_val_field_labs = fs
       |> List.filter T.(fun ft -> Option.is_none (lookup_val_field_opt ft.lab fs'))
       |> List.map (fun ft -> Printf.sprintf "'%s'" ft.T.lab)
     in
     begin match missing_val_field_labs with
-    | [] -> check_inferred env0 env t t' exp
+    | [] -> check_inferred env0 env t_refined t' exp
     | fts ->
       (* Future work: Replace this error with a general subtyping error once better explanations are available. *)
       let s = if List.length fts = 1 then "" else "s" in
@@ -2865,10 +3388,14 @@ and check_exp' env0 t exp : T.typ =
     check_exp env t exp3;
     t
   | SwitchE (exp1, cases), _ ->
-    let t1 = infer_exp_promote env exp1 in
+    let t1_orig = infer_exp env exp1 in
+    let t1 = T.promote t1_orig in
     let env' = { env with closest_scrutinee = Some (exp1.at, t1) } in
-    check_cases env' t1 t cases;
-    coverage_cases "switch" env cases t1 exp.at;
+    check_cases ~orig_pat_t:t1_orig env' t1 t cases;
+    (* M5: prune GADT-unreachable arms before coverage analysis so
+       a switch over Expr<Bool> doesn't warn about missing #int. *)
+    let t1_for_coverage = gadt_prune_for_coverage t1_orig t1 in
+    coverage_cases "switch" env cases t1_for_coverage exp.at;
     t
   | TryE (exp1, cases, exp2_opt), _ ->
     check_ErrorCap env "try" exp.at;
@@ -2901,8 +3428,39 @@ and check_exp' env0 t exp : T.typ =
     if not env.pre then check_parenthetical env (Some exp1.note.note_typ) par_opt;
     t'
   | TagE (id, exp1), T.Variant fs when List.exists (fun T.{lab; _} -> lab = id.it) fs ->
-    let {T.typ; _} = List.find (fun T.{lab; typ;_} -> lab = id.it) fs in
-    check_exp env typ exp1;
+    let arm_field = List.find (fun T.{lab; _} -> lab = id.it) fs in
+    let arm_typ = arm_field.T.typ in
+    (* M11b path B: existential bridge at TagE+Variant fall-through.
+       This path is taken when the body's expected [t] arrived as a
+       Variant body (e.g., the body of a switch case where the
+       function's return type got normalised by check_exp's
+       dispatcher before reaching SwitchE → check_case → body).
+       Path A: arm existentials read structurally from
+       [arm_field.binds]. *)
+    let arm_es = T.existentials_of_binds arm_field.T.binds in
+    if arm_es = [] then
+      check_exp env arm_typ exp1
+    else begin
+      let actual = infer_exp env exp1 in
+      (match T.unify_existentials arm_typ actual arm_field.T.binds with
+       | Some sigma ->
+         let refined = T.subst sigma arm_typ in
+         if not (T.sub actual refined) then
+           local_error env exp1.at "M0096"
+             "expression of type%a\ncannot produce expected type%a"
+             display_typ_expand actual
+             display_typ_expand refined;
+         (* M11a: σ used to be stashed on the note for IR's refine_target
+            to bridge fresh ← schema at TagPrim. Slice 6 made check_ir
+            derive σ structurally via derive_tag_sigma; no σ stash needed. *)
+         let e = A.infer_effect_exp exp in
+         exp.note <- {exp.note with note_typ = t; note_eff = e}
+       | None ->
+         local_error env exp.at "M9002"
+           "GADT arm `%s`: cannot infer existential witness from payload of type%a"
+           id.it
+           display_typ actual)
+    end;
     t
   | (ImportE _ | ImplicitLibE _), t ->
     t
@@ -2977,14 +3535,14 @@ and check_exp_field env (ef : exp_field) fts =
   in
   let ft_opt = List.find_opt (fun ft -> ft.T.lab = id.it) fts in
   match ft_opt with
-  | Some { T.lab = _; typ = T.Mut t; src } ->
+  | Some T.{ typ = T.Mut t; src; _ } ->
     if mut.it <> Syntax.Var then
       error env ef.at "M0149" "expected mutable 'var' field %s of type%a\nbut found immutable field (insert 'var'?)"
         id.it
         display_typ t;
     update_srcs src;
     check_exp env t exp
-  | Some { T.lab = _; typ = t; src } ->
+  | Some T.{ typ = t; src; _ } ->
     if mut.it = Syntax.Var then
       error env ef.at "M0150" "expected immutable field %s of type%a\nbut found mutable 'var' field (delete 'var'?)"
         id.it
@@ -3202,6 +3760,50 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let syntax_args = match exp2.it with
     | TupE es when not parenthesized -> es
     | _ -> [exp2]
+  in
+  (* Slice-7: for each `T.Witness` binder on the callee, prepend a
+     synthetic `to_candid(sample : <type-arg>)` to the syntactic args,
+     where the sample value is chosen so its Candid type-table byte
+     hits the right arm of the prim_type's switch.  Currently
+     recognises Nat / Int / Char syntactically. *)
+  let syntax_args =
+    let typ_args = match inst.it with
+      | Some (_, ts) -> ts
+      | None -> []
+    in
+    let path_name typ_ast = match typ_ast.it with
+      | PathT ({it = IdH id; _}, _) -> Some id.it
+      | _ -> None
+    in
+    let sample_for typ_opt =
+      let mk_lit l =
+        { it = LitE (ref l); at = no_region; note = empty_typ_note }
+      in
+      let mk_annot inner name =
+        let path = { it = IdH ({it = name; at = no_region; note = ()});
+                     at = no_region; note = None } in
+        let typ = { it = PathT (path, []); at = no_region; note = T.Pre } in
+        { it = AnnotE (inner, typ); at = no_region; note = empty_typ_note }
+      in
+      match Option.bind typ_opt path_name with
+      | Some "Int"  -> mk_annot (mk_lit (IntLit (Numerics.Int.of_int 42))) "Int"
+      | Some "Char" -> mk_annot (mk_lit (CharLit 65)) "Char"
+      | _ (* Nat or unknown *) ->
+        mk_annot (mk_lit (NatLit (Numerics.Nat.of_int 42))) "Nat"
+    in
+    let witness_args =
+      List.filteri (fun _ _ -> true) (
+        List.mapi (fun i (tb : T.bind) ->
+          if tb.T.sort = T.Witness then
+            let typ_opt = List.nth_opt typ_args i in
+            let sample = sample_for typ_opt in
+            Some { it = ToCandidE [sample];
+                   at = no_region; note = empty_typ_note }
+          else None
+        ) tbs
+        |> List.filter_map (fun x -> x))
+    in
+    witness_args @ syntax_args
   in
   let t_args, extra_subtype_problems = match ctx_dot with
     | None ->
@@ -3518,7 +4120,7 @@ and infer_cases env t_pat t cases : T.typ =
   List.fold_left (infer_case env t_pat) t cases
 
 and infer_case env t_pat t case =
-  let {pat; exp} = case.it in
+  let {pat; exp; _} = case.it in
   let ve = check_pat env t_pat pat in
   let initial_usage = enter_scope env in
   let t' = recover_with T.Non (infer_exp (adjoin_vals env ve)) exp in
@@ -3532,16 +4134,59 @@ and infer_case env t_pat t case =
       display_typ_expand t';
   t''
 
-and check_cases env t_pat t cases =
-  List.iter (check_case env t_pat t) cases
+and check_cases ?orig_pat_t env t_pat t cases =
+  List.iter (check_case ?orig_pat_t env t_pat t) cases
 
-and check_case env t_pat t case =
-  let {pat; exp} = case.it in
+and check_case ?orig_pat_t env t_pat t case =
+  let {pat; exp; _} = case.it in
   let initial_usage = enter_scope env in
   let ve = check_pat env t_pat pat in
-  let t' = recover (check_exp (adjoin_vals env ve) t) exp in
+  (* GADT env-transformer: when the pattern tags a GADT arm, distill
+     the arm's refinements into a substitution Σ and apply it to the
+     expected return type, the pattern bindings, and env.vals.
+     Mirrors the construction-side check.  No persistent write — IR's
+     check_case re-derives σ via [derive_case_sigma] (Path A slice 6). *)
+  let sigma = gadt_sigma_for_case (Option.value orig_pat_t ~default:t_pat) pat in
+  let env_for_body, ve_for_body, t_for_body =
+    if T.ConEnv.is_empty sigma then env, ve, t
+    else
+      let env' = { env with vals = T.Env.map
+                     (fun (typ, r, k, a) -> (T.subst sigma typ, r, k, a))
+                     env.vals } in
+      let ve' = T.Env.map
+                  (fun (typ, r, k) -> (T.subst sigma typ, r, k))
+                  ve in
+      let t' = T.subst sigma t in
+      env', ve', t'
+  in
+  let t' = recover (check_exp (adjoin_vals env_for_body ve_for_body) t_for_body) exp in
   leave_scope env ve initial_usage;
   t'
+
+and gadt_sigma_for_case t_pat pat : T.typ T.ConEnv.t =
+  let rec unwrap p =
+    match p.it with
+    | ParP inner | AnnotP (inner, _) -> unwrap inner
+    | _ -> p
+  in
+  match (unwrap pat).it, t_pat with
+  | TagP (tag_id, _), T.Con (c, ts) ->
+    let arm_cs = T.arm_refinements c tag_id.it in
+    if arm_cs = [] then T.ConEnv.empty
+    else
+      (match Cons.kind c with
+       | T.Def (tbs, _) ->
+         List.fold_left (fun sigma (vname, rhs_t) ->
+           let indexed = List.mapi (fun i (tb : T.bind) -> (i, tb)) tbs in
+           match List.find_opt (fun (_, tb) -> tb.T.var = vname) indexed with
+           | Some (i, _) when i < List.length ts ->
+             (match List.nth ts i with
+              | T.Con (c_slot, []) -> T.ConEnv.add c_slot rhs_t sigma
+              | _ -> sigma)
+           | _ -> sigma
+         ) T.ConEnv.empty arm_cs
+       | _ -> T.ConEnv.empty)
+  | _ -> T.ConEnv.empty
 
 and inconsistent t ts =
   T.opaque t && not (List.exists T.opaque ts)
@@ -3559,7 +4204,7 @@ and infer_pat name_types env pat : T.typ * Scope.val_env =
   assert (pat.note = T.Pre);
   let t, ve = infer_pat' name_types env pat in
   if not env.pre then
-    pat.note <- T.normalize t;
+    pat.note <- T.path_compress t;
   t, ve
 
 and infer_pat' name_types env pat : T.typ * Scope.val_env =
@@ -3590,7 +4235,7 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
   | TagP (id, pat1) ->
     let t1, ve = infer_pat false env pat1 in
     Field_sources.add_src env.srcs id.at;
-    T.Variant [T.{lab = id.it; typ = t1; src = {empty_src with track_region = id.at}}], ve
+    T.Variant [T.{lab = id.it; binds = []; typ = t1; src = {empty_src with track_region = id.at}}], ve
   | AltP (pat1, pat2) ->
     error env pat.at "M0184"
         "cannot infer the type of this or-pattern, please add a type annotation";
@@ -3670,7 +4315,7 @@ and infer_pat_fields at env pfs ts ve : (T.obj_sort * T.field list) * Scope.val_
     let typ, ve1 = infer_pat false env pat in
     let ve' = disjoint_union env id.at "M0017" "duplicate binding for %s in pattern" ve ve1 in
     Field_sources.add_src env.srcs id.at;
-    infer_pat_fields at env pfs' (T.{lab = id.it; typ; src = {empty_src with track_region = id.at}}::ts) ve'
+    infer_pat_fields at env pfs' (T.{lab = id.it; binds = []; typ; src = {empty_src with track_region = id.at}}::ts) ve'
 
 and check_shared_pat env shared_pat : T.func_sort * Scope.val_env =
   match shared_pat.it with
@@ -3712,7 +4357,12 @@ and check_pat_aux env t pat val_kind : Scope.val_env =
   if t = T.Pre then snd (infer_pat false env pat) else
   let t' = T.normalize t in
   let ve = check_pat_aux' env t' t pat val_kind in
-  if not env.pre then pat.note <- t';
+  (* Path A slice 6: stash the path-compressed form on pat.note
+     (preserves the outer Con for GADT-bearing cons).  Downstream
+     consumers that need the opened structural form already call
+     [as_tup_sub] / [as_variant_sub] / [as_obj_sub] / [promote],
+     which handle the Con form via internal unfolding. *)
+  if not env.pre then pat.note <- T.path_compress t;
   ve
 
 and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
@@ -3778,15 +4428,33 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at "M0115" ~spans "option pattern cannot consume expected type"
     in check_pat env t1 pat1
   | TagP (id, pat1) ->
-    let t1 =
+    let arm_field_opt =
       try
-        match T.lookup_val_field_opt id.it (T.as_variant_sub id.it t) with
-        | Some t1 -> t1
-        | None -> T.Non
+        let fs = T.as_variant_sub id.it t in
+        List.find_opt (fun (f : T.field) -> T.(f.lab) = id.it) fs
       with Invalid_argument _ ->
         let spans = add_error_ctx [primary env pat.at "expected `%a`, got `{#%s : _}`" display_typ_expand_inline t id.it] in
         error env pat.at "M0116" ~spans "variant pattern cannot consume expected type"
-    in check_pat env t1 pat1
+    in
+    let t1, arm_es = match arm_field_opt with
+      | None -> T.Non, []
+      | Some f -> f.T.typ, T.existentials_of_binds f.T.binds
+    in
+    (* M11b path B: variant-arm fresh-skolem mint at destruction.
+       Path A: arm existentials read from arm_field.binds directly —
+       no shallow-walk filter needed. Substitution still on the Con
+       form of [t1] (matching arm's outer references get fresh cons
+       while nested types stay at schema). *)
+    let t1 =
+      if arm_es = [] then t1
+      else
+        let fresh_cons = List.map (T.fresh_destructure_skolem pat.at) arm_es in
+        let sigma = List.fold_left2 (fun s schema fresh ->
+          T.ConEnv.add schema (T.Con (fresh, [])) s
+        ) T.ConEnv.empty arm_es fresh_cons in
+        T.subst sigma t1
+    in
+    check_pat env t1 pat1
   | AltP (pat1, pat2) ->
     let ve1 = check_pat env t pat1 in
     let ve2 = check_pat env t pat2 in
@@ -3890,7 +4558,7 @@ and check_pat_fields env t fs pfs ve at : Scope.val_env =
           "object field %s is not contained in expected type%a"
           id.it
           display_typ_expand t
-    | Lib.Both(T.{ lab; typ; src }, (id, pat, pf)) ->
+    | Lib.Both(T.{ lab; typ; src; _ }, (id, pat, pf)) ->
       last_field := lab;
       if T.is_mut typ then
         error env pf.at "M0120" "cannot pattern match mutable field %s" lab;
@@ -3967,7 +4635,7 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   (* Collect types in nested patterns *)
   let te = Lib.List.align cmp fs val_pfs |>
     Seq.fold_left (fun te -> function
-      | Lib.Both(T.{ lab; typ; src }, (_, p)) ->
+      | Lib.Both(T.{ lab; typ; src; _ }, (_, p)) ->
         let te1 = check_pat_typ_dec env typ p in
         disjoint_union env at "M0017" "duplicate type binding for %s in pattern" te te1
       | _ -> te) te in
@@ -3975,7 +4643,7 @@ and check_pat_fields_typ_dec env t fs tfs pfs te at : Scope.typ_env =
   let last_field = ref "" in
   Lib.List.align cmp tfs typ_pfs |>
     Seq.fold_left (fun te -> function
-      | Lib.Both(T.{ lab; typ; src }, (id, at)) ->
+      | Lib.Both(T.{ lab; typ; src; _ }, (id, at)) ->
         if !last_field = id.it then
           error env at "M0121" "duplicate type field %s in object pattern" id.it
         else
@@ -4021,7 +4689,8 @@ and vis_dec src dec xs : visibility_env =
   | VarD (id, _) -> vis_val_id src id xs
   | ClassD (_, _, _, id, _, _, _, _, _) ->
     vis_val_id src {id with note = ()} (vis_typ_id src id xs)
-  | TypD (id, _, _) -> vis_typ_id src id xs
+  | TypD (id, _, _, _) -> vis_typ_id src id xs
+  | PrimTypD (id, _, _, _, _) -> vis_typ_id src id xs
   | MixinD _
   | IncludeD _ -> xs
 
@@ -4068,9 +4737,9 @@ and object_of_scope env sort dec_fields scope at =
         match T.Env.find_opt id pub_typ with
         | Some src ->
           Field_sources.add_src env.srcs src.id_region;
-          T.{lab = id; typ = c; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
+          T.{lab = id; binds = []; typ = c; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
         | _ when sort = T.Mixin ->
-           T.{lab = id; typ = c; src = {depr = None; track_region = at; region = at}}::tfs
+           T.{lab = id; binds = []; typ = c; src = {depr = None; track_region = at; region = at}}::tfs
         | _ -> tfs
       ) scope.Scope.typ_env []
   in
@@ -4080,9 +4749,9 @@ and object_of_scope env sort dec_fields scope at =
         match T.Env.find_opt id pub_val with
         | Some src ->
           Field_sources.add_src env.srcs src.id_region;
-          T.{lab = id; typ = t; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
+          T.{lab = id; binds = []; typ = t; src = {depr = src.depr; track_region = src.id_region; region = src.field_region}}::tfs
         | _ when sort = T.Mixin ->
-          T.{lab = id; typ = t; src = {depr = None; track_region = at; region = at}}::tfs
+          T.{lab = id; binds = []; typ = t; src = {depr = None; track_region = at; region = at}}::tfs
         | _ -> tfs
       ) scope.Scope.val_env []
   in
@@ -4357,7 +5026,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
          post
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
-        let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
+        let mf = T.{lab = T.migration_lab_of_filename file; binds = []; typ; src = T.empty_src } in
         (* is this a migration function *)
         let (dom_mf, rng_mf) = check_migration_function env mf.T.typ file_at in
         let out =
@@ -4437,7 +5106,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
     check_ids env "pre actor type" "stable variable" pre_ids;
     (* Reject any fields in range not in post signature (unintended data loss) *)
     let stab_ids = List.map (fun tf -> tf.T.lab) stab_tfs in
-    List.iter (fun T.{lab;typ;src} ->
+    List.iter (fun T.{lab; typ; src; _} ->
       match T.lookup_val_field_opt lab stab_tfs with
       | Some _ -> ()
       | None ->
@@ -4450,7 +5119,7 @@ and check_migration env obj_sort (stab_tfs : T.field list) exp_opt at =
       rng_tfs;
     (* Warn about any field in domain, not in range, and declared stable in actor *)
     (* This may indicate unintentional data loss. *)
-    List.iter (fun T.{lab;typ;src} ->
+    List.iter (fun T.{lab; typ; src; _} ->
       match T.lookup_val_field_opt lab rng_tfs with
       | Some _ -> ()
       | None ->
@@ -4580,6 +5249,7 @@ and check_stab env sort scope dec_fields =
          let typ, _, _ = T.Env.find id.it scope.Scope.val_env in
          Field_sources.add_src env.srcs id.at;
          T.{ lab = id.it;
+             binds = [];
              typ;
              src = {depr = None; track_region = id.at; region = id.at}})
       ids)
@@ -4598,7 +5268,7 @@ and infer_viewer env scope mut id viewer =
         (* approximate non-shared returns to Any, if necessary *)
         let shared_ret =
           List.map (fun ty -> if T.shared ty then ty else T.Any) ret in
-        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
+        T.{ lab; binds = []; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
       let infer_dot_view =
         Diag.with_message_store (recover_opt (fun msgs ->
           (* checkpoint env.used_identifiers *)
@@ -4631,7 +5301,7 @@ and infer_viewer env scope mut id viewer =
            let varE =
              { (VarE {it = id.it; at; note = (mut, None)} @? at)
                with note = { note_typ = typ;
-                             note_eff = T.Triv} }
+                             note_eff = T.Triv } }
            in
            use_identifier env id.it;
            viewer := Some
@@ -4791,7 +5461,36 @@ and infer_dec env dec : T.typ =
           warn env dec.at "M0135"
             "actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'";
         let t'' = check_typ env'' typ in
-        if not (sub env dec.at t' t'') then
+        (* M10 class form: when the declared return type carries
+           top-level [type X] existentials, the body's inferred type
+           [t'] is concrete while [t''] is the existential pack.
+           Run witness inference to discover σ and check the body
+           against the refined pack. Mirror of
+           [gadt_check_typd_existentials]. The call-site coercion
+           (`MkRec 7 : Rec`) is handled separately by check_exp
+           registering σ at the call's exp.at; the IR check's
+           CallPrim arm applies it before the result sub-check. *)
+        let refined_t'' = match t'' with
+          | T.Con (c, ts) when T.typd_existentials c <> [] ->
+            (match Cons.kind c with
+             | T.Def (tbs, body) ->
+               let body' = T.open_ ts body in
+               let opened_binds =
+                 List.map (fun (b : T.bind) ->
+                   { b with T.bound = T.open_ ts b.T.bound }) tbs
+               in
+               (match T.unify_existentials body' t' opened_binds with
+                | Some sigma ->
+                  (* M11a: σ at dec.at had no consumers; drop the
+                     register. The body sub-check is the only thing
+                     needed at the class-declaration site; the
+                     call-site σ lives on its own CallE note. *)
+                  T.subst sigma body'
+                | None -> t'')
+             | _ -> t'')
+          | _ -> t''
+        in
+        if not (sub env dec.at t' refined_t'') then
           local_error env dec.at "M0134"
             "class body of type%a\ndoes not match expected type%a"
             display_typ_expand t'
@@ -4811,6 +5510,8 @@ and infer_dec env dec : T.typ =
     let t' = infer_obj { env' with check_unused = false } obj_sort None dec_fields dec.at in
     T.normalize t'
   | TypD _ ->
+    T.unit
+  | PrimTypD _ ->
     T.unit
   in
   let eff = A.infer_effect_dec dec in
@@ -4908,7 +5609,7 @@ and gather_dec env scope dec : Scope.t =
     }
   | LetD (pat, exp, _) -> gather_pat env scope pat
   | VarD (id, _) -> Scope.adjoin_val_env scope (gather_id env scope.Scope.val_env id Scope.Declaration)
-  | TypD (id, binds, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
+  | TypD (id, binds, _, _) | PrimTypD (id, binds, _, _, _) | ClassD (_, _, _, id, binds, _, _, _, _) ->
     let open Scope in
     if T.Env.mem id.it scope.typ_env then
       error_duplicate env "type " id;
@@ -5091,13 +5792,87 @@ and infer_dec_typdecs env dec : Scope.t =
        end
   | ExpD _ | VarD _ ->
     Scope.empty
-  | TypD (id, typ_binds, typ) ->
-    let k = check_typ_def env dec.at (id, typ_binds, typ) in
+  | TypD (id, typ_binds, cs_top, typ) ->
+    let k = check_typ_def env dec.at (id, typ_binds, cs_top, typ) in
     let c = T.Env.find id.it env.typs in
-    Scope.{ empty with
+    (* M8: refinement's tv name must match an outer type-parameter,
+       otherwise the refinement is meaningless. *)
+    let outer_names = List.map (fun (tb : typ_bind) -> tb.it.var.it) typ_binds in
+    (* Populate GADT side-tables: per-arm refinement equations and
+       existential skolems. *)
+    (match typ.it with
+     | VariantT tags ->
+       List.iter (fun tag ->
+         if not env.pre then
+           List.iter (fun cstr ->
+             match cstr.it.refines with
+             | Some _ when not (List.mem cstr.it.tv.it outer_names) ->
+               local_error env cstr.at "M9005"
+                 "invalid refinement `type %s = ...` on arm `%s`: `%s` is not a type-parameter of `%s` — did you mean an existential `type %s` (no `= ...`)?"
+                 cstr.it.tv.it tag.it.tag.it cstr.it.tv.it id.it
+                 cstr.it.tv.it
+             | _ -> ()
+           ) tag.it.constraints;
+         (* Path A: arm refinements + existentials are written
+            structurally to [arm.binds] by check_typ_tag (slice 2,
+            existentials) and augment_arm_binds (slice 5,
+            refinements).  Skolem cons identity now lives in the
+            stamp ([Cons.fresh_skolem] mints them in the [<= 0]
+            reserve), so [is_gadt_existential] is a pure function
+            of cons — no registration needed. *)
+         ()
+       ) tags
+     | _ -> ());
+    let scope = Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
-    }
+    } in
+    (* Path A slice 5: augment-phase population of refinement binds.
+       Runs AFTER [infer_id_typdecs] so the [eq_kind] assert inside
+       can compare pre- vs final-pass kinds before mutation.
+       Post-confluence: typing's two-pass scheme has run to
+       completion by here; no later pass will observe the mutated
+       cons-kind via [eq_kind]. See type.ml's [augment_arm_binds]. *)
+    (match typ.it with
+     | VariantT tags when not env.pre ->
+       List.iter (fun tag ->
+         let refinement_binds =
+           List.filter_map (fun cstr ->
+             match cstr.it.refines with
+             | Some rhs when List.mem cstr.it.tv.it outer_names
+                          && rhs.note <> T.Pre ->
+               Some ({T.var = cstr.it.tv.it; sort = T.Refinement rhs.note; bound = T.Any} : T.bind)
+             | _ -> None
+           ) tag.it.constraints
+         in
+         T.augment_arm_binds c tag.it.tag.it refinement_binds
+       ) tags
+     | _ -> ());
+    (* HKT extension of Path A: augment-phase population of
+       existential binds on the alias's Def kind itself.  Same
+       post-confluence rationale as augment_arm_binds.  Runs only
+       in the final (non-pre) pass. *)
+    if not env.pre then begin
+      (* The alias's typ_binds' cons — used to close the existential
+         bound's free references so [open_ ts] at use sites
+         substitutes the alias's type-args into the bound (e.g.
+         `type Bag<A> = type X <: A in ...` — X's bound must follow
+         A through `Bag<Nat>`). *)
+      let typ_bind_cons =
+        List.filter_map (fun (tb : typ_bind) -> tb.note) typ_binds
+      in
+      let typd_binds =
+        List.filter_map (fun (cstr : typ_constraint) ->
+          match cstr.it.refines, cstr.note with
+          | None, Some skolem ->
+            let bound_t = T.close typ_bind_cons cstr.it.bound.note in
+            Some ({T.var = cstr.it.tv.it; sort = T.Existential skolem; bound = bound_t} : T.bind)
+          | _ -> None
+        ) cs_top
+      in
+      T.augment_def_binds c typd_binds
+    end;
+    scope
   | ClassD (exp_opt, shared_pat, obj_sort, id, binds, pat, _typ_opt, self_id, dec_fields) ->
      (*TODO exp_opt *)
     let c = T.Env.find id.it env.typs in
@@ -5118,6 +5893,13 @@ and infer_dec_typdecs env dec : Scope.t =
     let t = infer_obj { env'' with check_unused = false } obj_sort exp_opt dec_fields dec.at in
     let k = T.Def (T.close_binds class_cs class_tbs, T.close class_cs t) in
     check_closed env id k dec.at;
+    Scope.{ empty with
+      typ_env = T.Env.singleton id.it c;
+      con_env = infer_id_typdecs env dec.at id c k;
+    }
+  | PrimTypD (id, typ_binds, value_params, discr, arms) ->
+    let k = check_typ_prim_def env dec.at (id, typ_binds, value_params, discr, arms) in
+    let c = T.Env.find id.it env.typs in
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
       con_env = infer_id_typdecs env dec.at id c k;
@@ -5163,7 +5945,31 @@ and infer_dec_valdecs env dec : Scope.t =
     let _ve = check_pat env obj_typ pat in
     Scope.{empty with val_env = singleton id obj_typ}
   | LetD (pat, exp, fail) ->
-     let t = infer_exp {env with pre = true; check_unused = false} exp in
+     let t0 = infer_exp {env with pre = true; check_unused = false} exp in
+     (* M11b — "Overly Entangled Black Holes" fix. When destructuring a
+        value whose type carries top-level existentials, mint a fresh
+        skolem per schema-existential, keyed by this pattern's region.
+        Bindings then have site-local cons, so two sibling destructures
+        of the same type live in *different* black holes — cross-mixing
+        their values is rejected by the type checker. *)
+     let rec is_destructuring p =
+       match p.it with
+       | TupP _ | ObjP _ -> true
+       | ParP p1 | AnnotP (p1, _) -> is_destructuring p1
+       | _ -> false
+     in
+     let t =
+       match t0 with
+       | T.Con (c, _) when T.typd_existentials c <> []
+                        && is_destructuring pat ->
+         let es = T.typd_existentials c in
+         let sigma = List.fold_left (fun s c_schema ->
+           let c_site = T.fresh_destructure_skolem pat.at c_schema in
+           T.ConEnv.add c_schema (T.Con (c_site, [])) s
+         ) T.ConEnv.empty es in
+         T.subst sigma (T.normalize t0)
+       | _ -> t0
+     in
      let env' = { env with closest_scrutinee = Some (exp.at, t) } in
      let ve' = match fail with
        | None -> check_pat_exhaustive warn env' t pat
@@ -5177,7 +5983,13 @@ and infer_dec_valdecs env dec : Scope.t =
   | VarD (id, exp) ->
     let t = infer_exp {env with pre = true} exp in
     Scope.{empty with val_env = singleton id (T.Mut t)}
-  | TypD (id, _, _) ->
+  | TypD (id, _, _, _) ->
+    let c = Option.get id.note in
+    Scope.{ empty with
+      typ_env = T.Env.singleton id.it c;
+      con_env = T.ConSet.singleton c;
+    }
+  | PrimTypD (id, _, _, _, _) ->
     let c = Option.get id.note in
     Scope.{ empty with
       typ_env = T.Env.singleton id.it c;
@@ -5265,6 +6077,10 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
     fun f y -> recover_with (Some (T.unit, Scope.empty)) (fun y -> Some (f y)) y;
     else recover_opt;
   in
+  (* Install per-typing-pass skolem pool. Replaces the global
+     `gadt_fresh_skolems` table — fresh-cons memo now dies with this
+     handler frame, no cross-session leakage. *)
+  T.with_skolem_pool (fun () ->
   Diag.with_message_store ~allow_errors:enable_type_recovery
     (fun msgs ->
       recovery_fn
@@ -5282,7 +6098,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in
           t, {sscope with Scope.fld_src_env}
         ) prog
-    )
+    ))
 
 let is_actor_dec d =
   match d.it with
@@ -5427,7 +6243,7 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
           let check_fields sfs =
             check_ids env "object type" "field"
               (List.filter_map (fun (field : typ_field) ->
-                   match field.it with ValF (id, _, _) -> Some id | _ -> None)
+                   match field.it with ValF (id, _, _, _) -> Some id | _ -> None)
                  sfs);
             let _ = List.map (check_typ_field {env1 with pre = true} T.Object) sfs in
             (* NOTE: It's correct to drop type fields here, because the parser for stable signatures
@@ -5436,7 +6252,7 @@ let check_stab_sig scope sig_ : T.stab_sig  Diag.result =
             List.iter (fun (field : Syntax.typ_field) ->
                 match field.it with
                 | TypF _ -> assert false
-                | ValF (id, typ, _) ->
+                | ValF (id, _, typ, _) ->
                   if not (T.stable typ.note) then
                      error env id.at "M0131" "variable %s is declared stable but has non-stable type%a"
                      id.it

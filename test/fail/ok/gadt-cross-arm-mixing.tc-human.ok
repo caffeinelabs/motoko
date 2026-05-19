@@ -1,0 +1,11 @@
+error[M0096]: expression of type
+  X
+cannot produce expected type
+  X
+because black-hole witness 
+  X
+ (from a `type X` existential arm) cannot escape its case scope to satisfy 
+  X
+    ┌─ gadt-cross-arm-mixing.mo:21:14
+ 21 │            f1 x2
+    │               ^^ 

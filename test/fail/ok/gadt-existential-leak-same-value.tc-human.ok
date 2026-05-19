@@ -1,0 +1,11 @@
+error[M0096]: expression of type
+  X
+cannot produce expected type
+  X
+because black-hole witness 
+  X
+ (from a `type X` existential arm) cannot escape its case scope to satisfy 
+  X
+    ┌─ gadt-existential-leak-same-value.mo:18:39
+ 18 │    case (#pack (a, _), #pack (_, g)) g a
+    │                                        ^ 

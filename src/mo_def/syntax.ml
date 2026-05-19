@@ -7,9 +7,13 @@ open Source
 
 (* Notes *)
 
-type typ_note = {note_typ : Type.typ; note_eff : Type.eff}
+type typ_note = {
+  note_typ : Type.typ;
+  note_eff : Type.eff;
+}
 
-let empty_typ_note = {note_typ = Type.Pre; note_eff = Type.Triv}
+let empty_typ_note =
+  {note_typ = Type.Pre; note_eff = Type.Triv}
 
 (* Resolved imports (filled in separately after parsing) *)
 
@@ -71,17 +75,70 @@ and typ' =
 and scope = typ
 and typ_field = typ_field' phrase
 and typ_field' =
-  | ValF of id * typ * mut
+  | ValF of id * typ_constraint list * typ * mut
+        (* `constraints` carries field-level existentials (M-field):
+           `name : type X [<: B] in T`.  Constraints lift to the
+           enclosing alias's [Def.binds] at TypD elaboration —
+           user-visible scope is per-field, internal rep is at the
+           alias level (cons identity keeps independently-scoped
+           same-named existentials distinct). *)
   | TypF of typ_id * typ_bind list * typ
 
 and typ_tag = typ_tag' phrase
-and typ_tag' = {tag : id; typ : typ}
+and typ_tag' = {tag : id; constraints : typ_constraint list; typ : typ}
+
+and typ_constraint = (typ_constraint', Type.con option) annotated_phrase
+and typ_constraint' = {tv : id; refines : typ option; bound : typ}
+(* refines = Some T : `type tv = T` (refinement; only valid in variant
+                     arms — guarded against TypD top-level by the
+                     parser's [typ_constraint_existential] production);
+   refines = None    : `type tv [<: B]` (existential, bound defaults to
+                     `Any`).  For existentials, the note slot caches the
+                     fresh skolem [Type.con] introduced at the first
+                     pass, so subsequent passes reuse the same con
+                     (eq_kind stability). *)
 
 and bind_sort = Type.bind_sort phrase
 and typ_bind = (typ_bind', Type.con option) annotated_phrase
-and typ_bind' = {var : id; sort : bind_sort; bound : typ;}
+and typ_bind' = {var : id; sort : bind_sort; bound : typ; has_witness : bool}
+(* [has_witness] flags a type-binder declared `<T with type>` —
+   T is simultaneously an abstract type and a runtime [Candid]
+   stream witness (the singleton describing T's identity).  The
+   user-facing dual binding is what [switch type T] dispatches
+   on; under the hood the value-side is a hidden value-parameter
+   threaded into the call site (parallel to how `class` binds
+   both a type and a constructor).  Future slices promote this
+   to a proper [Type.bind_sort] variant once the elaboration
+   semantics are wired. *)
 
 and typ_item = id option * typ
+
+(* prim switch — internal value-driven refinement (see plans/GADTs.md
+   §Value-driven refinement).  Each arm matches a compile-time-known
+   scalar (typically a Candid type-table index) and carries refinement
+   clauses identical to variant-arm existentials.
+
+   The scrutinee expression (e.g. `@typCode(stream)`) is NOT stored
+   in the AST — the parser captures it directly in the macro-expander
+   closure registered with [Macro_registry]. *)
+and prim_switch_arm = prim_switch_arm' phrase
+and prim_switch_arm' = {
+  pat : prim_idx_pat;
+  refinement : typ_constraint;
+  (* The arm body is just the refinement (`type T = …`); the alias's
+     refined type follows from applying the refinement to T.  No
+     `in <typ>` because that would always be `T` after refinement. *)
+}
+
+and prim_idx_pat =
+  | IdxLitP of int               (* `case -3` *)
+  | IdxWildP                     (* `case _` *)
+  | IdxGuardP of id * prim_idx_guard
+                                 (* `case N when N >= 0` *)
+
+and prim_idx_guard =
+  | Geq of int
+  | Lt of int
 
 
 (* Literals *)
@@ -241,6 +298,7 @@ and exp' =
   | ThrowE of exp                              (* throw exception *)
   | TryE of exp * case list * exp option       (* catch exception / finally *)
   | IgnoreE of exp                             (* ignore *)
+  | RefineE of typ_constraint * exp            (* elaborate [exp] under a type refinement *)
 (*
   | AtomE of string                            (* atom *)
  *)
@@ -255,7 +313,13 @@ and dec_field' = {dec : dec; vis : vis; stab: stab option}
 and exp_field = exp_field' phrase
 and exp_field' = {mut : mut; id : id; exp : exp}
 
-and case = case' phrase
+and case = (case', bool) annotated_phrase
+(* [case.note] is the [unreached] flag: typing's coverage analysis
+   flags arms whose pattern can't match any value of the scrutinee's
+   type (M0146 source).  Desugar consumes this — in release mode the
+   arm is dropped from the lowered switch entirely; in debug mode
+   its body is replaced with [unreachableE()] for paranoid runtime
+   traps. *)
 and case' = {pat : pat; exp : exp}
 
 (* When `Some`, this holds the expression that produces the function to apply to the receiver.
@@ -269,7 +333,16 @@ and dec' =
   | ExpD of exp                                (* plain unit expression *)
   | LetD of pat * exp * exp option             (* immutable, with an optional fail block *)
   | VarD of id * exp                           (* mutable *)
-  | TypD of typ_id * typ_bind list * typ       (* type *)
+  | TypD of typ_id * typ_bind list * typ_constraint list * typ
+    (* type; constraints are existential/refinement bindings scoped over
+       the body (same machinery as variant-arm clauses, lifted to the
+       top of a type declaration). *)
+  | PrimTypD of typ_id * typ_bind list * (id * typ) list * exp * prim_switch_arm list
+    (* INTERNAL ONLY.  Value-driven refinement alias:
+         `prim type X<T..>(v..) = prim switch (DISCR) { case .. : .. }`
+       [DISCR] is an arbitrary expression mentioning the value
+       parameters; the typechecker uses it to build the macro
+       expander after validating the arms. *)
   | ClassD of                                  (* class *)
       exp option * sort_pat * obj_sort * typ_id * typ_bind list * pat * typ option * id * dec_field list
   | MixinD of pat * dec_field list             (* mixin *)
@@ -432,7 +505,7 @@ let contextual_dot_args e1 e2 dot_note =
     | _, _ -> T.Await
   in
   let args = match e2 with
-    | { it = TupE []; at; note = { note_eff;_ } } ->
+    | { it = TupE []; at; note = { note_eff; _ } } ->
        { it = e1.it; at; note = { note_eff = effec note_eff; note_typ = e1.note.note_typ } }
     | { it = TupE exps; at; note = { note_eff; note_typ = T.Tup ts } } when arity <> 2 ->
        { it = TupE (e1::exps); at; note = { note_eff = effec note_eff; note_typ = T.Tup (e1.note.note_typ::ts) } }

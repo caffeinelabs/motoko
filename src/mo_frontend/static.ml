@@ -67,7 +67,7 @@ let rec exp env e  = match e.it with
   | IdxE (exp1, exp2) -> err env e.at
 
   (* Transparent *)
-  | AnnotE (exp1, _) | IgnoreE exp1 | DoOptE exp1 -> exp env exp1
+  | AnnotE (exp1, _) | IgnoreE exp1 | DoOptE exp1 | RefineE (_, exp1) -> exp env exp1
   | BlockE ds -> List.iter (dec env) ds
 
   (*
@@ -117,7 +117,7 @@ and exp_fields env efs = List.iter (fun (ef : exp_field) ->
   exp env ef.it.exp) efs
 
 and dec env d = match d.it with
-  | TypD _ | ClassD _ | MixinD _ -> ()
+  | TypD _ | PrimTypD _ | ClassD _ | MixinD _ -> ()
   | IncludeD _ ->
     if env.allow_include
     then ()

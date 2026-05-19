@@ -69,11 +69,22 @@ and typ =
   | Pre                                       (* pre-type *)
 
 and scope = typ
-and bind_sort = Scope | Type
+(* [Existential c] carries the schema cons originally minted for an
+   arm/field's `type X` clause.  [Refinement t] carries the RHS of a
+   `type A = T` refinement constraint; the bind's [var] is A.
+   Same shape applies to future record-field existentials/refinements
+   — not Variant-specific. *)
+and bind_sort = Scope | Type | Existential of con | Refinement of typ | Witness
 
 and bind = {var : var; sort: bind_sort; bound : typ}
 and src = {depr : string option; track_region : region; region : region}
-and 'a gen_field = {lab : lab; typ : 'a; src : src}
+(* Path A slice 1: every field (Obj fields, Variant arms, and
+   future record-field existentials) carries a [bind list]. For
+   non-GADT uses [binds] is [[]] — the prior [field] shape. For
+   variant arms with [type X in body] declarations [binds]
+   captures the arm's existentials and refinements (mirror of
+   [Func]'s binder slot). *)
+and 'a gen_field = {lab : lab; binds : bind list; typ : 'a; src : src}
 and field = typ gen_field
 and typ_field = con gen_field
 
@@ -173,13 +184,6 @@ let compare_func_sort s1 s2 =
   let d = tag_func_sort s1 - tag_func_sort s2 in
   if d > 0 then 1 else if d < 0 then -1 else 0
 
-let compare_bind_sort s1 s2 =
-  match s1, s2 with
-  | Type, Type
-  | Scope, Scope -> 0
-  | Type, Scope -> -1
-  | Scope, Type -> 1
-
 let compare_src s1 s2 =
   match (s1.depr, s2.depr) with
   | None, None -> 0
@@ -187,7 +191,23 @@ let compare_src s1 s2 =
   | None, Some _ -> -1
   | _ -> 1
 
-let rec compare_typ (t1 : typ) (t2 : typ) =
+let rec compare_bind_sort s1 s2 =
+  match s1, s2 with
+  | Type, Type
+  | Scope, Scope
+  | Witness, Witness -> 0
+  | Existential c1, Existential c2 -> Cons.compare c1 c2
+  | Refinement t1, Refinement t2 -> compare_typ t1 t2
+  | Scope, _ -> -1
+  | _, Scope -> 1
+  | Type, _ -> -1
+  | _, Type -> 1
+  | Existential _, _ -> -1
+  | _, Existential _ -> 1
+  | Refinement _, _ -> -1
+  | _, Refinement _ -> 1
+
+and compare_typ (t1 : typ) (t2 : typ) =
   if t1 == t2 then 0
   else match (t1, t2) with
   | Prim p1, Prim p2 ->
@@ -361,7 +381,7 @@ let text_list =
 
 let fields flds =
   List.sort compare_field
-    (List.map (fun (lab, typ) -> {lab; typ; src = empty_src}) flds)
+    (List.map (fun (lab, typ) -> {lab; binds = []; typ; src = empty_src}) flds)
 
 let obj sort flds =
   Obj (sort, fields flds, [])
@@ -373,20 +393,20 @@ let sum flds =
   Variant (fields flds)
 
 let throwErrorCodes = List.sort compare_field [
-  { lab = "canister_reject"; typ = unit; src = empty_src}
+  { lab = "canister_reject"; binds = []; typ = unit; src = empty_src}
 ]
 
 let call_error = obj Object [("err_code", Prim Nat32)]
 
 let catchErrorCodes = List.sort compare_field (
   throwErrorCodes @ [
-    { lab = "system_fatal"; typ = unit; src = empty_src};
-    { lab = "system_transient"; typ = unit; src = empty_src};
-    { lab = "destination_invalid"; typ = unit; src = empty_src};
-    { lab = "canister_error"; typ = unit; src = empty_src};
-    { lab = "system_unknown"; typ = unit; src = empty_src};
-    { lab = "future"; typ = Prim Nat32; src = empty_src};
-    { lab = "call_error"; typ = call_error; src = empty_src};
+    { lab = "system_fatal"; binds = []; typ = unit; src = empty_src};
+    { lab = "system_transient"; binds = []; typ = unit; src = empty_src};
+    { lab = "destination_invalid"; binds = []; typ = unit; src = empty_src};
+    { lab = "canister_error"; binds = []; typ = unit; src = empty_src};
+    { lab = "system_unknown"; binds = []; typ = unit; src = empty_src};
+    { lab = "future"; binds = []; typ = Prim Nat32; src = empty_src};
+    { lab = "call_error"; binds = []; typ = call_error; src = empty_src};
   ])
 
 let throw = Prim Error
@@ -459,8 +479,85 @@ let rec shift i n t =
 and shift_bind i n tb =
   {tb with bound = shift i n tb.bound}
 
-and shift_field i n {lab; typ; src} =
-  {lab; typ = shift i n typ; src}
+and shift_field i n {lab; binds; typ; src} =
+  let i' = i + List.length binds in
+  {lab; binds = List.map (shift_bind i' n) binds; typ = shift i' n typ; src}
+
+(* Path A slice 5 — augment_arm_binds.
+
+   Kind elaboration is a 3-phase protocol:
+
+     Pre  →  Final  →  Refinement-Augment
+
+   - Pre / Final ([set_kind] above + the eq_kind assert in
+     [typing.ml]'s [infer_id_typdecs]) handle the placeholder
+     → final transition for forward-reference resolution.
+     Subsequent re-elaborations must produce the same kind;
+     confluence is enforced by [eq_kind].
+
+   - Refinement-Augment ([augment_arm_binds] here) runs *after*
+     all elaboration is settled — at the variant-decl
+     registration site in typing.ml.  It exists because
+     refinement RHS typs ([rhs.note]) are only reliable
+     post-elaboration: stamping them into arm.binds during
+     [check_typ_tag] would diverge between pre-pass and final
+     pass, tripping the [eq_kind] assert.
+
+   The augment phase is gated, monotonic, and post-confluence:
+
+   - Gated: only fires for variant Def-kinds with the specified
+     arm label present.
+   - Monotonic: only *appends* refinement binders.  Existing
+     existential binders (slice 2) survive at the head.
+   - Post-confluence: typing's two-pass scheme has run to
+     completion by the time augment runs; no later
+     [set_kind] / [eq_kind] check will observe the change.
+
+   The payload's outer-Var deBruijn indices are shifted by
+   [List.length new_binds] to compensate for the new arm-local
+   binders extending the scope (otherwise opening the Def with
+   type-args would fail to substitute outer references that now
+   sit beyond the inner scope).
+
+   This justifies the use of [Cons.unsafe_set_kind] beyond the
+   placeholder→final scope: targeted, monotonic, post-confluence
+   mutation of an already-settled cons. *)
+and augment_arm_binds c lab (new_binds : bind list) : unit =
+  match Cons.kind c with
+  | Def (tbs, Variant fs) ->
+    let n = List.length new_binds in
+    let fs' = List.map (fun (f : field) ->
+      if f.lab = lab then
+        { f with
+          binds = f.binds @ new_binds;
+          typ = shift 0 n f.typ }
+      else f
+    ) fs in
+    Cons.unsafe_set_kind c (Def (tbs, Variant fs'))
+  | _ -> ()  (* not a variant Def — silently skip *)
+
+(* HKT extension of Path A: append existential binders to a top-level
+   alias's Def kind.  Mirror of [augment_arm_binds] but one layer up
+   — for [type Pack = type X in body], the Def grows
+   `binds = [...; {var="X"; sort=Existential X_cons; bound=Any}]`.
+
+   No shift on body: existentials in the alias body are referenced
+   via [Con(X_cons, [])], not [Var], so adding the binder doesn't
+   change the body's deBruijn indices.  Same 3-phase elaboration
+   discipline as augment_arm_binds: post-confluence, monotonic,
+   asserted gating to Def kinds.
+
+   Existentials are appended AT THE END (after type-parameters) so
+   that the existing [reduce]/[open_] logic — which substitutes
+   ts[i] for Var positions [0..len(ts)-1] — continues to work for
+   the type-parameter prefix.  Existential positions [n..n+m-1]
+   have no Var references in the body, so they're harmless to
+   leave un-substituted at use sites. *)
+and augment_def_binds c (new_binds : bind list) : unit =
+  match Cons.kind c with
+  | Def (tbs, body) ->
+    Cons.unsafe_set_kind c (Def (tbs @ new_binds, body))
+  | _ -> ()  (* not a Def — silently skip *)
 
 (*
 and shift_kind i n k =
@@ -516,8 +613,9 @@ let rec subst sigma t =
 and subst_bind sigma tb =
   { tb with bound = subst sigma tb.bound}
 
-and subst_field sigma {lab; typ; src} =
-  {lab; typ = subst sigma typ; src}
+and subst_field sigma {lab; binds; typ; src} =
+  let sigma' = ConEnv.map (shift 0 (List.length binds)) sigma in
+  {lab; binds = List.map (subst_bind sigma') binds; typ = subst sigma' typ; src}
 
 (*
 and subst_kind sigma k =
@@ -566,8 +664,9 @@ let rec open' i ts t =
 and open_bind i ts tb  =
   {tb with bound = open' i ts tb.bound}
 
-and open_field i ts {lab; typ; src} =
-  {lab; typ = open' i ts typ; src}
+and open_field i ts {lab; binds; typ; src} =
+  let i' = i + List.length binds in
+  {lab; binds = List.map (open_bind i' ts) binds; typ = open' i' ts typ; src}
 
 (*
 and open_kind i ts k =
@@ -596,18 +695,40 @@ let open_binds tbs =
 (* Normalization and Classification *)
 
 let reduce tbs t ts =
-  assert (List.length ts = List.length tbs);
+  (* HKT extension: existential binds (sort = Existential _) don't
+     accept a type-arg at use sites — they're decorative metadata on
+     the Def kind.  Count only non-existential binds against ts. *)
+  let type_param_count = List.fold_left (fun n (tb : bind) ->
+    match tb.sort with Existential _ -> n | _ -> n + 1) 0 tbs in
+  assert (List.length ts = type_param_count);
   open_ ts t
 
-let rec normalize = function
+(* [normalize_stop_at stop_at t] is like [normalize] except the
+   predicate [stop_at] (when true for a Con's cons) halts unfolding
+   at that point.  The classic [normalize] is recovered by passing
+   the always-false predicate. *)
+let rec normalize_stop_at stop_at t =
+  match t with
   | Con (con, ts) as t ->
-    (match Cons.kind con with
-    | Def (tbs, t) -> normalize (reduce tbs t ts)
-    | _ -> t
-    )
-  | Mut t -> Mut (normalize t)
-  | Named (_, t) -> normalize t
+    if stop_at con then t
+    else
+      (match Cons.kind con with
+       | Def (tbs, body) -> normalize_stop_at stop_at (reduce tbs body ts)
+       | _ -> t)
+  | Mut t -> Mut (normalize_stop_at stop_at t)
+  | Named (_, t) -> normalize_stop_at stop_at t
   | t -> t
+
+let normalize t = normalize_stop_at (fun _ -> false) t
+
+(* [is_gadt_con] + [path_compress] are defined later in the file
+   (after [lookup_typd_existentials]) — they need that predicate to
+   detect top-level existential aliases.  Forward declaration via
+   refs so callers in [normalize_stop_at]'s neighbourhood compile;
+   the actual implementations bind these refs below. *)
+let is_gadt_con_ref : (con -> bool) ref = ref (fun _ -> false)
+let is_gadt_con c = !is_gadt_con_ref c
+let path_compress t = normalize_stop_at is_gadt_con t
 
 let rec promote = function
   | Con (con, ts) ->
@@ -674,11 +795,11 @@ let as_prim_sub p t = match promote t with
   | _ -> invalid "as_prim_sub"
 let as_obj_sub ls t = match promote t with
   | Obj (s, fs, _) -> s, fs
-  | Non -> Object, List.map (fun l -> {lab = l; typ = Non; src = empty_src}) ls
+  | Non -> Object, List.map (fun l -> {lab = l; binds = []; typ = Non; src = empty_src}) ls
   | _ -> invalid "as_obj_sub"
 let as_variant_sub l t = match promote t with
   | Variant tfs -> tfs
-  | Non -> [{lab = l; typ = Non; src = empty_src}]
+  | Non -> [{lab = l; binds = []; typ = Non; src = empty_src}]
   | _ -> invalid "as_variant_sub"
 let as_array_sub t = match promote t with
   | Array t -> t
@@ -819,9 +940,14 @@ and cons_con' inTyp c cs =
   else cons_kind' inTyp (Cons.kind c) (ConSet.add c cs)
 
 and cons_bind inTyp tb cs =
+  let cs = match tb.sort with
+    | Refinement t -> cons' inTyp t cs
+    | _ -> cs
+  in
   cons' inTyp tb.bound cs
 
-and cons_field inTyp {lab; typ; src} cs =
+and cons_field inTyp {binds; typ; _} cs =
+  let cs = List.fold_right (cons_bind inTyp) binds cs in
   cons' inTyp typ cs
 
 and cons_typ_field inTyp {typ = c; _} cs =
@@ -1100,6 +1226,7 @@ and explanation =
   | IncompatibleTypes of context * typ * typ
   | IncompatibleCons of context * con * con
   | FailedPromote of typ * typ * explanation
+  | BlackHoleEscape of typ * typ
   | MissingTag of context * desc * lab * typ
   | MissingField of context * desc * lab * typ * bool
   | FewerItems of context * string
@@ -1159,6 +1286,12 @@ struct
   let explanation arg = !(arg.error)
 end
 
+(* A GADT existential is a cons whose stamp lives in the [<= 0] reserve
+   — minted via [Cons.fresh_skolem] either by typing's destructure-pat
+   path ([fresh_destructure_skolem]) or at schema-existential elaboration
+   sites in typing.ml.  Pure function of the cons; no side table. *)
+let is_gadt_existential c = Cons.is_skolem c
+
 let incompatible_types d t1 t2 =
   RelArg.false_with d (IncompatibleTypes (RelArg.context d, t1, t2))
 
@@ -1172,6 +1305,9 @@ let failed_promote d t1 bound t2 =
     | None -> IncompatibleTypes (RelArg.context d, t1, t2)
   in
   RelArg.false_with d (FailedPromote (t1, bound, inner_explanation))
+
+let black_hole_escape d t1 t2 =
+  RelArg.false_with d (BlackHoleEscape (t1, t2))
 
 let missing_tag d desc lab t =
   RelArg.false_with d (MissingTag (RelArg.context d, desc, lab, t))
@@ -1258,7 +1394,10 @@ let rec rel_typ d rel eq t1 t2 =
       rel_list "type arguments" d eq_typ rel eq ts1 ts2
     | Abs (tbs, t), _ when rel != eq ->
       let bound = open_ ts1 t in
-      rel_typ d rel eq bound t2 || failed_promote d t1 bound t2
+      rel_typ d rel eq bound t2 ||
+      (if is_gadt_existential con1
+       then black_hole_escape d t1 t2
+       else failed_promote d t1 bound t2)
     | _ ->
       incompatible_types d t1 t2
     )
@@ -1268,7 +1407,10 @@ let rec rel_typ d rel eq t1 t2 =
       rel_typ d rel eq (open_ ts1 t) t2
     | Abs (tbs, t), _ when rel != eq ->
       let bound = open_ ts1 t in
-      rel_typ d rel eq bound t2 || failed_promote d t1 bound t2
+      rel_typ d rel eq bound t2 ||
+      (if is_gadt_existential con1
+       then black_hole_escape d t1 t2
+       else failed_promote d t1 bound t2)
     | _ -> incompatible_types d t1 t2
     )
   | t1, Con (con2, ts2) ->
@@ -1728,7 +1870,7 @@ and combine_fields rel lubs glbs fs1 fs2 =
         | typ ->
           add_src_field rel lubs glbs f1 f2;
           let src = {empty_src with track_region = f1.src.track_region} in
-          {lab = f1.lab; typ; src} :: acc
+          {lab = f1.lab; binds = f1.binds; typ; src} :: acc
         | exception Mismatch when rel == lubs -> acc)
       | Lib.This f1 -> cons_if (rel == glbs) f1 acc
       | Lib.That f2 -> cons_if (rel == glbs) f2 acc) []
@@ -1741,7 +1883,7 @@ and combine_tags rel lubs glbs fs1 fs2 =
       let typ = combine rel lubs glbs f1.typ f2.typ in
       add_src_field rel lubs glbs f1 f2;
       let src = {empty_src with track_region = f1.src.track_region} in
-      {lab = f1.lab; typ; src} :: acc
+      {lab = f1.lab; binds = f1.binds; typ; src} :: acc
     | Lib.This(f1) -> cons_if (rel == lubs) f1 acc
     | Lib.That(f2) -> cons_if (rel == lubs) f2 acc) []
   |> List.rev
@@ -1788,6 +1930,7 @@ let low_memory_type =
 let motoko_async_helper_fld =
   { lab = "__motoko_async_helper";
     typ = Func(Shared Write, Promises, [scope_bind], [Prim Nat32], []);
+    binds = [];
     src = empty_src;
   }
 
@@ -1796,12 +1939,14 @@ let motoko_stable_var_info_fld =
     typ =
       Func(Shared Query, Promises, [scope_bind], [],
         [ obj Object [("size", nat64)] ]);
+    binds = [];
     src = empty_src;
   }
 
 let motoko_gc_trigger_fld =
   { lab = "__motoko_gc_trigger";
     typ = Func(Shared Write, Promises, [scope_bind], [], []);
+    binds = [];
     src = empty_src;
   }
 
@@ -1828,6 +1973,7 @@ let motoko_runtime_information_fld =
   { lab = "__motoko_runtime_information";
     typ = Func(Shared Query, Promises, [scope_bind], [],
       [ motoko_runtime_information_type ]);
+    binds = [];
     src = empty_src;
   }
 
@@ -1890,8 +2036,8 @@ let cycles_lab = "cycles"
 let migration_lab = "migration"
 let timeout_lab = "timeout"
 
-let cycles_fld = { lab = cycles_lab; typ = nat; src = empty_src }
-let timeout_fld = { lab = timeout_lab; typ = nat32; src = empty_src }
+let cycles_fld = { lab = cycles_lab; binds = []; typ = nat; src = empty_src }
+let timeout_fld = { lab = timeout_lab; binds = []; typ = nat32; src = empty_src }
 
 (* Pretty printing *)
 
@@ -2227,25 +2373,25 @@ and pp_con' vs ppf c =
   let op, sbs, st = pps_of_kind' vs (Cons.kind c) in
   fprintf ppf "@[<1>type %s%a %s@ %a@]" (Cons.name c) sbs () op st ()
 
-and pp_field vs ppf {lab; typ; src} =
+and pp_field vs ppf {lab; typ; _} =
   match typ with
   | Mut t' ->
     fprintf ppf "@[<2>var %s :@ %a@]" lab (pp_typ' vs) t'
   | _ ->
     fprintf ppf "@[<2>%s :@ %a@]" lab (pp_typ' vs) typ
 
-and pp_typ_field vs ppf {lab; typ = c; src} =
+and pp_typ_field vs ppf {lab; typ = c; _} =
   let op, sbs, st = pps_of_kind' vs (Cons.kind c) in
   fprintf ppf "@[<2>type %s%a %s@ %a@]" lab sbs () op st ()
 
-and pp_stab_field vs ppf {lab; typ; src} =
+and pp_stab_field vs ppf {lab; typ; _} =
   match typ with
   | Mut t' ->
     fprintf ppf "@[<2>stable var %s :@ %a@]" lab (pp_typ' vs) t'
   | _ ->
     fprintf ppf "@[<2>stable %s :@ %a@]" lab (pp_typ' vs) typ
 
-and pp_pre_stab_field vs ppf (required, {lab; typ; src}) =
+and pp_pre_stab_field vs ppf (required, {lab; typ; _}) =
   let req = if required then "in" else "stable" in
   match typ with
   | Mut t' ->
@@ -2254,12 +2400,17 @@ and pp_pre_stab_field vs ppf (required, {lab; typ; src}) =
     fprintf ppf "@[<2>%s %s :@ %a@]" req lab (pp_typ' vs) typ
 
 
-and pp_tag vs ppf {lab; typ; src} =
+and pp_tag vs ppf {lab; binds; typ; src = _} =
+  let binds_prefix ppf () =
+    if binds = [] then () else
+    fprintf ppf "@[<2>%s in@ @]"
+      (String.concat ", " (List.map (fun (b : bind) -> "type " ^ b.var) binds))
+  in
   match typ with
   | Tup [] ->
     fprintf ppf "#%s" lab
   | _ ->
-    fprintf ppf "@[<2>#%s :@ %a@]" lab (pp_typ' vs) typ
+    fprintf ppf "@[<2>#%s :@ %a%a@]" lab binds_prefix () (pp_typ' vs) typ
 
 and vars_of_binds vs bs =
   List.map (fun b -> name_of_var vs (b.var, 0)) bs
@@ -2309,7 +2460,7 @@ and pp_kind ppf k =
   let vs = vs_of_cs cs in
   pp_kind' vs ppf k
 
-and pp_mig_field vs ppf {lab; typ; src} =
+and pp_mig_field vs ppf {lab; typ; _} =
     let lit = Lib.Utf8.string_of_string '\"' (Lib.Utf8.decode lab) '\"' in
     fprintf ppf "@[<2>%s :@ %a@]" lit (pp_typ' vs) typ
 
@@ -2338,6 +2489,7 @@ and pp_stab_sig ppf sig_ =
     List.sort compare_field
       (List.map (fun c ->
         { lab = string_of_con c;
+          binds = [];
           typ = c;
           src = empty_src }) ds)
   in
@@ -2458,6 +2610,8 @@ let rec string_of_explanation explanation =
     Format.asprintf "the type %a\n is not compatible with type %a%s" display_con c1 display_con c2 (string_of_context "in" context)
   | FailedPromote (t1, bound, inner_explanation) ->
     Format.asprintf "type variable %a\n was promoted to its bound %a\n and %s" display_typ t1 display_typ bound (string_of_explanation inner_explanation)
+  | BlackHoleEscape (t1, t2) ->
+    Format.asprintf "black-hole witness %a\n (from a `type X` existential arm) cannot escape its case scope to satisfy %a" display_typ t1 display_typ t2
   | MissingTag (context, desc, lab, t) ->
     Format.asprintf "%scase `#%s` is missing from %stype %a%s" (string_of_desc desc) lab (string_of_desc (flip desc)) display_typ t (string_of_context "of" context)
   | MissingField (context, desc, lab, t, is_typ) ->
@@ -2672,3 +2826,480 @@ let string_of_stab_sig stab_sig : string =
   | Multi _ -> "// Version: 4.0.0\n") ^
   Format.asprintf "@[<v 0>%a@]@\n" (fun ppf -> Pretty.pp_stab_sig ppf) stab_sig
 
+
+(* GADT side-tables (legacy).  The per-arm refinement / existential
+   tables and the top-level alias [gadt_typd_existentials] table have
+   all been retired in favour of structural reps:
+   - arm refinements + existentials live on [arm.binds] (slices 1-5)
+   - top-level alias existentials live on [Def.binds] (HKT extension)
+   Only [gadt_existential_set] and [gadt_refinement_at] survive — see
+   notes in the plan. *)
+
+module RegConHash = Hashtbl.Make (struct
+  type t = Source.region * con
+  let equal (r1, c1) (r2, c2) = r1 = r2 && Cons.eq c1 c2
+  let hash (r, c) = Hashtbl.hash (r, Cons.name c)
+end)
+
+(* M11b — fresh-per-site existential skolems. Each typing pass installs
+   its own pool via `with_skolem_pool`; calls to
+   `fresh_destructure_skolem` route through the OCaml-5 effect
+   handler, which memoises by (destructure-site region × schema cons)
+   so multi-pass typing returns the same cons on subsequent
+   invocations. Pool dies with the handler frame — no cross-session
+   leakage.
+
+   The minted cons uses [Cons.fresh_skolem] so its stamp lands in the
+   [<= 0] reserve.  [is_gadt_existential] is then a pure function of
+   cons identity ([Cons.is_skolem]) — no side table.
+
+   Future: when stamp generation becomes deterministic (encode
+   (region, schema_stamp) into the stamp via [-Hashtbl.hash …]), the
+   memo becomes redundant and this handler can be deleted.  The
+   predicate [is_skolem c = fst c.stamp <= 0] already future-proofs
+   that transition — only the *minter* changes. *)
+type _ Effect.t += Fresh_skolem : Source.region * con -> con Effect.t
+
+let fresh_destructure_skolem reg c_schema =
+  Effect.perform (Fresh_skolem (reg, c_schema))
+
+let with_skolem_pool (f : unit -> 'a) : 'a =
+  let pool : con RegConHash.t = RegConHash.create 16 in
+  let open Effect.Deep in
+  try_with f ()
+    { effc = fun (type b) (eff : b Effect.t) ->
+        match eff with
+        | Fresh_skolem (reg, c_schema) ->
+          Some (fun (k : (b, _) continuation) ->
+            let c_site = match RegConHash.find_opt pool (reg, c_schema) with
+              | Some s -> s
+              | None ->
+                (* Inherit the schema's kind so the site skolem carries
+                   the same bound (default Any, or whatever the user
+                   declared via `type X <: B`). *)
+                let s = Cons.fresh_skolem (Cons.name c_schema) (Cons.kind c_schema) in
+                RegConHash.replace pool (reg, c_schema) s;
+                s
+            in
+            continue k c_site)
+        | _ -> None }
+
+(* True iff [t] mentions a registered GADT existential cons anywhere.
+   Black-hole detection: a type that carries a hidden type variable
+   from a GADT arm's `type X` clause cannot cross actor boundaries. *)
+let mentions_blackhole t =
+  let seen = ref ConSet.empty in
+  let rec go t =
+    match t with
+    | Pre | Var _ | Any | Non | Prim _ -> false
+    | Con (c, ts) ->
+      is_gadt_existential c ||
+      List.exists go ts ||
+      (match Cons.kind c with
+       | Abs _ -> false
+       | Def _ ->
+         if ConSet.mem c !seen then false
+         else begin
+           seen := ConSet.add c !seen;
+           go (normalize (Con (c, ts)))
+         end)
+    | Array t | Opt t | Mut t | Weak t | Named (_, t) -> go t
+    | Tup ts -> List.exists go ts
+    | Func (_, _, _, ts1, ts2) -> List.exists go ts1 || List.exists go ts2
+    | Async (_, t1, t2) -> go t1 || go t2
+    | Obj (_, fs, _) -> List.exists (fun f -> go f.typ) fs
+    | Variant fs -> List.exists (fun f -> go f.typ) fs
+  in go t
+
+(* Path A slice 3: structural reads of arm existentials. Extracts
+   [Existential c] cons from a bind list — the [Existential] sort
+   carries the original schema cons populated at construction. *)
+let existentials_of_binds (bs : bind list) =
+  List.filter_map (fun (b : bind) ->
+    match b.sort with
+    | Existential c -> Some c
+    | _ -> None
+  ) bs
+
+(* Path A slice 5: refinements [(var, rhs_t)] from [Refinement t]
+   sort.  Counterpart to [lookup_gadt_arm]. *)
+let refinements_of_binds (bs : bind list) =
+  List.filter_map (fun (b : bind) ->
+    match b.sort with
+    | Refinement t -> Some (b.var, t)
+    | _ -> None
+  ) bs
+
+(* Walk a variant-type alias's body for an arm and read its
+   structural existentials.  Mirror of [lookup_gadt_arm_existentials]
+   without the side-table indirection. *)
+let arm_existentials c lab =
+  match Cons.kind c with
+  | Def (_, body) | Abs (_, body) ->
+    (match body with
+     | Variant fs ->
+       (match List.find_opt (fun f -> f.lab = lab) fs with
+        | Some f -> existentials_of_binds f.binds
+        | None -> [])
+     | _ -> [])
+
+(* Like [arm_existentials] but returns the full [bind list] for the arm
+   (Existential entries + any Refinement entries), so callers can feed
+   it to [unify_existentials] which reads each existential's bound from
+   [bind.bound]. *)
+let arm_binds c lab =
+  match Cons.kind c with
+  | Def (_, body) | Abs (_, body) ->
+    (match body with
+     | Variant fs ->
+       (match List.find_opt (fun f -> f.lab = lab) fs with
+        | Some f -> f.binds
+        | None -> [])
+     | _ -> [])
+
+let arm_refinements c lab =
+  match Cons.kind c with
+  | Def (_, body) | Abs (_, body) ->
+    (match body with
+     | Variant fs ->
+       (match List.find_opt (fun f -> f.lab = lab) fs with
+        | Some f -> refinements_of_binds f.binds
+        | None -> [])
+     | _ -> [])
+
+(* Path A slice 6: derive refinement σ on demand from a scrutinee
+   variant typ and an arm label.  Replaces the M11a case'.gadt_sigma
+   cache: σ is a pure function of (t_pat, label).
+
+   For each refinement [(vname, rhs_t)] on the arm, locate vname in
+   the outer Def's tbs (it must be an outer type-parameter of the
+   variant), grab the corresponding slot from ts (the type-args at
+   the use site), and σ maps that slot's cons to rhs_t.  Mirrors
+   [gadt_sigma_for_case] in typing.ml, reading structurally. *)
+let derive_case_sigma (t_pat : typ) (label : lab) : typ ConEnv.t =
+  match t_pat with
+  | Con (c, ts) ->
+    let arm_cs = arm_refinements c label in
+    if arm_cs = [] then ConEnv.empty
+    else
+      (match Cons.kind c with
+       | Def (tbs, _) ->
+         List.fold_left (fun sigma (vname, rhs_t) ->
+           let indexed = List.mapi (fun i (tb : bind) -> (i, tb)) tbs in
+           match List.find_opt (fun (_, tb) -> tb.var = vname) indexed with
+           | Some (i, _) when i < List.length ts ->
+             (match List.nth ts i with
+              | Con (c_slot, []) -> ConEnv.add c_slot rhs_t sigma
+              | _ -> sigma)
+           | _ -> sigma
+         ) ConEnv.empty arm_cs
+       | _ -> ConEnv.empty)
+  | _ -> ConEnv.empty
+
+(* Top-level alias existentials, read structurally from [Def.binds].
+   Populated at the augment phase of TypD elaboration via
+   [augment_def_binds].  Returns [] for non-Def kinds and for aliases
+   that have no existential binders. *)
+let typd_existentials c =
+  match Cons.kind c with
+  | Def (tbs, _) -> existentials_of_binds tbs
+  | _ -> []
+
+(* Path A slice 6 / HKT extension: bind the [is_gadt_con]
+   forward-ref.  A Con is GADT-bearing if:
+   - its Def kind has any [Existential _] entry in its binds
+     (top-level alias existentials, HKT-extension structural form),
+     or
+   - its Def body is a Variant with at least one arm carrying
+     non-empty [binds] (slice 2 existentials / slice 5 refinements). *)
+let () = is_gadt_con_ref := (fun c ->
+  let has_existential_bind (tbs : bind list) =
+    List.exists (fun (tb : bind) ->
+      match tb.sort with Existential _ -> true | _ -> false) tbs
+  in
+  let any_field_has_binds (fs : field list) =
+    List.exists (fun (f : field) -> f.binds <> []) fs
+  in
+  match Cons.kind c with
+  | Def (tbs, Variant fs) ->
+    has_existential_bind tbs || any_field_has_binds fs
+  | Def (tbs, Obj (_, fs, _)) ->
+    has_existential_bind tbs || any_field_has_binds fs
+  | Def (tbs, _) -> has_existential_bind tbs
+  | _ -> false)
+
+(* Structural matcher: walk [expected] and [actual] in parallel; where
+   [expected] is `Con(c, [])` with c ∈ existentials, record `c → actual`.
+   Returns the substitution, or None on mismatch / non-uniform unification. *)
+exception Unify_fail
+
+(* True iff any con in [cons] appears in [t]. *)
+let mentions_any_con cons t =
+  let set = List.fold_left (fun s c -> ConSet.add c s) ConSet.empty cons in
+  let rec go t =
+    match t with
+    | Pre | Any | Non | Prim _ | Var _ -> false
+    | Con (c, ts) -> ConSet.mem c set || List.exists go ts
+    | Tup ts -> List.exists go ts
+    | Opt t | Mut t | Weak t | Named (_, t) | Array t -> go t
+    | Async (_, t1, t2) -> go t1 || go t2
+    | Func (_, _, _, ts1, ts2) -> List.exists go ts1 || List.exists go ts2
+    | Variant fs -> List.exists (fun f -> go f.typ) fs
+    | Obj (_, fs, _) -> List.exists (fun f -> go f.typ) fs
+  in go t
+
+(* Prune GADT variant arms whose refinement is incompatible with the
+   given instantiation [ts] of type-binds [tbs]. Each arm's refinement
+   `(var, T_rhs)` requires the slot for `var` in [ts] to equal T_rhs;
+   if the slot is concrete and differs, the arm is unreachable for this
+   instantiation and is removed from the returned variant. Arms with no
+   refinement (parametric) are always kept. *)
+(* M12: prune GADT-incompatible arms when expanding [Con(c, ts)].
+   Given the already-opened body [t] of c with type-args [ts], return
+   [t] with any variant arms whose refinement clauses conflict with
+   [ts] removed. Identity on non-GADT cons / non-variant bodies.
+
+   Use at every Cons-opening site that feeds the type to Candid (or
+   any wire-facing consumer): mo_to_idl, codegen ser/deser, etc. *)
+let rec monomorphise_open c ts t =
+  match Cons.kind c with
+  | Def (tbs, _) ->
+    (match t with
+     | Variant fs -> Variant (prune_gadt_variant c tbs ts fs)
+     | _ -> t)
+  | _ -> t
+
+(* Normalize + GADT-prune in one step. For wire-facing consumers
+   (Candid mo_to_idl, codegen ser/deser): they want the body of any
+   GADT cons pruned to just the arms reachable for the current
+   instantiation. Identity on non-GADT [Con] and on non-[Con] types. *)
+and normalize_pruned t =
+  match t with
+  | Con (c, ts) -> monomorphise_open c ts (normalize t)
+  | _ -> normalize t
+
+and prune_gadt_variant (c : con) (tbs : bind list) (ts : typ list) (fs : field list) : field list =
+  let indexed_tbs = List.mapi (fun i tb -> (i, tb)) tbs in
+  let slot_for var =
+    match List.find_opt (fun (_, tb) -> tb.var = var) indexed_tbs with
+    | Some (i, _) when i < List.length ts -> Some (List.nth ts i)
+    | _ -> None
+  in
+  let arm_reachable (f : field) =
+    (* Path A: refinements and existentials both read structurally
+       from arm.binds. *)
+    let arm_cs = refinements_of_binds f.binds in
+    let es = existentials_of_binds f.binds in
+    List.for_all (fun (var, refined_t) ->
+      match slot_for var with
+      | Some slot_t ->
+        let slot_is_skolem = match slot_t with
+          | Con (sc, _) -> (match Cons.kind sc with Abs _ -> true | _ -> false)
+          | _ -> false
+        in
+        slot_is_skolem || arm_compat es refined_t slot_t
+      | None -> true
+    ) arm_cs
+  in
+  List.filter arm_reachable fs
+
+(* Strict structural compatibility, treating the listed cons as
+   wildcards. Used by [prune_gadt_variant] and the construction-side
+   refinement check: the refinement RHS may mention arm existentials
+   (`type N = Succ<M>, type M ...`); those existentials match anything
+   structural, the rest must match cons-identically. Distinct from
+   [unify_existentials], which is intentionally loose so the later
+   sub-check can finish the job. *)
+and arm_compat es e a =
+  match e, a with
+  | Con (c, []), _ when List.mem c es -> true
+  | Tup ts1, Tup ts2 when List.length ts1 = List.length ts2 ->
+    List.for_all2 (arm_compat es) ts1 ts2
+  | Opt t1, Opt t2 | Mut t1, Mut t2 | Array t1, Array t2 ->
+    arm_compat es t1 t2
+  | Async (_, t1a, t1b), Async (_, t2a, t2b) ->
+    arm_compat es t1a t2a && arm_compat es t1b t2b
+  | Func (_, _, _, a1, b1), Func (_, _, _, a2, b2)
+      when List.length a1 = List.length a2
+        && List.length b1 = List.length b2 ->
+    List.for_all2 (arm_compat es) a1 a2 && List.for_all2 (arm_compat es) b1 b2
+  | Con (c1, ts1), Con (c2, ts2) when Cons.eq c1 c2
+      && List.length ts1 = List.length ts2 ->
+    List.for_all2 (arm_compat es) ts1 ts2
+  | Obj (_, fs1, _), Obj (_, fs2, _) ->
+    List.for_all (fun f1 ->
+      match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+      | Some f2 -> arm_compat es f1.typ f2.typ
+      | None -> false
+    ) fs1
+  | Variant fs1, Variant fs2 ->
+    List.for_all (fun f1 ->
+      match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+      | Some f2 -> arm_compat es f1.typ f2.typ
+      | None -> false
+    ) fs1
+  | _ -> eq e a
+
+and unify_existentials expected actual (binds : bind list) : typ ConEnv.t option =
+  let sigma = ref ConEnv.empty in
+  let bound_of c =
+    let rec find = function
+      | [] -> None
+      | (b : bind) :: rest ->
+        (match b.sort with
+         | Existential c' when Cons.eq c c' -> Some b.bound
+         | _ -> find rest)
+    in find binds
+  in
+  let rec walk e a =
+    match e, a with
+    | Con (c, []), _ when Option.is_some (bound_of c) ->
+      (* Enforce the existential's bound on the witness candidate.
+         Bound lives on the bind ([b.bound]); for parametric bounds
+         (e.g. [type X <: A] where A is an outer type-param), the
+         bound has been opened via [open_field] to reflect the
+         alias's instantiation.  Also substitute the running σ into
+         the bound, so chained sibling bounds (e.g. [type G <:
+         OUTER, type H <: G]) see [G]'s already-collected witness. *)
+      let bound = subst !sigma (Option.get (bound_of c)) in
+      if not (sub a bound) then raise Unify_fail;
+      (match ConEnv.find_opt c !sigma with
+       | None -> sigma := ConEnv.add c a !sigma
+       | Some prev -> if not (eq prev a) then raise Unify_fail)
+    | Tup ts1, Tup ts2 when List.length ts1 = List.length ts2 ->
+      List.iter2 walk ts1 ts2
+    | Opt t1, Opt t2 -> walk t1 t2
+    | Mut t1, Mut t2 -> walk t1 t2
+    | Async (_, t1a, t1b), Async (_, t2a, t2b) -> walk t1a t2a; walk t1b t2b
+    | Func (_, _, _, ts1a, ts1b), Func (_, _, _, ts2a, ts2b)
+        when List.length ts1a = List.length ts2a
+          && List.length ts1b = List.length ts2b ->
+      List.iter2 walk ts1a ts2a;
+      List.iter2 walk ts1b ts2b
+    | Con (c1, ts1), Con (c2, ts2) when Cons.eq c1 c2
+        && List.length ts1 = List.length ts2 ->
+      List.iter2 walk ts1 ts2
+    | Obj (_, fs1, _), Obj (_, fs2, _) ->
+      (* Match fields by label; ignore fields absent on either side
+         (later subtype check handles those). *)
+      List.iter (fun f1 ->
+        match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+        | Some f2 -> walk f1.typ f2.typ
+        | None -> ()
+      ) fs1
+    | Variant fs1, Variant fs2 ->
+      List.iter (fun f1 ->
+        match List.find_opt (fun f2 -> f2.lab = f1.lab) fs2 with
+        | Some f2 -> walk f1.typ f2.typ
+        | None -> ()
+      ) fs1
+    | Array t1, Array t2 -> walk t1 t2
+    | _ -> ()  (* leaves / mismatches — let later sub-check do its job *)
+  in
+  try walk expected actual; Some !sigma
+  with Unify_fail -> None
+
+(* Path A slice 6: derive existential σ on demand for a TagPrim
+   construction site.  Bridges schema cons in the expected target
+   typ's arm payload to fresh cons in the actual payload — the
+   refine_target σ flow for variant arms.  Replaces the variant
+   half of M11a's [note_sigma] cache. *)
+let derive_tag_sigma (target_t : typ) (label : lab) (actual : typ)
+    : typ ConEnv.t =
+  match promote target_t with
+  | Variant fs ->
+    (match List.find_opt (fun (f : field) -> f.lab = label) fs with
+     | Some f ->
+       if existentials_of_binds f.binds = [] then ConEnv.empty
+       else
+         (match unify_existentials f.typ actual f.binds with
+          | Some sigma -> sigma
+          | None -> ConEnv.empty)
+     | None -> ConEnv.empty)
+  | _ -> ConEnv.empty
+
+(* Path A slice 6: derive existential σ for non-variant construction
+   into a top-level existential alias (e.g.,
+   [type Pack = type X in (X, X -> Text)] constructed via
+   [(5, natToText)]).  Reads the alias's existential cons list from
+   [gadt_typd_existentials] (still a side table; gadt_typd
+   migration to structural binds is a future slice), opens the
+   Def's body, unifies with the actual exp typ to recover σ.
+   Replaces the top-level-alias half of M11a's [note_sigma] cache. *)
+let derive_typd_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
+  match target_t with
+  | Con (c, ts) ->
+    (match Cons.kind c with
+     | Def (tbs, body) ->
+       (* HKT extension: existential cons live structurally in the
+          Def's binds (Existential sort).  Pass the binds directly so
+          [unify_existentials] can read each existential's bound from
+          [bind.bound] (which gets opened with the alias's type-args). *)
+       if existentials_of_binds tbs = [] then ConEnv.empty
+       else
+         let opened = reduce tbs body ts in
+         (* Open the binds too, so bound references to the alias's
+            type-params are substituted with [ts]. *)
+         let opened_binds =
+           List.map (fun (b : bind) -> { b with bound = open_ ts b.bound }) tbs
+         in
+         (match unify_existentials opened actual opened_binds with
+          | Some sigma -> sigma
+          | None -> ConEnv.empty)
+     | _ -> ConEnv.empty)
+  | _ -> ConEnv.empty
+
+(* Inverse of typing's destructure-pat substitution.  Typing computed
+   σ = {schema_cons → fresh skolem} and stamped pat.note via
+   [subst σ (normalize t0)].  Here we recover σ by unifying the
+   schema's fully-normalised body against the already-substituted
+   pat.note.  Replaces the [gadt_refinement_at] side table for the
+   M11b LetD path. *)
+let derive_destructure_sigma (target_t : typ) (actual : typ) : typ ConEnv.t =
+  match target_t with
+  | Con (c, ts) ->
+    (match Cons.kind c with
+     | Def (tbs, _) ->
+       let alias_es = existentials_of_binds tbs in
+       let opened_body = normalize target_t in
+       let opened_binds_tbs =
+         List.map (fun (b : bind) -> { b with bound = open_ ts b.bound }) tbs
+       in
+       let alias_sigma =
+         if alias_es = [] then ConEnv.empty
+         else match unify_existentials opened_body actual opened_binds_tbs with
+              | Some sigma -> sigma
+              | None -> ConEnv.empty
+       in
+       (* Per-field σ.  Field-level existentials may have bounds that
+          mention alias-level existentials (e.g. `type G <: OUTER`),
+          so substitute [alias_sigma] into each bind's bound before
+          unifying — only then does the bound check at the field level
+          see the alias's witness (e.g. OUTER → Int) rather than the
+          abstract schema cons. *)
+       let subst_binds (binds : bind list) =
+         if ConEnv.is_empty alias_sigma then binds
+         else List.map (fun (b : bind) ->
+           { b with bound = subst alias_sigma b.bound }) binds
+       in
+       let field_sigma =
+         match opened_body, actual with
+         | Obj (_, fs_e, _), Obj (_, fs_a, _) ->
+           List.fold_left (fun acc (f_e : field) ->
+             if f_e.binds = [] then acc
+             else
+               match lookup_val_field_opt f_e.lab fs_a with
+               | None -> acc
+               | Some actual_typ ->
+                 let f_e_typ = if ConEnv.is_empty alias_sigma then f_e.typ
+                               else subst alias_sigma f_e.typ in
+                 (match unify_existentials f_e_typ actual_typ
+                          (subst_binds f_e.binds) with
+                  | Some s -> ConEnv.union (fun _ a _ -> Some a) acc s
+                  | None -> acc)
+           ) ConEnv.empty fs_e
+         | _ -> ConEnv.empty
+       in
+       ConEnv.union (fun _ a _ -> Some a) alias_sigma field_sigma
+     | _ -> ConEnv.empty)
+  | _ -> ConEnv.empty

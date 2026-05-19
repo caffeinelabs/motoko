@@ -35,7 +35,8 @@ let apply_sign op l = Syntax.(match op, l with
 let phrase f x = { x with it = f x.it }
 
 let typ_note : S.typ_note -> Note.t =
-  fun S.{ note_typ; note_eff; _ } -> Note.{ def with typ = note_typ; eff = note_eff }
+  fun S.{ note_typ; note_eff } ->
+    Note.{ def with typ = note_typ; eff = note_eff }
 
 let phrase' f x =
   { x with it = f x.at x.note x.it }
@@ -118,7 +119,16 @@ and exp' at note = function
     (primE (I.SerializePrim ts) [seqE args]).it
   | S.FromCandidE e ->
     begin match T.normalize note.Note.typ with
-    | T.Opt t -> (primE (I.DeserializeOptPrim (T.as_seq t)) [exp e]).it
+    | T.Opt t ->
+      (* M12: [T.as_seq] would normalise a [Con] body — fine for tuple
+         aliases (`type Pair = (Nat, Bool)`) which become a seq of
+         separate wire values, but bad for GADT [Con]s where pruning
+         needs the cons identity. Compromise: peek through normalize
+         to detect a [Tup] alias and unpack it; otherwise pass the
+         original (possibly [Con]) type through. Codegen prunes via
+         [Type.normalize_pruned]. *)
+      let ts = match T.normalize t with T.Tup ts -> ts | _ -> [t] in
+      (primE (I.DeserializeOptPrim ts) [exp e]).it
     | _ -> assert false
     end
   | S.TupE es -> (tupE (exps es)).it
@@ -163,7 +173,35 @@ and exp' at note = function
       | T.Shared (ss, {it = S.WildP; _} ) -> (* don't bother with ctxt pat *)
         (T.Shared ss, None)
       | T.Shared (ss, sp) -> (T.Shared ss, Some sp) in
-    let args, _, wrap, control, res_tys = to_args note.Note.typ po None p in
+    (* Slice-6.6: a function with `<T with type>` binders has its
+       domain inflated at typing time with leading `@Candid` entries.
+       [to_args] expects dom-length to match the user-written pat, so
+       deflate before calling, then prepend synthetic IR args bound
+       to the witness type-binder names. *)
+    let witness_binders = List.filter
+      (fun (tb : S.typ_bind) -> tb.it.S.has_witness) tbs in
+    let n_witnesses = List.length witness_binders in
+    let deflated_typ =
+      if n_witnesses = 0 then note.Note.typ
+      else match note.Note.typ with
+        | T.Func (sort, control, tbs_t, dom, res) ->
+          let rec drop n xs = if n <= 0 then xs else drop (n - 1) (List.tl xs) in
+          T.Func (sort, control, tbs_t, drop n_witnesses dom, res)
+        | t -> t
+    in
+    let args, _, wrap, control, res_tys = to_args deflated_typ po None p in
+    let witness_typs =
+      match note.Note.typ with
+      | T.Func (_, _, _, dom, _) ->
+        let rec take n xs = if n <= 0 then [] else match xs with
+          | x :: rest -> x :: take (n - 1) rest | [] -> [] in
+        take n_witnesses dom
+      | _ -> List.map (fun _ -> T.blob) witness_binders
+    in
+    let witness_args = List.map2 (fun (tb : S.typ_bind) wt ->
+      { it = tb.it.S.var.it; at = tb.at; note = wt }
+    ) witness_binders witness_typs in
+    let args = witness_args @ args in
     let tbs' = typ_binds tbs in
     let vars = List.map (fun (tb : I.typ_bind) -> T.Con (tb.it.I.con, [])) tbs' in
     let tys = List.map (T.open_ vars) res_tys in
@@ -348,6 +386,19 @@ and exp' at note = function
     I.BlockE ([
       { it = I.LetD ({it = I.WildP; at = e.at; note = T.Any}, exp e);
         at = e.at; note = ()}], (unitE ()))
+  | S.RefineE (cstr, e) ->
+    (* Slice-6.6: keep the refinement at IR level so [check_ir] can
+       apply σ to env.vals when checking the body — same behaviour as
+       variant-arm GADT refinement, but sourced from an explicit
+       [(con, typ)] pair.  Typing populates [cstr.note] with the
+       resolved con; the refined RHS lives in [cstr.it.refines]. *)
+    (match cstr.note, cstr.it.refines with
+     | Some con, Some rhs ->
+       I.RefineE (con, rhs.note, exp e)
+     | _ ->
+       (* Lookup failed (no in-scope binder named [cstr.it.tv]) —
+          skip the wrapper. *)
+       (exp e).it)
 
 and parenthetical send = function
   | None -> [], []
@@ -730,7 +781,7 @@ and export_view viewer_opt =
                  (mk_body vs))
               (Con (scope_con1, []))))
       )],
-      [T.{lab;typ; src = empty_src}],
+      [T.{lab; binds = []; typ; src = empty_src}],
       [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
@@ -765,7 +816,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let obj_typ = T.Obj(sort, List.sort T.compare_field (tfs0@view_fields), tfs1) in
   let fs = fs0@view_fs in
   let stab_fields = List.sort T.compare_field
-    (List.map (fun (i, t) -> T.{lab = i; typ = t; src = empty_src}) ids)
+    (List.map (fun (i, t) -> T.{lab = i; binds = []; typ = t; src = empty_src}) ids)
   in
   let mem_fields =
     List.map
@@ -804,6 +855,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
         List.map
           (fun (filename, _, typ) ->
             T.{lab = T.migration_lab_of_filename filename;
+               binds = [];
                typ;
                src = T.empty_src})
           chain
@@ -1168,7 +1220,9 @@ and typ_bind tb =
     | Some c -> c
     | _ -> assert false
   in
-  { it = { Ir.con = c; Ir.sort = tb.it.S.sort.it; Ir.bound = tb.it.S.bound.note}
+  let sort =
+    if tb.it.S.has_witness then T.Witness else tb.it.S.sort.it in
+  { it = { Ir.con = c; Ir.sort = sort; Ir.bound = tb.it.S.bound.note}
   ; at = tb.at
   ; note = ()
   }
@@ -1259,6 +1313,7 @@ and dec' d =
     end
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
+  | S.PrimTypD _ -> []
   | S.MixinD _ -> []
   | S.IncludeD(_, args, note) ->
     let { imports = is; pat = p; decs } = Option.get !note in
@@ -1315,9 +1370,23 @@ and dec' d =
     } in
     [I.LetD (varPat, fn)]
 
-and cases cs = List.map (case Fun.id) cs
+and cases cs =
+  (* Consume typing's coverage decisions: arms it flagged as [unreached]
+     can never fire (M0146 fired at typing).  In [--release] drop them
+     from the lowered switch entirely (smaller IR / Wasm, tighter
+     variant dispatch).  In [--debug] keep the arm structure but
+     replace the body with [unreachableE ()] so any wayward runtime
+     path traps loudly.  [unreachableE] has type [Non] which is a
+     subtype of any return type. *)
+  let release = !Mo_config.Flags.release_mode in
+  List.filter_map (fun (c : S.case) ->
+    if c.note then
+      if release then None
+      else Some (case (fun _ -> unreachableE ()) c)
+    else Some (case Fun.id c)
+  ) cs
 
-and case f c = phrase (case' f) c
+and case f c = { it = case' f c.it; at = c.at; note = () }
 
 and case' f c = S.{ I.pat = pat c.pat; I.exp = f (exp c.exp) }
 

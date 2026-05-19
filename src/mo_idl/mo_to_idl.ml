@@ -94,7 +94,13 @@ module MakeState() = struct
     | Con (c, ts) ->
       (match Cons.kind c with
        | Def (_, t) ->
-         I.(match open_ ts t with
+         (* M12: prune GADT-incompatible arms before emitting IDL.
+            For [Con(Expr, [Bool])] with [Expr<A> = { #int : A=Nat, #bool : A=Bool, #if_ ... }],
+            this drops the #int arm; refinement-only arms compatible
+            with [ts] survive; arms without refinement (#if_) always
+            survive. Identity on non-GADT cons. *)
+         let opened = monomorphise_open c ts (open_ ts t) in
+         I.(match opened with
             | Prim p -> prim p
             | Any -> PrimT Reserved
             | Non -> PrimT Empty
@@ -164,7 +170,7 @@ module MakeState() = struct
     | Weak _
     | Pre -> assert false
     ) @@ no_region
-  and field {lab; typ = t; src = {region; _}} =
+  and field {lab; typ = t; src = {region; _}; _} =
     let open Idllib.Escape in
     match unescape lab with
     | Nat nat ->

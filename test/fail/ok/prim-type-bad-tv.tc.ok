@@ -1,0 +1,1 @@
+prim-type-bad-tv.mo:5.13-5.25: type error [M0232], `prim switch` arm refines `type Z = ...`, but `Z` is not a type parameter of `Bad`

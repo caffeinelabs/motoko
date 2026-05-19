@@ -777,6 +777,8 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     interpret_exp env exp1 k
   | IgnoreE exp1 ->
     interpret_exp env exp1 (fun _v -> k V.unit)
+  | RefineE (_, exp1) ->
+    interpret_exp env exp1 k
 
 and add_loop_labels env flags k_break k_continue =
   let labs = if flags.has_break then V.Env.add Syntax.auto_s k_break env.labs else env.labs in
@@ -813,7 +815,7 @@ and interpret_cases env cases at v (k : V.value V.cont) =
   match cases with
   | [] ->
     trap at "switch value %s does not match any case" (string_of_val env v)
-  | {it = {pat; exp}; at; _}::cases' ->
+  | {it = {pat; exp; _}; at; _}::cases' ->
     match match_pat pat v with
     | Some ve -> interpret_exp (adjoin_vals env ve) exp k
     | None -> interpret_cases env cases' at v k
@@ -824,7 +826,7 @@ and interpret_catches env cases at v (k : V.value V.cont) =
   match cases with
   | [] ->
     Option.get env.throws v (* re-throw v *)
-  | {it = {pat; exp}; at; _}::cases' ->
+  | {it = {pat; exp; _}; at; _}::cases' ->
     match match_pat pat v with
     | Some ve -> interpret_exp (adjoin_vals env ve) exp k
     | None -> interpret_catches env cases' at v k
@@ -1028,6 +1030,7 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
+  | PrimTypD _
   | MixinD (_) -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
@@ -1063,6 +1066,8 @@ and interpret_dec env dec (k : V.value V.cont) =
       k V.unit
     )
   | TypD _ ->
+    k V.unit
+  | PrimTypD _ ->
     k V.unit
   | MixinD _ -> k V.unit
   | IncludeD (_, _arg, _note) ->

@@ -162,6 +162,9 @@ let rec exp lvl (env : env) e : Lbool.t =
       List.iter (case_ lvl env) cs;
       exp_ lvl env Construct.(var v t |> varE);
       surely_false
+    | RefineE (_, _, e1) ->
+      exp_ lvl env e1;
+      surely_false
     | NewObjE _ -> (* mutable objects *)
       surely_false
     | ActorE (ds, fs, {meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; stable_type}, _typ) ->

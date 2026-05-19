@@ -149,7 +149,11 @@ module Make (Cfg : Config) = struct
     | ThrowE e            -> "ThrowE"  $$ [exp e]
     | TryE (e, cs, None)  -> "TryE"    $$ [exp e] @ List.map catch cs
     | TryE (e, cs, Some f)-> "TryE"    $$ [exp e] @ List.map catch cs @ Atom ";" :: [exp f]
-    | IgnoreE e           -> "IgnoreE" $$ [exp e]))
+    | IgnoreE e           -> "IgnoreE" $$ [exp e]
+    | RefineE (c, e)      ->
+      let c_node = c.it.tv.it $$
+        match c.it.refines with None -> [] | Some r -> [typ r] in
+      "RefineE" $$ [c_node; exp e]))
 
   and exps es = List.map exp es
 
@@ -239,7 +243,7 @@ module Make (Cfg : Config) = struct
       | Stable _ -> Atom "Stable")
 
   and typ_field (tf : typ_field) = source tf.at (match tf.it with
-    | ValF (lab, t, m) -> "ValF" $$ [id lab; typ t; mut m]
+    | ValF (lab, _cs, t, m) -> "ValF" $$ [id lab; typ t; mut m]
     | TypF (lab, tbs, t) -> "TypF" $$ id lab :: List.map typ_bind tbs @ [typ t])
 
   and typ_item ((id, ty) : typ_item) =
@@ -282,13 +286,26 @@ module Make (Cfg : Config) = struct
   | NamedT (id, t) -> "NamedT" $$ [Atom id.it; typ t]
   | WeakT t -> "WeakT" $$ [typ t]))
 
+  and prim_switch_arm (a : prim_switch_arm) : sexpr =
+    let pat_node : prim_idx_pat -> sexpr = function
+      | IdxLitP n -> Atom (string_of_int n)
+      | IdxWildP -> Atom "_"
+      | IdxGuardP (i, Geq n) -> i.it $$ [Atom (Printf.sprintf ">= %d" n)]
+      | IdxGuardP (i, Lt n) -> i.it $$ [Atom (Printf.sprintf "< %d" n)]
+    in
+    let con (c : typ_constraint) = source c.at (c.it.tv.it $$
+      match c.it.refines with None -> [] | Some r -> [typ r]) in
+    source a.at ("Arm" $$ [pat_node a.it.pat; con a.it.refinement])
+
   and dec d = trivia d.at (source d.at (match d.it with
     | ExpD e -> "ExpD" $$ [exp e]
     | LetD (p, e, Some f) -> "LetD" $$ [pat p; exp e; exp f]
     | LetD (p, e, None) -> "LetD" $$ [pat p; exp e]
     | VarD (x, e) -> "VarD" $$ [id x; exp e]
-    | TypD (x, tp, t) ->
-      "TypD" $$ [id x] @ List.map typ_bind tp @ [typ t]
+    | TypD (x, tp, cs, t) ->
+      let con c = source c.at (c.it.tv.it $$
+        match c.it.refines with None -> [] | Some r -> [typ r]) in
+      "TypD" $$ [id x] @ List.map typ_bind tp @ List.map con cs @ [typ t]
     | ClassD (eo, sp, s, x, tp, p, rt, i, dfs) ->
       "ClassD" $$
         parenthetical eo
@@ -299,7 +316,11 @@ module Make (Cfg : Config) = struct
         id i
       ] @ List.map dec_field dfs)
     | MixinD (_, dfs) -> "MixinD" $$ List.map dec_field dfs
-    | IncludeD (i, e, _) -> "IncludeD" $$ [id i; exp e]))
+    | IncludeD (i, e, _) -> "IncludeD" $$ [id i; exp e]
+    | PrimTypD (x, tp, vps, discr, arms) ->
+      let val_param (i, ti) = source i.at (i.it $$ [typ ti]) in
+      "PrimTypD" $$ [id x] @ List.map typ_bind tp @ List.map val_param vps
+        @ [exp discr] @ List.map prim_switch_arm arms))
 
   and prog p = "Prog" $$ List.map dec p.it
 end
