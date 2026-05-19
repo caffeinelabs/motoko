@@ -392,6 +392,67 @@ persistent actor {
     }
   };
 
+  // listSmurf — the Functor's lifted view.  Wraps a list of already-
+  // built Smurfs and synthesises a *distributive* accessor for every
+  // (fourcc, form) pair any element exposes.  Each distributive
+  // lookUp forwards the key to each element's matching accessor,
+  // skipping silent misses (AppleScript-lenient), and re-wraps the
+  // resulting [Smurf] in another listSmurf — recursive `fmap`.
+  // toDesc renders #list of each element's toDesc.  filter is left
+  // as notFound for now (predicate-over-Smurf isn't in scope yet).
+  func listSmurf(parent : Smurf, elements : [Smurf]) : Smurf {
+    // Collect distinct (fourcc, form) pairs across all elements.
+    // Upper bound on count = sum of element accessor sizes; we then
+    // tabulate to the actual unique-count.
+    var totalAccs : Nat = 0;
+    for (e in elements.vals()) totalAccs += e.accessors.size();
+    let keyBuf = Array_init<(Text, { #indexed; #named; #test })>(totalAccs, ("", #indexed));
+    var nKeys : Nat = 0;
+    for (e in elements.vals()) {
+      for (a in e.accessors.vals()) {
+        var k : Nat = 0;
+        var seen : Bool = false;
+        while (k < nKeys and not seen) {
+          let (fcc, fm) = keyBuf[k];
+          if (fcc == a.fourcc and fm == a.form) seen := true;
+          k += 1;
+        };
+        if (not seen) { keyBuf[nKeys] := (a.fourcc, a.form); nKeys += 1 };
+      };
+    };
+    let accessors : [Accessor] = Array_tabulate<Accessor>(nKeys, func i {
+      let (fourcc, form) = keyBuf[i];
+      {
+        fourcc;
+        form;
+        lookUp = func(par : Smurf, key : LookupKey) : Smurf {
+          let resBuf = Array_init<Smurf>(elements.size(), notFoundSmurf par);
+          var present : Nat = 0;
+          for (j in elements.keys()) {
+            let elem = elements[j];
+            switch (findAccessor(elem, fourcc, form)) {
+              case (?acc) { resBuf[present] := acc.lookUp(elem, key); present += 1 };
+              case null ();
+            };
+          };
+          let results = Array_tabulate<Smurf>(present, func j = resBuf[j]);
+          listSmurf(par, results)
+        };
+      }
+    });
+    {
+      blob       = func() : Blob = "";
+      class4cc   = "";
+      accessors;
+      toDesc     = func() : async* ObjectSpec {
+        let buf = Array_init<ObjectSpec>(elements.size(), #root);
+        for (i in elements.keys()) buf[i] := await* elements[i].toDesc();
+        #list (Array_tabulate<ObjectSpec>(elements.size(), func j = buf[j]))
+      };
+      filter     = func _ = notFoundSmurf parent;
+    }
+  };
+
   // Wraps a single Char as a Smurf.  One property accessor: "uppr"
   // (isUppercase).  toDesc renders as `#obj { class_ = "char"; key =
   // #name <one-char-text> }` — using the char value as the key, since
@@ -579,33 +640,24 @@ persistent actor {
       lookUp = func(par : Smurf, key : LookupKey) : Smurf =
         switch key {
           case (#named propName) {
-            // lookUp is sync but the child toDesc calls are async*.
-            // Defer the iteration into the returned Smurf's toDesc,
-            // which IS async* and can `await*` each child.
-            {
-              blob       = func() : Blob = "";
-              class4cc   = "";
-              accessors  = [];
-              toDesc     = func() : async* ObjectSpec {
-                let count = cardinality();
-                let buf = Array_init<ObjectSpec>(count, #root);
-                var i = 0;
-                for (t in source.vals()) {
-                  if (passes t) {
-                    let elem = wrap(t, parent);
-                    switch (findAccessor(elem, propName, #named)) {
-                      case (?acc) {
-                        buf[i] := await* acc.lookUp(elem, #named propName).toDesc();
-                      };
-                      case null ();
-                    };
-                    i += 1;
-                  };
+            // Project propName across each matching element and wrap
+            // the resulting [Smurf] in a listSmurf — Functor lift, so
+            // subsequent navigation (e.g. `nth char of every name`)
+            // distributes through.
+            let count = cardinality();
+            let resBuf = Array_init<Smurf>(count, notFoundSmurf par);
+            var present : Nat = 0;
+            for (t in source.vals()) {
+              if (passes t) {
+                let elem = wrap(t, parent);
+                switch (findAccessor(elem, propName, #named)) {
+                  case (?acc) { resBuf[present] := acc.lookUp(elem, #named propName); present += 1 };
+                  case null ();
                 };
-                #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
               };
-              filter     = func _ = notFoundSmurf par;
-            }
+            };
+            let results = Array_tabulate<Smurf>(present, func j = resBuf[j]);
+            listSmurf(par, results)
           };
           case _ notFoundSmurf par;
         };
