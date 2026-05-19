@@ -347,11 +347,12 @@ persistent actor {
         clientPropAccessor("cntr", c, func c = #text (c.country)),
         clientPropAccessor("age ", c, func c = #int32 (c.age)),
         clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
-        // Card navigation: indexed and predicate.  Cards aren't
-        // addressable by name (#named) — selective inheritance on
-        // any CollectionSmurf<CreditCard> built off this client will
-        // mirror only #indexed, never #named.
+        // Card navigation: indexed, by primary key, and predicate.
+        // The PK is `number : Nat`, surfaced as Text via `debug_show`
+        // so the spec's `#name "<digits-with-underscores>"` resolves
+        // via the protocol's existing #named/Text shape.
         VarAccessor<CreditCard>(c.cards, "card", #indexed, cardSmurf, func k = debug_show k.number),
+        VarAccessor<CreditCard>(c.cards, "card", #named,   cardSmurf, func k = debug_show k.number),
         {
           form   = #test;
           fourcc = "card";
@@ -872,6 +873,9 @@ persistent actor {
   // 4cc primitive value descriptors + 'exmn' (collapses to #root, lossy)
   transient let (UTXT, LONG, EXMN) : (Nat32, Nat32, Nat32) =
     (0x75747874, 0x6c6f6e67, 0x65786d6e);
+  // AE boolean literals (0-length): 'tru ' / 'fals'.
+  transient let (AE_TRUE, AE_FALSE) : (Nat32, Nat32) =
+    (0x74727520, 0x66616c73);
   // 4cc predicate descriptors: 'logi' (logical), 'cmpd' (comparison), 'list'
   transient let (LOGI, CMPD, LIST) : (Nat32, Nat32, Nat32) =
     (0x6c6f6769, 0x636d7064, 0x6c697374);
@@ -1101,6 +1105,7 @@ persistent actor {
       case (#null_) 0;
       case (#text t) 2 * encodeUtf8(t).size();  // ASCII assumption: 2 bytes per char
       case (#int32 _) 4;
+      case (#bool _) 0;                          // 'tru '/'fals' carry no body
       case _ trap "AE: encoder unsupported value type";
     }
   };
@@ -1169,6 +1174,7 @@ persistent actor {
         w.writeBytes bytes;
       };
       case (#int32 i) w.writeU32s([LONG, 4, int32ToNat32 i]);
+      case (#bool b) w.writeU32s([if b AE_TRUE else AE_FALSE, 0]);
       case _ trap "AE: encoder unsupported value type";
     }
   };
@@ -1710,6 +1716,55 @@ persistent actor {
     result
   };
 
+  // tiny21 — `valid of card "4_111_111_111_110_410" of client 42`.
+  // Exercises the new #named "card" accessor on clientSmurf:
+  //   #root → #absolutePosition 42 → clientSmurf("Anna Bauer", i=41)
+  //         → #named "card" "4_111_111_111_110_410" → cardSmurf
+  //         → #property "vald" → ValueSmurf(#bool true).
+  (with encoder)
+  public func tiny21() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "vald";
+        container = #obj {
+          class_    = "card";
+          container = #obj {
+            class_    = "clnt";
+            container = #root;
+            key       = #absolutePosition 42;
+          };
+          key       = #name "4_111_111_111_110_410";
+        };
+        key       = #property "vald";
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny21" });
+    result
+  };
+
+  // tiny22 — miss path for #named "card".  Same shape as tiny21 but
+  // the card number doesn't exist on client 42 (or anywhere; the
+  // middle digits are perturbed).  namedLookup (VarAccessor's linear
+  // scan) returns notFoundSmurf, whose toDesc throws errAENoSuchObject
+  // carrying the parent clientSmurf's context.
+  public func tiny22() : async () {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "vald";
+        container = #obj {
+          class_    = "card";
+          container = #obj {
+            class_    = "clnt";
+            container = #root;
+            key       = #absolutePosition 42;
+          };
+          key       = #name "4_111_888_111_110_410";
+        };
+        key       = #property "vald";
+      };
+    ignore await* eval(spec, actorSmurf);
+  };
+
   // tiny9 — deep query:
   //   `every character of name of fifth client whose upperCase is true`.
   // Four-layer walk, predicate at the char level:
@@ -1775,6 +1830,10 @@ persistent actor {
 //CALL ingress tiny14 0x4449444c0000
 // tiny20 — `cards of client 42` (all cards of the 42nd client).
 //CALL ingress tiny20 0x4449444c0000
+// tiny21 — `valid of card "<pk>" of client 42` (hit case).
+//CALL ingress tiny21 0x4449444c0000
+// tiny22 — same shape but card number doesn't exist (miss case, noSuchObject).
+//CALL ingress tiny22 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
