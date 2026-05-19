@@ -241,7 +241,7 @@ persistent actor {
     toDesc       : () -> async* ObjectSpec;     // render self: #obj/#root for nodes, #value for leaves;
                                                 // async* so notFound-smurfs can throw a structured error
                                                 // (`error "AE: …"`) carrying the failing class + path
-    filter       : (BoolExpr) -> Smurf;         // restrict elements (singleton: pass/empty; collection: subset)
+    filter       : BoolExpr -> Smurf;           // restrict elements (singleton: pass/empty; collection: subset)
   };
 
   type Accessor = {
