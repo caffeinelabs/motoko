@@ -1794,6 +1794,29 @@ persistent actor {
     result
   };
 
+  // tiny24 — Motoko-side rendering of `every card`.  Mirrors the
+  // AE-wire fixture (`//CALL ingress go …` below) but builds the spec
+  // directly: since the bench has no `#every` keyform yet, we use
+  // `#test (tautology)`, which routes to actorSmurf's flattened card
+  // view (FlattenedSmurf<Client, CreditCard>).  debug_show emits the
+  // spec so the rendered query is visible in the test log.
+  (with encoder)
+  public func tiny24() : async ObjectSpec {
+    let tautology : BoolExpr = #or_ (
+      #compare { prop = "vald"; op = #eq; value = #bool true },
+      #compare { prop = "vald"; op = #ne; value = #bool true }
+    );
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "card";
+        container = #root;
+        key       = #test tautology;
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny24"; spec });
+    result
+  };
+
   // tiny21 — `valid of card "4_111_111_111_110_410" of client 42`.
   // Exercises the new #named "card" accessor on clientSmurf:
   //   #root → #absolutePosition 42 → clientSmurf("Anna Bauer", i=41)
@@ -1914,6 +1937,8 @@ persistent actor {
 //CALL ingress tiny22 0x4449444c0000
 // tiny23 — `count of cards whose valid == false` (global flat view).
 //CALL ingress tiny23 0x4449444c0000
+// tiny24 — Motoko-side `every card` (debug_show emits the spec).
+//CALL ingress tiny24 0x4449444c0000
 
 // tiny24 — `every card`, AE-encoded via `nix run .#ae-encoder` (the
 // Python harness uses py-appscript to emit `formAbsolutePosition` +
