@@ -241,11 +241,167 @@ The search label used to resolve per-element implicits is the same as the implic
 
 #### Unary record derivation (`__record`)
 
-When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R` (parameter named `__record`, type `[(Text, () -> E)] -> R`), it:
+When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R` (parameter named `__record`, type
+`<T>((?(Text, T, T -> R, R)) -> R`), it:
 
 1. Decomposes `SomeRecord` into its fields (in lexicographic order).
-2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> E` using the same search label.
-3. Synthesises a wrapper: `func($r) { combiner([("f1", func() { inst1($r.f1) }), ...]) }`.
+
+2. For each field `name : FieldType`, resolves a per-field implicit of type `FieldType -> R` using the same search label.
+
+3. Synthesises a wrapper
+
+```
+func ($r) { combiner<T1>(?("f1", $r1.f1, inst1, combiner<T2>(?("f2", $r1.f2, inst2, ... combiner<None>(null))...)) }
+```
+
+Examples:
+```
+
+// unary
+func toJson<T>(__record : ?(Text, T, T-> Json, Json))) : Json
+  switch __record {
+    case null { #Array []; };
+    case ?(lab : Text, t : T, f : T -> Json, j : JSon) {
+      switch j {
+        case (#Array a) {
+          Array.append([(lab, f t)], a); //  very inefficient
+        };
+       case _ { assert false };
+      }
+    }
+  }
+} //NB: inefficient
+
+func toText<T>(__record : ?(Text, T, T -> Text, Text) : Text {
+  switch __record {
+    case null "";
+    case ?(_lab : Text, t, f : T -> Text, r : Text) {
+      _lab # f t # s
+    }
+  }
+} //NB: no enclosing `{` .. `}` - how would you add those efficiently
+
+// binary:
+
+func equals<T>(__record : ?(Text, T, T, (T, T) -> Bool, Bool))) : Bool
+  switch __record {
+    case null true;
+    case ?(_lab : Text, t1, t2, f : (T, T) -> Bool, b : Bool) {
+      b and f(t1, t2)
+    }
+  }
+}
+
+func compare<T>(__record : ?(Text, T, T, (T, T) -> Order, Order))) : Order
+  switch __record {
+    case null #equal;
+    case ?(_lab : Text, t1, t2, f : (T, T) -> Order, o : Order) {
+      switch o {
+        case (#equal) { f(t1, t2) };
+        case o o
+      }
+    }
+  }
+}
+```
+
+
+# Optimization:
+
+THIS AND NEXT SECTION ARE BROKEN AND NEED FIXING TO CORRECTLY HANDLE EMPTY RECORDS
+
+`?` is allocation free but the inner tuples are still heap allocated on every call.... push `?` inwards to recursive result:
+
+```
+// i.e. use
+// `<T>(Text, T, T -> R, ?R) -> R`)
+
+func ($r) { combiner<T1>("f1", $r1.f1, inst1, ?combiner<T2>("f2", $r1.f2, inst2, ... null) ...)) }
+```
+
+Examples:
+
+```motoko no-repl
+
+// unary
+func toJson<T>(lab : Text, t : T, f : T -> Json, __record : ?Json) : Json
+    switch __record {
+      case null { #Array []; };
+      case ?(#Array a) {
+        Array.append([(lab, f t)], a); //  still inefficient
+      case _ { assert false };
+    };
+  }
+} //NB: inefficient
+
+func toText<T>(_lab : Text, t : T, f : T -> Text, __record : ?Text) : Text {
+  switch __record {
+    case null "";
+    case (?r)
+      _lab # f t # r
+    }
+  }
+} //NB: no enclosing `{` .. `}` - how would you add those efficiently?
+
+// binary:
+
+func equals<T>(Text, T, T, (T, T) -> Bool, __record : ?Bool))) : Bool
+  switch __record {
+    case null true;
+    case (?b) { b and f(t1, t2) }
+  }
+}
+
+func compare<T>(_lab : Text, T, T, (T, T) -> Order, __record : ?Order))) : Order
+  switch __record {
+    case null #equal;
+    case (?o) {
+      switch o {
+        case (#equal) { f(t1, t2) };
+        case o o
+      }
+    }
+  }
+}
+```
+
+
+# CPS based, to allow post processing in continutation
+
+The previous solution doesn't allow easy post processing. Maybe we use cps
+
+`?` is allocation free but the inner tuples are still heap allocated on every call.... push `?` inwards to recursive result:
+
+// i.e. use
+// `<T>(Text, T, T -> R, ?(k:R->R) -> R) -> (k:R->R) -> R`
+
+```motoko no-repl
+
+func ($r) { combiner<T1>("f1", $r1.f1, inst1, ?combiner<T2>("f2", $r1.f2, inst2, ... null) ...) (func t -> t) ) }
+
+func toText<T>(_lab : Text, t : T, f : T -> Text, __record : ?((Text->Text) -> Text) : (Text -> Text) -> Text {
+/* FIX ME
+  switch __record {
+    case null (func k = "{" # k "" # "}") ;
+    case (?k)
+      func k' =  k' (k (_lab # f t))
+    }
+  }
+ */
+};
+
+let ret_true : (Bool -> Bool) -> Bool = func k = k true;
+let ret_false : (Bool -> Bool) -> Bool = func k = k false;
+func equals<T>(Text, T, T, (T, T) -> Bool, __record : ?(Bool->Bool) -> Bool))) : (Bool -> Bool) -> Bool {
+/* FIX ME
+  switch __record {
+    case null ret_true;
+    case (?k) { if f(t1, t2) then k else ret_false  }
+  }
+ */
+} // note still allocation free since we can hoist ret_true and ret_false
+  // Is this actually correct?
+```
 
 This makes it possible for a library to provide generic serialization for **any** record type as long as instances exist for all field types.
 
