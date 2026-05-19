@@ -79,9 +79,15 @@ let
         """every card — formAbsolutePosition + enum 'all ' from root."""
         return app.elements('card')
 
+    def count_cards():
+        """count cards — `count of every card`; AE property 'pcnt' (kAECount)
+        on the every-cards collection."""
+        return app.elements('card').property('pcnt')
+
     QUERIES = {
         'german_midlife_client_income': german_midlife_client_income,
         'every_card': every_card,
+        'count_cards': count_cards,
     }
 
     codecs = Codecs()

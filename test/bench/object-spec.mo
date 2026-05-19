@@ -1981,6 +1981,16 @@ persistent actor {
 // tiny24 — Motoko-side `every card` (debug_show emits the spec).
 //CALL ingress tiny24 0x4449444c0000
 
+// tiny25 — `count cards`, AE-encoded via `nix run .#ae-encoder`
+// (`app.elements('card').property('pcnt')`).  Wire shape:
+//   obj { class='prop'; form='prop'; seld=type 'pcnt';
+//         from=obj{ class='card'; form='indx'; seld=abso 'all '; from=null } }
+// The decoder produces #obj{class_="prop"; container=#obj{class_="card";
+// container=#root; key=#every}; key=#property "pcnt"}.  Whether eval
+// returns 99 or an empty list depends on the OSL's "prop"-broadcast
+// policy (self-first vs distribute-only) — captured as-is.
+//CALL ingress go 0x646c6532000000006f626a2000000088000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c64747970650000000470636e7466726f6d6f626a2000000044000000040000000077616e74747970650000000463617264666f726d656e756d00000004696e647873656c646162736f00000004616c6c2066726f6d6e756c6c00000000
+
 // tiny24 — `every card`, AE-encoded via `nix run .#ae-encoder` (the
 // Python harness uses py-appscript to emit `formAbsolutePosition` +
 // `typeAbsoluteOrdinal 'all '`).  Our decoder doesn't currently parse
