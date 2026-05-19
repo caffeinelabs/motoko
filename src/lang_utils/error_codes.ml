@@ -265,7 +265,9 @@ let warning_codes = [
   "M0242", None, "Implicit oneway declaration";
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
-  "M0254", None, "Initial actor requires field"
+  "M0254", None, "Initial actor requires field";
+  "M0260", None, "Actor-id-alias shadows --actor-idl lookup";
+  "M0261", None, "Ambiguous --actor-id-alias entries for principal"
   ]
 
 let try_find_explanation code =
