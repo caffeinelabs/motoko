@@ -7,15 +7,3 @@ updates:
       time: '00:00'
       timezone: UTC
     open-pull-requests-limit: 10
-  - package-ecosystem: npm
-    directory: "/doc/site"
-    schedule:
-      interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: UTC
-    groups:
-      docs-site:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5

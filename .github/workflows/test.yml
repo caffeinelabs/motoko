@@ -220,10 +220,10 @@ jobs:
           ### Handles open PRs that address `master` and only have one changed file. The body checks whether that is the `Changelog.md` (since the `if:` condition can't). If so, the PR gets approved with a comment.
           [ $(gh pr diff $PR --name-only) == "Changelog.md" ] \
           && gh pr review $PR --approve --body 'A change to `Changelog.md`? I can handle that!'
-          ### Handles open PRs filed by `dependabot[bot]` that carry the `dependencies` label. The single changed file must be `doc/docusaurus/package-lock.json`. If so, the PR gets approved with a comment.
+          ### Handles open PRs filed by `dependabot[bot]` that carry the `dependencies` label. The single changed file must be `doc/site/package-lock.json`. If so, the PR gets approved with a comment.
           ${{ github.event.pull_request.user.login == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependencies') }} \
-          && [ $(gh pr diff $PR --name-only) == "doc/docusaurus/package-lock.json" ] \
-          && gh pr review $PR --approve --body 'A change to `doc/docusaurus/package-lock.json`? I can handle that!' \
+          && [ $(gh pr diff $PR --name-only) == "doc/site/package-lock.json" ] \
+          && gh pr review $PR --approve --body 'A change to `doc/site/package-lock.json`? I can handle that!' \
           && gh pr merge $PR --squash --auto
           ### Handles open PRs filed by the GH automation bot that carry the `automerge-squash` label. The single changed file must be `flake.lock`. If so, the PR gets approved with a comment, auto-merge activated and the label removed.
           ${{ github.event.pull_request.user.login == 'caffeine-ci-generic-rw[bot]' && contains(github.event.pull_request.labels.*.name, 'automerge-squash') }} \
