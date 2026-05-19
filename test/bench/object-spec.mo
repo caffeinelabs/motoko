@@ -20,6 +20,7 @@ import {
   intToInt32Wrap;
   abs;
   trap;
+  error;
 } = "mo:⛔";
 
 persistent actor {
@@ -165,13 +166,14 @@ persistent actor {
   };
 
   type Smurf = {
-    blob         : () -> Blob;           // self, Candid-encoded; thunk so VarAccessor-class
-                                         // children can return "" when nobody pulls
-    class4cc     : Text;                 // wire 4cc, "" for primitives
-    accessors    : [Accessor];           // per-class navigation hooks (incl. property leaves)
-    toDesc       : () -> ObjectSpec;     // render self: #obj/#root for nodes, #value for leaves
-    filter       : (BoolExpr) -> Smurf;  // restrict elements (singleton: pass/empty; collection: subset)
-    isNotFound   : Bool;                 // sentinel for AE-404 (errAENoSuchObject)
+    blob         : () -> Blob;                  // self, Candid-encoded; thunk so VarAccessor-class
+                                                // children can return "" when nobody pulls
+    class4cc     : Text;                        // wire 4cc, "" for primitives
+    accessors    : [Accessor];                  // per-class navigation hooks (incl. property leaves)
+    toDesc       : () -> async* ObjectSpec;     // render self: #obj/#root for nodes, #value for leaves;
+                                                // async* so notFound-smurfs can throw a structured error
+                                                // (`error "AE: …"`) carrying the failing class + path
+    filter       : (BoolExpr) -> Smurf;         // restrict elements (singleton: pass/empty; collection: subset)
   };
 
   type Accessor = {
@@ -183,15 +185,16 @@ persistent actor {
   };
 
   // AE-404 sentinel: every accessor returns this when its lookup misses.
-  // toDesc is a placeholder; encoder special-cases via isNotFound to emit
-  // an error AEDesc (errAENoSuchObject = -1728).
-  transient let notFoundSmurf : Smurf = {
+  // Its toDesc throws — the failure surfaces as an ingress reject when the
+  // library tries to render the result.  No accessors and an empty
+  // class4cc means findAccessor on it always returns null, so chained
+  // misses fall through without special-casing.
+  func notFoundSmurf(parent : Smurf) : Smurf = {
     blob        = func() : Blob = "";
     class4cc    = "";
     accessors   = [];
-    toDesc      = func() : ObjectSpec = #root;
-    filter      = func _ = notFoundSmurf;     // empty stays empty
-    isNotFound  = true;
+    toDesc      = func() : async* ObjectSpec { throw error ("Error (errAENoSuchObject = -1728) in " # debug_show (await* parent.toDesc())) };
+    filter      = func _ = notFoundSmurf parent;     // empty stays empty
   };
 
   // ValueSmurf: terminal leaf. Identity is its data — toDesc renders as a
@@ -201,12 +204,13 @@ persistent actor {
     public func blob() : Blob = to_candid (value);
     public let  class4cc                      = "";
     public let  accessors   : [Accessor]      = [];
-    public func toDesc() : ObjectSpec         = #value value;
+    // Block-body syntax (`{ … }`) binds the async* scope locally and
+    // avoids the M0137 outer-scope leak that `= expr` triggers.  See #6133.
+    public func toDesc() : async* ObjectSpec  { #value value };
     // ValueSmurf is a singleton; filtering it would need a typed evaluator
     // over CandidValue. We don't have one yet, so trap — callers shouldn't
     // filter leaves directly today. (TODO: predicate-on-CandidValue eval.)
     public func filter(_ : BoolExpr) : Smurf  = trap "AE: ValueSmurf.filter — predicate-on-CandidValue not implemented";
-    public let  isNotFound                    = false;
   };
 
   // Find an accessor on a Smurf by 4cc + form. Linear scan.
@@ -217,17 +221,6 @@ persistent actor {
     null
   };
 
-  // listSmurf: terminal collection of pre-computed specs.  Its toDesc
-  // renders as the AE `list` data descriptor.  No accessors — once a
-  // list of values has been materialised, no further navigation.
-  func listSmurf(elems : [ObjectSpec]) : Smurf = {
-    blob        = func() : Blob = "";
-    class4cc    = "";
-    accessors   = [];
-    toDesc      = func() : ObjectSpec = #list elems;
-    filter      = func _ = notFoundSmurf;
-    isNotFound  = false;
-  };
 
   // Wraps a single Client as an existential Smurf. toDesc closes over `parent`
   // (the zipper edge) and uses `c.name` as primary key — gives a stable
@@ -250,14 +243,15 @@ persistent actor {
         clientPropAccessor("age ", c, func c = #int32 (c.age)),
         clientPropAccessor("inco", c, func c = #int32 (c.yearlyIncome)),
       ];
-      toDesc      = func() : ObjectSpec = #obj {
-        class_    = "clnt";
-        container = parent.toDesc();
-        key       = #name (c.name);
+      toDesc      = func() : async* ObjectSpec {
+        #obj {
+          class_    = self.class4cc;
+          container = await* parent.toDesc();
+          key       = #name (c.name);
+        }
       };
       // Singleton filter: predicate against the typed Client; pass-or-empty.
-      filter      = func p = if (evalBoolExpr(p, c)) self else notFoundSmurf;
-      isNotFound  = false;
+      filter      = func p = if (evalBoolExpr(p, c)) self else notFoundSmurf self;
     };
     self
   };
@@ -285,7 +279,7 @@ persistent actor {
             if (i > 0) abs i
             else if (i < 0 and abs i <= size) size - abs i + 1
             else 0;
-          if (n == 0 or n > size) notFoundSmurf
+          if (n == 0 or n > size) notFoundSmurf parent
           else wrap(stab[n - 1], parent)
         };
         case (#named, #named target) {
@@ -299,10 +293,10 @@ persistent actor {
           };
           switch found {
             case (?item) wrap(item, parent);
-            case null notFoundSmurf;
+            case null notFoundSmurf parent;
           }
         };
-        case _ notFoundSmurf;  // TODO: #test (with matching form_)
+        case _ notFoundSmurf parent;  // TODO: #test (with matching form_)
       }
     };
   };
@@ -333,8 +327,6 @@ persistent actor {
     public func blob() : Blob              = "";
     public let  class4cc                   = classCC;
     // 'pcnt' is the AE generic-property "count" — `count of <collection>`.
-    // Resolution is a #value(#int32) data descriptor.
-    //
     // 'prop' is the property-projection accessor: `<propName> of every <elem>`.
     // Maps the requested property across matched elements, returning a list
     // Smurf.  Entirely protocol-driven — uses `wrap` + `findAccessor` on
@@ -348,38 +340,50 @@ persistent actor {
       {
         form   = #named;
         fourcc = "prop";
-        lookUp = func(_ : Smurf, key : LookupKey) : Smurf =
+        lookUp = func(par : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#named propName) {
-              let count = cardinality();
-              let buf = Array_init<ObjectSpec>(count, #root);
-              var i = 0;
-              for (t in source.vals()) {
-                let m = switch pred { case null true; case (?p) evalPred(p, t) };
-                if m {
-                  let elem = wrap(t, parent);
-                  switch (findAccessor(elem, propName, #named)) {
-                    case (?propAcc) {
-                      buf[i] := propAcc.lookUp(elem, #named propName).toDesc();
+              // lookUp is sync but the child toDesc calls are async*.
+              // Defer the iteration into the returned Smurf's toDesc,
+              // which IS async* and can `await*` each child.
+              {
+                blob       = func() : Blob = "";
+                class4cc   = "";
+                accessors  = [];
+                toDesc     = func() : async* ObjectSpec {
+                  let count = cardinality();
+                  let buf = Array_init<ObjectSpec>(count, #root);
+                  var i = 0;
+                  for (t in source.vals()) {
+                    let m = switch pred { case null true; case (?p) evalPred(p, t) };
+                    if m {
+                      let elem = wrap(t, parent);
+                      switch (findAccessor(elem, propName, #named)) {
+                        case (?propAcc) {
+                          buf[i] := await* propAcc.lookUp(elem, #named propName).toDesc();
+                        };
+                        case null ();
+                      };
+                      i += 1;
                     };
-                    case null ();      // leave #root sentinel — TODO error
                   };
-                  i += 1;
+                  #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
                 };
-              };
-              listSmurf(Array_tabulate<ObjectSpec>(count, func j = buf[j]))
+                filter     = func _ = notFoundSmurf par;
+              }
             };
-            case _ notFoundSmurf;
+            case _ notFoundSmurf par;
           };
       },
     ];
-    public func toDesc() : ObjectSpec {
+    // Block-body avoids the M0137 outer-scope leak (#6133).
+    public func toDesc() : async* ObjectSpec {
       let count = cardinality();
       let buf = Array_init<ObjectSpec>(count, #root);
       var i = 0;
       for (t in source.vals()) {
         let m = switch pred { case null true; case (?p) evalPred(p, t) };
-        if m { buf[i] := wrap(t, parent).toDesc(); i += 1 };
+        if m { buf[i] := await* wrap(t, parent).toDesc(); i += 1 };
       };
       #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
     };
@@ -390,7 +394,6 @@ persistent actor {
       };
       CollectionSmurf<T>(source, classCC, parent, wrap, evalPred, newPred)
     };
-    public let isNotFound = false;
   };
 
   // The canister's root Smurf. Hosts three "clnt" accessors over the stable
@@ -411,14 +414,13 @@ persistent actor {
           switch key {
             case (#test pred)
               CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, evalBoolExpr, ?pred);
-            case _ notFoundSmurf;
+            case _ notFoundSmurf parent;
           };
       },
     ];
-    toDesc      = func() : ObjectSpec = #root;
+    toDesc      = func() : async* ObjectSpec { #root };
     // Root has no own attributes — predicate doesn't apply, fall through.
-    filter      = func _ = notFoundSmurf;
-    isNotFound  = false;
+    filter      = func _ = notFoundSmurf actorSmurf;
   };
 
   // Unfiltered "every clnt of root" view. Eventually navigated to via an
@@ -924,23 +926,28 @@ persistent actor {
       case (#value _ or #list _)
         trap "AE: non-navigable spec at navigation position";
       case (#obj { class_; container; key }) {
+        // No isNotFound short-circuit: a notFound parent has no accessors,
+        // so the next findAccessor returns null and we build a fresh
+        // notFound carrying *this* layer's context.  Chained misses
+        // surface the innermost cause via the recursive parent.toDesc().
         let parent = resolve(container, root);
-        if (parent.isNotFound) return notFoundSmurf;
         let form = formOfKey(key);
         let ?lk = lookupOfKey(key)
           else trap "AE: unsupported keyform (uniqueID/range)";
         let ?acc = findAccessor(parent, class_, form)
-          else return notFoundSmurf;
+          else return notFoundSmurf parent;
         acc.lookUp(parent, lk)
       };
     }
   };
 
   // Library entry point: resolve, then ask the result Smurf to
-  // render itself back as a spec for the wire encoder.
-  func eval(spec : ObjectSpec, root : Smurf) : ObjectSpec {
+  // render itself back as a spec for the wire encoder.  `async*`
+  // because toDesc is async* — the throw-on-miss propagates to the
+  // public method, which the RTS reports as an ingress reject.
+  func eval(spec : ObjectSpec, root : Smurf) : async* ObjectSpec {
     let target = resolve(spec, root);
-    target.toDesc()
+    await* target.toDesc()
   };
 
   // Tiny demo: drive `actorSmurf.accessors[0].lookUp` ("clnt", #indexed i)
@@ -950,28 +957,30 @@ persistent actor {
   public func tiny1(i : Int) : async ObjectSpec {
     let clntAccessor = actorSmurf.accessors[0];
     let s = clntAccessor.lookUp(actorSmurf, #indexed i);
-    let spec = s.toDesc();
+    let spec = await* s.toDesc();
     debugPrint(debug_show { stage = "tiny1"; spec });
     spec
   };
 
-  // Tiny demo 2: `name of client <input> of root`. Looks up the client by
-  // name (the named clnt accessor at accessors[1]), then materialises the
-  // "name" property leaf via ValueSmurf. The leaf's toDesc gives the
-  // property reference path.
+  // Tiny demo 2: `name of client <input> of root`.  Builds the
+  // ObjectSpec by hand and routes through `eval` — same shape as
+  // `go`, just with a self-constructed query.  Misses propagate
+  // through the throw in notFoundSmurf.toDesc.
   (with encoder)
   public func tiny2(input : Text) : async ObjectSpec {
-    let namedClnt = actorSmurf.accessors[1];  // #named form
-    let clientS = namedClnt.lookUp(actorSmurf, #named input);
-    if (clientS.isNotFound) {
-      debugPrint(debug_show { stage = "tiny2"; input; result = "notFound" });
-      return #root
-    };
-    let ?nameAcc = findAccessor(clientS, "name", #named) else trap "AE: tiny2: no name accessor on clientSmurf";
-    let nameLeaf = nameAcc.lookUp(clientS, #named "name");
-    let spec = nameLeaf.toDesc();
-    debugPrint(debug_show { stage = "tiny2"; input; spec });
-    spec
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "name";
+        container = #obj {
+          class_    = "clnt";
+          container = #root;
+          key       = #name input;
+        };
+        key       = #property "name";
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny2"; input; spec = result });
+    result
   };
 
   // Tiny demo 3: `every client whose country = <input>`. Filters the typed
@@ -981,7 +990,7 @@ persistent actor {
   (with encoder)
   public func tiny3(input : Text) : async ObjectSpec {
     let pred : BoolExpr = #compare { prop = "cntr"; op = #eq; value = #text input };
-    let spec = clntCollection.filter(pred).toDesc();
+    let spec = await* clntCollection.filter(pred).toDesc();
     debugPrint(debug_show { stage = "tiny3"; input });
     spec
   };
@@ -995,7 +1004,7 @@ persistent actor {
     let pred : BoolExpr = #compare { prop = "cntr"; op = #eq; value = #text input };
     let filtered = clntCollection.filter(pred);
     let ?pcnt = findAccessor(filtered, "pcnt", #named) else trap "AE: tiny4: no pcnt accessor on collection";
-    let spec = pcnt.lookUp(filtered, #named "pcnt").toDesc();
+    let spec = await* pcnt.lookUp(filtered, #named "pcnt").toDesc();
     debugPrint(debug_show { stage = "tiny4"; input; spec });
     spec
   };
@@ -1006,8 +1015,19 @@ persistent actor {
   // ingress rejects.
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
-    eval(spec, actorSmurf)
+    await* eval(spec, actorSmurf)
   };
+
+  // tiny5 — deliberate miss exercises the throw path.  The "xxxx"
+  // class has no accessor on actorSmurf, so the library returns
+  // notFoundSmurf; calling its async* toDesc raises `error "AE:
+  // no such object"`, which the RTS surfaces as an ingress reject.
+  public func tiny5() : async () {
+    let badSpec : ObjectSpec =
+      #obj { class_ = "xxxx"; container = #root; key = #name "foo" };
+    ignore await* eval(badSpec, actorSmurf);
+  };
+
 }
 
 //CALL ingress tiny1 0x4449444c00017c01
@@ -1016,6 +1036,7 @@ persistent actor {
 //CALL ingress tiny2 0x4449444c0001710c48616e73204dc3bc6c6c6572
 //CALL ingress tiny3 0x4449444c000171064672616e6365
 //CALL ingress tiny4 0x4449444c000171064672616e6365
+//CALL ingress tiny5 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
