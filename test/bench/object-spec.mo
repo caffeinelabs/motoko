@@ -1481,6 +1481,40 @@ persistent actor {
     result
   };
 
+  // tiny14 — aspirational: `third character of name of every client whose
+  // country is "France"`.  Distributive — should yield 40 chars (one
+  // per French client's name).  Walks:
+  //  (a) French CollectionSmurf<Client>.
+  //  (b) "prop"/#named "name" → synthetic broadcast-result Smurf S
+  //      whose toDesc renders #list of 40 ValueSmurf(#text c.name)s.
+  //  (c) #absolutePosition 3 on S → would need S to be itself
+  //      navigable as a CollectionSmurf-like thing (per-element
+  //      indexed access broadcast over the list).  Today S has empty
+  //      accessors, so findAccessor returns null and we fall through.
+  // Expected: errAENoSuchObject in #list([40 French names]).  The
+  // miss exposes the next gap: broadcast-result Smurfs aren't
+  // recursively navigable.
+  (with encoder)
+  public func tiny14() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "char";
+        container = #obj {
+          class_    = "prop";
+          container = #obj {
+            class_    = "clnt";
+            container = #root;
+            key       = #test (#compare { prop = "cntr"; op = #eq; value = #text "France" });
+          };
+          key       = #property "name";
+        };
+        key       = #absolutePosition 3;
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny14" });
+    result
+  };
+
   // tiny9 — deep query:
   //   `every character of name of fifth client whose upperCase is true`.
   // Four-layer walk, predicate at the char level:
@@ -1541,6 +1575,9 @@ persistent actor {
 // tiny13 — #named miss path
 // (`client "Paul Dubois" of (every German client)` — noSuchObject).
 //CALL ingress tiny13 0x4449444c0000
+// tiny14 — aspirational distributive (`3rd char of name of every French
+// client`) — exposes non-navigable broadcast-result Smurf.
+//CALL ingress tiny14 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
