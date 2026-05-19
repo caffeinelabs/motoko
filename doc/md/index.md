@@ -39,35 +39,6 @@ persistent actor Counter {
 
 The `persistent actor` declaration means `count` survives canister upgrades. The `query` keyword marks `get` as a fast, read-only call. The `increment` function is an update call that modifies state and goes through consensus.
 
-## Getting started
-
-Create a new Motoko project with icp-cli:
-
-```bash
-icp new my-project --subfolder motoko
-```
-
-This generates a Motoko canister project with an `icp.yaml` build configuration and a source file. The build configuration uses the Motoko recipe:
-
-```yaml
-canisters:
-  - name: backend
-    recipe:
-      type: "@dfinity/motoko@<version>"
-      configuration:
-        main: src/main.mo
-        shrink: true
-```
-
-Start a local network and deploy:
-
-```bash
-icp network start -d
-icp deploy
-```
-
-For a guided walkthrough, see the [Quickstart](https://docs.internetcomputer.org/getting-started/quickstart).
-
 ## Standard library: `core`
 
 The **`core`** package ([mops.one/core](https://mops.one/core)) is the standard library for Motoko. It supersedes the older `base` library with a cleaner API, consistent naming conventions, and data structures that work directly with stable memory.
@@ -76,10 +47,10 @@ Add it to your project's `mops.toml`:
 
 ```toml
 [dependencies]
-core = "2.2.0" # Check the latest version at https://mops.one/core
+core = "2.5.0" # Check the latest version at https://mops.one/core
 
 [toolchain]
-moc = "1.3.0" # Check the latest version at https://github.com/caffeinelabs/motoko/releases
+moc = "1.8.0" # Check the latest version at https://github.com/caffeinelabs/motoko/releases
 ```
 
 Then import modules:
