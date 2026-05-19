@@ -811,6 +811,46 @@ persistent actor {
     };
   };
 
+  // FlattenedSmurf<P, E>: 1→many join.  Given a parent `[P]` and an
+  // `extract : P -> [E]`, eagerly materialise the flat `[E]` and
+  // present it as a CollectionSmurf<E>.  Same surface as
+  // CollectionSmurf<E> — the class instance is structurally a
+  // CollectionSmurf<E> via field re-export.  Eager-only for now;
+  // streaming variant can come if N grows large enough to matter.
+  class FlattenedSmurf<P, E>(
+    parents  : [P],
+    extract  : P -> [E],
+    classCC  : Text,
+    parent   : Smurf,
+    wrap     : (E, Smurf) -> Smurf,
+    evalPred : (BoolExpr, E) -> Bool,
+    getName  : E -> Text,
+    pred     : ?BoolExpr,
+  ) {
+    // Materialise per-parent extractions, then flatten by index
+    // decomposition (no default-E required — Array_tabulate's body
+    // computes each output position from the perParent slices).
+    let perParent = Array_tabulate<[E]>(parents.size(), func i = extract(parents[i]));
+    var totalN : Nat = 0;
+    for (es in perParent.vals()) totalN += es.size();
+    let flat : [E] = Array_tabulate<E>(totalN, func k {
+      var rem = k;
+      var pi : Nat = 0;
+      while (rem >= perParent[pi].size()) {
+        rem -= perParent[pi].size();
+        pi += 1;
+      };
+      perParent[pi][rem]
+    });
+
+    let inner : Smurf = CollectionSmurf<E>(flat, classCC, parent, wrap, evalPred, getName, pred);
+
+    public let class4cc  = inner.class4cc;
+    public let accessors = inner.accessors;
+    public func toDesc() : async* ObjectSpec { await* inner.toDesc() };
+    public func filter(p : BoolExpr) : Smurf { inner.filter(p) };
+  };
+
   // The canister's root Smurf. Hosts three "clnt" accessors over the stable
   // clients array — one #indexed, one #named (lookup by primary key), one
   // #test (returns a filtered CollectionSmurf).  The #test accessor closes
@@ -828,6 +868,22 @@ persistent actor {
           switch key {
             case (#test pred)
               CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, evalBoolExpr, func c = c.name, ?pred);
+            case _ notFoundSmurf parent;
+          };
+      },
+      // Global card view: flatten c.cards across every client via
+      // FlattenedSmurf<Client, CreditCard>, then filter by the spec's
+      // predicate.  `every card of root whose <P>` lives here.
+      {
+        form   = #test;
+        fourcc = "card";
+        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+          switch key {
+            case (#test pred)
+              FlattenedSmurf<Client, CreditCard>(
+                clients, func c = c.cards,
+                "card", parent, cardSmurf, evalCardPred,
+                func k = debug_show k.number, ?pred);
             case _ notFoundSmurf parent;
           };
       },
@@ -1716,6 +1772,29 @@ persistent actor {
     result
   };
 
+  // tiny23 — `count of cards whose valid == false`.  Global card
+  // collection: actorSmurf's #test "card" accessor invokes
+  // FlattenedSmurf<Client, CreditCard> (clients × c.cards), filter by
+  // `vald == false`, then `#property "pcnt"` reads the cardinality.
+  // Expected: 6 invalid cards across the DB (only i%5==0 clients have
+  // yy==26 cards, and only those whose mm==1..4 fail today=(05,26)).
+  (with encoder)
+  public func tiny23() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "pcnt";
+        container = #obj {
+          class_    = "card";
+          container = #root;
+          key       = #test (#compare { prop = "vald"; op = #eq; value = #bool false });
+        };
+        key       = #property "pcnt";
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny23" });
+    result
+  };
+
   // tiny21 — `valid of card "4_111_111_111_110_410" of client 42`.
   // Exercises the new #named "card" accessor on clientSmurf:
   //   #root → #absolutePosition 42 → clientSmurf("Anna Bauer", i=41)
@@ -1834,6 +1913,8 @@ persistent actor {
 //CALL ingress tiny21 0x4449444c0000
 // tiny22 — same shape but card number doesn't exist (miss case, noSuchObject).
 //CALL ingress tiny22 0x4449444c0000
+// tiny23 — `count of cards whose valid == false` (global flat view).
+//CALL ingress tiny23 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
