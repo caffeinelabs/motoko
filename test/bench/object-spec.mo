@@ -1424,6 +1424,30 @@ persistent actor {
     result
   };
 
+  // tiny13 — `client "Paul Dubois" of (every client whose country is
+  // "Germany")`.  Same shape as tiny12 but exercises the *miss* path:
+  // "Paul Dubois" is French (firstName from the French pool, lastName
+  // from the French pool), so it does not appear in the German subset.
+  // namedLookup completes its linear scan with no hit, returns
+  // notFoundSmurf, whose toDesc throws errAENoSuchObject — surfaces
+  // as an ingress reject.
+  (with encoder)
+  public func tiny13() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "clnt";
+        container = #obj {
+          class_    = "clnt";
+          container = #root;
+          key       = #test (#compare { prop = "cntr"; op = #eq; value = #text "Germany" });
+        };
+        key       = #name "Paul Dubois";
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny13" });
+    result
+  };
+
   // tiny11 — SmartLeaf demo: `firstName of name of (first client whose
   // country is "France")`.  Pure structural navigation — no firstName
   // ever touches the predicate evaluator.  Walks:
@@ -1512,8 +1536,11 @@ persistent actor {
 // tiny11 — SmartLeaf demo (`firstName of name of first French client`).
 //CALL ingress tiny11 0x4449444c0000
 // tiny12 — #named inheritance on CollectionSmurf
-// (`client "Anne Martin" of (every French client)`).
+// (`client "Paul Dubois" of (every French client)`).
 //CALL ingress tiny12 0x4449444c0000
+// tiny13 — #named miss path
+// (`client "Paul Dubois" of (every German client)` — noSuchObject).
+//CALL ingress tiny13 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
