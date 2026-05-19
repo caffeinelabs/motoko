@@ -375,60 +375,68 @@ persistent actor {
 
     public func blob() : Blob              = "";
     public let  class4cc                   = classCC;
-    // First two accessors are "inherited" — same (classCC, #indexed/#named)
-    // identity as the parent VarAccessor<T>, but resolving over the
-    // filtered local view so navigation composes with prior #test
-    // filters.  Last two are collection-only:
+    // Inherited element accessors mirror only the (classCC, form) pairs
+    // the parent actually exposes — never fabricate.  E.g. characters
+    // of a name have positional access but not name-keyed access; a
+    // CollectionSmurf<Char> built off a name-valued parent should
+    // therefore expose #indexed but not #named.
+    let parentHasIndexed : Bool = switch (findAccessor(parent, classCC, #indexed)) { case null false; case _ true };
+    let parentHasNamed   : Bool = switch (findAccessor(parent, classCC, #named))   { case null false; case _ true };
+    let indexedAcc : Accessor = { form = #indexed; fourcc = classCC; lookUp = indexedLookup };
+    let namedAcc   : Accessor = { form = #named;   fourcc = classCC; lookUp = namedLookup   };
+    // Collection-only:
     //   'pcnt' — `count of <collection>`.
     //   'prop' — `<propName> of every <elem>`: maps the requested
     //            property across matched elements via `findAccessor`
     //            on each child Smurf (no per-T schema baked in).
-    public let  accessors  : [Accessor]    = [
-      { form = #indexed; fourcc = classCC; lookUp = indexedLookup },
-      { form = #named;   fourcc = classCC; lookUp = namedLookup   },
-      {
-        form   = #named;
-        fourcc = "pcnt";
-        lookUp = func _ = ValueSmurf(#int32 (intToInt32Wrap (cardinality())));
-      },
-      {
-        form   = #named;
-        fourcc = "prop";
-        lookUp = func(par : Smurf, key : LookupKey) : Smurf =
-          switch key {
-            case (#named propName) {
-              // lookUp is sync but the child toDesc calls are async*.
-              // Defer the iteration into the returned Smurf's toDesc,
-              // which IS async* and can `await*` each child.
-              {
-                blob       = func() : Blob = "";
-                class4cc   = "";
-                accessors  = [];
-                toDesc     = func() : async* ObjectSpec {
-                  let count = cardinality();
-                  let buf = Array_init<ObjectSpec>(count, #root);
-                  var i = 0;
-                  for (t in source.vals()) {
-                    if (passes t) {
-                      let elem = wrap(t, parent);
-                      switch (findAccessor(elem, propName, #named)) {
-                        case (?propAcc) {
-                          buf[i] := await* propAcc.lookUp(elem, #named propName).toDesc();
-                        };
-                        case null ();
+    let pcntAcc : Accessor = {
+      form   = #named;
+      fourcc = "pcnt";
+      lookUp = func _ = ValueSmurf(#int32 (intToInt32Wrap (cardinality())));
+    };
+    let propAcc : Accessor = {
+      form   = #named;
+      fourcc = "prop";
+      lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+        switch key {
+          case (#named propName) {
+            // lookUp is sync but the child toDesc calls are async*.
+            // Defer the iteration into the returned Smurf's toDesc,
+            // which IS async* and can `await*` each child.
+            {
+              blob       = func() : Blob = "";
+              class4cc   = "";
+              accessors  = [];
+              toDesc     = func() : async* ObjectSpec {
+                let count = cardinality();
+                let buf = Array_init<ObjectSpec>(count, #root);
+                var i = 0;
+                for (t in source.vals()) {
+                  if (passes t) {
+                    let elem = wrap(t, parent);
+                    switch (findAccessor(elem, propName, #named)) {
+                      case (?acc) {
+                        buf[i] := await* acc.lookUp(elem, #named propName).toDesc();
                       };
-                      i += 1;
+                      case null ();
                     };
+                    i += 1;
                   };
-                  #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
                 };
-                filter     = func _ = notFoundSmurf par;
-              }
-            };
-            case _ notFoundSmurf par;
+                #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
+              };
+              filter     = func _ = notFoundSmurf par;
+            }
           };
-      },
-    ];
+          case _ notFoundSmurf par;
+        };
+    };
+    public let accessors : [Accessor] = switch (parentHasIndexed, parentHasNamed) {
+      case (true,  true)  [indexedAcc, namedAcc, pcntAcc, propAcc];
+      case (true,  false) [indexedAcc, pcntAcc, propAcc];
+      case (false, true)  [namedAcc, pcntAcc, propAcc];
+      case (false, false) [pcntAcc, propAcc];
+    };
     // Block-body avoids the M0137 outer-scope leak (#6133).
     public func toDesc() : async* ObjectSpec {
       let count = cardinality();
@@ -1172,6 +1180,43 @@ persistent actor {
     result
   };
 
+  // tiny9 — aspirational deep query:
+  //   `every character of name of fifth client whose upperCase is true`.
+  // Stresses four layers in one walk:
+  //  (a) Client-level predicate on a non-existent property "upcs"
+  //      (we have no upperCase on Client) — first place this can trap.
+  //  (b) #absolutePosition 5 on a CollectionSmurf — works after the
+  //      selective-inheritance fix.
+  //  (c) #property "name" on the picked clientSmurf — works.
+  //  (d) `every character of <name>` — would need a CollectionSmurf<Char>
+  //      hanging off the ValueSmurf(#text …); no such Smurf exists, so
+  //      findAccessor falls through to notFound here.
+  // Expected first failure: (a) — trap "AE: no PropReader for upcs".
+  (with encoder)
+  public func tiny9() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "char";
+        container = #obj {
+          class_    = "name";
+          container = #obj {
+            class_    = "clnt";
+            container = #obj {
+              class_    = "clnt";
+              container = #root;
+              key       = #test (#compare { prop = "upcs"; op = #eq; value = #bool true });
+            };
+            key       = #absolutePosition 5;
+          };
+          key       = #property "name";
+        };
+        key       = #test (#compare { prop = "char"; op = #eq; value = #bool true });
+      };
+    let result = await* eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "tiny9" });
+    result
+  };
+
 }
 
 //CALL ingress tiny1 0x4449444c00017c01
@@ -1187,6 +1232,8 @@ persistent actor {
 //CALL ingress tiny7 0x4449444c0002717101410142
 // tiny8(3, "France") — name of third client in France.
 //CALL ingress tiny8 0x4449444c00027c7103064672616e6365
+// tiny9 — aspirational deep query (expected to trap on missing PropReader).
+//CALL ingress tiny9 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
