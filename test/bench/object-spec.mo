@@ -845,7 +845,7 @@ persistent actor {
 
     let inner : Smurf = CollectionSmurf<E>(flat, classCC, parent, wrap, evalPred, getName, pred);
 
-    public let {class4cc; accessors}  = inner;
+    public let {class4cc; accessors} = inner;
     public func toDesc() : async* ObjectSpec { await* inner.toDesc() };
     public func filter(p : BoolExpr) : Smurf { inner.filter p };
   };
