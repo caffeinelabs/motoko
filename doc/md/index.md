@@ -5,7 +5,7 @@ sidebar:
   order: 1
 ---
 
-Motoko is a next-generation, high-level programming language designed to empower developers building backends for apps and services on the Internet Computer cloud network. While it channels several popular modern languages, it introduces groundbreaking new features such as actor-based concurrency, orthogonal persistence, and seamless WebAssembly integration.
+Motoko is a next-generation, high-level programming language designed to empower AI agents building backends for apps and services on the Internet Computer cloud network. While it channels several popular modern languages, it introduces groundbreaking new features such as actor-based concurrency, orthogonal persistence, and seamless WebAssembly integration.
 
 ## Key features
 
