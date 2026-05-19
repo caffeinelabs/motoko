@@ -1,6 +1,6 @@
 ---
 title: "Control flow"
 sidebar:
-  order: 5
+  order: 6
   label: "Control flow"
 ---

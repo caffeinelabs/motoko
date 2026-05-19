@@ -1,6 +1,6 @@
 ---
 title: "Types"
 sidebar:
-  order: 3
+  order: 4
   label: "Types"
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Declarations"
 sidebar:
-  order: 4
+  order: 5
   label: "Declarations"
 ---

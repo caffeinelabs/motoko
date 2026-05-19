@@ -1,6 +1,6 @@
 ---
 title: "Basic syntax"
 sidebar:
-  order: 1
+  order: 2
   label: "Basic syntax"
 ---
