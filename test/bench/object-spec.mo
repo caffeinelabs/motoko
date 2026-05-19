@@ -479,6 +479,23 @@ persistent actor {
         case _ notFoundSmurf par;
       };
 
+    // Inherited #test: compose predicates via `#and_` and return a
+    // refined CollectionSmurf.  Avoids the `self`-at-class-init dance
+    // by calling the constructor directly with the AND-composed pred.
+    // `parent` of the new collection is THIS collection's parent — keeps
+    // the AE-wire navigation chain coherent with successive filters.
+    func testLookup(par : Smurf, key : LookupKey) : Smurf =
+      switch key {
+        case (#test newPred) {
+          let combined : ?BoolExpr = switch pred {
+            case null ?newPred;
+            case (?old) ?(#and_ (old, newPred));
+          };
+          CollectionSmurf<T>(source, classCC, parent, wrap, evalPred, getName, combined)
+        };
+        case _ notFoundSmurf par;
+      };
+
     public func blob() : Blob              = "";
     public let  class4cc                   = classCC;
     // Inherited element accessors mirror only the (classCC, form) pairs
@@ -488,8 +505,10 @@ persistent actor {
     // therefore expose #indexed but not #named.
     let parentHasIndexed : Bool = switch (findAccessor(parent, classCC, #indexed)) { case null false; case _ true };
     let parentHasNamed   : Bool = switch (findAccessor(parent, classCC, #named))   { case null false; case _ true };
+    let parentHasTest    : Bool = switch (findAccessor(parent, classCC, #test))    { case null false; case _ true };
     let indexedAcc : Accessor = { form = #indexed; fourcc = classCC; lookUp = indexedLookup };
     let namedAcc   : Accessor = { form = #named;   fourcc = classCC; lookUp = namedLookup   };
+    let testAcc    : Accessor = { form = #test;    fourcc = classCC; lookUp = testLookup    };
     // Collection-only:
     //   'pcnt' — `count of <collection>`.
     //   'prop' — `<propName> of every <elem>`: maps the requested
@@ -537,11 +556,15 @@ persistent actor {
           case _ notFoundSmurf par;
         };
     };
-    public let accessors : [Accessor] = switch (parentHasIndexed, parentHasNamed) {
-      case (true,  true)  [indexedAcc, namedAcc, pcntAcc, propAcc];
-      case (true,  false) [indexedAcc, pcntAcc, propAcc];
-      case (false, true)  [namedAcc, pcntAcc, propAcc];
-      case (false, false) [pcntAcc, propAcc];
+    public let accessors : [Accessor] = switch (parentHasIndexed, parentHasNamed, parentHasTest) {
+      case (true,  true,  true)  [indexedAcc, namedAcc, testAcc, pcntAcc, propAcc];
+      case (true,  true,  false) [indexedAcc, namedAcc, pcntAcc, propAcc];
+      case (true,  false, true)  [indexedAcc, testAcc, pcntAcc, propAcc];
+      case (true,  false, false) [indexedAcc, pcntAcc, propAcc];
+      case (false, true,  true)  [namedAcc, testAcc, pcntAcc, propAcc];
+      case (false, true,  false) [namedAcc, pcntAcc, propAcc];
+      case (false, false, true)  [testAcc, pcntAcc, propAcc];
+      case (false, false, false) [pcntAcc, propAcc];
     };
     // Block-body avoids the M0137 outer-scope leak (#6133).
     public func toDesc() : async* ObjectSpec {
