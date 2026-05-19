@@ -37,8 +37,6 @@ persistent actor Counter {
 };
 ```
 
-The `persistent actor` declaration means `count` survives canister upgrades. The `query` keyword marks `get` as a fast, read-only call. The `increment` function is an update call that modifies state and goes through consensus.
-
 ## Standard library: `core`
 
 The **`core`** package ([mops.one/core](https://mops.one/core)) is the standard library for Motoko. It supersedes the older `base` library with a cleaner API, consistent naming conventions, and data structures that work directly with stable memory.
