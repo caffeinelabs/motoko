@@ -177,6 +177,8 @@ persistent actor {
 
   transient let propReaders : [PropReader] = [
     { fourcc = "name"; read = func(c : Client) : CandidValue = #text (c.name) },
+    { fourcc = "fiNa"; read = func(c : Client) : CandidValue = #text (firstWord(c.name)) },
+    { fourcc = "laNa"; read = func(c : Client) : CandidValue = #text (lastWord(c.name)) },
     { fourcc = "cntr"; read = func(c : Client) : CandidValue = #text (c.country) },
     { fourcc = "age "; read = func(c : Client) : CandidValue = #int32 (c.age) },
     { fourcc = "inco"; read = func(c : Client) : CandidValue = #int32 (c.yearlyIncome) },
@@ -1141,6 +1143,17 @@ persistent actor {
     let _length = u32 r;
     if (typeCode == LOGI) parseLogiBody r
     else if (typeCode == CMPD) parseCmpdBody r
+    else if (typeCode == OBJ) {
+      // Terse AS `whose <bool-prop>` form: AS sends just the property
+      // obj-spec as the test seld (form=prop, seld=<4cc>) without a
+      // wrapping `#compare`.  Interpret as `<prop> = true`.
+      let spec = parseObjBody r;
+      switch spec {
+        case (#obj { class_ = _; container = _; key = #property p })
+          #compare { prop = p; op = #eq; value = #bool true };
+        case _ trap "AE: BoolExpr obj-spec must be a property reference (form=prop)";
+      }
+    }
     else trap "AE: unsupported BoolExpr descriptor"
   };
 
