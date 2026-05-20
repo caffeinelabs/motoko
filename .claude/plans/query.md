@@ -499,6 +499,58 @@ An object specifier is a `'reco'` with exactly four keys:
 the full encoder/decoder. The Carbon headers `AERegistry.h` and `AEObjects.h`
 define all OSType constants.
 
+### Spec-compliance probe (`nix run .#ae-decoder`)
+
+The canister's `writeDesc` is reverse-engineered from the format observed
+empirically (Apple's documentation is incomplete, and `AEFlattenDesc` adds
+list-prefix bytes not derivable from the public headers). To keep us honest,
+we ship a parallel **decoder** built on the same py-appscript stack:
+
+- `nix/ae-decoder.nix` exposes `nix run .#ae-decoder` (Darwin-only).
+- Reads raw binary from stdin (pair with `xxd -r -p` to convert hex blobs).
+- Calls `aem.ae.unflattendesc(bytes)` — the same path Apple's CoreServices
+  invokes when an AppleScript reply lands. If our wire bytes are spec-
+  compliant, this succeeds; if not, it throws.
+- Walks the resulting `AEDesc` tree via `getitem(i, '****')` (lists) /
+  `getparam(k, '****')` (records and obj specifiers) and pretty-prints
+  the structure.
+
+The probe runs against every non-Candid `Reply: 0x646c6532...` line in
+`test/bench/ok/object-spec.drun-run.ok`. As of 2026-05-20, **24/24
+decode cleanly** — covering:
+
+- `obj ` (typeObjectSpecifier) — clnt/card classes, `#name` and compound
+  `#test` keys, nested up to 3 levels (predicate AND of two compares).
+- `list` (typeAEList) — empty, of `long`, of `utxt`, of `obj `.
+- `utxt` (typeUnicodeText) — including BMP codepoints (Müller).
+- `long` (typeSInt32) — element counts and signed integers.
+- `tru ` (typeTrue) — boolean leaves.
+- `null` — embedded as `from` in chain-anchored obj specs.
+
+Usage:
+
+```bash
+sed -n '5p' test/bench/ok/object-spec.drun-run.ok |
+  sed 's/.*0x//' | xxd -r -p |
+  nix run .#ae-decoder
+```
+
+Yields:
+
+```
+=== stdin (102 bytes) ===
+'obj ' record
+  ['want'] -> 'type' leaf, data='clnt'
+  ['form'] -> 'enum' leaf, data='name'
+  ['seld'] -> 'utxt' leaf, data='Hans Müller'
+  ['from'] -> 'null' leaf, data=''
+```
+
+Add new shapes to the bench, regenerate the `.ok`, and re-probe — any
+wire-format drift surfaces immediately as an `AEUnflattenDescFromBytes`
+error rather than as a downstream Script-Editor / ICmator failure
+hours later.
+
 ---
 
 ## Parenthetical Codec Annotations (proposed Motoko syntax)
