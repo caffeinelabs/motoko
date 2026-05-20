@@ -575,6 +575,192 @@ triggers list is satisfied.
 
 ---
 
+## Germinating: indexing as a companion to laziness
+
+Half-formed but worth sketching while it's fresh.  Today
+`VarAccessor<T> #named` does a linear scan over the stable `[T]`:
+for 100 clients it's a non-issue, for 10K or 100K it's the
+dominant cost of any name lookup.  An **index** — a hashmap from
+key → array offset, or a B-tree for range queries — turns O(N)
+into O(1) or O(log N), at the cost of memory + maintenance.
+
+Indexing belongs in the same conceptual layer as the optimiser:
+both are model-specific knowledge plugged into a uniform query
+runtime.  Laziness defers materialisation; indexing changes the
+*shape* of the lookup itself.  Different lever, same goal.
+
+### Where it pays
+
+- **`X named "Y"` on large collections.**  The canonical case.
+  100 clients = imperceptible, 10K = ~milliseconds of cycles, 1M
+  = a real problem.  Hashmap on `name` → O(1) regardless.
+- **Repeated lookups in one query.**  `repeat with c in lst /
+  eval (name of c)` today causes one network call per element;
+  even with the bridge co-located, each call re-walks the cl
+  array.  A per-query index amortises the build cost across
+  iterations.
+- **Predicate selectivity hints.**  If `country` is indexed, the
+  optimiser can pick *which* predicate in a conjunction to push
+  through the index first.  `country = "Liechtenstein"` matches
+  0 → answer is `#list []` without touching age/income filters.
+
+### Where it doesn't
+
+- **Tiny collections.**  Index overhead (memory + maintenance)
+  outweighs the linear-scan savings below some threshold.  The
+  bench's 100-client dataset is below it.
+- **Range queries on un-ordered indexes.**  Hashmap helps `age =
+  37` but not `age >= 45`.  Need a sorted/tree index for the
+  latter — different data structure, different cost class.
+- **High-mutation workloads.**  Every write to the underlying
+  stable variable needs index maintenance.  Read-heavy is the
+  sweet spot.
+
+### Companion to the optimiser
+
+This is where the user's intuition lands: the optimiser sees both
+the **collection size** (via lingo / accessor metadata) and the
+**query shape** (via the spec), and decides whether to wrap a
+`VarAccessor<T>` with an **index-generator Smurf** for this query.
+
+```
+VarAccessor<T>("clnt", #named, …, getName)
+   ↓ (optimiser, when cost model says "lookups by name on
+   ↓  large collection, build index")
+IndexedSmurf<T>(inner, getName, lazy: true)
+   ↓ first lookup forces index build, caches result.
+   ↓ subsequent lookups in this query: O(1).
+```
+
+Three index lifetimes worth considering:
+
+1. **Per-query** — build on first lookup, drop at end of `eval`.
+   Cheapest semantically (no cross-query state, no invalidation).
+   Win when one query has many index hits.
+2. **Cross-query cached** — build once, reuse across `eval`s.
+   Invalidate on stable-variable mutation.  Needs a versioning or
+   write-watching mechanism — non-trivial in Motoko, doable.
+3. **Eager at canister init** — always present, predictable
+   memory cost, no first-call latency spike.  Right when the
+   index is small and lookups are constant-traffic.
+
+For first cut, **per-query** is the cleanest: lazily built inside
+the resolver's per-call state, no upgrade-stable ceremony, no
+cross-call invariants to maintain.
+
+### Codegen and lingo
+
+The same `mo_to_lingo` codegen pass that derives accessor cost
+classes can declare `indexable` accessors — those over stable
+variables of size ≥ threshold with `#named` or `#test` access
+patterns.  Lingo can then carry, per class:
+
+```
+indexes : vec record { key : text;  kind : variant { #hash; #tree } }
+```
+
+The optimiser reads lingo, sees "client has a hash index available
+on `name`", and chooses the index-wrapping path when a query
+includes `name = X`.
+
+An explicit annotation surface (developer-side) is the natural
+override for the 20% where automatic derivation gets it wrong:
+`@indexed("name")` on the accessor declaration.
+
+### Combined with laziness
+
+Lazy collections and indexed lookups compose, but only at certain
+shapes.  A few example interactions:
+
+- `count of every client whose country = "Germany"` — lazy
+  CollectionSmurf scans the cl array, increments a counter,
+  no allocation.  Indexing on `country` would beat this only if
+  the result set is much smaller than the full sweep (selectivity
+  matters); the optimiser knows because lingo carries cardinality
+  hints or the cost model has them.
+- `client "Hans Müller" of root` — singular lookup.  Lazy doesn't
+  help (no collection to defer); index turns O(N) → O(1).  Pure
+  indexing win.
+- `every client whose age >= 45 and country = "Germany"` —
+  conjunction.  Lazy walks once, evaluates both predicates per
+  element.  Index on `country` (if hash) reduces candidate set
+  first, age filter applies to ~60 instead of 100.  Lazy +
+  indexed = the SQL pattern of "use the most selective
+  index-able predicate to drive the scan".
+- `every card whose vali = "02/27"` — global card view via
+  `FlattenedSmurf`.  Today an index would have to live on the
+  flattened parent.children projection, which is more involved
+  to maintain.  Probably not the first place to add indexes.
+
+### Critique
+
+- **Memory cost is real.**  A hashmap over 100K text keys is
+  meaningful heap.  IC canister heap is large but not infinite,
+  and the developer-visible cost is "my canister grew by N MB
+  because the query layer decided to index".  Per-query indexes
+  bound this (build, use, drop within one update call); cached
+  indexes need careful budgeting.
+- **Invalidation is hard.**  Cross-query indexes have to know
+  when the underlying stable variable changes.  Motoko's
+  `stable` keyword doesn't expose mutation notifications; we'd
+  need either:
+  - convention (developer calls `invalidate_index()` after
+    mutating writes — error-prone),
+  - wrapper types (`IndexedVar<T>` that intercepts mutations —
+    clunky, viral), or
+  - rebuild-on-every-query with cheap version check (acceptable
+    if the version-check itself is O(1)).
+- **Index choice is a dark art.**  SQL DBs ship query planners
+  that pick *which* index to use given multiple options.  We
+  don't want to ship that complexity in cut 1.  Probably:
+  one index per `#named` accessor over a stable variable that
+  the developer opts in to.  Multi-index selection comes much
+  later, if ever.
+- **Test surface explodes.**  Every accessor now has two execution
+  paths (linear scan, indexed lookup).  Need property tests that
+  they return identical results, and benchmarks that show the
+  indexed path is actually faster at the claimed cardinality.
+
+### Triggers for investing
+
+- A bench (or real canister) query is measurably bottlenecked on
+  `#named` linear scan.
+- The collection in question is ≥ 1K elements (below that, the
+  scan is too cheap to bother).
+- Read/write ratio favours indexing (≥ 100:1 read:write per
+  index, rough rule of thumb).
+- Lazy `CollectionSmurf` has shipped — measure indexing *against*
+  the lazy baseline, not against today's eager linear scan,
+  otherwise we'd be measuring the wrong delta.
+- Lingo carries enough per-accessor metadata to drive the
+  optimiser's index-choice decision, OR a per-canister manual
+  override surface is in place.
+
+### Analog references
+
+- **SQL B-tree / hash indexes.**  Same cost model, same
+  maintenance tradeoffs, mature query-planner integration.
+- **Object-oriented database indexing** (O2, ObjectStore).  Path-
+  expression aware: indexes on `client.cards.number` are
+  conceptually possible — closer to our FlattenedSmurf case.
+- **Datomic / RDF stores.**  Index everything (EAVT, AEVT, AVET,
+  VAET) at write time; trade write cost for read flexibility.
+  Probably overkill for us, but worth knowing the extreme exists.
+- **GraphQL DataLoader (again).**  Per-query lookup cache — same
+  shape as our per-query index but at the resolver-batching layer.
+
+### One-line summary for future-me
+
+Indexing is the *shape-change* lever; laziness is the
+*materialisation* lever.  Compose at the optimiser's call site:
+optimiser sees collection size + query shape, wraps
+`VarAccessor` with an `IndexedSmurf` when the indexed path
+dominates.  Per-query lifetime first (no invalidation worries);
+cached only when justified.  Lingo carries the `indexable`
+metadata so the optimiser's decision is automatic.
+
+---
+
 ### `Accessors.mo` library (the long-term shape)
 
 Not yet started. The bench file is a hand-rolled instance of what
