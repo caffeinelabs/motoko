@@ -237,8 +237,9 @@
       # against `AEvent.framework`. On Linux the attribute is omitted,
       # so `nix flake show` won't complain.
       ae-encoder-attrs = pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
-        ae-encoder = import ./nix/ae-encoder.nix { inherit pkgs appscript-src; };
-        ae-decoder = import ./nix/ae-decoder.nix { inherit pkgs appscript-src; };
+        ae-encoder    = import ./nix/ae-encoder.nix    { inherit pkgs appscript-src; };
+        ae-decoder    = import ./nix/ae-decoder.nix    { inherit pkgs appscript-src; };
+        aete-verifier = import ./nix/aete-verifier.nix { inherit pkgs appscript-src; };
       };
 
       common-constituents = rec {

@@ -333,6 +333,69 @@ branch `gabor/encoder` (PR #5996).
   non-BMP / multi-byte UTF-8. Documented in the function header.
 - **`#ne` encoder** — traps; should desugar to `NOT(=)`.
 
+### Query optimisation: positional pickaxe vs. eager `map`
+
+A class of queries shipped today builds a full `[T]` and then picks
+one element.  AppleScript renders this naturally as
+`item 6 of (every client whose ...)`, which the bench currently
+resolves by materialising the whole filtered list, mapping `clientSmurf`
+over it, then indexing.  When the filter is **trivial** (no `whose`),
+the materialised list is identical to the underlying stable array —
+N × `clientSmurf` allocations + the resulting `[Smurf]`, just to throw
+away `N-1` of them.
+
+The rewrite (no semantic change, no side effects):
+
+```
+root.<plural> |> map f |> .[6]      ==      root.<singular>.[6] |> f
+```
+
+i.e. `every client` then `item 6` is equivalent to `client 6` —
+direct indexed-form lookup followed by the per-element `f`.  Same
+result, O(1) instead of O(N).
+
+Generalisation: the same rewrite applies whenever the **terminal
+operation** is a stable index pick (1-based, negative-from-end,
+range slice) and there's an unfiltered prefix.  The OSL can spot
+this in `resolve`:
+
+- Spec shape: `#obj { class_ = X; key = #absolutePosition n;
+                     container = #obj { class_ = X; key = #every;
+                                        container = ... } }`
+- Rewrite to: `#obj { class_ = X; key = #absolutePosition n;
+                     container = ... }`  (the inner `#every` layer
+                     collapses).
+
+For the **filtered** case — `#test` predicate in the middle — we
+can't pre-skip, but we shouldn't be eager either.  Today `CollectionSmurf`
+walks the source and materialises every match's `toDesc()` up
+front.  A lazy version keeps `pred` + `source` in the smurf and
+only forces matches when something downstream actually demands them
+(e.g. the `#absolutePosition` reducer, or `count`).  `count` over a
+filter then becomes a single linear scan with no element-Smurf
+allocations.
+
+Order of work:
+
+1. Spec-level rewrite for the unfiltered-then-pick pattern in
+   `resolve` (small, no protocol change).
+2. Lazy `CollectionSmurf` — keep `pred` + `source`, defer the
+   per-element wrap until `toDesc` is forced; `filter` composes via
+   `#and_` without producing intermediate lists; `count` does the
+   scan directly.
+3. Lazy `FlattenedSmurf` — same treatment for `every card` (across
+   clients): scan parents on demand, yield per-child smurfs lazily.
+4. Once (2) and (3) land, the spec rewriter from (1) becomes a
+   pure optimisation rather than a correctness lever — the
+   non-rewritten path is asymptotically the same.
+
+Expected wins on the bench's `tinyN`s: `tiny8`'s position-pick over
+a filtered list goes from `O(filter-scan + materialise + pick)` to
+`O(filter-scan-until-Nth-match)`.  The same shape with
+`#absolutePosition 1` (first) becomes a short-circuit scan.
+
+---
+
 ### `Accessors.mo` library (the long-term shape)
 
 Not yet started. The bench file is a hand-rolled instance of what
