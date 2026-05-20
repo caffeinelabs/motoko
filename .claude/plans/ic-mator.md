@@ -287,7 +287,45 @@ motoko side at commit `1a5b8d575` on `gabor/encoder`.
 - Properties whose 4cc is not in the SDEF for `client` (e.g.
   `nameOnCard`) — AS compiles but fails before iteration.
 
-## Multi-canister addressing — design sketch (next, before `#root` rewriting)
+## Milestone: multi-canister addressing (2026-05-20)
+
+Shipped on ICmator `main` (commit `5be9389`).  Two shapes work today:
+
+```applescript
+-- per-call
+tell application "ICmator"
+  tell canister "t63gs-up777-77776-aaaba-cai"
+    eval (every client whose country = "Germany")
+  end tell
+end tell
+
+-- session default
+tell application "ICmator" to target canister "t63gs-…-cai"
+tell application "ICmator" to eval (every client)   -- uses default
+```
+
+Implementation notes (deviations from the original design sketch):
+
+- **No `set defaultTarget to …` property.** Cocoa scripting intercepts
+  `set X to Y` on application properties before our `setEventHandler`
+  fires, regardless of whether the SDEF declares the property as
+  `text` or `canister`-typed.  Shipped a custom `target` verb
+  instead (4cc `ICma`/`trgt`).  AS-idiomatic enough:
+  `to target canister "X"` reads naturally and extends cleanly to
+  `to target canister "X" of network "Y"` once the `network` class
+  lands — same verb, AS layers the `of`-qualifier into the obj-spec's
+  `from` chain, our handler peels both anchors in one walk.
+- **No `keySubjectAttr`.** AS doesn't put `tell ICmator's canister "X"`
+  in the subject attribute — it embeds the canister obj-spec as the
+  `from` container of whatever spec the inner `tell` block evaluates.
+  Swift's `peelCanisterAnchor` walks the `from` chain, strips any
+  `'ICcn'`-want layer, and returns both the rewritten descriptor
+  (with the anchor replaced by `null`) and the extracted canister id.
+- **Rust agent argv path.** `icmator-agent <method> [<canister-id>]`;
+  falls back to `CANISTER_ID` env when argv[2] is absent.  Existing
+  single-canister scripts unchanged.
+
+### Original design sketch (kept for context)
 
 Today ICmator is wired to a single hardcoded canister: `icmator-agent`
 reads `CANISTER_ID` at process launch, the Swift side has no
@@ -380,6 +418,172 @@ cut — make it sticky later via `UserDefaults` once it's proven.
   reply against canister `Y` into the right cross-canister specifier
   (or trap with a clear error).  Without per-call canister selection
   there is no `Y` to rewrite *from*.
+
+## Next: AE-native lingo query
+
+`_aeLingo` is the canister's self-description endpoint.  ICmator
+issues it per canister (any time it sees an unfamiliar target) and
+caches the result.  The reply is itself an AE-encoded structure so
+the same wire-format work we've already done carries it.
+
+Concrete shape (sketch, may change once we start typing it):
+
+```
+record {
+  class_4ccs : list of obj { 4cc : type;  parent : type or null };
+  property_4ccs : list of obj { class : type;  4cc : type;  value_type : type };
+  forms_supported : list of enum;       -- name / indx / test / rang …
+  predicate_ops : list of enum;         -- =, !=, <, >, contains, …
+  capability_flags : list of enum;      -- read, count, set, create, delete
+}
+```
+
+ICmator caches `(canister-id → lingo)` so a session needs at most one
+lingo round-trip per canister.  The bench's `object-spec.mo` would
+expose this as a `(with encoder)` query method named `_aeLingo`; pure-
+Candid canisters would expose it as a Candid query returning a typed
+record (handled by the next section's bridge).
+
+This is the **next concrete step** — multi-canister addressing
+without lingo means clients have to hardcode every canister's
+vocabulary, which doesn't compose.
+
+## Best-of-both-worlds: Candid ↔ AE bridge in the agent
+
+The big epiphany (2026-05-20): the wire-format translation between
+Candid and AE doesn't have to live in *each* canister.  It can live
+in `icmator-agent` (Rust), as a reusable transcription of the OSL's
+schema-mapping rules.  Then ICmator can talk to **any** IC canister
+— including pure-Candid ones with no awareness of AE — and surface
+their state through AppleScript.
+
+### Egress (canister → AS)
+
+`icmator-agent` sniffs the response bytes.  If they start with
+`4449444c` (`DIDL`, Candid magic), the agent:
+
+1. Decodes the bytes as Candid (using the canister's `.did` or an
+   inline type passed via the lingo lookup).
+2. Walks the resulting typed value through the OSL's schema map
+   (port of `writeDesc` rules to Rust) and emits an AE descriptor
+   tree: `record → typeAERecord`, `vec → typeAEList`, `variant →
+   typeObjectSpecifier`, `text → utxt`, `int32/nat32 → long`, etc.
+3. Returns those bytes to ICmator, which unflattens normally.
+
+For AE-native canisters (`(with encoder)` annotations like
+`object-spec.mo`'s `go`), the response bytes start with `646c6532`
+(`dle2`) and the agent passes them through unchanged.
+
+### Ingress (AS → canister)
+
+Symmetric.  For each call the agent looks up the target canister's
+**format flag** (Candid vs AE-native, discovered via lingo and
+cached):
+
+- **AE-native target** → flatten the AS-side descriptor and forward
+  bytes as today.
+- **Candid target** → parse the AS-side descriptor into the agent's
+  internal `ObjectSpec`, then Candid-encode against the canister's
+  `.did` signature, forward those bytes.  The canister sees a
+  perfectly ordinary Candid call.
+
+### Schema map lives in Rust
+
+The OSL's `writeDesc` / `parseTopLevel` body is currently Motoko, but
+the rules are mechanical: each Motoko/Candid type maps to one AE
+descriptor type, with a small surface (~10 mappings).  Rust port
+goes into a new crate (likely `icmator-codec`) shared between the
+agent and the canister's pure-Rust dependents (e.g. future cdks).
+
+### Lingo discovery handles both
+
+The lingo query — at the canister, not the agent — is what tells the
+agent *which path to take*.  Lingo replies can declare:
+
+- `wire = ae`     — pass-through both directions.
+- `wire = candid` — agent does the Candid ↔ AE translation, using
+  the lingo's accompanying type definitions.
+- `wire = candid; carries_objectspec` — Candid canister whose values
+  happen to be `ObjectSpec`-shaped (e.g. a record matching the OSL
+  schema directly); the agent uses a thin re-wrap rather than the
+  full schema walk.
+
+The third case is the *real* unification: any Candid endpoint that
+serves a known shape becomes AS-addressable for free.  The
+`(with encoder; decoder)` annotation stays as the *override* for
+canisters that want exact control over their AE bytes (e.g. AE
+features Candid can't express, like typeRangeDescriptor with
+inclusive/exclusive endpoints).
+
+### Network targeting — same handle shape
+
+The richer addressing form combines both:
+
+```applescript
+tell application "ICmator" to target canister "bla-cai" of network "testnet"
+```
+
+AS compiles this to an obj-spec `canister "bla-cai"` whose `from`
+container is itself an obj-spec `network "testnet"`.  Our existing
+`peelCanisterAnchor` walks the `from` chain linearly; adding a
+`peelNetworkAnchor` is the same shape with `want = 'ICnt'` and a
+different state field (e.g. `defaultNetworkURL`).  No new AS syntax
+or AE plumbing — just one more class declaration in the SDEF and
+one more switch arm in `handleTarget`.
+
+### Defaults
+
+- **`network` omitted → mainnet.**  If a `tell` or `target` provides
+  a canister but no `of network`, the agent assumes mainnet
+  (`https://ic0.app`).  Local-replica work explicitly opts in via
+  `target network "local"` (or env-var override at ICmator launch
+  for the demo).
+- **`canister` omitted → error**, unless a session default is set
+  via prior `target canister "X"`.  Mainnet without a canister has
+  nothing concrete to call.  The error should surface as a
+  meaningful AS message ("no canister target — call `target canister
+  …` first or wrap your `tell` in `tell canister …`"), not silent
+  `null`.
+
+### Open design questions
+
+- **Where does the Candid schema come from?** Three candidates: (a)
+  the canister's own `.did` fetched via the IC management canister
+  (`canister_status` or `__get_candid_interface_tmp_hack`); (b) baked
+  into the lingo reply; (c) shipped alongside ICmator as a static
+  config bundle.  (a) is the most decentralised, (b) the most
+  self-contained, (c) the most demo-ready.
+- **Record-shape conventions.** Candid records are unordered and
+  named-field; AE records carry an ordering and use 4-char keywords.
+  The schema map needs a stable Candid-label → 4cc mapping
+  (truncate? hash? require a side-table from lingo?).  This is the
+  same problem `mo_to_idl.ml` already solves for Motoko↔Candid;
+  borrow its rules.
+- **Variants ↔ obj specs.** A Candid variant `{ #obj : ...; #value :
+  ...; ... }` maps cleanly to AE typeObjectSpecifier vs typeAEList vs
+  leaves.  Matches the bench's `ObjectSpec` definition almost 1:1.
+  Generic variants (no ObjectSpec shape) translate to AE records
+  with a `kind` discriminator.
+- **Tuples and recursive types.** Candid tuples have no AE
+  equivalent (use typeAEList of mixed types).  Recursive Candid
+  types need cycle detection in the schema walker.
+- **Where do `update` vs `query` decisions live?** Today the env
+  var `IC_CALL_KIND` picks update.  Lingo should advertise per-
+  method.
+
+### Why this is huge
+
+- **AE access for *any* canister** without per-canister porting.
+  Every existing ICP project gets a free AS surface the moment the
+  community publishes one shared `icmator-codec` crate.
+- **Asymmetric optimisation.** Canisters with hot-path queries that
+  want byte-level control still pin down their AE shape with
+  `(with encoder; decoder)`.  Cold-path admin queries (`who is the
+  controller? what cycles balance?`) lean on the Candid path with
+  zero developer work.
+- **One schema language, two wire formats.** Candid evolves;
+  AE rules stay frozen.  The agent's translator absorbs both — no
+  ABI break on either side.
 
 ## Scope cut for Friday
 
