@@ -255,5 +255,14 @@ wouldn't be reused — that loses the pass-through elegance.
     in Script Editor, for the "tell canister X" multi-canister
     addressing, and as a one-call introspection probe.  Stretch /
     *if time permits*.
+  - **4cc casing convention** — application-specific 4ccs must
+    contain at least one uppercase ASCII character.  Apple reserves
+    all-lowercase OSTypes for system use; mixing case avoids future
+    collisions when Apple introduces new reserved codes.  The bench
+    currently uses all-lowercase (`clnt`, `card`, `name`, `cntr`,
+    `vali`, etc.) — fine for the local demo but the synthesised
+    SDEF should rewrite to e.g. `Clnt`/`Card`/`Name`/`Cntr`/`Vali`
+    before exposure.  Same rule applies to user-defined class names
+    via `_aeLingo`.
 - App Intents twin: same backend, different surface — useful for
   Siri/Spotlight.
