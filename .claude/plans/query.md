@@ -394,48 +394,184 @@ a filtered list goes from `O(filter-scan + materialise + pick)` to
 `O(filter-scan-until-Nth-match)`.  The same shape with
 `#absolutePosition 1` (first) becomes a short-circuit scan.
 
-### Germinating: post-decoder optimiser with internal custom forms
+---
 
-Idea worth letting sit before we act on it.  Split the path into
-three concerns:
+## Germinating: model-specific post-decoder optimiser
 
-1. **Decoder** — faithful `bytes → ObjectSpec` translation, no
-   semantics.  What `parseTopLevel` already is.
-2. **Optimiser** — `ObjectSpec → ObjectSpec`, *model-specific*.
-   Knows this canister's cost surface (which accessors are O(1) vs
-   O(N), which predicates are selective, etc.) and rewrites the
-   spec to a cheaper-equivalent shape.  Lives outside the protocol.
+Idea worth letting sit before we act on it.  This section sketches
+the design space and the analytical critique that goes with it — no
+implementation is planned until the points under "Triggers for
+investing" below are met.
+
+### The split (three concerns)
+
+Today's path is `bytes → ObjectSpec → Smurf navigation` (roughly:
+`parseTopLevel`, then `resolve`).  Two things blur together at the
+join: the parser produces an `ObjectSpec` that is *both* the faithful
+decoding of the AS-author's spec *and* the program the resolver will
+execute against the smurf tree.  Those are different concerns —
+they only happen to be the same data type today because the easy
+cases work.
+
+The proposed split:
+
+1. **Decoder** — faithful `bytes → ObjectSpec`, pure syntax.  What
+   `parseTopLevel` already is.  Has no opinion on cost, never
+   rewrites.
+2. **Optimiser** — `ObjectSpec → ObjectSpec`, **model-specific**.
+   Knows this canister's cost surface: which accessors are O(1)
+   vs O(N), which predicates are selective, which joins are cheap.
+   Rewrites the spec into a semantically-equivalent but cheaper
+   shape.  Lives outside the AE protocol entirely.
 3. **Resolver** — walks the (possibly optimiser-rewritten) spec
-   against the smurf tree.  Today's `resolve`.
+   against the smurf tree.  Today's `resolve`, plus one new arm per
+   internal custom form (see below).
 
-The clean trick: the optimiser can emit **internal custom KeyForms**
-that never appear on the AE wire — e.g. `#indX` (capital X is a
-mnemonic; standard AE form code is `'indx'` lowercase) for "this
-collection should be evaluated lazily here, not eagerly".  Same
-spec admits two execution plans; which one resolves is determined
-by code with data-model context, not by the AS author.
+### Internal custom KeyForms — the clean trick
 
-Open threads (none load-bearing today):
+To express "evaluate this lazily" or "this collection should
+short-circuit at the first match" *without* polluting the public
+wire format, the optimiser emits new `KeyForm` variants that the
+decoder never produces and the encoder never emits.  Mnemonic:
+`#indX` for the lazy version of `#indx`, `#tesX` for short-circuit
+`#test`, etc.  The 4cc surface contract is unchanged — these
+variants exist only inside the canister's data path between
+optimiser and resolver.
 
-- **Cost model source.** Hand-written per canister (accurate, costly
-  to maintain); derived from accessor structure (mechanical — e.g.
-  `VarAccessor<T> #indexed` is O(1), `#named` is O(N) linear scan,
-  `FlattenedSmurf` is O(parents × children) — but blind to data-
-  dependent things like predicate selectivity); profile-driven (run
-  queries, learn).  Probably hand-written for cut 1, derived for
-  cut 2.
-- **Tree-rewriter vs proper query planner.** Spec → spec rewrites
-  handle the easy cases; a typed query-plan IR enables join
-  reordering / selectivity push-down.  First cut: rewriter.
-- **Pass ordering.** The unfiltered-then-pick elimination wants to
-  *delete* intermediate `#every` layers; the laziness annotation
-  pass wants to *preserve* them with `#indX` tags.  Eliminations
-  first, annotations on what survives.
+(The capital-letter casing is a nod to Apple's "app-specific 4ccs
+must contain at least one uppercase" rule.  Since these variants
+never serialise, the rule formally doesn't apply, but the casing
+is a useful "this is not standard AE" visual marker.)
 
-When this germinates, the decoder stays cheap (just bytes →
-ObjectSpec), the optimiser is the surface where canister-specific
-knowledge plugs in, and the resolver gains one new interpretation
-arm per internal form.  No wire-format change.
+### Why this is structurally good
+
+- **Separation of concerns.**  Decoder correctness is byte-level
+  parsing; optimiser correctness is rewrite preservation; resolver
+  correctness is navigation.  Each is testable in isolation.
+- **Model knowledge stays local.**  Today, if we wanted lazy
+  collections, we'd weave the decision into `resolve` somehow —
+  scattering data-model awareness across every spec arm.  With the
+  split, all of it lives in one rewrite pass that consumes a known-
+  shape input and produces a known-shape output.
+- **No wire-format change.**  Internal forms never escape;
+  canister-side flexibility doesn't propagate to AS clients, the
+  bridge agent, or any future Candid path.  Important given the
+  hard rule from `.claude/plans/ic-mator.md` that ObjectSpec is
+  not a stable public schema.
+- **Codegen alignment.**  The same `mo_to_lingo`-style pass that
+  derives the canister's `__lingo` query from accessor structures
+  can derive the cost model: `VarAccessor<T> #indexed` is O(1),
+  `#named` is O(N) linear scan, `FlattenedSmurf` is O(parents ×
+  children).  Mechanical, sound, evolves with the code.
+- **Composable with the simple rewriter.**  The
+  unfiltered-then-pick rewrite we already sketched (`every X then
+  item N` → `X N`) is the first pass in this framework.  Adding
+  `#indX` annotations on what survives is the second.
+
+### Critique — where this gets hard
+
+- **Optimiser correctness is subtle.**  Rewrites must preserve
+  semantics under every interleaving of side effects (we have
+  none today, but predicates with async-prim calls would change
+  that), under predicate evaluation order, under failure
+  propagation.  SQL optimisers ship correctness bugs that persist
+  for years in major databases.  Each new rewrite needs property
+  tests or a hand proof.
+- **Cost-model accuracy.**  Three sources, each with a flaw:
+  - *Hand-written per canister.*  Most accurate snapshot; drifts
+    from reality as code evolves; can't compose with codegen.
+  - *Accessor-derived* (the codegen path).  Mechanical and
+    automatic, but blind to data distribution.  The classic
+    example: `country = "Germany"` selects 60% of the bench but
+    `country = "Liechtenstein"` selects 0%.  The cost model only
+    sees "linear scan over [Client]" for both.
+  - *Profile-driven.*  Captures distribution, but needs
+    persistent counters across canister calls — awkward
+    semantically (when do you reset? upgrade-stable?) and
+    architecturally (now resolver is a writer, not just a reader).
+- **"Internal" forms leak in error paths.**  `debug_show
+  (#indX i)` exposes the internal form in trap messages, log
+  output, the notFound spec carried by the smurf chain
+  (`notFoundSmurf.toDesc` already does this).  Need a convention:
+  optimiser output is normalised back to public forms before any
+  user-visible serialisation, OR error machinery learns to render
+  internal forms in a "diagnostic" mode that's clearly not the
+  wire format.  Either is fine; pick one.
+- **Per-canister optimiser growth.**  If every canister gets its
+  own optimiser pass (hand-written), the codebase grows with the
+  ecosystem and nobody maintains the older ones.  Codegen-derived
+  optimisers compose better but have the cost-model-accuracy
+  problem above.  Probably the right answer is: derive the
+  baseline from accessors (the 80%), let canister authors override
+  for hot spots (the 20%), with the override surface being a
+  function on `ObjectSpec` that the canister author writes.
+- **Premature optimisation risk.**  The bench works fine eagerly
+  today.  We're not yet sure where actual hot spots are.  Without
+  benchmark coverage that shows *which* shapes are slow under
+  realistic workloads, we might invest in optimising things that
+  don't matter.  The lazy `CollectionSmurf` rework (no optimiser,
+  just smurf laziness) probably captures most of the win on its
+  own; the cost-modelled optimiser is the bigger ROI when lazy is
+  already in.
+
+### Triggers for investing
+
+Worth building when at least three of these are true:
+
+- The bench has a query whose eager + simple-rewriter path is
+  measurably the bottleneck (bench cycle counts show it; we have
+  a regression test that pins the cycle delta).
+- A second canister has joined the picture (so the model-
+  specific argument actually has > 1 instance to specialise for).
+- Lingo carries enough type structure to derive accessor cost
+  classes mechanically.
+- We have a debug/trace facility that surfaces optimiser
+  decisions so bugs are diagnosable when (not if) they happen.
+- The lazy `CollectionSmurf` / `FlattenedSmurf` rework has
+  shipped and is the new baseline that optimiser wins are
+  measured *against*.
+
+### Pass ordering and interaction with the simple rewriter
+
+When this lands, the two passes need a deliberate join order:
+
+1. **Eliminations first.**  Unfiltered-then-pick collapses
+   intermediate `#every` layers entirely.  Run this before
+   anything else looks at them; otherwise the laziness pass wastes
+   work tagging layers that get deleted.
+2. **Laziness annotations second.**  Walk what survives,
+   tag collection shapes with `#indX` where the cost model says
+   eager materialisation is wasteful.
+3. **Constant folding / predicate normalisation third** (later,
+   if motivated).  Standard SQL stuff: push selective predicates
+   first in conjunctions, fold `true and X` to `X`, etc.
+
+### Analogs in the wider literature
+
+- **SQL optimisers** (Cascades framework, Volcano).  Predicate
+  pushdown, join reordering, index selection.  Mature; cost models
+  are profile-driven there.  Our analog has fewer join
+  permutations to consider (no general joins beyond
+  `FlattenedSmurf`) so the search space is much smaller.
+- **LINQ providers in .NET.**  Translate `IQueryable` expression
+  trees into provider-specific query plans.  Our `ObjectSpec` is
+  closer to a LINQ expression tree than to SQL AST.
+- **Object-oriented database query** (O2, ObjectStore, late
+  80s/early 90s).  Closer in spirit to our model than SQL.  Path
+  expressions over typed object graphs; same cost-modelling
+  tradeoffs we're contemplating.
+- **GraphQL DataLoader.**  Solves the related "lazy resolution +
+  batching" problem at the network boundary.  Not directly
+  applicable (our boundary is in-canister) but the pattern of
+  deferring fetches until forced is the same.
+
+### One-line summary for future-me
+
+Decoder is syntax, optimiser is model-specific semantics
+preservation under cost rewrites, resolver is navigation.
+Internal custom KeyForms (`#indX`) are the laziness ABI between
+optimiser and resolver, kept off the wire.  Don't build until the
+triggers list is satisfied.
 
 ---
 
