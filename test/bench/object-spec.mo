@@ -1163,33 +1163,43 @@ persistent actor {
   func parseCmpdBody(r : Reader) : BoolExpr {
     let _fc = u32 r;       // expected: 3
     let _pad = u32 r;
-    // 'obj1' field
-    let obj1Key = u32 r;
-    if (obj1Key != OBJ1) trap "AE: expected 'obj1'";
-    let obj1Type = u32 r;
-    let obj1 = parseDescBody(obj1Type, r);
-    let prop = switch obj1 {
-      case (#obj { class_ = _; container = _; key = #property name }) name;
-      case _ trap "AE: cmpd 'obj1' is not a property reference";
+    // Order-agnostic field dispatch (AS-Cocoa emits relo/obj1/obj2,
+    // not obj1/relo/obj2 as the Python harness did).  Read 3 fields,
+    // dispatch on keyCode.
+    var prop : ?Text = null;
+    var op   : ?Comparison = null;
+    var val  : ?CandidValue = null;
+    var i = 0;
+    while (i < 3) {
+      let key = u32 r;
+      if (key == OBJ1) {
+        let t = u32 r;
+        let obj1 = parseDescBody(t, r);
+        switch obj1 {
+          case (#obj { class_ = _; container = _; key = #property name }) prop := ?name;
+          case _ trap "AE: cmpd 'obj1' is not a property reference";
+        };
+      } else if (key == RELO) {
+        let _t = u32 r;   // ENUM
+        let _l = u32 r;   // 4
+        let opCode = u32 r;
+        op := ?(if (opCode == EQ_OP) #eq
+                else if (opCode == LT_OP) #lt
+                else if (opCode == GT_OP) #gt
+                else if (opCode == LE_OP) #le
+                else if (opCode == GE_OP) #ge
+                else trap "AE: unsupported relo opcode");
+      } else if (key == OBJ2) {
+        val := ?(parseValue r);
+      } else {
+        trap ("AE: unknown cmpd field key " # debug_show key);
+      };
+      i += 1;
     };
-    // 'relo' field
-    let reloKey = u32 r;
-    if (reloKey != RELO) trap "AE: expected 'relo'";
-    let _reloType = u32 r;  // ENUM
-    let _reloLen = u32 r;   // 4
-    let opCode = u32 r;
-    let op : Comparison =
-      if (opCode == EQ_OP) #eq
-      else if (opCode == LT_OP) #lt
-      else if (opCode == GT_OP) #gt
-      else if (opCode == LE_OP) #le
-      else if (opCode == GE_OP) #ge
-      else trap "AE: unsupported relo opcode";
-    // 'obj2' field
-    let obj2Key = u32 r;
-    if (obj2Key != OBJ2) trap "AE: expected 'obj2'";
-    let value = parseValue r;
-    #compare { prop; op; value }
+    switch (prop, op, val) {
+      case (?p, ?o, ?v) #compare { prop = p; op = o; value = v };
+      case _ trap "AE: cmpd missing obj1/relo/obj2";
+    }
   };
 
   class Writer(size : Nat) {
