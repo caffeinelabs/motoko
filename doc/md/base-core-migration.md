@@ -30,7 +30,7 @@ If you are migrating an existing project, you can keep the `base` import and gra
 
 ### Important considerations
 
-:::warning Version requirements
+:::caution[Version requirements]
 The `core` package depends on new language features, so make sure to update to the latest dfx (0.28+) or Motoko compiler (0.15+) before migrating.
 :::
 

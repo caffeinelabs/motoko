@@ -90,7 +90,7 @@ let trappingInt8 : Int8 = 127+1; // trap: arithmetic overflow
 
 Floating-point numbers in Motoko are represented using the [`Float`](https://mops.one/core/docs/Float) type, which corresponds to a 64-bit double-precision floating-point number in [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754) representation.
 
-:::note Limited precision
+:::note[Limited precision]
 Floating point numbers have limited precision and operations may inherently result in numerical errors.
 :::
 

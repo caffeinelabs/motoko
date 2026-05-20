@@ -71,7 +71,7 @@ persistent actor Alternator {
 };
 ```
 
-:::note Conversions
+:::note[Conversions]
 
 - `Char` can be converted to a single-character `Text` using `Char.toText(c)`.
 - `Char` can be converted to its 32-bit Unicode scalar value using `Char.toNat32(c)`.

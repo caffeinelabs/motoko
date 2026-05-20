@@ -62,7 +62,7 @@ This module declares:
 - A public type `Matrix.Matrix` for representing a 2D array of natural numbers `[[Nat]]`.
 - Functions `Matrix.init()`, `Matrix.identity()`, and `Matrix.transpose()` for matrix operations.
 
-:::note Functional programming style
+:::note[Functional programming style]
 This module follows a functional programming approach. All operations return new matrices instead of modifying existing ones.
 :::
 
