@@ -7,12 +7,12 @@ sidebar:
 
 ICP supports five system functions that canisters can call to interact with the ICP runtime environment:
 
-- [`timer`](https://docs.internetcomputer.org/references/ic-interface-spec/canister-interface#global-timer)
+- [`timer`](#timer)
 - [`preupgrade`](#preupgrade)
 - [`postupgrade`](#postupgrade)
 - [`lowmemory`](#lowmemory)
-- [`inspect`](https://docs.internetcomputer.org/references/ic-interface-spec/canister-interface#system-api-inspect-message)
-- [`heartbeat`](https://docs.internetcomputer.org/references/ic-interface-spec/canister-interface#heartbeat)
+- [`inspect`](#inspect)
+- [`heartbeat`](#heartbeat)
   
 
 Declaring any other system function will result in an error. Canisters can use these functions to efficiently manage state transitions, automate tasks, or handle system-level operations. 
