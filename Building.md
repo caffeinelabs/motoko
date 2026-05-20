@@ -113,17 +113,16 @@ git switch master
 git pull
 ```
 
-Make sure the markdown doc for base is up-to-date:
-For now, in a nix shell `$ nix develop` (or _re-enter_ if you already have one open):
+Make sure the compiler, runtime, and any generated docs still build
+cleanly and the working tree stays clean:
 
 ```bash
-  make -C rts
-  make -C src
-  make -C doc base
-  git diff
+nix develop -c bash -c "
+  make -C rts &&
+  make -C src &&
+  git -C doc diff
+"
 ```
-
-If not, create and merge a separate PR to update the doc (adding any new files) and goto step 0.
 
 ### 1. Update Changelog
 
