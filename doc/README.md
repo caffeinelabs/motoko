@@ -39,6 +39,7 @@ Both placeholders are resolved by `doc/site/plugins/remark-include-file.mjs` loc
 For a lightweight HTML snapshot without Node.js:
 
 ```bash
+# requires pandoc — https://pandoc.org/installing.html
 make html
 python3 -m http.server --directory html
 # browse http://localhost:8000/ — files are named after their source .md basename
