@@ -5,7 +5,7 @@ import remarkIncludeFile from "./plugins/remark-include-file.mjs";
 import remarkHeadingId from "./plugins/remark-heading-id.mjs";
 import rehypeExternalLinks from "./plugins/rehype-external-links.mjs";
 import rehypeRewriteLinks from "./plugins/rehype-rewrite-links.mjs";
-import { sidebar } from "../md/sidebar.mjs";
+import { sidebar } from "./sidebar.mjs";
 
 export default defineConfig({
   markdown: {

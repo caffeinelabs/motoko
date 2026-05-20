@@ -2,13 +2,12 @@
  * Motoko documentation sidebar — single source of truth.
  *
  * Consumed by two sites:
- *   - doc/site/  (local Astro + Starlight preview)
- *   - docs.internetcomputer.org  (consumer site syncs doc/md/ via rsync;
- *     its sync script reads this file and prepends the "languages/motoko/"
+ *   - doc/site/astro.config.mjs  (local Astro + Starlight preview, imports directly)
+ *   - docs.internetcomputer.org  (reads this file from the pinned .sources/motoko
+ *     submodule at doc/site/sidebar.mjs and prepends the "languages/motoko/"
  *     path prefix to every slug and autogenerate.directory value)
  *
  * Maintenance: edit this file when pages are added, removed, or reordered.
- * doc/site/astro.config.mjs imports this directly — no duplication.
  */
 
 export const sidebar = [
