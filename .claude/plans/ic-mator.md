@@ -229,31 +229,63 @@ Probe sandbox at [`probe/flatten-probe.swift`](https://github.com/ggreif/ic-mato
 generates Apple's reference output for any descriptor shape — keep
 it for future format diffs (records, deeper nested objs, etc.).
 
-### Composability follow-on
+## Milestone: `references-reusable` (2026-05-20)
 
-The returned obj specifiers are reusable.  Once name-lookup is wired,
-this should work:
+The composability follow-on is now live.  This script returns 60
+real client names, every step going through the bridge:
 
 ```applescript
 tell application "ICmator"
-    set hits to (eval (every client whose country = "Germany"))
-    set who to item 1 of hits
-    -- `who` is now `client "Hans Müller" of application "ICmator"`.
-    -- A subsequent `eval` (or `get`) targeting `who` resolves the
-    -- specifier on the canister side via the `#named "clnt"` accessor
-    -- already exposed in the bench.
-    eval (yearly income of who)
+    set lst to eval (every client whose country = "Germany")
+    set out to {}
+    repeat with c in lst
+        set end of out to eval (name of c)
+    end repeat
+    out
 end tell
 ```
 
-i.e., the AS-side specifier `client "Hans Müller" of application
-"ICmator"` round-trips through the bridge: flatten descriptor →
-canister sees `#obj { class_ = "clnt"; container = #root; key = #name
-"Hans Müller" }` → resolve via `VarAccessor<Client>("clnt", #named,
-…)` (already there) → return `ValueSmurf(#int32 c.yearlyIncome)` →
-unflatten back as a `typeSInt32`.  No protocol change needed —
-just the property-lookup `eval` path Swift-side, and the existing
-canister surface handles it.
+Result: `{"Hans Müller", "Anna Müller", "Otto Müller", …, "Ingrid Koch"}`
+— 60 entries, umlauts rendering correctly, every name fetched by
+the canister resolving the AS-side reference `c`.
+
+Five things had to come together:
+
+1. **UTF-16 BMP** (canister) — `textToUtf16` / `utxtToText` were
+   ASCII-only (stuffed UTF-8 bytes into low UTF-16 halves).  Real
+   UTF-16 BE now; "Müller" no longer renders as "MÃ¼ller".  Non-BMP
+   surrogates still trap.
+2. **`parseObjBody` learns `formName`** (canister) — Apple's
+   `formName` (4cc `'name'`) used to be undecodable; AS-sent
+   `name of c` referencing a previously returned `client "X"`
+   trapped at parse time.
+3. **AS-property resolve fallback** (canister) — AS sends
+   `class_ = "prop"` + `key = #property X` for property access;
+   the bench's singleton convention (tiny2/tiny8) uses `class_ = X`.
+   `resolve()` now falls back to `findAccessor(parent, X, #named)`
+   when literal `"prop"` is unknown.  Collection-broadcast path
+   (where a real `"prop"` accessor exists) is unaffected.
+4. **`handleGet` wired through** (app) — `forward()` no longer
+   short-circuits to the fixed `every card` blob.  It pulls
+   `keyDirectObject`, flattens, forwards.  (Cocoa scripting still
+   intercepts the standard `get` verb before us, which is why the
+   demo wraps property access in `eval (name of c)` — see point 5.)
+5. **SDEF `eval` result type `data` → `any`** (app) — we return a
+   `typeAEList` descriptor (via `AEUnflattenDescFromBytes`), not raw
+   bytes.  Declaring `data` made AS coerce/reject and fall back to
+   resolving the source specifier, which Cocoa can't do.
+
+Tagged `references-reusable` on `ggreif/ic-mator` (commit `609ca50`),
+motoko side at commit `1a5b8d575` on `gabor/encoder`.
+
+### Known shapes that still don't compose
+
+- `name of <list>` — AS doesn't broadcast `name` over a list value.
+  Must iterate via `repeat with c in lst / eval (name of c)`.  The
+  batched form `eval (name of every client whose country = "Germany")`
+  works too and is faster (1 AE event, 1 IC call).
+- Properties whose 4cc is not in the SDEF for `client` (e.g.
+  `nameOnCard`) — AS compiles but fails before iteration.
 
 ## Scope cut for Friday
 
