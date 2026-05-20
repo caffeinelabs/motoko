@@ -1272,7 +1272,11 @@ persistent actor {
       case (#obj { class_ = _; container; key }) 64 + seldBodyLen key + encDescLen container;
       case (#value v) valueDescLen v;
       case (#list es) {
-        var n : Nat = 8;                              // count + pad
+        // Apple's AEFlattenDesc emits 24 bytes of list-prefix before
+        // the items: 8 alignment + 8 sub-header (0x18 + 'list') +
+        // 8 count+pad.  Match this so AEUnflattenDescFromBytes (and
+        // Python appscript's codec) accept the output.
+        var n : Nat = 24;
         for (e in es.vals()) n += 8 + encDescLen e;   // each child: 8-byte AE header + body
         n
       };
@@ -1404,8 +1408,17 @@ persistent actor {
       };
       case (#value v) writeValue(w, v);
       case (#list es) {
+        // Apple-canonical typeAEList layout: dle2 envelope is added by
+        // encodeAE; here we emit
+        //   list <bodyLen> <8 zeros> <0x18 'list'> <count> <pad> <items...>
+        // The 8 zeros + (0x18 + 'list') + (count + pad) = 24 bytes of
+        // list-prefix between the outer header and the items.  Matches
+        // what `NSAppleEventDescriptor(list).data` emits and what
+        // `AEUnflattenDescFromBytes` (and Python appscript) consume.
         w.writeU32s([LIST, intToNat32Wrap (encDescLen spec),
-                     intToNat32Wrap (es.size()), 0]);
+                     0, 0,                                 // alignment
+                     0x18, LIST,                           // sub-header: 0x18 + 'list'
+                     intToNat32Wrap (es.size()), 0]);     // count + pad
         for (e in es.vals()) writeDesc(w, e);
       };
     }
