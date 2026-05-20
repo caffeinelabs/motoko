@@ -13,8 +13,8 @@
  *   ```
  *
  * Placeholders:
- *   <motokoExamples> — doc/md/examples/ (relative to the motoko repo)
- *   <motokoRoot>     — root of the motoko repo (where Changelog.md lives)
+ *   <motokoExamples>  doc/md/examples/ (relative to the motoko repo)
+ *   <motokoRoot>      root of the motoko repo (where Changelog.md lives)
  *
  * An optional #L<start>-L<end> suffix slices specific lines (1-based, inclusive).
  */

@@ -3,7 +3,7 @@
 Source for the Motoko language documentation at
 [https://docs.internetcomputer.org/languages/motoko/](https://docs.internetcomputer.org/languages/motoko/).
 
-Content lives in `doc/md/` and is synced to the consumer site via a plain rsync — no post-processing pipeline needed.
+Content lives in `doc/md/` and is synced to the consumer site via a plain rsync; no post-processing pipeline needed.
 
 ## Previewing locally
 

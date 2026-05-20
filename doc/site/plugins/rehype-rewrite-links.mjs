@@ -10,7 +10,7 @@
  * This plugin strips .md extensions and prepends an extra ../ to compensate.
  *
  * Exception: index.md files are output as <dir>/index.html (not <dir>/<dir>/index.html),
- * so the browser's base URL is already at the correct directory level — no extra ../
+ * so the browser's base URL is already at the correct directory level; no extra ../
  * is needed for those pages.
  *
  * Result (regular pages):
@@ -22,7 +22,7 @@
  *   backends/data-persistence.md               → backends/data-persistence/
  *   ../concepts/canisters.md                   → ../concepts/canisters/
  *
- * Only relative links are affected — external URLs, anchors, and absolute paths are untouched.
+ * Only relative links are affected; external URLs, anchors, and absolute paths are untouched.
  *
  * Important: Astro caches rendered content in node_modules/.astro/data-store.json.
  * After changing this plugin, delete that file to force re-rendering.
@@ -37,7 +37,7 @@ export default function rehypeRewriteLinks() {
   return (tree, file) => {
     // Detect whether this file is an index page (e.g. guides/index.md).
     // Index pages are output as <dir>/index.html, so the browser's base URL
-    // is already at the directory level — no extra ../ compensation needed.
+    // is already at the directory level; no extra ../ compensation needed.
     const filePath = file?.path || file?.history?.[0] || "";
     const isIndexPage = /(?:^|[\\/])index\.(?:md|mdx)$/.test(filePath);
 
@@ -85,7 +85,7 @@ export default function rehypeRewriteLinks() {
       // Prepend ../ to compensate for Astro's directory-based output.
       // Regular pages (e.g. project-structure.md → project-structure/index.html)
       // need the extra ../ because the browser base is one level deeper than
-      // the author expects. Index pages don't need this — they're already at
+      // the author expects. Index pages don't need this; they're already at
       // the correct directory level.
       if (!isIndexPage) {
         path = "../" + path;

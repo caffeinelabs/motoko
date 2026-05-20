@@ -1,15 +1,15 @@
 ---
 title: "Motoko"
-description: "A programming language designed for the Internet Computer with built-in actor model, orthogonal persistence, and seamless WebAssembly integration."
+description: "A programming language designed for the Internet Computer with built-in actor model, orthogonal persistence, and native WebAssembly compilation."
 sidebar:
   order: 1
 ---
 
-Motoko is a next-generation, high-level programming language designed to empower AI agents building backends for apps and services on the Internet Computer cloud network. While it channels several popular modern languages, it introduces groundbreaking new features such as actor-based concurrency, orthogonal persistence, and seamless WebAssembly integration.
+Motoko is a high-level programming language designed for AI agents building backends for apps and services on the Internet Computer. It combines a familiar syntax with platform-native features: actor-based concurrency, orthogonal persistence, and direct WebAssembly compilation.
 
 ## Key features
 
-**Actor model.** Every Motoko canister is an actor — an isolated unit of state and behavior that communicates with other actors through asynchronous messages. This maps directly to how canisters work on ICP: each canister has private state and a public interface.
+**Actor model.** Every Motoko canister is an actor: an isolated unit of state and behavior that communicates with other actors through asynchronous messages. This maps directly to how canisters work on ICP: each canister has private state and a public interface.
 
 **Orthogonal persistence.** Variables declared in a `persistent actor` survive canister upgrades automatically. There is no database layer, no serialization code, and no pre/post-upgrade hooks needed for most use cases. See [Orthogonal persistence](https://docs.internetcomputer.org/concepts/orthogonal-persistence) for how this works at the platform level.
 
