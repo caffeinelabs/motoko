@@ -1,8 +1,10 @@
 # Motoko compiler changelog
 
+## 1.8.1 (2026-05-20)
+
 * motoko (`moc`)
 
-  * fix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes.
+  * bugfix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes (#6134).
 
 ## 1.8.0 (2026-05-15)
 
