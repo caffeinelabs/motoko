@@ -2129,8 +2129,8 @@ persistent actor {
           description = ?"A client; primary key is `name`.";
           properties = [
             clntProp("name",          "name", #Text,    "Full client name (first + ' ' + last); primary key."),
-            clntProp("first name",    "fiNa", #Text,    "Synthetic: first word of `name`."),
-            clntProp("last name",     "laNa", #Text,    "Synthetic: last word of `name`."),
+            clntProp("firstName",     "fiNa", #Text,    "Synthetic: first word of `name`."),
+            clntProp("lastName",      "laNa", #Text,    "Synthetic: last word of `name`."),
             clntProp("country",       "cntr", #Text,    "Country of residence."),
             clntProp("age",           "age ", #Integer, "Age in years."),
             clntProp("yearly income", "inco", #Integer, "Yearly income in the database base currency."),
