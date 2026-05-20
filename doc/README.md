@@ -34,15 +34,3 @@ make build
 
 Both placeholders are resolved by `doc/site/plugins/remark-include-file.mjs` locally and by the consumer site's equivalent plugin at build time.
 
-## Pandoc fallback
-
-For a lightweight HTML snapshot without Node.js:
-
-```bash
-# requires pandoc — https://pandoc.org/installing.html
-make html
-python3 -m http.server --directory html
-# browse http://localhost:8000/ — files are named after their source .md basename
-```
-
-This uses pandoc and produces a basic unstyled preview. The Starlight preview above is preferred for reviewing content as it will appear on the live site.
