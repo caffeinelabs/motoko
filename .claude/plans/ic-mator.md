@@ -419,34 +419,130 @@ cut — make it sticky later via `UserDefaults` once it's proven.
   (or trap with a clear error).  Without per-call canister selection
   there is no `Y` to rewrite *from*.
 
-## Next: AE-native lingo query
+## Next: lingo discovery (Candid metadata) + aete synthesis (Rust)
 
-`_aeLingo` is the canister's self-description endpoint.  ICmator
-issues it per canister (any time it sees an unfamiliar target) and
-caches the result.  The reply is itself an AE-encoded structure so
-the same wire-format work we've already done carries it.
+The canister advertises a stable Candid query, e.g.
+`__lingo : () -> (Lingo) query`, returning its **entity-relationship
+description**: classes, properties per class, parent/child shape,
+predicate operators.  **No verbs / methods / capability flags yet** —
+those settle later (see the deferred-versioning note in
+`.claude/plans/query.md`).  Lingo is stable metadata *about* the OSL
+surface, not an `ObjectSpec` value, so it doesn't violate the
+public-Candid hard rule.
 
-Concrete shape (sketch, may change once we start typing it):
+### Why Candid (and not AE) for lingo
+
+- It's structured metadata — fits Candid naturally.  No reason to
+  wrap it in an AE descriptor tree just to unwrap on the other side.
+- `ic-agent` already has a Candid decoder; the Rust gateway gets
+  lingo decoding for free.
+- It opens the door to **`moc`-codegen of `__lingo()`** from the
+  canister's accessor structures (`actorSmurf.accessors`,
+  `clientSmurf.accessors`, etc.) — same pattern as
+  `mo_to_idl.ml`-derives-`.did`, but for the Lingo type.  Canister
+  cannot advertise an accessor it can't serve.  AI-assisted
+  hand-writing remains the escape hatch for non-Motoko canisters or
+  canisters that don't follow the convention.
+
+### Why the Rust gateway, not Swift, owns discovery
+
+ICmator's Swift side stays a transport-layer shell.  All schema
+knowledge — Candid types, AE 4cc tables, aete binary packing — lives
+in `icmator-agent`.  Three reasons:
+
+1. **One schema implementation.**  The Candid ↔ AE bridge (next
+   section) needs the schema-mapping rules in Rust anyway.  Lingo
+   synthesis uses the same rules (applied to *type descriptions*
+   rather than *values*).  Two parallel ports = drift waiting to
+   happen.
+2. **Truly thin Swift.**  `handleGdte` becomes a one-liner:
+   `callAgent(method: "lingo", payload: Data())` → wrap the returned
+   bytes in `NSAppleEventDescriptor(descriptorType: 'aete', …)` →
+   set on reply.  No SDEF generator, no aete packer in Swift.
+3. **Portable + persistent.**  Rust caches lingo on disk
+   (`~/Library/Caches/ICmator/lingo/<canister-id>.aete` or sqlite),
+   so a fresh ICmator process doesn't re-pay the network round-trip.
+   And a non-Cocoa host (Linux CLI, AS-tunnel, JXA wrapper) reuses
+   the agent unchanged.
+
+### The flow
 
 ```
-record {
-  class_4ccs : list of obj { 4cc : type;  parent : type or null };
-  property_4ccs : list of obj { class : type;  4cc : type;  value_type : type };
-  forms_supported : list of enum;       -- name / indx / test / rang …
-  predicate_ops : list of enum;         -- =, !=, <, >, contains, …
-  capability_flags : list of enum;      -- read, count, set, create, delete
-}
+Script Editor (Open Dictionary)
+  → 'ascr'/'gdte' event to ICmator
+    → Swift handleGdte
+      → icmator-agent --mode lingo --canister <id> --network <url>
+        → ic-agent query(<canister>, "__lingo") → Candid Lingo record
+        → assemble aete tree from (static-suite, Lingo)
+        → emit aete bytes on stdout
+      ← Swift wraps bytes in NSAppleEventDescriptor(type: 'aete', data: ...)
+    ← reply.setDescriptor(..., forKeyword: keyDirectObject)
+  ← Script Editor renders the dictionary
 ```
 
-ICmator caches `(canister-id → lingo)` so a session needs at most one
-lingo round-trip per canister.  The bench's `object-spec.mo` would
-expose this as a `(with encoder)` query method named `_aeLingo`; pure-
-Candid canisters would expose it as a Candid query returning a typed
-record (handled by the next section's bridge).
+IC query latency is sub-100ms; the dictionary window expects
+near-instant but isn't a tight loop, so a cold-cache lingo fetch
+mid-`gdte` is fine.  No pre-warming needed.
 
-This is the **next concrete step** — multi-canister addressing
-without lingo means clients have to hardcode every canister's
-vocabulary, which doesn't compose.
+### `aete` binary in Rust
+
+The aete format is Carbon-era: packed records of (suite blob,
+class blob, command blob, …), each carrying 4cc keys + variable-
+length name/description strings + nested type info.  Documented in
+`AERegistry.h` and the AppleScript Language Guide appendix; `sdp(1)`
+is the canonical converter (sdef XML → aete).
+
+Three paths to consider:
+1. Shell out to `sdp -o aete` per call.  Cheap, ugly, fine for a
+   demo.
+2. Emit aete directly in Rust as a table-driven byte writer.  A few
+   hundred lines, no library exists, but the format is mechanical.
+3. Use OSAKit's `OSACopyScriptingDefinition` to do the conversion
+   in-process from a Swift side — defeats the "Swift stays thin"
+   point.  Skip.
+
+For the demo: (1).  Production: (2).
+
+### Static suite + dynamic canister classes — the merge
+
+ICmator owns a fixed set of verbs/classes regardless of which
+canister is targeted (`eval`, `target`, `canister`, `network`,
+`application`).  The aete the gateway emits is the **merge** of:
+
+- ICmator's static suite (encoded once, lives next to the agent
+  binary as a baseline aete blob), and
+- the targeted canister's lingo translated to suite-flavoured
+  classes/properties.
+
+Two suites in the same aete reply: `ICmator Suite` (static) and
+`<canister-name> Suite` (dynamic).  Script Editor renders them in
+the dictionary as two top-level sections.
+
+### Multi-canister and the dictionary
+
+The aete reply depends on **which canister is currently the default
+target**.  Re-target via `target canister "Y"` and reopen the
+dictionary — different vocabulary shows up.  Script Editor caches
+per dictionary window, so the user closes/reopens to refresh.  We
+can't push invalidation (App Intents could; not the chosen path).
+
+If a session has no default target set, the lingo reply is just the
+static suite — ICmator still advertises `eval`, `target`, `canister`
+without knowing where to talk yet.  The user can still author the
+script; the per-canister classes show up after a `target …` call.
+
+### What's deferred (intentionally)
+
+- **Verbs in lingo** — first cut is entity description only.
+- **Lingo versioning** — flat record for v1; revisit when we have a
+  concrete schema change to absorb (see query.md note).
+- **Capability flags** (`read`/`count`/`set`/`create`/`delete`) —
+  the demo is read-only; defer.
+- **Predicate-op enumeration** — the bench uses a fixed `BoolExpr`
+  set; defer cataloguing.
+- **Multiple suites per canister** (e.g. an "Admin" suite +
+  "ObjectModel" suite) — defer until a canister actually wants
+  separation.
 
 ## Best-of-both-worlds: Candid ↔ AE bridge in the agent
 

@@ -551,6 +551,39 @@ wire-format drift surfaces immediately as an `AEUnflattenDescFromBytes`
 error rather than as a downstream Script-Editor / ICmator failure
 hours later.
 
+### Lingo — canister self-description
+
+A query the canister advertises (e.g. `__lingo : () -> (Lingo) query`)
+describing its entity relationships: class 4ccs, property tables per
+class, the predicate operators it supports, the forms (`#name` /
+`#absolutePosition` / `#test` / …) it recognises for each class.  Lives
+on the Candid wire because the lingo schema is *stable metadata about
+the OSL surface*, not an `ObjectSpec` value — the public-Candid hard
+rule from `.claude/plans/ic-mator.md` doesn't apply.
+
+For the first cut: **entity relationships only.  No verbs, no method
+metadata, no capability flags.**  Just enough for a remote consumer
+(ICmator's Rust agent, in our case) to know which classes the canister
+serves, how they nest, and what properties hang off each.  Verbs and
+methods come later, once the entity description is settled.
+
+The Lingo type is the natural output of an `mo_to_lingo.ml`-style
+codegen pass — same machinery `mo_to_idl.ml` already uses to derive
+`.did` from Motoko types, but reading off `actorSmurf.accessors` (and
+nested `*Smurf.accessors`) rather than the Motoko type graph.  A
+canister never advertises an accessor it can't serve, and never omits
+one it actually has.
+
+### Versioning — deferred
+
+Open question worth flagging now even though we won't act on it:
+should the lingo type be a flat record or a `variant { #v1 : LingoV1;
+#v2 : LingoV2 }` envelope?  The latter lets the schema evolve
+without breaking older clients that have cached lingo across canister
+upgrades.  We'll add the envelope when we have a concrete shape
+change to absorb; for the first version it's overhead with no
+payoff.  This note is the placeholder.
+
 ---
 
 ## Parenthetical Codec Annotations (proposed Motoko syntax)
