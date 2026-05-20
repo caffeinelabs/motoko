@@ -27,6 +27,8 @@ import {
   charIsUppercase;
   charToText;
   charToNat32;
+  nat32ToChar;
+  natToNat32;
   int32ToInt;
 } = "mo:⛔";
 
@@ -1044,6 +1046,11 @@ persistent actor {
         } else if (formCode == TEST) {
           // valueType is typically 'logi'; reuse it for parseBoolExprBody
           key := #test (parseBoolExprBody(valueType, r));
+        } else if (formCode == NAME) {
+          if (valueType != UTXT) trap ("AE: form=name expects utxt seld, got " # cc4ToText valueType);
+          let bodyLen = u32 r;
+          let ?body = r.take(nat32ToNat bodyLen) else trap "AE: short utxt body in form=name seld";
+          key := #name (utxtToText body);
         } else if (formCode == INDX) {
           if (valueType == ABSO) {
             let _len = u32 r;          // expect 4
@@ -1080,16 +1087,22 @@ persistent actor {
   };
 
   func utxtToText(body : Blob) : Text {
-    // BE UTF-16 → assume ASCII (high byte = 0); take low bytes only
-    let n = body.size() / 2;
-    let raw = Array_init<Nat8>(n, 0);
-    var i = 0;
+    // UTF-16 BE → Text, BMP only.  Surrogate halves trap.
+    if (body.size() % 2 != 0) trap "AE: utxt body odd length";
+    var out : Text = "";
+    var hi : Nat = 0;
+    var i : Nat = 0;
     for (b in body.vals()) {
-      if (i % 2 == 1) raw[i / 2] := b;
+      if (i % 2 == 0) {
+        hi := nat8ToNat b;
+      } else {
+        let cp = hi * 256 + nat8ToNat b;
+        if (cp >= 0xD800 and cp <= 0xDFFF) trap "AE: surrogate pair not supported in utxt";
+        out #= charToText(nat32ToChar(natToNat32 cp));
+      };
       i += 1;
     };
-    let ?t = decodeUtf8(arrayMutToBlob raw) else trap "AE: invalid utxt";
-    t
+    out
   };
 
   func parseValue(r : Reader) : CandidValue {
@@ -1238,7 +1251,7 @@ persistent actor {
   func valueDescLen(v : CandidValue) : Nat {
     switch v {
       case (#null_) 0;
-      case (#text t) 2 * encodeUtf8(t).size();  // ASCII assumption: 2 bytes per char
+      case (#text t) 2 * utf16Units t;
       case (#int32 _) 4;
       case (#bool _) 0;                          // 'tru '/'fals' carry no body
       case _ trap "AE: encoder unsupported value type";
@@ -1258,7 +1271,7 @@ persistent actor {
   func seldBodyLen(key : KeyForm) : Nat {
     switch key {
       case (#property _) 4;
-      case (#name n) 2 * encodeUtf8(n).size();   // ASCII assumption (see textToUtf16)
+      case (#name n) 2 * utf16Units n;
       case (#test e) boolExprDescLen e;
       case (#every) 4;                            // abso enum 'all '
       case (#absolutePosition _) 4;               // typeSInt32
@@ -1284,16 +1297,28 @@ persistent actor {
   };
 
   func textToUtf16(t : Text) : Blob {
-    // ASCII assumption: 0x00 high byte, then the UTF-8 byte (= ASCII codepoint).
-    // Real UTF-16 BE for non-ASCII would need: 1-byte UTF-8 → 2 bytes,
-    // 2-3-byte UTF-8 (BMP) → 2 bytes, 4-byte UTF-8 (non-BMP) → 4 bytes
-    // via a surrogate pair (0xD800-0xDBFF high, 0xDC00-0xDFFF low).
-    let utf8 = encodeUtf8 t;
-    let n = utf8.size();
+    // BMP UTF-16 BE: 2 bytes per char.  Non-BMP (>0xFFFF, would need
+    // a surrogate pair) traps for now.
+    let n = utf16Units t;
     let buf = Array_init<Nat8>(n * 2, 0);
     var i = 0;
-    for (b in utf8.vals()) { buf[i * 2 + 1] := b; i += 1 };
+    for (c in t.chars()) {
+      let cp = nat32ToNat (charToNat32 c);
+      if (cp > 0xFFFF) trap "AE: non-BMP codepoint not yet supported in utxt";
+      buf[i * 2]     := natToNat8(cp / 256);
+      buf[i * 2 + 1] := natToNat8(cp % 256);
+      i += 1;
+    };
     arrayMutToBlob buf
+  };
+
+  func utf16Units(t : Text) : Nat {
+    var n : Nat = 0;
+    for (c in t.chars()) {
+      if (nat32ToNat (charToNat32 c) > 0xFFFF) trap "AE: non-BMP codepoint not yet supported in utxt";
+      n += 1;
+    };
+    n
   };
 
   func compareOpCC(op : Comparison) : Nat32 {
@@ -1511,8 +1536,16 @@ persistent actor {
         let form = formOfKey(key);
         let ?lk = lookupOfKey(key)
           else trap "AE: unsupported keyform (uniqueID/range)";
-        let ?acc = findAccessor(parent, class_, form)
-          else return notFoundSmurf parent;
+        // AS-sent property specs come as class_="prop"; bench's singleton
+        // convention uses class_=<propname>.  Try literal class_ first
+        // (preserves collection-broadcast "prop" accessor); fall back to
+        // the property name when key=#property X.
+        let acc_opt = switch (findAccessor(parent, class_, form), class_, key) {
+          case (?a, _, _) ?a;
+          case (null, "prop", #property p) findAccessor(parent, p, form);
+          case _ null;
+        };
+        let ?acc = acc_opt else return notFoundSmurf parent;
         acc.lookUp(parent, lk)
       };
     }
