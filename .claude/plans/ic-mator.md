@@ -502,18 +502,30 @@ agent *which path to take*.  Lingo replies can declare:
 
 - `wire = ae`     — pass-through both directions.
 - `wire = candid` — agent does the Candid ↔ AE translation, using
-  the lingo's accompanying type definitions.
-- `wire = candid; carries_objectspec` — Candid canister whose values
-  happen to be `ObjectSpec`-shaped (e.g. a record matching the OSL
-  schema directly); the agent uses a thin re-wrap rather than the
-  full schema walk.
+  the lingo's accompanying type definitions.  Restricted to **stable
+  Candid types**: primitives, simple records, vecs, variants whose
+  shape doesn't depend on `ObjectSpec`.
 
-The third case is the *real* unification: any Candid endpoint that
-serves a known shape becomes AS-addressable for free.  The
-`(with encoder; decoder)` annotation stays as the *override* for
-canisters that want exact control over their AE bytes (e.g. AE
-features Candid can't express, like typeRangeDescriptor with
-inclusive/exclusive endpoints).
+### Hard rule: no public Candid `ObjectSpec`
+
+The `ObjectSpec` Motoko/Candid type is **not stable** — its variants
+(`#obj`/`#root`/`#value`/`#list`), field names, and nested
+`KeyForm`/`BoolExpr` shapes are an evolving research surface.
+Pinning it as a public Candid interface type would freeze the
+language we use to talk about queries before it's actually settled,
+and any change would break every dependent canister.
+
+So **canisters that want to expose OSL semantics publicly MUST go
+through the AE wire** (`(with encoder; decoder)` annotation).  AE
+bytes have no Candid type signature — the canister carries the
+encoder/decoder as code, and ObjectSpec stays purely internal.
+Schema evolution is a code-version concern, not an IDL-break.
+
+What the Candid path in the agent is for, then: **non-OSL endpoints**
+on the same canister.  Status, metrics, cycles balance, admin
+queries — Candid-shaped, stable-shaped, low-risk to wrap.  The agent
+translates these so AS can read them, but it does **not** try to
+re-derive OSL semantics from a Candid-shaped ObjectSpec record.
 
 ### Network targeting — same handle shape
 
@@ -571,19 +583,18 @@ one more switch arm in `handleTarget`.
   var `IC_CALL_KIND` picks update.  Lingo should advertise per-
   method.
 
-### Why this is huge
+### Why this is still big (with the hard rule applied)
 
-- **AE access for *any* canister** without per-canister porting.
-  Every existing ICP project gets a free AS surface the moment the
-  community publishes one shared `icmator-codec` crate.
-- **Asymmetric optimisation.** Canisters with hot-path queries that
-  want byte-level control still pin down their AE shape with
-  `(with encoder; decoder)`.  Cold-path admin queries (`who is the
-  controller? what cycles balance?`) lean on the Candid path with
-  zero developer work.
-- **One schema language, two wire formats.** Candid evolves;
-  AE rules stay frozen.  The agent's translator absorbs both — no
-  ABI break on either side.
+- **Read-only access to admin/status surfaces** of any canister
+  without per-canister porting.  Cycle balances, controllers, last
+  heartbeat — all Candid-shaped, stable, agent-translatable.
+- **OSL semantics live behind AE.** The encoder annotation is the
+  canonical, stable interface.  ObjectSpec can evolve without
+  breaking deployed canisters, because the bytes-on-the-wire never
+  carried a Candid type schema for it in the first place.
+- **One schema language, two wire formats — clean separation.**
+  Candid for "frozen / stable / no-OSL" shapes; AE bytes for the
+  OSL surface.  The agent picks per call.
 
 ## Scope cut for Friday
 
