@@ -293,7 +293,7 @@ persistent actor {
                   else if (i < 0 and abs i <= size) size - abs i + 1
                   else 0;
                 if (n == 0 or n > size) notFoundSmurf par
-                else charSmurf(chars[n - 1], par)
+                else charSmurf(chars[n - 1], n, par)
               };
               case _ notFoundSmurf par;
             };
@@ -328,6 +328,19 @@ persistent actor {
     null
   };
 
+  // OCaml's `List.iteri` — 1-based position, side-effecting.  Used for
+  // iteration-with-position over Smurf source arrays; the manual
+  // `var idx; idx += 1` pattern is fine but verbose at multiple sites.
+  // (Loops that need `label/break` early-exit keep the manual form,
+  // since `break` can't escape this helper's closure boundary.)
+  func iteri<T>(arr : [T], f : (Nat, T) -> ()) {
+    var idx : Nat = 0;
+    for (item in arr.vals()) {
+      idx += 1;
+      f(idx, item);
+    };
+  };
+
 
   // Wraps a single Client as an existential Smurf. toDesc closes over `parent`
   // (the zipper edge) and uses `c.name` as primary key — gives a stable
@@ -340,7 +353,7 @@ persistent actor {
     lookUp = func _ = ValueSmurf(extract c);
   };
 
-  func clientSmurf(c : Client, parent : Smurf) : Smurf {
+  func clientSmurf(c : Client, _ : Nat, parent : Smurf) : Smurf {
     let self : Smurf = {
       class4cc    = "clnt";
       accessors   = [
@@ -438,7 +451,7 @@ persistent actor {
   // four storage fields + the computed "vald".  toDesc keys by the
   // numeric primary key, rendered as text for #name (the bench's
   // encoder has no #uniqueID yet; #name is structurally equivalent).
-  func cardSmurf(card : CreditCard, parent : Smurf) : Smurf {
+  func cardSmurf(card : CreditCard, _ : Nat, parent : Smurf) : Smurf {
     let self : Smurf = {
       class4cc    = "card";
       accessors   = [
@@ -595,9 +608,10 @@ persistent actor {
 
   // Wraps a single Char as a Smurf.  One property accessor: "uppr"
   // (isUppercase).  toDesc renders as `#obj { class_ = "char"; key =
-  // #name <one-char-text> }` — using the char value as the key, since
-  // chars carry no stable index.
-  func charSmurf(c : Char, parent : Smurf) : Smurf {
+  // #absolutePosition n }` — positional addressing, matching AS's built-in
+  // `character N of <text>` idiom (the codepoint value is NOT a stable
+  // primary key; position in the parent text is).
+  func charSmurf(c : Char, position : Nat, parent : Smurf) : Smurf {
     let self : Smurf = {
       class4cc    = "char";
       accessors   = [
@@ -611,7 +625,7 @@ persistent actor {
         #obj {
           class_    = self.class4cc;
           container = await* parent.toDesc();
-          key       = #name (charToText c);
+          key       = #absolutePosition position;
         }
       };
       filter      = func p = if (evalCharPred(p, c)) self else notFoundSmurf self;
@@ -627,7 +641,7 @@ persistent actor {
     stab    : [T],
     fourcc_ : Text,
     form_   : { #indexed; #named; #test },
-    wrap    : (T, Smurf) -> Smurf,
+    wrap    : (T, Nat, Smurf) -> Smurf,   // position is 1-based slot in `stab`
     getName : T -> Text,             // used when form_ = #named; ignored otherwise
   ) {
     public let fourcc = fourcc_;
@@ -643,19 +657,22 @@ persistent actor {
             else if (i < 0 and abs i <= size) size - abs i + 1
             else 0;
           if (n == 0 or n > size) notFoundSmurf parent
-          else wrap(stab[n - 1], parent)
+          else wrap(stab[n - 1], n, parent)
         };
         case (#named, #named target) {
           // Linear scan; relies on the init-time uniqueness assertion.
           var found : ?T = null;
+          var foundAt : Nat = 0;
+          var idx : Nat = 0;
           for (item in stab.vals()) {
+            idx += 1;
             switch found {
-              case null if (getName item == target) found := ?item;
+              case null if (getName item == target) { found := ?item; foundAt := idx };
               case _ ();
             };
           };
           switch found {
-            case (?item) wrap(item, parent);
+            case (?item) wrap(item, foundAt, parent);
             case null notFoundSmurf parent;
           }
         };
@@ -674,7 +691,7 @@ persistent actor {
     source   : [T],
     classCC  : Text,
     parent   : Smurf,
-    wrap     : (T, Smurf) -> Smurf,
+    wrap     : (T, Nat, Smurf) -> Smurf,    // Nat = 1-based source position
     evalPred : (BoolExpr, T) -> Bool,
     getName  : T -> Text,                   // for #named lookup over the filtered view
     pred     : ?BoolExpr,
@@ -706,11 +723,13 @@ persistent actor {
           if (target == 0 or target > total) notFoundSmurf par
           else {
             var seen : Nat = 0;
+            var srcIdx : Nat = 0;
             var result : Smurf = notFoundSmurf par;
             label l for (t in source.vals()) {
+              srcIdx += 1;
               if (passes t) {
                 seen += 1;
-                if (seen == target) { result := wrap(t, par); break l };
+                if (seen == target) { result := wrap(t, srcIdx, par); break l };
               };
             };
             result
@@ -723,9 +742,11 @@ persistent actor {
       switch key {
         case (#named target) {
           var result : Smurf = notFoundSmurf par;
+          var srcIdx : Nat = 0;
           label l for (t in source.vals()) {
+            srcIdx += 1;
             if (passes t and getName t == target) {
-              result := wrap(t, par); break l;
+              result := wrap(t, srcIdx, par); break l;
             };
           };
           result
@@ -785,15 +806,15 @@ persistent actor {
             let count = cardinality();
             let resBuf = Array_init<Smurf>(count, notFoundSmurf par);
             var present : Nat = 0;
-            for (t in source.vals()) {
+            iteri<T>(source, func(srcIdx, t) {
               if (passes t) {
-                let elem = wrap(t, parent);
+                let elem = wrap(t, srcIdx, parent);
                 switch (findAccessor(elem, propName, #named)) {
                   case (?acc) { resBuf[present] := acc.lookUp(elem, #named propName); present += 1 };
                   case null ();
                 };
               };
-            };
+            });
             let results = Array_tabulate<Smurf>(present, func j = resBuf[j]);
             smurfMap(par, results)
           };
@@ -814,9 +835,11 @@ persistent actor {
     public func toDesc() : async* ObjectSpec {
       let count = cardinality();
       let buf = Array_init<ObjectSpec>(count, #root);
-      var i = 0;
+      var i : Nat = 0;
+      var srcIdx : Nat = 0;
       for (t in source.vals()) {
-        if (passes t) { buf[i] := await* wrap(t, parent).toDesc(); i += 1 };
+        srcIdx += 1;
+        if (passes t) { buf[i] := await* wrap(t, srcIdx, parent).toDesc(); i += 1 };
       };
       #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
     };
@@ -840,7 +863,7 @@ persistent actor {
     extract  : P -> [E],
     classCC  : Text,
     parent   : Smurf,
-    wrap     : (E, Smurf) -> Smurf,
+    wrap     : (E, Nat, Smurf) -> Smurf,   // Nat = 1-based slot in flattened source
     evalPred : (BoolExpr, E) -> Bool,
     getName  : E -> Text,
     pred     : ?BoolExpr,
