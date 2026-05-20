@@ -287,6 +287,100 @@ motoko side at commit `1a5b8d575` on `gabor/encoder`.
 - Properties whose 4cc is not in the SDEF for `client` (e.g.
   `nameOnCard`) — AS compiles but fails before iteration.
 
+## Multi-canister addressing — design sketch (next, before `#root` rewriting)
+
+Today ICmator is wired to a single hardcoded canister: `icmator-agent`
+reads `CANISTER_ID` at process launch, the Swift side has no
+session-level concept of "which canister".  The next step is letting
+scripts pick a target per `tell`:
+
+```applescript
+-- per-call
+tell application "ICmator"'s canister "t63gs-up777-77776-aaaba-cai" to ¬
+    eval (every client whose country = "Germany")
+
+-- session default
+tell application "ICmator" to ¬
+    set defaultTarget to canister "rwlgt-iiaaa-aaaaa-aaaaa-cai"
+tell application "ICmator" to eval (every client)        -- uses the default
+```
+
+This is groundwork that must land *before* `#root` rewriting, because
+the OSL's `#root` is a per-canister identity — rewriting only makes
+sense once the bridge knows which canister's root it's rewriting.
+
+### SDEF surface
+
+```xml
+<class name="canister" code="ICcn" plural="canisters">
+    <property name="id" code="ID  " type="text" access="r"
+              description="The canister's IC principal as text."/>
+</class>
+
+<class name="application" code="capp">
+    <elements>
+        <element type="canister" access="r"/>
+        <element type="client"   access="r"/>   <!-- kept for backward compat -->
+    </elements>
+    <property name="default target" code="dtgt" type="canister" access="rw"
+              description="Canister used when no nested `tell` selects one."/>
+</class>
+```
+
+4cc choice: `ICcn` (uppercase first letter — Apple's rule for app-
+specific OSTypes), `dtgt` for the property, `ID  ` (with trailing
+spaces) for the canister-id property.
+
+### Wire-level dispatch
+
+AppleScript translates `tell A's B to verb obj` into an AE event whose
+**`keySubjectAttr`** (`'subj'`) attribute is an obj-spec referring to
+`B` (here: `canister "X"`).  The event's `keyDirectObject` still
+carries `obj` (the actual specifier we want evaluated).
+
+Our `handleEval` therefore grows two passes:
+
+1. Inspect `event.attributeDescriptor(forKeyword: keySubjectAttr)`.
+   - Present and shaped as an `'obj '` with `want = 'ICcn'`, `form =
+     'name'`, `seld = utxt(id)` → use *that* canister id.
+   - Absent → fall back to a session-default (a Swift `@property` on
+     `ICmator` initialised from `defaultTarget` if previously set,
+     else from the `CANISTER_ID` env var as today).
+2. Pass the resolved id to `icmator-agent` as the first argv after
+   the method name: `icmator-agent go <canister-id>`.  Rust agent
+   already builds an `Agent` per call; just route the principal
+   in instead of reading the env var.
+
+For the `set defaultTarget` path, intercept `kAESetData` on
+`'capp'/'dtgt'` in Swift via `setEventHandler` (mirror of how we
+already win against Cocoa scripting for `eval`).  The handler unpacks
+the canister obj-spec from `keyAEData`, extracts the id, stores it on
+`self.defaultTarget`.  No persistence across restarts in the first
+cut — make it sticky later via `UserDefaults` once it's proven.
+
+### What does NOT change (yet)
+
+- The canister still owns its own `#root` semantics.  We are only
+  selecting *which* canister `eval` talks to; the bytes on the wire
+  to that canister are unchanged.
+- No `network` AE class.  The IC URL stays a single env var per
+  ICmator process (local replica vs mainnet vs a fork is one ICmator
+  install per environment, for now).
+- The `client` AE class element on `application` continues to work
+  unchanged — it implicitly addresses the default target.  Demos
+  written today keep working.
+
+### What this unlocks
+
+- The `_aeLingo` query (canister returns its SDEF / accessor surface)
+  can be issued per canister — different canisters can advertise
+  different vocabularies and ICmator can lazily fetch each.
+- `#root` rewriting becomes well-defined: when forwarding to canister
+  `X`, the bridge can rewrite a `#root` that came from a previous
+  reply against canister `Y` into the right cross-canister specifier
+  (or trap with a clear error).  Without per-call canister selection
+  there is no `Y` to rewrite *from*.
+
 ## Scope cut for Friday
 
 **In**:
