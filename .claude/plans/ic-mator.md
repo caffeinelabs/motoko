@@ -185,6 +185,76 @@ Demo verification:
    scripting suite shows with `client`, `every`, `whose`, properties.
 2. Type the dream query, hit Run.  Result pane shows the AE-decoded list.
 
+## Milestone: `script-editor-works` (2026-05-20)
+
+What lit up:
+
+```applescript
+tell application "ICmator"
+    eval (every client whose country = "Germany")
+end tell
+```
+
+Script Editor renders the result pane as
+
+```
+{client "Hans Müller" of application "ICmator",
+ client "Anna Müller" of application "ICmator",
+ client "Otto Müller" of application "ICmator",
+ …}
+```
+
+— a native AppleScript list of `typeObjectSpecifier`s, *not* a hex
+string or a `«data ...»` opaque blob.  Each entry is a real specifier
+that *could* be the target of a follow-on `eval`/`get` once the
+property-lookup leg is wired.
+
+Three things had to be true for this:
+
+1. **`eval` is a custom verb** (event class `'ICma'`, event id
+   `'eval'`) — bypasses Cocoa scripting's class-element-resolution
+   that ate the standard `get every` syntax with a -1728 before our
+   handler ran.  `query "..."` stays as a parallel probe.
+2. **Inbound flatten** is the identity — `NSAppleEventDescriptor.data`
+   already returns the full wire form (dle2 + type + length + body).
+   Empirical only; documented nowhere clear.
+3. **Outbound wire is Apple-canonical** — the canister's
+   `writeDesc` for `#list` was missing 24 bytes of list-prefix that
+   Apple's `AEFlattenDesc` emits (8 alignment + 8 sub-header
+   `[0x18 + 'list']` + 8 count+pad).  Patched (motoko commit
+   `81c20e33a`); now `AEUnflattenDescFromBytes` accepts the bytes
+   and returns a proper `typeAEList` descriptor.
+
+Probe sandbox at [`probe/flatten-probe.swift`](https://github.com/ggreif/ic-mator/blob/main/probe/flatten-probe.swift)
+generates Apple's reference output for any descriptor shape — keep
+it for future format diffs (records, deeper nested objs, etc.).
+
+### Composability follow-on
+
+The returned obj specifiers are reusable.  Once name-lookup is wired,
+this should work:
+
+```applescript
+tell application "ICmator"
+    set hits to (eval (every client whose country = "Germany"))
+    set who to item 1 of hits
+    -- `who` is now `client "Hans Müller" of application "ICmator"`.
+    -- A subsequent `eval` (or `get`) targeting `who` resolves the
+    -- specifier on the canister side via the `#named "clnt"` accessor
+    -- already exposed in the bench.
+    eval (yearly income of who)
+end tell
+```
+
+i.e., the AS-side specifier `client "Hans Müller" of application
+"ICmator"` round-trips through the bridge: flatten descriptor →
+canister sees `#obj { class_ = "clnt"; container = #root; key = #name
+"Hans Müller" }` → resolve via `VarAccessor<Client>("clnt", #named,
+…)` (already there) → return `ValueSmurf(#int32 c.yearlyIncome)` →
+unflatten back as a `typeSInt32`.  No protocol change needed —
+just the property-lookup `eval` path Swift-side, and the existing
+canister surface handles it.
+
 ## Scope cut for Friday
 
 **In**:
