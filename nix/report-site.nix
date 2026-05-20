@@ -9,9 +9,8 @@ pkgs.runCommand "report-site"
   ln -s ${coverage} $out/coverage
   cd $out;
   # generate a simple index.html, listing the entry points
-  ( echo docs/overview-slides.html;
-    echo docs/html/motoko.html;
-    echo base-doc/
+  ( echo docs/md/;
+    echo base-doc/;
     echo coverage/ ) | \
     tree -H . -l --fromfile -T "Motoko build reports" > index.html
 ''
