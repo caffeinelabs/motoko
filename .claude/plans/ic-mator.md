@@ -692,6 +692,107 @@ one more switch arm in `handleTarget`.
   Candid for "frozen / stable / no-OSL" shapes; AE bytes for the
   OSL surface.  The agent picks per call.
 
+## Verdict (post-`synthetic-properties` tag, 2026-05-20 evening)
+
+Honest take after the day's footprint (multi-canister addressing,
+references-reusable, dictionaries-open, synthetic-properties tags
+all landed):
+
+**Feels solid:**
+
+- **Three-layer split (Swift transport / Rust agent / Motoko OSL)**
+  is the right shape — each layer owns one concern (descriptor
+  flatten/unflatten, IC transport, query semantics) and the
+  boundaries held under tonight's stress (multi-canister peeling,
+  bool-predicate decoding, char positional rendering, lingo Candid
+  passthrough).
+- **Lingo-as-Candid + OSL-as-AE wire-format division** is principled:
+  ObjectSpec stays unstable internally while public metadata stays
+  stable via Candid.  Collapsing both into one wire would have been
+  a footgun.
+- **Smurf protocol** composes in the small: `CollectionSmurf` filters
+  via `#and_`; `FlattenedSmurf` is "just" a CollectionSmurf over a
+  pre-flattened source.  The `wrap : (T, Smurf) → Smurf` →
+  `(T, Nat, Smurf) → Smurf` widening for positional chars was minor
+  surgery, not a redesign.
+
+**The actual worry: hand-rolled redundancy.**
+
+The bench's vocabulary lives in **four places**: `ICmator.sdef`
+(static AS surface), Rust `bench_lingo()` (the etalon),
+Motoko `lingo()` (canister-side Candid query), and `demo.applescript`
+(the showcase queries).  Tonight alone we hit this twice — the
+`first name` / `last name` rename had to land in all three of the
+first list, and the `firstName`/`lastName` PropReader gap was a
+fourth thing easy to miss.  The `lingo-compare` discrepancy detector
+catches Rust↔Motoko drift but **doesn't catch SDEF drift**, and
+doesn't run automatically.  The whole story rests on `mo_to_lingo`
+codegen.  Until that lands every demo canister starts from scratch
+and stays in sync only by developer vigilance.
+
+**Philosophical compromise we made knowingly:**
+
+The bridge will never feel native AS.  Cocoa scripting owns
+`get`/`set` on declared classes; our surface escapes via custom
+verbs (`eval`, `target`, `query`) and `from`-chain peeling.  Users
+write `eval (every X)` instead of `every X`.  App Intents
+(macOS 13+) would feel native but throws out AppleScript entirely.
+We chose the AS path knowingly — Script Editor's "Open Dictionary"
+is the killer feature — but the long tail of "why does this need
+`eval`?" UX confusion will visit every new user.
+
+**Bench is doing too much:**
+
+`test/bench/object-spec.mo` is ~2200 lines covering protocol, codec,
+semantics, 20+ `tinyN` demos, and now lingo.  See
+[`.claude/plans/query.md`](./query.md) for the planned extraction
+into `Accessors.mo` / codec library.  Until that lands, the claim
+"the bridge architecture generalises" rests on a research file
+optimised for one bench.
+
+## Post-buy-in roadmap
+
+Once stakeholder buy-in lands on the demo, the cleanup arc in
+priority order:
+
+1. **Tease out reusable code into libraries.**  Split
+   `object-spec.mo` along the natural seams: the codec (writeDesc,
+   parseTopLevel, all the 4cc tables) becomes `motoko-ae-codec`;
+   the Smurf protocol becomes `Accessors.mo` (per
+   query.md "the long-term shape").  Bench retains only its
+   `Client`/`CreditCard`/demo-specific code.
+2. **Finalise the Smurf interface.**  The protocol grew organically
+   through the bench.  Today's signature works but accreted: `wrap`
+   recently widened to `(T, Nat, Smurf) → Smurf`, accessors have
+   four forms (`#indexed`/`#named`/`#test`/property-name-as-class),
+   `notFoundSmurf` does double duty as both error sentinel and
+   navigation default.  Pin down the v1 surface and freeze it as a
+   versioned mops package.
+3. **Define `midl` and `any`.**  Codified mapping from Motoko types
+   to OSL surface (the typed-IDL story), plus the universal type
+   (`****` / `typeWildCard` on the AE side, `Any` Motoko-side) so
+   the Candid↔AE bridge has a typed top to fall back on when the
+   schema doesn't cover something.  Specifics belong in
+   `query.md`.
+4. **`await*` learns queries.**  See `query.md` "post-buy-in cleanup arc" step 4 — the in-flight PR #6119 unlocks `await*` on public self-actor methods, which is needed once the Smurf chain wants to span query↔update boundaries.
+
+5. **4cc conformance.**  Audit every app-specific 4cc against
+   Apple's "must contain at least one uppercase" rule.  Today's
+   `clnt`/`card`/`char`/`fiNa`/`laNa`/`cntr`/`inco` mostly comply
+   (uppercase letters present); double-check the ones derived
+   from `debug_show`-output and synthetic names.
+5. **Replace `'char'` with `'cha '`.**  Use Apple's standard 4cc
+   for the built-in character class.  Today our `'char'` (no
+   trailing space) wins inside `tell application "ICmator"`
+   scope but diverges from AS's universal `'cha '` (with trailing
+   space).  Aligning matters for cross-tool compatibility (Script
+   Debugger, AS bridges, future App-Intents migration paths) — and
+   it's the kind of detail that's free to get right while the
+   surface is small.
+
+Order matters: (1) and (2) unblock (3); (4) and (5) are
+mechanical cleanups that fold in once the library home is settled.
+
 ## Scope cut for Friday
 
 **In**:

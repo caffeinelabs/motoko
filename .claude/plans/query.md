@@ -333,6 +333,89 @@ branch `gabor/encoder` (PR #5996).
   non-BMP / multi-byte UTF-8. Documented in the function header.
 - **`#ne` encoder** — traps; should desugar to `NOT(=)`.
 
+### Verdict (post-`synthetic-properties` tag, 2026-05-20 evening)
+
+Smurf protocol verdict, focused on the canister/library side
+(bridge-level verdict in `ic-mator.md`):
+
+**Composes in the small.**  `CollectionSmurf` filters via `#and_`;
+`FlattenedSmurf` is a CollectionSmurf over a pre-flattened source;
+the protocol surface stayed stable through (a) the multi-canister
+addressing work, (b) the lingo discovery work, (c) tonight's
+char-positional rewrite (only needed widening `wrap : (T, Smurf)
+→ Smurf` to `(T, Nat, Smurf) → Smurf` — minor surgery).
+
+**Three concerns growing inside the bench:**
+
+1. **The bench is doing too much.**  `test/bench/object-spec.mo`
+   is ~2200 lines covering protocol, codec, semantics, 20+ `tinyN`
+   demos, and `lingo()`.  The natural seams are sharp: codec
+   (writeDesc/parseTopLevel/4cc tables) and Smurf protocol can
+   each become a mops package.  Bench keeps `Client`/`CreditCard`
+   and demos only.
+2. **Hand-rolled redundancy across multiple sites.**  Lingo
+   description lives in three places (Rust `bench_lingo()`,
+   Motoko `lingo()`, `ICmator.sdef`) plus AS demo file.  Tonight
+   alone we hit drift twice (the first/last name rename + the
+   PropReader gap).  `mo_to_lingo` codegen would close this loop;
+   until then the protocol's "self-describing" property is only
+   honoured by developer vigilance.
+3. **Protocol accreted, needs a v1 freeze.**  Today's signature
+   works but grew organically: `wrap` recently widened (chars),
+   accessors have four forms
+   (`#indexed`/`#named`/`#test`/property-as-class),
+   `notFoundSmurf` does double duty as both error sentinel and
+   navigation default, and `getName` is dead in some
+   instantiations (the char collection passes `charToText` but
+   the char class doesn't expose `#named`).  Pin a v1 surface
+   and freeze as a versioned mops package.
+
+### Post-buy-in cleanup arc
+
+Order in which to act once stakeholder buy-in lands on the demo:
+
+1. **Tease out reusable code into libraries.**  Split
+   `object-spec.mo` along the natural seams:
+   - `motoko-ae-codec` — wire-format codec (writeDesc,
+     parseTopLevel, 4cc constants).  Reusable by any
+     `(with encoder; decoder)`-aware canister.
+   - `Accessors.mo` — Smurf protocol surface (per the long-term
+     shape sketched below).  Bench retains only its
+     entity-specific `clientSmurf` / `cardSmurf` and the 20+
+     `tinyN` demos.
+2. **Finalise the Smurf interface.**  Freeze:
+   - `Smurf` record shape (`class4cc`, `accessors`, `toDesc`,
+     `filter`, … decide on `isNotFound` vs sentinel-pattern).
+   - `Accessor` shape and the four forms
+     (`#indexed`/`#named`/`#test`/property-as-class).
+   - `wrap : (T, Nat, Smurf) → Smurf` final signature (commit to
+     position-always-passed, even when ignored, per tonight's
+     `_` decision).
+   - `notFoundSmurf` semantics — error sentinel or navigation
+     default? today it's both; pick one or split.
+3. **Define `midl` and `any`.**  Codified mapping from Motoko
+   types to the OSL surface — the typed-IDL story.  Plus the
+   universal-type fallback (`****` / `typeWildCard` on the AE
+   side, `Any` Motoko-side) so the future Candid↔AE bridge in
+   the Rust agent has a typed top to land in when the schema
+   doesn't cover a value.  This is the contract `mo_to_lingo`
+   codegen produces against.
+4. **`await*` learns queries.**  Today the Smurf `toDesc` is
+   `async*` and the canister's public `go` is `async` — composing
+   them works because `go` `await*`s into the smurf chain
+   internally.  But once the bridge does optimisation passes that
+   want to share `await*` across query/update boundaries, the
+   current rule "`await*` only on local `async*` functions" bites.
+   PR [#6119](https://github.com/caffeinelabs/motoko/pull/6119)
+   ("experiment: `await*` on `public` self-actor methods") is the
+   in-flight machinery — it lets self-calls into `public` methods
+   returning `async T` elide IC message dispatch.  Need to fold
+   this into the Smurf execution model so a query-classified
+   canister method can be composed via `await*` from another
+   query.
+
+(Steps 1–2 unblock 3; 4 lands independently once 6119 is in.)
+
 ### Query optimisation: positional pickaxe vs. eager `map`
 
 A class of queries shipped today builds a full `[T]` and then picks
