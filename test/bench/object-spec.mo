@@ -79,7 +79,7 @@ persistent actor {
     number     : Nat;        // primary key
     nameOnCard : Text;
     validity   : Text;       // "MM/YY"
-    cvv        : Nat32;
+    cvc        : Nat32;
   };
 
   // Mock client DB. Deterministic generation tuned for ~30% match rate
@@ -128,7 +128,7 @@ persistent actor {
         number     = 4_111_111_111_110_000 + i * 10 + j;
         nameOnCard = fullName;
         validity   = twoDigits mm # "/" # twoDigits yy;
-        cvv        = intToNat32Wrap(100 + (i * 13 + j * 17) % 900);
+        cvc        = intToNat32Wrap(100 + (i * 13 + j * 17) % 900);
       }
     });
     {
@@ -408,28 +408,46 @@ persistent actor {
 
   // "Today" used by cardIsValid — hardcoded since the bench doesn't
   // link the IC time primitive.  (MM, YY).
-  let today : (Nat, Nat) = (5, 26);
+  let today : (Nat, Nat) = (5, 2026);  // (mm, yyyy) — 4-digit year (no Y2K trap)
 
   // Digit char → 0..9 value.
   func digitOfChar(c : Char) : Nat = nat32ToNat (charToNat32 c) - 48;
 
+  // Parse the month from a card's "MM/YY" validity string.
+  func cardMonth(card : CreditCard) : Nat {
+    let chars = arrayOfChars (card.validity);
+    digitOfChar(chars[0]) * 10 + digitOfChar(chars[1])
+  };
+
+  // Parse the year from a card's "MM/YY" validity string as a 4-digit
+  // year.  The bench's `today = (mm, yy)` convention is 2-digit YY; we
+  // pin the century to 2000 + YY for everything in the demo's data so
+  // calendar comparisons stay sane.  (Storing 2-digit years escaping
+  // the parsing layer is the Y2K trap — never let `27` propagate.)
+  func cardYear(card : CreditCard) : Nat {
+    let chars = arrayOfChars (card.validity);
+    2000 + digitOfChar(chars[3]) * 10 + digitOfChar(chars[4])
+  };
+
   // Computed: card's expiry MM/YY is at or after `today`.
   func cardIsValid(card : CreditCard) : Bool {
-    let chars = arrayOfChars (card.validity);
-    let mm = digitOfChar(chars[0]) * 10 + digitOfChar(chars[1]);
-    let yy = digitOfChar(chars[3]) * 10 + digitOfChar(chars[4]);
-    let (tMM, tYY) = today;
-    yy > tYY or (yy == tYY and mm >= tMM)
+    let (tMM, tYYYY) = today;
+    let yyyy = cardYear(card);
+    yyyy > tYYYY or (yyyy == tYYYY and cardMonth(card) >= tMM)
   };
 
   // Card-level predicate stack.  Parallel to the Client/Char ones.
   // "vald" is the *computed* validity boolean — not a stored field.
+  // "Mnth"/"Year" are computed from `vali`; "Year" is a 4-digit Nat
+  // (no Y2K — the parsing layer pins the century).
   transient let cardPropReaders : [(Text, CreditCard -> CandidValue)] = [
     ("cnum", func c = #nat   (c.number)),
     ("noac", func c = #text  (c.nameOnCard)),
     ("vali", func c = #text  (c.validity)),
-    ("cvv ", func c = #int32 (nat32ToInt32 (c.cvv))),
+    ("cvc ", func c = #int32 (nat32ToInt32 (c.cvc))),
     ("vald", func c = #bool  (cardIsValid c)),
+    ("Mnth", func c = #nat   (cardMonth c)),
+    ("Year", func c = #nat   (cardYear c)),
   ];
 
   func lookupCardPropReader(fourcc : Text) : CreditCard -> CandidValue {
@@ -458,7 +476,7 @@ persistent actor {
         { form = #named; fourcc = "cnum"; lookUp = func _ = ValueSmurf(#nat   (card.number)) },
         { form = #named; fourcc = "noac"; lookUp = func _ = ValueSmurf(#text  (card.nameOnCard)) },
         { form = #named; fourcc = "vali"; lookUp = func _ = ValueSmurf(#text  (card.validity)) },
-        { form = #named; fourcc = "cvv "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32 (card.cvv))) },
+        { form = #named; fourcc = "cvc "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32 (card.cvc))) },
         { form = #named; fourcc = "vald"; lookUp = func _ = ValueSmurf(#bool  (cardIsValid card)) },
       ];
       toDesc      = func() : async* ObjectSpec {
@@ -2182,7 +2200,7 @@ persistent actor {
             clntProp("number",       "cnum", #Integer, "16-digit card number (primary key)."),
             clntProp("name on card", "noac", #Text,    "Embossed name."),
             clntProp("validity",     "vali", #Text,    "`MM/YY` validity tag."),
-            clntProp("cvv",          "cvv ", #Integer, "3-digit verification value."),
+            clntProp("cvc",          "cvc ", #Integer, "3-digit verification code (the one printed on the back)."),
             clntProp("valid",        "vald", #Boolean, "True iff `validity` parses and is in the future."),
           ];
           elements = [];
