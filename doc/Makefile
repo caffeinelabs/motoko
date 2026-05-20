@@ -18,22 +18,21 @@ overview-slides.html : overview-slides.md
 	  # # -V maxScale=2
 
 html:
-        # TODO: perhaps use node and remark-cli to compile out remark plugins first
+        # Lightweight unstyled snapshot; does not process remark plugins or file embeds.
 	rm -rf html
 	mkdir -p html
-	for f in md/*/*.md; do pandoc -f gfm --toc -t html -s --metadata title="$$f" -o html/$$(basename $$f .md).html $$f; done
+	find md -name "*.md" | while read f; do pandoc -f gfm --toc -t html -s --metadata title="$$f" -o html/$$(basename $$f .md).html $$f; done
 
-
-site-install:
-	npm --prefix site install
-
-site-dev: site-install
+preview: _site-install
 	npm --prefix site run dev
 
-site-build: site-install
+build: _site-install
 	npm --prefix site run build
 
-site-preview: site-build
+serve: build
 	npm --prefix site run preview
 
-.PHONY: html site-install site-dev site-build site-preview
+_site-install:
+	npm --prefix site install
+
+.PHONY: html preview build serve _site-install

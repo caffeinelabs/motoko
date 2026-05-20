@@ -10,16 +10,14 @@ Content lives in `doc/md/` and is synced to the consumer site via a plain rsync 
 `doc/site/` is a self-contained Starlight site that renders `doc/md/` with the same navigation and ICP brand styling as the consumer site.
 
 ```bash
-cd doc/site
-npm install
-npm run dev
+make preview
 # open http://localhost:4321
 ```
 
 To validate the build (catches broken file embeds and config errors):
 
 ```bash
-npm run build
+make build
 ```
 
 ## Code fence conventions
@@ -41,9 +39,9 @@ Both placeholders are resolved by `doc/site/plugins/remark-include-file.mjs` loc
 For a lightweight HTML snapshot without Node.js:
 
 ```bash
-make
+make html
 python3 -m http.server --directory html
-# open http://0.0.0.0:8000/motoko.html
+# browse http://localhost:8000/ — files are named after their source .md basename
 ```
 
 This uses pandoc and produces a basic unstyled preview. The Starlight preview above is preferred for reviewing content as it will appear on the live site.
