@@ -9,10 +9,14 @@ const candid = {
   ...JSON.parse(fs.readFileSync("./syntaxes/candid.tmLanguage.json", "utf-8")),
   name: "candid",
 };
+const bnf = {
+  ...JSON.parse(fs.readFileSync("./syntaxes/bnf.tmLanguage.json", "utf-8")),
+  name: "bnf",
+};
 
 export default defineEcConfig({
   shiki: {
-    langs: [motoko, candid],
+    langs: [motoko, candid, bnf],
     langAlias: {
       mo: "motoko",
       did: "candid",

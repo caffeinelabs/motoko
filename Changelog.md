@@ -844,7 +844,7 @@
     inspected on the IC replica dashboard as they are internal to the Motoko runtime system. 
     This query is only authorized to the canister controllers and self-calls of the canister.
 
-    ``` Motoko
+    ```motoko
     __motoko_runtime_information : () -> {
         compilerVersion : Text;
         rtsVersion : Text;
@@ -1122,7 +1122,7 @@
 
   * Allow identifiers in `or`-patterns (#3807).
     Bindings in alternatives must mention the same identifiers and have compatible types:
-    ``` Motoko
+    ```motoko
     let verbose = switch result {
       case (#ok) "All is good!";
       case (#warning why or #error why) "There is some problem: " # why;
@@ -1346,14 +1346,14 @@
     This is a frequently asked-for feature that allows to change the control-flow
     of programs when pattern-match failure occurs, thus providing a means against
     the famous "pyramid of doom" issue. A common example is look-ups:
-    ``` Motoko
+    ```motoko
     shared func getUser(user : Text) : async Id {
       let ?id = Map.get(users, user) else { throw Error.reject("no such user") };
       id
     }
     ```
     Similarly, an expression like
-    ``` Motoko
+    ```motoko
     (label v : Bool { let <pat> = <exp> else break v false; true })
     ```
     evaluates to a `Bool`, signifying whether `<pat>` matches `<exp>`.
@@ -1531,7 +1531,7 @@
 * motoko (`moc`)
 
   * Add new primitives for a default timer mechanism (#3542). These are
-    ``` Motoko
+    ```motoko
     setTimer : (delayNanos : Nat64, recurring : Bool, job : () -> async ()) -> (id : Nat)
     cancelTimer : (id : Nat) -> ()
     ```
