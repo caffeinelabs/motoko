@@ -394,6 +394,49 @@ a filtered list goes from `O(filter-scan + materialise + pick)` to
 `O(filter-scan-until-Nth-match)`.  The same shape with
 `#absolutePosition 1` (first) becomes a short-circuit scan.
 
+### Germinating: post-decoder optimiser with internal custom forms
+
+Idea worth letting sit before we act on it.  Split the path into
+three concerns:
+
+1. **Decoder** — faithful `bytes → ObjectSpec` translation, no
+   semantics.  What `parseTopLevel` already is.
+2. **Optimiser** — `ObjectSpec → ObjectSpec`, *model-specific*.
+   Knows this canister's cost surface (which accessors are O(1) vs
+   O(N), which predicates are selective, etc.) and rewrites the
+   spec to a cheaper-equivalent shape.  Lives outside the protocol.
+3. **Resolver** — walks the (possibly optimiser-rewritten) spec
+   against the smurf tree.  Today's `resolve`.
+
+The clean trick: the optimiser can emit **internal custom KeyForms**
+that never appear on the AE wire — e.g. `#indX` (capital X is a
+mnemonic; standard AE form code is `'indx'` lowercase) for "this
+collection should be evaluated lazily here, not eagerly".  Same
+spec admits two execution plans; which one resolves is determined
+by code with data-model context, not by the AS author.
+
+Open threads (none load-bearing today):
+
+- **Cost model source.** Hand-written per canister (accurate, costly
+  to maintain); derived from accessor structure (mechanical — e.g.
+  `VarAccessor<T> #indexed` is O(1), `#named` is O(N) linear scan,
+  `FlattenedSmurf` is O(parents × children) — but blind to data-
+  dependent things like predicate selectivity); profile-driven (run
+  queries, learn).  Probably hand-written for cut 1, derived for
+  cut 2.
+- **Tree-rewriter vs proper query planner.** Spec → spec rewrites
+  handle the easy cases; a typed query-plan IR enables join
+  reordering / selectivity push-down.  First cut: rewriter.
+- **Pass ordering.** The unfiltered-then-pick elimination wants to
+  *delete* intermediate `#every` layers; the laziness annotation
+  pass wants to *preserve* them with `#indX` tags.  Eliminations
+  first, annotations on what survives.
+
+When this germinates, the decoder stays cheap (just bytes →
+ObjectSpec), the optimiser is the surface where canister-specific
+knowledge plugs in, and the resolver gains one new interpretation
+arm per internal form.  No wire-format change.
+
 ---
 
 ### `Accessors.mo` library (the long-term shape)
