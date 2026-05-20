@@ -81,7 +81,10 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           max-jobs: ${{ matrix.max_jobs }}
 
+      # Secrets/vars are not exposed to fork PRs, so this step (and the perf
+      # step that consumes its output) is skipped on fork PRs.
       - name: Create GitHub App Token
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
@@ -89,7 +92,7 @@ jobs:
           private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
 
       - name: Run Performance Tests
-        if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request' && runner.os == 'Linux' && runner.arch == 'X64' && matrix.build_type == 'release'
+        if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && runner.os == 'Linux' && runner.arch == 'X64' && matrix.build_type == 'release'
         uses: ./.github/actions/performance
         with:
           head_sha: ${{ github.event.pull_request.head.sha }}
