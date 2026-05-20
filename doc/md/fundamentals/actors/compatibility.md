@@ -73,7 +73,7 @@ An upgrade is safe provided that both the Candid interface and stable type signa
   does not involve promotion to `Any` or dropping object fields.
 * The Candid interface evolves to a subtype.
 
-Consider the following four versions of the counter example:
+Consider the following four versions of the counter example. The `// Version: 1.0.0` comment at the top of each `.most` file is the stable signature format version, not the application version. See [Stable signature versions](#stable-signature-versions) below for the full taxonomy.
 
 Version `v0` with Candid interface `v0.did` and stable type interface `v0.most`:
 
