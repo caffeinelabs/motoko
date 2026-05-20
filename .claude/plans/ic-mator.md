@@ -248,5 +248,12 @@ wouldn't be reused — that loses the pass-through elegance.
   AE-flavoured tree, ICmator turns it into the in-memory SDEF (or
   writes one into `Contents/Resources/`) at startup.  Per-canister
   schema with zero `.did` round-tripping.
+  - **`_aeLingo` (query)** — AppleScript-side handle to the same
+    mechanism: `tell application "ICmator" to _aeLingo` returns the
+    canister's current terminology tree as a script-readable
+    structure (or just the SDEF XML).  Useful for ad-hoc inspection
+    in Script Editor, for the "tell canister X" multi-canister
+    addressing, and as a one-call introspection probe.  Stretch /
+    *if time permits*.
 - App Intents twin: same backend, different surface — useful for
   Siri/Spotlight.
