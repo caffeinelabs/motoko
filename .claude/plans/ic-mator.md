@@ -776,11 +776,35 @@ priority order:
    `query.md`.
 4. **`await*` learns queries.**  See `query.md` "post-buy-in cleanup arc" step 4 — the in-flight PR #6119 unlocks `await*` on public self-actor methods, which is needed once the Smurf chain wants to span query↔update boundaries.
 
-5. **4cc conformance.**  Audit every app-specific 4cc against
-   Apple's "must contain at least one uppercase" rule.  Today's
-   `clnt`/`card`/`char`/`fiNa`/`laNa`/`cntr`/`inco` mostly comply
-   (uppercase letters present); double-check the ones derived
-   from `debug_show`-output and synthetic names.
+5. **4cc representation + conformance.**  Two paired changes:
+
+   **Representation.**  Internal storage is `Nat32` — matches C's
+   `OSType` / `uint32`; comparisons are 32-bit equality.  Display
+   is **`Text` when all bytes are printable ASCII**, **`Blob`-style
+   `\xx\xx\xx\xx` when not**.  The bench already uses `Nat32` for
+   codec-level 4ccs (`TYPE`, `ENUM`, `PROP`, …); unify the property
+   /class 4cc tables in `propReaders` / `Lingo` / `cardSmurf` /
+   `clientSmurf` over to the same representation.
+
+   **Source-level constructors enforce Apple's convention.**
+
+   - `cc4 : Text -> Nat32` — validates the literal is **all
+     lowercase** (no uppercase letter anywhere).  For 4ccs in
+     Apple's reserved namespace (`'cha '`, `'name'`, `'indx'`,
+     `'rele'`, `'test'`, `'prop'`, `'list'`, `'long'`, `'utxt'`,
+     `'enum'`, …).
+   - `cC4 : Text -> Nat32` — validates the literal contains **at
+     least one uppercase** letter.  For app-specific 4ccs
+     (`'ICma'`, `'ICcn'`, `'Mnth'`, `'Year'`, `'fiNa'`, `'laNa'`).
+
+   The naming itself encodes the rule: lowercase `cc4` for
+   lowercase-only tokens; mixed-case `cC4` for tokens that need a
+   capital.  Source stays readable: `cc4 "name"`, `cC4 "Mnth"` —
+   no hex literals, no encode-utf8 boilerplate.  Both validate +
+   convert at construction.  Bench's current mistakes (uses
+   `clnt`/`card`/`cntr`/etc. — all-lowercase, technically in
+   Apple's reserved namespace) become compile errors under `cC4`
+   and surface naturally during migration.
 5. **Replace `'char'` with `'cha '`.**  Use Apple's standard 4cc
    for the built-in character class.  Today our `'char'` (no
    trailing space) wins inside `tell application "ICmator"`
