@@ -173,46 +173,24 @@ grammar — think of it as a structured spider.
 
 ### 7. macOS Automator / AppleScript Integration
 
-macOS Automator and AppleScript speak Apple Events whose object references map
-directly onto `ObjectSpec`. The dream syntax:
+The dream syntax:
 
 ```applescript
-tell application "IC Bridge"
-    get balance of account id 42 of canister "bla-gurr-xump" of network "yurrt-pomjj-uer"
+tell application "ICmator"
+    get every client whose country = "Germany"
 end tell
 ```
 
-**How AppleScript addressing works:** the AE target (`keyAddressAttr`) must be
-a process — `typeApplicationURL` (`eppc://`), `typeProcessSerialNumber`, or
-`typeKernelProcessID`. Script Editor uses Bonjour/mDNS to discover remote
-machines, but only those running macOS Remote Apple Events; there is no
-open-ended extension point for custom address types. `canister "x" of network
-"y"` as a bare root (without `tell application`) is not natively supported.
+macOS Automator and AppleScript speak Apple Events whose object references
+map directly onto `ObjectSpec`.  Because the canister's `(with encoder;
+decoder)`-annotated methods already speak the AE binary wire format
+natively, an intermediary scriptable macOS app/daemon ("ICmator") can be
+a **pure byte pass-through** — no JSON, no Candid-on-macOS, no schema
+duplication.
 
-**Practical path — intermediary scriptable app/daemon:**
-A background process ("IC Bridge", launchd-managed, no UI) with an **SDEF**
-that declares `network` containing `canister` as first-class AE object classes.
-AppleScript resolves `canister "x" of network "y"` as an AE object specifier
-tree inside the IC Bridge process; IC Bridge translates it to a canister query
-and returns results. The AEOM hierarchy maps isomorphically onto `ObjectSpec`:
-
-```
-tell application "IC Bridge"             →  objectAt(spec)  on  canister
-    get balance of account id 42 of …       resolved by IC Bridge → HTTP/Candid
-end tell
-```
-
-- No custom glue code per canister — any canister implementing `Queryable`
-  appears automatically in IC Bridge's object model once registered
-- Automator action: "Query Canister Object" wraps the same AE call
-- The AE binary encoding (see above) is what IC Bridge sends over the wire;
-  no JSON translation needed for the macOS side
-
-**Modern alternative — App Intents (macOS 13+):** for Shortcuts/Spotlight
-integration, App Intents are discoverable, require no SDEF, and are
-installable by third parties. A "Query IC Canister" Intent accepts a canister
-ID, network ID, and `ObjectSpec`-derived parameters and returns typed results.
-Different model from AppleScript but better suited for Siri/Spotlight/Shortcuts.
+See [`ic-mator.md`](./ic-mator.md) for the full design (SDEF shape, AE
+handler dispatch, IC transport via a small Rust subprocess wrapping
+`ic-agent`, bundle layout, demo scope, App Intents alternative).
 
 ### 9. LLM-Driven Canister Conversation
 Candid's rigid type system is a poor match for the open-ended, exploratory
