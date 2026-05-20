@@ -51,12 +51,12 @@ You can think of this as the interior interface of the actor, that it presents t
 
 For example, `v1`'s stable types:
 
-```motoko no-repl file=<motokoExamples>/count-v1.most
+```motoko no-repl title="count-v1.most" file=<motokoExamples>/count-v1.most
 ```
 
 An upgrade from `v1` to `v2`'s stable types consumes a [`Nat`](https://mops.one/core/docs/Nat) as an [`Int`](https://mops.one/core/docs/Nat), which is valid because `Nat <: Int`, that is,  `Nat` is a subtype of `Int`.
 
-```motoko no-repl file=<motokoExamples>/count-v2.most
+```motoko no-repl title="count-v2.most" file=<motokoExamples>/count-v2.most
 ```
 
 ## Evolving the Candid interface
@@ -80,7 +80,7 @@ Version `v0` with Candid interface `v0.did` and stable type interface `v0.most`:
 ``` candid file=<motokoExamples>/count-v0.did
 ```
 
-```motoko no-repl file=<motokoExamples>/count-v0.most
+```motoko no-repl title="count-v0.most" file=<motokoExamples>/count-v0.most
 ```
 
 Version `v1` with Candid interface `v1.did` and stable type interface `v1.most`,
@@ -88,7 +88,7 @@ Version `v1` with Candid interface `v1.did` and stable type interface `v1.most`,
 ``` candid file=<motokoExamples>/count-v1.did
 ```
 
-```motoko no-repl file=<motokoExamples>/count-v1.most
+```motoko no-repl title="count-v1.most" file=<motokoExamples>/count-v1.most
 ```
 
 Version `v2` with Candid interface `v2.did` and stable type interface `v2.most`,
@@ -96,7 +96,7 @@ Version `v2` with Candid interface `v2.did` and stable type interface `v2.most`,
 ``` candid file=<motokoExamples>/count-v2.did
 ```
 
-```motoko no-repl file=<motokoExamples>/count-v2.most
+```motoko no-repl title="count-v2.most" file=<motokoExamples>/count-v2.most
 ```
 
 Version `v3` with Candid interface `v3.did` and stable type interface `v3.most`:
@@ -104,7 +104,7 @@ Version `v3` with Candid interface `v3.did` and stable type interface `v3.most`:
 ``` candid file=<motokoExamples>/count-v3.did
 ```
 
-```motoko no-repl file=<motokoExamples>/count-v3.most
+```motoko no-repl title="count-v3.most" file=<motokoExamples>/count-v3.most
 ```
 
 ## Incompatible upgrade
@@ -231,7 +231,7 @@ The stable signature of an actor with a migration function now consists of two o
 
 For example, this is the combined signature of the previous example:
 
-```motoko no-repl file=<motokoExamples>/count-v9.most
+```motoko no-repl title="count-v9.most" file=<motokoExamples>/count-v9.most
 ```
 
 The second signature is determined solely by the actor's stable variable declarations.
@@ -251,12 +251,12 @@ Motoko uses three versions of the stable signature format, each corresponding to
 
 **Version 1.0.0: Single.** The original format, listing the actor's stable fields. Used when the actor has no migration function.
 
-```motoko no-repl file=<motokoExamples>/count-v1.most
+```motoko no-repl title="count-v1.most" file=<motokoExamples>/count-v1.most
 ```
 
 **Version 3.0.0: Pre/Post.** Used when the actor declares a single migration function via `(with migration = ...)`. The signature contains a pre-signature (the fields the migration function consumes from the old actor) and a post-signature (the new actor's stable fields):
 
-```motoko no-repl file=<motokoExamples>/count-v9.most
+```motoko no-repl title="count-v9.most" file=<motokoExamples>/count-v9.most
 ```
 
 Fields marked `in` are required inputs that must be present in the previous actor. Fields marked `stable` are carried through or newly declared.
