@@ -6,7 +6,7 @@ sidebar:
   hidden: true
 ---
 
-* [GitHub repository](https://github.com/dfinity/motoko-core)
+* [GitHub repository](https://github.com/caffeinelabs/motoko-core)
 * [Documentation](https://mops.one/core/docs/)
 
 The `core` package is a new and improved standard library for Motoko, focusing on:
@@ -44,7 +44,7 @@ When updating to the `core` package:
 
 For details on function signatures, please refer to the official [documentation](https://mops.one/core/docs/).
 
-Also, feel free to ask for help by posting on the [ICP developer forum](https://forum.dfinity.org/c/developers) or opening a GitHub issue on the [`dfinity/motoko-core`](https://github.com/dfinity/motoko-core/issues) repository.
+Also, feel free to ask for help by posting on the [ICP developer forum](https://forum.dfinity.org/c/developers) or opening a GitHub issue on the [`caffeinelabs/motoko-core`](https://github.com/caffeinelabs/motoko-core/issues) repository.
 
 ## Module changes
 

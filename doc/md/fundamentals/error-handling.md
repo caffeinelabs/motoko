@@ -71,7 +71,7 @@ With a `Result` type, you can use pattern matching to handle both success and er
 
 Sometimes you need to convert between `Option` and `Result` types. For example, a HashMap lookup returns `null` on failure (an `Option`), but if the caller has more context, they can turn that failure into a meaningful `Result` with an error message. On the other hand, sometimes you don’t need the extra detail from a `Result` and just want to convert any error (`#err`) into `null`.
 
-The [core](https://github.com/dfinity/motoko-core) package provides `fromOption` and `toOption` functions in the `Result` module that make converting between these two types easy.
+The [core](https://github.com/caffeinelabs/motoko-core) package provides `fromOption` and `toOption` functions in the `Result` module that make converting between these two types easy.
 
 ## Error reporting with `Error` (asynchronous errors)
 

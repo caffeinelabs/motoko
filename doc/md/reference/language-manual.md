@@ -26,7 +26,7 @@ sidebar:
 * [X] Remove Shared type
 * [X] Explain dot keys, dot vals and iterators
 * [X] Debug expressions
-* [X] Document punning in type record patterns: https://github.com/dfinity/motoko/pull/964
+* [X] Document punning in type record patterns: https://github.com/caffeinelabs/motoko/pull/964
 * [X] Update ErrorCode section
 * [Floats] Literals type and operations
 * [ ] Re-section so headings appear in content outline
