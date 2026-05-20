@@ -238,6 +238,7 @@
       # so `nix flake show` won't complain.
       ae-encoder-attrs = pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
         ae-encoder = import ./nix/ae-encoder.nix { inherit pkgs appscript-src; };
+        ae-decoder = import ./nix/ae-decoder.nix { inherit pkgs appscript-src; };
       };
 
       common-constituents = rec {
