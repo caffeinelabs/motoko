@@ -45,7 +45,7 @@ Multi-line comments can be nested within each other.
 
 ## Resources
 
-- [Comment style guide](../../style-guide.md#comments)
+- [Comment style guide](../../reference/style-guide.md#comments)
 
 - [Generating Motoko documentation](https://docs.internetcomputer.org/developer-tools/#mo-doc)
 

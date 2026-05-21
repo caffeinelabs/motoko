@@ -180,7 +180,7 @@ A cleaner, more maintainable solution, is to declare an explicit migration expre
 Both of these data migration paths are supported by static and dynamic checks that prevent data loss or corruption. A user may still lose data due to coding errors, so should tread carefully.
 
 For more information, see the [example of explicit migration](./compatibility.md#explicit-migration-using-a-migration-function) and the
-reference material on [migration expressions](../../language-manual.md#migration-expressions).
+reference material on [migration expressions](../../reference/language-manual.md#migration-expressions).
 
 ## Legacy features
 

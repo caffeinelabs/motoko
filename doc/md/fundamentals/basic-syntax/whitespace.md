@@ -26,5 +26,5 @@ persistent actor Counter {
 
 ## Resources
 
-- [Motoko style guide](../../style-guide.md)
+- [Motoko style guide](../../reference/style-guide.md)
 
