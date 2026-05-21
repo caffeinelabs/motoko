@@ -49,55 +49,35 @@ system func timer(setGlobalTimer : Nat64 -> ()) : async () {
 
 ## `preupgrade()`
 
-The preupgrade() system function is invoked immediately before a canister upgrade to prepare for state migration. Its primary role is to save critical data, typically non-stable variables, into stable storage, ensuring that important state information is preserved across the upgrade. This function executes before the new Wasm module is installed, making it the last opportunity to capture any necessary state from the current canister version.
-
-Any failure, such as a trap or exceeding computation limits prevents the upgrade from succeeding, potentially leaving the canister in an unrecoverable state. As a result, **using `preupgrade()` is discouraged unless necessary**.
-
-The following example saves a `HashMap` of user balances into a stable variable before upgrading.
-
-`balances` is a non-stable `HashMap` that would normally be lost during an upgrade. Before upgrading, `preupgrade()` stores the key-value pairs in a stable array (`savedBalances`).
-
-After upgrading, the `postupgrade()` function (#postupgrade) can restore the saved state.
+The `preupgrade()` system function is invoked immediately before a canister upgrade. It runs before the new Wasm module is installed, giving the current version one last chance to act. The function takes no arguments and must have type `() -> ()`.
 
 ```motoko no-repl
-import Iter "mo:core/Iter";
-import HashMap "mo:base/HashMap"; // Data structure from original standard library
-
-persistent actor Token {
-
-  transient var balances = HashMap.HashMap<Text, Nat>(10, Text.equal, Text.hash); // Non-stable
-  var savedBalances : [(Text, Nat)] = []; // Implicit stable storage
-
+persistent actor MyCanister {
   system func preupgrade() {
-    savedBalances := Iter.toArray(balances.entries()); // Save state before upgrade
+    // Runs before the upgrade installs the new Wasm.
   }
 }
 ```
 
+:::danger
+If `preupgrade` traps, runs out of cycles, or hits any other IC computing limit, **the upgrade fails and the canister cannot be upgraded going forward** — it is stuck on the current version. Use of this hook is discouraged.
+:::
+
+With orthogonal persistence, `mo:core` data structures persist across upgrades automatically and this hook is rarely needed. For the (legacy) save-into-stable-storage pattern and the migration alternatives that replace it, see [Data persistence](../fundamentals/actors/data-persistence.md).
 
 ## `postupgrade()`
 
-The `postupgrade()` system function is called immediately after a canister upgrade, allowing a canister to restore state or execute initialization logic. Unlike `preupgrade()`, **it is not required**, as most of its effects can be achieved using actor initialization expressions (`let` bindings and expression statements). However, `postupgrade()` is useful for reconstructing data structures or running migration logic.
-
-This example restores the `balances` `HashMap` using the data that was saved by `preupgrade()`.
+The `postupgrade()` system function runs immediately after an upgrade installs the new Wasm. The function takes no arguments and must have type `() -> ()`.
 
 ```motoko no-repl
-import HashMap "mo:base/HashMap"; // Data structure from original standard library
-
-persistent actor Token {
-
-  transient var balances = HashMap.HashMap<Text, Nat>(10, Text.equal, Text.hash);
-  var savedBalances : [(Text, Nat)] = [];
-
+persistent actor MyCanister {
   system func postupgrade() {
-    balances := HashMap.fromIter(savedBalances.vals(), 10, Text.equal, Text.hash);
+    // Runs after the upgrade installs the new Wasm.
   }
 }
 ```
 
-The **use of upgrade hooks is not recommended** as they can fail and cause the program to enter an unrecoverable state. With advancements in orthogonal persistence, these hooks are expected to be deprecated.
-
-In many cases, stable variables or actor initialization expressions can replace `postupgrade()`. Complex transformations increase the risk of errors and failures.
+`postupgrade` is rarely required: the same effect can usually be achieved with actor initialization expressions (`let` bindings and statements at the top of the actor body), which run on every install and upgrade. See [Data persistence](../fundamentals/actors/data-persistence.md) for the recommended patterns.
 
 ## `lowmemory()`
 

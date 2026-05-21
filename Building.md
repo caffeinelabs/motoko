@@ -132,7 +132,7 @@ git log --first-parent $(git describe --abbrev=0)..HEAD
 ```
 Or, on macOS, in a browser:
 ```bash
-open "https://github.com/dfinity/motoko/compare/$(git describe --abbrev=0)...master"
+open "https://github.com/caffeinelabs/motoko/compare/$(git describe --abbrev=0)...master"
 ```
 
 Look at changes and check that everything relevant is mentioned in the changelog section,
@@ -309,7 +309,7 @@ gh pr view --web
 * Once CI passes, merge the PR using the _normal merge_ (not squash merge).
   > **Note:** To allow merge commits, go to the repository settings and enable merge commits. Remember to **disable it after the merge**. Unfortunately, `gh` CLI cannot update this setting without admin permissions.
 
-It will eventually be imported into this repo by a scheduled `niv-updater-action`.
+It will eventually be imported into this repo by the daily [`update-flake-lock`](.github/workflows/update-flake-lock.yml) workflow.
 
 Finally tag the base release (so the documentation interpreter can do the right thing):
 First, switch to `master`, pull the latest changes and verify we are at the right commit:
@@ -349,13 +349,13 @@ If you want to update the portal documentation, typically to keep in sync with a
 ## Making draft / pre-releases
 
 To make a draft / pre-release, you can use the GitHub Actions workflow:
-https://github.com/dfinity/motoko/actions/workflows/release.yml
+https://github.com/caffeinelabs/motoko/actions/workflows/release.yml
 
 1. Press the **"Run workflow"** button
 2. Select the branch for which you want to make the draft / pre-release
 3. Fill in the **"Version suffix"** that will be used to contruct the version name, e.g. `alpha-1` version suffix could produce a version like `0.16.3-alpha-1`
 4. Hit the green button to run the workflow and wait for it to complete.
-5. View the draft release at https://github.com/dfinity/motoko/releases once the workflow is complete.
+5. View the draft release at https://github.com/caffeinelabs/motoko/releases once the workflow is complete.
 6. To make a pre-release:
    1. Edit the draft release
    2. Make sure the tag and the name of the release are the same as the generated version, e.g. `0.16.3-alpha-1`. Note that there is no need to manually push the tag, it should be created automatically when publishing the pre-release.
@@ -384,8 +384,6 @@ The full report can be built with
 ```
 nix build .#tests.coverage
 ```
-and the report for latest `master` can be viewed at
-[https://dfinity.github.io/motoko/coverage/](https://dfinity.github.io/motoko/coverage/).
 
 ## Profile the compiler
 
