@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#call">call</a></li></li><li><li><a href="#isReplicated">isReplicated</a></li></li><li><li><a href="#countInstructions">countInstructions</a></li></li><li><li><a href="#performanceCounter">performanceCounter</a></li></li><li><li><a href="#replyDeadline">replyDeadline</a></li></li><li><li><a href="#subnet">subnet</a></li></li></ul></nav><div class="documentation"><h1>ExperimentalInternetComputer</h1><p>Low-level interface to the Internet Computer.</p>
+<p>:::warning Experimental API
+This low-level API is <strong>experimental</strong> and likely to change or even disappear.
+:::</p>
+<div class="declaration"><h4 class="function" id="call"><code><span class="keyword">public func </span><span class="fnname">call</span>(<br/>  <span class="parameter">canister</span> : <span class="type">Principal</span>, <br/>  <span class="parameter">name</span> : <span class="type">Text</span>, <br/>  <span class="parameter">data</span> : <span class="type">Blob</span><br/>) : <span class="keyword">async </span>(<span class="parameter">reply</span> : <span class="type">Blob</span>)</code></h4><p><p>Calls <code>canister</code>'s update or query function, <code>name</code>, with the binary contents of <code>data</code> as IC argument.
+Returns the response to the call, an IC <em>reply</em> or <em>reject</em>, as a Motoko future:</p>
+<ul><li>The message data of an IC reply determines the binary contents of <code>reply</code>.</li><li>The error code and textual message data of an IC reject determines the future's <code>Error</code> value.</li></ul>
+
+<p>Asynchronous context required: <code>call</code> is an asynchronous function and can only be applied in an asynchronous context.
+Example:</p>
+<pre><code>motoko no-repl
+import IC &quot;mo:base/ExperimentalInternetComputer&quot;;
+import Principal &quot;mo:base/Principal&quot;;
+
+let ledger = Principal.fromText(&quot;ryjl3-tyaaa-aaaaa-aaaba-cai&quot;);
+let method = &quot;decimals&quot;;
+let input = ();
+type OutputType = { decimals : Nat32 };
+
+let rawReply = await IC.call(ledger, method, to_candid(input)); // serialized Candid
+let output : ?OutputType = from_candid(rawReply); // { decimals = 8 }</code></pre>
+
+<p><a href="https://internetcomputer.org/docs/current/motoko/main/reference/language-manual#candid-serialization">Learn more about Candid serialization</a></p>
+</p></div><div class="declaration"><h4 class="function" id="isReplicated"><code><span class="keyword">public func </span><span class="fnname">isReplicated</span>() : <span class="type">Bool</span></code></h4><p><p><code>isReplicated</code> is true for update messages and for queries that passed through consensus.</p>
+</p></div><div class="declaration"><h4 class="function" id="countInstructions"><code><span class="keyword">public func </span><span class="fnname">countInstructions</span>(<span class="parameter">comp</span> : () -&gt; ()) : <span class="type">Nat64</span></code></h4><p><p>Given computation, <code>comp</code>, counts the number of actual and (for IC system calls) notional WebAssembly
+instructions performed during the execution of <code>comp()</code>.
+More precisely, returns the difference between the state of the IC instruction counter (<em>performance counter</em> <code>0</code>) before and after executing <code>comp()</code>
+(see <a href="https://internetcomputer.org/docs/current/references/ic-interface-spec#system-api-performance-counter">Performance Counter</a>).
+:::note Garbage collection cost not included
+<code>countInstructions(comp)</code> will <em>not</em> account for any deferred garbage collection costs incurred by <code>comp()</code>.
+:::
+Example:</p>
+<pre><code>motoko no-repl
+import IC &quot;mo:base/ExperimentalInternetComputer&quot;;
+
+let count = IC.countInstructions(func() {
+});</code></pre></p></div><div class="declaration"><h4 class="function" id="performanceCounter"><code><span class="keyword">public func </span><span class="fnname">performanceCounter</span>(<span class="parameter">counter</span> : <span class="type">Nat32</span>) : (<span class="parameter">value</span> : <span class="type">Nat64</span>)</code></h4><p><p>Returns the current value of IC <em>performance counter</em> <code>counter</code>.</p>
+<ul><li><p>Counter <code>0</code> is the <em>current execution instruction counter</em>, counting instructions only since the beginning of the current IC message.
+ This counter is reset to value <code>0</code> on shared function entry and every <code>await</code>.
+ It is therefore only suitable for measuring the cost of synchronous code.</p>
+</li><li><p>Counter <code>1</code> is the <em>call context instruction counter</em>  for the current shared function call.
+ For replicated message executing, this excludes the cost of nested IC calls (even to the current canister).
+ For non-replicated messages, such as composite queries, it includes the cost of nested calls.
+ The current value of this counter is preserved across <code>awaits</code> (unlike counter <code>0</code>).</p>
+</li><li><p>The function (currently) traps if <code>counter</code> &gt;= 2.</p>
+</li></ul>
+
+<p>Consult <a href="https://internetcomputer.org/docs/current/references/ic-interface-spec#system-api-performance-counter">Performance Counter</a> for details.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import IC &quot;mo:base/ExperimentalInternetComputer&quot;;
+
+let c1 = IC.performanceCounter(1);
+work();
+let diff : Nat64 = IC.performanceCounter(1) - c1;</code></pre></p></div><div class="declaration"><h4 class="function" id="replyDeadline"><code><span class="keyword">public func </span><span class="fnname">replyDeadline</span>() : ?<span class="type">Nat</span></code></h4><p><p>Returns the time (in nanoseconds from the epoch start) by when the update message should
+reply to the best effort message so that it can be received by the requesting canister.
+Queries and unbounded-time update messages return null.</p>
+</p></div><div class="declaration"><h4 class="function" id="subnet"><code><span class="keyword">public func </span><span class="fnname">subnet</span>() : <span class="type">Principal</span></code></h4><p><p>Returns the subnet's principal for the running actor.
+Note: Due to canister migration the hosting subnet can vary with time.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import IC &quot;mo:base/ExperimentalInternetComputer&quot;;
+
+let subnetPrincipal = IC.subnet();</code></pre></p></div></div></body></html>

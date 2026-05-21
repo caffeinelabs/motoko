@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Text">Text</a></li></li><li><li><a href="#fromChar">fromChar</a></li></li><li><li><a href="#fromArray">fromArray</a></li></li><li><li><a href="#fromVarArray">fromVarArray</a></li></li><li><li><a href="#toIter">toIter</a></li></li><li><li><a href="#toArray">toArray</a></li></li><li><li><a href="#toVarArray">toVarArray</a></li></li><li><li><a href="#fromIter">fromIter</a></li></li><li><li><a href="#fromList">fromList</a></li></li><li><li><a href="#toList">toList</a></li></li><li><li><a href="#size">size</a></li></li><li><li><a href="#hash">hash</a></li></li><li><li><a href="#concat">concat</a></li></li><li><li><a href="#equal">equal</a></li></li><li><li><a href="#notEqual">notEqual</a></li></li><li><li><a href="#less">less</a></li></li><li><li><a href="#lessOrEqual">lessOrEqual</a></li></li><li><li><a href="#greater">greater</a></li></li><li><li><a href="#greaterOrEqual">greaterOrEqual</a></li></li><li><li><a href="#compare">compare</a></li></li><li><li><a href="#join">join</a></li></li><li><li><a href="#map">map</a></li></li><li><li><a href="#translate">translate</a></li></li><li><li><a href="#type.Pattern">Pattern</a></li></li><li><li><a href="#split">split</a></li></li><li><li><a href="#tokens">tokens</a></li></li><li><li><a href="#contains">contains</a></li></li><li><li><a href="#startsWith">startsWith</a></li></li><li><li><a href="#endsWith">endsWith</a></li></li><li><li><a href="#replace">replace</a></li></li><li><li><a href="#stripStart">stripStart</a></li></li><li><li><a href="#stripEnd">stripEnd</a></li></li><li><li><a href="#trimStart">trimStart</a></li></li><li><li><a href="#trimEnd">trimEnd</a></li></li><li><li><a href="#trim">trim</a></li></li><li><li><a href="#compareWith">compareWith</a></li></li><li><li><a href="#encodeUtf8">encodeUtf8</a></li></li><li><li><a href="#decodeUtf8">decodeUtf8</a></li></li><li><li><a href="#toLowercase">toLowercase</a></li></li><li><li><a href="#toUppercase">toUppercase</a></li></li></ul></nav><div class="documentation"><h1>Text</h1><p>Utility functions for <code>Text</code> values.</p>
+<p>A <code>Text</code> value represents human-readable text as a sequence of characters of type <code>Char</code>.</p>
+<pre class="motoko"><code class="motoko">let text = &quot;Hello!&quot;;
+let size = text.size(); // 6
+let iter = text.chars(); // iterator ('H', 'e', 'l', 'l', 'o', '!')
+let concat = text # &quot; 👋&quot;; // &quot;Hello! 👋&quot;</code></pre>
+
+<p>The <code>&quot;mo:base/Text&quot;</code> module defines additional operations on <code>Text</code> values.</p>
+<p>Import the module from the base library:</p>
+<pre><code>motoko name=import
+import Text &quot;mo:base/Text&quot;;</code></pre>
+
+<p>:::note
+<code>Text</code> values are represented as ropes of UTF-8 character sequences with O(1) concatenation.
+:::</p>
+<div class="declaration"><h4 class="type-declaration" id="type.Text"><span class="keyword">type </span><span class="type">Text</span> = <span class="type">Prim.Types.Text</span></h4><p><p>The type corresponding to primitive <code>Text</code> values.</p>
+<pre class="motoko"><code class="motoko">let hello = &quot;Hello!&quot;;
+let emoji = &quot;👋&quot;;
+let concat = hello # &quot; &quot; # emoji; // &quot;Hello! 👋&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="fromChar"><code><span class="keyword">public func </span><span class="fnname">fromChar</span>(<span class="parameter">c</span> : <span class="type">Char</span>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Converts the given <code>Char</code> to a <code>Text</code> value.</p>
+<pre><code>motoko include=import
+let text = Text.fromChar('A'); // &quot;A&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="fromArray"><code><span class="keyword">public func </span><span class="fnname">fromArray</span>(<span class="parameter">a</span> : [<span class="type">Char</span>]) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Converts the given <code>[Char]</code> to a <code>Text</code> value.</p>
+<pre><code>motoko include=import
+let text = Text.fromArray(['A', 'v', 'o', 'c', 'a', 'd', 'o']); // &quot;Avocado&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| O(a.size()) | O(a.size()) |</p>
+</p></div><div class="declaration"><h4 class="function" id="fromVarArray"><code><span class="keyword">public func </span><span class="fnname">fromVarArray</span>(<span class="parameter">a</span> : [<span class="keyword">var </span><span class="type">Char</span>]) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Converts the given <code>[var Char]</code> to a <code>Text</code> value.</p>
+<pre><code>motoko include=import
+let text = Text.fromVarArray([var 'E', 'g', 'g', 'p', 'l', 'a', 'n', 't']); // &quot;Eggplant&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| O(a.size()) | O(a.size()) |</p>
+</p></div><div class="declaration"><h4 class="function" id="toIter"><code><span class="keyword">public func </span><span class="fnname">toIter</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <a href="Iter.html#type.Iter"><span class="type">Iter.Iter</span></a>&lt;<span class="type">Char</span>&gt;</code></h4><p><p>Iterates over each <code>Char</code> value in the given <code>Text</code>.</p>
+<p>Equivalent to calling the <code>t.chars()</code> method where <code>t</code> is a <code>Text</code> value.</p>
+<pre><code>motoko include=import
+import { print } &quot;mo:base/Debug&quot;;
+
+for (c in Text.toIter(&quot;abc&quot;)) {
+  print(debug_show c);
+}</code></pre></p></div><div class="declaration"><h4 class="function" id="toArray"><code><span class="keyword">public func </span><span class="fnname">toArray</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>) : [<span class="type">Char</span>]</code></h4><p><p>Creates a new <code>Array</code> containing characters of the given <code>Text</code>.</p>
+<p>Equivalent to <code>Iter.toArray(t.chars())</code>.</p>
+<pre><code>motoko include=import
+assert Text.toArray(&quot;Café&quot;) == ['C', 'a', 'f', 'é'];</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| O(t.size()) | O(t.size()) |</p>
+</p></div><div class="declaration"><h4 class="function" id="toVarArray"><code><span class="keyword">public func </span><span class="fnname">toVarArray</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>) : [<span class="keyword">var </span><span class="type">Char</span>]</code></h4><p><p>Creates a new mutable <code>Array</code> containing characters of the given <code>Text</code>.</p>
+<p>Equivalent to <code>Iter.toArrayMut(t.chars())</code>.</p>
+<pre><code>motoko include=import
+assert Text.toVarArray(&quot;Café&quot;) == [var 'C', 'a', 'f', 'é'];</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| O(t.size()) | O(t.size()) |</p>
+</p></div><div class="declaration"><h4 class="function" id="fromIter"><code><span class="keyword">public func </span><span class="fnname">fromIter</span>(<span class="parameter">cs</span> : <a href="Iter.html#type.Iter"><span class="type">Iter.Iter</span></a>&lt;<span class="type">Char</span>&gt;) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Creates a <code>Text</code> value from a <code>Char</code> iterator.</p>
+<pre><code>motoko include=import
+let text = Text.fromIter(['a', 'b', 'c'].vals()); // &quot;abc&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="fromList"><code><span class="keyword">public func </span><span class="fnname">fromList</span>(<span class="parameter">cs</span> : <a href="List.html#type.List"><span class="type">List.List</span></a>&lt;<span class="type">Char</span>&gt;) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Create a text from a character list.
+Example:</p>
+<pre><code>motoko include=initialize
+fromList(?('H', ?('e', ?('l', ?('l', ?('o', null))))));
+// =&gt; &quot;Hello&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| O(size cs) | O(size cs) |</p>
+</p></div><div class="declaration"><h4 class="function" id="toList"><code><span class="keyword">public func </span><span class="fnname">toList</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <a href="List.html#type.List"><span class="type">List.List</span></a>&lt;<span class="type">Char</span>&gt;</code></h4><p><p>Create a character list from a text.
+Example:</p>
+<pre><code>motoko include=initialize
+toList(&quot;Hello&quot;);
+// =&gt; ?('H', ?('e', ?('l', ?('l', ?('o', null)))))</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| O(t.size()) | O(t.size()) |</p>
+</p></div><div class="declaration"><h4 class="function" id="size"><code><span class="keyword">public func </span><span class="fnname">size</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Nat</span></code></h4><p><p>Returns the number of characters in the given <code>Text</code>.</p>
+<p>Equivalent to calling <code>t.size()</code> where <code>t</code> is a <code>Text</code> value.</p>
+<pre><code>motoko include=import
+let size = Text.size(&quot;abc&quot;); // 3</code></pre></p></div><div class="declaration"><h4 class="function" id="hash"><code><span class="keyword">public func </span><span class="fnname">hash</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a></code></h4><p><p>Returns a hash obtained by using the <code>djb2</code> algorithm (<a href="http://www.cse.yorku.ca/~oz/hash.html">more details</a>).</p>
+<pre><code>motoko include=import
+let hash = Text.hash(&quot;abc&quot;);</code></pre>
+
+<p>:::info
+This algorithm is intended for use in data structures rather than as a cryptographic hash function.
+:::</p>
+</p></div><div class="declaration"><h4 class="function" id="concat"><code><span class="keyword">public func </span><span class="fnname">concat</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Returns <code>t1 # t2</code>, where <code>#</code> is the <code>Text</code> concatenation operator.</p>
+<pre><code>motoko include=import
+let a = &quot;Hello&quot;;
+let b = &quot;There&quot;;
+let together = a # b; // &quot;HelloThere&quot;
+let withSpace = a # &quot; &quot; # b; // &quot;Hello There&quot;
+let togetherAgain = Text.concat(a, b); // &quot;HelloThere&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="equal"><code><span class="keyword">public func </span><span class="fnname">equal</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>t1 == t2</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="notEqual"><code><span class="keyword">public func </span><span class="fnname">notEqual</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>t1 != t2</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="less"><code><span class="keyword">public func </span><span class="fnname">less</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>t1 &lt; t2</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="lessOrEqual"><code><span class="keyword">public func </span><span class="fnname">lessOrEqual</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>t1 &lt;= t2</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="greater"><code><span class="keyword">public func </span><span class="fnname">greater</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>t1 &gt; t2</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="greaterOrEqual"><code><span class="keyword">public func </span><span class="fnname">greaterOrEqual</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>t1 &gt;= t2</code>.</p>
+</p></div><div class="declaration"><h4 class="function" id="compare"><code><span class="keyword">public func </span><span class="fnname">compare</span>(<span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>) : {#less; #equal; #greater}</code></h4><p><p>Compares <code>t1</code> and <code>t2</code> lexicographically.</p>
+<pre><code>motoko include=import
+import { print } &quot;mo:base/Debug&quot;;
+
+print(debug_show Text.compare(&quot;abc&quot;, &quot;abc&quot;)); // #equal
+print(debug_show Text.compare(&quot;abc&quot;, &quot;def&quot;)); // #less
+print(debug_show Text.compare(&quot;abc&quot;, &quot;ABC&quot;)); // #greater</code></pre></p></div><div class="declaration"><h4 class="function" id="join"><code><span class="keyword">public func </span><span class="fnname">join</span>(<span class="parameter">sep</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">ts</span> : <a href="Iter.html#type.Iter"><span class="type">Iter.Iter</span></a>&lt;<a href="#type.Text"><span class="type">Text</span></a>&gt;) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Join an iterator of <code>Text</code> values with a given delimiter.</p>
+<pre><code>motoko include=import
+let joined = Text.join(&quot;, &quot;, [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;].vals()); // &quot;a, b, c&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="map"><code><span class="keyword">public func </span><span class="fnname">map</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">f</span> : <span class="type">Char</span> -&gt; <span class="type">Char</span>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Applies a function to each character in a <code>Text</code> value, returning the concatenated <code>Char</code> results.</p>
+<pre><code>motoko include=import
+// Replace all occurrences of '?' with '!'
+let result = Text.map(&quot;Motoko?&quot;, func(c) {
+  if (c == '?') '!'
+  else c
+});</code></pre></p></div><div class="declaration"><h4 class="function" id="translate"><code><span class="keyword">public func </span><span class="fnname">translate</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">f</span> : <span class="type">Char</span> -&gt; <a href="#type.Text"><span class="type">Text</span></a>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Returns the result of applying <code>f</code> to each character in <code>ts</code>, concatenating the intermediate text values.</p>
+<pre><code>motoko include=import
+// Replace all occurrences of '?' with &quot;!!&quot;
+let result = Text.translate(&quot;Motoko?&quot;, func(c) {
+  if (c == '?') &quot;!!&quot;
+  else Text.fromChar(c)
+}); // &quot;Motoko!!&quot;</code></pre></p></div><div class="declaration"><h4 class="type-declaration" id="type.Pattern"><span class="keyword">type </span><span class="type">Pattern</span> = {#char : <span class="type">Char</span>; #text : <a href="#type.Text"><span class="type">Text</span></a>; #predicate : (<span class="type">Char</span> -&gt; <span class="type">Bool</span>)}</h4><p><p>A pattern <code>p</code> describes a sequence of characters. A pattern has one of the following forms:</p>
+<ul><li><code>#char c</code> matches the single character sequence, <code>c</code>.</li><li><code>#text t</code> matches multi-character text sequence <code>t</code>.</li><li><code>#predicate p</code> matches any single character sequence <code>c</code> satisfying predicate <code>p(c)</code>.</li></ul>
+
+<p>A <em>match</em> for <code>p</code> is any sequence of characters matching the pattern <code>p</code>.</p>
+<pre><code>motoko include=import
+let charPattern = #char 'A';
+let textPattern = #text &quot;phrase&quot;;
+let predicatePattern : Text.Pattern = #predicate (func(c) { c == 'A' or c == 'B' }); // matches &quot;A&quot; or &quot;B&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="split"><code><span class="keyword">public func </span><span class="fnname">split</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <a href="Iter.html#type.Iter"><span class="type">Iter.Iter</span></a>&lt;<a href="#type.Text"><span class="type">Text</span></a>&gt;</code></h4><p><p>Splits the input <code>Text</code> with the specified <code>Pattern</code>.</p>
+<p>Two fields are separated by exactly one match.</p>
+<pre><code>motoko include=import
+let words = Text.split(&quot;This is a sentence.&quot;, #char ' ');
+Text.join(&quot;|&quot;, words) // &quot;This|is|a|sentence.&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="tokens"><code><span class="keyword">public func </span><span class="fnname">tokens</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <a href="Iter.html#type.Iter"><span class="type">Iter.Iter</span></a>&lt;<a href="#type.Text"><span class="type">Text</span></a>&gt;</code></h4><p><p>Returns a sequence of tokens from the input <code>Text</code> delimited by the specified <code>Pattern</code>, derived from start to end.
+A &quot;token&quot; is a non-empty maximal subsequence of <code>t</code> not containing a match for pattern <code>p</code>.
+Two tokens may be separated by one or more matches of <code>p</code>.</p>
+<pre><code>motoko include=import
+let tokens = Text.tokens(&quot;this needs\n an   example&quot;, #predicate (func(c) { c == ' ' or c == '\n' }));
+Text.join(&quot;|&quot;, tokens) // &quot;this|needs|an|example&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="contains"><code><span class="keyword">public func </span><span class="fnname">contains</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>true</code> if the input <code>Text</code> contains a match for the specified <code>Pattern</code>.</p>
+<pre><code>motoko include=import
+Text.contains(&quot;Motoko&quot;, #text &quot;oto&quot;) // true</code></pre></p></div><div class="declaration"><h4 class="function" id="startsWith"><code><span class="keyword">public func </span><span class="fnname">startsWith</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>true</code> if the input <code>Text</code> starts with a prefix matching the specified <code>Pattern</code>.</p>
+<pre><code>motoko include=import
+Text.startsWith(&quot;Motoko&quot;, #text &quot;Mo&quot;) // true</code></pre></p></div><div class="declaration"><h4 class="function" id="endsWith"><code><span class="keyword">public func </span><span class="fnname">endsWith</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <span class="type">Bool</span></code></h4><p><p>Returns <code>true</code> if the input <code>Text</code> ends with a suffix matching the specified <code>Pattern</code>.</p>
+<pre><code>motoko include=import
+Text.endsWith(&quot;Motoko&quot;, #char 'o') // true</code></pre></p></div><div class="declaration"><h4 class="function" id="replace"><code><span class="keyword">public func </span><span class="fnname">replace</span>(<br/>  <span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <br/>  <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>, <br/>  <span class="parameter">r</span> : <a href="#type.Text"><span class="type">Text</span></a><br/>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Returns the input text <code>t</code> with all matches of pattern <code>p</code> replaced by text <code>r</code>.</p>
+<pre><code>motoko include=import
+let result = Text.replace(&quot;abcabc&quot;, #char 'a', &quot;A&quot;); // &quot;AbcAbc&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="stripStart"><code><span class="keyword">public func </span><span class="fnname">stripStart</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : ?<a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Strips one occurrence of the given <code>Pattern</code> from the beginning of the input <code>Text</code>.
+If you want to remove multiple instances of the pattern, use <code>Text.trimStart()</code> instead.</p>
+<pre><code>motoko include=import
+// Try to strip a nonexistent character
+let none = Text.stripStart(&quot;abc&quot;, #char '-'); // null
+// Strip just one '-'
+let one = Text.stripStart(&quot;--abc&quot;, #char '-'); // ?&quot;-abc&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="stripEnd"><code><span class="keyword">public func </span><span class="fnname">stripEnd</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : ?<a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Strips one occurrence of the given <code>Pattern</code> from the end of the input <code>Text</code>.
+If you want to remove multiple instances of the pattern, use <code>Text.trimEnd()</code> instead.</p>
+<pre><code>motoko include=import
+// Try to strip a nonexistent character
+let none = Text.stripEnd(&quot;xyz&quot;, #char '-'); // null
+// Strip just one '-'
+let one = Text.stripEnd(&quot;xyz--&quot;, #char '-'); // ?&quot;xyz-&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="trimStart"><code><span class="keyword">public func </span><span class="fnname">trimStart</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Trims the given <code>Pattern</code> from the start of the input <code>Text</code>.
+If you only want to remove a single instance of the pattern, use <code>Text.stripStart()</code> instead.</p>
+<pre><code>motoko include=import
+let trimmed = Text.trimStart(&quot;---abc&quot;, #char '-'); // &quot;abc&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="trimEnd"><code><span class="keyword">public func </span><span class="fnname">trimEnd</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Trims the given <code>Pattern</code> from the end of the input <code>Text</code>.
+If you only want to remove a single instance of the pattern, use <code>Text.stripEnd()</code> instead.</p>
+<pre><code>motoko include=import
+let trimmed = Text.trimEnd(&quot;xyz---&quot;, #char '-'); // &quot;xyz&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="trim"><code><span class="keyword">public func </span><span class="fnname">trim</span>(<span class="parameter">t</span> : <a href="#type.Text"><span class="type">Text</span></a>, <span class="parameter">p</span> : <a href="#type.Pattern"><span class="type">Pattern</span></a>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Trims the given <code>Pattern</code> from both the start and end of the input <code>Text</code>.</p>
+<pre><code>motoko include=import
+let trimmed = Text.trim(&quot;---abcxyz---&quot;, #char '-'); // &quot;abcxyz&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="compareWith"><code><span class="keyword">public func </span><span class="fnname">compareWith</span>(<br/>  <span class="parameter">t1</span> : <a href="#type.Text"><span class="type">Text</span></a>, <br/>  <span class="parameter">t2</span> : <a href="#type.Text"><span class="type">Text</span></a>, <br/>  <span class="parameter">cmp</span> : (<span class="type">Char</span>, <span class="type">Char</span>) -&gt; {#less; #equal; #greater}<br/>) : {#less; #equal; #greater}</code></h4><p><p>Compares <code>t1</code> and <code>t2</code> using the provided character-wise comparison function.</p>
+<pre><code>motoko include=import
+import Char &quot;mo:base/Char&quot;;
+
+Text.compareWith(&quot;abc&quot;, &quot;ABC&quot;, func(c1, c2) { Char.compare(c1, c2) }) // #greater</code></pre></p></div><div class="declaration"><h4 class="function" id="encodeUtf8"><code><span class="keyword">public func </span><span class="fnname">encodeUtf8</span>(<span class="parameter">_</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <span class="type">Blob</span></code></h4><p><p>Returns a UTF-8 encoded <code>Blob</code> from the given <code>Text</code>.</p>
+<pre><code>motoko include=import
+let blob = Text.encodeUtf8(&quot;Hello&quot;);</code></pre></p></div><div class="declaration"><h4 class="function" id="decodeUtf8"><code><span class="keyword">public func </span><span class="fnname">decodeUtf8</span>(<span class="parameter">_</span> : <span class="type">Blob</span>) : ?<a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Tries to decode the given <code>Blob</code> as UTF-8.
+Returns <code>null</code> if the blob is not valid UTF-8.</p>
+<pre><code>motoko include=import
+let text = Text.decodeUtf8(&quot;\48\65\6C\6C\6F&quot;); // ?&quot;Hello&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="toLowercase"><code><span class="keyword">public func </span><span class="fnname">toLowercase</span>(<span class="parameter">_</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Returns the text argument in lowercase.</p>
+<p>:::warning Compliance
+Unicode compliant only when compiled, not interpreted.
+:::</p>
+<pre><code>motoko include=import
+let text = Text.toLowercase(&quot;Good Day&quot;); // ?&quot;good day&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="toUppercase"><code><span class="keyword">public func </span><span class="fnname">toUppercase</span>(<span class="parameter">_</span> : <a href="#type.Text"><span class="type">Text</span></a>) : <a href="#type.Text"><span class="type">Text</span></a></code></h4><p><p>Returns the text argument in uppercase. Unicode compliant.
+:::warning Compliance
+Unicode compliant only when compiled, not interpreted.
+:::</p>
+<pre><code>motoko include=import
+let text = Text.toUppercase(&quot;Good Day&quot;); // ?&quot;GOOD DAY&quot;</code></pre></p></div></div></body></html>

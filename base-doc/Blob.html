@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Blob">Blob</a></li></li><li><li><a href="#fromArray">fromArray</a></li></li><li><li><a href="#fromArrayMut">fromArrayMut</a></li></li><li><li><a href="#toArray">toArray</a></li></li><li><li><a href="#toArrayMut">toArrayMut</a></li></li><li><li><a href="#hash">hash</a></li></li><li><li><a href="#compare">compare</a></li></li><li><li><a href="#equal">equal</a></li></li><li><li><a href="#notEqual">notEqual</a></li></li><li><li><a href="#less">less</a></li></li><li><li><a href="#lessOrEqual">lessOrEqual</a></li></li><li><li><a href="#greater">greater</a></li></li><li><li><a href="#greaterOrEqual">greaterOrEqual</a></li></li></ul></nav><div class="documentation"><h1>Blob</h1><p><code>Blob</code> is an immutable, iterable sequence of bytes. Unlike <code>[Nat8]</code>, which is less compact (using 4 bytes per logical byte), <code>Blob</code> provides a more efficient representation.</p>
+<p>Blobs are not indexable and can be empty. To manipulate a <code>Blob</code>, convert it to <code>[var Nat8]</code> or <code>Buffer&lt;Nat8&gt;</code>, perform your changes, then convert it back.</p>
+<p>Import from the base library to use this module.</p>
+<pre><code>motoko name=import
+import Blob &quot;mo:base/Blob&quot;;</code></pre>
+
+<p>:::note Additional features</p>
+<p>Some built-in features are not listed in this module:</p>
+<ul><li>You can create a <code>Blob</code> literal from a <code>Text</code> literal, provided the context expects an expression of type <code>Blob</code>.</li><li><code>b.size() : Nat</code> returns the number of bytes in the blob <code>b</code>.</li><li><code>b.vals() : Iter.Iter&lt;Nat8&gt;</code> returns an iterator to enumerate the bytes of the blob <code>b</code>.
+:::</li></ul>
+
+<p>For example:</p>
+<pre><code>motoko include=import
+import Debug &quot;mo:base/Debug&quot;;
+import Nat8 &quot;mo:base/Nat8&quot;;
+
+let blob = &quot;\00\00\00\ff&quot; : Blob; // blob literals, where each byte is delimited by a back-slash and represented in hex
+let blob2 = &quot;charsもあり&quot; : Blob; // you can also use characters in the literals
+let numBytes = blob.size(); // =&gt; 4 (returns the number of bytes in the Blob)
+for (byte : Nat8 in blob.vals()) { // iterator over the Blob
+ Debug.print(Nat8.toText(byte))
+}</code></pre><p>:::note Operator limitation</p>
+<p>Comparison functions (<code>equal</code>, <code>notEqual</code>, <code>less</code>, <code>lessOrEqual</code>, <code>greater</code>, <code>greaterOrEqual</code>) are defined in this library to allow their use as function values in higher-order functions.
+Operators like <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and <code>&gt;=</code> cannot currently be passed as function values.
+:::</p>
+<div class="declaration"><h4 class="type-declaration" id="type.Blob"><span class="keyword">type </span><span class="type">Blob</span> = <span class="type">Prim.Types.Blob</span></h4><p></p></div><div class="declaration"><h4 class="function" id="fromArray"><code><span class="keyword">public func </span><span class="fnname">fromArray</span>(<span class="parameter">bytes</span> : [<span class="type">Nat8</span>]) : <a href="#type.Blob"><span class="type">Blob</span></a></code></h4><p><p>Creates a <code>Blob</code> from an array of bytes (<code>[Nat8]</code>) by copying each element.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let bytes : [Nat8] = [0, 255, 0];
+let blob = Blob.fromArray(bytes); // =&gt; &quot;\00\FF\00&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="fromArrayMut"><code><span class="keyword">public func </span><span class="fnname">fromArrayMut</span>(<span class="parameter">bytes</span> : [<span class="keyword">var </span><span class="type">Nat8</span>]) : <a href="#type.Blob"><span class="type">Blob</span></a></code></h4><p><p>Creates a <code>Blob</code> from a mutable array of bytes (<code>[var Nat8]</code>) by copying each element.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let bytes : [var Nat8] = [var 0, 255, 0];
+let blob = Blob.fromArrayMut(bytes); // =&gt; &quot;\00\FF\00&quot;</code></pre></p></div><div class="declaration"><h4 class="function" id="toArray"><code><span class="keyword">public func </span><span class="fnname">toArray</span>(<span class="parameter">blob</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : [<span class="type">Nat8</span>]</code></h4><p><p>Converts a <code>Blob</code> to an array of bytes (<code>[Nat8]</code>) by copying each element.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob = &quot;\00\FF\00&quot; : Blob;
+let bytes = Blob.toArray(blob); // =&gt; [0, 255, 0]</code></pre></p></div><div class="declaration"><h4 class="function" id="toArrayMut"><code><span class="keyword">public func </span><span class="fnname">toArrayMut</span>(<span class="parameter">blob</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : [<span class="keyword">var </span><span class="type">Nat8</span>]</code></h4><p><p>Converts a <code>Blob</code> to a mutable array of bytes (<code>[var Nat8]</code>) by copying each element.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob = &quot;\00\FF\00&quot; : Blob;
+let bytes = Blob.toArrayMut(blob); // =&gt; [var 0, 255, 0]</code></pre></p></div><div class="declaration"><h4 class="function" id="hash"><code><span class="keyword">public func </span><span class="fnname">hash</span>(<span class="parameter">blob</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : <span class="type">Nat32</span></code></h4><p><p>Returns the (non-cryptographic) hash of <code>blob</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob = &quot;\00\FF\00&quot; : Blob;
+Blob.hash(blob) // =&gt; 1_818_567_776</code></pre></p></div><div class="declaration"><h4 class="function" id="compare"><code><span class="keyword">public func </span><span class="fnname">compare</span>(<span class="parameter">b1</span> : <a href="#type.Blob"><span class="type">Blob</span></a>, <span class="parameter">b2</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : {#less; #equal; #greater}</code></h4><p><p>General purpose comparison function for <code>Blob</code> by comparing the value of
+the bytes. Returns the <code>Order</code> (either <code>#less</code>, <code>#equal</code>, or <code>#greater</code>)
+by comparing <code>blob1</code> with <code>blob2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob1 = &quot;\00\00\00&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+Blob.compare(blob1, blob2) // =&gt; #less</code></pre></p></div><div class="declaration"><h4 class="function" id="equal"><code><span class="keyword">public func </span><span class="fnname">equal</span>(<span class="parameter">blob1</span> : <a href="#type.Blob"><span class="type">Blob</span></a>, <span class="parameter">blob2</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : <span class="type">Bool</span></code></h4><p><p>Equality function for <code>Blob</code> types.
+This is equivalent to <code>blob1 == blob2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob1 = &quot;\00\FF\00&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+ignore Blob.equal(blob1, blob2);
+blob1 == blob2 // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="notEqual"><code><span class="keyword">public func </span><span class="fnname">notEqual</span>(<span class="parameter">blob1</span> : <a href="#type.Blob"><span class="type">Blob</span></a>, <span class="parameter">blob2</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : <span class="type">Bool</span></code></h4><p><p>Inequality function for <code>Blob</code> types.
+This is equivalent to <code>blob1 != blob2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob1 = &quot;\00\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+ignore Blob.notEqual(blob1, blob2);
+blob1 != blob2 // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="less"><code><span class="keyword">public func </span><span class="fnname">less</span>(<span class="parameter">blob1</span> : <a href="#type.Blob"><span class="type">Blob</span></a>, <span class="parameter">blob2</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Less than&quot; function for <code>Blob</code> types.
+This is equivalent to <code>blob1 &lt; blob2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob1 = &quot;\00\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+ignore Blob.less(blob1, blob2);
+blob1 &lt; blob2 // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="lessOrEqual"><code><span class="keyword">public func </span><span class="fnname">lessOrEqual</span>(<span class="parameter">blob1</span> : <a href="#type.Blob"><span class="type">Blob</span></a>, <span class="parameter">blob2</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Less than or equal to&quot; function for <code>Blob</code> types.
+This is equivalent to <code>blob1 &lt;= blob2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob1 = &quot;\00\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\FF\00&quot; : Blob;
+ignore Blob.lessOrEqual(blob1, blob2);
+blob1 &lt;= blob2 // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="greater"><code><span class="keyword">public func </span><span class="fnname">greater</span>(<span class="parameter">blob1</span> : <a href="#type.Blob"><span class="type">Blob</span></a>, <span class="parameter">blob2</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Greater than&quot; function for <code>Blob</code> types.
+This is equivalent to <code>blob1 &gt; blob2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob1 = &quot;\BB\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\00\00&quot; : Blob;
+ignore Blob.greater(blob1, blob2);
+blob1 &gt; blob2 // =&gt; true</code></pre></p></div><div class="declaration"><h4 class="function" id="greaterOrEqual"><code><span class="keyword">public func </span><span class="fnname">greaterOrEqual</span>(<span class="parameter">blob1</span> : <a href="#type.Blob"><span class="type">Blob</span></a>, <span class="parameter">blob2</span> : <a href="#type.Blob"><span class="type">Blob</span></a>) : <span class="type">Bool</span></code></h4><p><p>&quot;Greater than or equal to&quot; function for <code>Blob</code> types.
+This is equivalent to <code>blob1 &gt;= blob2</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=import
+let blob1 = &quot;\BB\AA\AA&quot; : Blob;
+let blob2 = &quot;\00\00\00&quot; : Blob;
+ignore Blob.greaterOrEqual(blob1, blob2);
+blob1 &gt;= blob2 // =&gt; true</code></pre></p></div></div></body></html>

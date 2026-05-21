@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#print">print</a></li></li><li><li><a href="#trap">trap</a></li></li></ul></nav><div class="documentation"><h1>Debug</h1><p>Utility functions for debugging.</p>
+<p>Import from the base library to use this module.</p>
+<pre><code>motoko name=import
+import Debug &quot;mo:base/Debug&quot;;</code></pre><div class="declaration"><h4 class="function" id="print"><code><span class="keyword">public func </span><span class="fnname">print</span>(<span class="parameter">text</span> : <span class="type">Text</span>)</code></h4><p><p>Prints <code>text</code> to output stream.</p>
+<p>:::note
+When running on ICP, all output is written to the <a href="https://internetcomputer.org/docs/current/developer-docs/smart-contracts/maintain/logs">canister log</a> with the exclusion of any output
+produced during the execution of non-replicated queries and composite queries.
+In other environments, like the interpreter and stand-alone Wasm engines, the output is written to standard out.
+:::</p>
+<pre><code>motoko include=import
+Debug.print &quot;Hello New World!&quot;;
+Debug.print(debug_show(4)) // Often used with `debug_show` to convert values to Text</code></pre></p></div><div class="declaration"><h4 class="function" id="trap"><code><span class="keyword">public func </span><span class="fnname">trap</span>(<span class="parameter">errorMessage</span> : <span class="type">Text</span>) : <span class="type">None</span></code></h4><p><p><code>trap(t)</code> traps execution with a user-provided diagnostic message.</p>
+<p>The caller of a future whose execution called <code>trap(t)</code> will
+observe the trap as an <code>Error</code> value, thrown at <code>await</code>, with code
+<code>#canister_error</code> and message <code>m</code>. Here <code>m</code> is a more descriptive <code>Text</code>
+message derived from the provided <code>t</code>. See example for more details.</p>
+<p>:::note
+Other execution environments that cannot handle traps may only
+propagate the trap and terminate execution, with or without some
+descriptive message.
+:::</p>
+<pre class="motoko"><code class="motoko">import Debug &quot;mo:base/Debug&quot;;
+import Error &quot;mo:base/Error&quot;;
+
+actor {
+  func fail() : async () {
+    Debug.trap(&quot;user provided error message&quot;);
+  };
+
+  public func foo() : async () {
+    try {
+      await fail();
+    } catch e {
+      let code = Error.code(e); // evaluates to #canister_error
+      let message = Error.message(e); // contains user provided error message
+    }
+  };
+}</code></pre></p></div></div></body></html>

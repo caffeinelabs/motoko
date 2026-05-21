@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Deque">Deque</a></li></li><li><li><a href="#empty">empty</a></li></li><li><li><a href="#isEmpty">isEmpty</a></li></li><li><li><a href="#pushFront">pushFront</a></li></li><li><li><a href="#peekFront">peekFront</a></li></li><li><li><a href="#popFront">popFront</a></li></li><li><li><a href="#pushBack">pushBack</a></li></li><li><li><a href="#peekBack">peekBack</a></li></li><li><li><a href="#popBack">popBack</a></li></li></ul></nav><div class="documentation"><h1>Deque</h1><p>Double-ended queue (deque) of a generic element type <code>T</code>.</p>
+<p>The interface of deques is purely functional, not imperative, and deques are immutable values.
+In particular, deque operations such as push and pop do not update their input deque but instead return the value of the modified deque, alongside any other data.
+The input deque is left unchanged.</p>
+<p>Examples of use-cases:
+Queue (FIFO) by using <code>pushBack()</code> and <code>popFront()</code>.
+Stack (LIFO) by using <code>pushFront()</code> and <code>popFront()</code>.</p>
+<p>A deque is internally implemented as two lists, a head access list and a (reversed) tail access list, that are dynamically size-balanced by splitting.</p>
+<p>Construction: Create a new deque with the <code>empty&lt;T&gt;()</code> function.</p>
+<p>:::note Performance characteristics</p>
+<p>Push and pop operations have <code>O(1)</code> amortized cost and <code>O(n)</code> worst-case cost per call.
+Space usage follows the same pattern.
+<code>n</code> denotes the number of elements stored in the deque.
+:::</p>
+<div class="declaration"><h4 class="type-declaration" id="type.Deque"><span class="keyword">type </span><span class="type">Deque</span>&lt;<span class="type">T</span>&gt; = (<a href="#type.List"><span class="type">List</span></a>&lt;<span class="type">T</span>&gt;, <a href="#type.List"><span class="type">List</span></a>&lt;<span class="type">T</span>&gt;)</h4><p><p>Double-ended queue (deque) data type.</p>
+</p></div><div class="declaration"><h4 class="function" id="empty"><code><span class="keyword">public func </span><span class="fnname">empty</span>&lt;<span class="type">T</span>&gt;() : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Create a new empty deque.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+
+Deque.empty&lt;Nat&gt;()</code></pre>
+
+<p>| Runtime | Space |
+|---------|--------|
+| <code>O(1)</code>  | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="isEmpty"><code><span class="keyword">public func </span><span class="fnname">isEmpty</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">deque</span> : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;) : <span class="type">Bool</span></code></h4><p><p>Determine whether a deque is empty.
+Returns true if <code>deque</code> is empty, otherwise <code>false</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+
+let deque = Deque.empty&lt;Nat&gt;();
+Deque.isEmpty(deque) // =&gt; true</code></pre>
+
+<p>| Runtime | Space |
+|---------|--------|
+| <code>O(1)</code>  | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="pushFront"><code><span class="keyword">public func </span><span class="fnname">pushFront</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">deque</span> : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">element</span> : <span class="type">T</span>) : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Insert a new element on the front end of a deque.
+Returns the new deque with <code>element</code> in the front followed by the elements of <code>deque</code>.</p>
+<p>This may involve dynamic rebalancing of the two, internally used lists.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+
+Deque.pushFront(Deque.pushFront(Deque.empty&lt;Nat&gt;(), 2), 1) // deque with elements [1, 2]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(n)</code>           | <code>O(1)</code>               | <code>O(n)</code>         | <code>O(1)</code>              |</p>
+<p><code>n</code> denotes the number of elements stored in the deque.</p>
+</p></div><div class="declaration"><h4 class="function" id="peekFront"><code><span class="keyword">public func </span><span class="fnname">peekFront</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">deque</span> : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;) : ?<span class="type">T</span></code></h4><p><p>Inspect the optional element on the front end of a deque.
+Returns <code>null</code> if <code>deque</code> is empty. Otherwise, the front element of <code>deque</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+
+let deque = Deque.pushFront(Deque.pushFront(Deque.empty&lt;Nat&gt;(), 2), 1);
+Deque.peekFront(deque) // =&gt; ?1</code></pre>
+
+<p>| Runtime | Space |
+|---------|--------|
+| <code>O(1)</code>  | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="popFront"><code><span class="keyword">public func </span><span class="fnname">popFront</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">deque</span> : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;) : ?(<span class="type">T</span>, <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;)</code></h4><p><p>Remove the element on the front end of a deque.
+Returns <code>null</code> if <code>deque</code> is empty. Otherwise, it returns a pair of
+the first element and a new deque that contains all the remaining elements of <code>deque</code>.</p>
+<p>This may involve dynamic rebalancing of the two, internally used lists.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+let initial = Deque.pushFront(Deque.pushFront(Deque.empty&lt;Nat&gt;(), 2), 1);
+// initial deque with elements [1, 2]
+let reduced = Deque.popFront(initial);
+switch reduced {
+  case null {
+    Debug.trap &quot;Empty queue impossible&quot;
+  };
+  case (?result) {
+    let removedElement = result.0; // 1
+    let reducedDeque = result.1; // deque with element [2].
+  }
+}</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(n)</code>           | <code>O(1)</code>               | <code>O(n)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="pushBack"><code><span class="keyword">public func </span><span class="fnname">pushBack</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">deque</span> : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;, <span class="parameter">element</span> : <span class="type">T</span>) : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;</code></h4><p><p>Insert a new element on the back end of a deque.
+Returns the new deque with all the elements of <code>deque</code>, followed by <code>element</code> on the back.</p>
+<p>This may involve dynamic rebalancing of the two, internally used lists.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+
+Deque.pushBack(Deque.pushBack(Deque.empty&lt;Nat&gt;(), 1), 2) // deque with elements [1, 2]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(n)</code>           | <code>O(1)</code>               | <code>O(n)</code>         | <code>O(1)</code>              |</p>
+<p><code>n</code> denotes the number of elements stored in the deque.</p>
+</p></div><div class="declaration"><h4 class="function" id="peekBack"><code><span class="keyword">public func </span><span class="fnname">peekBack</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">deque</span> : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;) : ?<span class="type">T</span></code></h4><p><p>Inspect the optional element on the back end of a deque.
+Returns <code>null</code> if <code>deque</code> is empty. Otherwise, the back element of <code>deque</code>.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+
+let deque = Deque.pushBack(Deque.pushBack(Deque.empty&lt;Nat&gt;(), 1), 2);
+Deque.peekBack(deque) // =&gt; ?2</code></pre>
+
+<p>| Runtime | Space |
+|---------|--------|
+| <code>O(1)</code>  | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="popBack"><code><span class="keyword">public func </span><span class="fnname">popBack</span>&lt;<span class="type">T</span>&gt;(<span class="parameter">deque</span> : <a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;) : ?(<a href="#type.Deque"><span class="type">Deque</span></a>&lt;<span class="type">T</span>&gt;, <span class="type">T</span>)</code></h4><p><p>Remove the element on the back end of a deque.
+Returns <code>null</code> if <code>deque</code> is empty. Otherwise, it returns a pair of
+a new deque that contains the remaining elements of <code>deque</code>
+and, as the second pair item, the removed back element.</p>
+<p>This may involve dynamic rebalancing of the two, internally used lists.</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Deque &quot;mo:base/Deque&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+let initial = Deque.pushBack(Deque.pushBack(Deque.empty&lt;Nat&gt;(), 1), 2);
+// initial deque with elements [1, 2]
+let reduced = Deque.popBack(initial);
+switch reduced {
+  case null {
+    Debug.trap &quot;Empty queue impossible&quot;
+  };
+  case (?result) {
+    let reducedDeque = result.0; // deque with element [1].
+    let removedElement = result.1; // 2
+  }
+}</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(n)</code>           | <code>O(1)</code>               | <code>O(n)</code>         | <code>O(1)</code>              |</p>
+</p></div></div></body></html>

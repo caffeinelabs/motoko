@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Buffer">Buffer</a></li></li><li><li><a href="#isEmpty">isEmpty</a></li></li><li><li><a href="#contains">contains</a></li></li><li><li><a href="#clone">clone</a></li></li><li><li><a href="#max">max</a></li></li><li><li><a href="#min">min</a></li></li><li><li><a href="#equal">equal</a></li></li><li><li><a href="#compare">compare</a></li></li><li><li><a href="#toText">toText</a></li></li><li><li><a href="#hash">hash</a></li></li><li><li><a href="#indexOf">indexOf</a></li></li><li><li><a href="#lastIndexOf">lastIndexOf</a></li></li><li><li><a href="#indexOfBuffer">indexOfBuffer</a></li></li><li><li><a href="#binarySearch">binarySearch</a></li></li><li><li><a href="#subBuffer">subBuffer</a></li></li><li><li><a href="#isSubBufferOf">isSubBufferOf</a></li></li><li><li><a href="#isStrictSubBufferOf">isStrictSubBufferOf</a></li></li><li><li><a href="#prefix">prefix</a></li></li><li><li><a href="#isPrefixOf">isPrefixOf</a></li></li><li><li><a href="#isStrictPrefixOf">isStrictPrefixOf</a></li></li><li><li><a href="#suffix">suffix</a></li></li><li><li><a href="#isSuffixOf">isSuffixOf</a></li></li><li><li><a href="#isStrictSuffixOf">isStrictSuffixOf</a></li></li><li><li><a href="#forAll">forAll</a></li></li><li><li><a href="#forSome">forSome</a></li></li><li><li><a href="#forNone">forNone</a></li></li><li><li><a href="#toArray">toArray</a></li></li><li><li><a href="#toVarArray">toVarArray</a></li></li><li><li><a href="#fromArray">fromArray</a></li></li><li><li><a href="#fromVarArray">fromVarArray</a></li></li><li><li><a href="#fromIter">fromIter</a></li></li><li><li><a href="#trimToSize">trimToSize</a></li></li><li><li><a href="#map">map</a></li></li><li><li><a href="#iterate">iterate</a></li></li><li><li><a href="#mapEntries">mapEntries</a></li></li><li><li><a href="#mapFilter">mapFilter</a></li></li><li><li><a href="#mapResult">mapResult</a></li></li><li><li><a href="#chain">chain</a></li></li><li><li><a href="#foldLeft">foldLeft</a></li></li><li><li><a href="#foldRight">foldRight</a></li></li><li><li><a href="#first">first</a></li></li><li><li><a href="#last">last</a></li></li><li><li><a href="#make">make</a></li></li><li><li><a href="#reverse">reverse</a></li></li><li><li><a href="#merge">merge</a></li></li><li><li><a href="#removeDuplicates">removeDuplicates</a></li></li><li><li><a href="#partition">partition</a></li></li><li><li><a href="#split">split</a></li></li><li><li><a href="#chunk">chunk</a></li></li><li><li><a href="#groupBy">groupBy</a></li></li><li><li><a href="#flatten">flatten</a></li></li><li><li><a href="#zip">zip</a></li></li><li><li><a href="#zipWith">zipWith</a></li></li><li><li><a href="#takeWhile">takeWhile</a></li></li><li><li><a href="#dropWhile">dropWhile</a></li></li></ul></nav><div class="documentation"><h1>Buffer</h1><p>Class <code>Buffer&lt;X&gt;</code> provides a mutable list of elements of type <code>X</code>.
+It wraps a resizable underlying array and is comparable to <code>ArrayList</code> or <code>Vector</code> in other languages.</p>
+<p>You can convert a buffer to a fixed-size array using <code>Buffer.toArray</code>, which is recommended for storing data in stable variables.</p>
+<p>Like arrays, buffer elements are indexed from <code>0</code> to <code>size - 1</code>.</p>
+<p>:::note Assumptions</p>
+<p>Runtime and space complexity assumes that <code>combine</code>, <code>equal</code>, and other functions execute in <code>O(1)</code> time and space.</p>
+<p>:::</p>
+<p>:::note Size vs capacity</p>
+<ul><li><code>size</code>: Number of elements in the buffer.</li><li><code>capacity</code>: Length of the underlying array.</li></ul>
+
+<p>The invariant <code>capacity &gt;= size</code> always holds.
+:::</p>
+<p>:::warning Performance caveat</p>
+<p>Operations like <code>add</code> are amortized <code>O(1)</code> but can take <code>O(n)</code> in the worst case.
+For large buffers, these worst cases may exceed the cycle limit per message.
+Use with care when growing buffers dynamically.
+:::</p>
+<p>:::info Constructor behavior</p>
+<p>The <code>initCapacity</code> argument sets the initial capacity of the underlying array.</p>
+<ul><li>When the capacity is exceeded, the array grows by a factor of 1.5.</li><li>When the buffer size drops below 1/4 of the capacity, it shrinks by a factor of 2.
+:::</li></ul>
+
+<p>Example:</p>
+<pre><code>motoko name=initialize
+import Buffer &quot;mo:base/Buffer&quot;;
+
+let buffer = Buffer.Buffer&lt;Nat&gt;(3); // Creates a new Buffer</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(initCapacity)</code> | <code>O(initCapacity)</code> |</p>
+<div class="declaration"><h4 class="class-declaration" id="type.Buffer"><span class="keyword">class </span><span class="classname">Buffer</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">initCapacity</span> : <span class="type">Nat</span>)</h4><div class="declaration"><h4 class="function" id="Buffer.size"><code><span class="keyword">public func </span><span class="fnname">size</span>() : <span class="type">Nat</span></code></h4><p><p>Returns the current number of elements in the buffer.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.size() // =&gt; 0</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.add"><code><span class="keyword">public func </span><span class="fnname">add</span>(<span class="parameter">element</span> : <span class="type">X</span>)</code></h4><p><p>Adds a single element to the end of the buffer, doubling
+the size of the array if capacity is exceeded.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(0); // add 0 to buffer
+buffer.add(1);
+buffer.add(2);
+buffer.add(3); // causes underlying array to increase in capacity
+Buffer.toArray(buffer) // =&gt; [0, 1, 2, 3]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(size)</code>           | <code>O(1)</code>               | <code>O(size)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.get"><code><span class="keyword">public func </span><span class="fnname">get</span>(<span class="parameter">index</span> : <span class="type">Nat</span>) : <span class="type">X</span></code></h4><p><p>Returns the element at index <code>index</code>. Traps if  <code>index &gt;= size</code>. Indexing is zero-based.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(10);
+buffer.add(11);
+buffer.get(0); // =&gt; 10</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.getOpt"><code><span class="keyword">public func </span><span class="fnname">getOpt</span>(<span class="parameter">index</span> : <span class="type">Nat</span>) : ?<span class="type">X</span></code></h4><p><p>Returns the element at index <code>index</code> as an option.
+Returns <code>null</code> when <code>index &gt;= size</code>. Indexing is zero-based.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(10);
+buffer.add(11);
+let x = buffer.getOpt(0); // =&gt; ?10
+let y = buffer.getOpt(2); // =&gt; null</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.put"><code><span class="keyword">public func </span><span class="fnname">put</span>(<span class="parameter">index</span> : <span class="type">Nat</span>, <span class="parameter">element</span> : <span class="type">X</span>)</code></h4><p><pre><code>motoko include=initialize
+buffer.add(10);
+buffer.put(0, 20); // overwrites 10 at index 0 with 20
+Buffer.toArray(buffer) // =&gt; [20]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.removeLast"><code><span class="keyword">public func </span><span class="fnname">removeLast</span>() : ?<span class="type">X</span></code></h4><p><p>Removes and returns the last item in the buffer or <code>null</code> if
+the buffer is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(10);
+buffer.add(11);
+buffer.removeLast(); // =&gt; ?11</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(size)</code>           | <code>O(1)</code>               | <code>O(size)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.remove"><code><span class="keyword">public func </span><span class="fnname">remove</span>(<span class="parameter">index</span> : <span class="type">Nat</span>) : <span class="type">X</span></code></h4><p><p>Removes and returns the element at <code>index</code> from the buffer.
+All elements with index &gt; <code>index</code> are shifted one position to the left.
+This may cause a downsizing of the array.</p>
+<p>Traps if index &gt;= size.</p>
+<p>:::warning Inefficient pattern</p>
+<p>Repeated removal of elements using this method is inefficient and may indicate that a different data structure would better suit your use case.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+let x = buffer.remove(1); // evaluates to 11. 11 no longer in list.
+Buffer.toArray(buffer) // =&gt; [10, 12]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(size)</code>           |-               | <code>O(size)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.clear"><code><span class="keyword">public func </span><span class="fnname">clear</span>()</code></h4><p><p>Resets the buffer. Capacity is set to 8.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+buffer.clear(); // buffer is now empty
+Buffer.toArray(buffer) // =&gt; []</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.filterEntries"><code><span class="keyword">public func </span><span class="fnname">filterEntries</span>(<span class="parameter">predicate</span> : (<span class="type">Nat</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span>)</code></h4><p><p>Removes all elements from the buffer for which the predicate returns false.
+The predicate is given both the index of the element and the element itself.
+This may cause a downsizing of the array.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+buffer.filterEntries(func(_, x) = x % 2 == 0); // only keep even elements
+Buffer.toArray(buffer) // =&gt; [10, 12]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(size)</code>           | -               | <code>O(size)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.capacity"><code><span class="keyword">public func </span><span class="fnname">capacity</span>() : <span class="type">Nat</span></code></h4><p><p>Returns the capacity of the buffer (the length of the underlying array).</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+let buffer = Buffer.Buffer&lt;Nat&gt;(2); // underlying array has capacity 2
+buffer.add(10);
+let c1 = buffer.capacity(); // =&gt; 2
+buffer.add(11);
+buffer.add(12); // causes capacity to increase by factor of 1.5
+let c2 = buffer.capacity(); // =&gt; 3</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.reserve"><code><span class="keyword">public func </span><span class="fnname">reserve</span>(<span class="parameter">capacity</span> : <span class="type">Nat</span>)</code></h4><p><p>Changes the capacity to <code>capacity</code>. Traps if <code>capacity</code> &lt; <code>size</code>.</p>
+<pre><code>motoko include=initialize
+buffer.reserve(4);
+buffer.add(10);
+buffer.add(11);
+buffer.capacity(); // =&gt; 4</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(capacity)</code> | <code>O(capacity)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.append"><code><span class="keyword">public func </span><span class="fnname">append</span>(<span class="parameter">buffer2</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;)</code></h4><p><p>Adds all elements in buffer <code>b</code> to this buffer.</p>
+<pre><code>motoko include=initialize
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(10);
+buffer1.add(11);
+buffer2.add(12);
+buffer2.add(13);
+buffer1.append(buffer2); // adds elements from buffer2 to buffer1
+Buffer.toArray(buffer1) // =&gt; [10, 11, 12, 13]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(size1 + size2)</code>           | <code>O(size2)</code>              | <code>O(size1 +size2)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.insert"><code><span class="keyword">public func </span><span class="fnname">insert</span>(<span class="parameter">index</span> : <span class="type">Nat</span>, <span class="parameter">element</span> : <span class="type">X</span>)</code></h4><p><p>Inserts <code>element</code> at <code>index</code>, shifts all elements to the right of
+<code>index</code> over by one index. Traps if <code>index</code> is greater than size.</p>
+<pre><code>motoko include=initialize
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer.add(10);
+buffer.add(11);
+buffer.insert(1, 9);
+Buffer.toArray(buffer) // =&gt; [10, 9, 11]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(size)</code>           | -               | <code>O(size)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.insertBuffer"><code><span class="keyword">public func </span><span class="fnname">insertBuffer</span>(<span class="parameter">index</span> : <span class="type">Nat</span>, <span class="parameter">buffer2</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;)</code></h4><p><p>Inserts <code>buffer2</code> at <code>index</code>, and shifts all elements to the right of
+<code>index</code> over by size2. Traps if <code>index</code> is greater than size.</p>
+<pre><code>motoko include=initialize
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(10);
+buffer1.add(11);
+buffer2.add(12);
+buffer2.add(13);
+buffer1.insertBuffer(1, buffer2);
+Buffer.toArray(buffer1) // =&gt; [10, 12, 13, 11]</code></pre>
+
+<p>| Runtime (worst) | Runtime (amortized) | Space (worst) | Space (amortized) |
+|------------------|----------------------|----------------|---------------------|
+| <code>O(size)</code>           | -             | <code>O(size1 +size2)</code>         | <code>O(1)</code>              |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.sort"><code><span class="keyword">public func </span><span class="fnname">sort</span>(<span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="Order.html#type.Order"><span class="type">Order.Order</span></a>)</code></h4><p><p>Sorts the elements in the buffer according to <code>compare</code>.
+Sort is deterministic, stable, and in-place.</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(11);
+buffer.add(12);
+buffer.add(10);
+buffer.sort(Nat.compare);
+Buffer.toArray(buffer) // =&gt; [10, 11, 12]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.vals"><code><span class="keyword">public func </span><span class="fnname">vals</span>() : { next : () -&gt; ?<span class="type">X</span> }</code></h4><p><p>Returns an Iterator (<code>Iter</code>) over the elements of this buffer.
+Iterator provides a single method <code>next()</code>, which returns
+elements in order, or <code>null</code> when out of elements to iterate over.</p>
+<pre><code>motoko include=initialize
+buffer.add(10);
+buffer.add(11);
+buffer.add(12);
+
+var sum = 0;
+for (element in buffer.vals()) {
+ sum += element;
+};
+sum // =&gt; 33</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.clone"><code><span class="keyword">public func </span><span class="fnname">clone</span>() : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>@deprecated Use the static library function instead of this instance method.</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.toArray"><code><span class="keyword">public func </span><span class="fnname">toArray</span>() : [<span class="type">X</span>]</code></h4><p><p>@deprecated Use the static library function instead of this instance method.</p>
+</p></div><div class="declaration"><h4 class="function" id="Buffer.toVarArray"><code><span class="keyword">public func </span><span class="fnname">toVarArray</span>() : [<span class="keyword">var </span><span class="type">X</span>]</code></h4><p><p>@deprecated Use the static library function instead of this instance method.</p>
+</p></div><p></p></div><div class="declaration"><h4 class="function" id="isEmpty"><code><span class="keyword">public func </span><span class="fnname">isEmpty</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;) : <span class="type">Bool</span></code></h4><p><p>Returns true if and only if the buffer is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(2);
+buffer.add(0);
+buffer.add(3);
+Buffer.isEmpty(buffer); // =&gt; false</code></pre>
+
+<pre><code>motoko include=initialize
+Buffer.isEmpty(buffer); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="contains"><code><span class="keyword">public func </span><span class="fnname">contains</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">element</span> : <span class="type">X</span>, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Returns true if <code>buffer</code> contains <code>element</code> with respect to equality
+defined by <code>equal</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(2);
+buffer.add(0);
+buffer.add(3);
+Buffer.contains&lt;Nat&gt;(buffer, 2, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="clone"><code><span class="keyword">public func </span><span class="fnname">clone</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns a copy of <code>buffer</code>, with the same capacity.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(1);
+
+let clone = Buffer.clone(buffer);
+Buffer.toArray(clone); // =&gt; [1]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="max"><code><span class="keyword">public func </span><span class="fnname">max</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="#type.Order"><span class="type">Order</span></a>) : ?<span class="type">X</span></code></h4><p><p>Finds the greatest element in <code>buffer</code> defined by <code>compare</code>.
+Returns <code>null</code> if <code>buffer</code> is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+
+Buffer.max(buffer, Nat.compare); // =&gt; ?2</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="min"><code><span class="keyword">public func </span><span class="fnname">min</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="#type.Order"><span class="type">Order</span></a>) : ?<span class="type">X</span></code></h4><p><p>Finds the least element in <code>buffer</code> defined by <code>compare</code>.
+Returns <code>null</code> if <code>buffer</code> is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+
+Buffer.min(buffer, Nat.compare); // =&gt; ?1</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="equal"><code><span class="keyword">public func </span><span class="fnname">equal</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">buffer1</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer2</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Defines equality for two buffers, using <code>equal</code> to recursively compare elements in the
+buffers. Returns true if the two buffers are of the same size, and <code>equal</code>
+evaluates to true for every pair of elements in the two buffers of the same
+index.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(5);
+buffer2.add(1);
+buffer2.add(2);
+
+Buffer.equal(buffer1, buffer2, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="compare"><code><span class="keyword">public func </span><span class="fnname">compare</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">buffer1</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer2</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="Order.html#type.Order"><span class="type">Order.Order</span></a><br/>) : <a href="Order.html#type.Order"><span class="type">Order.Order</span></a></code></h4><p><p>Defines comparison for two buffers, using <code>compare</code> to recursively compare elements in the
+buffers. Comparison is defined lexicographically.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(3);
+buffer2.add(3);
+buffer2.add(4);
+
+Buffer.compare&lt;Nat&gt;(buffer1, buffer2, Nat.compare); // =&gt; #less</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="toText"><code><span class="keyword">public func </span><span class="fnname">toText</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">toText</span> : <span class="type">X</span> -&gt; <span class="type">Text</span>) : <span class="type">Text</span></code></h4><p><p>Creates a textual representation of <code>buffer</code>, using <code>toText</code> to recursively
+convert the elements into Text.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.toText(buffer, Nat.toText); // =&gt; &quot;[1, 2, 3, 4]&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="hash"><code><span class="keyword">public func </span><span class="fnname">hash</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">hash</span> : <span class="type">X</span> -&gt; <span class="type">Nat32</span>) : <span class="type">Nat32</span></code></h4><p><p>Hashes <code>buffer</code> using <code>hash</code> to hash the underlying elements.
+The deterministic hash function is a function of the elements in the <code>buffer</code>, as well
+as their ordering.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Hash &quot;mo:base/Hash&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(1000);
+
+Buffer.hash&lt;Nat&gt;(buffer, Hash.hash); // =&gt; 2_872_640_342</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="indexOf"><code><span class="keyword">public func </span><span class="fnname">indexOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">element</span> : <span class="type">X</span>, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Finds the first index of <code>element</code> in <code>buffer</code> using equality of elements defined
+by <code>equal</code>. Returns <code>null</code> if <code>element</code> is not found.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.indexOf&lt;Nat&gt;(3, buffer, Nat.equal); // =&gt; ?2</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="lastIndexOf"><code><span class="keyword">public func </span><span class="fnname">lastIndexOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">element</span> : <span class="type">X</span>, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Finds the last index of <code>element</code> in <code>buffer</code> using equality of elements defined
+by <code>equal</code>. Returns <code>null</code> if <code>element</code> is not found.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(2);
+buffer.add(2);
+
+Buffer.lastIndexOf&lt;Nat&gt;(2, buffer, Nat.equal); // =&gt; ?5</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="indexOfBuffer"><code><span class="keyword">public func </span><span class="fnname">indexOfBuffer</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">subBuffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Searches for <code>subBuffer</code> in <code>buffer</code>, and returns the starting index if it is found.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let sub = Buffer.Buffer&lt;Nat&gt;(2);
+sub.add(4);
+sub.add(5);
+sub.add(6);
+
+Buffer.indexOfBuffer&lt;Nat&gt;(sub, buffer, Nat.equal); // =&gt; ?3</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size of buffer + size of subBuffer)</code> | <code>O(size of subBuffer)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="binarySearch"><code><span class="keyword">public func </span><span class="fnname">binarySearch</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">element</span> : <span class="type">X</span>, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="Order.html#type.Order"><span class="type">Order.Order</span></a><br/>) : ?<span class="type">Nat</span></code></h4><p><p>Similar to <code>indexOf</code>, but runs in logarithmic time. Assumes that <code>buffer</code> is sorted.
+Behavior is undefined if <code>buffer</code> is not sorted. Uses <code>compare</code> to
+perform the search. Returns an index of <code>element</code> if it is found.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+Buffer.binarySearch&lt;Nat&gt;(5, buffer, Nat.compare); // =&gt; ?2</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(log(size))</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="subBuffer"><code><span class="keyword">public func </span><span class="fnname">subBuffer</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">start</span> : <span class="type">Nat</span>, <br/>  <span class="parameter">length</span> : <span class="type">Nat</span><br/>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns the sub-buffer of <code>buffer</code> starting at index <code>start</code>
+of length <code>length</code>. Traps if <code>start</code> is out of bounds, or <code>start + length</code>
+is greater than the size of <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let sub = Buffer.subBuffer(buffer, 3, 2);
+Buffer.toText(sub, Nat.toText); // =&gt; [4, 5]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(length)</code> | <code>O(length)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="isSubBufferOf"><code><span class="keyword">public func </span><span class="fnname">isSubBufferOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">subBuffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Checks if <code>subBuffer</code> is a sub-Buffer of <code>buffer</code>. Uses <code>equal</code> to
+compare elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let sub = Buffer.Buffer&lt;Nat&gt;(2);
+sub.add(2);
+sub.add(3);
+Buffer.isSubBufferOf(sub, buffer, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size of subBuffer + size of buffer)</code> | <code>O(size of subBuffer)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="isStrictSubBufferOf"><code><span class="keyword">public func </span><span class="fnname">isStrictSubBufferOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">subBuffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Checks if <code>subBuffer</code> is a strict subBuffer of <code>buffer</code>, i.e. <code>subBuffer</code> must be
+strictly contained inside both the first and last indices of <code>buffer</code>.
+Uses <code>equal</code> to compare elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let sub = Buffer.Buffer&lt;Nat&gt;(2);
+sub.add(2);
+sub.add(3);
+Buffer.isStrictSubBufferOf(sub, buffer, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size of subBuffer + size of buffer)</code> | <code>O(size of subBuffer)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="prefix"><code><span class="keyword">public func </span><span class="fnname">prefix</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">length</span> : <span class="type">Nat</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns the prefix of <code>buffer</code> of length <code>length</code>. Traps if <code>length</code>
+is greater than the size of <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let pre = Buffer.prefix(buffer, 3); // =&gt; [1, 2, 3]
+Buffer.toText(pre, Nat.toText);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(length)</code> | <code>O(length)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="isPrefixOf"><code><span class="keyword">public func </span><span class="fnname">isPrefixOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">prefix</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Checks if <code>prefix</code> is a prefix of <code>buffer</code>. Uses <code>equal</code> to
+compare elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let pre = Buffer.Buffer&lt;Nat&gt;(2);
+pre.add(1);
+pre.add(2);
+Buffer.isPrefixOf(pre, buffer, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size of prefix)</code> | <code>O(size of prefix)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="isStrictPrefixOf"><code><span class="keyword">public func </span><span class="fnname">isStrictPrefixOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">prefix</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Checks if <code>prefix</code> is a strict prefix of <code>buffer</code>. Uses <code>equal</code> to
+compare elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let pre = Buffer.Buffer&lt;Nat&gt;(3);
+pre.add(1);
+pre.add(2);
+pre.add(3);
+Buffer.isStrictPrefixOf(pre, buffer, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size of prefix)</code> | <code>O(size of prefix)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="suffix"><code><span class="keyword">public func </span><span class="fnname">suffix</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">length</span> : <span class="type">Nat</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns the suffix of <code>buffer</code> of length <code>length</code>.
+Traps if <code>length</code>is greater than the size of <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let suf = Buffer.suffix(buffer, 3); // =&gt; [2, 3, 4]
+Buffer.toText(suf, Nat.toText);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(length)</code> | <code>O(length)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="isSuffixOf"><code><span class="keyword">public func </span><span class="fnname">isSuffixOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">suffix</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Checks if <code>suffix</code> is a suffix of <code>buffer</code>. Uses <code>equal</code> to compare
+elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let suf = Buffer.Buffer&lt;Nat&gt;(3);
+suf.add(2);
+suf.add(3);
+suf.add(4);
+Buffer.isSuffixOf(suf, buffer, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(length of suffix)</code> | <code>O(length of suffix)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="isStrictSuffixOf"><code><span class="keyword">public func </span><span class="fnname">isStrictSuffixOf</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">suffix</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Checks if <code>suffix</code> is a strict suffix of <code>buffer</code>. Uses <code>equal</code> to compare
+elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+let suf = Buffer.Buffer&lt;Nat&gt;(3);
+suf.add(2);
+suf.add(3);
+suf.add(4);
+Buffer.isStrictSuffixOf(suf, buffer, Nat.equal); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(length)</code> | <code>O(length)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="forAll"><code><span class="keyword">public func </span><span class="fnname">forAll</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Returns true if every element in <code>buffer</code> satisfies <code>predicate</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.forAll&lt;Nat&gt;(buffer, func x { x &gt; 1 }); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="forSome"><code><span class="keyword">public func </span><span class="fnname">forSome</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Returns true if some element in <code>buffer</code> satisfies <code>predicate</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.forSome&lt;Nat&gt;(buffer, func x { x &gt; 3 }); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="forNone"><code><span class="keyword">public func </span><span class="fnname">forNone</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Returns true if no element in <code>buffer</code> satisfies <code>predicate</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+
+Buffer.forNone&lt;Nat&gt;(buffer, func x { x == 0 }); // =&gt; true</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="toArray"><code><span class="keyword">public func </span><span class="fnname">toArray</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;) : [<span class="type">X</span>]</code></h4><p><p>Creates an <code>array</code> containing elements from <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.toArray&lt;Nat&gt;(buffer); // =&gt; [1, 2, 3]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="toVarArray"><code><span class="keyword">public func </span><span class="fnname">toVarArray</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;) : [<span class="keyword">var </span><span class="type">X</span>]</code></h4><p><p>Creates a mutable array containing elements from <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.toVarArray&lt;Nat&gt;(buffer); // =&gt; [1, 2, 3]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="fromArray"><code><span class="keyword">public func </span><span class="fnname">fromArray</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="type">X</span>]) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Creates a <code>buffer</code> containing elements from <code>array</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let array = [2, 3];
+
+let buf = Buffer.fromArray&lt;Nat&gt;(array); // =&gt; [2, 3]
+Buffer.toText(buf, Nat.toText);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="fromVarArray"><code><span class="keyword">public func </span><span class="fnname">fromVarArray</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">array</span> : [<span class="keyword">var </span><span class="type">X</span>]) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Creates a <code>buffer</code> containing elements from <code>array</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let array = [var 1, 2, 3];
+
+let buf = Buffer.fromVarArray&lt;Nat&gt;(array); // =&gt; [1, 2, 3]
+Buffer.toText(buf, Nat.toText);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="fromIter"><code><span class="keyword">public func </span><span class="fnname">fromIter</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">iter</span> : { next : () -&gt; ?<span class="type">X</span> }) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Creates a <code>buffer</code> containing elements from <code>iter</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let array = [1, 1, 1];
+let iter = array.vals();
+
+let buf = Buffer.fromIter&lt;Nat&gt;(iter); // =&gt; [1, 1, 1]
+Buffer.toText(buf, Nat.toText);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="trimToSize"><code><span class="keyword">public func </span><span class="fnname">trimToSize</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;)</code></h4><p><p>Reallocates the array underlying <code>buffer</code> such that capacity == size.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+let buffer = Buffer.Buffer&lt;Nat&gt;(10);
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.trimToSize&lt;Nat&gt;(buffer);
+buffer.capacity(); // =&gt; 3</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="map"><code><span class="keyword">public func </span><span class="fnname">map</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">f</span> : <span class="type">X</span> -&gt; <span class="type">Y</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;</code></h4><p><p>Creates a new <code>buffer</code> by applying <code>f</code> to each element in <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.map&lt;Nat, Nat&gt;(buffer, func (x) { x + 1 });
+Buffer.toText(newBuf, Nat.toText); // =&gt; [2, 3, 4]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="iterate"><code><span class="keyword">public func </span><span class="fnname">iterate</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">f</span> : <span class="type">X</span> -&gt; ())</code></h4><p><p>Applies <code>f</code> to each element in <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+import Debug &quot;mo:base/Debug&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.iterate&lt;Nat&gt;(buffer, func (x) {
+  Debug.print(Nat.toText(x)); // prints each element in buffer
+});</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapEntries"><code><span class="keyword">public func </span><span class="fnname">mapEntries</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">f</span> : (<span class="type">Nat</span>, <span class="type">X</span>) -&gt; <span class="type">Y</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;</code></h4><p><p>Applies <code>f</code> to each element in <code>buffer</code> and its index.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.mapEntries&lt;Nat, Nat&gt;(buffer, func (x, i) { x + i + 1 });
+Buffer.toText(newBuf, Nat.toText); // =&gt; [2, 4, 6]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapFilter"><code><span class="keyword">public func </span><span class="fnname">mapFilter</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">f</span> : <span class="type">X</span> -&gt; ?<span class="type">Y</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;</code></h4><p><p>Creates a new buffer by applying <code>f</code> to each element in <code>buffer</code>,
+and keeping all non-null elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.mapFilter&lt;Nat, Nat&gt;(buffer, func (x) {
+ if (x &gt; 1) {
+   ?(x * 2);
+ } else {
+   null;
+ }
+});
+Buffer.toText(newBuf, Nat.toText); // =&gt; [4, 6]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="mapResult"><code><span class="keyword">public func </span><span class="fnname">mapResult</span>&lt;<span class="type">X</span>, <span class="type">Y</span>, <span class="type">E</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">f</span> : <span class="type">X</span> -&gt; <a href="Result.html#type.Result"><span class="type">Result.Result</span></a>&lt;<span class="type">Y</span>, <span class="type">E</span>&gt;) : <a href="Result.html#type.Result"><span class="type">Result.Result</span></a>&lt;<a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;, <span class="type">E</span>&gt;</code></h4><p><p>Creates a new buffer by applying <code>f</code> to each element in <code>buffer</code>.
+If any invocation of <code>f</code> produces an <code>#err</code>, returns an <code>#err</code>. Otherwise
+Returns an <code>#ok</code> containing the new buffer.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Result &quot;mo:base/Result&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let result = Buffer.mapResult&lt;Nat, Nat, Text&gt;(buffer, func (k) {
+ if (k &gt; 0) {
+   #ok(k);
+ } else {
+   #err(&quot;One or more elements are zero.&quot;);
+ }
+});
+
+Result.mapOk&lt;Buffer.Buffer&lt;Nat&gt;, [Nat], Text&gt;(result, func buffer = Buffer.toArray(buffer)) // =&gt; #ok([1, 2, 3])</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="chain"><code><span class="keyword">public func </span><span class="fnname">chain</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">k</span> : <span class="type">X</span> -&gt; <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;</code></h4><p><p>Creates a new <code>buffer</code> by applying <code>k</code> to each element in <code>buffer</code>,
+and concatenating the resulting buffers in order. This operation
+is similar to what in other functional languages is known as monadic bind.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let chain = Buffer.chain&lt;Nat, Nat&gt;(buffer, func (x) {
+let b = Buffer.Buffer&lt;Nat&gt;(2);
+b.add(x);
+b.add(x * 2);
+return b;
+});
+Buffer.toText(chain, Nat.toText); // =&gt; [1, 2, 2, 4, 3, 6]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="foldLeft"><code><span class="keyword">public func </span><span class="fnname">foldLeft</span>&lt;<span class="type">A</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">base</span> : <span class="type">A</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">A</span>, <span class="type">X</span>) -&gt; <span class="type">A</span><br/>) : <span class="type">A</span></code></h4><p><p>Collapses the elements in <code>buffer</code> into a single value by starting with <code>base</code>
+and progessively combining elements into <code>base</code> with <code>combine</code>. Iteration runs
+left to right.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.foldLeft&lt;Text, Nat&gt;(buffer, &quot;&quot;, func (acc, x) { acc # Nat.toText(x)}); // =&gt; &quot;123&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="foldRight"><code><span class="keyword">public func </span><span class="fnname">foldRight</span>&lt;<span class="type">X</span>, <span class="type">A</span>&gt;(<br/>  <span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">base</span> : <span class="type">A</span>, <br/>  <span class="parameter">combine</span> : (<span class="type">X</span>, <span class="type">A</span>) -&gt; <span class="type">A</span><br/>) : <span class="type">A</span></code></h4><p><p>Collapses the elements in <code>buffer</code> into a single value by starting with <code>base</code>
+and progessively combining elements into <code>base</code> with <code>combine</code>. Iteration runs
+right to left.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.foldRight&lt;Nat, Text&gt;(buffer, &quot;&quot;, func (x, acc) { Nat.toText(x) # acc }); // =&gt; &quot;123&quot;</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="first"><code><span class="keyword">public func </span><span class="fnname">first</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;) : <span class="type">X</span></code></h4><p><p>Returns the first element of <code>buffer</code>. Traps if <code>buffer</code> is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.first(buffer); // =&gt; 1</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="last"><code><span class="keyword">public func </span><span class="fnname">last</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;) : <span class="type">X</span></code></h4><p><p>Returns the last element of <code>buffer</code>. Traps if <code>buffer</code> is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.last(buffer); // =&gt; 3</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="make"><code><span class="keyword">public func </span><span class="fnname">make</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">element</span> : <span class="type">X</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Returns a new <code>buffer</code> with capacity and size 1, containing <code>element</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let buffer = Buffer.make&lt;Nat&gt;(1);
+Buffer.toText(buffer, Nat.toText); // =&gt; [1]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="reverse"><code><span class="keyword">public func </span><span class="fnname">reverse</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;)</code></h4><p><p>Reverses the order of elements in <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.reverse(buffer);
+Buffer.toText(buffer, Nat.toText); // =&gt; [3, 2, 1]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="merge"><code><span class="keyword">public func </span><span class="fnname">merge</span>&lt;<span class="type">X</span>&gt;(<br/>  <span class="parameter">buffer1</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer2</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="#type.Order"><span class="type">Order</span></a><br/>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Merges two sorted buffers into a single sorted <code>buffer</code>, using <code>compare</code> to define
+the ordering. The final ordering is stable. Behavior is undefined if either
+<code>buffer1</code> or <code>buffer2</code> is not sorted.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+buffer1.add(4);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer2.add(2);
+buffer2.add(4);
+buffer2.add(6);
+
+let merged = Buffer.merge&lt;Nat&gt;(buffer1, buffer2, Nat.compare);
+Buffer.toText(merged, Nat.toText); // =&gt; [1, 2, 2, 4, 4, 6]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size1 + size2)</code> | <code>O(size1 + size2)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="removeDuplicates"><code><span class="keyword">public func </span><span class="fnname">removeDuplicates</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">compare</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <a href="#type.Order"><span class="type">Order</span></a>)</code></h4><p><p>Eliminates all duplicate elements in <code>buffer</code> as defined by <code>compare</code>.
+Elimination is stable with respect to the original ordering of the elements.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+Buffer.removeDuplicates&lt;Nat&gt;(buffer, Nat.compare);
+Buffer.toText(buffer, Nat.toText); // =&gt; [1, 2, 3]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size * log(size))</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="partition"><code><span class="keyword">public func </span><span class="fnname">partition</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : (<a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;)</code></h4><p><p>Splits <code>buffer</code> into a pair of buffers where all elements in the left
+<code>buffer</code> satisfy <code>predicate</code> and all elements in the right <code>buffer</code> do not.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let partitions = Buffer.partition&lt;Nat&gt;(buffer, func (x) { x % 2 == 0 });
+(Buffer.toArray(partitions.0), Buffer.toArray(partitions.1)) // =&gt; ([2, 4, 6], [1, 3, 5])</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="split"><code><span class="keyword">public func </span><span class="fnname">split</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">index</span> : <span class="type">Nat</span>) : (<a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;)</code></h4><p><p>Splits the buffer into two buffers at <code>index</code>, where the left buffer contains
+all elements with indices less than <code>index</code>, and the right buffer contains all
+elements with indices greater than or equal to <code>index</code>. Traps if <code>index</code> is out
+of bounds.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let split = Buffer.split&lt;Nat&gt;(buffer, 3);
+(Buffer.toArray(split.0), Buffer.toArray(split.1)) // =&gt; ([1, 2, 3], [4, 5, 6])</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="chunk"><code><span class="keyword">public func </span><span class="fnname">chunk</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">size</span> : <span class="type">Nat</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;&gt;</code></h4><p><p>Breaks up <code>buffer</code> into buffers of size <code>size</code>. The last chunk may
+have less than <code>size</code> elements if the number of elements is not divisible
+by the chunk size.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+buffer.add(4);
+buffer.add(5);
+buffer.add(6);
+
+let chunks = Buffer.chunk&lt;Nat&gt;(buffer, 3);
+Buffer.toText&lt;Buffer.Buffer&lt;Nat&gt;&gt;(chunks, func buf = Buffer.toText(buf, Nat.toText)); // =&gt; [[1, 2, 3], [4, 5, 6]]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(number of elements in buffer)</code> | <code>O(number of elements in buffer)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="groupBy"><code><span class="keyword">public func </span><span class="fnname">groupBy</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">equal</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">Bool</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;&gt;</code></h4><p><p>Groups equal and adjacent elements in the list into sub lists.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(2);
+buffer.add(4);
+buffer.add(5);
+buffer.add(5);
+
+let grouped = Buffer.groupBy&lt;Nat&gt;(buffer, func (x, y) { x == y });
+Buffer.toText&lt;Buffer.Buffer&lt;Nat&gt;&gt;(grouped, func buf = Buffer.toText(buf, Nat.toText)); // =&gt; [[1], [2, 2], [4], [5, 5]]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="flatten"><code><span class="keyword">public func </span><span class="fnname">flatten</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;&gt;) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Flattens the <code>buffer</code> of buffers into a single <code>buffer</code>.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+let buffer = Buffer.Buffer&lt;Buffer.Buffer&lt;Nat&gt;&gt;(1);
+
+let inner1 = Buffer.Buffer&lt;Nat&gt;(2);
+inner1.add(1);
+inner1.add(2);
+
+let inner2 = Buffer.Buffer&lt;Nat&gt;(2);
+inner2.add(3);
+inner2.add(4);
+
+buffer.add(inner1);
+buffer.add(inner2);
+// buffer = [[1, 2], [3, 4]]
+
+let flat = Buffer.flatten&lt;Nat&gt;(buffer);
+Buffer.toText&lt;Nat&gt;(flat, Nat.toText); // =&gt; [1, 2, 3, 4]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(number of elements in buffer)</code> | <code>O(number of elements in buffer)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="zip"><code><span class="keyword">public func </span><span class="fnname">zip</span>&lt;<span class="type">X</span>, <span class="type">Y</span>&gt;(<span class="parameter">buffer1</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">buffer2</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;(<span class="type">X</span>, <span class="type">Y</span>)&gt;</code></h4><p><p>Combines the two buffers into a single buffer of pairs, pairing together
+elements with the same index. If one buffer is longer than the other, the
+remaining elements from the longer buffer are not included.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+buffer1.add(3);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer2.add(4);
+buffer2.add(5);
+
+let zipped = Buffer.zip(buffer1, buffer2);
+Buffer.toArray(zipped); // =&gt; [(1, 4), (2, 5)]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(min(size1, size2))</code> | <code>O(min(size1, size2))</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="zipWith"><code><span class="keyword">public func </span><span class="fnname">zipWith</span>&lt;<span class="type">X</span>, <span class="type">Y</span>, <span class="type">Z</span>&gt;(<br/>  <span class="parameter">buffer1</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <br/>  <span class="parameter">buffer2</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Y</span>&gt;, <br/>  <span class="parameter">zip</span> : (<span class="type">X</span>, <span class="type">Y</span>) -&gt; <span class="type">Z</span><br/>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">Z</span>&gt;</code></h4><p><p>Combines the two buffers into a single buffer, pairing together
+elements with the same index and combining them using <code>zip</code>. If
+one buffer is longer than the other, the remaining elements from
+the longer buffer are not included.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+
+let buffer1 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer1.add(1);
+buffer1.add(2);
+buffer1.add(3);
+
+let buffer2 = Buffer.Buffer&lt;Nat&gt;(2);
+buffer2.add(4);
+buffer2.add(5);
+buffer2.add(6);
+
+let zipped = Buffer.zipWith&lt;Nat, Nat, Nat&gt;(buffer1, buffer2, func (x, y) { x + y });
+Buffer.toArray(zipped) // =&gt; [5, 7, 9]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(min(size1, size2))</code> | <code>O(min(size1, size2))</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="takeWhile"><code><span class="keyword">public func </span><span class="fnname">takeWhile</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Creates a new buffer taking elements in order from <code>buffer</code> until predicate
+returns false.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.takeWhile&lt;Nat&gt;(buffer, func (x) { x &lt; 3 });
+Buffer.toText(newBuf, Nat.toText); // =&gt; [1, 2]</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="dropWhile"><code><span class="keyword">public func </span><span class="fnname">dropWhile</span>&lt;<span class="type">X</span>&gt;(<span class="parameter">buffer</span> : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;, <span class="parameter">predicate</span> : <span class="type">X</span> -&gt; <span class="type">Bool</span>) : <a href="#type.Buffer"><span class="type">Buffer</span></a>&lt;<span class="type">X</span>&gt;</code></h4><p><p>Creates a new buffer excluding elements in order from <code>buffer</code> until predicate
+returns false.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Nat &quot;mo:base/Nat&quot;;
+
+buffer.add(1);
+buffer.add(2);
+buffer.add(3);
+
+let newBuf = Buffer.dropWhile&lt;Nat&gt;(buffer, func x { x &lt; 3 }); // =&gt; [3]
+Buffer.toText(newBuf, Nat.toText);</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(size)</code> | <code>O(size)</code> |</p>
+</p></div></div></body></html>

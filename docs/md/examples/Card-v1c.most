@@ -1,0 +1,8 @@
+// Version: 3.0.0
+type Card__833280102 = {description : Text; title : Text};
+type OldCard__999856460 = {title : Text};
+actor ({
+  in var map : [(Nat32, OldCard__999856460)]
+}, {
+  stable var map : [(Nat32, Card__833280102)]
+}) ;

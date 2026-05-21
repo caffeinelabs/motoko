@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Trie">Trie</a></li></li><li><li><a href="#type.Leaf">Leaf</a></li></li><li><li><a href="#type.Branch">Branch</a></li></li><li><li><a href="#type.AssocList">AssocList</a></li></li><li><li><a href="#type.Key">Key</a></li></li><li><li><a href="#equalKey">equalKey</a></li></li><li><li><a href="#isValid">isValid</a></li></li><li><li><a href="#type.Trie2D">Trie2D</a></li></li><li><li><a href="#type.Trie3D">Trie3D</a></li></li><li><li><a href="#empty">empty</a></li></li><li><li><a href="#size">size</a></li></li><li><li><a href="#branch">branch</a></li></li><li><li><a href="#leaf">leaf</a></li></li><li><li><a href="#fromList">fromList</a></li></li><li><li><a href="#clone">clone</a></li></li><li><li><a href="#replace">replace</a></li></li><li><li><a href="#put">put</a></li></li><li><li><a href="#get">get</a></li></li><li><li><a href="#find">find</a></li></li><li><li><a href="#merge">merge</a></li></li><li><li><a href="#mergeDisjoint">mergeDisjoint</a></li></li><li><li><a href="#diff">diff</a></li></li><li><li><a href="#disj">disj</a></li></li><li><li><a href="#join">join</a></li></li><li><li><a href="#foldUp">foldUp</a></li></li><li><li><a href="#prod">prod</a></li></li><li><li><a href="#iter">iter</a></li></li><li><li><a href="#type.Build">Build</a></li></li><li><li><a href="#fold">fold</a></li></li><li><li><a href="#some">some</a></li></li><li><li><a href="#all">all</a></li></li><li><li><a href="#nth">nth</a></li></li><li><li><a href="#toArray">toArray</a></li></li><li><li><a href="#isEmpty">isEmpty</a></li></li><li><li><a href="#filter">filter</a></li></li><li><li><a href="#mapFilter">mapFilter</a></li></li><li><li><a href="#equalStructure">equalStructure</a></li></li><li><li><a href="#replaceThen">replaceThen</a></li></li><li><li><a href="#putFresh">putFresh</a></li></li><li><li><a href="#put2D">put2D</a></li></li><li><li><a href="#put3D">put3D</a></li></li><li><li><a href="#remove">remove</a></li></li><li><li><a href="#removeThen">removeThen</a></li></li><li><li><a href="#remove2D">remove2D</a></li></li><li><li><a href="#remove3D">remove3D</a></li></li><li><li><a href="#mergeDisjoint2D">mergeDisjoint2D</a></li></li></ul></nav><div class="documentation"><h1>Trie</h1><p>Functional key-value hash map.</p>
+<p>Provides an applicative (purely functional) hash map, called a <em>trie</em>, where each operation returns a new version of the structure without mutating the original.</p>
+<p>Operations use <code>Key</code> records that group the key value with its precomputed hash.</p>
+<p>For imperative or object-oriented alternatives, see <a href="../TrieMap"><code>TrieMap</code></a> or <a href="../HashMap"><code>HashMap</code></a>.</p>
+<p>:::warning Hash collision limit
+Each trie node supports at most 8 distinct keys with the same hash (<code>MAX_LEAF_SIZE = 8</code>). Exceeding this will cause a trap.
+:::</p>
+<p>:::info Credits
+Based on Section 6 of <a href="https://dl.acm.org/citation.cfm?id=75305">&quot;Incremental computation via function caching&quot;, Pugh &amp; Teitelbaum</a>.
+:::</p>
+<p>Example:</p>
+<pre class="motoko"><code class="motoko">import Trie &quot;mo:base/Trie&quot;;
+import Text &quot;mo:base/Text&quot;;
+
+// we do this to have shorter type names and thus
+// better readability
+type Trie&lt;K, V&gt; = Trie.Trie&lt;K, V&gt;;
+type Key&lt;K&gt; = Trie.Key&lt;K&gt;;
+
+// we have to provide `put`, `get` and `remove` with
+// a record of type `Key&lt;K&gt; = { hash : Hash.Hash; key : K }`;
+// thus we define the following function that takes a value of type `K`
+// (in this case `Text`) and returns a `Key&lt;K&gt;` record.
+func key(t: Text) : Key&lt;Text&gt; { { hash = Text.hash t; key = t } };
+
+// we start off by creating an empty `Trie`
+let t0 : Trie&lt;Text, Nat&gt; = Trie.empty();
+
+// `put` requires 4 arguments:
+// - the trie we want to insert the value into,
+// - the key of the value we want to insert (note that we use the `key` function defined above),
+// - a function that checks for equality of keys, and
+// - the value we want to insert.
+//
+// When inserting a value, `put` returns a tuple of type `(Trie&lt;K, V&gt;, ?V)`.
+// to get the new trie that contains the value,  we use the `0` projection
+// and assign it to `t1` and `t2` respectively.
+let t1 : Trie&lt;Text, Nat&gt; = Trie.put(t0, key &quot;hello&quot;, Text.equal, 42).0;
+let t2 : Trie&lt;Text, Nat&gt; = Trie.put(t1, key &quot;world&quot;, Text.equal, 24).0;
+
+// If for a given key there already was a value in the trie, `put` returns
+// that previous value as the second element of the tuple.
+// in our case we have already inserted the value 42 for the key &quot;hello&quot;, so
+// `put` returns 42 as the second element of the tuple.
+let (t3, n) : (Trie&lt;Text, Nat&gt;, ?Nat) = Trie.put(
+ t2,
+ key &quot;hello&quot;,
+ Text.equal,
+ 0,
+);
+assert (n == ?42);
+
+// `get` requires 3 arguments:
+// - the trie we want to get the value from
+// - the key of the value we want to get (note that we use the `key` function defined above)
+// - a function that checks for equality of keys
+//
+// If the given key is nonexistent in the trie, `get` returns `null`.
+var value = Trie.get(t3, key &quot;hello&quot;, Text.equal); // Returns `?42`
+assert(value == ?0);
+value := Trie.get(t3, key &quot;universe&quot;, Text.equal); // Returns `null`
+assert(value == null);
+
+// `remove` requires 3 arguments:
+// - the trie we want to remove the value from,
+// - the key of the value we want to remove (note that we use the `key` function defined above), and
+// - a function that checks for equality of keys.
+//
+// In the case of keys of type `Text`, we can use `Text.equal`
+// to check for equality of keys. Function `remove` returns a tuple of type `(Trie&lt;K, V&gt;, ?V)`.
+// where the second element of the tuple is the value that was removed, or `null` if
+// there was no value for the given key.
+let removedValue : ?Nat = Trie.remove(
+ t3,
+ key &quot;hello&quot;,
+ Text.equal,
+).1;
+assert (removedValue == ?0);
+
+// To iterate over the Trie, we use the `iter` function that takes a trie
+// of type `Trie&lt;K,V&gt;` and returns an iterator of type `Iter&lt;(K,V)&gt;`:
+var sum : Nat = 0;
+for (kv in Trie.iter(t3)) {
+ sum += kv.1;
+};
+assert(sum == 24);</code></pre><div class="declaration"><h4 class="type-declaration" id="type.Trie"><span class="keyword">type </span><span class="type">Trie</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; = {#empty; #leaf : <a href="#type.Leaf"><span class="type">Leaf</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;; #branch : <a href="#type.Branch"><span class="type">Branch</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;}</h4><p><p>Binary hash tries: either empty, a leaf node, or a branch node.</p>
+</p></div><div class="declaration"><h4 class="type-declaration" id="type.Leaf"><span class="keyword">type </span><span class="type">Leaf</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; = { size : <span class="type">Nat</span>; keyvals : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <span class="type">V</span>&gt; }</h4><p><p>Leaf nodes of trie consist of key-value pairs as a list.</p>
+</p></div><div class="declaration"><h4 class="type-declaration" id="type.Branch"><span class="keyword">type </span><span class="type">Branch</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; = { size : <span class="type">Nat</span>; left : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;; right : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; }</h4><p><p>Branch nodes of the trie discriminate on a bit position of the keys' hashes.
+This bit position is not stored in the branch but determined from
+the context of the branch.</p>
+</p></div><div class="declaration"><h4 class="type-declaration" id="type.AssocList"><span class="keyword">type </span><span class="type">AssocList</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; = <a href="AssocList.html#type.AssocList"><span class="type">AssocList.AssocList</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</h4><p></p></div><div class="declaration"><h4 class="type-declaration" id="type.Key"><span class="keyword">type </span><span class="type">Key</span>&lt;<span class="type">K</span>&gt; = { hash : <a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a>; key : <span class="type">K</span> }</h4><p><p>A <code>Key</code> for the trie has an associated hash value:</p>
+<ul><li><code>hash</code> permits fast inequality checks, and permits collisions.</li><li><code>key</code> permits precise equality checks, but is only used on values with equal hashes.</li></ul></p></div><div class="declaration"><h4 class="function" id="equalKey"><code><span class="keyword">public func </span><span class="fnname">equalKey</span>&lt;<span class="type">K</span>&gt;(<span class="parameter">keq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>) : ((<a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;) -&gt; <span class="type">Bool</span>)</code></h4><p><p>Equality function for two <code>Key&lt;K&gt;</code>s, in terms of equality of <code>K</code>'s.</p>
+</p></div><div class="declaration"><h4 class="function" id="isValid"><code><span class="keyword">public func </span><span class="fnname">isValid</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">_enforceNormal</span> : <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>:::warning Deprecated function
+<code>isValid</code> is an internal predicate and will be removed in future.
+:::</p>
+</p></div><div class="declaration"><h4 class="type-declaration" id="type.Trie2D"><span class="keyword">type </span><span class="type">Trie2D</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt; = <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K1</span>, <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K2</span>, <span class="type">V</span>&gt;&gt;</h4><p><p>A 2D trie maps dimension-1 keys to another
+layer of tries, each keyed on the dimension-2 keys.</p>
+</p></div><div class="declaration"><h4 class="type-declaration" id="type.Trie3D"><span class="keyword">type </span><span class="type">Trie3D</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt; = <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K1</span>, <a href="#type.Trie2D"><span class="type">Trie2D</span></a>&lt;<span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt;&gt;</h4><p><p>A 3D trie maps dimension-1 keys to another
+Composition of 2D tries, each keyed on the dimension-2 and dimension-3 keys.</p>
+</p></div><div class="declaration"><h4 class="function" id="empty"><code><span class="keyword">public func </span><span class="fnname">empty</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;() : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>An empty trie. This is usually the starting point for building a trie.</p>
+<p>Example:</p>
+<pre><code>motoko name=initialize
+import { print } &quot;mo:base/Debug&quot;;
+import Trie &quot;mo:base/Trie&quot;;
+import Text &quot;mo:base/Text&quot;;
+
+// we do this to have shorter type names and thus
+// better readibility
+type Trie&lt;K, V&gt; = Trie.Trie&lt;K, V&gt;;
+type Key&lt;K&gt; = Trie.Key&lt;K&gt;;
+
+// We have to provide `put`, `get` and `remove` with
+// a function of return type `Key&lt;K&gt; = { hash : Hash.Hash; key : K }`
+func key(t: Text) : Key&lt;Text&gt; { { hash = Text.hash t; key = t } };
+// We start off by creating an empty `Trie`
+var trie : Trie&lt;Text, Nat&gt; = Trie.empty();</code></pre></p></div><div class="declaration"><h4 class="function" id="size"><code><span class="keyword">public func </span><span class="fnname">size</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <span class="type">Nat</span></code></h4><p><p>Get the size in O(1) time.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+var size = Trie.size(trie); // Returns 0, as `trie` is empty
+assert(size == 0);
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+size := Trie.size(trie); // Returns 1, as we just added a new entry
+assert(size == 1);</code></pre></p></div><div class="declaration"><h4 class="function" id="branch"><code><span class="keyword">public func </span><span class="fnname">branch</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">l</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">r</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Construct a branch node, computing the size stored there.</p>
+</p></div><div class="declaration"><h4 class="function" id="leaf"><code><span class="keyword">public func </span><span class="fnname">leaf</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">kvs</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <span class="type">V</span>&gt;, <span class="parameter">bitpos</span> : <span class="type">Nat</span>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Construct a leaf node, computing the size stored there.</p>
+<p>This helper function automatically enforces the MAX_LEAF_SIZE
+by constructing branches as necessary; to do so, it also needs the bitpos
+of the leaf.</p>
+</p></div><div class="declaration"><h4 class="function" id="fromList"><code><span class="keyword">public func </span><span class="fnname">fromList</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">kvc</span> : ?<span class="type">Nat</span>, <br/>  <span class="parameter">kvs</span> : <a href="#type.AssocList"><span class="type">AssocList</span></a>&lt;<a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <span class="type">V</span>&gt;, <br/>  <span class="parameter">bitpos</span> : <span class="type">Nat</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Transform a list into a trie, splitting input list into small (leaf) lists, if necessary.</p>
+</p></div><div class="declaration"><h4 class="function" id="clone"><code><span class="keyword">public func </span><span class="fnname">clone</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Clone the trie efficiently, via sharing.</p>
+<p>Purely-functional representation permits <em>O(1)</em> copy, via persistent sharing.</p>
+</p></div><div class="declaration"><h4 class="function" id="replace"><code><span class="keyword">public func </span><span class="fnname">replace</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">v</span> : ?<span class="type">V</span><br/>) : (<a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>Replace the given key's value option with the given value, returning the modified trie.
+Also returns the replaced value if the key existed and <code>null</code> otherwise.
+Compares keys using the provided function <code>k_eq</code>.</p>
+<p>:::note
+Replacing a key's value by <code>null</code> removes the key and also shrinks the trie.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;test&quot;, Text.equal, 1).0;
+trie := Trie.replace(trie, key &quot;test&quot;, Text.equal, 42).0;
+assert (Trie.get(trie, key &quot;hello&quot;, Text.equal) == ?42);</code></pre></p></div><div class="declaration"><h4 class="function" id="put"><code><span class="keyword">public func </span><span class="fnname">put</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">v</span> : <span class="type">V</span><br/>) : (<a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>Put the given key's value in the trie; return the new trie, and the previous value associated with the key, if any.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+let previousValue = Trie.put(trie, key &quot;hello&quot;, Text.equal, 33).1; // Returns ?42
+assert(previousValue == ?42);</code></pre></p></div><div class="declaration"><h4 class="function" id="get"><code><span class="keyword">public func </span><span class="fnname">get</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">V</span></code></h4><p><p>Get the value of the given key in the trie, or return null if nonexistent.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+var value = Trie.get(trie, key &quot;hello&quot;, Text.equal); // Returns `?42`
+assert(value == ?42);
+value := Trie.get(trie, key &quot;world&quot;, Text.equal); // Returns `null`
+assert(value == null);</code></pre></p></div><div class="declaration"><h4 class="function" id="find"><code><span class="keyword">public func </span><span class="fnname">find</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : ?<span class="type">V</span></code></h4><p><p>Find the given key's value in the trie, or return <code>null</code> if nonexistent</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+var value = Trie.find(trie, key &quot;hello&quot;, Text.equal); // Returns `?42`
+assert(value == ?42);
+value := Trie.find(trie, key &quot;world&quot;, Text.equal); // Returns `null`
+assert(value == null);</code></pre></p></div><div class="declaration"><h4 class="function" id="merge"><code><span class="keyword">public func </span><span class="fnname">merge</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Merge tries, preferring the left trie where there are collisions
+in common keys.</p>
+<p>:::note
+The <code>disj</code> operation generalizes this <code>merge</code>
+operation in various ways, and does not (in general) lose
+information; this operation is a simpler, special case.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 42).0;
+// trie2 is a copy of trie
+var trie2 = Trie.clone(trie);
+// trie2 has a different value for &quot;hello&quot;
+trie2 := Trie.put(trie2, key &quot;hello&quot;, Text.equal, 33).0;
+// mergedTrie has the value 42 for &quot;hello&quot;, as the left trie is preferred
+// in the case of a collision
+var mergedTrie = Trie.merge(trie, trie2, Text.equal);
+var value = Trie.get(mergedTrie, key &quot;hello&quot;, Text.equal);
+assert(value == ?42);</code></pre></p></div><div class="declaration"><h4 class="function" id="mergeDisjoint"><code><span class="keyword">public func </span><span class="fnname">mergeDisjoint</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p><a name="mergedisjoint"></a></p>
+<p>Merge tries like <code>merge</code>, but traps if there are collisions in common keys between the
+left and right inputs.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 42).0;
+// trie2 is a copy of trie
+var trie2 = Trie.clone(trie);
+// trie2 has a different value for &quot;hello&quot;
+trie2 := Trie.put(trie2, key &quot;hello&quot;, Text.equal, 33).0;
+// `mergeDisjoint` signals a dynamic errror
+// in the case of a collision
+var mergedTrie = Trie.mergeDisjoint(trie, trie2, Text.equal);</code></pre></p></div><div class="declaration"><h4 class="function" id="diff"><code><span class="keyword">public func </span><span class="fnname">diff</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Difference of tries. The output consists of pairs of
+the left trie whose keys are not present in the right trie; the
+values of the right trie are irrelevant.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 42).0;
+// trie2 is a copy of trie
+var trie2 = Trie.clone(trie);
+// trie2 now has an additional key
+trie2 := Trie.put(trie2, key &quot;ciao&quot;, Text.equal, 33).0;
+// `diff` returns a trie with the key &quot;ciao&quot;,
+// as this key is not present in `trie`
+// (note that we pass `trie2` as the left trie)
+Trie.diff(trie2, trie, Text.equal);</code></pre></p></div><div class="declaration"><h4 class="function" id="disj"><code><span class="keyword">public func </span><span class="fnname">disj</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">vbin</span> : (?<span class="type">V</span>, ?<span class="type">W</span>) -&gt; <span class="type">X</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">X</span>&gt;</code></h4><p><p>Map disjunction.</p>
+<p>This operation generalizes the notion of &quot;set union&quot; to finite maps.</p>
+<p>Produces a &quot;disjunctive image&quot; of the two tries, where the values of
+matching keys are combined with the given binary operator.</p>
+<p>For unmatched key-value pairs, the operator is still applied to
+create the value in the image.  To accomodate these various
+situations, the operator accepts optional values, but is never
+applied to (null, null).</p>
+<p>Implements the database idea of an <a href="https://stackoverflow.com/questions/38549/what-is-the-difference-between-inner-join-and-outer-join">&quot;outer join&quot;</a>.</p>
+</p></div><div class="declaration"><h4 class="function" id="join"><code><span class="keyword">public func </span><span class="fnname">join</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">vbin</span> : (<span class="type">V</span>, <span class="type">W</span>) -&gt; <span class="type">X</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">X</span>&gt;</code></h4><p><p>Map join.</p>
+<p>Implements the database idea of an <a href="https://stackoverflow.com/questions/38549/what-is-the-difference-between-inner-join-and-outer-join">&quot;inner join&quot;</a>.</p>
+<p>This operation generalizes the notion of &quot;set intersection&quot; to
+finite maps.  The values of matching keys are combined with the given binary
+operator, and unmatched key-value pairs are not present in the output.</p>
+</p></div><div class="declaration"><h4 class="function" id="foldUp"><code><span class="keyword">public func </span><span class="fnname">foldUp</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">bin</span> : (<span class="type">X</span>, <span class="type">X</span>) -&gt; <span class="type">X</span>, <br/>  <span class="parameter">leaf</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">X</span>, <br/>  <span class="parameter">empty</span> : <span class="type">X</span><br/>) : <span class="type">X</span></code></h4><p><p>This operation gives a recursor for the internal structure of
+tries.  Many common operations are instantiations of this function,
+either as clients, or as hand-specialized versions (e.g., see , map,
+mapFilter, some and all below).</p>
+</p></div><div class="declaration"><h4 class="function" id="prod"><code><span class="keyword">public func </span><span class="fnname">prod</span>&lt;<span class="type">K1</span>, <span class="type">V1</span>, <span class="type">K2</span>, <span class="type">V2</span>, <span class="type">K3</span>, <span class="type">V3</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K1</span>, <span class="type">V1</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K2</span>, <span class="type">V2</span>&gt;, <br/>  <span class="parameter">op</span> : (<span class="type">K1</span>, <span class="type">V1</span>, <span class="type">K2</span>, <span class="type">V2</span>) -&gt; ?(<a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K3</span>&gt;, <span class="type">V3</span>), <br/>  <span class="parameter">k3_eq</span> : (<span class="type">K3</span>, <span class="type">K3</span>) -&gt; <span class="type">Bool</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K3</span>, <span class="type">V3</span>&gt;</code></h4><p><p>Map product.</p>
+<p>Conditional <em>catesian product</em>, where the given
+operation <code>op</code> <em>conditionally</em> creates output elements in the
+resulting trie.</p>
+<p>The keyed structure of the input tries are not relevant for this
+operation: all pairs are considered, regardless of keys matching or
+not.  Moreover, the resulting trie may use keys that are unrelated to
+these input keys.</p>
+</p></div><div class="declaration"><h4 class="function" id="iter"><code><span class="keyword">public func </span><span class="fnname">iter</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <a href="Iter.html#type.Iter"><span class="type">I.Iter</span></a>&lt;(<span class="type">K</span>, <span class="type">V</span>)&gt;</code></h4><p><p>Returns an iterator of type <code>Iter</code> over the key-value entries of the trie.</p>
+<p>Each iterator gets a <em>persistent view</em> of the mapping, independent of concurrent updates to the iterated map.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+// create an Iterator over key-value pairs of trie
+let iter = Trie.iter(trie);
+// add another key-value pair to `trie`.
+// because we created our iterator before
+// this update, it will not contain this new key-value pair
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 3).0;
+var sum : Nat = 0;
+for ((k,v) in iter) {
+  sum += v;
+};
+assert(sum == 74);</code></pre></p></div><div class="declaration"><h4 class="object-declaration" id="type.Build"><span class="keyword">module </span><span class="objectname">Build</span></h4><div class="declaration"><h4 class="type-declaration" id="Build.type.Build"><span class="keyword">type </span><span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; = {#skip; #put : (<span class="type">K</span>, ?<a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a>, <span class="type">V</span>); #seq : { size : <span class="type">Nat</span>; left : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;; right : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt; }}</h4><p><p>The build of a trie, as an AST for a simple DSL.</p>
+</p></div><div class="declaration"><h4 class="function" id="Build.size"><code><span class="keyword">public func </span><span class="fnname">size</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">tb</span> : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <span class="type">Nat</span></code></h4><p><p>Size of the build, measured in <code>#put</code> operations</p>
+</p></div><div class="declaration"><h4 class="function" id="Build.seq"><code><span class="keyword">public func </span><span class="fnname">seq</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">l</span> : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">r</span> : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Build sequence of two sub-builds</p>
+</p></div><div class="declaration"><h4 class="function" id="Build.prod"><code><span class="keyword">public func </span><span class="fnname">prod</span>&lt;<span class="type">K1</span>, <span class="type">V1</span>, <span class="type">K2</span>, <span class="type">V2</span>, <span class="type">K3</span>, <span class="type">V3</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K1</span>, <span class="type">V1</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K2</span>, <span class="type">V2</span>&gt;, <br/>  <span class="parameter">op</span> : (<span class="type">K1</span>, <span class="type">V1</span>, <span class="type">K2</span>, <span class="type">V2</span>) -&gt; ?(<span class="type">K3</span>, <span class="type">V3</span>), <br/>  <span class="parameter">_k3_eq</span> : (<span class="type">K3</span>, <span class="type">K3</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Build</span>&lt;<span class="type">K3</span>, <span class="type">V3</span>&gt;</code></h4><p><p>Like <a href="#prod"><code>prod</code></a>, except do not actually do the put calls, just
+record them, as a (binary tree) data structure, isomorphic to the
+recursion of this function (which is balanced, in expectation).</p>
+</p></div><div class="declaration"><h4 class="function" id="Build.nth"><code><span class="keyword">public func </span><span class="fnname">nth</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">tb</span> : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">i</span> : <span class="type">Nat</span>) : ?(<span class="type">K</span>, ?<a href="Hash.html#type.Hash"><span class="type">Hash.Hash</span></a>, <span class="type">V</span>)</code></h4><p><p>Project the nth key-value pair from the trie build.</p>
+<p>This position is meaningful only when the build contains multiple uses of one or more keys, otherwise it is not.</p>
+</p></div><div class="declaration"><h4 class="function" id="Build.projectInner"><code><span class="keyword">public func </span><span class="fnname">projectInner</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K1</span>, <span class="type">Build</span>&lt;<span class="type">K2</span>, <span class="type">V</span>&gt;&gt;) : <span class="type">Build</span>&lt;<span class="type">K2</span>, <span class="type">V</span>&gt;</code></h4><p><p>Like <a href="#mergedisjoint"><code>mergeDisjoint</code></a>, except that it avoids the
+work of actually merging any tries; rather, just record the work for
+latter (if ever).</p>
+</p></div><div class="declaration"><h4 class="function" id="Build.toArray"><code><span class="keyword">public func </span><span class="fnname">toArray</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>&gt;(<span class="parameter">tb</span> : <span class="type">Build</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">W</span>) : [<span class="type">W</span>]</code></h4><p><p>Gather the collection of key-value pairs into an array of a (possibly-distinct) type.</p>
+</p></div><p><p>Represent the construction of tries as data.</p>
+<p>This module provides optimized variants of normal tries, for
+more efficient join queries.</p>
+<p>The central insight is that for (unmaterialized) join query results, we
+do not need to actually build any resulting trie of the resulting
+data, but rather, just need a collection of what would be in that
+trie.  Since query results can be large (quadratic in the DB size),
+avoiding the construction of this trie provides a considerable savings.</p>
+<p>To get this savings, we use an ADT for the operations that <em>would</em> build this trie,
+if evaluated. This structure specializes a rope: a balanced tree representing a
+sequence.  It is only as balanced as the tries from which we generate
+these build ASTs.  They have no intrinsic balance properties of their
+own.</p>
+</p></div><div class="declaration"><h4 class="function" id="fold"><code><span class="keyword">public func </span><span class="fnname">fold</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V</span>, <span class="type">X</span>) -&gt; <span class="type">X</span>, <br/>  <span class="parameter">x</span> : <span class="type">X</span><br/>) : <span class="type">X</span></code></h4><p><p>Fold over the key-value pairs of the trie, using an accumulator.
+The key-value pairs have no reliable or meaningful ordering.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 3).0;
+// create an accumulator, in our case the sum of all values
+func calculateSum(k : Text, v : Nat, acc : Nat) : Nat = acc + v;
+// Fold over the trie using the accumulator.
+// Note that 0 is the initial value of the accumulator.
+let sum = Trie.fold(trie, calculateSum, 0);
+assert(sum == 77);</code></pre></p></div><div class="declaration"><h4 class="function" id="some"><code><span class="keyword">public func </span><span class="fnname">some</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Test whether a given key-value pair is present, or not.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 3).0;
+// `some` takes a function that returns a Boolean indicating whether
+// the key-value pair is present or not
+var isPresent = Trie.some(
+  trie,
+  func(k : Text, v : Nat) : Bool = k == &quot;bye&quot; and v == 32,
+);
+assert(isPresent == true);
+isPresent := Trie.some(
+  trie,
+  func(k : Text, v : Nat) : Bool = k == &quot;hello&quot; and v == 32,
+);
+assert(isPresent == false);</code></pre></p></div><div class="declaration"><h4 class="function" id="all"><code><span class="keyword">public func </span><span class="fnname">all</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">Bool</span>) : <span class="type">Bool</span></code></h4><p><p>Test whether all key-value pairs have a given property.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 10).0;
+// `all` takes a function that returns a boolean indicating whether
+// the key-value pairs all have a given property, in our case that
+// all values are greater than 9
+var hasProperty = Trie.all(
+  trie,
+  func(k : Text, v : Nat) : Bool = v &gt; 9,
+);
+assert(hasProperty == true);
+// now we check if all values are greater than 100
+hasProperty := Trie.all(
+  trie,
+  func(k : Text, v : Nat) : Bool = v &gt; 100,
+);
+assert(hasProperty == false);</code></pre></p></div><div class="declaration"><h4 class="function" id="nth"><code><span class="keyword">public func </span><span class="fnname">nth</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">i</span> : <span class="type">Nat</span>) : ?(<a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <span class="type">V</span>)</code></h4><p><p>Project the nth key-value pair from the trie.</p>
+<p>:::note
+This position is not meaningful; it's only here so that we
+can inject tries into arrays using functions like <code>Array.tabulate</code>.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+import Array &quot;mo:base/Array&quot;;
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 10).0;
+// `tabulate` takes a size parameter, so we check the size of
+// the trie first
+let size = Trie.size(trie);
+// Now we can create an array of the same size passing `nth` as
+// the generator used to fill the array.
+// Note that `toArray` is a convenience function that does the
+// same thing without you having to check whether the tuple is
+// `null` or not, which we're not doing in this example
+let array = Array.tabulate&lt;?(Key&lt;Text&gt;, Nat)&gt;(
+  size,
+  func n = Trie.nth(trie, n)
+);</code></pre></p></div><div class="declaration"><h4 class="function" id="toArray"><code><span class="keyword">public func </span><span class="fnname">toArray</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">W</span>) : [<span class="type">W</span>]</code></h4><p><p>Gather the collection of key-value pairs into an array of a (possibly-distinct) type.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 10).0;
+// `toArray` takes a function that takes a key-value tuple
+// and returns a value of the type you want to use to fill
+// the array.
+// In our case we just return the value
+let array = Trie.toArray&lt;Text, Nat, Nat&gt;(
+  trie,
+  func (k, v) = v
+);</code></pre></p></div><div class="declaration"><h4 class="function" id="isEmpty"><code><span class="keyword">public func </span><span class="fnname">isEmpty</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;) : <span class="type">Bool</span></code></h4><p><p>Test for &quot;deep emptiness&quot;: subtrees that have branching structure,
+but no leaves.  These can result from naive filtering operations;
+filter uses this function to avoid creating such subtrees.</p>
+</p></div><div class="declaration"><h4 class="function" id="filter"><code><span class="keyword">public func </span><span class="fnname">filter</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; <span class="type">Bool</span>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Filter the key-value pairs by a given predicate.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 10).0;
+// `filter` takes a function that takes a key-value tuple
+// and returns true if the key-value pair should be included.
+// In our case those are pairs with a value greater than 20
+let filteredTrie = Trie.filter&lt;Text, Nat&gt;(
+  trie,
+  func (k, v) = v &gt; 20
+);
+assert (Trie.all&lt;Text, Nat&gt;(filteredTrie, func(k, v) = v &gt; 20) == true);</code></pre></p></div><div class="declaration"><h4 class="function" id="mapFilter"><code><span class="keyword">public func </span><span class="fnname">mapFilter</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">W</span>&gt;(<span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="parameter">f</span> : (<span class="type">K</span>, <span class="type">V</span>) -&gt; ?<span class="type">W</span>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">W</span>&gt;</code></h4><p><p>Map and filter the key-value pairs by a given predicate.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 10).0;
+// `mapFilter` takes a function that takes a key-value tuple
+// and returns a possibly-distinct value if the key-value pair should be included.
+// In our case, we filter for values greater than 20 and map them to their square.
+let filteredTrie = Trie.mapFilter&lt;Text, Nat, Nat&gt;(
+  trie,
+  func (k, v) = if (v &gt; 20) return ?(v**2) else return null
+);
+assert (Trie.all&lt;Text, Nat&gt;(filteredTrie, func(k, v) = v &gt; 60) == true);</code></pre></p></div><div class="declaration"><h4 class="function" id="equalStructure"><code><span class="keyword">public func </span><span class="fnname">equalStructure</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">tl</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">tr</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">keq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">veq</span> : (<span class="type">V</span>, <span class="type">V</span>) -&gt; <span class="type">Bool</span><br/>) : <span class="type">Bool</span></code></h4><p><p>Test for equality, but naively, based on structure.
+Does not attempt to remove &quot;junk&quot; in the tree;
+For instance, a &quot;smarter&quot; approach would equate
+ <code>#bin {left = #empty; right = #empty}</code>
+with
+ <code>#empty</code>.
+We do not observe that equality here.</p>
+</p></div><div class="declaration"><h4 class="function" id="replaceThen"><code><span class="keyword">public func </span><span class="fnname">replaceThen</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">v2</span> : <span class="type">V</span>, <br/>  <span class="parameter">success</span> : (<a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="type">V</span>) -&gt; <span class="type">X</span>, <br/>  <span class="parameter">fail</span> : () -&gt; <span class="type">X</span><br/>) : <span class="type">X</span></code></h4><p><p>Replace the given key's value in the trie,
+and only if successful, do the success continuation,
+otherwise, return the failure value</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+trie := Trie.put(trie, key &quot;ciao&quot;, Text.equal, 10).0;
+// `replaceThen` takes the same arguments as `replace` but also a success continuation
+// and a failure connection that are called in the respective scenarios.
+// if the replace fails, that is the key is not present in the trie, the failure continuation is called.
+// if the replace succeeds, that is the key is present in the trie, the success continuation is called.
+// in this example we are simply returning the Text values `success` and `fail` respectively.
+var continuation = Trie.replaceThen&lt;Text, Nat, Text&gt;(
+  trie,
+  key &quot;hello&quot;,
+  Text.equal,
+  12,
+  func (t, v) = &quot;success&quot;,
+  func () = &quot;fail&quot;
+);
+assert (continuation == &quot;success&quot;);
+continuation := Trie.replaceThen&lt;Text, Nat, Text&gt;(
+  trie,
+  key &quot;shalom&quot;,
+  Text.equal,
+  12,
+  func (t, v) = &quot;success&quot;,
+  func () = &quot;fail&quot;
+);
+assert (continuation == &quot;fail&quot;);</code></pre></p></div><div class="declaration"><h4 class="function" id="putFresh"><code><span class="keyword">public func </span><span class="fnname">putFresh</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">v</span> : <span class="type">V</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;</code></h4><p><p>Put the given key's value in the trie; return the new trie; assert that no prior value is associated with the key.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+// note that compared to `put`, `putFresh` does not return a tuple
+trie := Trie.putFresh(trie, key &quot;hello&quot;, Text.equal, 42);
+trie := Trie.putFresh(trie, key &quot;bye&quot;, Text.equal, 32);
+// this will fail as &quot;hello&quot; is already present in the trie
+trie := Trie.putFresh(trie, key &quot;hello&quot;, Text.equal, 10);</code></pre></p></div><div class="declaration"><h4 class="function" id="put2D"><code><span class="keyword">public func </span><span class="fnname">put2D</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie2D"><span class="type">Trie2D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k1</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K1</span>&gt;, <br/>  <span class="parameter">k1_eq</span> : (<span class="type">K1</span>, <span class="type">K1</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">k2</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K2</span>&gt;, <br/>  <span class="parameter">k2_eq</span> : (<span class="type">K2</span>, <span class="type">K2</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">v</span> : <span class="type">V</span><br/>) : <a href="#type.Trie2D"><span class="type">Trie2D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;</code></h4><p><p>Put the given key's value in the 2D trie; return the new 2D trie.</p>
+</p></div><div class="declaration"><h4 class="function" id="put3D"><code><span class="keyword">public func </span><span class="fnname">put3D</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie3D"><span class="type">Trie3D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k1</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K1</span>&gt;, <br/>  <span class="parameter">k1_eq</span> : (<span class="type">K1</span>, <span class="type">K1</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">k2</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K2</span>&gt;, <br/>  <span class="parameter">k2_eq</span> : (<span class="type">K2</span>, <span class="type">K2</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">k3</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K3</span>&gt;, <br/>  <span class="parameter">k3_eq</span> : (<span class="type">K3</span>, <span class="type">K3</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">v</span> : <span class="type">V</span><br/>) : <a href="#type.Trie3D"><span class="type">Trie3D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt;</code></h4><p><p>Put the given key's value in the trie; return the new trie;</p>
+</p></div><div class="declaration"><h4 class="function" id="remove"><code><span class="keyword">public func </span><span class="fnname">remove</span>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span><br/>) : (<a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>Remove the entry for the given key from the trie, by returning the reduced trie.
+Also returns the removed value if the key existed and <code>null</code> otherwise.
+Compares keys using the provided function <code>k_eq</code>.</p>
+<p>:::note
+The removal of an existing key shrinks the trie.
+:::</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+trie := Trie.put(trie, key &quot;hello&quot;, Text.equal, 42).0;
+trie := Trie.put(trie, key &quot;bye&quot;, Text.equal, 32).0;
+// remove the entry associated with &quot;hello&quot;
+trie := Trie.remove(trie, key &quot;hello&quot;, Text.equal).0;
+assert (Trie.get(trie, key &quot;hello&quot;, Text.equal) == null);</code></pre></p></div><div class="declaration"><h4 class="function" id="removeThen"><code><span class="keyword">public func </span><span class="fnname">removeThen</span>&lt;<span class="type">K</span>, <span class="type">V</span>, <span class="type">X</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K</span>&gt;, <br/>  <span class="parameter">k_eq</span> : (<span class="type">K</span>, <span class="type">K</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">success</span> : (<a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K</span>, <span class="type">V</span>&gt;, <span class="type">V</span>) -&gt; <span class="type">X</span>, <br/>  <span class="parameter">fail</span> : () -&gt; <span class="type">X</span><br/>) : <span class="type">X</span></code></h4><p><p>Remove the given key's value in the trie,
+and only if successful, do the success continuation,
+otherwise, return the failure value.</p>
+</p></div><div class="declaration"><h4 class="function" id="remove2D"><code><span class="keyword">public func </span><span class="fnname">remove2D</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie2D"><span class="type">Trie2D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k1</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K1</span>&gt;, <br/>  <span class="parameter">k1_eq</span> : (<span class="type">K1</span>, <span class="type">K1</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">k2</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K2</span>&gt;, <br/>  <span class="parameter">k2_eq</span> : (<span class="type">K2</span>, <span class="type">K2</span>) -&gt; <span class="type">Bool</span><br/>) : (<a href="#type.Trie2D"><span class="type">Trie2D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>remove the given key-key pair's value in the 2D trie; return the
+new trie, and the prior value, if any.</p>
+</p></div><div class="declaration"><h4 class="function" id="remove3D"><code><span class="keyword">public func </span><span class="fnname">remove3D</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie3D"><span class="type">Trie3D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">k1</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K1</span>&gt;, <br/>  <span class="parameter">k1_eq</span> : (<span class="type">K1</span>, <span class="type">K1</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">k2</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K2</span>&gt;, <br/>  <span class="parameter">k2_eq</span> : (<span class="type">K2</span>, <span class="type">K2</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">k3</span> : <a href="#type.Key"><span class="type">Key</span></a>&lt;<span class="type">K3</span>&gt;, <br/>  <span class="parameter">k3_eq</span> : (<span class="type">K3</span>, <span class="type">K3</span>) -&gt; <span class="type">Bool</span><br/>) : (<a href="#type.Trie3D"><span class="type">Trie3D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">K3</span>, <span class="type">V</span>&gt;, ?<span class="type">V</span>)</code></h4><p><p>Remove the given key-key pair's value in the 3D trie; return the
+new trie, and the prior value, if any.</p>
+</p></div><div class="declaration"><h4 class="function" id="mergeDisjoint2D"><code><span class="keyword">public func </span><span class="fnname">mergeDisjoint2D</span>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;(<br/>  <span class="parameter">t</span> : <a href="#type.Trie2D"><span class="type">Trie2D</span></a>&lt;<span class="type">K1</span>, <span class="type">K2</span>, <span class="type">V</span>&gt;, <br/>  <span class="parameter">_k1_eq</span> : (<span class="type">K1</span>, <span class="type">K1</span>) -&gt; <span class="type">Bool</span>, <br/>  <span class="parameter">k2_eq</span> : (<span class="type">K2</span>, <span class="type">K2</span>) -&gt; <span class="type">Bool</span><br/>) : <a href="#type.Trie"><span class="type">Trie</span></a>&lt;<span class="type">K2</span>, <span class="type">V</span>&gt;</code></h4><p><p>Like <a href="#mergedisjoint"><code>mergeDisjoint</code></a>, except instead of merging a
+pair, it merges the collection of dimension-2 sub-trees of a 2D
+trie.</p>
+</p></div></div></body></html>

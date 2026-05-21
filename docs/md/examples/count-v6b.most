@@ -1,0 +1,7 @@
+// Version: 3.0.0
+actor ({
+  stable var newState : Float;
+  in var state : Int
+}, {
+  stable var newState : Float
+}) ;

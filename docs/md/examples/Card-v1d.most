@@ -1,0 +1,5 @@
+// Version: 1.0.0
+type Card__707387324 = {description : Text; title : Text};
+actor {
+  stable var map : [(Nat32, Card__707387324)]
+};

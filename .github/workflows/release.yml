@@ -1,0 +1,99 @@
+name: release
+
+# We trigger this on all tags and on the `master` branch. The job
+# `changelog` will fail for tags that don’t have a
+# changelog entry, so that seems good enough.
+# For `master` this check is skipped as well as uploads.
+
+on:
+  push:
+    tags:
+    - '*'
+    branches:
+    - 'master'
+
+jobs:
+  # first check that the changelog is in good order and extract the changelog
+  # This will fail for non-release tags.
+  changelog:
+    runs-on: 'ubuntu-latest'
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=version::${{ github.ref_name }}
+
+    - name: Extract changelog
+      id: read_changelog
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        export VERSION='${{ steps.get_version.outputs.version }}'
+        perl -0777 -ne '/^# Motoko compiler changelog\n\n## (??{quotemeta($ENV{VERSION})}) \(\d\d\d\d-\d\d-\d\d\)\n\n(.*?)^##/sm or die "Changelog does not look right for this version\n" ; print $1' Changelog.md > changelog-extract.md
+        cat changelog-extract.md
+        # need to mangle to use with set-output, see https://github.com/svenstaro/upload-release-action/pull/49/files
+        r="$(cat changelog-extract.md)"
+        r="${r//'%'/'%25'}"
+        r="${r//$'\n'/'%0A'}"
+        r="${r//$'\r'/'%0D'}"
+        echo "::set-output name=release_body::$r"
+
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      release_body: ${{ steps.read_changelog.outputs.release_body }}
+
+  # Now build the release on both linux and darwin, with the version number set
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    needs: changelog
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v16
+      with:
+        extra_nix_config: |
+          experimental-features = nix-command
+    - uses: cachix/cachix-action@v10
+      if: startsWith(github.ref, 'refs/heads/')
+      with:
+        name: ic-hs-test
+        # NB: No auth token, we don’t want to push new stuff here
+    - uses: cachix/cachix-action@v10
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: ic-hs-test
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+    - run: cachix watch-store ic-hs-test &
+    - name: "nix-build"
+      # these are the dependencies listed in release-files. Sorry for the duplication
+      run: |
+        nix-build --max-jobs 1 --argstr releaseVersion ${{needs.changelog.outputs.version}} \
+          -A moc -A mo-ide -A mo-doc -A js.moc -A js.moc_interpreter
+
+  # Finally do the upload. Hopefully the previous job has uploaded the
+  # build product to the cachix cache, as we cannot build the darwin products on
+  # linux
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: 'ubuntu-latest'
+    needs: [ changelog, build ]
+    steps:
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v16
+    - uses: cachix/cachix-action@v10
+      with:
+        name: ic-hs-test
+        # NB: No auth token, we don’t expect to push new stuff here
+
+    - run: nix-build --max-jobs 1 release-files.nix --argstr releaseVersion '${{ needs.changelog.outputs.version }}'
+
+    - name: Upload Release Assets
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        file: result/*
+        file_glob: true
+        body: ${{ needs.changelog.outputs.release_body }}

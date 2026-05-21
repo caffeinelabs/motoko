@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#type.Stack">Stack</a></li></li></ul></nav><div class="documentation"><h1>Stack</h1><p>Class <code>Stack&lt;X&gt;</code> provides a minimal LIFO stack of elements of type <code>X</code>.</p>
+<p>See library <code>Deque</code> for mixed LIFO/FIFO behavior.</p>
+<p>Example:</p>
+<pre><code>motoko name=initialize
+import Stack &quot;mo:base/Stack&quot;;
+
+let stack = Stack.Stack&lt;Nat&gt;(); // create a stack</code></pre><p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+<div class="declaration"><h4 class="class-declaration" id="type.Stack"><span class="keyword">class </span><span class="classname">Stack</span>&lt;<span class="type">T</span>&gt;()</h4><div class="declaration"><h4 class="function" id="Stack.push"><code><span class="keyword">public func </span><span class="fnname">push</span>(<span class="parameter">x</span> : <span class="type">T</span>)</code></h4><p><p>Push an element on the top of the stack.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+stack.push(1);
+stack.push(2);
+stack.push(3);
+stack.peek(); // examine the top most element</code></pre><p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Stack.isEmpty"><code><span class="keyword">public func </span><span class="fnname">isEmpty</span>() : <span class="type">Bool</span></code></h4><p><p>True when the stack is empty and false otherwise.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+stack.isEmpty();</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Stack.peek"><code><span class="keyword">public func </span><span class="fnname">peek</span>() : ?<span class="type">T</span></code></h4><p><p>Return (without removing) the top element, or return null if the stack is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+stack.push(1);
+stack.push(2);
+stack.push(3);
+stack.peek();</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><div class="declaration"><h4 class="function" id="Stack.pop"><code><span class="keyword">public func </span><span class="fnname">pop</span>() : ?<span class="type">T</span></code></h4><p><p>Remove and return the top element, or return null if the stack is empty.</p>
+<p>Example:</p>
+<pre><code>motoko include=initialize
+stack.push(1);
+ignore stack.pop();
+stack.isEmpty();</code></pre>
+
+<p>| Runtime   | Space     |
+|-----------|-----------|
+| <code>O(1)</code> | <code>O(1)</code> |</p>
+</p></div><p></p></div></div></body></html>

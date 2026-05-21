@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html><head title="Doc"><meta charset="UTF-8"/><link href="styles.css" rel="stylesheet"/></head><body><nav class="sidebar"><h3>Modules</h3><ul><li><li><a href="Array.html">Array</a></li></li><li><li><a href="AssocList.html">AssocList</a></li></li><li><li><a href="Blob.html">Blob</a></li></li><li><li><a href="Bool.html">Bool</a></li></li><li><li><a href="Buffer.html">Buffer</a></li></li><li><li><a href="CertifiedData.html">CertifiedData</a></li></li><li><li><a href="Char.html">Char</a></li></li><li><li><a href="Debug.html">Debug</a></li></li><li><li><a href="Deque.html">Deque</a></li></li><li><li><a href="Error.html">Error</a></li></li><li><li><a href="ExperimentalCycles.html">ExperimentalCycles</a></li></li><li><li><a href="ExperimentalInternetComputer.html">ExperimentalInternetComputer</a></li></li><li><li><a href="ExperimentalStableMemory.html">ExperimentalStableMemory</a></li></li><li><li><a href="Float.html">Float</a></li></li><li><li><a href="Func.html">Func</a></li></li><li><li><a href="Hash.html">Hash</a></li></li><li><li><a href="HashMap.html">HashMap</a></li></li><li><li><a href="Heap.html">Heap</a></li></li><li><li><a href="Int.html">Int</a></li></li><li><li><a href="Int16.html">Int16</a></li></li><li><li><a href="Int32.html">Int32</a></li></li><li><li><a href="Int64.html">Int64</a></li></li><li><li><a href="Int8.html">Int8</a></li></li><li><li><a href="Iter.html">Iter</a></li></li><li><li><a href="IterType.html">IterType</a></li></li><li><li><a href="List.html">List</a></li></li><li><li><a href="Nat.html">Nat</a></li></li><li><li><a href="Nat16.html">Nat16</a></li></li><li><li><a href="Nat32.html">Nat32</a></li></li><li><li><a href="Nat64.html">Nat64</a></li></li><li><li><a href="Nat8.html">Nat8</a></li></li><li><li><a href="None.html">None</a></li></li><li><li><a href="Option.html">Option</a></li></li><li><li><a href="Order.html">Order</a></li></li><li><li><a href="OrderedMap.html">OrderedMap</a></li></li><li><li><a href="OrderedSet.html">OrderedSet</a></li></li><li><li><a href="Prelude.html">Prelude</a></li></li><li><li><a href="Principal.html">Principal</a></li></li><li><li><a href="RBTree.html">RBTree</a></li></li><li><li><a href="Random.html">Random</a></li></li><li><li><a href="Region.html">Region</a></li></li><li><li><a href="Result.html">Result</a></li></li><li><li><a href="Stack.html">Stack</a></li></li><li><li><a href="Text.html">Text</a></li></li><li><li><a href="Time.html">Time</a></li></li><li><li><a href="Timer.html">Timer</a></li></li><li><li><a href="Trie.html">Trie</a></li></li><li><li><a href="TrieMap.html">TrieMap</a></li></li><li><li><a href="TrieSet.html">TrieSet</a></li></li></ul><h3>Declarations</h3><ul><li><li><a href="#blob">blob</a></li></li><li><li><a href="#type.Finite">Finite</a></li></li><li><li><a href="#byteFrom">byteFrom</a></li></li><li><li><a href="#coinFrom">coinFrom</a></li></li><li><li><a href="#rangeFrom">rangeFrom</a></li></li><li><li><a href="#binomialFrom">binomialFrom</a></li></li></ul></nav><div class="documentation"><h1>Random</h1><p>A module for obtaining randomness on the Internet Computer (IC).</p>
+<p>This module provides the fundamentals for user abstractions to build on.</p>
+<p>Dealing with randomness on a deterministic computing platform, such
+as the IC, is intricate. Some basic rules need to be followed by the
+user of this module to obtain (and maintain) the benefits of crypto-
+graphic randomness:</p>
+<ul><li>Cryptographic entropy (randomness source) is only obtainable
+ asyncronously in discrete chunks of 256 bits (32-byte sized <code>Blob</code>s).</li><li>All bets must be closed <em>before</em> entropy is being asked for in
+ order to decide them.</li><li>This implies that the same entropy (i.e. <code>Blob</code>) - or surplus entropy
+ not utilised yet - cannot be used for a new round of bets without
+ losing the cryptographic guarantees.</li></ul>
+
+<p>Concretely, the below class <code>Finite</code>, as well as the
+<code>*From</code> methods risk the carrying-over of state from previous rounds.
+These are provided for performance (and convenience) reasons, and need
+special care when used. Similar caveats apply for user-defined (pseudo)
+random number generators.</p>
+<p>Usage:</p>
+<pre><code>motoko no-repl
+import Random &quot;mo:base/Random&quot;;</code></pre><div class="declaration"><h4 class="function" id="blob"><code><span class="keyword">public func </span><span class="fnname">blob</span>() : <span class="keyword">async </span><span class="type">Blob</span></code></h4><p><p>Obtains a full blob (32 bytes) worth of fresh entropy.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let random = Random.Finite(await Random.blob());</code></pre></p></div><div class="declaration"><h4 class="class-declaration" id="type.Finite"><span class="keyword">class </span><span class="classname">Finite</span>(<span class="parameter">entropy</span> : <span class="type">Blob</span>)</h4><div class="declaration"><h4 class="function" id="Finite.byte"><code><span class="keyword">public func </span><span class="fnname">byte</span>() : ?<span class="type">Nat8</span></code></h4><p><p>Uniformly distributes outcomes in the numeric range [0 .. 255].
+Consumes 1 byte of entropy.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+let random = Random.Finite(seed);
+random.byte() // =&gt; ?20</code></pre></p></div><div class="declaration"><h4 class="function" id="Finite.coin"><code><span class="keyword">public func </span><span class="fnname">coin</span>() : ?<span class="type">Bool</span></code></h4><p><p>Simulates a coin toss. Both outcomes have equal probability.
+Consumes 1 bit of entropy (amortised).</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+let random = Random.Finite(seed);
+random.coin() // =&gt; ?false</code></pre></p></div><div class="declaration"><h4 class="function" id="Finite.range"><code><span class="keyword">public func </span><span class="fnname">range</span>(<span class="parameter">p</span> : <span class="type">Nat8</span>) : ?<span class="type">Nat</span></code></h4><p><p>Uniformly distributes outcomes in the numeric range [0 .. 2^p - 1].
+Consumes ⌈p/8⌉ bytes of entropy.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+let random = Random.Finite(seed);
+random.range(32) // =&gt; ?348746249</code></pre></p></div><div class="declaration"><h4 class="function" id="Finite.binomial"><code><span class="keyword">public func </span><span class="fnname">binomial</span>(<span class="parameter">n</span> : <span class="type">Nat8</span>) : ?<span class="type">Nat8</span></code></h4><p><p>Counts the number of heads in <code>n</code> fair coin tosses.
+Consumes ⌈n/8⌉ bytes of entropy.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+let random = Random.Finite(seed);
+random.binomial(5) // =&gt; ?1</code></pre></p></div><p><p>Drawing from a finite supply of entropy, <code>Finite</code> provides
+methods to obtain random values. When the entropy is used up,
+<code>null</code> is returned. Otherwise the outcomes' distributions are
+stated for each method. The uniformity of outcomes is
+guaranteed only when the supplied entropy is originally obtained
+by the <code>blob()</code> call, and is never reused.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+import Random &quot;mo:base/Random&quot;;
+
+let random = Random.Finite(await Random.blob());
+
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+let seedRandom = Random.Finite(seed);</code></pre></p></div><div class="declaration"><h4 class="function" id="byteFrom"><code><span class="keyword">public func </span><span class="fnname">byteFrom</span>(<span class="parameter">seed</span> : <span class="type">Blob</span>) : <span class="type">Nat8</span></code></h4><p><p>Distributes outcomes in the numeric range [0 .. 255].
+Seed blob must contain at least a byte.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+Random.byteFrom(seed) // =&gt; 20</code></pre></p></div><div class="declaration"><h4 class="function" id="coinFrom"><code><span class="keyword">public func </span><span class="fnname">coinFrom</span>(<span class="parameter">seed</span> : <span class="type">Blob</span>) : <span class="type">Bool</span></code></h4><p><p>Simulates a coin toss.
+Seed blob must contain at least a byte.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+Random.coinFrom(seed) // =&gt; false</code></pre></p></div><div class="declaration"><h4 class="function" id="rangeFrom"><code><span class="keyword">public func </span><span class="fnname">rangeFrom</span>(<span class="parameter">p</span> : <span class="type">Nat8</span>, <span class="parameter">seed</span> : <span class="type">Blob</span>) : <span class="type">Nat</span></code></h4><p><p>Distributes outcomes in the numeric range [0 .. 2^p - 1].
+Seed blob must contain at least ((p+7) / 8) bytes.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+Random.rangeFrom(32, seed) // =&gt; 348746249</code></pre></p></div><div class="declaration"><h4 class="function" id="binomialFrom"><code><span class="keyword">public func </span><span class="fnname">binomialFrom</span>(<span class="parameter">n</span> : <span class="type">Nat8</span>, <span class="parameter">seed</span> : <span class="type">Blob</span>) : <span class="type">Nat8</span></code></h4><p><p>Counts the number of heads in <code>n</code> coin tosses.
+Seed blob must contain at least ((n+7) / 8) bytes.</p>
+<p>Example:</p>
+<pre><code>motoko no-repl
+let seed : Blob = &quot;\14\C9\72\09\03\D4\D5\72\82\95\E5\43\AF\FA\A9\44\49\2F\25\56\13\F3\6E\C7\B0\87\DC\76\08\69\14\CF&quot;;
+Random.binomialFrom(5, seed) // =&gt; 1</code></pre></p></div></div></body></html>
