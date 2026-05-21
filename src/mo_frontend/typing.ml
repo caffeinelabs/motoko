@@ -1997,12 +1997,9 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          (* Skip non-postfix receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
-          if not (Syntax.is_postfix_exp e) then () else
-          (match
-             if e.at.left.line <> e.at.right.line then None
-             else read_region e.at
-           with
+          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
+          if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
+          (match read_region e.at with
            | None -> ()
            | Some receiver_text ->
              let replace_receiver = edit old_receiver.at receiver_text in
