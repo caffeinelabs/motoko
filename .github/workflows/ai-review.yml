@@ -1,0 +1,122 @@
+name: AI review comments
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  ai-review:
+    # Keep repository secrets away from forked PRs.
+    if: github.event.pull_request.state == 'open' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ai-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Prepare PR diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --no-ext-diff --unified=80 "$BASE_SHA...$HEAD_SHA" > /tmp/pr.diff
+
+      - name: Install Cursor CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+
+      - name: Run AI review
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          test -n "$CURSOR_API_KEY"
+
+          mkdir -p .cursor
+          cat > .cursor/cli.json <<'JSON'
+          {
+            "permissions": {
+              "allow": [
+                "Read(**)",
+                "Read(/tmp/pr.diff)"
+              ],
+              "deny": [
+                "Shell(*)",
+                "Write(**)",
+                "Read(.git/**)",
+                "Read(.env*)",
+                "Read(**/.env*)",
+                "Read(**/*secret*)",
+                "Read(**/*token*)",
+                "WebFetch(*)",
+                "Mcp(*:*)"
+              ]
+            }
+          }
+          JSON
+
+          agent -p --output-format text "Review pull request #$PR_NUMBER: $PR_TITLE.
+
+          Use /tmp/pr.diff as the primary source of truth, and inspect repository files only when needed for context.
+          Return Markdown for a GitHub PR comment.
+          Focus on correctness bugs, security issues, regressions, and missing tests.
+          Be concise and cite file paths when useful.
+          Do not approve, request changes, post comments, modify files, run commands, or include secrets.
+          If there are no actionable issues, say so and mention any residual test risk." \
+            > cursor-ai-review.md
+
+      - name: Post AI review comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require("fs");
+
+            const {owner, repo} = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = "<!-- cursor-ai-review -->";
+            const heading = "### Cursor AI review";
+            const maxBodyLength = 60000;
+
+            let review = fs.readFileSync("cursor-ai-review.md", "utf8").trim();
+            if (!review) {
+              review = "No actionable issues found.";
+            }
+            if (review.length > maxBodyLength) {
+              review = review.slice(0, maxBodyLength) + "\n\n_Review truncated because it exceeded GitHub's comment size limit._";
+            }
+
+            const body = `${marker}\n${heading}\n\n${review}`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+            });
+            const existing = comments.filter((comment) => comment.body.includes(marker));
+
+            if (existing.length > 0) {
+              const comment = existing[existing.length - 1];
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: comment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
