@@ -87,7 +87,7 @@ let
       mkdir -p $out/rts
       ${pkgs.lib.optionalString (wasmOpt != null) ''
         for f in mo-rts-non-incremental.wasm mo-rts-incremental.wasm mo-rts-eop.wasm; do
-          ${wasmOpt}/bin/wasm-opt --optimize-instructions "$f" -o "$f"
+          ${wasmOpt}/bin/wasm-opt -Os --optimize-instructions "$f" -o "$f"
         done
       ''}
       cp mo-rts-non-incremental.wasm $out/rts
