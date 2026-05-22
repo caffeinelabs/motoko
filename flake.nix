@@ -2,7 +2,9 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # Tinker pin: nixpkgs PR #522774's branch (wasmtime 44.0.1 → 45.0.0).
+    # Reverts to nixpkgs-unstable once that PR lands and propagates.
+    nixpkgs.url = "github:ggreif/nixpkgs/auto-update/wasmtime";
 
     flake-utils.url = "github:numtide/flake-utils";
 
