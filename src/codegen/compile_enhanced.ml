@@ -13556,6 +13556,14 @@ and alloc_pat env ae how pat : VarEnv.t * G.t  =
   ) d (ae, G.nop)
 
 and compile_pat_local env ae (init : G.t) pat : VarEnv.t * patternCode =
+  (* It returns:
+     - the extended environment
+     - the patternCode to do the pattern matching.
+       The value to destructure is materialised by `init` (re-emitted
+       at each use site via `immut_local` / `fill_pat`).
+       If the pattern matches, execution continues (with nothing on the stack).
+       If the pattern does not match, it fails (in the sense of PatCode.CanFail)
+  *)
   let ae1 = alloc_pat_local env ae pat in
   ae1, fill_pat env ae1 init pat
 

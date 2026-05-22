@@ -12886,12 +12886,14 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let ae1, pat_code = compile_pat_local env ae code1 {pat with it = known_tag_pat pat'} in
     let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint exp in
 
+    (* Use the expected stackrep, if given, else infer from the branches *)
     let final_sr = match sr_hint with
       | Some sr -> sr
       | None -> sr
     in
 
     final_sr,
+    (* Run rest in block to exit from *)
     FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
@@ -12903,12 +12905,14 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     let code1 = compile_exp_vanilla env ae e in
     let scr_prelude, get_i = immut_local env "switch_in" code1 in
 
+    (* compile subexpressions and collect the provided stack reps *)
     let codes = List.map (fun {it={pat; exp=e}; _} ->
       let ae1, pat_code = compile_pat_local env ae get_i pat in
       let sr, rhs_code = compile_exp_with_hint env ae1 sr_hint e in
       sr, pat_code ^^^ CannotFail rhs_code
       ) (simplify_cases e cs) in
 
+    (* Use the expected stackrep, if given, else infer from the branches *)
     let final_sr = match sr_hint with
       | Some sr -> sr
       | None -> StackRep.joins (List.map fst codes)
@@ -12920,7 +12924,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
        ) codes) ^^
-       G.i Unreachable
+       G.i Unreachable (* We should always exit using the branch_code *)
     )
   (* Async-wait lowering support features *)
   | DeclareE (name, typ, e) ->
@@ -13209,6 +13213,14 @@ and alloc_pat env ae how pat : VarEnv.t * G.t  =
   ) d (ae, G.nop)
 
 and compile_pat_local env ae (init : G.t) pat : VarEnv.t * patternCode =
+  (* It returns:
+     - the extended environment
+     - the patternCode to do the pattern matching.
+       The value to destructure is materialised by `init` (re-emitted
+       at each use site via `immut_local` / `fill_pat`).
+       If the pattern matches, execution continues (with nothing on the stack).
+       If the pattern does not match, it fails (in the sense of PatCode.CanFail)
+  *)
   let ae1 = alloc_pat_local env ae pat in
   ae1, fill_pat env ae1 init pat
 
