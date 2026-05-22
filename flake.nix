@@ -227,8 +227,6 @@
         # TODO: Re-enable base tests once we recalibrate them so they
         # don't OOM anymore.
         # base-tests = import ./nix/base-tests.nix { inherit pkgs; inherit (debugMoPackages) moc; };
-        base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
-        report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
         # `rts-checked` is intentionally NOT included here: it is the slow,
         # cargo-test-running variant, and on darwin its check phase is uncached

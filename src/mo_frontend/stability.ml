@@ -57,7 +57,7 @@ let error_stable_sub s at mig_lab_opt tf1 tf2 explanation =
 
 let error_required s at mig_lab_opt tf =
   Diag.add_msg s
-    (Diag.error_message at "M0169" cat
+    (Diag.error_message at "M0263" cat
        (Format.asprintf "%s does not contain the stable variable `%s`. The migration function cannot require this variable as input, please see %s."
         (desc mig_lab_opt)
         tf.lab

@@ -62,8 +62,8 @@ let optimize : instr list -> instr list = fun is ->
       go l' r'
     | { it = GlobalGet n1; _} :: l', ({ it = GlobalSet n2; _ }) :: r' when n1 = n2 ->
       go l' r'
-    (* Code after Return, Br or Unreachable is dead *)
-    | _, ({ it = Return | Br _ | Unreachable; _ } as i) :: t ->
+    (* Code after Return, Br, BrTable or Unreachable is dead *)
+    | _, ({ it = Return | Br _ | BrTable _ | Unreachable; _ } as i) :: t ->
       (* see Note [funneling DIEs through Wasm.Ast] *)
       List.(rev (i :: l) @ find_all (fun instr -> Wasm_exts.Ast.is_dwarf_like instr.it) t)
     (* Equals zero has a dedicated operation (and works well with leg swapping) *)
@@ -98,6 +98,19 @@ let optimize : instr list -> instr list = fun is ->
       go ({a with it = Unary (I32 I32Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
     | ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
       go ({a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
+    (* Same, with an intervening i32.wrap_i64 (semantically irrelevant for the LSB test) *)
+    | ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
+      go (w :: {a with it = Unary (I64 I64Op.Ctz)} :: l') ({i with it = If (res,else_,then_)} :: r')
+    (* `br_if` variants: `[and 1; eqz; br_if]` collapses to `[ctz; br_if]`.
+       Unlike the `if` forms above there is no leg to swap — `br_if` has only
+       one branch direction, and `ctz` already inverts the LSB test the right way. *)
+    | { it = Test (I32 I32Op.Eqz); _} :: ({ it = Binary (I32 I32Op.And); _} as a) :: { it = Const {it = I32 1l; _}; _} :: l', ({it = BrIf _; _} as br) :: r' ->
+      go ({a with it = Unary (I32 I32Op.Ctz)} :: l') (br :: r')
+    | ({ it = Test (I64 I64Op.Eqz); _} as e) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = BrIf _; _} as br) :: r' ->
+      go ({e with it = Convert (I32 I32Op.WrapI64)} :: {a with it = Unary (I64 I64Op.Ctz)} :: l') (br :: r')
+    (* Same i64 form, with an intervening `i32.wrap_i64; i32.eqz` (instead of `i64.eqz`) *)
+    | { it = Test (I32 I32Op.Eqz); _} :: ({ it = Convert (I32 I32Op.WrapI64); _} as w) :: ({ it = Binary (I64 I64Op.And); _} as a) :: { it = Const {it = I64 1L; _}; _} :: l', ({it = BrIf _; _} as br) :: r' ->
+      go (w :: {a with it = Unary (I64 I64Op.Ctz)} :: l') (br :: r')
     (* `If` blocks after pushed constants are simplifiable *)
     | { it = Const {it = I32 0l; _}; _} :: l', ({it = If (res,_,else_); _} as i) :: r' ->
       go l' ({i with it = Block (res, else_)} :: r')
@@ -106,9 +119,11 @@ let optimize : instr list -> instr list = fun is ->
     (* `If` blocks after negation can swap legs *)
     | { it = Test (I32 I32Op.Eqz); _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
       go l' ({i with it = If (res,else_,then_)} :: r')
-    (* `If` blocks with empty legs just drop *)
-    | l', ({it = If (_,[],[]); _} as i) :: r' ->
+    (* `If` blocks with empty legs (or just a Br 0 fall-through) just drop *)
+    | l', ({it = If (_, ([] | [{it = Br {it = 0l; _}; _}]), []); _} as i) :: r' ->
        go l' ({i with it = Drop} :: r')
+    | l', ({it = If (_, [{it = Br x; _}], []); _} as i) :: r' ->
+      go l' ({i with it = BrIf {x with it = Int32.sub x.it 1l}} :: r')
     (* `If` blocks with empty then after comparison can invert the comparison and swap legs *)
     | { it = Compare (I32 I32Op.Eq); _} as comp :: l', ({it = If (res,[],else_); _} as i) :: r' ->
       go ({comp with it = Compare (I32 I32Op.Ne)} :: l') ({i with it = If (res,else_,[])} :: r')

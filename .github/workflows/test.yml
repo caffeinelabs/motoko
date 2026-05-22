@@ -81,15 +81,18 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           max-jobs: ${{ matrix.max_jobs }}
 
+      # Secrets/vars are not exposed to fork PRs, so this step (and the perf
+      # step that consumes its output) is skipped on fork PRs.
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
           private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
 
       - name: Run Performance Tests
-        if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request' && runner.os == 'Linux' && runner.arch == 'X64' && matrix.build_type == 'release'
+        if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && runner.os == 'Linux' && runner.arch == 'X64' && matrix.build_type == 'release'
         uses: ./.github/actions/performance
         with:
           head_sha: ${{ github.event.pull_request.head.sha }}
@@ -98,28 +101,6 @@ jobs:
           pr_number: ${{ github.event.pull_request.number }}
           is_fork: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
           token: ${{ steps.app-token.outputs.token }}
-
-  reports:
-    if: github.ref == 'refs/heads/master'
-    needs: [tests]
-    concurrency: ci-${{ github.ref }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
-        with:
-          name: ic-hs-test
-      - name: Fetch report
-        run: nix build .#report-site -o report-site
-      - name: Resolve symlinks
-        run: cp -rL report-site report-site-copy
-      - name: Push report to GitHub pages
-        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
-        with:
-          branch: gh-pages
-          folder: report-site-copy
-          single-commit: true
 
   artifacts:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'build_artifacts')
@@ -206,7 +187,7 @@ jobs:
         with:
           ref: "master"
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token-for-approvals
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
@@ -220,10 +201,10 @@ jobs:
           ### Handles open PRs that address `master` and only have one changed file. The body checks whether that is the `Changelog.md` (since the `if:` condition can't). If so, the PR gets approved with a comment.
           [ $(gh pr diff $PR --name-only) == "Changelog.md" ] \
           && gh pr review $PR --approve --body 'A change to `Changelog.md`? I can handle that!'
-          ### Handles open PRs filed by `dependabot[bot]` that carry the `dependencies` label. The single changed file must be `doc/docusaurus/package-lock.json`. If so, the PR gets approved with a comment.
+          ### Handles open PRs filed by `dependabot[bot]` that carry the `dependencies` label. The single changed file must be `doc/site/package-lock.json`. If so, the PR gets approved with a comment.
           ${{ github.event.pull_request.user.login == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependencies') }} \
-          && [ $(gh pr diff $PR --name-only) == "doc/docusaurus/package-lock.json" ] \
-          && gh pr review $PR --approve --body 'A change to `doc/docusaurus/package-lock.json`? I can handle that!' \
+          && [ $(gh pr diff $PR --name-only) == "doc/site/package-lock.json" ] \
+          && gh pr review $PR --approve --body 'A change to `doc/site/package-lock.json`? I can handle that!' \
           && gh pr merge $PR --squash --auto
           ### Handles open PRs filed by the GH automation bot that carry the `automerge-squash` label. The single changed file must be `flake.lock`. If so, the PR gets approved with a comment, auto-merge activated and the label removed.
           ${{ github.event.pull_request.user.login == 'caffeine-ci-generic-rw[bot]' && contains(github.event.pull_request.labels.*.name, 'automerge-squash') }} \
