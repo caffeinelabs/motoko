@@ -2,7 +2,8 @@ name: AI review comments
 
 # Posts an advisory Cursor AI review as a PR comment. Never approves or requests changes.
 # To skip, add the 'skip-ai-review' label.
-# Requires the CURSOR_AI_PR_REVIEW_TOKEN repository secret.
+# Requires the CURSOR_API_TOKEN repository secret (synced from Bitwarden via
+# caffeinelabs/infra cloud-infra/github/repo/ai-pr-review.ts).
 
 on:
   pull_request:
@@ -33,11 +34,11 @@ jobs:
       - name: Check API token
         id: token
         env:
-          CURSOR_AI_PR_REVIEW_TOKEN: ${{ secrets.CURSOR_AI_PR_REVIEW_TOKEN }}
+          CURSOR_API_TOKEN: ${{ secrets.CURSOR_API_TOKEN }}
         run: |
-          if [ -z "$CURSOR_AI_PR_REVIEW_TOKEN" ]; then
+          if [ -z "$CURSOR_API_TOKEN" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "CURSOR_AI_PR_REVIEW_TOKEN not configured; skipping AI review."
+            echo "CURSOR_API_TOKEN not configured; skipping AI review."
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
@@ -115,7 +116,7 @@ jobs:
         if: steps.token.outputs.configured == 'true' && steps.install-cursor.outcome == 'success'
         continue-on-error: true
         env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_AI_PR_REVIEW_TOKEN }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
