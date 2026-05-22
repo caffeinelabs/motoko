@@ -211,24 +211,26 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare failure output
-        if: >-
-          always() &&
-          steps.token.outputs.configured == 'true' &&
-          job.status == 'failure'
+      - name: Ensure review comment body
+        # Always runs (when the token is configured) so the post step has
+        # something to publish. `continue-on-error: true` on install/review
+        # masks step failure into job success, so we cannot key off
+        # job.status — instead, treat any missing/empty file as a failure
+        # and write the fallback notice. This also covers checkout and
+        # materialize failures (which skip later steps without
+        # continue-on-error).
+        if: always() && steps.token.outputs.configured == 'true'
         run: |
-          # Preserve any partial output the agent produced; only write the
-          # generic failure notice when there's nothing usable on disk.
           if [ ! -s cursor-ai-review.md ]; then
             cat > cursor-ai-review.md <<'EOF'
           ⚠️ **AI review could not be completed.**
 
-          Please proceed with manual code review. Common causes: checkout/diff failure, Cursor API issues, install failure, or rate limiting.
+          Please proceed with manual code review. Common causes: checkout/diff failure, install failure, Cursor API issues, or rate limiting.
           EOF
           fi
 
       - name: Post AI review comment
-        if: always() && steps.token.outputs.configured == 'true' && hashFiles('cursor-ai-review.md') != ''
+        if: always() && steps.token.outputs.configured == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -241,9 +243,14 @@ jobs:
             const maxBodyLength = 60000;
             const headSha = context.payload.pull_request.head.sha;
 
-            let review = fs.readFileSync("cursor-ai-review.md", "utf8").trim();
+            let review = "";
+            try {
+              review = fs.readFileSync("cursor-ai-review.md", "utf8").trim();
+            } catch (_) {
+              // file missing; treat as failure below
+            }
             if (!review) {
-              review = "No actionable issues found.";
+              review = "⚠️ **AI review could not be completed.**\n\nPlease proceed with manual code review.";
             }
 
             const reviewLines = review.split("\n").length;
