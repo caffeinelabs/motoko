@@ -1,24 +1,16 @@
 { pkgs, js, base-src, core-src }:
+# The pandoc/Docusaurus build is replaced by a Starlight site (doc/site/).
+# Rendered docs are published at docs.internetcomputer.org/languages/motoko/.
+# This derivation copies the Markdown source so it remains available as a
+# Nix output and keeps docs.buildInputs accessible for the dev shell.
 pkgs.stdenv.mkDerivation {
   name = "docs";
-  src = ../doc;
-  buildInputs = with pkgs; [ pandoc bash gitMinimal ];
+  src = ../doc/md;
 
-  buildPhase = ''
-    patchShebangs .
-    export HOME=$PWD
-    export MOC_JS=${js.moc}/bin/moc.js
-    export MOTOKO_BASE=${base-src}
-    export MOTOKO_CORE=${core-src}
-    make
-  '';
+  buildPhase = "true";
 
   installPhase = ''
-    mkdir -p $out
-    mv overview-slides.html $out/
-    mv html $out/
-    mkdir -p $out/nix-support
-    echo "report guide $out html/motoko.html" >> $out/nix-support/hydra-build-products
-    echo "report slides $out overview-slides.html" >> $out/nix-support/hydra-build-products
+    mkdir -p $out/md
+    cp -r . $out/md/
   '';
 }
