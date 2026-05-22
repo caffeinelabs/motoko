@@ -1171,3 +1171,247 @@ back. Both are pure Motoko; no RTS changes required.
   parenthetical codec annotation makes all three viable simultaneously — each
   endpoint gets its own `(with decoder = …; encoder = …)` without duplicating
   resolver logic.
+
+---
+
+## Aggregation in `BoolExpr` — `#countOf` extension plan
+
+**Status:** shelved until after the 2026-05-22 demo. The headline query
+on slide 5 (`every client whose count of (every card whose valid is
+false) > 1`) is shown as aspirational. AppleScript already parses it
+end-to-end; the canister-side decoder is what needs to extend.
+
+### Why shelve
+
+- The talk's job is to *water mouths*, not deliver a feature. The
+  inner half (count of invalid cards = 6) already works in
+  fixture `06-invalid-cards.applescript` and demonstrates the
+  primitive; the outer half can land later without affecting
+  anything else.
+- Risk is low *structurally* but non-trivial *protocol-wise* (one
+  new mutual-recursion edge between two evaluators — see "Tricky
+  bit" below). Worth doing deliberately, not under demo-day pressure.
+
+### Proposed extension
+
+```motoko
+type BoolExpr = {
+  #compare : { prop : Text;  op : Comparison;  value : CandidValue };
+  #countOf : { sub : ObjectSpec;  op : Comparison;  value : Int };   // ← new
+  #and_    : (BoolExpr, BoolExpr);
+  #or_     : (BoolExpr, BoolExpr);
+  #not_    : BoolExpr;
+  #always;
+};
+```
+
+Semantics: when evaluating `#countOf { sub; op; value }` against an
+iterated outer element `e`, run `eval(sub, e)` (i.e. with `e` as the
+container for `sub`), interpret the result as a collection, take its
+cardinality, compare against `value` with `op`. The whose-clause keeps
+or drops `e` based on the comparison.
+
+### Risk dimensions
+
+| Surface | Risk | Why |
+|---|---|---|
+| Type-level | low | Pure additive variant; we own both producer + consumer. |
+| Wire (AE format) | low | AppleScript already packs nested object specifiers in whose-clause comparisons. Format unchanged. |
+| Smurf protocol | low–medium | `Smurf.filter : BoolExpr → Smurf` gets one new case in its dispatcher; the protocol shape doesn't change. |
+| Cost model | medium | A whose-clause goes from `O(n × constant)` to `O(n × cost(sub))`. For 100 clients × ~2 cards each it's negligible; on bigger DBs deserves a depth cap and a cycles-aware short-circuit. |
+| Contextual scoping | **medium** | See below. |
+| Failure semantics | low | `notFoundSmurf` policy already exists; the new edge needs to compose cleanly with it. |
+
+### The tricky bit — contextual scoping
+
+Current eval signature:
+
+```motoko
+eval(spec : ObjectSpec, root : Smurf) : async* …
+```
+
+Today, BoolExpr's predicates are **flat**: `#compare { prop; op; value }`
+only reads one property of the iterated element against a constant.
+There is no path from `BoolExpr` eval back to `ObjectSpec` eval.
+
+`#countOf { sub; … }` needs `sub` evaluated **relative to the iterated
+outer element**, not root. So the eval path now contains a mutual
+recursion edge:
+
+```
+ObjectSpec.eval ──→ Smurf.filter ──→ BoolExpr.eval ──┐
+        ▲                                            │
+        └──────────── #countOf re-enters here ───────┘
+```
+
+Mechanically that's one extra parameter on the BoolExpr evaluator (the
+current iterated Smurf, to be passed as container of `sub`), but the
+trap-policy across that edge needs deliberate thought: when `sub` hits
+`notFoundSmurf` mid-walk, does the outer whose-clause:
+
+1. **Skip** the outer element silently (treat count as 0), or
+2. **Trap** the entire outer eval (current style for hard misses), or
+3. **Surface** as a partial result with a per-element error?
+
+Recommend (1) for `#countOf` specifically: a missing inner specifier
+genuinely means "this outer element has 0 matching inner elements".
+This mirrors AppleScript host semantics — `count of (its things whose
+…)` returns 0 for elements with no `things`.
+
+### Implementation steps
+
+1. Extend `BoolExpr` with the `#countOf` variant. Compiler warnings will
+   flag every pattern match; chase them one by one.
+2. Extend the predicate evaluator (`evalBool` or wherever the
+   per-element predicate lives) to accept the iterated Smurf and to
+   call into `eval(sub, currentSmurf)` for `#countOf`.
+3. Compute cardinality on the returned ObjectSpec — for `#list n` it's
+   `n.size()`; for `#obj { … }` it's 1 (singleton); for everything else
+   trap with a clear "cannot count this descriptor" message.
+4. Wire the decoder: incoming AE comparisons whose left side is a
+   nested object specifier need to project to `#countOf` (default — AE
+   doesn't distinguish between "evaluate as count" and "evaluate as
+   collection-of-items"; the comparison operator's right-hand integer
+   is the heuristic).
+5. Add fixtures:
+   - `07-clients-multi-invalid.applescript` — the headline query.
+   - `08-clients-no-invalid.applescript` — outer with count == 0.
+   - `09-clients-and-clause.applescript` — `#countOf` inside `#and_`
+     ("Germans with > 1 invalid card").
+6. Documentation: extend the eval-policy doc with the trap-policy
+   decision and the depth cap (suggest: 4 nesting levels max, trap
+   beyond).
+
+### Open questions
+
+- Should the `value` field of `#countOf` be `Int` or `Nat`? AppleScript
+  permits "count > -1" (always true), so `Int` is more honest, but `Nat`
+  catches an off-by-one class of bugs at the type level. Lean toward
+  `Int` for AE-fidelity.
+- Do we want to also lift `count of` *outside* a whose-clause as a
+  result type (i.e. `every client whose ...` returning `count of` rather
+  than a list)? This is a separate axis — the `pcnt` accessor already
+  handles it for non-nested cases.
+- Cost-limit policy: hard cap at depth 4, or cycles-aware short-circuit
+  via `Cycles.balance()` checks? Tend toward depth cap for simplicity;
+  the canister isn't likely to be the cycles-tight component in
+  practice.
+
+### Cross-references
+
+- `~/motoko/test/bench/object-spec.mo` — current `BoolExpr` + `eval`
+  implementation. Search for `#compare` to find pattern-match sites.
+- `~/ICmator/agent/src/lingo.rs` — agent-side AE encoding /
+  decoding. The whose-clause packer is in the surrounding modules.
+- `~/ICmator/agent/src/main.rs` — agent's stdin→canister-call→stdout
+  glue. The reject-bubble path is the call-site for the AE-error
+  structured-payload work below.
+- `~/ICmator/slides/index.html` slide 5 — "Where we're heading" —
+  audience-facing version of this plan.
+- `~/ICmator/tests/fixtures/06-invalid-cards.applescript` — the
+  inner half of the headline query (works today; passes `make check`
+  once the stack is up).
+
+---
+
+## AE error codes — from stringly-typed reject to structured payload
+
+**Status:** companion to the `#countOf` extension; not currently
+wired even though the canister already emits the literal string.
+
+### The current shape
+
+In `object-spec.mo`, the 404 path is:
+
+```motoko
+let notFoundSmurf(parent : Smurf) : Smurf = {
+  …
+  toDesc = func() : async* ObjectSpec {
+    throw error ("Error (errAENoSuchObject = -1728) in "
+                  # debug_show (await* parent.toDesc()))
+  };
+  …
+};
+```
+
+The canister `throw error <text>` lands on the wire as a Candid reject
+response with the text string in the body.  `icmator-agent` today
+runs `agent.update(...).call_and_wait().await?` and `?`-bubbles the
+`ic_agent::AgentError::ReplicaError` (or similar) up as an
+`anyhow::Error` straight to stderr.  Nothing pattern-matches the
+string.  Script Editor sees a generic agent-failed condition rather
+than a typed AppleEvent error.
+
+### The slide-deck stopgap
+
+What the slide currently labels "404 path" is *aspirational on the
+host side*.  The canister puts a stable literal in the reject text
+(`errAENoSuchObject = -1728`) precisely so an agent-side parser has
+something deterministic to grep — but the parser doesn't yet exist.
+
+### Three plausible designs
+
+| Option | Canister change | Wire shape | Cleanliness |
+|---|---|---|---|
+| **A. Regex on reject text** | none | unchanged | works, but stringly-typed; brittle to canister-side rewording |
+| **B. JSON-tagged reject text** | swap `error "…"` for `error "AE:" # JSON.encode {code; ctx}` | unchanged | parseable prefix, but still stringly-typed |
+| **C. Variant return type** | replace `async ObjectSpec` with `async { #ok : ObjectSpec; #ae_error : { code : Int; context : ?Text } }` | new variant on the wire | clean, typed, but breaks the success-only signature and every existing caller |
+
+### Recommended path
+
+**Option C, gated behind a single per-method codec.**  The encoder
+already lives behind the `(with encoder = …)` parenthetical, so we
+can attach a *result-codec* that handles `#ok` vs `#ae_error`
+without touching method shape downstream:
+
+```motoko
+type AEResult = {
+  #ok       : ObjectSpec;
+  #ae_error : { code : Int; context : ?Text };
+};
+
+(with encoder = AE.encodeResult; decoder = AE.decodeObjectSpec)
+public func queryAE(spec : ObjectSpec) : async AEResult { … };
+```
+
+`AE.encodeResult` flattens `#ok` to the existing AE descriptor and
+`#ae_error` to a `keyErrorNumber + keyErrorString` AE reply.  The
+agent then has two clean paths:
+
+```rust
+match decode_ae_result(&response_blob) {
+  AEResult::Ok(spec_bytes)         => write_stdout(spec_bytes),
+  AEResult::Error { code, context } => write_stdout(pack_ae_error(code, context)),
+}
+```
+
+— no regex, no stringly-typed coupling between canister and agent.
+
+### Migration order
+
+1. Land `#ae_error` as an additional variant alongside `#ok` (no
+   field rename), keep both throw-path and return-path live for one
+   release.
+2. Switch `notFoundSmurf.toDesc` from `throw error` to a
+   `return #ae_error { code = -1728; context = ?... }` over a
+   bench-only flag.
+3. Once the bench is green end-to-end with the typed path, retire
+   the throw-text path entirely.  `query.md` and the slide get
+   updated to "canonical typed path; no regex".
+
+### Open questions
+
+- Should the canister carry an enum of known AE codes
+  (`errAENoSuchObject`, `errAEEventNotHandled`, …) or just raw
+  `Int`?  AE has ~50 codes; an enum sweetens the canister code but
+  adds a churn-prone surface.  Lean toward raw `Int` for
+  AE-fidelity (consistent with the `#countOf.value` decision above).
+- Should `#ae_error` carry a partial result?  Some queries are
+  partly resolvable (e.g. `every X whose …` where one `X` is
+  notFound but the rest are fine).  Probably out of scope for v1 —
+  treat 404 as fatal for the whole spec.
+- Does the AE error code surface in `BoolExpr.#countOf` failure
+  modes too?  Per the trap-policy decision above, a `notFound` mid-
+  walk inside `#countOf` skips the outer element (counts as 0) and
+  does NOT raise an AE error.  So the two extensions stay
+  independent.
