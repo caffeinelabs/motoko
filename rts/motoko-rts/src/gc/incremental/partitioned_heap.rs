@@ -59,14 +59,14 @@ use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
 
 use crate::{
     gc::incremental::mark_bitmap::BITMAP_ITERATION_END,
-    memory::{alloc_blob, Memory},
+    memory::{Memory, alloc_blob},
     rts_trap_with,
     stable_option::StableOption,
     types::*,
 };
 
 use super::{
-    mark_bitmap::{BitmapIterator, MarkBitmap, BITMAP_SIZE},
+    mark_bitmap::{BITMAP_SIZE, BitmapIterator, MarkBitmap},
     sort::sort,
     time::BoundedTime,
 };

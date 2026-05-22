@@ -78,6 +78,7 @@ let rec pat env p = match p.it with
   | TupP pats -> List.fold_left pat env pats
   | ObjP pfs -> List.fold_left pat env (pats_of_obj_pat pfs)
   | AltP (pat1, _) | OptP pat1 | TagP (_, pat1) -> pat env pat1
+  | AndP (pat1, pat2) -> pat (pat env pat1) pat2
 
 let find v env = match M.find_opt v env with
   | None -> raise (Invalid_argument (Printf.sprintf "Unbound var: %s\n" v))

@@ -2,11 +2,11 @@ use motoko_rts_macros::enhanced_orthogonal_persistence;
 
 use crate::{
     gc::incremental::{
+        Roots, State,
         array_slicing::slice_array,
         partitioned_heap::{Partition, PartitionedHeap, PartitionedHeapIterator},
         roots::visit_roots,
         time::BoundedTime,
-        Roots, State,
     },
     stable_option::StableOption,
     types::*,

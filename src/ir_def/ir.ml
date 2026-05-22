@@ -50,6 +50,7 @@ and pat' =
   | OptP of pat                                (* option *)
   | TagP of Type.lab * pat                     (* variant *)
   | AltP of pat * pat                          (* disjunctive *)
+  | AndP of pat * pat                          (* conjunctive *)
 
 and pat_field = pat_field' Source.phrase
 and pat_field' = {name : Type.lab; pat : pat}

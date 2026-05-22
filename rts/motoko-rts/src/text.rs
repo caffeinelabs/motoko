@@ -28,12 +28,12 @@
 
 use crate::barriers::allocation_barrier;
 use crate::mem_utils::memcpy_bytes;
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::rts_trap_with;
-use crate::types::{size_of, Blob, Bytes, Concat, Value, TAG_BLOB_T, TAG_CONCAT};
+use crate::types::{Blob, Bytes, Concat, TAG_BLOB_T, TAG_CONCAT, Value, size_of};
 
 use alloc::string::String;
-use core::cmp::{min, Ordering};
+use core::cmp::{Ordering, min};
 use core::{slice, str};
 use motoko_rts_macros::classical_persistence;
 
@@ -133,7 +133,7 @@ struct Crumb {
     next: *const Crumb,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn text_to_buf(mut s: Value, mut buf: *mut u8) {
     let mut next_crumb: *const Crumb = core::ptr::null();
 
@@ -174,7 +174,7 @@ unsafe extern "C" fn text_to_buf(mut s: Value, mut buf: *mut u8) {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[classical_persistence]
 unsafe extern "C" fn stream_write_text(stream: *mut Stream, mut s: Value) {
     use crate::types::TAG_BLOB_B;
@@ -207,7 +207,7 @@ pub unsafe fn blob_of_text<M: Memory>(mem: &mut M, s: Value) -> Value {
 }
 
 /// Size of the text, in bytes
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_size(s: Value) -> Bytes<usize> {
     // We don't know whether the string is a blob or concat, but both types have the length in same
     // location so using any of the types to get the length is fine
@@ -322,7 +322,7 @@ unsafe fn text_get_range(
     (s, offset)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_compare(s1: Value, s2: Value) -> isize {
     let n1 = text_size(s1);
     let n2 = text_size(s2);
@@ -343,7 +343,7 @@ pub unsafe extern "C" fn text_compare(s1: Value, s2: Value) -> isize {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
     let n1 = text_size(s1);
     let n2 = text_size(s2);
@@ -367,7 +367,7 @@ pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
 }
 
 /// Length in characters
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_len(text: Value) -> usize {
     if text.tag() == TAG_BLOB_T {
         let blob = text.as_blob();

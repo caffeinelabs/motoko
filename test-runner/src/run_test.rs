@@ -280,7 +280,7 @@ fn parse_directives(src: &str, is_drun: bool) -> Directives {
             {
                 d.filter.insert(ext.to_string(), cmd.trim().to_string());
             }
-            d.check |= line.starts_with("//CHECK");
+            d.check |= re(r"^// *CHECK").is_match(line);
             d.no_force_gc |= tagged("MOC-NO-FORCE-GC");
             d.no_skip_gc_deprecation_warning |= tagged("NO-SKIP-GC-DEPRECATION-WARNING");
             d.generational_gc_only |= tagged("GENERATIONAL-GC-ONLY");
@@ -617,7 +617,8 @@ fn diff_variant(ctx: &mut Ctx, a: &str, b: &str, dst: &str) {
 
 fn filecheck(ctx: &mut Ctx, cli: &Cli, wasm: &Path, mangled: &Path) {
     let mangled_src = fs::read_to_string(mangled).unwrap_or_default();
-    if !mangled_src.lines().any(|l| l.starts_with("//CHECK")) {
+    let check_re = re(r"^// *CHECK");
+    if !mangled_src.lines().any(|l| check_re.is_match(l)) {
         return;
     }
     echo(cli, " [FileCheck]");

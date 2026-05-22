@@ -690,6 +690,7 @@ and declare_pat pat : val_env =
   | OptP pat1
   | TagP (_, pat1) -> declare_pat pat1
   | AltP (pat1, _pat2) -> declare_pat pat1 (* pat2 has the same bindings *)
+  | AndP (pat1, pat2) -> V.Env.adjoin (declare_pat pat1) (declare_pat pat2)
 
 and declare_pats pats ve : val_env =
   match pats with
@@ -761,6 +762,9 @@ and match_pat pat v : val_env option =
     | None -> match_pat pat2 v
     | some -> some
     )
+  | AndP (pat1, pat2) ->
+    Option.(bind (match_pat pat1 v) (fun ve1 ->
+      map (V.Env.adjoin ve1) (match_pat pat2 v)))
 
 and match_pats pats vs ve : val_env option =
   match pats, vs with

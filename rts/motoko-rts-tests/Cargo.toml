@@ -2,7 +2,7 @@
 name = "motoko-rts-tests"
 version = "0.1.0"
 authors = ["dfinity <team-motoko@dfinity.org"]
-edition = "2021"
+edition = "2024"
 
 [features]
 incremental_gc = ["motoko-rts/incremental_gc"]
@@ -17,4 +17,4 @@ motoko-rts = { path = "../motoko-rts/native" }
 oorandom = "11.1.3"
 proptest = { version = "=1.5", default-features = false, features = ["alloc"] }
 motoko-rts-macros = { path = "../motoko-rts-macros" }
-libm = "0.2.15"
+libm = "0.2.16"

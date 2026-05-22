@@ -1,0 +1,4 @@
+error[M0261]: cannot infer the type of this and-pattern, please add a type annotation
+    ┌─ and-pattern-infer.mo:5:8
+  5 │  func f(x and y) : Nat = x;
+    │         ^^^^^^^ 

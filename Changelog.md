@@ -1,8 +1,24 @@
 # Motoko compiler changelog
 
+## 1.8.2 (2026-05-21)
+
+* motoko (`moc`)
+
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver argument is not already a postfix expression (e.g. `Nat.toText((x * a + b) % c)`). The compiler used to print the suggestion as `(<expr>).toText(...)` but emit no machine-applicable edits, leaving `mops check --fix` with nothing to do; suggesting `(complex).f()` over `Module.f(complex)` is also a debatable style change. Trivial-receiver cases (variables, literals, calls) are unaffected (#6144).
+
+## 1.8.1 (2026-05-20)
+
+* motoko (`moc`)
+
+  * bugfix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes (#6134).
+
+## 1.8.0 (2026-05-15)
+
 * motoko (`moc`)
 
   * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
+  * feat: `and`-patterns — `p1 and p2` matches when both legs match, binding from both (#6049).
 
   * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
 
@@ -842,7 +858,7 @@
     inspected on the IC replica dashboard as they are internal to the Motoko runtime system. 
     This query is only authorized to the canister controllers and self-calls of the canister.
 
-    ``` Motoko
+    ```motoko
     __motoko_runtime_information : () -> {
         compilerVersion : Text;
         rtsVersion : Text;
@@ -1120,7 +1136,7 @@
 
   * Allow identifiers in `or`-patterns (#3807).
     Bindings in alternatives must mention the same identifiers and have compatible types:
-    ``` Motoko
+    ```motoko
     let verbose = switch result {
       case (#ok) "All is good!";
       case (#warning why or #error why) "There is some problem: " # why;
@@ -1344,14 +1360,14 @@
     This is a frequently asked-for feature that allows to change the control-flow
     of programs when pattern-match failure occurs, thus providing a means against
     the famous "pyramid of doom" issue. A common example is look-ups:
-    ``` Motoko
+    ```motoko
     shared func getUser(user : Text) : async Id {
       let ?id = Map.get(users, user) else { throw Error.reject("no such user") };
       id
     }
     ```
     Similarly, an expression like
-    ``` Motoko
+    ```motoko
     (label v : Bool { let <pat> = <exp> else break v false; true })
     ```
     evaluates to a `Bool`, signifying whether `<pat>` matches `<exp>`.
@@ -1529,7 +1545,7 @@
 * motoko (`moc`)
 
   * Add new primitives for a default timer mechanism (#3542). These are
-    ``` Motoko
+    ```motoko
     setTimer : (delayNanos : Nat64, recurring : Bool, job : () -> async ()) -> (id : Nat)
     cancelTimer : (id : Nat) -> ()
     ```

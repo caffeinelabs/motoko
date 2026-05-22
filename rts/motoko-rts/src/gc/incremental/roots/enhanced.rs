@@ -90,7 +90,7 @@ pub unsafe fn initialize_static_variables<M: crate::memory::Memory>(mem: &mut M,
     write_with_barrier(mem, location, variables);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(feature = "ic")]
 pub unsafe extern "C" fn get_static_variable(index: usize) -> Value {
     debug_assert!(STATIC_VARIABLES.is_non_null_ptr());
