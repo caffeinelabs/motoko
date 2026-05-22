@@ -1,1 +1,1 @@
-instill $ID not-compile/not-compile.mo ""
+install $ID not-compile/not-compile.mo ""
