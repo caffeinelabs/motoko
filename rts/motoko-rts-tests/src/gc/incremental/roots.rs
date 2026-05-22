@@ -5,13 +5,13 @@ use motoko_rts_macros::{
 use std::{array::from_fn, mem::size_of, ptr::null_mut};
 
 use motoko_rts::{
-    gc::incremental::roots::{visit_roots, Roots},
-    types::{Array, Value, TAG_REGION},
+    gc::incremental::roots::{Roots, visit_roots},
+    types::{Array, TAG_REGION, Value},
 };
 
 use crate::gc::{
     heap::MotokoHeap,
-    utils::{ObjectIdx, GC, WORD_SIZE},
+    utils::{GC, ObjectIdx, WORD_SIZE},
 };
 
 pub unsafe fn test() {

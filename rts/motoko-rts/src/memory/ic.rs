@@ -19,7 +19,7 @@ use motoko_rts_macros::{
 use super::Memory;
 
 // Provided by generated code
-extern "C" {
+unsafe extern "C" {
     #[classical_persistence]
     pub(crate) fn get_static_roots() -> crate::types::Value;
 

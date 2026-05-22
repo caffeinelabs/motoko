@@ -1,4 +1,4 @@
-use super::{get_aligned_heap_base, IcMemory, Memory};
+use super::{IcMemory, Memory, get_aligned_heap_base};
 use crate::{memory::GENERAL_MEMORY_RESERVE, types::*};
 
 /// Amount of garbage collected so far.
@@ -8,7 +8,7 @@ pub(crate) static mut RECLAIMED: Bytes<u64> = Bytes(0);
 pub(crate) static mut MAX_LIVE: Bytes<usize> = Bytes(0);
 
 // Heap pointer (skewed)
-extern "C" {
+unsafe extern "C" {
     fn setHP(new_hp: usize);
     fn getHP() -> usize;
 }
@@ -28,22 +28,22 @@ pub(crate) unsafe fn initialize() {
     set_hp_unskewed(LAST_HP);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn get_reclaimed() -> Bytes<u64> {
     RECLAIMED
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn get_total_allocations() -> Bytes<u64> {
     Bytes(get_heap_size().as_usize() as u64) + get_reclaimed()
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn get_heap_size() -> Bytes<usize> {
     Bytes(get_hp_unskewed() - get_aligned_heap_base())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn get_max_live_size() -> Bytes<usize> {
     MAX_LIVE
 }

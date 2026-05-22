@@ -5,21 +5,21 @@ mod stable_memory;
 
 use crate::{
     gc::{
-        check_dynamic_heap, heap::MotokoHeap, random::generate, utils::GC, utils::WORD_SIZE,
-        CheckMode, TestHeap,
+        CheckMode, TestHeap, check_dynamic_heap, heap::MotokoHeap, random::generate, utils::GC,
+        utils::WORD_SIZE,
     },
     memory::TestMemory,
     stabilization::stable_memory::clear_stable_memory,
 };
 use motoko_rts::{
-    memory::{alloc_array, Memory},
+    memory::{Memory, alloc_array},
     stabilization::{
         deserialization::Deserialization,
         graph_copy::GraphCopy,
         layout::StableValue,
         serialization::{Serialization, SerializationRoots},
     },
-    types::{Value, Words, TAG_ARRAY_M},
+    types::{TAG_ARRAY_M, Value, Words},
 };
 use oorandom::Rand32;
 
@@ -32,30 +32,30 @@ pub unsafe fn test() {
     reset_memory();
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn moc_stabilization_instruction_limit() -> u64 {
     u64::MAX
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn moc_stable_memory_access_limit() -> u64 {
     u64::MAX
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn ic0_performance_counter(_counter: u32) -> u64 {
     0
 }
 
 // This is only called for graph copy increment limit testing.
 // Not used during RTS testing.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn deserialized_size() -> usize {
     0
 }
 
 fn reset_gc(heap_base_address: usize) {
-    use motoko_rts::gc::incremental::{set_incremental_gc_state, IncrementalGC};
+    use motoko_rts::gc::incremental::{IncrementalGC, set_incremental_gc_state};
 
     unsafe {
         let state = IncrementalGC::<MotokoHeap>::initial_gc_state(heap_base_address);

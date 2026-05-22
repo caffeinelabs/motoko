@@ -68,7 +68,7 @@ impl Memory for TestMemory {
 #[incremental_gc]
 pub unsafe fn initialize_test_memory() -> TestMemory {
     use motoko_rts::gc::incremental::partitioned_heap::PARTITION_SIZE;
-    use motoko_rts::gc::incremental::{set_incremental_gc_state, IncrementalGC};
+    use motoko_rts::gc::incremental::{IncrementalGC, set_incremental_gc_state};
 
     let memory = TestMemory::new(Bytes(PARTITION_SIZE).to_words());
     let state = IncrementalGC::<TestMemory>::initial_gc_state(0);

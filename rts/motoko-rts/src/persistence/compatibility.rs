@@ -7,8 +7,8 @@ use crate::{
     bitrel::BitRel,
     constants::WORD_SIZE,
     idl::TypeVariance,
-    memory::{alloc_blob, Memory},
-    types::{Value, Words, TAG_BLOB_B},
+    memory::{Memory, alloc_blob},
+    types::{TAG_BLOB_B, Value, Words},
 };
 
 const DEFAULT_VALUE: Value = Value::from_scalar(0);

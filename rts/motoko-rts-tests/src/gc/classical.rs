@@ -1,8 +1,8 @@
 use super::heap::MotokoHeap;
 use super::utils::{
-    get_scalar_value, make_pointer, read_word, unskew_pointer, ObjectIdx, GC, WORD_SIZE,
+    GC, ObjectIdx, WORD_SIZE, get_scalar_value, make_pointer, read_word, unskew_pointer,
 };
-use crate::gc::{compute_reachable_objects, CheckMode};
+use crate::gc::{CheckMode, compute_reachable_objects};
 use fxhash::{FxHashMap, FxHashSet};
 use motoko_rts::types::*;
 use motoko_rts_macros::{incremental_gc, is_incremental_gc, non_incremental_gc};
@@ -66,8 +66,8 @@ impl GC {
             GC::Generational => {
                 use motoko_rts::gc::{
                     generational::{
-                        write_barrier::{LAST_HP, REMEMBERED_SET},
                         GenerationalGC, Strategy,
+                        write_barrier::{LAST_HP, REMEMBERED_SET},
                     },
                     remembered_set::RememberedSet,
                 };
@@ -115,7 +115,7 @@ impl GC {
 
         match self {
             GC::Incremental => unsafe {
-                use motoko_rts::gc::incremental::{get_incremental_gc_state, IncrementalGC};
+                use motoko_rts::gc::incremental::{IncrementalGC, get_incremental_gc_state};
                 const INCREMENTS_UNTIL_COMPLETION: usize = 16;
                 for _ in 0..INCREMENTS_UNTIL_COMPLETION {
                     let roots = motoko_rts::gc::incremental::roots::Roots {

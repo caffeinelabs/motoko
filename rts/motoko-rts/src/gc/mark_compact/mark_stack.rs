@@ -2,7 +2,7 @@
 //! otherwise things will break as we push. This invariant is checked in debug builds.
 
 use crate::gc::mark_compact::TAG_BLOB_B;
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::types::{Blob, Tag, Words};
 
 use core::ptr::null_mut;
