@@ -1,8 +1,8 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {cycles = 25_416_088; fak10 = +3_628_800; iters = 1_000}
+debug.print: {cycles = 25_320_086; fak10 = +3_628_800; iters = 1_000}
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {cycles = 101_400_270; gauss100 = 5_050; iters = 10_000}
+debug.print: {cycles = 101_390_268; gauss100 = 5_050; iters = 10_000}
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {cycles = 54_700_107; isEven1000 = true; iters = 100}
+debug.print: {cycles = 54_600_005; isEven1000 = true; iters = 100}
 ingress Completed: Reply: 0x4449444c0000
