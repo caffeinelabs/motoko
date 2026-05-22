@@ -1,4 +1,4 @@
-{ nixpkgs, system, rust-overlay, sources }: import nixpkgs {
+{ nixpkgs, system, rust-overlay, sources, wasmtime-src }: import nixpkgs {
   inherit system;
   overlays = [
     (self: super: { inherit sources; })
@@ -59,5 +59,22 @@
 
     # ic-wasm
     (self: super: { ic-wasm = import ./ic-wasm.nix self; })
+
+    # wasmtime: rebuild from upstream main (post-v45) so we get the
+    # ctz/clz-in-brif simplify_skeleton fold (PR #13343) and the
+    # planned i64 mirror that motoko's gabor/clz-msb-peephole peephole
+    # relies on for tight x86_64 / aarch64 lowering.  cargoHash =
+    # lib.fakeHash on first run — CI's nix-build error will tell us the
+    # real hash, which we then commit.
+    (self: super: {
+      wasmtime = super.wasmtime.overrideAttrs (oa: {
+        version = "main";
+        src = wasmtime-src;
+        cargoDeps = self.rustPlatform.importCargoLock {
+          lockFile = "${wasmtime-src}/Cargo.lock";
+          allowBuiltinFetchGit = true;
+        };
+      });
+    })
   ];
 }

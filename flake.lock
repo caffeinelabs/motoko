@@ -193,16 +193,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1778274207,
-        "narHash": "sha256-I4puXmX1iovcCHZlRmztO3vW0mAbbRvq4F8wgIMQ1MM=",
-        "owner": "NixOS",
+        "lastModified": 1779393337,
+        "narHash": "sha256-BXKvYMlcKdvXhFIQ+pH6J+5za0REp7VAl5/TFDTYZAU=",
+        "owner": "ggreif",
         "repo": "nixpkgs",
-        "rev": "b3da656039dc7a6240f27b2ef8cc6a3ef3bccae7",
+        "rev": "4f993ac2067be5f66dc7750d1b9c386933149cf1",
         "type": "github"
       },
       "original": {
-        "owner": "NixOS",
-        "ref": "nixpkgs-unstable",
+        "owner": "ggreif",
+        "ref": "auto-update/wasmtime",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -237,7 +237,8 @@
         "nix-update-flake": "nix-update-flake",
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay",
+        "wasmtime-src": "wasmtime-src"
       }
     },
     "rust-overlay": {
@@ -293,6 +294,23 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "wasmtime-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779471393,
+        "narHash": "sha256-foYvtCp0Qj7Zvw2NgyYEo2+aGN3ZmoEWfZoHs8j8YFU=",
+        "owner": "bytecodealliance",
+        "repo": "wasmtime",
+        "rev": "883f68fca976a9a5887edd27434ff12f0356c1a1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bytecodealliance",
+        "ref": "main",
+        "repo": "wasmtime",
         "type": "github"
       }
     }
