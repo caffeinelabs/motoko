@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * feat: `--experimental-multi-value` flag enables function-level multi-value Wasm codegen. Off by default (#6113).
+
 ## 1.8.2 (2026-05-21)
 
 * motoko (`moc`)
