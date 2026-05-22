@@ -55,6 +55,7 @@
 <typ_un> ::= 
     <typ_nullary>
     '?' <typ_un>
+    '??' <typ_un>
     'weak' <typ_un>
 
 <typ_pre> ::= 
@@ -208,6 +209,7 @@
     '#' <id>
     '#' <id> <exp_nullary>
     '?' <exp_un>
+    '??' <exp_un>
     <unop> <exp_un>
     <unassign> <exp_un>
     'actor' <exp_plain>
@@ -228,6 +230,7 @@
 <exp_nondec> ::= 
     <exp_bin>
     <exp_bin> ':=' <exp>
+    <exp_bin> '??' <exp_nest>
     <exp_bin> <binassign> <exp>
     'return' <exp>?
     <parenthetical>? 'async' <exp_nest>
@@ -311,11 +314,13 @@
     '#' <id>
     '#' <id> <pat_nullary>
     '?' <pat_un>
+    '??' <pat_un>
     <unop> <lit>
 
 <pat_bin> ::= 
     <pat_un>
     <pat_bin> 'or' <pat_bin>
+    <pat_bin> 'and' <pat_bin>
     <pat_bin> ':' <typ>
 
 <pat> ::= 
@@ -331,9 +336,11 @@
 
 <dec_var> ::= 
     'var' <id> (':' <typ>)? '=' <exp>
+    'var' <id> ':' <typ>
 
 <dec_nonvar> ::= 
     'let' <pat> '=' <exp>
+    'let' <pat>
     'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
     <parenthetical>? <obj_or_class_dec>
@@ -366,13 +373,5 @@
 
 <prog> ::= 
     <list(<imp>, ';')> <list(<dec>, ';')> 
-
-<pre_stab_field> ::= 
-    <req> 'var'? <id> ':' <typ>
-
-<req> ::= 
-    'stable'
-    'in'
- ')'
 
 

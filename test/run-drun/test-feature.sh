@@ -7,7 +7,7 @@ for i in \
 	stable-mem-*.mo;
 do
     echo $i;
-    if ../run.sh -d $i ; then
+    if run-test -d $i ; then
 	echo `date` $i >> success.log ;
 	echo; echo "Success."; echo;
     else

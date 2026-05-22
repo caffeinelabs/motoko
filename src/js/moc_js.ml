@@ -15,6 +15,7 @@ let () =
   Js.export "Motoko"
     (object%js
       val version = js_version
+      method setProjectRoot path = Flags.js_project_root := Some (Js.to_string path)
       method setExtraFlags argv = js_set_extra_flags argv
       method saveFile name content = js_save_file name content
       method removeFile name = js_remove_file name

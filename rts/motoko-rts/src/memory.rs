@@ -41,7 +41,7 @@ pub(crate) const GENERAL_MEMORY_RESERVE: usize = 256 * MB;
 /// we implement (or generate with a macro)
 ///
 /// ```
-/// #[no_mangle]
+/// #[unsafe(no_mangle)]
 /// unsafe extern "C" fn export_name() { allocating_function(crate::memory::ic::IcMemory) }
 /// ```
 ///
@@ -135,4 +135,22 @@ pub unsafe fn set_dedup_table<M: Memory>(mem: &mut M, dedup_table: Value) {
         );
     }
     set_dedup_table_ptr(mem, dedup_table);
+}
+
+/// Get the migrations list.
+#[enhanced_orthogonal_persistence]
+#[ic_mem_fn]
+#[cfg(feature = "ic")]
+pub unsafe fn get_migrations<M: Memory>(_mem: &mut M) -> Value {
+    use crate::persistence::get_migration_functions_ptr;
+    *get_migration_functions_ptr()
+}
+
+/// Set the migrations list.
+#[enhanced_orthogonal_persistence]
+#[ic_mem_fn]
+#[cfg(feature = "ic")]
+pub unsafe fn set_migrations<M: Memory>(mem: &mut M, migrations: Value) {
+    use crate::persistence::set_migration_functions_ptr;
+    set_migration_functions_ptr(mem, migrations);
 }

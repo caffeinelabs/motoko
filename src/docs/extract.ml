@@ -45,8 +45,9 @@ and doc_type =
   | DTPlain of Syntax.typ
   (* One level unwrapping of an object type with documentation on its fields *)
   | DTObj of Syntax.typ * (Syntax.typ_field * string option) list
+  (* One level unwrapping of a variant type with documentation on its tags *)
+  | DTVariant of Syntax.typ * (Syntax.typ_tag * string option) list
 
-(* TODO We'll also want to unwrap variants here *)
 and class_doc = {
   name : string;
   type_args : Syntax.typ_bind list;
@@ -96,7 +97,7 @@ type extracted = {
 module MakeExtract (Env : sig
   val all_decs : Syntax.dec_field list
   val imports : (string * string) list
-  val find_trivia : Source.region -> Trivia.trivia_info
+  val find_trivia : region -> Trivia.trivia_info
 end) =
 struct
   let namespace : Namespace.t =
@@ -189,14 +190,14 @@ struct
    fun ({ at; _ } as tf) ->
     (tf, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
 
+  let extract_variant_tag_doc ({ at; _ } as tag) =
+    (tag, Trivia.doc_comment_of_trivia_info (Env.find_trivia at))
+
   let rec extract_doc mk_xref = function
-    | Source.
-        {
-          it = Syntax.LetD ({ it = Syntax.VarP { it = name; _ }; _ }, rhs, _);
-          _;
-        } -> (
+    | { it = Syntax.LetD ({ it = Syntax.VarP { it = name; _ }; _ }, rhs, _); _ }
+      -> (
         match rhs with
-        | Source.{ it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
+        | { it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
             let mk_field_xref xref = mk_xref (Xref.XClass (name, xref)) in
             Some
               ( mk_xref (Xref.XType name),
@@ -209,9 +210,9 @@ struct
                   } )
         | _ -> Some (mk_xref (Xref.XValue name), extract_value_doc Let rhs name)
         )
-    | Source.{ it = Syntax.VarD ({ it = name; _ }, rhs); _ } -> (
+    | { it = Syntax.VarD ({ it = name; _ }, rhs); _ } -> (
         match rhs with
-        | Source.{ it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
+        | { it = Syntax.ObjBlockE (_, sort, _, fields); _ } ->
             let mk_field_xref xref = mk_xref (Xref.XClass (name, xref)) in
             Some
               ( mk_xref (Xref.XType name),
@@ -224,33 +225,29 @@ struct
                   } )
         | _ -> Some (mk_xref (Xref.XValue name), extract_value_doc Var rhs name)
         )
-    | Source.{ it = Syntax.TypD (name, ty_args, typ); _ } ->
+    | { it = Syntax.TypD (name, ty_args, typ); _ } ->
         let doc_typ =
           match typ.it with
           | Syntax.ObjT (_, fields) ->
               let doc_fields = List.map extract_obj_field_doc fields in
               (* TODO Only unwrap the ObjT if at least one field is documented *)
               DTObj (typ, doc_fields)
+          | Syntax.VariantT tags ->
+              let doc_tags = List.map extract_variant_tag_doc tags in
+              if List.exists (fun (_, d) -> d <> None) doc_tags then
+                DTVariant (typ, doc_tags)
+              else DTPlain typ
           | _ -> DTPlain typ
         in
         Some
           ( mk_xref (Xref.XType name.it),
             Type { name = name.it; type_args = ty_args; typ = doc_typ } )
-    | Source.
-        {
-          it =
-            Syntax.ClassD
-              ( exp_opt,
-                shared_pat,
-                obj_sort,
-                name,
-                type_args,
-                ctor,
-                _,
-                _,
-                fields );
-          _;
-        } ->
+    | {
+        it =
+          Syntax.ClassD
+            (exp_opt, shared_pat, obj_sort, name, type_args, ctor, _, _, fields);
+        _;
+      } ->
         let mk_field_xref xref = mk_xref (Xref.XClass (name.it, xref)) in
         Some
           ( mk_xref (Xref.XType name.it),
@@ -272,13 +269,12 @@ struct
     if Syntax.is_public dec_field.it.Syntax.vis then
       extract_doc mk_xref dec_field.it.Syntax.dec
       |> Option.map (fun (xref, decl_doc) ->
-             {
-               xref;
-               doc_comment =
-                 Trivia.doc_comment_of_trivia_info
-                   (Env.find_trivia dec_field.at);
-               declaration = decl_doc;
-             })
+          {
+            xref;
+            doc_comment =
+              Trivia.doc_comment_of_trivia_info (Env.find_trivia dec_field.at);
+            declaration = decl_doc;
+          })
     else None
 end
 
@@ -287,9 +283,8 @@ let extract_docs : Syntax.prog -> (extracted, string) result =
   let lookup_trivia (line, column) =
     PosTable.find_opt prog.note.Syntax.trivia Trivia.{ line; column }
   in
-  let find_trivia (parser_pos : Source.region) : Trivia.trivia_info =
-    lookup_trivia Source.(parser_pos.left.line, parser_pos.left.column)
-    |> Option.get
+  let find_trivia (parser_pos : region) : Trivia.trivia_info =
+    lookup_trivia (parser_pos.left.line, parser_pos.left.column) |> Option.get
   in
   let module_docs = find_trivia prog.at in
   (* Skip the module header *)

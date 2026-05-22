@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -41,14 +41,6 @@
       url = "github:kritzcreek/motoko-matchers/5ba5f52bd9a5649dedf5e2a1ccd55d98ed7ff982";
       flake = false;
     };
-    ocaml-vlq-src = {
-      url = "github:flowtype/ocaml-vlq";
-      flake = false;
-    };
-    wasm-spec-src = {
-      url = "github:WebAssembly/spec/opam-1.1.1";
-      flake = false;
-    };
     grace-src = {
       url = "github:johnyob/grace/15251666a11a780dfd09f23e1b0c1e6b0e366dcf";
       flake = false;
@@ -76,8 +68,6 @@
     , motoko-base-src
     , motoko-core-src
     , motoko-matchers-src
-    , ocaml-vlq-src
-    , wasm-spec-src
     , grace-src
     , ocaml-recovery-parser-src
     , binaryen-patched
@@ -93,8 +83,6 @@
             motoko-base-src
             motoko-core-src
             motoko-matchers-src
-            ocaml-vlq-src
-            wasm-spec-src
             ocaml-recovery-parser-src
             grace-src;
         };
@@ -103,21 +91,28 @@
       llvmEnv = ''
         # When compiling to wasm, we want to have more control over the flags,
         # so we do not use the nix-provided wrapper in clang
-        export WASM_CLANG="clang-19"
+        export WASM_CLANG="clang-21"
         export WASM_LD=wasm-ld
         # because we use the unwrapped clang, we have to pass in some flags/paths
         # that otherwise the wrapped clang would take care for us
-        export WASM_CLANG_LIB="${pkgs.llvmPackages_19.clang-unwrapped.lib}"
+        export WASM_CLANG_LIB="${pkgs.llvmPackages_21.clang-unwrapped.lib}"
 
         # When compiling natively, we want to use `clang` (which is a nixpkgs
         # provided wrapper that sets various include paths etc).
         # But for some reason it does not handle building for Wasm well, so
-        # there we use plain clang-19. There is no stdlib there anyways.
-        export CLANG="${pkgs.clang_19}/bin/clang"
+        # there we use plain clang-21. There is no stdlib there anyways.
+        export CLANG="${pkgs.clang_21}/bin/clang"
       '';
 
       wasmOpt = binaryen-patched.packages.${system}.default;
-      rts = import ./nix/rts.nix { inherit pkgs llvmEnv wasmOpt; };
+      rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv wasmOpt; };
+      # `.#rts-checked` always runs the host-side `cargo test` suite.
+      # `.#rts` is the same on Linux (Hydra-cached, fast) but skips the
+      # check phase on darwin where the cargo test suite has no cache and
+      # dominates wall-clock — the `nightly-macos-test` schedule covers
+      # darwin checks separately by building `.#rts-checked` directly.
+      rts-checked = rts-set.checked;
+      rts = if pkgs.stdenv.isDarwin then rts-set.build else rts-checked;
 
       commonBuildInputs = pkgs: with pkgs; [ dune_3 obelisk perl removeReferencesTo ] ++ (with ocamlPackages; [
         ocaml
@@ -134,8 +129,7 @@
         sexplib
         num
         stdint
-        wasm_1
-        vlq
+        wasm
         zarith
         yojson
         ppxlib
@@ -157,12 +151,12 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-12.0.0" = "sha256-5+Hm2mbVoHLPJLgV8OAZUJXnBRPRFsPknFQ8SUSR/GE=";
+          "pocket-ic-13.0.0" = "sha256-9DpJeFJ1AcUbcjUapE20UI/gE7j0glCFWU9FhbdOtHE=";
         };
       };
 
       # Define test-runner package.
-      test-runner = pkgs.rustPlatform-stable.buildRustPackage {
+      test-runner = pkgs.rustPlatform.buildRustPackage {
         pname = "test-runner";
         version = "0.1.0";
         src = ./test-runner;
@@ -239,9 +233,13 @@
         # TODO: Re-enable base tests once we recalibrate them so they
         # don't OOM anymore.
         # base-tests = import ./nix/base-tests.nix { inherit pkgs; inherit (debugMoPackages) moc; };
-        base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
-        report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
+        # `rts-checked` is intentionally NOT included here: it is the slow,
+        # cargo-test-running variant, and on darwin its check phase is uncached
+        # and dominates wall-clock. Pulling it via `common-constituents` would
+        # drag it into the `*-systems-go` aggregates and force every test job
+        # to wait on it. The `nightly-macos-test` schedule has a dedicated
+        # `rts-checked` job that builds `.#rts-checked` directly.
         inherit rts base-src core-src docs shell;
       };
     in
@@ -250,7 +248,7 @@
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
-        inherit nix-update tests js test-runner;
+        inherit nix-update tests js test-runner rts-checked;
 
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 

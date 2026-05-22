@@ -1,4 +1,8 @@
 fn main() {
+    // Pass git hash as compile-time env for test seed derivation
+    let git_hash = std::env::var("RTS_TEST_GIT_HASH").unwrap_or_else(|_| "4711".to_string());
+    println!("cargo:rustc-env=RTS_TEST_GIT_HASH={}", git_hash);
+
     let target = std::env::var("TARGET").unwrap();
 
     match target.as_str() {

@@ -10,17 +10,18 @@ use crate::gc::incremental::mark_stack::MarkStack;
 use crate::{
     barriers::write_with_barrier,
     constants::{KB, MB},
-    gc::incremental::{partitioned_heap::allocate_initial_memory, State},
-    memory::{alloc_blob, Memory},
+    gc::incremental::{State, partitioned_heap::allocate_initial_memory},
+    memory::{Memory, alloc_blob},
     persistence::compatibility::memory_compatible,
     region::{
         LEGACY_VERSION_NO_STABLE_MEMORY, LEGACY_VERSION_REGIONS, LEGACY_VERSION_SOME_STABLE_MEMORY,
-        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS, VERSION_STABLE_HEAP_NO_REGIONS,
-        VERSION_STABLE_HEAP_REGIONS,
+        VERSION_GRAPH_COPY_NO_REGIONS, VERSION_GRAPH_COPY_REGIONS,
+        VERSION_GRAPH_COPY_V1_NO_REGIONS, VERSION_GRAPH_COPY_V1_REGIONS,
+        VERSION_STABLE_HEAP_NO_REGIONS, VERSION_STABLE_HEAP_REGIONS,
     },
     rts_trap_with,
     stable_mem::read_persistence_version,
-    types::{Bytes, Value, NULL_POINTER, TAG_BLOB_B},
+    types::{Bytes, NULL_POINTER, TAG_BLOB_B, Value},
 };
 
 use self::compatibility::TypeDescriptor;
@@ -63,6 +64,10 @@ struct PersistentMetadata {
     /// We keep a pointer to this here so that we can keep if alive across upgrades.
     /// To keep the dedup table live, we need to add it to roots as well.
     dedup_table: Value,
+    /// Migration function list. This is an RTS root that holds the head of a linked list of the the names (strings) of the migration functions.
+    /// This is for the purpose of multi-migration tracking such that a single migration function
+    /// cannot be executed multiple times, removing the risk of data loss.
+    migration_functions: Value,
 }
 
 /// Location of the persistent metadata. Prereserved and fixed forever.
@@ -113,6 +118,8 @@ impl PersistentMetadata {
         (*self).weak_ref_registry = NULL_POINTER;
         // Initialize the dedup table as the null pointer.
         (*self).dedup_table = NULL_POINTER;
+        // Initialize the migration functions list as the null pointer.
+        (*self).migration_functions = NULL_POINTER;
     }
 }
 
@@ -136,6 +143,12 @@ pub unsafe fn initialize_memory<M: Memory>() {
             // We need to initialize the dedup table to NULL_POINTER.
             (*metadata).dedup_table = NULL_POINTER;
         }
+        // Explicit migration from a version of the RTS without migration functions support.
+        if (*metadata).migration_functions.get_raw() == 0 {
+            // This is the first upgrade from a version of the RTS without migration functions support.
+            // We need to initialize the migration functions array to NULL_POINTER.
+            (*metadata).migration_functions = NULL_POINTER;
+        }
     } else {
         metadata.initialize::<M>();
     }
@@ -146,6 +159,8 @@ unsafe fn use_enhanced_orthogonal_persistence() -> bool {
         VERSION_STABLE_HEAP_NO_REGIONS | VERSION_STABLE_HEAP_REGIONS => true,
         VERSION_GRAPH_COPY_NO_REGIONS
         | VERSION_GRAPH_COPY_REGIONS
+        | VERSION_GRAPH_COPY_V1_NO_REGIONS
+        | VERSION_GRAPH_COPY_V1_REGIONS
         | LEGACY_VERSION_NO_STABLE_MEMORY
         | LEGACY_VERSION_SOME_STABLE_MEMORY
         | LEGACY_VERSION_REGIONS => false,
@@ -154,7 +169,7 @@ unsafe fn use_enhanced_orthogonal_persistence() -> bool {
 }
 
 /// Returns the availability of the stable actor record (false on (re-)install, true on upgrade)
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn has_stable_actor() -> bool {
     let metadata = PersistentMetadata::get();
     !((*metadata).stable_actor.forward_if_possible() == DEFAULT_VALUE)
@@ -162,7 +177,7 @@ pub unsafe extern "C" fn has_stable_actor() -> bool {
 
 /// Returns the stable sub-record of the actor of the upgraded canister version.
 /// Returns scalar 0 if no actor is stored after on a fresh memory.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn load_stable_actor() -> Value {
     let metadata = PersistentMetadata::get();
     (*metadata).stable_type.assert_initialized();
@@ -197,7 +212,7 @@ pub(crate) unsafe fn stable_actor_location() -> *mut Value {
 
 /// Determine whether an object contains a specific field.
 /// Used for upgrading to an actor with additional stable fields.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn contains_field(actor: Value, field_hash: usize) -> bool {
     use crate::constants::WORD_SIZE;
 
@@ -238,6 +253,14 @@ unsafe fn update_stable_type<M: Memory>(
     (*metadata).stable_type.assign(mem, &new_type);
 }
 
+/// Restore the old stable type from graph-copy stabilization metadata into
+/// the freshly initialized persistent metadata so that `register_stable_type`
+/// can check compatibility when the migration chain runs after destabilization.
+pub unsafe fn restore_stable_type<M: Memory>(mem: &mut M, old_type: &TypeDescriptor) {
+    let metadata = PersistentMetadata::get();
+    (*metadata).stable_type.assign(mem, old_type);
+}
+
 /// Register the stable actor type on canister initialization and upgrade.
 /// The type is stored in the persistent metadata memory for later retrieval on canister upgrades.
 /// On an upgrade, the memory compatibility between the new and existing stable type is checked.
@@ -273,13 +296,13 @@ pub(crate) unsafe fn get_incremental_gc_state() -> &'static mut State {
     &mut (*metadata).incremental_gc_state
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn get_upgrade_instructions() -> u64 {
     let metadata = PersistentMetadata::get();
     (*metadata).upgrade_instructions
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn set_upgrade_instructions(instructions: u64) {
     let metadata = PersistentMetadata::get();
     (*metadata).upgrade_instructions = instructions;
@@ -287,7 +310,7 @@ pub unsafe extern "C" fn set_upgrade_instructions(instructions: u64) {
 
 /// Only used in WASI mode: Get a static temporary print buffer that resides in 32-bit address range.
 /// This buffer has a fix length of 512 bytes, and resides at the end of the metadata reserve.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn buffer_in_32_bit_range() -> usize {
     use crate::types::size_of;
 
@@ -361,4 +384,24 @@ pub(crate) unsafe fn set_dedup_table_ptr<M: Memory>(mem: &mut M, dedup_table: Va
     let metadata = PersistentMetadata::get();
     // Use barrier in case the dedup table is set during a GC phase.
     write_with_barrier(mem, &mut (*metadata).dedup_table, dedup_table);
+}
+
+/// Accessor method for the migration functions list.
+pub(crate) unsafe fn get_migration_functions_ptr() -> &'static mut Value {
+    let metadata = PersistentMetadata::get();
+    &mut (*metadata).migration_functions
+}
+
+/// Setter method for the migration functions list.
+pub(crate) unsafe fn set_migration_functions_ptr<M: Memory>(
+    mem: &mut M,
+    migration_functions: Value,
+) {
+    let metadata = PersistentMetadata::get();
+    // Use barrier in case the migration functions list is set during a GC phase.
+    write_with_barrier(
+        mem,
+        &mut (*metadata).migration_functions,
+        migration_functions,
+    );
 }

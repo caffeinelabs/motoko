@@ -5,10 +5,22 @@ on:
   workflow_dispatch:  # Allow manual triggering
   
 jobs:
+  rts-checked:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+        with:
+          name: ic-hs-test
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Build `.#rts-checked` (cargo test on darwin)
+        run: nix build .#rts-checked --print-out-paths
+
   common-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Common Tests
         uses: ./.github/actions/test-blueprint
@@ -21,7 +33,7 @@ jobs:
   gc-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run GC Tests
         uses: ./.github/actions/test-blueprint
@@ -37,7 +49,7 @@ jobs:
         build_type: [release, debug]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
@@ -52,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get `motoko` Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Populate `moc`
         uses: ./.github/actions/test-blueprint
         with:
@@ -69,14 +81,14 @@ jobs:
         # we have to keep it elsewhere and restore later.
         run: cp -r ./.github/actions/test-blueprint ..
       - name: Get `motoko-core` Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: dfinity/motoko-core
           fetch-depth: "0"
       - name: Restore the `test-blueprint` action
         run:  mv ../test-blueprint ./.github/actions
       - name: Set up `mops`
-        uses: dfinity/motoko-core/.github/actions/setup@main
+        uses: dfinity/motoko-core/.github/actions/setup@1b6e4995e730b5f152106e64d943ae0cc0aa117b # main
       - name: Set up `mops` cache
         run: |
           npx ic-mops --version
@@ -89,12 +101,12 @@ jobs:
         run: npm test
 
   create-issue:
-    needs: [common-tests, gc-tests, systems-go-tests, motoko-core-tests]
+    needs: [rts-checked, common-tests, gc-tests, systems-go-tests, motoko-core-tests]
     if: ${{ always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest # No need to run on macOS, the ubuntu runner should be cheaper to run.
     steps:
       - name: Create Issue
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const date = new Date().toISOString().split('T')[0];

@@ -38,6 +38,14 @@ pub unsafe fn visit_roots<C, V: Fn(&mut C, *mut Value)>(
         if dedup_table.is_non_null_ptr() {
             visit_field(context, dedup_table);
         }
+
+        // Always visit the migration functions list as well.
+        // Otherwise the migration functions list will be garbage collected.
+        use crate::persistence::get_migration_functions_ptr;
+        let migration_functions = get_migration_functions_ptr();
+        if migration_functions.is_non_null_ptr() {
+            visit_field(context, migration_functions);
+        }
     }
 }
 
@@ -82,7 +90,7 @@ pub unsafe fn initialize_static_variables<M: crate::memory::Memory>(mem: &mut M,
     write_with_barrier(mem, location, variables);
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(feature = "ic")]
 pub unsafe extern "C" fn get_static_variable(index: usize) -> Value {
     debug_assert!(STATIC_VARIABLES.is_non_null_ptr());

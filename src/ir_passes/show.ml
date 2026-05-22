@@ -2,7 +2,6 @@ open Ir_def
 open Mo_types
 open Mo_values
 (* Translates away calls to `show`. *)
-open Source
 open Ir
 module T = Type
 open Construct

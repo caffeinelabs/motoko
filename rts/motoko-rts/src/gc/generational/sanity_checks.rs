@@ -8,7 +8,7 @@ use core::ptr::null_mut;
 use super::write_barrier::REMEMBERED_SET;
 use super::{Heap, Limits, Roots};
 use crate::mem_utils::memcpy_bytes;
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::types::*;
 use crate::visitor::{classical::pointer_to_dynamic_heap, visit_pointer_fields};
 

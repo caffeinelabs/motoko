@@ -71,7 +71,7 @@ unsafe fn advance(buf: *mut Buf, n: usize) {
 
 /// Can also be used for sleb
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn skip_leb128(buf: *mut Buf) {
     loop {
         let byte = read_byte(buf);

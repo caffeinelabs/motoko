@@ -1,0 +1,1 @@
+and-pattern-infer.mo:5.8-5.15: type error [M0261], cannot infer the type of this and-pattern, please add a type annotation

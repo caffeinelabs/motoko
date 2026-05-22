@@ -51,6 +51,6 @@
   "target-family": [
     "wasm"
   ],
-  "target-pointer-width": "32",
+  "target-pointer-width": 32,
   "tls-model": "local-exec"
 }

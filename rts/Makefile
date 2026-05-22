@@ -1,9 +1,9 @@
 SHELL:=bash -O globstar
 
-CLANG ?= clang-19
+CLANG ?= clang-21
 LLVM_LINK = llvm-link
-WASM_CLANG ?= clang-19
-WASM_LD ?= wasm-ld-19
+WASM_CLANG ?= clang-21
+WASM_LD ?= wasm-ld-21
 
 #
 # We manually list all the .c files of libtommath that we care about.
@@ -124,6 +124,9 @@ RTS_RUST_FILES=$(shell ls **/*.rs)
 RTS_CARGO_FILES=$(shell ls **/Cargo.toml)
 
 RTS_COMPILE_FLAGS=-C target-feature=+bulk-memory
+RTS_RELEASE_COMPILE_FLAGS=$(RTS_COMPILE_FLAGS) -Zunstable-options -Cpanic=immediate-abort
+NIGHTLY_CARGO_OPTIONS=-Zjson-target-spec -Zbuild-std=core,alloc
+NIGHTLY_RELEASE_CARGO_OPTIONS=$(NIGHTLY_CARGO_OPTIONS) --release -Zbuild-std-features="optimize_for_size"
 
 TOMMATH_BINDINGS_RS_32=_build/wasm32/tommath_bindings.rs
 TOMMATH_BINDINGS_RS_64=_build/wasm64/tommath_bindings.rs
@@ -184,9 +187,9 @@ $(TOMMATH_BINDINGS_RS_64): | _build/wasm64
 # 32-bit Wasm builds
 
 RTS_DEPENDENCIES_32=$(TOMMATH_BINDINGS_RS_32) $(RTS_RUST_FILES) $(RTS_CARGO_FILES) | _build/wasm32
-RTS_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json -Zbuild-std=core,alloc
+RTS_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json $(NIGHTLY_CARGO_OPTIONS)
 RTS_DEBUG_BUILD_32=$(RTS_BUILD_32)
-RTS_RELEASE_BUILD_32=$(RTS_BUILD_32) --release -Zbuild-std-features="panic_immediate_abort,optimize_for_size"
+RTS_RELEASE_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_RELEASE_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json $(NIGHTLY_RELEASE_CARGO_OPTIONS)
 RTS_DEBUG_TARGET_32=motoko-rts/target/wasm32-none-shared/debug/libmotoko_rts.a
 RTS_RELEASE_TARGET_32=motoko-rts/target/wasm32-none-shared/release/libmotoko_rts.a
 
@@ -215,9 +218,9 @@ $(RTS_RUST_INCREMENTAL_DEBUG_WASM_32_A): $(RTS_DEPENDENCIES_32)
 # 64-bit Wasm builds
 
 RTS_DEPENDENCIES_64=$(TOMMATH_BINDINGS_RS_64) $(RTS_RUST_FILES) $(RTS_CARGO_FILES) | _build/wasm64
-RTS_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json -Zbuild-std=core,alloc --features enhanced_orthogonal_persistence
+RTS_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_CARGO_OPTIONS) --features enhanced_orthogonal_persistence
 RTS_DEBUG_BUILD_64=$(RTS_BUILD_64)
-RTS_RELEASE_BUILD_64=$(RTS_BUILD_64) --release -Zbuild-std-features="panic_immediate_abort,optimize_for_size"
+RTS_RELEASE_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_RELEASE_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_RELEASE_CARGO_OPTIONS) --features enhanced_orthogonal_persistence
 
 RTS_DEBUG_TARGET_64=motoko-rts/target/wasm64-none-shared/debug/libmotoko_rts.a
 RTS_RELEASE_TARGET_64=motoko-rts/target/wasm64-none-shared/release/libmotoko_rts.a
@@ -238,28 +241,60 @@ $(RTS_RUST_DEBUG_WASM_64_A): $(RTS_DEPENDENCIES_64)
 #
 
 TEST_DEPENDENCIES_32=$(TOMMATH_WASM_32_A) $(TOMMATH_BINDINGS_RS_32)
-TEST_BUILD_32=cd motoko-rts-tests && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm32-wasip1
-TEST_RUN_32=wasmtime -C cache=n -W nan-canonicalization=y motoko-rts-tests/target/wasm32-wasip1/debug/motoko-rts-tests.wasm
-
 TEST_DEPENDENCIES_64=$(TOMMATH_WASM_64_A) $(TOMMATH_BINDINGS_RS_64)
-TEST_BUILD_64=cd motoko-rts-tests && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target=wasm64-unknown-unknown -Zbuild-std=core,alloc,std,panic_abort --features enhanced_orthogonal_persistence
-TEST_RUN_64=wasmtime -C cache=n -W nan-canonicalization=y -W memory64 motoko-rts-tests/target/wasm64-unknown-unknown/debug/motoko-rts-tests.wasm
+
+# RTS test variant template.
+# Each variant gets its own CARGO_TARGET_DIR (target-<name>) for parallel builds.
+# $(1) = target name, $(2) = cargo target triple,
+# $(3) = extra cargo flags, $(4) = features, $(5) = extra wasmtime flags, $(6) = dependencies
+#
+# Generates: build-<name> (compile only) and <name> (build + run all modules in parallel).
+# Individual modules can be run via: make <name>-gc, <name>-bigint, etc.
+
+TEST_MODULES = persistence_20k persistence_small \
+  gc_chunk_0 gc_chunk_1 gc_chunk_2 gc_chunk_3 gc_chunk_4 \
+  gc_chunk_5 gc_chunk_6 gc_chunk_7 gc_chunk_8 gc_chunk_9 \
+  gc_predefined gc_components \
+  bigint bitrel continuation_table crc32 \
+  leb128 principal_id stable_option text utf8
+
+GIT_HASH := $(shell git rev-parse HEAD 2>/dev/null || echo "0")
+
+define test_variant
+.PHONY: build-$(1) $(1)
+build-$(1): $$($(6))
+	cd motoko-rts-tests && CARGO_TARGET_DIR=target-$(1) \
+	  RTS_TEST_GIT_HASH=$(GIT_HASH) RUSTFLAGS="$${RTS_COMPILE_FLAGS}" \
+	  cargo build --target=$(2) $(3) $(4)
+	test -f motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
+
+# Per-module targets: <variant>-<module>
+$(foreach mod,$(TEST_MODULES),
+.PHONY: $(1)-$(mod)
+$(1)-$(mod): build-$(1)
+	WASMTIME_BACKTRACE_DETAILS=1 wasmtime -C cache=n -W nan-canonicalization=y $(5) \
+	  --invoke test_$(mod) \
+	  motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
+)
+
+# Run all modules in parallel after building
+$(1): $(foreach mod,$(TEST_MODULES),$(1)-$(mod))
+endef
+
+comma := ,
+
+$(eval $(call test_variant,test32-non-incremental,wasm32-wasip1,,\
+  --features classical_persistence,,TEST_DEPENDENCIES_32))
+
+$(eval $(call test_variant,test32-incremental,wasm32-wasip1,,\
+  --features classical_persistence$(comma)incremental_gc,,TEST_DEPENDENCIES_32))
+
+$(eval $(call test_variant,test64,wasm64-unknown-unknown,\
+  -Zbuild-std=core$(comma)alloc$(comma)std$(comma)panic_abort,\
+  --features enhanced_orthogonal_persistence,-W memory64,TEST_DEPENDENCIES_64))
 
 .PHONY: test
-
 test: test32-non-incremental test32-incremental test64
-
-test32-non-incremental: $(TEST_DEPENDENCIES_32)
-	$(TEST_BUILD_32) --features classical_persistence
-	$(TEST_RUN_32)
-
-test32-incremental: $(TEST_DEPENDENCIES_32)
-	$(TEST_BUILD_32) --features classical_persistence,incremental_gc
-	$(TEST_RUN_32)
-
-test64: $(TEST_DEPENDENCIES_64)
-	$(TEST_BUILD_64)
-	$(TEST_RUN_64)
 
 #
 # Putting it all together
@@ -267,7 +302,6 @@ test64: $(TEST_DEPENDENCIES_64)
 
 EXPORTED_SYMBOLS=\
   __wasm_call_ctors \
-  __wasm_apply_data_relocs \
   memcmp \
   tan \
   asin \

@@ -1,0 +1,12 @@
+error[M0260]: variable `a` bound in both branches of and-pattern
+    ┌─ and-pattern-overlap-multi.mo:8:38
+  8 │  let (a : Nat, b : Nat, c : Nat) and (a : Nat, b : Nat, c : Nat) = (1, 2, 3);
+    │                                       ^ 
+error[M0260]: variable `b` bound in both branches of and-pattern
+    ┌─ and-pattern-overlap-multi.mo:8:47
+  8 │  let (a : Nat, b : Nat, c : Nat) and (a : Nat, b : Nat, c : Nat) = (1, 2, 3);
+    │                                                ^ 
+error[M0260]: variable `c` bound in both branches of and-pattern
+    ┌─ and-pattern-overlap-multi.mo:8:56
+  8 │  let (a : Nat, b : Nat, c : Nat) and (a : Nat, b : Nat, c : Nat) = (1, 2, 3);
+    │                                                         ^ 

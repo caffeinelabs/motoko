@@ -136,6 +136,7 @@ let%expect_test "test1" =
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
+      <binop> <exp_nest> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -158,6 +159,7 @@ let%expect_test "test1" =
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
+      <binop> <exp_nest> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')
@@ -291,6 +293,7 @@ let%expect_test "test3" =
       or <pat_bin> (e.g. 'or x')
       , seplist(<pat_bin>,,) (e.g. ', x')
       : <typ> (e.g. ': Int')
+      and <pat_bin> (e.g. 'and x')
 
     (unknown location): syntax error [M0001], unexpected token 'private', expected one of token or <phrase> sequence:
       }
@@ -298,7 +301,8 @@ let%expect_test "test3" =
 
     (unknown location): syntax error [M0001], unexpected token 'let', expected one of token or <phrase> sequence:
       }
-      ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0') |}] 
+      ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
+    |}] 
 
 
 let%expect_test "test4" =
@@ -363,6 +367,7 @@ actor Main {
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
+      <binop> <exp_nest> (e.g. '+ 42')
       <unassign> <exp(ob)> (e.g. '-= 42')
       <relop> <exp_bin(ob)> (e.g. '== 42')
       else <exp_nest> (e.g. 'else 42')

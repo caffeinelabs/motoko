@@ -1,6 +1,5 @@
 # CLASSICAL-PERSISTENCE-ONLY
 # DEFAULT-GC-ONLY
-# SKIP-SANITY-CHECKS
 
 # Start with classical persistence
 install $ID migration-paths/old-installer.mo ""

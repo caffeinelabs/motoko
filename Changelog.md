@@ -1,5 +1,96 @@
 # Motoko compiler changelog
 
+## 1.8.2 (2026-05-21)
+
+* motoko (`moc`)
+
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver argument is not already a postfix expression (e.g. `Nat.toText((x * a + b) % c)`). The compiler used to print the suggestion as `(<expr>).toText(...)` but emit no machine-applicable edits, leaving `mops check --fix` with nothing to do; suggesting `(complex).f()` over `Module.f(complex)` is also a debatable style change. Trivial-receiver cases (variables, literals, calls) are unaffected (#6144).
+
+## 1.8.1 (2026-05-20)
+
+* motoko (`moc`)
+
+  * bugfix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes (#6134).
+
+## 1.8.0 (2026-05-15)
+
+* motoko (`moc`)
+
+  * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
+  * feat: `and`-patterns — `p1 and p2` matches when both legs match, binding from both (#6049).
+
+  * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
+
+## 1.7.0 (2026-04-29)
+
+* motoko (`moc`)
+
+  * feat: Add null-coalescing operator `??` (#5722).
+    `e1 ?? e2` evaluates to the unwrapped contents of `e1` when `e1` is `?v`,
+    otherwise to `e2`. The right-hand side is evaluated lazily (short-circuit).
+    For example, `opt ?? defaultValue` replaces the verbose
+    `switch opt { case (?v) v; case null defaultValue }`.
+    The right-hand side may be a block (e.g. `opt ?? { let x = 1; x }`),
+    a `do`-block, or a `Prim.trap` for fail-fast unwrapping. Because `{ ... }`
+    on the right is parsed as a block, a bare record literal must be wrapped
+    in extra braces or parentheses, e.g. `opt ?? ({ x = 0 })` or
+    `opt ?? {{ x = 0 }}`.
+
+  * perf: Compile enhanced multi-migration chains as per-step functions instead of one deeply-nested inlined expression, avoiding the wasm-function complexity limit hit by long chains (#6065).
+
+  * bugfix: Preserve GC-only roots (blob deduplication table, migration functions list) across graph-copy upgrades, and defer actor type compatibility checks to `ICStableRead` so enhanced multi-migration chains with multiple pending steps are accepted (#5993).
+
+  * bugfix: Clearer error when installing a Motoko canister over a non-Motoko or otherwise incompatible canister (#6044).
+
+## 1.6.0 (2026-04-21)
+
+* motoko (`moc`)
+
+  * feat: expose caller attributes feature through primitives (#5970).
+
+  * bugfix: Fix `moc.js` resolution of relative flag paths (e.g. `--enhanced-migration`, `--actor-idl`): resolve against the project root (via new `setProjectRoot` API) instead of the source file's directory, matching native `moc` behavior. The language server should call `setProjectRoot(path)` before processing files (#6015).
+
+## 1.5.1 (2026-04-13)
+
+* motoko (`moc`)
+
+  * bugfix: Resolve relative paths in `moc.js` flags (e.g. `--enhanced-migration`, `--actor-idl`) against the source file's directory, fixing "not a directory" errors when these flags are passed with relative paths via the language server (#6002).
+
+## 1.5.0 (2026-04-10)
+
+* motoko (`moc`)
+
+  * feat: Add `--generate-view-queries` flag to auto-generate query methods for stable variables (#5796).
+    When enabled, `moc` produces one `__<var>` query method per stable variable `<var>`, using the variable's `.view()` method if available, or returning the value directly for shared types.
+    Generated queries are restricted to controllers and self.
+    View queries appear in the local `.did` file (for tooling) but are excluded from the canister's public Candid interface, so they never affect upgrade compatibility.
+    See [Stable variable inspection](doc/md/icp-features/7-view-queries.md) for details.
+
+  * feat: Enhanced multi-migration support via `--enhanced-migration <dir>` (#5840).
+    Actor upgrades are managed through a chain of migration modules, each in its own file under a migrations directory (`<dir>`).
+    Each migration module must export a function called `migrate`, consuming old and introducing new stable variables, in a similar fashion to the already supported single migration functions.
+    The (lexicographic) sort order of module filenames determines the order of application of migration functions, with lowest applied first.
+    The compiler verifies that the chain of migration functions composes correctly.
+    The runtime only applies previously unapplied migrations on upgrade.
+    Stable variables within an actor's body must be declared with types but without initializers;
+    their values are determined entirely by the output of the migration chain.
+    The main body of actor must not have any immediate side effects, beyond invoking
+    local `<system>` functions (e.g. to register timers).
+    General side-effects are allowed in migration functions, to enable data initialization
+    and transformation.
+    See [Enhanced multi-migration](doc/md/fundamentals/2-actors/8-enhanced-multi-migration.md) for details.
+
+  * perf: type-based optimization of option creation and consumption, reducing cycle cost (#5947).
+
+  * bugfix: Fix type inference for `return` expressions inside unannotated lambdas passed to generic functions. Previously, the generic type parameter could resolve to `Non` instead of the actual return type, causing an IR type error (#5962).
+
+  * bugfix: Fix crash when reporting errors with no source region (#5976).
+
+* documentation (`mo-doc`)
+
+  * feat: doc comments on individual record fields and variant tags inside a `type` declaration are now extracted and rendered (#5983).
+
 ## 1.4.1 (2026-03-30)
 
 * motoko (`moc`)
@@ -765,7 +856,7 @@
     inspected on the IC replica dashboard as they are internal to the Motoko runtime system. 
     This query is only authorized to the canister controllers and self-calls of the canister.
 
-    ``` Motoko
+    ```motoko
     __motoko_runtime_information : () -> {
         compilerVersion : Text;
         rtsVersion : Text;
@@ -1043,7 +1134,7 @@
 
   * Allow identifiers in `or`-patterns (#3807).
     Bindings in alternatives must mention the same identifiers and have compatible types:
-    ``` Motoko
+    ```motoko
     let verbose = switch result {
       case (#ok) "All is good!";
       case (#warning why or #error why) "There is some problem: " # why;
@@ -1267,14 +1358,14 @@
     This is a frequently asked-for feature that allows to change the control-flow
     of programs when pattern-match failure occurs, thus providing a means against
     the famous "pyramid of doom" issue. A common example is look-ups:
-    ``` Motoko
+    ```motoko
     shared func getUser(user : Text) : async Id {
       let ?id = Map.get(users, user) else { throw Error.reject("no such user") };
       id
     }
     ```
     Similarly, an expression like
-    ``` Motoko
+    ```motoko
     (label v : Bool { let <pat> = <exp> else break v false; true })
     ```
     evaluates to a `Bool`, signifying whether `<pat>` matches `<exp>`.
@@ -1452,7 +1543,7 @@
 * motoko (`moc`)
 
   * Add new primitives for a default timer mechanism (#3542). These are
-    ``` Motoko
+    ```motoko
     setTimer : (delayNanos : Nat64, recurring : Bool, job : () -> async ()) -> (id : Nat)
     cancelTimer : (id : Nat) -> ()
     ```

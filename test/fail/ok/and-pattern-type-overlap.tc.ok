@@ -1,0 +1,1 @@
+and-pattern-type-overlap.mo:1.27-1.28: type error [M0260], type identifier `T` bound in both branches of and-pattern

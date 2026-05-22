@@ -6,7 +6,7 @@ in
   inherit releaseVersion;
 
   as_tarball = platformName: drvs:
-    pkgs.runCommandNoCC "motoko-${platformName}-${releaseVersion}.tar.gz"
+    pkgs.runCommand "motoko-${platformName}-${releaseVersion}.tar.gz"
       {
         allowedRequisites = [ ];
       } ''
@@ -17,7 +17,7 @@ in
     '';
 
   as_js = name: drv:
-    pkgs.runCommandNoCC "${name}-${releaseVersion}.js"
+    pkgs.runCommand "${name}-${releaseVersion}.js"
       {
         allowedRequisites = [ ];
       } ''

@@ -12,7 +12,6 @@ module Make
   end)
 = struct
 
-  open MenhirLib.General
   open I
   open User
 
@@ -34,7 +33,7 @@ module Make
   let future explanation =
     let prod, index = explanation.item in
     let rhs = rhs prod in
-    drop index rhs
+    List.drop index rhs
 
   let goal explanation =
     let prod, _ = explanation.item in
@@ -50,12 +49,12 @@ module Make
 
   let items_current env : item list =
     (* Get the current state. *)
-    match Lazy.force (stack env) with
-    | Nil ->
+    match top env with
+    | None ->
         (* If we get here, then the stack is empty, which means the parser
            is in an initial state. This should not happen. *)
         invalid_arg "items_current" (* TEMPORARY it DOES happen! *)
-    | Cons (Element (current, _, _, _), _) ->
+    | Some (Element (current, _, _, _)) ->
         (* Extract the current state out of the top stack element, and
            convert it to a set of LR(0) items. Returning a set of items
            instead of an ['a lr1state] is convenient; returning [current]
@@ -93,10 +92,10 @@ module Make
     match past, stack with
     | [], _ ->
         []
-    | symbol :: past, lazy (Cons (Element (s, _, startp, endp), stack)) ->
+    | symbol :: past, lazy (Element (s, _, startp, endp) :: stack) ->
         assert (compare_symbols symbol (X (incoming_symbol s)) = 0);
-        (symbol, startp, endp) :: marry past stack
-    | _ :: _, lazy Nil ->
+        (symbol, startp, endp) :: marry past (lazy stack)
+    | _ :: _, lazy [] ->
         assert false
 
   (* [accumulate t env explanations] is called if the parser decides to shift
@@ -110,14 +109,25 @@ module Make
        transition, look at the items that justify shifting [t].
        We view these items as explanations: they explain what
        we have read and what we expect to read. *)
-    let stack = stack env in
+
+    let stack_elements env =
+      let rec build i : element list Lazy.t =
+        lazy (
+            match get i env with
+            | None -> []
+            | Some elt -> elt :: Lazy.force (build (i + 1))
+          )
+      in
+      build 0 in
+
+    let stack = stack_elements env in
     List.fold_left (fun explanations item ->
       if is_shift_item t item then
         let prod, index = item in
         let rhs = rhs prod in
         {
           item = item;
-          past = List.rev (marry (List.rev (take index rhs)) stack)
+          past = List.rev (marry (List.rev (List.take index rhs)) stack)
         } :: explanations
       else
         explanations
@@ -132,6 +142,14 @@ module Make
      detected; it is used when manufacturing dummy tokens. This is
      important because the position of the dummy token may end up in
      the explanations that we produce. *)
+
+  let weed comp l =
+    let rec loop acc = function
+      | [] | [_] as xs -> List.rev (xs @ acc)
+      | x :: (y :: _ as rest) when comp x y = 0 -> loop acc rest
+      | x :: rest -> loop (x :: acc) rest
+    in
+    loop [] l
 
   let investigate pos (checkpoint : _ checkpoint) : explanation list =
     weed compare_explanations (

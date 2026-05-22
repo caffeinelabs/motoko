@@ -1,0 +1,14 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: []
+debug.print: #node(#leaf, 0, #leaf)
+debug.print: {a = 1; b = "hello"; c = true}
+debug.print: "user defined __override"
+debug.print: ?(1, ?(2, null))
+debug.print: any
+debug.print: any
+debug.print: any
+debug.print: any
+debug.print: IC0536: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister has no update method '__motoko_xxx'..
+Check that the method being called is exported by the target canister. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#method-not-found
+ingress Completed: Reply: 0x4449444c0000

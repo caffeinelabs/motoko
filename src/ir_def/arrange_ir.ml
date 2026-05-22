@@ -1,6 +1,5 @@
 open Mo_types
 open Mo_values
-open Source
 open Ir
 open Wasm.Sexpr
 
@@ -126,6 +125,7 @@ and prim = function
   | ICReplyDeadlinePrim  -> Atom "ICReplyDeadlinePrim"
   | ICStableWrite t   -> "ICStableWrite" $$ [typ t]
   | ICStableRead t    -> "ICStableRead" $$ [typ t]
+  | ICStableStore t   -> "ICStableStore" $$ [typ t]
 
 and mut = function
   | Const -> Atom "Const"
@@ -140,6 +140,7 @@ and pat p = match p.it with
   | OptP p          -> "OptP"       $$ [ pat p ]
   | TagP (i, p)     -> "TagP"       $$ [ id i; pat p ]
   | AltP (p1,p2)    -> "AltP"       $$ [ pat p1; pat p2 ]
+  | AndP (p1,p2)    -> "AndP"       $$ [ pat p1; pat p2 ]
 
 and lit = function
   | NullLit       -> Atom "NullLit"

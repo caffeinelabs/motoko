@@ -1,16 +1,16 @@
 RUNFLAGS =
 
 all:
-	../run.sh $(RUNFLAGS) *.wat
+	run-test $(RUNFLAGS) *.wat
 
 accept:
-	../run.sh $(RUNFLAGS) -a *.wat
+	run-test $(RUNFLAGS) -a *.wat
 
 clean:
 	rm -rf _out
 
-WASM_CLANG?=clang-19
-WASM_LD?=wasm-ld-19
+WASM_CLANG?=clang-21
+WASM_LD?=wasm-ld-21
 MO_LD?=../../src/mo-ld
 
 _out/%.lib.o: %.c | _out

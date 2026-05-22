@@ -1,5 +1,5 @@
-type pos = {file : string; line : int; column : int}
-type region = {left : pos; right : pos}
+type pos = Wasm.Source.pos = { file : string; line : int; column : int }
+type region = Wasm.Source.region = { left : pos; right : pos }
 type ('a, 'b) annotated_phrase = {at : region; it : 'a; mutable note: 'b}
 type 'a phrase = ('a, unit) annotated_phrase
 
@@ -11,6 +11,9 @@ module Region_map : Map.S with type key = region
 
 val no_pos : pos
 val no_region : region
+
+val is_no_pos : pos -> bool
+val is_no_region : region -> bool
 
 val string_of_pos : pos -> string
 val string_of_region : region -> string

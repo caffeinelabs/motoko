@@ -174,4 +174,3 @@ actor A {
 //CALL ingress test10 "DIDL\x00\x00"
 //CALL ingress test11 "DIDL\x00\x00"
 //CALL ingress test12 "DIDL\x00\x00"
-//SKIP-SANITY-CHECKS

@@ -1,0 +1,4 @@
+implicit-derivation-depth.mo:28.8-28.45: type error [M0230], Cannot determine implicit argument `compare` of type
+  ([[Nat]], [[Nat]]) -> Order
+note: Implicit derivation failed:
+  depth limit reached (increase with `--implicit-derivation-depth`, current: 1)

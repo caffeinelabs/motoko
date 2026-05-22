@@ -72,7 +72,7 @@ let context env = V.Blob env.self
 
 (* Error handling *)
 
-exception Trap of Source.region * string
+exception Trap of region * string
 exception Cancel of string
 
 let trap at fmt = Printf.ksprintf (fun s -> raise (Trap (at, s))) fmt
@@ -111,12 +111,12 @@ let string_of_arg env = function
 (* Debugging aids *)
 
 let last_env = ref (env_of_scope {trace = false; print_depth = 2} state empty_scope)
-let last_region = ref Source.no_region
+let last_region = ref no_region
 
 let print_exn flags exn =
   let trace = Printexc.get_backtrace () in
   Printf.printf "%!";
-  let at = Source.string_of_region !last_region in
+  let at = string_of_region !last_region in
   Printf.eprintf "%s: internal error, %s\n" at (Printexc.to_string exn);
   Printf.eprintf "\nLast environment:\n";
   Value.Env.iter (fun x d -> Printf.eprintf "%s = %s\n" x (string_of_def flags d))
@@ -138,7 +138,7 @@ struct
   let yield () =
     trace_depth := 0;
     try Queue.take q () with Trap (at, msg) ->
-      Printf.eprintf "%s: execution error, %s\n" (Source.string_of_region at) msg
+      Printf.eprintf "%s: execution error, %s\n" (string_of_region at) msg
   let rec run () =
     if not (Queue.is_empty q) then (yield (); run ())
 
@@ -662,6 +662,13 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       then k v1
       else interpret_exp env exp2 k
     )
+  | NullCoalesceE (e1, e2) ->
+    interpret_exp env e1 (fun v1 ->
+      match v1 with
+      | V.Null -> interpret_exp env e2 k
+      | V.Opt v -> k v
+      | _ -> assert false
+    )
   | IfE (exp1, exp2, exp3) ->
     interpret_exp env exp1 (fun v1 ->
       if V.as_bool v1
@@ -838,6 +845,7 @@ and declare_pat pat : val_env =
   | AltP (pat1, _) (* pat2 has the same identifiers *)
   | AnnotP (pat1, _)
   | ParP pat1 -> declare_pat pat1
+  | AndP (pat1, pat2) -> V.Env.adjoin (declare_pat pat1) (declare_pat pat2)
 
 and declare_pats pats ve : val_env =
   match pats with
@@ -928,6 +936,9 @@ and match_pat pat v : val_env option =
     | None -> match_pat pat2 v
     | some -> some
     )
+  | AndP (pat1, pat2) ->
+    Option.(bind (match_pat pat1 v) (fun ve1 ->
+      map (V.Env.adjoin ve1) (match_pat pat2 v)))
   | AnnotP (pat1, _)
   | ParP pat1 ->
     match_pat pat1 v
@@ -1071,7 +1082,7 @@ and interpret_dec env dec (k : V.value V.cont) =
           define_id env'' id' v';
           k' v')
       else
-        async env' Source.no_region
+        async env' no_region
           (fun k'' r ->
             let env'' = adjoin_vals env' (declare_id id') in
             let env''' = { env'' with
@@ -1131,7 +1142,7 @@ let ensure_management_canister env =
               (V.async_func (T.Write) 0 1
                  (fun c v k ->
                    async env
-                     Source.no_region
+                     no_region
                      (fun k' r ->
                        k' (V.Blob (V.Blob.rand32 ())))
                      k))))

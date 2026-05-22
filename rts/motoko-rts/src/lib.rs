@@ -2,16 +2,16 @@
 
 // See: https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html
 #![allow(static_mut_refs)]
+// Edition-2024 defer: rewriting every unsafe-op-in-unsafe-fn call site is a separate task.
+#![allow(unsafe_op_in_unsafe_fn)]
 #![no_std]
 #![feature(
     arbitrary_self_types,
-    core_intrinsics,
     proc_macro_hygiene,
     // // We do not need simd but this flag enables `core::arch:wasm64`.
     // // See https://github.com/rust-lang/rust/issues/90599
     simd_wasm64,
-    arbitrary_self_types_pointers,
-    stmt_expr_attributes
+    arbitrary_self_types_pointers
 )]
 #![allow(internal_features)]
 
@@ -84,7 +84,7 @@ unsafe fn alloc_words<M: memory::Memory>(mem: &mut M, n: types::Words<usize>) ->
     crate::gc::incremental::get_partitioned_heap().allocate(mem, n)
 }
 
-extern "C" {
+unsafe extern "C" {
     fn rts_trap(msg: *const u8, len: u32) -> !;
 }
 

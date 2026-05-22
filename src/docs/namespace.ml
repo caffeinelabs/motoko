@@ -20,6 +20,11 @@ let rec idents_in_pattern : Syntax.pat -> string list =
   | Syntax.AnnotP (p, _)
   | Syntax.ParP p ->
       idents_in_pattern p
+  | Syntax.AndP (p1, p2) ->
+      (* typechecker rejects overlapping bindings across legs, but
+         this helper may run on not-yet-checked code (mo-doc), so
+         dedupe defensively *)
+      List.sort_uniq compare (idents_in_pattern p1 @ idents_in_pattern p2)
   | Syntax.WildP | Syntax.SignP (_, _) | Syntax.LitP _ -> []
 
 let from_module =
@@ -112,14 +117,14 @@ let shadow : t -> t -> t =
   }
 
 let rec split_path : Syntax.path' -> string list * string = function
-  | Syntax.IdH id -> ([], id.Source.it)
+  | Syntax.IdH id -> ([], id.it)
   | Syntax.DotH (path, id) ->
-      let xs, x = split_path path.Source.it in
-      (List.append xs [ x ], id.Source.it)
+      let xs, x = split_path path.it in
+      (List.append xs [ x ], id.it)
 
 let lookup_type : t -> Syntax.typ_path -> Xref.t option =
  fun ns path ->
-  match split_path path.Source.it with
+  match split_path path.it with
   | [], id -> StringMap.find_opt id ns.types
   | x :: xs, id -> (
       match StringMap.find_opt x ns.values with
@@ -140,7 +145,7 @@ let lookup_type : t -> Syntax.typ_path -> Xref.t option =
           in
           Xref.extend top_xref
           |> Option.map (fun mk_top_xref ->
-                 mk_top_xref (mk_xref (Xref.XType id)))
+              mk_top_xref (mk_xref (Xref.XType id)))
       | Some (Xref.XNested _, sub_ns) ->
           let open Lib.Option.Syntax in
           let* sub_ns =
