@@ -237,7 +237,8 @@
         "nix-update-flake": "nix-update-flake",
         "nixpkgs": "nixpkgs",
         "ocaml-recovery-parser-src": "ocaml-recovery-parser-src",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay",
+        "wasmtime-src": "wasmtime-src"
       }
     },
     "rust-overlay": {
@@ -293,6 +294,23 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "wasmtime-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779471393,
+        "narHash": "sha256-foYvtCp0Qj7Zvw2NgyYEo2+aGN3ZmoEWfZoHs8j8YFU=",
+        "owner": "bytecodealliance",
+        "repo": "wasmtime",
+        "rev": "883f68fca976a9a5887edd27434ff12f0356c1a1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bytecodealliance",
+        "ref": "main",
+        "repo": "wasmtime",
         "type": "github"
       }
     }

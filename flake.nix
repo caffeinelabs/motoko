@@ -6,6 +6,15 @@
     # Reverts to nixpkgs-unstable once that PR lands and propagates.
     nixpkgs.url = "github:ggreif/nixpkgs/auto-update/wasmtime";
 
+    # Tinker overlay: rebuild wasmtime from upstream main so we get
+    # post-v45 cranelift work (#13343's simplify_skeleton fold for
+    # ctz/clz-in-brif, and our planned i64 mirror).  Floats with main —
+    # `nix flake update wasmtime-src` to refresh.
+    wasmtime-src = {
+      url = "github:bytecodealliance/wasmtime/main";
+      flake = false;
+    };
+
     flake-utils.url = "github:numtide/flake-utils";
 
     nix-update-flake.url = "github:Mic92/nix-update/09aadb5d6d9e1fc57df0b61def4bdd8b43ea47a1";
@@ -68,10 +77,11 @@
     , motoko-matchers-src
     , grace-src
     , ocaml-recovery-parser-src
+    , wasmtime-src
     }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import ./nix/pkgs.nix {
-        inherit nixpkgs system rust-overlay;
+        inherit nixpkgs system rust-overlay wasmtime-src;
         sources = {
           inherit
             candid-src
