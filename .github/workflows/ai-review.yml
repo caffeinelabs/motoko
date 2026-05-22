@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 
 jobs:
   ai-review:
@@ -203,7 +204,9 @@ jobs:
             exit 1
           fi
 
-          "$AGENT_BIN" -p --output-format text "$(cat review_prompt.md)" > cursor-ai-review.md
+          # --trust skips the interactive workspace-trust prompt; the .cursor/cli.json
+          # deny rules above still apply.
+          "$AGENT_BIN" -p --output-format text --trust "$(cat review_prompt.md)" > cursor-ai-review.md
 
           if [ ! -s cursor-ai-review.md ]; then
             echo "ERROR: empty review output" >&2
