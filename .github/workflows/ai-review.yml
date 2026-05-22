@@ -179,7 +179,6 @@ jobs:
                 "Read(.env*)",
                 "Read(**/.env*)",
                 "Read(**/*secret*)",
-                "Read(**/*token*)",
                 "Read(**/*credential*)",
                 "Read(**/*.pem)",
                 "Read(**/*.key)",
@@ -216,7 +215,7 @@ jobs:
         if: >-
           always() &&
           steps.token.outputs.configured == 'true' &&
-          (steps.install-cursor.outcome == 'failure' || steps.ai-review.outcome == 'failure')
+          job.status == 'failure'
         run: |
           # Preserve any partial output the agent produced; only write the
           # generic failure notice when there's nothing usable on disk.
@@ -224,12 +223,12 @@ jobs:
             cat > cursor-ai-review.md <<'EOF'
           ⚠️ **AI review could not be completed.**
 
-          Please proceed with manual code review. Common causes: Cursor API issues, install failure, or rate limiting.
+          Please proceed with manual code review. Common causes: checkout/diff failure, Cursor API issues, install failure, or rate limiting.
           EOF
           fi
 
       - name: Post AI review comment
-        if: steps.token.outputs.configured == 'true'
+        if: always() && steps.token.outputs.configured == 'true' && hashFiles('cursor-ai-review.md') != ''
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
