@@ -13259,6 +13259,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     in
 
     final_sr,
+    (* Run scrut *)
     scr_prelude ^^
     (* Run rest in block to exit from *)
     FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
