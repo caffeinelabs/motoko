@@ -227,6 +227,7 @@ type typ =
   | Record of fields
   | Variant of alts
   | Function of typ Lazy.t array * typ Lazy.t array * ann array
+  | Service of (string * typ Lazy.t) array
   | Future of int * Buffer.t
 
 and alts = (int * typ Lazy.t) array
@@ -266,6 +267,7 @@ type dump = {
   output_text : int -> in_channel -> out_channel -> unit;
   output_principal : bytes -> unit;
   output_func : bytes -> string -> unit;
+  output_service : bytes -> unit;
   output_some : outputter -> unit;
   output_arguments : int -> outputter * (unit -> int -> outputter -> outputter);
   output_vector : int -> outputter * (unit -> int -> outputter -> outputter);
@@ -337,6 +339,9 @@ let prose : dump =
   let output_func blob meth =
     Printf.printf "%soutput_func: %s . %s\n" (fill ()) (principal_text blob)
       meth
+  in
+  let output_service blob =
+    Printf.printf "%soutput_service: %s\n" (fill ()) (principal_text blob)
   in
   let output_arguments args =
     let herald_arguments = function
@@ -411,6 +416,7 @@ let prose : dump =
     output_text;
     output_principal;
     output_func;
+    output_service;
     output_some;
     output_arguments;
     output_vector;
@@ -472,6 +478,11 @@ let idl : dump =
     output_string (principal_text blob);
     output_string "\".\"";
     output_string meth;
+    output_string "\""
+  in
+  let output_service blob =
+    output_string "service \"";
+    output_string (principal_text blob);
     output_string "\""
   in
   let output_arguments args =
@@ -554,6 +565,7 @@ let idl : dump =
     output_text;
     output_principal;
     output_func;
+    output_service;
     output_some;
     output_arguments;
     output_vector;
@@ -603,6 +615,11 @@ let json : dump =
     output_string "\", \"method\": \"";
     output_string meth;
     output_string "\"}"
+  in
+  let output_service blob =
+    output_string "\"";
+    output_string (principal_text blob);
+    output_string "\""
   in
   let output_arguments args =
     let herald_arguments = function
@@ -673,6 +690,7 @@ let json : dump =
     output_text;
     output_principal;
     output_func;
+    output_service;
     output_some;
     output_arguments;
     output_vector;
@@ -705,6 +723,7 @@ let make_outputter (d : dump) (md : mode) : unit =
     output_text;
     output_principal;
     output_func;
+    output_service;
     output_some;
     output_arguments;
     output_vector;
@@ -835,7 +854,20 @@ let make_outputter (d : dump) (md : mode) : unit =
     (*
 T(service {<methtype>*}) = sleb128(-23) T*(<methtype>* )
 *)
-    | -23 -> failwith "service types not supported yet"
+    | -23 ->
+        let read_methtype () =
+          let n = read_leb128 () in
+          let name = Bytes.create n in
+          really_input stdin name 0 n;
+          let tynum = read_type_index () in
+          (Bytes.unsafe_to_string name, tynum)
+        in
+        let methods = read_t_star read_methtype in
+        lazy
+          (let method_types =
+             Array.map (fun (n, t) -> (n, lfst (lprim_or_lookup t))) methods
+           in
+           (Service method_types, fun () -> output_service (read_principal ())))
     | t ->
         (* future type *)
         let bytes = read_leb128 () in
@@ -954,7 +986,6 @@ let () =
   | None -> ()
 
 (* TODOs:
-  - service types
   - escaping in text
   - heralding/outputting of type table
  *)
