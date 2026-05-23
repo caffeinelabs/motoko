@@ -3,5 +3,5 @@
 (env
  (_
   (js_of_ocaml
-    (flags --no-extern-fs --target-env browser)
+    (flags --no-extern-fs --target-env browser --effects=cps)
     (link_flags))))

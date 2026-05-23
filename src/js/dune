@@ -26,6 +26,11 @@
  (modules moc_interpreter)
  (libraries common mo_config)
  (preprocess (pps js_of_ocaml-ppx))
+ ; The interpreter never reaches the codegen path that performs OCaml 5
+ ; effects, so the larger CPS-converted bundle is unnecessary here.
+ ; Drop this override if the type-checker (or anything else common to
+ ; this executable) grows effects of its own.
+ (js_of_ocaml (flags (:standard \ --effects=cps) --effects=disabled))
 )
 
 (executable
