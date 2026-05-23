@@ -143,6 +143,22 @@ let read_principal () : bytes =
 let principal_text (blob : bytes) : string =
   Ic.Url.encode_principal (Bytes.to_string blob)
 
+(* Shared function reference — wire format:
+   `i8(1) <principal> leb128(M) bytes(M)`. The outer `i8(1)` is the
+   func transparent-reference tag; the principal carries its own
+   inner `i8(1)` per `M(id : principal) = i8(1) M(id : bytes)`. *)
+
+let read_func () : bytes * string =
+  (match read_byte () with
+  | 1 -> ()
+  | 0 -> failwith "opaque function references cannot appear on the wire"
+  | _ -> failwith "invalid function reference tag");
+  let principal = read_principal () in
+  let m = read_leb128 () in
+  let method_name = Bytes.create m in
+  really_input stdin method_name 0 m;
+  (principal, Bytes.unsafe_to_string method_name)
+
 (* Magic *)
 
 let read_magic () : unit =
@@ -229,6 +245,7 @@ type dump = {
   output_int64 : Z.t -> unit;
   output_text : int -> in_channel -> out_channel -> unit;
   output_principal : bytes -> unit;
+  output_func : bytes -> string -> unit;
   output_some : outputter -> unit;
   output_arguments : int -> outputter * (unit -> int -> outputter -> outputter);
   output_vector : int -> outputter * (unit -> int -> outputter -> outputter);
@@ -292,6 +309,10 @@ let prose : dump =
   in
   let output_principal blob =
     Printf.printf "%soutput_principal: %s\n" (fill ()) (principal_text blob)
+  in
+  let output_func blob meth =
+    Printf.printf "%soutput_func: %s . %s\n" (fill ()) (principal_text blob)
+      meth
   in
   let output_arguments args =
     let herald_arguments = function
@@ -363,6 +384,7 @@ let prose : dump =
     output_int64;
     output_text;
     output_principal;
+    output_func;
     output_some;
     output_arguments;
     output_vector;
@@ -415,6 +437,13 @@ let idl : dump =
   let output_principal blob =
     output_string "principal \"";
     output_string (principal_text blob);
+    output_string "\""
+  in
+  let output_func blob meth =
+    output_string "func \"";
+    output_string (principal_text blob);
+    output_string "\".\"";
+    output_string meth;
     output_string "\""
   in
   let output_arguments args =
@@ -494,6 +523,7 @@ let idl : dump =
     output_int64;
     output_text;
     output_principal;
+    output_func;
     output_some;
     output_arguments;
     output_vector;
@@ -534,6 +564,13 @@ let json : dump =
     output_string "\"";
     output_string (principal_text blob);
     output_string "\""
+  in
+  let output_func blob meth =
+    output_string "{\"principal\": \"";
+    output_string (principal_text blob);
+    output_string "\", \"method\": \"";
+    output_string meth;
+    output_string "\"}"
   in
   let output_arguments args =
     let herald_arguments = function
@@ -601,6 +638,7 @@ let json : dump =
     output_int64;
     output_text;
     output_principal;
+    output_func;
     output_some;
     output_arguments;
     output_vector;
@@ -630,6 +668,7 @@ let make_outputter (d : dump) (md : mode) : unit =
     output_int64;
     output_text;
     output_principal;
+    output_func;
     output_some;
     output_arguments;
     output_vector;
@@ -752,7 +791,10 @@ let make_outputter (d : dump) (md : mode) : unit =
            let rslts =
              Array.map (fun tynum -> lfst (lprim_or_lookup tynum)) types2
            in
-           (Function (args, rslts, anns), epsilon))
+           ( Function (args, rslts, anns),
+             fun () ->
+               let p, m = read_func () in
+               output_func p m ))
     (*
 T(service {<methtype>*}) = sleb128(-23) T*(<methtype>* )
 *)
