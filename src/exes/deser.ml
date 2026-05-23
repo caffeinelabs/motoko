@@ -1,4 +1,3 @@
-open Stdio.In_channel
 open Lazy
 
 (* The type of outputters
@@ -20,8 +19,9 @@ let epsilon : outputter = ignore
 (* reading at byte-level *)
 
 let read_byte () : int =
-  let b = input_byte stdin in
-  match b with Some b -> b | None -> failwith "EOF"
+  match In_channel.input_byte stdin with
+  | Some b -> b
+  | None -> failwith "EOF"
 
 let read_2byte () : int =
   let lsb = read_byte () in
@@ -33,11 +33,10 @@ let read_4byte () : int =
   let msb = read_2byte () in
   (msb lsl 16) + lsb
 
-let read_8byte () : Big_int.big_int =
+let read_8byte () : Z.t =
   let lsb = read_4byte () in
   let msb = read_4byte () in
-  Big_int.(
-    add_int_big_int lsb (mult_int_big_int 4294967296 (big_int_of_int msb)))
+  Z.(of_int lsb + (of_int msb lsl 32))
 
 let read_signed_byte () : bool * int =
   let b = read_byte () in
@@ -50,8 +49,10 @@ let read_known char : unit =
 
 (* reading numbers *)
 
+(* int-typed LEB/SLEB for byte counts, hashes, vector lengths and tag
+   indices — values that always fit in OCaml's native int. *)
+
 let read_leb128 () : int =
-  (* TODO: should be bigint *)
   let rec leb128 w : int =
     match read_signed_byte () with
     | true, n -> (w * n) + leb128 (w * 128)
@@ -60,13 +61,37 @@ let read_leb128 () : int =
   leb128 1
 
 let read_sleb128 () : int =
-  (* TODO: should be bigint *)
   let rec sleb128 w : int =
     match read_signed_byte () with
     | true, n -> (w * n) + sleb128 (w * 128)
     | _, n -> w * if n > 63 then n - 128 else n
   in
   sleb128 1
+
+(* Zarith-typed LEB/SLEB for Candid `nat` / `int` values, which the spec
+   does not bound. *)
+
+let read_leb128_z () : Z.t =
+  let rec leb128 shift =
+    match read_signed_byte () with
+    | true, n ->
+        let rest = leb128 (shift + 7) in
+        Z.(add (of_int n lsl shift) rest)
+    | _, n -> Z.(of_int n lsl shift)
+  in
+  leb128 0
+
+let read_sleb128_z () : Z.t =
+  let rec sleb128 shift =
+    match read_signed_byte () with
+    | true, n ->
+        let rest = sleb128 (shift + 7) in
+        Z.(add (of_int n lsl shift) rest)
+    | _, n ->
+        let signed = if n > 63 then n - 128 else n in
+        Z.(of_int signed lsl shift)
+  in
+  sleb128 0
 
 let read_int8 () : int =
   match read_signed_byte () with true, n -> n - 128 | _, n -> n
@@ -81,11 +106,10 @@ let read_int32 () : int =
   let msb = read_int16 () in
   (msb lsl 16) lor lsb
 
-let read_int64 () : Big_int.big_int =
+let read_int64 () : Z.t =
   let lsb = read_4byte () in
   let msb = read_int32 () in
-  Big_int.(
-    add_int_big_int lsb (mult_int_big_int 4294967296 (big_int_of_int msb)))
+  Z.(of_int lsb + (of_int msb lsl 32))
 
 let read_bool () : bool =
   match read_byte () with
@@ -161,19 +185,19 @@ let read_assoc () =
   (hash, tynum)
 
 module type Dump = sig
-  val output_nat : int -> unit
-  val output_int : int -> unit
+  val output_nat : Z.t -> unit
+  val output_int : Z.t -> unit
   val output_bool : bool -> unit
   val output_nil : outputter
   val output_byte : int -> unit
   val output_2byte : int -> unit
   val output_4byte : int -> unit
-  val output_8byte : Big_int.big_int -> unit
+  val output_8byte : Z.t -> unit
   val output_int8 : int -> unit
   val output_int16 : int -> unit
   val output_int32 : int -> unit
-  val output_int64 : Big_int.big_int -> unit
-  val output_text : int -> Stdio.In_channel.t -> Stdio.Out_channel.t -> unit
+  val output_int64 : Z.t -> unit
+  val output_text : int -> in_channel -> out_channel -> unit
   val output_some : outputter -> unit
 
   val output_arguments :
@@ -216,12 +240,12 @@ module OutputProse : Dump = struct
   let output_decimal what (i : int) =
     Printf.printf "%s%s: %d\n" (fill ()) what i
 
-  let output_big_decimal what (i : Big_int.big_int) =
-    Printf.printf "%s%s: %s\n" (fill ()) what (Big_int.string_of_big_int i)
+  let output_big_decimal what (i : Z.t) =
+    Printf.printf "%s%s: %s\n" (fill ()) what (Z.to_string i)
 
   (* outputters *)
-  let output_nat nat = output_decimal "output_nat" nat
-  let output_int int = output_decimal "output_int" int
+  let output_nat nat = output_big_decimal "output_nat" nat
+  let output_int int = output_big_decimal "output_int" int
 
   let output_bool b =
     output_string "output_bool" (if b then "true" else "false")
@@ -243,10 +267,10 @@ module OutputProse : Dump = struct
 
   let output_text bytes from tostream =
     let buf = Buffer.create 0 in
-    ignore (input_buffer from buf ~len:bytes);
+    Buffer.add_channel buf from bytes;
     Printf.printf "%sText: %d bytes follow on next line\n" (fill ()) bytes;
     Printf.printf "%s---->" (fill ());
-    Stdio.Out_channel.output_buffer tostream buf;
+    Buffer.output_buffer tostream buf;
     print_string "\n"
 
   let output_arguments args :
@@ -319,12 +343,7 @@ module OutputIdl : Dump = struct
 
   let output_decimal (i : int) = Printf.printf "%d" i
 
-  let output_big_decimal (i : Big_int.big_int) =
-    output_string (Big_int.string_of_big_int i)
-
-  (* let output_bignum (i : Big_int.big_int) = Printf.printf "%s" (Big_int.string_of_big_int i) *)
-  let output_bignum (i : int) =
-    output_decimal i (* for now, later: output_big_decimal *)
+  let output_big_decimal (i : Z.t) = output_string (Z.to_string i)
 
   let casted ty f v =
     match ty with
@@ -348,21 +367,21 @@ module OutputIdl : Dump = struct
       casted (NatN 16) output_decimal,
       casted (NatN 32) output_decimal )
 
-  let output_8byte = casted (NatN 64) output_big_decimal
-  let output_nat, output_int = (output_bignum, output_bignum)
+  let output_8byte (v : Z.t) = casted (NatN 64) output_big_decimal v
+  let output_nat, output_int = (output_big_decimal, output_big_decimal)
 
   let output_int8, output_int16, output_int32 =
     ( casted (IntN 8) output_decimal,
       casted (IntN 16) output_decimal,
       casted (IntN 32) output_decimal )
 
-  let output_int64 = casted (IntN 64) output_big_decimal
+  let output_int64 (v : Z.t) = casted (IntN 64) output_big_decimal v
 
   let output_text n froms tos =
     output_string "\"";
     let buf = Buffer.create 0 in
-    ignore (input_buffer froms buf ~len:n);
-    Stdio.Out_channel.output_buffer tos buf;
+    Buffer.add_channel buf froms n;
+    Buffer.output_buffer tos buf;
     output_string "\""
 
   let output_arguments args :
@@ -438,10 +457,7 @@ module OutputJson : Dump = struct
   let output_string_space (s : string) = Printf.printf "%s " s
   let output_decimal (i : int) = Printf.printf "%d" i
 
-  let output_big_decimal (i : Big_int.big_int) =
-    output_string (Big_int.string_of_big_int i)
-
-  let output_bignum (i : int) = output_decimal i (* for now *)
+  let output_big_decimal (i : Z.t) = output_string (Z.to_string i)
   let output_bool b = output_string (if b then "true" else "false")
   let output_nil () = output_string "null"
 
@@ -453,19 +469,19 @@ module OutputJson : Dump = struct
   let output_byte, output_2byte, output_4byte =
     (output_decimal, output_decimal, output_decimal)
 
-  let output_8byte = output_big_decimal
-  let output_nat, output_int = (output_bignum, output_bignum)
+  let output_8byte (v : Z.t) = output_big_decimal v
+  let output_nat, output_int = (output_big_decimal, output_big_decimal)
 
   let output_int8, output_int16, output_int32 =
     (output_decimal, output_decimal, output_decimal)
 
-  let output_int64 = output_big_decimal
+  let output_int64 (v : Z.t) = output_big_decimal v
 
   let output_text n froms tos =
     output_string "\"";
     let buf = Buffer.create 0 in
-    ignore (input_buffer froms buf ~len:n);
-    Stdio.Out_channel.output_buffer tos buf;
+    Buffer.add_channel buf froms n;
+    Buffer.output_buffer tos buf;
     output_string "\""
 
   let output_arguments args :
@@ -535,8 +551,8 @@ module MakeOutputter (F : Dump) = struct
     function
     | -1 -> (Null, output_nil)
     | -2 -> (Bool, fun () -> output_bool (read_bool ()))
-    | -3 -> (Nat, fun () -> output_nat (read_leb128 ()))
-    | -4 -> (Int, fun () -> output_int (read_sleb128 ()))
+    | -3 -> (Nat, fun () -> output_nat (read_leb128_z ()))
+    | -4 -> (Int, fun () -> output_int (read_sleb128_z ()))
     | -5 -> (NatN 8, fun () -> output_byte (read_byte ()))
     | -6 -> (NatN 16, fun () -> output_2byte (read_2byte ()))
     | -7 -> (NatN 32, fun () -> output_4byte (read_4byte ()))
@@ -656,13 +672,13 @@ T(service {<methtype>*}) = sleb128(-23) T*(<methtype>* )
         (* future type *)
         let bytes = read_leb128 () in
         let buf = Buffer.create 0 in
-        ignore (input_buffer stdin buf ~len:bytes);
+        Buffer.add_channel buf stdin bytes;
         let ingest () =
           let bytes = read_leb128 () in
           let refs = read_leb128 () in
           let buf = Buffer.create 0 in
           assert (refs = 0);
-          ignore (input_buffer stdin buf ~len:bytes)
+          Buffer.add_channel buf stdin bytes
         in
         lazy (Future (t, buf), ingest)
 
@@ -780,12 +796,11 @@ let () =
       let module Json = MakeOutputter (OutputJson) in
       Json.top_level !mode
   end;
-  match input_byte stdin with
+  match In_channel.input_byte stdin with
   | Some _ -> failwith "surplus bytes in input"
   | None -> ()
 
 (* TODOs:
-  - use bigint where necessary
   - floats
   - service types
   - escaping in text
