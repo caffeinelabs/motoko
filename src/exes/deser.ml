@@ -115,6 +115,34 @@ let read_bool () : bool =
   | 1 -> true
   | _ -> failwith "invalid boolean"
 
+(* Principal — wire format: `i8(1) leb128(N) bytes(N)`.
+   The 1-byte prefix distinguishes transparent (1) from opaque (0)
+   references; only transparent ones can appear on the wire. Per the
+   IC interface spec, principal blobs are bounded to 29 bytes. *)
+
+let principal_max_len = 29
+
+let read_principal () : bytes =
+  match read_byte () with
+  | 1 ->
+      let n = read_leb128 () in
+      if n > principal_max_len then
+        failwith
+          (Printf.sprintf "principal too long: %d bytes (spec maximum is %d)" n
+             principal_max_len);
+      let buf = Bytes.create n in
+      really_input stdin buf 0 n;
+      buf
+  | 0 -> failwith "opaque principal references cannot appear on the wire"
+  | _ -> failwith "invalid principal tag"
+
+(* Principal blobs render through `Ic.Url.encode_principal`, which is
+   the same CRC32 + base32 + dash-grouping encoder moc itself uses in
+   `mo_values/value.ml` and `mo_values/show.ml`. *)
+
+let principal_text (blob : bytes) : string =
+  Ic.Url.encode_principal (Bytes.to_string blob)
+
 (* Magic *)
 
 let read_magic () : unit =
@@ -159,6 +187,7 @@ type typ =
   | Text
   | Reserved
   | Empty
+  | Principal
   | Opt of typ Lazy.t
   | Vec of typ Lazy.t
   | Record of fields
@@ -173,7 +202,10 @@ and fields = (int * typ Lazy.t) array
 
 let read_type_index () =
   let ty = read_sleb128 () in
-  assert (ty > -18);
+  (* allow primitive codes (-1..-17), principal (-24), and positive
+     indices into the type table; constructed types (-18..-23) cannot
+     be referenced inline. *)
+  assert (ty > -18 || ty = -24);
   ty
 
 let read_assoc () =
@@ -196,6 +228,7 @@ type dump = {
   output_int32 : int -> unit;
   output_int64 : Z.t -> unit;
   output_text : int -> in_channel -> out_channel -> unit;
+  output_principal : bytes -> unit;
   output_some : outputter -> unit;
   output_arguments : int -> outputter * (unit -> int -> outputter -> outputter);
   output_vector : int -> outputter * (unit -> int -> outputter -> outputter);
@@ -256,6 +289,9 @@ let prose : dump =
     Printf.printf "%s---->" (fill ());
     Buffer.output_buffer tostream buf;
     print_string "\n"
+  in
+  let output_principal blob =
+    Printf.printf "%soutput_principal: %s\n" (fill ()) (principal_text blob)
   in
   let output_arguments args =
     let herald_arguments = function
@@ -326,6 +362,7 @@ let prose : dump =
     output_int32;
     output_int64;
     output_text;
+    output_principal;
     output_some;
     output_arguments;
     output_vector;
@@ -373,6 +410,11 @@ let idl : dump =
     let buf = Buffer.create 0 in
     Buffer.add_channel buf froms n;
     Buffer.output_buffer tos buf;
+    output_string "\""
+  in
+  let output_principal blob =
+    output_string "principal \"";
+    output_string (principal_text blob);
     output_string "\""
   in
   let output_arguments args =
@@ -451,6 +493,7 @@ let idl : dump =
     output_int32;
     output_int64;
     output_text;
+    output_principal;
     output_some;
     output_arguments;
     output_vector;
@@ -485,6 +528,11 @@ let json : dump =
     let buf = Buffer.create 0 in
     Buffer.add_channel buf froms n;
     Buffer.output_buffer tos buf;
+    output_string "\""
+  in
+  let output_principal blob =
+    output_string "\"";
+    output_string (principal_text blob);
     output_string "\""
   in
   let output_arguments args =
@@ -552,6 +600,7 @@ let json : dump =
     output_int32;
     output_int64;
     output_text;
+    output_principal;
     output_some;
     output_arguments;
     output_vector;
@@ -580,6 +629,7 @@ let make_outputter (d : dump) (md : mode) : unit =
     output_int32;
     output_int64;
     output_text;
+    output_principal;
     output_some;
     output_arguments;
     output_vector;
@@ -609,10 +659,12 @@ let make_outputter (d : dump) (md : mode) : unit =
             output_text len stdin stdout )
     | -16 -> (Reserved, ignore)
     | -17 -> (Empty, ignore)
+    | -24 -> (Principal, fun () -> output_principal (read_principal ()))
     | _ -> failwith "unrecognised primitive type"
   in
   let read_type lookup : (typ * outputter) Lazy.t =
     let lprim_or_lookup = function
+      | -24 -> lazy (decode_primitive_type (-24))
       | p when p < -17 -> assert false
       | p when p < 0 -> lazy (decode_primitive_type p)
       | i -> lookup i
@@ -629,7 +681,7 @@ let make_outputter (d : dump) (md : mode) : unit =
          s)
     in
     match read_sleb128 () with
-    | p when p < 0 && p > -18 -> from_val (decode_primitive_type p)
+    | p when (p < 0 && p > -18) || p = -24 -> from_val (decode_primitive_type p)
     | -18 ->
         let reader consumer () =
           match read_byte () with
