@@ -31,10 +31,11 @@ let read_4byte () : int =
   let msb = read_2byte () in
   (msb lsl 16) + lsb
 
-let read_8byte () : Z.t =
+let read_8byte () : Big_int.big_int =
   let lsb = read_4byte () in
   let msb = read_4byte () in
-  Z.(of_int lsb + (of_int msb lsl 32))
+  Big_int.(
+    add_int_big_int lsb (mult_int_big_int 4294967296 (big_int_of_int msb)))
 
 let read_signed_byte () : bool * int =
   let b = read_byte () in
@@ -66,28 +67,29 @@ let read_sleb128 () : int =
   in
   sleb128 1
 
-(* Zarith-typed LEB/SLEB for Candid `nat` / `int` values, which the spec
-   does not bound. *)
+(* Bignum LEB/SLEB for Candid `nat` / `int` values, which the spec
+   does not bound.  Uses `num`/`Big_int` to align with the rest of
+   moc (`mo_values/numerics.ml`); avoids pulling libgmp via zarith. *)
 
-let read_leb128_z () : Z.t =
+let read_leb128_bignum () : Big_int.big_int =
   let rec leb128 shift =
     match read_signed_byte () with
     | true, n ->
         let rest = leb128 (shift + 7) in
-        Z.(add (of_int n lsl shift) rest)
-    | _, n -> Z.(of_int n lsl shift)
+        Big_int.(add_big_int (shift_left_big_int (big_int_of_int n) shift) rest)
+    | _, n -> Big_int.shift_left_big_int (Big_int.big_int_of_int n) shift
   in
   leb128 0
 
-let read_sleb128_z () : Z.t =
+let read_sleb128_bignum () : Big_int.big_int =
   let rec sleb128 shift =
     match read_signed_byte () with
     | true, n ->
         let rest = sleb128 (shift + 7) in
-        Z.(add (of_int n lsl shift) rest)
+        Big_int.(add_big_int (shift_left_big_int (big_int_of_int n) shift) rest)
     | _, n ->
         let signed = if n > 63 then n - 128 else n in
-        Z.(of_int signed lsl shift)
+        Big_int.shift_left_big_int (Big_int.big_int_of_int signed) shift
   in
   sleb128 0
 
@@ -104,10 +106,11 @@ let read_int32 () : int =
   let msb = read_int16 () in
   (msb lsl 16) lor lsb
 
-let read_int64 () : Z.t =
+let read_int64 () : Big_int.big_int =
   let lsb = read_4byte () in
   let msb = read_int32 () in
-  Z.(of_int lsb + (of_int msb lsl 32))
+  Big_int.(
+    add_int_big_int lsb (mult_int_big_int 4294967296 (big_int_of_int msb)))
 
 let read_bool () : bool =
   match read_byte () with
@@ -250,18 +253,18 @@ let read_assoc () =
   (hash, tynum)
 
 type dump = {
-  output_nat : Z.t -> unit;
-  output_int : Z.t -> unit;
+  output_nat : Big_int.big_int -> unit;
+  output_int : Big_int.big_int -> unit;
   output_bool : bool -> unit;
   output_nil : outputter;
   output_byte : int -> unit;
   output_2byte : int -> unit;
   output_4byte : int -> unit;
-  output_8byte : Z.t -> unit;
+  output_8byte : Big_int.big_int -> unit;
   output_int8 : int -> unit;
   output_int16 : int -> unit;
   output_int32 : int -> unit;
-  output_int64 : Z.t -> unit;
+  output_int64 : Big_int.big_int -> unit;
   output_float32 : float -> unit;
   output_float64 : float -> unit;
   output_text : int -> in_channel -> out_channel -> unit;
@@ -300,8 +303,8 @@ let prose : dump =
   let output_decimal what (i : int) =
     Printf.printf "%s%s: %d\n" (fill ()) what i
   in
-  let output_big_decimal what (i : Z.t) =
-    Printf.printf "%s%s: %s\n" (fill ()) what (Z.to_string i)
+  let output_big_decimal what (i : Big_int.big_int) =
+    Printf.printf "%s%s: %s\n" (fill ()) what (Big_int.string_of_big_int i)
   in
   let output_nat nat = output_big_decimal "output_nat" nat in
   let output_int n = output_big_decimal "output_int" n in
@@ -432,7 +435,9 @@ let idl : dump =
     output_string " "
   in
   let output_decimal (i : int) = Printf.printf "%d" i in
-  let output_big_decimal (i : Z.t) = output_string (Z.to_string i) in
+  let output_big_decimal (i : Big_int.big_int) =
+    output_string (Big_int.string_of_big_int i)
+  in
   let casted ty f v =
     match ty with
     | IntN n ->
@@ -452,13 +457,17 @@ let idl : dump =
   let output_byte = casted (NatN 8) output_decimal in
   let output_2byte = casted (NatN 16) output_decimal in
   let output_4byte = casted (NatN 32) output_decimal in
-  let output_8byte (v : Z.t) = casted (NatN 64) output_big_decimal v in
+  let output_8byte (v : Big_int.big_int) =
+    casted (NatN 64) output_big_decimal v
+  in
   let output_nat = output_big_decimal in
   let output_int = output_big_decimal in
   let output_int8 = casted (IntN 8) output_decimal in
   let output_int16 = casted (IntN 16) output_decimal in
   let output_int32 = casted (IntN 32) output_decimal in
-  let output_int64 (v : Z.t) = casted (IntN 64) output_big_decimal v in
+  let output_int64 (v : Big_int.big_int) =
+    casted (IntN 64) output_big_decimal v
+  in
   let output_float32 f = Printf.printf "%.9g : float32" f in
   let output_float64 f = Printf.printf "%.17g : float64" f in
   let output_text n froms tos =
@@ -577,7 +586,9 @@ let json : dump =
   let output_string (s : string) = print_string s in
   let output_string_space (s : string) = Printf.printf "%s " s in
   let output_decimal (i : int) = Printf.printf "%d" i in
-  let output_big_decimal (i : Z.t) = output_string (Z.to_string i) in
+  let output_big_decimal (i : Big_int.big_int) =
+    output_string (Big_int.string_of_big_int i)
+  in
   let output_bool b = output_string (if b then "true" else "false") in
   let output_nil () = output_string "null" in
   let output_some consumer =
@@ -588,13 +599,13 @@ let json : dump =
   let output_byte = output_decimal in
   let output_2byte = output_decimal in
   let output_4byte = output_decimal in
-  let output_8byte (v : Z.t) = output_big_decimal v in
+  let output_8byte (v : Big_int.big_int) = output_big_decimal v in
   let output_nat = output_big_decimal in
   let output_int = output_big_decimal in
   let output_int8 = output_decimal in
   let output_int16 = output_decimal in
   let output_int32 = output_decimal in
-  let output_int64 (v : Z.t) = output_big_decimal v in
+  let output_int64 (v : Big_int.big_int) = output_big_decimal v in
   let output_float32 f = Printf.printf "%.9g" f in
   let output_float64 f = Printf.printf "%.17g" f in
   let output_text n froms tos =
@@ -736,8 +747,8 @@ let make_outputter (d : dump) (md : mode) : unit =
   let decode_primitive_type : int -> typ * outputter = function
     | -1 -> (Null, output_nil)
     | -2 -> (Bool, fun () -> output_bool (read_bool ()))
-    | -3 -> (Nat, fun () -> output_nat (read_leb128_z ()))
-    | -4 -> (Int, fun () -> output_int (read_sleb128_z ()))
+    | -3 -> (Nat, fun () -> output_nat (read_leb128_bignum ()))
+    | -4 -> (Int, fun () -> output_int (read_sleb128_bignum ()))
     | -5 -> (NatN 8, fun () -> output_byte (read_byte ()))
     | -6 -> (NatN 16, fun () -> output_2byte (read_2byte ()))
     | -7 -> (NatN 32, fun () -> output_4byte (read_4byte ()))
