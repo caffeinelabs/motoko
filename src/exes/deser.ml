@@ -500,7 +500,7 @@ let idl : dump =
           (if last i then " (last)" else "");
       output_string (if i = 0 then "( " else ", ");
       f ();
-      output_string (if last i then "\n)" else "\n")
+      output_string (if last i then "\n)\n" else "\n")
     in
     (herald_arguments, herald_member)
   in
@@ -630,7 +630,8 @@ let json : dump =
     let herald_member () i f () =
       Printf.printf "\n# Argument #%d%s:\n" i
         (if i + 1 = args then " (last)" else "");
-      f ()
+      f ();
+      if i + 1 = args then print_newline ()
     in
     (herald_arguments, herald_member)
   in
