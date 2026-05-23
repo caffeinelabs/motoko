@@ -115,6 +115,22 @@ let read_bool () : bool =
   | 1 -> true
   | _ -> failwith "invalid boolean"
 
+(* IEEE-754 little-endian.  We unpack to native OCaml float (which is
+   binary64); for float32 the bit pattern is widened via
+   `Int32.float_of_bits` and stays representable exactly. *)
+
+let read_float32 () : float =
+  let lsw = read_2byte () in
+  let msw = read_2byte () in
+  Int32.float_of_bits
+    (Int32.logor (Int32.shift_left (Int32.of_int msw) 16) (Int32.of_int lsw))
+
+let read_float64 () : float =
+  let lo = read_4byte () in
+  let hi = read_4byte () in
+  Int64.float_of_bits
+    (Int64.logor (Int64.shift_left (Int64.of_int hi) 32) (Int64.of_int lo))
+
 (* Principal — wire format: `i8(1) leb128(N) bytes(N)`.
    The 1-byte prefix distinguishes transparent (1) from opaque (0)
    references; only transparent ones can appear on the wire. Per the
@@ -200,6 +216,8 @@ type typ =
   | NatN of int
   | Int
   | IntN of int
+  | Float32
+  | Float64
   | Text
   | Reserved
   | Empty
@@ -243,6 +261,8 @@ type dump = {
   output_int16 : int -> unit;
   output_int32 : int -> unit;
   output_int64 : Z.t -> unit;
+  output_float32 : float -> unit;
+  output_float64 : float -> unit;
   output_text : int -> in_channel -> out_channel -> unit;
   output_principal : bytes -> unit;
   output_func : bytes -> string -> unit;
@@ -299,6 +319,10 @@ let prose : dump =
   let output_int16 i = output_decimal "output_int16" i in
   let output_int32 i = output_decimal "output_int32" i in
   let output_int64 i = output_big_decimal "output_int64" i in
+  let output_float32 f = Printf.printf "%soutput_float32: %.9g\n" (fill ()) f in
+  let output_float64 f =
+    Printf.printf "%soutput_float64: %.17g\n" (fill ()) f
+  in
   let output_text bytes from tostream =
     let buf = Buffer.create 0 in
     Buffer.add_channel buf from bytes;
@@ -382,6 +406,8 @@ let prose : dump =
     output_int16;
     output_int32;
     output_int64;
+    output_float32;
+    output_float64;
     output_text;
     output_principal;
     output_func;
@@ -427,6 +453,8 @@ let idl : dump =
   let output_int16 = casted (IntN 16) output_decimal in
   let output_int32 = casted (IntN 32) output_decimal in
   let output_int64 (v : Z.t) = casted (IntN 64) output_big_decimal v in
+  let output_float32 f = Printf.printf "%.9g : float32" f in
+  let output_float64 f = Printf.printf "%.17g : float64" f in
   let output_text n froms tos =
     output_string "\"";
     let buf = Buffer.create 0 in
@@ -521,6 +549,8 @@ let idl : dump =
     output_int16;
     output_int32;
     output_int64;
+    output_float32;
+    output_float64;
     output_text;
     output_principal;
     output_func;
@@ -553,6 +583,8 @@ let json : dump =
   let output_int16 = output_decimal in
   let output_int32 = output_decimal in
   let output_int64 (v : Z.t) = output_big_decimal v in
+  let output_float32 f = Printf.printf "%.9g" f in
+  let output_float64 f = Printf.printf "%.17g" f in
   let output_text n froms tos =
     output_string "\"";
     let buf = Buffer.create 0 in
@@ -636,6 +668,8 @@ let json : dump =
     output_int16;
     output_int32;
     output_int64;
+    output_float32;
+    output_float64;
     output_text;
     output_principal;
     output_func;
@@ -666,6 +700,8 @@ let make_outputter (d : dump) (md : mode) : unit =
     output_int16;
     output_int32;
     output_int64;
+    output_float32;
+    output_float64;
     output_text;
     output_principal;
     output_func;
@@ -690,7 +726,8 @@ let make_outputter (d : dump) (md : mode) : unit =
     | -10 -> (IntN 16, fun () -> output_int16 (read_int16 ()))
     | -11 -> (IntN 32, fun () -> output_int32 (read_int32 ()))
     | -12 -> (IntN 64, fun () -> output_int64 (read_int64 ()))
-    | -13 | -14 -> failwith "no floats yet" (* TODO *)
+    | -13 -> (Float32, fun () -> output_float32 (read_float32 ()))
+    | -14 -> (Float64, fun () -> output_float64 (read_float64 ()))
     | -15 ->
         ( Text,
           fun () ->
@@ -917,7 +954,6 @@ let () =
   | None -> ()
 
 (* TODOs:
-  - floats
   - service types
   - escaping in text
   - heralding/outputting of type table
