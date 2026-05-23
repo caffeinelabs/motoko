@@ -19,9 +19,7 @@ let epsilon : outputter = ignore
 (* reading at byte-level *)
 
 let read_byte () : int =
-  match In_channel.input_byte stdin with
-  | Some b -> b
-  | None -> failwith "EOF"
+  match In_channel.input_byte stdin with Some b -> b | None -> failwith "EOF"
 
 let read_2byte () : int =
   let lsb = read_byte () in
@@ -184,87 +182,73 @@ let read_assoc () =
   if !chatty then Printf.printf "hash: %d, tynum: %d\n" hash tynum;
   (hash, tynum)
 
-module type Dump = sig
-  val output_nat : Z.t -> unit
-  val output_int : Z.t -> unit
-  val output_bool : bool -> unit
-  val output_nil : outputter
-  val output_byte : int -> unit
-  val output_2byte : int -> unit
-  val output_4byte : int -> unit
-  val output_8byte : Z.t -> unit
-  val output_int8 : int -> unit
-  val output_int16 : int -> unit
-  val output_int32 : int -> unit
-  val output_int64 : Z.t -> unit
-  val output_text : int -> in_channel -> out_channel -> unit
-  val output_some : outputter -> unit
+type dump = {
+  output_nat : Z.t -> unit;
+  output_int : Z.t -> unit;
+  output_bool : bool -> unit;
+  output_nil : outputter;
+  output_byte : int -> unit;
+  output_2byte : int -> unit;
+  output_4byte : int -> unit;
+  output_8byte : Z.t -> unit;
+  output_int8 : int -> unit;
+  output_int16 : int -> unit;
+  output_int32 : int -> unit;
+  output_int64 : Z.t -> unit;
+  output_text : int -> in_channel -> out_channel -> unit;
+  output_some : outputter -> unit;
+  output_arguments : int -> outputter * (unit -> int -> outputter -> outputter);
+  output_vector : int -> outputter * (unit -> int -> outputter -> outputter);
+  output_record : int -> outputter * (fields -> int -> outputter -> outputter);
+  output_variant : int -> outputter * (alts -> int -> outputter -> outputter);
+}
 
-  val output_arguments :
-    int -> outputter * (unit -> int -> outputter -> outputter)
-
-  val output_vector : int -> outputter * (unit -> int -> outputter -> outputter)
-
-  val output_record :
-    int -> outputter * (fields -> int -> outputter -> outputter)
-
-  val output_variant :
-    int -> outputter * (alts -> int -> outputter -> outputter)
-end
-
-module OutputProse : Dump = struct
-  (* indentation *)
-
-  let indent_amount : int = 4
-  let indentation : int ref = ref 0
-  let continue_line : bool ref = ref false
-  let indent () = indentation := !indentation + indent_amount
-  let outdent () = indentation := !indentation - indent_amount
-  let ind i = if i = 0 then indent ()
-  let outd max i = if i + 1 = max then outdent ()
-
+let prose : dump =
+  let indent_amount = 4 in
+  let indentation = ref 0 in
+  let continue_line = ref false in
+  let indent () = indentation := !indentation + indent_amount in
+  let outdent () = indentation := !indentation - indent_amount in
+  let ind i = if i = 0 then indent () in
+  let outd max i = if i + 1 = max then outdent () in
   let bracket max g p i f () =
     ind i;
     g p i f;
     outd max i
-
+  in
   let fill () =
     if !continue_line then (
       continue_line := false;
       "")
     else String.make !indentation ' '
-
+  in
   let output_string what (s : string) =
     Printf.printf "%s%s: %s\n" (fill ()) what s
-
+  in
   let output_decimal what (i : int) =
     Printf.printf "%s%s: %d\n" (fill ()) what i
-
+  in
   let output_big_decimal what (i : Z.t) =
     Printf.printf "%s%s: %s\n" (fill ()) what (Z.to_string i)
-
-  (* outputters *)
-  let output_nat nat = output_big_decimal "output_nat" nat
-  let output_int int = output_big_decimal "output_int" int
-
+  in
+  let output_nat nat = output_big_decimal "output_nat" nat in
+  let output_int n = output_big_decimal "output_int" n in
   let output_bool b =
     output_string "output_bool" (if b then "true" else "false")
-
-  let output_nil () = Printf.printf "%snull (0 bytes)\n" (fill ())
-
+  in
+  let output_nil () = Printf.printf "%snull (0 bytes)\n" (fill ()) in
   let output_some consumer =
     Printf.printf "%sSome: value follows on the next line\n" (fill ());
     consumer ()
-
-  let output_byte b = output_decimal "output_byte" b
-  let output_2byte b = output_decimal "output_2byte" b
-  let output_4byte b = output_decimal "output_4byte" b
-  let output_8byte b = output_big_decimal "output_8byte" b
-  let output_int8 i = output_decimal "output_int8" i
-  let output_int16 i = output_decimal "output_int16" i
-  let output_int32 i = output_decimal "output_int32" i
-  let output_int64 i = output_big_decimal "output_int64" i
-
+  in
+  let output_byte b = output_decimal "output_byte" b in
+  let output_2byte b = output_decimal "output_2byte" b in
+  let output_4byte b = output_decimal "output_4byte" b in
+  let output_8byte b = output_big_decimal "output_8byte" b in
+  let output_int8 i = output_decimal "output_int8" i in
+  let output_int16 i = output_decimal "output_int16" i in
+  let output_int32 i = output_decimal "output_int32" i in
+  let output_int64 i = output_big_decimal "output_int64" i in
   let output_text bytes from tostream =
     let buf = Buffer.create 0 in
     Buffer.add_channel buf from bytes;
@@ -272,9 +256,8 @@ module OutputProse : Dump = struct
     Printf.printf "%s---->" (fill ());
     Buffer.output_buffer tostream buf;
     print_string "\n"
-
-  let output_arguments args :
-      outputter * (unit -> int -> outputter -> outputter) =
+  in
+  let output_arguments args =
     let herald_arguments = function
       | () when args = 0 -> Printf.printf "%sNo arguments...\n" (fill ())
       | _ when args = 1 -> Printf.printf "%s1 argument follows\n" (fill ())
@@ -287,9 +270,8 @@ module OutputProse : Dump = struct
       f ()
     in
     (herald_arguments, bracket args herald_member)
-
-  let output_vector members :
-      outputter * (unit -> int -> outputter -> outputter) =
+  in
+  let output_vector members =
     let herald_vector () =
       if members = 0 then Printf.printf "%sEmpty Vector\n" (fill ())
       else Printf.printf "%sVector with %d members follows\n" (fill ()) members
@@ -301,9 +283,8 @@ module OutputProse : Dump = struct
       f ()
     in
     (herald_vector, bracket members herald_member)
-
-  let output_record members :
-      outputter * (fields -> int -> outputter -> outputter) =
+  in
+  let output_record members =
     let herald_record () =
       if members = 0 then Printf.printf "%sEmpty Record\n" (fill ())
       else Printf.printf "%sRecord with %d members follows\n" (fill ()) members
@@ -316,9 +297,8 @@ module OutputProse : Dump = struct
       f ()
     in
     (herald_record, bracket members herald_member)
-
-  let output_variant members :
-      outputter * (alts -> int -> outputter -> outputter) =
+  in
+  let output_variant members =
     let herald_variant () =
       assert (members <> 0);
       Printf.printf "%sVariant with %d members follows\n" (fill ()) members
@@ -331,20 +311,37 @@ module OutputProse : Dump = struct
       outdent ()
     in
     (herald_variant, herald_member)
-end
+  in
+  {
+    output_nat;
+    output_int;
+    output_bool;
+    output_nil;
+    output_byte;
+    output_2byte;
+    output_4byte;
+    output_8byte;
+    output_int8;
+    output_int16;
+    output_int32;
+    output_int64;
+    output_text;
+    output_some;
+    output_arguments;
+    output_vector;
+    output_record;
+    output_variant;
+  }
 
-module OutputIdl : Dump = struct
-  let output_string (s : string) = print_string s
-  let chat_string s = if !chatty then output_string s
-
+let idl : dump =
+  let output_string (s : string) = print_string s in
+  let chat_string s = if !chatty then output_string s in
   let output_string_space (s : string) =
     output_string s;
     output_string " "
-
-  let output_decimal (i : int) = Printf.printf "%d" i
-
-  let output_big_decimal (i : Z.t) = output_string (Z.to_string i)
-
+  in
+  let output_decimal (i : int) = Printf.printf "%d" i in
+  let output_big_decimal (i : Z.t) = output_string (Z.to_string i) in
   let casted ty f v =
     match ty with
     | IntN n ->
@@ -354,38 +351,31 @@ module OutputIdl : Dump = struct
         f v;
         Printf.printf " : nat%d" n
     | _ -> assert false
-
-  let output_bool b = output_string (if b then "true" else "false")
-  let output_nil () = output_string "null"
-
+  in
+  let output_bool b = output_string (if b then "true" else "false") in
+  let output_nil () = output_string "null" in
   let output_some consumer =
     output_string_space "opt";
     consumer ()
-
-  let output_byte, output_2byte, output_4byte =
-    ( casted (NatN 8) output_decimal,
-      casted (NatN 16) output_decimal,
-      casted (NatN 32) output_decimal )
-
-  let output_8byte (v : Z.t) = casted (NatN 64) output_big_decimal v
-  let output_nat, output_int = (output_big_decimal, output_big_decimal)
-
-  let output_int8, output_int16, output_int32 =
-    ( casted (IntN 8) output_decimal,
-      casted (IntN 16) output_decimal,
-      casted (IntN 32) output_decimal )
-
-  let output_int64 (v : Z.t) = casted (IntN 64) output_big_decimal v
-
+  in
+  let output_byte = casted (NatN 8) output_decimal in
+  let output_2byte = casted (NatN 16) output_decimal in
+  let output_4byte = casted (NatN 32) output_decimal in
+  let output_8byte (v : Z.t) = casted (NatN 64) output_big_decimal v in
+  let output_nat = output_big_decimal in
+  let output_int = output_big_decimal in
+  let output_int8 = casted (IntN 8) output_decimal in
+  let output_int16 = casted (IntN 16) output_decimal in
+  let output_int32 = casted (IntN 32) output_decimal in
+  let output_int64 (v : Z.t) = casted (IntN 64) output_big_decimal v in
   let output_text n froms tos =
     output_string "\"";
     let buf = Buffer.create 0 in
     Buffer.add_channel buf froms n;
     Buffer.output_buffer tos buf;
     output_string "\""
-
-  let output_arguments args :
-      outputter * (unit -> int -> outputter -> outputter) =
+  in
+  let output_arguments args =
     let last i = i + 1 = args in
     let herald_arguments = function
       | () when args = 0 ->
@@ -403,17 +393,15 @@ module OutputIdl : Dump = struct
       output_string (if last i then "\n)" else "\n")
     in
     (herald_arguments, herald_member)
-
-  let start i = if i = 0 then output_string_space "{"
-  let stop max i = if i + 1 = max then output_string " }"
-
+  in
+  let start i = if i = 0 then output_string_space "{" in
+  let stop max i = if i + 1 = max then output_string " }" in
   let bracket max g p i f () =
     start i;
     g p i f;
     stop max i
-
-  let output_vector members :
-      outputter * (unit -> int -> outputter -> outputter) =
+  in
+  let output_vector members =
     let herald_vector () =
       if members = 0 then output_string_space "vec { }"
       else output_string_space "vec"
@@ -423,9 +411,8 @@ module OutputIdl : Dump = struct
       output_string_space ";"
     in
     (herald_vector, bracket members herald_member)
-
-  let output_record members :
-      outputter * (fields -> int -> outputter -> outputter) =
+  in
+  let output_record members =
     let herald_record () =
       if members = 0 then output_string_space "record { }"
       else output_string_space "record"
@@ -436,9 +423,8 @@ module OutputIdl : Dump = struct
       output_string_space ";"
     in
     (herald_record, bracket members herald_member)
-
-  let output_variant members :
-      outputter * (alts -> int -> outputter -> outputter) =
+  in
+  let output_variant members =
     let herald_variant () =
       assert (members <> 0);
       output_string_space "variant"
@@ -450,42 +436,58 @@ module OutputIdl : Dump = struct
       stop 1 0
     in
     (herald_variant, herald_member)
-end
+  in
+  {
+    output_nat;
+    output_int;
+    output_bool;
+    output_nil;
+    output_byte;
+    output_2byte;
+    output_4byte;
+    output_8byte;
+    output_int8;
+    output_int16;
+    output_int32;
+    output_int64;
+    output_text;
+    output_some;
+    output_arguments;
+    output_vector;
+    output_record;
+    output_variant;
+  }
 
-module OutputJson : Dump = struct
-  let output_string (s : string) = print_string s
-  let output_string_space (s : string) = Printf.printf "%s " s
-  let output_decimal (i : int) = Printf.printf "%d" i
-
-  let output_big_decimal (i : Z.t) = output_string (Z.to_string i)
-  let output_bool b = output_string (if b then "true" else "false")
-  let output_nil () = output_string "null"
-
+let json : dump =
+  let output_string (s : string) = print_string s in
+  let output_string_space (s : string) = Printf.printf "%s " s in
+  let output_decimal (i : int) = Printf.printf "%d" i in
+  let output_big_decimal (i : Z.t) = output_string (Z.to_string i) in
+  let output_bool b = output_string (if b then "true" else "false") in
+  let output_nil () = output_string "null" in
   let output_some consumer =
     output_string "[";
     consumer ();
     output_string "]"
-
-  let output_byte, output_2byte, output_4byte =
-    (output_decimal, output_decimal, output_decimal)
-
-  let output_8byte (v : Z.t) = output_big_decimal v
-  let output_nat, output_int = (output_big_decimal, output_big_decimal)
-
-  let output_int8, output_int16, output_int32 =
-    (output_decimal, output_decimal, output_decimal)
-
-  let output_int64 (v : Z.t) = output_big_decimal v
-
+  in
+  let output_byte = output_decimal in
+  let output_2byte = output_decimal in
+  let output_4byte = output_decimal in
+  let output_8byte (v : Z.t) = output_big_decimal v in
+  let output_nat = output_big_decimal in
+  let output_int = output_big_decimal in
+  let output_int8 = output_decimal in
+  let output_int16 = output_decimal in
+  let output_int32 = output_decimal in
+  let output_int64 (v : Z.t) = output_big_decimal v in
   let output_text n froms tos =
     output_string "\"";
     let buf = Buffer.create 0 in
     Buffer.add_channel buf froms n;
     Buffer.output_buffer tos buf;
     output_string "\""
-
-  let output_arguments args :
-      outputter * (unit -> int -> outputter -> outputter) =
+  in
+  let output_arguments args =
     let herald_arguments = function
       | () when args = 0 -> output_string "# No arguments...\n"
       | _ when args = 1 -> output_string "# 1 argument follows"
@@ -496,18 +498,18 @@ module OutputJson : Dump = struct
         (if i + 1 = args then " (last)" else "");
       f ()
     in
-    (herald_arguments, (*bracket args*) herald_member)
-
-  let start punct i = if i = 0 then output_string (String.make 1 punct)
-  let stop punct max i = if i + 1 = max then output_string (String.make 1 punct)
-
+    (herald_arguments, herald_member)
+  in
+  let start punct i = if i = 0 then output_string (String.make 1 punct) in
+  let stop punct max i =
+    if i + 1 = max then output_string (String.make 1 punct)
+  in
   let bracket punct max g p i f () =
     start punct.[0] i;
     g p i f;
     stop punct.[1] max i
-
-  let output_vector members :
-      outputter * (unit -> int -> outputter -> outputter) =
+  in
+  let output_vector members =
     let punct = "[]" in
     let herald_vector () = if members = 0 then output_string_space punct in
     let herald_member () i f =
@@ -515,9 +517,8 @@ module OutputJson : Dump = struct
       f ()
     in
     (herald_vector, bracket punct members herald_member)
-
-  let output_record members :
-      outputter * (fields -> int -> outputter -> outputter) =
+  in
+  let output_record members =
     let punct = "{}" in
     let herald_record () = if members = 0 then output_string_space punct in
     let herald_member fields i f =
@@ -526,9 +527,8 @@ module OutputJson : Dump = struct
       f ()
     in
     (herald_record, bracket punct members herald_member)
-
-  let output_variant members :
-      outputter * (alts -> int -> outputter -> outputter) =
+  in
+  let output_variant members =
     let herald_variant () = assert (members <> 0) in
     let herald_member alts i f () =
       start '{' 0;
@@ -537,7 +537,27 @@ module OutputJson : Dump = struct
       stop '}' 1 0
     in
     (herald_variant, herald_member)
-end
+  in
+  {
+    output_nat;
+    output_int;
+    output_bool;
+    output_nil;
+    output_byte;
+    output_2byte;
+    output_4byte;
+    output_8byte;
+    output_int8;
+    output_int16;
+    output_int32;
+    output_int64;
+    output_text;
+    output_some;
+    output_arguments;
+    output_vector;
+    output_record;
+    output_variant;
+  }
 
 (* IDL binary mode:
    - Legacy: top-level encoded as one value
@@ -545,10 +565,30 @@ end
  *)
 type mode = Unary | Nary
 
-module MakeOutputter (F : Dump) = struct
-  let decode_primitive_type : int -> typ * outputter =
-    let open F in
-    function
+let make_outputter (d : dump) (md : mode) : unit =
+  let {
+    output_nat;
+    output_int;
+    output_bool;
+    output_nil;
+    output_byte;
+    output_2byte;
+    output_4byte;
+    output_8byte;
+    output_int8;
+    output_int16;
+    output_int32;
+    output_int64;
+    output_text;
+    output_some;
+    output_arguments;
+    output_vector;
+    output_record;
+    output_variant;
+  } =
+    d
+  in
+  let decode_primitive_type : int -> typ * outputter = function
     | -1 -> (Null, output_nil)
     | -2 -> (Bool, fun () -> output_bool (read_bool ()))
     | -3 -> (Nat, fun () -> output_nat (read_leb128_z ()))
@@ -570,7 +610,7 @@ module MakeOutputter (F : Dump) = struct
     | -16 -> (Reserved, ignore)
     | -17 -> (Empty, ignore)
     | _ -> failwith "unrecognised primitive type"
-
+  in
   let read_type lookup : (typ * outputter) Lazy.t =
     let lprim_or_lookup = function
       | p when p < -17 -> assert false
@@ -578,7 +618,6 @@ module MakeOutputter (F : Dump) = struct
       | i -> lookup i
     in
     let prim_or_lookup ty = force (lprim_or_lookup ty) in
-
     let lfst p =
       lazy
         (let (lazy (f, _)) = p in
@@ -589,8 +628,6 @@ module MakeOutputter (F : Dump) = struct
         (let (lazy (_, s)) = p in
          s)
     in
-
-    let open F in
     match read_sleb128 () with
     | p when p < 0 && p > -18 -> from_val (decode_primitive_type p)
     | -18 ->
@@ -681,60 +718,52 @@ T(service {<methtype>*}) = sleb128(-23) T*(<methtype>* )
           Buffer.add_channel buf stdin bytes
         in
         lazy (Future (t, buf), ingest)
-
+  in
   let read_type_table (t : unit -> (typ * outputter) Lazy.t) :
       (typ * outputter) Lazy.t array =
     let rep = read_leb128 () in
     Array.init rep (fun i ->
         if !chatty then Printf.printf "read_type_table: %d\n" i;
         t ())
-
-  (* Utilities *)
-
-  let chat_string = if !chatty then print_string else ignore
-
-  (* Top-level *)
-
-  let top_level md : unit =
-    chat_string "\nDESER, to your service!\n";
-    read_magic ();
-    chat_string "\n========================== Type section\n";
-    let tab =
-      let rec tab = lazy (read_type_table (fun () -> read_type lookup))
-      and lookup =
-       fun indx ->
-        (*Printf.printf "{indx: %d}" indx; *) Array.get (force tab) indx
-      in
-      Array.map force (force tab)
+  in
+  let chat_string = if !chatty then print_string else ignore in
+  chat_string "\nDESER, to your service!\n";
+  read_magic ();
+  chat_string "\n========================== Type section\n";
+  let tab =
+    let rec tab = lazy (read_type_table (fun () -> read_type lookup))
+    and lookup =
+     fun indx ->
+      (*Printf.printf "{indx: %d}" indx; *) Array.get (force tab) indx
     in
-    chat_string "\n========================== Value section\n";
-    let open F in
-    begin match md with
-    | Nary ->
-        let argtys = read_t_star read_type_index in
-        let herald_arguments, herald_member =
-          output_arguments (Array.length argtys)
-        in
-        herald_arguments ();
-        let typ_ingester = function
-          | prim when prim < 0 -> decode_primitive_type prim
-          | index -> Array.get tab index
-        in
-        let consumers =
-          Array.map
-            (fun tynum ->
-              let ty, m = typ_ingester tynum in
-              m)
-            argtys
-        in
-        Array.iteri (fun i f -> herald_member () i f ()) consumers
-    | Unary ->
-        let argty = read_type_index () in
-        if !chatty then Printf.printf "# ARGTY: %d\n" argty;
-        snd (Array.get tab argty) ()
-    end;
-    chat_string "\n-------- DESER DONE\n"
-end
+    Array.map force (force tab)
+  in
+  chat_string "\n========================== Value section\n";
+  begin match md with
+  | Nary ->
+      let argtys = read_t_star read_type_index in
+      let herald_arguments, herald_member =
+        output_arguments (Array.length argtys)
+      in
+      herald_arguments ();
+      let typ_ingester = function
+        | prim when prim < 0 -> decode_primitive_type prim
+        | index -> Array.get tab index
+      in
+      let consumers =
+        Array.map
+          (fun tynum ->
+            let ty, m = typ_ingester tynum in
+            m)
+          argtys
+      in
+      Array.iteri (fun i f -> herald_member () i f ()) consumers
+  | Unary ->
+      let argty = read_type_index () in
+      if !chatty then Printf.printf "# ARGTY: %d\n" argty;
+      snd (Array.get tab argty) ()
+  end;
+  chat_string "\n-------- DESER DONE\n"
 
 (* CLI *)
 
@@ -785,17 +814,10 @@ let add_arg source = () (* args := !args @ [source] *)
 
 let () =
   Arg.parse argspec add_arg usage;
-  begin match !output_format with
-  | Prose ->
-      let module Prose = MakeOutputter (OutputProse) in
-      Prose.top_level !mode
-  | Idl ->
-      let module Idl = MakeOutputter (OutputIdl) in
-      Idl.top_level !mode
-  | Json ->
-      let module Json = MakeOutputter (OutputJson) in
-      Json.top_level !mode
-  end;
+  let dump =
+    match !output_format with Prose -> prose | Idl -> idl | Json -> json
+  in
+  make_outputter dump !mode;
   match In_channel.input_byte stdin with
   | Some _ -> failwith "surplus bytes in input"
   | None -> ()
