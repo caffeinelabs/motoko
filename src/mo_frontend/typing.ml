@@ -55,15 +55,6 @@ type env =
     rets : ret_env;
     async : C.async_cap;
     in_actor : bool;
-    in_actor_dec_pat : bool;
-      (* True while checking the pattern of any LetD whose RHS may be of
-         actor type (imports of `ic:...` / `canister:...`, plus general
-         `let p = e`).  Permits the otherwise-banned ObjP-against-actor
-         combination here, because desugar.ml routes such bindings through
-         per-field ActorDotPrim projections rather than the IR-level ObjP
-         lowering (which compiles to DotPrim and trashes the actor blob at
-         runtime).  Switch-case and function-parameter ObjP-against-actor
-         contexts still trip M0114 — desugar doesn't route those (yet). *)
     in_prog : bool;
     context : exp' list;
     pre : bool;
@@ -98,7 +89,6 @@ let env_of_scope msgs scope =
     rets = NoRet;
     async = Async_cap.NullCap;
     in_actor = false;
-    in_actor_dec_pat = false;
     in_prog = true;
     context = [];
     pre = false;
@@ -3767,36 +3757,20 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type"
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
-    let pfs' = List.stable_sort compare_pat_field pfs in
-    let vpfs = List.filter_map (fun pf ->
-      match pf.it with
-      | TypPF _ -> None
-      | ValPF(id, _) -> Some(id.it)) pfs' in
-    let s, fs =
-      try T.as_obj_sub vpfs t
-      with Invalid_argument _ ->
-        let spans = add_error_ctx [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
-        error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
-    in
-    (* M0114 — narrowed.
-
-       The rule originally blocked all ObjP-against-actor patterns because
-       the naive IR-level ObjP lowering compiles to plain DotPrim
-       field-extraction, which reads garbage from the actor blob's runtime
-       representation and crashes at the first projected-method call.
-
-       For any LetD (imports of `ic:...` / `canister:...`, plus general
-       `let { foo } = some_actor`), desugar now intercepts and emits
-       per-field ActorDotPrim projections — those compile correctly to
-       (principal, method-name) pairs.  The in_actor_dec_pat flag is
-       plumbed from infer_import / LetD pattern check sites.
-
-       Still fires for switch-case patterns and function parameters
-       (test/fail/actor-match.mo); desugar.ml doesn't route those (yet). *)
-    if not env.pre && s = T.Actor && vpfs <> [] && not env.in_actor_dec_pat then
+    let s, has_value_pf, ve = check_obj_pat_aux env t pat pfs in
+    (* M0114 — narrowed.  Fires for ObjP-against-actor patterns in
+       contexts that lower through the IR-level I.ObjP node (switch-case,
+       function-parameter, for-loop binding, try-catch handler).  Those
+       paths use the naive record-layout field extraction that traps on
+       the actor blob.  LetD-style bindings (imports + general `let { foo
+       } = e`) bypass this site by calling [check_dec_pat] locally —
+       desugar then routes them through per-field ActorDotPrim
+       projections.  Truly removable once compile_*.ml / interpret_ir.ml
+       teach I.ObjP to dispatch on actor type. *)
+    if not env.pre && s = T.Actor && has_value_pf then
       local_error env pat.at "M0114" "object pattern cannot consume values from actor type%a"
         display_typ_expand t;
-    check_pat_fields env t fs pfs' T.Env.empty pat.at
+    ve
   | OptP pat1 ->
     let t1 = try T.as_opt_sub t with Invalid_argument _ ->
       let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
@@ -3892,6 +3866,45 @@ and check_pats env ts pats ve at : Scope.val_env =
         pats_len ts_len
   in
   go ts pats ve
+
+(* Common work for an object-pattern check.  Returns (obj_sort,
+   has_value_field, val_env).  Callers that need to gate M0114 (the
+   ObjP arm of check_pat_aux') do it locally based on the first two
+   values; LetD-style local dispatchers (check_dec_pat) ignore them
+   and just take the val_env, since desugar.ml's actor_destruct_decs
+   handles the runtime layout. *)
+and check_obj_pat_aux env t pat pfs : T.obj_sort * bool * Scope.val_env =
+  let pfs' = List.stable_sort compare_pat_field pfs in
+  let vpfs = List.filter_map (fun pf -> match pf.it with
+    | TypPF _ -> None
+    | ValPF(id, _) -> Some(id.it)) pfs' in
+  let s, fs =
+    try T.as_obj_sub vpfs t
+    with Invalid_argument _ ->
+      let base = [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
+      let spans = match env.closest_scrutinee with
+        | Some (exp_at, exp_ty) ->
+          secondary env exp_at "this expression has type `%a`" display_typ_expand_inline exp_ty :: base
+        | None -> base
+      in
+      error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
+  in
+  let ve = check_pat_fields env t fs pfs' T.Env.empty pat.at in
+  (s, vpfs <> [], ve)
+
+(* Local dispatcher for LetD-shaped pattern checks (imports + general
+   `let p = e`).  When the RHS is actor-typed and the pattern is ObjP,
+   bypass check_pat's ObjP arm — and hence M0114 — calling
+   check_obj_pat_aux directly.  Desugar.ml then routes the LetD
+   through actor_destruct_decs.  Everything else falls through to the
+   standard check_pat_exhaustive. *)
+and check_dec_pat warnOrError env t pat : Scope.val_env =
+  match T.normalize t, pat.it with
+  | T.Obj (T.Actor, _, _), ObjP pfs ->
+    let _, _, ve = check_obj_pat_aux env t pat pfs in
+    if not env.pre then coverage_pat warnOrError env pat t;
+    ve
+  | _ -> check_pat_exhaustive warnOrError env t pat
 
 and check_pat_fields env t fs pfs ve at : Scope.val_env =
   let cmp (tf : T.field) (id, _, _) = String.compare tf.T.lab id.it in
@@ -5189,14 +5202,12 @@ and infer_dec_valdecs env dec : Scope.t =
     Scope.{empty with val_env = singleton id obj_typ}
   | LetD (pat, exp, fail) ->
      let t = infer_exp {env with pre = true; check_unused = false} exp in
-     (* Permit ObjP-against-actor in this LetD's pattern; desugar.ml routes
-        such bindings through per-field ActorDotPrim projections so the
-        runtime layout stays correct.  See in_actor_dec_pat docstring. *)
-     let env' = { env with
-                  closest_scrutinee = Some (exp.at, t);
-                  in_actor_dec_pat = true } in
+     let env' = { env with closest_scrutinee = Some (exp.at, t) } in
+     (* check_dec_pat permits ObjP-against-actor in this LetD's pattern;
+        desugar.ml then routes such bindings through per-field
+        ActorDotPrim projections (see desugar.actor_destruct_decs). *)
      let ve' = match fail with
-       | None -> check_pat_exhaustive warn env' t pat
+       | None -> check_dec_pat warn env' t pat
        | Some _ ->
           let ve = check_pat env' t pat in
           if not env.pre && coverage_pat_is_exhaustive pat t then
@@ -5259,16 +5270,12 @@ let infer_import env dec = match dec.it with
         | _ -> error env pat.at "M0229" "mixins may only be imported by binding to a name")
       | None ->
         let t = check_import env at s ri in
-        (* IDLPath imports (`ic:<principal>` / `canister:<alias>`) have an
-           actor-typed RHS; without the flag a destructuring pattern would
-           trip M0114.  Set in_actor_dec_pat so the pattern checker permits
-           ObjP-against-actor here.  Desugar routes such imports through
-           per-field ActorDotPrim projections (see desugar.ml).  Non-IDL
-           imports (libraries / mixins) don't need the flag but setting it
-           is harmless — the M0114 site additionally checks `s = T.Actor`. *)
-        let env' = { env with in_actor_dec_pat = true } in
-        let te = check_pat_typ_dec { env' with pre = true } t pat in
-        let ve = check_pat_exhaustive local_error env' t pat in
+        let te = check_pat_typ_dec { env with pre = true } t pat in
+        (* IDLPath imports (`ic:<principal>` / `canister:<alias>`) have
+           actor-typed RHS; check_dec_pat locally dispatches on
+           (ObjP, actor) and bypasses check_pat's M0114 arm.  Desugar
+           routes the import via actor_destruct_decs. *)
+        let ve = check_dec_pat local_error env t pat in
         t, Scope.{ empty with typ_env = te; val_env = ve }
     in
     let t' = T.normalize t in

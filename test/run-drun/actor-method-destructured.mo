@@ -21,6 +21,8 @@ actor {
   };
 };
 
+// `canister:` imports aren't resolvable in the AST interpreter (no
+// actor to point at), so `run` is skipped.  `run-ir` / `run-low`
+// operate on the IR after desugar, which has already routed the
+// destructured import through ActorDotPrim — no I.ObjP, no breakage.
 //SKIP run
-//SKIP run-ir
-//SKIP run-low
