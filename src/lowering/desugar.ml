@@ -349,6 +349,18 @@ and exp' at note = function
     (match desugar_loop_flags at note e2 flags (fun e2 -> S.ForE (p, e1, e2, flags)) with
     | `Rec e -> exp' at note e
     | `Body e2 ->
+      (* Iter element type can be actor (e.g. Iter<actor T>): the iter
+         expression itself is a record { next : () -> ?T } so can't be
+         actor, but T can.  Pre-massage ObjP-against-actor iter
+         patterns: replace with a fresh handle var, inject per-field
+         ActorDotPrim projections into the loop body.  Sidesteps the
+         array-vals/keys specialization for actor arrays — exotic. *)
+      match p.it, T.normalize p.note with
+      | S.ObjP _, T.Obj (T.Actor, _, _) ->
+        let h = fresh_var "@actor_for_iter" p.note in
+        let proj_decs = actor_obj_pat_proj_decs p p.note h in
+        (forE (varP h) (exp e1) (blockE proj_decs (exp e2))).it
+      | _ ->
       match e1.it with
       | S.CallE (None, {it=S.DotE (arr, proj, _); _}, _, (_, e1))
         when T.is_array arr.note.S.note_typ && (proj.it = "vals" || proj.it = "values" || proj.it = "keys")

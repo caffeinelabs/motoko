@@ -55,6 +55,17 @@ actor a {
     };
   };
 
+  // (8) ForE iter pattern — actor element type.
+  //   The iter expression itself is `{ next : () -> ?T }` (a record;
+  //   can't be actor — actor methods must be async).  But T (the
+  //   element type) can be actor.  The loop pattern matches against
+  //   T, so ObjP-against-actor is legitimately reachable here.
+  func f8_for_loop(it : { next : () -> ?Self }) : async () {
+    for ({ ping } in it) {
+      await ping()
+    }
+  };
+
   public func test() : async () {
     await f1(a);
     await f2(a);
@@ -64,6 +75,14 @@ actor a {
     await f6_shared(a);
     let o = Observer(a);
     await o.tick();
+    // ForE with an iter that yields `a` once, then null.
+    let yielded = { var done_ = false };
+    let single_iter : { next : () -> ?Self } = {
+      next = func() : ?Self {
+        if (yielded.done_) null else { yielded.done_ := true; ?a }
+      }
+    };
+    await f8_for_loop(single_iter);
   };
 };
 
