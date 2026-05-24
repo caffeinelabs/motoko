@@ -13,10 +13,11 @@ import IC "canister:self";
 import { go } "canister:self";
 
 actor {
-  func Same<T>(_ : T, _ : T) {};
+  func Same<T>(_ : T, _ : T, _ : T) {};
 
   public func test() : async () {
-    Same(IC.go, go)
+    let { go = go3 } = IC;     // general let-destructure of an actor handle
+    Same(IC.go, go, go3)
   };
 };
 
