@@ -710,13 +710,7 @@ let json : dump =
     output_variant;
   }
 
-(* IDL binary mode:
-   - Legacy: top-level encoded as one value
-   - Default: top-level are several values
- *)
-type mode = Unary | Nary
-
-let make_outputter (d : dump) (md : mode) : unit =
+let make_outputter (d : dump) : unit =
   let {
     output_nat;
     output_int;
@@ -914,30 +908,23 @@ T(service {<methtype>*}) = sleb128(-23) T*(<methtype>* )
     Array.map force (force tab)
   in
   chat_string "\n========================== Value section\n";
-  begin match md with
-  | Nary ->
-      let argtys = read_t_star read_type_index in
-      let herald_arguments, herald_member =
-        output_arguments (Array.length argtys)
-      in
-      herald_arguments ();
-      let typ_ingester = function
-        | prim when prim < 0 -> decode_primitive_type prim
-        | index -> Array.get tab index
-      in
-      let consumers =
-        Array.map
-          (fun tynum ->
-            let ty, m = typ_ingester tynum in
-            m)
-          argtys
-      in
-      Array.iteri (fun i f -> herald_member () i f ()) consumers
-  | Unary ->
-      let argty = read_type_index () in
-      if !chatty then Printf.printf "# ARGTY: %d\n" argty;
-      snd (Array.get tab argty) ()
-  end;
+  let argtys = read_t_star read_type_index in
+  let herald_arguments, herald_member =
+    output_arguments (Array.length argtys)
+  in
+  herald_arguments ();
+  let typ_ingester = function
+    | prim when prim < 0 -> decode_primitive_type prim
+    | index -> Array.get tab index
+  in
+  let consumers =
+    Array.map
+      (fun tynum ->
+        let ty, m = typ_ingester tynum in
+        m)
+      argtys
+  in
+  Array.iteri (fun i f -> herald_member () i f ()) consumers;
   chat_string "\n-------- DESER DONE\n"
 
 (* CLI *)
@@ -945,14 +932,6 @@ T(service {<methtype>*}) = sleb128(-23) T*(<methtype>* )
 let name = "deser"
 let banner = "Candid toolkit " ^ Source_id.banner
 let usage = "Usage: " ^ name ^ " [option] [file ...]"
-let mode = ref Nary
-
-let set_mode m () =
-  if !mode <> Nary then begin
-    Printf.eprintf "deser: multiple execution modes specified";
-    exit 1
-  end;
-  mode := m
 
 type format = Idl | Prose | Json
 
@@ -968,9 +947,6 @@ let set_format f () =
 let argspec =
   Arg.align
     [
-      ( "--unary",
-        Arg.Unit (set_mode Unary),
-        " decode legacy (unary) message API" );
       ("--prose", Arg.Unit (set_format Prose), " output indented prose");
       ("--json", Arg.Unit (set_format Json), " output JSON values");
       ("--idl", Arg.Unit (set_format Idl), " output IDL values (default)");
@@ -992,7 +968,7 @@ let () =
   let dump =
     match !output_format with Prose -> prose | Idl -> idl | Json -> json
   in
-  make_outputter dump !mode;
+  make_outputter dump;
   match In_channel.input_byte stdin with
   | Some _ -> failwith "surplus bytes in input"
   | None -> ()
