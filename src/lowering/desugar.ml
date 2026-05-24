@@ -1513,7 +1513,33 @@ and transform_import (i : S.import) : Ir.dec list =
          assert T.(t = Prim Blob);
          blobE contents
        end
-  in [ letP (pat p) rhs ]
+  in
+  match !ri, p.it with
+  | S.IDLPath _, S.ObjP pfs ->
+    (* Destructuring import of an actor: route around the IR-level ObjP
+       lowering (which compiles to plain DotPrim and corrupts the actor
+       blob at runtime).  Bind a fresh handle to the actor reference,
+       then emit a per-field ActorDotPrim projection for each ValPF.
+       TypPF entries already work through the regular type-only path
+       (see typing.ml's check_pat_typ_dec). *)
+    let handle = fresh_var "@actor_import" t in
+    let handle_dec = letD handle rhs in
+    let _, fields = T.as_obj t in
+    let proj_decs = List.filter_map (fun pf ->
+      match pf.it with
+      | S.ValPF (id, sub_pat) ->
+        let field = List.find (fun (f : T.field) -> f.T.lab = id.it) fields in
+        let projE =
+          { it = I.PrimE (I.ActorDotPrim id.it, [varE handle]);
+            at = i.at;
+            note = Note.{ def with typ = field.T.typ; eff = T.Triv }
+          }
+        in
+        Some (letP (pat sub_pat) projE)
+      | S.TypPF _ -> None
+    ) pfs in
+    handle_dec :: proj_decs
+  | _ -> [ letP (pat p) rhs ]
 
 type import_declaration = Ir.dec list
 
