@@ -397,6 +397,19 @@ let dotE exp name typ =
     }
   }
 
+(* Actor-side field projection.  Parallels [dotE] for records, emitting
+   [ActorDotPrim] instead of [DotPrim] — the runtime layout for actor
+   "fields" is a (principal, method-name) pair, not an offset-loaded
+   record slot. *)
+let actor_dotE exp name typ =
+  { it = PrimE (ActorDotPrim name, [exp]);
+    at = no_region;
+    note = Note.{ def with
+      typ = typ;
+      eff = eff exp
+    }
+  }
+
 let switch_optE exp1 exp2 pat exp3 typ1  =
   { it =
       SwitchE

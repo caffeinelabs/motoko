@@ -295,7 +295,37 @@ and exp' at note = function
       (exp e2)
       (varP v) (varE v) t).it
   | S.IfE (e1, e2, e3) -> I.IfE (exp e1, exp e2, exp e3)
-  | S.SwitchE (e1, cs) -> I.SwitchE (exp e1, cases cs)
+  | S.SwitchE (e1, cs) ->
+    let t1 = T.normalize e1.note.S.note_typ in
+    let any_actor_obj_case = match t1 with
+      | T.Obj (T.Actor, _, _) ->
+        List.exists (fun (c : S.case) ->
+          match (c.it : S.case').pat.it with S.ObjP _ -> true | _ -> false) cs
+      | _ -> false
+    in
+    if any_actor_obj_case then
+      (* Pre-massage: hoist scrutinee, rewrite each ObjP-against-actor
+         case to WildP + per-field projection lets prepended to the
+         case body.  See actor_obj_pat_proj_decs. *)
+      let h = fresh_var "@actor_switch_scrut" e1.note.S.note_typ in
+      let rewrite_case (c : S.case) : Ir.case =
+        let c' : S.case' = c.it in
+        let case_pat = c'.pat in
+        let case_exp = c'.exp in
+        match case_pat.it with
+        | S.ObjP _ ->
+          let proj_decs = actor_obj_pat_proj_decs case_pat t1 (varE h) in
+          let body = blockE proj_decs (exp case_exp) in
+          let wild_pat : Ir.pat = { it = I.WildP; at = case_pat.at; note = t1 } in
+          { it = { I.pat = wild_pat; I.exp = body }; at = c.at; note = () }
+        | _ ->
+          { it = { I.pat = pat case_pat; I.exp = exp case_exp }; at = c.at; note = () }
+      in
+      (blockE
+         [letD h (exp e1)]
+         { it = I.SwitchE (varE h, List.map rewrite_case cs); at; note }).it
+    else
+      I.SwitchE (exp e1, cases cs)
   | S.TryE (e1, cs, None) -> I.TryE (exp e1, cases cs, None)
   | S.TryE (e1, cs, Some e2) ->
     let thunk = [] -->* exp e2 |> named "$cleanup" in
@@ -1501,33 +1531,34 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
   in
   args, eo, wrap_under_async, control, res_tys
 
-(* Bind an actor-typed [rhs] to a fresh handle and emit per-field
-   ActorDotPrim projections for each ValPF in [obj_pat].  Routes around
-   the naive IR-level ObjP lowering (DotPrim on actor blob -> runtime
-   trap).  TypPF entries don't need value bindings — they go through
-   typing.ml's check_pat_typ_dec. *)
-and actor_destruct_decs (obj_pat : S.pat) (t : T.typ) (rhs : Ir.exp) : Ir.dec list =
+(* Emit per-field ActorDotPrim projection decs that destructure
+   [scrutinee_exp] (of actor type [t]) into the names mentioned in
+   [obj_pat].  Callers prepend these to whatever scope binds the
+   destructured names — LetD prepends to the enclosing dec list,
+   SwitchE/TryE cases inject into the case body, FuncE/ClassD/ForE
+   inject into the function/loop body.
+   Routes around the naive IR-level ObjP lowering, which compiles
+   to DotPrim and traps on the actor blob.  TypPF entries don't
+   need value bindings — they're erased. *)
+and actor_obj_pat_proj_decs (obj_pat : S.pat) (t : T.typ) (scrutinee_exp : Ir.exp) : Ir.dec list =
   let pfs = match obj_pat.it with
     | S.ObjP pfs -> pfs
-    | _ -> raise (Invalid_argument "actor_destruct_decs: expected ObjP")
+    | _ -> raise (Invalid_argument "actor_obj_pat_proj_decs: expected ObjP")
   in
-  let handle = fresh_var "@actor_handle" t in
-  let handle_dec = letD handle rhs in
   let _, fields = T.as_obj t in
-  let proj_decs = List.filter_map (fun pf ->
+  List.filter_map (fun pf ->
     match pf.it with
     | S.ValPF (id, sub_pat) ->
       let field = List.find (fun (f : T.field) -> f.T.lab = id.it) fields in
-      let projE =
-        { it = I.PrimE (I.ActorDotPrim id.it, [varE handle]);
-          at = obj_pat.at;
-          note = Note.{ def with typ = field.T.typ; eff = T.Triv }
-        }
-      in
-      Some (letP (pat sub_pat) projE)
+      Some (letP (pat sub_pat) (actor_dotE scrutinee_exp id.it field.T.typ))
     | S.TypPF _ -> None
-  ) pfs in
-  handle_dec :: proj_decs
+  ) pfs
+
+(* LetD-shaped wrapper: bind a fresh @actor_handle to [rhs], then the
+   per-field projections.  Returns the full dec list. *)
+and actor_destruct_decs (obj_pat : S.pat) (t : T.typ) (rhs : Ir.exp) : Ir.dec list =
+  let handle = fresh_var "@actor_handle" t in
+  letD handle rhs :: actor_obj_pat_proj_decs obj_pat t (varE handle)
 
 and transform_import (i : S.import) : Ir.dec list =
   let (p, f, ri) = i.it in
