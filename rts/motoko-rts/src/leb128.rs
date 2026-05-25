@@ -1,8 +1,8 @@
 //! LEB1128 encoding. Reference: https://en.wikipedia.org/wiki/LEB128
 
-use crate::buf::{read_byte, Buf};
+use crate::buf::{Buf, read_byte};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn leb128_encode(mut val: usize, mut buf: *mut u8) {
     loop {
         let byte = (val & 0b0111_1111) as u8;
@@ -17,7 +17,7 @@ pub unsafe extern "C" fn leb128_encode(mut val: usize, mut buf: *mut u8) {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn sleb128_encode(mut val: isize, mut buf: *mut u8) {
     loop {
         let byte = (val & 0b0111_1111) as u8;
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn sleb128_encode(mut val: isize, mut buf: *mut u8) {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn leb128_decode(buf: *mut Buf) -> usize {
     leb128_decode_checked(buf).expect("leb128_decode: overflow")
 }
@@ -78,7 +78,7 @@ pub unsafe fn leb128_decode_checked(buf: *mut Buf) -> Option<usize> {
     Some(result)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn sleb128_decode(buf: *mut Buf) -> isize {
     sleb128_decode_checked(buf).expect("sleb128_decode: overflow")
 }

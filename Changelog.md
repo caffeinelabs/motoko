@@ -4,7 +4,17 @@
 
   * feat: Allow destructuring patterns against actor types — `let { foo } = a`, `func g({foo} : actor T) {}`, etc.  **M0114** is now defunct (#6149).
 
-  * fix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes.
+## 1.8.2 (2026-05-21)
+
+* motoko (`moc`)
+
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver argument is not already a postfix expression (e.g. `Nat.toText((x * a + b) % c)`). The compiler used to print the suggestion as `(<expr>).toText(...)` but emit no machine-applicable edits, leaving `mops check --fix` with nothing to do; suggesting `(complex).f()` over `Module.f(complex)` is also a debatable style change. Trivial-receiver cases (variables, literals, calls) are unaffected (#6144).
+
+## 1.8.1 (2026-05-20)
+
+* motoko (`moc`)
+
+  * bugfix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes (#6134).
 
 ## 1.8.0 (2026-05-15)
 

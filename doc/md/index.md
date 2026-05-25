@@ -70,6 +70,29 @@ If you have an existing project using `base`, you can migrate incrementally; bot
 
 `core` and all other Motoko packages are managed with [Mops](https://mops.one), which handles dependency resolution, compiler toolchain management, and publishing. Browse community packages at [mops.one](https://mops.one).
 
+## Example projects
+
+Starting points by use case:
+
+**Web applications**
+
+- [Hello, world!](https://github.com/dfinity/examples/tree/master/motoko/hello_world)
+- [Calling external APIs from a Motoko canister](https://github.com/dfinity/examples/tree/master/motoko/send_http_get)
+- [Reversi game](https://github.com/ninegua/reversi)
+
+**DeFi**
+
+- [ICRC-1 token canister](https://github.com/sonicdex/icrc-1-public/)
+- [Decentralized exchange (DEX)](https://github.com/dfinity/examples/tree/master/motoko/icrc2-swap)
+- [ICRC-7 NFTs](https://github.com/noku-team/icrc7_motoko)
+
+**Chain Fusion**
+
+- [Ethereum integration](https://github.com/dfinity/icp-eth-starter)
+- [Bitcoin point-of-sale](https://github.com/dfinity/examples/tree/master/motoko/ic-pos)
+
+For more, browse the full [Motoko examples collection](https://github.com/dfinity/examples/tree/master/motoko).
+
 ## Further reading
 
 - [Quickstart](https://docs.internetcomputer.org/getting-started/quickstart): create and deploy your first canister

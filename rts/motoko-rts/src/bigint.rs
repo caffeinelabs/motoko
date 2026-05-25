@@ -32,11 +32,11 @@ This scheme makes the following assumptions:
 */
 
 use crate::barriers::allocation_barrier;
-use crate::buf::{read_byte, Buf};
+use crate::buf::{Buf, read_byte};
 use crate::mem_utils::memcpy_bytes;
 use crate::memory::Memory;
 use crate::tommath_bindings::*;
-use crate::types::{size_of, BigInt, Bytes, Value, TAG_BIGINT};
+use crate::types::{BigInt, Bytes, TAG_BIGINT, Value, size_of};
 
 use crate::libc_declarations::c_void;
 
@@ -133,7 +133,7 @@ pub unsafe fn mp_realloc<M: Memory>(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn mp_free(_ptr: *mut c_void, _size: usize) {}
 
 /*
@@ -206,7 +206,7 @@ pub(crate) unsafe fn persist_bigint(i: mp_int) -> Value {
     Value::from_ptr(r as usize)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[classical_persistence]
 pub unsafe extern "C" fn bigint_of_word32(w: u32) -> Value {
     let mut i = tmp_bigint();
@@ -215,7 +215,7 @@ pub unsafe extern "C" fn bigint_of_word32(w: u32) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[classical_persistence]
 unsafe extern "C" fn bigint_of_int32(j: i32) -> Value {
     let mut i = tmp_bigint();
@@ -224,12 +224,12 @@ unsafe extern "C" fn bigint_of_int32(j: i32) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_to_word32_wrap(p: Value) -> u32 {
     mp_get_u32(p.as_bigint().mp_int_ptr())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_to_word32_trap(p: Value) -> u32 {
     let mp_int = p.as_bigint().mp_int_ptr();
 
@@ -242,7 +242,7 @@ unsafe extern "C" fn bigint_to_word32_trap(p: Value) -> u32 {
 
 // p : BigInt, msg : Blob
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_to_word32_trap_with(p: Value, msg: Value) -> u32 {
     let mp_int = p.as_bigint().mp_int_ptr();
 
@@ -256,13 +256,13 @@ unsafe extern "C" fn bigint_to_word32_trap_with(p: Value, msg: Value) -> u32 {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_to_word64_wrap(p: Value) -> u64 {
     mp_get_u64(p.as_bigint().mp_int_ptr())
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_to_word64_trap(p: Value) -> u64 {
     let mp_int = p.as_bigint().mp_int_ptr();
 
@@ -275,7 +275,7 @@ unsafe extern "C" fn bigint_to_word64_trap(p: Value) -> u64 {
 
 // p : BigInt, msg : Blob
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_to_word64_trap_with(p: Value, msg: Value) -> u64 {
     let mp_int = p.as_bigint().mp_int_ptr();
 
@@ -288,7 +288,7 @@ unsafe extern "C" fn bigint_to_word64_trap_with(p: Value, msg: Value) -> u64 {
     mp_get_u64(mp_int)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_of_word64(w: u64) -> Value {
     let mut i = tmp_bigint();
     mp_set_u64(&mut i, w);
@@ -296,7 +296,7 @@ pub unsafe extern "C" fn bigint_of_word64(w: u64) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_of_int64(j: i64) -> Value {
     let mut i = tmp_bigint();
     mp_set_i64(&mut i, j);
@@ -304,7 +304,7 @@ unsafe extern "C" fn bigint_of_int64(j: i64) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_of_float64(j: f64) -> Value {
     // Fast path: Determine when the integer numbers can be represented as a compact (unboxed) `Int`.
     let is_compact = match usize::BITS {
@@ -345,43 +345,43 @@ unsafe extern "C" fn bigint_of_float64(j: f64) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_to_float64(p: Value) -> f64 {
     debug_assert!(!p.is_scalar());
     let mp_int = p.as_bigint().mp_int_ptr();
     mp_get_double(mp_int)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_eq(a: Value, b: Value) -> bool {
     mp_cmp(a.as_bigint().mp_int_ptr(), b.as_bigint().mp_int_ptr()) == 0
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_lt(a: Value, b: Value) -> bool {
     mp_cmp(a.as_bigint().mp_int_ptr(), b.as_bigint().mp_int_ptr()) < 0
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_gt(a: Value, b: Value) -> bool {
     mp_cmp(a.as_bigint().mp_int_ptr(), b.as_bigint().mp_int_ptr()) > 0
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_le(a: Value, b: Value) -> bool {
     mp_cmp(a.as_bigint().mp_int_ptr(), b.as_bigint().mp_int_ptr()) <= 0
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_ge(a: Value, b: Value) -> bool {
     mp_cmp(a.as_bigint().mp_int_ptr(), b.as_bigint().mp_int_ptr()) >= 0
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_add(a: Value, b: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_add(
@@ -392,7 +392,7 @@ pub unsafe extern "C" fn bigint_add(a: Value, b: Value) -> Value {
     persist_bigint(i)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sub(a: Value, b: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_sub(
@@ -403,7 +403,7 @@ pub unsafe extern "C" fn bigint_sub(a: Value, b: Value) -> Value {
     persist_bigint(i)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_mul(a: Value, b: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_mul(
@@ -414,7 +414,7 @@ pub unsafe extern "C" fn bigint_mul(a: Value, b: Value) -> Value {
     persist_bigint(i)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_pow(a: Value, b: Value) -> Value {
     let exp = bigint_to_word32_trap(b);
     let mut i = tmp_bigint();
@@ -423,7 +423,7 @@ pub unsafe extern "C" fn bigint_pow(a: Value, b: Value) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_div(a: Value, b: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_div(
@@ -436,7 +436,7 @@ unsafe extern "C" fn bigint_div(a: Value, b: Value) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_rem(a: Value, b: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_div(
@@ -448,7 +448,7 @@ unsafe extern "C" fn bigint_rem(a: Value, b: Value) -> Value {
     persist_bigint(i)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_neg(a: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_neg(a.as_bigint().mp_int_ptr(), &mut i));
@@ -456,7 +456,7 @@ pub unsafe extern "C" fn bigint_neg(a: Value) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_abs(a: Value) -> Value {
     let mut i = tmp_bigint();
     check(mp_abs(a.as_bigint().mp_int_ptr(), &mut i));
@@ -464,13 +464,13 @@ unsafe extern "C" fn bigint_abs(a: Value) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_isneg(a: Value) -> bool {
     mp_isneg(a.as_bigint().mp_int_ptr())
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_lsh(a: Value, b: isize) -> Value {
     let mut i = tmp_bigint();
     check(mp_mul_2d(a.as_bigint().mp_int_ptr(), b as i32, &mut i));
@@ -478,7 +478,7 @@ unsafe extern "C" fn bigint_lsh(a: Value, b: isize) -> Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_rsh(a: Value, b: isize) -> Value {
     let mut i = tmp_bigint();
     check(mp_div_2d(
@@ -490,12 +490,12 @@ unsafe extern "C" fn bigint_rsh(a: Value, b: isize) -> Value {
     persist_bigint(i)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_count_bits(a: Value) -> usize {
     mp_count_bits(a.as_bigint().mp_int_ptr()) as usize
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_leb128_size(a: Value) -> usize {
     if mp_iszero(a.as_bigint().mp_int_ptr()) {
         1
@@ -523,14 +523,14 @@ unsafe fn bigint_leb128_encode_go(tmp: *mut mp_int, mut buf: *mut u8, add_bit: b
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_leb128_encode(n: Value, buf: *mut u8) {
     let mut tmp: mp_int = core::mem::zeroed(); // or core::mem::uninitialized?
     check(mp_init_copy(&mut tmp, n.as_bigint().mp_int_ptr()));
     bigint_leb128_encode_go(&mut tmp, buf, false)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[classical_persistence]
 pub unsafe extern "C" fn bigint_leb128_stream_encode(stream: *mut Stream, n: Value) {
     debug_assert!(!stream.is_forwarded());
@@ -539,7 +539,7 @@ pub unsafe extern "C" fn bigint_leb128_stream_encode(stream: *mut Stream, n: Val
     stream.write_leb128(&mut tmp, false)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_2complement_bits(n: Value) -> usize {
     let mp_int = n.as_bigint().mp_int_ptr();
     if mp_isneg(mp_int) {
@@ -552,12 +552,12 @@ unsafe extern "C" fn bigint_2complement_bits(n: Value) -> usize {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sleb128_size(n: Value) -> usize {
     (bigint_2complement_bits(n) + 6) / 7 // divide by 7, round up
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sleb128_encode(n: Value, buf: *mut u8) {
     let mut tmp: mp_int = core::mem::zeroed(); // or core::mem::uninitialized?
     check(mp_init_copy(&mut tmp, n.as_bigint().mp_int_ptr()));
@@ -575,7 +575,7 @@ pub unsafe extern "C" fn bigint_sleb128_encode(n: Value, buf: *mut u8) {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[classical_persistence]
 pub unsafe extern "C" fn bigint_sleb128_stream_encode(stream: *mut Stream, n: Value) {
     debug_assert!(!stream.is_forwarded());
@@ -595,7 +595,7 @@ pub unsafe extern "C" fn bigint_sleb128_stream_encode(stream: *mut Stream, n: Va
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_leb128_decode(buf: *mut Buf) -> Value {
     let mut i = tmp_bigint();
     let mut tmp = tmp_bigint();
@@ -635,7 +635,7 @@ const _: () = assert!(MAX_CHUNKS_PER_WORD == 10);
 /// as indicated by `bits`.
 ///
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_leb128_decode_word64(
     mut leb: u64,
     mut bits: u64,
@@ -668,7 +668,7 @@ pub unsafe extern "C" fn bigint_leb128_decode_word64(
     bigint_of_word64(acc)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sleb128_decode(buf: *mut Buf) -> Value {
     let mut i = tmp_bigint();
     let mut tmp = tmp_bigint();
@@ -703,7 +703,7 @@ pub unsafe extern "C" fn bigint_sleb128_decode(buf: *mut Buf) -> Value {
 /// as indicated by `bits`.
 ///
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn bigint_sleb128_decode_word64(
     mut sleb: u64,
     mut bits: u64,

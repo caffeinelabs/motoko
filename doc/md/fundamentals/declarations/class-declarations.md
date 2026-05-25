@@ -166,5 +166,5 @@ Using this `system` syntax, developers can:
 - Manually install, upgrade, or reinstall canisters.
 - Access lower-level canister management features provided by ICP.
 
-[Learn more about actor class management](../../language-manual.md#actor-class-management).
+[Learn more about actor class management](../../reference/language-manual.md#actor-class-management).
 

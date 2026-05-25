@@ -102,28 +102,6 @@ jobs:
           is_fork: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
           token: ${{ steps.app-token.outputs.token }}
 
-  reports:
-    if: github.ref == 'refs/heads/master'
-    needs: [tests]
-    concurrency: ci-${{ github.ref }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
-        with:
-          name: ic-hs-test
-      - name: Fetch report
-        run: nix build .#report-site -o report-site
-      - name: Resolve symlinks
-        run: cp -rL report-site report-site-copy
-      - name: Push report to GitHub pages
-        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
-        with:
-          branch: gh-pages
-          folder: report-site-copy
-          single-commit: true
-
   artifacts:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'build_artifacts')
     strategy:

@@ -16,4 +16,4 @@ let snake_case_identifier = "for compatibility with other languages";
 
 ## Reserved syntax keywords
 
-Motoko reserves [keywords](../../language-manual.md#keywords) for its syntax and they cannot be used as identifiers.
+Motoko reserves [keywords](../../reference/language-manual.md#keywords) for its syntax and they cannot be used as identifiers.

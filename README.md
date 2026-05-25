@@ -13,7 +13,7 @@ A safe, simple, actor-based programming language for building [Internet Computer
 * [Language manual](doc/md/reference/language-manual.md)
 * [Concrete syntax](doc/md/examples/grammar.txt)
 * [Documentation sources](doc/md/)
-* [Base package documentation](doc/md/base/index.md)
+* [Core package documentation](https://mops.one/core/docs)
 
 ## Introduction
 

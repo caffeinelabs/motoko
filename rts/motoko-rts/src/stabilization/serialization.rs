@@ -3,7 +3,7 @@ pub mod stable_memory_stream;
 use crate::{
     memory::Memory,
     stabilization::layout::serialize,
-    types::{FwdPtr, Tag, Value, TAG_CLOSURE, TAG_FWD_PTR},
+    types::{FwdPtr, TAG_CLOSURE, TAG_FWD_PTR, Tag, Value},
 };
 
 #[repr(C)]
@@ -16,9 +16,9 @@ pub struct SerializationRoots {
 use self::stable_memory_stream::{ScanStream, StableMemoryStream};
 
 use super::{
-    graph_copy::{limit::ExecutionMonitor, GraphCopy},
-    layout::{scan_serialized, StableToSpace, StableValue},
     DUMMY_VALUE,
+    graph_copy::{GraphCopy, limit::ExecutionMonitor},
+    layout::{StableToSpace, StableValue, scan_serialized},
 };
 
 pub struct Serialization {

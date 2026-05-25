@@ -1997,25 +1997,21 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          let source =
-            if e.at.left.line <> e.at.right.line then None
-            else read_region e.at
-          in
-          let receiver_text, edits = match source with
-            | None -> "...", []
-            | Some receiver_text ->
-              if not (Syntax.is_postfix_exp e) then "(" ^ receiver_text ^ ")", [] else
-              let replace_receiver = edit old_receiver.at receiver_text in
-              let argument_edit = match es with
-                | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
-                | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
-                | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
-              in receiver_text, [replace_receiver; argument_edit]
-          in
-          warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-            ~edits
-            receiver_text
-            id.it
+          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
+          if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
+          (match read_region e.at with
+           | None -> ()
+           | Some receiver_text ->
+             let replace_receiver = edit old_receiver.at receiver_text in
+             let argument_edit = match es with
+               | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
+               | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
+               | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
+             in
+             warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+               ~edits:[replace_receiver; argument_edit]
+               receiver_text
+               id.it)
         | _ -> ())
     | _, _, _ -> ()
 
