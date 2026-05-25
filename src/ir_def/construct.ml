@@ -405,7 +405,7 @@ let actor_dotE exp name typ =
   { it = PrimE (ActorDotPrim name, [exp]);
     at = no_region;
     note = Note.{ def with
-      typ = typ;
+      typ;
       eff = eff exp
     }
   }
