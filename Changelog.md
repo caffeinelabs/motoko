@@ -2,7 +2,7 @@
 
 * motoko (`moc`)
 
-  * feat: Allow destructuring patterns against actor types — `let { foo } = a`, `func g({foo} : actor T) {}`, etc.  **M0114** is now defunct (#6149).
+  * Permitting destructuring patterns against actor types — `let { foo } = a`, `func g({foo} : actor T) {}`, etc. (#6149).
 
 ## 1.8.2 (2026-05-21)
 
