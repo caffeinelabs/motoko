@@ -1,5 +1,11 @@
 # Motoko compiler changelog
 
+## Unreleased
+
+* motoko (`moc`)
+
+  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning can now carry a free-text message (typically an alternative or rationale), surfaced under the existing M0235 code. Example: `/// @deprecated M0235 use Foo.bar instead`. `M0235` on its own keeps the previous bare message.
+
 ## 1.8.2 (2026-05-21)
 
 * motoko (`moc`)

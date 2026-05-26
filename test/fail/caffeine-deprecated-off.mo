@@ -6,6 +6,8 @@ module A {
   public func f(x : Nat) : Nat { x };
   /// @deprecated M0235
   public type T = Int;
+  /// @deprecated M0235 use `bar` instead
+  public let withMsg = 7;
 
   public let baz : T = 5; // look, no warning
 };
@@ -20,6 +22,8 @@ ignore(A.f(5));
 assert(A.f(5) == 5);
 
 ignore (5 : A.T);
+
+ignore (A.withMsg);
 
 do { let {f} = A; };
 do { let {f = x} = A; };
