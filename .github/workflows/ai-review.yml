@@ -233,9 +233,10 @@ jobs:
           fi
 
           # Any probable-bug finding (P0..P3) forces REQUEST_CHANGES regardless
-          # of the Decision token emitted by the model.
+          # of the Decision token emitted by the model. `\*{0,2}` tolerates
+          # markdown bolding like `- **P0**:` or `- **P0:**`.
           HAS_P=false
-          if grep -Eq '^[[:space:]]*-?[[:space:]]*P[0-3]:' cursor-ai-review.md; then
+          if grep -Eq '^[[:space:]]*-?[[:space:]]*\*{0,2}P[0-3]\*{0,2}:\*{0,2}' cursor-ai-review.md; then
             HAS_P=true
           fi
 
@@ -243,22 +244,39 @@ jobs:
           # when there are no P# findings. S3 is non-blocking (the prompt asks the
           # model not to emit it; if one slips through we ignore it for gating).
           HAS_S=false
-          if grep -Eq '^[[:space:]]*-?[[:space:]]*S[0-2]:' cursor-ai-review.md; then
+          if grep -Eq '^[[:space:]]*-?[[:space:]]*\*{0,2}S[0-2]\*{0,2}:\*{0,2}' cursor-ai-review.md; then
             HAS_S=true
           fi
 
-          # Extract the first known verdict token from the Decision line. Tolerant
-          # of trailing text ("Decision: APPROVE — looks safe"), template-literal
-          # echo ("Decision: APPROVE or REQUEST_CHANGES or ..."), and **bold**
-          # markdown wrapping. Falls through to REVIEW_ERROR when no Decision
-          # line exists or no known token is found.
-          DECISION_TOKEN="$(
+          # Extract verdict tokens from the Decision line. Tolerant of trailing
+          # text ("Decision: APPROVE — looks safe") and **bold** wrapping. If the
+          # line contains 2+ distinct known tokens it's almost certainly the
+          # prompt template echoed verbatim — treat as REVIEW_ERROR rather than
+          # silently false-approving. Falls through to REVIEW_ERROR when no
+          # Decision line exists or no known token is found.
+          DECISION_LINE="$(
             grep -E '^[[:space:]]*(\*\*)?Decision(\*\*)?:' cursor-ai-review.md \
               | head -n 1 \
-              | tr -d '\r' \
-              | grep -oE 'APPROVE|REQUEST_CHANGES|REQUEST_HUMAN_REVIEW|REVIEW_ERROR' \
-              | head -n 1 || true
+              | tr -d '\r' || true
           )"
+          DISTINCT_TOKENS="$(
+            printf '%s\n' "$DECISION_LINE" \
+              | grep -oE 'APPROVE|REQUEST_CHANGES|REQUEST_HUMAN_REVIEW|REVIEW_ERROR' \
+              | sort -u \
+              | wc -l \
+              | tr -d ' ' \
+              || true
+          )"
+          if [ "${DISTINCT_TOKENS:-0}" -gt 1 ]; then
+            DECISION_TOKEN=""
+            echo "Decision line contains ${DISTINCT_TOKENS} known tokens; treating as template echo."
+          else
+            DECISION_TOKEN="$(
+              printf '%s\n' "$DECISION_LINE" \
+                | grep -oE 'APPROVE|REQUEST_CHANGES|REQUEST_HUMAN_REVIEW|REVIEW_ERROR' \
+                | head -n 1 || true
+            )"
+          fi
 
           if [ "$HAS_P" = "true" ]; then
             VERDICT=REQUEST_CHANGES
