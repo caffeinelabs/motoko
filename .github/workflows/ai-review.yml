@@ -247,13 +247,17 @@ jobs:
             HAS_S=true
           fi
 
-          # Extract the model's stated Decision token for tie-breaking only.
+          # Extract the first known verdict token from the Decision line. Tolerant
+          # of trailing text ("Decision: APPROVE — looks safe"), template-literal
+          # echo ("Decision: APPROVE or REQUEST_CHANGES or ..."), and **bold**
+          # markdown wrapping. Falls through to REVIEW_ERROR when no Decision
+          # line exists or no known token is found.
           DECISION_TOKEN="$(
-            grep -E '^(\*\*Decision\*\*|Decision):' cursor-ai-review.md \
-              | sed -E 's/^(\*\*Decision\*\*|Decision):[[:space:]]*//' \
+            grep -E '^[[:space:]]*(\*\*)?Decision(\*\*)?:' cursor-ai-review.md \
+              | head -n 1 \
               | tr -d '\r' \
-              | xargs \
-              | tail -n 1 || true
+              | grep -oE 'APPROVE|REQUEST_CHANGES|REQUEST_HUMAN_REVIEW|REVIEW_ERROR' \
+              | head -n 1 || true
           )"
 
           if [ "$HAS_P" = "true" ]; then
