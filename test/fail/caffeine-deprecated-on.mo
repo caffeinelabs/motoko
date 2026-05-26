@@ -7,8 +7,6 @@ module A {
   public func f(x : Nat) : Nat { x };
   /// @deprecated M0235
   public type T = Int;
-  /// @deprecated M0235 use `bar` instead
-  public let withMsg = 7;
 
   public let baz : T = 5; // look, no warning
 };
@@ -24,8 +22,6 @@ assert(A.f(5) == 5);
 
 ignore (5 : A.T);
 
-ignore (A.withMsg);
-
 do { let {f} = A; };
 do { let {f = x} = A; };
 do { let {} = A; };
@@ -37,3 +33,10 @@ assert ((if false A else B).foo == 6);
 
 // type annotation removes warning
 assert ((A : module { foo : Int }).foo == 5);
+
+// deprecation message after the code is appended to the warning
+module C {
+  /// @deprecated M0235 use `bar` instead
+  public let withMsg = 7;
+};
+ignore (C.withMsg);
