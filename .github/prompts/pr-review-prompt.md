@@ -74,7 +74,7 @@ Treat these as high-priority candidates when present in the diff:
 - Pre-existing issues unchanged by this PR.
 - Formatting-only diffs with no behavioral impact.
 - Subjective style nits.
-- **Findings that would apply equally to every PR** (e.g. generic prompt-injection risk on this AI-review workflow) — assume the existing mitigations hold (no-approval contract, base-SHA prompt loading, sandbox deny rules, fork/draft gating) and do NOT surface them unless this specific PR weakens them.
+- **Findings that would apply equally to every PR** (e.g. generic prompt-injection risk on this AI-review workflow) — assume the existing mitigations hold (no-approval contract, sandbox deny rules, fork/draft/dependabot gating, `skip-ai-review` escape hatch) and do NOT surface them unless this specific PR weakens them.
 - **Cursor CLI supply-chain / install-pinning concerns** — the upstream installer is not checksummed; this is a known platform constraint, not a per-PR finding.
 - Any secrets — NEVER reproduce; redact as [REDACTED].
 
