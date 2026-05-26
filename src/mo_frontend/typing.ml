@@ -308,6 +308,7 @@ let edit at replacement : Diag.edit =
 
 let check_deprecation env at desc id depr =
   match depr with
+  | None -> ()
   | Some ("M0235" as code) ->
     warn env at code "%s %s is deprecated for caffeine" desc id
   | Some ("M0199" as code) ->
@@ -322,10 +323,9 @@ let check_deprecation env at desc id depr =
        "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
   | Some msg ->
-    (match Lib.String.chop_prefix "M0235 " msg with
-     | Some m -> warn env at "M0235" "%s %s is deprecated for caffeine:\n%s" desc id m
-     | None -> warn env at "M0154" "%s %s is deprecated:\n%s" desc id msg)
-  | None -> ()
+    match Lib.String.chop_prefix "M0235 " msg with
+    | Some m -> warn env at "M0235" "%s %s is deprecated for caffeine:\n%s" desc id m
+    | None -> warn env at "M0154" "%s %s is deprecated:\n%s" desc id msg
 
 let flag_of_compile_mode mode =
   match mode with
