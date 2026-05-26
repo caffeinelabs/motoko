@@ -324,8 +324,8 @@ let check_deprecation env at desc id depr =
     end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
-    | Some m -> warn env at "M0235" "%s %s is deprecated for caffeine:\n%s" desc id m
-    | None -> warn env at "M0154" "%s %s is deprecated:\n%s" desc id msg
+    | Some m -> warn env at "M0235" ~notes:[m] "%s %s is deprecated for caffeine" desc id
+    | None -> warn env at "M0154" ~notes:[msg] "%s %s is deprecated" desc id
 
 let flag_of_compile_mode mode =
   match mode with
