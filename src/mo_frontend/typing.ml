@@ -1681,10 +1681,6 @@ module ImplicitHoles = struct
       (try T.eq entry.hole.hole_typ hole_typ
        with T.Undecided -> false))
 
-  let partition hole seq =
-    let x, y = Seq.partition (fun (c : hole_candidate) -> c.id = hole.hole_name) seq in
-    (List.of_seq x, List.of_seq y)
-
   (* Candidates for implicits match the required type either directly ... *)
   let is_matching_typ hole candidate_typ = T.sub candidate_typ hole.hole_typ
 
