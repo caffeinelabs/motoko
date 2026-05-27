@@ -24,7 +24,7 @@ This is the Motoko compiler repository:
 
 - Compiler: OCaml under `src/` (frontend `src/mo_frontend/`, AST `src/mo_def/`, types `src/mo_types/`, IR `src/ir_def/`, codegen `src/codegen/`, wasm helpers `src/wasm-exts/`)
 - Runtime: Rust/C under `rts/` producing `mo-rts*.wasm`
-- Tests: `.mo` sources with `.ok` expectation files under `test/` (run-drun, run, fail, etc.)
+- Tests: `.mo` sources under `test/` (run-drun, run, fail, etc.); tests that produce output have matching `.ok` expectation files, silent tests have none
 - Error messages and codes: `src/lang_utils/error_codes.ml` and related modules
 - Stdlib glue and examples: `stdlib/`, `samples/`
 - Docs under `doc/` (legacy `doc/md/`, new Starlight site `doc/site/`)
@@ -36,7 +36,7 @@ This is the Motoko compiler repository:
 1. Code reuse and DRY: MUST reuse existing code. Prefer reducing code over adding new helpers.
 2. YAGNI: no speculative features.
 3. Test quality:
-   - `.mo` test sources MUST be paired with matching `.ok` expectation files; changing one without the other is a defect.
+   - Existing `.mo`/`.ok` pairs MUST stay in sync; changing one without the other is a defect. Silent tests that produce no output have no `.ok` file by design and are exempt.
    - New compiler warnings/errors MUST have a `test/fail/ok/*.tc.ok` (or equivalent) update.
    - No redundant or overlapping tests.
 4. Code consistency: MUST match existing OCaml patterns in `src/`.
@@ -60,7 +60,7 @@ This is the Motoko compiler repository:
 
 Treat these as high-priority candidates when present in the diff:
 
-- `.mo` test source changed without updating the matching `.ok` expectation file, or vice versa.
+- Existing `.mo`/`.ok` pair where one side changed without the other being updated (silent tests have no `.ok` and are exempt).
 - New compiler warnings/errors introduced without a `test/fail/ok/*.tc.ok` update.
 - User-visible language, stdlib, or CLI behavior changes without a `Changelog.md` entry under the unreleased section.
 - Codegen / RTS changes (`src/codegen/**`, `rts/**`, `src/wasm-exts/**`) without runtime test coverage.
