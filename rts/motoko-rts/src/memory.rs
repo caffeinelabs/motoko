@@ -41,7 +41,7 @@ pub(crate) const GENERAL_MEMORY_RESERVE: usize = 256 * MB;
 /// we implement (or generate with a macro)
 ///
 /// ```
-/// #[no_mangle]
+/// #[unsafe(no_mangle)]
 /// unsafe extern "C" fn export_name() { allocating_function(crate::memory::ic::IcMemory) }
 /// ```
 ///

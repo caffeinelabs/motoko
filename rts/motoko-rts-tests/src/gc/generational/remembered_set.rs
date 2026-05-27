@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::memory::TestMemory;
 use motoko_rts::gc::remembered_set::{
-    RememberedSet, INITIAL_TABLE_LENGTH, OCCUPATION_THRESHOLD_PERCENT,
+    INITIAL_TABLE_LENGTH, OCCUPATION_THRESHOLD_PERCENT, RememberedSet,
 };
 use motoko_rts::types::{Value, Words};
 

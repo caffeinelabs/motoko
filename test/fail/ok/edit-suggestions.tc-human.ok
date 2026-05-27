@@ -200,3 +200,15 @@ warning[M0239]: Avoid binding a unit `()` result; remove `let` and keep the expr
     ┌─ edit-suggestions.mo:143:3
 143 │    let _ = Map.add<Nat, Text>(
     │    ^^^^^^^^ 
+warning[M0236]: You can use the dot notation `m.size(...)` here
+    ┌─ edit-suggestions.mo:157:10
+157 │    ignore Map.size m; // warn M0236
+    │           ^^^^^^^^^^ 
+    = help: replace `Map` with `m`
+    = help: replace `m` with `()`
+warning[M0236]: You can use the dot notation `m.size(...)` here
+    ┌─ edit-suggestions.mo:160:10
+160 │    ignore Map.size<Nat, Text> m; // warn M0236
+    │           ^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `m`
+    = help: replace `m` with `()`

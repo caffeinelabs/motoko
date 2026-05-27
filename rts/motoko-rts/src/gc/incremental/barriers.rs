@@ -6,14 +6,14 @@ use motoko_rts_macros::ic_mem_fn;
 
 use crate::{
     memory::Memory,
-    types::{is_skewed, Value},
+    types::{Value, is_skewed},
 };
 
 use super::{
-    count_allocation, get_incremental_gc_state, post_allocation_barrier, pre_write_barrier, Phase,
+    Phase, count_allocation, get_incremental_gc_state, post_allocation_barrier, pre_write_barrier,
 };
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn running_gc() -> bool {
     get_incremental_gc_state().phase != Phase::Pause
 }
@@ -46,7 +46,7 @@ pub unsafe fn write_with_barrier<M: Memory>(mem: &mut M, location: *mut Value, v
 /// * Mark new allocations during the GC mark and evacuation phases.
 /// * Resolve pointer forwarding during the GC update phase.
 /// * Keep track of concurrent allocations to adjust the GC increment time limit.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn allocation_barrier(new_object: Value) -> Value {
     let state = get_incremental_gc_state();
     if state.phase != Phase::Pause {

@@ -156,6 +156,7 @@ and pat' env = function
   | OptP p
   | TagP (_, p)    -> pat env p
   | AltP (p1, _p2) -> pat env p1 (* both bind the same vars, ensured in check_pat *)
+  | AndP (p1, p2) -> pat (pat env p1) p2
 
 and pats env ps  =
   match ps with

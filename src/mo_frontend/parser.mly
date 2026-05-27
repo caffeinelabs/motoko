@@ -940,6 +940,8 @@ pat_bin :
     { p }
   | p1=pat_bin OR p2=pat_bin
     { AltP(p1, p2) @! at $sloc }
+  | p1=pat_bin AND p2=pat_bin
+    { AndP(p1, p2) @! at $sloc }
   | p=pat_bin COLON t=typ
     { AnnotP(p, t) @! at $sloc }
 

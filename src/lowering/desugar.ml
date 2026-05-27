@@ -1336,6 +1336,7 @@ and pat' = function
   | S.OptP p -> I.OptP (pat p)
   | S.TagP (i, p) -> I.TagP (i.it, pat p)
   | S.AltP (p1, p2) -> I.AltP (pat p1, pat p2)
+  | S.AndP (p1, p2) -> I.AndP (pat p1, pat p2)
   | S.AnnotP (p, _)
   | S.ParP p -> pat' p.it
 

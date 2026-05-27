@@ -30,9 +30,9 @@
 use core::ptr::addr_of_mut;
 
 use crate::barriers::{allocation_barrier, write_with_barrier};
-use crate::memory::{alloc_array, Memory};
+use crate::memory::{Memory, alloc_array};
 use crate::rts_trap_with;
-use crate::types::{Value, TAG_ARRAY_M};
+use crate::types::{TAG_ARRAY_M, Value};
 
 use motoko_rts_macros::ic_mem_fn;
 
@@ -124,7 +124,7 @@ pub unsafe fn remember_continuation<M: Memory>(mem: &mut M, ptr: Value) -> usize
 // Invariant: keep this synchronised with compiler.ml (see future_array_index)
 const FUTURE_ARRAY_INDEX: usize = 3;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn peek_future_continuation(idx: usize) -> Value {
     if !table_initialized() {
         rts_trap_with("peek_future_continuation: Continuation table not allocated");
@@ -170,7 +170,7 @@ pub unsafe fn recall_continuation<M: Memory>(mem: &mut M, idx: usize) -> Value {
     ptr
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn continuation_count() -> usize {
     N_CONTINUATIONS
 }
@@ -181,7 +181,7 @@ pub(crate) unsafe fn continuation_table_loc() -> *mut Value {
 }
 
 #[cfg(feature = "ic")]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn continuation_table_size() -> usize {
     if !table_initialized() {
         0

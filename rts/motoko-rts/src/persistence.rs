@@ -10,8 +10,8 @@ use crate::gc::incremental::mark_stack::MarkStack;
 use crate::{
     barriers::write_with_barrier,
     constants::{KB, MB},
-    gc::incremental::{partitioned_heap::allocate_initial_memory, State},
-    memory::{alloc_blob, Memory},
+    gc::incremental::{State, partitioned_heap::allocate_initial_memory},
+    memory::{Memory, alloc_blob},
     persistence::compatibility::memory_compatible,
     region::{
         LEGACY_VERSION_NO_STABLE_MEMORY, LEGACY_VERSION_REGIONS, LEGACY_VERSION_SOME_STABLE_MEMORY,
@@ -21,7 +21,7 @@ use crate::{
     },
     rts_trap_with,
     stable_mem::read_persistence_version,
-    types::{Bytes, Value, NULL_POINTER, TAG_BLOB_B},
+    types::{Bytes, NULL_POINTER, TAG_BLOB_B, Value},
 };
 
 use self::compatibility::TypeDescriptor;
@@ -169,7 +169,7 @@ unsafe fn use_enhanced_orthogonal_persistence() -> bool {
 }
 
 /// Returns the availability of the stable actor record (false on (re-)install, true on upgrade)
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn has_stable_actor() -> bool {
     let metadata = PersistentMetadata::get();
     !((*metadata).stable_actor.forward_if_possible() == DEFAULT_VALUE)
@@ -177,7 +177,7 @@ pub unsafe extern "C" fn has_stable_actor() -> bool {
 
 /// Returns the stable sub-record of the actor of the upgraded canister version.
 /// Returns scalar 0 if no actor is stored after on a fresh memory.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn load_stable_actor() -> Value {
     let metadata = PersistentMetadata::get();
     (*metadata).stable_type.assert_initialized();
@@ -212,7 +212,7 @@ pub(crate) unsafe fn stable_actor_location() -> *mut Value {
 
 /// Determine whether an object contains a specific field.
 /// Used for upgrading to an actor with additional stable fields.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn contains_field(actor: Value, field_hash: usize) -> bool {
     use crate::constants::WORD_SIZE;
 
@@ -296,13 +296,13 @@ pub(crate) unsafe fn get_incremental_gc_state() -> &'static mut State {
     &mut (*metadata).incremental_gc_state
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn get_upgrade_instructions() -> u64 {
     let metadata = PersistentMetadata::get();
     (*metadata).upgrade_instructions
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn set_upgrade_instructions(instructions: u64) {
     let metadata = PersistentMetadata::get();
     (*metadata).upgrade_instructions = instructions;
@@ -310,7 +310,7 @@ pub unsafe extern "C" fn set_upgrade_instructions(instructions: u64) {
 
 /// Only used in WASI mode: Get a static temporary print buffer that resides in 32-bit address range.
 /// This buffer has a fix length of 512 bytes, and resides at the end of the metadata reserve.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn buffer_in_32_bit_range() -> usize {
     use crate::types::size_of;
 

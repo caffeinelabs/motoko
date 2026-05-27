@@ -37,8 +37,8 @@ use core::mem::size_of;
 use core::ptr::null_mut;
 
 use crate::constants::WORD_SIZE;
-use crate::memory::{alloc_blob, Memory};
-use crate::types::{block_size, Blob, Bytes, Value, TAG_BLOB_B};
+use crate::memory::{Memory, alloc_blob};
+use crate::types::{Blob, Bytes, TAG_BLOB_B, Value, block_size};
 
 pub struct RememberedSet {
     hash_table: *mut Blob,

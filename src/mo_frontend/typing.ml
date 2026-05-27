@@ -1178,6 +1178,7 @@ let rec is_explicit_pat p =
   | TupP ps -> List.for_all is_explicit_pat ps
   | ObjP pfs -> List.for_all is_explicit_pat_field pfs
   | AltP (p1, p2) -> is_explicit_pat p1 && is_explicit_pat p2
+  | AndP (p1, p2) -> is_explicit_pat p1 || is_explicit_pat p2
   | AnnotP _ -> true
 
 and is_explicit_pat_field pf =
@@ -1433,6 +1434,9 @@ and combine_pat_srcs env t pat : unit =
     in
     combine_pat_srcs env t1 pat1
   | AltP (pat1, pat2) ->
+    combine_pat_srcs env t pat1;
+    combine_pat_srcs env t pat2;
+  | AndP (pat1, pat2) ->
     combine_pat_srcs env t pat1;
     combine_pat_srcs env t pat2;
   | AnnotP (pat1, _typ) -> combine_pat_srcs env t pat1
@@ -2152,24 +2156,21 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          let source =
-            if e.at.left.line <> e.at.right.line then None
-            else read_region e.at
-          in
-          let receiver_text, edits = match source with
-            | None -> "...", []
-            | Some receiver_text ->
-              if not (Syntax.is_postfix_exp e) then "(" ^ receiver_text ^ ")", [] else
-              let replace_receiver = edit old_receiver.at receiver_text in
-              let remove_argument = edit (match es with
-                | [] -> e.at
-                | next :: _ -> { left = e.at.left; right = next.at.left }) "" (* remove the argument + the comma *)
-              in receiver_text, [replace_receiver; remove_argument]
-          in
-          warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-            ~edits
-            receiver_text
-            id.it
+          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
+          if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
+          (match read_region e.at with
+           | None -> ()
+           | Some receiver_text ->
+             let replace_receiver = edit old_receiver.at receiver_text in
+             let argument_edit = match es with
+               | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
+               | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
+               | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
+             in
+             warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+               ~edits:[replace_receiver; argument_edit]
+               receiver_text
+               id.it)
         | _ -> ())
     | _, _, _ -> ()
 
@@ -3760,6 +3761,41 @@ and infer_pat' name_types env pat : T.typ * Scope.val_env =
       error env pat.at "M0189" "different set of bindings in pattern alternatives";
     if not env.pre then T.Env.(iter (fun k t1 -> warn_lossy_bind_type env pat.at k t1 (find k ve2))) ve1;
     t, T.Env.merge (fun _ -> Lib.Option.map2 (T.lub ~src_fields:env.srcs)) ve1 ve2*)
+  | AndP (pat1, pat2) ->
+    (* If at least one leg is explicit enough to infer, lift the other
+       leg into check-mode against that type. If both are explicit,
+       take the glb of their inferred types (both must accept the
+       scrutinee). Only reject with M0261 when neither leg carries
+       enough annotation to drive inference. *)
+    let t, ve1, ve2 =
+      match is_explicit_pat pat1, is_explicit_pat pat2 with
+      | true, true ->
+        let t1, ve1 = infer_pat false env pat1 in
+        let t2, ve2 = infer_pat false env pat2 in
+        if not (T.compatible t1 t2) then
+          error env pat.at "M0262"
+            "and-pattern legs have incompatible types,\nleft accepts%a\nright accepts%a"
+            display_typ_expand t1
+            display_typ_expand t2;
+        T.glb ~src_fields:env.srcs t1 t2, ve1, ve2
+      | true, false ->
+        let t1, ve1 = infer_pat false env pat1 in
+        let ve2 = check_pat env t1 pat2 in
+        t1, ve1, ve2
+      | false, true ->
+        let t2, ve2 = infer_pat false env pat2 in
+        let ve1 = check_pat env t2 pat1 in
+        t2, ve1, ve2
+      | false, false ->
+        error env pat.at "M0261"
+          "cannot infer the type of this and-pattern, please add a type annotation"
+    in
+    T.Env.iter (fun k _ ->
+      if T.Env.mem k ve2 then
+        error env pat.at "M0260"
+          "variable `%s` bound in both branches of and-pattern" k
+    ) ve1;
+    t, T.Env.union (fun _ v _ -> Some v) ve1 ve2
   | AnnotP ({it = VarP id; _} as pat1, typ) when name_types ->
     let t = check_typ env typ in
     T.Named (id.it, t), check_pat env t pat1
@@ -3917,6 +3953,17 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
     ) ve1;
     let merge_entries (t1, at1, kind1) (t2, at2, kind2) = (T.lub ~src_fields:env.srcs t1 t2, at1, kind1) in
     T.Env.merge (fun _ -> Lib.Option.map2 merge_entries) ve1 ve2
+  | AndP (pat1, pat2) ->
+    (* Both legs must match the scrutinee; bindings from both are
+       available in the body. Overlap in binding names is an error. *)
+    let ve1 = check_pat env t pat1 in
+    let ve2 = check_pat env t pat2 in
+    T.Env.iter (fun k _ ->
+      if T.Env.mem k ve2 then
+        error env pat.at "M0260"
+          "variable `%s` bound in both branches of and-pattern" k
+    ) ve1;
+    T.Env.union (fun _ v _ -> Some v) ve1 ve2
   | AnnotP (pat1, typ) ->
     let t' = check_typ env typ in
     if not (sub env pat.at t t') then
@@ -4038,6 +4085,16 @@ and check_pat_typ_dec env t pat : Scope.typ_env =
         error env pat.at "M0189" "mismatched types for type %s in patterns" s
       else None) te1 te2 in
     te1
+  | AndP (pat1, pat2), _ ->
+    (* Type-level bindings: union, with error on overlap. *)
+    let te1 = check_pat_typ_dec env t pat1 in
+    let te2 = check_pat_typ_dec env t pat2 in
+    T.Env.iter (fun k _ ->
+      if T.Env.mem k te2 then
+        error env pat.at "M0260"
+          "type identifier `%s` bound in both branches of and-pattern" k
+    ) te1;
+    T.Env.union (fun _ v _ -> Some v) te1 te2
   | _, _ -> T.Env.empty
 
 and check_pats_typ_dec env ts pats te at : Scope.typ_env =
@@ -4134,6 +4191,7 @@ and vis_pat src pat xs : visibility_env =
   | TagP (_, pat1)
   | AnnotP (pat1, _)
   | ParP pat1 -> vis_pat src pat1 xs
+  | AndP (pat1, pat2) -> vis_pat src pat1 (vis_pat src pat2 xs)
 
 and vis_pat_field src pf xs =
   match pf.it with
@@ -5069,6 +5127,42 @@ and gather_pat_aux env val_kind scope pat : Scope.t =
   | ObjP pfs -> List.fold_left (gather_pat_field env) scope pfs
   | TagP (_, pat1) | AltP (pat1, _) | OptP pat1
   | AnnotP (pat1, _) | ParP pat1 -> gather_pat env scope pat1
+  | AndP (pat1, pat2) ->
+    let scope1 = gather_pat env scope pat1 in
+    let scope2 = gather_pat env scope pat2 in
+    let check_val () =
+      try_all (fun (k, _) ->
+        if not (T.Env.mem k scope.Scope.val_env)
+        && T.Env.mem k scope2.Scope.val_env then
+          let _, at, _ = T.Env.find k scope2.Scope.val_env in
+          error env at "M0260"
+            "variable `%s` bound in both branches of and-pattern" k
+      ) (T.Env.bindings scope1.Scope.val_env)
+    in
+    let rec find_typ_id_at k p =
+      match p.it with
+      | ObjP pfs ->
+        List.find_map (fun pf -> match pf.it with
+          | TypPF id when id.it = k -> Some id.at
+          | ValPF (_, pat) -> find_typ_id_at k pat
+          | _ -> None) pfs
+      | AndP (p1, p2) | AltP (p1, p2) ->
+        (match find_typ_id_at k p1 with Some _ as at -> at | None -> find_typ_id_at k p2)
+      | TupP pats -> List.find_map (find_typ_id_at k) pats
+      | OptP p1 | TagP (_, p1) | AnnotP (p1, _) | ParP p1 -> find_typ_id_at k p1
+      | _ -> None
+    in
+    let check_typ () =
+      try_all (fun (k, _) ->
+        if not (T.Env.mem k scope.Scope.typ_env)
+        && T.Env.mem k scope2.Scope.typ_env then
+          let at = Option.value (find_typ_id_at k pat2) ~default:pat.at in
+          error env at "M0260"
+            "type identifier `%s` bound in both branches of and-pattern" k
+      ) (T.Env.bindings scope1.Scope.typ_env)
+    in
+    let _, _ = try_both (fun f -> f ()) check_val check_typ in
+    Scope.adjoin scope1 scope2
 
 and gather_pat_field env scope pf : Scope.t =
   let val_kind = kind_of_field_pattern pf in

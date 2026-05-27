@@ -13508,6 +13508,12 @@ and fill_pat env ae pat : patternCode =
       CannotFail set_i ^^^
       orElse (CannotFail get_i ^^^ code1)
              (CannotFail get_i ^^^ code2)
+  | AndP (p1, p2) ->
+      let code1, code2 = fill_pat env ae p1, fill_pat env ae p2 in
+      let set_i, get_i = new_local env "and_scrut" in
+      CannotFail set_i ^^^
+      (CannotFail get_i ^^^ code1) ^^^
+      (CannotFail get_i ^^^ code2)
 
 and alloc_pat_local env ae pat =
   let d = Freevars.pat pat in
@@ -13783,6 +13789,9 @@ and destruct_const_pat ae pat const : VarEnv.t option = match pat.it with
     let l = destruct_const_pat ae p1 const in
     if l = None then destruct_const_pat ae p2 const
     else l
+  | AndP (p1, p2) ->
+    Option.bind (destruct_const_pat ae p1 const) (fun ae' ->
+      destruct_const_pat ae' p2 const)
   | TupP ps ->
     let cs = match const with Const.Tuple cs -> cs | Const.Unit -> [] | _ -> assert false in
     let go ae p c = match ae with
