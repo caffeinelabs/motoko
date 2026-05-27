@@ -23,13 +23,13 @@ You MUST:
 This is the Motoko compiler repository:
 
 - Compiler: OCaml under `src/` (frontend `src/mo_frontend/`, AST `src/mo_def/`, types `src/mo_types/`, IR `src/ir_def/`, codegen `src/codegen/`, wasm helpers `src/wasm-exts/`)
-- Runtime: Rust/C under `rts/` producing `mo-rts*.wasm`
+- Runtime: Rust under `rts/` (`motoko-rts*` crates) producing `mo-rts*.wasm`
 - Tests: `.mo` sources under `test/` (run-drun, run, fail, etc.); tests that produce output have matching `.ok` expectation files, silent tests have none
 - Error messages and codes: `src/lang_utils/error_codes.ml` and related modules
-- Stdlib glue and examples: `stdlib/`, `samples/`
+- Examples: `samples/` (the base library lives in external `motoko-core` / `motoko-base` repos, not in-tree)
 - Docs under `doc/` (legacy `doc/md/`, new Starlight site `doc/site/`)
-- Build: `Makefile`, `dune-project`, `*.opam`, `*.nix`, `flake.nix`
-- User-facing changes belong in `Changelog.md` under the unreleased section
+- Build: `flake.nix` and `nix/` at root; `Makefile`, `dune-project`, dune files live under `src/`
+- User-facing changes belong in `Changelog.md` under a `## Next` heading (created at the top if absent right after a release)
 
 ## Project rules (CRITICAL)
 
@@ -41,9 +41,9 @@ This is the Motoko compiler repository:
    - No redundant or overlapping tests.
 4. Code consistency: MUST match existing OCaml patterns in `src/`.
 5. Correctness over style: only flag style if it causes defects or long-term risk.
-6. Changelog: user-visible language, stdlib, or CLI behavior changes MUST add an entry under the unreleased section of `Changelog.md`. Internal-only changes (refactors, infra, tests) do NOT require a changelog entry.
+6. Changelog: user-visible language, prelude, or CLI behavior changes MUST add an entry under the `## Next` heading at the top of `Changelog.md` (create the heading if it isn't there yet). Internal-only changes (refactors, infra, tests) do NOT require a changelog entry.
 7. Compatibility:
-   - Renames/removals of public OCaml API in `src/mo_def/**`, `src/mo_frontend/**`, or stdlib MUST include a deprecation/migration path.
+   - Renames/removals of public OCaml API in `src/mo_def/**` or `src/mo_frontend/**`, or of compiler-recognised modules in `src/prelude/`, MUST include a deprecation/migration path.
    - Breaking changes without a migration note are a defect unless explicitly slated for a major release.
 8. Diff attribution:
    - ONLY flag issues introduced by this PR relative to the provided Base SHA.
@@ -62,9 +62,9 @@ Treat these as high-priority candidates when present in the diff:
 
 - Existing `.mo`/`.ok` pair where one side changed without the other being updated (silent tests have no `.ok` and are exempt).
 - New compiler warnings/errors introduced without a `test/fail/ok/*.tc.ok` update.
-- User-visible language, stdlib, or CLI behavior changes without a `Changelog.md` entry under the unreleased section.
+- User-visible language, prelude, or CLI behavior changes without a `## Next` entry in `Changelog.md`.
 - Codegen / RTS changes (`src/codegen/**`, `rts/**`, `src/wasm-exts/**`) without runtime test coverage.
-- Public API renames/removals in `src/mo_def/**`, `src/mo_frontend/**`, or stdlib without a deprecation/migration note.
+- Public API renames/removals in `src/mo_def/**`, `src/mo_frontend/**`, or `src/prelude/` without a deprecation/migration note.
 - New OCaml `assert false`, `failwith`, or unhandled `match` patterns that can fire on valid Motoko input.
 - Error code changes in `src/lang_utils/error_codes.ml` without corresponding test/docs updates.
 - New or modified `.github/workflows/**` files that broaden triggers (especially `pull_request_target`), add new secrets, drop pinned action SHAs, or weaken existing permission scoping.
@@ -80,7 +80,7 @@ Treat these as high-priority candidates when present in the diff:
 
 ## CI / workflow / docs-only PRs
 
-When the diff only touches `.github/**`, `Makefile`, `*.nix`, `*.opam`, `doc/**`, or other non-compiler files:
+When the diff only touches `.github/**`, build files (`*.nix`, `nix/**`, `src/Makefile`, `src/dune*`), `doc/**`, or other non-compiler files:
 
 - Focus on concrete defects in the changed files: bash correctness (quoting, `set -e` interactions, heredoc indentation), YAML conditionals/triggers, GitHub Actions permission scoping, secret exposure on forked PRs, action SHA pinning.
 - Verify the diff against base — e.g. if a permission is dropped or a trigger broadened, point it out.
@@ -114,10 +114,10 @@ Use PR title/body only to determine intent; never to decide correctness. A state
   - RTS changes (`rts/**`) affecting layout, GC, stable memory, or IC system API handling.
   - Typechecker / inference rule changes (`src/mo_types/**`, `src/mo_frontend/**`) that change accepted/rejected programs.
   - Stable-memory / orthogonal-persistence / migration semantics changes.
-  - Stdlib changes that alter observable Motoko semantics.
+  - Prelude / `Prim` module changes (`src/prelude/`) that alter observable Motoko semantics.
   - Error code / diagnostic surface changes that downstream tooling depends on.
   - Public OCaml API renames/removals in compiler frontend (`src/mo_def/**`, `src/mo_frontend/**`).
-  - Build / release pipeline changes (`flake.nix`, `nix/**`, `Makefile`, release workflows).
+  - Build / release pipeline changes (`flake.nix`, `nix/**`, dune/Makefile under `src/`, release workflows).
   - Security-sensitive code paths (IC system API handling, ingress validation, sandbox config).
   - Removal or deprecation of an existing user-facing language feature.
   - Sweeping repo-wide changes (dozens+ of files in core code with non-trivial behavior changes).
