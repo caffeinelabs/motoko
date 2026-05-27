@@ -9,13 +9,14 @@ type Fields = [(Text, Text)];
 
 // Structural combiner: collects per-field Text thunks into a Fields.
 // __record triggers structural synthesis; elem_typ = Text.
-func fieldOf(__record : [(Text, () -> Text)]) : Fields =
-  __record.map(func((k, f)) = (k, f()));
+func fieldOf(__record : [(Text, () -> Text)]) : Fields = __record.map(func((k, f)) = (k, f()));
 
 // Per-type instances: each returns Text (the elem_typ)
 module TextField { public func fieldOf(self : Text) : Text = self };
-module BoolField { public func fieldOf(self : Bool) : Text = if self "true" else "false" };
-module NatField  { public func fieldOf(self : Nat)  : Text = debug_show self };
+module BoolField {
+  public func fieldOf(self : Bool) : Text = if self "true" else "false";
+};
+module NatField { public func fieldOf(self : Nat) : Text = debug_show self };
 
 // Entry point: implicit `fieldOf : R -> Fields`
 func inspect<R>(x : R, fieldOf : (implicit : R -> Fields)) : Fields = fieldOf(x);
@@ -35,6 +36,6 @@ assert r3 == [("flag", "false"), ("n", "0"), ("tag", "x")];
 // Mutable field: T.as_immut strips the mutability so NatField.fieldOf resolves
 let r4 = do {
   var count : Nat = 7;
-  inspect({ count })
+  inspect({ count });
 };
 assert r4 == [("count", "7")];

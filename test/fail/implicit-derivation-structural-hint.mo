@@ -1,4 +1,4 @@
-// Structural combiner lives in mo:json/Json (not imported).
+// Structural combiner lives in mo:json/RecordJson (not imported).
 // The compiler should suggest importing it.
 //MOC-FLAG --package core $MOTOKO_CORE --package json ../json-stub/src --all-libs
 

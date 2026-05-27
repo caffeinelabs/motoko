@@ -3,8 +3,9 @@
 import Map "mo:core/Map";
 import Text "mo:core/Text";
 import Json "mo:json/Json";
+import RecordJson "mo:json/RecordJson";
 import TextJson "mo:json/TextJson";
-// Deliberately NOT importing: IntJson, Tuple2Json, MapJson
+// Deliberately NOT importing: IntJson, TupleJson, MapJson
 
 // 1. Multiple missing leaves: Bool has no library at all, Int needs IntJson.
 ignore ({ name = "Alice"; age = 42 : Int; active = true }).toJson();

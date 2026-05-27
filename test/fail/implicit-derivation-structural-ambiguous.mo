@@ -3,6 +3,7 @@
 //MOC-FLAG --package core $MOTOKO_CORE --package json ../json-stub/src
 
 import Json "mo:json/Json";
+import RecordJson "mo:json/RecordJson";
 import IntJson "mo:json/IntJson";
 
 type Json = Json.Json;

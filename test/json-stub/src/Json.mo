@@ -1,5 +1,5 @@
-import Array "mo:core/Array";
 import Int "mo:core/Int";
+
 module {
   public type Json = {
     #null_;
@@ -24,7 +24,7 @@ module {
           s #= toText(item);
           first := false;
         };
-        s # "]"
+        s # "]";
       };
       case (#obj pairs) {
         var s = "{";
@@ -34,16 +34,8 @@ module {
           s #= "\"" # k # "\":" # toText(v);
           first := false;
         };
-        s # "}"
+        s # "}";
       };
     };
   };
-
-  // Entry point for dot-syntax: value.toJson()
-  public func toJson<R>(self : R, _toJson : (implicit : R -> Json)) : Json { _toJson(self) };
-
-  // Structural record combiner: compiler detects __record and synthesizes per-field resolution.
-  // Each field is a thunk — evaluated eagerly here since serialization needs all fields.
-  public func _toJson(__record : [(Text, () -> Json)]) : Json =
-    #obj(__record.map(func((k, v)) = (k, v())));
-}
+};

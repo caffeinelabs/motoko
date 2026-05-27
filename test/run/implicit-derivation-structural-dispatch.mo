@@ -9,6 +9,11 @@
 // Writing `({}, {}) -> T` is always two-arg and routes to __record (binary) even if
 // __tuple is also in scope.
 //
+// This mirrors Motoko's existing convention: arity is syntactic.
+// `(A, B) -> C` is a two-arg function
+// `P -> C` is one-arg even when `type P = (A, B)` — an alias is never
+// unpacked into multiple arguments. Implicit derivation just reads that arity.
+//
 // Combiners must live in separate modules (Motoko prohibits duplicate top-level names).
 //MOC-FLAG -W=M0223,M0236,M0237
 
@@ -22,11 +27,11 @@ module RecRender {
     for ((lab, v) in __record.vals()) {
       if (not first) { s #= ", " };
       s #= lab # ":" # v();
-      first := false
+      first := false;
     };
     s #= "}";
-    s
-  }
+    s;
+  };
 };
 
 // __tuple: receives [thunk for per-element unary result], formats as "(v, v, ...)"
@@ -37,20 +42,22 @@ module TupRender {
     for (v in __tuple.vals()) {
       if (not first) { s #= ", " };
       s #= v();
-      first := false
+      first := false;
     };
     s #= ")";
-    s
-  }
+    s;
+  };
 };
 
 // ── Per-field binary instances (for __record binary) ─────────────────────────
 module TextBin { public func render(x : Text, y : Text) : Text = x # "|" # y };
-module NatBin  { public func render(x : Nat,  y : Nat)  : Text = debug_show x # "|" # debug_show y };
+module NatBin {
+  public func render(x : Nat, y : Nat) : Text = debug_show x # "|" # debug_show y;
+};
 
 // ── Per-element unary instances (for __tuple) ─────────────────────────────────
 module TextUn { public func render(self : Text) : Text = self };
-module NatUn  { public func render(self : Nat)  : Text = debug_show self };
+module NatUn { public func render(self : Nat) : Text = debug_show self };
 
 // ── Entry points ──────────────────────────────────────────────────────────────
 
@@ -66,7 +73,7 @@ func show<T>(x : T, render : (implicit : T -> Text)) : Text = render(x);
 // __record (binary) fires; fields in lexicographic order: n (NatBin), then name (TextBin)
 type P = { n : Nat; name : Text };
 let a : P = { n = 1; name = "Alice" };
-let b : P = { n = 2; name = "Bob"   };
+let b : P = { n = 2; name = "Bob" };
 assert zip(a, b) == "{n:1|2, name:Alice|Bob}";
 
 // T → Text with T = (Text, Nat) — single-arg, tuple domain

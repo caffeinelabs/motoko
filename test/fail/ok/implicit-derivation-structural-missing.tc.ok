@@ -1,4 +1,4 @@
-implicit-derivation-structural-missing.mo:4.51-4.53: type error [M0230], Cannot determine implicit argument `_toJson` of type
+implicit-derivation-structural-missing.mo:5.51-5.53: type error [M0230], Cannot determine implicit argument `_toJson` of type
   {flag : Bool; int : Int; nat : Nat} -> Json.Json
 note: Implicit derivation failed:
   `_toJson : Bool -> Json` not found

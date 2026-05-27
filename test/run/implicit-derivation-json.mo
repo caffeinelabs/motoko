@@ -5,13 +5,13 @@ import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Text "mo:core/Text";
 import Json "mo:json/Json";
+import RecordJson "mo:json/RecordJson";
 import IntJson "mo:json/IntJson";
 import TextJson "mo:json/TextJson";
 import ArrayJson "mo:json/ArrayJson";
 import ListJson "mo:json/ListJson";
 import MapJson "mo:json/MapJson";
-import Tuple2Json "mo:json/Tuple2Json";
-import Tuple3Json "mo:json/Tuple3Json";
+import TupleJson "mo:json/TupleJson";
 
 type Json = Json.Json;
 
@@ -74,8 +74,11 @@ let r2 : { x : Nat } = { x = 7 };
 assert r2.toJson().toText() == "{\"x\":7}";
 
 // Record with heterogeneous primitives: Nat, Int, Text fields
-let r3 : { count : Nat; name : Text; offset : Int } =
-  { count = 3; name = "ok"; offset = -1 };
+let r3 : { count : Nat; name : Text; offset : Int } = {
+  count = 3;
+  name = "ok";
+  offset = -1;
+};
 assert r3.toJson().toText() == "{\"count\":3,\"name\":\"ok\",\"offset\":-1}";
 
 // Record containing an array field
@@ -86,12 +89,17 @@ assert r4.toJson().toText() == "{\"items\":[1,2,3],\"tag\":\"nums\"}";
 let scores = Map.empty<Text, Nat>();
 scores.add("alice", 90);
 scores.add("bob", 85);
-let r5 : { data : Map.Map<Text, Nat>; version : Nat } = { data = scores; version = 1 };
+let r5 : { data : Map.Map<Text, Nat>; version : Nat } = {
+  data = scores;
+  version = 1;
+};
 assert r5.toJson().toText() == "{\"data\":[[\"alice\",90],[\"bob\",85]],\"version\":1}";
 
 // Nested record: inner field is itself a record
-let r6 : { inner : { value : Nat }; outer : Text } =
-  { inner = { value = 42 }; outer = "top" };
+let r6 : { inner : { value : Nat }; outer : Text } = {
+  inner = { value = 42 };
+  outer = "top";
+};
 assert r6.toJson().toText() == "{\"inner\":{\"value\":42},\"outer\":\"top\"}";
 
 //SKIP comp

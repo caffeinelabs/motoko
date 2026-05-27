@@ -3,4 +3,4 @@ error[M0230]: Cannot determine implicit argument `_toJson` of type
     ┌─ implicit-derivation-structural-hint.mo:18:35
  18 │  ignore ({ age = 30 : Int }).toJson();
     │                                    ^^ 
-    = note: Did you mean to import mo:json/Json?
+    = note: Did you mean to import mo:json/RecordJson?
