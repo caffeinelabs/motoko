@@ -244,6 +244,10 @@ Each per-field/element result is wrapped in a **thunk** (`() -> E`), giving the 
 
 The search label used to resolve per-element implicits is the same as the implicit parameter name at the call site.
 
+:::caution
+Motoko has no type abstraction (no newtypes or private types), so a named type that expands to a record — including stdlib containers like `Map`, `Set`, or `Buffer` — is structurally indistinguishable from a plain data record and may be decomposed into its internal fields by structural derivation; provide a dedicated instance (e.g. `MapJson`) to take precedence over structural synthesis for such types.
+:::
+
 #### Unary record derivation (`__record`)
 
 When the compiler is looking for an implicit of type `SomeRecord -> R` and finds a unique structural combiner for `R` (parameter named `__record`, type `[(Text, () -> E)] -> R`), it:
