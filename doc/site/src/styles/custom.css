@@ -1,0 +1,106 @@
+/*
+ * Motoko docs preview: ICP brand theme
+ * Adapted from the ICP developer docs custom theme.
+ * Light editorial parchment default; dark mode toggle available.
+ * Type system: Newsreader (headings), Inter (UI), JetBrains Mono (code).
+ */
+
+/* ── ICP brand tokens ─────────────────────────────────────────── */
+
+:root {
+  --icp-serif: "Newsreader", "Newsreader Fallback", Charter, Georgia, Cambria, "Times New Roman", serif;
+  --icp-ui:   "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --icp-mono: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --icp-bg:       #faf9f5;
+  --icp-fg:       #1a1a1a;
+  --icp-rule:     #e7e3da;
+  --icp-code-bg:  #efe8da;
+  --icp-accent:   #a8482b;
+}
+
+:root[data-theme='dark'] {
+  --icp-bg:      #14110d;
+  --icp-fg:      #f0ebe0;
+  --icp-rule:    #2d2820;
+  --icp-code-bg: #1b1812;
+  --icp-accent:  #c25a37;
+}
+
+/* ── Starlight font wiring ────────────────────────────────────── */
+
+:root {
+  --sl-font: var(--icp-ui);
+  --sl-content-width: 55rem;
+}
+
+/* Newsreader for headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--icp-serif);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2 {
+  letter-spacing: -0.015em;
+}
+
+/* JetBrains Mono for code */
+code, pre, kbd, samp,
+.sl-markdown-content code,
+.sl-markdown-content pre {
+  font-family: var(--icp-mono);
+}
+
+/* ── Light mode Starlight overrides ──────────────────────────── */
+
+:root[data-theme='light'] {
+  --sl-color-accent-low:  #f2e7e1;
+  --sl-color-accent:      #a8482b;
+  --sl-color-accent-high: #8e3b22;
+
+  --sl-color-white: #1a1a1a;
+  --sl-color-gray-1: #2e2926;
+  --sl-color-gray-2: #443e3a;
+  --sl-color-gray-3: #868078;
+  --sl-color-gray-4: #a29a8d;
+  --sl-color-gray-5: #e7e3da;
+  --sl-color-gray-6: #f3f1ea;
+  --sl-color-gray-7: #ffffff;
+  --sl-color-black:  #faf9f5;
+
+  --sl-color-bg-nav:         #ffffff;
+  --sl-color-bg-sidebar:     #faf9f5;
+  --sl-color-bg-inline-code: #efe8da;
+
+  --sl-color-hairline:       #e7e3da;
+  --sl-color-hairline-light: #ede9e0;
+  --sl-color-hairline-shade: #e0dcd3;
+}
+
+/* ── Dark mode Starlight overrides ───────────────────────────── */
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low:  #2e1a12;
+  --sl-color-accent:      #c25a37;
+  --sl-color-accent-high: #d96a45;
+
+  --sl-color-white: #f0ebe0;
+  --sl-color-gray-1: #d8d0c4;
+  --sl-color-gray-2: #b8b0a4;
+  --sl-color-gray-3: #a29a8d;
+  --sl-color-gray-4: #6e6660;
+  --sl-color-gray-5: #2d2820;
+  --sl-color-gray-6: #1f1c16;
+  --sl-color-gray-7: #1b1812;
+  --sl-color-black:  #14110d;
+
+  --sl-color-bg-nav:         #1b1812;
+  --sl-color-bg-sidebar:     #14110d;
+  --sl-color-bg-inline-code: #1b1812;
+
+  --sl-color-hairline:       #2d2820;
+  --sl-color-hairline-light: #251f18;
+  --sl-color-hairline-shade: #1e1a13;
+}

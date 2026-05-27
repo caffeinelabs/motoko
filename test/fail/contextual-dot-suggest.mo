@@ -79,8 +79,8 @@ persistent actor {
   ignore Text.compare("", ""); // no-warn
   ignore Text.equal("", ""); // no-warn
 
-  ignore Odd.equal(#odd); // warn non-binary
-  ignore Odd.compare(#odd, #odd, #odd); // warn non-binary
+  ignore Odd.equal(#odd); // no-warn — non-postfix receiver, no clean autofix
+  ignore Odd.compare(#odd, #odd, #odd); // no-warn — non-postfix receiver, no clean autofix
 
   // get
   ignore Map.get(peopleMap, Nat.compare, 1); // warn

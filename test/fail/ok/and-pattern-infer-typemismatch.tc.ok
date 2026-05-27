@@ -1,0 +1,5 @@
+and-pattern-infer-typemismatch.mo:6.8-6.34: type error [M0262], and-pattern legs have incompatible types,
+left accepts
+  Nat
+right accepts
+  Text

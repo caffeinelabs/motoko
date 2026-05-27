@@ -201,6 +201,8 @@ let transform prog =
       TagP (i, t_pat pat1)
     | AltP (pat1, pat2) ->
       AltP (t_pat pat1, t_pat pat2)
+    | AndP (pat1, pat2) ->
+      AndP (t_pat pat1, t_pat pat2)
 
   and t_typ_bind' tb =
     { tb with con = t_con tb.con; bound = t_typ tb.bound }

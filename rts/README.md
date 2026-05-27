@@ -20,8 +20,8 @@ Running `make` should produce RTS Wasm files (different versions).
 
 If run within the Nix shell, the environment variables `WASM_CLANG` and `WASM_LD`
 should point to suitable binaries (we track a specific unreleased version of
-`llvm`). If not present, the `Makefile` will try to use `clang-20` and
-`wasm-ld-20`.
+`llvm`). If not present, the `Makefile` will try to use `clang-21` and
+`wasm-ld-21`.
 
 The runtime compiles and links in [libtommath]. It needs the source, so
 `nix build` and `nix develop` will set the environment variable `TOMMATHSRC` to

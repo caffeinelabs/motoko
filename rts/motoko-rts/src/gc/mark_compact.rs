@@ -5,7 +5,7 @@
 pub mod bitmap;
 pub mod mark_stack;
 
-use bitmap::{alloc_bitmap, free_bitmap, get_bit, iter_bits, set_bit, BITMAP_ITER_END};
+use bitmap::{BITMAP_ITER_END, alloc_bitmap, free_bitmap, get_bit, iter_bits, set_bit};
 use mark_stack::{alloc_mark_stack, free_mark_stack, pop_mark_stack, push_mark_stack};
 
 use crate::constants::WORD_SIZE;
@@ -19,7 +19,7 @@ use motoko_rts_macros::ic_mem_fn;
 // Only designed for 32-bit.
 const _: () = assert!(core::mem::size_of::<usize>() == core::mem::size_of::<u32>());
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(feature = "ic")]
 pub unsafe extern "C" fn initialize_compacting_gc() {
     crate::memory::ic::linear_memory::initialize();

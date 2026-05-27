@@ -1,5 +1,3 @@
-contextual-dot-suggest.mo:82.10-82.25: warning [M0236], You can use the dot notation `(#odd).equal(...)` here
-contextual-dot-suggest.mo:83.10-83.39: warning [M0236], You can use the dot notation `(#odd).compare(...)` here
 contextual-dot-suggest.mo:86.10-86.44: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
 contextual-dot-suggest.mo:87.10-87.31: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
 contextual-dot-suggest.mo:88.10-88.29: warning [M0236], You can use the dot notation `peopleMap.size(...)` here

@@ -1,11 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use crate::bitrel::BitRel;
-use crate::buf::{read_byte, read_word, skip_leb128, Buf};
+use crate::buf::{Buf, read_byte, read_word, skip_leb128};
 use crate::idl_trap_with;
 
-use crate::memory::{alloc_blob, Memory};
-use crate::types::{Words, TAG_BLOB_B};
+use crate::memory::{Memory, alloc_blob};
+use crate::types::{TAG_BLOB_B, Words};
 use crate::utf8::utf8_validate;
 
 use core::cmp::min;
@@ -17,7 +17,7 @@ use crate::libc_declarations::{c_void, memcmp};
 #[enhanced_orthogonal_persistence]
 use crate::types::Value;
 
-extern "C" {
+unsafe extern "C" {
     // check instruction decoding limit, exported by moc
     pub fn idl_limit_check(decrement: bool, value_count: u64);
 }
@@ -395,7 +395,7 @@ unsafe fn skip_any_vec(buf: *mut Buf, typtbl: *mut *mut u8, t: i32, count: u32) 
 //
 // This is currently implemented recursively, but we could
 // do this in a loop (by maintaining a stack of the t arguments)
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn skip_any(buf: *mut Buf, typtbl: *mut *mut u8, t: i32, depth: i32) {
     if depth > 100 {
         idl_trap_with("skip_any: too deeply nested record");
@@ -558,7 +558,7 @@ If the tag does not exist:
          or at the value past the record
   n:     the number of fields left, including the field pointed to by tb
 */
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn find_field(
     tb: *mut Buf,
     buf: *mut Buf,
@@ -586,7 +586,7 @@ unsafe extern "C" fn find_field(
     false
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn skip_fields(tb: *mut Buf, buf: *mut Buf, typtbl: *mut *mut u8, n: *mut u8) {
     while *n > 0 {
         skip_leb128(tb);
@@ -1267,12 +1267,12 @@ pub(crate) unsafe fn sub(
     return false;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn idl_sub_buf_words(typtbl_size1: usize, typtbl_size2: usize) -> usize {
     BitRel::words(typtbl_size1, typtbl_size2)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn idl_sub_buf_init(
     rel_buf: *mut usize,
     typtbl_size1: usize,
@@ -1305,7 +1305,7 @@ unsafe fn idl_alloc_typtbl<M: Memory>(
     *typtbl_size_out = type_descriptor.type_count();
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn idl_sub(
     rel_buf: *mut usize, // a buffer with at least 2 * typtbl_size1 * typtbl_size2 bits
     typtbl1: *mut *mut u8,

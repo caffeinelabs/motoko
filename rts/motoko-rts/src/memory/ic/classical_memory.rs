@@ -6,7 +6,7 @@ use crate::rts_trap_with;
 use core::arch::wasm32;
 
 // Provided by generated code
-extern "C" {
+unsafe extern "C" {
     fn get_heap_base() -> usize;
 }
 

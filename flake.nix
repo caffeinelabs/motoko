@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-26.05";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -86,17 +86,17 @@
       llvmEnv = ''
         # When compiling to wasm, we want to have more control over the flags,
         # so we do not use the nix-provided wrapper in clang
-        export WASM_CLANG="clang-20"
+        export WASM_CLANG="clang-21"
         export WASM_LD=wasm-ld
         # because we use the unwrapped clang, we have to pass in some flags/paths
         # that otherwise the wrapped clang would take care for us
-        export WASM_CLANG_LIB="${pkgs.llvmPackages_20.clang-unwrapped.lib}"
+        export WASM_CLANG_LIB="${pkgs.llvmPackages_21.clang-unwrapped.lib}"
 
         # When compiling natively, we want to use `clang` (which is a nixpkgs
         # provided wrapper that sets various include paths etc).
         # But for some reason it does not handle building for Wasm well, so
-        # there we use plain clang-20. There is no stdlib there anyways.
-        export CLANG="${pkgs.clang_20}/bin/clang"
+        # there we use plain clang-21. There is no stdlib there anyways.
+        export CLANG="${pkgs.clang_21}/bin/clang"
       '';
 
       rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv; };
@@ -227,8 +227,6 @@
         # TODO: Re-enable base tests once we recalibrate them so they
         # don't OOM anymore.
         # base-tests = import ./nix/base-tests.nix { inherit pkgs; inherit (debugMoPackages) moc; };
-        base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
-        report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
         # `rts-checked` is intentionally NOT included here: it is the slow,
         # cargo-test-running variant, and on darwin its check phase is uncached

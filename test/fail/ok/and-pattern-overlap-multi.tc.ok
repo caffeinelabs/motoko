@@ -1,0 +1,3 @@
+and-pattern-overlap-multi.mo:8.38-8.39: type error [M0260], variable `a` bound in both branches of and-pattern
+and-pattern-overlap-multi.mo:8.47-8.48: type error [M0260], variable `b` bound in both branches of and-pattern
+and-pattern-overlap-multi.mo:8.56-8.57: type error [M0260], variable `c` bound in both branches of and-pattern

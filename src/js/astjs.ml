@@ -587,6 +587,7 @@ module Make (Cfg : Config) = struct
     | OptP p -> to_js_object "OptP" [| pat_js p |]
     | TagP (i, p) -> to_js_object "TagP" [| js_string ("#" ^ i.it); pat_js p |]
     | AltP (p1, p2) -> to_js_object "AltP" [| pat_js p1; pat_js p2 |]
+    | AndP (p1, p2) -> to_js_object "AndP" [| pat_js p1; pat_js p2 |]
     | ParP p -> to_js_object "ParP" [| pat_js p |]
 
   and pat_field_js pf =
