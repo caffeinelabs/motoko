@@ -1,6 +1,7 @@
 import Json "Json";
 import Map "mo:core/Map";
 import Iter "mo:core/Iter";
+
 module {
   public func _toJson<K, V>(
     self : Map.Map<K, V>,
@@ -11,4 +12,4 @@ module {
       self.entries().map(func((k, v)) : Json.Json { #array([_toJsonK(k), _toJsonV(v)]) }).toArray()
     );
   };
-}
+};

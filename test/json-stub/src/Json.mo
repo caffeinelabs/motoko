@@ -38,4 +38,9 @@ module {
       };
     };
   };
+
+  // Entry point for dot-syntax: value.toJson()
+  public func toJson<R>(self : R, _toJson : (implicit : R -> Json)) : Json {
+    _toJson(self);
+  };
 };
