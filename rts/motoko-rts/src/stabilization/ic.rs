@@ -14,7 +14,7 @@ use crate::{
     rts_trap_with,
     stabilization::ic::metadata::StabilizationMetadata,
     stabilization::serialization::SerializationRoots,
-    stable_mem::{self, moc_stable_mem_set_size, PAGE_SIZE},
+    stable_mem::{self, PAGE_SIZE, moc_stable_mem_set_size},
     types::Value,
 };
 
@@ -49,7 +49,7 @@ impl StabilizationState {
 
 static mut STABILIZATION_STATE: Option<StabilizationState> = None;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn is_graph_stabilization_started() -> bool {
     STABILIZATION_STATE.is_some()
 }
@@ -229,7 +229,7 @@ unsafe fn memory_sanity_check<M: Memory>(_mem: &mut M) {
     {
         use crate::gc::incremental::{
             get_partitioned_heap,
-            sanity_checks::{check_memory, CheckerMode},
+            sanity_checks::{CheckerMode, check_memory},
         };
 
         let state = DESTABILIZATION_STATE.as_mut().unwrap();
@@ -259,7 +259,7 @@ unsafe fn record_upgrade_costs() {
 }
 
 /// Returns the deserialized stable actor root after the completed destabilization.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn get_graph_destabilized_actor() -> Value {
     let state = DESTABILIZATION_STATE.as_ref().unwrap();
     assert!(state.completed);
@@ -269,13 +269,13 @@ pub unsafe extern "C" fn get_graph_destabilized_actor() -> Value {
 /// Stop the GC before performing incremental graph-copy-based stabilzation or destabilization.
 /// This is only a safe-guard since the compiler must not schedule the GC during stabilization
 /// and destabilization.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn stop_gc_before_stabilization() {
     stop_gc();
 }
 
 /// Start the GC after completed incremental graph-copy-based destabilization.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn start_gc_after_destabilization() {
     resume_gc();
 }

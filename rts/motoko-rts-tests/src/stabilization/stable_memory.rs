@@ -13,7 +13,7 @@ pub fn clear_stable_memory() {
     })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn ic0_stable64_write(offset: u64, source: u64, size: u64) {
     STABLE_MEMORY.with(|memory| {
         assert!(offset + size <= memory.borrow().len() as u64);
@@ -24,7 +24,7 @@ pub fn ic0_stable64_write(offset: u64, source: u64, size: u64) {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn ic0_stable64_read(destination: u64, offset: u64, size: u64) {
     STABLE_MEMORY.with(|memory| {
         assert!(offset + size <= memory.borrow().len() as u64);
@@ -35,12 +35,12 @@ pub fn ic0_stable64_read(destination: u64, offset: u64, size: u64) {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn ic0_stable64_size() -> u64 {
     STABLE_MEMORY.with(|memory| memory.borrow().len()) as u64 / PAGE_SIZE
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn ic0_stable64_grow(additional_pages: u64) -> u64 {
     for _ in 0..additional_pages * PAGE_SIZE {
         STABLE_MEMORY.with(|memory| memory.borrow_mut().push(0));
