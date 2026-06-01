@@ -2,7 +2,7 @@
 // synthesis. Here `mo:amb/AmbigA.show` and `mo:amb/AmbigB.show` both derive
 // `show : R -> Text`, making the lib-derivation tier ambiguous; the structural
 // `__record` combiner uniquely resolves the hole instead, producing "{a:1,b:2}".
-//MOC-FLAG --package amb ../lib-ambig-stub/src --implicit-package amb
+//MOC-FLAG --package amb lib-ambig-stub/src --implicit-package amb
 
 type R = { a : Nat; b : Nat };
 
