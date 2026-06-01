@@ -208,7 +208,7 @@ persistent actor {
                   else if (i < 0 and abs i <= size) size - abs i + 1
                   else 0;
                 if (n == 0 or n > size) notFoundSmurf par
-                else charSmurf(chars[n - 1], n, par)
+                else charSmurf(charLookup, chars[n - 1], n, par)
               };
               case _ notFoundSmurf par;
             };
@@ -219,7 +219,7 @@ persistent actor {
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred)
-                CollectionSmurf<Char>(chars, "char", par, charSmurf, evalCharPred, charToText, ?pred);
+                CollectionSmurf<Char>(chars, "char", par, func(c, n, p) = charSmurf(charLookup, c, n, p), func(p, c) = evalPred(charLookup, p, c), charToText, ?pred);
               case _ notFoundSmurf par;
             };
         },
@@ -383,7 +383,7 @@ persistent actor {
   ];
 
 
-  func evalCharPred(e : BoolExpr, c : Char)       : Bool = evalPred(func prop = lookupReader(charPropReaders, prop),     e, c);
+  transient let charLookup : Text -> (Char -> CandidValue) = func prop = lookupReader(charPropReaders, prop);
 
   // Materialise a Text as a [Char] so CollectionSmurf<Char> can iterate
   // it like any other typed array.  Manual loop; the moc prelude exposes
@@ -442,7 +442,7 @@ persistent actor {
   // #absolutePosition n }` — positional addressing, matching AS's built-in
   // `character N of <text>` idiom (the codepoint value is NOT a stable
   // primary key; position in the parent text is).
-  func charSmurf(c : Char, position : Nat, parent : Smurf) : Smurf {
+  func charSmurf(lookup : Text -> (Char -> CandidValue), c : Char, position : Nat, parent : Smurf) : Smurf {
     let self : Smurf = {
       class4cc    = "char";
       accessors   = [
@@ -459,7 +459,7 @@ persistent actor {
           key       = #absolutePosition position;
         }
       };
-      filter      = func p = if (evalCharPred(p, c)) self else notFoundSmurf self;
+      filter      = func p = if (evalPred(lookup, p, c)) self else notFoundSmurf self;
     };
     self
   };
