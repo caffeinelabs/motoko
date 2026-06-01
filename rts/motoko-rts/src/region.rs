@@ -1,7 +1,7 @@
 use crate::barriers::{allocation_barrier, init_with_barrier, write_with_barrier};
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::trap_with_prefix;
-use crate::types::{size_of, Blob, Bytes, Region, Value, TAG_BLOB_B, TAG_REGION};
+use crate::types::{Blob, Bytes, Region, TAG_BLOB_B, TAG_REGION, Value, size_of};
 
 // Versions
 // Should agree with constants in StableMem in compile.ml
@@ -340,7 +340,7 @@ mod meta_data {
 
         use super::{bytes_of, offset, size};
         use crate::region::{BlockId, RegionId};
-        use crate::stable_mem::{read_u16, read_u64, read_u8, write_u16, write_u64, write_u8};
+        use crate::stable_mem::{read_u8, read_u16, read_u64, write_u8, write_u16, write_u64};
 
         // Compute an offset in stable memory for a particular block ID (based zero).
         fn index(b: &BlockId) -> u64 {
@@ -610,7 +610,7 @@ fn upgrade_version_to_regions() {
 
 pub(crate) unsafe fn region_migration_from_no_stable_memory<M: Memory>(mem: &mut M) {
     use crate::stable_mem::{get_version, grow, size, write};
-    use meta_data::size::{PAGES_IN_BLOCK, PAGE_IN_BYTES};
+    use meta_data::size::{PAGE_IN_BYTES, PAGES_IN_BLOCK};
 
     if uses_enhanced_orthogonal_persistence!() {
         assert!(
@@ -898,7 +898,7 @@ pub unsafe fn region_size<M: Memory>(_mem: &mut M, r: Value) -> u64 {
 
 #[ic_mem_fn]
 pub unsafe fn region_grow<M: Memory>(mem: &mut M, r: Value, new_pages: u64) -> u64 {
-    use meta_data::size::{total_required_pages, PAGES_IN_BLOCK};
+    use meta_data::size::{PAGES_IN_BLOCK, total_required_pages};
 
     let max_pages_in_region = meta_data::max::BLOCKS as u32 * PAGES_IN_BLOCK;
 

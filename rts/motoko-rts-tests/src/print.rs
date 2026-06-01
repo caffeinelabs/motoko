@@ -3,7 +3,7 @@
 use std::ptr::addr_of_mut;
 
 #[link(wasm_import_module = "wasi_snapshot_preview1")]
-extern "C" {
+unsafe extern "C" {
     fn fd_write(fd: i32, iovs: i32, iovs_len: i32, nwritten: i32) -> i32;
 }
 

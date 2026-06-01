@@ -1,6 +1,6 @@
-use super::{heap_size_for_gc, MotokoHeapInner};
+use super::{MotokoHeapInner, heap_size_for_gc};
 
-use crate::gc::utils::{make_pointer, make_scalar, write_word, ObjectIdx, GC, WORD_SIZE};
+use crate::gc::utils::{GC, ObjectIdx, WORD_SIZE, make_pointer, make_scalar, write_word};
 
 use motoko_rts::types::*;
 

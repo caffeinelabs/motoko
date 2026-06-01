@@ -2,7 +2,7 @@
 //! Simplified to only store object pointers without tags.
 
 use crate::gc::generational::TAG_BLOB_B;
-use crate::memory::{alloc_blob, Memory};
+use crate::memory::{Memory, alloc_blob};
 use crate::types::{Blob, Words};
 
 use core::ptr::null_mut;

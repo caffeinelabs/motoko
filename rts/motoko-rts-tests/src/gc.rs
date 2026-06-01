@@ -194,7 +194,7 @@ fn initialize_gc(_heap: &mut MotokoHeap) {}
 #[incremental_gc]
 fn initialize_gc(heap: &mut MotokoHeap) {
     use motoko_rts::gc::incremental::{
-        get_partitioned_heap, set_incremental_gc_state, IncrementalGC,
+        IncrementalGC, get_partitioned_heap, set_incremental_gc_state,
     };
     use motoko_rts::types::Bytes;
     unsafe {

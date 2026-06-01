@@ -156,7 +156,7 @@ let error_codes : (string * string option) list =
     "M0164", None; (* Unknown record or variant label in textual representation *)
     "M0165", None; (* Odd expected type *)
     "M0168", None; (* Type union or intersection on forward types *)
-    "M0169", None; (* Stable variable will be discarded. This may cause data loss. *)
+    "M0169", None; (* Stable variable from the previous version is implicitly discarded by the new version. This may cause data loss. *)
     "M0170", None; (* Stable variable must subtype *)
     (* "M0171" DEFUNCT Stable variable changing mutability *)
     "M0172", None; (* to_candid produces Blob, not -- *)
@@ -220,6 +220,7 @@ let error_codes : (string * string option) list =
     "M0260", None; (* `and`-pattern binds the same variable in both legs *)
     "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
     "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
+    "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

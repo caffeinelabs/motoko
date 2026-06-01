@@ -2,6 +2,8 @@
 
 // See: https://doc.rust-lang.org/nightly/edition-guide/rust-2024/static-mut-references.html
 #![allow(static_mut_refs)]
+// Edition-2024 defer: rewriting every unsafe-op-in-unsafe-fn call site is a separate task.
+#![allow(unsafe_op_in_unsafe_fn)]
 #![no_std]
 #![feature(
     arbitrary_self_types,
@@ -82,7 +84,7 @@ unsafe fn alloc_words<M: memory::Memory>(mem: &mut M, n: types::Words<usize>) ->
     crate::gc::incremental::get_partitioned_heap().allocate(mem, n)
 }
 
-extern "C" {
+unsafe extern "C" {
     fn rts_trap(msg: *const u8, len: u32) -> !;
 }
 

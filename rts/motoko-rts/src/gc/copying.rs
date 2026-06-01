@@ -8,7 +8,7 @@ use motoko_rts_macros::ic_mem_fn;
 // Only designed for 32-bit.
 const _: () = assert!(core::mem::size_of::<usize>() == core::mem::size_of::<u32>());
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[cfg(feature = "ic")]
 pub unsafe extern "C" fn initialize_copying_gc() {
     crate::memory::ic::linear_memory::initialize();
