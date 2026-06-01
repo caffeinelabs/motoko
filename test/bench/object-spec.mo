@@ -232,9 +232,10 @@ persistent actor {
       case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
       case (#in_ { prop; values }) {
         let v = lookupPropReader(prop).read c;
-        var found = false;
-        for (candidate in values.vals()) { if (not found) found := cmp(v, #eq, candidate) };
-        found
+        label found : Bool do {
+          for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
+          false
+        }
       };
     }
   };
@@ -478,9 +479,10 @@ persistent actor {
       case (#compare { prop; op; value }) cmp(lookupCardPropReader(prop) c, op, value);
       case (#in_ { prop; values }) {
         let v = lookupCardPropReader(prop) c;
-        var found = false;
-        for (candidate in values.vals()) { if (not found) found := cmp(v, #eq, candidate) };
-        found
+        label found : Bool do {
+          for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
+          false
+        }
       };
     }
   };
@@ -532,9 +534,10 @@ persistent actor {
       case (#compare { prop; op; value }) cmp(lookupCharPropReader(prop) c, op, value);
       case (#in_ { prop; values }) {
         let v = lookupCharPropReader(prop) c;
-        var found = false;
-        for (candidate in values.vals()) { if (not found) found := cmp(v, #eq, candidate) };
-        found
+        label found : Bool do {
+          for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
+          false
+        }
       };
     }
   };
