@@ -1221,15 +1221,12 @@ persistent actor {
   };
 
   // Parse the body of a typeAEList carrying CandidValues (for #isIn).
-  // Format (written by the encoder): 8 zero bytes, (0x18 'list'), count+pad,
-  // then `count` value items each as typeCode + length + body.
+  // Apple embeds lists in cmpd fields as: count(4) + pad(4) + items.
+  // (The 0x18+'list' sub-header only appears in top-level
+  // NSAppleEventDescriptor.data, not in embedded cmpd fields.)
   func parseInListBody(r : Reader) : [CandidValue] {
-    let _align0 = u32 r;
-    let _align1 = u32 r;
-    let _sub1   = u32 r;   // 0x18
-    let _sub2   = u32 r;   // LIST
-    let count   = u32 r;
-    let _pad    = u32 r;
+    let count = u32 r;
+    let _pad  = u32 r;
     let n = nat32ToNat count;
     let vals = Array_init<CandidValue>(n, #null_);
     for (j in vals.keys()) { vals[j] := parseValue r };
