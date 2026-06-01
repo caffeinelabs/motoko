@@ -177,7 +177,7 @@ persistent actor {
   };
 
 
-  func evalBoolExpr(e : BoolExpr, c : Client)    : Bool = evalPred(func prop = lookupReader(propReaders, prop),     e, c);
+  transient let clientLookup : Text -> (Client -> CandidValue) = func prop = lookupReader(propReaders, prop);
 
 
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
@@ -219,7 +219,7 @@ persistent actor {
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred)
-                CollectionSmurf<Char>(chars, "char", par, func(c, n, p) = charSmurf(charLookup, c, n, p), func(p, c) = evalPred(charLookup, p, c), charToText, ?pred);
+                CollectionSmurf<Char>(chars, "char", par, func(c, n, p) = charSmurf(charLookup, c, n, p), charLookup, charToText, ?pred);
               case _ notFoundSmurf par;
             };
         },
@@ -284,7 +284,7 @@ persistent actor {
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred)
-                CollectionSmurf<CreditCard>(c.cards, "card", par, cardSmurf, evalCardPred, func k = debug_show k.number, ?pred);
+                CollectionSmurf<CreditCard>(c.cards, "card", par, cardSmurf, cardLookup, func k = debug_show k.number, ?pred);
               case _ notFoundSmurf par;
             };
         },
@@ -297,7 +297,7 @@ persistent actor {
         }
       };
       // Singleton filter: predicate against the typed Client; pass-or-empty.
-      filter      = func p = if (evalBoolExpr(p, c)) self else notFoundSmurf self;
+      filter      = func p = if (evalPred(clientLookup, p, c)) self else notFoundSmurf self;
     };
     self
   };
@@ -347,7 +347,7 @@ persistent actor {
   ];
 
 
-  func evalCardPred(e : BoolExpr, c : CreditCard) : Bool = evalPred(func prop = lookupReader(cardPropReaders, prop), e, c);
+  transient let cardLookup : Text -> (CreditCard -> CandidValue) = func prop = lookupReader(cardPropReaders, prop);
 
   // Wraps a single CreditCard as a Smurf.  Five property accessors —
   // four storage fields + the computed "vald".  toDesc keys by the
@@ -370,7 +370,7 @@ persistent actor {
           key       = #name (debug_show card.number);
         }
       };
-      filter      = func p = if (evalCardPred(p, card)) self else notFoundSmurf self;
+      filter      = func p = if (evalPred(cardLookup, p, card)) self else notFoundSmurf self;
     };
     self
   };
@@ -516,28 +516,26 @@ persistent actor {
   // an accumulated predicate (`null` = unfiltered) so `filter` composes via
   // `#and_`. `toDesc` resolves eagerly into a `#list` of element references —
   // each match is wrapped (e.g. clientSmurf) and asked for its own toDesc.
-  // The typed-fast-path: `evalPred` operates on `T` directly, no Candid round
-  // trip per element.
   class CollectionSmurf<T>(
-    source   : [T],
-    classCC  : Text,
-    parent   : Smurf,
-    wrap     : (T, Nat, Smurf) -> Smurf,    // Nat = 1-based source position
-    evalPred : (BoolExpr, T) -> Bool,
-    getName  : T -> Text,                   // for #named lookup over the filtered view
-    pred     : ?BoolExpr,
+    source  : [T],
+    classCC : Text,
+    parent  : Smurf,
+    wrap    : (T, Nat, Smurf) -> Smurf,    // Nat = 1-based source position
+    lookup  : Text -> (T -> CandidValue),
+    getName : T -> Text,                   // for #named lookup over the filtered view
+    pred    : ?BoolExpr,
   ) {
     func cardinality() : Nat {
       var n = 0;
       for (t in source.vals()) {
-        let m = switch pred { case null true; case (?p) evalPred(p, t) };
+        let m = switch pred { case null true; case (?p) evalPred(lookup, p, t) };
         if m n += 1;
       };
       n
     };
 
     func passes(t : T) : Bool =
-      switch pred { case null true; case (?p) evalPred(p, t) };
+      switch pred { case null true; case (?p) evalPred(lookup, p, t) };
 
     // Inherited element accessors (same identity as the parent's
     // VarAccessor<T> for this classCC, but iterating the filtered local
@@ -597,7 +595,7 @@ persistent actor {
             case null ?newPred;
             case (?old) ?(#and_ (old, newPred));
           };
-          CollectionSmurf<T>(source, classCC, parent, wrap, evalPred, getName, combined)
+          CollectionSmurf<T>(source, classCC, parent, wrap, lookup, getName, combined)
         };
         case _ notFoundSmurf par;
       };
@@ -679,7 +677,7 @@ persistent actor {
         case null ?p;
         case (?old) ?(#and_ (old, p));
       };
-      CollectionSmurf<T>(source, classCC, parent, wrap, evalPred, getName, newPred)
+      CollectionSmurf<T>(source, classCC, parent, wrap, lookup, getName, newPred)
     };
   };
 
@@ -694,9 +692,9 @@ persistent actor {
     extract  : P -> [E],
     classCC  : Text,
     parent   : Smurf,
-    wrap     : (E, Nat, Smurf) -> Smurf,   // Nat = 1-based slot in flattened source
-    evalPred : (BoolExpr, E) -> Bool,
-    getName  : E -> Text,
+    wrap    : (E, Nat, Smurf) -> Smurf,   // Nat = 1-based slot in flattened source
+    lookup  : Text -> (E -> CandidValue),
+    getName : E -> Text,
     pred     : ?BoolExpr,
   ) : CollectionSmurf<E> {
     // Materialise per-parent extractions, then flatten by index
@@ -715,7 +713,7 @@ persistent actor {
       perParent[pi][rem]
     });
 
-    let inner : Smurf = CollectionSmurf<E>(flat, classCC, parent, wrap, evalPred, getName, pred);
+    let inner : Smurf = CollectionSmurf<E>(flat, classCC, parent, wrap, lookup, getName, pred);
 
     public let {class4cc; accessors} = inner;
     public func toDesc() : async* ObjectSpec { await* inner.toDesc() };
@@ -738,7 +736,7 @@ persistent actor {
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#test pred)
-              CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, evalBoolExpr, func c = c.name, ?pred);
+              CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, clientLookup, func c = c.name, ?pred);
             case _ notFoundSmurf parent;
           };
       },
@@ -753,7 +751,7 @@ persistent actor {
             case (#test pred)
               FlattenedSmurf<Client, CreditCard>(
                 clients, func c = c.cards,
-                "card", parent, cardSmurf, evalCardPred,
+                "card", parent, cardSmurf, cardLookup,
                 func k = debug_show k.number, ?pred);
             case _ notFoundSmurf parent;
           };
@@ -769,7 +767,7 @@ persistent actor {
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
           let view = FlattenedSmurf<Client, CreditCard>(
             clients, func c = c.cards,
-            "card", parent, cardSmurf, evalCardPred,
+            "card", parent, cardSmurf, cardLookup,
             func k = debug_show k.number, null);
           switch (findAccessor(view, "card", #indexed)) {
             case (?acc) acc.lookUp(view, key);
@@ -783,7 +781,7 @@ persistent actor {
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
           let view = FlattenedSmurf<Client, CreditCard>(
             clients, func c = c.cards,
-            "card", parent, cardSmurf, evalCardPred,
+            "card", parent, cardSmurf, cardLookup,
             func k = debug_show k.number, null);
           switch (findAccessor(view, "card", #named)) {
             case (?acc) acc.lookUp(view, key);
@@ -801,7 +799,7 @@ persistent actor {
   // accessor on actorSmurf; for now exposed top-level so tiny3 can route
   // through `filter` without inventing a new accessor form.
   transient let clntCollection : Smurf =
-    CollectionSmurf<Client>(clients, "clnt", actorSmurf, clientSmurf, evalBoolExpr, func c = c.name, null);
+    CollectionSmurf<Client>(clients, "clnt", actorSmurf, clientSmurf, clientLookup, func c = c.name, null);
 
 
   func encoder(spec : ObjectSpec) : Blob {
