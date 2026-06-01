@@ -83,10 +83,12 @@ persistent actor {
     cvc        : Nat32;
   };
 
-  // Mock client DB. Deterministic generation tuned for ~30% match rate
-  // against the running query (country=="Germany" AND 45<=age<=55):
-  // 60% land in Germany (i % 5 < 3), 50% have age in [45,55] (offset
-  // distribution over 22 values, 11 in range) → joint ≈ 30%.
+  // Mock client DB.  Four-country distribution (i = 0..99):
+  //   Germany 0..53  (54),  Austria 54..59  (6 = 10% of old Germany),
+  //   France  60..96 (37),  Belgium 97..99  (3 ≈ 7% of old France).
+  // German-speaking zone (i<60) uses German names; French-speaking (i≥60)
+  // uses French names.  Canonical query (country=="Germany" AND 45≤age≤55)
+  // matches ≈26% of clients (26/100 by construction).
   type Client = {
     name : Text;          // primary key for stable references
     country : Text;
@@ -112,10 +114,15 @@ persistent actor {
   };
 
   let clients : [Client] = Array_tabulate<Client>(dbSize, func(i : Nat) : Client {
-    let inGermany = i % 5 < 3;
+    let isGermanSpeaking = i < 60;   // Germany (i<54) + Austria (54≤i<60)
+    let country =
+      if      (i < 54) "Germany"
+      else if (i < 60) "Austria"
+      else if (i < 97) "France"
+      else             "Belgium";
     let ageOffset = (i * 13) % 22;     // 0..21, spread by *13
-    let firsts = if inGermany germanFirstNames else frenchFirstNames;
-    let lasts  = if inGermany germanLastNames  else frenchLastNames;
+    let firsts = if isGermanSpeaking germanFirstNames else frenchFirstNames;
+    let lasts  = if isGermanSpeaking germanLastNames  else frenchLastNames;
     let firstName = firsts[i % firsts.size()];
     let lastName  = lasts[(i / firsts.size()) % lasts.size()];
     let fullName = firstName # " " # lastName;
@@ -134,7 +141,7 @@ persistent actor {
     });
     {
       name = fullName;
-      country = if inGermany "Germany" else "France";
+      country;
       age = intToInt32Wrap(35 + ageOffset);     // 35..56
       yearlyIncome = intToInt32Wrap(50000 + i * 1000);
       cards;
@@ -2070,12 +2077,12 @@ persistent actor {
     result
   };
 
-  // tiny30 — `count of clients whose country ∈ {Germany}`.
-  // Exercises #in_ set-membership predicate directly.  Expected count = 60
-  // (matches tiny6("Germany") / test 01 — useful cross-check).
+  // tiny30 — `count of clients whose country ∈ {Germany, Austria}`.
+  // Exercises #in_ with a two-element set; matches the entire German-speaking
+  // zone (54 + 6 = 60 clients).
   (with encoder)
   public func tiny30() : async ObjectSpec {
-    let pred : BoolExpr = #in_ { prop = "cntr"; values = [#text "Germany"] };
+    let pred : BoolExpr = #in_ { prop = "cntr"; values = [#text "Germany", #text "Austria"] };
     let filtered = clntCollection.filter(pred);
     let ?pcnt = findAccessor(filtered, "pcnt", #named) else trap "AE: tiny30: no pcnt accessor";
     let spec = await* pcnt.lookUp(filtered, #named "pcnt").toDesc();
@@ -2364,7 +2371,7 @@ persistent actor {
 // Motoko-side mirror with debug_show of query AND result:
 //CALL ingress tiny27 0x4449444c0000
 
-// tiny30 — #in_ predicate: count clients whose country ∈ {"Germany"} = 60
+// tiny30 — #in_ predicate: count clients whose country ∈ {Germany, Austria} = 60
 //CALL ingress tiny30 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
