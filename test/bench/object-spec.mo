@@ -179,15 +179,15 @@ persistent actor {
   // Candid-blob-keyed accessors over arbitrary entity types. PropReader stays
   // as the typed-fast-path used by the running query while the protocol lands.
   // lingoName = null marks an entry as internal-only (not surfaced in lingo()).
-  type PropReader = {
+  type PropReader<T> = {
     fourcc      : Text;
     lingoName   : ?Text;
     valueType   : LingoValueType;
     description : Text;
-    read        : Client -> CandidValue;
+    read        : T -> CandidValue;
   };
 
-  transient let propReaders : [PropReader] = [
+  transient let propReaders : [PropReader<Client>] = [
     { fourcc = "name"; lingoName = ?"name";          valueType = #Text;    description = "Full client name (first + ' ' + last); primary key.";        read = func(c : Client) : CandidValue = #text (c.name)              },
     { fourcc = "fiNa"; lingoName = ?"firstName";     valueType = #Text;    description = "Synthetic: first word of `name`.";                           read = func(c : Client) : CandidValue = #text (firstWord(c.name))   },
     { fourcc = "laNa"; lingoName = ?"lastName";      valueType = #Text;    description = "Synthetic: last word of `name`.";                            read = func(c : Client) : CandidValue = #text (lastWord(c.name))    },
@@ -196,8 +196,8 @@ persistent actor {
     { fourcc = "inco"; lingoName = ?"yearly income"; valueType = #Integer; description = "Yearly income in the database base currency.";               read = func(c : Client) : CandidValue = #int32 (c.yearlyIncome)     },
   ];
 
-  func lookupPropReader(fourcc : Text) : PropReader {
-    for (p in propReaders.vals()) if (p.fourcc == fourcc) return p;
+  func lookupReader<T>(readers : [PropReader<T>], fourcc : Text) : T -> CandidValue {
+    for (p in readers.vals()) if (p.fourcc == fourcc) return p.read;
     trap ("AE: no PropReader for " # fourcc)
   };
 
@@ -233,9 +233,9 @@ persistent actor {
       case (#or_  (a, b)) evalBoolExpr(a, c) or  evalBoolExpr(b, c);
       case (#not_ a)      not (evalBoolExpr(a, c));
       case (#always)      true;
-      case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
+      case (#compare { prop; op; value }) cmp(lookupReader(propReaders, prop) c, op, value);
       case (#contains { prop; values }) {
-        let v = lookupPropReader(prop).read c;
+        let v = lookupReader(propReaders, prop) c;
         label found : Bool do {
           for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
           false
@@ -459,15 +459,7 @@ persistent actor {
   // "vald" is the *computed* validity boolean — not a stored field.
   // "Mnth"/"Year" are computed from `vali`; "Year" is a 4-digit Nat
   // (no Y2K — the parsing layer pins the century).
-  type CardPropReader = {
-    fourcc      : Text;
-    lingoName   : ?Text;
-    valueType   : LingoValueType;
-    description : Text;
-    read        : CreditCard -> CandidValue;
-  };
-
-  transient let cardPropReaders : [CardPropReader] = [
+  transient let cardPropReaders : [PropReader<CreditCard>] = [
     { fourcc = "cnum"; lingoName = ?"number";       valueType = #Integer; description = "16-digit card number (primary key).";                        read = func c = #nat   (c.number)                    },
     { fourcc = "noac"; lingoName = ?"name on card"; valueType = #Text;    description = "Embossed name.";                                             read = func c = #text  (c.nameOnCard)                },
     { fourcc = "vali"; lingoName = ?"validity";     valueType = #Text;    description = "`MM/YY` validity tag.";                                      read = func c = #text  (c.validity)                  },
@@ -477,10 +469,6 @@ persistent actor {
     { fourcc = "Year"; lingoName = null;            valueType = #Integer; description = "";                                                            read = func c = #nat   (cardYear c)                  },
   ];
 
-  func lookupCardPropReader(fourcc : Text) : CreditCard -> CandidValue {
-    for (p in cardPropReaders.vals()) if (p.fourcc == fourcc) return p.read;
-    trap ("AE: no CardPropReader for " # fourcc)
-  };
 
   func evalCardPred(e : BoolExpr, c : CreditCard) : Bool {
     switch e {
@@ -488,9 +476,9 @@ persistent actor {
       case (#or_  (a, b)) evalCardPred(a, c) or  evalCardPred(b, c);
       case (#not_ a)      not (evalCardPred(a, c));
       case (#always)      true;
-      case (#compare { prop; op; value }) cmp(lookupCardPropReader(prop) c, op, value);
+      case (#compare { prop; op; value }) cmp(lookupReader(cardPropReaders, prop) c, op, value);
       case (#contains { prop; values }) {
-        let v = lookupCardPropReader(prop) c;
+        let v = lookupReader(cardPropReaders, prop) c;
         label found : Bool do {
           for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
           false
@@ -528,22 +516,10 @@ persistent actor {
   // Char-level predicate stack.  Parallel to the Client one: a small
   // table of (4cc, reader) pairs so evalCharPred can resolve a typed
   // CandidValue from each Char without a Candid round-trip.
-  type CharPropReader = {
-    fourcc      : Text;
-    lingoName   : ?Text;
-    valueType   : LingoValueType;
-    description : Text;
-    read        : Char -> CandidValue;
-  };
-
-  transient let charPropReaders : [CharPropReader] = [
+  transient let charPropReaders : [PropReader<Char>] = [
     { fourcc = "uppr"; lingoName = ?"uppercase"; valueType = #Boolean; description = "True iff the character is uppercase."; read = func c = #bool (charIsUppercase c) },
   ];
 
-  func lookupCharPropReader(fourcc : Text) : Char -> CandidValue {
-    for (p in charPropReaders.vals()) if (p.fourcc == fourcc) return p.read;
-    trap ("AE: no CharPropReader for " # fourcc)
-  };
 
   func evalCharPred(e : BoolExpr, c : Char) : Bool {
     switch e {
@@ -551,9 +527,9 @@ persistent actor {
       case (#or_  (a, b)) evalCharPred(a, c) or  evalCharPred(b, c);
       case (#not_ a)      not (evalCharPred(a, c));
       case (#always)      true;
-      case (#compare { prop; op; value }) cmp(lookupCharPropReader(prop) c, op, value);
+      case (#compare { prop; op; value }) cmp(lookupReader(charPropReaders, prop) c, op, value);
       case (#contains { prop; values }) {
-        let v = lookupCharPropReader(prop) c;
+        let v = lookupReader(charPropReaders, prop) c;
         label found : Bool do {
           for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
           false
@@ -2263,7 +2239,7 @@ persistent actor {
 
   // Build [LingoProperty] from any prop-reader array, skipping entries
   // whose lingoName is null (internal-only accessors like Mnth/Year).
-  func lingoPropsOf<R <: { fourcc : Text; lingoName : ?Text; valueType : LingoValueType; description : Text }>(readers : [R]) : [LingoProperty] {
+  func lingoPropsOf<T>(readers : [PropReader<T>]) : [LingoProperty] {
     var n = 0;
     for (p in readers.vals()) { if (p.lingoName != null) n += 1 };
     let buf = Array_init<LingoProperty>(n, { name = ""; code = "    "; value_type = #Any; access = #R; description = null });
