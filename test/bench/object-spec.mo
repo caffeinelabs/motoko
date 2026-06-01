@@ -53,6 +53,7 @@ persistent actor {
     #not_ : BoolExpr;
     #always;            // synthetic literal-true; used only by the OSL
                         // when resolving #every.  Not in the AE spec.
+    #in_ : { prop : Text; values : [CandidValue] };  // set membership: prop ∈ values
   };
 
   type KeyForm = {
@@ -222,6 +223,12 @@ persistent actor {
       case (#not_ a)      not (evalBoolExpr(a, c));
       case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
+      case (#in_ { prop; values }) {
+        let v = lookupPropReader(prop).read c;
+        var found = false;
+        for (candidate in values.vals()) { if (not found) found := cmp(v, #eq, candidate) };
+        found
+      };
     }
   };
 
@@ -462,6 +469,12 @@ persistent actor {
       case (#not_ a)      not (evalCardPred(a, c));
       case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupCardPropReader(prop) c, op, value);
+      case (#in_ { prop; values }) {
+        let v = lookupCardPropReader(prop) c;
+        var found = false;
+        for (candidate in values.vals()) { if (not found) found := cmp(v, #eq, candidate) };
+        found
+      };
     }
   };
 
@@ -510,6 +523,12 @@ persistent actor {
       case (#not_ a)      not (evalCharPred(a, c));
       case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupCharPropReader(prop) c, op, value);
+      case (#in_ { prop; values }) {
+        let v = lookupCharPropReader(prop) c;
+        var found = false;
+        for (candidate in values.vals()) { if (not found) found := cmp(v, #eq, candidate) };
+        found
+      };
     }
   };
 
@@ -1041,6 +1060,8 @@ persistent actor {
   // 4cc enum values for 'relo' (AE has no !=; #ne emitted as NOT(=))
   transient let (EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP) : (Nat32, Nat32, Nat32, Nat32, Nat32) =
     (0x3d202020, 0x3c202020, 0x3e202020, 0x3c3d2020, 0x3e3d2020);
+  // kAEContains ('cont'): `X is in list` — obj1=list, relo=cont, obj2=property-ref
+  transient let CONT_OP : Nat32 = 0x636f6e74;
 
   func u32(r : Reader) : Nat32 {
     let ?n = r.readU32() else trap "AE: short read";
@@ -1154,9 +1175,9 @@ persistent actor {
     out
   };
 
-  func parseValue(r : Reader) : CandidValue {
-    let typeCode = u32 r;
-    let length = u32 r;
+  // Body-only value parser — typeCode and length already consumed by caller.
+  // Used by parseCmpdBody (buffered-field path) and parseInListBody.
+  func parseValueBody(typeCode : Nat32, length : Nat32, r : Reader) : CandidValue {
     if (typeCode == NULL) {
       if (length != 0) trap "AE: null value with non-zero length";
       #null_
@@ -1178,6 +1199,31 @@ persistent actor {
     } else {
       trap "AE: unsupported value type"
     }
+  };
+
+  func parseValue(r : Reader) : CandidValue = parseValueBody(u32 r, u32 r, r);
+
+  // Dispatch on typeCode without reading length (already consumed by caller).
+  func parseDescFromBody(typeCode : Nat32, r : Reader) : ObjectSpec {
+    if (typeCode == NULL or typeCode == EXMN) #root
+    else if (typeCode == OBJ) parseObjBody r
+    else trap ("AE: unsupported ObjectSpec descriptor type " # cc4ToText typeCode)
+  };
+
+  // Parse the body of a typeAEList carrying CandidValues (for #in_).
+  // Format (written by the encoder): 8 zero bytes, (0x18 'list'), count+pad,
+  // then `count` value items each as typeCode + length + body.
+  func parseInListBody(r : Reader) : [CandidValue] {
+    let _align0 = u32 r;
+    let _align1 = u32 r;
+    let _sub1   = u32 r;   // 0x18
+    let _sub2   = u32 r;   // LIST
+    let count   = u32 r;
+    let _pad    = u32 r;
+    let n = nat32ToNat count;
+    let vals = Array_init<CandidValue>(n, #null_);
+    for (j in vals.keys()) { vals[j] := parseValue r };
+    Array_tabulate<CandidValue>(n, func j = vals[j])
   };
 
   func parseBoolExprBody(typeCode : Nat32, r : Reader) : BoolExpr {
@@ -1236,42 +1282,49 @@ persistent actor {
   func parseCmpdBody(r : Reader) : BoolExpr {
     let _fc = u32 r;       // expected: 3
     let _pad = u32 r;
-    // Order-agnostic field dispatch (AS-Cocoa emits relo/obj1/obj2,
-    // not obj1/relo/obj2 as the Python harness did).  Read 3 fields,
-    // dispatch on keyCode.
-    var prop : ?Text = null;
-    var op   : ?Comparison = null;
-    var val  : ?CandidValue = null;
+    // Buffer all three fields raw (typeCode + body blob) so we can
+    // dispatch on relo regardless of field order.
+    var obj1T : Nat32 = 0; var obj1B : ?Blob = null;
+    var reloB : ?Blob = null;
+    var obj2T : Nat32 = 0; var obj2N : Nat32 = 0; var obj2B : ?Blob = null;
     var i = 0;
     while (i < 3) {
       let key = u32 r;
-      if (key == OBJ1) {
-        let t = u32 r;
-        let obj1 = parseDescBody(t, r);
-        switch obj1 {
-          case (#obj { class_ = _; container = _; key = #property name }) prop := ?name;
-          case _ trap "AE: cmpd 'obj1' is not a property reference";
-        };
-      } else if (key == RELO) {
-        let _t = u32 r;   // ENUM
-        let _l = u32 r;   // 4
-        let opCode = u32 r;
-        op := ?(if (opCode == EQ_OP) #eq
-                else if (opCode == LT_OP) #lt
-                else if (opCode == GT_OP) #gt
-                else if (opCode == LE_OP) #le
-                else if (opCode == GE_OP) #ge
-                else trap "AE: unsupported relo opcode");
-      } else if (key == OBJ2) {
-        val := ?(parseValue r);
-      } else {
-        trap ("AE: unknown cmpd field key " # debug_show key);
-      };
+      let t = u32 r;
+      let n = u32 r;
+      let ?body = r.take(nat32ToNat n) else trap "AE: cmpd field truncated";
+      if      (key == OBJ1) { obj1T := t; obj1B := ?body }
+      else if (key == RELO) { reloB := ?body }
+      else if (key == OBJ2) { obj2T := t; obj2N := n; obj2B := ?body }
+      else trap ("AE: unknown cmpd field key " # debug_show key);
       i += 1;
     };
-    switch (prop, op, val) {
-      case (?p, ?o, ?v) #compare { prop = p; op = o; value = v };
-      case _ trap "AE: cmpd missing obj1/relo/obj2";
+    let ?rb = reloB else trap "AE: cmpd missing relo";
+    let ?opCode = Reader(rb.vals()).readU32() else trap "AE: cmpd relo too short";
+    let ?b1 = obj1B else trap "AE: cmpd missing obj1";
+    let ?b2 = obj2B else trap "AE: cmpd missing obj2";
+    if (opCode == CONT_OP) {
+      // `X is in {a,b,…}` — relo='cont', obj1=typeAEList of values, obj2=property-ref
+      if (obj1T != LIST) trap ("AE: #in_ obj1 must be typeAEList, got " # cc4ToText obj1T);
+      let values = parseInListBody(Reader(b1.vals()));
+      let prop = switch (parseDescFromBody(obj2T, Reader(b2.vals()))) {
+        case (#obj { key = #property p; container = _; class_ = _ }) p;
+        case _ trap "AE: cmpd 'cont' obj2 is not a property reference";
+      };
+      #in_ { prop; values }
+    } else {
+      let op = if      (opCode == EQ_OP) #eq
+               else if (opCode == LT_OP) #lt
+               else if (opCode == GT_OP) #gt
+               else if (opCode == LE_OP) #le
+               else if (opCode == GE_OP) #ge
+               else trap "AE: unsupported relo opcode";
+      let prop = switch (parseDescFromBody(obj1T, Reader(b1.vals()))) {
+        case (#obj { key = #property p; container = _; class_ = _ }) p;
+        case _ trap "AE: cmpd 'obj1' is not a property reference";
+      };
+      let val = parseValueBody(obj2T, obj2N, Reader(b2.vals()));
+      #compare { prop; op; value = val }
     }
   };
 
@@ -1324,6 +1377,7 @@ persistent actor {
       case (#or_  (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
       case (#not_ a)      52 + boolExprDescLen a;
       case (#always)      trap "AE: #always is OSL-internal, not wire-encodable";
+      case (#in_ _)       trap "AE: #in_ is input-only, not wire-encodable";
       case (#compare { prop = _; op = _; value }) 116 + valueDescLen value;
     }
   };
@@ -1449,6 +1503,7 @@ persistent actor {
         writeValue(w, value);
       };
       case (#always _) trap "AE: #always is OSL-internal, not wire-encodable";
+      case (#in_ _)    trap "AE: #in_ is input-only, not wire-encodable";
     }
   };
 
@@ -2015,6 +2070,19 @@ persistent actor {
     result
   };
 
+  // tiny30 — `count of clients whose country ∈ {Germany}`.
+  // Exercises #in_ set-membership predicate directly.  Expected count = 60
+  // (matches tiny6("Germany") / test 01 — useful cross-check).
+  (with encoder)
+  public func tiny30() : async ObjectSpec {
+    let pred : BoolExpr = #in_ { prop = "cntr"; values = [#text "Germany"] };
+    let filtered = clntCollection.filter(pred);
+    let ?pcnt = findAccessor(filtered, "pcnt", #named) else trap "AE: tiny30: no pcnt accessor";
+    let spec = await* pcnt.lookUp(filtered, #named "pcnt").toDesc();
+    debugPrint(debug_show { stage = "tiny30"; spec });
+    spec
+  };
+
   // tiny24 — Motoko-side rendering of `every card`.  Mirrors the
   // AE-wire fixture (`//CALL ingress go …` below) but builds the spec
   // directly: since the bench has no `#every` keyform yet, we use
@@ -2295,6 +2363,9 @@ persistent actor {
 //CALL ingress go 0x646c6532000000006f626a20000000f8000000040000000077616e74747970650000000463617264666f726d656e756d00000004696e647873656c646162736f000000046669727366726f6d6f626a20000000b4000000040000000077616e74747970650000000463617264666f726d656e756d000000047465737473656c64636d70640000007400000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c64747970650000000476616c6466726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a3266616c730000000066726f6d6e756c6c00000000
 // Motoko-side mirror with debug_show of query AND result:
 //CALL ingress tiny27 0x4449444c0000
+
+// tiny30 — #in_ predicate: count clients whose country ∈ {"Germany"} = 60
+//CALL ingress tiny30 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
 // and 45 <= age <= 55
