@@ -1415,3 +1415,18 @@ match decode_ae_result(&response_blob) {
   walk inside `#countOf` skips the outer element (counts as 0) and
   does NOT raise an AE error.  So the two extensions stay
   independent.
+- **`#contains` with object-specifier list items** (open issue).
+  `BoolExpr.#contains.values : [CandidValue]` only handles scalar
+  literals.  When AppleScript builds a `whose` list from property
+  references — e.g.
+  `{ country of client 1, country of client 2 } contains country`
+  — the list items arrive on the wire as `OBJ`-typed AE descriptors,
+  not scalars.  `parseInListBody` currently traps on these with
+  "AE: unsupported value type".
+  Resolution: change `values` to `[ObjectSpec]` (or a union
+  `CandidValue | ObjectSpec`) and resolve each specifier via `eval`
+  before comparing.  Because `eval` is `async*` and needs the
+  `actorSmurf`, `parseInListBody` (or the `#contains` arm of
+  `evalBoolExpr`) must become `async*` with the Smurf root threaded
+  through.  The payoff: `whose X in {Y of A, Y of B}` style
+  cross-object comparisons become expressible.
