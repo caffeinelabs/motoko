@@ -178,18 +178,22 @@ persistent actor {
   // The Smurf protocol (introduced separately) generalises this to existential,
   // Candid-blob-keyed accessors over arbitrary entity types. PropReader stays
   // as the typed-fast-path used by the running query while the protocol lands.
+  // lingoName = null marks an entry as internal-only (not surfaced in lingo()).
   type PropReader = {
-    fourcc : Text;
-    read : Client -> CandidValue;
+    fourcc      : Text;
+    lingoName   : ?Text;
+    valueType   : LingoValueType;
+    description : Text;
+    read        : Client -> CandidValue;
   };
 
   transient let propReaders : [PropReader] = [
-    { fourcc = "name"; read = func(c : Client) : CandidValue = #text (c.name) },
-    { fourcc = "fiNa"; read = func(c : Client) : CandidValue = #text (firstWord(c.name)) },
-    { fourcc = "laNa"; read = func(c : Client) : CandidValue = #text (lastWord(c.name)) },
-    { fourcc = "cntr"; read = func(c : Client) : CandidValue = #text (c.country) },
-    { fourcc = "age "; read = func(c : Client) : CandidValue = #int32 (c.age) },
-    { fourcc = "inco"; read = func(c : Client) : CandidValue = #int32 (c.yearlyIncome) },
+    { fourcc = "name"; lingoName = ?"name";          valueType = #Text;    description = "Full client name (first + ' ' + last); primary key.";        read = func(c : Client) : CandidValue = #text (c.name)              },
+    { fourcc = "fiNa"; lingoName = ?"firstName";     valueType = #Text;    description = "Synthetic: first word of `name`.";                           read = func(c : Client) : CandidValue = #text (firstWord(c.name))   },
+    { fourcc = "laNa"; lingoName = ?"lastName";      valueType = #Text;    description = "Synthetic: last word of `name`.";                            read = func(c : Client) : CandidValue = #text (lastWord(c.name))    },
+    { fourcc = "cntr"; lingoName = ?"country";       valueType = #Text;    description = "Country of residence.";                                      read = func(c : Client) : CandidValue = #text (c.country)           },
+    { fourcc = "age "; lingoName = ?"age";           valueType = #Integer; description = "Age in years.";                                              read = func(c : Client) : CandidValue = #int32 (c.age)              },
+    { fourcc = "inco"; lingoName = ?"yearly income"; valueType = #Integer; description = "Yearly income in the database base currency.";               read = func(c : Client) : CandidValue = #int32 (c.yearlyIncome)     },
   ];
 
   func lookupPropReader(fourcc : Text) : PropReader {
@@ -455,18 +459,26 @@ persistent actor {
   // "vald" is the *computed* validity boolean — not a stored field.
   // "Mnth"/"Year" are computed from `vali`; "Year" is a 4-digit Nat
   // (no Y2K — the parsing layer pins the century).
-  transient let cardPropReaders : [(Text, CreditCard -> CandidValue)] = [
-    ("cnum", func c = #nat   (c.number)),
-    ("noac", func c = #text  (c.nameOnCard)),
-    ("vali", func c = #text  (c.validity)),
-    ("cvc ", func c = #int32 (nat32ToInt32 (c.cvc))),
-    ("vald", func c = #bool  (cardIsValid c)),
-    ("Mnth", func c = #nat   (cardMonth c)),
-    ("Year", func c = #nat   (cardYear c)),
+  type CardPropReader = {
+    fourcc      : Text;
+    lingoName   : ?Text;
+    valueType   : LingoValueType;
+    description : Text;
+    read        : CreditCard -> CandidValue;
+  };
+
+  transient let cardPropReaders : [CardPropReader] = [
+    { fourcc = "cnum"; lingoName = ?"number";       valueType = #Integer; description = "16-digit card number (primary key).";                        read = func c = #nat   (c.number)                    },
+    { fourcc = "noac"; lingoName = ?"name on card"; valueType = #Text;    description = "Embossed name.";                                             read = func c = #text  (c.nameOnCard)                },
+    { fourcc = "vali"; lingoName = ?"validity";     valueType = #Text;    description = "`MM/YY` validity tag.";                                      read = func c = #text  (c.validity)                  },
+    { fourcc = "cvc "; lingoName = ?"cvc";          valueType = #Integer; description = "3-digit verification code (the one printed on the back).";   read = func c = #int32 (nat32ToInt32 (c.cvc))        },
+    { fourcc = "vald"; lingoName = ?"valid";        valueType = #Boolean; description = "True iff `validity` parses and is in the future.";           read = func c = #bool  (cardIsValid c)               },
+    { fourcc = "Mnth"; lingoName = null;            valueType = #Integer; description = "";                                                            read = func c = #nat   (cardMonth c)                 },
+    { fourcc = "Year"; lingoName = null;            valueType = #Integer; description = "";                                                            read = func c = #nat   (cardYear c)                  },
   ];
 
   func lookupCardPropReader(fourcc : Text) : CreditCard -> CandidValue {
-    for ((fcc, r) in cardPropReaders.vals()) if (fcc == fourcc) return r;
+    for (p in cardPropReaders.vals()) if (p.fourcc == fourcc) return p.read;
     trap ("AE: no CardPropReader for " # fourcc)
   };
 
@@ -516,12 +528,20 @@ persistent actor {
   // Char-level predicate stack.  Parallel to the Client one: a small
   // table of (4cc, reader) pairs so evalCharPred can resolve a typed
   // CandidValue from each Char without a Candid round-trip.
-  transient let charPropReaders : [(Text, Char -> CandidValue)] = [
-    ("uppr", func c = #bool (charIsUppercase c)),
+  type CharPropReader = {
+    fourcc      : Text;
+    lingoName   : ?Text;
+    valueType   : LingoValueType;
+    description : Text;
+    read        : Char -> CandidValue;
+  };
+
+  transient let charPropReaders : [CharPropReader] = [
+    { fourcc = "uppr"; lingoName = ?"uppercase"; valueType = #Boolean; description = "True iff the character is uppercase."; read = func c = #bool (charIsUppercase c) },
   ];
 
   func lookupCharPropReader(fourcc : Text) : Char -> CandidValue {
-    for ((fcc, r) in charPropReaders.vals()) if (fcc == fourcc) return r;
+    for (p in charPropReaders.vals()) if (p.fourcc == fourcc) return p.read;
     trap ("AE: no CharPropReader for " # fourcc)
   };
 
@@ -2241,8 +2261,23 @@ persistent actor {
     classes : [LingoClass];
   };
 
-  func clntProp(name : Text, code : Text, vt : LingoValueType, desc : Text) : LingoProperty {
-    { name; code; value_type = vt; access = #R; description = ?desc }
+  // Build [LingoProperty] from any prop-reader array, skipping entries
+  // whose lingoName is null (internal-only accessors like Mnth/Year).
+  func lingoPropsOf<R <: { fourcc : Text; lingoName : ?Text; valueType : LingoValueType; description : Text }>(readers : [R]) : [LingoProperty] {
+    var n = 0;
+    for (p in readers.vals()) { if (p.lingoName != null) n += 1 };
+    let buf = Array_init<LingoProperty>(n, { name = ""; code = "    "; value_type = #Any; access = #R; description = null });
+    var i = 0;
+    for (p in readers.vals()) {
+      switch (p.lingoName) {
+        case null {};
+        case (?name) {
+          buf[i] := { name; code = p.fourcc; value_type = p.valueType; access = #R; description = ?(p.description) };
+          i += 1;
+        };
+      };
+    };
+    Array_tabulate<LingoProperty>(n, func j = buf[j])
   };
 
   public query func lingo() : async Lingo {
@@ -2252,43 +2287,28 @@ persistent actor {
       description = ?"Clients and credit cards exposed by the bench canister.";
       classes = [
         {
-          name = "client";
-          code = "clnt";
-          plural = "clients";
+          name        = "client";
+          code        = "clnt";
+          plural      = "clients";
           description = ?"A client; primary key is `name`.";
-          properties = [
-            clntProp("name",          "name", #Text,    "Full client name (first + ' ' + last); primary key."),
-            clntProp("firstName",     "fiNa", #Text,    "Synthetic: first word of `name`."),
-            clntProp("lastName",      "laNa", #Text,    "Synthetic: last word of `name`."),
-            clntProp("country",       "cntr", #Text,    "Country of residence."),
-            clntProp("age",           "age ", #Integer, "Age in years."),
-            clntProp("yearly income", "inco", #Integer, "Yearly income in the database base currency."),
-          ];
-          elements = [{ class_code = "card"; access = #R }];
+          properties  = lingoPropsOf propReaders;
+          elements    = [{ class_code = "card"; access = #R }];
         },
         {
-          name = "card";
-          code = "card";
-          plural = "cards";
+          name        = "card";
+          code        = "card";
+          plural      = "cards";
           description = ?"Credit card; primary key is `number`.";
-          properties = [
-            clntProp("number",       "cnum", #Integer, "16-digit card number (primary key)."),
-            clntProp("name on card", "noac", #Text,    "Embossed name."),
-            clntProp("validity",     "vali", #Text,    "`MM/YY` validity tag."),
-            clntProp("cvc",          "cvc ", #Integer, "3-digit verification code (the one printed on the back)."),
-            clntProp("valid",        "vald", #Boolean, "True iff `validity` parses and is in the future."),
-          ];
-          elements = [];
+          properties  = lingoPropsOf cardPropReaders;
+          elements    = [];
         },
         {
-          name = "character";
-          code = "char";
-          plural = "characters";
+          name        = "character";
+          code        = "char";
+          plural      = "characters";
           description = ?"Single character of a text-valued property (charSmurf in object-spec.mo).";
-          properties = [
-            clntProp("uppercase", "uppr", #Boolean, "True iff the character is uppercase."),
-          ];
-          elements = [];
+          properties  = lingoPropsOf charPropReaders;
+          elements    = [];
         },
       ];
     }
