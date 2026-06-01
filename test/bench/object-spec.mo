@@ -53,7 +53,7 @@ persistent actor {
     #not_ : BoolExpr;
     #always;            // synthetic literal-true; used only by the OSL
                         // when resolving #every.  Not in the AE spec.
-    #in_ : { prop : Text; values : [CandidValue] };  // set membership: prop ∈ values
+    #isIn : { prop : Text; values : [CandidValue] };  // set membership: prop ∈ values
   };
 
   type KeyForm = {
@@ -230,7 +230,7 @@ persistent actor {
       case (#not_ a)      not (evalBoolExpr(a, c));
       case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupPropReader(prop).read c, op, value);
-      case (#in_ { prop; values }) {
+      case (#isIn { prop; values }) {
         let v = lookupPropReader(prop).read c;
         label found : Bool do {
           for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
@@ -477,7 +477,7 @@ persistent actor {
       case (#not_ a)      not (evalCardPred(a, c));
       case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupCardPropReader(prop) c, op, value);
-      case (#in_ { prop; values }) {
+      case (#isIn { prop; values }) {
         let v = lookupCardPropReader(prop) c;
         label found : Bool do {
           for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
@@ -532,7 +532,7 @@ persistent actor {
       case (#not_ a)      not (evalCharPred(a, c));
       case (#always)      true;
       case (#compare { prop; op; value }) cmp(lookupCharPropReader(prop) c, op, value);
-      case (#in_ { prop; values }) {
+      case (#isIn { prop; values }) {
         let v = lookupCharPropReader(prop) c;
         label found : Bool do {
           for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
@@ -1220,7 +1220,7 @@ persistent actor {
     else trap ("AE: unsupported ObjectSpec descriptor type " # cc4ToText typeCode)
   };
 
-  // Parse the body of a typeAEList carrying CandidValues (for #in_).
+  // Parse the body of a typeAEList carrying CandidValues (for #isIn).
   // Format (written by the encoder): 8 zero bytes, (0x18 'list'), count+pad,
   // then `count` value items each as typeCode + length + body.
   func parseInListBody(r : Reader) : [CandidValue] {
@@ -1315,13 +1315,13 @@ persistent actor {
     let ?b2 = obj2B else trap "AE: cmpd missing obj2";
     if (opCode == CONT_OP) {
       // `X is in {a,b,…}` — relo='cont', obj1=typeAEList of values, obj2=property-ref
-      if (obj1T != LIST) trap ("AE: #in_ obj1 must be typeAEList, got " # cc4ToText obj1T);
+      if (obj1T != LIST) trap ("AE: #isIn obj1 must be typeAEList, got " # cc4ToText obj1T);
       let values = parseInListBody(Reader(b1.vals()));
       let prop = switch (parseDescFromBody(obj2T, Reader(b2.vals()))) {
         case (#obj { key = #property p; container = _; class_ = _ }) p;
         case _ trap "AE: cmpd 'cont' obj2 is not a property reference";
       };
-      #in_ { prop; values }
+      #isIn { prop; values }
     } else {
       let op = if      (opCode == EQ_OP) #eq
                else if (opCode == LT_OP) #lt
@@ -1387,7 +1387,7 @@ persistent actor {
       case (#or_  (a, b)) 60 + boolExprDescLen a + boolExprDescLen b;
       case (#not_ a)      52 + boolExprDescLen a;
       case (#always)      trap "AE: #always is OSL-internal, not wire-encodable";
-      case (#in_ _)       trap "AE: #in_ is input-only, not wire-encodable";
+      case (#isIn _)       trap "AE: #isIn is input-only, not wire-encodable";
       case (#compare { prop = _; op = _; value }) 116 + valueDescLen value;
     }
   };
@@ -1513,7 +1513,7 @@ persistent actor {
         writeValue(w, value);
       };
       case (#always _) trap "AE: #always is OSL-internal, not wire-encodable";
-      case (#in_ _)    trap "AE: #in_ is input-only, not wire-encodable";
+      case (#isIn _)    trap "AE: #isIn is input-only, not wire-encodable";
     }
   };
 
@@ -2081,11 +2081,11 @@ persistent actor {
   };
 
   // tiny30 — `count of clients whose country ∈ {Germany, Austria}`.
-  // Exercises #in_ with a two-element set; matches the entire German-speaking
+  // Exercises #isIn with a two-element set; matches the entire German-speaking
   // zone (54 + 6 = 60 clients).
   (with encoder)
   public func tiny30() : async ObjectSpec {
-    let pred : BoolExpr = #in_ { prop = "cntr"; values = [#text "Germany", #text "Austria"] };
+    let pred : BoolExpr = #isIn { prop = "cntr"; values = [#text "Germany", #text "Austria"] };
     let filtered = clntCollection.filter(pred);
     let ?pcnt = findAccessor(filtered, "pcnt", #named) else trap "AE: tiny30: no pcnt accessor";
     let spec = await* pcnt.lookUp(filtered, #named "pcnt").toDesc();
@@ -2374,7 +2374,7 @@ persistent actor {
 // Motoko-side mirror with debug_show of query AND result:
 //CALL ingress tiny27 0x4449444c0000
 
-// tiny30 — #in_ predicate: count clients whose country ∈ {Germany, Austria} = 60
+// tiny30 — #isIn predicate: count clients whose country ∈ {Germany, Austria} = 60
 //CALL ingress tiny30 0x4449444c0000
 
 // every client's yearly income whose country == "Germany"
