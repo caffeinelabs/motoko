@@ -2389,6 +2389,12 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
     If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
     This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.
 
+    **Structural derivation**: When derivation also fails, the compiler additionally searches for *structural combiners* — first among local values, then module fields, then library fields (gated on `--implicit-package`). The combiner's parameter name determines the structural kind:
+
+    - `__record` (parameter type `[(Text, () -> E)] -> R`): handles both unary holes (`SomeRecord -> R`) and binary holes (`(SomeRecord, SomeRecord) -> R` where both args are the same record type). For a unary hole it synthesizes `func($r) { combiner([("f", func() = inst($r.f)), ...]) }` with per-field implicits `FieldType -> E`. For a binary hole it synthesizes `func($r1, $r2) { combiner([("f", func() = inst($r1.f, $r2.f)), ...]) }` with per-field implicits `(FieldType, FieldType) -> E`. Per-field thunks let the combiner short-circuit (e.g. comparison). The arity is determined by the hole type, not the combiner.
+    - `__tuple` (parameter type `[() -> E] -> R`): handles both unary holes (`(A, B, ...) -> R` with at least two elements) and binary holes (`((A, B, ...), (A, B, ...)) -> R` where both args are the same tuple type with ≥ 2 elements). For a unary hole it synthesizes `func($t) { combiner([func() = inst0($t.0), func() = inst1($t.1), ...]) }` with per-element implicits `ElemType_i -> E`. For a binary hole it synthesizes `func($t1, $t2) { combiner([func() = inst0($t1.0, $t2.0), ...]) }` with per-element implicits `(ElemType_i, ElemType_i) -> E`. Tuples with fewer than two elements are not synthesized: single-element tuples reduce to the element type, and unit `()` is treated as a scalar.
+    - `__variant` is reserved for future extension.
+
 The call expression `<exp1> <T0,…​,Tn>? <exp2>` evaluates `<exp1>` to a result `r1`. If `r1` is `trap`, then the result is `trap`.
 
 Otherwise, `<exp3>` (the hole expansion of `<exp2>`) is evaluated to a result `r2`. If `r2` is `trap`, the expression results in `trap`.
