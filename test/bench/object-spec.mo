@@ -43,7 +43,7 @@ persistent actor {
   type LingoClass    = OSL.LingoClass;
   type Lingo         = OSL.Lingo;
 
-  transient let cmp            = OSL.cmp;
+  transient let evalPred       = OSL.evalPred;
   transient let notFoundSmurf  = OSL.notFoundSmurf;
   transient let findAccessor   = OSL.findAccessor;
   transient let iteri          = OSL.iteri;
@@ -176,26 +176,6 @@ persistent actor {
     trap ("AE: no PropReader for " # fourcc)
   };
 
-
-  // Generic BoolExpr evaluator — only depends on `cmp` (OSL) and a
-  // caller-supplied `lookup : prop-name -> entity -> CandidValue`.
-  // The three entity-typed wrappers below are its only call sites.
-  func evalPred<T>(lookup : Text -> (T -> CandidValue), e : BoolExpr, c : T) : Bool {
-    switch e {
-      case (#and_ (a, b)) evalPred(lookup, a, c) and evalPred(lookup, b, c);
-      case (#or_  (a, b)) evalPred(lookup, a, c) or  evalPred(lookup, b, c);
-      case (#not_ a)      not (evalPred(lookup, a, c));
-      case (#always)      true;
-      case (#compare { prop; op; value }) cmp(lookup(prop) c, op, value);
-      case (#contains { prop; values }) {
-        let v = lookup(prop) c;
-        label found : Bool do {
-          for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
-          false
-        }
-      };
-    }
-  };
 
   func evalBoolExpr(e : BoolExpr, c : Client)    : Bool = evalPred(func prop = lookupReader(propReaders, prop),     e, c);
 

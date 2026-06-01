@@ -102,6 +102,26 @@ module {
     }
   };
 
+  // Generic BoolExpr evaluator.  `lookup prop` returns the reader for the
+  // named property on entity `c`.  Only depends on `cmp` above; no bench
+  // data model knowledge.
+  public func evalPred<T>(lookup : Text -> (T -> CandidValue), e : BoolExpr, c : T) : Bool {
+    switch e {
+      case (#and_ (a, b)) evalPred(lookup, a, c) and evalPred(lookup, b, c);
+      case (#or_  (a, b)) evalPred(lookup, a, c) or  evalPred(lookup, b, c);
+      case (#not_ a)      not (evalPred(lookup, a, c));
+      case (#always)      true;
+      case (#compare { prop; op; value }) cmp(lookup(prop) c, op, value);
+      case (#contains { prop; values }) {
+        let v = lookup(prop) c;
+        label found : Bool do {
+          for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
+          false
+        }
+      };
+    }
+  };
+
   // ── Smurf protocol ────────────────────────────────────────────────────────
 
   public type Iter<T> = { next : () -> ?T };
