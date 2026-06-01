@@ -177,15 +177,18 @@ persistent actor {
   };
 
 
-  func evalBoolExpr(e : BoolExpr, c : Client) : Bool {
+  // Generic BoolExpr evaluator — only depends on `cmp` (OSL) and a
+  // caller-supplied `lookup : prop-name -> entity -> CandidValue`.
+  // The three entity-typed wrappers below are its only call sites.
+  func evalPred<T>(lookup : Text -> (T -> CandidValue), e : BoolExpr, c : T) : Bool {
     switch e {
-      case (#and_ (a, b)) evalBoolExpr(a, c) and evalBoolExpr(b, c);
-      case (#or_  (a, b)) evalBoolExpr(a, c) or  evalBoolExpr(b, c);
-      case (#not_ a)      not (evalBoolExpr(a, c));
+      case (#and_ (a, b)) evalPred(lookup, a, c) and evalPred(lookup, b, c);
+      case (#or_  (a, b)) evalPred(lookup, a, c) or  evalPred(lookup, b, c);
+      case (#not_ a)      not (evalPred(lookup, a, c));
       case (#always)      true;
-      case (#compare { prop; op; value }) cmp(lookupReader(propReaders, prop) c, op, value);
+      case (#compare { prop; op; value }) cmp(lookup(prop) c, op, value);
       case (#contains { prop; values }) {
-        let v = lookupReader(propReaders, prop) c;
+        let v = lookup(prop) c;
         label found : Bool do {
           for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
           false
@@ -193,6 +196,9 @@ persistent actor {
       };
     }
   };
+
+  func evalBoolExpr(e : BoolExpr, c : Client)    : Bool = evalPred(func prop = lookupReader(propReaders, prop),     e, c);
+
 
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 
@@ -361,22 +367,7 @@ persistent actor {
   ];
 
 
-  func evalCardPred(e : BoolExpr, c : CreditCard) : Bool {
-    switch e {
-      case (#and_ (a, b)) evalCardPred(a, c) and evalCardPred(b, c);
-      case (#or_  (a, b)) evalCardPred(a, c) or  evalCardPred(b, c);
-      case (#not_ a)      not (evalCardPred(a, c));
-      case (#always)      true;
-      case (#compare { prop; op; value }) cmp(lookupReader(cardPropReaders, prop) c, op, value);
-      case (#contains { prop; values }) {
-        let v = lookupReader(cardPropReaders, prop) c;
-        label found : Bool do {
-          for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
-          false
-        }
-      };
-    }
-  };
+  func evalCardPred(e : BoolExpr, c : CreditCard) : Bool = evalPred(func prop = lookupReader(cardPropReaders, prop), e, c);
 
   // Wraps a single CreditCard as a Smurf.  Five property accessors —
   // four storage fields + the computed "vald".  toDesc keys by the
@@ -412,22 +403,7 @@ persistent actor {
   ];
 
 
-  func evalCharPred(e : BoolExpr, c : Char) : Bool {
-    switch e {
-      case (#and_ (a, b)) evalCharPred(a, c) and evalCharPred(b, c);
-      case (#or_  (a, b)) evalCharPred(a, c) or  evalCharPred(b, c);
-      case (#not_ a)      not (evalCharPred(a, c));
-      case (#always)      true;
-      case (#compare { prop; op; value }) cmp(lookupReader(charPropReaders, prop) c, op, value);
-      case (#contains { prop; values }) {
-        let v = lookupReader(charPropReaders, prop) c;
-        label found : Bool do {
-          for (candidate in values.vals()) { if (cmp(v, #eq, candidate)) break found true };
-          false
-        }
-      };
-    }
-  };
+  func evalCharPred(e : BoolExpr, c : Char)       : Bool = evalPred(func prop = lookupReader(charPropReaders, prop),     e, c);
 
   // Materialise a Text as a [Char] so CollectionSmurf<Char> can iterate
   // it like any other typed array.  Manual loop; the moc prelude exposes
