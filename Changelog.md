@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * bugfix: M0237 (suggest omitting an inferable implicit argument) no longer fires when removing the explicit argument would leave a type parameter underconstrained, e.g. when the call is nested inside a polymorphic wrapper and the only constraint on `K` comes from the suggested-removable `(K, K) -> Order`. Previously the warning suggested edits that the compiler would then reject with M0098. The check now re-runs inference with the explicit-implicit args replaced by holes and only warns when the same instantiation is recovered.
+
 ## 1.9.0 (2026-06-02)
 
 * motoko (`moc`)

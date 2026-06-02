@@ -1,19 +1,14 @@
 //MOC-FLAG -W M0237
 
-// Regression test for the M0237 soundness bug (https://github.com/dfinity/motoko/issues/TODO).
+// Soundness regression for M0237. Before the fix, M0237 only checked that
+// implicit lookup for the parameter name resolved at the call site -- it did
+// not re-run inference assuming the argument was gone. In contexts where the
+// type parameter was pinned only by the contravariant removable argument
+// (e.g. `(K, K) -> Order`), applying the suggestion produced M0098 on the
+// very form M0237 had just suggested.
 //
-// M0237 ("argument can be inferred and omitted") only checks that implicit
-// lookup for the parameter name resolves at the call site -- it does not
-// re-run inference assuming the argument is gone.
-//
-// When the type parameter `K` is pinned ONLY by the contravariant
-// `(K, K) -> Order` argument (i.e. it is in an invariant position in the
-// remaining args / return type), removing the explicit argument leaves `K`
-// underconstrained. moc then emits M0098 on the very form M0237 just told the
-// user to write.
-//
-// EXPECTED today (buggy): the line below the warning produces M0098.
-// EXPECTED after fix    : M0237 should NOT fire on the wrapped call.
+// The fix re-runs inference in pre mode with the explicit-implicit args
+// replaced by holes; M0237 fires only if the resulting instantiation matches.
 
 type Order = { #less; #equal; #greater };
 
@@ -27,8 +22,8 @@ module Iter {
 };
 
 module Map {
-  // `var` makes K invariant in this position -> inference can't recover it
-  // from the result type alone.
+  // `var` keeps K invariant here -> K cannot flow from the result type
+  // through a fresh wrapper type variable.
   public type Map<K, V> = { var kv : ?(K, V) };
   public func fromIter<K, V>(
     iter : Iter.Iter<(K, V)>,
@@ -40,11 +35,13 @@ module Map {
 
 func id<A>(a : A) : A { a };
 
-// 1) Standalone -- M0237 fires and the suggestion is sound (removal type-checks).
+// Sound: removal still typechecks in a void context -> M0237 fires.
 ignore Map.fromIter(Iter.fromArray<(Nat, Text)>([]), Nat.compare);
 
-// 2) Wrapped in a polymorphic context -- M0237 still fires...
+// Unsound before the fix: removal would underconstrain K under the `id<A>`
+// wrapper. M0237 must NOT fire here.
 ignore id(Map.fromIter(Iter.fromArray<(Nat, Text)>([]), Nat.compare));
 
-// 3) ...but applying the suggestion produces M0098. This is the bug.
+// The (genuinely ill-typed) form the old M0237 used to suggest. Kept to pin
+// the M0098 the fix is meant to *prevent the compiler from recommending*.
 ignore id(Map.fromIter(Iter.fromArray<(Nat, Text)>([])));

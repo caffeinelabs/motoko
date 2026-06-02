@@ -1,12 +1,7 @@
 warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ m0237-unsound.mo:44:54
- 44 │  ignore Map.fromIter(Iter.fromArray<(Nat, Text)>([]), Nat.compare);
+    ┌─ m0237-unsound.mo:39:54
+ 39 │  ignore Map.fromIter(Iter.fromArray<(Nat, Text)>([]), Nat.compare);
     │                                                       ^^^^^^^^^^^ 
-    = help: remove `Nat.compare`
-warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ m0237-unsound.mo:47:57
- 47 │  ignore id(Map.fromIter(Iter.fromArray<(Nat, Text)>([]), Nat.compare));
-    │                                                          ^^^^^^^^^^^ 
     = help: remove `Nat.compare`
 error[M0098]: cannot apply function of type
   <K, V>(iter : Iter.Iter<(K, V)>) -> Map.Map<K, V>
@@ -14,6 +9,6 @@ to argument of type
   Iter.Iter<(Nat, Text)>
 because there is no "best" choice for type parameter `K`.
 Hint: Add explicit type instantiation, e.g. <Nat, Text>
-    ┌─ m0237-unsound.mo:50:11
- 50 │  ignore id(Map.fromIter(Iter.fromArray<(Nat, Text)>([])));
+    ┌─ m0237-unsound.mo:47:11
+ 47 │  ignore id(Map.fromIter(Iter.fromArray<(Nat, Text)>([])));
     │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

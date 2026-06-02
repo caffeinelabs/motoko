@@ -3294,7 +3294,7 @@ and insert_holes at ts es =
   | [arg] -> arg.it
   | args -> TupE args
 
-and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax_args =
+and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax_args ~is_safe_to_omit =
     if Flags.get_warning_level "M0237" <> Flags.Allow then
       if List.length syntax_args = saturated_arity && implicits_arity < saturated_arity then
         let n = List.length arg_typs in
@@ -3323,7 +3323,11 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
                    | _ -> acc)
           arg_typs syntax_args (n - 1, None, [])
         in
-        if (List.length explicit_implicits) = saturated_arity - implicits_arity then
+        (* Only emit M0237 when re-inference confirms the call still typechecks
+           with the same instantiation after the explicit implicits are omitted.
+           Otherwise the suggestion would be unsound (M0098 on the suggested form). *)
+        if (List.length explicit_implicits) = saturated_arity - implicits_arity
+           && is_safe_to_omit () then
           List.iter (fun (name, exp, next_arg) ->
             if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
             let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
@@ -3383,6 +3387,39 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     else T.seq t_args
   in
   if not env.pre then ref_exp2 := exp2; (* TODO: is this good enough *)
+  (* Speculative re-inference for M0237: compute what [ts] would be if every
+     explicit-implicit arg were replaced by a hole. Must run BEFORE the main
+     inference mutates exp2's sub-expression notes (which would break
+     [infer_exp_wrapper]'s Pre-note assertion on re-entry). *)
+  let trial_ts_opt =
+    if env.pre
+       || Flags.get_warning_level "M0237" = Flags.Allow
+       || List.length syntax_args <> saturated_arity
+       || implicits_arity = saturated_arity
+    then None
+    else
+      let syntax_args_no_implicits =
+        List.filter_map
+          (fun (typ, arg) -> if Option.is_some (as_implicit typ) then None else Some arg)
+          (List.combine t_args syntax_args)
+      in
+      let exp2_with_holes =
+        { exp2 with it = insert_holes at t_args syntax_args_no_implicits;
+                    note = empty_typ_note }
+      in
+      let env_pre = { env with pre = true } in
+      match
+        Diag.with_message_store (recover_opt (fun msgs ->
+          let env' = { env_pre with msgs } in
+          let ts', _, _ =
+            infer_call_instantiation env' t1 ctx_dot tbs (T.seq t_args) t_ret
+              exp2_with_holes at t_expect_opt extra_subtype_problems
+          in
+          ts'))
+      with
+      | Error _ -> None
+      | Ok (ts', _) -> Some ts'
+  in
   let ts, t_arg', t_ret' =
     match tbs, inst.it with
     | [], (None | Some (_, []))  (* no inference required *)
@@ -3425,7 +3462,15 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env ctx_dot exp1 (List.map (T.open_ ts) t_args) syntax_args at;
-    check_explicit_arguments env saturated_arity implicits_arity (List.map (T.open_ ts) t_args) syntax_args;
+    let is_safe_to_omit () =
+      match trial_ts_opt with
+      | Some ts' ->
+        List.length ts = List.length ts'
+        && List.for_all2 (T.eq ?src_fields:None) ts ts'
+      | None -> false
+    in
+    check_explicit_arguments env saturated_arity implicits_arity
+      (List.map (T.open_ ts) t_args) syntax_args ~is_safe_to_omit;
   end;
   (* note t_ret' <: t checked by caller if necessary *)
   t_ret'
