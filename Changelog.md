@@ -1,6 +1,6 @@
 # Motoko compiler changelog
 
-  * feat: Multi-value Wasm codegen is now _on by default_, `--no-experimental-multi-value` flag disables (if not desired) (#6165).
+  * perf: Multi-value Wasm codegen is now _on by default_, `--no-experimental-multi-value` flag disables (if not desired) (#6165).
 
 ## 1.9.0 (2026-06-02)
 
