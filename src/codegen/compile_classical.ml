@@ -12898,7 +12898,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
        ) [sr, pat_code ^^^ CannotFail rhs_code]) ^^
-       G.i Unreachable
+       G.i Unreachable (* We should always exit using the branch_code *)
     )
 
   | SwitchE (e, cs) ->
@@ -12920,8 +12920,8 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
 
     final_sr,
     (* Run scrut *)
-    (* Run scrut *)
     scr_prelude ^^
+    (* Run rest in block to exit from *)
     FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
