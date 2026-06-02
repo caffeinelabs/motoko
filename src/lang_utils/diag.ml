@@ -126,29 +126,42 @@ let count_codepoints content ~start ~stop =
   in loop ()
 
 (** Resolve a [pos] against file [content], returning the 0-based codepoint
-    column on the line and the 0-based byte offset from the start of the file. *)
-let resolve_pos content (pos : pos) : int * int =
-  let byte_off = pos_to_byte content pos in
-  let line_start = byte_off - pos.column in
-  let codepoint_col = count_codepoints content ~start:line_start ~stop:byte_off in
-  (codepoint_col, byte_off)
+    column on the line and the 0-based byte offset from the start of the file.
+    Returns [None] when [pos] cannot be located in [content] (e.g. the file
+    was truncated or replaced since the lexer ran, or refers to a stream like
+    [/dev/fd/N] that cannot be re-read). *)
+let resolve_pos content (pos : pos) : (int * int) option =
+  match pos_to_byte content pos with
+  | exception Not_found -> None
+  | byte_off ->
+    let line_start = byte_off - pos.column in
+    let len = String.length content in
+    if line_start < 0 || byte_off > len then None
+    else
+      let codepoint_col = count_codepoints content ~start:line_start ~stop:byte_off in
+      Some (codepoint_col, byte_off)
 
 (** Codepoint column for human display ([pos.column] is byte-based). Falls back
-    to the byte column for synthetic positions or unreadable files. *)
+    to the byte column for synthetic positions or when the file cannot be
+    resolved. *)
 let display_column (cache : content_cache) (pos : pos) : int =
   if pos.line <= 0 then pos.column (* no_pos or binary [line = -1]; column is opaque *)
   else
     match load_content cache pos.file with
-    | Some content -> fst (resolve_pos content pos)
+    | Some content ->
+      (match resolve_pos content pos with
+       | Some (col, _) -> col
+       | None -> pos.column)
     | None -> pos.column
 
 (** 0-based byte offset from the start of file, for unambiguous machine-applied
-    edits. [None] when the file is not readable or [pos] is synthetic. *)
+    edits. [None] when the file is not readable, [pos] is synthetic, or [pos]
+    cannot be located in the current file contents. *)
 let byte_offset_in_file (cache : content_cache) (pos : pos) : int option =
   if pos.line <= 0 then None
   else
     match load_content cache pos.file with
-    | Some content -> Some (snd (resolve_pos content pos))
+    | Some content -> Option.map snd (resolve_pos content pos)
     | None -> None
 
 let string_of_pos_display cache pos =
