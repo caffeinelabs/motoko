@@ -80,7 +80,77 @@ let get_msgs s = List.rev !s
 let has_errors : messages -> bool =
   List.exists (fun msg -> msg.sev == Error)
 
+(** A cache from file path to its (lazily loaded) content, used while rendering
+    a single diagnostic to convert byte columns to codepoint columns without
+    re-reading files. [None] means the file could not be read. *)
+type content_cache = (string, string option) Hashtbl.t
+
+let make_content_cache () : content_cache = Hashtbl.create 1
+
+let load_content (cache : content_cache) path : string option =
+  match Hashtbl.find_opt cache path with
+  | Some r -> r
+  | None ->
+    let r =
+      try Some (In_channel.with_open_bin path In_channel.input_all)
+      with _ -> None
+    in
+    Hashtbl.add cache path r; r
+
+(** Convert a 0-based byte column on [pos.line] to a 0-based codepoint column.
+    Falls back to the byte column if the file is unavailable or the position
+    lies past the available content. *)
+let byte_col_to_codepoint_col content (pos : pos) : int =
+  let len = String.length content in
+  let line_start = ref 0 in
+  let cur_line = ref 1 in
+  let i = ref 0 in
+  while !cur_line < pos.line && !i < len do
+    if content.[!i] = '\n' then begin
+      incr cur_line;
+      line_start := !i + 1
+    end;
+    incr i
+  done;
+  if !cur_line < pos.line then pos.column
+  else
+    let target = !line_start + pos.column in
+    let p = ref !line_start in
+    let codepoints = ref 0 in
+    while !p < target && !p < len do
+      let b = Char.code content.[!p] in
+      let step =
+        if b < 0x80 then 1
+        else if b < 0xc0 then 1 (* malformed lead byte; advance one byte defensively *)
+        else if b < 0xe0 then 2
+        else if b < 0xf0 then 3
+        else 4
+      in
+      p := !p + step;
+      incr codepoints
+    done;
+    !codepoints
+
+let display_column (cache : content_cache) (pos : pos) : int =
+  if pos.line <= 0 then pos.column (* no_pos or binary [line = -1]; column is opaque *)
+  else
+    match load_content cache pos.file with
+    | Some content -> byte_col_to_codepoint_col content pos
+    | None -> pos.column
+
+let string_of_pos_display cache pos =
+  if pos.line = -1 then
+    Printf.sprintf "0x%x" pos.column
+  else
+    string_of_int pos.line ^ "." ^ string_of_int (display_column cache pos + 1)
+
+let string_of_region_display cache r =
+  if r.left.file = "" then "(unknown location)" else
+  r.left.file ^ ":" ^ string_of_pos_display cache r.left ^
+  (if r.right = r.left then "" else "-" ^ string_of_pos_display cache r.right)
+
 let string_of_message msg =
+  let cache = make_content_cache () in
   let code = match msg.sev, msg.code with
     | Info, _ -> ""
     | _, "" -> ""
@@ -98,7 +168,7 @@ let string_of_message msg =
     if msg.notes <> [] then
       "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
     else "" in
-  Printf.sprintf "%s: %s%s, %s%s%s\n" (string_of_region msg.at) label code msg.text spans notes
+  Printf.sprintf "%s: %s%s, %s%s%s\n" (string_of_region_display cache msg.at) label code msg.text spans notes
 
 (** Converts a line/column based position to a byte offset.
 
@@ -168,9 +238,11 @@ let string_of_severity (sev : severity) = match sev with
   | Warning -> "warning"
   | Info -> "info"
 
-let json_span ?prio ?label ?suggested_replacement r =
-  let { file; line = line_start; column = column_start } = r.left in
-  let { line = line_end; column = column_end; _ } = r.right in
+let json_span cache ?prio ?label ?suggested_replacement r =
+  let { file; line = line_start; _ } = r.left in
+  let { line = line_end; _ } = r.right in
+  let column_start = display_column cache r.left in
+  let column_end = display_column cache r.right in
   `Assoc [
     "file", `String file;
     "line_start", `Int line_start;
@@ -187,10 +259,11 @@ let json_span ?prio ?label ?suggested_replacement r =
 
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
 let json_string_of_message msg =
+  let cache = make_content_cache () in
   let span_jsons = ensure_primary_span msg
-    |> List.map (fun { prio; at_span; label } -> json_span ~prio ~label at_span) in
+    |> List.map (fun { prio; at_span; label } -> json_span cache ~prio ~label at_span) in
   let edit_jsons = msg.edits |>
-    List.map (fun { at_edit; suggested_replacement } -> json_span ~suggested_replacement at_edit) in
+    List.map (fun { at_edit; suggested_replacement } -> json_span cache ~suggested_replacement at_edit) in
   let json = `Assoc [
     "message", `String msg.text;
     "code", `String msg.code;

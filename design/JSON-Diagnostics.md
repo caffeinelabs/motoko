@@ -45,11 +45,15 @@ Each line on stdout is a JSON object with the following structure:
             "file": "myfile.mo",
             /* First line of the span (1-based, inclusive). */
             "line_start": 7,
-            /* First column of the span (1-based, inclusive). */
+            /* First column of the span (1-based, inclusive).
+               Counts Unicode codepoints, not UTF-8 bytes or UTF-16 code units.
+            */
             "column_start": 15,
             /* Last line of the span (1-based, inclusive). */
             "line_end": 7,
-            /* Last column of the span (1-based, exclusive). */
+            /* Last column of the span (1-based, exclusive).
+               Counts Unicode codepoints, not UTF-8 bytes or UTF-16 code units.
+            */
             "column_end": 22,
             /* Whether this is the primary span.
                Primary spans indicate the main location of the diagnostic.
