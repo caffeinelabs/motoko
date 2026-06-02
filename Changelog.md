@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.9.0 (2026-06-02)
+
 * motoko (`moc`)
 
   * feat: Structural implicit derivation for records and tuples via `__record` and `__tuple` combiners. Per-field results are lazy thunks, enabling short-circuiting for operations like `compare` (#5903).
