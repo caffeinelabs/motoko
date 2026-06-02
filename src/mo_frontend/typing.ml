@@ -1928,9 +1928,9 @@ module ImplicitHoles = struct
       is_matching_typ_with_holes hole field.T.typ
       |> Option.map (fun holes -> holes, make_field_candidate module_ref desc field))
 
-    let matching_fields_structural info hole = filter_fields hole (fun module_ref field ->
+    let matching_fields_structural info hole = filter_fields hole (fun (module_ref, desc, field) ->
       is_matching_structural_combiner info field.T.typ
-      |> Option.map (fun elem_typ -> (elem_typ, make_field_candidate module_ref field)))
+      |> Option.map (fun elem_typ -> (elem_typ, make_field_candidate module_ref desc field)))
   end
 
   let make_val_candidate id t =
