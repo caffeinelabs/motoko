@@ -58,6 +58,7 @@ type env =
     in_prog : bool;
     context : exp' list;
     pre : bool;
+    backtracking : bool; (* set during speculative re-inference (e.g. M0237, M0223 trials) *)
     weak : bool;
     msgs : Diag.msg_store;
     scopes : region T.ConEnv.t;
@@ -92,6 +93,7 @@ let env_of_scope msgs scope =
     in_prog = true;
     context = [];
     pre = false;
+    backtracking = false;
     weak = false;
     msgs;
     scopes = T.ConEnv.empty;
@@ -3323,9 +3325,6 @@ and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax
                    | _ -> acc)
           arg_typs syntax_args (n - 1, None, [])
         in
-        (* Only emit M0237 when re-inference confirms the call still typechecks
-           with the same instantiation after the explicit implicits are omitted.
-           Otherwise the suggestion would be unsound (M0098 on the suggested form). *)
         if (List.length explicit_implicits) = saturated_arity - implicits_arity
            && is_safe_to_omit () then
           List.iter (fun (name, exp, next_arg) ->
@@ -3387,16 +3386,20 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     else T.seq t_args
   in
   if not env.pre then ref_exp2 := exp2; (* TODO: is this good enough *)
-  (* Speculative re-inference for M0237: compute what [ts] would be if every
-     explicit-implicit arg were replaced by a hole. Must run BEFORE the main
-     inference mutates exp2's sub-expression notes (which would break
-     [infer_exp_wrapper]'s Pre-note assertion on re-entry). *)
-  let trial_ts_opt =
-    if env.pre
-       || Flags.get_warning_level "M0237" = Flags.Allow
-       || List.length syntax_args <> saturated_arity
-       || implicits_arity = saturated_arity
-    then None
+  (* M0237 trial: re-infer with explicit implicits replaced by holes and
+     confirm the same [ts] comes out. Must run before main inference mutates
+     [exp2]'s sub-notes (Pre-note assertion). *)
+  let is_safe_to_omit =
+    let trial_needed =
+      not env.pre
+      && not env.backtracking
+      && Flags.get_warning_level "M0237" <> Flags.Allow
+      && List.length syntax_args = saturated_arity
+      && implicits_arity < saturated_arity
+      && inst.it = None
+      && (match tbs with [] | [T.{sort = Scope; _}] -> false | _ -> true)
+    in
+    if not trial_needed then fun _ts -> true
     else
       let syntax_args_no_implicits =
         List.filter_map
@@ -3407,18 +3410,15 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
         { exp2 with it = insert_holes at t_args syntax_args_no_implicits;
                     note = empty_typ_note }
       in
-      let env_pre = { env with pre = true } in
-      match
-        Diag.with_message_store (recover_opt (fun msgs ->
-          let env' = { env_pre with msgs } in
-          let ts', _, _ =
-            infer_call_instantiation env' t1 ctx_dot tbs (T.seq t_args) t_ret
-              exp2_with_holes at t_expect_opt extra_subtype_problems
-          in
-          ts'))
-      with
-      | Error _ -> None
-      | Ok (ts', _) -> Some ts'
+      let env_trial = { env with pre = true } in
+      let trial_ts_opt =
+        try_infer_ts_silently env_trial (fun env' ->
+          infer_call_instantiation env' t1 ctx_dot tbs (T.seq t_args) t_ret
+            exp2_with_holes at t_expect_opt extra_subtype_problems)
+      in
+      fun ts -> match trial_ts_opt with
+        | Some ts' -> eq_ts ts ts'
+        | None -> false
   in
   let ts, t_arg', t_ret' =
     match tbs, inst.it with
@@ -3462,15 +3462,9 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env ctx_dot exp1 (List.map (T.open_ ts) t_args) syntax_args at;
-    let is_safe_to_omit () =
-      match trial_ts_opt with
-      | Some ts' ->
-        List.length ts = List.length ts'
-        && List.for_all2 (T.eq ?src_fields:None) ts ts'
-      | None -> false
-    in
     check_explicit_arguments env saturated_arity implicits_arity
-      (List.map (T.open_ ts) t_args) syntax_args ~is_safe_to_omit;
+      (List.map (T.open_ ts) t_args) syntax_args
+      ~is_safe_to_omit:(fun () -> is_safe_to_omit ts);
   end;
   (* note t_ret' <: t checked by caller if necessary *)
   t_ret'
@@ -3689,16 +3683,26 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
        | None -> ""
        | Some hint -> Stdlib.Format.asprintf "\n%s" hint)
 
+(* Run [infer_instantiation] in a fresh msg store, swallowing errors.
+   Caller must pass [env.pre = true] so the inference is side-effect free. *)
+and try_infer_ts_silently env infer_instantiation =
+  match Diag.with_message_store (recover_opt (fun msgs ->
+    let env' = { env with msgs; backtracking = true } in
+    let ts', _, _ = infer_instantiation env' in
+    ts'))
+  with
+  | Error _ -> None
+  | Ok (ts', _) -> Some ts'
+
+and eq_ts ts ts' =
+  List.length ts = List.length ts'
+  && List.for_all2 (T.eq ?src_fields:None) ts ts'
+
 and is_redundant_instantiation ts env infer_instantiation =
   assert env.pre;
-  match Diag.with_message_store (recover_opt (fun msgs ->
-    let env_without_errors = { env with msgs } in
-    let ts', _, _ = infer_instantiation env_without_errors in
-    List.length ts = List.length ts' && List.for_all2 (T.eq ?src_fields:None) ts ts'
-    ))
-  with
-  | Error _ -> false
-  | Ok (b, _) -> b
+  match try_infer_ts_silently env infer_instantiation with
+  | Some ts' -> eq_ts ts ts'
+  | None -> false
 
 and debug_print_infer_defer_split exp2 t_arg t2 subs deferred =
   print_endline (Printf.sprintf "exp2 : %s" (read_region_with_markers exp2.at |> Option.value ~default:""));
