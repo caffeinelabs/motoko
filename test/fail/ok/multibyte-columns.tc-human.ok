@@ -1,18 +1,18 @@
 warning[M0236]: You can use the dot notation `'A'.toNat32(...)` here
-    ┌─ multibyte-columns.mo:9:12
-  9 │      ignore Char.toNat32('A');   // ASCII
+    ┌─ multibyte-columns.mo:10:12
+ 10 │      ignore Char.toNat32('A');   // ASCII
     │             ^^^^^^^^^^^^^^^^^ 
     = help: replace `Char` with `'A'`
     = help: remove `'A'`
 warning[M0236]: You can use the dot notation `'京'.toNat32(...)` here
-    ┌─ multibyte-columns.mo:10:12
- 10 │      ignore Char.toNat32('京');  // 3-byte UTF-8
+    ┌─ multibyte-columns.mo:11:12
+ 11 │      ignore Char.toNat32('京');  // 3-byte UTF-8
     │             ^^^^^^^^^^^^^^^^^ 
     = help: replace `Char` with `'京'`
     = help: remove `'京'`
 warning[M0236]: You can use the dot notation `'💩'.toNat32(...)` here
-    ┌─ multibyte-columns.mo:11:12
- 11 │      ignore Char.toNat32('💩'); // 4-byte UTF-8 (non-BMP)
+    ┌─ multibyte-columns.mo:12:12
+ 12 │      ignore Char.toNat32('💩'); // 4-byte UTF-8 (non-BMP)
     │             ^^^^^^^^^^^^^^^^^ 
     = help: replace `Char` with `'💩'`
     = help: remove `'💩'`

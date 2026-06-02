@@ -80,9 +80,23 @@ let get_msgs s = List.rev !s
 let has_errors : messages -> bool =
   List.exists (fun msg -> msg.sev == Error)
 
-(** A cache from file path to its (lazily loaded) content, used while rendering
-    a single diagnostic to convert byte columns to codepoint columns without
-    re-reading files. [None] means the file could not be read. *)
+(** Converts a line/column based position to a 0-based byte offset from the
+    start of [content].
+
+    NOTE(Christoph): This is rather inefficient. If at some point this needs to be sped up,
+    we could maintain a datastructure like https://crates.io/crates/line-index
+*)
+let pos_to_byte content pos =
+  let line_start = ref (-1) in
+  for _ = 1 to pos.line - 1 do
+    let prev = !line_start in
+    line_start := String.index_from content (prev + 1) '\n';
+  done;
+  !line_start + pos.column + 1
+
+(** Per-diagnostic cache from file path to lazily loaded content. [None] means
+    the file could not be read; in that case byte-offset and codepoint-column
+    conversions fall back to the raw byte column from the lexer. *)
 type content_cache = (string, string option) Hashtbl.t
 
 let make_content_cache () : content_cache = Hashtbl.create 1
@@ -97,46 +111,45 @@ let load_content (cache : content_cache) path : string option =
     in
     Hashtbl.add cache path r; r
 
-(** Convert a 0-based byte column on [pos.line] to a 0-based codepoint column.
-    Falls back to the byte column if the file is unavailable or the position
-    lies past the available content. *)
-let byte_col_to_codepoint_col content (pos : pos) : int =
+(** Count Unicode scalar values in the byte range [start, stop) of [content].
+    Malformed sequences are counted as one scalar (consistent with Uutf's
+    replacement decoding). *)
+let count_codepoints content ~start ~stop =
   let len = String.length content in
-  let line_start = ref 0 in
-  let cur_line = ref 1 in
-  let i = ref 0 in
-  while !cur_line < pos.line && !i < len do
-    if content.[!i] = '\n' then begin
-      incr cur_line;
-      line_start := !i + 1
-    end;
-    incr i
-  done;
-  if !cur_line < pos.line then pos.column
-  else
-    let target = !line_start + pos.column in
-    let p = ref !line_start in
-    let codepoints = ref 0 in
-    while !p < target && !p < len do
-      let b = Char.code content.[!p] in
-      let step =
-        if b < 0x80 then 1
-        else if b < 0xc0 then 1 (* malformed lead byte; advance one byte defensively *)
-        else if b < 0xe0 then 2
-        else if b < 0xf0 then 3
-        else 4
-      in
-      p := !p + step;
-      incr codepoints
-    done;
-    !codepoints
+  let start = max 0 (min start len) in
+  let stop = max start (min stop len) in
+  let dec = Uutf.decoder ~encoding:`UTF_8
+              (`String (String.sub content start (stop - start))) in
+  let rec loop () = match Uutf.decode dec with
+    | `End | `Await -> Uutf.decoder_count dec
+    | `Uchar _ | `Malformed _ -> loop ()
+  in loop ()
 
+(** Resolve a [pos] against file [content], returning the 0-based codepoint
+    column on the line and the 0-based byte offset from the start of the file. *)
+let resolve_pos content (pos : pos) : int * int =
+  let byte_off = pos_to_byte content pos in
+  let line_start = byte_off - pos.column in
+  let codepoint_col = count_codepoints content ~start:line_start ~stop:byte_off in
+  (codepoint_col, byte_off)
+
+(** Codepoint column for human display ([pos.column] is byte-based). Falls back
+    to the byte column for synthetic positions or unreadable files. *)
 let display_column (cache : content_cache) (pos : pos) : int =
   if pos.line <= 0 then pos.column (* no_pos or binary [line = -1]; column is opaque *)
   else
     match load_content cache pos.file with
-    | Some content -> byte_col_to_codepoint_col content pos
+    | Some content -> fst (resolve_pos content pos)
     | None -> pos.column
+
+(** 0-based byte offset from the start of file, for unambiguous machine-applied
+    edits. [None] when the file is not readable or [pos] is synthetic. *)
+let byte_offset_in_file (cache : content_cache) (pos : pos) : int option =
+  if pos.line <= 0 then None
+  else
+    match load_content cache pos.file with
+    | Some content -> Some (snd (resolve_pos content pos))
+    | None -> None
 
 let string_of_pos_display cache pos =
   if pos.line = -1 then
@@ -169,19 +182,6 @@ let string_of_message msg =
       "\n" ^ String.concat "\n" (List.map (fun note -> "note: " ^ note) msg.notes)
     else "" in
   Printf.sprintf "%s: %s%s, %s%s%s\n" (string_of_region_display cache msg.at) label code msg.text spans notes
-
-(** Converts a line/column based position to a byte offset.
-
-    NOTE(Christoph): This is rather inefficient. If at some point this needs to be sped up,
-    we could maintain a datastructure like https://crates.io/crates/line-index
-*)
-let pos_to_byte content pos =
-  let line_start = ref (-1) in
-  for _ = 1 to pos.line - 1 do
-    let prev = !line_start in
-    line_start := String.index_from content (prev + 1) '\n';
-  done;
-  !line_start + pos.column + 1
 
 let ensure_primary_span msg =
   if List.exists (fun span -> span.prio = Primary) msg.spans
@@ -243,8 +243,11 @@ let json_span cache ?prio ?label ?suggested_replacement r =
   let { line = line_end; _ } = r.right in
   let column_start = display_column cache r.left in
   let column_end = display_column cache r.right in
+  let json_of_byte = function Some b -> `Int b | None -> `Null in
   `Assoc [
     "file", `String file;
+    "byte_start", json_of_byte (byte_offset_in_file cache r.left);
+    "byte_end", json_of_byte (byte_offset_in_file cache r.right);
     "line_start", `Int line_start;
     "column_start", `Int (column_start + 1);
     "line_end", `Int line_end;

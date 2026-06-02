@@ -43,17 +43,24 @@ Each line on stdout is a JSON object with the following structure:
         {
             /* File path as passed to the compiler. May be relative or absolute. */
             "file": "myfile.mo",
+            /* 0-based UTF-8 byte offset from the start of the file (inclusive).
+               Prefer this over line/column when applying edits — bytes are
+               independent of any source encoding. `null` if the file cannot
+               be read at the time the diagnostic is emitted.
+            */
+            "byte_start": 124,
+            /* 0-based UTF-8 byte offset from the start of the file (exclusive). */
+            "byte_end": 131,
             /* First line of the span (1-based, inclusive). */
             "line_start": 7,
             /* First column of the span (1-based, inclusive).
-               Counts Unicode codepoints, not UTF-8 bytes or UTF-16 code units.
+               Counts Unicode codepoints (USVs) — not UTF-8 bytes or UTF-16
+               code units — to match what editors display.
             */
             "column_start": 15,
             /* Last line of the span (1-based, inclusive). */
             "line_end": 7,
-            /* Last column of the span (1-based, exclusive).
-               Counts Unicode codepoints, not UTF-8 bytes or UTF-16 code units.
-            */
+            /* Last column of the span (1-based, exclusive). */
             "column_end": 22,
             /* Whether this is the primary span.
                Primary spans indicate the main location of the diagnostic.
