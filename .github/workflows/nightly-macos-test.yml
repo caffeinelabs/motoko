@@ -26,7 +26,7 @@ jobs:
         uses: ./.github/actions/test-blueprint
         with:
           os: macos-latest
-          test-target: common-tests-mv
+          test-target: common-tests
           test-name: macos-common-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
@@ -39,7 +39,7 @@ jobs:
         uses: ./.github/actions/test-blueprint
         with:
           os: macos-latest
-          test-target: gc-tests-mv
+          test-target: gc-tests
           test-name: macos-gc-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
@@ -55,7 +55,7 @@ jobs:
         uses: ./.github/actions/test-blueprint
         with:
           os: macos-latest
-          test-target: ${{ matrix.build_type }}-systems-go-mv
+          test-target: ${{ matrix.build_type }}-systems-go
           test-name: macos-${{ matrix.build_type }}-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
