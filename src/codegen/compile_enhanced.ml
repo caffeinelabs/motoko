@@ -13522,7 +13522,9 @@ and fill_pat env ae (init : G.t) pat : patternCode =
           code1 ^^^ code2 in
       CannotFail scr_prelude ^^^ go 0L ps
   | ObjP pfs ->
-      let project = compile_load_field env pat.note in
+      let project name =
+        if Type.is_actor pat.note then IC.actor_public_field env name
+        else compile_load_field env pat.note name in
       let scr_prelude, get_i = immut_local env "obj_scrut" init in
       let rec go = function
         | [] -> CannotFail G.nop
