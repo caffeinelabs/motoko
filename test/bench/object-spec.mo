@@ -1093,6 +1093,7 @@ persistent actor {
   // a plain `async` until that's relaxed.
   (with encoder; decoder)
   public func go(spec : ObjectSpec) : async ObjectSpec {
+    await order();   // demo: every `go` query places an order, so the store fills as queries run
     await* OSL.eval(spec, actorSmurf)
   };
 
