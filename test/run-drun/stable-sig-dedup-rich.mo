@@ -1,3 +1,4 @@
+//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration stable-sig-dedup-rich/migrations
 //SKIP run
 //SKIP run-ir
