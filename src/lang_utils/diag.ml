@@ -80,103 +80,18 @@ let get_msgs s = List.rev !s
 let has_errors : messages -> bool =
   List.exists (fun msg -> msg.sev == Error)
 
-(** Converts a line/column based position to a 0-based byte offset from the
-    start of [content].
-
-    NOTE(Christoph): This is rather inefficient. If at some point this needs to be sped up,
-    we could maintain a datastructure like https://crates.io/crates/line-index
-*)
-let pos_to_byte content pos =
-  let line_start = ref (-1) in
-  for _ = 1 to pos.line - 1 do
-    let prev = !line_start in
-    line_start := String.index_from content (prev + 1) '\n';
-  done;
-  !line_start + pos.column + 1
-
-(** Per-diagnostic cache from file path to lazily loaded content. [None] means
-    the file could not be read; in that case byte-offset and codepoint-column
-    conversions fall back to the raw byte column from the lexer. *)
-type content_cache = (string, string option) Hashtbl.t
-
-let make_content_cache () : content_cache = Hashtbl.create 1
-
-let load_content (cache : content_cache) path : string option =
-  match Hashtbl.find_opt cache path with
-  | Some r -> r
-  | None ->
-    let r =
-      try Some (In_channel.with_open_bin path In_channel.input_all)
-      with _ -> None
-    in
-    Hashtbl.add cache path r; r
-
-(** Count Unicode scalar values in the byte range [start, stop) of [content].
-    Malformed sequences are counted as one scalar (consistent with Uutf's
-    replacement decoding). *)
-let count_codepoints content ~start ~stop =
-  let len = String.length content in
-  let start = max 0 (min start len) in
-  let stop = max start (min stop len) in
-  let dec = Uutf.decoder ~encoding:`UTF_8
-              (`String (String.sub content start (stop - start))) in
-  let rec loop () = match Uutf.decode dec with
-    | `End | `Await -> Uutf.decoder_count dec
-    | `Uchar _ | `Malformed _ -> loop ()
-  in loop ()
-
-(** Resolve a [pos] against file [content], returning the 0-based codepoint
-    column on the line and the 0-based byte offset from the start of the file.
-    Returns [None] when [pos] cannot be located in [content] (e.g. the file
-    was truncated or replaced since the lexer ran, or refers to a stream like
-    [/dev/fd/N] that cannot be re-read). *)
-let resolve_pos content (pos : pos) : (int * int) option =
-  match pos_to_byte content pos with
-  | exception Not_found -> None
-  | byte_off ->
-    let line_start = byte_off - pos.column in
-    let len = String.length content in
-    if line_start < 0 || byte_off > len then None
-    else
-      let codepoint_col = count_codepoints content ~start:line_start ~stop:byte_off in
-      Some (codepoint_col, byte_off)
-
-(** Codepoint column for human display ([pos.column] is byte-based). Falls back
-    to the byte column for synthetic positions or when the file cannot be
-    resolved. *)
-let display_column (cache : content_cache) (pos : pos) : int =
-  if pos.line <= 0 then pos.column (* no_pos or binary [line = -1]; column is opaque *)
-  else
-    match load_content cache pos.file with
-    | Some content ->
-      (match resolve_pos content pos with
-       | Some (col, _) -> col
-       | None -> pos.column)
-    | None -> pos.column
-
-(** 0-based byte offset from the start of file, for unambiguous machine-applied
-    edits. [None] when the file is not readable, [pos] is synthetic, or [pos]
-    cannot be located in the current file contents. *)
-let byte_offset_in_file (cache : content_cache) (pos : pos) : int option =
-  if pos.line <= 0 then None
-  else
-    match load_content cache pos.file with
-    | Some content -> Option.map snd (resolve_pos content pos)
-    | None -> None
-
 let string_of_pos_display cache pos =
   if pos.line = -1 then
     Printf.sprintf "0x%x" pos.column
   else
-    string_of_int pos.line ^ "." ^ string_of_int (display_column cache pos + 1)
+    string_of_int pos.line ^ "." ^ string_of_int (Source_cache.codepoint_column cache pos + 1)
 
 let string_of_region_display cache r =
   if r.left.file = "" then "(unknown location)" else
   r.left.file ^ ":" ^ string_of_pos_display cache r.left ^
   (if r.right = r.left then "" else "-" ^ string_of_pos_display cache r.right)
 
-let string_of_message msg =
-  let cache = make_content_cache () in
+let string_of_message_with cache msg =
   let code = match msg.sev, msg.code with
     | Info, _ -> ""
     | _, "" -> ""
@@ -196,21 +111,26 @@ let string_of_message msg =
     else "" in
   Printf.sprintf "%s: %s%s, %s%s%s\n" (string_of_region_display cache msg.at) label code msg.text spans notes
 
+let string_of_message msg = string_of_message_with (Source_cache.create ()) msg
+
 let ensure_primary_span msg =
   if List.exists (fun span -> span.prio = Primary) msg.spans
   then msg.spans
   else { prio = Primary; at_span = msg.at; label = "" } :: msg.spans
 
-let fancy_of_message (msg : message) =
-  if is_no_region msg.at then string_of_message msg else
+let fancy_of_message_with cache (msg : message) =
+  if is_no_region msg.at then string_of_message_with cache msg else
   let path = msg.at.left.file in
-  let content = In_channel.with_open_bin path In_channel.input_all in
+  match Source_cache.content cache path with
+  | None -> string_of_message_with cache msg
+  | Some content ->
   let file = G.Source.{ name = Some path; content } in
   let source : G.Source.t = `String file in
+  let byte_of pos = Option.value ~default:0 (Source_cache.byte_offset cache pos) in
   let range r =
     G.Range.create ~source
-      (G.Byte_index.of_int (pos_to_byte content r.left))
-      (G.Byte_index.of_int (pos_to_byte content r.right))
+      (G.Byte_index.of_int (byte_of r.left))
+      (G.Byte_index.of_int (byte_of r.right))
   in
   let mk_span span =
     let priority = match span.prio with
@@ -219,8 +139,8 @@ let fancy_of_message (msg : message) =
     GD.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
   let labels = List.map mk_span (ensure_primary_span msg) in
   let source_text r =
-    let start = pos_to_byte content r.left in
-    let stop = pos_to_byte content r.right in
+    let start = byte_of r.left in
+    let stop = byte_of r.right in
     String.sub content start (stop - start)
     |> Lib.String.strip_control_chars
     |> String.trim
@@ -254,13 +174,13 @@ let string_of_severity (sev : severity) = match sev with
 let json_span cache ?prio ?label ?suggested_replacement r =
   let { file; line = line_start; _ } = r.left in
   let { line = line_end; _ } = r.right in
-  let column_start = display_column cache r.left in
-  let column_end = display_column cache r.right in
+  let column_start = Source_cache.codepoint_column cache r.left in
+  let column_end = Source_cache.codepoint_column cache r.right in
   let json_of_byte = function Some b -> `Int b | None -> `Null in
   `Assoc [
     "file", `String file;
-    "byte_start", json_of_byte (byte_offset_in_file cache r.left);
-    "byte_end", json_of_byte (byte_offset_in_file cache r.right);
+    "byte_start", json_of_byte (Source_cache.byte_offset cache r.left);
+    "byte_end", json_of_byte (Source_cache.byte_offset cache r.right);
     "line_start", `Int line_start;
     "column_start", `Int (column_start + 1);
     "line_end", `Int line_end;
@@ -274,8 +194,7 @@ let json_span cache ?prio ?label ?suggested_replacement r =
   ]
 
 (* Keep in sync with [design/JSON-Diagnostics.md] *)
-let json_string_of_message msg =
-  let cache = make_content_cache () in
+let json_string_of_message_with cache msg =
   let span_jsons = ensure_primary_span msg
     |> List.map (fun { prio; at_span; label } -> json_span cache ~prio ~label at_span) in
   let edit_jsons = msg.edits |>
@@ -300,16 +219,18 @@ let normalize_severity msg =
   then { msg with sev = Error }
   else msg
 
-let print_message msg =
+let print_message cache msg =
   let msg = normalize_severity msg in
   if msg.sev <> Error && not !Flags.print_warnings
   then ()
   else match !Flags.error_format with
-  | Flags.Plain -> Printf.eprintf "%s%!" (string_of_message msg)
-  | Flags.Human -> Printf.eprintf "%s%!" (fancy_of_message msg)
-  | Flags.Json -> Printf.printf "%s\n%!" (json_string_of_message msg)
+  | Flags.Plain -> Printf.eprintf "%s%!" (string_of_message_with cache msg)
+  | Flags.Human -> Printf.eprintf "%s%!" (fancy_of_message_with cache msg)
+  | Flags.Json -> Printf.printf "%s\n%!" (json_string_of_message_with cache msg)
 
-let print_messages = List.iter print_message
+let print_messages msgs =
+  let cache = Source_cache.create () in
+  List.iter (print_message cache) msgs
 
 let is_error_free (ms: msg_store) = not (has_errors (get_msgs ms))
 
