@@ -1,8 +1,7 @@
 # Motoko compiler changelog
 
 * motoko (`moc`)
-
-  * bugfix: M0237 no longer suggests omitting an explicit implicit argument when doing so would leave a type parameter underconstrained (previously the suggested edit was rejected with M0098). The check now re-runs inference with the arg replaced by a hole and only warns when the same instantiation is recovered (#6166).
+  * bugfix: M0237 (implicit argument can be omitted) only fires now when the suggested removal preserves the same type instantiation. Previously the edit could be rejected (M0098) (#6166).
 
 ## 1.9.0 (2026-06-02)
 
