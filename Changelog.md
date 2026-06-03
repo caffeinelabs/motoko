@@ -1,12 +1,8 @@
 # Motoko compiler changelog
 
-## Unreleased
-
 * motoko (`moc`)
 
-  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning can now carry a free-text message (typically an alternative or rationale). The text is rendered as a `note:` sub-diagnostic under the M0235 warning at every use site. Example: `/// @deprecated M0235 use Foo.bar instead`. Bare `M0235` is unchanged.
-
-  * change: M0154 deprecation messages (free-text `/// @deprecated <message>`) now render the author's message as a `note:` sub-diagnostic instead of an inline second line. The information is identical; presentation matches every other diagnostic note (e.g. M0230, M0236) and integrates better with LSP-style hovers.
+  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
 
 ## 1.8.2 (2026-05-21)
 
