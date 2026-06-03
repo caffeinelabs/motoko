@@ -127,11 +127,22 @@ let argspec =
   "-ref-system-api",
   Arg.Unit (fun () -> Flags.(compile_mode := RefMode)),
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
-  (* TODO: bring this back (possibly with flipped default)
-           as soon as the multi-value `wasm` library is out.
-  "-multi-value", Arg.Set Flags.multi_value, " use multi-value extension";
-  "-no-multi-value", Arg.Clear Flags.multi_value, " avoid multi-value extension";
-   *)
+  "--experimental-multi-value",
+  Arg.Set Flags.multi_value,
+  " enable the wasm multi-value extension in codegen (disables `FakeMultiVal` global-stash emulation)";
+  "--no-experimental-multi-value",
+  Arg.Clear Flags.multi_value,
+  " force `FakeMultiVal` emulation even if a future default flips on multi-value (default)";
+  "-multi-value",
+  Arg.Unit (fun () ->
+    eprintf "moc: -multi-value is deprecated. Use --experimental-multi-value instead.\n";
+    Flags.multi_value := true),
+  " (deprecated alias for --experimental-multi-value)";
+  "-no-multi-value",
+  Arg.Unit (fun () ->
+    eprintf "moc: -no-multi-value is deprecated. Use --no-experimental-multi-value instead.\n";
+    Flags.multi_value := false),
+  " (deprecated alias for --no-experimental-multi-value)";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";

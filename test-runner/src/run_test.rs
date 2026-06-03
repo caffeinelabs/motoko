@@ -11,7 +11,7 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::OnceLock;
-use test_runner::mode::{self, Mode};
+use test_runner::mode::{self, Mode, MvMode};
 use test_runner::test_runner::{self as exec, SubnetType};
 
 #[derive(Parser, Clone)]
@@ -261,6 +261,8 @@ struct Directives {
     drun_skip: bool,
     default_gc_only: bool,
     application_subnet: bool,
+    wasm_mv_only: bool,
+    fake_mv_only: bool,
 }
 
 fn parse_directives(src: &str, is_drun: bool) -> Directives {
@@ -293,6 +295,8 @@ fn parse_directives(src: &str, is_drun: bool) -> Directives {
         d.classical_only |= tagged("CLASSICAL-PERSISTENCE-ONLY");
         d.incremental_gc_only |= tagged("INCREMENTAL-GC-ONLY");
         d.skip_sanity_checks |= tagged("SKIP-SANITY-CHECKS");
+        d.wasm_mv_only |= tagged("WASM-MULTI-VALUE-ONLY");
+        d.fake_mv_only |= tagged("FAKE-MULTI-VALUE-ONLY");
     }
     d
 }
@@ -319,6 +323,12 @@ fn skip_reason(d: &Directives, is_drun: bool) -> Option<&'static str> {
     }
     if d.classical_only && has("--enhanced-orthogonal-persistence") {
         return silent_or(" Skipped (not applicable to enhanced persistence)");
+    }
+    if d.wasm_mv_only && !has("--experimental-multi-value") {
+        return silent_or(" Skipped (requires --experimental-multi-value)");
+    }
+    if d.fake_mv_only && has("--experimental-multi-value") {
+        return silent_or(" Skipped (not applicable to Wasm multi-value)");
     }
     if d.skip_sanity_checks && has("--sanity-checks") {
         return silent_or(" Skipped (not applicable to --sanity-checks)");
@@ -969,28 +979,48 @@ fn run_one_pass(
     }
 }
 
-/// Persistence modes to run for `file_name`. Empty means single-pass without
-/// touching `EXTRA_MOC_ARGS` (the non-`--all-modes` case).
-fn modes_to_run(all_modes: bool, file_name: &str) -> Vec<Mode> {
+/// Mode combinations (persistence × MV) to run for `file_name`.
+/// Empty means single-pass without touching `EXTRA_MOC_ARGS`
+/// (the non-`--all-modes` case).
+fn modes_to_run(all_modes: bool, file_name: &str) -> Vec<(Mode, MvMode)> {
     if !all_modes {
         return Vec::new();
     }
-    let eop = env::var("EXTRA_MOC_ARGS")
-        .unwrap_or_default()
-        .contains("--enhanced-orthogonal-persistence");
-    if eop {
+    let extra = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
+
+    // If the inherited EXTRA_MOC_ARGS already pins a persistence mode (CI
+    // sets this), honour it rather than re-running in both.
+    let persistence: Vec<Mode> = if extra.contains("--enhanced-orthogonal-persistence") {
         vec![Mode::Eop]
     } else {
         mode::infer_modes(Path::new(file_name))
-    }
+    };
+
+    // Likewise for the MV axis.
+    let mv: Vec<MvMode> = if extra.contains("--experimental-multi-value") {
+        vec![MvMode::WasmMV]
+    } else if extra.contains("--no-experimental-multi-value") {
+        vec![MvMode::FakeMV]
+    } else {
+        mode::infer_mv_modes(Path::new(file_name))
+    };
+
+    // Cartesian product: every applicable (persistence, MV) combination.
+    persistence.iter().flat_map(|&p| mv.iter().map(move |&m| (p, m))).collect()
 }
 
-/// Re-exec `run-test` for a single file, optionally pinning the persistence
-/// mode via `EXTRA_MOC_ARGS`. Isolating per-file work in its own process is
+/// Re-exec `run-test` for a single file, pinning both persistence and MV mode
+/// via `EXTRA_MOC_ARGS`. Isolating per-file work in its own process is
 /// required for `.drun`: `pocket-ic-server` inherits fd 1 and 2 at spawn time,
 /// so reusing a single process across files (or modes) would silently route
 /// subsequent canisters' `debug_print` output to the first file's capture.
-fn spawn_self(cli: &Cli, file: &str, orig_cwd: &Path, mode: Option<Mode>, accept: bool) -> bool {
+fn spawn_self(
+    cli: &Cli,
+    file: &str,
+    orig_cwd: &Path,
+    mode: Option<(Mode, MvMode)>,
+    accept: bool,
+) -> bool {
     let exe = env::current_exe().unwrap_or_else(|_| PathBuf::from("run-test"));
     let mut cmd = Command::new(exe);
     cmd.current_dir(orig_cwd).arg(file);
@@ -1002,15 +1032,15 @@ fn spawn_self(cli: &Cli, file: &str, orig_cwd: &Path, mode: Option<Mode>, accept
     if cli.idl { cmd.arg("-i"); }
     if mode.is_none() && cli.all_modes { cmd.arg("--all-modes"); }
 
-    if let Some(m) = mode {
+    if let Some((persist, mv)) = mode {
         let saved = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
-        let extra = m.extra_moc_args();
-        let combined = match (saved.is_empty(), extra.is_empty()) {
-            (true, _) => extra.to_string(),
-            (false, true) => saved,
-            (false, false) => format!("{saved} {extra}"),
-        };
-        cmd.env("EXTRA_MOC_ARGS", combined);
+        // Append persistence flags then MV flags to whatever was inherited.
+        let mut parts: Vec<&str> = if saved.is_empty() { vec![] } else { vec![saved.as_str()] };
+        let pf = persist.extra_moc_args();
+        if !pf.is_empty() { parts.push(pf); }
+        let mf = mv.extra_moc_args();
+        if !mf.is_empty() { parts.push(mf); }
+        cmd.env("EXTRA_MOC_ARGS", parts.join(" "));
     }
     cmd.status().map(|s| s.success()).unwrap_or(false)
 }
@@ -1032,11 +1062,11 @@ fn process_file(cli: &Cli, file: &str, orig_cwd: &Path) -> bool {
     if !modes.is_empty() {
         let multi = modes.len() > 1;
         let mut ok_all = true;
-        for (i, mode) in modes.iter().copied().enumerate() {
+        for (i, (persist, mv)) in modes.iter().copied().enumerate() {
             if multi {
-                println!("=== mode: {} ===", mode.label());
+                println!("=== mode: {}/{} ===", persist.label(), mv.label());
             }
-            ok_all &= spawn_self(cli, file, orig_cwd, Some(mode), cli.accept && i == 0);
+            ok_all &= spawn_self(cli, file, orig_cwd, Some((persist, mv)), cli.accept && i == 0);
         }
         return ok_all;
     }
