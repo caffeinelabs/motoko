@@ -1,2 +1,2 @@
-dao/dao-types.mo:67.72-67.80: warning [M0154], field hash is deprecated:
-For large `Int` values consider using a bespoke hash function that considers all of the argument's bits.
+dao/dao-types.mo:67.72-67.80: warning [M0154], field hash is deprecated
+note: For large `Int` values consider using a bespoke hash function that considers all of the argument's bits.
