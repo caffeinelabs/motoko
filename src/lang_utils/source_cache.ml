@@ -13,14 +13,22 @@ type entry = {
 
 type t = (string, entry option) Hashtbl.t
 
-let create () : t = Hashtbl.create 1
+let create () : t = Hashtbl.create 16
 
+(* The lexer treats [\n], [\r\n] and lone [\r] as line terminators (see
+   [source_lexer.mll]); mirror that here so positions resolve consistently
+   for old-Mac and CRLF sources. *)
 let build_entry content =
+  let len = String.length content in
   let starts = ref [0] in
   let ascii = ref true in
   String.iteri (fun i c ->
     if Char.code c >= 0x80 then ascii := false;
-    if c = '\n' then starts := (i + 1) :: !starts
+    let is_newline =
+      c = '\n'
+      || (c = '\r' && (i + 1 >= len || content.[i + 1] <> '\n'))
+    in
+    if is_newline then starts := (i + 1) :: !starts
   ) content;
   { content;
     line_starts = Array.of_list (List.rev !starts);
@@ -32,13 +40,14 @@ let load (cache : t) path : entry option =
   | None ->
     let r =
       try Some (build_entry (In_channel.with_open_bin path In_channel.input_all))
-      with _ -> None
+      with Sys_error _ -> None
     in
     Hashtbl.add cache path r; r
 
 (* Resolve [pos] against a loaded entry. *)
 let resolve_in e (pos : pos) : (int * int) option =
-  if pos.line < 1 || pos.line > Array.length e.line_starts then None
+  if pos.line < 1 || pos.line > Array.length e.line_starts || pos.column < 0
+  then None
   else
     let line_start = e.line_starts.(pos.line - 1) in
     let byte_off = line_start + pos.column in

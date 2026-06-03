@@ -45,11 +45,14 @@ Each line on stdout is a JSON object with the following structure:
             "file": "myfile.mo",
             /* 0-based UTF-8 byte offset from the start of the file (inclusive).
                Prefer this over line/column when applying edits — bytes are
-               independent of any source encoding. `null` if unavailable.
+               independent of any source encoding. `null` if unavailable; in
+               that case `column_start`/`column_end` may also be unreliable
+               for non-ASCII content, and machine-applicable edits should be
+               skipped.
             */
             "byte_start": 124,
             /* 0-based UTF-8 byte offset from the start of the file (exclusive).
-               `null` if unavailable.
+               `null` if unavailable; see `byte_start`.
             */
             "byte_end": 131,
             /* First line of the span (1-based, inclusive). */
