@@ -1,5 +1,5 @@
 RUNFLAGS = -p
-export EXTRA_MOC_ARGS = --enhanced-orthogonal-persistence
+export EXTRA_MOC_ARGS = --enhanced-orthogonal-persistence --experimental-multi-value
 
 all:
 	run-test $(RUNFLAGS) *.mo

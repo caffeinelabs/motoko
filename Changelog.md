@@ -1,5 +1,19 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
+
+  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
+
+## 1.9.0 (2026-06-02)
+
+* motoko (`moc`)
+
+  * feat: Structural implicit derivation for records and tuples via `__record` and `__tuple` combiners. Per-field results are lazy thunks, enabling short-circuiting for operations like `compare` (#5903).
+
+  * feat: `--experimental-multi-value` flag enables function-level multi-value Wasm codegen. Off by default (#6113).
+
 ## 1.8.2 (2026-05-21)
 
 * motoko (`moc`)
