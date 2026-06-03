@@ -3307,31 +3307,28 @@ and partition_implicit_args t_args syntax_args =
   in
   implicits, kept
 
-(* For each implicit position, checks resolve_hole + path-match on the opened type. Returns [] unless every position is a candidate. *)
+(* Check if all implicits would resolve to the explicitly provided arguments. *)
 and m0237_validate_candidates env ts implicit_positions =
-  let candidates = List.filter_map (fun (arg, next_arg, name, typ_unopened) ->
-    let typ = T.open_ ts typ_unopened in
-    match resolve_hole env arg.at name typ with
-    | Error _ -> None
-    | Ok ({path; _}, _) ->
-      match path.it, arg.it with
-      | VarE {it = id0; _},
-        VarE {it = id1; note = (Const, _); _}
-           when id0 = id1 ->
-         Some (id1, arg, next_arg)
-      | DotE ({ it = VarE {it = mod_id0; _};_ },
-              { it = id0; _},
-              _),
-        DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ },
-              { it = id1; _},
-              _) when mod_id0 = mod_id1 && id0 = id1 ->
-         Some (mod_id1 ^ "." ^ id1, arg, next_arg)
-      | _ -> None)
-    implicit_positions
-  in
-  if List.length candidates = List.length implicit_positions
-  then candidates
-  else []
+  let exception Bail in
+  try
+    implicit_positions |> List.map (fun (arg, next_arg, name, typ_unopened) ->
+      let typ = T.open_ ts typ_unopened in
+      match resolve_hole env arg.at name typ with
+      | Error _ -> raise_notrace Bail
+      | Ok ({path; _}, _) ->
+        match path.it, arg.it with
+        | VarE {it = id0; _},
+          VarE {it = id1; note = (Const, _); _} when id0 = id1 ->
+          (id1, arg, next_arg)
+        | DotE ({ it = VarE {it = mod_id0; _};_ },
+                { it = id0; _},
+                _),
+          DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ },
+                { it = id1; _},
+                _) when mod_id0 = mod_id1 && id0 = id1 ->
+          (mod_id1 ^ "." ^ id1, arg, next_arg)
+        | _ -> raise_notrace Bail)
+  with Bail -> []
 
 and emit_m0237_warnings env candidates =
   List.iter (fun (name, exp, next_arg) ->
@@ -3409,14 +3406,13 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
        || implicits_arity >= saturated_arity
     then None
     else
-      let implicits, kept = partition_implicit_args t_args syntax_args in
+      let implicits, args = partition_implicit_args t_args syntax_args in
       let trial_passes =
-        let moot = inst.it <> None
-          || (match tbs with [] | [T.{sort = Scope; _}] -> true | _ -> false) in
-        if moot then fun _ts -> true
+        if inst.it <> None
+          || (match tbs with [] | [T.{sort = Scope; _}] -> true | _ -> false)
+        then fun _ts -> true
         else
-          let exp2_with_holes =
-            { exp2 with it = insert_holes at t_args kept; note = empty_typ_note } in
+          let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
           trial_matches_ts env (fun env' ->
             infer_call_instantiation env' t1 ctx_dot tbs (T.seq t_args) t_ret
               exp2_with_holes at t_expect_opt extra_subtype_problems)
@@ -3689,6 +3685,7 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
 and trial_matches_ts env infer =
   let opt =
     match Diag.with_message_store (recover_opt (fun msgs ->
+      (* Note: inferring in pre mode is not accurate, but a good enough approximation before we allow proper backtracking in non-pre mode *)
       let env' = { env with msgs; pre = true } in
       let ts', _, _ = infer env' in ts'))
     with
