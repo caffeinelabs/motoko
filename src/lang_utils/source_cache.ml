@@ -1,39 +1,39 @@
 open Source
 
 (* A loaded source file with precomputed line offsets.
-   Resolving a [pos] is O(1) for ASCII files; for files containing any
-   non-ASCII byte, Uutf walks the line prefix (O(line_length)).
-   - [line_starts.(N-1)] = byte offset of line N's first byte.
-   - [ascii_only] short-circuits Uutf for the common case where codepoint
-     column == byte column. *)
+   [line_starts.(N-1)] = byte offset of line N's first byte. Resolving a
+   [pos] is O(line_length): Uutf walks the line prefix to count codepoints. *)
 type entry = {
   content : string;
   line_starts : int array;
-  ascii_only : bool;
 }
 
 type t = (string, entry option) Hashtbl.t
 
 let create () : t = Hashtbl.create 16
 
-(* The lexer treats [\n], [\r\n] and lone [\r] as line terminators (see
-   [source_lexer.mll]); mirror that here so positions resolve consistently
-   for old-Mac and CRLF sources. *)
+(* Walk the file once with Uutf to record line offsets. [`ASCII] newline
+   normalization recognises CR, LF and CRLF — matching the Motoko lexer
+   (see [source_lexer.mll]). *)
 let build_entry content =
-  let len = String.length content in
+  let dec = Uutf.decoder
+    ~encoding:`UTF_8
+    ~nln:(`ASCII (Uchar.of_int 0x0A))
+    (`String content)
+  in
   let starts = ref [0] in
-  let ascii = ref true in
-  String.iteri (fun i c ->
-    if Char.code c >= 0x80 then ascii := false;
-    let is_newline =
-      c = '\n'
-      || (c = '\r' && (i + 1 >= len || content.[i + 1] <> '\n'))
-    in
-    if is_newline then starts := (i + 1) :: !starts
-  ) content;
-  { content;
-    line_starts = Array.of_list (List.rev !starts);
-    ascii_only = !ascii }
+  let rec loop prev_line =
+    match Uutf.decode dec with
+    | `End -> ()
+    | `Uchar _ | `Malformed _ ->
+      let cur_line = Uutf.decoder_line dec in
+      if cur_line > prev_line then
+        starts := Uutf.decoder_byte_count dec :: !starts;
+      loop cur_line
+    | `Await -> assert false
+  in
+  loop 1;
+  { content; line_starts = Array.of_list (List.rev !starts) }
 
 let load (cache : t) path : entry option =
   match Hashtbl.find_opt cache path with
@@ -53,7 +53,6 @@ let resolve_in e (pos : pos) : (int * int) option =
     let line_start = e.line_starts.(pos.line - 1) in
     let byte_off = line_start + pos.column in
     if byte_off > String.length e.content then None
-    else if e.ascii_only then Some (pos.column, byte_off)
     else
       (* Count codepoints in [line_start, byte_off) without allocating a substring.
          Malformed sequences count as one codepoint. *)
