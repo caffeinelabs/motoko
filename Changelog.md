@@ -1,12 +1,8 @@
 # Motoko compiler changelog
 
-## next
-
 * motoko (`moc`)
 
-  * bugfix: Diagnostic column numbers now count Unicode codepoints instead of UTF-8 bytes in the plain text (`5.31`) and JSON (`column_start`/`column_end`) outputs, matching what editors display. The human format (Grace-rendered) was already correct.
-
-  * feat: JSON diagnostics now include `byte_start`/`byte_end` — 0-based UTF-8 byte offsets from the start of the file — alongside `line_start`/`column_start` (matching `rustc`). Tools applying `suggested_replacement` spans should prefer these encoding-independent byte offsets; using codepoint columns previously caused `mops check --fix` to over-delete on lines with multi-byte characters (e.g. `Char.toNat32('京')` → trailing `)` removed).
+  * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
 
 ## 1.9.0 (2026-06-02)
 
