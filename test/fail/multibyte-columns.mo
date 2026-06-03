@@ -8,7 +8,8 @@ import Char "mo:core/Char";
 module {
   public func go() {
     ignore Char.toNat32('A');   // ASCII
-    ignore Char.toNat32('京');  // 3-byte UTF-8
-    ignore Char.toNat32('💩'); // 4-byte UTF-8 (non-BMP)
+    ignore Char.toNat32('京');  // 3-byte UTF-8 inside span
+    ignore Char.toNat32('💩'); // 4-byte UTF-8 inside span (non-BMP)
+    ignore "京京"; ignore Char.toNat32('D');  // multibyte BEFORE the span
   };
 };

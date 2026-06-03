@@ -1,7 +1,8 @@
 open Source
 
-(* A loaded source file with everything needed to resolve a [pos] in O(1)
-   (modulo Uutf walking the line for codepoint columns on non-ASCII files):
+(* A loaded source file with precomputed line offsets.
+   Resolving a [pos] is O(1) for ASCII files; for files containing any
+   non-ASCII byte, Uutf walks the line prefix (O(line_length)).
    - [line_starts.(N-1)] = byte offset of line N's first byte.
    - [ascii_only] short-circuits Uutf for the common case where codepoint
      column == byte column. *)

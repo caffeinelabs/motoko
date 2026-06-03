@@ -124,47 +124,47 @@ let fancy_of_message_with cache (msg : message) =
   match Source_cache.content cache path with
   | None -> string_of_message_with cache msg
   | Some content ->
-  let file = G.Source.{ name = Some path; content } in
-  let source : G.Source.t = `String file in
-  let byte_of pos = Option.value ~default:0 (Source_cache.byte_offset cache pos) in
-  let range r =
-    G.Range.create ~source
-      (G.Byte_index.of_int (byte_of r.left))
-      (G.Byte_index.of_int (byte_of r.right))
-  in
-  let mk_span span =
-    let priority = match span.prio with
-      | Primary -> GD.Priority.Primary
-      | Secondary -> GD.Priority.Secondary in
-    GD.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
-  let labels = List.map mk_span (ensure_primary_span msg) in
-  let source_text r =
-    let start = byte_of r.left in
-    let stop = byte_of r.right in
-    String.sub content start (stop - start)
-    |> Lib.String.strip_control_chars
-    |> String.trim
-  in
-  let edit_note edit =
-    (* Future work: merge the replacements and display a diff *)
-    let original = source_text edit.at_edit in
-    if edit.suggested_replacement = "" then
-      GD.Message.createf "help: remove `%s`" original
-    else if original = "" then
-      GD.Message.createf "help: insert `%s`" edit.suggested_replacement
-    else
-      GD.Message.createf "help: replace `%s` with `%s`" original edit.suggested_replacement
-  in
-  let severity = match msg.sev with
-    | Error -> GD.Severity.Error
-    | Warning -> GD.Severity.Warning
-    | Info -> GD.Severity.Help in
-  let notes =
-    List.map (GD.Message.createf "note: %s") msg.notes
-    @ List.map edit_note msg.edits in
-  let code = if msg.code = "" then None else Some msg.code in
-  let diag = GD.createf ~labels ~notes ?code severity "%s" msg.text in
-  Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
+    let file = G.Source.{ name = Some path; content } in
+    let source : G.Source.t = `String file in
+    let byte_of pos = Option.value ~default:0 (Source_cache.byte_offset cache pos) in
+    let range r =
+      G.Range.create ~source
+        (G.Byte_index.of_int (byte_of r.left))
+        (G.Byte_index.of_int (byte_of r.right))
+    in
+    let mk_span span =
+      let priority = match span.prio with
+        | Primary -> GD.Priority.Primary
+        | Secondary -> GD.Priority.Secondary in
+      GD.Label.createf ~range:(range span.at_span) ~priority "%s" span.label in
+    let labels = List.map mk_span (ensure_primary_span msg) in
+    let source_text r =
+      let start = byte_of r.left in
+      let stop = byte_of r.right in
+      String.sub content start (stop - start)
+      |> Lib.String.strip_control_chars
+      |> String.trim
+    in
+    let edit_note edit =
+      (* Future work: merge the replacements and display a diff *)
+      let original = source_text edit.at_edit in
+      if edit.suggested_replacement = "" then
+        GD.Message.createf "help: remove `%s`" original
+      else if original = "" then
+        GD.Message.createf "help: insert `%s`" edit.suggested_replacement
+      else
+        GD.Message.createf "help: replace `%s` with `%s`" original edit.suggested_replacement
+    in
+    let severity = match msg.sev with
+      | Error -> GD.Severity.Error
+      | Warning -> GD.Severity.Warning
+      | Info -> GD.Severity.Help in
+    let notes =
+      List.map (GD.Message.createf "note: %s") msg.notes
+      @ List.map edit_note msg.edits in
+    let code = if msg.code = "" then None else Some msg.code in
+    let diag = GD.createf ~labels ~notes ?code severity "%s" msg.text in
+    Format.asprintf "%a@." Grace_ansi_renderer.(pp_diagnostic ~config:Config.default ~code_to_string: Fun.id) diag
 
 let string_of_severity (sev : severity) = match sev with
   | Error -> "error"
