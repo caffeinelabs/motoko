@@ -2154,7 +2154,8 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
+          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway.
+             `is_postfix_exp` also excludes `LitE` since contextual-dot is weaker than `check_lit` for literal coercion — e.g. `Blob.isEmpty("\00")` wouldn't survive a rewrite to `"\00".isEmpty()`. *)
           if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
           (match read_region e.at with
            | None -> ()
