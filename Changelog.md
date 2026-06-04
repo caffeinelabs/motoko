@@ -1,7 +1,12 @@
 # Motoko compiler changelog
 
 * motoko (`moc`)
+
   * bugfix: M0237 (implicit argument can be omitted) only fires now when the suggested removal preserves the same type instantiation. Previously the edit could be rejected (M0098) (#6166).
+
+  * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
+
+  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
 
 ## 1.9.0 (2026-06-02)
 
