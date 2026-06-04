@@ -6,6 +6,8 @@
 
   * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
 
+  * feat: New `--experimental-tailcalls` flag (opt-in) emits wasm `return_call` for tail-positioned calls — both self and cross-function — instead of the existing self-tail loop rewrite, giving bounded stack for VM dispatchers and mutual recursion plus a moderate cycle reduction (#6043).
+
 ## 1.9.0 (2026-06-02)
 
 * motoko (`moc`)
@@ -35,8 +37,6 @@
   * feat: `and`-patterns — `p1 and p2` matches when both legs match, binding from both (#6049).
 
   * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
-
-  * feat: New `--experimental-tailcalls` flag (opt-in) emits wasm `return_call` for tail-positioned calls — both self and cross-function — instead of the existing self-tail loop rewrite, giving bounded stack for VM dispatchers and mutual recursion plus a moderate cycle reduction (#6043).
 
 ## 1.7.0 (2026-04-29)
 
