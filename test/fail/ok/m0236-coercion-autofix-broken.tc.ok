@@ -1,4 +1,0 @@
-m0236-coercion-autofix-broken.mo:19.17-19.24: type error [M0072], field isEmpty does not exist in type:
-  Text
-m0236-coercion-autofix-broken.mo:24.8-24.10: type error [M0070], expected object type, but expression produces type
-  Nat
