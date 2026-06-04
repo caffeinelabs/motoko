@@ -2134,16 +2134,6 @@ let contextual_dot_module (exp : Syntax.exp) =
     Some (Suggest.module_name_as_url module_ref, id.it)
   | _ -> None
 
-(* True iff `e` can serve as a dot-receiver in an M0236 rewrite.
-   Stricter than `Syntax.is_postfix_exp`: also excludes `LitE`. The autofix
-   `lit.f()` can misparse (`-1.1.f()` → `-(1.1.f())`), mis-lex (`0xff.f` as a
-   hex float), or fail to type-check when contextual-dot lookup doesn't apply
-   the literal coercion that argument-position `check_lit` does. *)
-let is_postfix_receiver (e : Syntax.exp) =
-  match e.it with
-  | LitE _ -> false
-  | _ -> Syntax.is_postfix_exp e
-
 let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
   if not env.pre then
   if Flags.get_warning_level "M0236" <> Flags.Allow then
@@ -2164,8 +2154,8 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          (* Skip non-postfix or multi-line receivers: no clean autofix either way. *)
-          if not (is_postfix_receiver e) || e.at.left.line <> e.at.right.line then () else
+          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
+          if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
           (match read_region e.at with
            | None -> ()
            | Some receiver_text ->
