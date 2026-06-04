@@ -2134,6 +2134,18 @@ let contextual_dot_module (exp : Syntax.exp) =
     Some (Suggest.module_name_as_url module_ref, id.it)
   | _ -> None
 
+(* True iff `e`'s source text `s` is genuinely postfix — can prefix `.f()` without parens.
+   Refines `Syntax.is_postfix_exp`, which is too permissive for some `LitE` forms:
+   - signed literals (`-1.1` is folded into `LitE` but `-1.1.f()` parses as `-(1.1.f())`)
+   - hex literals (`0xff.f` lexes as a single hex float, since `f` is a hex digit). *)
+let is_postfix_receiver (e : Syntax.exp) s =
+  Syntax.is_postfix_exp e &&
+  let trimmed = String.trim s in
+  not String.(
+    starts_with ~prefix:"-" trimmed ||
+    starts_with ~prefix:"+" trimmed ||
+    starts_with ~prefix:"0x" trimmed)
+
 let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
   if not env.pre then
   if Flags.get_warning_level "M0236" <> Flags.Allow then
@@ -2154,10 +2166,11 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
-          if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
+          (* Skip multi-line receivers: a debatable style change with no clean autofix. *)
+          if e.at.left.line <> e.at.right.line then () else
           (match read_region e.at with
            | None -> ()
+           | Some receiver_text when not (is_postfix_receiver e receiver_text) -> ()
            | Some receiver_text ->
              let replace_receiver = edit old_receiver.at receiver_text in
              let argument_edit = match es with

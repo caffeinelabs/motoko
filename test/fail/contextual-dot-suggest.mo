@@ -96,4 +96,22 @@ persistent actor {
 
   Amb1.method(#amb); // don't suggest, ambiguous
 
+  // ----- additions below kept here to preserve line numbers above -----
+
+  module Float {
+    public func isNaN(self : Float) : Bool { false };
+    public func abs(self : Float) : Float { self };
+  };
+  module Int {
+    public func abs(self : Int) : Int { self };
+  };
+
+  // Parser/lexer hazards: don't suggest.
+  ignore Float.isNaN(-1.1); // no-warn — `-1.1.isNaN()` parses as `-(1.1.isNaN())`
+  ignore Float.isNaN(+1.1); // no-warn
+  ignore Float.abs(-1.1);   // no-warn
+  ignore Int.abs(-1);       // no-warn
+  ignore Int.abs(0xff);     // no-warn — `0xff.abs` lexes as a hex float
+
+  ignore Float.isNaN(1.1);  // warn — unsigned decimal round-trips cleanly
 }
