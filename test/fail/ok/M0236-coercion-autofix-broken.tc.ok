@@ -1,4 +1,15 @@
-M0236-coercion-autofix-broken.mo:20.17-20.24: type error [M0072], field isEmpty does not exist in type:
+M0236-coercion-autofix-broken.mo:31.17-31.24: type error [M0072], field isEmpty does not exist in type:
   Text
-M0236-coercion-autofix-broken.mo:25.8-25.10: type error [M0070], expected object type, but expression produces type
+M0236-coercion-autofix-broken.mo:36.8-36.10: type error [M0070], expected object type, but expression produces type
   Nat
+M0236-coercion-autofix-broken.mo:42.18-42.24: type error [M0072], field toBlob does not exist in type:
+  [Nat]
+M0236-coercion-autofix-broken.mo:52.10-52.34: warning [M0081], this if has type
+  Any
+because branches have inconsistent types,
+true produces
+  Nat8
+false produces
+  Nat
+M0236-coercion-autofix-broken.mo:52.36-52.42: type error [M0072], field toBlob does not exist in type:
+  [Any]

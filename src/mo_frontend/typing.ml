@@ -2134,7 +2134,8 @@ let contextual_dot_module (exp : Syntax.exp) =
     Some (Suggest.module_name_as_url module_ref, id.it)
   | _ -> None
 
-let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
+let check_can_dot env ctx_dot ?(trial_uncoerced_ty : T.typ option = None)
+    (exp : Syntax.exp) tys es at =
   if not env.pre then
   if Flags.get_warning_level "M0236" <> Flags.Allow then
   if at = Source.no_region then () else (* no warnings for compiler-generated calls *)
@@ -2155,8 +2156,13 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
           (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway.
-             `is_postfix_exp` also excludes `LitE` since contextual-dot is weaker than `check_lit` for literal coercion — e.g. `Blob.isEmpty("\00")` wouldn't survive a rewrite to `"\00".isEmpty()`. *)
+             `is_postfix_exp` also excludes `LitE` since literal source texts don't always round-trip lexically (`-1.1` rebinds via unop, `0xff.f` lexes as a hex float). *)
           if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
+          (* Coercion guard: the rewrite reinfers [e] without the parameter type as context. If the un-coerced type isn't already a subtype of [receiver_ty], coercion (literal Text→Blob, ArrayE element check, branch lub) was needed and the rewrite would fail. *)
+          if (match trial_uncoerced_ty with
+              | None -> false
+              | Some t_e -> not (T.sub ~src_fields:env.srcs t_e receiver_ty))
+          then () else
           (match read_region e.at with
            | None -> ()
            | Some receiver_text ->
@@ -3386,6 +3392,22 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     else T.seq t_args
   in
   if not env.pre then ref_exp2 := exp2; (* TODO: is this good enough *)
+  (* M0236 trial: re-infer the dot-receiver candidate in pre mode without the parameter type as context. We must do this BEFORE [check_exp_strong] writes notes onto the syntactic receiver — pre-mode [infer_exp] doesn't write notes (and asserts the existing one is [T.Pre]). The result feeds into [check_can_dot] below to suppress the warning when the rewrite would lose contextual coercion. *)
+  let trial_uncoerced_ty =
+    if env.pre || Option.is_some ctx_dot
+       || Flags.get_warning_level "M0236" = Flags.Allow
+    then None
+    else match exp1.it, syntax_args with
+      | DotE _, e :: _ ->
+        (match Diag.with_message_store (recover_opt (fun msgs ->
+          let env' = { env with msgs; pre = true } in
+          let t = infer_exp env' e in
+          if t = T.Pre then None else Some t))
+        with
+        | Ok (Some t, _) -> Some t
+        | _ -> None)
+      | _ -> None
+  in
   let ts, t_arg', t_ret' =
     match tbs, inst.it with
     | [], (None | Some (_, []))  (* no inference required *)
@@ -3427,7 +3449,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
        warn env at "M0195" "this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system%s>` to suppress this warning)" (if List.length tbs = 1 then "" else ", ...")
     | _ -> ()
     end;
-    check_can_dot env ctx_dot exp1 (List.map (T.open_ ts) t_args) syntax_args at;
+    check_can_dot env ctx_dot ~trial_uncoerced_ty exp1 (List.map (T.open_ ts) t_args) syntax_args at;
     check_explicit_arguments env saturated_arity implicits_arity (List.map (T.open_ ts) t_args) syntax_args;
   end;
   (* note t_ret' <: t checked by caller if necessary *)
