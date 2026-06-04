@@ -2,7 +2,7 @@
 
 * motoko (`moc`)
 
-  * bugfix: M0236 dot-notation suggestion no longer fires for literal receivers — the autofix could misparse signed literals (`-1.1.isNaN()` → `-(1.1.isNaN())`), mis-lex hex literals (`0xff.f` lexes as a hex float), or fail to type-check when the original relied on literal coercion (`Blob.isEmpty("\00")` → `"\00".isEmpty()` doesn't compile because contextual-dot lookup doesn't try Text→Blob coercion).
+  * bugfix: M0236 dot-notation suggestion no longer fires for literal receivers — the `lit.f()` rewrite could misparse (`-1.1.isNaN()` → `-(1.1.isNaN())`), mis-lex (`0xff.abs` as a hex float), or fail to type-check when it lost a literal coercion (`Blob.isEmpty("\00")` → `"\00".isEmpty()`).
 
   * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
 
