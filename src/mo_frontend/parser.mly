@@ -780,7 +780,7 @@ exp_un(B) :
     { AwaitE(Type.AwaitCmp, e) @? at $sloc }
   | ASSERT e=exp_nest
     { AssertE(Runtime, e) @? at $sloc }
-  | LABEL x=id rt=annot_opt e=exp_nest
+  | LABEL x=id rt=annot_opt deo=preceded(EQ, exp_nullary(ob))? e=exp_nest
     { let x' = ("continue " ^ x.it) @@ x.at in
       let unit () = TupT [] @! at $sloc in
       let e' =
@@ -790,7 +790,19 @@ exp_un(B) :
         | ForE (p, e1, e2, flags) -> ForE (p, e1, LabelE (x', unit (), e2) @? e2.at, flags) @? e.at
         | _ -> e
       in
-      LabelE(x, Lib.Option.get rt (unit ()), e') @? at $sloc }
+      (* #6163: `label x [: T] = <default> <body>` desugars to
+         `label x [: T] do { <body>; <default> }`.  The default is the
+         fallthrough value when no `break x` fires; it is the block's tail, so
+         it is evaluated only on demand (skipped once a break exits the label).
+         The label's type comes from the annotation T (the body is checked
+         against it); with no annotation the label is unit, so the *compact*
+         form `label x = <default> <body>` does not typecheck unless the
+         default's type is unit. *)
+      let body = match deo with
+        | Some d -> BlockE [ ExpD e' @? e'.at; ExpD d @? d.at ] @? at $sloc
+        | None -> e'
+      in
+      LabelE(x, Lib.Option.get rt (unit ()), body) @? at $sloc }
   | BREAK x=id eo=exp_nullary(ob)?
     { let e = Lib.Option.get eo (TupE([]) @? at $sloc) in
       BreakE(Break, Some x, e) @? at $sloc }
