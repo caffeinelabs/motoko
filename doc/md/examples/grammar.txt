@@ -239,7 +239,7 @@
     'await?' <exp_nest>
     'await*' <exp_nest>
     'assert' <exp_nest>
-    'label' <id> (':' <typ>)? <exp_nest>
+    'label' <id> (':' <typ>)? ('=' <exp_nullary>)? <exp_nest>
     'break' <id> <exp_nullary>?
     'break'
     'continue' <id>?
