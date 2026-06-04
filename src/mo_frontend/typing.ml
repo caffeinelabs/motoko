@@ -1209,7 +1209,7 @@ let rec is_explicit_exp e =
   | LitE l -> is_explicit_lit !l
   | UnE (_, _, e1) | OptE e1 | DoOptE e1
   | ProjE (e1, _) | DotE (e1, _, _) | BangE e1 | IdxE (e1, _) | CallE (_, e1, _, _)
-  | LabelE (_, _, e1, _) | AsyncE (_, _, _, e1) | AwaitE (_, e1) ->
+  | LabelE (_, _, e1) | AsyncE (_, _, _, e1) | AwaitE (_, e1) ->
     is_explicit_exp e1
   | BinE (_, e1, _, e2) | IfE (_, e1, e2) ->
     is_explicit_exp e1 || is_explicit_exp e2
@@ -2610,7 +2610,7 @@ and infer_exp'' env exp : T.typ =
       );
     end;
     T.unit
-  | LabelE (id, typ, exp1, infer) ->
+  | LabelE (id, (typ, infer), exp1) ->
     (* `infer` ⟹ no annotation, and the parser built exp1 as
        `do { <body> ; <default> }` (#6163).  The label's type is the default's
        — the block's final expression, which cannot mention the label.  Infer

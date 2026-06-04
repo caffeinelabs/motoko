@@ -785,9 +785,9 @@ exp_un(B) :
       let unit () = TupT [] @! at $sloc in
       let e' =
         match e.it with
-        | WhileE (e1, e2, flags) -> WhileE (e1, LabelE (x', unit (), e2, false) @? e2.at, flags) @? e.at
-        | LoopE (e1, eo, flags) -> LoopE (LabelE (x', unit (), e1, false) @? e1.at, eo, flags) @? e.at
-        | ForE (p, e1, e2, flags) -> ForE (p, e1, LabelE (x', unit (), e2, false) @? e2.at, flags) @? e.at
+        | WhileE (e1, e2, flags) -> WhileE (e1, LabelE (x', (unit (), false), e2) @? e2.at, flags) @? e.at
+        | LoopE (e1, eo, flags) -> LoopE (LabelE (x', (unit (), false), e1) @? e1.at, eo, flags) @? e.at
+        | ForE (p, e1, e2, flags) -> ForE (p, e1, LabelE (x', (unit (), false), e2) @? e2.at, flags) @? e.at
         | _ -> e
       in
       (* #6163: `label x [: T] = <default> <body>` desugars to
@@ -803,7 +803,7 @@ exp_un(B) :
         | Some d -> BlockE [ ExpD e' @? e'.at; ExpD d @? d.at ] @? at $sloc
         | None -> e'
       in
-      LabelE(x, Lib.Option.get rt (unit ()), body, infer) @? at $sloc }
+      LabelE(x, (Lib.Option.get rt (unit ()), infer), body) @? at $sloc }
   | BREAK x=id eo=exp_nullary(ob)?
     { let e = Lib.Option.get eo (TupE([]) @? at $sloc) in
       BreakE(Break, Some x, e) @? at $sloc }
