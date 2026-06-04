@@ -4661,7 +4661,9 @@ and check_stable_defaults env sort dec_fields =
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable _; at; _}, (LetD _ | VarD _) ->
           if at <> no_region then
-            warn env at "M0218" "redundant `stable` keyword, this declaration is implicitly stable"
+            warn env at "M0218"
+              ~edits:[edit at ""]
+              "redundant `stable` keyword, this declaration is implicitly stable"
         | _ -> ())
       dec_fields
     end
