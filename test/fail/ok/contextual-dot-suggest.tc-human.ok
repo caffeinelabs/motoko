@@ -28,9 +28,3 @@ warning[M0236]: You can use the dot notation `Map.clone(peopleMap).get(...)` her
     │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `Map.clone(peopleMap)`
     = help: remove `Map.clone(peopleMap),`
-warning[M0236]: You can use the dot notation `1.1.isNaN(...)` here
-    ┌─ contextual-dot-suggest.mo:114:10
-114 │    ignore Float.isNaN(1.1);  // warn — unsigned decimal round-trips cleanly
-    │           ^^^^^^^^^^^^^^^^ 
-    = help: replace `Float` with `1.1`
-    = help: remove `1.1`

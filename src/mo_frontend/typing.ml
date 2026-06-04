@@ -2134,17 +2134,15 @@ let contextual_dot_module (exp : Syntax.exp) =
     Some (Suggest.module_name_as_url module_ref, id.it)
   | _ -> None
 
-(* True iff `e`'s source text `s` is genuinely postfix — can prefix `.f()` without parens.
-   Refines `Syntax.is_postfix_exp`, which accepts some `LitE` forms whose text isn't:
-   - signed: `-1.1.f()` parses as `-(1.1.f())` (unop binds looser than `.`).
-   - hex: `0xff.f` lexes as a single hex float (`f` is a hex digit). *)
-let is_postfix_receiver (e : Syntax.exp) s =
-  Syntax.is_postfix_exp e &&
-  let trimmed = String.trim s in
-  not String.(
-    starts_with ~prefix:"-" trimmed ||
-    starts_with ~prefix:"+" trimmed ||
-    starts_with ~prefix:"0x" trimmed)
+(* True iff `e` can serve as a dot-receiver in an M0236 rewrite.
+   Stricter than `Syntax.is_postfix_exp`: also excludes `LitE`. The autofix
+   `lit.f()` can misparse (`-1.1.f()` → `-(1.1.f())`), mis-lex (`0xff.f` as a
+   hex float), or fail to type-check when contextual-dot lookup doesn't apply
+   the literal coercion that argument-position `check_lit` does. *)
+let is_postfix_receiver (e : Syntax.exp) =
+  match e.it with
+  | LitE _ -> false
+  | _ -> Syntax.is_postfix_exp e
 
 let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
   if not env.pre then
@@ -2166,11 +2164,10 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          (* Skip multi-line receivers: a debatable style change with no clean autofix. *)
-          if e.at.left.line <> e.at.right.line then () else
+          (* Skip non-postfix or multi-line receivers: no clean autofix either way. *)
+          if not (is_postfix_receiver e) || e.at.left.line <> e.at.right.line then () else
           (match read_region e.at with
            | None -> ()
-           | Some receiver_text when not (is_postfix_receiver e receiver_text) -> ()
            | Some receiver_text ->
              let replace_receiver = edit old_receiver.at receiver_text in
              let argument_edit = match es with

@@ -104,12 +104,11 @@ persistent actor {
     public func abs(self : Int) : Int { self };
   };
 
-  // Parser/lexer hazards: don't suggest.
+  // All literal receivers are skipped — `LitE` is too fragile for the rewrite.
   ignore Float.isNaN(-1.1); // no-warn — `-1.1.isNaN()` parses as `-(1.1.isNaN())`
   ignore Float.isNaN(+1.1); // no-warn
   ignore Float.abs(-1.1);   // no-warn
   ignore Int.abs(-1);       // no-warn
   ignore Int.abs(0xff);     // no-warn — `0xff.abs` lexes as a hex float
-
-  ignore Float.isNaN(1.1);  // warn — unsigned decimal round-trips cleanly
+  ignore Float.isNaN(1.1);  // no-warn — even safe-looking literals skipped
 }
