@@ -2135,9 +2135,9 @@ let contextual_dot_module (exp : Syntax.exp) =
   | _ -> None
 
 (* True iff `e`'s source text `s` is genuinely postfix — can prefix `.f()` without parens.
-   Refines `Syntax.is_postfix_exp`, which is too permissive for some `LitE` forms:
-   - signed literals (`-1.1` is folded into `LitE` but `-1.1.f()` parses as `-(1.1.f())`)
-   - hex literals (`0xff.f` lexes as a single hex float, since `f` is a hex digit). *)
+   Refines `Syntax.is_postfix_exp`, which accepts some `LitE` forms whose text isn't:
+   - signed: `-1.1.f()` parses as `-(1.1.f())` (unop binds looser than `.`).
+   - hex: `0xff.f` lexes as a single hex float (`f` is a hex digit). *)
 let is_postfix_receiver (e : Syntax.exp) s =
   Syntax.is_postfix_exp e &&
   let trimmed = String.trim s in

@@ -96,8 +96,6 @@ persistent actor {
 
   Amb1.method(#amb); // don't suggest, ambiguous
 
-  // ----- additions below kept here to preserve line numbers above -----
-
   module Float {
     public func isNaN(self : Float) : Bool { false };
     public func abs(self : Float) : Float { self };
