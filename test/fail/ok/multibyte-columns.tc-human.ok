@@ -1,24 +1,24 @@
-warning[M0236]: You can use the dot notation `'A'.toNat32(...)` here
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
     ┌─ multibyte-columns.mo:10:12
- 10 │      ignore Char.toNat32('A');   // ASCII
-    │             ^^^^^^^^^^^^^^^^^ 
-    = help: replace `Char` with `'A'`
-    = help: remove `'A'`
-warning[M0236]: You can use the dot notation `'京'.toNat32(...)` here
-    ┌─ multibyte-columns.mo:11:12
- 11 │      ignore Char.toNat32('京');  // 3-byte UTF-8 inside span
-    │             ^^^^^^^^^^^^^^^^^ 
-    = help: replace `Char` with `'京'`
-    = help: remove `'京'`
-warning[M0236]: You can use the dot notation `'💩'.toNat32(...)` here
-    ┌─ multibyte-columns.mo:12:12
- 12 │      ignore Char.toNat32('💩'); // 4-byte UTF-8 inside span (non-BMP)
-    │             ^^^^^^^^^^^^^^^^^ 
-    = help: replace `Char` with `'💩'`
-    = help: remove `'💩'`
-warning[M0236]: You can use the dot notation `'D'.toNat32(...)` here
+ 10 │      ignore Char.toNat32(c);                       // ASCII baseline
+    │             ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
+    ┌─ multibyte-columns.mo:11:24
+ 11 │      ignore "京"; ignore Char.toNat32(c);          // 3-byte UTF-8 before span
+    │                         ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
+    ┌─ multibyte-columns.mo:12:24
+ 12 │      ignore "💩"; ignore Char.toNat32(c);          // 4-byte UTF-8 (non-BMP) before span
+    │                         ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
     ┌─ multibyte-columns.mo:13:25
- 13 │      ignore "京京"; ignore Char.toNat32('D');  // multibyte BEFORE the span
-    │                          ^^^^^^^^^^^^^^^^^ 
-    = help: replace `Char` with `'D'`
-    = help: remove `'D'`
+ 13 │      ignore "京京"; ignore Char.toNat32(c);        // multibyte text before span
+    │                          ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`
