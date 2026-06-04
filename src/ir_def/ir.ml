@@ -131,6 +131,7 @@ and prim =
   | RelPrim of Type.typ * relop       (* relational operator *)
   | TupPrim                           (* the tuple constructor *)
   | ProjPrim of int                   (* tuple projection *)
+  | StorePrim                         (* unsafe heap-slot store via load-shape lvalue; cf. TRMC *)
   | OptPrim                           (* option injection *)
   | TagPrim of id                     (* variant injection *)
   | DotPrim of Type.lab               (* object projection *)
@@ -290,6 +291,7 @@ let map_prim t_typ t_lab p =
   | RelPrim (ot, op) -> RelPrim (t_typ ot, op)
   | TupPrim
   | ProjPrim _
+  | StorePrim
   | OptPrim
   | TagPrim _
   | DotPrim _

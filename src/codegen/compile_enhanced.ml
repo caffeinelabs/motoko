@@ -11736,6 +11736,25 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae e1 ^^ (* offset to tuple (an array) *)
     Tuple.load_n env (Int64.of_int n)
 
+  (* TRMC's unsafe heap-slot store. Tuples and (mutable) arrays share heap
+     layout. We only need `obj` to *look* array-typed to the IdxLE
+     codegen path (which reads `e1.note.Note.typ` for `Arr.element_type`);
+     no IR-level CastPrim is needed since check_ir doesn't run on what
+     we synthesise here. We just retag obj's note. *)
+  | StorePrim, [{it = PrimE (ProjPrim n, [obj]); _}; v] ->
+    let arr_typ = Type.(Array (Mut Any)) in
+    let arr_obj = { obj with note = Note.{ obj.note with typ = arr_typ } } in
+    let idx_e = Construct.natE (Numerics.Nat.of_int n) in
+    let lhs =
+      { it = IdxLE (arr_obj, idx_e);
+        at = no_region;
+        note = Type.(Mut Any) } in
+    let assign =
+      { it = AssignE (lhs, v);
+        at = no_region;
+        note = Note.{ def with typ = Type.unit; eff = v.note.eff } } in
+    compile_exp env ae assign
+
   | OptPrim, [e] ->
     SR.Vanilla,
     Opt.inject env e.note.Note.typ (compile_exp_vanilla env ae e)

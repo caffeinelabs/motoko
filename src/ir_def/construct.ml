@@ -138,6 +138,7 @@ let primE prim es =
     | OtherPrim "caller_info_data" -> T.blob
     | OtherPrim "set_migrations" -> T.unit
     | OtherPrim "get_migrations" -> T.text_list
+    | StorePrim -> T.unit
     | _ -> assert false (* implement more as needed *)
   in
   let eff = map_max_effs eff es in

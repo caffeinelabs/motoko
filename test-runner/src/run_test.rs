@@ -636,7 +636,7 @@ fn filecheck(ctx: &mut Ctx, cli: &Cli, wasm: &Path, mangled: &Path) {
 
     if let Ok(wat) = fs::File::create(&wat_path) {
         let _ = Command::new("wasm2wat")
-            .args(["--enable-memory64", "--enable-multi-memory", "--no-check"])
+            .args(["--enable-memory64", "--enable-multi-memory", "--enable-tail-call", "--no-check"])
             .arg(wasm)
             .stdout(Stdio::from(wat))
             .status();
