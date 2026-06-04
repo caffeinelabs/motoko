@@ -1,9 +1,9 @@
-// The compact defaulted form `label x = <default> <body>` (no type annotation)
-// does not typecheck with a non-bottom default: without an annotation the label
-// type is (), so the default `false : Bool` — and the `break hit true` value —
-// are checked against (), not inferred.  An annotation fixes it
-// (`label hit : Bool = false ...`); see #6163 and test/run/label-default.mo.
-func d(xs : [Nat], target : Nat) : Bool {
-  label hit = false
-    for (x in xs.vals()) { if (x == target) break hit true }
+// The compact `label x = <default> <body>` (no annotation) takes its type from
+// the default — like a `var`/`let` initializer.  A bare sentinel whose type is
+// too narrow (here `null : Null`) therefore rejects a wider `break` value.  Fix
+// by annotating the default (`label r = (null : ?Nat) …`) or the label
+// (`label r : ?Nat = null …`); see #6163 and test/run/label-default.mo.
+func firstEven(xs : [Nat]) : ?Nat {
+  label r = null
+    for (x in xs.vals()) { if (x % 2 == 0) break r (?x) }
 };

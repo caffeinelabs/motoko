@@ -73,7 +73,7 @@ let rec infer_effect_exp (exp:Syntax.exp) : T.eff =
   | DotE (exp1, _, _)
   | NotE exp1
   | AssertE (_, exp1)
-  | LabelE (_, _, exp1)
+  | LabelE (_, _, exp1, _)
   | BreakE (_, _, exp1)
   | RetE exp1
   | AnnotE (exp1, _)

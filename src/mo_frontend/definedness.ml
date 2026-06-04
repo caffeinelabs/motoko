@@ -127,7 +127,7 @@ let rec exp msgs e : f = match e.it with
   | DotE (e, _, _)
   | ProjE (e, _)
   | NotE e
-  | LabelE (_, _, e)
+  | LabelE (_, _, e, _)
   | DebugE e
   | AsyncE (None, _, _, e)
   | AwaitE (_, e)

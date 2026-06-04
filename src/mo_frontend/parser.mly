@@ -785,24 +785,25 @@ exp_un(B) :
       let unit () = TupT [] @! at $sloc in
       let e' =
         match e.it with
-        | WhileE (e1, e2, flags) -> WhileE (e1, LabelE (x', unit (), e2) @? e2.at, flags) @? e.at
-        | LoopE (e1, eo, flags) -> LoopE (LabelE (x', unit (), e1) @? e1.at, eo, flags) @? e.at
-        | ForE (p, e1, e2, flags) -> ForE (p, e1, LabelE (x', unit (), e2) @? e2.at, flags) @? e.at
+        | WhileE (e1, e2, flags) -> WhileE (e1, LabelE (x', unit (), e2, false) @? e2.at, flags) @? e.at
+        | LoopE (e1, eo, flags) -> LoopE (LabelE (x', unit (), e1, false) @? e1.at, eo, flags) @? e.at
+        | ForE (p, e1, e2, flags) -> ForE (p, e1, LabelE (x', unit (), e2, false) @? e2.at, flags) @? e.at
         | _ -> e
       in
       (* #6163: `label x [: T] = <default> <body>` desugars to
          `label x [: T] do { <body>; <default> }`.  The default is the
          fallthrough value when no `break x` fires; it is the block's tail, so
          it is evaluated only on demand (skipped once a break exits the label).
-         The label's type comes from the annotation T (the body is checked
-         against it); with no annotation the label is unit, so the *compact*
-         form `label x = <default> <body>` does not typecheck unless the
-         default's type is unit. *)
+         When there is an annotation T it wins (the body is checked against it).
+         With no annotation but a default present, the flag tells the
+         typechecker to take the label type from the block's final expression
+         (the default) — so `label x = false …` infers Bool. *)
+      let infer = Option.is_none rt && Option.is_some deo in
       let body = match deo with
         | Some d -> BlockE [ ExpD e' @? e'.at; ExpD d @? d.at ] @? at $sloc
         | None -> e'
       in
-      LabelE(x, Lib.Option.get rt (unit ()), body) @? at $sloc }
+      LabelE(x, Lib.Option.get rt (unit ()), body, infer) @? at $sloc }
   | BREAK x=id eo=exp_nullary(ob)?
     { let e = Lib.Option.get eo (TupE([]) @? at $sloc) in
       BreakE(Break, Some x, e) @? at $sloc }

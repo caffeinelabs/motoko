@@ -734,7 +734,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         )
       in k_continue V.unit
     )
-  | LabelE (id, _typ, exp1) ->
+  | LabelE (id, _typ, exp1, _) ->
     let env' = {env with labs = V.Env.add id.it k env.labs} in
     Profiler.bump_label id.at id.it ;
     interpret_exp env' exp1 k
