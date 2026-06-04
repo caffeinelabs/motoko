@@ -60,10 +60,11 @@ persistent actor {
 
   type OrderNr = Nat32;
 
-  // Order entity.  Primary key is `orderNr`.  `client` is a direct reference
-  // to the Client record — referential integrity without fragile index indirection.
+  // Order entity.  Primary key is `id` (a stable running counter, rendered
+  // "ORDnnnn").  `client` is a direct reference to the Client record —
+  // referential integrity without fragile index indirection.
   type Order = {
-    orderNr     : OrderNr;   // primary key
+    id          : OrderNr;   // primary key (running counter, rendered "ORDnnnn")
     client      : Client;
     article     : Text;
     status      : { #open; #shipped; #paid; #cancelled };
@@ -100,6 +101,63 @@ persistent actor {
   func twoDigits(n : Nat) : Text {
     let m = n % 100;
     if (m < 10) "0" # debug_show m else debug_show m
+  };
+
+  // Underscore-free decimal rendering (debug_show inserts "_" at ≥1000).
+  func digitChar(d : Nat) : Text =
+    switch d { case 0 "0"; case 1 "1"; case 2 "2"; case 3 "3"; case 4 "4";
+               case 5 "5"; case 6 "6"; case 7 "7"; case 8 "8"; case _ "9" };
+  func natToText(n : Nat) : Text =
+    if (n < 10) digitChar n else natToText (n / 10) # digitChar (n % 10);
+
+  // Stable order id: "ORD" + the running counter (`id`), zero-padded to 4
+  // digits — "ORD0000", "ORD0001", …  This is the order's primary key; orders
+  // are addressed by this name (`order "ORD0000"`), and it renders in
+  // descriptors via orderSmurf.toDesc.  Stable: assigned once at creation.
+  func orderId(o : Order) : Text {
+    func pad(t : Text) : Text = if (t.size() >= 4) t else pad("0" # t);
+    "ORD" # pad(natToText(nat32ToNat(o.id)))
+  };
+
+  // Inverse of orderId: parse "ORDnnnn" (any decimal width, padded or not) back
+  // to the numeric id.  Returns null unless the text is "ORD" followed by ≥1
+  // decimal digits.  Used by #named order lookup so `order "ORD0004"` resolves
+  // by *decoding* to id 4 (robust to padding) rather than string-matching.
+  func parseOrderId(name : Text) : ?Nat {
+    let it = name.chars();
+    if (it.next() != ?'O') return null;
+    if (it.next() != ?'R') return null;
+    if (it.next() != ?'D') return null;
+    var n : Nat = 0;
+    var any = false;
+    loop {
+      switch (it.next()) {
+        case (?c) {
+          let code = charToNat32 c;
+          if (code < 48 or code > 57) return null;   // not 0-9
+          n := n * 10 + nat32ToNat(code - 48);
+          any := true;
+        };
+        case null return (if any ?n else null);
+      }
+    }
+  };
+
+  // Resolve a #named order ("ORDnnnn") within an order collection by decoding
+  // the id and matching on `o.id` — not on the rendered string.
+  func findOrderByName(os : [Order], name : Text, par : Smurf) : Smurf {
+    switch (parseOrderId name) {
+      case (?k) {
+        let target = intToNat32Wrap k;
+        var i = 0;
+        while (i < os.size()) {
+          if (os[i].id == target) return orderSmurf(os[i], i, par);
+          i += 1;
+        };
+        notFoundSmurf par
+      };
+      case null notFoundSmurf par;
+    }
   };
 
   let clients : [Client] = Array_tabulate<Client>(dbSize, func(i : Nat) : Client {
@@ -367,16 +425,17 @@ persistent actor {
           fourcc = "ord ";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf {
             let slice = ordersOfClient c;
-            VarAccessor<Order>(slice, "ord ", #indexed, orderSmurf, func o = debug_show (nat32ToNat(o.orderNr))).lookUp(par, key)
+            VarAccessor<Order>(slice, "ord ", #indexed, orderSmurf, func o = orderId o).lookUp(par, key)
           };
         },
         {
           form   = #named;
           fourcc = "ord ";
-          lookUp = func(par : Smurf, key : LookupKey) : Smurf {
-            let slice = ordersOfClient c;
-            VarAccessor<Order>(slice, "ord ", #named, orderSmurf, func o = debug_show (nat32ToNat(o.orderNr))).lookUp(par, key)
-          };
+          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+            switch key {
+              case (#named nm) findOrderByName(ordersOfClient c, nm, par);
+              case _ notFoundSmurf par;
+            };
         },
         {
           form   = #test;
@@ -385,7 +444,7 @@ persistent actor {
             switch key {
               case (#test pred) {
                 let slice = ordersOfClient c;
-                CollectionSmurf<Order>(slice, "ord ", par, orderSmurf, orderLookup, func o = debug_show (nat32ToNat(o.orderNr)), ?pred)
+                CollectionSmurf<Order>(slice, "ord ", par, orderSmurf, orderLookup, func o = orderId o, ?pred)
               };
               case _ notFoundSmurf par;
             };
@@ -482,12 +541,17 @@ persistent actor {
   // wire can compare via `#text`.  `pmtp` is the payment type tag.
   // `clnm` is the ordering client's name — the foreign-key back-reference.
   transient let orderPropReaders : [PropReader<Order>] = [
-    { fourcc = "ordN"; lingoName = ?"order number";   valueType = #Integer; description = "Sequential order number (primary key).";                   read = func o = #int32 (nat32ToInt32(o.orderNr))        },
+    { fourcc = "ID  "; lingoName = ?"id";             valueType = #Text;    description = "Stable order id (\"ORDnnnn\"; running counter; primary key).";   read = func o = #text  (orderId o)                      },
     { fourcc = "clnm"; lingoName = ?"client name";    valueType = #Text;    description = "Name of the ordering client (back-reference via o.client.name)."; read = func o = #text  (o.client.name)                      },
     { fourcc = "artc"; lingoName = ?"article";        valueType = #Text;    description = "Name of the ordered article.";                             read = func o = #text  (o.article)                      },
     { fourcc = "stts"; lingoName = ?"status";         valueType = #Text;    description = "Order status: open / shipped / paid / cancelled.";         read = func o = #text  (orderStatusText(o.status))      },
     { fourcc = "val "; lingoName = ?"value";          valueType = #Integer; description = "Order value in base currency.";                            read = func o = #int32 (nat32ToInt32(o.value))          },
     { fourcc = "pmtp"; lingoName = ?"payment type";   valueType = #Text;    description = "Payment method: creditCard / cash.";                       read = func o = #text  (paymentTypeText(o.paymentType)) },
+    // One-to-one back-reference, declared as a property of type `client`
+    // (every order has exactly one).  `read` returns the client name so
+    // `whose client = "…"` still works; navigation is via orderSmurf's `clnt`
+    // accessor, which returns the Client object.
+    { fourcc = "clnt"; lingoName = ?"client";         valueType = #ClassRef "clnt"; description = "The ordering client (one-to-one; always exactly one).";    read = func o = #text  (o.client.name)                  },
   ];
 
   transient let orderLookup : Text -> (Order -> CandidValue) = func prop = lookupReader(orderPropReaders, prop);
@@ -504,18 +568,25 @@ persistent actor {
     let self : Smurf = {
       class4cc    = "ord ";
       accessors   = [
-        { form = #named; fourcc = "ordN"; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32(o.orderNr)))         },
+        { form = #named; fourcc = "ID  "; lookUp = func _ = ValueSmurf(#text  (orderId o))                        },
         { form = #named; fourcc = "clnm"; lookUp = func _ = ValueSmurf(#text  (o.client.name))                    },
         { form = #named; fourcc = "artc"; lookUp = func _ = ValueSmurf(#text  (o.article))                       },
         { form = #named; fourcc = "stts"; lookUp = func _ = ValueSmurf(#text  (orderStatusText(o.status)))       },
         { form = #named; fourcc = "val "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32(o.value)))           },
         { form = #named; fourcc = "pmtp"; lookUp = func _ = ValueSmurf(#text  (paymentTypeText(o.paymentType)))  },
+        // One-to-one back-reference: every order has exactly one client
+        // (`o.client`, direct/O(1)).  Modeled as a *property* of type `client`
+        // (matched in the #named slot, where the bridge routes `form:'prop'`
+        // requests), so bare `client of order` resolves to the Client object
+        // and chains: `country of client of order`, `every order of client of
+        // order`.  Only the client→orders leg stays quadratic.
+        { form = #named; fourcc = "clnt"; lookUp = func(par : Smurf, _ : LookupKey) : Smurf = clientSmurf(o.client, 0, par) },
       ];
       toDesc      = func() : async* ObjectSpec {
         #obj {
           class_    = self.class4cc;
           container = await* parent.toDesc();
-          key       = #name (debug_show (nat32ToNat(o.orderNr)));
+          key       = #name (orderId o);
         }
       };
       filter      = func p = if (evalPred(orderLookup, p, o)) self else notFoundSmurf self;
@@ -958,7 +1029,7 @@ persistent actor {
         fourcc = "ord ";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
-            case (#test pred) CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = debug_show (nat32ToNat(o.orderNr)), ?pred);
+            case (#test pred) CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, ?pred);
             case _ notFoundSmurf parent;
           };
       },
@@ -966,7 +1037,7 @@ persistent actor {
         form   = #indexed;
         fourcc = "ord ";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
-          let view : Smurf = CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = debug_show (nat32ToNat(o.orderNr)), null);
+          let view : Smurf = CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, null);
           switch (findAccessor(view, "ord ", #indexed)) {
             case (?acc) acc.lookUp(view, key);
             case null notFoundSmurf parent;
@@ -976,13 +1047,11 @@ persistent actor {
       {
         form   = #named;
         fourcc = "ord ";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
-          let view : Smurf = CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = debug_show (nat32ToNat(o.orderNr)), null);
-          switch (findAccessor(view, "ord ", #named)) {
-            case (?acc) acc.lookUp(view, key);
-            case null notFoundSmurf parent;
+        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+          switch key {
+            case (#named nm) findOrderByName(orders, nm, parent);
+            case _ notFoundSmurf parent;
           };
-        };
       },
     ];
     toDesc      = func() : async* ObjectSpec { #root };
@@ -1550,9 +1619,9 @@ persistent actor {
     let useCard = (coin % 2 == 0) and (theClient.cards.size() > 0);
     let paymentType : { #creditCard; #cash } = if useCard #creditCard else #cash;
     let value : Nat32 = 10 +% (lcgNext() % 990);  // 10..999 in base currency
-    let orderNr : OrderNr = intToNat32Wrap(orders.size());
+    let id : OrderNr = intToNat32Wrap(orders.size());
     let o : Order = {
-      orderNr;
+      id;
       client = theClient;
       article = articles[articleIdx];
       status  = #open;
@@ -1560,12 +1629,12 @@ persistent actor {
       paymentType;
     };
     orders := Array_tabulate<Order>(orders.size() + 1, func j = if (j < orders.size()) orders[j] else o);
-    // Append the new orderNr to the client's own live orders list.
+    // Append the new order's id to the client's own live orders list.
     let prev = theClient.orders;
-    theClient.orders := Array_tabulate<OrderNr>(prev.size() + 1, func j = if (j < prev.size()) prev[j] else orderNr);
+    theClient.orders := Array_tabulate<OrderNr>(prev.size() + 1, func j = if (j < prev.size()) prev[j] else id);
     debugPrint(debug_show {
       stage = "order";
-      orderNr = nat32ToNat orderNr;
+      id = nat32ToNat id;
       client = theClient.name;
       article = o.article;
       paymentType = paymentTypeText paymentType;
@@ -1645,13 +1714,13 @@ persistent actor {
   func lingoPropsOf<T>(readers : [PropReader<T>]) : [LingoProperty] {
     var n = 0;
     for (p in readers.vals()) { if (p.lingoName != null) n += 1 };
-    let buf = Array_init<LingoProperty>(n, { name = ""; code = "    "; value_type = #Any; access = #R; description = null });
+    let buf = Array_init<LingoProperty>(n, { name = ""; code = "    "; valueType = #Any; access = #readOnly; description = null });
     var i = 0;
     for (p in readers.vals()) {
       switch (p.lingoName) {
         case null {};
         case (?name) {
-          buf[i] := { name; code = p.fourcc; value_type = p.valueType; access = #R; description = ?(p.description) };
+          buf[i] := { name; code = p.fourcc; valueType = p.valueType; access = #readOnly; description = ?(p.description) };
           i += 1;
         };
       };
@@ -1661,8 +1730,8 @@ persistent actor {
 
   public query func lingo() : async Lingo {
     {
-      suite_name = "Object Model";
-      suite_code = "ICom";
+      suiteName = "Object Model";
+      suiteCode = "ICom";
       description = ?"Clients, credit cards, and orders exposed by the bench canister.";
       classes = [
         {
@@ -1671,7 +1740,7 @@ persistent actor {
           plural      = "clients";
           description = ?"A client; primary key is `name`.";
           properties  = lingoPropsOf propReaders;
-          elements    = [{ class_code = "card"; access = #R }, { class_code = "ord "; access = #R }];
+          elements    = [{ classCode = "card"; access = #readOnly }, { classCode = "ord "; access = #readOnly }];
         },
         {
           name        = "card";
@@ -1693,8 +1762,10 @@ persistent actor {
           name        = "order";
           code        = "ord ";
           plural      = "orders";
-          description = ?"Purchase order; primary key is `orderNr`.";
+          description = ?"Purchase order; primary key is `id` (\"ORDnnnn\").";
           properties  = lingoPropsOf orderPropReaders;
+          // `client` is a one-to-one property (declared in orderPropReaders as
+          // a #ClassRef "clnt"), not an element — always exactly one per order.
           elements    = [];
         },
       ];

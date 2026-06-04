@@ -747,17 +747,17 @@ module {
   // ── Lingo types ───────────────────────────────────────────────────────────
 
   public type LingoValueType = { #Text; #Integer; #Real; #Boolean; #ClassRef : Text; #Any };
-  public type LingoAccess    = { #R; #W; #Rw };
+  public type LingoAccess    = { #readOnly; #writeOnly; #readWrite };
 
   public type LingoProperty = {
     name       : Text;
     code       : Text;
-    value_type : LingoValueType;
+    valueType  : LingoValueType;
     access     : LingoAccess;
     description : ?Text;
   };
 
-  public type LingoElement = { class_code : Text; access : LingoAccess };
+  public type LingoElement = { classCode : Text; access : LingoAccess };
 
   public type LingoClass = {
     name        : Text;
@@ -769,8 +769,8 @@ module {
   };
 
   public type Lingo = {
-    suite_name  : Text;
-    suite_code  : Text;
+    suiteName   : Text;
+    suiteCode   : Text;
     description : ?Text;
     classes     : [LingoClass];
   };
