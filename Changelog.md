@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * bugfix: M0254 ("initial actor requires field") is now an _error_ by default. With `--enhanced-migration`, a chain that does not initialize all of the actor's stable fields previously compiled with only a warning, shipping a wasm that is guaranteed to trap on fresh installation (`stable variable ... not found in persisted state`). Pass `-W M0254` to demote it back to a warning if needed.
+
   * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
 
   * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).

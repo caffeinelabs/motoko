@@ -4502,11 +4502,15 @@ and check_enhanced_migration_chain env chain stab_tfs at =
    let rec check_mfs at post mfs =
      match mfs with
      | [] ->
-       (* issue warnings if we infer the initial actor in the chain requires any fields *)
+       (* report if we infer the initial actor in the chain requires any fields;
+          such fields are not initialized by any migration, so a fresh installation
+          would trap at runtime (level Error by default, demotable with -W M0254) *)
        List.iter (fun tf ->
          warn env at "M0254"
-           "initial actor requires field `%s` of type%a"
-           tf.T.lab display_typ tf.T.typ)
+           "initial actor requires field `%s` of type%a\n%s\n%s"
+           tf.T.lab display_typ tf.T.typ
+           "The migration chain does not initialize this field, so a fresh installation will trap at runtime."
+           "Initialize the field in a migration function, or pass `-W M0254` to demote this error to a warning if you are upgrading a canister whose persisted state already contains the field.")
          post
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in

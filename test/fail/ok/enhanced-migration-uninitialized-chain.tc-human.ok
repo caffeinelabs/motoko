@@ -1,0 +1,14 @@
+error[M0254]: initial actor requires field `balance` of type
+  var Nat
+The migration chain does not initialize this field, so a fresh installation will trap at runtime.
+Initialize the field in a migration function, or pass `-W M0254` to demote this error to a warning if you are upgrading a canister whose persisted state already contains the field.
+    ┌─ enhanced-migration/enh-mig-noop/m1.mo:1:1
+  1 │  module {
+    │  ^ 
+error[M0254]: initial actor requires field `name` of type
+  var Text
+The migration chain does not initialize this field, so a fresh installation will trap at runtime.
+Initialize the field in a migration function, or pass `-W M0254` to demote this error to a warning if you are upgrading a canister whose persisted state already contains the field.
+    ┌─ enhanced-migration/enh-mig-noop/m1.mo:1:1
+  1 │  module {
+    │  ^ 

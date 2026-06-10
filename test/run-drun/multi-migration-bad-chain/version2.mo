@@ -1,5 +1,5 @@
-// enable -E M0254 to reject non-empty initial actor (pre)
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration multi-migration-bad-chain/bad-chain -E M0254
+// M0254 (non-empty initial actor) is an error by default
+//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration multi-migration-bad-chain/bad-chain
 
 import Prim "mo:prim";
 
