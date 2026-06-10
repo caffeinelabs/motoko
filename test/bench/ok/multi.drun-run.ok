@@ -1,0 +1,7 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+ingress Completed: Reply: 0x4449444c0000
+debug.print: {cycles = 6_993_442; fib = 102_334_155_000; heap = +213_624}
+debug.print: {cycles = 915_870_536; egcd_check = +109_470_000; heap = +85_760_000}
+debug.print: {cycles = 173_900_311; heap = +3_200_000; leb_len_sum = 1_000_000}
+ingress Completed: Reply: 0x4449444c0000
+ingress Completed: Reply: 0x4449444c0000
