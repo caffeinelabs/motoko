@@ -46,8 +46,6 @@ persistent actor {
   transient let evalPred       = OSL.evalPred;
   transient let notFoundSmurf  = OSL.notFoundSmurf;
   transient let findAccessor   = OSL.findAccessor;
-  transient let iteri          = OSL.iteri;
-  transient let smurfMap       = OSL.smurfMap;
 
   // Credit card.  Primary key is the Nat `number`.  Each client owns
   // 0–2 cards (deterministic by `i % 3`).
@@ -314,7 +312,7 @@ persistent actor {
   //
   // Text-valued ValueSmurfs grow two "char"-class accessors so a text leaf
   // remains navigable: `#indexed n` picks the n-th char; `#test pred` yields
-  // a CollectionSmurf<Char>.  Materialisation is cached once per instance
+  // a OSL.CollectionSmurf<Char>.  Materialisation is cached once per instance
   // (TODO: lazy iterator cache to avoid quadratic indexed access).
   class ValueSmurf(value : CandidValue) {
     public let  class4cc                      = "";
@@ -344,7 +342,7 @@ persistent actor {
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred)
-                CollectionSmurf<Char>(chars, "char", par, func(c, n, p) = charSmurf(charLookup, c, n, p), charLookup, charToText, ?pred);
+                OSL.CollectionSmurf<Char>(chars, "char", par, func(c, n, p) = charSmurf(charLookup, c, n, p), charLookup, charToText, ?pred);
               case _ notFoundSmurf par;
             };
         },
@@ -405,15 +403,15 @@ persistent actor {
         // The PK is `number : Nat`, surfaced as Text via `debug_show`
         // so the spec's `#name "<digits-with-underscores>"` resolves
         // via the protocol's existing #named/Text shape.
-        VarAccessor<CreditCard>(c.cards, "card", #indexed, cardSmurf, func k = debug_show k.number),
-        VarAccessor<CreditCard>(c.cards, "card", #named,   cardSmurf, func k = debug_show k.number),
+        OSL.VarAccessor<CreditCard>(c.cards, "card", #indexed, cardSmurf, func k = debug_show k.number),
+        OSL.VarAccessor<CreditCard>(c.cards, "card", #named,   cardSmurf, func k = debug_show k.number),
         {
           form   = #test;
           fourcc = "card";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred)
-                CollectionSmurf<CreditCard>(c.cards, "card", par, cardSmurf, cardLookup, func k = debug_show k.number, ?pred);
+                OSL.CollectionSmurf<CreditCard>(c.cards, "card", par, cardSmurf, cardLookup, func k = debug_show k.number, ?pred);
               case _ notFoundSmurf par;
             };
         },
@@ -425,7 +423,7 @@ persistent actor {
           fourcc = "ord ";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf {
             let slice = ordersOfClient c;
-            VarAccessor<Order>(slice, "ord ", #indexed, orderSmurf, func o = orderId o).lookUp(par, key)
+            OSL.VarAccessor<Order>(slice, "ord ", #indexed, orderSmurf, func o = orderId o).lookUp(par, key)
           };
         },
         {
@@ -444,7 +442,7 @@ persistent actor {
             switch key {
               case (#test pred) {
                 let slice = ordersOfClient c;
-                CollectionSmurf<Order>(slice, "ord ", par, orderSmurf, orderLookup, func o = orderId o, ?pred)
+                OSL.CollectionSmurf<Order>(slice, "ord ", par, orderSmurf, orderLookup, func o = orderId o, ?pred)
               };
               case _ notFoundSmurf par;
             };
@@ -595,7 +593,7 @@ persistent actor {
   };
 
   // Snapshot the current orders for a given client into an immutable [Order]
-  // so VarAccessor<Order> can wrap them.  Reads c.orders (the live var field)
+  // so OSL.VarAccessor<Order> can wrap them.  Reads c.orders (the live var field)
   // and looks each OrderNr up in the global `orders` array.  Called per
   // clientSmurf construction — the slice is fresh on every navigation step.
   func ordersOfClient(c : Client) : [Order] {
@@ -616,7 +614,7 @@ persistent actor {
 
   transient let charLookup : Text -> (Char -> CandidValue) = func prop = lookupReader(charPropReaders, prop);
 
-  // Materialise a Text as a [Char] so CollectionSmurf<Char> can iterate
+  // Materialise a Text as a [Char] so OSL.CollectionSmurf<Char> can iterate
   // it like any other typed array.  Manual loop; the moc prelude exposes
   // `.chars()` on Text but no direct `Text -> [Char]` conversion.
   func arrayOfChars(t : Text) : [Char] {
@@ -695,284 +693,29 @@ persistent actor {
     self
   };
 
-  // VarAccessor<T>: typed escape hatch over a stable [T]. Captures the
-  // collection at construction — no Candid round-trip on input.
-  // `wrap : T -> Smurf` is supplied per entity to build the appropriate
-  // child Smurf (e.g. a clientSmurf wrapping a Client).
-  class VarAccessor<T>(
-    stab    : [T],
-    fourcc_ : Text,
-    form_   : { #indexed; #named; #test },
-    wrap    : (T, Nat, Smurf) -> Smurf,   // position is 1-based slot in `stab`
-    getName : T -> Text,             // used when form_ = #named; ignored otherwise
-  ) {
-    public let fourcc = fourcc_;
-    public let form   = form_;
-    public func lookUp(parent : Smurf, key : LookupKey) : Smurf {
-      switch (form_, key) {
-        case (#indexed, #indexed i) {
-          // AppleScript convention: 1-based forward, negatives count from end
-          // (-1 = last, -size = first); out of range → notFound.
-          let size = stab.size();
-          let n : Nat =
-            if (i > 0) abs i
-            else if (i < 0 and abs i <= size) size - abs i + 1
-            else 0;
-          if (n == 0 or n > size) notFoundSmurf parent
-          else wrap(stab[n - 1], n, parent)
-        };
-        case (#named, #named target) {
-          // Linear scan; relies on the init-time uniqueness assertion.
-          var found : ?T = null;
-          var foundAt : Nat = 0;
-          var idx : Nat = 0;
-          for (item in stab.vals()) {
-            idx += 1;
-            switch found {
-              case null if (getName item == target) { found := ?item; foundAt := idx };
-              case _ ();
-            };
-          };
-          switch found {
-            case (?item) wrap(item, foundAt, parent);
-            case null notFoundSmurf parent;
-          }
-        };
-        case _ notFoundSmurf parent;  // TODO: #test (with matching form_)
-      }
-    };
-  };
-
-  // CollectionSmurf<T>: typed multi-element view over a stable [T]. Holds
-  // an accumulated predicate (`null` = unfiltered) so `filter` composes via
-  // `#and_`. `toDesc` resolves eagerly into a `#list` of element references —
-  // each match is wrapped (e.g. clientSmurf) and asked for its own toDesc.
-  class CollectionSmurf<T>(
-    source  : [T],
-    classCC : Text,
-    parent  : Smurf,
-    wrap    : (T, Nat, Smurf) -> Smurf,    // Nat = 1-based source position
-    lookup  : Text -> (T -> CandidValue),
-    getName : T -> Text,                   // for #named lookup over the filtered view
-    pred    : ?BoolExpr,
-  ) {
-    func cardinality() : Nat {
-      var n = 0;
-      for (t in source.vals()) {
-        let m = switch pred { case null true; case (?p) evalPred(lookup, p, t) };
-        if m n += 1;
-      };
-      n
-    };
-
-    func passes(t : T) : Bool =
-      switch pred { case null true; case (?p) evalPred(lookup, p, t) };
-
-    // Inherited element accessors (same identity as the parent's
-    // VarAccessor<T> for this classCC, but iterating the filtered local
-    // view instead of the full stable [T]).  Position math mirrors
-    // VarAccessor exactly: 1-based, negative-from-end.
-    func indexedLookup(par : Smurf, key : LookupKey) : Smurf =
-      switch key {
-        case (#indexed i) {
-          let total = cardinality();
-          let target : Nat =
-            if (i > 0) abs i
-            else if (i < 0 and abs i <= total) total - abs i + 1
-            else 0;
-          if (target == 0 or target > total) notFoundSmurf par
-          else {
-            var seen : Nat = 0;
-            var srcIdx : Nat = 0;
-            var result : Smurf = notFoundSmurf par;
-            label l for (t in source.vals()) {
-              srcIdx += 1;
-              if (passes t) {
-                seen += 1;
-                if (seen == target) { result := wrap(t, srcIdx, par); break l };
-              };
-            };
-            result
-          }
-        };
-        case _ notFoundSmurf par;
-      };
-
-    func namedLookup(par : Smurf, key : LookupKey) : Smurf =
-      switch key {
-        case (#named target) {
-          var result : Smurf = notFoundSmurf par;
-          var srcIdx : Nat = 0;
-          label l for (t in source.vals()) {
-            srcIdx += 1;
-            if (passes t and getName t == target) {
-              result := wrap(t, srcIdx, par); break l;
-            };
-          };
-          result
-        };
-        case _ notFoundSmurf par;
-      };
-
-    // Inherited #test: compose predicates via `#and_` and return a
-    // refined CollectionSmurf.  Avoids the `self`-at-class-init dance
-    // by calling the constructor directly with the AND-composed pred.
-    // `parent` of the new collection is THIS collection's parent — keeps
-    // the AE-wire navigation chain coherent with successive filters.
-    func testLookup(par : Smurf, key : LookupKey) : Smurf =
-      switch key {
-        case (#test newPred) {
-          let combined : ?BoolExpr = switch pred {
-            case null ?newPred;
-            case (?old) ?(#and_ (old, newPred));
-          };
-          CollectionSmurf<T>(source, classCC, parent, wrap, lookup, getName, combined)
-        };
-        case _ notFoundSmurf par;
-      };
-
-    public let  class4cc                   = classCC;
-    // Inherited element accessors mirror only the (classCC, form) pairs
-    // the parent actually exposes — never fabricate.  E.g. characters
-    // of a name have positional access but not name-keyed access; a
-    // CollectionSmurf<Char> built off a name-valued parent should
-    // therefore expose #indexed but not #named.
-    let parentHasIndexed : Bool = switch (findAccessor(parent, classCC, #indexed)) { case null false; case _ true };
-    let parentHasNamed   : Bool = switch (findAccessor(parent, classCC, #named))   { case null false; case _ true };
-    let parentHasTest    : Bool = switch (findAccessor(parent, classCC, #test))    { case null false; case _ true };
-    let indexedAcc : Accessor = { form = #indexed; fourcc = classCC; lookUp = indexedLookup };
-    let namedAcc   : Accessor = { form = #named;   fourcc = classCC; lookUp = namedLookup   };
-    let testAcc    : Accessor = { form = #test;    fourcc = classCC; lookUp = testLookup    };
-    // Collection-only:
-    //   'pcnt' — `count of <collection>`.
-    //   'prop' — `<propName> of every <elem>`: maps the requested
-    //            property across matched elements via `findAccessor`
-    //            on each child Smurf (no per-T schema baked in).
-    let pcntAcc : Accessor = {
-      form   = #named;
-      fourcc = "pcnt";
-      lookUp = func _ = ValueSmurf(#int32 (intToInt32Wrap (cardinality())));
-    };
-    let propAcc : Accessor = {
-      form   = #named;
-      fourcc = "prop";
-      lookUp = func(par : Smurf, key : LookupKey) : Smurf =
-        switch key {
-          case (#named propName) {
-            // Project propName across each matching element and wrap
-            // the resulting [Smurf] in a smurfMap — Functor lift, so
-            // subsequent navigation (e.g. `nth char of every name`)
-            // distributes through.
-            let count = cardinality();
-            let resBuf = Array_init<Smurf>(count, notFoundSmurf par);
-            var present : Nat = 0;
-            iteri<T>(source, func(srcIdx, t) {
-              if (passes t) {
-                let elem = wrap(t, srcIdx, parent);
-                switch (findAccessor(elem, propName, #named)) {
-                  case (?acc) { resBuf[present] := acc.lookUp(elem, #named propName); present += 1 };
-                  case null ();
-                };
-              };
-            });
-            let results = Array_tabulate<Smurf>(present, func j = resBuf[j]);
-            smurfMap(par, results)
-          };
-          case _ notFoundSmurf par;
-        };
-    };
-    public let accessors : [Accessor] = switch (parentHasIndexed, parentHasNamed, parentHasTest) {
-      case (true,  true,  true)  [indexedAcc, namedAcc, testAcc, pcntAcc, propAcc];
-      case (true,  true,  false) [indexedAcc, namedAcc, pcntAcc, propAcc];
-      case (true,  false, true)  [indexedAcc, testAcc, pcntAcc, propAcc];
-      case (true,  false, false) [indexedAcc, pcntAcc, propAcc];
-      case (false, true,  true)  [namedAcc, testAcc, pcntAcc, propAcc];
-      case (false, true,  false) [namedAcc, pcntAcc, propAcc];
-      case (false, false, true)  [testAcc, pcntAcc, propAcc];
-      case (false, false, false) [pcntAcc, propAcc];
-    };
-    // Block-body avoids the M0137 outer-scope leak (#6133).
-    public func toDesc() : async* ObjectSpec {
-      let count = cardinality();
-      let buf = Array_init<ObjectSpec>(count, #root);
-      var i : Nat = 0;
-      var srcIdx : Nat = 0;
-      for (t in source.vals()) {
-        srcIdx += 1;
-        if (passes t) { buf[i] := await* wrap(t, srcIdx, parent).toDesc(); i += 1 };
-      };
-      #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
-    };
-    public func filter(p : BoolExpr) : Smurf {
-      let newPred : ?BoolExpr = switch pred {
-        case null ?p;
-        case (?old) ?(#and_ (old, p));
-      };
-      CollectionSmurf<T>(source, classCC, parent, wrap, lookup, getName, newPred)
-    };
-  };
-
-  // FlattenedSmurf<P, E>: 1→many join.  Given a parent `[P]` and an
-  // `extract : P -> [E]`, eagerly materialise the flat `[E]` and
-  // present it as a CollectionSmurf<E>.  Same surface as
-  // CollectionSmurf<E> — the class instance is structurally a
-  // CollectionSmurf<E> via field re-export.  Eager-only for now;
-  // streaming variant can come if N grows large enough to matter.
-  class FlattenedSmurf<P, E>(
-    parents  : [P],
-    extract  : P -> [E],
-    classCC  : Text,
-    parent   : Smurf,
-    wrap    : (E, Nat, Smurf) -> Smurf,   // Nat = 1-based slot in flattened source
-    lookup  : Text -> (E -> CandidValue),
-    getName : E -> Text,
-    pred     : ?BoolExpr,
-  ) : CollectionSmurf<E> {
-    // Materialise per-parent extractions, then flatten by index
-    // decomposition (no default-E required — Array_tabulate's body
-    // computes each output position from the perParent slices).
-    let perParent = Array_tabulate<[E]>(parents.size(), func i = extract(parents[i]));
-    var totalN : Nat = 0;
-    for (es in perParent.vals()) totalN += es.size();
-    let flat : [E] = Array_tabulate<E>(totalN, func k {
-      var rem = k;
-      var pi : Nat = 0;
-      while (rem >= perParent[pi].size()) {
-        rem -= perParent[pi].size();
-        pi += 1;
-      };
-      perParent[pi][rem]
-    });
-
-    let inner : Smurf = CollectionSmurf<E>(flat, classCC, parent, wrap, lookup, getName, pred);
-
-    public let {class4cc; accessors} = inner;
-    public func toDesc() : async* ObjectSpec { await* inner.toDesc() };
-    public func filter(p : BoolExpr) : Smurf { inner.filter p };
-  };
 
   // The canister's root Smurf. Hosts three "clnt" accessors over the stable
   // clients array — one #indexed, one #named (lookup by primary key), one
-  // #test (returns a filtered CollectionSmurf).  The #test accessor closes
+  // #test (returns a filtered OSL.CollectionSmurf).  The #test accessor closes
   // over evalBoolExpr — the per-entity-typed predicate evaluator — so the
   // library never sees BoolExpr semantics.
   transient let actorSmurf : Smurf = {
     class4cc    = "";
     accessors   = [
-      VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
-      VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
+      OSL.VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
+      OSL.VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
       {
         form   = #test;
         fourcc = "clnt";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#test pred)
-              CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, clientLookup, func c = c.name, ?pred);
+              OSL.CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, clientLookup, func c = c.name, ?pred);
             case _ notFoundSmurf parent;
           };
       },
       // Global card view: flatten c.cards across every client via
-      // FlattenedSmurf<Client, CreditCard>, then filter by the spec's
+      // OSL.FlattenedSmurf<Client, CreditCard>, then filter by the spec's
       // predicate.  `every card of root whose <P>` lives here.
       {
         form   = #test;
@@ -980,7 +723,7 @@ persistent actor {
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#test pred)
-              FlattenedSmurf<Client, CreditCard>(
+              OSL.FlattenedSmurf<Client, CreditCard>(
                 clients, func c = c.cards,
                 "card", parent, cardSmurf, cardLookup,
                 func k = debug_show k.number, ?pred);
@@ -988,15 +731,15 @@ persistent actor {
           };
       },
       // #indexed / #named "card" delegate to an unfiltered global
-      // FlattenedSmurf.  Exposing them here lets selective inheritance
-      // on the filtered FlattenedSmurf (the `#test "card"` accessor
+      // OSL.FlattenedSmurf.  Exposing them here lets selective inheritance
+      // on the filtered OSL.FlattenedSmurf (the `#test "card"` accessor
       // above) mirror these forms, so `first card whose <P>` and
       // `card "<pk>" of root` both compose cleanly.
       {
         form   = #indexed;
         fourcc = "card";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
-          let view = FlattenedSmurf<Client, CreditCard>(
+          let view = OSL.FlattenedSmurf<Client, CreditCard>(
             clients, func c = c.cards,
             "card", parent, cardSmurf, cardLookup,
             func k = debug_show k.number, null);
@@ -1010,7 +753,7 @@ persistent actor {
         form   = #named;
         fourcc = "card";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
-          let view = FlattenedSmurf<Client, CreditCard>(
+          let view = OSL.FlattenedSmurf<Client, CreditCard>(
             clients, func c = c.cards,
             "card", parent, cardSmurf, cardLookup,
             func k = debug_show k.number, null);
@@ -1020,8 +763,8 @@ persistent actor {
           };
         };
       },
-      // Global order view: `orders` is already flat, so CollectionSmurf<Order>
-      // suffices — no FlattenedSmurf needed.  `#test` enables predicate filters
+      // Global order view: `orders` is already flat, so OSL.CollectionSmurf<Order>
+      // suffices — no OSL.FlattenedSmurf needed.  `#test` enables predicate filters
       // (`every order whose status = "open"`); `#indexed`/`#named` give direct
       // access by position or orderNr text.
       {
@@ -1029,7 +772,7 @@ persistent actor {
         fourcc = "ord ";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
-            case (#test pred) CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, ?pred);
+            case (#test pred) OSL.CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, ?pred);
             case _ notFoundSmurf parent;
           };
       },
@@ -1037,7 +780,7 @@ persistent actor {
         form   = #indexed;
         fourcc = "ord ";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
-          let view : Smurf = CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, null);
+          let view : Smurf = OSL.CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, null);
           switch (findAccessor(view, "ord ", #indexed)) {
             case (?acc) acc.lookUp(view, key);
             case null notFoundSmurf parent;
@@ -1063,7 +806,7 @@ persistent actor {
   // accessor on actorSmurf; for now exposed top-level so tiny3 can route
   // through `filter` without inventing a new accessor form.
   transient let clntCollection : Smurf =
-    CollectionSmurf<Client>(clients, "clnt", actorSmurf, clientSmurf, clientLookup, func c = c.name, null);
+    OSL.CollectionSmurf<Client>(clients, "clnt", actorSmurf, clientSmurf, clientLookup, func c = c.name, null);
 
 
   func encoder(spec : ObjectSpec) : Blob {
@@ -1128,7 +871,7 @@ persistent actor {
 
   // Tiny demo 3: `every client whose country = <input>`. Filters the typed
   // [Client] via the protocol surface: clntCollection.filter(pred).toDesc().
-  // CollectionSmurf accumulates predicates and resolves eagerly into a #list
+  // OSL.CollectionSmurf accumulates predicates and resolves eagerly into a #list
   // of element references; each match's toDesc() is the `clnt by name` spec.
   (with encoder)
   public func tiny3(input : Text) : async ObjectSpec {
@@ -1140,7 +883,7 @@ persistent actor {
 
   // Tiny demo 4: `count of every client whose country = <input>`.
   // Same filter chain as tiny3, then dispatches the AE 'pcnt' property
-  // accessor on the resulting CollectionSmurf — returns a #value(#int32 N)
+  // accessor on the resulting OSL.CollectionSmurf — returns a #value(#int32 N)
   // data descriptor.
   (with encoder)
   public func tiny4(input : Text) : async ObjectSpec {
@@ -1236,7 +979,7 @@ persistent actor {
   // tiny8 — `name of <pos>th client whose country = <country>`.
   // Two stacked #obj on "clnt": inner #test yields a collection,
   // outer #absolutePosition picks one element, outermost projects
-  // #property "name".  CollectionSmurf has no #indexed accessor
+  // #property "name".  OSL.CollectionSmurf has no #indexed accessor
   // today — placeholder until that lands.
   (with encoder)
   public func tiny8(pos : Int, country : Text) : async ObjectSpec {
@@ -1246,7 +989,7 @@ persistent actor {
         // single clientSmurf, not a collection): bench convention uses
         // the typed property class here, matching tiny2's shape.  The
         // collection-broadcast `class_ = "prop"` (tiny6/tiny7) only
-        // applies when the container is a CollectionSmurf.
+        // applies when the container is a OSL.CollectionSmurf.
         class_    = "name";
         container = #obj {
           class_    = "clnt";
@@ -1268,9 +1011,9 @@ persistent actor {
   //   `first client whose firstName is "Anne" of (every client whose
   //    country is "France")`.
   // Three layers, both inner #objs filter clnt:
-  //  (a) #root → every clnt whose country=France → CollectionSmurf<Client> A.
+  //  (a) #root → every clnt whose country=France → OSL.CollectionSmurf<Client> A.
   //  (b) A → every clnt whose firstName="Anne" → would need a `#test`
-  //      "clnt" accessor on the CollectionSmurf (currently NOT inherited;
+  //      "clnt" accessor on the OSL.CollectionSmurf (currently NOT inherited;
   //      see the deferred `#test` work).  Resolve falls through to
   //      notFoundSmurf here.
   //  (c) (would have been) #absolutePosition 1 → pick the first.
@@ -1301,10 +1044,10 @@ persistent actor {
   };
 
   // tiny12 — `client "Paul Dubois" of (every client whose country is
-  // "France")`.  Exercises #named inheritance on CollectionSmurf<Client>:
-  //   #root → French CollectionSmurf
+  // "France")`.  Exercises #named inheritance on OSL.CollectionSmurf<Client>:
+  //   #root → French OSL.CollectionSmurf
   //         → #named "Paul Dubois" → namedLookup over the filtered view
-  //         → clientSmurf(parent = CollectionSmurf)
+  //         → clientSmurf(parent = OSL.CollectionSmurf)
   // The result's toDesc wraps the picked client with its parent #list
   // context — same wire shape as tiny10's reply, just keyed by #name
   // rather than #absolutePosition.
@@ -1352,7 +1095,7 @@ persistent actor {
   // tiny11 — SmartLeaf demo: `firstName of name of (first client whose
   // country is "France")`.  Pure structural navigation — no firstName
   // ever touches the predicate evaluator.  Walks:
-  //   #root → CollectionSmurf<Client> (France filter)
+  //   #root → OSL.CollectionSmurf<Client> (France filter)
   //         → first French client (#absolutePosition 1)
   //         → SmartLeaf wrapping ValueSmurf(#text c.name)
   //         → "fiNa" accessor → ValueSmurf(#text "Anne")
@@ -1385,11 +1128,11 @@ persistent actor {
   // tiny14 — aspirational: `third character of name of every client whose
   // country is "France"`.  Distributive — should yield 40 chars (one
   // per French client's name).  Walks:
-  //  (a) French CollectionSmurf<Client>.
+  //  (a) French OSL.CollectionSmurf<Client>.
   //  (b) "prop"/#named "name" → synthetic broadcast-result Smurf S
   //      whose toDesc renders #list of 40 ValueSmurf(#text c.name)s.
   //  (c) #absolutePosition 3 on S → would need S to be itself
-  //      navigable as a CollectionSmurf-like thing (per-element
+  //      navigable as a OSL.CollectionSmurf-like thing (per-element
   //      indexed access broadcast over the list).  Today S has empty
   //      accessors, so findAccessor returns null and we fall through.
   // Expected: errAENoSuchObject in #list([40 French names]).  The
@@ -1419,7 +1162,7 @@ persistent actor {
   // tiny20 — `cards of client 42`.  All cards of the 42nd client,
   // no predicate.  The bench has no `#every` keyform yet, so we use
   // `#test (tautology)` — `P or (not P)` — which always passes; the
-  // resulting CollectionSmurf<CreditCard> contains every card.
+  // resulting OSL.CollectionSmurf<CreditCard> contains every card.
   (with encoder)
   public func tiny20() : async ObjectSpec {
     let allTrue : BoolExpr = #or_ (
@@ -1443,7 +1186,7 @@ persistent actor {
 
   // tiny23 — `count of cards whose valid == false`.  Global card
   // collection: actorSmurf's #test "card" accessor invokes
-  // FlattenedSmurf<Client, CreditCard> (clients × c.cards), filter by
+  // OSL.FlattenedSmurf<Client, CreditCard> (clients × c.cards), filter by
   // `vald == false`, then `#property "pcnt"` reads the cardinality.
   // Expected: 6 invalid cards across the DB (only i%5==0 clients have
   // yy==26 cards, and only those whose mm==1..4 fail today=(05,26)).
@@ -1506,7 +1249,7 @@ persistent actor {
   // AE-wire fixture (`//CALL ingress go …` below) but builds the spec
   // directly: since the bench has no `#every` keyform yet, we use
   // `#test (tautology)`, which routes to actorSmurf's flattened card
-  // view (FlattenedSmurf<Client, CreditCard>).  debug_show emits the
+  // view (OSL.FlattenedSmurf<Client, CreditCard>).  debug_show emits the
   // spec so the rendered query is visible in the test log.
   (with encoder)
   public func tiny24() : async ObjectSpec {
@@ -1553,7 +1296,7 @@ persistent actor {
 
   // tiny22 — miss path for #named "card".  Same shape as tiny21 but
   // the card number doesn't exist on client 42 (or anywhere; the
-  // middle digits are perturbed).  namedLookup (VarAccessor's linear
+  // middle digits are perturbed).  namedLookup (OSL.VarAccessor's linear
   // scan) returns notFoundSmurf, whose toDesc throws errAENoSuchObject
   // carrying the parent clientSmurf's context.
   public func tiny22() : async () {
@@ -1579,12 +1322,12 @@ persistent actor {
   // Four-layer walk, predicate at the char level:
   //  (a) actorSmurf #indexed "clnt" → fifth client.
   //  (b) clientSmurf #named "name" → ValueSmurf(#text c.name).
-  //  (c) ValueSmurf(#text …) #test "char" → CollectionSmurf<Char>(chars, pred).
-  //  (d) CollectionSmurf<Char>.toDesc → #list of charSmurf-rendered chars,
+  //  (c) ValueSmurf(#text …) #test "char" → OSL.CollectionSmurf<Char>(chars, pred).
+  //  (d) OSL.CollectionSmurf<Char>.toDesc → #list of charSmurf-rendered chars,
   //      each `#obj { class_ = "char"; key = #name <one-char-text> }`.
   // Selective inheritance: the parent ValueSmurf exposes only #indexed for
   // "char" (no #named — chars aren't addressable by name), so the resulting
-  // CollectionSmurf<Char> mirrors only #indexed.
+  // OSL.CollectionSmurf<Char> mirrors only #indexed.
   (with encoder)
   public func tiny9() : async ObjectSpec {
     let spec : ObjectSpec =
@@ -1790,11 +1533,11 @@ persistent actor {
 // tiny9 — deep query (`every char ... whose isUpper`).
 //CALL ingress tiny9 0x4449444c0000
 // tiny10 — nested filter (`first ... whose ... of every ... whose ...`)
-// — uses #test inheritance on CollectionSmurf.
+// — uses #test inheritance on OSL.CollectionSmurf.
 //CALL ingress tiny10 0x4449444c0000
 // tiny11 — SmartLeaf demo (`firstName of name of first French client`).
 //CALL ingress tiny11 0x4449444c0000
-// tiny12 — #named inheritance on CollectionSmurf
+// tiny12 — #named inheritance on OSL.CollectionSmurf
 // (`client "Paul Dubois" of (every French client)`).
 //CALL ingress tiny12 0x4449444c0000
 // tiny13 — #named miss path
@@ -1842,8 +1585,8 @@ persistent actor {
 // `nix run .#ae-encoder` (`.byfilter(vald == False).first`).  Outer
 // wraps `obj { form='indx'; seld=abso 'firs' }` around the inner
 // vald-filter; decoder lifts to #absolutePosition 1 on the filtered
-// collection, which selective-inherits #indexed from FlattenedSmurf.
-// First invalid card by FlattenedSmurf iteration order: i=25 j=0 —
+// collection, which selective-inherits #indexed from OSL.FlattenedSmurf.
+// First invalid card by OSL.FlattenedSmurf iteration order: i=25 j=0 —
 // number 4_111_111_111_110_250, owned by Helga Weber, validity "02/26".
 //CALL ingress go 0x646c6532000000006f626a20000000f8000000040000000077616e74747970650000000463617264666f726d656e756d00000004696e647873656c646162736f000000046669727366726f6d6f626a20000000b4000000040000000077616e74747970650000000463617264666f726d656e756d000000047465737473656c64636d70640000007400000003000000006f626a316f626a2000000044000000040000000077616e74747970650000000470726f70666f726d656e756d0000000470726f7073656c64747970650000000476616c6466726f6d65786d6e0000000072656c6f656e756d000000043d2020206f626a3266616c730000000066726f6d6e756c6c00000000
 // Motoko-side mirror with debug_show of query AND result:

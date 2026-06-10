@@ -19,6 +19,7 @@ import {
   natToNat8;
   intToNat32Wrap;
   intToInt32Wrap;
+  abs;
   Array_init;
   Array_tabulate;
   decodeUtf8;
@@ -154,6 +155,18 @@ module {
     filter    = func _ = notFoundSmurf parent;
   };
 
+  // A thin terminal leaf carrying a CandidValue — no accessors, no char
+  // navigation (cf. the bench `ValueSmurf`, which grows char accessors for text).
+  // Generic collection helpers (e.g. `CollectionSmurf`'s `pcnt` count) wrap their
+  // Int result as a leaf via this — keeping `CollectionSmurf` free of the bench
+  // `ValueSmurf`.  Singleton, so `filter` traps.
+  public func simpleLeaf(v : CandidValue) : Smurf = {
+    class4cc  = "";
+    accessors = [];
+    toDesc    = func() : async* ObjectSpec { #value v };
+    filter    = func _ = trap "AE: simpleLeaf.filter — leaves are not filterable";
+  };
+
   public func findAccessor(parent : Smurf, fourcc : Text, form : { #indexed; #named; #test }) : ?Accessor {
     for (a in parent.accessors.vals()) {
       if (a.fourcc == fourcc and a.form == form) return ?a;
@@ -214,6 +227,262 @@ module {
       };
       filter     = func _ = notFoundSmurf parent;
     }
+  };
+
+  // VarAccessor<T>: typed escape hatch over a stable [T]. Captures the
+  // collection at construction — no Candid round-trip on input.
+  // `wrap : T -> Smurf` is supplied per entity to build the appropriate
+  // child Smurf (e.g. a clientSmurf wrapping a Client).
+  public class VarAccessor<T>(
+    stab    : [T],
+    fourcc_ : Text,
+    form_   : { #indexed; #named; #test },
+    wrap    : (T, Nat, Smurf) -> Smurf,   // position is 1-based slot in `stab`
+    getName : T -> Text,             // used when form_ = #named; ignored otherwise
+  ) {
+    public let fourcc = fourcc_;
+    public let form   = form_;
+    public func lookUp(parent : Smurf, key : LookupKey) : Smurf {
+      switch (form_, key) {
+        case (#indexed, #indexed i) {
+          // AppleScript convention: 1-based forward, negatives count from end
+          // (-1 = last, -size = first); out of range → notFound.
+          let size = stab.size();
+          let n : Nat =
+            if (i > 0) abs i
+            else if (i < 0 and abs i <= size) size - abs i + 1
+            else 0;
+          if (n == 0 or n > size) notFoundSmurf parent
+          else wrap(stab[n - 1], n, parent)
+        };
+        case (#named, #named target) {
+          // Linear scan; relies on the init-time uniqueness assertion.
+          var found : ?T = null;
+          var foundAt : Nat = 0;
+          var idx : Nat = 0;
+          for (item in stab.vals()) {
+            idx += 1;
+            switch found {
+              case null if (getName item == target) { found := ?item; foundAt := idx };
+              case _ ();
+            };
+          };
+          switch found {
+            case (?item) wrap(item, foundAt, parent);
+            case null notFoundSmurf parent;
+          }
+        };
+        case _ notFoundSmurf parent;  // TODO: #test (with matching form_)
+      }
+    };
+  };
+
+  // CollectionSmurf<T>: typed multi-element view over a stable [T]. Holds
+  // an accumulated predicate (`null` = unfiltered) so `filter` composes via
+  // `#and_`. `toDesc` resolves eagerly into a `#list` of element references —
+  // each match is wrapped (e.g. clientSmurf) and asked for its own toDesc.
+  public class CollectionSmurf<T>(
+    source  : [T],
+    classCC : Text,
+    parent  : Smurf,
+    wrap    : (T, Nat, Smurf) -> Smurf,    // Nat = 1-based source position
+    lookup  : Text -> (T -> CandidValue),
+    getName : T -> Text,                   // for #named lookup over the filtered view
+    pred    : ?BoolExpr,
+  ) {
+    func cardinality() : Nat {
+      var n = 0;
+      for (t in source.vals()) {
+        let m = switch pred { case null true; case (?p) evalPred(lookup, p, t) };
+        if m n += 1;
+      };
+      n
+    };
+
+    func passes(t : T) : Bool =
+      switch pred { case null true; case (?p) evalPred(lookup, p, t) };
+
+    // Inherited element accessors (same identity as the parent's
+    // VarAccessor<T> for this classCC, but iterating the filtered local
+    // view instead of the full stable [T]).  Position math mirrors
+    // VarAccessor exactly: 1-based, negative-from-end.
+    func indexedLookup(par : Smurf, key : LookupKey) : Smurf =
+      switch key {
+        case (#indexed i) {
+          let total = cardinality();
+          let target : Nat =
+            if (i > 0) abs i
+            else if (i < 0 and abs i <= total) total - abs i + 1
+            else 0;
+          if (target == 0 or target > total) notFoundSmurf par
+          else {
+            var seen : Nat = 0;
+            var srcIdx : Nat = 0;
+            var result : Smurf = notFoundSmurf par;
+            label l for (t in source.vals()) {
+              srcIdx += 1;
+              if (passes t) {
+                seen += 1;
+                if (seen == target) { result := wrap(t, srcIdx, par); break l };
+              };
+            };
+            result
+          }
+        };
+        case _ notFoundSmurf par;
+      };
+
+    func namedLookup(par : Smurf, key : LookupKey) : Smurf =
+      switch key {
+        case (#named target) {
+          var result : Smurf = notFoundSmurf par;
+          var srcIdx : Nat = 0;
+          label l for (t in source.vals()) {
+            srcIdx += 1;
+            if (passes t and getName t == target) {
+              result := wrap(t, srcIdx, par); break l;
+            };
+          };
+          result
+        };
+        case _ notFoundSmurf par;
+      };
+
+    // Inherited #test: compose predicates via `#and_` and return a
+    // refined CollectionSmurf.  Avoids the `self`-at-class-init dance
+    // by calling the constructor directly with the AND-composed pred.
+    // `parent` of the new collection is THIS collection's parent — keeps
+    // the AE-wire navigation chain coherent with successive filters.
+    func testLookup(par : Smurf, key : LookupKey) : Smurf =
+      switch key {
+        case (#test newPred) {
+          let combined : ?BoolExpr = switch pred {
+            case null ?newPred;
+            case (?old) ?(#and_ (old, newPred));
+          };
+          CollectionSmurf<T>(source, classCC, parent, wrap, lookup, getName, combined)
+        };
+        case _ notFoundSmurf par;
+      };
+
+    public let  class4cc                   = classCC;
+    // Inherited element accessors mirror only the (classCC, form) pairs
+    // the parent actually exposes — never fabricate.  E.g. characters
+    // of a name have positional access but not name-keyed access; a
+    // CollectionSmurf<Char> built off a name-valued parent should
+    // therefore expose #indexed but not #named.
+    let parentHasIndexed : Bool = switch (findAccessor(parent, classCC, #indexed)) { case null false; case _ true };
+    let parentHasNamed   : Bool = switch (findAccessor(parent, classCC, #named))   { case null false; case _ true };
+    let parentHasTest    : Bool = switch (findAccessor(parent, classCC, #test))    { case null false; case _ true };
+    let indexedAcc : Accessor = { form = #indexed; fourcc = classCC; lookUp = indexedLookup };
+    let namedAcc   : Accessor = { form = #named;   fourcc = classCC; lookUp = namedLookup   };
+    let testAcc    : Accessor = { form = #test;    fourcc = classCC; lookUp = testLookup    };
+    // Collection-only:
+    //   'pcnt' — `count of <collection>`.
+    //   'prop' — `<propName> of every <elem>`: maps the requested
+    //            property across matched elements via `findAccessor`
+    //            on each child Smurf (no per-T schema baked in).
+    let pcntAcc : Accessor = {
+      form   = #named;
+      fourcc = "pcnt";
+      lookUp = func _ = simpleLeaf(#int32 (intToInt32Wrap (cardinality())));
+    };
+    let propAcc : Accessor = {
+      form   = #named;
+      fourcc = "prop";
+      lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+        switch key {
+          case (#named propName) {
+            // Project propName across each matching element and wrap
+            // the resulting [Smurf] in a smurfMap — Functor lift, so
+            // subsequent navigation (e.g. `nth char of every name`)
+            // distributes through.
+            let count = cardinality();
+            let resBuf = Array_init<Smurf>(count, notFoundSmurf par);
+            var present : Nat = 0;
+            iteri<T>(source, func(srcIdx, t) {
+              if (passes t) {
+                let elem = wrap(t, srcIdx, parent);
+                switch (findAccessor(elem, propName, #named)) {
+                  case (?acc) { resBuf[present] := acc.lookUp(elem, #named propName); present += 1 };
+                  case null ();
+                };
+              };
+            });
+            let results = Array_tabulate<Smurf>(present, func j = resBuf[j]);
+            smurfMap(par, results)
+          };
+          case _ notFoundSmurf par;
+        };
+    };
+    public let accessors : [Accessor] = switch (parentHasIndexed, parentHasNamed, parentHasTest) {
+      case (true,  true,  true)  [indexedAcc, namedAcc, testAcc, pcntAcc, propAcc];
+      case (true,  true,  false) [indexedAcc, namedAcc, pcntAcc, propAcc];
+      case (true,  false, true)  [indexedAcc, testAcc, pcntAcc, propAcc];
+      case (true,  false, false) [indexedAcc, pcntAcc, propAcc];
+      case (false, true,  true)  [namedAcc, testAcc, pcntAcc, propAcc];
+      case (false, true,  false) [namedAcc, pcntAcc, propAcc];
+      case (false, false, true)  [testAcc, pcntAcc, propAcc];
+      case (false, false, false) [pcntAcc, propAcc];
+    };
+    // Block-body avoids the M0137 outer-scope leak (#6133).
+    public func toDesc() : async* ObjectSpec {
+      let count = cardinality();
+      let buf = Array_init<ObjectSpec>(count, #root);
+      var i : Nat = 0;
+      var srcIdx : Nat = 0;
+      for (t in source.vals()) {
+        srcIdx += 1;
+        if (passes t) { buf[i] := await* wrap(t, srcIdx, parent).toDesc(); i += 1 };
+      };
+      #list (Array_tabulate<ObjectSpec>(count, func j = buf[j]))
+    };
+    public func filter(p : BoolExpr) : Smurf {
+      let newPred : ?BoolExpr = switch pred {
+        case null ?p;
+        case (?old) ?(#and_ (old, p));
+      };
+      CollectionSmurf<T>(source, classCC, parent, wrap, lookup, getName, newPred)
+    };
+  };
+
+  // FlattenedSmurf<P, E>: 1→many join.  Given a parent `[P]` and an
+  // `extract : P -> [E]`, eagerly materialise the flat `[E]` and
+  // present it as a CollectionSmurf<E>.  Same surface as
+  // CollectionSmurf<E> — the class instance is structurally a
+  // CollectionSmurf<E> via field re-export.  Eager-only for now;
+  // streaming variant can come if N grows large enough to matter.
+  public class FlattenedSmurf<P, E>(
+    parents  : [P],
+    extract  : P -> [E],
+    classCC  : Text,
+    parent   : Smurf,
+    wrap    : (E, Nat, Smurf) -> Smurf,   // Nat = 1-based slot in flattened source
+    lookup  : Text -> (E -> CandidValue),
+    getName : E -> Text,
+    pred     : ?BoolExpr,
+  ) : CollectionSmurf<E> {
+    // Materialise per-parent extractions, then flatten by index
+    // decomposition (no default-E required — Array_tabulate's body
+    // computes each output position from the perParent slices).
+    let perParent = Array_tabulate<[E]>(parents.size(), func i = extract(parents[i]));
+    var totalN : Nat = 0;
+    for (es in perParent.vals()) totalN += es.size();
+    let flat : [E] = Array_tabulate<E>(totalN, func k {
+      var rem = k;
+      var pi : Nat = 0;
+      while (rem >= perParent[pi].size()) {
+        rem -= perParent[pi].size();
+        pi += 1;
+      };
+      perParent[pi][rem]
+    });
+
+    let inner : Smurf = CollectionSmurf<E>(flat, classCC, parent, wrap, lookup, getName, pred);
+
+    public let {class4cc; accessors} = inner;
+    public func toDesc() : async* ObjectSpec { await* inner.toDesc() };
+    public func filter(p : BoolExpr) : Smurf { inner.filter p };
   };
 
   // ── AE decoder ────────────────────────────────────────────────────────────
