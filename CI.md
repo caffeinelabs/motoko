@@ -26,6 +26,33 @@ The build status is visible via the Github status (coarsely: only evaluation,
 
 This includes linux and darwin builds.
 
+CI runners
+----------
+
+**Use-case:**
+The heavy Linux test jobs that run on every PR should execute on fast,
+cost-effective runners.
+
+**Implementation:**
+The most expensive jobs in `.github/workflows/test.yml` — `common-tests`,
+`gc-tests`, and `tests` — run on [Namespace](https://namespace.so) runners
+instead of the previous `ubuntu-24-large` / `arm64-linux-16` runners, matching
+the approach used in the app repo. Namespace bills per-minute on faster hardware,
+so these jobs are both quicker and cheaper.
+
+The `runs-on` label is selected from the job matrix via a `runner` field
+(currently the raw, version-controlled labels
+`nscloud-ubuntu-22.04-amd64-16x32` and `nscloud-ubuntu-22.04-arm64-16x32`). The
+separate `os` matrix field is kept as a friendly identifier consumed by the
+`test-blueprint` action (test names, the Ubuntu disk-cleanup conditional, and
+per-OS `max_jobs`). To match the app repo's profile-based convention instead,
+swap the raw `nscloud-*` labels for `namespace-profile-*` labels managed in the
+Namespace dashboard.
+
+Lighter coordination jobs (`verify-*`, `approvals`, `autoclose`, `artifacts`),
+the `build`/`release` workflows, and the macOS-specific jobs still use
+GitHub-hosted runners.
+
 Preventing `master` from breaking
 ---------------------------------
 
