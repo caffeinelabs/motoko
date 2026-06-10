@@ -1,0 +1,3 @@
+Placeholder so git tracks this directory. Only `.mo` files count as
+migration modules, so for the compiler this directory is an empty
+migration chain (see enhanced-migration-empty-dir.mo).

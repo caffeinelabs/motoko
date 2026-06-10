@@ -1,0 +1,1 @@
+enhanced-migration-empty-dir.mo:8.1-11.2: type error [M0251], --enhanced-migration: no valid migration modules found (migration modules must export a public `migration` function)

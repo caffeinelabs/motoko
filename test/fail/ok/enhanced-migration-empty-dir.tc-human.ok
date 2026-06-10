@@ -1,0 +1,9 @@
+error[M0251]: --enhanced-migration: no valid migration modules found (migration modules must export a public `migration` function)
+    ┌─ enhanced-migration-empty-dir.mo:8:1
+  7 │    
+  8 │ ╭  actor {
+  9 │ │      var name : Text;
+ 10 │ │      var balance : Nat;
+ 11 │ │  };
+    │ ╰──^ 
+ 12 │    
