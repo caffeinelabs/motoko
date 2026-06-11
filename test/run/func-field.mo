@@ -1,6 +1,5 @@
 // Test func-field syntax sugar: `func name(params) : ret = body` as a record field
 // desugars at parse time to `name = func(params) : ret = body` (Phase 1 — no sibling capture)
-//SKIP comp
 
 let r = {
   base = 10;
