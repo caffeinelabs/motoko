@@ -766,6 +766,67 @@ persistent actor {
     Array_tabulate<Row>(n, func j = switch (buf[j]) { case (?r) r; case null trap "AE: cardClientJoin index gap" })
   };
 
+  // ── Generic join: analyse the decoded `id` AERecord ──────────────────────
+  // `left join id {left: <class>, right: <class>, criterion: <column>}` decodes
+  // (RECO) to #record [("Left", #type_ leftCode), ("Righ", …), ("Crit", …)].
+  // The lJoi accessor analyses it: left/right are class codes → their column
+  // schema (from the per-entity propReaders — data-independent), merged.  The
+  // criterion (the join key) is extracted but not yet matched (columns first).
+  func recField(fields : [(Text, CandidValue)], kw : Text) : ?Text {
+    for ((k, v) in fields.vals()) {
+      if (k == kw) switch v { case (#type_ c) return ?c; case (#text c) return ?c; case _ {} };
+    };
+    null
+  };
+
+  func lingoPropsOf<T>(readers : [PropReader<T>]) : [LingoProperty] {
+    var n = 0;
+    for (p in readers.vals()) { if (p.lingoName != null) n += 1 };
+    let buf = Array_init<LingoProperty>(n, { name = ""; code = "    "; valueType = #Any; access = #readOnly; description = null });
+    var i = 0;
+    for (p in readers.vals()) {
+      switch (p.lingoName) {
+        case null {};
+        case (?name) {
+          buf[i] := { name; code = p.fourcc; valueType = p.valueType; access = #readOnly; description = ?(p.description) };
+          i += 1;
+        };
+      };
+    };
+    Array_tabulate<LingoProperty>(n, func j = buf[j])
+  };
+
+  func tableLingoProps(code : Text) : [LingoProperty] =
+    switch code {
+      case "clnt" lingoPropsOf propReaders;
+      case "card" lingoPropsOf cardPropReaders;
+      case "ord " lingoPropsOf orderPropReaders;
+      case "char" lingoPropsOf charPropReaders;
+      case _ [];
+    };
+
+  // A column-only Smurf for one table: its #property codes (lookUp is a stub —
+  // pALL reads only the fourccs).  Data-independent (built from propReaders), so
+  // it works even for empty tables.
+  func schemaSmurf(code : Text, parent : Smurf) : Smurf {
+    let lps = tableLingoProps code;
+    let accessors = Array_tabulate<Accessor>(lps.size(), func i = {
+      kind   = #property;
+      form   = #named;
+      fourcc = lps[i].code;
+      lookUp = func(p : Smurf, _ : LookupKey) : Smurf = notFoundSmurf p;
+    });
+    {
+      class4cc  = code;
+      accessors;
+      toDesc    = func() : async* ObjectSpec {
+        let c = await* parent.toDesc();
+        #obj { class_ = code; container = c; key = #every }
+      };
+      filter    = func _ = notFoundSmurf parent;
+    }
+  };
+
   transient let actorSmurf : Smurf = {
     class4cc    = "";
     accessors   = [
@@ -893,10 +954,21 @@ persistent actor {
         kind   = #element;
         form   = #id;
         fourcc = "lJoi";
-        lookUp = func(parent : Smurf, _ : LookupKey) : Smurf {
-          let join = cardClientJoin();
-          if (join.size() == 0) notFoundSmurf parent
-          else rowSmurf(join[0], parent)
+        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+          switch key {
+            // Keyed spec `{left: …, right: …, criterion: …}` → analyse it: the
+            // left/right class codes drive the merged column schema.
+            case (#id (#record fields))
+              switch (recField(fields, "Left"), recField(fields, "Righ")) {
+                case (?l, ?r) joinRow(schemaSmurf(l, parent), schemaSmurf(r, parent), parent);
+                case _ notFoundSmurf parent;
+              };
+            // empty `{}` / positional list / scalar → the hard-coded demo join.
+            case _ {
+              let join = cardClientJoin();
+              if (join.size() == 0) notFoundSmurf parent else rowSmurf(join[0], parent)
+            };
+          }
         };
       },
     ];
@@ -970,6 +1042,27 @@ persistent actor {
       lingo = lingoPropsOf rowPropReaders;
     });
     codes
+  };
+
+  // Generic join via the analysed keyed `id` record (no AppleScript needed):
+  // `properties of (left join id {left: client, right: order, criterion: name})`.
+  // The lJoi accessor reads left="clnt"/right="ord " from the #record and reports
+  // the merged Client + Order column codes (criterion held for later).
+  (with encoder)
+  public func joinProps() : async ObjectSpec {
+    let spec : ObjectSpec =
+      #obj {
+        class_    = "prop";
+        container = #obj {
+          class_    = "lJoi";
+          container = #root;
+          key       = #id (#record ([("Left", #type_ "clnt"), ("Righ", #type_ "ord "), ("Crit", #type_ "name")]));
+        };
+        key       = #property "pALL";
+      };
+    let result = await* OSL.eval(spec, actorSmurf);
+    debugPrint(debug_show { stage = "joinProps"; result });
+    result
   };
 
   // Tiny demo: drive `actorSmurf.accessors[0].lookUp` ("clnt", #indexed i)
@@ -1590,23 +1683,6 @@ persistent actor {
 
   // Build [LingoProperty] from any prop-reader array, skipping entries
   // whose lingoName is null (internal-only accessors like Mnth/Year).
-  func lingoPropsOf<T>(readers : [PropReader<T>]) : [LingoProperty] {
-    var n = 0;
-    for (p in readers.vals()) { if (p.lingoName != null) n += 1 };
-    let buf = Array_init<LingoProperty>(n, { name = ""; code = "    "; valueType = #Any; access = #readOnly; description = null });
-    var i = 0;
-    for (p in readers.vals()) {
-      switch (p.lingoName) {
-        case null {};
-        case (?name) {
-          buf[i] := { name; code = p.fourcc; valueType = p.valueType; access = #readOnly; description = ?(p.description) };
-          i += 1;
-        };
-      };
-    };
-    Array_tabulate<LingoProperty>(n, func j = buf[j])
-  };
-
   // Union of LingoProperty lists, deduped by 4cc code.  The static `left join`
   // class advertises EVERY property the canister knows (the superset across all
   // entities) — the dynamic per-join merge picks the actual subset at resolve
@@ -1690,6 +1766,7 @@ persistent actor {
 //CALL ingress tiny4 0x4449444c000171064672616e6365
 //CALL ingress tiny5 0x4449444c0000
 //CALL ingress rowProps 0x4449444c0000
+//CALL ingress joinProps 0x4449444c0000
 // tiny6("Germany") — Motoko-built mirror of the `//CALL ingress go` below.
 //CALL ingress tiny6 0x4449444c000171074765726d616e79
 // tiny7("A", "B") — names starting with A.
