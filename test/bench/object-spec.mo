@@ -708,6 +708,61 @@ persistent actor {
   // #test (returns a filtered OSL.CollectionSmurf).  The #test accessor closes
   // over evalBoolExpr — the per-entity-typed predicate evaluator — so the
   // library never sees BoolExpr semantics.
+  // ── Cards ⋈ Client join machinery (hard-coded playground) ────────────────
+  // Defined before actorSmurf because the root `lJoi` accessor closes over it.
+  // For each card we present `Row = { card; client }`, and from the two sides
+  // build dynamically: the merged accessor list (pALL → the join's columns) and
+  // a `[PropReader<Row>]` (each side's readers lifted through the Row
+  // projection — the impedance match).
+  type Row = { card : CreditCard; client : Client };
+
+  // Smurf side: concatenate the two sides' accessor tables (Card first).
+  func joinRow(left : Smurf, right : Smurf, parent : Smurf) : Smurf {
+    let nL = left.accessors.size();
+    let accessors = Array_tabulate<Accessor>(nL + right.accessors.size(), func i =
+      if (i < nL) left.accessors[i] else right.accessors[i - nL]);
+    {
+      class4cc  = "row ";
+      accessors;
+      toDesc    = func() : async* ObjectSpec {
+        let l = await* left.toDesc();
+        let r = await* right.toDesc();
+        #list ([l, r])
+      };
+      filter    = func _ = notFoundSmurf parent;
+    }
+  };
+
+  func rowSmurf(r : Row, parent : Smurf) : Smurf =
+    joinRow(cardSmurf(r.card, 0, parent), clientSmurf(r.client, 0, parent), parent);
+
+  // PropReader side: lift each side's readers to PropReader<Row> by projecting
+  // the matching component — built dynamically from the per-entity tables.
+  transient let rowPropReaders : [PropReader<Row>] =
+    Array_tabulate<PropReader<Row>>(cardPropReaders.size() + propReaders.size(), func i {
+      if (i < cardPropReaders.size()) {
+        let p = cardPropReaders[i];
+        { p with read = func (r : Row) : CandidValue = p.read(r.card) }
+      } else {
+        let p = propReaders[i - cardPropReaders.size()];
+        { p with read = func (r : Row) : CandidValue = p.read(r.client) }
+      }
+    });
+
+  transient let rowLookup : Text -> (Row -> CandidValue) = func prop = lookupReader(rowPropReaders, prop);
+
+  // The full join: one Row per card, across all clients.
+  func cardClientJoin() : [Row] {
+    var n : Nat = 0;
+    for (c in clients.vals()) n += c.cards.size();
+    let buf = Array_init<?Row>(n, null);
+    var i : Nat = 0;
+    for (c in clients.vals()) {
+      for (card in c.cards.vals()) { buf[i] := ?{ card; client = c }; i += 1 };
+    };
+    Array_tabulate<Row>(n, func j = switch (buf[j]) { case (?r) r; case null trap "AE: cardClientJoin index gap" })
+  };
+
   transient let actorSmurf : Smurf = {
     class4cc    = "";
     accessors   = [
@@ -812,6 +867,21 @@ persistent actor {
             case _ notFoundSmurf parent;
           };
       },
+      // Hard-coded `Cards ⋈ Client` left-join, addressed by the `id` key form
+      // (`left join id {…}`, class code "lJoi").  The id payload is ignored for
+      // now (playground — resolution is by class code); returns the merged-
+      // schema Row (row 0's card++client accessors) so `properties of (left
+      // join id {…})` reports the join's columns via pALL.
+      {
+        kind   = #element;
+        form   = #id;
+        fourcc = "lJoi";
+        lookUp = func(parent : Smurf, _ : LookupKey) : Smurf {
+          let join = cardClientJoin();
+          if (join.size() == 0) notFoundSmurf parent
+          else rowSmurf(join[0], parent)
+        };
+      },
     ];
     toDesc      = func() : async* ObjectSpec { #root };
     // Root has no own attributes — predicate doesn't apply, fall through.
@@ -861,54 +931,9 @@ persistent actor {
   //   • a `[PropReader<Row>]`       — each side's readers lifted through the
   //     Row projection (`r.card` / `r.client`); `lookupReader`/`lingoPropsOf`
   //     then work on the Row unchanged.  The projection IS the impedance match.
-  type Row = { card : CreditCard; client : Client };
-
-  // Smurf side: concatenate the two sides' accessor tables (Card first).
-  func joinRow(left : Smurf, right : Smurf, parent : Smurf) : Smurf {
-    let nL = left.accessors.size();
-    let accessors = Array_tabulate<Accessor>(nL + right.accessors.size(), func i =
-      if (i < nL) left.accessors[i] else right.accessors[i - nL]);
-    {
-      class4cc  = "row ";
-      accessors;
-      toDesc    = func() : async* ObjectSpec {
-        let l = await* left.toDesc();
-        let r = await* right.toDesc();
-        #list ([l, r])
-      };
-      filter    = func _ = notFoundSmurf parent;
-    }
-  };
-
-  func rowSmurf(r : Row, parent : Smurf) : Smurf =
-    joinRow(cardSmurf(r.card, 0, parent), clientSmurf(r.client, 0, parent), parent);
-
-  // PropReader side: lift each side's readers to PropReader<Row> by projecting
-  // the matching component — built dynamically from the per-entity tables.
-  transient let rowPropReaders : [PropReader<Row>] =
-    Array_tabulate<PropReader<Row>>(cardPropReaders.size() + propReaders.size(), func i {
-      if (i < cardPropReaders.size()) {
-        let p = cardPropReaders[i];
-        { p with read = func (r : Row) : CandidValue = p.read(r.card) }
-      } else {
-        let p = propReaders[i - cardPropReaders.size()];
-        { p with read = func (r : Row) : CandidValue = p.read(r.client) }
-      }
-    });
-
-  transient let rowLookup : Text -> (Row -> CandidValue) = func prop = lookupReader(rowPropReaders, prop);
-
-  // The full join: one Row per card, across all clients.
-  func cardClientJoin() : [Row] {
-    var n : Nat = 0;
-    for (c in clients.vals()) n += c.cards.size();
-    let buf = Array_init<?Row>(n, null);
-    var i : Nat = 0;
-    for (c in clients.vals()) {
-      for (card in c.cards.vals()) { buf[i] := ?{ card; client = c }; i += 1 };
-    };
-    Array_tabulate<Row>(n, func j = switch (buf[j]) { case (?r) r; case null trap "AE: cardClientJoin index gap" })
-  };
+  // (Cards ⋈ Client join machinery — type Row, joinRow, rowSmurf,
+  // rowPropReaders, rowLookup, cardClientJoin — is defined above, before
+  // actorSmurf, since the root `lJoi` accessor closes over it.)
 
   // Experiment entry: row 1 of the Cards ⋈ Client join, showing all three
   // dynamically-built surfaces agree:
@@ -1565,6 +1590,27 @@ persistent actor {
     Array_tabulate<LingoProperty>(n, func j = buf[j])
   };
 
+  // Union of LingoProperty lists, deduped by 4cc code.  The static `left join`
+  // class advertises EVERY property the canister knows (the superset across all
+  // entities) — the dynamic per-join merge picks the actual subset at resolve
+  // time, so the sdef must accommodate any join.  (Standard properties come
+  // from AppleScript's standard suite, not declared here.)
+  func unionProps(lists : [[LingoProperty]]) : [LingoProperty] {
+    var total = 0;
+    for (l in lists.vals()) total += l.size();
+    let buf = Array_init<LingoProperty>(total, { name = ""; code = "    "; valueType = #Any; access = #readOnly; description = null });
+    var n = 0;
+    for (l in lists.vals()) {
+      for (p in l.vals()) {
+        var seen = false;
+        var k = 0;
+        while (k < n and not seen) { if (buf[k].code == p.code) seen := true; k += 1 };
+        if (not seen) { buf[n] := p; n += 1 };
+      };
+    };
+    Array_tabulate<LingoProperty>(n, func i = buf[i])
+  };
+
   public query func lingo() : async Lingo {
     {
       suiteName = "Object Model";
@@ -1603,6 +1649,14 @@ persistent actor {
           properties  = lingoPropsOf orderPropReaders;
           // `client` is a one-to-one property (declared in orderPropReaders as
           // a #ClassRef "clnt"), not an element — always exactly one per order.
+          elements    = [];
+        },
+        {
+          name        = "left join";
+          code        = "lJoi";
+          plural      = "left joins";
+          description = ?"A left outer join, addressed by the spec via `id`.  Statically advertises every canister property (the superset across all entities); a runtime join populates the subset it actually has.";
+          properties  = unionProps([lingoPropsOf propReaders, lingoPropsOf cardPropReaders, lingoPropsOf orderPropReaders, lingoPropsOf charPropReaders]);
           elements    = [];
         },
       ];

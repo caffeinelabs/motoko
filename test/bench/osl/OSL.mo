@@ -67,6 +67,7 @@ module {
     #range            : (ObjectSpec, ObjectSpec);
     #test             : BoolExpr;
     #every;             // OSL resolves via #test accessor with #always
+    #id               : [CandidValue];  // formUniqueID payload (a record/list spec; e.g. `join id {…}`)
   };
 
   public type ObjectSpec = {
@@ -132,6 +133,7 @@ module {
     #indexed : Int;
     #named   : Text;
     #test    : BoolExpr;
+    #id      : [CandidValue];   // formUniqueID payload
   };
 
   public type Smurf = {
@@ -143,7 +145,7 @@ module {
 
   public type Accessor = {
     kind   : { #property; #element };   // AEOM split: #property → shows in `properties` (pALL); #element → a collection
-    form   : { #indexed; #named; #test };
+    form   : { #indexed; #named; #test; #id };
     fourcc : Text;
     lookUp : (parent : Smurf, key : LookupKey) -> Smurf;
   };
@@ -169,7 +171,7 @@ module {
     filter    = func _ = trap "AE: simpleLeaf.filter — leaves are not filterable";
   };
 
-  public func findAccessor(parent : Smurf, fourcc : Text, form : { #indexed; #named; #test }) : ?Accessor {
+  public func findAccessor(parent : Smurf, fourcc : Text, form : { #indexed; #named; #test; #id }) : ?Accessor {
     for (a in parent.accessors.vals()) {
       if (a.fourcc == fourcc and a.form == form) return ?a;
     };
@@ -214,7 +216,7 @@ module {
   public func smurfMap(parent : Smurf, elements : [Smurf]) : Smurf {
     var totalAccs : Nat = 0;
     for (e in elements.vals()) totalAccs += e.accessors.size();
-    let keyBuf = Array_init<(Text, { #indexed; #named; #test }, { #property; #element })>(totalAccs, ("", #indexed, #element));
+    let keyBuf = Array_init<(Text, { #indexed; #named; #test; #id }, { #property; #element })>(totalAccs, ("", #indexed, #element));
     var nKeys : Nat = 0;
     for (e in elements.vals()) {
       for (a in e.accessors.vals()) {
@@ -267,7 +269,7 @@ module {
   public class VarAccessor<T>(
     stab    : [T],
     fourcc_ : Text,
-    form_   : { #indexed; #named; #test },
+    form_   : { #indexed; #named; #test; #id },
     wrap    : (T, Nat, Smurf) -> Smurf,   // position is 1-based slot in `stab`
     getName : T -> Text,             // used when form_ = #named; ignored otherwise
   ) {
@@ -551,6 +553,7 @@ module {
   let (AE_TRUE, AE_FALSE)        = (0x74727520 : Nat32, 0x66616c73 : Nat32);
   // formAbsolutePosition
   let (INDX, ABSO)               = (0x696e6478 : Nat32, 0x6162736f : Nat32);
+  let ID : Nat32                 = 0x49442020;  // formUniqueID 'ID  '
   let (AE_ALL, AE_FIRST, AE_LAST, AE_ANY, AE_MIDD) =
     (0x616c6c20 : Nat32, 0x66697273 : Nat32, 0x6c617374 : Nat32, 0x616e7920 : Nat32, 0x6d696464 : Nat32);
   // predicate descriptors
@@ -638,6 +641,14 @@ module {
             let _len = u32 r;
             key := #absolutePosition (int32ToInt (nat32ToInt32 (u32 r)));
           } else trap ("AE: unsupported 'indx' seld type " # cc4ToText valueType);
+        } else if (formCode == ID) {
+          // formUniqueID: the id payload (`join id {…}`) is an AEList now, an
+          // AERecord later.  Consume the seld body generically — don't insist
+          // on list vs record; the join accessor resolves from the class code,
+          // not (yet) the payload.
+          let len = u32 r;
+          let ?_body = r.take(nat32ToNat len) else trap "AE: short seld body in form=id";
+          key := #id ([] : [CandidValue]);
         } else trap ("AE: unsupported form code " # cc4ToText formCode);
       } else {
         trap "AE: unknown obj field key"
@@ -1004,7 +1015,7 @@ module {
 
   // ── Spec walker ───────────────────────────────────────────────────────────
 
-  func formOfKey(k : KeyForm) : { #indexed; #named; #test } =
+  func formOfKey(k : KeyForm) : { #indexed; #named; #test; #id } =
     switch k {
       case (#absolutePosition _) #indexed;
       case (#name _)             #named;
@@ -1013,6 +1024,7 @@ module {
       case (#range _)            #indexed;
       case (#test _)             #test;
       case (#every)              #test;
+      case (#id _)               #id;
     };
 
   func lookupOfKey(k : KeyForm) : ?LookupKey =
@@ -1022,6 +1034,7 @@ module {
       case (#property p)         ?(#named p);
       case (#test e)             ?(#test e);
       case (#every)              ?(#test (#always));
+      case (#id ids)             ?(#id ids);
       case (#uniqueID _)         null;
       case (#range _)            null;
     };
