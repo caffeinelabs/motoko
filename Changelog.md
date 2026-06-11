@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * feat: `func`-fields — a function-valued record field may now be written `func name(args) : T { body }` (or `= expr`), sugar for `name = func(args) : T { body }`. Works in `{ … }` literals, `{ base with … }` extensions, and `(with …)` parentheticals; pure parse-time desugaring, no typing change (#6184).
+
   * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
 
   * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
