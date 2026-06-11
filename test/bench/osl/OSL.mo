@@ -67,7 +67,7 @@ module {
     #range            : (ObjectSpec, ObjectSpec);
     #test             : BoolExpr;
     #every;             // OSL resolves via #test accessor with #always
-    #id               : [CandidValue];  // formUniqueID payload (a record/list spec; e.g. `join id {…}`)
+    #id               : [(Text, CandidValue)];  // formUniqueID payload: AERecord fields (keyword→value), e.g. `id {left:…, right:…, on:…}`; empty for `{}`
   };
 
   public type ObjectSpec = {
@@ -133,7 +133,7 @@ module {
     #indexed : Int;
     #named   : Text;
     #test    : BoolExpr;
-    #id      : [CandidValue];   // formUniqueID payload
+    #id      : [(Text, CandidValue)];   // formUniqueID payload (keyword→value)
   };
 
   public type Smurf = {
@@ -554,6 +554,7 @@ module {
   // formAbsolutePosition
   let (INDX, ABSO)               = (0x696e6478 : Nat32, 0x6162736f : Nat32);
   let ID : Nat32                 = 0x49442020;  // formUniqueID 'ID  '
+  let RECO : Nat32               = 0x7265636f;  // typeAERecord 'reco'
   let (AE_ALL, AE_FIRST, AE_LAST, AE_ANY, AE_MIDD) =
     (0x616c6c20 : Nat32, 0x66697273 : Nat32, 0x6c617374 : Nat32, 0x616e7920 : Nat32, 0x6d696464 : Nat32);
   // predicate descriptors
@@ -642,13 +643,35 @@ module {
             key := #absolutePosition (int32ToInt (nat32ToInt32 (u32 r)));
           } else trap ("AE: unsupported 'indx' seld type " # cc4ToText valueType);
         } else if (formCode == ID) {
-          // formUniqueID: the id payload (`join id {…}`) is an AEList now, an
-          // AERecord later.  Consume the seld body generically — don't insist
-          // on list vs record; the join accessor resolves from the class code,
-          // not (yet) the payload.
-          let len = u32 r;
-          let ?_body = r.take(nat32ToNat len) else trap "AE: short seld body in form=id";
-          key := #id ([] : [CandidValue]);
+          // formUniqueID: the id payload.  An AERecord `{left:…, right:…, on:…}`
+          // carries the join spec; an empty `{}` is an AEList.  Decode the
+          // record's fields (keyword → value); any other shape consumes to an
+          // empty payload (the join accessor resolves from the class code, and
+          // — for now — tolerates a missing/empty spec).
+          if (valueType == RECO) {
+            let _len = u32 r;
+            let count = u32 r;
+            let _pad  = u32 r;
+            let nf = nat32ToNat count;
+            let fields = Array_init<(Text, CandidValue)>(nf, ("", #null_));
+            for (j in fields.keys()) {
+              let kw = cc4ToText (u32 r);
+              fields[j] := (kw, parseValue r);
+            };
+            key := #id (Array_tabulate<(Text, CandidValue)>(nf, func j = fields[j]));
+          } else if (valueType == LIST) {
+            // positional `{left, right, …}` — a list of class constants
+            // (typeType codes), keyed by position (empty label) until the
+            // record labels (left=`Left`, right=`Righ`, …) are declared so a
+            // keyed record compiles in AppleScript.  Empty `{}` is a 0-item list.
+            let _len = u32 r;
+            let vals = parseInListBody r;   // count + pad + items
+            key := #id (Array_tabulate<(Text, CandidValue)>(vals.size(), func i = ("", vals[i])));
+          } else {
+            let len = u32 r;
+            let ?_body = r.take(nat32ToNat len) else trap "AE: short seld body in form=id";
+            key := #id ([] : [(Text, CandidValue)]);
+          };
         } else trap ("AE: unsupported form code " # cc4ToText formCode);
       } else {
         trap "AE: unknown obj field key"
@@ -700,6 +723,9 @@ module {
     } else if (typeCode == AE_FALSE) {
       if (length != 0) trap "AE: 'fals' value with non-zero length";
       #bool false
+    } else if (typeCode == TYPE) {
+      if (length != 4) trap "AE: type (class constant) must be 4 bytes";
+      #type_ (cc4ToText (u32 r))
     } else {
       trap "AE: unsupported value type"
     }
