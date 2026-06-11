@@ -547,7 +547,10 @@ persistent actor {
   // wire can compare via `#text`.  `pmtp` is the payment type tag.
   // `clnm` is the ordering client's name — the foreign-key back-reference.
   transient let orderPropReaders : [PropReader<Order>] = [
-    { fourcc = "ID  "; lingoName = ?"id";             valueType = #Text;    description = "Stable order id (\"ORDnnnn\"; running counter; primary key).";   read = func o = #text  (orderId o)                      },
+    // NB: lingoName must NOT be "id" — a property named `id` shadows AppleScript's
+    // `id` key form (`<class> id <spec>`), breaking address-by-id (a list/record
+    // id value fails to coerce, -1700).  Named "order key"; wire code stays "ID  ".
+    { fourcc = "ID  "; lingoName = ?"order key";      valueType = #Text;    description = "Stable order id (\"ORDnnnn\"; running counter; primary key).";   read = func o = #text  (orderId o)                      },
     { fourcc = "clnm"; lingoName = ?"client name";    valueType = #Text;    description = "Name of the ordering client (back-reference via o.client.name)."; read = func o = #text  (o.client.name)                      },
     { fourcc = "artc"; lingoName = ?"article";        valueType = #Text;    description = "Name of the ordered article.";                             read = func o = #text  (o.article)                      },
     { fourcc = "stts"; lingoName = ?"status";         valueType = #Text;    description = "Order status: open / shipped / paid / cancelled.";         read = func o = #text  (orderStatusText(o.status))      },
