@@ -4,10 +4,10 @@
 let r = {
   base = 10;
   func add(x : Nat) : Nat = x + 1;
-  func const_() : Nat = 42;
+  func const() : Nat = 42;
 };
 assert (r.add(r.base) == 11);
-assert (r.const_() == 42);
+assert (r.const() == 42);
 
 // with-extension form
 let b = { y = 5 };
