@@ -103,12 +103,24 @@ Accessor = { kind   : { #property; #element };       // AEOM split — see pitfa
    helpers **above** it, or wrap the mutually-recursive group in
    `object { public let … }` and destructure: `transient let { a; b } = object { … }`.
 
-6. **AppleScript record labels are property codes.** To accept a keyed record arg
-   — `id {left: …, right: …, on: …}` — the labels (`left`/`right`/`on`) must be
-   **declared as properties** so AppleScript maps them to 4cc codes. Undeclared
-   labels → syntax error (-2741), or AppleScript stuffs them into user-defined
-   `usrf` fields (different wire shape). A *positional* list `{a, b}` needs no
-   labels but can't carry an `on:` key — fine for plumbing, not a real join.
+6. **AppleScript record labels are property codes — and *query* labels are aete
+   "extras", not schema.** To accept a keyed record arg — `id {left: …, right: …,
+   on: …}` — the labels must be **declared** so AppleScript maps them to 4cc
+   codes; the clean AEOM form is a `<record-type>`. Crucially, labels for a
+   *query/join* construct (`left`/`right`/`on`, codes `Left`/`Righ`/`On  `) are
+   **not data properties** — no entity has them — so they belong in the **query
+   layer's static suite** (the agent's `icmator_static_lingo`, the aete extras),
+   **NOT** the canister's data `lingo()`. Keep the two separate: data schema is
+   canister-owned (`lingo()` → classes/properties); the join *mechanism* is
+   query-owned. Undeclared labels → syntax error (-2741), or AppleScript stuffs
+   them into user-defined `usrf` fields (different wire shape). A *positional*
+   list `{a, b}` needs no labels but can't carry an `on:` key — plumbing, not a
+   real join.
+
+   Where terminology comes from (don't conflate): the bridge's `.sdef` =
+   **agent static suite** (`icmator_static_lingo` — `eval`/`query`/`target`, the
+   `canister` class, and join/query extras) **+ the canister's `lingo()`** (the
+   data classes). Data → canister; query vocabulary → agent extras.
 
 7. **Encoder/decoder symmetry.** A new `CandidValue`/`KeyForm` variant needs
    *both* a `writeValue`/`writeObjBody` arm (encode) **and** a
