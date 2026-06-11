@@ -46,6 +46,8 @@ module {
     #text : Text;
     #blob : Blob;
     #type_ : Text;   // an OSType / 4cc class-or-property code (Text now, Nat32 later)
+    #record : [(Text, CandidValue)];  // AERecord — keyword(4cc)→value, e.g. `id {left:…, right:…}`
+    #list : [CandidValue];            // AEList — positional values, e.g. `id {a, b}`
   };
 
   public type Comparison = { #eq; #ne; #lt; #gt; #le; #ge };
@@ -67,7 +69,7 @@ module {
     #range            : (ObjectSpec, ObjectSpec);
     #test             : BoolExpr;
     #every;             // OSL resolves via #test accessor with #always
-    #id               : [(Text, CandidValue)];  // formUniqueID payload: AERecord fields (keyword→value), e.g. `id {left:…, right:…, on:…}`; empty for `{}`
+    #id               : CandidValue;  // formUniqueID payload: a scalar (single object by key) or a #record/#list (join spec)
   };
 
   public type ObjectSpec = {
@@ -133,7 +135,7 @@ module {
     #indexed : Int;
     #named   : Text;
     #test    : BoolExpr;
-    #id      : [(Text, CandidValue)];   // formUniqueID payload (keyword→value)
+    #id      : CandidValue;   // formUniqueID payload (scalar or #record/#list)
   };
 
   public type Smurf = {
@@ -643,11 +645,10 @@ module {
             key := #absolutePosition (int32ToInt (nat32ToInt32 (u32 r)));
           } else trap ("AE: unsupported 'indx' seld type " # cc4ToText valueType);
         } else if (formCode == ID) {
-          // formUniqueID: the id payload.  An AERecord `{left:…, right:…, on:…}`
-          // carries the join spec; an empty `{}` is an AEList.  Decode the
-          // record's fields (keyword → value); any other shape consumes to an
-          // empty payload (the join accessor resolves from the class code, and
-          // — for now — tolerates a missing/empty spec).
+          // formUniqueID payload, decoded straight into a CandidValue:
+          //  • scalar  — a single object by its key text (`order id "ORD0000"`) → #text;
+          //  • AERecord `{left:…, right:…, on:…}` (the keyed join spec)          → #record;
+          //  • AEList   `{a, b}` (positional join spec; empty `{}` = 0 items)    → #list.
           if (valueType == RECO) {
             let _len = u32 r;
             let count = u32 r;
@@ -658,19 +659,18 @@ module {
               let kw = cc4ToText (u32 r);
               fields[j] := (kw, parseValue r);
             };
-            key := #id (Array_tabulate<(Text, CandidValue)>(nf, func j = fields[j]));
+            key := #id (#record (Array_tabulate<(Text, CandidValue)>(nf, func j = fields[j])));
           } else if (valueType == LIST) {
-            // positional `{left, right, …}` — a list of class constants
-            // (typeType codes), keyed by position (empty label) until the
-            // record labels (left=`Left`, right=`Righ`, …) are declared so a
-            // keyed record compiles in AppleScript.  Empty `{}` is a 0-item list.
             let _len = u32 r;
-            let vals = parseInListBody r;   // count + pad + items
-            key := #id (Array_tabulate<(Text, CandidValue)>(vals.size(), func i = ("", vals[i])));
+            key := #id (#list (parseInListBody r));   // count + pad + items
+          } else if (valueType == UTXT) {
+            let bodyLen = u32 r;
+            let ?body = r.take(nat32ToNat bodyLen) else trap "AE: short utxt id seld";
+            key := #id (#text (utxtToText body));
           } else {
             let len = u32 r;
             let ?_body = r.take(nat32ToNat len) else trap "AE: short seld body in form=id";
-            key := #id ([] : [(Text, CandidValue)]);
+            key := #id (#null_);
           };
         } else trap ("AE: unsupported form code " # cc4ToText formCode);
       } else {

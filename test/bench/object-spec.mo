@@ -870,6 +870,20 @@ persistent actor {
             case _ notFoundSmurf parent;
           };
       },
+      {
+        // `order id "ORDnnnn"` — address an order by its key via the `id` key
+        // form (formUniqueID).  The order's identity IS its id, so this is the
+        // semantically correct form (vs `name`).  The decoder delivers the
+        // scalar id as a single #id pair.
+        kind   = #element;
+        form   = #id;
+        fourcc = "ord ";
+        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+          switch key {
+            case (#id (#text idStr)) findOrderByName(orders, idStr, parent);
+            case _ notFoundSmurf parent;
+          };
+      },
       // Hard-coded `Cards ⋈ Client` left-join, addressed by the `id` key form
       // (`left join id {…}`, class code "lJoi").  The id payload is ignored for
       // now (playground — resolution is by class code); returns the merged-
