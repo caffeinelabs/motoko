@@ -872,6 +872,11 @@ exp_field :
       { mut = m; id = x; exp = annot_exp e t; } @@ at $sloc }
   | m=var_opt x=id t=annot_opt EQ e=exp(ob)
     { { mut = m; id = x; exp = annot_exp e t; } @@ at $sloc }
+  | FUNC x=id tp=typ_params_opt p=pat_plain t=annot_opt fb=func_body
+    { let sp = Type.Local @@ no_region in
+      let is_sugar, e = desugar_func_body sp x t fb in
+      { mut = Const @@ no_region; id = x;
+        exp = func_exp x.it sp tp p t is_sugar e @? at $sloc; } @@ at $sloc }
 
 dec_field :
   | v=vis s=stab d=dec

@@ -283,6 +283,7 @@
 <exp_field> ::= 
     'var'? <id> (':' <typ>)?
     'var'? <id> (':' <typ>)? '=' <exp>
+    'func' <id> <typ_params_opt> <pat_plain> (':' <typ>)? <func_body>
 
 <dec_field> ::= 
     <vis> <stab> <dec>
