@@ -320,6 +320,7 @@ persistent actor {
     public let accessors : [Accessor] = switch value {
       case (#text _) [
         {
+          kind   = #element;
           form   = #indexed;
           fourcc = "char";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
@@ -337,6 +338,7 @@ persistent actor {
             };
         },
         {
+          kind   = #element;
           form   = #test;
           fourcc = "char";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
@@ -367,6 +369,7 @@ persistent actor {
   // close over `c` directly (typed-fast-path: no Candid roundtrip), each
   // emitting a ValueSmurf with the typed field.
   func clientPropAccessor(fourcc : Text, c : Client, extract : Client -> CandidValue) : Accessor = {
+    kind = #property;
     form = #named;
     fourcc;
     lookUp = func _ = ValueSmurf(extract c);
@@ -379,6 +382,7 @@ persistent actor {
         // "name" returns a SmartLeaf — the full-name text plus a schema
         // exposing "fiNa"/"laNa" sub-properties (parsed on demand).
         {
+          kind   = #property;
           form   = #named;
           fourcc = "name";
           lookUp = func _ = smartValueSmurf(c.name, [
@@ -406,6 +410,7 @@ persistent actor {
         OSL.VarAccessor<CreditCard>(c.cards, "card", #indexed, cardSmurf, func k = debug_show k.number),
         OSL.VarAccessor<CreditCard>(c.cards, "card", #named,   cardSmurf, func k = debug_show k.number),
         {
+          kind   = #element;
           form   = #test;
           fourcc = "card";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
@@ -419,6 +424,7 @@ persistent actor {
         // `ordersOfClient` snapshots the per-client slice from `orders` on demand,
         // reading through c.orders (the live var field on the Client record).
         {
+          kind   = #element;
           form   = #indexed;
           fourcc = "ord ";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf {
@@ -427,6 +433,7 @@ persistent actor {
           };
         },
         {
+          kind   = #element;
           form   = #named;
           fourcc = "ord ";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
@@ -436,6 +443,7 @@ persistent actor {
             };
         },
         {
+          kind   = #element;
           form   = #test;
           fourcc = "ord ";
           lookUp = func(par : Smurf, key : LookupKey) : Smurf =
@@ -516,11 +524,11 @@ persistent actor {
     let self : Smurf = {
       class4cc    = "card";
       accessors   = [
-        { form = #named; fourcc = "cnum"; lookUp = func _ = ValueSmurf(#nat   (card.number)) },
-        { form = #named; fourcc = "noac"; lookUp = func _ = ValueSmurf(#text  (card.nameOnCard)) },
-        { form = #named; fourcc = "vali"; lookUp = func _ = ValueSmurf(#text  (card.validity)) },
-        { form = #named; fourcc = "cvc "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32 (card.cvc))) },
-        { form = #named; fourcc = "vald"; lookUp = func _ = ValueSmurf(#bool  (cardIsValid card)) },
+        { kind = #property; form = #named; fourcc = "cnum"; lookUp = func _ = ValueSmurf(#nat   (card.number)) },
+        { kind = #property; form = #named; fourcc = "noac"; lookUp = func _ = ValueSmurf(#text  (card.nameOnCard)) },
+        { kind = #property; form = #named; fourcc = "vali"; lookUp = func _ = ValueSmurf(#text  (card.validity)) },
+        { kind = #property; form = #named; fourcc = "cvc "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32 (card.cvc))) },
+        { kind = #property; form = #named; fourcc = "vald"; lookUp = func _ = ValueSmurf(#bool  (cardIsValid card)) },
       ];
       toDesc      = func() : async* ObjectSpec {
         #obj {
@@ -566,19 +574,19 @@ persistent actor {
     let self : Smurf = {
       class4cc    = "ord ";
       accessors   = [
-        { form = #named; fourcc = "ID  "; lookUp = func _ = ValueSmurf(#text  (orderId o))                        },
-        { form = #named; fourcc = "clnm"; lookUp = func _ = ValueSmurf(#text  (o.client.name))                    },
-        { form = #named; fourcc = "artc"; lookUp = func _ = ValueSmurf(#text  (o.article))                       },
-        { form = #named; fourcc = "stts"; lookUp = func _ = ValueSmurf(#text  (orderStatusText(o.status)))       },
-        { form = #named; fourcc = "val "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32(o.value)))           },
-        { form = #named; fourcc = "pmtp"; lookUp = func _ = ValueSmurf(#text  (paymentTypeText(o.paymentType)))  },
+        { kind = #property; form = #named; fourcc = "ID  "; lookUp = func _ = ValueSmurf(#text  (orderId o))                        },
+        { kind = #property; form = #named; fourcc = "clnm"; lookUp = func _ = ValueSmurf(#text  (o.client.name))                    },
+        { kind = #property; form = #named; fourcc = "artc"; lookUp = func _ = ValueSmurf(#text  (o.article))                       },
+        { kind = #property; form = #named; fourcc = "stts"; lookUp = func _ = ValueSmurf(#text  (orderStatusText(o.status)))       },
+        { kind = #property; form = #named; fourcc = "val "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32(o.value)))           },
+        { kind = #property; form = #named; fourcc = "pmtp"; lookUp = func _ = ValueSmurf(#text  (paymentTypeText(o.paymentType)))  },
         // One-to-one back-reference: every order has exactly one client
         // (`o.client`, direct/O(1)).  Modeled as a *property* of type `client`
         // (matched in the #named slot, where the bridge routes `form:'prop'`
         // requests), so bare `client of order` resolves to the Client object
         // and chains: `country of client of order`, `every order of client of
         // order`.  Only the client→orders leg stays quadratic.
-        { form = #named; fourcc = "clnt"; lookUp = func(par : Smurf, _ : LookupKey) : Smurf = clientSmurf(o.client, 0, par) },
+        { kind = #property; form = #named; fourcc = "clnt"; lookUp = func(par : Smurf, _ : LookupKey) : Smurf = clientSmurf(o.client, 0, par) },
       ];
       toDesc      = func() : async* ObjectSpec {
         #obj {
@@ -655,7 +663,7 @@ persistent actor {
     let base = ValueSmurf(#text text);
     let schemaAccs : [Accessor] = Array_tabulate<Accessor>(schema.size(), func i {
       let (fourcc, parse) = schema[i];
-      { form = #named; fourcc; lookUp = func _ = ValueSmurf(parse text) }
+      { kind = #property; form = #named; fourcc; lookUp = func _ = ValueSmurf(parse text) }
     });
     let total = base.accessors.size() + schemaAccs.size();
     let accessors : [Accessor] = Array_tabulate<Accessor>(total, func i =
@@ -676,6 +684,7 @@ persistent actor {
       class4cc    = "char";
       accessors   = [
         {
+          kind   = #property;
           form   = #named;
           fourcc = "uppr";
           lookUp = func _ = ValueSmurf(#bool (charIsUppercase c));
@@ -705,6 +714,7 @@ persistent actor {
       OSL.VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
       OSL.VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
       {
+        kind   = #element;
         form   = #test;
         fourcc = "clnt";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
@@ -718,6 +728,7 @@ persistent actor {
       // OSL.FlattenedSmurf<Client, CreditCard>, then filter by the spec's
       // predicate.  `every card of root whose <P>` lives here.
       {
+        kind   = #element;
         form   = #test;
         fourcc = "card";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
@@ -736,6 +747,7 @@ persistent actor {
       // above) mirror these forms, so `first card whose <P>` and
       // `card "<pk>" of root` both compose cleanly.
       {
+        kind   = #element;
         form   = #indexed;
         fourcc = "card";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
@@ -750,6 +762,7 @@ persistent actor {
         };
       },
       {
+        kind   = #element;
         form   = #named;
         fourcc = "card";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
@@ -768,6 +781,7 @@ persistent actor {
       // (`every order whose status = "open"`); `#indexed`/`#named` give direct
       // access by position or orderNr text.
       {
+        kind   = #element;
         form   = #test;
         fourcc = "ord ";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
@@ -777,6 +791,7 @@ persistent actor {
           };
       },
       {
+        kind   = #element;
         form   = #indexed;
         fourcc = "ord ";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
@@ -788,6 +803,7 @@ persistent actor {
         };
       },
       {
+        kind   = #element;
         form   = #named;
         fourcc = "ord ";
         lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
@@ -835,6 +851,84 @@ persistent actor {
     spec
   };
 
+
+  // ── Experiment: hard-coded Cards ⋈ Client join ───────────────────────────
+  // A dry run of what a generic join must synthesise DYNAMICALLY, before we
+  // build it properly.  For each card we present `Row = { card; client }`, and
+  // from the two sides build — on the fly —
+  //   • the merged accessor list   — Card's accessors ++ owning Client's
+  //     (straight concat, Card first); `pALL` reads it → the join's columns.
+  //   • a `[PropReader<Row>]`       — each side's readers lifted through the
+  //     Row projection (`r.card` / `r.client`); `lookupReader`/`lingoPropsOf`
+  //     then work on the Row unchanged.  The projection IS the impedance match.
+  type Row = { card : CreditCard; client : Client };
+
+  // Smurf side: concatenate the two sides' accessor tables (Card first).
+  func joinRow(left : Smurf, right : Smurf, parent : Smurf) : Smurf {
+    let nL = left.accessors.size();
+    let accessors = Array_tabulate<Accessor>(nL + right.accessors.size(), func i =
+      if (i < nL) left.accessors[i] else right.accessors[i - nL]);
+    {
+      class4cc  = "row ";
+      accessors;
+      toDesc    = func() : async* ObjectSpec {
+        let l = await* left.toDesc();
+        let r = await* right.toDesc();
+        #list ([l, r])
+      };
+      filter    = func _ = notFoundSmurf parent;
+    }
+  };
+
+  func rowSmurf(r : Row, parent : Smurf) : Smurf =
+    joinRow(cardSmurf(r.card, 0, parent), clientSmurf(r.client, 0, parent), parent);
+
+  // PropReader side: lift each side's readers to PropReader<Row> by projecting
+  // the matching component — built dynamically from the per-entity tables.
+  transient let rowPropReaders : [PropReader<Row>] =
+    Array_tabulate<PropReader<Row>>(cardPropReaders.size() + propReaders.size(), func i {
+      if (i < cardPropReaders.size()) {
+        let p = cardPropReaders[i];
+        { p with read = func (r : Row) : CandidValue = p.read(r.card) }
+      } else {
+        let p = propReaders[i - cardPropReaders.size()];
+        { p with read = func (r : Row) : CandidValue = p.read(r.client) }
+      }
+    });
+
+  transient let rowLookup : Text -> (Row -> CandidValue) = func prop = lookupReader(rowPropReaders, prop);
+
+  // The full join: one Row per card, across all clients.
+  func cardClientJoin() : [Row] {
+    var n : Nat = 0;
+    for (c in clients.vals()) n += c.cards.size();
+    let buf = Array_init<?Row>(n, null);
+    var i : Nat = 0;
+    for (c in clients.vals()) {
+      for (card in c.cards.vals()) { buf[i] := ?{ card; client = c }; i += 1 };
+    };
+    Array_tabulate<Row>(n, func j = switch (buf[j]) { case (?r) r; case null trap "AE: cardClientJoin index gap" })
+  };
+
+  // Experiment entry: row 1 of the Cards ⋈ Client join, showing all three
+  // dynamically-built surfaces agree:
+  //   • pALL codes  — Card's 5 (cnum/noac/vali/cvc/vald) then Client's 9.
+  //   • reads       — `rowLookup` impedance-matches: cnum→card, name→client.
+  //   • lingo       — `lingoPropsOf rowPropReaders` (the merged metadata).
+  (with encoder)
+  public func rowProps() : async ObjectSpec {
+    let join = cardClientJoin();
+    if (join.size() == 0) trap "AE: rowProps — no cards in demo data";
+    let r = join[0];
+    let codes = await* OSL.pAllAccessor.lookUp(rowSmurf(r, actorSmurf), #named "pALL").toDesc();
+    debugPrint(debug_show {
+      stage = "rowProps";
+      pALL  = codes;
+      reads = { cnum = rowLookup("cnum") r; name = rowLookup("name") r };
+      lingo = lingoPropsOf rowPropReaders;
+    });
+    codes
+  };
 
   // Tiny demo: drive `actorSmurf.accessors[0].lookUp` ("clnt", #indexed i)
   // and return the resulting clientSmurf's stable reference (toDesc).
@@ -1524,6 +1618,7 @@ persistent actor {
 //CALL ingress tiny3 0x4449444c000171064672616e6365
 //CALL ingress tiny4 0x4449444c000171064672616e6365
 //CALL ingress tiny5 0x4449444c0000
+//CALL ingress rowProps 0x4449444c0000
 // tiny6("Germany") — Motoko-built mirror of the `//CALL ingress go` below.
 //CALL ingress tiny6 0x4449444c000171074765726d616e79
 // tiny7("A", "B") — names starting with A.

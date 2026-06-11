@@ -45,6 +45,7 @@ module {
     #nat : Nat;
     #text : Text;
     #blob : Blob;
+    #type_ : Text;   // an OSType / 4cc class-or-property code (Text now, Nat32 later)
   };
 
   public type Comparison = { #eq; #ne; #lt; #gt; #le; #ge };
@@ -141,6 +142,7 @@ module {
   };
 
   public type Accessor = {
+    kind   : { #property; #element };   // AEOM split: #property → shows in `properties` (pALL); #element → a collection
     form   : { #indexed; #named; #test };
     fourcc : Text;
     lookUp : (parent : Smurf, key : LookupKey) -> Smurf;
@@ -174,6 +176,34 @@ module {
     null
   };
 
+  // The universal `properties` (pALL) accessor.  Walks the parent's accessor
+  // table, keeps the #property entries, and yields their codes as a typeType
+  // list — `properties of X ⇒ {«class …», …}`.  Deliberately NOT stored in any
+  // Smurf's `accessors` (so it never lists itself); `resolve` falls back to it.
+  // A join `Row` (left+right accessors merged via `smurfMap`) serves this for
+  // the whole joined tuple for free.
+  public let pAllAccessor : Accessor = {
+    kind   = #property;
+    form   = #named;
+    fourcc = "pALL";
+    lookUp = func(parent : Smurf, _ : LookupKey) : Smurf {
+      let accs = parent.accessors;
+      var n : Nat = 0;
+      for (a in accs.vals()) { if (a.kind == #property) n += 1 };
+      let codes = Array_init<ObjectSpec>(n, #root);
+      var i : Nat = 0;
+      for (a in accs.vals()) {
+        if (a.kind == #property) { codes[i] := #value (#type_ (a.fourcc)); i += 1 };
+      };
+      {
+        class4cc  = "";
+        accessors = [];
+        toDesc    = func() : async* ObjectSpec { #list (Array_tabulate<ObjectSpec>(n, func j = codes[j])) };
+        filter    = func _ = trap "AE: properties result is not filterable";
+      }
+    };
+  };
+
   // 1-based positional fold; side-effecting.
   public func iteri<T>(arr : [T], f : (Nat, T) -> ()) {
     var idx : Nat = 0;
@@ -184,23 +214,24 @@ module {
   public func smurfMap(parent : Smurf, elements : [Smurf]) : Smurf {
     var totalAccs : Nat = 0;
     for (e in elements.vals()) totalAccs += e.accessors.size();
-    let keyBuf = Array_init<(Text, { #indexed; #named; #test })>(totalAccs, ("", #indexed));
+    let keyBuf = Array_init<(Text, { #indexed; #named; #test }, { #property; #element })>(totalAccs, ("", #indexed, #element));
     var nKeys : Nat = 0;
     for (e in elements.vals()) {
       for (a in e.accessors.vals()) {
         var k : Nat = 0;
         var seen : Bool = false;
         while (k < nKeys and not seen) {
-          let (fcc, fm) = keyBuf[k];
+          let (fcc, fm, _) = keyBuf[k];
           if (fcc == a.fourcc and fm == a.form) seen := true;
           k += 1;
         };
-        if (not seen) { keyBuf[nKeys] := (a.fourcc, a.form); nKeys += 1 };
+        if (not seen) { keyBuf[nKeys] := (a.fourcc, a.form, a.kind); nKeys += 1 };
       };
     };
     let accessors : [Accessor] = Array_tabulate<Accessor>(nKeys, func i {
-      let (fourcc, form) = keyBuf[i];
+      let (fourcc, form, kind) = keyBuf[i];
       {
+        kind;
         fourcc;
         form;
         lookUp = func(par : Smurf, key : LookupKey) : Smurf {
@@ -240,6 +271,7 @@ module {
     wrap    : (T, Nat, Smurf) -> Smurf,   // position is 1-based slot in `stab`
     getName : T -> Text,             // used when form_ = #named; ignored otherwise
   ) {
+    public let kind   = #element;   // a collection-navigation accessor
     public let fourcc = fourcc_;
     public let form   = form_;
     public func lookUp(parent : Smurf, key : LookupKey) : Smurf {
@@ -374,20 +406,22 @@ module {
     let parentHasIndexed : Bool = switch (findAccessor(parent, classCC, #indexed)) { case null false; case _ true };
     let parentHasNamed   : Bool = switch (findAccessor(parent, classCC, #named))   { case null false; case _ true };
     let parentHasTest    : Bool = switch (findAccessor(parent, classCC, #test))    { case null false; case _ true };
-    let indexedAcc : Accessor = { form = #indexed; fourcc = classCC; lookUp = indexedLookup };
-    let namedAcc   : Accessor = { form = #named;   fourcc = classCC; lookUp = namedLookup   };
-    let testAcc    : Accessor = { form = #test;    fourcc = classCC; lookUp = testLookup    };
+    let indexedAcc : Accessor = { kind = #element; form = #indexed; fourcc = classCC; lookUp = indexedLookup };
+    let namedAcc   : Accessor = { kind = #element; form = #named;   fourcc = classCC; lookUp = namedLookup   };
+    let testAcc    : Accessor = { kind = #element; form = #test;    fourcc = classCC; lookUp = testLookup    };
     // Collection-only:
     //   'pcnt' — `count of <collection>`.
     //   'prop' — `<propName> of every <elem>`: maps the requested
     //            property across matched elements via `findAccessor`
     //            on each child Smurf (no per-T schema baked in).
     let pcntAcc : Accessor = {
+      kind   = #element;   // synthetic: backs `count`, not a real AEOM property → excluded from pALL
       form   = #named;
       fourcc = "pcnt";
       lookUp = func _ = simpleLeaf(#int32 (intToInt32Wrap (cardinality())));
     };
     let propAcc : Accessor = {
+      kind   = #element;   // synthetic: `<prop> of every <elem>` projector → excluded from pALL
       form   = #named;
       fourcc = "prop";
       lookUp = func(par : Smurf, key : LookupKey) : Smurf =
@@ -808,6 +842,7 @@ module {
       case (#text t)  2 * utf16Units t;
       case (#int32 _) 4;
       case (#bool _)  0;
+      case (#type_ _) 4;
       case _ trap "AE: encoder unsupported value type";
     }
   };
@@ -884,6 +919,7 @@ module {
       case (#text t)  { let b = textToUtf16 t; w.writeU32s([UTXT, intToNat32Wrap (b.size())]); w.writeBytes b };
       case (#int32 i) w.writeU32s([LONG, 4, int32ToNat32 i]);
       case (#bool b)  w.writeU32s([if b AE_TRUE else AE_FALSE, 0]);
+      case (#type_ cc) w.writeU32s([TYPE, 4, textToCC4 cc]);
       case _ trap "AE: encoder unsupported value type";
     }
   };
@@ -1000,6 +1036,7 @@ module {
         let ?lk = lookupOfKey key else trap "AE: unsupported keyform (uniqueID/range)";
         let acc_opt = switch (findAccessor(parent, class_, form), class_, key) {
           case (?a, _, _)                       ?a;
+          case (null, "prop", #property "pALL") ?pAllAccessor;
           case (null, "prop", #property p)      findAccessor(parent, p, form);
           case _                                null;
         };
