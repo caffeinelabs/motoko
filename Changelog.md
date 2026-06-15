@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * bugfix: Implicit argument derivation now resolves type variables that occur only in a covariant result position (e.g. JSON-style decoders `Text -> ?T`). Previously such a variable was solved to `None` (bottom), so the implicit had to be passed explicitly (#6186).
+
   * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
 
   * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
