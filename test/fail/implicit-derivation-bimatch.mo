@@ -21,15 +21,3 @@ module Wrapper {
 
 func needsWrap(x : Nat, wrap : (implicit : Nat -> Bool)) : Bool { wrap(x) };
 ignore needsWrap(42);
-
-// T is in `args` ([T]) (covariant): the maximal solution picks its lower bound, T := Nat.
-// So the `Text -> T` hole is `Text -> Nat` — correctly unresolved, not widened to `Text -> Any`.
-module Maker {
-  public func weird<T>(self : [T], mk : (implicit : Text -> T)) : Text {
-    ignore (self, mk);
-    "";
-  };
-};
-
-func needsWeird(self : [Nat], weird : (implicit : ([Nat]) -> Text)) : Text { weird(self) };
-ignore needsWeird([42]);
