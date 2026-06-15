@@ -1649,7 +1649,7 @@ end
 
 (** Checks [args -> rets  <:  req_args -> req_rets] via subtyping or
     bidirectional matching when [tbs] are present. Returns [Some inst] or [None].
-    
+
     [inst] is the maximal solution, s.t [?A -> ?B  <:  ?Nat -> ?Int] solves [Nat <: A <: Any] and [Non <: B <: Int] as [A := Nat, B := Int]:
     To achieve this, we treat [args] as covariant and [rets] as contravariant.
     *)
