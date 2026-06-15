@@ -1,7 +1,7 @@
 // Tests for bi-matching limits in implicit candidate selection.
 
-// B is fully phantom (no bounds at all); C has an upper bound from ret_subs
-// (C ≤ Nat) but no lower bound — bivariant solver still picks lb = None for both.
+// C is in `rets` (contravariant): the maximal solution picks its upper bound, C := Nat.
+// B is phantom (in neither args nor rets): solved to its lower bound None — phantom B fails derivation.
 module Pipeline {
   public func chain<A, B, C>(
     x : A,
@@ -21,3 +21,15 @@ module Wrapper {
 
 func needsWrap(x : Nat, wrap : (implicit : Nat -> Bool)) : Bool { wrap(x) };
 ignore needsWrap(42);
+
+// T is in `args` ([T]) (covariant): the maximal solution picks its lower bound, T := Nat.
+// So the `Text -> T` hole is `Text -> Nat` — correctly unresolved, not widened to `Text -> Any`.
+module Maker {
+  public func weird<T>(self : [T], mk : (implicit : Text -> T)) : Text {
+    ignore (self, mk);
+    "";
+  };
+};
+
+func needsWeird(self : [Nat], weird : (implicit : ([Nat]) -> Text)) : Text { weird(self) };
+ignore needsWeird([42]);
