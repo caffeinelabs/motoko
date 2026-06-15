@@ -2,3 +2,4 @@ warning[M0218]: redundant `stable` keyword, this declaration is implicitly stabl
     ┌─ non-persistent3.mo:5:3
   5 │    stable let _z = #z; // warn
     │    ^^^^^^ 
+    = help: remove `stable`
