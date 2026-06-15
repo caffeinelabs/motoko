@@ -401,10 +401,8 @@ do {
   assert decodeField<[Text]>("a") == ?["a"];
 };
 
-// The `?A -> ?B  <:  ?Nat -> ?Int` example from `sub_or_bimatch_func`: one type
-// variable in a (contravariant) argument, another in the (covariant) result. The
-// maximal solution picks `A := Nat` (lower bound) and `B := Int` (upper bound), so
-// the inner `A -> B = Nat -> Int` hole resolves (to `None` before, failing).
+// `?A -> ?B  <:  ?Nat -> ?Int` should pick the maximal solution
+// `A := Nat` (lower bound) and `B := Int` (upper bound).
 do {
   module Int {
     public func coerce(n : Nat) : Int = n;
