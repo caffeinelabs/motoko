@@ -43,15 +43,9 @@ persistent actor {
   type LingoClass    = OSL.LingoClass;
   type Lingo         = OSL.Lingo;
 
-  transient let evalPred       = OSL.evalPred;
-  transient let notFoundSmurf  = OSL.notFoundSmurf;
-  transient let findAccessor   = OSL.findAccessor;
-
-  // Element-accessor constructors (defined in OSL) — `{ indexedElement "ord " with lookUp = … }`.
-  transient let indexedElement = OSL.indexedElement;
-  transient let namedElement   = OSL.namedElement;
-  transient let testElement    = OSL.testElement;
-  transient let idElement      = OSL.idElement;
+  transient let { evalPred; notFoundSmurf; findAccessor } = OSL;
+  // Accessor constructors (defined in OSL) — `{ indexedElement "ord " with lookUp = … }`.
+  transient let { indexedElement; namedElement; testElement; idElement; namedProperty } = OSL;
 
   // Credit card.  Primary key is the Nat `number`.  Each client owns
   // 0–2 cards (deterministic by `i % 3`).
@@ -366,12 +360,8 @@ persistent actor {
   // reference (`client "Hans Müller" of <root>`). The four property accessors
   // close over `c` directly (typed-fast-path: no Candid roundtrip), each
   // emitting a ValueSmurf with the typed field.
-  func clientPropAccessor(fourcc : Text, c : Client, extract : Client -> CandidValue) : Accessor = {
-    kind = #property;
-    form = #named;
-    fourcc;
-    lookUp = func _ = ValueSmurf(extract c);
-  };
+  func clientPropAccessor(fourcc : Text, c : Client, extract : Client -> CandidValue) : Accessor =
+    { namedProperty fourcc with lookUp = func _ = ValueSmurf(extract c) };
 
   func clientSmurf(c : Client, _ : Nat, parent : Smurf) : Smurf {
     let self : Smurf = {
@@ -379,15 +369,10 @@ persistent actor {
       accessors   = [
         // "name" returns a SmartLeaf — the full-name text plus a schema
         // exposing "fiNa"/"laNa" sub-properties (parsed on demand).
-        {
-          kind   = #property;
-          form   = #named;
-          fourcc = "name";
-          lookUp = func _ = smartValueSmurf(c.name, [
+        { namedProperty "name" with lookUp = func _ = smartValueSmurf(c.name, [
             ("fiNa", func t = #text (firstWord t)),
             ("laNa", func t = #text (lastWord t)),
-          ]);
-        },
+          ]) },
         // Direct synthetic accessors for first/last name so SDEF can
         // declare `first name`/`last name` as top-level client
         // properties (AS: `first name of client X`).  The smartValueSmurf
@@ -506,11 +491,11 @@ persistent actor {
     let self : Smurf = {
       class4cc    = "card";
       accessors   = [
-        { kind = #property; form = #named; fourcc = "cnum"; lookUp = func _ = ValueSmurf(#nat   (card.number)) },
-        { kind = #property; form = #named; fourcc = "noac"; lookUp = func _ = ValueSmurf(#text  (card.nameOnCard)) },
-        { kind = #property; form = #named; fourcc = "vali"; lookUp = func _ = ValueSmurf(#text  (card.validity)) },
-        { kind = #property; form = #named; fourcc = "cvc "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32 (card.cvc))) },
-        { kind = #property; form = #named; fourcc = "vald"; lookUp = func _ = ValueSmurf(#bool  (cardIsValid card)) },
+        { namedProperty "cnum" with lookUp = func _ = ValueSmurf(#nat   (card.number)) },
+        { namedProperty "noac" with lookUp = func _ = ValueSmurf(#text  (card.nameOnCard)) },
+        { namedProperty "vali" with lookUp = func _ = ValueSmurf(#text  (card.validity)) },
+        { namedProperty "cvc " with lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32 (card.cvc))) },
+        { namedProperty "vald" with lookUp = func _ = ValueSmurf(#bool  (cardIsValid card)) },
       ];
       toDesc      = func() : async* ObjectSpec {
         #obj {
@@ -559,19 +544,19 @@ persistent actor {
     let self : Smurf = {
       class4cc    = "ord ";
       accessors   = [
-        { kind = #property; form = #named; fourcc = "ID  "; lookUp = func _ = ValueSmurf(#text  (orderId o))                        },
-        { kind = #property; form = #named; fourcc = "clnm"; lookUp = func _ = ValueSmurf(#text  (o.client.name))                    },
-        { kind = #property; form = #named; fourcc = "artc"; lookUp = func _ = ValueSmurf(#text  (o.article))                       },
-        { kind = #property; form = #named; fourcc = "stts"; lookUp = func _ = ValueSmurf(#text  (orderStatusText(o.status)))       },
-        { kind = #property; form = #named; fourcc = "val "; lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32(o.value)))           },
-        { kind = #property; form = #named; fourcc = "pmtp"; lookUp = func _ = ValueSmurf(#text  (paymentTypeText(o.paymentType)))  },
+        { namedProperty "ID  " with lookUp = func _ = ValueSmurf(#text  (orderId o))                        },
+        { namedProperty "clnm" with lookUp = func _ = ValueSmurf(#text  (o.client.name))                    },
+        { namedProperty "artc" with lookUp = func _ = ValueSmurf(#text  (o.article))                       },
+        { namedProperty "stts" with lookUp = func _ = ValueSmurf(#text  (orderStatusText(o.status)))       },
+        { namedProperty "val " with lookUp = func _ = ValueSmurf(#int32 (nat32ToInt32(o.value)))           },
+        { namedProperty "pmtp" with lookUp = func _ = ValueSmurf(#text  (paymentTypeText(o.paymentType)))  },
         // One-to-one back-reference: every order has exactly one client
         // (`o.client`, direct/O(1)).  Modeled as a *property* of type `client`
         // (matched in the #named slot, where the bridge routes `form:'prop'`
         // requests), so bare `client of order` resolves to the Client object
         // and chains: `country of client of order`, `every order of client of
         // order`.  Only the client→orders leg stays quadratic.
-        { kind = #property; form = #named; fourcc = "clnt"; lookUp = func(par : Smurf, _ : LookupKey) : Smurf = clientSmurf(o.client, 0, par) },
+        { namedProperty "clnt" with lookUp = func(par : Smurf, _ : LookupKey) : Smurf = clientSmurf(o.client, 0, par) },
       ];
       toDesc      = func() : async* ObjectSpec {
         #obj {
@@ -648,7 +633,7 @@ persistent actor {
     let base = ValueSmurf(#text text);
     let schemaAccs : [Accessor] = Array_tabulate<Accessor>(schema.size(), func i {
       let (fourcc, parse) = schema[i];
-      { kind = #property; form = #named; fourcc; lookUp = func _ = ValueSmurf(parse text) }
+      { namedProperty fourcc with lookUp = func _ = ValueSmurf(parse text) }
     });
     let total = base.accessors.size() + schemaAccs.size();
     let accessors : [Accessor] = Array_tabulate<Accessor>(total, func i =
@@ -668,12 +653,7 @@ persistent actor {
     let self : Smurf = {
       class4cc    = "char";
       accessors   = [
-        {
-          kind   = #property;
-          form   = #named;
-          fourcc = "uppr";
-          lookUp = func _ = ValueSmurf(#bool (charIsUppercase c));
-        },
+        { namedProperty "uppr" with lookUp = func _ = ValueSmurf(#bool (charIsUppercase c)) },
       ];
       toDesc      = func() : async* ObjectSpec {
         #obj {
@@ -792,12 +772,8 @@ persistent actor {
   // it works even for empty tables.
   func schemaSmurf(code : Text, parent : Smurf) : Smurf {
     let lps = tableLingoProps code;
-    let accessors = Array_tabulate<Accessor>(lps.size(), func i = {
-      kind   = #property;
-      form   = #named;
-      fourcc = lps[i].code;
-      lookUp = func(p : Smurf, _ : LookupKey) : Smurf = notFoundSmurf p;
-    });
+    let accessors = Array_tabulate<Accessor>(lps.size(), func i =
+      { namedProperty (lps[i].code) with lookUp = func(p : Smurf, _ : LookupKey) : Smurf = notFoundSmurf p });
     {
       class4cc  = code;
       accessors;

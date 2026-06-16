@@ -162,6 +162,8 @@ module {
   public func namedElement(fourcc : Text)   : ElementProto = { kind = #element; form = #named;   fourcc };
   public func testElement(fourcc : Text)    : ElementProto = { kind = #element; form = #test;    fourcc };
   public func idElement(fourcc : Text)      : ElementProto = { kind = #element; form = #id;      fourcc };
+  // Property accessors are all `form = #named` (they surface in `properties`/pALL).
+  public func namedProperty(fourcc : Text)  : ElementProto = { kind = #property; form = #named; fourcc };
 
   public func notFoundSmurf(parent : Smurf) : Smurf = {
     class4cc  = "";
