@@ -47,6 +47,12 @@ persistent actor {
   transient let notFoundSmurf  = OSL.notFoundSmurf;
   transient let findAccessor   = OSL.findAccessor;
 
+  // Element-accessor constructors (defined in OSL) — `{ indexedElement "ord " with lookUp = … }`.
+  transient let indexedElement = OSL.indexedElement;
+  transient let namedElement   = OSL.namedElement;
+  transient let testElement    = OSL.testElement;
+  transient let idElement      = OSL.idElement;
+
   // Credit card.  Primary key is the Nat `number`.  Each client owns
   // 0–2 cards (deterministic by `i % 3`).
   type CreditCard = {
@@ -319,11 +325,7 @@ persistent actor {
     let chars : [Char] = switch value { case (#text t) arrayOfChars t; case _ [] };
     public let accessors : [Accessor] = switch value {
       case (#text _) [
-        {
-          kind   = #element;
-          form   = #indexed;
-          fourcc = "char";
-          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+        { indexedElement "char" with lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#indexed i) {
                 let size = chars.size();
@@ -337,11 +339,7 @@ persistent actor {
               case _ notFoundSmurf par;
             };
         },
-        {
-          kind   = #element;
-          form   = #test;
-          fourcc = "char";
-          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+        { testElement "char" with lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred)
                 OSL.CollectionSmurf<Char>(chars, "char", par, func(c, n, p) = charSmurf(charLookup, c, n, p), charLookup, charToText, ?pred);
@@ -409,11 +407,7 @@ persistent actor {
         // via the protocol's existing #named/Text shape.
         OSL.VarAccessor<CreditCard>(c.cards, "card", #indexed, cardSmurf, func k = debug_show k.number),
         OSL.VarAccessor<CreditCard>(c.cards, "card", #named,   cardSmurf, func k = debug_show k.number),
-        {
-          kind   = #element;
-          form   = #test;
-          fourcc = "card";
-          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+        { testElement "card" with lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred)
                 OSL.CollectionSmurf<CreditCard>(c.cards, "card", par, cardSmurf, cardLookup, func k = debug_show k.number, ?pred);
@@ -423,30 +417,18 @@ persistent actor {
         // Order navigation: indexed, by orderNr (as text), and predicate.
         // `ordersOfClient` snapshots the per-client slice from `orders` on demand,
         // reading through c.orders (the live var field on the Client record).
-        {
-          kind   = #element;
-          form   = #indexed;
-          fourcc = "ord ";
-          lookUp = func(par : Smurf, key : LookupKey) : Smurf {
+        { indexedElement "ord " with lookUp = func(par : Smurf, key : LookupKey) : Smurf {
             let slice = ordersOfClient c;
             OSL.VarAccessor<Order>(slice, "ord ", #indexed, orderSmurf, func o = orderId o).lookUp(par, key)
           };
         },
-        {
-          kind   = #element;
-          form   = #named;
-          fourcc = "ord ";
-          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+        { namedElement "ord " with lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#named nm) findOrderByName(ordersOfClient c, nm, par);
               case _ notFoundSmurf par;
             };
         },
-        {
-          kind   = #element;
-          form   = #test;
-          fourcc = "ord ";
-          lookUp = func(par : Smurf, key : LookupKey) : Smurf =
+        { testElement "ord " with lookUp = func(par : Smurf, key : LookupKey) : Smurf =
             switch key {
               case (#test pred) {
                 let slice = ordersOfClient c;
@@ -832,11 +814,7 @@ persistent actor {
     accessors   = [
       OSL.VarAccessor<Client>(clients, "clnt", #indexed, clientSmurf, func c = c.name),
       OSL.VarAccessor<Client>(clients, "clnt", #named,   clientSmurf, func c = c.name),
-      {
-        kind   = #element;
-        form   = #test;
-        fourcc = "clnt";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+      { testElement "clnt" with lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#test pred)
               OSL.CollectionSmurf<Client>(clients, "clnt", parent, clientSmurf, clientLookup, func c = c.name, ?pred);
@@ -846,11 +824,7 @@ persistent actor {
       // Global card view: flatten c.cards across every client via
       // OSL.FlattenedSmurf<Client, CreditCard>, then filter by the spec's
       // predicate.  `every card of root whose <P>` lives here.
-      {
-        kind   = #element;
-        form   = #test;
-        fourcc = "card";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+      { testElement "card" with lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#test pred)
               OSL.FlattenedSmurf<Client, CreditCard>(
@@ -865,11 +839,7 @@ persistent actor {
       // on the filtered OSL.FlattenedSmurf (the `#test "card"` accessor
       // above) mirror these forms, so `first card whose <P>` and
       // `card "<pk>" of root` both compose cleanly.
-      {
-        kind   = #element;
-        form   = #indexed;
-        fourcc = "card";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+      { indexedElement "card" with lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
           let view = OSL.FlattenedSmurf<Client, CreditCard>(
             clients, func c = c.cards,
             "card", parent, cardSmurf, cardLookup,
@@ -880,11 +850,7 @@ persistent actor {
           };
         };
       },
-      {
-        kind   = #element;
-        form   = #named;
-        fourcc = "card";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+      { namedElement "card" with lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
           let view = OSL.FlattenedSmurf<Client, CreditCard>(
             clients, func c = c.cards,
             "card", parent, cardSmurf, cardLookup,
@@ -899,21 +865,13 @@ persistent actor {
       // suffices — no OSL.FlattenedSmurf needed.  `#test` enables predicate filters
       // (`every order whose status = "open"`); `#indexed`/`#named` give direct
       // access by position or orderNr text.
-      {
-        kind   = #element;
-        form   = #test;
-        fourcc = "ord ";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+      { testElement "ord " with lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#test pred) OSL.CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, ?pred);
             case _ notFoundSmurf parent;
           };
       },
-      {
-        kind   = #element;
-        form   = #indexed;
-        fourcc = "ord ";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+      { indexedElement "ord " with lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
           let view : Smurf = OSL.CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, null);
           switch (findAccessor(view, "ord ", #indexed)) {
             case (?acc) acc.lookUp(view, key);
@@ -921,25 +879,17 @@ persistent actor {
           };
         };
       },
-      {
-        kind   = #element;
-        form   = #named;
-        fourcc = "ord ";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+      { namedElement "ord " with lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#named nm) findOrderByName(orders, nm, parent);
             case _ notFoundSmurf parent;
           };
       },
-      {
-        // `order id "ORDnnnn"` — address an order by its key via the `id` key
-        // form (formUniqueID).  The order's identity IS its id, so this is the
-        // semantically correct form (vs `name`).  The decoder delivers the
-        // scalar id as a single #id pair.
-        kind   = #element;
-        form   = #id;
-        fourcc = "ord ";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
+      // `order id "ORDnnnn"` — address an order by its key via the `id` key
+      // form (formUniqueID).  The order's identity IS its id, so this is the
+      // semantically correct form (vs `name`).  The decoder delivers the
+      // scalar id as a single #id pair.
+      { idElement "ord " with lookUp = func(parent : Smurf, key : LookupKey) : Smurf =
           switch key {
             case (#id (#text idStr)) findOrderByName(orders, idStr, parent);
             case _ notFoundSmurf parent;
@@ -950,11 +900,7 @@ persistent actor {
       // now (playground — resolution is by class code); returns the merged-
       // schema Row (row 0's card++client accessors) so `properties of (left
       // join id {…})` reports the join's columns via pALL.
-      {
-        kind   = #element;
-        form   = #id;
-        fourcc = "lJoi";
-        lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+      { idElement "lJoi" with lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
           switch key {
             // Keyed spec `{left: …, right: …, criterion: …}` → analyse it: the
             // left/right class codes drive the merged column schema.

@@ -152,6 +152,17 @@ module {
     lookUp : (parent : Smurf, key : LookupKey) -> Smurf;
   };
 
+  // Structural prefix of an element accessor (`Accessor` minus `lookUp`), so a
+  // literal need only graft the body: `{ indexedElement "ord " with lookUp = func(…) {…} }`.
+  // The return annotation is required (an unannotated `= { … }` body parses as a
+  // block); it also carries the wide variant types so `{ … with lookUp = … }` is
+  // exactly `Accessor`.
+  public type ElementProto = { kind : { #property; #element }; form : { #indexed; #named; #test; #id }; fourcc : Text };
+  public func indexedElement(fourcc : Text) : ElementProto = { kind = #element; form = #indexed; fourcc };
+  public func namedElement(fourcc : Text)   : ElementProto = { kind = #element; form = #named;   fourcc };
+  public func testElement(fourcc : Text)    : ElementProto = { kind = #element; form = #test;    fourcc };
+  public func idElement(fourcc : Text)      : ElementProto = { kind = #element; form = #id;      fourcc };
+
   public func notFoundSmurf(parent : Smurf) : Smurf = {
     class4cc  = "";
     accessors = [];
