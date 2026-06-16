@@ -250,3 +250,95 @@ experimental flag until the corpus is checked. Either way, **non-function**
 capture inside `func`-fields? experimental-flag phase 1 initially?
 
 **Overall risk:** low for phase 1; medium for phase 2.
+
+---
+
+## Running example — OSL accessor literals (`test/bench/object-spec.mo`)
+
+The densest real-world user of the pattern this feature targets: the OSL "Smurf"
+accessors. An `Accessor` (`test/bench/osl/OSL.mo`) is
+`{ kind : {#property;#element}; form : {#indexed;#named;#test;#id}; fourcc : Text;
+lookUp : (Smurf, LookupKey) -> Smurf }`, and the bench builds ~30 of them as
+record literals — almost all sharing the same three-field structural prefix and a
+function-valued `lookUp`. The root actor's `#indexed "ord "` accessor is the
+worked case below.
+
+### Baseline (today, on `gabor/encoder`)
+
+```motoko
+{
+  kind   = #element;
+  form   = #indexed;
+  fourcc = "ord ";
+  lookUp = func(parent : Smurf, key : LookupKey) : Smurf {
+    let view = OSL.CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, null);
+    switch (findAccessor(view, "ord ", #indexed)) {
+      case (?acc) acc.lookUp(view, key);
+      case null notFoundSmurf parent;
+    };
+  };
+},
+```
+
+Three lines of `kind`/`form`/`fourcc` boilerplate; `lookUp = func(…) : Smurf {…}`
+reads as an assignment, not a method. The 4cc `"ord "` is written **three** times
+(field + twice in the body) and `#indexed` **twice** (field + body) — the same
+constants restated across the literal.
+
+### Stage 1 — Phase-1 sugar + a constructor helper + `with`
+
+With the obvious helper
+`func indexedElement(fourcc : Text) = { kind = #element; form = #indexed; fourcc }`
+(siblings `namedElement`/`testElement`/`idElement`):
+
+```motoko
+{ indexedElement "ord " with
+  func lookUp(parent : Smurf, key : LookupKey) : Smurf {
+    let view = OSL.CollectionSmurf<Order>(orders, "ord ", parent, orderSmurf, orderLookup, func o = orderId o, null);
+    switch (findAccessor(view, "ord ", #indexed)) {
+      case (?acc) acc.lookUp(view, key);
+      case null notFoundSmurf parent;
+    };
+  };
+},
+```
+
+The structural prefix collapses to `indexedElement "ord "`; `func lookUp(…)` now
+reads as a **method**. This is pure Phase-1 sugar over the `{ base with … }` form
+— no capture — so the *body* still restates `"ord "` (×2) and `#indexed`. The
+helper's narrow inferred variants (`{#element}`/`{#indexed}`) are subtypes of
+`Accessor`'s wider ones, and the enclosing `accessors : [Accessor]` annotation
+pins the result, so no return-type annotation is needed.
+
+> Wins on the block-bodied element accessors (with a `switch`). It does **not**
+> pay off on the compact `lookUp = func _ = ValueSmurf(…)` property one-liners —
+> spelling out `func lookUp(_ : Smurf, _ : LookupKey) : Smurf = …` is *longer*
+> than `func _ =`, which infers its parameter types from the expected `Accessor`.
+
+### Stage 2 — Phase-2 capture (corrected)
+
+The base fields `fourcc` and `form` are now in scope inside `lookUp`'s body:
+
+```motoko
+{ indexedElement "ord " with
+  func lookUp(parent : Smurf, key : LookupKey) : Smurf {
+    let view = OSL.CollectionSmurf<Order>(orders, fourcc, parent, orderSmurf, orderLookup, func o = orderId o, null);
+    switch (findAccessor(view, fourcc, form)) {
+      case (?acc) acc.lookUp(view, key);
+      case null notFoundSmurf parent;
+    };
+  };
+},
+```
+
+`indexedElement "ord "` becomes the **single source of truth**: `"ord "` and
+`#indexed` each appear exactly once, and the body reads its own `fourcc`/`form`.
+(`findAccessor`'s third argument is `form` — the `{#indexed;#named;#test;#id}`
+discriminant — *not* `kind`, which is the `{#property;#element}` axis.)
+
+This is exactly the **base-field capture** case the Phase-2 verdict bullet calls
+for: `fourcc`/`form` are fields of the **base** (`indexedElement "ord "`, a
+computed call evaluated once via the lowering's `base_dec`), reached through
+`with` — not siblings written in the same literal. It is also the *safe* corner
+of Phase 2: both captured fields are immutable, so the `var`-field aliasing
+pitfall does not apply. A clean, non-synthetic motivator for landing Phase 2.
