@@ -1647,8 +1647,12 @@ module SynthesizeWrapper = struct
     combiner_wrapper ~name combiner_path params entries
 end
 
-(** Checks [args -> rets <: req_args -> req_rets] via subtyping or
-    bidirectional matching when [tbs] are present. Returns [Some inst] or [None]. *)
+(** Checks [args -> rets  <:  req_args -> req_rets] via subtyping or
+    bidirectional matching when [tbs] are present. Returns [Some inst] or [None].
+
+    [inst] is the maximal solution, s.t [?A -> ?B  <:  ?Nat -> ?Int] solves [Nat <: A <: Any] and [Non <: B <: Int] as [A := Nat, B := Int]:
+    To achieve this, we treat [args] as covariant and [rets] as contravariant.
+    *)
 let sub_or_bimatch_func tbs args rets req_args req_rets =
   assert (List.length args = List.length req_args);
   assert (List.length rets = List.length req_rets);
@@ -1659,8 +1663,9 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
   else
     let arg_subs = List.map2 (fun ra ea -> (ra, ea, no_region)) req_args args in
     let ret_subs = List.map2 (fun cr rr -> (cr, rr, no_region)) rets req_rets in
+    let ret_opt = Some (T.Func (T.Local, T.Returns, [], rets, args)) in (* Note: Flipped to get the maximal solution! *)
     try
-      let (inst, c) = Bi_match.bi_match_subs None tbs None (arg_subs @ ret_subs) ~must_solve:[] in
+      let (inst, c) = Bi_match.bi_match_subs None tbs ret_opt (arg_subs @ ret_subs) ~must_solve:[] in
       ignore (Bi_match.finalize inst c []);
       Some inst
     with Bi_match.Bimatch _ -> None
@@ -2154,7 +2159,8 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway. *)
+          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway.
+             `is_postfix_exp` also excludes `LitE` since contextual-dot is weaker than `check_lit` for literal coercion — e.g. `Blob.isEmpty("\00")` wouldn't survive a rewrite to `"\00".isEmpty()`. *)
           if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
           (match read_region e.at with
            | None -> ()
