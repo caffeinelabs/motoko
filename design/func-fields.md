@@ -60,22 +60,60 @@ IR primitive, `construct.ml:153`).
 **Record literals have NO sibling visibility today.**
 `infer_check_bases_fields` (`typing.ml:2654`) calls `infer_exp_field` (2647)
 with the **caller's unmodified `env`** — no gather pass, no adjoin —
-and `infer_exp_field` calls `infer_exp env exp` directly. The desugaring `obj`
-(`desugar.ml:1165`) emits a sequential `blockE decs obj_e` with no self-ref.
-Hence `{ a = 1; b = a }` is a scope error.
+and `infer_exp_field` calls `infer_exp env exp` directly. Hence `{ a = 1; b = a }`
+is a scope error **at the source type phase** — *not* because the lowering can't
+express it (the `obj` desugaring at `desugar.ml:1130` already emits one
+mutually-recursive `blockE`, no self-ref needed), but because the type phase
+never adjoins the siblings. Removing that one omission is the whole of Phase 2.
 
-**What recursive scoping would require.** Extend `infer_check_bases_fields` to
-(a) gather the `func`-declared field names, (b) adjoin them to env before
-checking `func`-field bodies. The desugaring already puts all fields in one
-`blockE` scope, so runtime capture resolves correctly.
+**What recursive scoping would require — a typechecker-only change.** Extend
+`infer_check_bases_fields` to (a) gather **all** field names (data *and*
+function, **including fields inherited from the bases**) with their types, (b)
+adjoin them to env, (c) check **function-valued** field bodies — both the
+`func`-field sugar *and* plain lambda fields (`f = func(…){…}`) — against that
+augmented env. **No desugaring change is needed.** The `obj` desugaring
+(`desugar.ml:1130`) already lowers a record literal to a single
+`blockE base_decs ++ field_decs ++ gap_decs; obj_e`, and the IR checker treats a
+`BlockE` as one mutually-recursive scope — `gather_block_decs` then `adjoin env
+scope` *before* checking any dec (`check_ir.ml:763-765`). So once the source
+typechecker admits the names, runtime/codegen capture resolves for free, in any
+order. The source typechecker simply **does not adjoin them today** — `{ a = 1;
+b = a }` is a scope error not because the runtime can't, but because the type
+phase never offers the siblings. Phase 2 is precisely teaching it to (this is
+the outlook, not current behaviour).
+
+**Three consequences fall out of full-surface capture** (per the review comment
+on the Phase-2 verdict bullet, 2026-06-16):
+- **Recursion is free.** A `func`-field name in the augmented env is visible in
+  its own body and its siblings' bodies → self- and mutual recursion, exactly
+  as `object`/`class` members enjoy.
+- **All fields, not just functions.** The captured env should carry every
+  sibling, so `func f() = dataField` works even when `dataField = expensive()`
+  is an ordinary value field — the lambda reads the *already-computed* binding,
+  it does not re-run the initialiser.
+- **Base fields too — and bases are already evaluated once.** In
+  `{ b1 and b2 with f1 = …; func f2() = b1sFieldA }`, `f2` must see fields
+  contributed by the bases. The desugaring already binds each base to a fresh
+  `base` var exactly once (`base_dec = letD base_var base_exp`,
+  `desugar.ml:1135`) and projects inherited (“gap”) fields off it
+  (`dotE (varE base_var) lab`, `desugar.ml:1154`). So a captured base field is a
+  projection of the once-evaluated base — even an expensive computed `b1` is not
+  re-run per capture. Again: nothing in the lowering changes; the type phase
+  need only adjoin the inherited field names.
 
 **Soundness pitfalls:**
 - **`var`-field aliasing.** A `func`-field body capturing a sibling `var` field
   captures the block-local `VarD` cell, *not* a record-field projection. On
   record copy, the closure retains the original cell — diverges from object
   `self.f` semantics.
-- Forward references to non-function fields are safe (closures read values at
-  call time, after block init).
+- **Circularity is confined to function bodies, so it is not a hazard.** Only
+  function-valued bodies receive the augmented env; a value field `= expr` keeps
+  the outer env and so cannot reference a sibling at all. An eager
+  use-before-init cycle therefore cannot arise from full-surface capture. A
+  *function* body may close over any sibling (incl. itself) freely, because it
+  is evaluated lazily — at call time, after the whole block has initialised —
+  not during construction. Hence forward and recursive references resolve
+  correctly with no init-order constraint.
 - Contrast with the `let self : T = { …; toDesc = func() = self.x }` workaround:
   that uses field projections through `self`; the proposed feature binds sibling
   block variables directly — equivalent for immutable fields, subtly different
@@ -169,6 +207,17 @@ Backwards-incompatible for currently-valid programs.
 **only** for `func`-declared field bodies; plain `field = expr` keeps the outer
 env. No existing program changes meaning.
 
+**Lambda-field caveat (gate choice).** Extending capture to plain lambda fields
+(`f = func() = a`) as well — wanted, so the sugar and its desugaring behave
+identically — *re-opens* a narrow shadowing hazard the `func`-only gate had
+sidestepped: in `{ a : Text = …; f = func() = a }` with an outer `a : Nat`, the
+lambda's `a` flips from the outer binding to the sibling. Today such a record is
+either a scope error (no outer `a`) or silently means the outer `a`; capture
+would change the latter. Two ways out: (i) accept it — the colliding-name case
+is rare and the new meaning is the intuitive one; or (ii) gate Phase 2 behind an
+experimental flag until the corpus is checked. Either way, **non-function**
+`field = expr` bodies keep the outer env untouched.
+
 ---
 
 ## Verdict
@@ -186,9 +235,15 @@ env. No existing program changes meaning.
 1. **Phase 1 (pure sugar):** `func f(args):ret{body}` in a record literal
    desugars to `f = func(…){…}` at parse time. No typer change, no sibling
    capture. Low risk. (Solves the user's stated dislike of the `= func` form.)
-2. **Phase 2 (sibling capture, gated):** extend `infer_check_bases_fields`
-   (`typing.ml:2654`) to gather `func`-declared field names and adjoin them for
-   `func`-field bodies only. Medium risk (hybrid scoping rule + `var` semantics).
+2. **Phase 2 (sibling capture, typechecker-only):** extend
+   `infer_check_bases_fields` (`typing.ml:2654`) to gather **all** field names —
+   data and function, **including those inherited from the bases** — and adjoin
+   them when checking **function-valued** bodies (both the `func`-field sugar and
+   plain lambda fields `f = func(…){…}`). **No desugaring change** (see Aspect 3):
+   the `obj` lowering already emits one recursive `blockE` with bases evaluated
+   once. Buys self-/mutual recursion and capture of (possibly expensive,
+   once-evaluated) sibling and base fields for free. Medium risk (hybrid scoping
+   rule + `var` semantics + the lambda back-compat caveat below).
 
 **Open questions:** add a `self`-like binding (a desugaring change analogous to
 `build_obj`'s `letE self e (varE self)` at `desugar.ml:1134`)? restrict `var`-field
