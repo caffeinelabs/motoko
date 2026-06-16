@@ -171,6 +171,31 @@ let try_all f xs =
       None) xs in
   if !errored then raise Recover else res
 
+(** Backtracking inference used ONLY for raising tricky warnings in order to avoid false-positives.
+
+    MUST not run on expressions that were already typechecked in non-pre phase.
+    (Because of the assertion and because of the mutation happening during the non-pre phase that would skew the backtracking trial)
+
+    PERF: Shortcuts early returning [None] in the pre phase to limit exponential explosion of backtracking.
+ *)
+ let with_backtracking env infer =
+  (* Backtracking should only be considered in non-pre phase *)
+  (* assert (not env.pre); *)
+  if env.pre then None else (* Limit exponential explosion of backtracking by not running it in pre phase *)
+  match Diag.with_message_store (recover_opt (fun msgs ->
+    (* Note: inferring in pre mode is not accurate, but a good enough approximation before we allow proper backtracking in non-pre mode *)
+    let env' = { env with msgs; pre = true } in
+    infer env'))
+  with
+  | Error _ -> None
+  | Ok (a, _) -> Some a
+  
+let eq_ts ts ts' = List.length ts = List.length ts' && List.for_all2 (T.eq ?src_fields:None) ts ts'
+
+let eq_ts_opt ts = function
+  | Some ts' -> eq_ts ts ts'
+  | None -> false
+
 let quote s = "`"^s^"`"
 
 let display_lab = Lib.Format.display T.pp_lab
@@ -3341,12 +3366,16 @@ and emit_m0237_warnings env candidates =
       "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) candidates
 
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
-and check_explicit_arguments env ts = function
-  | None -> ()
-  | Some (implicit_positions, trial_passes) ->
+and check_explicit_arguments env ts has_explicit_inst = function
+  | None -> false
+  | Some (implicit_positions, ts_opt) ->
+    let safe_to_warn =
+      match ts_opt with
+      | Some ts' -> eq_ts ts ts'
+      | None -> has_explicit_inst
+    in
     let candidates = m0237_validate_candidates env ts implicit_positions in
-    if candidates <> [] && trial_passes ts then
-      emit_m0237_warnings env candidates
+    candidates <> [] && safe_to_warn && (emit_m0237_warnings env candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3400,47 +3429,48 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     else T.seq t_args
   in
   if not env.pre then ref_exp2 := exp2; (* TODO: is this good enough *)
-  (* Trial must precede main inference (Pre-note assert in [infer_exp_wrapper]); validation uses post-inference [ts], so cache the trial outcome. *)
+  let has_explicit_inst = match tbs, inst.it with
+    | [], (None | Some (_, []))  (* no inference required *)
+    | [T.{sort = Scope;_}], _  (* special case to allow t_arg driven overload resolution *)
+    | _, Some _ -> true
+    | _ -> false
+  in
+  (* Prep for the "Redundant implicit argument check". MUST run before the actual type inference non-pre phase *)
+  (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
   let m0237_prep =
     if env.pre
-       || Flags.get_warning_level "M0237" = Flags.Allow
-       || List.length syntax_args <> saturated_arity
-       || implicits_arity >= saturated_arity
+      || Flags.get_warning_level "M0237" = Flags.Allow
+      || List.length syntax_args <> saturated_arity
+      || implicits_arity >= saturated_arity
     then None
     else
       let implicits, args = partition_implicit_args t_args syntax_args in
-      let trial_passes =
-        if inst.it <> None
-          || (match tbs with [] | [T.{sort = Scope; _}] -> true | _ -> false)
-        then fun _ts -> true
-        else
-          let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
-          trial_matches_ts env (fun env' ->
-            infer_call_instantiation env' t1 ctx_dot tbs (T.seq t_args) t_ret
-              exp2_with_holes at t_expect_opt extra_subtype_problems)
+      let ts_opt = if has_explicit_inst then None else (* Explicit instantiation means no need to infer, skip backtracking *)
+        let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
+        (* Only consider an implicit redundant when it can be inferred WITHOUT an explicit type instantiation *)
+        with_backtracking env (fun env' ->
+          let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in ts')
       in
-      Some (implicits, trial_passes)
+      Some (implicits, ts_opt)
   in
+  (* ONLY report this warning if there are not other warnings that could have relied on the explicit instantiation! *)
+  let is_redundant_inst = ref false in
   let ts, t_arg', t_ret' =
-    match tbs, inst.it with
-    | [], (None | Some (_, []))  (* no inference required *)
-    | [T.{sort = Scope;_}], _  (* special case to allow t_arg driven overload resolution *)
-    | _, Some _ ->
+    if has_explicit_inst then begin
       (* explicit instantiation, check argument against instantiated domain *)
       let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
       let ts = check_inst_bounds env sort tbs typs t_ret at in
       let t_arg' = T.open_ ts t_arg in
       let t_ret' = T.open_ ts t_ret in
-      if not env.pre then check_exp_strong env t_arg' exp2
-      else if typs <> [] && Flags.is_warning_enabled "M0223" &&
-        trial_matches_ts env (fun env' ->
-          infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems) ts then begin
-            warn env inst.at "M0223"
-              ~edits:[edit inst.at ""]
-              "redundant type instantiation"
-          end;
+      if not env.pre then begin
+        (* Redundant type instantiation check. MUST run before [check_exp_strong] *)
+        is_redundant_inst := typs <> [] && Flags.is_warning_enabled "M0223" &&
+          eq_ts_opt ts (with_backtracking env (fun env' ->
+            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems in ts'));
+        check_exp_strong env t_arg' exp2
+      end;
       ts, t_arg', t_ret'
-    | _::_, None -> (* implicit, infer *)
+    end else (* implicit, infer *)
       infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems
   in
   inst.note <- ts;
@@ -3463,7 +3493,9 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env ctx_dot exp1 (List.map (T.open_ ts) t_args) syntax_args at;
-    check_explicit_arguments env ts m0237_prep
+    let warned = check_explicit_arguments env ts has_explicit_inst m0237_prep in
+    if not warned && !is_redundant_inst then
+      warn env inst.at "M0223" ~edits:[edit inst.at ""] "redundant type instantiation"
   end;
   (* note t_ret' <: t checked by caller if necessary *)
   t_ret'
@@ -3681,22 +3713,6 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
       (match hint with
        | None -> ""
        | Some hint -> Stdlib.Format.asprintf "\n%s" hint)
-
-(* Speculative inference in [pre = true] mode (no note mutation), fresh msg store, errors swallowed -> [None]. *)
-(* Runs [infer] eagerly in pre mode (fresh msgs, errors swallowed). Returns a predicate testing whether a given [ts] equals the speculatively inferred one. *)
-and trial_matches_ts env infer =
-  let opt =
-    match Diag.with_message_store (recover_opt (fun msgs ->
-      (* Note: inferring in pre mode is not accurate, but a good enough approximation before we allow proper backtracking in non-pre mode *)
-      let env' = { env with msgs; pre = true } in
-      let ts', _, _ = infer env' in ts'))
-    with
-    | Error _ -> None
-    | Ok (ts', _) -> Some ts'
-  in
-  fun ts -> match opt with
-    | Some ts' -> List.length ts = List.length ts' && List.for_all2 (T.eq ?src_fields:None) ts ts'
-    | None -> false
 
 and debug_print_infer_defer_split exp2 t_arg t2 subs deferred =
   print_endline (Printf.sprintf "exp2 : %s" (read_region_with_markers exp2.at |> Option.value ~default:""));
