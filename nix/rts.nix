@@ -59,7 +59,7 @@ let
       rust-bindgen
       python3
       wabt
-    ] ++ pkgs.lib.optional pkgs.stdenv.isDarwin [
+    ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
       libiconv
     ];
 

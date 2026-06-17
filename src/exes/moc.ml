@@ -129,10 +129,10 @@ let argspec =
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
   "--experimental-multi-value",
   Arg.Set Flags.multi_value,
-  " enable the wasm multi-value extension in codegen (disables `FakeMultiVal` global-stash emulation)";
+  " use the wasm multi-value extension in codegen (disables `FakeMultiVal` global-stash emulation) (default)";
   "--no-experimental-multi-value",
   Arg.Clear Flags.multi_value,
-  " force `FakeMultiVal` emulation even if a future default flips on multi-value (default)";
+  " force `FakeMultiVal` emulation, opting out of the default multi-value codegen";
   "-multi-value",
   Arg.Unit (fun () ->
     eprintf "moc: -multi-value is deprecated. Use --experimental-multi-value instead.\n";
