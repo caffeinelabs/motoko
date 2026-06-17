@@ -180,12 +180,10 @@ let try_all f xs =
  *)
  let with_backtracking env infer =
   (* Backtracking should only be considered in non-pre phase *)
-  (* assert (not env.pre); *)
   if env.pre then None else (* Limit exponential explosion of backtracking by not running it in pre phase *)
   match Diag.with_message_store (recover_opt (fun msgs ->
     (* Note: inferring in pre mode is not accurate, but a good enough approximation before we allow proper backtracking in non-pre mode *)
-    let env' = { env with msgs; pre = true } in
-    infer env'))
+    infer { env with msgs; pre = true }))
   with
   | Error _ -> None
   | Ok (a, _) -> Some a
@@ -3442,7 +3440,6 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
       let implicits, args = partition_implicit_args t_args syntax_args in
       let check = if has_explicit_inst then fun _ -> true else (* Explicit instantiation means no need to infer, skip backtracking *)
         let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
-        (* Only consider an implicit redundant when it can be inferred WITHOUT an explicit type instantiation *)
         let ts_opt = with_backtracking env (fun env' ->
           let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in ts')
         in fun ts -> eq_ts_opt ts ts_opt
