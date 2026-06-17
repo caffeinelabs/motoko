@@ -54,3 +54,9 @@ let s5 = inspect<Event>(#login { user = "alice" });
 assert s5 == "#login({user=alice})";
 let s6 = inspect<Event>(#ping 7);
 assert s6 == "#ping(7)";
+
+// Recursive variant: the `#nest : Tree` case re-needs `show : Tree -> Text`,
+// resolved to the in-progress wrapper via the recursion-cycle mechanism.
+type Tree = { #leaf : Nat; #nest : Tree };
+let s7 = inspect<Tree>(#nest (#nest (#leaf 3)));
+assert s7 == "#nest(#nest(#leaf(3)))";
