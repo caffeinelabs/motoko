@@ -1,0 +1,1 @@
+mixins/NoSideEffect.mo:10.29-10.37: type error [M0014], non-static expression in actor body compiled with enhanced migration capabilities.
