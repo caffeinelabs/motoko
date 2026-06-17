@@ -3460,8 +3460,6 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     then None
     else match dot_rewrite_receiver exp1 syntax_args (List.length t_args) with
       | Some (id, e, es_rest) ->
-        (* when not ((id.it = "equal" || Lib.String.chop_prefix "compare" id.it <> None)
-                  && List.length t_args = 2) -> *)
         let inferred = with_backtracking env (fun env' -> infer_exp env' e) in
         Some (id, e, es_rest, inferred)
       | _ -> None
