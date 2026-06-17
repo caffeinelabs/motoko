@@ -6,6 +6,8 @@
 
   * bugfix: M0236 dot-notation suggestion no longer fires for literal receivers — the `lit.f()` rewrite could misparse (`-1.1.isNaN()` → `-(1.1.isNaN())`), mis-lex (`0xff.abs` as a hex float), or fail to type-check when it lost a literal coercion (`Blob.isEmpty("\00")` → `"\00".isEmpty()`) (#6173).
 
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver cannot be inferred or would infer to a different type causing the call to resolve to a different function (#6177).
+
   * bugfix: Implicit argument derivation now resolves type variables that occur only in a covariant result position (e.g. JSON-style decoders `Text -> ?T`). Previously such a variable was solved to `None` (bottom), so the implicit had to be passed explicitly (#6186).
 
   * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
