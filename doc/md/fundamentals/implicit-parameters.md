@@ -191,7 +191,7 @@ The compiler searches for implicit arguments in the following order, stopping at
    1. Local values in the current scope.
    2. Module fields (e.g., `Array.compare<T>`).
    3. Fields of unimported modules (requires `--implicit-package`).
-3. **Structural** — structural combiners (`__record`, `__tuple` convention) applied to record or tuple types (see [Structural derivation](#structural-derivation) below):
+3. **Structural** — structural combiners (`__record`, `__tuple`, `__variant` convention) applied to record, tuple, or variant types (see [Structural derivation](#structural-derivation) below):
    1. Local values in the current scope.
    2. Module fields.
    3. Fields of unimported modules (requires `--implicit-package`).
@@ -230,7 +230,7 @@ When derivation is attempted but fails (for example, because an inner implicit c
 
 ### Structural derivation
 
-When an implicit is needed for a **record or tuple type**, the compiler can synthesize it automatically using a *structural combiner* — a function whose single parameter name begins with `__` and encodes the structural decomposition kind. Structural combiners must not have implicit parameters.
+When an implicit is needed for a **record, tuple, or variant type**, the compiler can synthesize it automatically using a *structural combiner* — a function whose single parameter name begins with `__` and encodes the structural decomposition kind. Structural combiners must not have implicit parameters.
 
 Three structural kinds are supported, distinguished by the combiner's parameter name:
 
