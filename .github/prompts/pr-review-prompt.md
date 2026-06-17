@@ -41,7 +41,10 @@ This is the Motoko compiler repository:
    - No redundant or overlapping tests.
 4. Code consistency: MUST match existing OCaml patterns in `src/`.
 5. Correctness over style: only flag style if it causes defects or long-term risk.
-6. Changelog: user-visible language, prelude, or CLI behavior changes MUST add an entry under the `## Next` heading at the top of `Changelog.md` (create the heading if it isn't there yet). Released-version sections (`## X.Y.Z (YYYY-MM-DD)`) are frozen history; adding, editing, or removing entries inside them is a defect. Internal-only changes (refactors, infra, tests) do NOT require a changelog entry.
+6. Changelog: verify ALL three (each a P# defect if missing):
+   - Entry present for user-visible language/prelude/CLI changes (internal-only changes are exempt).
+   - Entry placed on top, not inside a frozen `## X.Y.Z (YYYY-MM-DD)` section.
+   - Entry contains `(#<NNNN>)` matching THIS PR's number (typically at end of the first sentence; further text/examples may follow).
 7. Compatibility:
    - Renames/removals of public OCaml API in `src/mo_def/**` or `src/mo_frontend/**`, or of compiler-recognised modules in `src/prelude/`, MUST include a deprecation/migration path.
    - Breaking changes without a migration note are a defect unless explicitly slated for a major release.
@@ -62,8 +65,7 @@ Treat these as high-priority candidates when present in the diff:
 
 - Existing `.mo`/`.ok` pair where one side changed without the other being updated (silent tests have no `.ok` and are exempt).
 - New compiler warnings/errors introduced without a `test/fail/ok/*.tc.ok` update.
-- User-visible language, prelude, or CLI behavior changes without a `## Next` entry in `Changelog.md`.
-- `Changelog.md` hunks that add, edit, or remove bullets inside a released-version section (`## X.Y.Z (YYYY-MM-DD)`) — frozen history; the entry belongs under `## Next` instead.
+- `Changelog.md` violations of rule #6: missing entry for a user-visible change, entry placed inside a frozen `## X.Y.Z` section, or entry missing/wrong `(#<NNNN>)` PR-number reference.
 - Codegen / RTS changes (`src/codegen/**`, `rts/**`, `src/wasm-exts/**`) without runtime test coverage.
 - Public API renames/removals in `src/mo_def/**`, `src/mo_frontend/**`, or `src/prelude/` without a deprecation/migration note.
 - New OCaml `assert false`, `failwith`, or unhandled `match` patterns that can fire on valid Motoko input.
