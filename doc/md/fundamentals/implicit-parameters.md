@@ -232,13 +232,13 @@ When derivation is attempted but fails (for example, because an inner implicit c
 
 When an implicit is needed for a **record or tuple type**, the compiler can synthesize it automatically using a *structural combiner* — a function whose single parameter name begins with `__` and encodes the structural decomposition kind. Structural combiners must not have implicit parameters.
 
-Two structural kinds are supported, distinguished by the combiner's parameter name:
+Three structural kinds are supported, distinguished by the combiner's parameter name:
 
 | Parameter name | Combiner type              | Implicit argument type                   | Description                                    |
 |----------------|----------------------------|------------------------------------------|------------------------------------------------|
 | `__record`     | `[(Text, () -> E)] -> R`   | `Rec -> R` or `(Rec, Rec) -> R`          | Record: one or two records, arity from implicit|
 | `__tuple`      | `[() -> E] -> R`           | `(A, B, ...) -> R` or `((A,B,...), (A,B,...)) -> R` (≥ 2 elements) | Tuple: one implicit per element |
-| `__variant`    | —                          | —                                        | Reserved for future extension                  |
+| `__variant`    | `(Text, () -> E) -> R`     | `Var -> R`                               | Variant: the active case `(tag, payload thunk)`|
 
 Each per-field/element result is wrapped in a **thunk** (`() -> E`), giving the combiner full control over evaluation order. Combiners that need all values (like serialization) simply call every thunk. Combiners that can short-circuit (like comparison) can stop early — remaining thunks are never evaluated.
 
@@ -380,6 +380,42 @@ func inspect<T>(x : T, describe : (implicit : T -> Text)) : Text = describe(x);
 
 assert inspect(("hello", 42 : Nat)) == "(hello, 42)";
 ```
+
+#### Variant derivation (`__variant`)
+
+When the compiler is looking for an implicit of type `Var -> R` where `Var` is a variant type `{ #t1 : T1; ...; #tn : Tn }`, it searches for a structural combiner whose parameter is named `__variant` and has type `(Text, () -> E) -> R`.
+
+Unlike a record or tuple, a variant value is exactly **one** of its cases at runtime. The compiler synthesizes a wrapper that switches on the active case and applies the combiner once to its `(tag, payload thunk)`:
+
+```
+func($v) {
+  combiner(switch ($v) {
+    case (#t1 x) ("t1", func() { inst1(x) });
+    ...
+    case (#tn x) ("tn", func() { instn(x) });
+  })
+}
+```
+
+Each per-case implicit has type `Ti -> E`, resolved by the same search label. A no-payload case `#t` has payload type `()`, so it needs a `() -> E` instance — the same rule that applies to every component type of a record or tuple.
+
+```motoko
+// __variant combiner: serialise the active case as "#tag(payload)".
+func show(__variant : (Text, () -> Text)) : Text {
+  let (tag, payload) = __variant;
+  "#" # tag # "(" # payload() # ")"
+};
+
+module TextShow { public func show(self : Text) : Text = self };
+module NatShow  { public func show(self : Nat)  : Text = debug_show self };
+
+func inspect<T>(x : T, show : (implicit : T -> Text)) : Text = show(x);
+
+type Shape = { #circle : Nat; #named : Text };
+assert inspect<Shape>(#named "hi") == "#named(hi)";
+```
+
+Only the unary form (`Var -> R`) is supported. Binary operations over variants (`(Var, Var) -> R`, e.g. `compare`) are not derived structurally, because the two values may be in different cases; write such combiners explicitly.
 
 #### Disambiguation: binary vs unary when both `__record` and `__tuple` are in scope
 
