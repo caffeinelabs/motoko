@@ -4,6 +4,7 @@
 
 * motoko (`moc`)
 
+  * bugfix: `--enhanced-migration` now also applies to mixins and considers their stable fields when checking migrations (#6183).
   * feat: allow effectful code in transient lets and in actor/mixin bodies with `--enhanced-migration` (#6191).
   * feat: `moc` now emits the standardized `target_features` Wasm custom section, so Binaryen-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
 
