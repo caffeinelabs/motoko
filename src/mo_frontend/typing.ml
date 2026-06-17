@@ -109,7 +109,7 @@ let env_of_scope msgs scope =
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
     closest_loop = None;
     closest_scrutinee = None;
-    enhanced_migration = !Flags.enhanced_migration;
+    enhanced_migration = None;
     enclosing_removal = false;
   }
 
@@ -4795,12 +4795,9 @@ and check_stab env sort scope dec_fields =
         "misplaced stability declaration on field of non-actor";
       []
     | (T.Actor | T.Mixin), _ , IncludeD (_, _, note) ->
-      begin match !note with
-      | None -> assert false
-      | Some note ->
-        let fs = check_stab env sort scope note.decs in
-        List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
-      end
+      let include_note = Option.get !note in
+      let fs = check_stab env sort scope include_note.decs in
+      List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
     | (T.Actor | T.Mixin), Some {it = Stable view; _}, VarD (id, _) ->
       check_stable id.it id.at;
       infer_viewer env scope Var id view;
@@ -5579,15 +5576,14 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
       recover_opt
         (fun lib ->
           let { imports; body = cub; _ } = lib.it in
-          let env = env_of_scope msgs scope in
           let env =
-            { env with
+            { (env_of_scope msgs scope) with
               errors_only = pkg_opt <> None;
-              (* For now, only the main actor(class) supports enhanced_migration, not libraries
+              (* For now, only the main actor(class) and mixins support enhanced_migration, not libraries
                  For imported classes, we would need some convention to locate their migration
                  dirs *)
               enhanced_migration = match cub.it with
-                | MixinU _ -> env.enhanced_migration
+                | MixinU _ -> !Flags.enhanced_migration;
                 | _ -> None;
             } in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in

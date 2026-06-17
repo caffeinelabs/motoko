@@ -1,7 +1,9 @@
 module {
 
-  public func migration({}) : { f : Nat } = {
-   f = 42
+  public func migration({}) : { mixinNat : Nat; actorInt : Int; actorText : Text } = {
+   actorInt = 42;
+   actorText = "hello";
+   mixinNat = 42;
   };
 
 }

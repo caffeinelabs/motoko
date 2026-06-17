@@ -1,5 +1,9 @@
-// migractions from importing prog should no apply here
 mixin() {
-  let f : Nat;
-  ignore f;
+  let mixinNat : Nat;
+  ignore mixinNat;
+
+  transient let mixinTransient : Nat = 0;
+  ignore mixinTransient;
+
+  public shared func mixinFunc() : async () {};
 }
