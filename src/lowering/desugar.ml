@@ -739,13 +739,15 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
   | S.IncludeD(_, arg, note) ->
     (* TODO: This is ugly. It would be a lot nicer if we didn't have to split
        the desugaring and stability declarations *)
+    (* Order must match the IR produced by `dec'` for IncludeD:
+       [imports; letP (mixin parameters); mixin decs] *)
     let flex = Some (S.Flexible @@ no_region) in
     let { imports; decs; _ } = Option.get !note in
     let import_stabs = List.map (fun _ -> flex) imports in
-    (* Transient stability for binding the mixin parameters *)
-    flex ::
     (* Transient stability for binding the mixin imports *)
     import_stabs @
+    (* Transient stability for binding the mixin parameters *)
+    flex ::
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 

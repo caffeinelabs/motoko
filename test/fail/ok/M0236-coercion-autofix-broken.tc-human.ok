@@ -1,30 +1,10 @@
 error[M0072]: field isEmpty does not exist in type:
   Text
-    ┌─ M0236-coercion-autofix-broken.mo:31:17
- 31 │  ignore "\00\01".isEmpty();
+    ┌─ M0236-coercion-autofix-broken.mo:20:17
+ 20 │  ignore "\00\01".isEmpty();
     │                  ^^^^^^^ 
 error[M0070]: expected object type, but expression produces type
   Nat
-    ┌─ M0236-coercion-autofix-broken.mo:36:8
- 36 │  ignore 42.toText();
+    ┌─ M0236-coercion-autofix-broken.mo:25:8
+ 25 │  ignore 42.toText();
     │         ^^ 
-error[M0072]: field toBlob does not exist in type:
-  [Nat]
-    ┌─ M0236-coercion-autofix-broken.mo:42:18
- 42 │  ignore [1, 2, 3].toBlob();
-    │                   ^^^^^^ 
-warning[M0081]: this if has type
-  Any
-because branches have inconsistent types,
-true produces
-  Nat8
-false produces
-  Nat
-    ┌─ M0236-coercion-autofix-broken.mo:52:10
- 52 │    [b[i], if (i == 0) b[i] else 61].toBlob();
-    │           ^^^^^^^^^^^^^^^^^^^^^^^^ 
-error[M0072]: field toBlob does not exist in type:
-  [Any]
-    ┌─ M0236-coercion-autofix-broken.mo:52:36
- 52 │    [b[i], if (i == 0) b[i] else 61].toBlob();
-    │                                     ^^^^^^ 
