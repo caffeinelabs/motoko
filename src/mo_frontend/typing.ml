@@ -3366,16 +3366,11 @@ and emit_m0237_warnings env candidates =
       "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) candidates
 
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
-and check_explicit_arguments env ts has_explicit_inst = function
+and check_explicit_arguments env ts = function
   | None -> false
-  | Some (implicit_positions, ts_opt) ->
-    let safe_to_warn =
-      match ts_opt with
-      | Some ts' -> eq_ts ts ts'
-      | None -> has_explicit_inst
-    in
+  | Some (implicit_positions, check) ->
     let candidates = m0237_validate_candidates env ts implicit_positions in
-    candidates <> [] && safe_to_warn && (emit_m0237_warnings env candidates; true)
+    candidates <> [] && check ts && (emit_m0237_warnings env candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3445,13 +3440,14 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     then None
     else
       let implicits, args = partition_implicit_args t_args syntax_args in
-      let ts_opt = if has_explicit_inst then None else (* Explicit instantiation means no need to infer, skip backtracking *)
+      let check = if has_explicit_inst then fun _ -> true else (* Explicit instantiation means no need to infer, skip backtracking *)
         let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
         (* Only consider an implicit redundant when it can be inferred WITHOUT an explicit type instantiation *)
-        with_backtracking env (fun env' ->
+        let ts_opt = with_backtracking env (fun env' ->
           let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in ts')
+        in fun ts -> eq_ts_opt ts ts_opt
       in
-      Some (implicits, ts_opt)
+      Some (implicits, check)
   in
   (* ONLY report this warning if there are not other warnings that could have relied on the explicit instantiation! *)
   let is_redundant_inst = ref false in
@@ -3493,7 +3489,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env ctx_dot exp1 (List.map (T.open_ ts) t_args) syntax_args at;
-    let warned = check_explicit_arguments env ts has_explicit_inst m0237_prep in
+    let warned = check_explicit_arguments env ts m0237_prep in
     if not warned && !is_redundant_inst then
       warn env inst.at "M0223" ~edits:[edit inst.at ""] "redundant type instantiation"
   end;
