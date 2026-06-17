@@ -2,7 +2,7 @@
 
 * motoko (`moc`)
 
-  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`). The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`, deriving operations like serialization for any variant whose case payloads have instances (#TBD).
+  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`). The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`, deriving operations like serialization for any variant whose case payloads have instances (#6192).
 
   * bugfix: M0236 dot-notation suggestion no longer fires for literal receivers — the `lit.f()` rewrite could misparse (`-1.1.isNaN()` → `-(1.1.isNaN())`), mis-lex (`0xff.abs` as a hex float), or fail to type-check when it lost a literal coercion (`Blob.isEmpty("\00")` → `"\00".isEmpty()`) (#6173).
 
