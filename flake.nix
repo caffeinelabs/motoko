@@ -145,7 +145,7 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-13.0.0" = "sha256-9DpJeFJ1AcUbcjUapE20UI/gE7j0glCFWU9FhbdOtHE=";
+          "pocket-ic-14.0.0" = "sha256-kYozElqipS6N9y+ydG2fNvSfMtybK3lv2codr189sCE=";
         };
       };
 
