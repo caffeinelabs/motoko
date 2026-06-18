@@ -3966,14 +3966,13 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type"
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
-    (* ObjP-against-actor is no longer rejected here.  desugar.ml
-       pre-massages such patterns (LetD via actor_destruct_decs,
-       SwitchE via the dedicated pre-massage branch) — by the time
-       any IR consumer sees the lowered output, no I.ObjP-against-
-       actor remains.  Exotic contexts (FuncE/ClassD/ForE param
-       patterns, TryE catch) would fall through to the I.ObjP path
-       and trap at runtime, accepting the cost for unreachable
-       practical use. *)
+    (* ObjP-against-actor is not rejected here.  The lowered I.ObjP is
+       projected method-by-method via the actor-public-field primitive
+       directly in the match compiler (codegen fill_pat and the IR
+       interpreter, keyed on the pattern's type note), so it is correct in
+       EVERY context — let/param/switch/for/try, refutable or not, nested or
+       not.  (An earlier desugar pre-massage handled only irrefutable
+       positions; it survives inert behind Desugar.actor_premassage.) *)
     let _, _, ve = check_obj_pat_aux env t pat pfs in
     ve
   | OptP pat1 ->

@@ -13492,7 +13492,14 @@ and fill_pat env ae pat : patternCode =
           CannotFail (get_i ^^ Tuple.load_n env i) ^^^ code1 ^^^ code2 in
       CannotFail set_i ^^^ go 0L ps
   | ObjP pfs ->
-      let project = compile_load_field env pat.note in
+      (* An actor scrutinee carries no record fields to offset-load; project
+         each method via the actor-public-field primitive (cf. ActorDotPrim).
+         This single site defuses ObjP-against-actor in EVERY match context —
+         let/param/switch/for/try, refutable or not, nested or not — keyed on
+         the pattern's own type note. *)
+      let project name =
+        if Type.is_actor pat.note then IC.actor_public_field env name
+        else compile_load_field env pat.note name in
       let (set_i, get_i) = new_local env "obj_scrut" in
       let rec go = function
         | [] -> CannotFail G.nop

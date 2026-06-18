@@ -95,6 +95,25 @@ actor a {
     await pong()
   };
 
+  // (10) NESTED: the actor is buried inside a tuple pattern. The top-level
+  //   type is a tuple `(Self, Self)`, NOT an actor — so the top-level
+  //   pre-massage doesn't see an actor. The inner ObjPs must still be
+  //   recognised and projected via ActorDotPrim, else the record-offset
+  //   loads on the actor blobs trap. (Cursor's case.)
+  func f10_nested_tuple(self : Self) : async () {
+    let tup = (self, self);
+    let ({ ping }, { pong }) = tup;
+    await ping();
+    await pong()
+  };
+
+  // (11) REFUTABLE: actor ObjP nested under an option pattern in a switch.
+  //   The desugar pre-massage can't reach into a refutable match arm, so this
+  //   probes whether the bomb is intercepted at the match itself.
+  func f11_refutable(self : ?Self) : async () {
+    switch self { case (?{ ping }) { await ping() }; case null {} }
+  };
+
   public func test() : async () {
     // let-else first, then the AndP family, to isolate each.
     await f9_let_else(a);
@@ -117,6 +136,8 @@ actor a {
       }
     };
     await f8_for_loop(single_iter);
+    await f10_nested_tuple(a);
+    await f11_refutable(?a);
   };
 };
 
