@@ -897,22 +897,38 @@ fn handle_cmp(ctx: &mut Ctx, cli: &Cli) {
     ctx.push_diff("cmp");
 }
 
+/// Accept fresh `_out/` captures into `ok/` as a content compare-and-swap.
+///
+/// Concurrency-safe by construction: each golden is rewritten ONLY when its
+/// content actually changed, so an unchanged golden is never touched (no write
+/// window for a concurrent reader under the parallel suite). Crucially, an
+/// EMPTY/absent capture is treated as "no change — leave the golden alone",
+/// never as "delete it": under `--all-modes` the persistence×MV product
+/// multiplies concurrent moc/drun/pocket-ic processes, and a transient-empty
+/// capture must not be able to silently delete a passing test's golden.
+/// (A genuine golden removal therefore needs an explicit signal, not a flaky
+/// empty capture.)
 fn accept(ctx: &Ctx) {
-    let prefix = format!("{}.", ctx.base);
-    if let Ok(entries) = fs::read_dir(&ctx.ok) {
-        for e in entries.flatten() {
-            if e.file_name().to_str().is_some_and(|s| s.starts_with(&prefix)) {
-                let _ = fs::remove_file(e.path());
-            }
-        }
-    }
     for f in &ctx.diff_files {
         let src = ctx.out.join(f);
         let dst = ctx.ok.join(format!("{f}.ok"));
-        if fs::metadata(&src).map(|m| m.len() > 0).unwrap_or(false) {
-            let _ = fs::copy(&src, &dst);
-        } else {
-            let _ = fs::remove_file(&dst);
+        let fresh = fs::read(&src).unwrap_or_default();
+        if fresh.is_empty() {
+            // Empty capture: distinguish a LEGITIMATE empty (the phase ran and
+            // exited 0, producing nothing) from a FAILURE artifact (crash /
+            // timeout / parallel contention). `run_phase` records a non-zero
+            // exit as a sibling `<phase>.ret`; its presence ⇒ the phase FAILED,
+            // so keep the golden. Only a successful empty is a legal removal.
+            let failed = !f.ends_with(".ret") && ctx.out.join(format!("{f}.ret")).exists();
+            if failed {
+                continue; // transient/real failure ⇒ never delete the golden
+            }
+            let _ = fs::remove_file(&dst); // success + empty ⇒ legal removal
+            continue;
+        }
+        // Compare in memory; swap only on a real content change.
+        if fs::read(&dst).map(|old| old != fresh).unwrap_or(true) {
+            let _ = fs::write(&dst, &fresh);
         }
     }
 }
