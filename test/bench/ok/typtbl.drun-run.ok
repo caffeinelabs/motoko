@@ -5,5 +5,5 @@ debug.print: {cycles = 175_741}
 debug.print: {cycles = 354_173}
 debug.print: {cycles = 532_605}
 debug.print: {cycles = 711_037}
-debug.print: {cycles = 262_467}
+debug.print: {cycles = 262_499}
 ingress Completed: Reply: 0x4449444c0000
