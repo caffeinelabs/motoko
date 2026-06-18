@@ -75,6 +75,14 @@ jobs:
       - name: Build `moc`
         run: |
           nix build .#moc --print-out-paths
+      - name: Build M0223-silenced `moc`
+        # CI-only: `.#moc-M0223` wraps moc to force M0223 off, so motoko-core's
+        # `-E=M0223` (mops.toml) doesn't fail the build on its ~2871 redundant
+        # `<T>`s. Built here (before the motoko-core checkout replaces the
+        # working dir) and its store path stashed for the fixup step. Drop once
+        # #6199 cleans core up.
+        run: |
+          echo "MOC_M0223=$(nix build .#moc-M0223 --print-out-paths)" >> "$GITHUB_ENV"
       - name: Save the `test-blueprint` action
         # This is needed by the "Post Populate `moc`" step (cleanup)
         # but since the checkout of `motoko-core` destroys the `pwd` contents
@@ -95,7 +103,11 @@ jobs:
           npx ${DFX_MOC_PATH} --version
       - name: Fixup `mops` cache
         run: |
-          ln -sf /nix/store/*-moc/bin/moc $(cat .mops/moc-*)
+          # Point mops at the M0223-silenced moc wrapper (.#moc-M0223, built
+          # before the checkout). Its store path is used explicitly rather than
+          # the `*-moc` glob, since the wrapper and the real moc both end in
+          # `-moc`. Remove once motoko-core is cleaned up — see #6199.
+          ln -sf "$MOC_M0223/bin/moc" "$(cat .mops/moc-*)"
           npx ${DFX_MOC_PATH} --version
       - name: Run `motoko-core` Tests
         run: npm test
