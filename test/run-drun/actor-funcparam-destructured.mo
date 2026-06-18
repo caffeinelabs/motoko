@@ -42,6 +42,26 @@ actor a {
     await whole.pong()
   };
 
+  // (5b) AndP, swapped arms: whole-actor name and ObjP (ObjP on the right)
+  func f5b((whole and { pong }) : Self) : async () {
+    await whole.ping();
+    await pong()
+  };
+
+  // (5c) AndP of two ObjPs against the same actor
+  func f5c(({ ping } and { pong }) : Self) : async () {
+    await ping();
+    await pong()
+  };
+
+  // (5d) chained AndP with a ParP-wrapped ObjP arm — stresses wrapper-peeling
+  //   across `and` (whole-name + ObjP + parenthesised ObjP).
+  func f5d((whole and { pong } and ({ ping })) : Self) : async () {
+    await whole.pong();
+    await pong();
+    await ping()
+  };
+
   // (6) shared func — exercises the must_wrap=true path in to_args
   public shared func f6_shared({ ping } : Self) : async () {
     await ping()
@@ -66,12 +86,26 @@ actor a {
     }
   };
 
+  // (9) let-else with an actor ObjP. The pattern is IRREFUTABLE (object
+  //   destructure of a known-shape actor always succeeds), so the `else` is
+  //   dead and there should be a single projecting match, not a refutable
+  //   cascade — and it must take the ActorDotPrim path, not record offsets.
+  func f9_let_else(self : Self) : async () {
+    let { pong } = self else { return };
+    await pong()
+  };
+
   public func test() : async () {
+    // let-else first, then the AndP family, to isolate each.
+    await f9_let_else(a);
+    await f5(a);
+    await f5b(a);
+    await f5c(a);
+    await f5d(a);
     await f1(a);
     await f2(a);
     await f3(a);
     await f4(a);
-    await f5(a);
     await f6_shared(a);
     let o = Observer(a);
     await o.tick();
@@ -85,6 +119,11 @@ actor a {
     await f8_for_loop(single_iter);
   };
 };
+
+// Actually invoke `test()` under drun so the destructure paths (esp. the AndP
+// f5/f5b/f5c) execute — otherwise the actor only installs and a runtime trap
+// (e.g. ObjP-against-actor mis-lowered to record offsets) goes uncaught.
+//CALL ingress test "DIDL\x00\x00"
 
 //SKIP run
 //SKIP run-ir

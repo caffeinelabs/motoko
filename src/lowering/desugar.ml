@@ -297,11 +297,8 @@ and exp' at note = function
   | S.IfE (e1, e2, e3) -> I.IfE (exp e1, exp e2, exp e3)
   | S.SwitchE (e1, cs) ->
     let t1 = T.normalize e1.note.S.note_typ in
-    let any_actor_obj_case = match t1 with
-      | T.Obj (T.Actor, _, _) ->
-        List.exists (fun (c : S.case) ->
-          match (c.it : S.case').pat.it with S.ObjP _ -> true | _ -> false) cs
-      | _ -> false
+    let any_actor_obj_case =
+      List.exists (fun (c : S.case) -> is_actor_destruct (c.it : S.case').pat t1) cs
     in
     if any_actor_obj_case then
       (* Pre-massage: hoist scrutinee, rewrite each ObjP-against-actor
@@ -312,13 +309,11 @@ and exp' at note = function
         let c' : S.case' = c.it in
         let case_pat = c'.pat in
         let case_exp = c'.exp in
-        match case_pat.it with
-        | S.ObjP _ ->
-          let proj_decs = actor_obj_pat_proj_decs case_pat t1 h in
-          let body = blockE proj_decs (exp case_exp) in
+        if is_actor_destruct case_pat t1 then
+          let body = blockE (actor_pat_proj_decs case_pat t1 h) (exp case_exp) in
           let wild_pat : Ir.pat = { it = I.WildP; at = case_pat.at; note = t1 } in
           { it = { I.pat = wild_pat; I.exp = body }; at = c.at; note = () }
-        | _ ->
+        else
           { it = { I.pat = pat case_pat; I.exp = exp case_exp }; at = c.at; note = () }
       in
       (blockE
@@ -355,12 +350,10 @@ and exp' at note = function
          patterns: replace with a fresh handle var, inject per-field
          ActorDotPrim projections into the loop body.  Sidesteps the
          array-vals/keys specialization for actor arrays — exotic. *)
-      match p.it, T.normalize p.note with
-      | S.ObjP _, T.Obj (T.Actor, _, _) ->
+      if is_actor_destruct p p.note then
         let h = fresh_var "@actor_for_iter" p.note in
-        let proj_decs = actor_obj_pat_proj_decs p p.note h in
-        (forE (varP h) (exp e1) (blockE proj_decs (exp e2))).it
-      | _ ->
+        (forE (varP h) (exp e1) (blockE (actor_pat_proj_decs p p.note h) (exp e2))).it
+      else
       match e1.it with
       | S.CallE (None, {it=S.DotE (arr, proj, _); _}, _, (_, e1))
         when T.is_array arr.note.S.note_typ && (proj.it = "vals" || proj.it = "values" || proj.it = "keys")
@@ -1297,12 +1290,10 @@ and dec' d =
        I.ObjP lowering compiles to plain DotPrim and corrupts the actor
        blob at runtime. *)
     let t = e.note.S.note_typ in
-    let is_actor_obj_destruct =
-      match p.it, T.normalize t with
-      | S.ObjP _, T.Obj (T.Actor, _, _) when f = None -> true
-      | _ -> false
-    in
-    if is_actor_obj_destruct then
+    if is_actor_destruct p t then
+      (* Irrefutable actor destructure: the per-field ActorDotPrim projections
+         ARE the single match; in a let-else the `else` (f) is dead — M0243
+         already flags it — so it is dropped rather than emitting a cascade. *)
       List.map (fun d -> d.it) (actor_destruct_decs p t (exp e))
     else
     let p' = pat p in
@@ -1471,16 +1462,14 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
       let v = fresh_var "param" p.note in
       arg_of_var v,
       Fun.id
-    | S.ObjP _ when (match T.normalize p.note with
-                     | T.Obj (T.Actor, _, _) -> true | _ -> false) ->
-      (* Actor-typed ObjP param: skip the I.ObjP route (codegen would
-         offset-load on the actor blob and trap).  Bind the param to
-         a fresh handle and project each field via ActorDotPrim at
-         function-body entry.  Parallels actor_destruct_decs in dec'
-         and the SwitchE pre-massage. *)
+    | _ when is_actor_destruct p_unannot p.note ->
+      (* Actor-typed destructure (ObjP, possibly under And): skip the I.ObjP
+         route (codegen would offset-load on the actor blob and trap).  Bind
+         the param to a fresh handle and project each field via ActorDotPrim
+         at function-body entry, steered by the actual pattern. *)
       let v = fresh_var "param" p.note in
       arg_of_var v,
-      (fun e -> mergeE (actor_obj_pat_proj_decs p_unannot p.note v) e)
+      (fun e -> mergeE (actor_pat_proj_decs p_unannot p.note v) e)
     |  _ ->
       let v = fresh_var "param" p.note in
       arg_of_var v,
@@ -1565,26 +1554,47 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
    Routes around the naive IR-level ObjP lowering, which compiles
    to DotPrim and traps on the actor blob.  TypPF entries don't
    need value bindings — they're erased. *)
-and actor_obj_pat_proj_decs (obj_pat : S.pat) (t : T.typ) (handle : var) : Ir.dec list =
-  let pfs = match obj_pat.it with
-    | S.ObjP pfs -> pfs
-    | _ -> raise (Invalid_argument "actor_obj_pat_proj_decs: expected ObjP")
-  in
-  let _, fields = T.as_obj t in
-  List.filter_map (fun pf ->
-    match pf.it with
-    | S.ValPF (id, sub_pat) ->
-      let field = List.find (fun (f : T.field) -> f.T.lab = id.it) fields in
-      (* varE handle produces a fresh node per call — no IR aliasing. *)
-      Some (letP (pat sub_pat) (actor_dotE (varE handle) id.it field.T.typ))
-    | S.TypPF _ -> None
-  ) pfs
+and actor_pat_proj_decs (p : S.pat) (t : T.typ) (handle : var) : Ir.dec list =
+  match p.it with
+  | S.ObjP pfs ->
+    let _, fields = T.as_obj t in
+    List.filter_map (fun pf ->
+      match pf.it with
+      | S.ValPF (id, sub_pat) ->
+        let field = List.find (fun (f : T.field) -> f.T.lab = id.it) fields in
+        (* varE handle produces a fresh node per call — no IR aliasing. *)
+        Some (letP (pat sub_pat) (actor_dotE (varE handle) id.it field.T.typ))
+      | S.TypPF _ -> None
+    ) pfs
+  (* Peel administrative wrappers; recurse And arms against the SAME handle
+     (both consume the same actor reference); a Var/Wild binds/ignores the
+     whole reference (no field load, so the I.ObjP trap can't arise). *)
+  | S.AnnotP (p1, _) | S.ParP p1 -> actor_pat_proj_decs p1 t handle
+  | S.AndP (p1, p2) ->
+    actor_pat_proj_decs p1 t handle @ actor_pat_proj_decs p2 t handle
+  | _ -> [ letP (pat p) (varE handle) ]
 
 (* LetD-shaped wrapper: bind a fresh @actor_handle to [rhs], then the
    per-field projections.  Returns the full dec list. *)
-and actor_destruct_decs (obj_pat : S.pat) (t : T.typ) (rhs : Ir.exp) : Ir.dec list =
+and actor_destruct_decs (p : S.pat) (t : T.typ) (rhs : Ir.exp) : Ir.dec list =
   let handle = fresh_var "@actor_handle" t in
-  letD handle rhs :: actor_obj_pat_proj_decs obj_pat t handle
+  letD handle rhs :: actor_pat_proj_decs p t handle
+
+(* True iff [p] — peeling Annot/Par and recursing And arms — destructures
+   object fields (contains an ObjP), so an actor scrutinee must take the
+   ActorDotPrim route instead of the trapping I.ObjP lowering. *)
+and pat_has_actor_obj (p : S.pat) : bool =
+  match p.it with
+  | S.ObjP _ -> true
+  | S.AnnotP (p1, _) | S.ParP p1 -> pat_has_actor_obj p1
+  | S.AndP (p1, p2) -> pat_has_actor_obj p1 || pat_has_actor_obj p2
+  | _ -> false
+
+(* Does destructuring [p] from a scrutinee of type [t] need the actor route? *)
+and is_actor_destruct (p : S.pat) (t : T.typ) : bool =
+  match T.normalize t with
+  | T.Obj (T.Actor, _, _) -> pat_has_actor_obj p
+  | _ -> false
 
 and transform_import (i : S.import) : Ir.dec list =
   let (p, f, ri) = i.it in
@@ -1612,8 +1622,8 @@ and transform_import (i : S.import) : Ir.dec list =
          blobE contents
        end
   in
-  match !ri, p.it with
-  | S.IDLPath _, S.ObjP _ -> actor_destruct_decs p t rhs
+  match !ri with
+  | S.IDLPath _ when is_actor_destruct p t -> actor_destruct_decs p t rhs
   | _ -> [ letP (pat p) rhs ]
 
 type import_declaration = Ir.dec list
