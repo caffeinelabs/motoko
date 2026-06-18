@@ -20,15 +20,6 @@ want to recognize for better user experience.
 let id_of_full_path (fp : string) : string =
   "file$" ^ fp
 
-(* The ObjP-against-actor pre-massage (split_actor_pat / actor_*_decs /
-   pat_needs_actor_split, with the wiring in LetD/to_args/SwitchE/ForE/
-   transform_import) is INERT.  Lowering now defuses such patterns uniformly
-   in the codegen match compiler (fill_pat projects actor methods via
-   actor_public_field, keyed on the pattern type note), which also covers the
-   refutable positions the pre-massage cannot reach.  The helpers are kept in
-   place but gated off by this flag pending green CI; flip to re-enable. *)
-let actor_premassage = false
-
 (* Combinators used in the desugaring *)
 
 let apply_sign op l = Syntax.(match op, l with
@@ -304,30 +295,7 @@ and exp' at note = function
       (exp e2)
       (varP v) (varE v) t).it
   | S.IfE (e1, e2, e3) -> I.IfE (exp e1, exp e2, exp e3)
-  | S.SwitchE (e1, cs) ->
-    let any_actor_obj_case =
-      actor_premassage &&
-      List.exists (fun (c : S.case) -> pat_needs_actor_split (c.it : S.case').pat) cs
-    in
-    if any_actor_obj_case then
-      (* Pre-massage: rewrite each case whose pattern destructures an actor
-         (at any depth) to its split pattern + per-field ActorDotPrim
-         projections prepended to the case body, sidestepping the I.ObjP
-         route.  See split_actor_pat. *)
-      let rewrite_case (c : S.case) : Ir.case =
-        let c' : S.case' = c.it in
-        let case_pat = c'.pat in
-        let case_exp = c'.exp in
-        if pat_needs_actor_split case_pat then
-          let p', proj_decs = split_actor_pat case_pat in
-          let body = blockE proj_decs (exp case_exp) in
-          { it = { I.pat = p'; I.exp = body }; at = c.at; note = () }
-        else
-          { it = { I.pat = pat case_pat; I.exp = exp case_exp }; at = c.at; note = () }
-      in
-      I.SwitchE (exp e1, List.map rewrite_case cs)
-    else
-      I.SwitchE (exp e1, cases cs)
+  | S.SwitchE (e1, cs) -> I.SwitchE (exp e1, cases cs)
   | S.TryE (e1, cs, None) -> I.TryE (exp e1, cases cs, None)
   | S.TryE (e1, cs, Some e2) ->
     let thunk = [] -->* exp e2 |> named "$cleanup" in
@@ -351,16 +319,6 @@ and exp' at note = function
     (match desugar_loop_flags at note e2 flags (fun e2 -> S.ForE (p, e1, e2, flags)) with
     | `Rec e -> exp' at note e
     | `Body e2 ->
-      (* Iter element type can be actor (e.g. Iter<actor T>): the iter
-         expression itself is a record { next : () -> ?T } so can't be
-         actor, but T can.  Pre-massage ObjP-against-actor iter
-         patterns: replace with a fresh handle var, inject per-field
-         ActorDotPrim projections into the loop body.  Sidesteps the
-         array-vals/keys specialization for actor arrays — exotic. *)
-      if actor_premassage && is_actor_destruct p p.note then
-        let h = fresh_var "@actor_for_iter" p.note in
-        (forE (varP h) (exp e1) (blockE (actor_pat_proj_decs p p.note h) (exp e2))).it
-      else
       match e1.it with
       | S.CallE (None, {it=S.DotE (arr, proj, _); _}, _, (_, e1))
         when T.is_array arr.note.S.note_typ && (proj.it = "vals" || proj.it = "values" || proj.it = "keys")
@@ -1292,19 +1250,6 @@ and dec' d =
   match d.it with
   | S.ExpD e -> [(expD (exp e)).it]
   | S.LetD (p, e, f) ->
-    (* ObjP-against-actor needs eta-expanded per-field ActorDotPrim
-       projections (cf. transform_import for the import case); the naive
-       I.ObjP lowering compiles to plain DotPrim and corrupts the actor
-       blob at runtime.  split_actor_pat reaches such ObjPs at any depth
-       inside irrefutable structure (e.g. `let ({ping}, {pong}) = tup`),
-       not just at the top level. *)
-    if actor_premassage && pat_needs_actor_split p then
-      (* The split pattern's match binds handles; the projections that follow
-         ARE the per-field destructure.  In a let-else over irrefutable
-         structure the `else` (f) is dead — M0243 flags it — and is dropped;
-         actor_split_decs keeps it only when the split pattern is refutable. *)
-      List.map (fun d -> d.it) (actor_split_decs p (exp e) f)
-    else
     let p' = pat p in
     let e' = exp e in
     (* HACK: remove this once backend supports recursive actors *)
@@ -1461,8 +1406,7 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
   let must_wrap = po <> None || exp_opt <> None in
 
   let to_arg p : (Ir.arg * (Ir.exp -> Ir.exp)) =
-    let p_unannot = pat_unannot p in
-    match p_unannot.it with
+    match (pat_unannot p).it with
     | S.AnnotP _ | S.ParP _ -> assert false
     | S.VarP i when not must_wrap ->
       { i with note = p.note },
@@ -1471,16 +1415,6 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
       let v = fresh_var "param" p.note in
       arg_of_var v,
       Fun.id
-    | _ when actor_premassage && pat_needs_actor_split p_unannot ->
-      (* Actor-typed destructure (ObjP, possibly nested in a tuple/record or
-         under And): skip the I.ObjP route (codegen would offset-load on the
-         actor blob and trap).  Bind the param to a fresh var, match it
-         against the split pattern, and project each actor field via
-         ActorDotPrim at function-body entry. *)
-      let v = fresh_var "param" p.note in
-      let p', proj_decs = split_actor_pat p_unannot in
-      arg_of_var v,
-      (fun e -> mergeE (letP p' (varE v) :: proj_decs) e)
     |  _ ->
       let v = fresh_var "param" p.note in
       arg_of_var v,
@@ -1556,120 +1490,6 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
   in
   args, eo, wrap_under_async, control, res_tys
 
-(* Emit per-field ActorDotPrim projection decs that destructure
-   [scrutinee_exp] (of actor type [t]) into the names mentioned in
-   [obj_pat].  Callers prepend these to whatever scope binds the
-   destructured names — LetD prepends to the enclosing dec list,
-   SwitchE/TryE cases inject into the case body, FuncE/ClassD/ForE
-   inject into the function/loop body.
-   Routes around the naive IR-level ObjP lowering, which compiles
-   to DotPrim and traps on the actor blob.  TypPF entries don't
-   need value bindings — they're erased. *)
-and actor_pat_proj_decs (p : S.pat) (t : T.typ) (handle : var) : Ir.dec list =
-  match p.it with
-  | S.ObjP pfs ->
-    let _, fields = T.as_obj t in
-    List.concat_map (fun pf ->
-      match pf.it with
-      | S.ValPF (id, sub_pat) ->
-        let field = List.find (fun (f : T.field) -> f.T.lab = id.it) fields in
-        (* varE handle produces a fresh node per call — no IR aliasing.  The
-           sub-pattern is split too, so a field that is itself an actor
-           destructure projects via ActorDotPrim rather than I.ObjP. *)
-        let sub_pat', sub_decs = split_actor_pat sub_pat in
-        letP sub_pat' (actor_dotE (varE handle) id.it field.T.typ) :: sub_decs
-      | S.TypPF _ -> []
-    ) pfs
-  (* Peel administrative wrappers; recurse And arms against the SAME handle
-     (both consume the same actor reference); a Var/Wild binds/ignores the
-     whole reference (no field load, so the I.ObjP trap can't arise). *)
-  | S.AnnotP (p1, _) | S.ParP p1 -> actor_pat_proj_decs p1 t handle
-  | S.AndP (p1, p2) ->
-    actor_pat_proj_decs p1 t handle @ actor_pat_proj_decs p2 t handle
-  | _ -> [ letP (pat p) (varE handle) ]
-
-(* Split [p] into an Ir pattern plus follow-up projection decs.  Every ObjP
-   matched against an actor type — at ANY depth inside irrefutable structure
-   (tuples, record fields, And/Annot/Par) — is replaced by a fresh
-   @actor_handle var-pattern whose fields are then projected via ActorDotPrim,
-   sidestepping the I.ObjP record-offset loads that trap on an actor blob.
-   The projection decs reference the handle vars the returned pattern binds,
-   so they run right after the single match.  Refutable sub-patterns
-   (Opt/Tag/Alt/Lit) are left intact — an actor ObjP buried under one of those
-   keeps the plain I.ObjP lowering (a rarer, separate case). *)
-and split_actor_pat (p : S.pat) : Ir.pat * Ir.dec list =
-  if is_actor_destruct p p.note then
-    let handle = fresh_var "@actor_handle" p.note in
-    (varP handle, actor_pat_proj_decs p p.note handle)
-  else match p.it with
-  | S.TupP ps ->
-    let ps', decss = List.split (List.map split_actor_pat ps) in
-    ({ p with it = I.TupP ps' }, List.concat decss)
-  | S.ObjP pfs ->
-    let pfs', decss = List.split (List.filter_map (fun pf ->
-      match pf.it with
-      | S.ValPF (id, sub_pat) ->
-        let sub_pat', sub_decs = split_actor_pat sub_pat in
-        Some ({ pf with it = I.{ name = id.it; pat = sub_pat' } }, sub_decs)
-      | S.TypPF _ -> None) pfs) in
-    ({ p with it = I.ObjP pfs' }, List.concat decss)
-  | S.AnnotP (p1, _) | S.ParP p1 -> split_actor_pat p1
-  | S.AndP (p1, p2) ->
-    let p1', d1 = split_actor_pat p1 in
-    let p2', d2 = split_actor_pat p2 in
-    ({ p with it = I.AndP (p1', p2') }, d1 @ d2)
-  | _ -> (pat p, [])
-
-(* Bind [p] (with actor ObjPs split out to handles) against [rhs], then run
-   the field projections.  [f] is the let-else alternative: dropped when the
-   split pattern is irrefutable (actor/tuple/record destructures always match
-   — M0243 flags the dead else), else threaded through let_else_switch. *)
-and actor_split_decs (p : S.pat) (rhs : Ir.exp) (f : S.exp option) : Ir.dec list =
-  let p', proj_decs = split_actor_pat p in
-  let bind = match f with
-    | Some f when not (Ir_utils.is_irrefutable p') ->
-      letP p' (let_else_switch p' rhs (exp f))
-    | _ -> letP p' rhs
-  in
-  bind :: proj_decs
-
-(* Top-level wrapper (imports): bind a fresh @actor_handle to [rhs], then the
-   per-field projections.  An import binds a single canister — always the
-   top-level actor case, no nesting. *)
-and actor_destruct_decs (p : S.pat) (t : T.typ) (rhs : Ir.exp) : Ir.dec list =
-  let handle = fresh_var "@actor_handle" t in
-  letD handle rhs :: actor_pat_proj_decs p t handle
-
-(* True iff [p] — peeling Annot/Par and recursing And arms — destructures
-   object fields (contains an ObjP), so an actor scrutinee must take the
-   ActorDotPrim route instead of the trapping I.ObjP lowering. *)
-and pat_has_actor_obj (p : S.pat) : bool =
-  match p.it with
-  | S.ObjP _ -> true
-  | S.AnnotP (p1, _) | S.ParP p1 -> pat_has_actor_obj p1
-  | S.AndP (p1, p2) -> pat_has_actor_obj p1 || pat_has_actor_obj p2
-  | _ -> false
-
-(* Does destructuring [p] from a scrutinee of type [t] need the actor route? *)
-and is_actor_destruct (p : S.pat) (t : T.typ) : bool =
-  match T.normalize t with
-  | T.Obj (T.Actor, _, _) -> pat_has_actor_obj p
-  | _ -> false
-
-(* True iff [p] contains an actor ObjP anywhere reachable through irrefutable
-   structure (tuples, record fields, And/Annot/Par) — the trigger for the
-   split lowering. *)
-and pat_needs_actor_split (p : S.pat) : bool =
-  is_actor_destruct p p.note ||
-  match p.it with
-  | S.TupP ps -> List.exists pat_needs_actor_split ps
-  | S.ObjP pfs ->
-    List.exists (fun pf -> match pf.it with
-      | S.ValPF (_, sp) -> pat_needs_actor_split sp | S.TypPF _ -> false) pfs
-  | S.AnnotP (p1, _) | S.ParP p1 -> pat_needs_actor_split p1
-  | S.AndP (p1, p2) -> pat_needs_actor_split p1 || pat_needs_actor_split p2
-  | _ -> false
-
 and transform_import (i : S.import) : Ir.dec list =
   let (p, f, ri) = i.it in
   let t = i.note in
@@ -1695,10 +1515,7 @@ and transform_import (i : S.import) : Ir.dec list =
          assert T.(t = Prim Blob);
          blobE contents
        end
-  in
-  match !ri with
-  | S.IDLPath _ when actor_premassage && is_actor_destruct p t -> actor_destruct_decs p t rhs
-  | _ -> [ letP (pat p) rhs ]
+  in [ letP (pat p) rhs ]
 
 type import_declaration = Ir.dec list
 

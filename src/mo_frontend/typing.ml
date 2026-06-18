@@ -3971,8 +3971,7 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
        directly in the match compiler (codegen fill_pat and the IR
        interpreter, keyed on the pattern's type note), so it is correct in
        EVERY context — let/param/switch/for/try, refutable or not, nested or
-       not.  (An earlier desugar pre-massage handled only irrefutable
-       positions; it survives inert behind Desugar.actor_premassage.) *)
+       not — with no desugar special-casing. *)
     let _, _, ve = check_obj_pat_aux env t pat pfs in
     ve
   | OptP pat1 ->
