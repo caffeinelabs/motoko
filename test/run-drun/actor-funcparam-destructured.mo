@@ -1,13 +1,4 @@
-//MOC-FLAG --actor-idl actor-funcparam-destructured
-//MOC-FLAG --actor-alias self rwlgt-iiaaa-aaaaa-aaaaa-cai
-
-// gabor/actor-method-destructured:
-//   FuncE / ClassD parameter pre-massage — ObjP-against-actor params
-//   project per-field via ActorDotPrim, sidestepping the I.ObjP route.
-//   Passes `this` (the test actor itself, narrowed to its public
-//   surface) into each callee and exercises the destructured handles.
-
-import _IC "canister:self";
+//MOC-FLAG --actor-id-alias self rwlgt-iiaaa-aaaaa-aaaaa-cai actor-funcparam-destructured/rwlgt-iiaaa-aaaaa-aaaaa-cai.did
 
 actor a {
   public func ping() : async () { };
@@ -36,9 +27,10 @@ actor a {
     await ping()
   };
 
-  // (5) AndP: ObjP and a whole-actor name
-  func f5(({ ping } and whole) : Self) : async () {
+  // (5) AndP: two ObjP arms and a whole-actor name binding
+  func f5(({ ping } and whole and { pong }) : Self) : async () {
     await ping();
+    await pong();
     await whole.pong()
   };
 
