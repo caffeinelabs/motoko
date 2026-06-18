@@ -12,7 +12,7 @@
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/newsreader": "^5.2.10",
-    "astro": "^6.3.2",
+    "astro": "^6.4.8",
     "unist-util-visit": "^5.0.0"
   }
 }

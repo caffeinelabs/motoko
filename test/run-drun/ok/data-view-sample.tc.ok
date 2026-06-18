@@ -1,0 +1,4 @@
+data-view-sample.mo:248.26-248.40: warning [M0154], field fromNat32 is deprecated
+note: Use `Nat32.toChar` instead.
+data-view-sample.mo:248.41-248.54: warning [M0154], field fromNat is deprecated
+note: Use `Nat.toNat32` instead.
