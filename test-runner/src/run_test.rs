@@ -901,13 +901,16 @@ fn handle_cmp(ctx: &mut Ctx, cli: &Cli) {
 ///
 /// Concurrency-safe by construction: each golden is rewritten ONLY when its
 /// content actually changed, so an unchanged golden is never touched (no write
-/// window for a concurrent reader under the parallel suite). Crucially, an
-/// EMPTY/absent capture is treated as "no change — leave the golden alone",
-/// never as "delete it": under `--all-modes` the persistence×MV product
-/// multiplies concurrent moc/drun/pocket-ic processes, and a transient-empty
-/// capture must not be able to silently delete a passing test's golden.
-/// (A genuine golden removal therefore needs an explicit signal, not a flaky
-/// empty capture.)
+/// window for a concurrent reader under the parallel suite).
+///
+/// An EMPTY/absent capture removes its golden ONLY when the phase succeeded
+/// (exit 0 — no sibling `<phase>.ret` failure marker): that is a legitimate
+/// "this phase now produces nothing" removal. On a non-zero exit the empty is a
+/// FAILURE artifact and the golden is KEPT — so under `--all-modes`, where the
+/// persistence×MV product multiplies concurrent moc/drun/pocket-ic processes, a
+/// transient-empty capture can no longer silently delete a passing test's
+/// golden. (Golden removal thus requires a *successful* empty run, never a flaky
+/// failed one.)
 fn accept(ctx: &Ctx) {
     for f in &ctx.diff_files {
         let src = ctx.out.join(f);
