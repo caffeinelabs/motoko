@@ -1283,6 +1283,57 @@ let check_float env = check_lit_val env T.Float Numerics.Float.of_string
 let check_float32 env at s =
   check_lit_val env T.Float32 Numerics.Float32.of_string at s
 
+(* Shortest decimal (<= 9 significant digits — always enough to round-trip an
+   F32) that parses back to the same Float32 [v]. Synthesised from the printer
+   and parser we already have, so no shortest-float dependency is needed. *)
+let float32_shortest (v : Numerics.Float32.t) : string =
+  let f = Numerics.Float32.to_float v in
+  let rec go n =
+    let cand = Printf.sprintf "%.*g" n f in
+    if n >= 9 || (try Numerics.Float32.eq (Numerics.Float32.of_string cand) v
+                  with _ -> false)
+    then cand
+    else go (n + 1)
+  in
+  go 1
+
+(* Significant digits of a decimal float/int literal lexeme; [None] for a hex
+   float (which we don't analyse). Strips digit separators, the exponent, the
+   point, and leading/trailing zeros — so 1.0, 1e3, 0.10 count as 1. *)
+let decimal_sig_digits (s : string) : int option =
+  let s = String.concat "" (String.split_on_char '_' s) in
+  let s = String.lowercase_ascii s in
+  if String.length s >= 2 && s.[0] = '0' && s.[1] = 'x' then None
+  else begin
+    let mant = match String.index_opt s 'e' with
+      | Some i -> String.sub s 0 i
+      | None -> s in
+    let digits =
+      String.to_seq mant
+      |> Seq.filter (fun c -> c >= '0' && c <= '9')
+      |> String.of_seq in
+    let n = String.length digits in
+    let i = ref 0 in while !i < n && digits.[!i] = '0' do incr i done;
+    let j = ref (n - 1) in while !j >= !i && digits.[!j] = '0' do decr j done;
+    Some (if !j >= !i then !j - !i + 1 else 0)
+  end
+
+(* Warn (M0264) when a Float32 literal carries more significant digits than the
+   value can hold — i.e. the surplus digits are silently discarded by rounding.
+   Fires only on genuine excess: a minimally-written literal equals its own
+   shortest round-trip form, so 0.1, 3.14, 1.5 etc. stay quiet. *)
+let check_float32_precision env at s v =
+  match decimal_sig_digits s with
+  | None -> ()
+  | Some used ->
+    let short = float32_shortest v in
+    (match decimal_sig_digits short with
+     | Some need when used > need ->
+       warn env at "M0264"
+         "literal %s has more precision than Float32 can represent; it rounds to %s (the surplus digits are discarded)"
+         s short
+     | _ -> ())
+
 let check_text env at s =
   if not (Lib.Utf8.is_valid s) then
     local_error env at "M0049" "string literal \"%s\": is not valid utf8" (String.escaped s);
@@ -1353,7 +1404,9 @@ let check_lit env t lit at suggest =
   | Prim Float, PreLit (s, (Nat | Int | Float)) ->
     lit := FloatLit (check_float env at s)
   | Prim Float32, PreLit (s, (Nat | Int | Float)) ->
-    lit := Float32Lit (check_float32 env at s)
+    let v = check_float32 env at s in
+    check_float32_precision env at s v;
+    lit := Float32Lit v
   | Prim Blob, PreLit (s, Text) ->
     lit := BlobLit s
   | t, _ ->

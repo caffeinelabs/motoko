@@ -221,6 +221,7 @@ let error_codes : (string * string option) list =
     "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
     "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
+    "M0264", None; (* Float32 literal has more precision than Float32 can represent *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
