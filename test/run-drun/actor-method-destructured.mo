@@ -1,5 +1,4 @@
-//MOC-FLAG --actor-idl actor-method-destructured
-//MOC-FLAG --actor-alias self rwlgt-iiaaa-aaaaa-aaaaa-cai
+//MOC-FLAG --actor-id-alias self rwlgt-iiaaa-aaaaa-aaaaa-cai actor-method-destructured/rwlgt-iiaaa-aaaaa-aaaaa-cai.did
 
 import IC "canister:self";
 import { go } "canister:self";
