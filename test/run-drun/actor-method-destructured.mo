@@ -1,16 +1,11 @@
 //MOC-FLAG --actor-idl actor-method-destructured
 //MOC-FLAG --actor-alias self rwlgt-iiaaa-aaaaa-aaaaa-cai
 
-// gabor/actor-method-destructured:
-//   destructuring import of an actor — method projection via desugar's
-//   ActorDotPrim path, sidestepping the IR-level ObjP lowering that
-//   would corrupt the actor blob at runtime.
-//
-// The Same<T> probe asserts the destructured method has identical type
-// to the equivalent dotted access on the full-module import.
-
 import IC "canister:self";
 import { go } "canister:self";
+
+// The Same<T> probe asserts the destructured method has identical type
+// to the equivalent dotted access on the full-module import.
 
 actor {
   func Same<T>(_ : T, _ : T, _ : T) {};
