@@ -919,10 +919,6 @@ and match_pat pat v : val_env option =
   | TupP pats ->
     match_pats pats (V.as_tup v) V.Env.empty
   | ObjP pfs when T.(sub pat.note (Obj (Actor, [], []))) ->
-    (* Actor-typed scrutinee: same dispatch shape as DotE on actors
-       (line ~554).  Each ValPF binds to the (principal, method-name)
-       pair the call machinery recognises; TypPF fields don't need
-       runtime bindings. *)
     match_actor_pat_fields pfs v V.Env.empty
   | ObjP pfs ->
     match_pat_fields pfs (V.as_obj v) V.Env.empty

@@ -746,9 +746,6 @@ and match_pat pat v : val_env option =
     match_pats pats (V.as_tup v) V.Env.empty
   | ObjP pfs ->
     if T.is_actor pat.note then
-      (* An actor scrutinee is a principal blob, not a record: project each
-         method to the same deferred (actor, name) pair as ActorDotPrim,
-         mirroring the codegen's actor_public_field dispatch. *)
       match_pat_fields_actor pfs v V.Env.empty
     else
       match_pat_fields pfs (V.as_obj v) V.Env.empty

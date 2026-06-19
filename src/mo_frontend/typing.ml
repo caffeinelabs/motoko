@@ -3966,12 +3966,6 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type"
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
-    (* ObjP-against-actor is not rejected here.  The lowered I.ObjP is
-       projected method-by-method via the actor-public-field primitive
-       directly in the match compiler (codegen fill_pat and the IR
-       interpreter, keyed on the pattern's type note), so it is correct in
-       EVERY context — let/param/switch/for/try, refutable or not, nested or
-       not — with no desugar special-casing. *)
     check_obj_pat_aux env t pat pfs
   | OptP pat1 ->
     let t1 = try T.as_opt_sub t with Invalid_argument _ ->
