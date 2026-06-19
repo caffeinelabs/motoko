@@ -3972,8 +3972,7 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
        interpreter, keyed on the pattern's type note), so it is correct in
        EVERY context — let/param/switch/for/try, refutable or not, nested or
        not — with no desugar special-casing. *)
-    let _, _, ve = check_obj_pat_aux env t pat pfs in
-    ve
+    check_obj_pat_aux env t pat pfs
   | OptP pat1 ->
     let t1 = try T.as_opt_sub t with Invalid_argument _ ->
       let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
@@ -4070,16 +4069,13 @@ and check_pats env ts pats ve at : Scope.val_env =
   in
   go ts pats ve
 
-(* Common work for an object-pattern check.  Returns (obj_sort,
-   has_value_field, val_env).  The first two fields used to be
-   consulted to gate M0114; with M0114 deleted they're available
-   for future analyses but no caller currently inspects them. *)
-and check_obj_pat_aux env t pat pfs : T.obj_sort * bool * Scope.val_env =
+(* Common work for an object-pattern check. *)
+and check_obj_pat_aux env t pat pfs : Scope.val_env =
   let pfs' = List.stable_sort compare_pat_field pfs in
   let vpfs = List.filter_map (fun pf -> match pf.it with
     | TypPF _ -> None
     | ValPF(id, _) -> Some(id.it)) pfs' in
-  let s, fs =
+  let _, fs =
     try T.as_obj_sub vpfs t
     with Invalid_argument _ ->
       let base = [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
@@ -4090,8 +4086,7 @@ and check_obj_pat_aux env t pat pfs : T.obj_sort * bool * Scope.val_env =
       in
       error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
   in
-  let ve = check_pat_fields env t fs pfs' T.Env.empty pat.at in
-  (s, vpfs <> [], ve)
+  check_pat_fields env t fs pfs' T.Env.empty pat.at
 
 and check_pat_fields env t fs pfs ve at : Scope.val_env =
   let cmp (tf : T.field) (id, _, _) = String.compare tf.T.lab id.it in
