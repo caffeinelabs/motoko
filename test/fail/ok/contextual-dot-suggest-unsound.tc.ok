@@ -1,0 +1,15 @@
+contextual-dot-suggest-unsound.mo:14.17-14.24: type error [M0072], field isEmpty does not exist in type:
+  Text
+contextual-dot-suggest-unsound.mo:19.8-19.10: type error [M0070], expected object type, but expression produces type
+  Nat
+contextual-dot-suggest-unsound.mo:29.18-29.24: type error [M0072], field toBlob does not exist in type:
+  [Nat]
+contextual-dot-suggest-unsound.mo:36.53-36.77: warning [M0081], this if has type
+  Any
+because branches have inconsistent types,
+true produces
+  Nat8
+false produces
+  Nat
+contextual-dot-suggest-unsound.mo:36.79-36.85: type error [M0072], field toBlob does not exist in type:
+  [Any]
