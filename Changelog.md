@@ -2,6 +2,44 @@
 
 * motoko (`moc`)
 
+  * bugfix: M0237 (implicit argument can be omitted) only fires now when the suggested removal preserves the same type instantiation. Previously the edit could be rejected (M0098) (#6166).
+
+  * bugfix: M0236 dot-notation suggestion no longer fires for literal receivers — the `lit.f()` rewrite could misparse (`-1.1.isNaN()` → `-(1.1.isNaN())`), mis-lex (`0xff.abs` as a hex float), or fail to type-check when it lost a literal coercion (`Blob.isEmpty("\00")` → `"\00".isEmpty()`) (#6173).
+
+  * bugfix: Implicit argument derivation now resolves type variables that occur only in a covariant result position (e.g. JSON-style decoders `Text -> ?T`). Previously such a variable was solved to `None` (bottom), so the implicit had to be passed explicitly (#6186).
+
+  * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
+
+  * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
+
+  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
+
+  * perf: Multi-value Wasm codegen is now _on by default_, `--no-experimental-multi-value` flag disables (if not desired) (#6165).
+
+## 1.9.0 (2026-06-02)
+
+* motoko (`moc`)
+
+  * feat: Structural implicit derivation for records and tuples via `__record` and `__tuple` combiners. Per-field results are lazy thunks, enabling short-circuiting for operations like `compare` (#5903).
+
+  * feat: `--experimental-multi-value` flag enables function-level multi-value Wasm codegen. Off by default (#6113).
+
+## 1.8.2 (2026-05-21)
+
+* motoko (`moc`)
+
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver argument is not already a postfix expression (e.g. `Nat.toText((x * a + b) % c)`). The compiler used to print the suggestion as `(<expr>).toText(...)` but emit no machine-applicable edits, leaving `mops check --fix` with nothing to do; suggesting `(complex).f()` over `Module.f(complex)` is also a debatable style change. Trivial-receiver cases (variables, literals, calls) are unaffected (#6144).
+
+## 1.8.1 (2026-05-20)
+
+* motoko (`moc`)
+
+  * bugfix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes (#6134).
+
+## 1.8.0 (2026-05-15)
+
+* motoko (`moc`)
+
   * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
 
   * feat: `and`-patterns — `p1 and p2` matches when both legs match, binding from both (#6049).
@@ -844,7 +882,7 @@
     inspected on the IC replica dashboard as they are internal to the Motoko runtime system. 
     This query is only authorized to the canister controllers and self-calls of the canister.
 
-    ``` Motoko
+    ```motoko
     __motoko_runtime_information : () -> {
         compilerVersion : Text;
         rtsVersion : Text;
@@ -1122,7 +1160,7 @@
 
   * Allow identifiers in `or`-patterns (#3807).
     Bindings in alternatives must mention the same identifiers and have compatible types:
-    ``` Motoko
+    ```motoko
     let verbose = switch result {
       case (#ok) "All is good!";
       case (#warning why or #error why) "There is some problem: " # why;
@@ -1346,14 +1384,14 @@
     This is a frequently asked-for feature that allows to change the control-flow
     of programs when pattern-match failure occurs, thus providing a means against
     the famous "pyramid of doom" issue. A common example is look-ups:
-    ``` Motoko
+    ```motoko
     shared func getUser(user : Text) : async Id {
       let ?id = Map.get(users, user) else { throw Error.reject("no such user") };
       id
     }
     ```
     Similarly, an expression like
-    ``` Motoko
+    ```motoko
     (label v : Bool { let <pat> = <exp> else break v false; true })
     ```
     evaluates to a `Bool`, signifying whether `<pat>` matches `<exp>`.
@@ -1531,7 +1569,7 @@
 * motoko (`moc`)
 
   * Add new primitives for a default timer mechanism (#3542). These are
-    ``` Motoko
+    ```motoko
     setTimer : (delayNanos : Nat64, recurring : Bool, job : () -> async ()) -> (id : Nat)
     cancelTimer : (id : Nat) -> ()
     ```

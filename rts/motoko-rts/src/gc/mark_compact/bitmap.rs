@@ -1,7 +1,7 @@
 use crate::gc::mark_compact::TAG_BLOB_B;
 use crate::mem_utils::memzero;
-use crate::memory::{alloc_blob, Memory};
-use crate::types::{size_of, Blob, Bytes, Obj};
+use crate::memory::{Memory, alloc_blob};
+use crate::types::{Blob, Bytes, Obj, size_of};
 
 /* How the Wasm-heap maps to the bitmap
 

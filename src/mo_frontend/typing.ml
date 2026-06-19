@@ -171,6 +171,29 @@ let try_all f xs =
       None) xs in
   if !errored then raise Recover else res
 
+(** Backtracking inference used ONLY for raising tricky warnings in order to avoid false-positives.
+
+    MUST not run on expressions that were already typechecked in non-pre phase.
+    (Because of the assertion and because of the mutation happening during the non-pre phase that would skew the backtracking trial)
+
+    PERF: Shortcuts early returning [None] in the pre phase to limit exponential explosion of backtracking.
+ *)
+ let with_backtracking env infer =
+  (* Backtracking should only be considered in non-pre phase *)
+  if env.pre then None else (* Limit exponential explosion of backtracking by not running it in pre phase *)
+  match Diag.with_message_store (recover_opt (fun msgs ->
+    (* Note: inferring in pre mode is not accurate, but a good enough approximation before we allow proper backtracking in non-pre mode *)
+    infer { env with msgs; pre = true }))
+  with
+  | Error _ -> None
+  | Ok (a, _) -> Some a
+  
+let eq_ts ts ts' = List.length ts = List.length ts' && List.for_all2 (T.eq ?src_fields:None) ts ts'
+
+let eq_ts_opt ts = function
+  | Some ts' -> eq_ts ts ts'
+  | None -> false
+
 let quote s = "`"^s^"`"
 
 let display_lab = Lib.Format.display T.pp_lab
@@ -308,6 +331,7 @@ let edit at replacement : Diag.edit =
 
 let check_deprecation env at desc id depr =
   match depr with
+  | None -> ()
   | Some ("M0235" as code) ->
     warn env at code "%s %s is deprecated for caffeine" desc id
   | Some ("M0199" as code) ->
@@ -322,8 +346,9 @@ let check_deprecation env at desc id depr =
        "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
   | Some msg ->
-    warn env at "M0154" "%s %s is deprecated:\n%s" desc id msg
-  | None -> ()
+    match Lib.String.chop_prefix "M0235 " msg with
+    | Some m -> warn env at "M0235" ~notes:[m] "%s %s is deprecated for caffeine" desc id
+    | None -> warn env at "M0154" ~notes:[msg] "%s %s is deprecated" desc id
 
 let flag_of_compile_mode mode =
   match mode with
@@ -1571,8 +1596,13 @@ module SynthesizeWrapper = struct
      place, so sharing a node triggers an "already-annotated" assertion. *)
   let mk e = e @? no_region
   let var n = mk (VarE (n @~ no_region))
+  let id lab = lab @@ no_region
   let inst () = Source.annotate [] None no_region
   let var_pat n = VarP (n @@ no_region) @! no_region
+  let thunk body =
+    let unit_pat = TupP [] @! no_region in
+    let sort_pat = T.Local @@ no_region in
+    mk (FuncE ("", sort_pat, [], unit_pat, None, false, body))
   let call path arg =
     mk (CallE (None, path, inst (), (false, ref arg)))
   let func_ ~name param_names body =
@@ -1605,10 +1635,47 @@ module SynthesizeWrapper = struct
       | [arg] -> arg | args -> mk (TupE args) in
     func_ ~name (List.rev param_names_rev) (call candidate_path call_arg_exp)
 
+  (** Wraps array entries in [combiner_path([entries...])] inside a function. *)
+  let combiner_wrapper ~name combiner_path param_names entries =
+    let array_arg = mk (ArrayE (Const @@ no_region, entries)) in
+    func_ ~name param_names (call combiner_path array_arg)
+
+  (** Record: [func($r) { combiner([("f1", func() { impl1($r.f1) }), ...]) }] *)
+  let record_wrapper record_fields arity ~name combiner_path field_impl_paths =
+    let params = match arity with `Unary -> ["$r"] | `Binary -> ["$r1"; "$r2"] in
+    let entries = List.map2 (fun T.{lab; _} impl_path ->
+      let label_lit = mk (LitE (ref (TextLit lab))) in
+      let impl_arg = match arity with
+        | `Unary -> mk (DotE (var "$r", id lab, ref None))
+        | `Binary ->
+          let a1 = mk (DotE (var "$r1", id lab, ref None)) in
+          let a2 = mk (DotE (var "$r2", id lab, ref None)) in
+          mk (TupE [a1; a2]) in
+      mk (TupE [label_lit; thunk (call impl_path impl_arg)])
+    ) record_fields field_impl_paths in
+    combiner_wrapper ~name combiner_path params entries
+
+  (** Tuple: [func($t) { combiner([func() { impl0($t.0) }, ...]) }] *)
+  let tuple_wrapper arity ~name combiner_path elem_impl_paths =
+    let params = match arity with `Unary -> ["$t"] | `Binary -> ["$t1"; "$t2"] in
+    let entries = List.mapi (fun i impl_path ->
+      let impl_arg = match arity with
+        | `Unary -> mk (ProjE (var "$t", i))
+        | `Binary ->
+          let p1 = mk (ProjE (var "$t1", i)) in
+          let p2 = mk (ProjE (var "$t2", i)) in
+          mk (TupE [p1; p2]) in
+      thunk (call impl_path impl_arg)
+    ) elem_impl_paths in
+    combiner_wrapper ~name combiner_path params entries
 end
 
-(** Checks [args -> rets <: req_args -> req_rets] via subtyping or
-    bidirectional matching when [tbs] are present. Returns [Some inst] or [None]. *)
+(** Checks [args -> rets  <:  req_args -> req_rets] via subtyping or
+    bidirectional matching when [tbs] are present. Returns [Some inst] or [None].
+
+    [inst] is the maximal solution, s.t [?A -> ?B  <:  ?Nat -> ?Int] solves [Nat <: A <: Any] and [Non <: B <: Int] as [A := Nat, B := Int]:
+    To achieve this, we treat [args] as covariant and [rets] as contravariant.
+    *)
 let sub_or_bimatch_func tbs args rets req_args req_rets =
   assert (List.length args = List.length req_args);
   assert (List.length rets = List.length req_rets);
@@ -1619,8 +1686,9 @@ let sub_or_bimatch_func tbs args rets req_args req_rets =
   else
     let arg_subs = List.map2 (fun ra ea -> (ra, ea, no_region)) req_args args in
     let ret_subs = List.map2 (fun cr rr -> (cr, rr, no_region)) rets req_rets in
+    let ret_opt = Some (T.Func (T.Local, T.Returns, [], rets, args)) in (* Note: Flipped to get the maximal solution! *)
     try
-      let (inst, c) = Bi_match.bi_match_subs None tbs None (arg_subs @ ret_subs) ~must_solve:[] in
+      let (inst, c) = Bi_match.bi_match_subs None tbs ret_opt (arg_subs @ ret_subs) ~must_solve:[] in
       ignore (Bi_match.finalize inst c []);
       Some inst
     with Bi_match.Bimatch _ -> None
@@ -1674,6 +1742,59 @@ module ImplicitHoles = struct
           { cand_args; holes; func_without_holes})
     | _ -> None
 
+  (* Structural synthesis: functions whose sole explicit parameter starts with "__"
+     signal that the compiler should decompose a structural type and build the argument.
+     The parameter type determines the synthesis kind:
+       __record : [(Text, () -> T)] -> R   — record combiner (lazy per-field thunks)
+       __tuple  : [() -> T]         -> R   — tuple combiner  (lazy per-element thunks)
+       __variant: (Text, T)         -> R   — matched variant case (future)
+  *)
+  type structural_info = {
+    kind : [ `Record of T.field list | `Tuple of T.typ list ];
+    arity : [ `Unary | `Binary ];
+    ret : T.typ;
+  }
+
+  let as_structural_combiner_typ candidate_typ =
+    let with_thunk_elem kind thunk_typ ret_typ =
+      match T.normalize thunk_typ with
+      | T.Func (T.Local, T.Returns, [], [], [elem_typ]) ->
+        Some (kind, elem_typ, ret_typ)
+      | _ -> None in
+    match T.promote candidate_typ with
+    | T.Func (T.Local, T.Returns, [], [T.Named ("__record", inner_typ)], [ret_typ]) ->
+      (match T.normalize inner_typ with
+      | T.Array (T.Tup [txt; thunk_typ]) when T.normalize txt = T.Prim T.Text ->
+        with_thunk_elem `Record thunk_typ ret_typ
+      | _ -> None)
+    | T.Func (T.Local, T.Returns, [], [T.Named ("__tuple", inner_typ)], [ret_typ]) ->
+      (match T.normalize inner_typ with
+      | T.Array thunk_typ ->
+        with_thunk_elem `Tuple thunk_typ ret_typ
+      | _ -> None)
+    | _ -> None
+
+  let structural_kind_tag = function `Record _ -> `Record | `Tuple _ -> `Tuple
+
+  let is_matching_structural_combiner {kind; ret; _} typ =
+    match as_structural_combiner_typ typ with
+    | Some (k, elem_typ, comb_ret) when k = structural_kind_tag kind && T.sub comb_ret ret ->
+      Some elem_typ
+    | _ -> None
+
+  let structural_info_of_hole hole_typ = match hole_typ with
+    | T.Func (T.Local, T.Returns, [], [dom], [ret]) ->
+      (match T.normalize dom with
+       | T.Obj (T.Object, fs, _) -> Some { kind = `Record fs; arity = `Unary; ret }
+       | T.Tup elems when List.length elems >= 2 -> Some { kind = `Tuple elems; arity = `Unary; ret }
+       | _ -> None)
+    | T.Func (T.Local, T.Returns, [], [d1; d2], [ret]) ->
+      (match T.normalize d1, T.normalize d2 with
+       | T.Obj (T.Object, fs, _), T.Obj (T.Object, _, _) when T.eq d1 d2 -> Some { kind = `Record fs; arity = `Binary; ret }
+       | T.Tup e1, T.Tup _ when List.length e1 >= 2 && T.eq d1 d2 -> Some { kind = `Tuple e1; arity = `Binary; ret }
+       | _ -> None)
+    | _ -> None
+
   module type CandidateSource = sig
     type entry
     val get_typ : entry -> T.typ
@@ -1721,6 +1842,9 @@ module ImplicitHoles = struct
       is_matching_typ_with_holes hole field.T.typ
       |> Option.map (fun holes -> holes, make_field_candidate module_ref field))
 
+    let matching_fields_structural info hole = filter_fields hole (fun module_ref field ->
+      is_matching_structural_combiner info field.T.typ
+      |> Option.map (fun elem_typ -> (elem_typ, make_field_candidate module_ref field)))
   end
 
   let make_val_candidate id t =
@@ -1739,6 +1863,12 @@ module ImplicitHoles = struct
     let* holes = is_matching_typ_with_holes hole t in
     Some (holes, make_val_candidate hole.hole_name t)
 
+  let matching_val_structural info hole (vals : val_env) =
+    let* (t, _, _, _) = T.Env.find_opt hole.hole_name vals in
+    if T.is_mut t then None else
+    let* elem_typ = is_matching_structural_combiner info t in
+    Some (elem_typ, make_val_candidate hole.hole_name t)
+
   module FromModuleVal = MakeFromModule(ValCandidateSource)
   module FromModuleLib = MakeFromModule(LibCandidateSource)
 
@@ -1747,6 +1877,8 @@ module ImplicitHoles = struct
   let disambiguate_holes = disambiguate_resolutions (fun (c1 : hole_candidate) c2 -> T.sub c1.typ c2.typ)
   let disambiguate_func_with_holes = disambiguate_resolutions (fun ((x : func_with_holes), (_ : hole_candidate)) (y, _) ->
     T.sub x.func_without_holes y.func_without_holes)
+  let disambiguate_structural_elems = disambiguate_resolutions (fun ((_, c1) : T.typ * hole_candidate) (_, c2) ->
+    T.sub c1.typ c2.typ)
 
   (** Searches for hole resolutions for a given [hole_name] and [typ].
       Returns [Ok(candidate)] when a single resolution is
@@ -1840,6 +1972,59 @@ module ImplicitHoles = struct
     match
       if Option.is_some !Flags.implicit_package
       then try_derive ~depth lib_fields_with_holes
+      else `Empty
+    with
+    | `Committed (Ok term) -> Ok term
+    | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
+    | `Ambiguous _ | `Empty ->
+
+    let structural_holes {arity; kind; _} (elem_typ, _) =
+      let elements = match kind with
+      | `Record record_fields -> List.map (fun f -> T.as_immut f.T.typ) record_fields
+      | `Tuple elem_typs -> elem_typs
+      in
+      elements |> List.map (fun ft ->
+        let args = match arity with
+        | `Unary -> [ft]
+        | `Binary -> [ft; ft] in
+        {hole_name; hole_typ = T.Func (T.Local, T.Returns, [], args, [elem_typ])})
+    in
+    let structural_wrapper {arity; kind; _} _ = match kind with
+      | `Record record_fields ->
+        SynthesizeWrapper.record_wrapper record_fields arity
+      | `Tuple elem_typs ->
+        SynthesizeWrapper.tuple_wrapper arity
+    in
+    let try_derive_structural info candidates =
+      try_derive_with (structural_holes info) (structural_wrapper info) (disambiguate_structural_elems candidates)
+    in
+
+    (* Short-circuit: avoid O(modules × fields) traversals when the hole cannot possibly
+       match a structural combiner (i.e. its domain is not a record/object type). *)
+    match structural_info_of_hole hole_typ with
+    | None -> Error (HoleSuggestions (lib_fields, None))
+    | Some info ->
+
+    (* Try structural synthesis (record/tuple/variant) — local vals, module fields, libs.
+       Candidate functions filter by kind + ret during collection;
+       try_derive_structural disambiguates and synthesizes with no further filtering. *)
+    match try_derive_structural info (Option.to_list (matching_val_structural info hole env.vals)) ~depth with
+    | `Committed (Ok term) -> Ok term
+    | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
+    | `Ambiguous cs -> Error (HoleAmbiguous cs)
+    | `Empty ->
+
+    match try_derive_structural info (FromModuleVal.matching_fields_structural info hole env.vals) ~depth with
+    | `Committed (Ok term) -> Ok term
+    | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
+    | `Ambiguous cs -> Error (HoleAmbiguous cs)
+    | `Empty ->
+
+    let structural_lib_candidates = FromModuleLib.matching_fields_structural info hole env.libs in
+    let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
+    match
+      if Option.is_some !Flags.implicit_package
+      then try_derive_structural info structural_lib_candidates ~depth
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -1997,25 +2182,22 @@ let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
           DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
                 { it = id1; _},
                 _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          let source =
-            if e.at.left.line <> e.at.right.line then None
-            else read_region e.at
-          in
-          let receiver_text, edits = match source with
-            | None -> "...", []
-            | Some receiver_text ->
-              if not (Syntax.is_postfix_exp e) then "(" ^ receiver_text ^ ")", [] else
-              let replace_receiver = edit old_receiver.at receiver_text in
-              let argument_edit = match es with
-                | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
-                | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
-                | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
-              in receiver_text, [replace_receiver; argument_edit]
-          in
-          warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-            ~edits
-            receiver_text
-            id.it
+          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway.
+             `is_postfix_exp` also excludes `LitE` since contextual-dot is weaker than `check_lit` for literal coercion — e.g. `Blob.isEmpty("\00")` wouldn't survive a rewrite to `"\00".isEmpty()`. *)
+          if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
+          (match read_region e.at with
+           | None -> ()
+           | Some receiver_text ->
+             let replace_receiver = edit old_receiver.at receiver_text in
+             let argument_edit = match es with
+               | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
+               | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
+               | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
+             in
+             warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+               ~edits:[replace_receiver; argument_edit]
+               receiver_text
+               id.it)
         | _ -> ())
     | _, _, _ -> ()
 
@@ -3143,42 +3325,56 @@ and insert_holes at ts es =
   | [arg] -> arg.it
   | args -> TupE args
 
-and check_explicit_arguments env saturated_arity implicits_arity arg_typs syntax_args =
-    if Flags.get_warning_level "M0237" <> Flags.Allow then
-      if List.length syntax_args = saturated_arity && implicits_arity < saturated_arity then
-        let n = List.length arg_typs in
-        let _, _, explicit_implicits = List.fold_right2
-          (fun typ arg (pos, next_arg, acc) ->
-             pos - 1,
-             Some arg,
-             match as_implicit typ with
-             | None -> acc
-             | Some (name, _) ->
-                match resolve_hole env arg.at name typ with
-                | Error _ -> acc
-                | Ok ({path;_}, _) ->
-                   match path.it, arg.it with
-                   | VarE {it = id0; _},
-                     VarE {it = id1; note = (Const, _); _}
-                        when id0 = id1 ->
-                      (id1, arg, next_arg) :: acc
-                   | DotE ({ it = VarE {it = mod_id0; _};_ },
-                           { it = id0; _},
-                           _),
-                     DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ },
-                           { it = id1; _},
-                           _) when mod_id0 = mod_id1 && id0 = id1 ->
-                      (mod_id1 ^ "." ^ id1, arg, next_arg) :: acc
-                   | _ -> acc)
-          arg_typs syntax_args (n - 1, None, [])
-        in
-        if (List.length explicit_implicits) = saturated_arity - implicits_arity then
-          List.iter (fun (name, exp, next_arg) ->
-            if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
-            let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
-            warn env exp.at "M0237"
-              ~edits:[edit to_remove ""]
-              "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) explicit_implicits
+(* Splits args into (implicit positions with param-name + typ + next-arg, kept args for the M0237 trial). *)
+and partition_implicit_args t_args syntax_args =
+  let _, implicits, kept =
+    List.fold_right2
+      (fun typ arg (next_arg, imps, keeps) ->
+        let next' = Some arg in
+        match as_implicit typ with
+        | None -> next', imps, arg :: keeps
+        | Some (name, _) -> next', (arg, next_arg, name, typ) :: imps, keeps)
+      t_args syntax_args (None, [], [])
+  in
+  implicits, kept
+
+(* Check if all implicits would resolve to the explicitly provided arguments. *)
+and m0237_validate_candidates env ts implicit_positions =
+  let exception Bail in
+  try
+    implicit_positions |> List.map (fun (arg, next_arg, name, typ_unopened) ->
+      let typ = T.open_ ts typ_unopened in
+      match resolve_hole env arg.at name typ with
+      | Error _ -> raise_notrace Bail
+      | Ok ({path; _}, _) ->
+        match path.it, arg.it with
+        | VarE {it = id0; _},
+          VarE {it = id1; note = (Const, _); _} when id0 = id1 ->
+          (id1, arg, next_arg)
+        | DotE ({ it = VarE {it = mod_id0; _};_ },
+                { it = id0; _},
+                _),
+          DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ },
+                { it = id1; _},
+                _) when mod_id0 = mod_id1 && id0 = id1 ->
+          (mod_id1 ^ "." ^ id1, arg, next_arg)
+        | _ -> raise_notrace Bail)
+  with Bail -> []
+
+and emit_m0237_warnings env candidates =
+  List.iter (fun (name, exp, next_arg) ->
+    if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
+    let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
+    warn env exp.at "M0237"
+      ~edits:[edit to_remove ""]
+      "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) candidates
+
+(* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
+and check_explicit_arguments env ts = function
+  | None -> false
+  | Some (implicit_positions, check) ->
+    let candidates = m0237_validate_candidates env ts implicit_positions in
+    candidates <> [] && check ts && (emit_m0237_warnings env candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3232,26 +3428,48 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     else T.seq t_args
   in
   if not env.pre then ref_exp2 := exp2; (* TODO: is this good enough *)
-  let ts, t_arg', t_ret' =
-    match tbs, inst.it with
+  let has_explicit_inst = match tbs, inst.it with
     | [], (None | Some (_, []))  (* no inference required *)
     | [T.{sort = Scope;_}], _  (* special case to allow t_arg driven overload resolution *)
-    | _, Some _ ->
+    | _, Some _ -> true
+    | _ -> false
+  in
+  (* Prep for the "Redundant implicit argument check". MUST run before the actual type inference non-pre phase *)
+  (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
+  let m0237_prep =
+    if env.pre
+      || Flags.get_warning_level "M0237" = Flags.Allow
+      || List.length syntax_args <> saturated_arity
+      || implicits_arity >= saturated_arity
+    then None
+    else
+      let implicits, args = partition_implicit_args t_args syntax_args in
+      let check = if has_explicit_inst then fun _ -> true else (* Explicit instantiation means no need to infer, skip backtracking *)
+        let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
+        let ts_opt = with_backtracking env (fun env' ->
+          let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in ts')
+        in fun ts -> eq_ts_opt ts ts_opt
+      in
+      Some (implicits, check)
+  in
+  (* ONLY report this warning if there are not other warnings that could have relied on the explicit instantiation! *)
+  let is_redundant_inst = ref false in
+  let ts, t_arg', t_ret' =
+    if has_explicit_inst then begin
       (* explicit instantiation, check argument against instantiated domain *)
       let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
       let ts = check_inst_bounds env sort tbs typs t_ret at in
       let t_arg' = T.open_ ts t_arg in
       let t_ret' = T.open_ ts t_ret in
-      if not env.pre then check_exp_strong env t_arg' exp2
-      else if typs <> [] && Flags.is_warning_enabled "M0223" &&
-        is_redundant_instantiation ts env (fun env' ->
-          infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems) then begin
-            warn env inst.at "M0223"
-              ~edits:[edit inst.at ""]
-              "redundant type instantiation"
-          end;
+      if not env.pre then begin
+        (* Redundant type instantiation check. MUST run before [check_exp_strong] *)
+        is_redundant_inst := typs <> [] && Flags.is_warning_enabled "M0223" &&
+          eq_ts_opt ts (with_backtracking env (fun env' ->
+            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems in ts'));
+        check_exp_strong env t_arg' exp2
+      end;
       ts, t_arg', t_ret'
-    | _::_, None -> (* implicit, infer *)
+    end else (* implicit, infer *)
       infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems
   in
   inst.note <- ts;
@@ -3274,7 +3492,9 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env ctx_dot exp1 (List.map (T.open_ ts) t_args) syntax_args at;
-    check_explicit_arguments env saturated_arity implicits_arity (List.map (T.open_ ts) t_args) syntax_args;
+    let warned = check_explicit_arguments env ts m0237_prep in
+    if not warned && !is_redundant_inst then
+      warn env inst.at "M0223" ~edits:[edit inst.at ""] "redundant type instantiation"
   end;
   (* note t_ret' <: t checked by caller if necessary *)
   t_ret'
@@ -3492,17 +3712,6 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
       (match hint with
        | None -> ""
        | Some hint -> Stdlib.Format.asprintf "\n%s" hint)
-
-and is_redundant_instantiation ts env infer_instantiation =
-  assert env.pre;
-  match Diag.with_message_store (recover_opt (fun msgs ->
-    let env_without_errors = { env with msgs } in
-    let ts', _, _ = infer_instantiation env_without_errors in
-    List.length ts = List.length ts' && List.for_all2 (T.eq ?src_fields:None) ts ts'
-    ))
-  with
-  | Error _ -> false
-  | Ok (b, _) -> b
 
 and debug_print_infer_defer_split exp2 t_arg t2 subs deferred =
   print_endline (Printf.sprintf "exp2 : %s" (read_region_with_markers exp2.at |> Option.value ~default:""));
@@ -4508,7 +4717,9 @@ and check_stable_defaults env sort dec_fields =
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable _; at; _}, (LetD _ | VarD _) ->
           if at <> no_region then
-            warn env at "M0218" "redundant `stable` keyword, this declaration is implicitly stable"
+            warn env at "M0218"
+              ~edits:[edit at ""]
+              "redundant `stable` keyword, this declaration is implicitly stable"
         | _ -> ())
       dec_fields
     end

@@ -129,7 +129,7 @@ pub fn ic_mem_fn(attr: TokenStream, input: TokenStream) -> TokenStream {
         #fun
 
         #[cfg(feature = "ic")]
-        #[export_name = #fn_name]
+        #[unsafe(export_name = #fn_name)]
         unsafe extern "C" fn #fn_wrapper_ident(#(#wrapper_params_syn,)*) #wrapper_ret {
             #fn_ident(&mut crate::memory::ic::IcMemory, #(#wrapper_args_syn,)*)
         }

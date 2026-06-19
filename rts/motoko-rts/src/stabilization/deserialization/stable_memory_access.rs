@@ -1,7 +1,7 @@
 //! Random read/write access to stable memory.
 //! Supporting Cheney's from-space in stable memory.
 
-use core::mem::{size_of, MaybeUninit};
+use core::mem::{MaybeUninit, size_of};
 
 use crate::stable_mem::{ic0_stable64_read, ic0_stable64_write};
 

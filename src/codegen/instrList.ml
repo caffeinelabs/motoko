@@ -62,8 +62,8 @@ let optimize : instr list -> instr list = fun is ->
       go l' r'
     | { it = GlobalGet n1; _} :: l', ({ it = GlobalSet n2; _ }) :: r' when n1 = n2 ->
       go l' r'
-    (* Code after Return, Br or Unreachable is dead *)
-    | _, ({ it = Return | Br _ | Unreachable; _ } as i) :: t ->
+    (* Code after Return, Br, BrTable or Unreachable is dead *)
+    | _, ({ it = Return | Br _ | BrTable _ | Unreachable; _ } as i) :: t ->
       (* see Note [funneling DIEs through Wasm.Ast] *)
       List.(rev (i :: l) @ find_all (fun instr -> Wasm_exts.Ast.is_dwarf_like instr.it) t)
     (* Equals zero has a dedicated operation (and works well with leg swapping) *)
@@ -119,9 +119,11 @@ let optimize : instr list -> instr list = fun is ->
     (* `If` blocks after negation can swap legs *)
     | { it = Test (I32 I32Op.Eqz); _} :: l', ({it = If (res,then_,else_); _} as i) :: r' ->
       go l' ({i with it = If (res,else_,then_)} :: r')
-    (* `If` blocks with empty legs just drop *)
-    | l', ({it = If (_,[],[]); _} as i) :: r' ->
+    (* `If` blocks with empty legs (or just a Br 0 fall-through) just drop *)
+    | l', ({it = If (_, ([] | [{it = Br {it = 0l; _}; _}]), []); _} as i) :: r' ->
        go l' ({i with it = Drop} :: r')
+    | l', ({it = If (_, [{it = Br x; _}], []); _} as i) :: r' ->
+      go l' ({i with it = BrIf {x with it = Int32.sub x.it 1l}} :: r')
     (* `If` blocks with empty then after comparison can invert the comparison and swap legs *)
     | { it = Compare (I32 I32Op.Eq); _} as comp :: l', ({it = If (res,[],else_); _} as i) :: r' ->
       go ({comp with it = Compare (I32 I32Op.Ne)} :: l') ({i with it = If (res,else_,[])} :: r')

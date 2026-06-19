@@ -6,7 +6,6 @@ _output
 _build
 target
 node_modules
-.docusaurus
 
 **/*~
 result*

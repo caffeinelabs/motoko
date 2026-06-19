@@ -79,8 +79,8 @@ persistent actor {
   ignore Text.compare("", ""); // no-warn
   ignore Text.equal("", ""); // no-warn
 
-  ignore Odd.equal(#odd); // warn non-binary
-  ignore Odd.compare(#odd, #odd, #odd); // warn non-binary
+  ignore Odd.equal(#odd); // no-warn — non-postfix receiver, no clean autofix
+  ignore Odd.compare(#odd, #odd, #odd); // no-warn — non-postfix receiver, no clean autofix
 
   // get
   ignore Map.get(peopleMap, Nat.compare, 1); // warn
@@ -96,4 +96,19 @@ persistent actor {
 
   Amb1.method(#amb); // don't suggest, ambiguous
 
+  module Float {
+    public func isNaN(self : Float) : Bool { false };
+    public func abs(self : Float) : Float { self };
+  };
+  module Int {
+    public func abs(self : Int) : Int { self };
+  };
+
+  // All literal receivers are skipped — `LitE` is too fragile for the rewrite.
+  ignore Float.isNaN(-1.1); // no-warn — `-1.1.isNaN()` parses as `-(1.1.isNaN())`
+  ignore Float.isNaN(+1.1); // no-warn
+  ignore Float.abs(-1.1);   // no-warn
+  ignore Int.abs(-1);       // no-warn
+  ignore Int.abs(0xff);     // no-warn — `0xff.abs` lexes as a hex float
+  ignore Float.isNaN(1.1);  // no-warn — even safe-looking literals skipped
 }

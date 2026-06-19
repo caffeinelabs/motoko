@@ -2,7 +2,7 @@
 name = "cargo-vendor-tools"
 version = "0.1.0"
 authors = ["dfinity <team-motoko@dfinity.org>"]
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "vendor-rust-std-deps"
@@ -11,5 +11,5 @@ path = "src/vendor_rust_std_deps.rs"
 [dependencies]
 clap = "2.33.3"
 serde_json = "1.0.64"
-sha2 = "0.9.5"
-toml = "0.5.8"
+sha2 = "0.10"
+toml = "1"

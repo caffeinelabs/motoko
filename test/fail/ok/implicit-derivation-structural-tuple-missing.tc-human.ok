@@ -1,0 +1,7 @@
+error[M0230]: Cannot determine implicit argument `describe` of type
+  ((Text, Bool)) -> Text
+    ┌─ implicit-derivation-structural-tuple-missing.mo:6:8
+  6 │  ignore inspect(("hello", true));
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 `describe : Bool -> Text` not found

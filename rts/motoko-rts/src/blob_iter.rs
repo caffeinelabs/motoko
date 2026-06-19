@@ -1,7 +1,7 @@
 use crate::{
     barriers::allocation_barrier,
     memory::Memory,
-    types::{size_of, Array, Bytes, Value, Words, TAG_ARRAY_T},
+    types::{Array, Bytes, TAG_ARRAY_T, Value, Words, size_of},
 };
 
 use motoko_rts_macros::ic_mem_fn;
@@ -28,7 +28,7 @@ unsafe fn blob_iter<M: crate::memory::Memory>(mem: &mut M, blob: Value) -> Value
 }
 
 /// Returns whether the iterator is finished
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe extern "C" fn blob_iter_done(iter: Value) -> usize {
     let iter_array = iter.as_array();
 
