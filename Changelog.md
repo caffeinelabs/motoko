@@ -2,7 +2,9 @@
 
 * motoko (`moc`)
 
-  * feat: `func`-fields — a function-valued record field may now be written `func name(args) : T { body }` (or `= expr`), sugar for `name = func(args) : T { body }`. Works in `{ … }` literals, `{ base with … }` extensions, and `(with …)` parentheticals; pure parse-time desugaring, no typing change (#6184).
+  * feat: `func`-fields — a function-valued record field may now be written `func name(args) : T { body }` (or `= expr`),
+    sugar for `name = func(args) : T { body }`. Works in `{ … }` literals, `{ base with … }` extensions, and `(with …)` parentheticals;
+    pure parse-time desugaring, no typing change (#6184).
 
 ## 1.10.0 (2026-06-19)
 
