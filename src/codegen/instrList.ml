@@ -273,6 +273,34 @@ let setter_for (getter : t) =
   | [GlobalGet v] -> i (GlobalSet v)
   | _ -> failwith "input must be a getter"
 
+(* Bind [init] to a fresh immutable local (allocated via [new_local]) UNLESS it
+   already materialises to a single pure-read instruction (LocalGet / GlobalGet
+   / Const), in which case no local is allocated and [init] is re-emitted at
+   each use site.  An unfulfilled depth-promise inside [init] (e.g. a
+   `branch_to_` escaping the value) raises [Inspecting], forcing the safe
+   local-binding fallback.  Returns (prelude, getter): emit [prelude] once,
+   then [getter] at each use. *)
+let immut_local ~(new_local : string -> t * t) name (init : t) : t * t =
+  let exception Bail in
+  let inspect () =
+    let open Effect.Deep in
+    try_with
+      (fun () -> init 0l no_region [])
+      ()
+      { effc = fun (type a) -> function
+          | (Inspecting : a Effect.t) ->
+              Some (fun (_ : (a, _) continuation) -> raise Bail)
+          | _ -> None }
+  in
+  match (try Some (inspect ()) with Bail -> None) with
+  | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> nop, init
+  | Some is ->
+    let set_l, get_l = new_local name in
+    (fun _ _ rest -> is @ rest) ^^ set_l, get_l
+  | None ->
+    let set_l, get_l = new_local name in
+    init ^^ set_l, get_l
+
 (* Intended to be used within assert *)
 
 let is_nop (is : t) =

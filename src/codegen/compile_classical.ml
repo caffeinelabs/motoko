@@ -852,26 +852,7 @@ let new_local64 env name =
    scrutinee paths where this is used, the scrutinee local is
    read-only during arm emission, so the property holds trivially. *)
 let immut_local env name (init : G.t) : G.t * G.t =
-  let open Wasm.Source in
-  let exception Bail in
-  let inspect () =
-    let open Effect.Deep in
-    try_with
-      (fun () -> init 0l no_region [])
-      ()
-      { effc = fun (type a) -> function
-          | (InstrList.Inspecting : a Effect.t) ->
-              Some (fun (_ : (a, _) continuation) -> raise Bail)
-          | _ -> None }
-  in
-  match (try Some (inspect ()) with Bail -> None) with
-  | Some [{it = LocalGet _ | GlobalGet _ | Const _; _}] -> G.nop, init
-  | Some is ->
-    let set_l, get_l = new_local env name in
-    (fun _ _ rest -> is @ rest) ^^ set_l, get_l
-  | None ->
-    let set_l, get_l = new_local env name in
-    init ^^ set_l, get_l
+  G.immut_local ~new_local:(new_local env) name init
 
 (* Some common code macros *)
 
