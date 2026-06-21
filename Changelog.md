@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * perf: Write-barrier improvements for the incremental GC (e.g. EOP) (#6111).
+
 ## 1.10.0 (2026-06-19)
 
 * motoko (`moc`)
@@ -51,8 +55,6 @@
   * feat: `and`-patterns — `p1 and p2` matches when both legs match, binding from both (#6049).
 
   * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
-
-  * perf: Write-barrier improvements for the incremental GC (e.g. EOP) (#6111).
 
 ## 1.7.0 (2026-04-29)
 
