@@ -45,6 +45,10 @@ pub mod time;
 #[ic_mem_fn(ic_only)]
 unsafe fn initialize_incremental_gc<M: Memory>(mem: &mut M) {
     initialize(mem);
+    // The `State` is now adopted (fresh on install, persisted-in-place on a
+    // stable-heap EOP upgrade). Re-seat the backend `__running_gc` cache from it:
+    // this runs in the wasm `(start)`, before any exported entry or write barrier.
+    get_incremental_gc_state().resync_running_gc_cache();
 }
 
 #[cfg(feature = "ic")]
@@ -186,6 +190,22 @@ impl State {
         if was_running != now_running {
             unsafe { set_running_gc(if now_running { 1 } else { 0 }) }
         }
+    }
+
+    /// Re-seat the backend-cached `__running_gc` global from the authoritative
+    /// `phase_inner` — without a phase transition. Idempotent.
+    ///
+    /// `set_phase` only pushes the global on a `Pause ↔ non-Pause` *transition*,
+    /// which assumes the global already agrees with `phase_inner`. That assumption
+    /// breaks at canister start: module (re-)instantiation resets the global to its
+    /// init value (0 = not running), independently of the GC `State` — which, under
+    /// stable-heap EOP, persists in main memory in place and may be mid-cycle
+    /// (`phase_inner != Pause`). Call this once after the `State` is adopted from
+    /// persistence, before any write barrier can fire, so the fast-path cache matches
+    /// the phase.
+    #[cfg(feature = "ic")]
+    pub fn resync_running_gc_cache(&self) {
+        unsafe { set_running_gc(if self.phase_inner != Phase::Pause { 1 } else { 0 }) }
     }
 }
 
