@@ -6368,6 +6368,22 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr set_running_gc_fi))
     });
 
+    (* Sanity-only read-mirror of `set_running_gc`: lets the RTS assert the
+       `__running_gc` cache still agrees with the authoritative GC phase
+       (differential oracle vs. the pre-cache behaviour). Created *and* exported
+       only under `--sanity-checks` (incremental is implied by EOP); the RTS
+       imports it only in debug builds, so producer and consumer coincide. *)
+    if !Flags.sanity then begin
+      let get_running_gc_fi = E.add_fun env "get_running_gc" (
+        Func.of_body env [] [I32Type] (fun env ->
+          G.i (GlobalGet (nr (E.get_global env "__running_gc"))))
+      ) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode "get_running_gc";
+        edesc = nr (FuncExport (nr get_running_gc_fi))
+      })
+    end;
+
     (* Keep a memory reserve when in update or init state.
        This reserve can be used by queries, composite queries, and upgrades. *)
     let keep_memory_reserve_fi = E.add_fun env "keep_memory_reserve" (

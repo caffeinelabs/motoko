@@ -72,6 +72,13 @@ unsafe fn initialize<M: Memory>(_mem: &mut M) {
 #[ic_mem_fn(ic_only)]
 unsafe fn schedule_incremental_gc<M: Memory>(mem: &mut M) {
     let state = get_incremental_gc_state();
+    // Sanity: the backend `__running_gc` cache must equal the authoritative
+    // `phase != Pause` (the value the uncached pre-PR code computed live). Runs
+    // every schedule point, so it catches a decohered cache — e.g. a missing
+    // start-time re-seat after a stable-heap EOP upgrade landing mid-cycle —
+    // on the first GC scheduling after the assignment that would skip a barrier.
+    #[cfg(debug_assertions)]
+    debug_assert_eq!(get_running_gc(), (state.phase() != Phase::Pause) as i32);
     let running = state.phase() != Phase::Pause;
     if running || scheduling::should_start_gc() {
         incremental_gc(mem);
@@ -175,6 +182,15 @@ unsafe extern "C" {
     // backend-side global so the write-barrier fast path can read it
     // without an RTS round-trip.
     fn set_running_gc(state: i32);
+}
+
+#[cfg(all(feature = "ic", debug_assertions))]
+unsafe extern "C" {
+    // Sanity-only read-mirror of `set_running_gc`, provided by generated code
+    // under `--sanity-checks` (incremental GC only). Lets the RTS assert the
+    // `__running_gc` cache still agrees with the authoritative GC phase — the
+    // value the pre-cache code computed live on every barrier.
+    fn get_running_gc() -> i32;
 }
 
 impl State {

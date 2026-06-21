@@ -6554,6 +6554,22 @@ module RTS_Exports = struct
       })
     end;
 
+    (* Sanity-only read-mirror of `set_running_gc`: lets the RTS assert the
+       `__running_gc` cache still agrees with the authoritative GC phase
+       (differential oracle vs. the pre-cache behaviour). Created *and* exported
+       only under `--sanity-checks` with the incremental GC; the RTS imports it
+       only in debug builds, so producer and consumer coincide. *)
+    if !Flags.sanity && !Flags.gc_strategy = Flags.Incremental then begin
+      let get_running_gc_fi = E.add_fun env "get_running_gc" (
+        Func.of_body env [] [I32Type] (fun env ->
+          G.i (GlobalGet (nr (E.get_global env "__running_gc"))))
+      ) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode "get_running_gc";
+        edesc = nr (FuncExport (nr get_running_gc_fi))
+      })
+    end;
+
     let rts_trap_fi = E.add_fun env "rts_trap" (
       Func.of_body env ["str", I32Type; "len", I32Type] [] (fun env ->
         let get_str = G.i (LocalGet (nr 0l)) in
