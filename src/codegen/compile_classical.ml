@@ -615,7 +615,7 @@ module E = struct
      a nullary `if`. Mirror of `compile_enhanced.ml`'s `E.if'`. *)
   let if' ?param ?return thn els =
     let bt = match param, return with
-      | None,           None              -> ValBlockType None
+      | None,           None
       | None,           Some (_,   [])    -> ValBlockType None
       | None,           Some (_,   [t])   -> ValBlockType (Some t)
       | None,           Some (env, rs)    -> VarBlockType (nr (func_type env (FuncType ([], rs))))
