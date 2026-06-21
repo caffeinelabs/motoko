@@ -221,7 +221,13 @@ impl State {
     /// the phase.
     #[cfg(feature = "ic")]
     pub fn resync_running_gc_cache(&self) {
-        unsafe { set_running_gc(if self.phase_inner != Phase::Pause { 1 } else { 0 }) }
+        unsafe {
+            set_running_gc(if self.phase_inner != Phase::Pause {
+                1
+            } else {
+                0
+            })
+        }
     }
 }
 
