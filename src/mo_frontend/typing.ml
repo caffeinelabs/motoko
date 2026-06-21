@@ -2162,44 +2162,42 @@ let contextual_dot_module (exp : Syntax.exp) =
     Some (Suggest.module_name_as_url module_ref, id.it)
   | _ -> None
 
-let check_can_dot env ctx_dot (exp : Syntax.exp) tys es at =
-  if not env.pre then
-  if Flags.get_warning_level "M0236" <> Flags.Allow then
-  if at = Source.no_region then () else (* no warnings for compiler-generated calls *)
-  match ctx_dot with
-  | Some _ -> () (* already dotted *)
-  | None ->
-    match exp.it, tys, es with
-    | DotE(obj_exp, id, _), receiver_ty :: tys, e::es ->
-      if (id.it = "equal" || Lib.String.chop_prefix "compare" id.it <> None) && List.length tys = 1 then () else
-      (match contextual_dot env id receiver_ty with
-      | Error _ -> ()
-      | Ok {path;_} ->
-        match path.it, exp.it with
-        | DotE ({ it = VarE {it = mod_id0; _};_ },
-                { it = id0; _},
-              _),
-          DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver,
-                { it = id1; _},
-                _)  when mod_id0 = mod_id1 && id0 = id1 ->
-          (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway.
-             `is_postfix_exp` also excludes `LitE` since contextual-dot is weaker than `check_lit` for literal coercion — e.g. `Blob.isEmpty("\00")` wouldn't survive a rewrite to `"\00".isEmpty()`. *)
-          if not (Syntax.is_postfix_exp e) || e.at.left.line <> e.at.right.line then () else
-          (match read_region e.at with
-           | None -> ()
-           | Some receiver_text ->
-             let replace_receiver = edit old_receiver.at receiver_text in
-             let argument_edit = match es with
-               | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
-               | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
-               | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
-             in
-             warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-               ~edits:[replace_receiver; argument_edit]
-               receiver_text
-               id.it)
-        | _ -> ())
-    | _, _, _ -> ()
+let dot_rewrite_receiver exp es ts_size =
+  match exp.it, es with
+  | DotE (_, id, _), e :: rest
+    (* Ad hoc rule: Skip rewrite for equal and compare methods. Q: Legacy stylistic choice? Should we allow it? *)
+    when not (ts_size = 2 && (id.it = "equal" || Lib.String.chop_prefix "compare" id.it <> None))
+    (* Skip non-postfix or multi-line receivers: `(complex).f()` is a debatable style change and we'd emit no autofix anyway *)
+    && Syntax.is_postfix_exp e && e.at.left.line = e.at.right.line -> Some (id, e, rest)
+  | _ -> None
+
+let check_can_dot env m0236_prep tys exp at =
+  match m0236_prep, tys with
+  | Some (id, e, es_rest, Some inferred), receiver_ty :: _ ->
+    (match contextual_dot env id receiver_ty with
+     | Error _ -> ()
+     | Ok {path;_} ->
+       match path.it, exp.it with
+       | DotE ({ it = VarE {it = mod_id0; _};_ }, { it = id0; _}, _),
+         DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver, _, _)
+         when mod_id0 = mod_id1 && id0 = id.it ->
+         (* Rewrite `M.f(e, ...)` to `e.f(...)` is only safe when `e` can be inferred to the SAME receiver type, not just a compatible type because it could change the resolution! *)
+         if not (T.eq ~src_fields:env.srcs inferred receiver_ty) then () else
+         (match read_region e.at with
+          | None -> ()
+          | Some receiver_text ->
+            let replace_receiver = edit old_receiver.at receiver_text in
+            let argument_edit = match es_rest with
+              | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
+              | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
+              | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
+            in
+            warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+              ~edits:[replace_receiver; argument_edit]
+              receiver_text
+              id.it)
+       | _ -> ())
+  | _ -> ()
 
 
 let rec infer_exp env exp : T.typ =
@@ -3452,6 +3450,20 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
       in
       Some (implicits, check)
   in
+  (* Prep for the "Dot-rewrite suggestion". MUST run before the actual type inference non-pre phase *)
+  (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
+  let m0236_prep =
+    if env.pre
+      || Option.is_some ctx_dot (* already dotted *)
+      || at = Source.no_region (* no warnings for compiler-generated calls *)
+      || Flags.get_warning_level "M0236" = Flags.Allow
+    then None
+    else match dot_rewrite_receiver exp1 syntax_args (List.length t_args) with
+      | Some (id, e, es_rest) ->
+        let inferred = with_backtracking env (fun env' -> infer_exp env' e) in
+        Some (id, e, es_rest, inferred)
+      | _ -> None
+  in
   (* ONLY report this warning if there are not other warnings that could have relied on the explicit instantiation! *)
   let is_redundant_inst = ref false in
   let ts, t_arg', t_ret' =
@@ -3491,7 +3503,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
        warn env at "M0195" "this function call implicitly requires `system` capability and may perform undesired actions (please review the call and provide a type instantiation `<system%s>` to suppress this warning)" (if List.length tbs = 1 then "" else ", ...")
     | _ -> ()
     end;
-    check_can_dot env ctx_dot exp1 (List.map (T.open_ ts) t_args) syntax_args at;
+    check_can_dot env m0236_prep (List.map (T.open_ ts) t_args) exp1 at;
     let warned = check_explicit_arguments env ts m0237_prep in
     if not warned && !is_redundant_inst then
       warn env inst.at "M0223" ~edits:[edit inst.at ""] "redundant type instantiation"
@@ -3966,21 +3978,7 @@ and check_pat_aux' env t t_orig pat val_kind : Scope.val_env =
       error env pat.at ~spans "M0112" "tuple pattern cannot consume expected type"
     in check_pats env ts pats T.Env.empty pat.at
   | ObjP pfs ->
-    let pfs' = List.stable_sort compare_pat_field pfs in
-    let vpfs = List.filter_map (fun pf ->
-      match pf.it with
-      | TypPF _ -> None
-      | ValPF(id, _) -> Some(id.it)) pfs' in
-    let s, fs =
-      try T.as_obj_sub vpfs t
-      with Invalid_argument _ ->
-        let spans = add_error_ctx [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
-        error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
-    in
-    if not env.pre && s = T.Actor && vpfs <> [] then
-      local_error env pat.at "M0114" "object pattern cannot consume values from actor type%a"
-        display_typ_expand t;
-    check_pat_fields env t fs pfs' T.Env.empty pat.at
+    check_obj_pat_aux env t pat pfs
   | OptP pat1 ->
     let t1 = try T.as_opt_sub t with Invalid_argument _ ->
       let spans = add_error_ctx [primary env pat.at "expected `%a`, got `?_`" display_typ_expand_inline t] in
@@ -4076,6 +4074,25 @@ and check_pats env ts pats ve at : Scope.val_env =
         pats_len ts_len
   in
   go ts pats ve
+
+(* Common work for an object-pattern check. *)
+and check_obj_pat_aux env t pat pfs : Scope.val_env =
+  let pfs' = List.stable_sort compare_pat_field pfs in
+  let vpfs = List.filter_map (fun pf -> match pf.it with
+    | TypPF _ -> None
+    | ValPF(id, _) -> Some(id.it)) pfs' in
+  let _, fs =
+    try T.as_obj_sub vpfs t
+    with Invalid_argument _ ->
+      let base = [primary env pat.at "expected `%a`, got object type" display_typ_expand_inline t] in
+      let spans = match env.closest_scrutinee with
+        | Some (exp_at, exp_ty) ->
+          secondary env exp_at "this expression has type `%a`" display_typ_expand_inline exp_ty :: base
+        | None -> base
+      in
+      error env pat.at "M0113" ~spans "object pattern cannot consume expected type"
+  in
+  check_pat_fields env t fs pfs' T.Env.empty pat.at
 
 and check_pat_fields env t fs pfs ve at : Scope.val_env =
   let cmp (tf : T.field) (id, _, _) = String.compare tf.T.lab id.it in
