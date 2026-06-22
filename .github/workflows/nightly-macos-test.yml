@@ -72,9 +72,10 @@ jobs:
           test-target: moc
           test-name: fetch-moc
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
       - name: Build `moc`
         run: |
-          nix build .#moc --print-out-paths
+          ${{ github.workspace }}/nixbuildcopy.sh .#moc
       - name: Save the `test-blueprint` action
         # This is needed by the "Post Populate `moc`" step (cleanup)
         # but since the checkout of `motoko-core` destroys the `pwd` contents

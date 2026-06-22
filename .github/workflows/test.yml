@@ -10,21 +10,22 @@ permissions:
   issues: write
   pull-requests: write
 
+# Abort superseded runs: a new push to a PR cancels the in-progress run for that
+# PR (rapid-fire commits no longer pile up runners). Pushes to master and merge
+# queue runs are never cancelled (each gets a unique group via run_id).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   common-tests:
     strategy:
       matrix:
-        # Namespace runners (https://namespace.so) — cheaper/faster than the
-        # previous `ubuntu-24-large` / `arm64-linux-16` runners. `os` stays as a
-        # friendly identifier consumed by the test-blueprint action; `runner`
-        # carries the actual `runs-on` label.
-        include:
-          - os: ubuntu-24-large
-            runner: nscloud-ubuntu-22.04-amd64-16x32
-          - os: arm64-linux-16
-            runner: nscloud-ubuntu-22.04-arm64-16x32
+        # Small/free GitHub runners — the heavy lifting is offloaded to
+        # nixbuild.net by the test-blueprint action.
+        os: [ubuntu-latest, ubuntu-24.04-arm]
       fail-fast: false
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -35,22 +36,17 @@ jobs:
           test-target: common-tests
           test-name: ${{ matrix.os }}-common-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
 
   gc-tests:
     strategy:
       matrix:
-        # Namespace runners (https://namespace.so). See `common-tests` above for
-        # the `os` vs `runner` split.
-        include:
-          - os: ubuntu-24-large
-            runner: nscloud-ubuntu-22.04-amd64-16x32
-            max_jobs: auto
-          # arm64-linux-16 OOMs on three parallel ~3 GB RTS-variant builds; serialise.
-          - os: arm64-linux-16
-            runner: nscloud-ubuntu-22.04-arm64-16x32
-            max_jobs: 1
+        # The RTS-variant builds that previously OOM'd big runners now run as
+        # separate derivations on nixbuild.net, so no per-runner max_jobs tuning
+        # is needed.
+        os: [ubuntu-latest, ubuntu-24.04-arm]
       fail-fast: false
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -61,26 +57,16 @@ jobs:
           test-target: gc-tests
           test-name: ${{ matrix.os }}-gc-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          max-jobs: ${{ matrix.max_jobs }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
 
   tests:
     strategy:
       matrix:
-        os: [ubuntu-24-large, arm64-linux-16]
+        # Small/free GitHub runners — builds are offloaded to nixbuild.net.
+        os: [ubuntu-latest, ubuntu-24.04-arm]
         build_type: [release, debug]
-        # Namespace runners (https://namespace.so). The `include` entries attach
-        # the matching `runner` label and `max_jobs` to every `build_type` for a
-        # given `os`. See `common-tests` above for the `os` vs `runner` split.
-        include:
-          - os: ubuntu-24-large
-            runner: nscloud-ubuntu-22.04-amd64-16x32
-            max_jobs: auto
-          # arm64-linux-16 OOMs on three parallel ~3 GB derivation builds; serialise.
-          - os: arm64-linux-16
-            runner: nscloud-ubuntu-22.04-arm64-16x32
-            max_jobs: 1
       fail-fast: false
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -96,7 +82,7 @@ jobs:
           test-target: ${{ matrix.build_type }}-systems-go
           test-name: ${{ matrix.os }}-${{ matrix.build_type }}-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          max-jobs: ${{ matrix.max_jobs }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
 
       # Secrets/vars are not exposed to fork PRs, so this step (and the perf
       # step that consumes its output) is skipped on fork PRs.
