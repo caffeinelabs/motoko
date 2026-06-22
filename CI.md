@@ -56,7 +56,10 @@ Mechanics:
    `nixbuild_token`. macOS has no nixbuild.net support, so it builds locally.
  * Fork PRs cannot read repository secrets, so `nixbuild_token` is empty for
    them; the Linux path then falls back to a local `nix-build-uncached` build so
-   fork CI keeps working (without the remote-build speedup).
+   fork CI keeps working (without the remote-build speedup). The heavy
+   `gc-tests` / `tests` jobs pass `max-jobs: 1` for this fallback so the ~3 GB
+   RTS-variant builds run one at a time and don't OOM the small standard runner
+   (this input is ignored on the nixbuild.net path).
  * Authentication uses the `NIXBUILD_TOKEN` repository secret.
 
 macOS (nightly tests, `build`/`release` macOS targets) stays on GitHub-hosted
