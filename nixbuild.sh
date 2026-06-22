@@ -17,4 +17,4 @@ if [[ "$(uname)" == "Linux" ]]; then
     )
 fi
 
-nix build "${NIX_ARGS[@]}" "$@"
+exec nix build "${NIX_ARGS[@]}" "$@"
