@@ -72,6 +72,11 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
+    (* Set while checking the arguments of a call whose instantiation/implicit is
+       itself being suggested for removal: M0223/M0237 probes then ignore the
+       donated expected type, which would vanish once that suggestion is applied.
+       Prevents individually-valid suggestions that are unsound applied together. *)
+    enclosing_removal : bool;
   }
 and ret_env =
   | NoRet
@@ -106,6 +111,7 @@ let env_of_scope msgs scope =
     closest_loop = None;
     closest_scrutinee = None;
     enhanced_migration = None;
+    enclosing_removal = false;
   }
 
 let use_identifier env id =
@@ -3370,9 +3376,8 @@ and emit_m0237_warnings env candidates =
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
 and check_explicit_arguments env ts = function
   | None -> false
-  | Some (implicit_positions, check) ->
-    let candidates = m0237_validate_candidates env ts implicit_positions in
-    candidates <> [] && check ts && (emit_m0237_warnings env candidates; true)
+  | Some (ts', candidates) ->
+    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3442,13 +3447,14 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     then None
     else
       let implicits, args = partition_implicit_args t_args syntax_args in
-      let check = if has_explicit_inst then fun _ -> true else (* Explicit instantiation means no need to infer, skip backtracking *)
-        let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
-        let ts_opt = with_backtracking env (fun env' ->
-          let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in ts')
-        in fun ts -> eq_ts_opt ts ts_opt
-      in
-      Some (implicits, check)
+      let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
+      (* Under an enclosing removal the donated context is fragile: judge
+         omittability from the arguments alone. *)
+      let t_expect_opt = if env.enclosing_removal then None else t_expect_opt in
+      let extra_subtype_problems = if env.enclosing_removal then [] else extra_subtype_problems in
+      with_backtracking env (fun env' ->
+        let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in
+        ts', m0237_validate_candidates env ts' implicits)
   in
   (* Prep for the "Dot-rewrite suggestion". MUST run before the actual type inference non-pre phase *)
   (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
@@ -3475,13 +3481,32 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
       let t_ret' = T.open_ ts t_ret in
       if not env.pre then begin
         (* Redundant type instantiation check. MUST run before [check_exp_strong] *)
+        let probe_expect = if env.enclosing_removal then None else t_expect_opt in
+        let probe_extra = if env.enclosing_removal then [] else extra_subtype_problems in
         is_redundant_inst := typs <> [] && Flags.is_warning_enabled "M0223" &&
           eq_ts_opt ts (with_backtracking env (fun env' ->
-            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems in ts'));
+            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at probe_expect probe_extra in ts'));
+        (* If we will actually suggest dropping this instantiation, the expected
+           type pushed into the arguments is fragile, so mark inner probes to
+           ignore it. When a same-call M0237 fires instead, the instantiation is
+           kept (see [check_explicit_arguments]) and the context stays stable. *)
+        let m0237_fires = match m0237_prep with
+          | Some (ts', candidates) -> candidates <> [] && eq_ts ts ts'
+          | None -> false in
+        let env =
+          { env with enclosing_removal =
+              env.enclosing_removal || (!is_redundant_inst && not m0237_fires) } in
         check_exp_strong env t_arg' exp2
       end;
       ts, t_arg', t_ret'
     end else (* implicit, infer *)
+      (* Removing an omittable implicit shifts inference onto the remaining
+         arguments, making the expected type they receive fragile. *)
+      let m0237_candidate = match m0237_prep with
+        | Some (_, candidates) -> candidates <> []
+        | None -> false in
+      let env =
+        { env with enclosing_removal = env.enclosing_removal || m0237_candidate } in
       infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems
   in
   inst.note <- ts;
