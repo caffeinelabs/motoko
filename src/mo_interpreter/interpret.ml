@@ -918,6 +918,8 @@ and match_pat pat v : val_env option =
     match_pat {pat with it = LitP lit} (Operator.unop op t v)
   | TupP pats ->
     match_pats pats (V.as_tup v) V.Env.empty
+  | ObjP pfs when T.(sub pat.note (Obj (Actor, [], []))) ->
+    match_actor_pat_fields pfs v V.Env.empty
   | ObjP pfs ->
     match_pat_fields pfs (V.as_obj v) V.Env.empty
   | OptP pat1 ->
@@ -962,6 +964,22 @@ and match_pat_fields pfs vs ve : val_env option =
     let v = V.Env.find id.it vs in
     begin match match_pat p v with
     | Some ve' -> match_pat_fields pfs' vs (V.Env.adjoin ve ve')
+    | None -> None
+    end
+
+(* Field matching for actor-typed ObjP: parallel to match_pat_fields,
+   but each ValPF synthesises a (principal, method-name) pair from the
+   actor value rather than looking up an env (actor values aren't
+   record-shaped here).  Mirrors the interpreter's DotE-on-actor case. *)
+and match_actor_pat_fields pfs v ve : val_env option =
+  match pfs with
+  | [] -> Some ve
+  | { it = TypPF(_); _ }::pfs' ->
+    match_actor_pat_fields pfs' v ve
+  | { it = ValPF(id, p); _ }::pfs' ->
+    let method_v = V.(Tup [v; Text id.it]) in
+    begin match match_pat p method_v with
+    | Some ve' -> match_actor_pat_fields pfs' v (V.Env.adjoin ve ve')
     | None -> None
     end
 
