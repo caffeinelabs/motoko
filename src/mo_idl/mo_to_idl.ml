@@ -220,7 +220,7 @@ module MakeState() = struct
     | [] -> acc
     | df :: dfs1 ->
       match df.it.dec.it with
-      | E.IncludeD (_, _, include_note) ->
+      | E.IncludeD (_, _, _, include_note) ->
         (match !include_note with
          | Some note -> gather_views acc (note.decs @ dfs1)
          | None -> gather_views acc dfs1)

@@ -1,0 +1,4 @@
+warning[M0XXX]: <system> capability not required by this mixin
+    ┌─ mixin-system-redundant.mo:4:11
+  4 │    include MixinCounter<system>();
+    │            ^^^^^^^^^^^^ 

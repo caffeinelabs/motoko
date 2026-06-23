@@ -187,7 +187,7 @@ let try_all f xs =
   with
   | Error _ -> None
   | Ok (a, _) -> Some a
-  
+
 let eq_ts ts ts' = List.length ts = List.length ts' && List.for_all2 (T.eq ?src_fields:None) ts ts'
 
 let eq_ts_opt ts = function
@@ -1256,10 +1256,10 @@ and is_explicit_dec d =
   | ClassD (_, _, _, _, _, p, _, _, dfs) ->
     is_explicit_pat p &&
     List.for_all (fun (df : dec_field) -> is_explicit_dec df.it.dec) dfs
-  | MixinD (p, dfs) ->
+  | MixinD (_, p, dfs) ->
     is_explicit_pat p &&
     List.for_all (fun (df : dec_field) -> is_explicit_dec df.it.dec) dfs
-  | IncludeD (_, e, _) -> is_explicit_exp e
+  | IncludeD (_, _, e, _) -> is_explicit_exp e
 
 
 (* Literals *)
@@ -4235,7 +4235,7 @@ and pub_fields dec_fields : visibility_env =
 
 and pub_field dec_field xs : visibility_env =
   match dec_field.it with
-  | {dec = { it=IncludeD(_, _, n); _ }; _} when Option.is_some !n -> pub_fields' (Option.get !n).decs xs
+  | {dec = { it=IncludeD(_, _, _, n); _ }; _} when Option.is_some !n -> pub_fields' (Option.get !n).decs xs
   | {vis = { it = Public depr; _}; dec; _} ->
     vis_dec T.{depr = depr; track_region = no_region; region = dec_field.at} dec xs
   | _ -> xs
@@ -4939,14 +4939,24 @@ and check_init env pat_opt exp at =
 and infer_dec env dec : T.typ =
   let t =
   match dec.it with
-  | IncludeD (i, arg, n) ->
+  | IncludeD (i, sys, arg, n) ->
     if not env.pre then begin
       use_identifier env i.it;
       if not env.in_actor then
         error env dec.at "M0227" "mixins can only be included in an actor context";
+      if sys then begin match env.async with
+      | C.(SystemCap c | AwaitCap c | AsyncCap c) -> ()
+      | _ -> local_error env i.at "M0197"
+        "`system` capability required, but not available\n (need an enclosing async expression or function body or explicit `system` type parameter)"
+      end;
       match T.Env.find_opt i.it env.mixins with
       | None -> error env i.at "M0226" "unknown mixin %s" i.it
-      | Some mix -> check_exp env mix.Scope.arg.note arg
+      | Some mix ->
+        match (mix.Scope.need_system, sys) with
+        | true, false -> local_error env i.at "M0XXX" "mixin include requires <system> capability";
+        | false, true -> warn env i.at "M0XXX" "<system> capability not required by this mixin"
+        | _ -> ();
+        check_exp env mix.Scope.arg.note arg
     end;
     T.unit
   | ExpD exp -> infer_exp env exp
@@ -5030,13 +5040,13 @@ and infer_dec env dec : T.typ =
       | _, (T.Memory | T.Mixin) -> assert false
     end;
     T.normalize t
-  | MixinD (args, dec_fields) ->
+  | MixinD (sys, args, dec_fields) ->
     if not env.in_prog then
       error env dec.at "M0228" "mixins may only be declared at the top-level";
     let t_pat, ve = infer_pat_exhaustive error env args in
     let env' = adjoin_vals env ve in
     let obj_sort : obj_sort = { it = T.Mixin ; at = no_region; note = { it = true; at = no_region; note = [] } }  in
-    let t' = infer_obj { env' with check_unused = false } obj_sort None dec_fields dec.at in
+    let t' = infer_obj { env' with check_unused = false; async = if sys then C.SystemCap C.top_cap else C.NullCap } obj_sort None dec_fields dec.at in
     T.normalize t'
   | TypD _ ->
     T.unit
@@ -5171,7 +5181,7 @@ and gather_dec env scope dec : Scope.t =
       mixin_env = scope.mixin_env;
       fld_src_env = scope.fld_src_env;
     }
-  | IncludeD(i, _, _) -> begin
+  | IncludeD(i, _, _, _) -> begin
     match T.Env.find_opt i.it env.mixins with
     | None -> error env i.at "M0226" "unknown mixin %s" i.it
     | Some mix ->
@@ -5187,7 +5197,7 @@ and gather_dec env scope dec : Scope.t =
       ) scope.val_env fs in
       { scope with typ_env; val_env }
     end
-  | MixinD _  | ExpD _ -> scope
+  | MixinD _ | ExpD _ -> scope
 
 and gather_pat env (scope : Scope.t) pat : Scope.t =
    gather_pat_aux env Scope.Declaration scope pat
@@ -5273,7 +5283,7 @@ and infer_block_typdecs env decs : Scope.t =
 and infer_dec_typdecs env dec : Scope.t =
   match dec.it with
   | MixinD _ -> Scope.empty
-  | IncludeD (i, _, n) -> begin
+  | IncludeD (i, _, _, n) -> begin
     match T.Env.find_opt i.it env.mixins with
     | None -> error env i.at "M0226" "unknown mixin %s" i.it
     | Some mix ->
@@ -5370,7 +5380,7 @@ and infer_block_valdecs env decs scope : Scope.t =
 
 and infer_dec_valdecs env dec : Scope.t =
   match dec.it with
-  | IncludeD(i, _, n) -> Scope.empty
+  | IncludeD(i, _, _, n) -> Scope.empty
   | ExpD _ ->
     Scope.empty
   (* TODO: generalize beyond let <id> = <obje> *)
@@ -5411,7 +5421,7 @@ and infer_dec_valdecs env dec : Scope.t =
       typ_env = T.Env.singleton id.it c;
       con_env = T.ConSet.singleton c;
     }
-  | MixinD (_, _) -> Scope.empty
+  | MixinD (_, _, _) -> Scope.empty
   | ClassD (_exp_opt, _shared_pat, obj_sort, id, typ_binds, pat, _, _, _) ->
     if obj_sort.it = T.Actor then begin
       error_in Flags.[WASIMode; WasmMode] env dec.at "M0138" "actor classes are not supported";
@@ -5599,8 +5609,8 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
                 ("system", obj Module [id.it, install_typ (List.map (close cs) ts1) class_typ])
               ] [(id.it, con)]) in
               Scope.lib lib.note.filename typ
-            | MixinU (arg, decs) ->
-              Scope.mixin lib.note.filename Scope.{ imports; arg; decs; typ }
+            | MixinU (need_system, arg, decs) ->
+              Scope.mixin lib.note.filename Scope.{ imports; need_system; arg; decs; typ }
             | ActorU _ ->
               error env cub.at "M0144" "bad import: expected a module or actor class but found an actor"
             | ProgU _ ->

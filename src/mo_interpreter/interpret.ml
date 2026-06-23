@@ -1046,7 +1046,7 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
-  | MixinD (_) -> V.Env.empty
+  | MixinD _ -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
     assert false
@@ -1083,7 +1083,7 @@ and interpret_dec env dec (k : V.value V.cont) =
   | TypD _ ->
     k V.unit
   | MixinD _ -> k V.unit
-  | IncludeD (_, _arg, _note) ->
+  | IncludeD (_, _, _arg, _note) ->
      (* TODO
         - evaluate arg and bind it against note.pat
         - define note.imports from mixin as local lets
