@@ -3436,7 +3436,6 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _, Some _ -> true
     | _ -> false
   in
-  (* [check_inst_bounds] can emit, so compute once; reused by [m0237_prep] and below. *)
   let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
   let explicit_ts =
     if has_explicit_inst
