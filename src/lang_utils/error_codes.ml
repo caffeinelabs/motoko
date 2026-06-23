@@ -110,7 +110,7 @@ let error_codes : (string * string option) list =
     "M0111", None; (* Operator pattern cannot consume type *)
     "M0112", None; (* Tuple pattern cannot consume type *)
     "M0113", None; (* Object pattern cannot consume type *)
-    "M0114", None; (* Object pattern cannot consume actor type *)
+    (* "M0114" DEFUNCT Object pattern cannot consume values from actor type *)
     "M0115", None; (* Option pattern cannot consume type *)
     "M0116", None; (* Variant pattern cannot consume type *)
     "M0117", None; (* Pattern cannot consume type *)

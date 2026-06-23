@@ -745,7 +745,10 @@ and match_pat pat v : val_env option =
   | TupP pats ->
     match_pats pats (V.as_tup v) V.Env.empty
   | ObjP pfs ->
-    match_pat_fields pfs (V.as_obj v) V.Env.empty
+    if T.is_actor pat.note then
+      match_pat_fields_actor pfs v V.Env.empty
+    else
+      match_pat_fields pfs (V.as_obj v) V.Env.empty
   | OptP pat1 ->
     (match v with
     | V.Opt v1 -> match_pat pat1 v1
@@ -783,6 +786,18 @@ and match_pat_fields pfs vs ve : val_env option =
     begin
       match match_pat pf.it.pat (V.Env.find pf.it.name vs) with
       | Some ve' -> match_pat_fields pfs' vs (V.Env.adjoin ve ve')
+      | None -> None
+    end
+
+and match_pat_fields_actor pfs actor ve : val_env option =
+  (* Actor field projection: each method binds to the deferred (actor, name)
+     pair ActorDotPrim produces (cf. interpret_prim_exp). *)
+  match pfs with
+  | [] -> Some ve
+  | pf::pfs' ->
+    begin
+      match match_pat pf.it.pat V.(Tup [actor; Text pf.it.name]) with
+      | Some ve' -> match_pat_fields_actor pfs' actor (V.Env.adjoin ve ve')
       | None -> None
     end
 

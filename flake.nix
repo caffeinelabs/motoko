@@ -145,7 +145,7 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-13.0.0" = "sha256-9DpJeFJ1AcUbcjUapE20UI/gE7j0glCFWU9FhbdOtHE=";
+          "pocket-ic-14.0.0" = "sha256-kYozElqipS6N9y+ydG2fNvSfMtybK3lv2codr189sCE=";
         };
       };
 
@@ -292,6 +292,14 @@
         };
 
         inherit (debug) moc;
+
+        # CI-only wrapper: `moc` with M0223 (redundant type instantiation)
+        # forced off, to silence the storm on `motoko-core` (which promotes it
+        # via `-E=M0223` in its mops.toml) until #6199 cleans it up. The trailing
+        # `-A M0223` wins (last-one-wins); `-E=M0154` etc. are preserved.
+        moc-M0223 = pkgs.writeShellScriptBin "moc" ''
+          exec ${debug.moc}/bin/moc "$@" -A M0223
+        '';
 
         default = release-systems-go;
       };
