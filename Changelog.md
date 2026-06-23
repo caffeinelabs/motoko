@@ -1,5 +1,11 @@
 # Motoko compiler changelog
 
+# Unreleased
+
+* motoko (`moc`)
+
+  *  feat: allow effectful code in transient lets and in actor/mixin bodies with `--enhanced-migration` (#6191)
+
 ## 1.10.0 (2026-06-19)
 
 * motoko (`moc`)
