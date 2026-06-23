@@ -1,5 +1,12 @@
 # Motoko compiler changelog
 
+# Unreleased
+
+* motoko (`moc`)
+
+  * feat: allow requiring `system` capability for mixin definitions (#6211).
+    This makes the capability available in initializers and the mixin body.  `<system>` then needs to be on the corresponding include. 
+
 ## 1.10.0 (2026-06-19)
 
 * motoko (`moc`)
