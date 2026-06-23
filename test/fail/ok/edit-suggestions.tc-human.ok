@@ -124,6 +124,16 @@ warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the
 121 │    ignore Impl.sort2(data, Nat.compare); // no dot suggestion (notSelf), M0237 only
     │                            ^^^^^^^^^^^ 
     = help: remove `Nat.compare`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:124:32
+124 │    let _ = Impl.make<Nat, Text>(Nat.compare, Text.compare);
+    │                                 ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0237]: The `Text.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:124:45
+124 │    let _ = Impl.make<Nat, Text>(Nat.compare, Text.compare);
+    │                                              ^^^^^^^^^^^^ 
+    = help: remove `Text.compare`
 warning[M0236]: You can use the dot notation `data.update(...)` here
     ┌─ edit-suggestions.mo:127:10
 127 │    ignore Impl.update(data, Nat.compare, 1, Text.compare, "a");
