@@ -575,6 +575,37 @@ fn handle_mo(ctx: &mut Ctx, cli: &Cli, src: &str, d: &Directives) {
         let mut valid = Command::new("wasm-validate");
         valid.args(["--enable-memory64", "--enable-multi-memory"]).arg(&wasm_path);
         let _ = run_phase(ctx, "valid", d, Some("wasm"), |outp| spawn_to_file(outp, valid));
+
+        // Feature-aware validation. `wasm-validate` above is told which features
+        // to allow via flags; Binaryen instead reads the `target_features`
+        // section moc emits and validates against exactly that set, so this
+        // catches codegen that uses a Wasm feature without declaring it. No
+        // optimization passes are needed — input validation runs on read. The
+        // exit code drives the phase; wasm-opt's output is discarded (it dumps
+        // the whole module on error), with a short hint written on failure.
+        let wasm_arg = wasm_path.clone();
+        let _ = run_phase(ctx, "opt", d, Some("wasm"), move |outp| {
+            let code = match Command::new("wasm-opt")
+                .arg("-q").arg(&wasm_arg).args(["-o", "/dev/null"])
+                .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+                .status()
+            {
+                Ok(s) => s.code().unwrap_or(-1),
+                Err(_) => 127,
+            };
+            let hint = if code == 0 {
+                String::new()
+            } else {
+                format!(
+                    "wasm-opt rejected the module (exit {code}): a used Wasm feature is \
+                     likely missing from moc's `target_features` section.\n\
+                     Reproduce: wasm-opt {}\n",
+                    wasm_arg.display()
+                )
+            };
+            let _ = fs::write(outp, hint);
+            code
+        });
     }
 
     if wasm_path.exists() && !skip_running && d.check {
