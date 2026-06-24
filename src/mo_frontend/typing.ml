@@ -72,6 +72,10 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
+    (* Inside the args of a call whose own instantiation/implicit is being suggested for removal:
+       M0223/M0237 probes drop the donated expected type (it vanishes once applied),
+       avoiding suggestions that are unsound when applied together. *)
+    enclosing_removal : bool;
   }
 and ret_env =
   | NoRet
@@ -106,6 +110,7 @@ let env_of_scope msgs scope =
     closest_loop = None;
     closest_scrutinee = None;
     enhanced_migration = None;
+    enclosing_removal = false;
   }
 
 let use_identifier env id =
@@ -3370,9 +3375,8 @@ and emit_m0237_warnings env candidates =
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
 and check_explicit_arguments env ts = function
   | None -> false
-  | Some (implicit_positions, check) ->
-    let candidates = m0237_validate_candidates env ts implicit_positions in
-    candidates <> [] && check ts && (emit_m0237_warnings env candidates; true)
+  | Some (ts', candidates) ->
+    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3432,6 +3436,12 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _, Some _ -> true
     | _ -> false
   in
+  let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
+  let explicit_ts =
+    if has_explicit_inst
+    then Some (check_inst_bounds env sort tbs typs t_ret at)
+    else None
+  in
   (* Prep for the "Redundant implicit argument check". MUST run before the actual type inference non-pre phase *)
   (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
   let m0237_prep =
@@ -3442,14 +3452,19 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     then None
     else
       let implicits, args = partition_implicit_args t_args syntax_args in
-      let check = if has_explicit_inst then fun _ -> true else (* Explicit instantiation means no need to infer, skip backtracking *)
+      match explicit_ts with
+      | Some ts -> Some (ts, m0237_validate_candidates env ts implicits)
+      | None ->
         let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
-        let ts_opt = with_backtracking env (fun env' ->
-          let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in ts')
-        in fun ts -> eq_ts_opt ts ts_opt
-      in
-      Some (implicits, check)
+        (* Drop the fragile expected type under enclosing removal; keep [extra_subtype_problems] (the receiver constraint survives). *)
+        let t_expect_opt = if env.enclosing_removal then None else t_expect_opt in
+        with_backtracking env (fun env' ->
+          let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in
+          ts', m0237_validate_candidates env ts' implicits)
   in
+  let m0237_fires = match m0237_prep with
+    | Some (_, candidates) -> candidates <> [] (* over-approximate without checking [ts] here *)
+    | None -> false in
   (* Prep for the "Dot-rewrite suggestion". MUST run before the actual type inference non-pre phase *)
   (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
   let m0236_prep =
@@ -3467,21 +3482,26 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   (* ONLY report this warning if there are not other warnings that could have relied on the explicit instantiation! *)
   let is_redundant_inst = ref false in
   let ts, t_arg', t_ret' =
-    if has_explicit_inst then begin
+    match explicit_ts with
+    | Some ts -> begin
       (* explicit instantiation, check argument against instantiated domain *)
-      let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
-      let ts = check_inst_bounds env sort tbs typs t_ret at in
       let t_arg' = T.open_ ts t_arg in
       let t_ret' = T.open_ ts t_ret in
       if not env.pre then begin
-        (* Redundant type instantiation check. MUST run before [check_exp_strong] *)
+        (* M0223 redundancy probe; MUST precede [check_exp_strong]. Drop only the fragile expected type. *)
+        let probe_expect = if env.enclosing_removal then None else t_expect_opt in
         is_redundant_inst := typs <> [] && Flags.is_warning_enabled "M0223" &&
           eq_ts_opt ts (with_backtracking env (fun env' ->
-            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems in ts'));
+            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at probe_expect extra_subtype_problems in ts'));
+        (* Dropping this instantiation makes the args' expected type fragile, so flag inner probes.
+           A same-call M0237 keeps the instantiation instead, leaving the context stable. *)
+        let env = { env with enclosing_removal = env.enclosing_removal || (!is_redundant_inst && not m0237_fires) } in
         check_exp_strong env t_arg' exp2
       end;
       ts, t_arg', t_ret'
-    end else (* implicit, infer *)
+    end
+    | None -> (* implicit, infer *)
+      let env = { env with enclosing_removal = env.enclosing_removal || m0237_fires } in
       infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems
   in
   inst.note <- ts;

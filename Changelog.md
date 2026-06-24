@@ -4,6 +4,8 @@
 
   * feat: `moc` now emits the standardized `target_features` Wasm custom section, so Binaryen-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6213).
 
+  * bugfix: M0223 ("redundant type instantiation") and M0237 ("implicit argument can be omitted") no longer emit suggestions that are individually valid but break compilation when applied together. In nested calls where an inner instantiation or implicit is only inferable thanks to an outer one (e.g. `List.fromArray(Array.tabulate(...))`), only a jointly-applicable subset is now suggested, so `mops check --fix` no longer rewrites the code into an M0098 type error. The check is conservative: a few genuinely-redundant cases may go unreported in exchange for soundness (#6209).
+
 ## 1.10.0 (2026-06-19)
 
 * motoko (`moc`)
