@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.10.1 (2026-06-24)
+
 * motoko (`moc`)
 
   * bugfix: M0223 ("redundant type instantiation") and M0237 ("implicit argument can be omitted") no longer emit suggestions that are individually valid but break compilation when applied together. In nested calls where an inner instantiation or implicit is only inferable thanks to an outer one (e.g. `List.fromArray(Array.tabulate(...))`), only a jointly-applicable subset is now suggested, so `mops check --fix` no longer rewrites the code into an M0098 type error. The check is conservative: a few genuinely-redundant cases may go unreported in exchange for soundness (#6209).
