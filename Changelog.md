@@ -2,7 +2,7 @@
 
 * motoko (`moc`)
 
-  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so Binaryen-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6213).
+  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so Binaryen-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
 
 ## 1.10.1 (2026-06-24)
 
