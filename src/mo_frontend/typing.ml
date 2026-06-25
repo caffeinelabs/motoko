@@ -4794,7 +4794,7 @@ and check_stab env sort scope dec_fields =
       local_error env stab.at "M0132"
         "misplaced stability declaration on field of non-actor";
       []
-    | (T.Actor | T.Mixin), _ , IncludeD (_, _, note) ->
+    | (T.Actor | T.Mixin), _ , IncludeD (_, _, _, note) ->
       let include_note = Option.get !note in
       let fs = check_stab env sort scope include_note.decs in
       List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
