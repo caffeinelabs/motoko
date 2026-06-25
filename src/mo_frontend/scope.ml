@@ -14,6 +14,7 @@ type fld_src_env = Field_sources.srcs_map
 type mixin_env = mixin_data T.Env.t
 and mixin_data =  {
   imports : S.import list;
+  need_system : bool;
   arg : S.pat;
   decs : S.dec_field list;
   typ : T.typ;

@@ -221,6 +221,7 @@ let error_codes : (string * string option) list =
     "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
     "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
+    "M0264", None; (* mixin include requires system capability *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -266,7 +267,8 @@ let warning_codes = [
   "M0242", None, "Implicit oneway declaration";
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
-  "M0254", None, "Initial actor requires field"
+  "M0254", None, "Initial actor requires field";
+  "M0265", None, "system capability not required by this mixin";
   ]
 
 let try_find_explanation code =

@@ -344,8 +344,8 @@
     'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
     <parenthetical>? <obj_or_class_dec>
-    'mixin' <pat_plain> <obj_body>
-    'include' <id> <exp>
+    'mixin' ('<' 'system' '>')? <pat_plain> <obj_body>
+    'include' <id> ('<' 'system' '>')? <exp>
 
 <obj_or_class_dec> ::= 
     <obj_sort> <id>? (':' <typ>)? '='? <obj_body>

@@ -50,8 +50,8 @@ let comp_unit_of_prog as_lib (prog : prog) : comp_unit =
     | [{it = ClassD (eo, sp, {it = Type.Actor; note = persistence; _}, tid, tbs, p, typ_ann, self_id, fields); _} as d] ->
       assert (List.length tbs > 0);
       finish imports { it = ActorClassU (persistence, eo, sp, tid, tbs, p, typ_ann, self_id, fields); note = d.note; at = d.at }
-    | [{it = MixinD (args, fields); _} as d] ->
-      finish imports { it = MixinU (args, fields); note = d.note; at = d.at }
+    | [{it = MixinD (sys, args, fields); _} as d] ->
+      finish imports { it = MixinU (sys, args, fields); note = d.note; at = d.at }
     (* let-bound terminal expressions *)
     | [{it = LetD ({it = VarP i1; _}, ({it = ObjBlockE (_eo, {it = Type.Module; _}, _t, fields); _} as e), _); _}] when as_lib ->
       finish imports { it = ModuleU (Some i1, fields); note = e.note; at = e.at }
@@ -122,8 +122,8 @@ let decs_of_lib (cu : comp_unit) =
     [{ it = ClassD (eo, csp, { it = Type.Actor; at = no_region; note = persistence}, i, tbs, p, t, i', efs);
        at = cub.at;
        note = cub.note;}];
-  | MixinU (pat, fields) ->
-    [{ it = MixinD (pat, fields); at = no_region; note = cub.note }]
+  | MixinU (sys, pat, fields) ->
+    [{ it = MixinD (sys, pat, fields); at = no_region; note = cub.note }]
   | ProgU _
   | ActorU _ ->
     assert false
