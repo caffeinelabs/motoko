@@ -1,4 +1,0 @@
-error[M0014]: non-static expression in actor body compiled with enhanced migration capabilities.
-    ┌─ mixins/NoSideEffect.mo:10:29
- 10 │      transient let x : Nat = myFunc();
-    │                              ^^^^^^^^ 
