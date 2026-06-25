@@ -40,5 +40,6 @@ M0242 (W) Implicit oneway declaration
 M0243 (W) Unreachable else in let-else
 M0244 (W) Mutable variable is never reassigned
 M0254 (W) Initial actor requires field
+M0265 (W) system capability not required by this mixin
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)
