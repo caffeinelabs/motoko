@@ -2,3 +2,4 @@ redundant-instantiations.mo:20.18-20.23: warning [M0223], redundant type instant
 redundant-instantiations.mo:29.18-29.23: warning [M0223], redundant type instantiation
 redundant-instantiations.mo:36.18-36.25: warning [M0223], redundant type instantiation
 redundant-instantiations.mo:43.18-43.24: warning [M0223], redundant type instantiation
+redundant-instantiations.mo:51.36-51.46: warning [M0223], redundant type instantiation
