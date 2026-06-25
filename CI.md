@@ -26,6 +26,52 @@ The build status is visible via the Github status (coarsely: only evaluation,
 
 This includes linux and darwin builds.
 
+CI runners and remote builds
+----------------------------
+
+**Use-case:**
+Builds and tests should run on fast, cost-effective infrastructure. The big
+expensive GitHub runners (`ubuntu-24-large`, `arm64-linux-16`) only have 16
+shared CPUs, so all derivations of a job compete for them.
+
+**Implementation:**
+Linux `nix` builds are offloaded to [nixbuild.net](https://nixbuild.net), a
+remote Nix builder, via the [`nixbuild/nixbuild-action`](https://github.com/marketplace/actions/nixbuild-net)
+and [remote store builds](https://docs.nixbuild.net/remote-builds/#using-remote-stores).
+Each derivation gets its own machine (up to 16 CPUs) instead of sharing one
+runner, which is both faster and cheaper. Because the GitHub runner then does
+almost no work, the Linux jobs run on the small/free runners (`ubuntu-latest`,
+`ubuntu-24.04-arm`) instead of `ubuntu-24-large` / `arm64-linux-16`.
+
+This mirrors the earlier setup from
+[PR #5032](https://github.com/caffeinelabs/motoko/pull/5032) (later reverted in
+[#5694](https://github.com/caffeinelabs/motoko/pull/5694)).
+
+Mechanics:
+ * `nixbuild.sh` runs `nix build` against the `ssh-ng://eu.nixbuild.net` store on
+   Linux (and locally elsewhere). `nixbuildcopy.sh` additionally copies the
+   result back to the runner for steps that need the artifacts locally
+   (releases, benchmark outputs, the user guide).
+ * The `test-blueprint` action sets up nixbuild.net for Linux jobs that have a
+   `nixbuild_token`. macOS has no nixbuild.net support, so it builds locally.
+ * Fork PRs cannot read repository secrets, so `nixbuild_token` is empty for
+   them; the Linux path then falls back to a local `nix-build-uncached` build so
+   fork CI keeps working (without the remote-build speedup). The heavy
+   `gc-tests` / `tests` jobs pass `max-jobs: 1` for this fallback so the ~3 GB
+   RTS-variant builds run one at a time and don't OOM the small standard runner
+   (this input is ignored on the nixbuild.net path).
+ * Authentication uses the `NIXBUILD_TOKEN` repository secret.
+
+macOS (nightly tests, `build`/`release` macOS targets) stays on GitHub-hosted
+runners. nixbuild.net has no macOS support; if GitHub macOS minutes become a
+cost concern, [Namespace](https://namespace.so) offers macOS runners.
+
+**Aborting superseded runs:**
+`test.yml` uses a `concurrency` group keyed by PR number with
+`cancel-in-progress` enabled for pull requests, so rapid successive pushes to a
+PR cancel the outdated in-progress run. Pushes to `master` and merge-queue runs
+are never cancelled.
+
 Preventing `master` from breaking
 ---------------------------------
 

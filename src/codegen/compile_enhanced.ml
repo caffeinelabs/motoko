@@ -14095,6 +14095,16 @@ and conclude_module env set_serialization_globals start_fi_o =
       };
       source_mapping_url = None;
       wasm_features = E.get_features env;
+      (* Wasm features used by the emitted code and the linked RTS, in Binaryen
+         names. Empirically validated as the minimal set that lets a bare
+         `wasm-opt` (MVP by default) validate the module: the RTS contributes
+         sign-ext / nontrapping-fptoint / bulk-memory(-opt), enhanced orthogonal
+         persistence uses a 64-bit main memory, and WASI/Wasm stable-memory
+         emulation adds a second memory (`multimemory`, tracked dynamically). *)
+      target_features =
+        [ "bulk-memory"; "bulk-memory-opt"; "memory64"; "nontrapping-fptoint"; "sign-ext" ]
+        @ (if !Flags.multi_value then ["multivalue"] else [])
+        @ (if List.mem "multi-memory" (E.get_features env) then ["multimemory"] else []);
     } in
 
   (* For debugging *)

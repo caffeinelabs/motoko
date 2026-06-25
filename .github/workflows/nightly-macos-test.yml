@@ -72,9 +72,10 @@ jobs:
           test-target: moc
           test-name: fetch-moc
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
       - name: Build `moc`
         run: |
-          nix build .#moc --print-out-paths
+          ${{ github.workspace }}/nixbuildcopy.sh .#moc
       - name: Build M0223-silenced `moc`
         # CI-only: `.#moc-M0223` wraps moc to force M0223 off, so motoko-core's
         # `-E=M0223` (mops.toml) doesn't fail the build on its ~2871 redundant
@@ -82,7 +83,7 @@ jobs:
         # working dir) and its store path stashed for the fixup step. Drop once
         # #6199 cleans core up.
         run: |
-          echo "MOC_M0223=$(nix build .#moc-M0223 --print-out-paths)" >> "$GITHUB_ENV"
+          echo "MOC_M0223=$(${{ github.workspace }}/nixbuildcopy.sh .#moc-M0223)" >> "$GITHUB_ENV"
       - name: Save the `test-blueprint` action
         # This is needed by the "Post Populate `moc`" step (cleanup)
         # but since the checkout of `motoko-core` destroys the `pwd` contents
