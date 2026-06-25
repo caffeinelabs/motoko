@@ -49,6 +49,15 @@
       url = "github:serokell/ocaml-recovery-parser";
       flake = false;
     };
+    # py-appscript (hhas/appscript) — used by the AE-binary fixture
+    # generator for `test/bench/object-spec.mo`. Darwin-only; the
+    # `ae-encoder` derivation is only exposed on aarch64-darwin and
+    # x86_64-darwin systems. On Linux the input fetches but the
+    # derivation is omitted from `packages`.
+    appscript-src = {
+      url = "github:hhas/appscript";
+      flake = false;
+    };
   };
 
   outputs =
@@ -66,6 +75,7 @@
     , motoko-matchers-src
     , grace-src
     , ocaml-recovery-parser-src
+    , appscript-src
     }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import ./nix/pkgs.nix {
@@ -222,6 +232,16 @@
         inherit (checks) check-rts-formatting;
       };
 
+      # AE-binary fixture generator for the object-spec bench. Darwin
+      # only because the underlying `appscript` Python package links
+      # against `AEvent.framework`. On Linux the attribute is omitted,
+      # so `nix flake show` won't complain.
+      ae-encoder-attrs = pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+        ae-encoder    = import ./nix/ae-encoder.nix    { inherit pkgs appscript-src; };
+        ae-decoder    = import ./nix/ae-decoder.nix    { inherit pkgs appscript-src; };
+        aete-verifier = import ./nix/aete-verifier.nix { inherit pkgs appscript-src; };
+      };
+
       common-constituents = rec {
         samples = import ./nix/samples.nix { inherit pkgs; inherit (debugMoPackages) moc; };
         # TODO: Re-enable base tests once we recalibrate them so they
@@ -238,7 +258,7 @@
       };
     in
     {
-      packages = checks // common-constituents // rec {
+      packages = checks // common-constituents // ae-encoder-attrs // rec {
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 

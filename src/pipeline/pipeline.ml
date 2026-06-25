@@ -364,7 +364,7 @@ let check_prim () : Syntax.lib * stat_env =
     let fs = List.map (fun d ->
       let trivia = Trivia.find_trivia prog.note.trivia d.at in
       let depr = Trivia.deprecated_of_trivia_info trivia in
-      {vis = Public depr @@ no_region; dec = d; stab = None} @@ d.at) prog.it
+      {vis = Public (depr, None) @@ no_region; dec = d; stab = None} @@ d.at) prog.it
     in
     let body = {it = ModuleU (None, fs); at = no_region; note = empty_typ_note} in
     let lib = {

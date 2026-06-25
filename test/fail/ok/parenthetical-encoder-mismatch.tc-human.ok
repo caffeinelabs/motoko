@@ -1,0 +1,7 @@
+error[M0095]: function return type
+  Text
+does not match expected return type
+  Blob
+    ┌─ parenthetical-encoder-mismatch.mo:5:43
+  5 │    (with encoder = func (_ : Nat) : Text = "oops")
+    │                                            ^^^^^^ 

@@ -226,8 +226,8 @@ module Make (Cfg : Config) = struct
     | Var   -> Atom "Var"
 
   and vis v = match v.it with
-    | Public None -> Atom "Public"
-    | Public (Some m) -> "Public" $$ [Atom m]
+    | Public (None, _) -> Atom "Public"
+    | Public (Some m, _) -> "Public" $$ [Atom m]
     | Private -> Atom "Private"
     | System -> Atom "System"
 

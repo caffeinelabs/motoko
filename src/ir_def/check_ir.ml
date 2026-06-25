@@ -634,11 +634,16 @@ let rec check_exp env (exp:Ir.exp) : unit =
       check_typ env t;
     | ICArgDataPrim, [] ->
       T.blob <: t
-    | ICReplyPrim ts, [exp1] ->
+    | ICReplyPrim (ts, enc_opt), [exp1] ->
       check (not (env.flavor.has_async_typ)) "ICReplyPrim in async flavor";
       check (T.shared t) "ICReplyPrim is not defined for non-shared operand type";
       (* TODO: check against expected reply typ; note this may not be env.ret_tys. *)
       typ exp1 <: (T.seq ts);
+      Option.iter (fun enc ->
+        check_exp env enc;
+        typ enc <: T.Func (T.Local, T.Returns, [], [T.seq ts], [T.blob]);
+        check (E.eff enc = T.Triv) "encoder in ICReplyPrim must be effect-free"
+      ) enc_opt;
       T.Non <: t
     | ICRejectPrim, [exp1] ->
       check (not (env.flavor.has_async_typ)) "ICRejectPrim in async flavor";
@@ -835,7 +840,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
           typ exp1 <: t0
     end;
     T.unit <: t
-  | FuncE (x, sort, control, typ_binds, args, ret_tys, exp) ->
+  | FuncE (x, sort, control, typ_binds, args, ret_tys, exp, codecs) ->
     let cs, tbs, ce = check_open_typ_binds env typ_binds in
     let ts = List.map (fun c -> T.Con(c, [])) cs in
     let env' = adjoin_cons env ce in
@@ -856,7 +861,21 @@ let rec check_exp env (exp:Ir.exp) : unit =
       ( sort, control
       , tbs, List.map (T.close cs) ts1, List.map (T.close cs) ret_tys
       ) in
-    fun_ty <: t
+    fun_ty <: t;
+    Option.iter (fun enc ->
+      check_exp env enc;
+      let enc_dom = T.seq (List.map (T.close cs) ret_tys) in
+      let enc_ty = T.Func (T.Local, T.Returns, [], [enc_dom], [T.blob]) in
+      typ enc <: enc_ty;
+      check (E.eff enc = T.Triv) "encoder expression must be effect-free"
+    ) codecs.encoder;
+    Option.iter (fun dec ->
+      check_exp env dec;
+      let dec_cod = T.seq (List.map (T.close cs) ts1) in
+      let dec_ty = T.Func (T.Local, T.Returns, [], [T.blob], [dec_cod]) in
+      typ dec <: dec_ty;
+      check (E.eff dec = T.Triv) "decoder expression must be effect-free"
+    ) codecs.decoder
   | SelfCallE (ts, exp_f, exp_k, exp_r, exp_c) ->
     check (not env.flavor.Ir.has_async_typ) "SelfCallE in async flavor";
     List.iter (check_typ env) ts;
@@ -915,7 +934,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
   then begin
     match exp.it with
     | VarE (Const, id) -> check_var "VarE" id
-    | FuncE (x, s, c, tp, as_ , ts, body) ->
+    | FuncE (x, s, c, tp, as_ , ts, body, _enc) ->
       check (s = T.Local) "constant FuncE cannot be of shared sort";
       if env.lvl = NotTopLvl then
       Freevars.M.iter (fun v _ ->

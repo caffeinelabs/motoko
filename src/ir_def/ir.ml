@@ -76,11 +76,19 @@ and exp' =
   | DeclareE of id * Type.typ * exp            (* local promise *)
   | DefineE of id * mut * exp                  (* promise fulfillment *)
   | FuncE of                                   (* function *)
-      string * Type.func_sort * Type.control * typ_bind list * arg list * Type.typ list * exp
+      string * Type.func_sort * Type.control * typ_bind list * arg list * Type.typ list * exp * codecs
   | SelfCallE of Type.typ list * exp * exp * exp * exp (* essentially ICCallPrim (FuncE shared…) *)
   | ActorE of dec list * field list * system * Type.typ (* actor *)
   | NewObjE of Type.obj_sort * field list * Type.typ     (* make an object *)
   | TryE of exp * case list * (id * Type.typ) option (* try/catch/cleanup *)
+
+(* Optional codec closures attached to a public actor method's FuncE.
+   `encoder : T -> Blob` replaces Candid serialization on reply.
+   `decoder : Blob -> T` would replace Candid deserialization on
+   ingress; not yet wired through desugaring/codegen.
+   See `.claude/plans/non-candid.md` for the full plan, including
+   the actor-level inheritance idea and the OpenAPI/Web2 motivation. *)
+and codecs = { encoder : exp option; decoder : exp option }
 
 and stable_actor_typ = { pre: Type.typ; post: Type.typ }
 
@@ -179,7 +187,7 @@ and prim =
                                       (* typ is the current continuation type of cps translation *)
   | CPSAsync of Type.async_sort * Type.typ
   | ICPerformGC
-  | ICReplyPrim of Type.typ list
+  | ICReplyPrim of Type.typ list * exp option (* optional user-supplied encoder: T -> Blob *)
   | ICRejectPrim
   | ICCallerPrim
   | ICCallPrim
@@ -330,7 +338,7 @@ let map_prim t_typ t_lab p =
   | OtherPrim _ -> p
   | CPSAwait (s, t) -> CPSAwait (s, t_typ t)
   | CPSAsync (s, t) -> CPSAsync (s, t_typ t)
-  | ICReplyPrim ts -> ICReplyPrim (List.map t_typ ts)
+  | ICReplyPrim (ts, enc) -> ICReplyPrim (List.map t_typ ts, enc)
   | ICArgDataPrim
   | ICPerformGC
   | ICRejectPrim

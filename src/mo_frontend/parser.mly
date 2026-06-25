@@ -261,6 +261,8 @@ and objblock eo s id ty dec_fields =
 %token COMPOSITE
 %token WEAK
 
+%nonassoc VIS_NO_PAREN    (* for `vis → ε`: lower than LPAR so LPAR shifts into parenthetical *)
+%nonassoc LPAR            (* LPAR shifts over vis → ε reduction *)
 %nonassoc RETURN_NO_ARG IF_NO_ELSE LOOP_NO_WHILE TRY_CATCH_NO_FINALLY
 %nonassoc ELSE WHILE FINALLY
 
@@ -878,13 +880,13 @@ dec_field :
     { {dec = d; vis = v; stab = s} @@ at $sloc }
 
 vis :
-  | (* empty *) { Private @@ no_region }
+  | (* empty *) { Private @@ no_region } %prec VIS_NO_PAREN
   | PRIVATE { Private @@ at $sloc }
-  | PUBLIC {
+  | p=parenthetical_opt PUBLIC {
     let at = at $sloc in
     let trivia = Trivia.find_trivia !triv_table at in
     let depr = Trivia.deprecated_of_trivia_info trivia in
-    Public depr @@ at }
+    Public (depr, p) @@ at }
   | SYSTEM { System @@ at $sloc }
 
 stab :

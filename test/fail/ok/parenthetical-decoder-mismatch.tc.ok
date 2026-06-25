@@ -1,0 +1,8 @@
+parenthetical-decoder-mismatch.mo:5.45-5.52: type error [M0095], function return type
+  ?Text
+does not match expected return type
+  ?Nat
+because the type 
+  Text
+ is not compatible with type 
+  Nat

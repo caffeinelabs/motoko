@@ -1019,6 +1019,11 @@ and interpret_obj env obj_sort self_id dec_fields (k : V.value V.cont) =
 and declare_dec_fields dec_fields ve_ex ve_in : val_env * val_env =
   match dec_fields with
   | [] -> ve_ex, ve_in
+  (* Codec parentheticals (`encoder`, `decode`) on `Public(_, Some par)`
+     are intentionally not visited here: the AST interpreter runs the
+     high-level Motoko semantics for the `[run]` phase, where Candid
+     serialization isn't modelled, so any encoder/decode transform on
+     the wire bytes is moot. Whatever lands in `par` is dropped silently. *)
   | {it = {dec; vis; _}; _}::dec_fields' ->
     let ve' = declare_dec dec in
     let ve_ex' = if vis.it = Private then ve_ex else V.Env.adjoin ve_ex ve' in

@@ -1,0 +1,4 @@
+parenthetical-encoder-mismatch.mo:5.43-5.49: type error [M0095], function return type
+  Text
+does not match expected return type
+  Blob

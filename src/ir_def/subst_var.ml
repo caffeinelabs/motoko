@@ -44,10 +44,10 @@ and exp' rho = function
   | DeclareE (i, t, e)  -> let rho' = id_bind rho i in
                            DeclareE (i, t, exp rho' e)
   | DefineE (i, m, e)   -> DefineE (id rho i, m, exp rho e)
-  | FuncE (x, s, c, tp, p, ts, e) ->
+  | FuncE (x, s, c, tp, p, ts, e, enc) ->
      let rho' = args rho p in
      let e' = exp rho' e in
-     FuncE (x, s, c, tp, p, ts, e')
+     FuncE (x, s, c, tp, p, ts, e', enc)
   | NewObjE (s, fs, t)  -> NewObjE (s, fields rho fs, t)
   | TryE (e, cs, cl)    -> TryE (exp rho e, cases rho cs, Option.map (fun (v, t) -> id rho v, t) cl)
   | SelfCallE (ts, e1, e2, e3, e4) ->

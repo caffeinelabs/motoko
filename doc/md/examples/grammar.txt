@@ -290,7 +290,7 @@
 <vis> ::= 
     <empty>
     'private'
-    'public'
+    <parenthetical>? 'public'
     'system'
 
 <stab> ::= 

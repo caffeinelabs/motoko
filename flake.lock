@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "appscript-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1759909761,
+        "narHash": "sha256-oAP5MNrbcLbzKxTFfa4ME+oRyPXFWmYOuBAuJJG+aGA=",
+        "owner": "hhas",
+        "repo": "appscript",
+        "rev": "f8e791d0e44e8e893dcaab92fed0d5c8fa0e87b4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hhas",
+        "repo": "appscript",
+        "type": "github"
+      }
+    },
     "candid-src": {
       "flake": false,
       "locked": {
@@ -225,6 +241,7 @@
     },
     "root": {
       "inputs": {
+        "appscript-src": "appscript-src",
         "candid-src": "candid-src",
         "esm": "esm",
         "flake-utils": "flake-utils",

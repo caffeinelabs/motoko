@@ -4256,7 +4256,7 @@ and pub_fields dec_fields : visibility_env =
 and pub_field dec_field xs : visibility_env =
   match dec_field.it with
   | {dec = { it=IncludeD(_, _, n); _ }; _} when Option.is_some !n -> pub_fields' (Option.get !n).decs xs
-  | {vis = { it = Public depr; _}; dec; _} ->
+  | {vis = { it = Public (depr, _); _}; dec; _} ->
     vis_dec T.{depr = depr; track_region = no_region; region = dec_field.at} dec xs
   | _ -> xs
 
@@ -4414,6 +4414,26 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
             "a shared function cannot be private"
       ) dec_fields;
     end;
+    (* Parentheticals on public actor methods can reference sibling
+       actor-fields by name (e.g. `(with encoder; decoder)` punning to
+       locally-defined `encoder` / `decoder` funcs), so the env we
+       hand to `check_vis_parenthetical` must include the actor's
+       full scope, not just the outer-context env. *)
+    let par_env = adjoin_vals env scope.Scope.val_env in
+    List.iter (fun df ->
+      match df.it.vis.it, df.it.dec.it with
+      | Syntax.Public (_, Some par), LetD ({ it = VarP id; _ }, _, _) ->
+        (match T.Env.find_opt id.it scope.Scope.val_env with
+         | Some (typ, _, _) when T.is_func typ ->
+           let _, c, _, ts1, ts2 = T.as_func typ in
+           (match c with
+            | T.Promises -> check_vis_parenthetical par_env (T.seq ts1) (T.seq ts2) par
+            | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
+         | _ -> warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods")
+      | Syntax.Public (_, Some par), _ ->
+        warn env par.at "M0212" "parenthetical annotation is only allowed on public actor methods"
+      | _ -> ()
+    ) dec_fields;
     if s = T.Module then
       Static.module_fields env.msgs dec_fields;
     if (s = T.Actor || s = T.Mixin) && Option.is_some env.enhanced_migration then
@@ -4458,6 +4478,48 @@ and check_parenthetical env typ_opt = function
      List.iter check_lab attrs_flds;
      let unrecognised = List.(filter T.(fun {lab; _} -> lab <> cycles_lab && lab <> timeout_lab) attrs_flds |> map (fun {T.lab; _} -> lab)) in
      if unrecognised <> [] then warn env par.at "M0212" "unrecognised attribute %s in parenthetical" (List.hd unrecognised);
+
+and check_vis_parenthetical env arg_typ ret_typ par =
+  (* Direction is method → codec: the method's signature drives the
+     expected encoder/decoder types. An alternative we may want to
+     explore later is the inverse — deriving the method's input type
+     from the decoder's output type and the method's output type from
+     the encoder's input type, then checking the method signature
+     against those — which would let users pin codec types and have
+     the method fall in line. *)
+  let encoder_typ = T.Func (T.Local, T.Returns, [], [ret_typ], [T.blob]) in
+  let decoder_typ = T.Func (T.Local, T.Returns, [], [T.blob], [arg_typ]) in
+  let known = [
+    ("encoder", encoder_typ);
+    ("decoder", decoder_typ);
+  ] in
+  let labs_in_par = match par.it with
+    | ObjE (_, fields) -> List.map (fun (ef : exp_field) -> ef.it.id.it) fields
+    | _ -> []
+  in
+  let expected_fields = List.filter_map (fun lab ->
+    Option.map (fun typ -> (lab, typ)) (List.assoc_opt lab known)
+  ) labs_in_par in
+  let unrecognised = List.filter
+    (fun lab -> not (List.mem_assoc lab known)) labs_in_par in
+  List.iter (fun lab ->
+    warn env par.at "M0212"
+      "unrecognised attribute %s in parenthetical" lab
+  ) unrecognised;
+  if labs_in_par = [] then
+    warn env par.at "M0211" "redundant empty parenthetical note";
+  let expected = T.obj T.Object expected_fields in
+  check_exp env expected par;
+  (match par.it with
+   | ObjE (_, fields) ->
+     List.iter (fun (ef : exp_field) ->
+       if ef.it.exp.note.note_eff <> T.Triv then
+         local_error env ef.at "M0215"
+           "field %s in parenthetical must be effect-free" ef.it.id.it
+     ) fields
+   | _ ->
+     if par.note.note_eff <> T.Triv then
+       local_error env par.at "M0215" "parenthetical must be effect-free")
 
 and check_system_fields env sort scope tfs dec_fields =
   List.iter (fun df ->

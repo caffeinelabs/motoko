@@ -122,8 +122,10 @@ let transform prog =
       DeclareE (id, t_typ typ, t_exp exp1)
     | DefineE (id, mut ,exp1) ->
       DefineE (id, mut, t_exp exp1)
-    | FuncE (x, s, c, typbinds, args, ret_tys, exp) ->
-      FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp)
+    | FuncE (x, s, c, typbinds, args, ret_tys, exp, codecs) ->
+      let codecs' = { encoder = Option.map t_exp codecs.encoder;
+                      decoder = Option.map t_exp codecs.decoder } in
+      FuncE (x, s, c, t_typ_binds typbinds, t_args args, List.map t_typ ret_tys, t_exp exp, codecs')
     | ActorE (ds, fs, {meta; preupgrade; postupgrade; heartbeat; timer; inspect; low_memory; stable_record; stable_type}, typ) ->
       ActorE (t_decs ds, t_fields fs,
        {meta;
