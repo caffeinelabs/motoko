@@ -110,7 +110,7 @@ let error_codes : (string * string option) list =
     "M0111", None; (* Operator pattern cannot consume type *)
     "M0112", None; (* Tuple pattern cannot consume type *)
     "M0113", None; (* Object pattern cannot consume type *)
-    "M0114", None; (* Object pattern cannot consume actor type *)
+    (* "M0114" DEFUNCT Object pattern cannot consume values from actor type *)
     "M0115", None; (* Option pattern cannot consume type *)
     "M0116", None; (* Variant pattern cannot consume type *)
     "M0117", None; (* Pattern cannot consume type *)
@@ -221,6 +221,7 @@ let error_codes : (string * string option) list =
     "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
     "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
+    "M0264", None; (* mixin include requires system capability *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -267,7 +268,8 @@ let warning_codes = [
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
   "M0254", None, "Initial actor requires field";
-  "M0264", None, "Float32 literal has more precision than Float32 can represent"
+  "M0265", None, "system capability not required by this mixin";
+  "M0266", None, "Float32 literal has more precision than Float32 can represent"
   ]
 
 let try_find_explanation code =

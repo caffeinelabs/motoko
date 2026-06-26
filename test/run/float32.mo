@@ -2,7 +2,7 @@ import { floatToFloat32; float32ToFloat; debugPrint } = "mo:⛔";
 
 // This test deliberately writes over-precise Float32 literals (e.g. a 21-digit
 // pi) to exercise rounding/conversion, so silence the excess-precision warning.
-//MOC-FLAG -A M0264
+//MOC-FLAG -A M0266
 
 // 1.5 is exactly representable in f32, round-trips losslessly
 let f : Float = 1.5;

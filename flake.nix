@@ -293,6 +293,14 @@
 
         inherit (debug) moc;
 
+        # CI-only wrapper: `moc` with M0223 (redundant type instantiation)
+        # forced off, to silence the storm on `motoko-core` (which promotes it
+        # via `-E=M0223` in its mops.toml) until #6199 cleans it up. The trailing
+        # `-A M0223` wins (last-one-wins); `-E=M0154` etc. are preserved.
+        moc-M0223 = pkgs.writeShellScriptBin "moc" ''
+          exec ${debug.moc}/bin/moc "$@" -A M0223
+        '';
+
         default = release-systems-go;
       };
 

@@ -1,22 +1,42 @@
 # Motoko compiler changelog
 
+# Unreleased
+
 * motoko (`moc`)
 
-  * feat: a `Float32` literal written with more precision than the type can hold now warns (M0264), suggesting the shortest equivalent — e.g. `0.123456789 : Float32` → `0.12345679`. The surplus digits were already silently discarded by rounding; the warning fires only on genuine excess (minimal literals like `0.1`/`3.14` stay quiet) (#6198).
+  * feat: a `Float32` literal written with more precision than the type can hold now warns (M0266), suggesting the shortest equivalent — e.g. `0.123456789 : Float32` → `0.12345679`. The surplus digits were already silently discarded by rounding; the warning fires only on genuine excess (minimal literals like `0.1`/`3.14` stay quiet) (#6198).
+  * feat: allow requiring `system` capability for mixin definitions (#6211).
+    This makes the capability available in initializers and the mixin body.  `<system>` then needs to be on the corresponding include. 
+  * feat: allow effectful code in transient lets and in actor/mixin bodies with `--enhanced-migration` (#6191).
+  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so Binaryen-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
+
+## 1.10.1 (2026-06-24)
+
+* motoko (`moc`)
+
+  * bugfix: M0223 ("redundant type instantiation") and M0237 ("implicit argument can be omitted") no longer emit suggestions that are individually valid but break compilation when applied together. In nested calls where an inner instantiation or implicit is only inferable thanks to an outer one (e.g. `List.fromArray(Array.tabulate(...))`), only a jointly-applicable subset is now suggested, so `mops check --fix` no longer rewrites the code into an M0098 type error. The check is conservative: a few genuinely-redundant cases may go unreported in exchange for soundness (#6209).
+
+## 1.10.0 (2026-06-19)
+
+* motoko (`moc`)
+
+  * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
+
+  * feat: Permitting destructuring patterns against actor types — `let { foo } = a`, `func g({foo} : actor T) {}`, etc. (#6149).
+
+  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
+
+  * perf: Multi-value Wasm codegen is now _on by default_, `--no-experimental-multi-value` flag disables (if not desired) (#6165).
 
   * bugfix: M0237 (implicit argument can be omitted) only fires now when the suggested removal preserves the same type instantiation. Previously the edit could be rejected (M0098) (#6166).
 
   * bugfix: M0236 dot-notation suggestion no longer fires for literal receivers — the `lit.f()` rewrite could misparse (`-1.1.isNaN()` → `-(1.1.isNaN())`), mis-lex (`0xff.abs` as a hex float), or fail to type-check when it lost a literal coercion (`Blob.isEmpty("\00")` → `"\00".isEmpty()`) (#6173).
 
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver cannot be inferred or would infer to a different type causing the call to resolve to a different function (#6177).
+
   * bugfix: Implicit argument derivation now resolves type variables that occur only in a covariant result position (e.g. JSON-style decoders `Text -> ?T`). Previously such a variable was solved to `None` (bottom), so the implicit had to be passed explicitly (#6186).
 
-  * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
-
   * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
-
-  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
-
-  * perf: Multi-value Wasm codegen is now _on by default_, `--no-experimental-multi-value` flag disables (if not desired) (#6165).
 
 ## 1.9.0 (2026-06-02)
 
