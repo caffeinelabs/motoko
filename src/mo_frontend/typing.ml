@@ -4847,15 +4847,20 @@ and check_stab env sort scope dec_fields =
       local_error env stab.at "M0132"
         "misplaced stability declaration on field of non-actor";
       []
-    | (T.Actor | T.Mixin), _ , IncludeD _ -> []
+    | (T.Actor | T.Mixin), _ , IncludeD (_, _, _, note) ->
+      let include_note = Option.get !note in
+      let fs = check_stab env sort scope include_note.decs in
+      List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
     | (T.Actor | T.Mixin), Some {it = Stable view; _}, VarD (id, _) ->
       check_stable id.it id.at;
-      infer_viewer env scope Var id view;
+      if sort.it = T.Actor then
+        infer_viewer env scope Var id view;
       [id]
     | (T.Actor | T.Mixin), Some {it = Stable view; _}, LetD (pat, _, _) when stable_pat pat ->
       let ids = T.Env.keys (gather_pat env Scope.empty pat).Scope.val_env in
       List.iter (fun id -> check_stable id pat.at) ids;
-      infer_viewer env scope Const (stable_id pat) view;
+      if sort.it = T.Actor then
+        infer_viewer env scope Const (stable_id pat) view;
       List.map (fun id -> {it = id; at = pat.at; note = ()}) ids;
     | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
     | (T.Actor | T.Mixin), Some stab, _ ->
@@ -5635,15 +5640,17 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
     (fun msgs ->
       recover_opt
         (fun lib ->
+          let { imports; body = cub; _ } = lib.it in
           let env =
             { (env_of_scope msgs scope) with
               errors_only = pkg_opt <> None;
-              (* For now, only the main actor(class) supports enhanced_migration, not libraries
+              (* For now, only the main actor(class) and mixins support enhanced_migration, not libraries
                  For imported classes, we would need some convention to locate their migration
                  dirs *)
-              enhanced_migration = None
+              enhanced_migration = match cub.it with
+                | MixinU _ -> !Flags.enhanced_migration;
+                | _ -> None;
             } in
-          let { imports; body = cub; _ } = lib.it in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_split_prog env lib.at false imp_ds ds in
           List.iter2 (fun import imp_d -> import.note <- imp_d.note.note_typ) imports imp_ds;
