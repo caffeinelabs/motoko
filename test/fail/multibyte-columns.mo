@@ -6,10 +6,10 @@
 // non-ASCII cases.
 import Char "mo:core/Char";
 module {
-  public func go() {
-    ignore Char.toNat32('A');   // ASCII
-    ignore Char.toNat32('京');  // 3-byte UTF-8 inside span
-    ignore Char.toNat32('💩'); // 4-byte UTF-8 inside span (non-BMP)
-    ignore "京京"; ignore Char.toNat32('D');  // multibyte BEFORE the span
+  public func go(c : Char) {
+    ignore Char.toNat32(c);                       // ASCII baseline
+    ignore "京"; ignore Char.toNat32(c);          // 3-byte UTF-8 before span
+    ignore "💩"; ignore Char.toNat32(c);          // 4-byte UTF-8 (non-BMP) before span
+    ignore "京京"; ignore Char.toNat32(c);        // multibyte text before span
   };
 };

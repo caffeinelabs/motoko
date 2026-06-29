@@ -10,5 +10,5 @@ debug.print: any
 debug.print: any
 debug.print: any
 debug.print: IC0536: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister has no update method '__motoko_xxx'..
-Check that the method being called is exported by the target canister. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#method-not-found
+Check that the method being called is exported by the target canister. See documentation: https://docs.internetcomputer.org/references/execution-errors#method-not-found
 ingress Completed: Reply: 0x4449444c0000

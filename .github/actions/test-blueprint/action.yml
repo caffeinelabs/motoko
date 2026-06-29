@@ -2,28 +2,26 @@
 # test.yml, where the actual CI is invoked from.
 # It will call the tests defined in the flake.nix file.
 # These are: common-tests, gc-tests, and tests (debug, release)
-# They all take the same install steps, use cachix, and a nix
-# command like the following:
-#   - run: nix profile install .#nix-build-uncached
-#   - name: "Run common tests"
-#     run: |
-#       cachix watch-exec ic-hs-test -- \  # only when auth token is available
-#         nix-build-uncached --max-jobs auto \
-#           -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.common-tests'
-
-# The main workflow from test.yml will call this workflow with different
-# inputs, and this workflow will call the tests defined in the flake.nix file.
 #
-# Fork PRs run without Cachix push (no auth token available), but still
-# benefit from read-only cache access via the `cachix use` substituter.
+# On Linux the nix builds are offloaded to https://nixbuild.net (a remote
+# Nix builder optimised for Nix), so the GitHub runner itself does almost no
+# work and we can run on the small/free GitHub runners. Each derivation gets its
+# own nixbuild.net machine (up to 16 CPUs) instead of sharing the CPUs of one
+# big GitHub runner — this is both faster and cheaper.
+#
+# macOS builds run locally (nixbuild.net has no macOS support).
+#
+# Fork PRs cannot read repository secrets, so `nixbuild_token` is empty for
+# them. In that case the Linux path also falls back to a local build, exactly
+# like macOS, so fork CI keeps working (just without the remote-build speedup).
 
 name: Test Blueprint
-description: Runs Motoko tests using nix and cachix
+description: Runs Motoko tests using nix, offloading Linux builds to nixbuild.net
 
 inputs:
   os:
     required: true
-    description: "OS to run tests on (ubuntu-latest, macos-15-intel, ubuntu-24.04-arm, macos-latest)"
+    description: "OS to run tests on (ubuntu-latest, ubuntu-24.04-arm, macos-latest, ...)"
   test-target:
     required: true
     description: "The test target to run (e.g. common-tests, gc-tests, release-systems-go, debug-systems-go)"
@@ -34,31 +32,72 @@ inputs:
     required: false
     default: ''
     description: "Cachix authentication token (optional; fork PRs run without push)"
+  nixbuild_token:
+    required: false
+    default: ''
+    description: "nixbuild.net authentication token. When empty (e.g. fork PRs) the build runs locally instead of on nixbuild.net."
   max-jobs:
     required: false
     default: 'auto'
-    description: "Value passed to `nix-build-uncached --max-jobs`. Defaults to `auto` (one job per host CPU). Lower (e.g. `1`) on memory-constrained runners where parallel ~3 GB derivation builds OOM the runner — see `gc-tests` on `arm64-linux-16`."
+    description: "Value passed to `nix-build-uncached --max-jobs` for the local build path (macOS and fork PRs). Lower (e.g. `1`) on memory-constrained runners where parallel ~3 GB derivation builds OOM."
 
 runs:
   using: "composite"
   steps:
-    - name: Free Disk Space (Ubuntu)
-      if: inputs.os == 'ubuntu-latest' || inputs.os == 'ubuntu-24.04-arm'
+    # Decide once whether this run can offload to nixbuild.net: only Linux jobs
+    # that have a token (i.e. not fork PRs).
+    - name: Select build backend
+      id: backend
+      shell: bash
+      env:
+        OS: ${{ inputs.os }}
+        NIXBUILD_TOKEN: ${{ inputs.nixbuild_token }}
+      run: |
+        if [[ "$OS" == ubuntu-* && -n "$NIXBUILD_TOKEN" ]]; then
+          echo "remote=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "remote=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    # Local Linux builds (fork PRs) need the extra runner disk space; remote
+    # builds and macOS do not.
+    - name: Free Disk Space (Ubuntu, local fallback)
+      if: startsWith(inputs.os, 'ubuntu-') && steps.backend.outputs.remote == 'false'
       uses: jlumbroso/free-disk-space@main
       with:
         swap-storage: false
 
-    - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
+    - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+
+    - name: Set up nixbuild.net remote builder
+      if: steps.backend.outputs.remote == 'true'
+      uses: nixbuild/nixbuild-action@edba7779b0a251b622d4250d263540f50c0f1a0b # v25
+      with:
+        nixbuild_token: ${{ inputs.nixbuild_token }}
+        generate_summary_for: 'workflow'
 
     - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
       with:
         name: ic-hs-test
         authToken: ${{ inputs.cachix-auth-token }}
 
-    - run: nix profile install .#nix-build-uncached
+    # Remote path: Linux jobs with a token build on nixbuild.net.
+    - name: "Run ${{ inputs.test-name }} on nixbuild.net"
+      if: steps.backend.outputs.remote == 'true'
       shell: bash
+      run: ${{ github.workspace }}/nixbuild.sh '.#${{ inputs.test-target }}'
 
-    - name: "Run ${{ inputs.test-name }}"
+    # Local path: macOS, plus Linux fork PRs without a token.
+    - name: Install nix-build-uncached
+      if: steps.backend.outputs.remote == 'false'
+      shell: bash
+      run: nix profile install .#nix-build-uncached
+
+    - name: "Run ${{ inputs.test-name }} locally"
+      if: steps.backend.outputs.remote == 'false'
+      shell: bash
+      env:
+        CACHIX_AUTH_TOKEN: ${{ inputs.cachix-auth-token }}
       run: |
         prefix=()
         if [ -n "$CACHIX_AUTH_TOKEN" ]; then
@@ -67,6 +106,3 @@ runs:
         "${prefix[@]}" \
         nix-build-uncached -build-flags "--max-jobs ${{ inputs.max-jobs }}" \
         -E '(builtins.getFlake (toString ./.)).packages.${builtins.currentSystem}.${{ inputs.test-target }}'
-      shell: bash
-      env:
-        CACHIX_AUTH_TOKEN: ${{ inputs.cachix-auth-token }}

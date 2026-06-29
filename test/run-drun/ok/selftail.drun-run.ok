@@ -2,4 +2,4 @@ ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a000000000000000001
 debug.print: ok1
 debug.print: ok2
 ingress Err: IC0502: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister trapped: stack overflow.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped
