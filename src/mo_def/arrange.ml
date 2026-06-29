@@ -298,8 +298,8 @@ module Make (Cfg : Config) = struct
         obj_sort s;
         id i
       ] @ List.map dec_field dfs)
-    | MixinD (_, dfs) -> "MixinD" $$ List.map dec_field dfs
-    | IncludeD (i, e, _) -> "IncludeD" $$ [id i; exp e]))
+    | MixinD (sys, p, dfs) -> "MixinD" $$ (if sys then [Atom "system"] else []) @ [pat p] @ List.map dec_field dfs
+    | IncludeD (i, sys, e, _) -> "IncludeD" $$ (if sys then [Atom "system"] else []) @ [id i; exp e]))
 
   and prog p = "Prog" $$ List.map dec p.it
 end

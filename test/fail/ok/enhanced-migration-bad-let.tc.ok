@@ -1,14 +1,7 @@
-enhanced-migration-bad-let.mo:11.7-11.8: warning [M0145], this pattern of type
-  Int
-does not cover value
-  0 or -1 or _
 enhanced-migration-bad-let.mo:9.3-9.24: type error [M0258], this uninitialized `let` can only use a simple identifier pattern `let <id> : <typ>`
-enhanced-migration-bad-let.mo:11.3-11.14: type error [M0258], this uninitialized `let` can only use a simple identifier pattern `let <id> : <typ>`
-enhanced-migration-bad-let.mo:13.3-13.14: type error [M0259], this uninitialized declaration requires a type annotation
-enhanced-migration-bad-let.mo:11.7-11.8: type error [M0015], only trivial patterns allowed in static expressions
+enhanced-migration-bad-let.mo:11.3-11.14: type error [M0259], this uninitialized declaration requires a type annotation
 enhanced-migration-bad-let.mo:9.3-9.24: type error [M0133], misplaced implicit stability modifier: allowed on var or simple let declarations only
-enhanced-migration-bad-let.mo:11.3-11.14: type error [M0133], misplaced implicit stability modifier: allowed on var or simple let declarations only
-enhanced-migration-bad-let.mo:5.1-15.2: Compatibility error [M0170], the new type of stable variable `untyped` is not compatible with version `m1`.
+enhanced-migration-bad-let.mo:5.1-13.2: Compatibility error [M0170], the new type of stable variable `untyped` is not compatible with version `m1`.
  The previous type
   ()
  is not a subtype of
@@ -19,4 +12,4 @@ enhanced-migration-bad-let.mo:5.1-15.2: Compatibility error [M0170], the new typ
   None
  in `untyped`.
  Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
-enhanced-migration-bad-let.mo:5.1-15.2: Compatibility error [M0169], the stable variable `y` of version `m1` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function
+enhanced-migration-bad-let.mo:5.1-13.2: Compatibility error [M0169], the stable variable `y` of version `m1` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function

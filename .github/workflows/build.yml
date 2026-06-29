@@ -14,15 +14,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-    - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+    - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+    - if: ${{ startsWith(matrix.os, 'ubuntu-') }}
+      uses: nixbuild/nixbuild-action@edba7779b0a251b622d4250d263540f50c0f1a0b # v25
+      with:
+        nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
+        generate_summary_for: 'workflow'
     - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
       with:
         name: ic-hs-test
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
     - name: nix-build
+      shell: bash
       run: |
         cachix watch-exec ic-hs-test -- \
-          nix build --max-jobs auto -L \
+          ${{ github.workspace }}/nixbuild.sh -L \
             .#release.moc \
             .#release.mo-doc \
             .#js.moc \
@@ -30,7 +36,7 @@ jobs:
 
         echo "## checks"
         uname -s -m
-        moc="$(nix build --max-jobs auto .#release.moc --print-out-paths)"
+        moc="$(${{ github.workspace }}/nixbuildcopy.sh .#release.moc)"
         "$moc/bin/moc" --version
         file "$moc/bin/moc"
         ldd "$moc/bin/moc" || true

@@ -1,17 +1,15 @@
 //! Per-test mode inference for test-runner.
 //!
-//! Two orthogonal mode axes are tracked:
+//! One mode axis is tracked:
 //!
 //! * **Persistence** (`Mode`): Classical vs EOP. Unmarked tests run in both.
 //!   Markers: `ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY` / `CLASSICAL-PERSISTENCE-ONLY`.
 //!
-//! * **Multi-value** (`MvMode`): FakeMV (Globals-stash emulation,
-//!   `--no-experimental-multi-value`) vs WasmMV (real Wasm multi-value,
-//!   `--experimental-multi-value`). Unmarked tests run in both.
-//!   Markers: `WASM-MULTI-VALUE-ONLY` / `FAKE-MULTI-VALUE-ONLY`.
+//! `infer_modes` returns a `Vec` of applicable values.
 //!
-//! `infer_modes` / `infer_mv_modes` each return a `Vec` of applicable values;
-//! callers take the cartesian product.
+//! (A second axis — multi-value codegen — lived here until it became the
+//! compiler default; the same shape will return as `TcMode` for the upcoming
+//! `--experimental-tailcalls` bifurcation.)
 
 use std::collections::HashSet;
 use std::fs;
@@ -114,87 +112,6 @@ fn scan_markers(content: &str) -> (bool, bool) {
         }
     }
     (eop, classical)
-}
-
-// ---------------------------------------------------------------------------
-// Multi-value axis
-// ---------------------------------------------------------------------------
-
-/// Which Wasm multi-value strategy to use.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MvMode {
-    /// `FakeMultiVal` globals-stash emulation (`--no-experimental-multi-value`).
-    FakeMV,
-    /// Real Wasm multi-value extension (`--experimental-multi-value`).
-    WasmMV,
-}
-
-impl MvMode {
-    pub fn label(&self) -> &'static str {
-        match self {
-            MvMode::FakeMV => "fake-mv",
-            MvMode::WasmMV => "wasm-mv",
-        }
-    }
-
-    /// Flags appended to `EXTRA_MOC_ARGS` for this MV mode.
-    pub fn extra_moc_args(&self) -> &'static str {
-        match self {
-            MvMode::FakeMV => "--no-experimental-multi-value",
-            MvMode::WasmMV => "--experimental-multi-value",
-        }
-    }
-}
-
-/// Infer applicable MV modes from a test file. Analogous to `infer_modes`.
-/// For `.drun` files, marker on the `.drun` wins over referenced `.mo` files.
-pub fn infer_mv_modes(path: &Path) -> Vec<MvMode> {
-    let Ok(content) = fs::read_to_string(path) else {
-        return vec![MvMode::FakeMV, MvMode::WasmMV];
-    };
-
-    let (mut wasm_mv, mut fake_mv) = scan_mv_markers(&content);
-    let is_drun = path.extension().and_then(|e| e.to_str()) == Some("drun");
-    if is_drun && !wasm_mv && !fake_mv {
-        for mo in referenced_mo_files(path, &content) {
-            if let Ok(c) = fs::read_to_string(&mo) {
-                let (w, f) = scan_mv_markers(&c);
-                wasm_mv |= w;
-                fake_mv |= f;
-            }
-        }
-    }
-
-    match (wasm_mv, fake_mv) {
-        (true, false) => vec![MvMode::WasmMV],
-        (false, true) => vec![MvMode::FakeMV],
-        (w, _) => {
-            if w {
-                eprintln!(
-                    "test-runner: {} has conflicting multi-value markers; running in both MV modes",
-                    path.display()
-                );
-            }
-            vec![MvMode::FakeMV, MvMode::WasmMV]
-        }
-    }
-}
-
-/// Single-pass scan returning (force_wasm_mv, force_fake_mv).
-fn scan_mv_markers(content: &str) -> (bool, bool) {
-    let (mut wasm_mv, mut fake_mv) = (false, false);
-    for line in content.lines() {
-        wasm_mv |= line.contains("WASM-MULTI-VALUE-ONLY");
-        fake_mv |= line.contains("FAKE-MULTI-VALUE-ONLY");
-        let Some(rest) = line.trim_start().strip_prefix("//MOC-FLAG") else {
-            continue;
-        };
-        for f in rest.split_whitespace() {
-            wasm_mv |= f == "--experimental-multi-value";
-            fake_mv |= f == "--no-experimental-multi-value";
-        }
-    }
-    (wasm_mv, fake_mv)
 }
 
 #[cfg(test)]
@@ -313,42 +230,4 @@ mod tests {
         assert_eq!(infer_modes(&PathBuf::from("/nonexistent.mo")), vec![C, E]);
     }
 
-    // MvMode tests
-
-    fn mv_modes_of(name: &str, contents: &str) -> Vec<MvMode> {
-        infer_mv_modes(&write_tmp(name, contents))
-    }
-
-    const F: MvMode = MvMode::FakeMV;
-    const W: MvMode = MvMode::WasmMV;
-
-    #[test]
-    fn unmarked_mo_runs_both_mv_modes() {
-        assert_eq!(mv_modes_of("plain.mo", "actor {}\n"), vec![F, W]);
-    }
-
-    #[test]
-    fn wasm_mv_only_marker_mo() {
-        assert_eq!(mv_modes_of("wmv.mo", "//WASM-MULTI-VALUE-ONLY\n"), vec![W]);
-    }
-
-    #[test]
-    fn fake_mv_only_marker_mo() {
-        assert_eq!(mv_modes_of("fmv.mo", "//FAKE-MULTI-VALUE-ONLY\n"), vec![F]);
-    }
-
-    #[test]
-    fn moc_flag_experimental_mv_implies_wasm_mv() {
-        assert_eq!(mv_modes_of("mv1.mo", "//MOC-FLAG --experimental-multi-value\n"), vec![W]);
-    }
-
-    #[test]
-    fn moc_flag_no_experimental_mv_implies_fake_mv() {
-        assert_eq!(mv_modes_of("mv2.mo", "//MOC-FLAG --no-experimental-multi-value\n"), vec![F]);
-    }
-
-    #[test]
-    fn nonexistent_file_defaults_to_both_mv_modes() {
-        assert_eq!(infer_mv_modes(&PathBuf::from("/nonexistent.mo")), vec![F, W]);
-    }
 }

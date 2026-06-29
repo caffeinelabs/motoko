@@ -940,6 +940,13 @@ let encode (em : extended_module) =
       let text = String.concat "," wasm_features in
       custom_section "wasm_features" utf8 text (text <> "")
 
+    (* Standardized `target_features` section, cf.
+       https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#target-features-section
+       Each entry is prefixed with '+' (0x2b), marking the feature as used. *)
+    let target_features_section features =
+      custom_section "target_features"
+        (vec (fun feat -> u8 0x2b; string feat)) features (features <> [])
+
     let uleb128 n = vu64 (Int64.of_int n)
     let sleb128 n = vs64 (Int64.of_int n)
     let close_section () = u8 0x00
@@ -1311,6 +1318,7 @@ let encode (em : extended_module) =
       motoko_sections em.motoko;
       enhanced_orthogonal_persistence_section em.enhanced_orthogonal_persistence;
       wasm_features_section em.wasm_features;
+      target_features_section em.target_features;
       source_mapping_url_section em.source_mapping_url;
       if !Mo_config.Flags.debug_info then
         begin
