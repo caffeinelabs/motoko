@@ -2,7 +2,30 @@
 
 * motoko (`moc`)
 
-  * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
+  * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
+    `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
+
+## 1.11.0 (2026-06-29)
+
+* motoko (`moc`)
+
+  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so `binaryen`-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
+
+  * feat: a `Float32` literal written with more precision than the type can hold now warns (M0266), suggesting the shortest equivalent — e.g. `0.123456789 : Float32` → `0.12345679`. The surplus digits were already silently discarded by rounding; the warning fires only on genuine excess (minimal literals like `0.1`/`3.14` stay quiet) (#6198).
+
+  * feat: allow requiring `system` capability for `mixin` definitions (#6211).
+    This makes the capability available in initializers and the `mixin` body.
+    `<system>` then needs to appear on the corresponding `include`.
+
+  * feat: allow effectful code in transient `let`s and in `actor`/`mixin` bodies with `--enhanced-migration` (#6191).
+
+  * bugfix: `--enhanced-migration` now also applies to `mixin`s and considers their stable fields when checking migrations (#6183).
+
+## 1.10.1 (2026-06-24)
+
+* motoko (`moc`)
+
+  * bugfix: M0223 ("redundant type instantiation") and M0237 ("implicit argument can be omitted") no longer emit suggestions that are individually valid but break compilation when applied together. In nested calls where an inner instantiation or implicit is only inferable thanks to an outer one (e.g. `List.fromArray(Array.tabulate(...))`), only a jointly-applicable subset is now suggested, so `mops check --fix` no longer rewrites the code into an M0098 type error. The check is conservative: a few genuinely-redundant cases may go unreported in exchange for soundness (#6209).
 
 ## 1.10.0 (2026-06-19)
 

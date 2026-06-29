@@ -736,7 +736,7 @@ and export_view viewer_opt =
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
   | S.TypD _ -> []
   | S.MixinD _ -> assert false
-  | S.IncludeD(_, arg, note) ->
+  | S.IncludeD(_, _, arg, note) ->
     (* TODO: This is ugly. It would be a lot nicer if we didn't have to split
        the desugaring and stability declarations *)
     (* Order must match the IR produced by `dec'` for IncludeD:
@@ -1262,7 +1262,7 @@ and dec' d =
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
   | S.MixinD _ -> []
-  | S.IncludeD(_, args, note) ->
+  | S.IncludeD(_, _, args, note) ->
     let { imports = is; pat = p; decs } = Option.get !note in
     let ir_imports = List.concat_map transform_import is in
     let renamed_imports, rho = Rename.decs Rename.Renaming.empty ir_imports in

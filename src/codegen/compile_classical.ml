@@ -13732,6 +13732,12 @@ and conclude_module env set_serialization_globals start_fi_o =
       };
       source_mapping_url = None;
       wasm_features = E.get_features env;
+      (* See `compile_enhanced.ml` for rationale. Classical persistence uses a
+         32-bit main memory, so no `memory64`. *)
+      target_features =
+        [ "bulk-memory"; "bulk-memory-opt"; "nontrapping-fptoint"; "sign-ext" ]
+        @ (if !Flags.multi_value then ["multivalue"] else [])
+        @ (if List.mem "multi-memory" (E.get_features env) then ["multimemory"] else []);
     } in
 
   match E.get_rts env with

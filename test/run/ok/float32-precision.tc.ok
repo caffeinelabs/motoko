@@ -1,0 +1,1 @@
+float32-precision.mo:3.24-3.35: warning [M0266], literal 0.123456789 has more precision than Float32 can represent; it rounds to 0.12345679 (the surplus digits are discarded)

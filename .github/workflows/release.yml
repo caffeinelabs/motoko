@@ -89,25 +89,34 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - if: ${{ startsWith(matrix.os, 'ubuntu-') }}
+        uses: nixbuild/nixbuild-action@edba7779b0a251b622d4250d263540f50c0f1a0b # v25
+        with:
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
+          generate_summary_for: 'workflow'
       - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: ic-hs-test
           # NB: No auth token, we don't expect to push new stuff here
 
       - name: Build platform-specific release files
-        run: nix build --max-jobs 1 '.#"release-files-${{ matrix.os }}"'
+        shell: bash
+        run: |
+          release_files="$(${{ github.workspace }}/nixbuildcopy.sh '.#"release-files-${{ matrix.os }}"')"
+          echo "UPLOAD_PATH=$release_files" >> $GITHUB_ENV
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-files-${{ matrix.os }}
-          path: result/*
+          path: ${{ env.UPLOAD_PATH }}/*
 
       - name: Test release files
+        shell: bash
         run: |
           uname -s -m
-          moc="$(nix build --max-jobs 1 .#release.moc --print-out-paths)"
+          moc="$(${{ github.workspace }}/nixbuildcopy.sh .#release.moc)"
           "$moc/bin/moc" --version
           file "$moc/bin/moc"
           ldd "$moc/bin/moc" || true

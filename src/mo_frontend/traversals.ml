@@ -78,9 +78,9 @@ and over_dec (f : exp -> exp) (d : dec) : dec = match d.it with
      { d with it = LetD (x, over_exp f e, Option.map (over_exp f) fail)}
   | ClassD (e_o, sp, s, cid, tbs, p, t_o, id, dfs) ->
      { d with it = ClassD (Option.map (over_exp f) e_o, sp, s, cid, tbs, p, t_o, id, List.map (over_dec_field f) dfs)}
-  | MixinD (p, dfs) ->
-     { d with it = MixinD (p, List.map (over_dec_field f) dfs)}
-  | IncludeD (id, e, n) -> { d with it = IncludeD(id, over_exp f e, n) }
+  | MixinD (sys, p, dfs) ->
+     { d with it = MixinD (sys, p, List.map (over_dec_field f) dfs)}
+  | IncludeD (id, sys, e, n) -> { d with it = IncludeD(id, sys, over_exp f e, n) }
 
 and over_dec_field (f : exp -> exp) (df : dec_field) : dec_field =
   { df with it = { df.it with dec = over_dec f df.it.dec } }
