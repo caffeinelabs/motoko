@@ -213,6 +213,7 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_obj_body) -> "<obj_body>", "{}"
   | X (N N_option_EQ_) -> "=?", "=?"
   | X (N N_option_exp_nullary_ob__) -> "<exp_nullary(ob)>?", eg_exp
+  | X (N N_option_preceded_EQ_exp_nullary_ob___) -> "(= <exp_nullary(ob)>)?", "= " ^ eg_exp
   | X (N N_option_typ_args_) -> "<typ_args>?", eg_typ_args
   | X (N N_option_query_) -> "<query>?", "query"
   | X (N N_option_id_) -> "<id>?", "x"

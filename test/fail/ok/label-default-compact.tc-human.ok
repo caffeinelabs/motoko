@@ -1,0 +1,24 @@
+error[M0050]: literal of type
+  Bool
+does not have expected type
+  ()
+    ┌─ label-default-compact.mo:8:55
+  8 │      for (x in xs.vals()) { if (x == target) break hit true }
+    │                                                        ^^^^ 
+error[M0050]: literal of type
+  Bool
+does not have expected type
+  ()
+    ┌─ label-default-compact.mo:7:15
+  7 │    label hit = false
+    │                ^^^^^ 
+error[M0096]: expression of type
+  ()
+cannot produce expected type
+  Bool
+    ┌─ label-default-compact.mo:7:3
+  6 │    func d(xs : [Nat], target : Nat) : Bool {
+  7 │ ╭    label hit = false
+  8 │ │      for (x in xs.vals()) { if (x == target) break hit true }
+    │ ╰─────────────────────────────────────────────────────────────^ 
+  9 │    };

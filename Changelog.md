@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * feat: `label` with a (lazily evaluated) fallthrough default — `label x [: T] = <dflt> ...` (#6163).
+
   * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
     `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
 

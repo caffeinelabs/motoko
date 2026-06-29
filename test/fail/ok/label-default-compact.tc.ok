@@ -1,0 +1,12 @@
+label-default-compact.mo:8.55-8.59: type error [M0050], literal of type
+  Bool
+does not have expected type
+  ()
+label-default-compact.mo:7.15-7.20: type error [M0050], literal of type
+  Bool
+does not have expected type
+  ()
+label-default-compact.mo:7.3-8.61: type error [M0096], expression of type
+  ()
+cannot produce expected type
+  Bool
