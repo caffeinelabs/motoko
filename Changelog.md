@@ -4,11 +4,11 @@
 
 * motoko (`moc`)
 
-  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so Binaryen-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
+  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so `binaryen`-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
 
   * feat: a `Float32` literal written with more precision than the type can hold now warns (M0266), suggesting the shortest equivalent — e.g. `0.123456789 : Float32` → `0.12345679`. The surplus digits were already silently discarded by rounding; the warning fires only on genuine excess (minimal literals like `0.1`/`3.14` stay quiet) (#6198).
 
-  * feat: allow requiring `system` capability for mixin definitions (#6211).
+  * feat: allow requiring `system` capability for `mixin` definitions (#6211).
     This makes the capability available in initializers and the `mixin` body.
     `<system>` then needs to appear on the corresponding include.
 
