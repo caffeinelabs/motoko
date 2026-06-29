@@ -1,34 +1,15 @@
-warning[M0145]: this pattern of type
-  Int
-does not cover value
-  0 or -1 or _
-    ┌─ enhanced-migration-bad-let.mo:11:7
- 11 │    let 1 : Int; // reject
-    │        ^ 
 error[M0258]: this uninitialized `let` can only use a simple identifier pattern `let <id> : <typ>`
     ┌─ enhanced-migration-bad-let.mo:9:3
   9 │    let (y,_) : (Int,Int); // reject
     │    ^^^^^^^^^^^^^^^^^^^^^ 
-error[M0258]: this uninitialized `let` can only use a simple identifier pattern `let <id> : <typ>`
-    ┌─ enhanced-migration-bad-let.mo:11:3
- 11 │    let 1 : Int; // reject
-    │    ^^^^^^^^^^^ 
 error[M0259]: this uninitialized declaration requires a type annotation
-    ┌─ enhanced-migration-bad-let.mo:13:3
- 13 │    let untyped; // reject, no annotation
+    ┌─ enhanced-migration-bad-let.mo:11:3
+ 11 │    let untyped; // reject, no annotation
     │    ^^^^^^^^^^^ 
-error[M0015]: only trivial patterns allowed in static expressions
-    ┌─ enhanced-migration-bad-let.mo:11:7
- 11 │    let 1 : Int; // reject
-    │        ^ 
 error[M0133]: misplaced implicit stability modifier: allowed on var or simple let declarations only
     ┌─ enhanced-migration-bad-let.mo:9:3
   9 │    let (y,_) : (Int,Int); // reject
     │    ^^^^^^^^^^^^^^^^^^^^^ 
-error[M0133]: misplaced implicit stability modifier: allowed on var or simple let declarations only
-    ┌─ enhanced-migration-bad-let.mo:11:3
- 11 │    let 1 : Int; // reject
-    │    ^^^^^^^^^^^ 
 error[M0170]: the new type of stable variable `untyped` is not compatible with version `m1`.
  The previous type
   ()
@@ -45,17 +26,17 @@ error[M0170]: the new type of stable variable `untyped` is not compatible with v
   5 │ ╭  actor {
   6 │ │  
     · │  
- 14 │ │  
- 15 │ │  }
+ 12 │ │  
+ 13 │ │  }
     │ ╰──^ 
- 16 │    
+ 14 │    
 error[M0169]: the stable variable `y` of version `m1` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function
     ┌─ enhanced-migration-bad-let.mo:5:1
   4 │    // uninitialized lets must have <id> : <typ>
   5 │ ╭  actor {
   6 │ │  
     · │  
- 14 │ │  
- 15 │ │  }
+ 12 │ │  
+ 13 │ │  }
     │ ╰──^ 
- 16 │    
+ 14 │    
