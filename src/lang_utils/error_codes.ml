@@ -268,7 +268,7 @@ let warning_codes = [
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
   "M0254", None, "Initial actor requires field";
-  "M0265", None, "system capability not required by this mixin";
+  "M0265", None, "The `system` capability is not required by this mixin";
   "M0266", None, "Float32 literal has more precision than Float32 can represent"
   ]
 

@@ -5029,7 +5029,7 @@ and infer_dec env dec : T.typ =
       | Some mix ->
         match (mix.Scope.need_system, sys) with
         | true, false -> local_error env i.at "M0264" "mixin include requires system capability";
-        | false, true -> warn env i.at "M0265" "system capability not required by this mixin"
+        | false, true -> warn env i.at "M0265" "`system` capability is not required by this mixin"
         | _ -> ();
         check_exp env mix.Scope.arg.note arg
     end;
