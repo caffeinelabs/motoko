@@ -10,7 +10,7 @@
 
   * feat: allow requiring `system` capability for `mixin` definitions (#6211).
     This makes the capability available in initializers and the `mixin` body.
-    `<system>` then needs to appear on the corresponding include.
+    `<system>` then needs to appear on the corresponding `include`.
 
   * feat: allow effectful code in transient `let`s and in `actor`/`mixin` bodies with `--enhanced-migration` (#6191).
 
