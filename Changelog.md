@@ -9,11 +9,12 @@
   * feat: a `Float32` literal written with more precision than the type can hold now warns (M0266), suggesting the shortest equivalent — e.g. `0.123456789 : Float32` → `0.12345679`. The surplus digits were already silently discarded by rounding; the warning fires only on genuine excess (minimal literals like `0.1`/`3.14` stay quiet) (#6198).
 
   * feat: allow requiring `system` capability for mixin definitions (#6211).
-    This makes the capability available in initializers and the mixin body.  `<system>` then needs to be on the corresponding include.
+    This makes the capability available in initializers and the `mixin` body.
+    `<system>` then needs to appear on the corresponding include.
 
   * feat: allow effectful code in transient `let`s and in `actor`/`mixin` bodies with `--enhanced-migration` (#6191).
 
-  * bugfix: `--enhanced-migration` now also applies to mixins and considers their stable fields when checking migrations (#6183).
+  * bugfix: `--enhanced-migration` now also applies to `mixin`s and considers their stable fields when checking migrations (#6183).
 
 ## 1.10.1 (2026-06-24)
 
