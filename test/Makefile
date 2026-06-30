@@ -25,9 +25,15 @@ cov_target = $(if $(filter run-drun,$1),parallel,$(if $(filter cmp,$1),all,quick
 # is no oversubscription however many dirs run at once. Instrumented binaries
 # append a unique suffix per process to $BISECT_FILE, so the whole suite can
 # write into a single _coverage dir concurrently.
+# --all-modes compiles every unmarked test in BOTH persistence modes (classical
+# *and* enhanced). Without it, the harness default (--legacy-persistence) runs
+# single-pass classical, leaving compile_enhanced.ml largely uncovered. The
+# run-test recipes append $(EXTRA_RUNFLAGS) only for .mo/.drun (moc codegen);
+# the ~2x comp work is what the parallel run above is here to absorb.
 coverage: export BISECT_FILE := $(CURDIR)/_coverage/bisect
 coverage: export SKIP_RUNNING := yes
 coverage: export SKIP_VALIDATE := yes
+coverage: export EXTRA_RUNFLAGS := --all-modes
 coverage: $(TEST_DIRS:%=cov-%)
 	bisect-ppx-report html --coverage-path=_coverage $(foreach dir,$(SOURCE_PATHS),--source-path=$(dir) --source-path=$(dir)/_build/default/) -o coverage
 	rm -rf _coverage
