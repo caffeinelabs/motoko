@@ -12,15 +12,33 @@ all:
 quick:
 	$(foreach test_dir,$(QUICK_DIRS),$(MAKE_PAR) -C $(test_dir) quick &&) true
 
-coverage:
-	rm -rf _coverage
-	mkdir _coverage
-	export BISECT_FILE=$$PWD/_coverage/bisect \
-	       SKIP_RUNNING=yes \
-	       SKIP_VALIDATE=yes; \
-	$(foreach test_dir,$(TEST_DIRS),make -C $(test_dir) &&) true
+# Most-complete *parallel* per-file target each dir exposes, for coverage runs:
+#  - run-drun's `quick` (from quick.mk) silently omits *.drun, so it needs its
+#    own `parallel` target to keep the actor/upgrade/migration coverage;
+#  - cmp has no per-file rule for *.cmp, so it falls back to the (tiny) serial
+#    `all`;
+#  - every other dir's `quick` covers its whole glob, file by file.
+cov_target = $(if $(filter run-drun,$1),parallel,$(if $(filter cmp,$1),all,quick))
+
+# Run under `make -jN`: GNU make's jobserver bounds the *total* number of
+# concurrent tests (across dirs and across files within a dir) at N, so there
+# is no oversubscription however many dirs run at once. Instrumented binaries
+# append a unique suffix per process to $BISECT_FILE, so the whole suite can
+# write into a single _coverage dir concurrently.
+coverage: export BISECT_FILE := $(CURDIR)/_coverage/bisect
+coverage: export SKIP_RUNNING := yes
+coverage: export SKIP_VALIDATE := yes
+coverage: $(TEST_DIRS:%=cov-%)
 	bisect-ppx-report html --coverage-path=_coverage $(foreach dir,$(SOURCE_PATHS),--source-path=$(dir) --source-path=$(dir)/_build/default/) -o coverage
 	rm -rf _coverage
+
+.PHONY: coverage coverage-prep $(TEST_DIRS:%=cov-%)
+coverage-prep:
+	rm -rf _coverage coverage
+	mkdir _coverage
+
+$(TEST_DIRS:%=cov-%): cov-%: | coverage-prep
+	$(MAKE) -C $* $(call cov_target,$*)
 
 parallel:
 	$(foreach test_dir,$(TEST_DIRS),$(MAKE_PAR) -C $(test_dir) quick &&) true
