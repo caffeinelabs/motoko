@@ -1288,6 +1288,11 @@ let rec rel_typ d rel eq t1 t2 =
     (s1 = s2 || incompatible_obj_sorts d s1 s2) &&
     rel_fields t1 t2 d rel eq fs1 fs2 &&
     rel_typ_fields t1 t2 d rel eq tfs1 tfs2
+  | Obj (Actor, _, _), Prim Principal when rel != eq ->
+    (* An actor reference upcasts to its canister-id principal. Coercion-free:
+       both are the same Vanilla tagged blob, differing only by heap tag.
+       One-directional — Principal ⊀ actor keeps the downcast explicit. *)
+    true
   | Array t1', Array t2' ->
     rel_typ d rel eq t1' t2'
   | Opt t1', Opt t2' ->
@@ -1653,6 +1658,10 @@ let rec combine rel lubs glbs t1 t2 =
     | Obj (s1, fs1, tfs1), Obj (s2, fs2, tfs2) when s1 = s2 ->
       (try Obj (s1, combine_fields rel lubs glbs fs1 fs2, combine_typ_fields rel lubs glbs tfs1 tfs2)
       with Mismatch -> assert (rel == glbs); Non)
+    | Obj (Actor, _, _), Prim Principal ->
+      if rel == lubs then t2 else t1
+    | Prim Principal, Obj (Actor, _, _) ->
+      if rel == lubs then t1 else t2
     | Func (s1, c1, bs1, ts11, ts12), Func (s2, c2, bs2, ts21, ts22) when
         s1 = s2 && c1 = c2 && eq_binds bs1 bs2 &&
         List.(length ts11 = length ts21 && length ts12 = length ts22) ->
