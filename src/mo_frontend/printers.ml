@@ -211,6 +211,11 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_lit) -> "<lit>", "true"
   | X (N N_ob) -> "<ob>", eg_exp_obj
   | X (N N_obj_body) -> "<obj_body>", "{}"
+  | X (N N_obj_body_ac) -> "<obj_body_ac>", "{}"
+  | X (N N_dec_pub) -> "<dec_pub>", eg_dec
+  | X (N N_dec_field_ac) -> "<dec_field_ac>", eg_dec_field
+  | X (N N_seplist_dec_field_ac_semicolon_) -> seplist ("<dec_field_ac>", eg_dec_field) semi
+  | X (N N_option_parenthetical_) -> "<parenthetical>?", "(with encoder)"
   | X (N N_option_EQ_) -> "=?", "=?"
   | X (N N_option_exp_nullary_ob__) -> "<exp_nullary(ob)>?", eg_exp
   | X (N N_option_typ_args_) -> "<typ_args>?", eg_typ_args
