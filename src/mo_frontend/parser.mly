@@ -314,6 +314,9 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.dec> dec imp dec_var dec_nonvar
 %type<Mo_def.Syntax.exp_field> exp_field
 %type<Mo_def.Syntax.dec_field> dec_field
+%type<Mo_def.Syntax.dec_field> dec_field_ac
+%type<Mo_def.Syntax.dec> dec_func
+%type<Mo_def.Syntax.dec_field list> obj_body_ac
 %type<Mo_def.Syntax.id * Mo_def.Syntax.dec_field list> class_body
 %type<Mo_def.Syntax.case> catch case
 %type<Mo_def.Syntax.exp> bl ob
@@ -891,6 +894,31 @@ vis :
     Public depr @@ at }
   | SYSTEM { System @@ at $sloc }
 
+(* PROTOTYPE: actor-context field. `vis` owns the continuation: for a *public*
+   field the continuation is func-only (dec_func), so `public (` is unambiguously
+   the encoder parenthetical -- there is no bare-LPAR dec to reduce into. *)
+dec_field_ac :
+  | s=stab d=dec
+    { {dec = d; vis = Private @@ no_region; stab = s} @@ at $sloc }
+  | PRIVATE s=stab d=dec
+    { {dec = d; vis = Private @@ at $sloc; stab = s} @@ at $sloc }
+  | SYSTEM s=stab d=dec
+    { {dec = d; vis = System @@ at $sloc; stab = s} @@ at $sloc }
+  | PUBLIC parenthetical? s=stab d=dec_func
+    { let trivia = Trivia.find_trivia !triv_table (at $sloc) in
+      let depr = Trivia.deprecated_of_trivia_info trivia in
+      {dec = d; vis = Public depr @@ at $sloc; stab = s} @@ at $sloc }
+
+dec_func :
+  | sp=shared_pat_opt FUNC xf_tps_p=func_pat t=annot_opt fb=func_body
+    { let xf, tps, p = xf_tps_p in
+      let named, x = xf "func" $sloc in
+      let is_sugar, e = desugar_func_body sp x t fb in
+      let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
+
+obj_body_ac :
+  | LCURLY dfs=seplist(dec_field_ac, semicolon) RCURLY { dfs }
+
 stab :
   | (* empty *) { None }
   | FLEXIBLE { Some (Flexible @@ at $sloc) }
@@ -1002,7 +1030,7 @@ dec_nonvar :
       let is_sugar, e = desugar_func_body sp x t fb in
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
-  | MIXIN system=system_opt p=pat_plain dfs=obj_body {
+  | MIXIN system=system_opt p=pat_plain dfs=obj_body_ac {
      let dfs = List.map (share_dec_field (fun () -> Stable (ref None) @@ no_region)) dfs in
      MixinD(system, p, dfs) @? at $sloc
   }
