@@ -1,0 +1,15 @@
+type-incompat-async.mo:8.34-8.62: type error [M0096], expression of type
+  () -> async Nat
+cannot produce expected type
+  shared () -> async Nat
+because of incompatible function modifiers: 
+ does not match shared 
+type-incompat-async.mo:9.35-9.36: type error [M0096], expression of type
+  shared () -> async Nat
+cannot produce expected type
+  shared () -> async Text
+because the type 
+  Nat
+ is not compatible with type 
+  Text
+ in results

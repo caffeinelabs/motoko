@@ -1,0 +1,4 @@
+type-incompatible.mo:8.17-8.25: type error [M0096], expression of type
+  Nat
+cannot produce expected type
+  Text

@@ -1,0 +1,6 @@
+// compatible_typ: Tup arm with multiple elements and Opt/Null cross-compatibility
+actor {
+  stable var pair : (Nat, Bool);
+  stable var triple : (Nat, Text, Bool);
+  stable var maybe : ?Nat;
+};

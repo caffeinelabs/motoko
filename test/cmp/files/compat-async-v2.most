@@ -1,0 +1,5 @@
+// compatible_typ: Async/Func arms — same types
+actor {
+  stable var f : shared Nat -> async Bool;
+  stable var g : shared query Nat -> async Text;
+};

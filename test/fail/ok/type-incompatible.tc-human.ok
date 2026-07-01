@@ -1,0 +1,7 @@
+error[M0096]: expression of type
+  Nat
+cannot produce expected type
+  Text
+    ┌─ type-incompatible.mo:8:17
+  8 │  let _ : Text = (42 : Nat);
+    │                  ^^^^^^^^ 

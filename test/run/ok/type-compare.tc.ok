@@ -1,0 +1,2 @@
+type-compare.mo:34.5-34.11: warning [M0194], unused identifier: `mu_nat`
+help: if this is intentional, prefix it with an underscore: `_mu_nat`

@@ -1,0 +1,18 @@
+error[M0096]: expression of type
+  (n : Nat) -> async Nat
+cannot produce expected type
+  shared Nat -> async Nat
+because of incompatible function modifiers: 
+ does not match shared 
+    ┌─ type-incompat-func.mo:6:35
+  6 │  let f : shared Nat -> async Nat = func(n : Nat) : async Nat = async n;
+    │                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+error[M0096]: expression of type
+  shared Nat -> async Nat
+cannot produce expected type
+  Nat -> async Nat
+because of incompatible function modifiers: shared 
+ does not match 
+    ┌─ type-incompat-func.mo:7:28
+  7 │  let g : Nat -> async Nat = f;  // shared <: local? No — should work only locally
+    │                             ^ 

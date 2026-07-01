@@ -1,0 +1,4 @@
+// compatible_typ: Null ↔ Opt arm (L1457)
+actor {
+  stable var x : ?Nat;
+};

@@ -1,0 +1,10 @@
+(unknown location): Compatibility error [M0170], the new type of stable variable `obj` is not compatible with the previous version.
+ The previous type
+  var {x : Nat; z : Bool}
+ is not a subtype of
+  var {x : Nat; y : Text; z : Bool}
+ because expected field `y` is missing from type 
+  {x : Nat; z : Bool}
+ of `obj`.
+ Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+FALSE

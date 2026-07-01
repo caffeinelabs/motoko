@@ -1,0 +1,12 @@
+type-incompat-func.mo:6.35-6.70: type error [M0096], expression of type
+  (n : Nat) -> async Nat
+cannot produce expected type
+  shared Nat -> async Nat
+because of incompatible function modifiers: 
+ does not match shared 
+type-incompat-func.mo:7.28-7.29: type error [M0096], expression of type
+  shared Nat -> async Nat
+cannot produce expected type
+  Nat -> async Nat
+because of incompatible function modifiers: shared 
+ does not match 
