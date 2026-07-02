@@ -1,0 +1,15 @@
+# CLASSICAL-PERSISTENCE-ONLY
+# Exercises `actor {} <: Principal` across an actor-class upgrade: a stable var
+# typed `actor {}` in v0 migrates into a `Principal`-typed var in v1.
+#
+# Classical re-serialises the stable record through Candid (stabilize/destabilize),
+# so the old `service`-encoded value reads back as a `principal` — the representation
+# coincides, so it round-trips. EOP is DELIBERATELY excluded for now: it gates the
+# upgrade with the RTS `memory_compatible` check (idl.rs, a Candid-subtyping checker
+# over the serialized type table), which lacks a `service <: principal` case and traps
+# with "Memory-incompatible program upgrade". Enable EOP once that rule lands (in
+# lockstep with the Candid spec extension) — see the PR discussion / plan item 3.
+install $ID actor-sub-principal-stable/version0.mo ""
+ingress $ID show "DIDL\x00\x00"
+upgrade $ID actor-sub-principal-stable/version1.mo ""
+ingress $ID show "DIDL\x00\x00"
