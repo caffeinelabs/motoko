@@ -44,7 +44,11 @@ coverage-prep:
 	mkdir _coverage
 
 $(TEST_DIRS:%=cov-%): cov-%: | coverage-prep
-	$(MAKE) -C $* $(call cov_target,$*)
+	# Leading `+`: force recursive-make treatment so the sub-make joins the
+	# top-level jobserver (the `$(MAKE)` string already triggers this, but `+`
+	# makes the contract explicit). No `-j` is passed inward, so total test
+	# concurrency stays bounded by the outer `-jN` — never oversubscribed.
+	+$(MAKE) -C $* $(call cov_target,$*)
 
 parallel:
 	$(foreach test_dir,$(TEST_DIRS),$(MAKE_PAR) -C $(test_dir) quick &&) true
