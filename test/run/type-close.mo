@@ -40,7 +40,7 @@ assert (box("z").value == "z");
 // Higher-order generic — nested Func in Func type body
 func twice<T>(f : T -> T, x : T) : T = f(f(x));
 assert (twice(inc, 3) == 5);
-assert (twice(func(s : Text) : Text = s # s, "ab") == "abab");
+assert (twice(func(s : Text) : Text = s # s, "ab") == "abababab");
 
 // Generic with multiple type params appearing in Func body
 func mapPair<A, B>(f : A -> B, p : (A, A)) : (B, B) =
