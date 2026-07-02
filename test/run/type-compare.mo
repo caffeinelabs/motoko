@@ -30,8 +30,8 @@ func lub_rec(b : Bool) : R1 =
 
 // Mut branch: compare_typ t1 t2 where both are Mut
 // Mut types in stable fields are what drive compatible_typ coverage
-// We use a mutable variable to exercise Mut
-var mu_nat : Nat = 0;
+// We use a mutable variable to exercise Mut (unread → `_`-prefixed)
+var _mu_nat : Nat = 0;
 
 // Named branch: compare_typ Named(n1,t1) Named(n2,t2)
 // Named types appear internally; we exercise them via imports

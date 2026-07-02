@@ -29,7 +29,7 @@ assert (makePair(true, 0.5) == (true, 0.5));
 // Generic function with Variant — subst encounters Variant
 type Result<T> = {#ok : T; #err : Text};
 func ok<T>(x : T) : Result<T> = #ok x;
-func err<T>(msg : Text) : Result<T> = #err msg;
+func _err<T>(msg : Text) : Result<T> = #err msg;
 assert (ok(42) == (#ok 42 : Result<Nat>));
 
 // Generic function with Obj — subst encounters Obj

@@ -1,2 +1,0 @@
-type-close.mo:32.6-32.9: warning [M0194], unused identifier: `err`
-help: if this is intentional, prefix it with an underscore: `_err`
