@@ -1,59 +1,45 @@
-// Exercise has_no_subtypes_or_supertypes via bi-directional type inference.
-// bi_match calls has_no_supertypes / has_no_subtypes for invariant type variables
-// constrained to (t, Any) or (Non, t).
-//
-// All fixed-width primitives (Bool, Nat8…Nat64, Int8…Int64, Float, Char, Text, Blob)
-// return true for both NoSubtypes and NoSupertypes (exact types).
+// Exercise `has_no_subtypes_or_supertypes` (type.ml) via bi_match's
+// `choose_under_constrained`. That heuristic runs ONLY for an INVARIANT,
+// under-constrained type variable. `[var T]` in the return makes T invariant,
+// and a one-sided use leaves it under-constrained, forcing the solver to consult
+// the predicate:
+//   upper<T> : only an upper bound (Non .. t) → resolves to t iff `has_no_subtypes t`
+//   lower<T> : only a lower bound (t .. Any)  → resolves to t iff `has_no_supertypes t`
+// (An `id<T>(x : T) : T` pins T exactly and never reaches this path.)
+func upper<T>(_consume : T -> ()) : [var T] = [var];
+func lower<T>(_produce : () -> T) : [var T] = [var];
 
-func id<T>(x : T) : T = x;
+// Fixed-width primitives are EXACT (both no-subtypes and no-supertypes) — exercise
+// both wrappers across the Prim scalar arm.
+let _ = upper(func (_ : Bool) {});
+let _ = lower(func () : Bool = true);
+let _ = upper(func (_ : Nat8) {});
+let _ = lower(func () : Nat64 = 0);
+let _ = upper(func (_ : Int8) {});
+let _ = lower(func () : Int64 = 0);
+let _ = upper(func (_ : Float) {});
+let _ = lower(func () : Char = 'a');
+let _ = upper(func (_ : Text) {});
+let _ = lower(func () : Blob = "");
 
-// Exact fixed-width integer types
-let _ : Bool  = id(true);
-let _ : Nat8  = id(0 : Nat8);
-let _ : Nat16 = id(0 : Nat16);
-let _ : Nat32 = id(0 : Nat32);
-let _ : Nat64 = id(0 : Nat64);
-let _ : Int8  = id(0 : Int8);
-let _ : Int16 = id(0 : Int16);
-let _ : Int32 = id(0 : Int32);
-let _ : Int64 = id(0 : Int64);
-let _ : Float = id(0.0 : Float);
-let _ : Char  = id('a');
-let _ : Text  = id("hello");
-let _ : Blob  = id("" : Blob);
+// Nat: NoSubtypes only (Nat <: Int) → resolves via `upper` only.
+let _ = upper(func (_ : Nat) {});
+// Int: NoSupertypes only → resolves via `lower` only.
+let _ = lower(func () : Int = 0);
+// Null: NoSubtypes only (bottom below ?T).
+let _ = upper(func (_ : Null) {});
+// Opt of an exact type: NoSupertypes (only Any is above ?Nat8).
+let _ = lower(func () : ?Nat8 = ?(0 : Nat8));
 
-// Nat (NoSubtypes only — Nat <: Int, so Nat has no proper subtypes)
-let _ : Nat = id(42 : Nat);
-
-// Int (NoSupertypes only — Nat <: Int, so Int has no proper supertypes)
-let _ : Int = id(42 : Int);
-
-// Null (NoSubtypes only — Null is bottom below ?T)
-let _ : Null = id(null);
-
-// Opt — NoSupertypes: ?Nat has no proper supertypes (only Any is above it)
-let _ : ?Nat = id(?(42 : Nat));
-
-// Tup — exercises List.for_all in Tup arm; (Nat8, Bool) is exact
-let _ : (Nat8, Bool) = id((0 : Nat8, true));
-
-// Array — exercises Array arm
-let _ : [Nat] = id([1, 2, 3]);
-
-// Mut — exercises Mut arm (always true)
-let _ : Nat = (do { var x = id(7); x });
-
-// Func — exercises Func arm: (Nat8 -> Bool) is exact (both input and output exact)
-let _ : Nat8 -> Bool = id(func(n : Nat8) : Bool = n == 0);
-
-// Con(Def) arm — type alias resolves through Con; exercises Def branch in
-// has_no_subtypes_or_supertypes (and ultimately reaches the Prim Bool -> true path)
+// Tup arm (List.for_all over exact components).
+let _ = upper(func (_ : (Nat8, Bool)) {});
+// Array arm (recurses on the element).
+let _ = upper(func (_ : [Nat8]) {});
+// Mut arm: `[var Nat8]` is Array (Mut Nat8) → recursion hits `Mut _ -> true`.
+let _ = upper(func (_ : [var Nat8]) {});
+// Func arm (flips the mode for the domain): `Nat8 -> Bool` is exact both ways.
+let _ = upper(func (_ : Nat8 -> Bool) {});
+let _ = lower(func () : Nat8 -> Bool = func (n : Nat8) : Bool = n == 0);
+// Con(Def) arm: the alias resolves through Con to the Prim scalar.
 type MyNat8 = Nat8;
-let _ : MyNat8 = id(0 : MyNat8);
-
-// Variant — exercises _ -> false arm; variant type is not exact (subtyping exists)
-// so has_no_subtypes_or_supertypes returns false, type variable is not pinned
-let _ = id(#a 42);
-
-// Obj — exercises _ -> false arm for object types (width subtyping exists)
-let _ = id({x = 1; y = 2});
+let _ = upper(func (_ : MyNat8) {});
