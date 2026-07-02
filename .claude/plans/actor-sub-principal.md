@@ -123,3 +123,27 @@ phases are enabled — worth splitting `SKIP_RUNNING` so the cheap OCaml `-r` ph
   equality grouping L11523; ser/deser + `potential_pointer` grouping L7781/7963/7965;
   `P | A` tag handling L3856.
 - `src/mo_values/prim.ml`: `principalOfActor` L352.
+
+## Progress & open follow-ups (2026-07-02)
+
+The Candid side that *sanctions* this rule is now a draft PR: **dfinity/candid#748**
+(`service <actortype> <: principal`) — spec + reference subtype checker (`subtype.rs`) +
+decoder (`de.rs`) + `.test.did` tests + a machine-checked metatheory in `coq/MiniCandid.v`
+(`ServiceT <: PrincipalT` modelled on `NatT <: IntT`; `soundness`/`transitive_coherence`
+re-verify). Marshalling is unchanged — service and principal references are byte-identical
+on the wire — so it is a conservative, decode-only widening.
+
+- **Blocked on #748 landing** before moc adopts the rule broadly (so moc isn't ahead of Candid).
+- **EOP runtime gap**: `rts/motoko-rts/src/idl.rs` `memory_compatible` needs a
+  `(IDL_CON_service, IDL_REF_principal) => variance != Invariance` case, else `actor → Principal`
+  stable-var upgrades trap on enhanced persistence. Verified locally; land in lockstep with #748.
+  Then flip `test/run-drun/actor-sub-principal-stable.drun` off `# CLASSICAL-PERSISTENCE-ONLY`.
+- Still pending here (see above): interpreter parity, `lub`-widening golden reconciliation, docs/changelog.
+
+### Open issue idea (parked — do NOT file upstream yet; one PR is enough noise while #748 is in review)
+
+Port dfinity/candid's `coq/` metatheory to **Rocq 9.1.1**. It currently builds only on `coq_8_18`
+(the re-pin in #748). The port needs: `Require Import Coq.*` → `Stdlib.*` (or `From Stdlib Require`),
+fix the `FunInd` relocation, bump the nix pin to a modern nixpkgs + Rocq, and re-verify the proofs
+across the 8.18 → 9.1 gap. Orthogonal to `service <: principal` (toolchain, not content). Raise as its
+own issue/PR later, or fold into #748 only if a maintainer asks.
