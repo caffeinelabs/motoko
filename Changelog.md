@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * feat: an actor reference now upcasts to its canister-id `Principal` (e.g. `let p : Principal = someActor`), so `Principal.fromActor`/`Prim.principalOfActor` are no longer needed; the reverse remains an explicit downcast. Mirrors Candid's `service <: principal` and works in value positions, across Candid (de)serialization, and enhanced-orthogonal-persistence stable-variable upgrades (#6228).
+
   * fix: fix codegen for nested mixins (#6223).
   * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
     `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
