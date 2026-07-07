@@ -1289,9 +1289,6 @@ let rec rel_typ d rel eq t1 t2 =
     rel_fields t1 t2 d rel eq fs1 fs2 &&
     rel_typ_fields t1 t2 d rel eq tfs1 tfs2
   | Obj (Actor, _, _), Prim Principal when rel != eq ->
-    (* An actor reference upcasts to its canister-id principal. Coercion-free:
-       both are the same Vanilla tagged blob, differing only by heap tag.
-       One-directional — Principal ⊀ actor keeps the downcast explicit. *)
     true
   | Array t1', Array t2' ->
     rel_typ d rel eq t1' t2'

@@ -8527,10 +8527,8 @@ module Serialization = struct
         )
       | Prim Principal ->
         (* Candid `service <: principal`: accept either an IDL `principal`
-           (prim -24) or a `service` reference (composite `idl_service`). A
-           service value is wire-identical to a principal — a byte-tagged
-           principal blob (cf. `read_actor_data`), differing only in the heap
-           tag — so both decode here to a `Principal` (Tagged.P). *)
+           or a `service` reference. They are wire-identical, differing only in
+           the heap tag — so both decode here to a `Principal` (Tagged.P). *)
         let read_principal_ref =
           read_byte_tagged
             [ E.trap_with env "IDL error: unexpected principal reference"
