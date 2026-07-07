@@ -987,6 +987,9 @@ pub(crate) unsafe fn memory_compatible(
             }
             variance != TypeVariance::Invariance || n1 == 0
         }
+        // An actor reference upcasts to its canister-id principal (service <: principal),
+        // mirroring the Motoko type rule (type.ml rel_typ). Widening — sub direction only.
+        (IDL_CON_service, IDL_REF_principal) => variance != TypeVariance::Invariance,
         // default
         (_, _) => false,
     }
@@ -1253,6 +1256,13 @@ pub(crate) unsafe fn sub(
                 }
                 return true;
             }
+            // A service reference upcasts to its canister-id principal
+            // (service <: principal), mirroring the Motoko type rule
+            // (type.ml rel_typ) and the wire encoding (a service value *is* a
+            // byte-tagged principal). A widening arm like (nat, int) above:
+            // covariant only — the reverse (principal, service) falls through
+            // to the default and stays rejected. Contravariant uses swap t1/t2.
+            (IDL_CON_service, IDL_REF_principal) => return true,
             // default
             (_, _) => {
                 break 'return_false;
