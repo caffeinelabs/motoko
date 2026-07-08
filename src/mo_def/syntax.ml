@@ -228,7 +228,10 @@ and exp' =
   | WhileE of exp * exp * loop_flags       (* while-do loop *)
   | LoopE of exp * exp option * loop_flags (* do-while loop *)
   | ForE of pat * exp * exp * loop_flags   (* iteration *)
-  | LabelE of id * typ * exp                   (* label *)
+  | LabelE of id * (typ * bool) * exp          (* label; the bool: take the label
+                                                  type from the body block's final
+                                                  expression — a `= default` with
+                                                  no annotation (#6163) *)
   | BreakE of control * id option * exp        (* break *)
   | RetE of exp                                (* return *)
   | DebugE of exp                              (* debugging *)

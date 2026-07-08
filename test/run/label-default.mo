@@ -1,63 +1,58 @@
-// `label x [: T] = <default> <body>` — labeled early-exit with a fallthrough
-// default (issue #6163).  Desugars to `label x [: T] do { <body>; <default> }`,
-// so the default is the value when no `break x` fires and — being the block's
-// tail — is evaluated only on demand (like the `else` branch of `if`).
-//
-// Two defaulted forms, each with a non-bottom or a bottom (`None`, e.g.
-// `return`) default:
-//
-//            | non-bottom default | bottom default (return)
-//   ---------+--------------------+------------------------
-//   x : T =  |       (A1)         |        (A2)
-//   x =      |   type error*      |        (B2)
-//
-//   * compact + non-bottom needs the label type, which is only () without an
-//     annotation — see test/fail/label-default-compact.mo.
+// `label x = <default> <body>` — labeled early-exit with a fallthrough default
+// (issue #6163).  With no annotation the label's type is taken from the default
+// (the block's final expression), exactly like a `var`/`let` initializer; an
+// annotation, when present, wins.  The default is the block's tail, so it is
+// evaluated only on demand, like the `else` branch of `if`.
 
-// ---- (A1) annotated, non-bottom default ----
+// ---- compact: type inferred from the default ----
 
-// Bool: the `break` value wins; the default is the fallthrough.
+// Bool, in a checking position (the function's return type).
 func found(xs : [Nat], target : Nat) : Bool {
-  label hit : Bool = false
+  label hit = false
     for (x in xs.vals()) { if (x == target) break hit true }
 };
 assert (found([1, 2, 3], 2));
 assert (not found([1, 2, 3], 9));
 
-// Option: the default `null : Null` widens to `?Nat` via the annotation.
+// ... and in a synthesis position (a `let` with no annotation): the label type
+// is inferred from `false` regardless of context.
+let anyTwo = label hit = false
+  for (x in [1, 2, 3].vals()) { if (x == 2) break hit true };
+assert anyTwo;
+
+// A sentinel whose bare type is too narrow is widened by annotating the
+// *default* — the initializer rule, exactly like `var x : ?Nat = null`.
 func firstEven(xs : [Nat]) : ?Nat {
-  label res : ?Nat = null
-    for (x in xs.vals()) { if (x % 2 == 0) break res (?x) }
+  label r = (null : ?Nat)
+    for (x in xs.vals()) { if (x % 2 == 0) break r (?x) }
 };
 assert (firstEven([1, 3, 4, 5]) == ?4);
 assert (firstEven([1, 3, 5]) == null);
 
-// Variant Result: a non-nullary default must be parenthesised (the default
-// operand is parsed at `exp_nullary`).
-type R = { #ok : Nat; #err : Text };
-func lookup(xs : [Nat], target : Nat) : R {
-  label res : R = (#err "not found")
-    for (x in xs.vals()) { if (x == target) break res (#ok x) }
+// ---- annotation wins (the flag is consulted only when unannotated) ----
+
+func punt(xs : [Nat]) : ?Int {
+  label p : ?Int = null              // annotation ?Int wins over (null : Null)
+    for (x in xs.vals()) { if (x == 2) break p (?1) }
 };
-assert (lookup([10, 20, 30], 20) == #ok 20);
-assert (lookup([10, 20, 30], 99) == #err "not found");
+assert (punt([1, 2, 3]) == ?1);
+assert (punt([1, 3]) == null);
 
-// ---- (A2) annotated, bottom default (`return` : None <: T) ----
-
-// "Find the index, or return a sentinel": fallthrough returns early.
+// A bottom default needs the annotation (the inferred tail type would be None,
+// which no real `break` value conforms to).
 func indexOf(xs : [Nat], target : Nat) : Nat {
-  label found : Nat = (return 999)
+  label found : Nat = (return 999)   // annotation Nat; (return …) : None <: Nat
     for (i in xs.keys()) { if (xs[i] == target) break found i }
 };
 assert (indexOf([10, 20, 30], 20) == 1);
 assert (indexOf([10, 20, 30], 99) == 999);
 
-// ---- (B2) compact, bottom default ----
-// No annotation, so the label is unit; the bottom default (None) fits () by
-// subtyping and the breaks are unit.  The control flow is the payload.
+// A *compact* bottom default infers to None, which is "forgotten": the label
+// falls back to the unit default, so a unit `break` exits it while the loop
+// otherwise diverges through the default (here `return`).
 func hasEven(xs : [Nat]) : Bool {
-  label scan = (return false)          // no even found: return false
-    for (x in xs.vals()) { if (x % 2 == 0) break scan };  // found one: fall out
+  label scan = (return false)
+    for (x in xs.vals()) { if (x % 2 == 0) break scan };
   true
 };
 assert (hasEven([1, 3, 4]));
@@ -66,10 +61,14 @@ assert (not hasEven([1, 3, 5]));
 // ---- laziness: the default runs only on fallthrough ----
 var defaultEvals = 0;
 func pick(hit : Bool) : Nat {
-  label out : Nat = (do { defaultEvals += 1; 99 })
+  label out = (do { defaultEvals += 1; 99 })   // inferred Nat
     do { if hit { break out 7 } }
 };
 assert (pick(true) == 7);
 assert (defaultEvals == 0);   // a `break` fired — default must NOT run
 assert (pick(false) == 99);
 assert (defaultEvals == 1);   // fell through — default evaluated exactly once
+
+// ---- bare label unchanged ----
+func loopit() { label l loop { break l } };
+loopit();

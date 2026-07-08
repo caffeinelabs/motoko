@@ -126,7 +126,7 @@ module Make (Cfg : Config) = struct
     | LoopE (e1, None, _)    -> "LoopE"   $$ [exp e1]
     | LoopE (e1, Some e2, _) -> "LoopE"   $$ [exp e1; exp e2]
     | ForE (p, e1, e2, _)    -> "ForE"    $$ [pat p; exp e1; exp e2]
-    | LabelE (i, t, e)       -> "LabelE"  $$ [id i; typ t; exp e]
+    | LabelE (i, (t, b), e)  -> "LabelE"  $$ [id i; typ t; exp e; Atom (string_of_bool b)]
     | DebugE e            -> "DebugE"  $$ [exp e]
     | BreakE (_, Some i, e) -> "BreakE"  $$ [id i; exp e]
     | BreakE (_, None, e)   -> "BreakE"  $$ [exp e]

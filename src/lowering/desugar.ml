@@ -73,11 +73,11 @@ let desugar_loop_flags at note body flags with_body =
   let { has_break; has_continue } = flags in
   let body = if not has_continue then body else
     let () = flags.has_continue <- false in
-    { body with it = S.LabelE (S.auto_continue_s @@ body.at, unit_typ body.at, body) }
+    { body with it = S.LabelE (S.auto_continue_s @@ body.at, (unit_typ body.at, false), body) }
   in
   if not has_break then `Body body else
   let () = flags.has_break <- false in
-  `Rec (S.LabelE (S.auto_s @@ at, unit_typ at, { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
+  `Rec (S.LabelE (S.auto_s @@ at, (unit_typ at, false), { it = with_body body; at; note = { note_typ = note.Note.typ; note_eff = note.Note.eff } }))
 
 let rec exps es = List.map exp es
 
@@ -325,7 +325,10 @@ and exp' at note = function
         -> (transform_for_to_while p arr proj (!e1) e2).it
       | _ -> (forE (pat p) (exp e1) (exp e2)).it)
   | S.DebugE e -> if !Mo_config.Flags.release_mode then (unitE ()).it else (exp e).it
-  | S.LabelE (l, t, e) -> I.LabelE (l.it, t.Source.note, exp e)
+  (* Use the label expression's own (inferred) type, not the annotation's: for
+     the `= default` infer case (#6163) the annotation is the unit placeholder
+     while the real label type is on this node's note. *)
+  | S.LabelE (l, _, e) -> I.LabelE (l.it, note.Note.typ, exp e)
   | S.BreakE (kind, id_opt, e) -> (breakE (S.break_label kind id_opt) (exp e)).it
   | S.RetE e -> (retE (exp e)).it
   | S.ThrowE e -> I.PrimE (I.ThrowPrim, [exp e])

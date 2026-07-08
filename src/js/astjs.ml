@@ -399,7 +399,7 @@ module Make (Cfg : Config) = struct
     | LoopE (e1, Some e2, _) -> to_js_object "LoopE" [| exp_js e1; exp_js e2 |]
     | ForE (p, e1, e2, _) ->
         to_js_object "ForE" [| pat_js p; exp_js e1; exp_js e2 |]
-    | LabelE (i, t, e) ->
+    | LabelE (i, (t, _), e) ->
         to_js_object "LabelE" [| id i; syntax_typ_js t; exp_js e |]
     | DebugE e -> to_js_object "DebugE" [| exp_js e |]
     | BreakE (_, Some i, e) -> to_js_object "BreakE" [| id i; exp_js e |]

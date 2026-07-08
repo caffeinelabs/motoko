@@ -59,6 +59,9 @@ type env =
     context : exp' list;
     pre : bool;
     weak : bool;
+    commit_notes : bool;  (* write exp/dec type notes while checking; cleared to
+                             infer a sub-expression's type without committing,
+                             so the surrounding tree can be (re)checked intact *)
     msgs : Diag.msg_store;
     scopes : region T.ConEnv.t;
     check_unused : bool;
@@ -97,6 +100,7 @@ let env_of_scope msgs scope =
     context = [];
     pre = false;
     weak = false;
+    commit_notes = true;
     msgs;
     scopes = T.ConEnv.empty;
     check_unused = true;
@@ -2282,7 +2286,7 @@ and infer_exp_wrapper inf f env exp : T.typ =
   let t = inf env exp in
   assert (t <> T.Pre);
   let t' = f t in
-  if not env.pre then begin
+  if not env.pre && env.commit_notes then begin
     let t'' = T.normalize t' in
     assert (t'' <> T.Pre);
     let note_eff = A.infer_effect_exp exp in
@@ -2691,8 +2695,30 @@ and infer_exp'' env exp : T.typ =
       );
     end;
     T.unit
-  | LabelE (id, typ, exp1) ->
-    let t = check_typ env typ in
+  | LabelE (id, (typ, infer), exp1) ->
+    (* `infer` ⟹ no annotation, and the parser built exp1 as
+       `do { <body> ; <default> }` (#6163).  The label's type is the default's
+       — the block's final expression, which cannot mention the label.  Infer
+       it with note-setting suppressed so the whole block can be checked intact
+       below (breaks then check against this type).  Otherwise the annotation
+       (or the unit default for a bare label) wins, as before. *)
+    let t =
+      if infer then
+        match exp1.it with
+        | BlockE decs when decs <> [] ->
+          (match (Lib.List.last decs).it with
+           | ExpD d ->
+             (* Infer the default's type without committing notes, so the whole
+                block can be checked intact below. *)
+             let t = infer_exp { env with commit_notes = false } d in
+             (* If the default diverges (`return`/trap : None) it can't usefully
+                type the label — fall back to the unit default, so unit `break`s
+                still conform (an annotation is needed for non-unit breaks). *)
+             if T.is_non (T.normalize t) then check_typ env typ else t
+           | _ -> check_typ env typ)
+        | _ -> check_typ env typ
+      else check_typ env typ
+    in
     if not env.pre then check_exp (add_lab env id.it t) t exp1;
     t
   | DebugE exp1 ->
@@ -2965,8 +2991,10 @@ and check_exp env t exp =
   assert (exp.note.note_typ = T.Pre);
   assert (t <> T.Pre);
   let t' = check_exp' env (T.normalize t) exp in
-  let e = A.infer_effect_exp exp in
-  exp.note <- {exp.note with note_typ = t'; note_eff = e}
+  if env.commit_notes then begin
+    let e = A.infer_effect_exp exp in
+    exp.note <- {exp.note with note_typ = t'; note_eff = e}
+  end
 
 and check_exp' env0 t exp : T.typ =
   let env = {env0 with in_prog = false; in_actor = false; context = exp.it :: env0.context } in
@@ -5127,7 +5155,8 @@ and infer_dec env dec : T.typ =
     T.unit
   in
   let eff = A.infer_effect_dec dec in
-  dec.note <- {empty_typ_note with note_typ = t; note_eff = eff};
+  if env.commit_notes then
+    dec.note <- {empty_typ_note with note_typ = t; note_eff = eff};
   t
 
 
