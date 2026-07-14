@@ -252,6 +252,10 @@ fix_names
     run-deser = test_subdir "run-deser" [ deser ];
     perf = perf_subdir false "perf" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     # TODO: profiling-graph is excluded because the underlying parity_wasm is deprecated and does not support passive data segments and memory64.
+    # Run the candid conformance suite on the classical backend too (the plain
+    # `candid` check uses the enhanced default), so `service <: principal`
+    # decoding is exercised on both backends.
+    candid-classical = candid.overrideAttrs { EXTRA_MOC_ARGS = "--legacy-persistence"; };
     inherit qc unit candid coverage;
   }
   // pkgs.lib.optionalAttrs

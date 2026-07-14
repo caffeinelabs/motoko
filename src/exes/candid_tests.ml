@@ -23,6 +23,11 @@ let pattern = ref ""
 let expect_fail_pats = ref []
 let diagnose = ref false
 
+(* Extra flags spliced into the `moc` invocation, e.g. `--legacy-persistence`
+   to exercise the classical backend. Same env knob nix/tests.nix uses for the
+   EOP `run`/`run-drun` variants. *)
+let extra_moc_args = try Sys.getenv "EXTRA_MOC_ARGS" with Not_found -> ""
+
 let print_banner () =
   printf "%s\n" banner;
   exit 0
@@ -254,7 +259,7 @@ let () =
             if !diagnose then Printf.eprintf "## %s\n\n``` Motoko\n%s```\n" testname src;
             Unix.putenv "MOC_UNLOCK_PRIM" "yesplease";
             write_file "tmp.mo" src;
-            match run_cmd "moc -A M0215 -Werror -wasi-system-api tmp.mo -o tmp.wasm" with
+            match run_cmd (sprintf "moc %s -A M0215 -Werror -wasi-system-api tmp.mo -o tmp.wasm" extra_moc_args) with
             | (Fail | Timeout), stdout, stderr -> CantCompile (stdout, stderr, src)
             | Ok, _, _ ->
               match must_not_trap, run_cmd ("timeout 10s wasmtime "^ _WASMTIME_OPTIONS_ ^" tmp.wasm") with
