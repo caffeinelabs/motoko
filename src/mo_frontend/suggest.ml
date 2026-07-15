@@ -103,16 +103,25 @@ let suggest_conversion libs vals ty1 ty2 =
   (* not primitive types, make no suggestion *)
   | _, _ -> ""
 
+let relative_in_package path package =
+  match Flags.M.find_opt package !Flags.package_urls with
+  | None -> None
+  | Some base ->
+    Lib.FilePath.relative_to
+      (Lib.FilePath.normalise base)
+      (Lib.FilePath.normalise path)
+
+let under_package_path path package =
+  relative_in_package path package <> None
+
 (** Convert a filesystem path to a mo:<package>/<module> URL if it lies under any configured package path. *)
 let mo_url_of_path path =
   let seq = Flags.M.to_seq !Flags.package_urls in
-  Seq.fold_left (fun acc (package, base) ->
+  Seq.fold_left (fun acc (package, _base) ->
     match acc with
     | Some _ -> acc
     | None ->
-      let base_norm = Lib.FilePath.normalise base in
-      let path_norm = Lib.FilePath.normalise path in
-      match Lib.FilePath.relative_to base_norm path_norm with
+      match relative_in_package path package with
       | None -> None
       | Some rel ->
         if Filename.basename rel = "lib.mo" then
@@ -125,3 +134,9 @@ let module_name_as_url module_path =
   match mo_url_of_path module_path with
   | Some url -> url
   | None -> module_path
+
+(** True when [name] is a loaded lib path under the [--implicit-package] root. *)
+let is_implicit_lib name =
+  match !Flags.implicit_package with
+  | None -> false
+  | Some pkg -> name <> "@prim" && under_package_path name pkg

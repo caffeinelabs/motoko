@@ -1,0 +1,77 @@
+moc: unknown option '--skip-gc-deprecation-warning'.
+Usage: moc [option] [file ...]
+  --ai-errors  emit AI tailored errors
+  -c  compile programs to WebAssembly
+  -g  generate source-level debug information
+  -r  interpret programs
+  -i  run interactive REPL (implies -r)
+  --check  type-check only
+  --stable-compatible <pre> <post> test upgrade compatibility between stable-type signatures <pre> and <post>
+  --idl  compile and emit Candid IDL specification to `.did` file
+  --print-deps  prints the dependencies for a given source file
+  --print-source-on-error  prints the source code for error messages
+  --explain  provides a detailed explanation of an error message
+  -o <file>  output file
+  -v  verbose output
+  -p <n>  set print depth
+  --warn-help  show available warning codes, current lint level, and descriptions
+  --hide-warnings  hide warnings
+  -Werror  treat warnings as errors
+  -A <codes>  disable (allow) comma-separated warning codes, e.g. -A M0194,M0217
+  -W <codes>  enable (warn) comma-separated warning codes, e.g. -W M0223
+  -E <codes>  treat as error comma-separated warning codes, e.g. -E M0217
+  --error-detail <n>  set error message detail for syntax errors, n in [0..3] (default 2)
+  --error-recovery  report multiple syntax errors
+  --version  show version
+  --map  output source map
+  -t  activate tracing in interpreters
+  --package <package-name> <package-path> specify a <package-name> <package-path> pair, separated by a space
+  --actor-idl <idl-path>   path to actor IDL (Candid) files
+  --actor-alias <alias> <principal>  actor import alias
+  --profile  activate profiling counters in interpreters 
+  --profile-file <file>  set profiling output file 
+  --profile-line-prefix <string>  prefix each profile line with the given string 
+  --profile-field <field>  profile file includes the given field from the program result 
+  --public-metadata <name>  emit icp custom section <name> (candid:args or candid:service or motoko:stable-types or motoko:compiler) as `public` (default is `private`)
+  --omit-metadata <name>  omit icp custom section <name> (candid:args or candid:service or motoko:stable-types or motoko:compiler)
+  -iR  interpret the lowered code
+  -measure-rts-stack  measure the maximum rts stack usage (reported by prim "rts_max_stack")
+  -no-await  no await-lowering (with -iR)
+  -no-async  no async-lowering (with -iR)
+  -no-link  do not statically link-in runtime
+  -no-timer  do not create a global timer expiration endpoint
+  -no-system-api  do not import any system API
+  -wasi-system-api  use the WASI system API (wasmtime)
+  -ref-system-api  use the reference implementation of the Internet Computer system API (ic-ref-run)
+  -dp  dump parse
+  -dt  dump type-checked AST
+  -dl  dump intermediate representation
+  -no-check-ir  do not check intermediate code
+  --release  ignore debug expressions in source
+  --debug  respect debug expressions in source (the default)
+  --sanity-checks  enable sanity checking in the RTS and generated code
+  --stable-types  compile and emit signature of stable types to `.most` file
+  --stable-regions  force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory, depending on current use of ExperimentalStableMemory library
+  --generational-gc  use generational GC (only available with legacy/classical persistence)
+  --incremental-gc  use incremental GC (default, works with both enhanced orthogonal persistence and legacy/classical persistence)
+  --compacting-gc  use compacting GC (only available with legacy/classical persistence)
+  --copying-gc  use copying GC (only available with legacy/classical persistence)
+  --force-gc  disable GC scheduling, always do GC after an update message (for testing)
+  --experimental-stable-memory  <n> select support for the deprecated `ExperimentalStableMemory.mo` library (n < 0: error, n == 0: warn, n > 0: allow) (default 0)
+  --max-stable-pages <n>  set maximum number of pages available for library `ExperimentalStableMemory.mo` (default 65536)
+  --experimental-field-aliasing  enable experimental support for aliasing of var fields
+  --experimental-rtti  enable experimental support for precise runtime type information (default with enhanced orthogonal persistence)
+  --rts-stack-pages <n>  set maximum number of pages available for runtime system stack (default 32, only available with classical persistence)
+  --trap-on-call-error  Trap, don't throw an `Error`, when an IC call fails due to destination queue full or freezing threshold is crossed. Emulates behaviour of moc versions < 0.8.0.
+  --enhanced-orthogonal-persistence  use enhanced orthogonal persistence (default): Scalable and fast upgrades using a persistent 64-bit main memory. Also, enable upgrade from classical to enhanced orthogonal persistence
+  --legacy-persistence  use legacy (classical) persistence. This also enables the usage of --copying-gc, --compacting-gc, and --generational-gc. Deprecated in favor of the new enhanced orthogonal persistence, which is default. Legacy persistence will be removed in the future.
+  --stabilization-instruction-limit <n>  set instruction limit for incremental graph-copy-based stabilization and destabilization (for testing)
+  --stable-memory-access-limit <n>  set stable memory access limit for incremental graph-copy-based stabilization and destabilization (for testing)
+  -fno-shared-code  do *not* share low-level utility code: larger code size but decreased cycle consumption (default)
+  -fshared-code  do share low-level utility code: smaller code size but increased cycle consumption
+  --args <file>  read additional newline separated command line arguments 
+      from <file>
+  --args0 <file>  read additional NUL separated command line arguments from 
+      <file>
+  -help  Display this list of options
+  --help  Display this list of options
