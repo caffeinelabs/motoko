@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.11.1 (2026-07-15)
+
 * motoko (`moc`)
 
   * refactor: simplifies bounds checks for candid decoding in the RTS (#6240).
