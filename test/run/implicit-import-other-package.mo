@@ -2,11 +2,11 @@
 //MOC-FLAG --package base ../base-stub/src
 //MOC-FLAG --implicit-package core
 // With --implicit-package core, Map's implicit compare must resolve to core/Text only.
-// base/Text is loaded transitively via base/Extra but never imported directly,
+// base/Text is loaded via the Extra helper but never imported directly here,
 // and would otherwise compete with core/Text for the same implicit.
 
 import Map "mo:core/Map";
-import Extra "mo:base/Extra"; // transitively loads base/Text (not imported directly)
+import Extra "implicit-import-other-package/Extra"; // loads base/Text (not imported directly)
 
 func main() {
   Extra.touch();

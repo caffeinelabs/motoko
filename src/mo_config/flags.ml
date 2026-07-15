@@ -39,6 +39,11 @@ let dump_lowering = ref false
 let check_ir = ref true
 let package_urls : string M.t ref = ref M.empty
 let implicit_package : string option ref = ref None
+
+(* True when [package] is the one named by [--implicit-package]. *)
+let is_implicit_package = function
+  | Some pkg -> !implicit_package = Some pkg
+  | None -> false
 let actor_aliases : (string * string, string * string option) Either.t M.t ref = ref M.empty
 let actor_idl_path : string option ref = ref None
 let max_stable_pages_default = 65536

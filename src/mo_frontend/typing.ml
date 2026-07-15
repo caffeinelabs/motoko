@@ -114,9 +114,10 @@ let env_of_scope msgs scope =
     enclosing_removal = false;
   }
 
-let implicit_libs libs =
-  T.Env.filter (fun name (info : Scope.lib_info) ->
-    name <> "@prim" && Suggest.is_implicit_lib info.lib_package) libs
+let implicit_lib_p env path =
+  match T.Env.find_opt path env.libs with
+  | Some info -> Flags.is_implicit_package info.lib_package
+  | None -> false
 
 let use_identifier env id =
   env.used_identifiers := T.Env.update id (function
@@ -625,7 +626,7 @@ let check_import env at f ri =
     | IDLPath (fp, _) -> fp
     | PrimPath -> "@prim" in
   match T.Env.find_opt full_path env.libs with
-  | Some info when info.lib_typ = T.Pre ->
+  | Some {lib_typ = T.Pre; _} ->
     error env at "M0021" "cannot infer type of forward import %s" f
   | Some info -> info.lib_typ
   | None ->
@@ -2006,9 +2007,11 @@ module ImplicitHoles = struct
     | `Empty ->
 
     (* Resolve only implicit-package libs; error suggestions may still list others. *)
-    let implicit = implicit_libs env.libs in
-    let lib_fields = FromModuleLib.matching_fields hole implicit in
-    match disambiguate_holes lib_fields with
+    let from_implicit_lib c =
+      Option.fold ~none:false ~some:(implicit_lib_p env) c.module_ref_opt
+    in
+    let lib_fields = FromModuleLib.matching_fields hole env.libs in
+    match disambiguate_holes (List.filter from_implicit_lib lib_fields) with
     | `Single term -> Ok term
     | `Many _ | `Empty ->
 
@@ -2035,7 +2038,7 @@ module ImplicitHoles = struct
     let lib_fields_with_holes = FromModuleLib.matching_fields_with_holes hole env.libs in
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
     match
-      try_derive ~depth (FromModuleLib.matching_fields_with_holes hole implicit)
+      try_derive ~depth (List.filter (fun (_, c) -> from_implicit_lib c) lib_fields_with_holes)
     with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
@@ -2087,7 +2090,7 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
       try_derive_structural info
-        (FromModuleLib.matching_fields_structural info hole implicit) ~depth
+        (List.filter (fun (_, c) -> from_implicit_lib c) structural_lib_candidates) ~depth
     with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
@@ -2194,7 +2197,9 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
     | `Empty ->
       (* Resolve only implicit-package libs; error suggestions may still list others. *)
       let lib_candidates = candidates true env.libs is_lib_module in
-      let implicit_candidates = candidates true (implicit_libs env.libs) is_lib_module in
+      let implicit_candidates =
+        List.filter (fun c -> Option.fold ~none:false ~some:(implicit_lib_p env) c.module_ref) lib_candidates
+      in
       match disambiguate_candidates implicit_candidates with
       | `Single c -> Ok c
       | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
@@ -2321,8 +2326,9 @@ and infer_exp'' env exp : T.typ =
     | Some (t, _, _, Available) -> id.note <- (if T.is_mut t then (Var, None) else (Const, None)); t
     | None ->
       let candidate_libs =
-        T.Env.to_seq (implicit_libs env.libs) |>
+        T.Env.to_seq env.libs |>
           Seq.filter (fun (name, info) ->
+            Flags.is_implicit_package info.lib_package &&
               let lib_id = Filename.basename name |> Filename.chop_extension in
               lib_id = id.it) |>
           List.of_seq

@@ -7,5 +7,3 @@ val suggest_conversion : Scope.lib_env -> (Type.typ * _ * _ * _) Type.Env.t -> T
 val module_name_as_url : string -> string
 
 val mo_url_of_path : string -> string option
-
-val is_implicit_lib : string option -> bool

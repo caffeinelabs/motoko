@@ -63,15 +63,14 @@ let suggest_conversion (libs : lib_env) vals ty1 ty2 =
   match promote ty1, promote ty2 with
   | Prim p1, Prim p2 ->
     let suggestions = ref [] in
-    Env.iter (fun filename info ->
-      let typ = info.lib_typ in
+    Env.iter (fun filename {lib_typ = ty; _} ->
       if String.starts_with ~prefix:"@" filename
       then () (* skip prim etc *)
       else
       let imported_name =
         (* try to determine imported name, if any *)
-        Env.fold (fun id (val_ty, _, _, _) acc ->
-            if typ == val_ty (*HACK*)
+        Env.fold (fun id (ty1, _, _, _) acc ->
+            if ty == ty1 (*HACK*)
             then Some id
             else acc)
           vals None
@@ -95,7 +94,7 @@ let suggest_conversion (libs : lib_env) vals ty1 ty2 =
       match lib_opt with
       | None -> ()
       | Some (id, desc) ->
-        suggestions := (search_obj desc id typ ty1 ty2) @ !suggestions)
+        suggestions := (search_obj desc id ty ty1 ty2) @ !suggestions)
       libs;
     if !suggestions = []
     then ""
@@ -105,25 +104,16 @@ let suggest_conversion (libs : lib_env) vals ty1 ty2 =
   (* not primitive types, make no suggestion *)
   | _, _ -> ""
 
-let relative_in_package path package =
-  match Flags.M.find_opt package !Flags.package_urls with
-  | None -> None
-  | Some base ->
-    Lib.FilePath.relative_to
-      (Lib.FilePath.normalise base)
-      (Lib.FilePath.normalise path)
-
-let under_package_path path package =
-  relative_in_package path package <> None
-
 (** Convert a filesystem path to a mo:<package>/<module> URL if it lies under any configured package path. *)
 let mo_url_of_path path =
   let seq = Flags.M.to_seq !Flags.package_urls in
-  Seq.fold_left (fun acc (package, _base) ->
+  Seq.fold_left (fun acc (package, base) ->
     match acc with
     | Some _ -> acc
     | None ->
-      match relative_in_package path package with
+      let base_norm = Lib.FilePath.normalise base in
+      let path_norm = Lib.FilePath.normalise path in
+      match Lib.FilePath.relative_to base_norm path_norm with
       | None -> None
       | Some rel ->
         if Filename.basename rel = "lib.mo" then
@@ -136,9 +126,3 @@ let module_name_as_url module_path =
   match mo_url_of_path module_path with
   | Some url -> url
   | None -> module_path
-
-(** True when [package] is the package named by [--implicit-package]. *)
-let is_implicit_lib package =
-  match !Flags.implicit_package, package with
-  | Some implicit, Some pkg -> pkg = implicit
-  | _ -> false
