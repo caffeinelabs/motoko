@@ -2,6 +2,7 @@
 (* Suggestions *)
 open Mo_def
 open Mo_types
+open Scope
 open Mo_config
 open Type
 
@@ -58,18 +59,19 @@ let search_obj desc path ty ty1 ty2 =
   go path ty;
   !suggestions
 
-let suggest_conversion libs vals ty1 ty2 =
+let suggest_conversion (libs : lib_env) vals ty1 ty2 =
   match promote ty1, promote ty2 with
   | Prim p1, Prim p2 ->
     let suggestions = ref [] in
-    Env.iter (fun filename ty ->
+    Env.iter (fun filename info ->
+      let typ = info.lib_typ in
       if String.starts_with ~prefix:"@" filename
       then () (* skip prim etc *)
       else
       let imported_name =
         (* try to determine imported name, if any *)
-        Env.fold (fun id (ty1, _, _, _) acc ->
-            if ty == ty1 (*HACK*)
+        Env.fold (fun id (val_ty, _, _, _) acc ->
+            if typ == val_ty (*HACK*)
             then Some id
             else acc)
           vals None
@@ -93,7 +95,7 @@ let suggest_conversion libs vals ty1 ty2 =
       match lib_opt with
       | None -> ()
       | Some (id, desc) ->
-        suggestions := (search_obj desc id ty ty1 ty2) @ !suggestions)
+        suggestions := (search_obj desc id typ ty1 ty2) @ !suggestions)
       libs;
     if !suggestions = []
     then ""
@@ -135,8 +137,8 @@ let module_name_as_url module_path =
   | Some url -> url
   | None -> module_path
 
-(** True when [name] is a loaded lib path under the [--implicit-package] root. *)
-let is_implicit_lib name =
-  match !Flags.implicit_package with
-  | None -> false
-  | Some pkg -> name <> "@prim" && under_package_path name pkg
+(** True when [package] is the package named by [--implicit-package]. *)
+let is_implicit_lib package =
+  match !Flags.implicit_package, package with
+  | Some implicit, Some pkg -> pkg = implicit
+  | _ -> false
