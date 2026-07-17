@@ -169,6 +169,22 @@ let counterState = CounterLib.initState();
 include CounterMixin(counterState);
 ```
 
+**Sharing state between mixins — pass it as a parameter.** To share state between two or more mixins, declare that state once as an actor field and pass that same binding to each `include`. Every mixin that gets it reads and writes the same value. A mixin can take several parameters, so it can receive shared state plus its own private state.
+
+```motoko
+// types.mo:  public type GoogleState = { var connection : ?Conn; var config : ?Cfg };
+let google : Types.GoogleState;          // declared once; initialized in the migration function
+let bookings : Map.Map<Nat, Booking>;    // BookingsApi's own state
+include GoogleApi(google);               // gets `google`
+include BookingsApi(google, bookings);   // gets the SAME `google`, plus its own bookings
+```
+
+Pass the same binding to each mixin. Never build a new record at the `include` — that gives each mixin its own separate copy, so one mixin's writes never reach the others:
+
+```motoko
+include GoogleApi({ var connection = google.connection });   // WRONG: NEVER DO THIS!
+```
+
 ### Record Spread
 
 Use record spread to avoid copying fields one by one:
