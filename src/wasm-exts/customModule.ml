@@ -83,4 +83,7 @@ type extended_module = {
   (* source map section *)
   source_mapping_url : string option;
   wasm_features : string list;
+  (* standardized `target_features` section (Binaryen/LLVM feature names),
+     read by Binaryen-based tools (wasm-opt, ic-wasm) to auto-enable features *)
+  target_features : string list;
 }

@@ -564,9 +564,9 @@ module Make (Cfg : Config) = struct
                  id i;
                ]
              @ List.map dec_field_js dfs))
-    | MixinD (p, dfs) ->
+    | MixinD (_, p, dfs) ->
        to_js_object "MixinD" ((pat_js p :: List.map dec_field_js dfs) |> Array.of_list)
-    | IncludeD (i, e, _) ->
+    | IncludeD (i, _, e, _) ->
        to_js_object "IncludeD" [| id i; exp_js e |]
 
   and pat_js p =

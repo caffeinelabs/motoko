@@ -8,7 +8,6 @@
   - [2. Open a release PR](#2-open-a-release-pr)
   - [3. Wait for the release to complete, and verify it](#3-wait-for-the-release-to-complete-and-verify-it)
   - [4. Update `motoko-core`](#4-update-motoko-core)
-  - [5. Update `motoko-base`](#5-update-motoko-base)
   - [Downstream](#downstream)
 - [Making draft / pre-releases](#making-draft--pre-releases)
   - [Version suffix](#version-suffix)
@@ -259,71 +258,6 @@ git pull
 git tag moc-$NEXT_MOC_VERSION
 git push origin moc-$NEXT_MOC_VERSION
 ```
-
-### 5. Update `motoko-base`
-
-From the `master` branch, push a tag for the new `moc` version:
-
-```bash
-git checkout master
-git pull
-git tag moc-$NEXT_MOC_VERSION
-git push origin moc-$NEXT_MOC_VERSION
-```
-
-<details>
-<summary>Click here for legacy `motoko-base` update steps.</summary>
-
-After releasing the compiler, update `motoko-base`'s `master` branch to the `next-moc` branch.
-
-* Wait ca. 5min after releasing to give the CI/CD pipeline time to upload the release artifacts
-* Change into `motoko-base` and pull the latest `next-moc`
-```bash
-git switch next-moc; git pull
-```
-* Revise and update the `CHANGELOG.md`, by adding a top entry for the release
-
-* Bump `moc` and create a PR:
-```bash
-# Create a new branch for the update
-git switch -c $USER/update-moc-$NEXT_MOC_VERSION && \
-
-# Update the `moc_version` env variable in `.github/workflows/{ci, package-set}.yml` and `mops.toml` to the new released version
-perl -pi -e "s/moc_version: \"\\d+\.\\d+\.\\d+\"/moc_version: \"$NEXT_MOC_VERSION\"/g" .github/workflows/ci.yml .github/workflows/package-set.yml && \
-perl -pi -e "s/moc = \"\\d+\.\\d+\.\\d+\"/moc = \"$NEXT_MOC_VERSION\"/g; s/version = \"\\d+\.\\d+\.\\d+\"/version = \"$NEXT_MOC_VERSION\"/g" mops.toml && \
-
-# Add the changed files and commit the changes
-git add .github/ CHANGELOG.md mops.toml && git commit -m "Motoko $NEXT_MOC_VERSION" && \
-
-# Push the branch
-git push --set-upstream origin $USER/update-moc-$NEXT_MOC_VERSION && \
-
-# Create a PR targeting `master`
-gh pr create --title "Motoko $NEXT_MOC_VERSION" --base master --head $USER/update-moc-$NEXT_MOC_VERSION --body ""
-
-```
-* You can check the status of the PR on GitHub with
-```bash
-gh pr view --web
-```
-* Once CI passes, merge the PR using the _normal merge_ (not squash merge).
-  > **Note:** To allow merge commits, go to the repository settings and enable merge commits. Remember to **disable it after the merge**. Unfortunately, `gh` CLI cannot update this setting without admin permissions.
-
-It will eventually be imported into this repo by the daily [`update-flake-lock`](.github/workflows/update-flake-lock.yml) workflow.
-
-Finally tag the base release (so the documentation interpreter can do the right thing):
-First, switch to `master`, pull the latest changes and verify we are at the right commit:
-```bash
-git switch master && git pull
-git show
-```
-* Tag and push the release
-```bash
-git tag moc-$NEXT_MOC_VERSION
-git push origin moc-$NEXT_MOC_VERSION
-```
-
-</details>
 
 ### Downstream
 
