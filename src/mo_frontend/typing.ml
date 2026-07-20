@@ -2011,7 +2011,7 @@ module ImplicitHoles = struct
       Option.fold ~none:false ~some:(implicit_lib_p env) c.module_ref_opt
     in
     let lib_fields = FromModuleLib.matching_fields hole env.libs in
-    match disambiguate_holes (List.filter from_implicit_lib lib_fields) with
+    match if Option.is_some !Flags.implicit_package then disambiguate_holes (List.filter from_implicit_lib lib_fields) else `Empty with
     | `Single term -> Ok term
     | `Many _ | `Empty ->
 
@@ -2038,7 +2038,9 @@ module ImplicitHoles = struct
     let lib_fields_with_holes = FromModuleLib.matching_fields_with_holes hole env.libs in
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
     match
-      try_derive ~depth (List.filter (fun (_, c) -> from_implicit_lib c) lib_fields_with_holes)
+      if Option.is_some !Flags.implicit_package
+      then try_derive ~depth (List.filter (fun (_, c) -> from_implicit_lib c) lib_fields_with_holes)
+      else `Empty
     with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
@@ -2089,8 +2091,10 @@ module ImplicitHoles = struct
     let structural_lib_candidates = FromModuleLib.matching_fields_structural info hole env.libs in
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
-      try_derive_structural info
+      if Option.is_some !Flags.implicit_package
+      then try_derive_structural info
         (List.filter (fun (_, c) -> from_implicit_lib c) structural_lib_candidates) ~depth
+      else `Empty
     with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
@@ -2197,10 +2201,7 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
     | `Empty ->
       (* Resolve only implicit-package libs; error suggestions may still list others. *)
       let lib_candidates = candidates true env.libs is_lib_module in
-      let implicit_candidates =
-        List.filter (fun c -> Option.fold ~none:false ~some:(implicit_lib_p env) c.module_ref) lib_candidates
-      in
-      match disambiguate_candidates implicit_candidates with
+      match if Option.is_some !Flags.implicit_package then disambiguate_candidates (List.filter (fun c -> Option.fold ~none:false ~some:(implicit_lib_p env) c.module_ref) lib_candidates) else `Empty with
       | `Single c -> Ok c
       | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
 
@@ -2326,12 +2327,14 @@ and infer_exp'' env exp : T.typ =
     | Some (t, _, _, Available) -> id.note <- (if T.is_mut t then (Var, None) else (Const, None)); t
     | None ->
       let candidate_libs =
-        T.Env.to_seq env.libs |>
-          Seq.filter (fun (name, info) ->
-            Flags.is_implicit_package info.lib_package &&
-              let lib_id = Filename.basename name |> Filename.chop_extension in
-              lib_id = id.it) |>
-          List.of_seq
+        if Option.is_some(!Flags.implicit_package) then
+          T.Env.to_seq env.libs |>
+            Seq.filter (fun (name, info) ->
+              Flags.is_implicit_package info.lib_package &&
+                let lib_id = Filename.basename name |> Filename.chop_extension in
+                lib_id = id.it) |>
+            List.of_seq
+        else []
       in
       match candidate_libs with
       | [(name, info)] ->
