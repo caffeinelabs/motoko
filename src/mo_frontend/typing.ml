@@ -72,6 +72,8 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
+    (* --stable-baseline post fields; None if flag unset. *)
+    stable_baseline_post : T.field list option;
     (* Inside the args of a call whose own instantiation/implicit is being suggested for removal:
        M0223/M0237 probes drop the donated expected type (it vanishes once applied),
        avoiding suggestions that are unsound when applied together. *)
@@ -110,12 +112,13 @@ let env_of_scope msgs scope =
     closest_loop = None;
     closest_scrutinee = None;
     enhanced_migration = None;
+    stable_baseline_post = None;
     enclosing_removal = false;
   }
 
-(* --stable-baseline post; set by Pipeline before typechecking. *)
-let stable_baseline_post : T.field list option ref = ref None
-let set_stable_baseline_post fs = stable_baseline_post := fs
+(* Set by Pipeline before typechecking; copied onto env in infer_prog. *)
+let stable_baseline_post_ref : T.field list option ref = ref None
+let set_stable_baseline_post fs = stable_baseline_post_ref := fs
 
 let use_identifier env id =
   env.used_identifiers := T.Env.update id (function
@@ -4650,7 +4653,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
      match mfs with
      | [] ->
        (* --stable-baseline: silence carry from last .most; M0267 on the rest. Else M0254. *)
-       begin match !stable_baseline_post with
+       begin match env.stable_baseline_post with
        | None ->
          List.iter (fun tf ->
            warn env at "M0254"
@@ -5607,6 +5610,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
               async = async_cap;
               type_recovery = enable_type_recovery;
               enhanced_migration = !Flags.enhanced_migration;
+              stable_baseline_post = !stable_baseline_post_ref;
             } in
           let imports, decls = split_imports prog.it in
           let t, sscope = infer_split_prog env prog.at true imports decls in
@@ -5666,9 +5670,10 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
               (* For now, only the main actor(class) and mixins support enhanced_migration, not libraries
                  For imported classes, we would need some convention to locate their migration
                  dirs *)
-              enhanced_migration = match cub.it with
-                | MixinU _ -> !Flags.enhanced_migration;
-                | _ -> None;
+              enhanced_migration = (match cub.it with
+                | MixinU _ -> !Flags.enhanced_migration
+                | _ -> None);
+              stable_baseline_post = !stable_baseline_post_ref;
             } in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_split_prog env lib.at false imp_ds ds in

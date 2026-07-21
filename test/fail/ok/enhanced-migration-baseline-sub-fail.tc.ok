@@ -1,0 +1,2 @@
+enhanced-migration/enh-mig-sub/Init.mo:0.1: type error [M0267], initial actor requires field `n` of type
+  var Nat; not provided by any migration and absent from (or incompatible with) `--stable-baseline`

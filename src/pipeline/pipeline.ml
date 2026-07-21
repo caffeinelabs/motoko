@@ -346,12 +346,12 @@ let validate_stab_sig s : unit Diag.result =
 let load_stable_baseline () : unit Diag.result =
   let open Diag.Syntax in
   Typing.set_stable_baseline_post None;
-  match !Flags.stable_baseline with
-  | None -> Diag.return ()
-  | Some path ->
+  match !Flags.stable_baseline, !Flags.enhanced_migration with
+  | None, _ | _, None -> Diag.return ()
+  | Some path, Some _ ->
     let* p = parse_stab_sig_from_file path in
     let* s =
-      Cons.session ~scope:path (fun () ->
+      Cons.session ~scope:p.note.Syntax.filename (fun () ->
         Typing.check_stab_sig initial_stat_env0 p)
     in
     let post, _ = Type.post s in
