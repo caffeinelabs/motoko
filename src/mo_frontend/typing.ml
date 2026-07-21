@@ -114,9 +114,14 @@ let env_of_scope msgs scope =
     enclosing_removal = false;
   }
 
+let is_implicit_package pkg =
+  match !Flags.implicit_package, pkg with
+  | Some ip, Some p -> ip = p
+  | _ -> false
+
 let implicit_lib_p env path =
   match T.Env.find_opt path env.libs with
-  | Some info -> Flags.is_implicit_package info.lib_package
+  | Some info -> is_implicit_package info.lib_package
   | None -> false
 
 let use_identifier env id =
@@ -2006,6 +2011,7 @@ module ImplicitHoles = struct
     | `Many _ -> Error (HoleAmbiguous matching_fields)
     | `Empty ->
 
+    (* Get direct module field candidates from libs (unimported modules) *)
     (* Resolve only implicit-package libs; error suggestions may still list others. *)
     let from_implicit_lib c =
       Option.fold ~none:false ~some:(implicit_lib_p env) c.module_ref_opt
@@ -2330,7 +2336,7 @@ and infer_exp'' env exp : T.typ =
         if Option.is_some(!Flags.implicit_package) then
           T.Env.to_seq env.libs |>
             Seq.filter (fun (name, info) ->
-              Flags.is_implicit_package info.lib_package &&
+              is_implicit_package info.lib_package &&
                 let lib_id = Filename.basename name |> Filename.chop_extension in
                 lib_id = id.it) |>
             List.of_seq
