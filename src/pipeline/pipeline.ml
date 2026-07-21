@@ -550,11 +550,12 @@ let load_progs_cached
   let* rs = resolve_progs parsed in
   let progs = List.map fst rs in
   let libs = List.concat_map snd rs in
+  (* Before chase_imports so check_lib/mixins see the baseline. *)
+  let* () = load_stable_baseline () in
   let* libs, senv, scope_cache =
     chase_imports_cached parsefn senv libs scope_cache
   in
   let* () = Typing.check_actors ?check_actors senv progs in
-  let* () = load_stable_baseline () in
   (* [infer_prog] seems to annotate the AST with types by mutating some of its
      nodes, therefore, we always run the type checker for programs. *)
   let* sscopes, senv = check_progs ~enable_type_recovery senv progs in
