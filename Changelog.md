@@ -6,7 +6,7 @@
 
   * feat: `--stable-baseline <file.most>` with `--enhanced-migration` turns unexplained
     "initial actor requires field" cases into error **M0267**, while fields already present
-    in the last deployed signature stay quiet (prototype for legacy→EM conversions) (#TBD).
+    in the last deployed signature stay quiet (prototype for legacy→EM conversions) (#6249).
 
 ## 1.11.1 (2026-07-15)
 
