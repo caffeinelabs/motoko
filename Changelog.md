@@ -1,7 +1,10 @@
 # Motoko compiler changelog
 
+## 1.11.1 (2026-07-15)
+
 * motoko (`moc`)
 
+  * refactor: simplifies bounds checks for candid decoding in the RTS (#6240).
   * fix: fix codegen for nested mixins (#6223).
   * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
     `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
