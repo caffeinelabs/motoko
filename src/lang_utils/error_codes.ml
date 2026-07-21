@@ -222,6 +222,7 @@ let error_codes : (string * string option) list =
     "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
     "M0264", None; (* mixin include requires system capability *)
+    "M0267", None; (* Initial actor field required but missing/incompatible with --stable-baseline *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

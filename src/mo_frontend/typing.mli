@@ -19,6 +19,9 @@ val check_actors : ?check_actors:bool -> scope -> Syntax.prog list -> unit Diag.
 
 val check_stab_sig : scope -> Syntax.stab_sig -> Type.stab_sig Diag.result
 
+(* --stable-baseline post fields; set by Pipeline before typechecking. *)
+val set_stable_baseline_post : Type.field list option -> unit
+
 type contextual_dot_suggestion =
   { module_url : lab;
     func_name : lab;

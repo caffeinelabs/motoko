@@ -403,7 +403,12 @@ let () =
   then begin
     eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
   end;
-  
+
+  if Option.is_some !Flags.stable_baseline && Option.is_none !Flags.enhanced_migration
+  then begin
+    eprintf "moc: --stable-baseline requires --enhanced-migration\n"; exit 1
+  end;
+
   if not !Flags.skip_gc_deprecation_warning 
   then begin
     match !Flags.gc_strategy with

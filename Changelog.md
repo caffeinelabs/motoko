@@ -1,5 +1,13 @@
 # Motoko compiler changelog
 
+## Unreleased
+
+* motoko (`moc`)
+
+  * feat: `--stable-baseline <file.most>` with `--enhanced-migration` turns unexplained
+    "initial actor requires field" cases into error **M0267**, while fields already present
+    in the last deployed signature stay quiet (prototype for legacy→EM conversions) (#TBD).
+
 ## 1.11.1 (2026-07-15)
 
 * motoko (`moc`)

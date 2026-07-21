@@ -113,6 +113,10 @@ let env_of_scope msgs scope =
     enclosing_removal = false;
   }
 
+(* --stable-baseline post; set by Pipeline before typechecking. *)
+let stable_baseline_post : T.field list option ref = ref None
+let set_stable_baseline_post fs = stable_baseline_post := fs
+
 let use_identifier env id =
   env.used_identifiers := T.Env.update id (function
     | Some u -> Some u
@@ -4645,12 +4649,27 @@ and check_enhanced_migration_chain env chain stab_tfs at =
    let rec check_mfs at post mfs =
      match mfs with
      | [] ->
-       (* issue warnings if we infer the initial actor in the chain requires any fields *)
-       List.iter (fun tf ->
-         warn env at "M0254"
-           "initial actor requires field `%s` of type%a"
-           tf.T.lab display_typ tf.T.typ)
-         post
+       (* --stable-baseline: silence carry from last .most; M0267 on the rest. Else M0254. *)
+       begin match !stable_baseline_post with
+       | None ->
+         List.iter (fun tf ->
+           warn env at "M0254"
+             "initial actor requires field `%s` of type%a"
+             tf.T.lab display_typ tf.T.typ)
+           post
+       | Some baseline ->
+         List.iter (fun tf ->
+           let carried =
+             match T.lookup_val_field_opt tf.T.lab baseline with
+             | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> true
+             | _ -> false
+           in
+           if not carried then
+             local_error env at "M0267"
+               "initial actor requires field `%s` of type%a; not provided by any migration and absent from (or incompatible with) `--stable-baseline`"
+               tf.T.lab display_typ tf.T.typ)
+           post
+       end
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in

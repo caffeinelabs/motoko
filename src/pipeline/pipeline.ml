@@ -342,6 +342,22 @@ let validate_stab_sig s : unit Diag.result =
       Stability.match_stab_sig (Single post1) (Single post2)
     | _, _ -> assert false))
 
+(* Load --stable-baseline .most post for M0267. *)
+let load_stable_baseline () : unit Diag.result =
+  let open Diag.Syntax in
+  Typing.set_stable_baseline_post None;
+  match !Flags.stable_baseline with
+  | None -> Diag.return ()
+  | Some path ->
+    let* p = parse_stab_sig_from_file path in
+    let* s =
+      Cons.session ~scope:path (fun () ->
+        Typing.check_stab_sig initial_stat_env0 p)
+    in
+    let post, _ = Type.post s in
+    Typing.set_stable_baseline_post (Some post);
+    Diag.return ()
+
 (* The prim module *)
 
 let prim_name = "prim"
@@ -538,6 +554,7 @@ let load_progs_cached
     chase_imports_cached parsefn senv libs scope_cache
   in
   let* () = Typing.check_actors ?check_actors senv progs in
+  let* () = load_stable_baseline () in
   (* [infer_prog] seems to annotate the AST with types by mutating some of its
      nodes, therefore, we always run the type checker for programs. *)
   let* sscopes, senv = check_progs ~enable_type_recovery senv progs in
