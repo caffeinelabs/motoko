@@ -1,7 +1,0 @@
-// Version: 1.0.0
-actor {
-  stable a : Float;
-  stable b : Bool;
-  stable var c : Nat;
-  stable x : Nat
-};
