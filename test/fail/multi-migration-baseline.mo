@@ -2,7 +2,7 @@
 //MOC-FLAG --stable-baseline enhanced-migration/baselines/with-x-bad-n.most
 //MOC-FLAG -A=M0194
 
-// Same chain as M0254; x carries, Int is not a stable subtype of Nat for n
+// x explained by baseline → M0254; n has incompatible baseline type → M0267
 actor {
     let a : Float;
     let b : Bool;

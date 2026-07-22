@@ -5,6 +5,5 @@ actor {
     let a : Float;
     let b : Bool;
     var c : Nat;
-    let x : {#X}; // never involved in migrations
-    var n : Int; // never involved in migrations
+    let x : {#X}; // never involved in migrations, inherited from initial
 };
