@@ -1,8 +1,8 @@
-type-find-unshared.mo:10.5-10.15: type error [M0096], expression of type
+type-find-unshared.mo:4.5-4.15: type error [M0096], expression of type
   async<$> Nat
 cannot produce expected type
   Nat
-type-find-unshared.mo:9.25-9.41: type error [M0031], shared function has non-shared parameter type
+type-find-unshared.mo:3.25-3.41: type error [M0031], shared function has non-shared parameter type
   (f : Nat -> Nat)
 type
   (f : Nat -> Nat)

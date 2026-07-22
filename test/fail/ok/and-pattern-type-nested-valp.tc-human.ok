@@ -1,4 +1,0 @@
-error[M0260]: type identifier `T` bound in both branches of and-pattern
-    ┌─ and-pattern-type-nested-valp.mo:5:49
-  5 │  let { inner = { type T } } and { inner = { type T } } =
-    │                                                  ^ 

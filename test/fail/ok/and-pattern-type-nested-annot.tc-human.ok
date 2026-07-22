@@ -1,4 +1,0 @@
-error[M0260]: type identifier `T` bound in both branches of and-pattern
-    ┌─ and-pattern-type-nested-annot.mo:3:28
-  3 │  let { type T } and ({ type T } : module { type T = Nat }) =
-    │                             ^ 

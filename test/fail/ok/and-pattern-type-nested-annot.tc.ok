@@ -1,1 +1,0 @@
-and-pattern-type-nested-annot.mo:3.28-3.29: type error [M0260], type identifier `T` bound in both branches of and-pattern

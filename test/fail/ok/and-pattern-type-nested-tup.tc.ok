@@ -1,1 +1,0 @@
-and-pattern-type-nested-tup.mo:5.34-5.35: type error [M0260], type identifier `T` bound in both branches of and-pattern

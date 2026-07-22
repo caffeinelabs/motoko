@@ -1,9 +1,0 @@
-error[M0096]: expression of type
-  module {x : Nat}
-cannot produce expected type
-  {x : Nat}
-because of incompatible object sorts:
- module does not match object
-    ┌─ type-incompat-obj.mo:10:21
- 10 │  let _ : {x : Nat} = M;
-    │                      ^ 
