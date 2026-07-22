@@ -1,3 +1,8 @@
+error[M0267]: initial actor requires field `n` of type
+  var Int; not provided by any migration and absent from (or incompatible with) `--stable-baseline`
+    ┌─ enhanced-migration/enh-mig-test2/m1.mo:1:1
+  1 │  module {
+    │  ^ 
 error[M0267]: initial actor requires field `x` of type
   {#X}; not provided by any migration and absent from (or incompatible with) `--stable-baseline`
     ┌─ enhanced-migration/enh-mig-test2/m1.mo:1:1

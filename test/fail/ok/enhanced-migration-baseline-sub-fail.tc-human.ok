@@ -1,5 +1,10 @@
 error[M0267]: initial actor requires field `n` of type
   var Nat; not provided by any migration and absent from (or incompatible with) `--stable-baseline`
-    ┌─ enhanced-migration/enh-mig-sub/Init.mo:1:1
+    ┌─ enhanced-migration/enh-mig-test2/m1.mo:1:1
+  1 │  module {
+    │  ^ 
+warning[M0254]: initial actor requires field `x` of type
+  {#X}
+    ┌─ enhanced-migration/enh-mig-test2/m1.mo:1:1
   1 │  module {
     │  ^ 

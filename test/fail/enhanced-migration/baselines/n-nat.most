@@ -1,5 +1,0 @@
-// Version: 1.0.0
-actor {
-  stable var a : Nat;
-  stable var n : Nat
-};

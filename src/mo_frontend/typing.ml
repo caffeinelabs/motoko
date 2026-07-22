@@ -116,10 +116,6 @@ let env_of_scope msgs scope =
     enclosing_removal = false;
   }
 
-(* Set by Pipeline before typechecking; copied onto env in infer_prog. *)
-let stable_baseline_post_ref : T.field list option ref = ref None
-let set_stable_baseline_post fs = stable_baseline_post_ref := fs
-
 let use_identifier env id =
   env.used_identifiers := T.Env.update id (function
     | Some u -> Some u
@@ -4652,27 +4648,25 @@ and check_enhanced_migration_chain env chain stab_tfs at =
    let rec check_mfs at post mfs =
      match mfs with
      | [] ->
-       (* --stable-baseline: silence carry from last .most; M0267 on the rest. Else M0254. *)
-       begin match env.stable_baseline_post with
-       | None ->
-         List.iter (fun tf ->
+       (* Same initial_required set: M0254, or M0267 when a baseline is set but does not explain the field. *)
+       List.iter (fun tf ->
+         let unexplained =
+           match env.stable_baseline_post with
+           | None -> false
+           | Some baseline ->
+             match T.lookup_val_field_opt tf.T.lab baseline with
+             | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> false
+             | _ -> true
+         in
+         if unexplained then
+           local_error env at "M0267"
+             "initial actor requires field `%s` of type%a; not provided by any migration and absent from (or incompatible with) `--stable-baseline`"
+             tf.T.lab display_typ tf.T.typ
+         else
            warn env at "M0254"
              "initial actor requires field `%s` of type%a"
              tf.T.lab display_typ tf.T.typ)
-           post
-       | Some baseline ->
-         List.iter (fun tf ->
-           let carried =
-             match T.lookup_val_field_opt tf.T.lab baseline with
-             | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> true
-             | _ -> false
-           in
-           if not carried then
-             local_error env at "M0267"
-               "initial actor requires field `%s` of type%a; not provided by any migration and absent from (or incompatible with) `--stable-baseline`"
-               tf.T.lab display_typ tf.T.typ)
-           post
-       end
+         post
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
@@ -5593,7 +5587,7 @@ let infer_split_prog env at check_unused imports decls =
   t, Scope.adjoin iscope sscope
 
 (* Programs *)
-let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
+let infer_prog ?(enable_type_recovery=false) ~stable_baseline_post scope pkg_opt async_cap prog
     : (T.typ * Scope.t) Diag.result
   =
   let recovery_fn = if enable_type_recovery then
@@ -5610,7 +5604,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
               async = async_cap;
               type_recovery = enable_type_recovery;
               enhanced_migration = !Flags.enhanced_migration;
-              stable_baseline_post = !stable_baseline_post_ref;
+              stable_baseline_post;
             } in
           let imports, decls = split_imports prog.it in
           let t, sscope = infer_split_prog env prog.at true imports decls in
@@ -5658,7 +5652,7 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
         ) progs
     )
 
-let check_lib scope pkg_opt lib : Scope.t Diag.result =
+let check_lib ~stable_baseline_post scope pkg_opt lib : Scope.t Diag.result =
   Diag.with_message_store
     (fun msgs ->
       recover_opt
@@ -5673,7 +5667,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
               enhanced_migration = (match cub.it with
                 | MixinU _ -> !Flags.enhanced_migration
                 | _ -> None);
-              stable_baseline_post = !stable_baseline_post_ref;
+              stable_baseline_post;
             } in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_split_prog env lib.at false imp_ds ds in

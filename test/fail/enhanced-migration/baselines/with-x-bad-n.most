@@ -4,5 +4,5 @@ actor {
   stable b : Bool;
   stable var c : Nat;
   stable x : {#X};
-  stable var n : Nat
+  stable var n : Int
 };

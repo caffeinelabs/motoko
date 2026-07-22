@@ -8,19 +8,22 @@ val initial_scope : scope
 
 val infer_prog
   :  ?enable_type_recovery:bool
+  -> stable_baseline_post:Type.field list option
   -> scope
   -> string option
   -> Async_cap.async_cap
   -> Syntax.prog
   -> (typ * scope) Diag.result
 
-val check_lib : scope -> string option -> Syntax.lib -> scope Diag.result
+val check_lib
+  :  stable_baseline_post:Type.field list option
+  -> scope
+  -> string option
+  -> Syntax.lib
+  -> scope Diag.result
 val check_actors : ?check_actors:bool -> scope -> Syntax.prog list -> unit Diag.result
 
 val check_stab_sig : scope -> Syntax.stab_sig -> Type.stab_sig Diag.result
-
-(* --stable-baseline post fields; set by Pipeline before typechecking. *)
-val set_stable_baseline_post : Type.field list option -> unit
 
 type contextual_dot_suggestion =
   { module_url : lab;

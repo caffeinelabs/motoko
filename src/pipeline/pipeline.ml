@@ -202,6 +202,7 @@ let async_cap_of_prog prog =
 
 let infer_prog
     ?(enable_type_recovery=false)
+    ~stable_baseline_post
     pkg_opt
     senv
     async_cap
@@ -209,7 +210,7 @@ let infer_prog
   let filename = prog.note.Syntax.filename in
   phase "Checking" filename;
   Cons.session ~scope:filename (fun () ->
-    let r = Typing.infer_prog ~enable_type_recovery pkg_opt senv async_cap prog in
+    let r = Typing.infer_prog ~enable_type_recovery ~stable_baseline_post pkg_opt senv async_cap prog in
     if !Flags.trace && !Flags.verbose then begin
       match r with
       | Ok ((_, scope), _) ->
@@ -226,6 +227,7 @@ let infer_prog
 
 let check_progs
     ?(enable_type_recovery=false)
+    ~stable_baseline_post
     senv
     progs : (Scope.t list * Scope.t) Diag.result =
   let rec go senv sscopes = function
@@ -236,7 +238,7 @@ let check_progs
       let async_cap = async_cap_of_prog prog in
       let* _t, sscope =
         Cons.session ~scope:filename (fun () ->
-          infer_prog ~enable_type_recovery senv None async_cap prog)
+          infer_prog ~enable_type_recovery ~stable_baseline_post senv None async_cap prog)
       in
       let senv' = Scope.adjoin senv sscope in
       let sscopes' = sscope :: sscopes in
@@ -244,12 +246,12 @@ let check_progs
   in
   go senv [] progs
 
-let check_lib senv pkg_opt lib : Scope.scope Diag.result =
+let check_lib ~stable_baseline_post senv pkg_opt lib : Scope.scope Diag.result =
   let filename = lib.note.Syntax.filename in
   Cons.session ~scope:filename (fun () ->
     phase "Checking" (Filename.basename filename);
     let open Diag.Syntax in
-    let* sscope = Typing.check_lib senv pkg_opt lib in
+    let* sscope = Typing.check_lib ~stable_baseline_post senv pkg_opt lib in
     phase "Definedness" (Filename.basename filename);
     let* () = Definedness.check_lib lib in
     Diag.return sscope)
@@ -271,7 +273,7 @@ let check_builtin what src senv0 : Syntax.prog * stat_env =
   match parse_with Lexer.mode_priv lexer parse what with
   | Error es -> builtin_error "parsing" what es
   | Ok (prog, _ws) ->
-    match infer_prog senv0 None Async_cap.NullCap prog with
+    match infer_prog ~stable_baseline_post:None senv0 None Async_cap.NullCap prog with
     | Error es -> builtin_error "checking" what es
     | Ok ((_t, sscope), _ws) ->
       let senv1 = Scope.adjoin senv0 sscope in
@@ -343,11 +345,10 @@ let validate_stab_sig s : unit Diag.result =
     | _, _ -> assert false))
 
 (* Load --stable-baseline .most post for M0267. *)
-let load_stable_baseline () : unit Diag.result =
+let load_stable_baseline () : Type.field list option Diag.result =
   let open Diag.Syntax in
-  Typing.set_stable_baseline_post None;
   match !Flags.stable_baseline, !Flags.enhanced_migration with
-  | None, _ | _, None -> Diag.return ()
+  | None, _ | _, None -> Diag.return None
   | Some path, Some _ ->
     let* p = parse_stab_sig_from_file path in
     let* s =
@@ -355,8 +356,7 @@ let load_stable_baseline () : unit Diag.result =
         Typing.check_stab_sig initial_stat_env0 p)
     in
     let post, _ = Type.post s in
-    Typing.set_stable_baseline_post (Some post);
-    Diag.return ()
+    Diag.return (Some post)
 
 (* The prim module *)
 
@@ -388,7 +388,7 @@ let check_prim () : Syntax.lib * stat_env =
       at = no_region;
       note = { filename = "@prim"; trivia = Trivia.empty_triv_table }
     } in
-    match check_lib senv0 None lib with
+    match check_lib ~stable_baseline_post:None senv0 None lib with
     | Error es -> prim_error "checking" es
     | Ok (sscope, _ws) ->
       let senv1 = Scope.adjoin senv0 sscope in
@@ -427,7 +427,7 @@ let resolved_import_name ri =
   | ImportedValuePath path -> path
   | PrimPath -> "@prim")
 
-let chase_imports_cached parsefn senv0 imports scopes_map
+let chase_imports_cached ~stable_baseline_post parsefn senv0 imports scopes_map
     : (Syntax.lib list * Scope.scope * scope_cache) Diag.result
   =
   (*
@@ -491,7 +491,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         let* more_imports = ResolveImport.resolve (resolve_flags ~is_main:false ~base cur_pkg_opt) prog base in
         let* () = go_set cur_pkg_opt more_imports in
         let lib = lib_of_prog f prog in
-        let* sscope = check_lib !senv cur_pkg_opt lib in
+        let* sscope = check_lib ~stable_baseline_post !senv cur_pkg_opt lib in
         libs := lib :: !libs; (* NB: Conceptually an append *)
         senv := Scope.adjoin !senv sscope;
         cache := Type.Env.add ri_name sscope !cache;
@@ -532,10 +532,10 @@ let chase_imports_cached parsefn senv0 imports scopes_map
   in
   Diag.map (fun () -> List.rev !libs, !senv, !cache) (go_set None imports)
 
-let chase_imports parsefn senv0 imports : (Syntax.lib list * Scope.scope) Diag.result =
+let chase_imports ~stable_baseline_post parsefn senv0 imports : (Syntax.lib list * Scope.scope) Diag.result =
   let open Diag.Syntax in
   let cache = Type.Env.empty in
-  let* libs, senv, _cache = chase_imports_cached parsefn senv0 imports cache in
+  let* libs, senv, _cache = chase_imports_cached ~stable_baseline_post parsefn senv0 imports cache in
   Diag.return (libs, senv)
 
 let load_progs_cached
@@ -550,15 +550,14 @@ let load_progs_cached
   let* rs = resolve_progs parsed in
   let progs = List.map fst rs in
   let libs = List.concat_map snd rs in
-  (* Before chase_imports so check_lib/mixins see the baseline. *)
-  let* () = load_stable_baseline () in
+  let* stable_baseline_post = load_stable_baseline () in
   let* libs, senv, scope_cache =
-    chase_imports_cached parsefn senv libs scope_cache
+    chase_imports_cached ~stable_baseline_post parsefn senv libs scope_cache
   in
   let* () = Typing.check_actors ?check_actors senv progs in
   (* [infer_prog] seems to annotate the AST with types by mutating some of its
      nodes, therefore, we always run the type checker for programs. *)
-  let* sscopes, senv = check_progs ~enable_type_recovery senv progs in
+  let* sscopes, senv = check_progs ~enable_type_recovery ~stable_baseline_post senv progs in
   let prog_result =
     List.map2
       (fun (prog, rims) sscope ->
@@ -582,8 +581,9 @@ let load_decl parse_one senv : load_decl_result =
   let open Diag.Syntax in
   let* parsed = parse_one in
   let* prog, libs = resolve_prog parsed in
-  let* libs, senv' = chase_imports parse_file senv libs in
-  let* t, sscope = infer_prog senv' (Some "<toplevel>") (Async_cap.(AwaitCap top_cap)) prog in
+  let* stable_baseline_post = load_stable_baseline () in
+  let* libs, senv' = chase_imports ~stable_baseline_post parse_file senv libs in
+  let* t, sscope = infer_prog ~stable_baseline_post senv' (Some "<toplevel>") (Async_cap.(AwaitCap top_cap)) prog in
   let senv'' = Scope.adjoin senv' sscope in
   Diag.return (libs, prog, senv'', t, sscope)
 
