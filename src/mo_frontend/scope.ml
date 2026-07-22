@@ -7,7 +7,8 @@ module S = Mo_def.Syntax
 type val_kind = Declaration | FieldReference | MixinIncluded | MutableNotAssigned
 
 type val_env = (T.typ * Source.region * val_kind) T.Env.t
-type lib_env = T.typ T.Env.t
+type lib_info = { lib_typ : T.typ; lib_package : string option }
+type lib_env = lib_info T.Env.t
 type typ_env = T.con T.Env.t
 type con_env = T.ConSet.t
 type fld_src_env = Field_sources.srcs_map
@@ -54,8 +55,8 @@ let adjoin scope1 scope2 =
 
 let adjoin_val_env scope ve = {scope with val_env = T.Env.adjoin scope.val_env ve}
 
-let lib f t =
-  { empty with lib_env = T.Env.singleton f t }
+let lib ~package path typ =
+  { empty with lib_env = T.Env.singleton path { lib_typ = typ; lib_package = package } }
 
 let mixin f t =
   { empty with mixin_env = T.Env.singleton f t }
