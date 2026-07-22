@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.11.2 (2026-07-22)
+
 * motoko (`moc`)
 
   * bugfix: `--implicit-package=<pkg>` was incorrectly using all transitively loaded modules for implicit argument and contextual dot resolution instead of restricting to the given package (#6242).
