@@ -2,6 +2,7 @@ open Mo_def
 open Mo_types
 open Mo_values
 module Flags = Mo_config.Flags
+open Scope
 
 open Syntax
 open Source
@@ -112,6 +113,16 @@ let env_of_scope msgs scope =
     enhanced_migration = None;
     enclosing_removal = false;
   }
+
+let is_implicit_package pkg =
+  match !Flags.implicit_package, pkg with
+  | Some ip, Some p -> ip = p
+  | _ -> false
+
+let is_implicit_lib env path =
+  match T.Env.find_opt path env.libs with
+  | Some info -> is_implicit_package info.lib_package
+  | None -> false
 
 let use_identifier env id =
   env.used_identifiers := T.Env.update id (function
@@ -620,9 +631,9 @@ let check_import env at f ri =
     | IDLPath (fp, _) -> fp
     | PrimPath -> "@prim" in
   match T.Env.find_opt full_path env.libs with
-  | Some T.Pre ->
+  | Some {lib_typ = T.Pre; _} ->
     error env at "M0021" "cannot infer type of forward import %s" f
-  | Some t -> t
+  | Some info -> info.lib_typ
   | None ->
     match T.Env.find_opt full_path env.mixins with
     | Some mix -> mix.Scope.typ
@@ -1569,13 +1580,15 @@ let disambiguate_resolutions (rel : 'candidate -> 'candidate -> bool) (candidate
   | [] -> `Empty
   | frontier -> `Many frontier
 
-let is_lib_module (n, t) =
+let is_module_typ (n, t) =
   match T.normalize t with
   | T.Obj (T.Module, fs, _) -> Some (n, fs)
   | _ -> None
 
+let is_lib_module (n, (info : lib_info)) = is_module_typ (n, info.lib_typ)
+
 let is_val_module (n, ((t, _, _, _) : val_info)) =
-  is_lib_module (n, t)
+  is_module_typ (n, t)
 
 let module_exp in_libs module_ref =
   if not in_libs then
@@ -1865,9 +1878,9 @@ module ImplicitHoles = struct
     let make_ref_exp r = VarE (r @~ no_region)
   end
 
-  module LibCandidateSource : CandidateSource with type entry = T.typ = struct
-    type entry = T.typ
-    let get_typ t = t
+  module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
+    type entry = Scope.lib_info
+    let get_typ info = info.lib_typ
     let make_ref_exp r = ImplicitLibE r
   end
 
@@ -1999,9 +2012,12 @@ module ImplicitHoles = struct
     | `Empty ->
 
     (* Get direct module field candidates from libs (unimported modules) *)
-    (* Use them for resolution only when the feature flag is set! *)
+    (* Resolve only implicit-package libs; error suggestions may still list others. *)
+    let from_implicit_lib c =
+      Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref_opt
+    in
     let lib_fields = FromModuleLib.matching_fields hole env.libs in
-    match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_fields else `Empty with
+    match if Option.is_some !Flags.implicit_package then disambiguate_holes (List.filter from_implicit_lib lib_fields) else `Empty with
     | `Single term -> Ok term
     | `Many _ | `Empty ->
 
@@ -2029,7 +2045,7 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive ~depth lib_fields_with_holes
+      then try_derive ~depth (List.filter (fun (_, c) -> from_implicit_lib c) lib_fields_with_holes)
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -2082,7 +2098,8 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive_structural info structural_lib_candidates ~depth
+      then try_derive_structural info
+        (List.filter (fun (_, c) -> from_implicit_lib c) structural_lib_candidates) ~depth
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -2188,8 +2205,16 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
       let modules = String.concat ", " (List.filter_map (fun c -> c.module_ref) cs) in
       error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it modules))
     | `Empty ->
+      (* Resolve only implicit-package libs; error suggestions may still list others. *)
       let lib_candidates = candidates true env.libs is_lib_module in
-      match if Option.is_some !Flags.implicit_package then disambiguate_candidates lib_candidates else `Empty with
+      let lib_resolution =
+        if Option.is_some !Flags.implicit_package then
+          lib_candidates
+          |> List.filter (fun c -> Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref)
+          |> disambiguate_candidates
+        else `Empty
+      in
+      match lib_resolution with
       | `Single c -> Ok c
       | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
 
@@ -2317,20 +2342,21 @@ and infer_exp'' env exp : T.typ =
       let candidate_libs =
         if Option.is_some(!Flags.implicit_package) then
           T.Env.to_seq env.libs |>
-            Seq.filter (fun (name, typ) ->
-              name <> "@prim" &&
+            Seq.filter (fun (name, info) ->
+              is_implicit_package info.lib_package &&
                 let lib_id = Filename.basename name |> Filename.chop_extension in
                 lib_id = id.it) |>
             List.of_seq
         else []
       in
       match candidate_libs with
-      | [(name, typ)] ->
+      | [(name, info)] ->
+        let typ = info.lib_typ in
         id.note <-
           (Const, Some { it = ImplicitLibE name; at = exp.at; note = {note_typ = typ; note_eff = T.Triv} });
         typ
       | c1::c2::cs ->
-        let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
+        let import_suggestions = List.map (fun (name, _) -> Suggest.module_name_as_url name) candidate_libs in
         error env id.at "M0057"
           ~spans:[primary env id.at "help: Did you mean to import %s?" (String.concat " or " import_suggestions)]
           "unbound variable %s%a"
@@ -2819,7 +2845,7 @@ and infer_exp'' env exp : T.typ =
     check_import env exp.at f ri
   | ImplicitLibE lib ->
     match T.Env.find_opt lib env.libs with
-    | Some t -> t
+    | Some info -> info.lib_typ
     | None -> failwith "ImplicitLibE not found in env.libs"
 
 and infer_bin_exp env exp1 exp2 =
@@ -4566,10 +4592,10 @@ and infer_migration_chain env at =
      in
      let norm_path = Lib.FilePath.normalise path in
      let chain =
-       T.Env.fold (fun lib lib_typ acc ->
+       T.Env.fold (fun lib info acc ->
            if Filename.dirname lib <> norm_path
            then acc else
-           match Type.normalize lib_typ with
+           match Type.normalize info.lib_typ with
              | T.Obj(T.Module, fields, _) as mod_typ ->
                begin
                 match Type.lookup_val_field_opt "migration" fields with
@@ -5173,7 +5199,7 @@ and infer_val_path env exp : T.typ option =
      | _ -> None)
   | ImplicitLibE lib ->
     (match T.Env.find_opt lib env.libs with
-    | Some t -> Some t
+    | Some info -> Some info.lib_typ
     | None -> None)
   | DotE (path, id, _) ->
     (match infer_val_path env path with
@@ -5664,7 +5690,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
                 in
                 warn env r "M0142" "deprecated syntax: an imported library should be a module or named actor class"
               end;
-              Scope.lib lib.note.filename typ
+              Scope.lib ~package:pkg_opt lib.note.filename typ
             | ActorClassU (_persistence, sp, exp_opt, id, tbs, p, _, self_id, dec_fields) ->
               if is_anon_id id then
                 error env cub.at "M0143" "bad import: imported actor class cannot be anonymous";
@@ -5685,7 +5711,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
                 (id.it, fun_typ);
                 ("system", obj Module [id.it, install_typ (List.map (close cs) ts1) class_typ])
               ] [(id.it, con)]) in
-              Scope.lib lib.note.filename typ
+              Scope.lib ~package:pkg_opt lib.note.filename typ
             | MixinU (need_system, arg, decs) ->
               Scope.mixin lib.note.filename Scope.{ imports; need_system; arg; decs; typ }
             | ActorU _ ->
