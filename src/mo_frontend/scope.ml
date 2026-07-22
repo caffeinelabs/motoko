@@ -55,7 +55,7 @@ let adjoin scope1 scope2 =
 
 let adjoin_val_env scope ve = {scope with val_env = T.Env.adjoin scope.val_env ve}
 
-let lib ?package path typ =
+let lib ~package path typ =
   { empty with lib_env = T.Env.singleton path { lib_typ = typ; lib_package = package } }
 
 let mixin f t =

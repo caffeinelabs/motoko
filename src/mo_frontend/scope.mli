@@ -35,5 +35,5 @@ val empty : scope
 val adjoin : scope -> scope -> scope
 
 val adjoin_val_env : scope -> val_env -> scope
-val lib : ?package:string -> string -> typ -> scope
+val lib : package:string option -> string -> typ -> scope
 val mixin : string -> mixin_data -> scope
