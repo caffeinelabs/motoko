@@ -1,0 +1,23 @@
+(unknown location): Compatibility error [M0170], the new type of stable variable `x` is not compatible with the previous version.
+ The previous type
+  var Nat
+ is not a subtype of
+  var Text
+ because the type 
+  Nat
+ is not compatible with type 
+  Text
+ in `x`.
+ Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+(unknown location): Compatibility error [M0170], the new type of stable variable `y` is not compatible with the previous version.
+ The previous type
+  var [Nat]
+ is not a subtype of
+  var [Text]
+ because the type 
+  Nat
+ is not compatible with type 
+  Text
+ in `y`.
+ Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+FALSE

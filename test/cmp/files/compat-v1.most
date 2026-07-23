@@ -1,0 +1,31 @@
+// Positive stable-signature compatibility: identity of every type shape plus
+// compatible evolutions (variant tag addition, Nat->Int widening). One check
+// covers the compatible_typ / compatible_fields / compatible_tags TRUE arms.
+actor {
+  stable var nat : Nat;
+  stable var txt : Text;
+  stable var boo : Bool;
+  stable var n8 : Nat8;
+  stable var n16 : Nat16;
+  stable var n32 : Nat32;
+  stable var n64 : Nat64;
+  stable var i8 : Int8;
+  stable var i16 : Int16;
+  stable var i32 : Int32;
+  stable var i64 : Int64;
+  stable var flo : Float;
+  stable var cha : Char;
+  stable var blo : Blob;
+  stable var pri : Principal;
+  stable var arr : [Nat];
+  stable var marr : [var Nat];
+  stable var pair : (Nat, Bool);
+  stable var triple : (Nat, Text, Bool);
+  stable var opt : ?Nat;
+  stable var obj : {x : Nat; y : Text};
+  stable var vari : {#a : Nat; #b : Text; #c};
+  stable var status : {#ok : Nat; #err : Text};
+  stable var sf : shared Nat -> async Bool;
+  stable var sfq : shared query Nat -> async Text;
+  stable var widen : Nat;
+};

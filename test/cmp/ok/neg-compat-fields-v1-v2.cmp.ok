@@ -1,0 +1,10 @@
+(unknown location): Compatibility error [M0216], the new type of stable variable `obj` implicitly drops data of the previous version. 
+ The previous type
+  var {x : Nat; y : Text; z : Bool}
+ is not a stable subtype of
+  var {x : Nat; z : Bool}
+ because field `y` is missing from expected type 
+  {x : Nat; z : Bool}
+ of `obj`.
+ The data can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+FALSE

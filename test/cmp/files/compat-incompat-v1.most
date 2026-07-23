@@ -1,0 +1,7 @@
+// Incompatible types: Nat vs Text, Array[Nat] vs Array[Text],
+// different object shapes, Mut vs non-Mut mismatch.
+// These exercise the false arms: Mut/non-Mut, Any/non-Any, different prims.
+actor {
+  stable var x : Nat;
+  stable var y : [Nat];
+};
