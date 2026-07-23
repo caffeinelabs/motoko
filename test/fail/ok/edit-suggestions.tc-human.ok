@@ -174,9 +174,9 @@ warning[M0237]: The `Text.compare` argument can be inferred and omitted here (th
     │      ^^^^^^^^^^^^ 
     = help: remove `Text.compare,`
 warning[M0223]: redundant type instantiation
-    ┌─ edit-suggestions.mo:143:18
-143 │    let _ = Map.add<Nat, Text>(
-    │                   ^^^^^^^^^^^ 
+    ┌─ edit-suggestions.mo:144:14
+144 │      Map.empty<Nat, Text>(),
+    │               ^^^^^^^^^^^ 
     = help: remove `<Nat, Text>`
 warning[M0236]: You can use the dot notation `Map.empty<Nat, Text>().add(...)` here
     ┌─ edit-suggestions.mo:143:11
@@ -212,3 +212,8 @@ warning[M0236]: You can use the dot notation `m.size(...)` here
     │           ^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `m`
     = help: replace `m` with `()`
+warning[M0223]: redundant type instantiation
+    ┌─ edit-suggestions.mo:160:18
+160 │    ignore Map.size<Nat, Text> m; // warn M0236
+    │                   ^^^^^^^^^^^ 
+    = help: remove `<Nat, Text>`

@@ -929,6 +929,11 @@ let wasm_features_section s =
   custom_section is_wasm_features
     (fun sec_end s -> let t = utf8 sec_end s in String.split_on_char ',' t) [] s
 
+let is_target_features n = (n = Utf8.decode "target_features")
+let target_features_section s =
+  custom_section is_target_features
+    (fun _sec_end s -> vec (fun s -> ignore (u8 s) (* '+'/'-' prefix *); string s) s) [] s
+
 let is_unknown n = not (
   is_dylink0 n ||
   is_name n ||
@@ -936,7 +941,8 @@ let is_unknown n = not (
   is_icp candid_service_name n ||
   is_icp candid_args_name n ||
   is_icp motoko_stable_types_name n ||
-  is_wasm_features n)
+  is_wasm_features n ||
+  is_target_features n)
 
 let skip_custom sec_end s =
   skip (sec_end - pos s) s;
@@ -991,6 +997,12 @@ let module_ s =
   iterate skip_custom_section s;
   let wasm_features = wasm_features_section s in
   iterate skip_custom_section s;
+  (* Decode is order-sensitive: known sections must appear in this order, with
+     only `is_unknown` sections skippable between them. Holds because `lld`
+     emits `target_features` last; if a future toolchain placed it earlier,
+     it would no longer be skipped and decode would fail here. *)
+  let target_features = target_features_section s in
+  iterate skip_custom_section s;
   require (pos s = len s) s (len s) "junk after last section";
   require (List.length func_types = List.length func_bodies)
     s (len s) "function and code section have inconsistent lengths";
@@ -1009,6 +1021,7 @@ let module_ s =
     candid;
     source_mapping_url = None;
     wasm_features = wasm_features;
+    target_features = target_features;
   }
 
 

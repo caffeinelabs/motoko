@@ -19,12 +19,16 @@ impl Buf {
     /// Restrict the read area
     #[cfg(feature = "ic")]
     pub(crate) unsafe fn limit_size(self: *mut Self, lim: usize) -> *mut u8 {
-        let limit_ptr = (*self).ptr.add(lim);
         let prev = (*self).end;
-        if limit_ptr < prev {
-            (*self).end = limit_ptr;
+        if lim < self.size() {
+            (*self).end = (*self).ptr.add(lim);
         }
         prev
+    }
+
+    #[cfg(feature = "ic")]
+    pub(crate) unsafe fn size(self: *const Self) -> usize {
+        (*self).end.offset_from_unsigned((*self).ptr)
     }
 }
 
@@ -46,7 +50,7 @@ pub(crate) unsafe fn read_word(buf: *mut Buf) -> u32 {
     // IDL buffer is still 32-bit-based.
     const WORD_SIZE: usize = core::mem::size_of::<u32>();
 
-    if (*buf).ptr.add(WORD_SIZE) > (*buf).end {
+    if WORD_SIZE > buf.size() {
         idl_trap_with("word read out of buffer");
     }
 
@@ -62,7 +66,7 @@ pub(crate) unsafe fn read_word(buf: *mut Buf) -> u32 {
 
 #[cfg(feature = "ic")]
 unsafe fn advance(buf: *mut Buf, n: usize) {
-    if (*buf).ptr.add(n) > (*buf).end {
+    if n > buf.size() {
         idl_trap_with("advance out of buffer");
     }
 

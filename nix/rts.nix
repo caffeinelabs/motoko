@@ -13,7 +13,7 @@ let
   vendorRustStdDeps = "${cargoVendorTools}/bin/vendor-rust-std-deps";
 
   # SHA256 of Rust std deps
-  rustStdDepsHash = "sha256-92QH5QOdms57sl2sDMJxx/yS1T90mZp5L9N0nTxckn0=";
+  rustStdDepsHash = "sha256-HfTizTBQZW4t2vDjYatn4RXzSbSzJiYbNU+yRnyVpFk=";
 
   # Vendor directory for Rust std deps
   rustStdDeps = pkgs.stdenvNoCC.mkDerivation {
@@ -59,7 +59,7 @@ let
       rust-bindgen
       python3
       wabt
-    ] ++ pkgs.lib.optional pkgs.stdenv.isDarwin [
+    ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
       libiconv
     ];
 

@@ -11,7 +11,7 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::OnceLock;
-use test_runner::mode::{self, Mode, MvMode};
+use test_runner::mode::{self, Mode};
 use test_runner::test_runner::{self as exec, SubnetType};
 
 #[derive(Parser, Clone)]
@@ -261,8 +261,6 @@ struct Directives {
     drun_skip: bool,
     default_gc_only: bool,
     application_subnet: bool,
-    wasm_mv_only: bool,
-    fake_mv_only: bool,
 }
 
 fn parse_directives(src: &str, is_drun: bool) -> Directives {
@@ -295,8 +293,6 @@ fn parse_directives(src: &str, is_drun: bool) -> Directives {
         d.classical_only |= tagged("CLASSICAL-PERSISTENCE-ONLY");
         d.incremental_gc_only |= tagged("INCREMENTAL-GC-ONLY");
         d.skip_sanity_checks |= tagged("SKIP-SANITY-CHECKS");
-        d.wasm_mv_only |= tagged("WASM-MULTI-VALUE-ONLY");
-        d.fake_mv_only |= tagged("FAKE-MULTI-VALUE-ONLY");
     }
     d
 }
@@ -323,12 +319,6 @@ fn skip_reason(d: &Directives, is_drun: bool) -> Option<&'static str> {
     }
     if d.classical_only && has("--enhanced-orthogonal-persistence") {
         return silent_or(" Skipped (not applicable to enhanced persistence)");
-    }
-    if d.wasm_mv_only && !has("--experimental-multi-value") {
-        return silent_or(" Skipped (requires --experimental-multi-value)");
-    }
-    if d.fake_mv_only && has("--experimental-multi-value") {
-        return silent_or(" Skipped (not applicable to Wasm multi-value)");
     }
     if d.skip_sanity_checks && has("--sanity-checks") {
         return silent_or(" Skipped (not applicable to --sanity-checks)");
@@ -897,22 +887,41 @@ fn handle_cmp(ctx: &mut Ctx, cli: &Cli) {
     ctx.push_diff("cmp");
 }
 
+/// Accept fresh `_out/` captures into `ok/` as a content compare-and-swap.
+///
+/// Concurrency-safe by construction: each golden is rewritten ONLY when its
+/// content actually changed, so an unchanged golden is never touched (no write
+/// window for a concurrent reader under the parallel suite).
+///
+/// An EMPTY/absent capture removes its golden ONLY when the phase succeeded
+/// (exit 0 — no sibling `<phase>.ret` failure marker): that is a legitimate
+/// "this phase now produces nothing" removal. On a non-zero exit the empty is a
+/// FAILURE artifact and the golden is KEPT — so under `--all-modes`, where the
+/// persistence×MV product multiplies concurrent moc/drun/pocket-ic processes, a
+/// transient-empty capture can no longer silently delete a passing test's
+/// golden. (Golden removal thus requires a *successful* empty run, never a flaky
+/// failed one.)
 fn accept(ctx: &Ctx) {
-    let prefix = format!("{}.", ctx.base);
-    if let Ok(entries) = fs::read_dir(&ctx.ok) {
-        for e in entries.flatten() {
-            if e.file_name().to_str().is_some_and(|s| s.starts_with(&prefix)) {
-                let _ = fs::remove_file(e.path());
-            }
-        }
-    }
     for f in &ctx.diff_files {
         let src = ctx.out.join(f);
         let dst = ctx.ok.join(format!("{f}.ok"));
-        if fs::metadata(&src).map(|m| m.len() > 0).unwrap_or(false) {
-            let _ = fs::copy(&src, &dst);
-        } else {
-            let _ = fs::remove_file(&dst);
+        let fresh = fs::read(&src).unwrap_or_default();
+        if fresh.is_empty() {
+            // Empty capture: distinguish a LEGITIMATE empty (the phase ran and
+            // exited 0, producing nothing) from a FAILURE artifact (crash /
+            // timeout / parallel contention). `run_phase` records a non-zero
+            // exit as a sibling `<phase>.ret`; its presence ⇒ the phase FAILED,
+            // so keep the golden. Only a successful empty is a legal removal.
+            let failed = !f.ends_with(".ret") && ctx.out.join(format!("{f}.ret")).exists();
+            if failed {
+                continue; // transient/real failure ⇒ never delete the golden
+            }
+            let _ = fs::remove_file(&dst); // success + empty ⇒ legal removal
+            continue;
+        }
+        // Compare in memory; swap only on a real content change.
+        if fs::read(&dst).map(|old| old != fresh).unwrap_or(true) {
+            let _ = fs::write(&dst, &fresh);
         }
     }
 }
@@ -979,10 +988,10 @@ fn run_one_pass(
     }
 }
 
-/// Mode combinations (persistence × MV) to run for `file_name`.
+/// Persistence modes to run for `file_name`.
 /// Empty means single-pass without touching `EXTRA_MOC_ARGS`
 /// (the non-`--all-modes` case).
-fn modes_to_run(all_modes: bool, file_name: &str) -> Vec<(Mode, MvMode)> {
+fn modes_to_run(all_modes: bool, file_name: &str) -> Vec<Mode> {
     if !all_modes {
         return Vec::new();
     }
@@ -990,27 +999,15 @@ fn modes_to_run(all_modes: bool, file_name: &str) -> Vec<(Mode, MvMode)> {
 
     // If the inherited EXTRA_MOC_ARGS already pins a persistence mode (CI
     // sets this), honour it rather than re-running in both.
-    let persistence: Vec<Mode> = if extra.contains("--enhanced-orthogonal-persistence") {
+    if extra.contains("--enhanced-orthogonal-persistence") {
         vec![Mode::Eop]
     } else {
         mode::infer_modes(Path::new(file_name))
-    };
-
-    // Likewise for the MV axis.
-    let mv: Vec<MvMode> = if extra.contains("--experimental-multi-value") {
-        vec![MvMode::WasmMV]
-    } else if extra.contains("--no-experimental-multi-value") {
-        vec![MvMode::FakeMV]
-    } else {
-        mode::infer_mv_modes(Path::new(file_name))
-    };
-
-    // Cartesian product: every applicable (persistence, MV) combination.
-    persistence.iter().flat_map(|&p| mv.iter().map(move |&m| (p, m))).collect()
+    }
 }
 
-/// Re-exec `run-test` for a single file, pinning both persistence and MV mode
-/// via `EXTRA_MOC_ARGS`. Isolating per-file work in its own process is
+/// Re-exec `run-test` for a single file, pinning the persistence mode via
+/// `EXTRA_MOC_ARGS`. Isolating per-file work in its own process is
 /// required for `.drun`: `pocket-ic-server` inherits fd 1 and 2 at spawn time,
 /// so reusing a single process across files (or modes) would silently route
 /// subsequent canisters' `debug_print` output to the first file's capture.
@@ -1018,7 +1015,7 @@ fn spawn_self(
     cli: &Cli,
     file: &str,
     orig_cwd: &Path,
-    mode: Option<(Mode, MvMode)>,
+    mode: Option<Mode>,
     accept: bool,
 ) -> bool {
     let exe = env::current_exe().unwrap_or_else(|_| PathBuf::from("run-test"));
@@ -1032,14 +1029,12 @@ fn spawn_self(
     if cli.idl { cmd.arg("-i"); }
     if mode.is_none() && cli.all_modes { cmd.arg("--all-modes"); }
 
-    if let Some((persist, mv)) = mode {
+    if let Some(persist) = mode {
         let saved = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
-        // Append persistence flags then MV flags to whatever was inherited.
+        // Append persistence flags to whatever was inherited.
         let mut parts: Vec<&str> = if saved.is_empty() { vec![] } else { vec![saved.as_str()] };
         let pf = persist.extra_moc_args();
         if !pf.is_empty() { parts.push(pf); }
-        let mf = mv.extra_moc_args();
-        if !mf.is_empty() { parts.push(mf); }
         cmd.env("EXTRA_MOC_ARGS", parts.join(" "));
     }
     cmd.status().map(|s| s.success()).unwrap_or(false)
@@ -1062,11 +1057,11 @@ fn process_file(cli: &Cli, file: &str, orig_cwd: &Path) -> bool {
     if !modes.is_empty() {
         let multi = modes.len() > 1;
         let mut ok_all = true;
-        for (i, (persist, mv)) in modes.iter().copied().enumerate() {
+        for (i, persist) in modes.iter().copied().enumerate() {
             if multi {
-                println!("=== mode: {}/{} ===", persist.label(), mv.label());
+                println!("=== mode: {} ===", persist.label());
             }
-            ok_all &= spawn_self(cli, file, orig_cwd, Some((persist, mv)), cli.accept && i == 0);
+            ok_all &= spawn_self(cli, file, orig_cwd, Some(persist), cli.accept && i == 0);
         }
         return ok_all;
     }

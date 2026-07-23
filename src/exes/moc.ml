@@ -128,21 +128,15 @@ let argspec =
   Arg.Unit (fun () -> Flags.(compile_mode := RefMode)),
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
   "--experimental-multi-value",
-  Arg.Set Flags.multi_value,
-  " use the wasm multi-value extension in codegen (disables `FakeMultiVal` global-stash emulation) (default)";
-  "--no-experimental-multi-value",
-  Arg.Clear Flags.multi_value,
-  " force `FakeMultiVal` emulation, opting out of the default multi-value codegen";
-  "-multi-value",
   Arg.Unit (fun () ->
-    eprintf "moc: -multi-value is deprecated. Use --experimental-multi-value instead.\n";
+    eprintf "moc: --experimental-multi-value is deprecated; multi-value codegen is the default.\n";
     Flags.multi_value := true),
-  " (deprecated alias for --experimental-multi-value)";
-  "-no-multi-value",
+  " (deprecated) multi-value codegen is the default";
+  "--no-experimental-multi-value",
   Arg.Unit (fun () ->
-    eprintf "moc: -no-multi-value is deprecated. Use --no-experimental-multi-value instead.\n";
+    eprintf "moc: --no-experimental-multi-value is deprecated; the `FakeMultiVal` emulation fallback is being retired.\n";
     Flags.multi_value := false),
-  " (deprecated alias for --no-experimental-multi-value)";
+  " (deprecated) force `FakeMultiVal` emulation, opting out of multi-value codegen";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";

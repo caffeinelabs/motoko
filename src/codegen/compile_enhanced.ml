@@ -13492,7 +13492,10 @@ and fill_pat env ae pat : patternCode =
           CannotFail (get_i ^^ Tuple.load_n env i) ^^^ code1 ^^^ code2 in
       CannotFail set_i ^^^ go 0L ps
   | ObjP pfs ->
-      let project = compile_load_field env pat.note in
+      (* For actor scrutinees compile as ActorDotPrim, otherwise an offset-load *)
+      let project name =
+        if Type.is_actor pat.note then IC.actor_public_field env name
+        else compile_load_field env pat.note name in
       let (set_i, get_i) = new_local env "obj_scrut" in
       let rec go = function
         | [] -> CannotFail G.nop
@@ -14092,6 +14095,16 @@ and conclude_module env set_serialization_globals start_fi_o =
       };
       source_mapping_url = None;
       wasm_features = E.get_features env;
+      (* Wasm features used by the emitted code and the linked RTS, in Binaryen
+         names. Empirically validated as the minimal set that lets a bare
+         `wasm-opt` (MVP by default) validate the module: the RTS contributes
+         sign-ext / nontrapping-fptoint / bulk-memory(-opt), enhanced orthogonal
+         persistence uses a 64-bit main memory, and WASI/Wasm stable-memory
+         emulation adds a second memory (`multimemory`, tracked dynamically). *)
+      target_features =
+        [ "bulk-memory"; "bulk-memory-opt"; "memory64"; "nontrapping-fptoint"; "sign-ext" ]
+        @ (if !Flags.multi_value then ["multivalue"] else [])
+        @ (if List.mem "multi-memory" (E.get_features env) then ["multimemory"] else []);
     } in
 
   (* For debugging *)
