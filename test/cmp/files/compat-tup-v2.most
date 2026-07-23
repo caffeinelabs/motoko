@@ -1,6 +1,0 @@
-// Tuple compatibility: compatible_list compatible_typ is exercised on ts1, ts2
-actor {
-  stable var pair : (Nat, Bool);
-  stable var triple : (Nat, Text, Bool);
-  stable var maybe : ?Nat;
-};

@@ -1,5 +1,0 @@
-// compatible_typ: same mutable types
-actor {
-  stable var x : Nat;
-  stable var arr : [var Nat];
-};

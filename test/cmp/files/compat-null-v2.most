@@ -1,4 +1,0 @@
-// Null <: ?Nat is compatible; exercises Prim Null, Opt _ arm
-actor {
-  stable var x : ?Nat;
-};

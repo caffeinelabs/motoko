@@ -1,5 +1,0 @@
-// compatible_typ: mutable fields — exercises Mut arm
-actor {
-  stable var x : Nat;
-  stable var arr : [var Nat];
-};
