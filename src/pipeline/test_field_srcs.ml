@@ -106,7 +106,7 @@ let run_get_sources_test source =
     let* _typ, sscope =
       Mo_types.Cons.session ~scope:filename (fun () ->
         Mo_frontend.Typing.infer_prog
-          ~stable_baseline_post:None
+          ~stable_baseline_sig:None
           senv
           None
           async_cap
