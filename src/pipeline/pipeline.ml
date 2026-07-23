@@ -306,18 +306,16 @@ let parse_stab_sig_from_file filename : Syntax.stab_sig Diag.result =
     Diag.return sig_
   )
 
+let load_stab_sig path : Type.stab_sig Diag.result =
+  let open Diag.Syntax in
+  let* p = parse_stab_sig_from_file path in
+  Cons.session ~scope:p.note.Syntax.filename (fun () ->
+    Typing.check_stab_sig initial_stat_env0 p)
+
 let stable_compatible pre post : unit Diag.result =
   let open Diag.Syntax in
-  let* p1 = parse_stab_sig_from_file pre in
-  let* p2 = parse_stab_sig_from_file post in
-  let* s1 =
-    Cons.session ~scope:p1.note.Syntax.filename (fun () ->
-      Typing.check_stab_sig initial_stat_env0 p1)
-  in
-  let* s2 =
-    Cons.session ~scope:p2.note.Syntax.filename (fun () ->
-      Typing.check_stab_sig initial_stat_env0 p2)
-  in
+  let* s1 = load_stab_sig pre in
+  let* s2 = load_stab_sig post in
   Stability.match_stab_sig s1 s2
 
 (* basic sanity checking of emitted stable signatures *)
@@ -350,11 +348,7 @@ let load_stable_baseline () : Type.field list option Diag.result =
   match !Flags.stable_baseline, !Flags.enhanced_migration with
   | None, _ | _, None -> Diag.return None
   | Some path, Some _ ->
-    let* p = parse_stab_sig_from_file path in
-    let* s =
-      Cons.session ~scope:p.note.Syntax.filename (fun () ->
-        Typing.check_stab_sig initial_stat_env0 p)
-    in
+    let* s = load_stab_sig path in
     let post, _ = Type.post s in
     Diag.return (Some post)
 

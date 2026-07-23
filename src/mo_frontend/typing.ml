@@ -72,7 +72,6 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
-    (* --stable-baseline post fields; None if flag unset. *)
     stable_baseline_post : T.field list option;
     (* Inside the args of a call whose own instantiation/implicit is being suggested for removal:
        M0223/M0237 probes drop the donated expected type (it vanishes once applied),
@@ -4660,7 +4659,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
          in
          if unexplained then
            local_error env at "M0267"
-             "initial actor requires field `%s` of type%a; not provided by any migration and absent from (or incompatible with) `--stable-baseline`"
+             "initial actor requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
              tf.T.lab display_typ tf.T.typ
          else
            warn env at "M0254"

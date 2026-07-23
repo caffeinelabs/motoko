@@ -1,12 +1,10 @@
 # Motoko compiler changelog
 
-## Unreleased
-
 * motoko (`moc`)
 
   * feat: `--stable-baseline <file.most>` with `--enhanced-migration` escalates unexplained
-    "initial actor requires field" cases to error **M0267**; fields whose baseline type is a
-    stable subtype of the required type keep warning **M0254** (prototype for legacy→EM
+    "initial actor requires field" cases to error M0267; fields whose baseline type is a
+    stable subtype of the required type keep warning M0254 (prototype for legacy→EM
     conversions) (#6249).
 
 ## 1.11.1 (2026-07-15)
