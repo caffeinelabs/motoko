@@ -72,6 +72,8 @@ let use_stable_regions = ref false
 let enhanced_orthogonal_persistence = ref true
 let explicit_enhanced_orthogonal_persistence = ref false
 let enhanced_migration : string option ref = ref None
+(* Last deployed .most for M0267 vs M0254 partitioning *)
+let stable_baseline : string option ref = ref None
 let share_code = ref false
 let stabilization_instruction_limit_default = {
   upgrade = 180_000_000_000L; (* 200 billion limit with 10% reserve *)
