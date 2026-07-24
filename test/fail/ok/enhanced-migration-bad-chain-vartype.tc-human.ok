@@ -1,5 +1,5 @@
-error[M0170]: the new type of stable variable `a` is not compatible with version `m3`.
- The previous type
+error[M0170]: stable variable `a` is not compatible with version `m3`.
+Previous type
   Float
  is not a subtype of
   Text
@@ -8,7 +8,8 @@ error[M0170]: the new type of stable variable `a` is not compatible with version
  is not compatible with type 
   Text
  in `a`.
- Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
     ┌─ enhanced-migration/enh-mig-test2/m4.mo:1:1
   1 │  module {
     │  ^ 

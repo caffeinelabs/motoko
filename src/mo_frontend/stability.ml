@@ -4,7 +4,11 @@ open Type
 
 module Pretty = Type.MakePretty(Type.ElideStampsAndHashes)
 
-let migration_link = "https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function"
+let migration_link =
+  "https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function"
+
+let enhanced_migration_link =
+  "https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/"
 
 (* Signature matching *)
 
@@ -27,15 +31,17 @@ let desc mig_lab_opt =
 let error_discard s at mig_lap_opt tf =
   Diag.add_msg s
     (Diag.error_message at "M0169" cat
-       (Format.asprintf "the stable variable `%s` of %s cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see %s"
-        tf.lab
-        (desc mig_lap_opt)
-        migration_link))
+       (Format.asprintf
+          "stable variable `%s` of %s cannot be implicitly discarded — use an explicit migration function to drop it\nSee %s"
+          tf.lab
+          (desc mig_lap_opt)
+          migration_link))
 
 let error_sub s at mig_lab_opt tf1 tf2 explanation =
   Diag.add_msg s
     (Diag.error_message at "M0170" cat
-      (Format.asprintf "the new type of stable variable `%s` is not compatible with %s.\n The previous type%a\n is not a subtype of%a\n because %s.\n Write an explicit migration function, please see %s."
+      (Format.asprintf
+         "stable variable `%s` is not compatible with %s.\nPrevious type%a\n is not a subtype of%a\n because %s.\nWrite an explicit migration function to convert it.\nSee %s"
          tf1.lab
         (desc mig_lab_opt)
         display_typ_expand tf1.typ
@@ -47,7 +53,8 @@ let error_sub s at mig_lab_opt tf1 tf2 explanation =
 let error_stable_sub s at mig_lab_opt tf1 tf2 explanation =
   Diag.add_msg s
     (Diag.error_message at "M0216" cat
-      (Format.asprintf "the new type of stable variable `%s` implicitly drops data of %s. \n The previous type%a\n is not a stable subtype of%a\n because %s.\n The data can only be dropped by an explicit migration function, please see %s."
+      (Format.asprintf
+         "stable variable `%s` implicitly drops data of %s.\nPrevious type%a\n is not a stable subtype of%a\n because %s.\nUse an explicit migration function to drop or transform the data.\nSee %s"
          tf1.lab
         (desc mig_lab_opt)
         display_typ_expand tf1.typ
@@ -58,10 +65,11 @@ let error_stable_sub s at mig_lab_opt tf1 tf2 explanation =
 let error_required s at mig_lab_opt tf =
   Diag.add_msg s
     (Diag.error_message at "M0263" cat
-       (Format.asprintf "%s does not contain the stable variable `%s`. The migration function cannot require this variable as input, please see %s."
-        (desc mig_lab_opt)
-        tf.lab
-        migration_link))
+       (Format.asprintf
+          "%s does not contain stable variable `%s` — the migration function cannot require it as input\nSee %s"
+          (desc mig_lab_opt)
+          tf.lab
+          migration_link))
 
 (*
    - Mutability of stable fields can be changed because they are never aliased.
@@ -94,8 +102,9 @@ let match_stab_fields s at mig_lab_opt tfs1 tfs2 =
 let incompat_mix_migrations s at =
   Diag.add_msg s
     (Diag.error_message at "M0255" cat
-        (Format.asprintf "cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration. Please see %s."
-        migration_link))
+        (Format.asprintf
+           "cannot upgrade from an actor using enhanced multi-migration to one that does not — once adopted, it cannot be reverted\nSee %s"
+           enhanced_migration_link))
 
 let match_stab_sig sig1 sig2 : unit Diag.result =
   match (sig1, sig2) with
