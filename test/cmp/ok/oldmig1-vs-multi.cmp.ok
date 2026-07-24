@@ -1,3 +1,3 @@
-(unknown location): Compatibility error [M0255], cannot upgrade from an actor using enhanced multi-migration to one that does not — once adopted, it cannot be reverted
+(unknown location): Compatibility error [M0255], cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
 FALSE

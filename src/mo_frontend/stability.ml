@@ -66,7 +66,7 @@ let error_required s at link mig_lab_opt tf =
   Diag.add_msg s
     (Diag.error_message at "M0263" cat
        (Format.asprintf
-          "%s does not contain stable variable `%s` — the migration function cannot require it as input\nSee %s"
+          "%s does not contain the stable variable `%s`. The migration function cannot require this variable as input.\nSee %s"
           (desc mig_lab_opt)
           tf.lab
           link))
@@ -103,7 +103,7 @@ let incompat_mix_migrations s at =
   Diag.add_msg s
     (Diag.error_message at "M0255" cat
         (Format.asprintf
-           "cannot upgrade from an actor using enhanced multi-migration to one that does not — once adopted, it cannot be reverted\nSee %s"
+           "cannot upgrade from an actor using enhanced migration to an actor not using enhanced migration.\nSee %s"
            enhanced_migration_link))
 
 let match_stab_sig sig1 sig2 : unit Diag.result =
@@ -118,9 +118,6 @@ let match_stab_sig sig1 sig2 : unit Diag.result =
   | _ ->
     let tfs1, mig_lab_opt = post sig1 in
     let tfs2 = pre mig_lab_opt sig2 in
-    (* The new version dictates which migration mechanism applies, so point at
-       the enhanced multi-migration docs when it uses one, and the legacy
-       migration-function docs otherwise. *)
     let link = match sig2 with
       | Multi _ -> enhanced_migration_link
       | Single _ | PrePost _ -> migration_link

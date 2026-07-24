@@ -1,2 +1,2 @@
-enhanced-migration-bad-chain.mo:4.1-7.2: Compatibility error [M0263], version `m3` does not contain stable variable `a` — the migration function cannot require it as input
+enhanced-migration-bad-chain.mo:4.1-7.2: Compatibility error [M0263], version `m3` does not contain the stable variable `a`. The migration function cannot require this variable as input.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
