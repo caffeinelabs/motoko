@@ -1,4 +1,4 @@
-enhanced-migration/enh-mig-test2/m1.mo:0.1: type error [M0267], initial actor requires field `n` of type
+multi-migration-baseline.mo:11.9-11.10: type error [M0267], initial actor requires field `n` of type
   var Nat; not found in the previous version — write a migration that produces it
 enhanced-migration/enh-mig-test2/m1.mo:0.1: warning [M0254], initial actor requires field `x` of type
   {#X}
