@@ -30,6 +30,14 @@ assert (not ("a" == "ä"));
 assert (not ("a" >= "ä"));
 assert (not ("a" >  "ä"));
 
+// Equality short-circuits on differing byte lengths; ordering must not.
+assert (    ("DE" == "DE"));
+assert (not ("DE" == "D"));
+assert (not ("DE" == "DEU"));
+assert (    ("DE" != "DEU"));
+assert (    ("ab" <  "abc"));
+assert (not ("z"  <  "aaa"));
+
 assert textCompare("", "a") == -1;
 assert textCompare("b", "a") == 1;
 assert textCompare("a", "") == 1;

@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * perf: Text equality (`==`/`!=`) now short-circuits when the operands have different byte lengths, avoiding a UTF-8/rope scan; ordering (`<`, `<=`, `>`, `>=`) is unchanged (#6257).
+
 ## 1.11.2 (2026-07-22)
 
 * motoko (`moc`)

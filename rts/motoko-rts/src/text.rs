@@ -343,6 +343,20 @@ pub unsafe extern "C" fn text_compare(s1: Value, s2: Value) -> isize {
     }
 }
 
+/// Equality on texts. Unlike ordering, equality is decided by byte length: texts of different
+/// `text_size` cannot be equal, so we short-circuit without walking the UTF-8 / rope payloads.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn text_eq(s1: Value, s2: Value) -> bool {
+    // Same (forwarded) object.
+    if s1 == s2 {
+        return true;
+    }
+    if text_size(s1) != text_size(s2) {
+        return false;
+    }
+    text_compare(s1, s2) == 0
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
     let n1 = text_size(s1);

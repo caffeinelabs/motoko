@@ -4,7 +4,7 @@ use crate::memory::{initialize_test_memory, reset_test_memory};
 
 use motoko_rts::memory::Memory;
 use motoko_rts::text::{
-    blob_of_text, decode_code_point, text_compare, text_concat, text_len, text_of_str,
+    blob_of_text, decode_code_point, text_compare, text_concat, text_eq, text_len, text_of_str,
     text_singleton, text_size,
 };
 use motoko_rts::text_iter::{text_iter, text_iter_done, text_iter_next};
@@ -99,9 +99,53 @@ pub unsafe fn test() {
         ],
     );
 
+    println!("  Testing text_eq");
+    text_eq_test(&mut mem);
+
     drop(mem);
 
     reset_test_memory();
+}
+
+unsafe fn text_eq_test<M: Memory>(mem: &mut M) {
+    let eq = |mem: &mut M, a: &str, b: &str| {
+        let a = text_of_str(mem, a);
+        let b = text_of_str(mem, b);
+        text_eq(a, b)
+    };
+
+    // Unequal lengths are decided without needing equal prefixes.
+    assert!(!eq(mem, "a", "aa"));
+    assert!(!eq(mem, "", "x"));
+    assert!(!eq(mem, "DE", "DEU"));
+
+    // Equal length, equal content.
+    assert!(eq(mem, "", ""));
+    assert!(eq(mem, "abc", "abc"));
+
+    // Equal length, different content.
+    assert!(!eq(mem, "ab", "ac"));
+
+    // Same (forwarded) object.
+    let shared = text_of_str(mem, "shared");
+    assert!(text_eq(shared, shared));
+
+    // Concat nodes compare equal to the equivalent blob.
+    let ab = text_of_str(mem, "ab");
+    let cd = text_of_str(mem, "cd");
+    let concat = text_concat(mem, ab, cd);
+    let abcd = text_of_str(mem, "abcd");
+    let abce = text_of_str(mem, "abce");
+    let abcde = text_of_str(mem, "abcde");
+    assert!(text_eq(concat, abcd));
+    assert!(!text_eq(concat, abce));
+    assert!(!text_eq(concat, abcde));
+
+    // Ordering is *not* decided by length alone: an equal prefix still compares by length.
+    let ab = text_of_str(mem, "ab");
+    let abc = text_of_str(mem, "abc");
+    assert_eq!(text_compare(ab, abc), -1);
+    assert_eq!(text_compare(abc, ab), 1);
 }
 
 unsafe fn concat1<M: Memory>(mem: &mut M) {

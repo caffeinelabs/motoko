@@ -1217,6 +1217,7 @@ module RTS = struct
     add_rts_import "continuation_table_size" [] [I64Type];
     add_rts_import "blob_of_text" [I64Type] [I64Type];
     add_rts_import "text_compare" [I64Type; I64Type] [I64Type];
+    add_rts_import "text_eq" [I64Type; I64Type] [I32Type];
     add_rts_import "text_concat" [I64Type; I64Type] [I64Type];
     add_rts_import "text_iter_done" [I64Type] [I64Type];
     add_rts_import "text_iter" [I64Type] [I64Type];
@@ -4431,14 +4432,18 @@ module Text = struct
     Func.share_code2 Func.Never env name (("x", I64Type), ("y", I64Type)) [I64Type] (fun env get_x get_y ->
       get_x ^^ Tagged.load_forwarding_pointer env ^^
       get_y ^^ Tagged.load_forwarding_pointer env ^^
-      E.call_rts env "text_compare" ^^
-      compile_unboxed_const 0L ^^
       match op with
-        | LtOp -> compile_comparison I64Op.LtS
-        | LeOp -> compile_comparison I64Op.LeS
-        | GtOp -> compile_comparison I64Op.GtS
-        | GeOp -> compile_comparison I64Op.GeS
-        | EqOp -> compile_comparison I64Op.Eq
+        (* Equality is decided by length, so `text_eq` short-circuits on differing sizes. *)
+        | EqOp -> E.call_rts env "text_eq" ^^ Bool.from_rts_int32
+        | LtOp | LeOp | GtOp | GeOp ->
+          E.call_rts env "text_compare" ^^
+          compile_unboxed_const 0L ^^
+          (match op with
+            | LtOp -> compile_comparison I64Op.LtS
+            | LeOp -> compile_comparison I64Op.LeS
+            | GtOp -> compile_comparison I64Op.GtS
+            | GeOp -> compile_comparison I64Op.GeS
+            | _ -> assert false)
         | NeqOp -> assert false
     )
 
