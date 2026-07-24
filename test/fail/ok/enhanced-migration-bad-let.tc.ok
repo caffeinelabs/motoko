@@ -12,6 +12,6 @@ Previous type
   None
  in `untyped`.
 Write an explicit migration function to convert it.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
-enhanced-migration-bad-let.mo:5.1-13.2: Compatibility error [M0169], stable variable `y` of version `m1` cannot be implicitly discarded — use an explicit migration function to drop it
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
+enhanced-migration-bad-let.mo:5.1-13.2: Compatibility error [M0169], stable variable `y` of version `m1` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/

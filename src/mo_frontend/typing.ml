@@ -4711,6 +4711,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
         in
         Stability.match_stab_fields env.msgs
           step_at
+          Stability.enhanced_migration_link
           (Some mf.T.lab)
           out
           (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post);

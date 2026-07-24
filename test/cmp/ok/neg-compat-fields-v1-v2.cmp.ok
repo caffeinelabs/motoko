@@ -6,6 +6,6 @@ Previous type
  because field `y` is missing from expected type 
   {x : Nat; z : Bool}
  of `obj`.
-Use an explicit migration function to drop or transform the data.
+The data can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 FALSE

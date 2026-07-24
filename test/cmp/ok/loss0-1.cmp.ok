@@ -6,7 +6,7 @@ Previous type
  because field `field` is missing from expected type 
   {}
  of `one`.
-Use an explicit migration function to drop or transform the data.
+The data can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 (unknown location): Compatibility error [M0216], stable variable `two` implicitly drops data of the previous version.
 Previous type
@@ -17,6 +17,6 @@ Previous type
   Nat
  to `Any` loses data
  in `two`.
-Use an explicit migration function to drop or transform the data.
+The data can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 FALSE

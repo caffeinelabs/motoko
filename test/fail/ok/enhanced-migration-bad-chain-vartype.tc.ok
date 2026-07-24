@@ -9,4 +9,4 @@ Previous type
   Text
  in `a`.
 Write an explicit migration function to convert it.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
