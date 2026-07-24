@@ -7,6 +7,12 @@
     stable subtype of the required type keep warning M0254 (prototype for legacy→EM
     conversions) (#6249).
 
+## 1.11.2 (2026-07-22)
+
+* motoko (`moc`)
+
+  * bugfix: `--implicit-package=<pkg>` was incorrectly using all transitively loaded modules for implicit argument and contextual dot resolution instead of restricting to the given package (#6242).
+
 ## 1.11.1 (2026-07-15)
 
 * motoko (`moc`)
@@ -966,7 +972,7 @@
     ensures that no cleanup is required.
 
     The relevant security best practices are accessible at
-    https://internetcomputer.org/docs/current/developer-docs/security/security-best-practices/inter-canister-calls#recommendation
+    https://docs.internetcomputer.org/guides/security/inter-canister-calls/#recommendation
 
     BREAKING CHANGE (Minor): `finally` is now a reserved keyword,
     programs using this identifier will break.

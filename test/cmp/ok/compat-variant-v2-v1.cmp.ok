@@ -1,0 +1,10 @@
+(unknown location): Compatibility error [M0170], the new type of stable variable `status` is not compatible with the previous version.
+ The previous type
+  var {#err : Text; #ok : Nat; #pending}
+ is not a subtype of
+  var {#err : Text; #ok : Nat}
+ because case `#pending` is missing from expected type 
+  {#err : Text; #ok : Nat}
+ of `status`.
+ Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+FALSE

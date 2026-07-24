@@ -493,7 +493,7 @@ let chase_imports_cached ~stable_baseline_post parsefn senv0 imports scopes_map
         Diag.return ()
       end
     | Syntax.ImportedValuePath full_path ->
-      let sscope = Scope.lib full_path Type.blob in
+      let sscope = Scope.lib ~package:None full_path Type.blob in
       senv := Scope.adjoin !senv sscope;
       Diag.return ()
     | Syntax.IDLPath (f, _) ->
@@ -518,7 +518,7 @@ let chase_imports_cached ~stable_baseline_post parsefn senv0 imports scopes_map
               (Printf.sprintf "file %s uses Candid types without corresponding Motoko type" f);
             error_message ]
         | actor ->
-          let sscope = Scope.lib f actor in
+          let sscope = Scope.lib ~package:None f actor in
           senv := Scope.adjoin !senv sscope;
           cache := Type.Env.add ri_name sscope !cache;
           Diag.return ()
