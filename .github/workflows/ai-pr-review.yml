@@ -1,0 +1,48 @@
+name: AI PR Review
+
+# Thin wrapper around the shared reusable workflow in caffeinelabs/devtools, so
+# the review logic (Cursor install, diff materialization, verdict parsing,
+# comment, ponytail pass) is maintained in one place across repos rather than
+# copied per repo. The prompt stays repo-local via prompt_path.
+#
+# Advisory only: enable_approval is false, so the AI posts a verdict comment but
+# never submits a GitHub approving review — a human is still required to approve
+# and merge, and the AI can never satisfy a required-approval rule.
+#
+# Skip the whole review with the 'skip-ai-review' label; skip only the ponytail
+# pass with 'skip-ponytail'.
+#
+# Triggered on pull_request (not pull_request_target) so that edits to this
+# workflow are exercised by the PR that makes them, rather than only after
+# merge. Safe because the review is comment-only and forks are gated out by the
+# reusable workflow, so no secrets reach untrusted PR code.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# One review at a time per PR: a new commit cancels the in-progress review of
+# the superseded commit, so rapid pushes don't stack overlapping paid runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ai-review:
+    uses: caffeinelabs/devtools/.github/workflows/reusable-ai-pr-review.yml@main
+    with:
+      model: grok-4.5
+      prompt_path: .github/prompts/pr-review-prompt.md
+      # Advisory only: post the verdict comment but never submit an approving
+      # review. A human must still approve the PR.
+      enable_approval: false
+      # Run the over-engineering "ponytail" pass in the same agent run and post
+      # it as a separate advisory comment. Prompt + logo are bundled in devtools.
+      enable_ponytail: true
+    secrets:
+      CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+      GH_REVIEW_TOKEN: ${{ secrets.SA_RW_GITHUB_TOKEN }}
