@@ -127,11 +127,16 @@ let argspec =
   "-ref-system-api",
   Arg.Unit (fun () -> Flags.(compile_mode := RefMode)),
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
-  (* TODO: bring this back (possibly with flipped default)
-           as soon as the multi-value `wasm` library is out.
-  "-multi-value", Arg.Set Flags.multi_value, " use multi-value extension";
-  "-no-multi-value", Arg.Clear Flags.multi_value, " avoid multi-value extension";
-   *)
+  "--experimental-multi-value",
+  Arg.Unit (fun () ->
+    eprintf "moc: --experimental-multi-value is deprecated; multi-value codegen is the default.\n";
+    Flags.multi_value := true),
+  " (deprecated) multi-value codegen is the default";
+  "--no-experimental-multi-value",
+  Arg.Unit (fun () ->
+    eprintf "moc: --no-experimental-multi-value is deprecated; the `FakeMultiVal` emulation fallback is being retired.\n";
+    Flags.multi_value := false),
+  " (deprecated) force `FakeMultiVal` emulation, opting out of multi-value codegen";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";
@@ -398,7 +403,12 @@ let () =
   then begin
     eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
   end;
-  
+
+  if Option.is_some !Flags.stable_baseline && Option.is_none !Flags.enhanced_migration
+  then begin
+    eprintf "moc: --stable-baseline requires --enhanced-migration\n"; exit 1
+  end;
+
   if not !Flags.skip_gc_deprecation_warning 
   then begin
     match !Flags.gc_strategy with

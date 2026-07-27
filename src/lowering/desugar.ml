@@ -736,16 +736,19 @@ and export_view viewer_opt =
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
   | S.TypD _ -> []
   | S.MixinD _ -> assert false
-  | S.IncludeD(_, arg, note) ->
-    (* TODO: This is ugly. It would be a lot nicer if we didn't have to split
-       the desugaring and stability declarations *)
+  | S.IncludeD(_, _, arg, note) ->
+    (* TODO(desugar-stability-disconnect): This is ugly.
+       It would be a lot nicer if we didn't have to split the desugaring and
+       stability declarations *)
+    (* Order must match the IR produced by `dec'` for IncludeD:
+       [imports; letP (mixin parameters); mixin decs] *)
     let flex = Some (S.Flexible @@ no_region) in
     let { imports; decs; _ } = Option.get !note in
     let import_stabs = List.map (fun _ -> flex) imports in
-    (* Transient stability for binding the mixin parameters *)
-    flex ::
     (* Transient stability for binding the mixin imports *)
     import_stabs @
+    (* Transient stability for binding the mixin parameters *)
+    flex ::
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
@@ -1260,9 +1263,9 @@ and dec' d =
   | S.VarD (i, e) -> [I.VarD (i.it, e.note.S.note_typ, exp e)]
   | S.TypD _ -> []
   | S.MixinD _ -> []
-  | S.IncludeD(_, args, note) ->
+  | S.IncludeD(_, _, args, note) ->
     let { imports = is; pat = p; decs } = Option.get !note in
-    let ir_imports = List.concat_map transform_import is in
+    let ir_imports = List.map transform_import is in
     let renamed_imports, rho = Rename.decs Rename.Renaming.empty ir_imports in
     let renamed_pat, rho = Rename.pat rho (pat p) in
 
@@ -1488,12 +1491,15 @@ and to_args typ po exp_opt p : Ir.arg list * Ir.exp option * (Ir.exp -> Ir.exp) 
   in
   args, eo, wrap_under_async, control, res_tys
 
-and transform_import (i : S.import) : Ir.dec list =
+and transform_import (i : S.import) : Ir.dec =
   let (p, f, ri) = i.it in
   let t = i.note in
   assert (t <> T.Pre);
   match t with
-  | T.Obj(T.Mixin, _, _) -> []
+  | T.Obj (T.Mixin, _, _) ->
+    (* NOTE(desugar-stability-disconnect) Create a dummy declaration.
+       This is to make sure we line up with the list of stabilities *)
+    letP wildP (unitE ())
   | _ ->
   let rhs = match !ri with
     | S.Unresolved -> raise (Invalid_argument ("Unresolved import " ^ f))
@@ -1513,7 +1519,7 @@ and transform_import (i : S.import) : Ir.dec list =
          assert T.(t = Prim Blob);
          blobE contents
        end
-  in [ letP (pat p) rhs ]
+  in letP (pat p) rhs
 
 type import_declaration = Ir.dec list
 
@@ -1651,7 +1657,7 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
 
 let transform_unit (u : S.comp_unit) : Ir.prog  =
   let { imports; body; _ } = u.it in
-  let imports' = List.concat_map transform_import imports in
+  let imports' = List.map transform_import imports in
   let body' = transform_unit_body body in
   inject_decs imports' body', Ir.full_flavor()
 

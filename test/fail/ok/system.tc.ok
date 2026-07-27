@@ -1,8 +1,0 @@
-system.mo:4.5-4.11: type error, misplaced system visibility, did you mean private?
-system.mo:7.5-7.11: type error, misplaced system visibility, did you mean private?
-system.mo:9.24-9.27: type error, unexpected system method named foo, expected preupgrade or postupgrade
-system.mo:10.3-10.46: type error, system function preupgrade is declared with type
-  () -> Int
-instead of expected type
-  () -> ()
-system.mo:11.3-11.9: type error, misplaced system visibility, did you mean private?

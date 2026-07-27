@@ -272,8 +272,8 @@ and dec' =
   | TypD of typ_id * typ_bind list * typ       (* type *)
   | ClassD of                                  (* class *)
       exp option * sort_pat * obj_sort * typ_id * typ_bind list * pat * typ option * id * dec_field list
-  | MixinD of pat * dec_field list             (* mixin *)
-  | IncludeD of id * exp * include_note (* mixin include *)
+  | MixinD of bool * pat * dec_field list             (* mixin *)
+  | IncludeD of id * bool * exp * include_note (* mixin include *)
 and include_note' = { imports : import list; pat : pat; decs : dec_field list }
 and include_note = include_note' option ref
 
@@ -306,7 +306,7 @@ and comp_unit_body' =
  | ModuleU of id option * dec_field list     (* module library *)
  | ActorClassU of                            (* IC actor class, main or library *)
      persistence * exp option * sort_pat * typ_id * typ_bind list * pat * typ option * id * dec_field list
- | MixinU of pat * dec_field list            (* Mixins *)
+ | MixinU of bool * pat * dec_field list            (* Mixins *)
 
 type comp_unit = (comp_unit', prog_note) annotated_phrase
 and comp_unit' = {
@@ -401,10 +401,11 @@ let ignore_asyncE tbs e =
     AnnotE (AsyncE (None, Type.Fut, tbs, e) @? e.at,
       AsyncT (Type.Fut, scopeT e.at, TupT [] @! e.at) @! e.at) @? e.at ) @? e.at
 
-(** An expression that corresponds to the [exp_post] parser rule,
-    i.e. can appear to the left of [.] without parenthesization. *)
+(** An expression that can serve as the receiver of a postfix `.` rewrite.
+    Matches the [exp_post] grammar rule minus `LitE` — some literal source texts
+    don't round-trip (`-1.1` rebinds via unop, `0xff.f` lexes as a hex float). *)
 let is_postfix_exp (e : exp) = match e.it with
-  | VarE _ | LitE _ | CallE _ | DotE _
+  | VarE _ | CallE _ | DotE _
   | IdxE _ | ProjE _ | BangE _ | ArrayE _ -> true
   | _ -> false
 

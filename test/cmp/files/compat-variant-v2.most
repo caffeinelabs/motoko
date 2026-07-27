@@ -1,0 +1,4 @@
+// compatible_tags: adds new tag, removes none — both directions hit _ -> true arm
+actor {
+  stable var status : {#ok : Nat; #err : Text; #pending};
+};

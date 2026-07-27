@@ -202,7 +202,7 @@ unsafe fn parse_idl_header<M: Memory>(
     let n_types = leb128_decode(buf);
 
     // Early sanity check
-    if (*buf).ptr.add(n_types as usize) >= (*buf).end {
+    if n_types as usize > buf.size() {
         idl_trap_with("too many types");
     }
 
