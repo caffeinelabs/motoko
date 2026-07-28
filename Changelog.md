@@ -3,7 +3,7 @@
 * motoko (`moc`)
 
   * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
-    `Float32`, suggesting the shortest round-trip equivalent (#5973).
+    `Float32`, suggesting the shortest round-trip equivalent (#6261).
 
   * feat: `--stable-baseline <file.most>` with `--enhanced-migration` escalates unexplained
     "initial actor requires field" cases to error M0267; fields whose baseline type is a
