@@ -1302,9 +1302,7 @@ let check_float32 env at s =
   check_lit_val env T.Float32 Numerics.Float32.of_string at s
 
 (* Shortest decimal that round-trips to the float [v]: try 1..[cap] significant
-   digits with the printer + parser we already have (no shortest-float dep).
-   The tuple is the type's round-trip ceiling and its to_float / eq / of_string
-   (F32: cap 9, F64: cap 17). *)
+   digits with the printer + parser we already have (no shortest-float dep). *)
 let shortest_roundtrip (cap, to_float, eq, of_string) v : string =
   let f = to_float v in
   let rec go n =
