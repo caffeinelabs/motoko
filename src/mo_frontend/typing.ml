@@ -1315,8 +1315,8 @@ let shortest_roundtrip (cap, to_float, eq, of_string) v : string =
   in
   go 1
 
-let float32_shortest v = shortest_roundtrip Numerics.Float32.(9, to_float, eq, of_string) v
-let float_shortest   v = shortest_roundtrip Numerics.Float.(17, to_float, eq, of_string) v
+let float32_shortest = shortest_roundtrip Numerics.Float32.(9, to_float, eq, of_string)
+let float_shortest   = shortest_roundtrip Numerics.Float.(17, to_float, eq, of_string)
 
 (* Significant digits of a decimal float/int literal lexeme; [None] for a hex
    float (which we don't analyse). Strips digit separators, the exponent, the
