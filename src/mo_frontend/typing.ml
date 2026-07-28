@@ -1352,10 +1352,8 @@ let float_shortest (v : Numerics.Float.t) : string =
 
 (* Warn (M0266) when a float literal carries more significant digits than its
    type [ty] can hold — the surplus is silently discarded by rounding. Fires
-   only on genuine excess: a minimally-written literal is its own shortest
-   round-trip form, so 0.1, 3.14, 1.5 etc. stay quiet. [shortest] yields the
-   type-specific shortest round-trip decimal (Float32: <=9 sig digits;
-   Float: <=17). *)
+   only on genuine excess: a minimal literal equals its own shortest round-trip
+   form ([shortest]), so 0.1, 3.14, 1.5 etc. stay quiet. *)
 let check_float_precision env at ty shortest s =
   match decimal_sig_digits s with
   | None -> ()
