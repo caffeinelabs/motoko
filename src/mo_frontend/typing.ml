@@ -1301,19 +1301,22 @@ let check_float env = check_lit_val env T.Float Numerics.Float.of_string
 let check_float32 env at s =
   check_lit_val env T.Float32 Numerics.Float32.of_string at s
 
-(* Shortest decimal (<= 9 significant digits — always enough to round-trip an
-   F32) that parses back to the same Float32 [v]. Synthesised from the printer
-   and parser we already have, so no shortest-float dependency is needed. *)
-let float32_shortest (v : Numerics.Float32.t) : string =
-  let f = Numerics.Float32.to_float v in
+(* Shortest decimal that round-trips to the float [v]: try 1..[cap] significant
+   digits with the printer + parser we already have (no shortest-float dep).
+   The tuple is the type's round-trip ceiling and its to_float / eq / of_string
+   (F32: cap 9, F64: cap 17). *)
+let shortest_roundtrip (cap, to_float, eq, of_string) v : string =
+  let f = to_float v in
   let rec go n =
     let cand = Printf.sprintf "%.*g" n f in
-    if n >= 9 || (try Numerics.Float32.eq (Numerics.Float32.of_string cand) v
-                  with _ -> false)
+    if n >= cap || (try eq (of_string cand) v with _ -> false)
     then cand
     else go (n + 1)
   in
   go 1
+
+let float32_shortest v = shortest_roundtrip Numerics.Float32.(9, to_float, eq, of_string) v
+let float_shortest   v = shortest_roundtrip Numerics.Float.(17, to_float, eq, of_string) v
 
 (* Significant digits of a decimal float/int literal lexeme; [None] for a hex
    float (which we don't analyse). Strips digit separators, the exponent, the
@@ -1335,20 +1338,6 @@ let decimal_sig_digits (s : string) : int option =
     let j = ref (n - 1) in while !j >= !i && digits.[!j] = '0' do decr j done;
     Some (if !j >= !i then !j - !i + 1 else 0)
   end
-
-(* Shortest decimal (<= 17 significant digits — always enough to round-trip an
-   F64) that parses back to the same Float [v]. Same synthesis as
-   [float32_shortest], widened to F64's 17-digit ceiling. *)
-let float_shortest (v : Numerics.Float.t) : string =
-  let f = Numerics.Float.to_float v in
-  let rec go n =
-    let cand = Printf.sprintf "%.*g" n f in
-    if n >= 17 || (try Numerics.Float.eq (Numerics.Float.of_string cand) v
-                   with _ -> false)
-    then cand
-    else go (n + 1)
-  in
-  go 1
 
 (* Warn (M0266) when a float literal carries more significant digits than its
    type [ty] can hold — the surplus is silently discarded by rounding. Fires
