@@ -3,10 +3,7 @@
 * motoko (`moc`)
 
   * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
-    `Float32`. A literal with more significant digits than F64 can hold warns and suggests the
-    shortest round-trip equivalent — e.g. `0.12345678901234567890 : Float`. Minimal literals like
-    `0.1`/`3.14` stay quiet, and because bare float literals default to `Float`, unannotated
-    literals are covered too (#5973).
+    `Float32`, suggesting the shortest round-trip equivalent (#5973).
 
   * feat: `--stable-baseline <file.most>` with `--enhanced-migration` escalates unexplained
     "initial actor requires field" cases to error M0267; fields whose baseline type is a
