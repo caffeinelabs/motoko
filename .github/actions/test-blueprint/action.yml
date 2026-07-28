@@ -21,7 +21,7 @@ description: Runs Motoko tests using nix, offloading Linux builds to nixbuild.ne
 inputs:
   os:
     required: true
-    description: "OS to run tests on (ubuntu-latest, ubuntu-24.04-arm, macos-latest, ...)"
+    description: "OS to run tests on (ubuntu-latest, ubuntu-26.04-arm, macos-latest, ...)"
   test-target:
     required: true
     description: "The test target to run (e.g. common-tests, gc-tests, release-systems-go, debug-systems-go)"

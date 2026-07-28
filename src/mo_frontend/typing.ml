@@ -361,7 +361,7 @@ let check_deprecation env at desc id depr =
        | 0 -> warn
        | _ -> fun ?(notes = []) ?(spans = []) ?(edits = []) _ _ _ _ -> ())
        env at code
-       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
+       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
@@ -4711,6 +4711,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
         in
         Stability.match_stab_fields env.msgs
           step_at
+          Stability.enhanced_migration_link
           (Some mf.T.lab)
           out
           (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post);

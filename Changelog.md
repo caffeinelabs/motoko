@@ -7,6 +7,8 @@
     stable subtype of the required type keep warning M0254 (prototype for legacy→EM
     conversions) (#6249).
 
+  * fix: refresh the broken docs links in compatibility and stable-memory diagnostics (#6255).
+
 ## 1.11.2 (2026-07-22)
 
 * motoko (`moc`)
