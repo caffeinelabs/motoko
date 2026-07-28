@@ -41,6 +41,6 @@ M0243 (W) Unreachable else in let-else
 M0244 (W) Mutable variable is never reassigned
 M0254 (W) Initial actor requires field
 M0265 (W) The `system` capability is not required by this mixin
-M0266 (W) Float32 literal has more precision than Float32 can represent
+M0266 (W) floating-point literal has more precision than its type can represent
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)

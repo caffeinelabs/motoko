@@ -1336,20 +1336,36 @@ let decimal_sig_digits (s : string) : int option =
     Some (if !j >= !i then !j - !i + 1 else 0)
   end
 
-(* Warn (M0266) when a Float32 literal carries more significant digits than the
-   value can hold — i.e. the surplus digits are silently discarded by rounding.
-   Fires only on genuine excess: a minimally-written literal equals its own
-   shortest round-trip form, so 0.1, 3.14, 1.5 etc. stay quiet. *)
-let check_float32_precision env at s v =
+(* Shortest decimal (<= 17 significant digits — always enough to round-trip an
+   F64) that parses back to the same Float [v]. Same synthesis as
+   [float32_shortest], widened to F64's 17-digit ceiling. *)
+let float_shortest (v : Numerics.Float.t) : string =
+  let f = Numerics.Float.to_float v in
+  let rec go n =
+    let cand = Printf.sprintf "%.*g" n f in
+    if n >= 17 || (try Numerics.Float.eq (Numerics.Float.of_string cand) v
+                   with _ -> false)
+    then cand
+    else go (n + 1)
+  in
+  go 1
+
+(* Warn (M0266) when a float literal carries more significant digits than its
+   type [ty] can hold — the surplus is silently discarded by rounding. Fires
+   only on genuine excess: a minimally-written literal is its own shortest
+   round-trip form, so 0.1, 3.14, 1.5 etc. stay quiet. [shortest] yields the
+   type-specific shortest round-trip decimal (Float32: <=9 sig digits;
+   Float: <=17). *)
+let check_float_precision env at ty shortest s =
   match decimal_sig_digits s with
   | None -> ()
   | Some used ->
-    let short = float32_shortest v in
+    let short = shortest () in
     (match decimal_sig_digits short with
      | Some need when used > need ->
        warn env at "M0266"
-         "literal %s has more precision than Float32 can represent; it rounds to %s (the surplus digits are discarded)"
-         s short
+         "literal %s has more precision than %s can represent; it rounds to %s (the surplus digits are discarded)"
+         s (T.string_of_typ (T.Prim ty)) short
      | _ -> ())
 
 let check_text env at s =
@@ -1385,8 +1401,11 @@ let infer_lit env lit at : T.prim =
       lit := IntLit (check_int env at s); (* default *)
     T.Int
   | PreLit (s, T.Float) ->
-    if not env.pre then
-      lit := FloatLit (check_float env at s); (* default *)
+    if not env.pre then begin
+      let v = check_float env at s in
+      check_float_precision env at T.Float (fun () -> float_shortest v) s;
+      lit := FloatLit v (* default *)
+    end;
     T.Float
   | PreLit (s, T.Text) ->
     if not env.pre then
@@ -1420,10 +1439,12 @@ let check_lit env t lit at suggest =
   | Prim Int64, PreLit (s, (Nat | Int)) ->
     lit := Int64Lit (check_int64 env at s)
   | Prim Float, PreLit (s, (Nat | Int | Float)) ->
-    lit := FloatLit (check_float env at s)
+    let v = check_float env at s in
+    check_float_precision env at T.Float (fun () -> float_shortest v) s;
+    lit := FloatLit v
   | Prim Float32, PreLit (s, (Nat | Int | Float)) ->
     let v = check_float32 env at s in
-    check_float32_precision env at s v;
+    check_float_precision env at T.Float32 (fun () -> float32_shortest v) s;
     lit := Float32Lit v
   | Prim Blob, PreLit (s, Text) ->
     lit := BlobLit s
