@@ -9,6 +9,7 @@
     "initial actor requires field" cases to error M0267; fields whose baseline type is a
     stable subtype of the required type keep warning M0254 (prototype for legacy→EM
     conversions) (#6249).
+
   * feat: `--stable-baseline` also runs the same upgrade check as `--stable-compatible` during
     `--check`, so tools can typecheck and verify upgrade safety in one `moc` invocation (#6253).
 
