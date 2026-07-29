@@ -4723,7 +4723,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
           let new_sig = T.Multi {chain = chain_fields; post = stab_tfs} in
           let post1, mig_lab_opt = T.post baseline_sig in
           let pre2 = T.pre mig_lab_opt new_sig in
-          Stability.match_stab_fields env.msgs at None post1 pre2)
+          Stability.match_stab_fields env.msgs at Stability.enhanced_migration_link None post1 pre2)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
