@@ -1,5 +1,8 @@
 type user_id = nat;
 type UserId = text;
+type http_request = nat;
+type HTTP_request = text;
 service : {
   get : (user_id) -> (UserId) query;
+  req : (http_request) -> (HTTP_request) query;
 }

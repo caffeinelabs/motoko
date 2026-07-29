@@ -156,9 +156,11 @@ type Ledger = S.Self;       // actor { ... } from the Candid service
 type Account = S.Account; // named Candid types (PascalCased when unambiguous)
 ```
 
-`S` is a module of type aliases. It cannot be used to call methods; use a `canister:` / `ic:` import (or `actor "<principal>" : S.Self`) when you need a live reference.
+`S` is a module of type aliases (only types declared in that `.did` file, not transitive Candid imports). It cannot be used to call methods. For a live reference, use a separate `canister:` / `ic:` import, or `actor "<principal>" : S.Self`. Types-only and actor imports of the same `.did` path are distinct and can be used together.
 
 Snake_case Candid type names are exported in PascalCase when that does not collide with another type in the same file (`user_id` → `UserId`). If both `user_id` and `UserId` exist, both keep their original names.
+
+Package paths work the same way: `import S "mo:pkg/api.did"`.
 
 ## Importing actor classes
 

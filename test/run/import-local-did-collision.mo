@@ -3,11 +3,10 @@ import S "import-local-did-collision/service.did";
 
 func same<A>(_ : A, _ : A) {};
 
-// Collision: user_id stays snake_case; UserId stays as-is.
+// user_id vs UserId: keep originals
 same<S.user_id>(0, 0);
 same<S.UserId>("", "");
 
-//SKIP run
-//SKIP run-ir
-//SKIP run-low
-//SKIP comp
+// http_request vs HTTP_request both want HttpRequest → keep originals
+same<S.http_request>(0, 0);
+same<S.HTTP_request>("", "");

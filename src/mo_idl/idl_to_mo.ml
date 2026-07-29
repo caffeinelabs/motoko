@@ -131,46 +131,47 @@ let check_prog (env: typ I.Env.t) actor : M.typ =
   M.Obj(M.Actor, List.sort M.compare_field fs, List.sort M.compare_field tfs)
 
 (* Motoko export name for a Candid type id: PascalCase unless that collides. *)
-let export_name ids id =
+let export_names ids =
   let escape = Idllib.Escape.escape in
-  let original = escape id in
-  let target = escape (Idllib.Escape.pascal_case id) in
-  let originals =
-    List.map escape ids
+  let originals = List.map escape ids in
+  let targets = List.map (fun i -> escape (Idllib.Escape.pascal_case i)) ids in
+  let target_count t =
+    List.length (List.filter ((=) t) targets)
   in
-  let targets =
-    List.map (fun i -> escape (Idllib.Escape.pascal_case i)) ids
-  in
-  let target_claimed_twice =
-    List.length (List.filter ((=) target) targets) > 1
-  in
-  let target_taken_by_other_original =
-    List.exists (fun other -> other <> original && other = target) originals
-  in
-  if target = original
-     || target = "Self"
-     || target_taken_by_other_original
-     || target_claimed_twice
-  then original
-  else target
+  List.map2 (fun id original ->
+    let target = escape (Idllib.Escape.pascal_case id) in
+    let target_taken_by_other_original =
+      List.exists (fun other -> other <> original && other = target) originals
+    in
+    let export =
+      if target = original
+         || target = "Self"
+         || target_taken_by_other_original
+         || target_count target > 1
+      then original
+      else target
+    in (id, export)
+  ) ids originals
 
-let check_prog_types_only (env: typ I.Env.t) actor : M.typ =
-  let ids = I.Env.fold (fun id _ acc -> id :: acc) env [] in
-  let export_of = export_name ids in
+let check_prog_types_only (env: typ I.Env.t) actor (local_ids : string list) : M.typ =
+  let export_of =
+    let map = export_names local_ids in
+    fun id -> List.assoc id map
+  in
   let occs = ref M.Env.empty in
-  (* Pre-seed cons under Candid ids, named with Motoko export labels. *)
+  (* Pre-seed cons for local ids under Motoko export labels; other env ids keep Candid names. *)
   List.iter (fun id ->
     let lab = export_of id in
     let con = Mo_types.Cons.fresh lab (M.Abs ([], M.Pre)) in
     occs := M.Env.add id (M.Con (con, [])) !occs
-  ) ids;
+  ) local_ids;
   List.iter (fun id ->
     match M.Env.find id !occs with
     | M.Con (con, []) ->
       let t' = check_typ' env occs (I.Env.find id env) in
       M.set_kind con (M.Def ([], t'))
     | _ -> assert false
-  ) ids;
+  ) local_ids;
   let fs = actor_methods env occs actor in
   let actor_typ = M.Obj (M.Actor, List.sort M.compare_field fs, []) in
   let self_con = Mo_types.Cons.fresh "Self" (M.Def ([], actor_typ)) in
@@ -181,7 +182,7 @@ let check_prog_types_only (env: typ I.Env.t) actor : M.typ =
       | M.Con (c, _) ->
         M.{lab = export_of id; typ = c; src = empty_src}
       | _ -> assert false
-    ) ids
+    ) local_ids
   in
   M.Obj (M.Module, [], List.sort M.compare_field tfs)
 

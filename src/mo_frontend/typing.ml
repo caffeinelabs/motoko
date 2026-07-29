@@ -629,8 +629,9 @@ let check_import env at f ri =
   let full_path = match !ri with
     | Unresolved -> error env at "M0020" "unresolved import %s" f
     | LibPath {path = fp; _}
-    | ImportedValuePath fp
-    | IDLPath (fp, _) -> fp
+    | ImportedValuePath fp -> fp
+    | IDLPath (fp, None) -> fp ^ "#types"
+    | IDLPath (fp, Some _) -> fp
     | PrimPath -> "@prim" in
   match T.Env.find_opt full_path env.libs with
   | Some {lib_typ = T.Pre; _} ->
