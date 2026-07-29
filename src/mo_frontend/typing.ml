@@ -4677,7 +4677,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
  let chain_fields =
    List.map
      (fun (file, _, typ) ->
-       T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src})
+       T.{lab = migration_lab_of_filename file; typ; src = empty_src})
      chain
  in
  let check_chain chain post =
