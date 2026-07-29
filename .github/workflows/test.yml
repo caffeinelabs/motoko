@@ -23,7 +23,7 @@ jobs:
       matrix:
         # Small/free GitHub runners — the heavy lifting is offloaded to
         # nixbuild.net by the test-blueprint action.
-        os: [ubuntu-latest, ubuntu-24.04-arm]
+        os: [ubuntu-latest, ubuntu-26.04-arm]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -43,7 +43,7 @@ jobs:
       matrix:
         # The RTS-variant builds that previously OOM'd big runners now run as
         # separate derivations on nixbuild.net.
-        os: [ubuntu-latest, ubuntu-24.04-arm]
+        os: [ubuntu-latest, ubuntu-26.04-arm]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -66,7 +66,7 @@ jobs:
     strategy:
       matrix:
         # Small/free GitHub runners — builds are offloaded to nixbuild.net.
-        os: [ubuntu-latest, ubuntu-24.04-arm]
+        os: [ubuntu-latest, ubuntu-26.04-arm]
         build_type: [release, debug]
       fail-fast: false
     runs-on: ${{ matrix.os }}
@@ -116,7 +116,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'build_artifacts')
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

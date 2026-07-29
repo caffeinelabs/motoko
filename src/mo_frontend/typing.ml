@@ -362,7 +362,7 @@ let check_deprecation env at desc id depr =
        | 0 -> warn
        | _ -> fun ?(notes = []) ?(spans = []) ?(edits = []) _ _ _ _ -> ())
        env at code
-       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
+       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
@@ -1302,19 +1302,20 @@ let check_float env = check_lit_val env T.Float Numerics.Float.of_string
 let check_float32 env at s =
   check_lit_val env T.Float32 Numerics.Float32.of_string at s
 
-(* Shortest decimal (<= 9 significant digits — always enough to round-trip an
-   F32) that parses back to the same Float32 [v]. Synthesised from the printer
-   and parser we already have, so no shortest-float dependency is needed. *)
-let float32_shortest (v : Numerics.Float32.t) : string =
-  let f = Numerics.Float32.to_float v in
+(* Shortest decimal that round-trips to the float [v]: try 1..[cap] significant
+   digits with the printer + parser we already have (no shortest-float dep). *)
+let shortest_roundtrip (cap, to_float, eq, of_string) v : string =
+  let f = to_float v in
   let rec go n =
     let cand = Printf.sprintf "%.*g" n f in
-    if n >= 9 || (try Numerics.Float32.eq (Numerics.Float32.of_string cand) v
-                  with _ -> false)
+    if n >= cap || (try eq (of_string cand) v with _ -> false)
     then cand
     else go (n + 1)
   in
   go 1
+
+let float32_shortest = shortest_roundtrip Numerics.Float32.(9, to_float, eq, of_string)
+let float_shortest   = shortest_roundtrip Numerics.Float.(17, to_float, eq, of_string)
 
 (* Significant digits of a decimal float/int literal lexeme; [None] for a hex
    float (which we don't analyse). Strips digit separators, the exponent, the
@@ -1337,20 +1338,20 @@ let decimal_sig_digits (s : string) : int option =
     Some (if !j >= !i then !j - !i + 1 else 0)
   end
 
-(* Warn (M0266) when a Float32 literal carries more significant digits than the
-   value can hold — i.e. the surplus digits are silently discarded by rounding.
-   Fires only on genuine excess: a minimally-written literal equals its own
-   shortest round-trip form, so 0.1, 3.14, 1.5 etc. stay quiet. *)
-let check_float32_precision env at s v =
+(* Warn (M0266) when a float literal carries more significant digits than its
+   type [ty] can hold — the surplus is silently discarded by rounding. Fires
+   only on genuine excess: a minimal literal equals its own shortest round-trip
+   form ([shortest]), so 0.1, 3.14, 1.5 etc. stay quiet. *)
+let check_float_precision env at ty shortest s =
   match decimal_sig_digits s with
   | None -> ()
   | Some used ->
-    let short = float32_shortest v in
+    let short = shortest () in
     (match decimal_sig_digits short with
      | Some need when used > need ->
        warn env at "M0266"
-         "literal %s has more precision than Float32 can represent; it rounds to %s (the surplus digits are discarded)"
-         s short
+         "literal %s has more precision than %s can represent; it rounds to %s (the surplus digits are discarded)"
+         s (T.string_of_typ (T.Prim ty)) short
      | _ -> ())
 
 let check_text env at s =
@@ -1386,8 +1387,11 @@ let infer_lit env lit at : T.prim =
       lit := IntLit (check_int env at s); (* default *)
     T.Int
   | PreLit (s, T.Float) ->
-    if not env.pre then
-      lit := FloatLit (check_float env at s); (* default *)
+    if not env.pre then begin
+      let v = check_float env at s in
+      check_float_precision env at T.Float (fun () -> float_shortest v) s;
+      lit := FloatLit v (* default *)
+    end;
     T.Float
   | PreLit (s, T.Text) ->
     if not env.pre then
@@ -1421,10 +1425,12 @@ let check_lit env t lit at suggest =
   | Prim Int64, PreLit (s, (Nat | Int)) ->
     lit := Int64Lit (check_int64 env at s)
   | Prim Float, PreLit (s, (Nat | Int | Float)) ->
-    lit := FloatLit (check_float env at s)
+    let v = check_float env at s in
+    check_float_precision env at T.Float (fun () -> float_shortest v) s;
+    lit := FloatLit v
   | Prim Float32, PreLit (s, (Nat | Int | Float)) ->
     let v = check_float32 env at s in
-    check_float32_precision env at s v;
+    check_float_precision env at T.Float32 (fun () -> float32_shortest v) s;
     lit := Float32Lit v
   | Prim Blob, PreLit (s, Text) ->
     lit := BlobLit s
@@ -4732,6 +4738,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
         in
         Stability.match_stab_fields env.msgs
           step_at
+          Stability.enhanced_migration_link
           (Some mf.T.lab)
           out
           (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post);
