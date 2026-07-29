@@ -3,7 +3,8 @@ warning[M0254]: initial actor requires field `x` of type
     ┌─ enhanced-migration/enh-mig-test2/m1.mo:1:1
   1 │  module {
     │  ^ 
-error[M0169]: the stable variable `extra` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function
+error[M0169]: stable variable `extra` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
     ┌─ multi-migration-baseline-discard.mo:6:1
   5 │    // x explained by baseline → M0254; `extra` in baseline but not in new pre → M0169
   6 │ ╭  actor {
