@@ -496,7 +496,7 @@ let chase_imports_cached ~stable_baseline_post parsefn senv0 imports scopes_map
       let sscope = Scope.lib ~package:None full_path Type.blob in
       senv := Scope.adjoin !senv sscope;
       Diag.return ()
-    | Syntax.IDLPath (f, _) ->
+    | Syntax.IDLPath (f, id_opt) ->
       (* TODO: [Idllib.Pipeline.check_file] will perform a similar pipeline,
          going recursively through imports of the IDL path to parse and
          typecheck them. We should extend the cache system to it as well. *)
@@ -507,8 +507,19 @@ let chase_imports_cached ~stable_baseline_post parsefn senv0 imports scopes_map
           "M0004"
           "import"
           (Printf.sprintf "file %s does not define a service" f)
+      else if id_opt = None && Idllib.Typing.Env.mem "Self" idl_scope then
+        Diag.error
+          ri.at
+          "M0004"
+          "import"
+          (Printf.sprintf "file %s declares type Self, which is reserved for the imported service type" f)
       else
-        match Mo_idl.Idl_to_mo.check_prog idl_scope actor_opt with
+        let check =
+          match id_opt with
+          | None -> Mo_idl.Idl_to_mo.check_prog_types_only
+          | Some _ -> Mo_idl.Idl_to_mo.check_prog
+        in
+        match check idl_scope actor_opt with
         | exception Idllib.Exception.UnsupportedCandidFeature error_message ->
           Stdlib.Error [
             Diag.error_message

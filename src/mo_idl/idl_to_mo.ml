@@ -99,34 +99,91 @@ and check_variant_field env occs f =
 and check_meth env occs (m: typ_meth) =
   M.{lab = Idllib.Escape.escape_method m.it.var.at m.it.var.it; typ = check_typ' env occs m.it.meth; src = empty_src}
 
+let actor_methods env occs actor =
+  match actor with
+  | Some {it=ServT ms; _} ->
+    List.map (check_meth env occs) ms
+  | Some {it=ClassT (ts1, t); at; _} ->
+    (*@HACK: import service constructors as instantiated services *)
+    (*TODO: fix dfx to derive the correct instantiated candid instead *)
+    begin
+      let t' = check_typ' env occs t in
+      match M.normalize t' with
+      | M.Obj (M.Actor, fs, _) ->
+        Diag.print_messages [Diag.warning_message at "M0185" "import"
+          "importing Candid service constructor as instantiated service"];
+        fs
+      | _ -> assert false
+    end
+  | None -> assert false
+  | _ -> assert false
+
 let check_prog (env: typ I.Env.t) actor : M.typ =
   let occs = ref M.Env.empty in
-  let fs = match actor with
-    | Some {it=ServT ms; _} ->
-      List.map (check_meth env occs) ms
-    | Some {it=ClassT (ts1, t); at; _} ->
-      (*@HACK: import service constructors as instantiated services *)
-      (*TODO: fix dfx to derive the correct instantiated candid instead *)
-      begin
-        let t' = check_typ' env occs t in
-        match M.normalize t' with
-        | M.Obj (M.Actor, fs, _) ->
-          Diag.print_messages [Diag.warning_message at "M0185" "import"
-            "importing Candid service constructor as instantiated service"];
-          fs
-        | _ -> assert false
-      end
-    | None -> assert false
-    | _ -> assert false
+  let fs = actor_methods env occs actor in
   (* TODO: why do we only check and include the mentioned types (occs),
      and not all of the .did declared ones (available to the caller), if not mentioned here? *)
-  in
   let tfs = M.Env.fold (fun id t fs ->
        match t with
        | M.Con (c, _) ->
           M.{lab = id; typ = c; src = empty_src}::fs
        | _ -> assert false) !occs [] in
   M.Obj(M.Actor, List.sort M.compare_field fs, List.sort M.compare_field tfs)
+
+(* Motoko export name for a Candid type id: PascalCase unless that collides. *)
+let export_name ids id =
+  let escape = Idllib.Escape.escape in
+  let original = escape id in
+  let target = escape (Idllib.Escape.pascal_case id) in
+  let originals =
+    List.map escape ids
+  in
+  let targets =
+    List.map (fun i -> escape (Idllib.Escape.pascal_case i)) ids
+  in
+  let target_claimed_twice =
+    List.length (List.filter ((=) target) targets) > 1
+  in
+  let target_taken_by_other_original =
+    List.exists (fun other -> other <> original && other = target) originals
+  in
+  if target = original
+     || target = "Self"
+     || target_taken_by_other_original
+     || target_claimed_twice
+  then original
+  else target
+
+let check_prog_types_only (env: typ I.Env.t) actor : M.typ =
+  let ids = I.Env.fold (fun id _ acc -> id :: acc) env [] in
+  let export_of = export_name ids in
+  let occs = ref M.Env.empty in
+  (* Pre-seed cons under Candid ids, named with Motoko export labels. *)
+  List.iter (fun id ->
+    let lab = export_of id in
+    let con = Mo_types.Cons.fresh lab (M.Abs ([], M.Pre)) in
+    occs := M.Env.add id (M.Con (con, [])) !occs
+  ) ids;
+  List.iter (fun id ->
+    match M.Env.find id !occs with
+    | M.Con (con, []) ->
+      let t' = check_typ' env occs (I.Env.find id env) in
+      M.set_kind con (M.Def ([], t'))
+    | _ -> assert false
+  ) ids;
+  let fs = actor_methods env occs actor in
+  let actor_typ = M.Obj (M.Actor, List.sort M.compare_field fs, []) in
+  let self_con = Mo_types.Cons.fresh "Self" (M.Def ([], actor_typ)) in
+  let tfs =
+    M.{lab = "Self"; typ = self_con; src = empty_src} ::
+    List.map (fun id ->
+      match M.Env.find id !occs with
+      | M.Con (c, _) ->
+        M.{lab = export_of id; typ = c; src = empty_src}
+      | _ -> assert false
+    ) ids
+  in
+  M.Obj (M.Module, [], List.sort M.compare_field tfs)
 
 let check_typ env t = check_typ' env (ref M.Env.empty) t
 let check_typs env t = check_typs' env (ref M.Env.empty) t

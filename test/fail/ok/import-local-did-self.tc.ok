@@ -1,0 +1,1 @@
+import-local-did-self.mo:1.1-1.45: import error [M0004], file import-local-did-self/service.did declares type Self, which is reserved for the imported service type

@@ -1507,10 +1507,15 @@ and transform_import (i : S.import) : Ir.dec =
       varE (var (id_of_full_path fp) t)
     | S.PrimPath ->
       varE (var (id_of_full_path "@prim") t)
-    | S.IDLPath (fp, Either.Right canister_id) ->
+    | S.IDLPath (_, Some (Either.Right canister_id)) ->
       primE (I.ActorOfIdBlob t) [blobE canister_id]
-    | S.IDLPath (fp, Either.Left envvar) ->
+    | S.IDLPath (_, Some (Either.Left envvar)) ->
       primE (I.ActorOfIdBlob t) T.[callE (varE (var "@envvar_principal" (Func (Local, Returns, [], [Prim Text], [Prim Blob])))) [] (textE envvar)]
+    | S.IDLPath (_, None) ->
+      (match T.normalize t with
+       | T.Obj (T.Module, [], tfs) ->
+         objE T.Module (List.map (fun T.{lab; typ = c; _} -> (lab, c)) tfs) []
+       | _ -> assert false)
     | S.ImportedValuePath path ->
        if !Mo_config.Flags.blob_import_placeholders then
          raise (Invalid_argument ("blob import placeholder"))

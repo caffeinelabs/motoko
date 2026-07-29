@@ -17,7 +17,8 @@ type lib_path = {package : string option; path : string}
 type resolved_import =
   | Unresolved
   | LibPath of lib_path
-  | IDLPath of (string * (string, string) Either.t) (* filepath * envvar/bytes *)
+  | IDLPath of (string * (string, string) Either.t option)
+    (* filepath * Some (Left envvar | Right bytes) | None = types-only *)
   | ImportedValuePath of string
   | PrimPath (* the built-in prim module *)
 

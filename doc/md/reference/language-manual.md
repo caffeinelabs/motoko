@@ -1351,7 +1351,7 @@ An import `import <pat> =? <url>` declares a pattern `<pat>` bound to the conten
 
 In detail, if `<url>` is of the form:
 
--   `"<filepath>"` then `<pat>` is bound to the library module defined in file `<filepath>.mo`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. Note the `.mo` extension is implicit and should not be included in `<url>`. For example, `import U "lib/Util"` defines `U` to reference the module in local file `./lib/Util.mo`.
+-   `"<filepath>"` then, if `<filepath>` ends in `.did`, `<pat>` is bound to a types-only Motoko module derived from that Candid file: type field `Self` is the service actor type, and each named Candid type is exported (PascalCased when unambiguous). Otherwise `<pat>` is bound to the library module defined in file `<filepath>.mo`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. Note the `.mo` extension is implicit and should not be included in `<url>` (but `.did` must be included). For example, `import U "lib/Util"` defines `U` to reference the module in local file `./lib/Util.mo`, and `import S "api.did"` defines `S` with `S.Self` and related type aliases.
 
 -   `"mo:<package-name>/<path>"` then `<pat>` is bound to the library module defined in file `<package-path>/<path>.mo` in directory `<package-path>` referenced by package alias `<package-name>`. The mapping from `<package-name>` to `<package-path>` is determined by a compiler command-line argument `--package <package-name> <package-path>`. For example, `import L "mo:core/List"` defines `L` to reference the `List` library in package alias `core`.
 

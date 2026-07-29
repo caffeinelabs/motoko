@@ -1,0 +1,5 @@
+type user_id = nat;
+type UserId = text;
+service : {
+  get : (user_id) -> (UserId) query;
+}

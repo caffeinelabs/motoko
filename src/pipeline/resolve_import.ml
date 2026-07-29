@@ -157,6 +157,9 @@ let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
   end else
     err_file_does_not_exist msgs at full_path
 
+let is_did_path path =
+  Filename.check_suffix path Url.idl_extension
+
 let add_value_import msgs imported ri_ref at path =
   if !Mo_config.Flags.blob_import_placeholders then begin
     (* When placeholders are enabled, skip file existence check *)
@@ -189,22 +192,29 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     | None -> err_actor_import_without_idl_path msgs at
     | Some actor_base ->
       let full_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
-      add_idl_import msgs imported ri_ref at full_path (Either.Right bytes)
+      add_idl_import msgs imported ri_ref at full_path (Some (Either.Right bytes))
   in
   let resolve_env (envvar, did_path) =
     let full_path = Lib.FilePath.normalise did_path in
-    add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
+    add_idl_import msgs imported ri_ref at full_path (Some (Either.Left envvar))
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
-    (* TODO support importing local .did file *)
-    add_lib_import msgs imported ri_ref at
-      { path = in_base base path; package = None }
+    let full = in_base base path in
+    if is_did_path path then
+      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise full) None
+    else
+      add_lib_import msgs imported ri_ref at
+        { path = full; package = None }
   | Ok (Url.Package (pkg,path)) ->
     begin match M.find_opt pkg packages with
     | Some pkg_path ->
-      add_lib_import msgs imported ri_ref at
-        { path = in_base pkg_path path; package = Some pkg }
+      let full = in_base pkg_path path in
+      if is_did_path path then
+        add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise full) None
+      else
+        add_lib_import msgs imported ri_ref at
+          { path = full; package = Some pkg }
     | None -> err_package_not_defined msgs at pkg
     end
   | Ok (Url.Ic bytes) ->
@@ -216,7 +226,7 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     begin match M.find_opt alias aliases with
     | Some (Either.Right (bytes, None)) -> resolve_ic bytes
     | Some (Either.Right (bytes, Some did_path)) ->
-      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Either.Right bytes)
+      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Some (Either.Right bytes))
     | Some (Either.Left (envvar, did_path)) -> resolve_env (envvar, did_path)
     | None -> err_alias_not_defined msgs at alias
     end

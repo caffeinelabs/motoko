@@ -21,3 +21,15 @@ let%test "it resolves to a relative directory import if no .mo file is found" =
 
 let%test "it succeeds on a relative import with an extension" =
   import_relative_test_case [] "list.mo" "list.mo/lib.mo"
+
+let%test "pascal_case snake_case" =
+  String.equal (Idllib.Escape.pascal_case "user_id") "UserId"
+
+let%test "pascal_case already PascalCase" =
+  String.equal (Idllib.Escape.pascal_case "UserId") "UserId"
+
+let%test "pascal_case single lower" =
+  String.equal (Idllib.Escape.pascal_case "t") "T"
+
+let%test "pascal_case HTTP_request" =
+  String.equal (Idllib.Escape.pascal_case "HTTP_request") "HttpRequest"

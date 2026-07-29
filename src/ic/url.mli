@@ -8,6 +8,7 @@ type parsed =
 
 val string_of_parsed : parsed -> string
 val parse : string -> (parsed, string) result
+val idl_extension : string
 val idl_basename_of_blob : string -> string
 val idl_basename_of_envvar : string -> string
 

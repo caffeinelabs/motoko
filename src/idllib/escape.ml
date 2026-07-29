@@ -121,6 +121,25 @@ let is_motoko_keyword = function
 
 let escape_num h = Printf.sprintf "_%s_" (Lib.Uint32.to_string h)
 
+(* Snake / lower identifiers → PascalCase Motoko type names. *)
+let pascal_case str =
+  let cap_seg seg =
+    if seg = "" then "" else
+    let lower = String.lowercase_ascii seg in
+    String.make 1 (Char.uppercase_ascii lower.[0]) ^
+      String.sub lower 1 (String.length lower - 1)
+  in
+  if String.contains str '_' then
+    String.split_on_char '_' str
+    |> List.filter ((<>) "")
+    |> List.map cap_seg
+    |> String.concat ""
+  else
+    match Lib.String.explode str with
+    | [] -> str
+    | c::_ when 'A' <= c && c <= 'Z' -> str
+    | c::cs -> String.make 1 (Char.uppercase_ascii c) ^ Lib.String.implode cs
+
 let escape str =
   if is_motoko_keyword str then str ^ "_" else
   if is_valid_as_id str
