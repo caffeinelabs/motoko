@@ -1,5 +1,11 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * chore: multi-value Wasm codegen is now always on;
+    `--(no-)experimental-multi-value` are kept for CLI compatibility but have
+    no effect (#6266).
+
 ## 1.12.0 (2026-07-30)
 
 * motoko (`moc`)
