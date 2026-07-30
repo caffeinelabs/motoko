@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.12.0 (2026-07-30)
+
 * motoko (`moc`)
 
   * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
@@ -9,6 +11,9 @@
     "initial actor requires field" cases to error M0267; fields whose baseline type is a
     stable subtype of the required type keep warning M0254 (prototype for legacy→EM
     conversions) (#6249).
+
+  * feat: `--stable-baseline` also runs the same upgrade check as `--stable-compatible` during
+    `--check`, so tools can typecheck and verify upgrade safety in one `moc` invocation (#6253).
 
   * fix: refresh the broken docs links in compatibility and stable-memory diagnostics (#6255).
 

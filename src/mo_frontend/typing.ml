@@ -73,7 +73,8 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
-    stable_baseline_post : T.field list option;
+    (* --stable-baseline stab sig; None if flag unset. *)
+    stable_baseline_sig : T.stab_sig option;
     (* Inside the args of a call whose own instantiation/implicit is being suggested for removal:
        M0223/M0237 probes drop the donated expected type (it vanishes once applied),
        avoiding suggestions that are unsound when applied together. *)
@@ -112,7 +113,7 @@ let env_of_scope msgs scope =
     closest_loop = None;
     closest_scrutinee = None;
     enhanced_migration = None;
-    stable_baseline_post = None;
+    stable_baseline_sig = None;
     enclosing_removal = false;
   }
 
@@ -4679,15 +4680,28 @@ and check_enhanced_migration_chain env chain stab_tfs at =
    let r = tf.T.src.T.region in
    if r <> no_region then r else at
  in
+ let chain_fields =
+   List.map
+     (fun (file, _, typ) ->
+       T.{lab = migration_lab_of_filename file; typ; src = empty_src})
+     chain
+ in
  let check_chain chain post =
    let mfs = List.rev chain in
    let rec check_mfs step_at post mfs =
      match mfs with
      | [] ->
-       (* Same initial_required set: M0254, or M0267 when a baseline is set but does not explain the field. *)
+       (* Same initial_required set: M0254, or M0267 when a baseline is set but does not
+          explain the field. With a baseline, also run --stable-compatible against the
+          inferred Multi sig (may overlap M0267 with M0169/M0170/M0216/M0263). *)
+       let baseline_post =
+         match env.stable_baseline_sig with
+         | None -> None
+         | Some s -> Some (fst (T.post s))
+       in
        List.iter (fun tf ->
          let unexplained =
-           match env.stable_baseline_post with
+           match baseline_post with
            | None -> false
            | Some baseline ->
              match T.lookup_val_field_opt tf.T.lab baseline with
@@ -4702,7 +4716,14 @@ and check_enhanced_migration_chain env chain stab_tfs at =
            warn env step_at "M0254"
              "initial actor requires field `%s` of type%a"
              tf.T.lab display_typ tf.T.typ)
-         post
+         post;
+       (match env.stable_baseline_sig with
+        | None -> ()
+        | Some baseline_sig ->
+          let new_sig = T.Multi {chain = chain_fields; post = stab_tfs} in
+          let post1, mig_lab_opt = T.post baseline_sig in
+          let pre2 = T.pre mig_lab_opt new_sig in
+          Stability.match_stab_fields env.msgs at Stability.enhanced_migration_link None post1 pre2)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
@@ -5624,7 +5645,7 @@ let infer_split_prog env at check_unused imports decls =
   t, Scope.adjoin iscope sscope
 
 (* Programs *)
-let infer_prog ?(enable_type_recovery=false) ~stable_baseline_post scope pkg_opt async_cap prog
+let infer_prog ?(enable_type_recovery=false) ~stable_baseline_sig scope pkg_opt async_cap prog
     : (T.typ * Scope.t) Diag.result
   =
   let recovery_fn = if enable_type_recovery then
@@ -5641,7 +5662,7 @@ let infer_prog ?(enable_type_recovery=false) ~stable_baseline_post scope pkg_opt
               async = async_cap;
               type_recovery = enable_type_recovery;
               enhanced_migration = !Flags.enhanced_migration;
-              stable_baseline_post;
+              stable_baseline_sig;
             } in
           let imports, decls = split_imports prog.it in
           let t, sscope = infer_split_prog env prog.at true imports decls in
@@ -5689,7 +5710,7 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
         ) progs
     )
 
-let check_lib ~stable_baseline_post scope pkg_opt lib : Scope.t Diag.result =
+let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
   Diag.with_message_store
     (fun msgs ->
       recover_opt
@@ -5704,7 +5725,7 @@ let check_lib ~stable_baseline_post scope pkg_opt lib : Scope.t Diag.result =
               enhanced_migration = (match cub.it with
                 | MixinU _ -> !Flags.enhanced_migration
                 | _ -> None);
-              stable_baseline_post;
+              stable_baseline_sig;
             } in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_split_prog env lib.at false imp_ds ds in

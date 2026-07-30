@@ -58,7 +58,7 @@ let parse_and_typecheck_with_recovery s =
   | Ok (prog, _) ->
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    (match Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_post:None Pipeline.initial_stat_env None async_cap prog with
+    (match Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog with
     | Ok (_, msgs) -> Ok (prog, msgs)
     | Error msgs -> Error msgs)
   | Error msgs -> Error msgs
@@ -460,7 +460,7 @@ class Counter(n: Nat) {
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_post:None Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -599,7 +599,7 @@ let _x = M.
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_post:None Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -627,7 +627,7 @@ let%expect_test "test type recovery 3" =
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_post:None Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -660,7 +660,7 @@ let%expect_test "test type recovery 4" =
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_post:None Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|
@@ -682,7 +682,7 @@ let%expect_test "test type recovery 5" =
   | Ok (prog, _) -> begin
     let open Mo_frontend in
     let async_cap = Pipeline.async_cap_of_prog prog in
-    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_post:None Pipeline.initial_stat_env None async_cap prog) with
+    match (Typing.infer_prog ~enable_type_recovery:true ~stable_baseline_sig:None Pipeline.initial_stat_env None async_cap prog) with
     | Ok (_, msgs) ->
       Printf.printf "%s" @@ show_with_types (Ok (prog, msgs));
       [%expect {|

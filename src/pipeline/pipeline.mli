@@ -24,7 +24,7 @@ val generate_idl : string list -> Idllib.Syntax.prog Diag.result
 
 val initial_stat_env : Scope.scope
 val chase_imports
-  :  stable_baseline_post:Type.field list option
+  :  stable_baseline_sig:Type.stab_sig option
   -> parse_fn
   -> Scope.scope
   -> Resolve_import.resolved_imports

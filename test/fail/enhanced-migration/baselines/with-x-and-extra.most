@@ -1,5 +1,5 @@
 // Version: 1.0.0
 actor {
   stable x : {#X};
-  stable var n : Int
+  stable extra : Text
 };
