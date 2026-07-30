@@ -877,38 +877,14 @@ let from_m_to_n env m mk_body =
 let from_0_to_n env mk_body = from_m_to_n env 0l mk_body
 
 module FakeMultiVal = struct
-  (* For some use-cases (e.g. processing the compiler output with analysis
-     tools) it is useful to avoid the multi-value extension.
+  (* Multi-value codegen is always on, so these are transparent wrappers:
+     [ty] is the identity and [store]/[load] are no-ops (values stay on the
+     Wasm stack). [if_]/[block_] remain drop-in replacements for E.if_/E.block_. *)
+  let ty tys = tys
 
-     This module provides mostly transparent wrappers that put multiple values
-     in statically allocated globals and pull them off again.
+  let store _env _tys = G.nop
 
-     So far only does I32Type (but that could be changed).
-
-     If the multi_value flag is on, these do not do anything.
-  *)
-  let ty tys =
-    if !Flags.multi_value || List.length tys <= 1
-    then tys
-    else []
-
-  let global env i =
-    E.get_global32_lazy env (Printf.sprintf "multi_val_%d" i) Mutable 0l
-
-  let store env tys =
-    if !Flags.multi_value || List.length tys <= 1 then G.nop else
-    G.concat_mapi (fun i ty ->
-      assert(ty = I32Type);
-      G.i (GlobalSet (nr (global env i)))
-    ) tys
-
-  let load env tys =
-    if !Flags.multi_value || List.length tys <= 1 then G.nop else
-    let n = List.length tys - 1 in
-    G.concat_mapi (fun i ty ->
-      assert(ty = I32Type);
-      G.i (GlobalGet (nr (global env (n - i))))
-    ) tys
+  let load _env _tys = G.nop
 
   (* A drop-in replacement for E.if_ *)
   let if_ env bt thn els =
@@ -13736,7 +13712,7 @@ and conclude_module env set_serialization_globals start_fi_o =
          32-bit main memory, so no `memory64`. *)
       target_features =
         [ "bulk-memory"; "bulk-memory-opt"; "nontrapping-fptoint"; "sign-ext" ]
-        @ (if !Flags.multi_value then ["multivalue"] else [])
+        @ ["multivalue"]
         @ (if List.mem "multi-memory" (E.get_features env) then ["multimemory"] else []);
     } in
 
