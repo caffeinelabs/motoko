@@ -2,6 +2,8 @@
 
 * motoko (`moc`)
 
+  * perf: write-barrier improvements for the incremental GC (e.g. EOP) (#6111).
+
   * chore: multi-value Wasm codegen is now always on;
     `--(no-)experimental-multi-value` are kept for CLI compatibility but have
     no effect (#6266).
@@ -37,8 +39,6 @@
   * fix: fix codegen for nested mixins (#6223).
   * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
     `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
-
-  * perf: Write-barrier improvements for the incremental GC (e.g. EOP) (#6111).
 
 ## 1.11.0 (2026-06-29)
 
