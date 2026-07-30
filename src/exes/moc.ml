@@ -129,14 +129,12 @@ let argspec =
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
   "--experimental-multi-value",
   Arg.Unit (fun () ->
-    eprintf "moc: --experimental-multi-value is deprecated; multi-value codegen is the default.\n";
-    Flags.multi_value := true),
-  " (deprecated) multi-value codegen is the default";
+    eprintf "moc: --experimental-multi-value has no effect; multi-value codegen is always on.\n"),
+  " (deprecated, no effect) multi-value codegen is always on";
   "--no-experimental-multi-value",
   Arg.Unit (fun () ->
-    eprintf "moc: --no-experimental-multi-value is deprecated; the `FakeMultiVal` emulation fallback is being retired.\n";
-    Flags.multi_value := false),
-  " (deprecated) force `FakeMultiVal` emulation, opting out of multi-value codegen";
+    eprintf "moc: --no-experimental-multi-value has no effect; multi-value codegen is always on.\n"),
+  " (deprecated, no effect) multi-value codegen can no longer be disabled";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";
