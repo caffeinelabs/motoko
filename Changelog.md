@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.12.0 (2026-07-30)
+
 * motoko (`moc`)
 
   * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
