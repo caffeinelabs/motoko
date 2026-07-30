@@ -1,7 +1,34 @@
 # Motoko compiler changelog
 
+## 1.12.0 (2026-07-30)
+
 * motoko (`moc`)
 
+  * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
+    `Float32`, suggesting the shortest round-trip equivalent (#6261).
+
+  * feat: `--stable-baseline <file.most>` with `--enhanced-migration` escalates unexplained
+    "initial actor requires field" cases to error M0267; fields whose baseline type is a
+    stable subtype of the required type keep warning M0254 (prototype for legacy→EM
+    conversions) (#6249).
+
+  * feat: `--stable-baseline` also runs the same upgrade check as `--stable-compatible` during
+    `--check`, so tools can typecheck and verify upgrade safety in one `moc` invocation (#6253).
+
+  * fix: refresh the broken docs links in compatibility and stable-memory diagnostics (#6255).
+
+## 1.11.2 (2026-07-22)
+
+* motoko (`moc`)
+
+  * bugfix: `--implicit-package=<pkg>` was incorrectly using all transitively loaded modules for implicit argument and contextual dot resolution instead of restricting to the given package (#6242).
+
+## 1.11.1 (2026-07-15)
+
+* motoko (`moc`)
+
+  * refactor: simplifies bounds checks for candid decoding in the RTS (#6240).
+  * fix: fix codegen for nested mixins (#6223).
   * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
     `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
 
@@ -957,7 +984,7 @@
     ensures that no cleanup is required.
 
     The relevant security best practices are accessible at
-    https://internetcomputer.org/docs/current/developer-docs/security/security-best-practices/inter-canister-calls#recommendation
+    https://docs.internetcomputer.org/guides/security/inter-canister-calls/#recommendation
 
     BREAKING CHANGE (Minor): `finally` is now a reserved keyword,
     programs using this identifier will break.

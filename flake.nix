@@ -253,7 +253,7 @@
 
         # Platform-specific release files.
         release-files-ubuntu-latest = import ./nix/release-files-ubuntu-latest.nix { inherit self pkgs; };
-        "release-files-ubuntu-24.04-arm" = import ./nix/release-files-ubuntu-24.04-arm.nix { inherit self pkgs; };
+        "release-files-ubuntu-26.04-arm" = import ./nix/release-files-ubuntu-26.04-arm.nix { inherit self pkgs; };
         release-files-macos-15-intel = import ./nix/release-files-macos-15-intel.nix { inherit self pkgs; };
         release-files-macos-latest = import ./nix/release-files-macos-latest.nix { inherit self pkgs; };
 

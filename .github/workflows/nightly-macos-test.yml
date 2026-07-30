@@ -8,8 +8,8 @@ jobs:
   rts-checked:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
       - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: ic-hs-test
@@ -20,7 +20,7 @@ jobs:
   common-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Common Tests
         uses: ./.github/actions/test-blueprint
@@ -33,7 +33,7 @@ jobs:
   gc-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run GC Tests
         uses: ./.github/actions/test-blueprint
@@ -49,7 +49,7 @@ jobs:
         build_type: [release, debug]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get `motoko` Repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Populate `moc`
         uses: ./.github/actions/test-blueprint
         with:
@@ -90,14 +90,14 @@ jobs:
         # we have to keep it elsewhere and restore later.
         run: cp -r ./.github/actions/test-blueprint ..
       - name: Get `motoko-core` Repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: dfinity/motoko-core
           fetch-depth: "0"
       - name: Restore the `test-blueprint` action
         run:  mv ../test-blueprint ./.github/actions
       - name: Set up `mops`
-        uses: dfinity/motoko-core/.github/actions/setup@1b6e4995e730b5f152106e64d943ae0cc0aa117b # main
+        uses: dfinity/motoko-core/.github/actions/setup@f8daac747ac6ac8e663a44b79891ee0613796d76 # main
       - name: Set up `mops` cache
         run: |
           npx ic-mops --version
