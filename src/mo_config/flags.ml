@@ -30,7 +30,6 @@ let print_depth = ref 2
 let release_mode = ref false
 let compile_mode = ref ICMode
 let debug_info = ref false
-let multi_value = ref true
 let await_lowering = ref true
 let async_lowering = ref true
 let dump_parse = ref false
@@ -72,7 +71,7 @@ let use_stable_regions = ref false
 let enhanced_orthogonal_persistence = ref true
 let explicit_enhanced_orthogonal_persistence = ref false
 let enhanced_migration : string option ref = ref None
-(* Last deployed .most for M0267 vs M0254 partitioning *)
+(* Last deployed .most for check-time stable-compat + M0254 carry *)
 let stable_baseline : string option ref = ref None
 let share_code = ref false
 let stabilization_instruction_limit_default = {

@@ -8,7 +8,7 @@ val initial_scope : scope
 
 val infer_prog
   :  ?enable_type_recovery:bool
-  -> stable_baseline_post:Type.field list option
+  -> stable_baseline_sig:Type.stab_sig option
   -> scope
   -> string option
   -> Async_cap.async_cap
@@ -16,7 +16,7 @@ val infer_prog
   -> (typ * scope) Diag.result
 
 val check_lib
-  :  stable_baseline_post:Type.field list option
+  :  stable_baseline_sig:Type.stab_sig option
   -> scope
   -> string option
   -> Syntax.lib
