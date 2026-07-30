@@ -4,6 +4,7 @@ type parsed =
   | Ic of string
   | IcAlias of string
   | FileValue of string
+  | IdlFile of string
   | Prim
 
 val string_of_parsed : parsed -> string

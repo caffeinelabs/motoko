@@ -1,6 +1,6 @@
 //MOC-FLAG -A=M0194
-import S "import-local-did/service.did";
-import { type Self; type UserId; type T } "import-local-did/service.did";
+import S "idl:file:import-local-did/service.did";
+import { type Self; type UserId; type T } "idl:file:import-local-did/service.did";
 
 func same<A>(_ : A, _ : A) {};
 

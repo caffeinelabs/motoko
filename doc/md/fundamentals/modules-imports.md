@@ -147,10 +147,10 @@ When importing from another canister, the canister must be listed as a dependenc
 
 ## Importing a local `.did` file
 
-A Candid interface file can be imported by path (the `.did` extension is required) to get Motoko **types only** — not a canister handle:
+A Candid interface file can be imported with the `idl:file:` URI scheme (same style as `blob:file:`) to get Motoko **types only** — not a canister handle:
 
 ```motoko no-repl
-import S "interfaces/ledger.did";
+import S "idl:file:interfaces/ledger.did";
 
 type Ledger = S.Self;       // actor { ... } from the Candid service
 type Account = S.Account; // named Candid types (PascalCased when unambiguous)
@@ -159,8 +159,6 @@ type Account = S.Account; // named Candid types (PascalCased when unambiguous)
 `S` is a module of type aliases (only types declared in that `.did` file, not transitive Candid imports). It cannot be used to call methods. For a live reference, use a separate `canister:` / `ic:` import, or `actor "<principal>" : S.Self`. Types-only and actor imports of the same `.did` path are distinct and can be used together.
 
 Snake_case Candid type names are exported in PascalCase when that does not collide with another type in the same file (`user_id` → `UserId`). If both `user_id` and `UserId` exist, both keep their original names.
-
-Package paths work the same way: `import S "mo:pkg/api.did"`.
 
 ## Importing actor classes
 

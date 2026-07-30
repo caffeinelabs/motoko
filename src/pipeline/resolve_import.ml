@@ -157,9 +157,6 @@ let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
   end else
     err_file_does_not_exist msgs at full_path
 
-let is_did_path path =
-  Filename.check_suffix path Url.idl_extension
-
 let add_value_import msgs imported ri_ref at path =
   if !Mo_config.Flags.blob_import_placeholders then begin
     (* When placeholders are enabled, skip file existence check *)
@@ -200,21 +197,13 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
-    let full = in_base base path in
-    if is_did_path path then
-      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise full) None
-    else
-      add_lib_import msgs imported ri_ref at
-        { path = full; package = None }
+    add_lib_import msgs imported ri_ref at
+      { path = in_base base path; package = None }
   | Ok (Url.Package (pkg,path)) ->
     begin match M.find_opt pkg packages with
     | Some pkg_path ->
-      let full = in_base pkg_path path in
-      if is_did_path path then
-        add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise full) None
-      else
-        add_lib_import msgs imported ri_ref at
-          { path = full; package = Some pkg }
+      add_lib_import msgs imported ri_ref at
+        { path = in_base pkg_path path; package = Some pkg }
     | None -> err_package_not_defined msgs at pkg
     end
   | Ok (Url.Ic bytes) ->
@@ -232,6 +221,9 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     end
   | Ok (Url.FileValue path) ->
     add_value_import msgs imported ri_ref at (in_base base path)
+  | Ok (Url.IdlFile path) ->
+    add_idl_import msgs imported ri_ref at
+      (Lib.FilePath.normalise (in_base base path)) None
   | Ok Url.Prim ->
     add_prim_import imported ri_ref at
   | Error msg ->

@@ -2,9 +2,10 @@
 
 * motoko (`moc`)
 
-  * feat: import a local `.did` file as a types-only Motoko module — `import S "foo.did"`
-    exposes `S.Self` (the service actor type) and named Candid types, PascalCased when unambiguous
-    (e.g. `user_id` → `S.UserId`). No principal or `--actor-idl` flags required (#6263).
+  * feat: import a local Candid file as a types-only Motoko module via `idl:file:` (same style as
+    `blob:file:`) — `import S "idl:file:foo.did"` exposes `S.Self` (the service actor type) and named
+    Candid types, PascalCased when unambiguous (e.g. `user_id` → `S.UserId`). No principal or
+    `--actor-idl` flags required (#6263).
 
   * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
     `Float32`, suggesting the shortest round-trip equivalent (#6261).

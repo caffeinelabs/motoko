@@ -363,9 +363,10 @@ The syntax of an **import** `<imp>` is as follows:
   "ic:<canisterid>"                 Import external actor by <canisterid>
   "canister:<name>"                 Import external actor by <name>
   "blob:file:<filepath>"            Import literal `Blob` value from <filepath>
+  "idl:file:<filepath>"             Import types-only module from Candid <filepath>
 ```
 
-An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
+An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, a types-only module from a Candid IDL file, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
 
 Though typically a simple identifier, `<id>`, `<pat>` can also be any composite pattern binding selective components of the resource.
 
@@ -1351,9 +1352,9 @@ An import `import <pat> =? <url>` declares a pattern `<pat>` bound to the conten
 
 In detail, if `<url>` is of the form:
 
--   `"<filepath>"` then, if `<filepath>` ends in `.did`, `<pat>` is bound to a types-only Motoko module derived from that Candid file: type field `Self` is the service actor type, and each named Candid type is exported (PascalCased when unambiguous). Otherwise `<pat>` is bound to the library module defined in file `<filepath>.mo`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. Note the `.mo` extension is implicit and should not be included in `<url>` (but `.did` must be included). For example, `import U "lib/Util"` defines `U` to reference the module in local file `./lib/Util.mo`, and `import S "api.did"` defines `S` with `S.Self` and related type aliases.
+-   `"<filepath>"` then `<pat>` is bound to the library module defined in file `<filepath>.mo`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. Note the `.mo` extension is implicit and should not be included in `<url>`. For example, `import U "lib/Util"` defines `U` to reference the module in local file `./lib/Util.mo`.
 
--   `"mo:<package-name>/<path>"` then `<pat>` is bound like a relative import under the package root: a `.did` path yields a types-only module (see above); otherwise the library module in `<package-path>/<path>.mo`. The mapping from `<package-name>` to `<package-path>` is determined by `--package <package-name> <package-path>`. For example, `import L "mo:core/List"` defines `L` to reference the `List` library in package alias `core`.
+-   `"mo:<package-name>/<path>"` then `<pat>` is bound to the library module defined in file `<package-path>/<path>.mo` in directory `<package-path>` referenced by package alias `<package-name>`. The mapping from `<package-name>` to `<package-path>` is determined by a compiler command-line argument `--package <package-name> <package-path>`. For example, `import L "mo:core/List"` defines `L` to reference the `List` library in package alias `core`.
 
 -   `"ic:<canisterid>"` then `<pat>` is bound to a Motoko actor whose Motoko type is determined by the canister’s IDL interface. The IDL interface of canister `<canisterid>` must be found in file `<actorpath>/<canisterid>.did`. The compiler assumes that `<actorpath>` is specified by command line argument `--actor-idl <actorpath>` and that file `<actorpath>/<canisterid>.did` exists. For example, `import C "ic:lg264-qjkae"` defines `C` to reference the actor with canister id `lg264-qjkae` and IDL file `lg264-qjkae.did`.
 
@@ -1361,6 +1362,8 @@ In detail, if `<url>` is of the form:
 
 -   `"blob:file:<filepath>"` then `<pat>` is bound to a blob containing the contents of the file `<filepath>`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. For example, `import image "blob:file:/assets/image.jpg"` defines `image` as the blob with bytes from local file `./assets/image.jpg`. Unlike library imports, `<filepath>` should include the
 file's extension, if any.
+
+-   `"idl:file:<filepath>"` then `<pat>` is bound to a types-only Motoko module derived from the Candid IDL file at `<filepath>`: type field `Self` is the service actor type, and each named Candid type declared in that file is exported (PascalCased when unambiguous). `<filepath>` is interpreted relative to the absolute location of the enclosing file and should include the extension (typically `.did`). For example, `import S "idl:file:api/ledger.did"` defines `S` with `S.Self` and related type aliases. This import cannot be used to call methods; use `ic:` / `canister:` (or `actor "<principal>" : S.Self`) for a live reference.
 
 The case sensitivity of file references depends on the host operating system so it is recommended not to distinguish resources by filename casing alone.
 

@@ -48,3 +48,7 @@ let%test "it should parse a raw file value import" =
   parse_test "blob:file:foo" (Ok (FileValue "foo"))
 let%test "it should fail to parse an unknown URL scheme" =
   parse_test "something:else" (Error "Unrecognized URL")
+let%test "it should parse an idl file import" =
+  parse_test "idl:file:foo.did" (Ok (IdlFile "foo.did"))
+let%test "it should parse an idl file import with path" =
+  parse_test "idl:file:./api/ledger.did" (Ok (IdlFile "./api/ledger.did"))
