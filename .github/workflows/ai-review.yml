@@ -127,6 +127,9 @@ jobs:
         continue-on-error: true
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_TOKEN }}
+          # Pinned frontier model; the account default ("Auto") routes to cheaper
+          # models that produce shallow reviews.
+          REVIEW_MODEL: grok-4.5
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -171,10 +174,13 @@ jobs:
                 "Read(src/**)",
                 "Read(test/**)",
                 "Read(doc/**)",
+                "Read(design/**)",
                 "Read(rts/**)",
                 "Read(samples/**)",
                 "Read(nix/**)",
                 "Read(.github/**)",
+                "Read(AGENTS.md)",
+                "Read(CLAUDE.md)",
                 "Read(Changelog.md)",
                 "Read(Building.md)",
                 "Read(CI.md)",
@@ -215,7 +221,7 @@ jobs:
 
           # --trust skips the interactive workspace-trust prompt; the .cursor/cli.json
           # deny rules above still apply.
-          "$AGENT_BIN" -p --output-format text --trust "$(cat review_prompt.md)" > cursor-ai-review.md
+          "$AGENT_BIN" -p --model "$REVIEW_MODEL" --output-format text --trust "$(cat review_prompt.md)" > cursor-ai-review.md
 
           if [ ! -s cursor-ai-review.md ]; then
             echo "ERROR: empty review output" >&2
