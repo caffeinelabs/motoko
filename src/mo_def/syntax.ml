@@ -17,10 +17,20 @@ type lib_path = {package : string option; path : string}
 type resolved_import =
   | Unresolved
   | LibPath of lib_path
-  | IDLPath of (string * (string, string) Either.t option)
-    (* filepath * Some (Left envvar | Right bytes) | None = types-only *)
+  | IDLPath of (string * (string, string) Either.t) (* filepath * envvar/bytes *)
+  | IDLTypesPath of string (* types-only import of a .did file *)
   | ImportedValuePath of string
   | PrimPath (* the built-in prim module *)
+
+(* Key identifying a resolved import in lib envs and import caches;
+   types-only and actor imports of the same .did file must not share a key. *)
+let lib_key_of_resolved_import = function
+  | Unresolved -> "/* unresolved */"
+  | LibPath {path; _}
+  | ImportedValuePath path
+  | IDLPath (path, _) -> path
+  | IDLTypesPath path -> path ^ "#types"
+  | PrimPath -> "@prim"
 
 (* Identifiers *)
 
@@ -352,6 +362,7 @@ let string_of_lit = function
 let string_of_resolved_import = function
   | LibPath {path; package } -> Printf.sprintf "LibPath {path = %s, package = %s}" path (match package with | Some p -> p | None -> "None")
   | IDLPath (path, _) -> Printf.sprintf "IDLPath (%s, _)" path
+  | IDLTypesPath path -> Printf.sprintf "IDLTypesPath %s" path
   | ImportedValuePath path -> Printf.sprintf "ImportedValuePath %s" path
   | PrimPath -> "PrimPath"
   | Unresolved -> "Unresolved"

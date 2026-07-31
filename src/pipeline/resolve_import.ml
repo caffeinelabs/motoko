@@ -149,13 +149,16 @@ let add_lib_import msgs imported ri_ref at lib_path =
   | Error err ->
     Diag.add_msg msgs err
 
-let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
+let add_did_import msgs imported ri_ref at full_path ri =
   if Sys.file_exists full_path
   then begin
-    ri_ref := IDLPath (full_path, envvar_or_bytes);
-    imported := RIM.add !ri_ref at !imported
+    ri_ref := ri;
+    imported := RIM.add ri at !imported
   end else
     err_file_does_not_exist msgs at full_path
+
+let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
+  add_did_import msgs imported ri_ref at full_path (IDLPath (full_path, envvar_or_bytes))
 
 let add_value_import msgs imported ri_ref at path =
   if !Mo_config.Flags.blob_import_placeholders then begin
@@ -189,11 +192,11 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     | None -> err_actor_import_without_idl_path msgs at
     | Some actor_base ->
       let full_path = in_base actor_base (Url.idl_basename_of_blob bytes) in
-      add_idl_import msgs imported ri_ref at full_path (Some (Either.Right bytes))
+      add_idl_import msgs imported ri_ref at full_path (Either.Right bytes)
   in
   let resolve_env (envvar, did_path) =
     let full_path = Lib.FilePath.normalise did_path in
-    add_idl_import msgs imported ri_ref at full_path (Some (Either.Left envvar))
+    add_idl_import msgs imported ri_ref at full_path (Either.Left envvar)
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
@@ -215,15 +218,15 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     begin match M.find_opt alias aliases with
     | Some (Either.Right (bytes, None)) -> resolve_ic bytes
     | Some (Either.Right (bytes, Some did_path)) ->
-      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Some (Either.Right bytes))
+      add_idl_import msgs imported ri_ref at (Lib.FilePath.normalise did_path) (Either.Right bytes)
     | Some (Either.Left (envvar, did_path)) -> resolve_env (envvar, did_path)
     | None -> err_alias_not_defined msgs at alias
     end
   | Ok (Url.FileValue path) ->
     add_value_import msgs imported ri_ref at (in_base base path)
   | Ok (Url.IdlFile path) ->
-    add_idl_import msgs imported ri_ref at
-      (Lib.FilePath.normalise (in_base base path)) None
+    let full_path = Lib.FilePath.normalise (in_base base path) in
+    add_did_import msgs imported ri_ref at full_path (IDLTypesPath full_path)
   | Ok Url.Prim ->
     add_prim_import imported ri_ref at
   | Error msg ->
