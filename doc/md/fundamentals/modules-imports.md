@@ -158,7 +158,13 @@ type Account = S.Account; // named Candid types (PascalCased when unambiguous)
 
 `S` is a module of type aliases (only types declared in that `.did` file, not transitive Candid imports). It cannot be used to call methods. For a live reference, use a separate `canister:` / `ic:` import, or `actor "<principal>" : S.Self`. Types-only and actor imports of the same `.did` path are distinct and can be used together.
 
-Snake_case Candid type names are exported in PascalCase when that does not collide with another type in the same file (`user_id` → `UserId`). If both `user_id` and `UserId` exist, both keep their original names.
+As with any module import, a pattern can bind selected types directly:
+
+```motoko no-repl
+import { type Self; type Account } "idl:file:interfaces/ledger.did";
+```
+
+Snake_case Candid type names are exported in PascalCase when that does not collide with another type in the same file (`user_id` → `UserId`). If both `user_id` and `UserId` exist, both keep their original names. Names that do not start with a lowercase letter (`HTTP_request`, `_internal`) are kept as-is.
 
 ## Importing actor classes
 

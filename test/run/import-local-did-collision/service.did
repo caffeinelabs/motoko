@@ -2,7 +2,9 @@ type user_id = nat;
 type UserId = text;
 type http_request = nat;
 type HTTP_request = text;
+type foo_bar = nat;
+type fooBar = text;
 service : {
-  get : (user_id) -> (UserId) query;
+  get : (user_id, foo_bar) -> (UserId, fooBar) query;
   req : (http_request) -> (HTTP_request) query;
 }

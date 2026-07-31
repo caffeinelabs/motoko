@@ -31,5 +31,17 @@ let%test "pascal_case already PascalCase" =
 let%test "pascal_case single lower" =
   String.equal (Idllib.Escape.pascal_case "t") "T"
 
-let%test "pascal_case HTTP_request" =
-  String.equal (Idllib.Escape.pascal_case "HTTP_request") "HttpRequest"
+let%test "pascal_case preserves inner capitalization" =
+  String.equal (Idllib.Escape.pascal_case "token_ID_of") "TokenIDOf"
+
+let%test "pascal_case camelCase" =
+  String.equal (Idllib.Escape.pascal_case "userId") "UserId"
+
+let%test "pascal_case keeps acronym-leading id" =
+  String.equal (Idllib.Escape.pascal_case "HTTP_request") "HTTP_request"
+
+let%test "pascal_case keeps underscores-only id" =
+  String.equal (Idllib.Escape.pascal_case "___") "___"
+
+let%test "pascal_case keeps underscore-leading id" =
+  String.equal (Idllib.Escape.pascal_case "_foo") "_foo"
