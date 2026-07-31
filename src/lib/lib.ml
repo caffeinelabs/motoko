@@ -170,10 +170,7 @@ struct
     List.iter (fun c -> Buffer.add_char buf (f c)) cs;
     Buffer.contents buf
 
-  let explode s =
-    let cs = ref [] in
-    for i = String.length s - 1 downto 0 do cs := s.[i] :: !cs done;
-    !cs
+  let explode s = List.init (String.length s) (String.get s)
 
   let explode_map f s =
     let cs = ref [] in
@@ -181,13 +178,7 @@ struct
     !cs
 
   (** Stack.fold (fun x y -> y ^ c ^ x) "" (String.split s c) == s *)
-  let split s c =
-    let len = String.length s in
-    let rec loop i =
-      if i > len then [] else
-      let j = try String.index_from s i c with Not_found -> len in
-      String.sub s i (j - i) :: loop (j + 1)
-    in loop 0
+  let split s c = String.split_on_char c s
 
   let breakup s n =
     let rec loop i =
@@ -198,31 +189,25 @@ struct
   let strip_control_chars s =
     String.map (fun c -> if c < ' ' then ' ' else c) s
 
-  let rec find_from_opt f s i =
-    if i = String.length s then
-      None
-    else if f s.[i] then
-      Some i
-    else
-      find_from_opt f s (i + 1)
+  let find_from_opt f s i =
+    let len = String.length s in
+    let rec next i =
+      if i >= len then None
+      else if f s.[i] then Some i
+      else next (i + 1)
+    in next (i + 1)
 
   let chop_prefix prefix s =
-    let prefix_len = String.length prefix in
-    let s_len = String.length s in
-    if s_len < prefix_len then
-      None
-    else if String.sub s 0 prefix_len = prefix then
-      Some (String.sub s prefix_len (s_len - prefix_len))
+    let n = String.length prefix in
+    if String.length s > n && String.starts_with ~prefix s then
+      Some (String.sub s n (String.length s - n))
     else
       None
 
   let chop_suffix suffix s =
-    let suffix_len = String.length suffix in
-    let s_len = String.length s in
-    if s_len < suffix_len then
-      None
-    else if String.sub s (s_len - suffix_len) suffix_len = suffix then
-      Some (String.sub s 0 (s_len - suffix_len))
+    let n = String.length suffix in
+    if String.length s > n && String.ends_with ~suffix s then
+      Some (String.sub s 0 (String.length s - n))
     else
       None
 
