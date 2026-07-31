@@ -20,6 +20,7 @@ vendored under `test/*-stub`.
 | Frontend (parse, typecheck) | `src/mo_frontend/` | accepted/rejected programs change here |
 | AST / types / values | `src/mo_def/`, `src/mo_types/`, `src/mo_values/` | |
 | IR + passes | `src/ir_def/`, `src/ir_passes/`, `src/lowering/` | |
+| Interpreters | `src/mo_interpreter/`, `src/ir_interpreter/` | reference semantics (`moc -r`); must agree with codegen — a semantic change in one path usually needs mirroring in the others |
 | Codegen (Wasm emission) | `src/codegen/`, `src/wasm-exts/` | changes affect emitted runtime behavior |
 | Pipeline / CLI flags | `src/pipeline/`, `src/mo_config/` | |
 | Prelude / `Prim` | `src/prelude/` | alters observable language semantics |
@@ -73,5 +74,8 @@ tests pass, because coverage is necessarily incomplete:
 - `rts/**` — GC, heap layout, stable memory, IC system API.
 - `src/mo_types/**` typing rules — soundness; a wrongly-accepted program is
   worse than a wrongly-rejected one.
+- Interpreter/codegen divergence — a semantic change landed in only one of
+  `src/mo_interpreter/`, `src/ir_interpreter/`, `src/codegen/` silently splits
+  `moc -r` behavior from compiled Wasm.
 - Stable compatibility / orthogonal persistence (`design/Stable.md`,
   `design/OrthogonalPersistence.md`) — upgrade-safety invariants.
