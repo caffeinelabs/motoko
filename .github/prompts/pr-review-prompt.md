@@ -178,7 +178,7 @@ Phrases like "this still doesn't handle X" or "X is not validated here" are NOT 
 - If you cannot articulate a specific change from the Base SHA that introduced or worsened the issue, do NOT include that finding.
 - Do NOT ask for additional access, network fetches, or one-time permission grants.
 - If review execution genuinely fails, output `Decision: REVIEW_ERROR` instead of inventing findings or defaulting to REQUEST_CHANGES.
-- Prefer the materialized review context files over shelling out to git/gh; those files and the checked-out repository are the authoritative inputs.
+- The materialized review context files and the checked-out repository are the only authoritative inputs; shell (git/gh) is unavailable.
 
 ## Output format (MANDATORY)
 

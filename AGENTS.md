@@ -23,13 +23,13 @@ vendored under `test/*-stub`.
 | Codegen (Wasm emission) | `src/codegen/`, `src/wasm-exts/` | changes affect emitted runtime behavior |
 | Pipeline / CLI flags | `src/pipeline/`, `src/mo_config/` | |
 | Prelude / `Prim` | `src/prelude/` | alters observable language semantics |
-| Error codes | `src/lang_utils/error_codes.ml` + `error_codes/M0NNN.md` | append-only registry |
+| Error codes | `src/lang_utils/error_codes.ml` + `src/lang_utils/error_codes/M0NNN.md` | append-only registry |
 | Runtime system | `rts/` | Rust crates (`motoko-rts*`) producing `mo-rts*.wasm`; GC, layout, stable memory |
 | Tests | `test/` | see [test/README.md](test/README.md) |
 | Design docs | `design/` | e.g. [OrthogonalPersistence.md](design/OrthogonalPersistence.md), [Stable.md](design/Stable.md), [Implementation.md](design/Implementation.md) |
 | User docs | `doc/` | legacy `doc/md/`, Starlight site `doc/site/` |
 | Build | `flake.nix`, `nix/`, `src/Makefile`, `src/dune*` | see [Building.md](Building.md) |
-| CI | `.github/workflows/`, `ci/` | see [CI.md](CI.md) |
+| CI | `.github/workflows/` | see [CI.md](CI.md) |
 
 ## Conventions that reviews and changes must respect
 
@@ -48,9 +48,10 @@ vendored under `test/*-stub`.
   `src/lang_utils/error_codes.ml` (append, never renumber) and test coverage
   of the new diagnostic.
 - **Changelog.md**: user-visible language/`moc`/`mo-doc` changes get an entry
-  at the top, above the most recent `## X.Y.Z (date)` heading, ending with the
-  PR number `(#NNNN)`. Released sections are frozen history — never edit them.
-  Internal-only refactors need no entry.
+  at the top — under the `## Next` heading when present (create it right after
+  a release if absent), always above the most recent `## X.Y.Z (date)` section —
+  ending with the PR number `(#NNNN)`. Released sections are frozen history —
+  never edit them. Internal-only refactors need no entry.
 - **Compatibility**: renames/removals of public compiler surface (CLI flags,
   `src/prelude/` primitives, stable-signature semantics) need a
   deprecation/migration path; see `design/` for persistence and stability
