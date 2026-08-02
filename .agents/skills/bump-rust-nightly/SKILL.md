@@ -21,6 +21,18 @@ the Motoko RTS.
 git checkout gabor/bump-nightly-rustc
 git rebase origin/master
 ```
+Note: the previous bump usually lands on `master` via **squash-merge**, which
+leaves this branch's old bump commit orphaned (present locally, not an ancestor
+of `origin/master`, and often carrying a nightly date `master` already has). In
+that case don't rebase onto the stale commit — hard-reset the branch to master
+and redo the bump fresh:
+```sh
+git fetch origin master
+git checkout -B gabor/bump-nightly-rustc origin/master
+```
+(Check first with `git merge-base --is-ancestor gabor/bump-nightly-rustc
+origin/master` — if it says the branch has unmerged commits *and* they're a real
+WIP, keep them; if they're just the last, already-merged bump, reset.)
 
 ### 2. Update rust-overlay
 ```sh
@@ -87,8 +99,10 @@ The vendored std deps are stale — re-run the `rustStdDepsHash` probe (step 4).
   wasm memory ops). Triggered in CI by the `nightly-macos-test` workflow's
   `rts-checked` job; not normally needed locally.
 
-**Local bump loop:** `nix build .#rts` until green. Push and let CI's
-`rts-checked` exercise the slow path on macOS.
+**Local bump loop:** `nix build .#rts` until green. Then push and **manually
+dispatch** `nightly-macos-test` to exercise the slow `rts-checked` path — it
+triggers **only** on `schedule` + `workflow_dispatch`, so a branch push does NOT
+run it automatically (see step 9).
 
 **If `nightly-macos-test` jobs fail or time out**, re-trigger — each run
 caches more derivations, so subsequent runs make progress:
@@ -119,7 +133,17 @@ chore: bump rustc-nightly to YYYY-MM-DD
 ### 9. Push and watch CI
 ```sh
 git push --force-with-lease origin gabor/bump-nightly-rustc
+# nightly-macos-test does NOT run on push — dispatch it explicitly:
+gh workflow run nightly-macos-test.yml --ref gabor/bump-nightly-rustc
 gh run watch <run-id> --repo caffeinelabs/motoko
+```
+Gotcha — **first push after a reset (step 1)**: if the old remote branch was
+deleted when the previous bump merged, `--force-with-lease` fails with
+`! [rejected] ... (stale info)` because your local `origin/gabor/bump-nightly-rustc`
+tracking ref is stale (points at a branch that no longer exists remotely). Fix:
+```sh
+git remote prune origin
+git push -u origin gabor/bump-nightly-rustc   # plain push re-creates the branch
 ```
 
 ## Makefile Structure (as of 2026-04-01)
