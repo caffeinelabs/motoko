@@ -1,9 +1,9 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {heap_diff = 0; instr_diff = 135_940_311; total = 1_090_000}
+debug.print: {heap_diff = 0; instr_diff = 135_940_309; total = 1_090_000}
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {fib7_eval = 13; fib7_evalFT = 13; fib7_xform = 13; instr_eval = 24_392_510; instr_evalFT = 21_419_410; instr_transform = 1_183_534}
+debug.print: {fib7_eval = 13; fib7_evalFT = 13; fib7_xform = 13; instr_eval = 24_272_408; instr_evalFT = 21_299_308; instr_transform = 1_183_532}
 ingress Completed: Reply: 0x4449444c0000
-debug.print: {acc1 = 20_000; acc2 = 20_000; instr_isWeekend = 10_000_311; instr_isWeekendOr = 11_040_311}
+debug.print: {acc1 = 20_000; acc2 = 20_000; instr_isWeekend = 10_000_309; instr_isWeekendOr = 11_040_309}
 ingress Completed: Reply: 0x4449444c0000
 ingress Completed: Reply: 0x4449444c0000

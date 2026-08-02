@@ -1,4 +1,4 @@
-{ pkgs, llvmEnv }:
+{ pkgs, llvmEnv, wasmOpt ? null }:
 let
   # Build Rust package cargo-vendor-tools
   cargoVendorTools = pkgs.rustPlatform.buildRustPackage rec {
@@ -85,6 +85,11 @@ let
 
     installPhase = ''
       mkdir -p $out/rts
+      ${pkgs.lib.optionalString (wasmOpt != null) ''
+        for f in mo-rts-non-incremental.wasm mo-rts-incremental.wasm mo-rts-eop.wasm; do
+          ${wasmOpt}/bin/wasm-opt -Os --optimize-instructions "$f" -o "$f"
+        done
+      ''}
       cp mo-rts-non-incremental.wasm $out/rts
       cp mo-rts-non-incremental-debug.wasm $out/rts
       cp mo-rts-incremental.wasm $out/rts

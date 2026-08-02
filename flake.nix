@@ -49,6 +49,10 @@
       url = "github:serokell/ocaml-recovery-parser";
       flake = false;
     };
+    binaryen-patched = {
+      url = "github:ggreif/binaryen/gabor/lsb-if-ctz-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -66,6 +70,7 @@
     , motoko-matchers-src
     , grace-src
     , ocaml-recovery-parser-src
+    , binaryen-patched
     }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import ./nix/pkgs.nix {
@@ -99,7 +104,8 @@
         export CLANG="${pkgs.clang_21}/bin/clang"
       '';
 
-      rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv; };
+      wasmOpt = binaryen-patched.packages.${system}.default;
+      rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv wasmOpt; };
       # `.#rts-checked` always runs the host-side `cargo test` suite.
       # `.#rts` is the same on Linux (Hydra-cached, fast) but skips the
       # check phase on darwin where the cargo test suite has no cache and
