@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.13.0 (2026-08-03)
+
 * motoko (`moc`)
 
   * feat: import a local Candid file as a types-only Motoko module via the `idl:` URI scheme —
