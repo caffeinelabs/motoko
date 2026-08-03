@@ -121,6 +121,23 @@ let is_motoko_keyword = function
 
 let escape_num h = Printf.sprintf "_%s_" (Lib.Uint32.to_string h)
 
+(* Snake / lower identifiers → PascalCase Motoko type names.
+   Only ids starting with a lowercase letter are transformed;
+   inner capitalization is preserved, so acronyms ("HTTP_request", "getSNS") survive intact. *)
+let pascal_case str =
+  match Lib.String.explode str with
+  | c :: _ when 'a' <= c && c <= 'z' ->
+    let buf = Buffer.create (String.length str) in
+    let capitalize = ref true in
+    String.iter (fun c ->
+      if is_underscore c then capitalize := true
+      else begin
+        Buffer.add_char buf (if !capitalize then Char.uppercase_ascii c else c);
+        capitalize := false
+      end) str;
+    Buffer.contents buf
+  | _ -> str
+
 let escape str =
   if is_motoko_keyword str then str ^ "_" else
   if is_valid_as_id str
