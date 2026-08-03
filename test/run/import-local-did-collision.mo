@@ -7,7 +7,7 @@ func same<A>(_ : A, _ : A) {};
 same<S.user_id>(0, 0);
 same<S.UserId>("", "");
 
-// HTTP_request is not renamed (acronym-leading); http_request still PascalCases
+// HTTP_request keeps its name (only lowercase-leading ids are renamed), so http_request gets HttpRequest
 same<S.HttpRequest>(0, 0);
 same<S.HTTP_request>("", "");
 
