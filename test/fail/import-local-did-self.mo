@@ -1,4 +1,4 @@
-import S "idl:file:import-local-did-self/service.did";
+import S "idl:import-local-did-self/service.did";
 
 //SKIP run
 //SKIP run-ir

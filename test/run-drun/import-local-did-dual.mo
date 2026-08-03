@@ -1,6 +1,6 @@
 //MOC-FLAG --actor-id-alias svc aaaaa-aa import-local-did-dual/aaaaa-aa.did
 //MOC-FLAG -A=M0194
-import Types "idl:file:import-local-did-dual/aaaaa-aa.did";
+import Types "idl:import-local-did-dual/aaaaa-aa.did";
 import Svc "canister:svc";
 
 func same<A>(_ : A, _ : A) {};

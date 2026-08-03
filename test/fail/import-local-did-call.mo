@@ -1,4 +1,4 @@
-import S "idl:file:import-local-did-call/service.did";
+import S "idl:import-local-did-call/service.did";
 
 ignore S.ping;
 

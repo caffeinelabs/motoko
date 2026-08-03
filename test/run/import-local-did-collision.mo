@@ -1,5 +1,5 @@
 //MOC-FLAG -A=M0194
-import S "idl:file:import-local-did-collision/service.did";
+import S "idl:import-local-did-collision/service.did";
 
 func same<A>(_ : A, _ : A) {};
 

@@ -2,8 +2,8 @@
 
 * motoko (`moc`)
 
-  * feat: import a local Candid file as a types-only Motoko module via `idl:file:` (same style as
-    `blob:file:`) — `import S "idl:file:foo.did"` exposes `S.Self` (the service actor type) and named
+  * feat: import a local Candid file as a types-only Motoko module via the `idl:` URI scheme —
+    `import S "idl:foo.did"` exposes `S.Self` (the service actor type) and named
     Candid types, PascalCased when unambiguous (e.g. `user_id` → `S.UserId`). No principal or
     `--actor-idl` flags required (#6263).
 

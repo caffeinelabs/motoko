@@ -86,7 +86,7 @@ let parse (f: string) : (parsed, string) result =
         match Lib.String.chop_prefix "blob:file:" f with
         | Some suffix -> Ok (FileValue suffix)
         | None ->
-          match Lib.String.chop_prefix "idl:file:" f with
+          match Lib.String.chop_prefix "idl:" f with
           | Some suffix -> Ok (IdlFile suffix)
           | None ->
             match Stdlib.String.index_opt f ':' with
