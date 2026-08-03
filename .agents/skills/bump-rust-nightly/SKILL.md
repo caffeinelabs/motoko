@@ -18,7 +18,7 @@ the Motoko RTS.
 
 ### 1. Switch branch and rebase
 ```sh
-git checkout gabor/bump-nightly-rustc
+git checkout $USER/bump-nightly-rustc
 git rebase origin/master
 ```
 Note: the previous bump usually lands on `master` via **squash-merge**, which
@@ -28,9 +28,9 @@ that case don't rebase onto the stale commit — hard-reset the branch to master
 and redo the bump fresh:
 ```sh
 git fetch origin master
-git checkout -B gabor/bump-nightly-rustc origin/master
+git checkout -B $USER/bump-nightly-rustc origin/master
 ```
-(Check first with `git merge-base --is-ancestor gabor/bump-nightly-rustc
+(Check first with `git merge-base --is-ancestor $USER/bump-nightly-rustc
 origin/master` — if it says the branch has unmerged commits *and* they're a real
 WIP, keep them; if they're just the last, already-merged bump, reset.)
 
