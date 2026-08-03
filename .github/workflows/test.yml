@@ -26,6 +26,9 @@ jobs:
         os: [ubuntu-latest, ubuntu-26.04-arm]
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    # Cold-cache runs have been observed at ~85 min; the default 6 h limit only
+    # bounds hung nixbuild.net sessions long after they stopped making progress.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -46,6 +49,8 @@ jobs:
         os: [ubuntu-latest, ubuntu-26.04-arm]
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    # Slowest job of the workflow: cold-cache runs reach ~105 min.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -70,6 +75,8 @@ jobs:
         build_type: [release, debug]
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    # Cold-cache runs reach ~50 min; extra headroom for the perf step on PRs.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -118,6 +125,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
+    # Local `nix build` of moc; generous bound for cold-cache macOS builds.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
@@ -141,6 +150,7 @@ jobs:
     needs: [common-tests, gc-tests]
     if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Show dependency results
         run: |
@@ -160,6 +170,7 @@ jobs:
     needs: tests
     if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Show dependency results
         run: |
@@ -178,6 +189,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'master' && contains(github.event.pull_request.labels.*.name, 'autoclose')
     needs: [verify-common-gc, verify-main-tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -192,6 +204,7 @@ jobs:
   approvals:
     if: github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'master' && github.event.pull_request.changed_files == 1
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
