@@ -75,6 +75,12 @@ runs:
       with:
         nixbuild_token: ${{ inputs.nixbuild_token }}
         generate_summary_for: 'workflow'
+        # Fail hung builds fast: our derivations stream output continuously, so
+        # prolonged silence means a wedged build. nixbuild.net's defaults
+        # (6 h silence / 12 h total) let hangs burn runners for hours.
+        settings: |
+          max-silent-time = 1800
+          timeout = 7200
 
     - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
       with:

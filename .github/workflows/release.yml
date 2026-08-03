@@ -95,6 +95,10 @@ jobs:
         with:
           nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
           generate_summary_for: 'workflow'
+          # Fail hung builds fast (see .github/actions/test-blueprint/action.yml).
+          settings: |
+            max-silent-time = 1800
+            timeout = 7200
       - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: ic-hs-test
