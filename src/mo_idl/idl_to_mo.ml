@@ -153,7 +153,7 @@ let export_names ids =
     in (id, export)
   ) ids originals
 
-let check_prog_types_only (env: typ I.Env.t) actor (local_ids : string list) : M.typ =
+let check_prog_types_only (local_ids : string list) (env: typ I.Env.t) actor : M.typ =
   let export_of =
     let map = export_names local_ids in
     fun id -> List.assoc id map

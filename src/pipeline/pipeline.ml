@@ -520,8 +520,8 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
       else
         let check =
           if types_only
-          then fun scope actor -> Mo_idl.Idl_to_mo.check_prog_types_only scope actor local_type_ids
-          else fun scope actor -> Mo_idl.Idl_to_mo.check_prog scope actor
+          then Mo_idl.Idl_to_mo.check_prog_types_only local_type_ids
+          else Mo_idl.Idl_to_mo.check_prog
         in
         match check idl_scope actor_opt with
         | exception Idllib.Exception.UnsupportedCandidFeature error_message ->
