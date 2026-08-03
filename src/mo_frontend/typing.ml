@@ -629,10 +629,7 @@ let check_closed env id k at =
 let check_import env at f ri =
   let full_path = match !ri with
     | Unresolved -> error env at "M0020" "unresolved import %s" f
-    | LibPath {path = fp; _}
-    | ImportedValuePath fp
-    | IDLPath (fp, _) -> fp
-    | PrimPath -> "@prim" in
+    | ri -> lib_key_of_resolved_import ri in
   match T.Env.find_opt full_path env.libs with
   | Some {lib_typ = T.Pre; _} ->
     error env at "M0021" "cannot infer type of forward import %s" f
