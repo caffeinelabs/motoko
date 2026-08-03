@@ -132,18 +132,18 @@ chore: bump rustc-nightly to YYYY-MM-DD
 
 ### 9. Push and watch CI
 ```sh
-git push --force-with-lease origin gabor/bump-nightly-rustc
+git push --force-with-lease origin $USER/bump-nightly-rustc
 # nightly-macos-test does NOT run on push — dispatch it explicitly:
-gh workflow run nightly-macos-test.yml --ref gabor/bump-nightly-rustc
+gh workflow run nightly-macos-test.yml --ref $USER/bump-nightly-rustc
 gh run watch <run-id> --repo caffeinelabs/motoko
 ```
 Gotcha — **first push after a reset (step 1)**: if the old remote branch was
 deleted when the previous bump merged, `--force-with-lease` fails with
-`! [rejected] ... (stale info)` because your local `origin/gabor/bump-nightly-rustc`
+`! [rejected] ... (stale info)` because your local `origin/$USER/bump-nightly-rustc`
 tracking ref is stale (points at a branch that no longer exists remotely). Fix:
 ```sh
 git remote prune origin
-git push -u origin gabor/bump-nightly-rustc   # plain push re-creates the branch
+git push -u origin $USER/bump-nightly-rustc   # plain push re-creates the branch
 ```
 
 ## Makefile Structure (as of 2026-04-01)
