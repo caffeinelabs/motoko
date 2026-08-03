@@ -2,6 +2,10 @@
 
 * motoko (`moc`)
 
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+
   * chore: multi-value Wasm codegen is now always on;
     `--(no-)experimental-multi-value` are kept for CLI compatibility but have
     no effect (#6266).
