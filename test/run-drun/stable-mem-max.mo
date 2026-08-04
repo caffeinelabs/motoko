@@ -1,3 +1,4 @@
+//MOC-FLAG --max-stable-pages 65536
 import StableMemory "stable-mem/StableMemory";
 
 actor {
