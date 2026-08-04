@@ -16,8 +16,13 @@ on:
     - 'doc/md/**'
     - '.github/workflows/docs-site.yml'
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  # Not named `build`: that is build.yml's job name, and the two are
+  # indistinguishable in the checks list.
+  docs-site:
     runs-on: ubuntu-latest
     defaults:
       run:
