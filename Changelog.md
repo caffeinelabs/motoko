@@ -1,10 +1,14 @@
 # Motoko compiler changelog
 
 * motoko (`moc`)
-
+    
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+    
   * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
     (was 4 GiB), raising the default ceiling for the `Region` library.
-    Override with `--max-stable-pages <n>` as before.
+    Override with `--max-stable-pages <n>` as before (#6279).
 
 ## 1.13.0 (2026-08-03)
 

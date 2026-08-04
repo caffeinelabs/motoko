@@ -1219,6 +1219,8 @@ pub(crate) unsafe fn sub(
                 }
                 return true;
             }
+            // rule: `service <actortype> <: principal`
+            (IDL_CON_service, IDL_REF_principal) => return true,
             (IDL_CON_service, IDL_CON_service) => {
                 let mut n1 = leb128_decode(&mut tb1);
                 let n2 = leb128_decode(&mut tb2);
