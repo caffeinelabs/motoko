@@ -1,5 +1,11 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+
 ## 1.13.0 (2026-08-03)
 
 * motoko (`moc`)
