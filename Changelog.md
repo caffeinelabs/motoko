@@ -3,8 +3,8 @@
 * motoko (`moc`)
 
   * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
-    (was 4 GiB), raising the default ceiling for the `Region` library and the deprecated
-    `ExperimentalStableMemory`. Override with `--max-stable-pages <n>` as before.
+    (was 4 GiB), raising the default ceiling for the `Region` library.
+    Override with `--max-stable-pages <n>` as before.
 
 ## 1.13.0 (2026-08-03)
 
