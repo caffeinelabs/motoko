@@ -412,13 +412,7 @@ type load_result =
 type load_decl_result =
   (Syntax.lib list * Syntax.prog * Scope.scope * Type.typ * Scope.scope) Diag.result
 
-let resolved_import_name ri =
-  Syntax.(match ri.it with
-  | Unresolved -> "/* unresolved */"
-  | LibPath { package = _; path }
-  | IDLPath (path, _)
-  | ImportedValuePath path -> path
-  | PrimPath -> "@prim")
+let resolved_import_name ri = Syntax.lib_key_of_resolved_import ri.it
 
 let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
     : (Syntax.lib list * Scope.scope * scope_cache) Diag.result
@@ -495,19 +489,41 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
       let sscope = Scope.lib ~package:None full_path Type.blob in
       senv := Scope.adjoin !senv sscope;
       Diag.return ()
-    | Syntax.IDLPath (f, _) ->
+    | Syntax.(IDLPath (f, _) | IDLTypesPath f) ->
+      let types_only = match it with Syntax.IDLTypesPath _ -> true | _ -> false in
+      if Type.Env.mem ri_name !senv.Scope.lib_env then
+        Diag.return ()
+      else
       (* TODO: [Idllib.Pipeline.check_file] will perform a similar pipeline,
          going recursively through imports of the IDL path to parse and
          typecheck them. We should extend the cache system to it as well. *)
       let* prog, idl_scope, actor_opt = Idllib.Pipeline.check_file f in
+      let local_type_ids =
+        let Idllib.Syntax.{ decs; _ } = prog.it in
+        List.filter_map (fun (d : Idllib.Syntax.dec) ->
+          match d.it with
+          | Idllib.Syntax.TypD (id, _) -> Some id.it
+          | _ -> None) decs
+      in
       if actor_opt = None then
         Diag.error
           ri.at
           "M0004"
           "import"
           (Printf.sprintf "file %s does not define a service" f)
+      else if types_only && List.mem "Self" local_type_ids then
+        Diag.error
+          ri.at
+          "M0004"
+          "import"
+          (Printf.sprintf "file %s declares type Self, which is reserved for the imported service type" f)
       else
-        match Mo_idl.Idl_to_mo.check_prog idl_scope actor_opt with
+        let check =
+          if types_only
+          then Mo_idl.Idl_to_mo.check_prog_types_only local_type_ids
+          else Mo_idl.Idl_to_mo.check_prog
+        in
+        match check idl_scope actor_opt with
         | exception Idllib.Exception.UnsupportedCandidFeature error_message ->
           Stdlib.Error [
             Diag.error_message
@@ -517,7 +533,7 @@ let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
               (Printf.sprintf "file %s uses Candid types without corresponding Motoko type" f);
             error_message ]
         | actor ->
-          let sscope = Scope.lib ~package:None f actor in
+          let sscope = Scope.lib ~package:None ri_name actor in
           senv := Scope.adjoin !senv sscope;
           cache := Type.Env.add ri_name sscope !cache;
           Diag.return ()

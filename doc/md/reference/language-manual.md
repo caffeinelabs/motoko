@@ -363,9 +363,10 @@ The syntax of an **import** `<imp>` is as follows:
   "ic:<canisterid>"                 Import external actor by <canisterid>
   "canister:<name>"                 Import external actor by <name>
   "blob:file:<filepath>"            Import literal `Blob` value from <filepath>
+  "idl:<filepath>"                  Import types-only module from Candid <filepath>
 ```
 
-An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
+An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, a types-only module from a Candid IDL file, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
 
 Though typically a simple identifier, `<id>`, `<pat>` can also be any composite pattern binding selective components of the resource.
 
@@ -1361,6 +1362,8 @@ In detail, if `<url>` is of the form:
 
 -   `"blob:file:<filepath>"` then `<pat>` is bound to a blob containing the contents of the file `<filepath>`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. For example, `import image "blob:file:/assets/image.jpg"` defines `image` as the blob with bytes from local file `./assets/image.jpg`. Unlike library imports, `<filepath>` should include the
 file's extension, if any.
+
+-   `"idl:<filepath>"` then `<pat>` is bound to a types-only Motoko module derived from the Candid IDL file at `<filepath>`: type field `Self` is the service actor type, and each named Candid type declared in that file is exported (PascalCased when unambiguous). `<filepath>` is interpreted relative to the absolute location of the enclosing file and should include the extension (typically `.did`). For example, `import S "idl:api/ledger.did"` defines `S` with `S.Self` and related type aliases. This import cannot be used to call methods; use `ic:` / `canister:` (or `actor "<principal>" : S.Self`) for a live reference.
 
 The case sensitivity of file references depends on the host operating system so it is recommended not to distinguish resources by filename casing alone.
 

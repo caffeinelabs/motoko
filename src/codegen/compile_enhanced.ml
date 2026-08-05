@@ -8560,13 +8560,24 @@ module Serialization = struct
           Internals.dedup env          (* Call dedup *)
         )
       | Prim Principal ->
-        with_prim_typ t
-        begin
+        (* rule: `service <actortype> <: principal`, so also accept a service reference *)
+        let read_principal_data () =
           read_byte_tagged
             [ E.trap_with env "IDL error: unexpected principal reference"
             ; read_principal Tagged.P ()
             ]
-        end
+        in
+        check_prim_typ t ^^
+        E.if1 I64Type
+          (read_principal_data ())
+          begin
+            check_composite_typ get_idltyp idl_service ^^
+            E.if1 I64Type
+              (read_principal_data ())
+              ( skip get_idltyp ^^
+                coercion_failed ("IDL error: unexpected IDL type when parsing " ^ string_of_typ t)
+              )
+          end
       | Prim Text ->
         with_prim_typ t (read_text ())
       | Tup [] -> (* e(()) = null *)

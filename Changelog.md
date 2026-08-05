@@ -1,6 +1,23 @@
 # Motoko compiler changelog
 
 * motoko (`moc`)
+    
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+    
+  * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
+    (was 4 GiB), raising the default ceiling for the `Region` library.
+    Override with `--max-stable-pages <n>` as before (#6279).
+
+## 1.13.0 (2026-08-03)
+
+* motoko (`moc`)
+
+  * feat: import a local Candid file as a types-only Motoko module via the `idl:` URI scheme —
+    `import S "idl:foo.did"` exposes `S.Self` (the service actor type) and named
+    Candid types, PascalCased when unambiguous (e.g. `user_id` → `S.UserId`). No principal or
+    `--actor-idl` flags required (#6263).
 
   * perf: write-barrier improvements for the incremental GC (e.g. EOP) (#6111).
 
