@@ -1,7 +1,56 @@
 # Motoko compiler changelog
 
 * motoko (`moc`)
+    
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+    
+  * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
+    (was 4 GiB), raising the default ceiling for the `Region` library.
+    Override with `--max-stable-pages <n>` as before (#6279).
 
+## 1.13.0 (2026-08-03)
+
+* motoko (`moc`)
+
+  * feat: import a local Candid file as a types-only Motoko module via the `idl:` URI scheme —
+    `import S "idl:foo.did"` exposes `S.Self` (the service actor type) and named
+    Candid types, PascalCased when unambiguous (e.g. `user_id` → `S.UserId`). No principal or
+    `--actor-idl` flags required (#6263).
+
+  * chore: multi-value Wasm codegen is now always on;
+    `--(no-)experimental-multi-value` are kept for CLI compatibility but have
+    no effect (#6266).
+
+## 1.12.0 (2026-07-30)
+
+* motoko (`moc`)
+
+  * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
+    `Float32`, suggesting the shortest round-trip equivalent (#6261).
+
+  * feat: `--stable-baseline <file.most>` with `--enhanced-migration` escalates unexplained
+    "initial actor requires field" cases to error M0267; fields whose baseline type is a
+    stable subtype of the required type keep warning M0254 (prototype for legacy→EM
+    conversions) (#6249).
+
+  * feat: `--stable-baseline` also runs the same upgrade check as `--stable-compatible` during
+    `--check`, so tools can typecheck and verify upgrade safety in one `moc` invocation (#6253).
+
+  * fix: refresh the broken docs links in compatibility and stable-memory diagnostics (#6255).
+
+## 1.11.2 (2026-07-22)
+
+* motoko (`moc`)
+
+  * bugfix: `--implicit-package=<pkg>` was incorrectly using all transitively loaded modules for implicit argument and contextual dot resolution instead of restricting to the given package (#6242).
+
+## 1.11.1 (2026-07-15)
+
+* motoko (`moc`)
+
+  * refactor: simplifies bounds checks for candid decoding in the RTS (#6240).
   * fix: fix codegen for nested mixins (#6223).
   * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
     `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
@@ -956,7 +1005,7 @@
     ensures that no cleanup is required.
 
     The relevant security best practices are accessible at
-    https://internetcomputer.org/docs/current/developer-docs/security/security-best-practices/inter-canister-calls#recommendation
+    https://docs.internetcomputer.org/guides/security/inter-canister-calls/#recommendation
 
     BREAKING CHANGE (Minor): `finally` is now a reserved keyword,
     programs using this identifier will break.

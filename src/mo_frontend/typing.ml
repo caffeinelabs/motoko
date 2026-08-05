@@ -2,6 +2,7 @@ open Mo_def
 open Mo_types
 open Mo_values
 module Flags = Mo_config.Flags
+open Scope
 
 open Syntax
 open Source
@@ -72,6 +73,8 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
+    (* --stable-baseline stab sig; None if flag unset. *)
+    stable_baseline_sig : T.stab_sig option;
     (* Inside the args of a call whose own instantiation/implicit is being suggested for removal:
        M0223/M0237 probes drop the donated expected type (it vanishes once applied),
        avoiding suggestions that are unsound when applied together. *)
@@ -110,8 +113,19 @@ let env_of_scope msgs scope =
     closest_loop = None;
     closest_scrutinee = None;
     enhanced_migration = None;
+    stable_baseline_sig = None;
     enclosing_removal = false;
   }
+
+let is_implicit_package pkg =
+  match !Flags.implicit_package, pkg with
+  | Some ip, Some p -> ip = p
+  | _ -> false
+
+let is_implicit_lib env path =
+  match T.Env.find_opt path env.libs with
+  | Some info -> is_implicit_package info.lib_package
+  | None -> false
 
 let use_identifier env id =
   env.used_identifiers := T.Env.update id (function
@@ -348,7 +362,7 @@ let check_deprecation env at desc id depr =
        | 0 -> warn
        | _ -> fun ?(notes = []) ?(spans = []) ?(edits = []) _ _ _ _ -> ())
        env at code
-       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
+       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
@@ -615,14 +629,11 @@ let check_closed env id k at =
 let check_import env at f ri =
   let full_path = match !ri with
     | Unresolved -> error env at "M0020" "unresolved import %s" f
-    | LibPath {path = fp; _}
-    | ImportedValuePath fp
-    | IDLPath (fp, _) -> fp
-    | PrimPath -> "@prim" in
+    | ri -> lib_key_of_resolved_import ri in
   match T.Env.find_opt full_path env.libs with
-  | Some T.Pre ->
+  | Some {lib_typ = T.Pre; _} ->
     error env at "M0021" "cannot infer type of forward import %s" f
-  | Some t -> t
+  | Some info -> info.lib_typ
   | None ->
     match T.Env.find_opt full_path env.mixins with
     | Some mix -> mix.Scope.typ
@@ -1288,19 +1299,20 @@ let check_float env = check_lit_val env T.Float Numerics.Float.of_string
 let check_float32 env at s =
   check_lit_val env T.Float32 Numerics.Float32.of_string at s
 
-(* Shortest decimal (<= 9 significant digits — always enough to round-trip an
-   F32) that parses back to the same Float32 [v]. Synthesised from the printer
-   and parser we already have, so no shortest-float dependency is needed. *)
-let float32_shortest (v : Numerics.Float32.t) : string =
-  let f = Numerics.Float32.to_float v in
+(* Shortest decimal that round-trips to the float [v]: try 1..[cap] significant
+   digits with the printer + parser we already have (no shortest-float dep). *)
+let shortest_roundtrip (cap, to_float, eq, of_string) v : string =
+  let f = to_float v in
   let rec go n =
     let cand = Printf.sprintf "%.*g" n f in
-    if n >= 9 || (try Numerics.Float32.eq (Numerics.Float32.of_string cand) v
-                  with _ -> false)
+    if n >= cap || (try eq (of_string cand) v with _ -> false)
     then cand
     else go (n + 1)
   in
   go 1
+
+let float32_shortest = shortest_roundtrip Numerics.Float32.(9, to_float, eq, of_string)
+let float_shortest   = shortest_roundtrip Numerics.Float.(17, to_float, eq, of_string)
 
 (* Significant digits of a decimal float/int literal lexeme; [None] for a hex
    float (which we don't analyse). Strips digit separators, the exponent, the
@@ -1323,20 +1335,20 @@ let decimal_sig_digits (s : string) : int option =
     Some (if !j >= !i then !j - !i + 1 else 0)
   end
 
-(* Warn (M0266) when a Float32 literal carries more significant digits than the
-   value can hold — i.e. the surplus digits are silently discarded by rounding.
-   Fires only on genuine excess: a minimally-written literal equals its own
-   shortest round-trip form, so 0.1, 3.14, 1.5 etc. stay quiet. *)
-let check_float32_precision env at s v =
+(* Warn (M0266) when a float literal carries more significant digits than its
+   type [ty] can hold — the surplus is silently discarded by rounding. Fires
+   only on genuine excess: a minimal literal equals its own shortest round-trip
+   form ([shortest]), so 0.1, 3.14, 1.5 etc. stay quiet. *)
+let check_float_precision env at ty shortest s =
   match decimal_sig_digits s with
   | None -> ()
   | Some used ->
-    let short = float32_shortest v in
+    let short = shortest () in
     (match decimal_sig_digits short with
      | Some need when used > need ->
        warn env at "M0266"
-         "literal %s has more precision than Float32 can represent; it rounds to %s (the surplus digits are discarded)"
-         s short
+         "literal %s has more precision than %s can represent; it rounds to %s (the surplus digits are discarded)"
+         s (T.string_of_typ (T.Prim ty)) short
      | _ -> ())
 
 let check_text env at s =
@@ -1372,8 +1384,11 @@ let infer_lit env lit at : T.prim =
       lit := IntLit (check_int env at s); (* default *)
     T.Int
   | PreLit (s, T.Float) ->
-    if not env.pre then
-      lit := FloatLit (check_float env at s); (* default *)
+    if not env.pre then begin
+      let v = check_float env at s in
+      check_float_precision env at T.Float (fun () -> float_shortest v) s;
+      lit := FloatLit v (* default *)
+    end;
     T.Float
   | PreLit (s, T.Text) ->
     if not env.pre then
@@ -1407,10 +1422,12 @@ let check_lit env t lit at suggest =
   | Prim Int64, PreLit (s, (Nat | Int)) ->
     lit := Int64Lit (check_int64 env at s)
   | Prim Float, PreLit (s, (Nat | Int | Float)) ->
-    lit := FloatLit (check_float env at s)
+    let v = check_float env at s in
+    check_float_precision env at T.Float (fun () -> float_shortest v) s;
+    lit := FloatLit v
   | Prim Float32, PreLit (s, (Nat | Int | Float)) ->
     let v = check_float32 env at s in
-    check_float32_precision env at s v;
+    check_float_precision env at T.Float32 (fun () -> float32_shortest v) s;
     lit := Float32Lit v
   | Prim Blob, PreLit (s, Text) ->
     lit := BlobLit s
@@ -1569,13 +1586,15 @@ let disambiguate_resolutions (rel : 'candidate -> 'candidate -> bool) (candidate
   | [] -> `Empty
   | frontier -> `Many frontier
 
-let is_lib_module (n, t) =
+let is_module_typ (n, t) =
   match T.normalize t with
   | T.Obj (T.Module, fs, _) -> Some (n, fs)
   | _ -> None
 
+let is_lib_module (n, (info : lib_info)) = is_module_typ (n, info.lib_typ)
+
 let is_val_module (n, ((t, _, _, _) : val_info)) =
-  is_lib_module (n, t)
+  is_module_typ (n, t)
 
 let module_exp in_libs module_ref =
   if not in_libs then
@@ -1865,9 +1884,9 @@ module ImplicitHoles = struct
     let make_ref_exp r = VarE (r @~ no_region)
   end
 
-  module LibCandidateSource : CandidateSource with type entry = T.typ = struct
-    type entry = T.typ
-    let get_typ t = t
+  module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
+    type entry = Scope.lib_info
+    let get_typ info = info.lib_typ
     let make_ref_exp r = ImplicitLibE r
   end
 
@@ -1999,9 +2018,12 @@ module ImplicitHoles = struct
     | `Empty ->
 
     (* Get direct module field candidates from libs (unimported modules) *)
-    (* Use them for resolution only when the feature flag is set! *)
+    (* Resolve only implicit-package libs; error suggestions may still list others. *)
+    let from_implicit_lib c =
+      Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref_opt
+    in
     let lib_fields = FromModuleLib.matching_fields hole env.libs in
-    match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_fields else `Empty with
+    match if Option.is_some !Flags.implicit_package then disambiguate_holes (List.filter from_implicit_lib lib_fields) else `Empty with
     | `Single term -> Ok term
     | `Many _ | `Empty ->
 
@@ -2029,7 +2051,7 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive ~depth lib_fields_with_holes
+      then try_derive ~depth (List.filter (fun (_, c) -> from_implicit_lib c) lib_fields_with_holes)
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -2082,7 +2104,8 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive_structural info structural_lib_candidates ~depth
+      then try_derive_structural info
+        (List.filter (fun (_, c) -> from_implicit_lib c) structural_lib_candidates) ~depth
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -2188,8 +2211,16 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
       let modules = String.concat ", " (List.filter_map (fun c -> c.module_ref) cs) in
       error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it modules))
     | `Empty ->
+      (* Resolve only implicit-package libs; error suggestions may still list others. *)
       let lib_candidates = candidates true env.libs is_lib_module in
-      match if Option.is_some !Flags.implicit_package then disambiguate_candidates lib_candidates else `Empty with
+      let lib_resolution =
+        if Option.is_some !Flags.implicit_package then
+          lib_candidates
+          |> List.filter (fun c -> Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref)
+          |> disambiguate_candidates
+        else `Empty
+      in
+      match lib_resolution with
       | `Single c -> Ok c
       | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
 
@@ -2317,20 +2348,21 @@ and infer_exp'' env exp : T.typ =
       let candidate_libs =
         if Option.is_some(!Flags.implicit_package) then
           T.Env.to_seq env.libs |>
-            Seq.filter (fun (name, typ) ->
-              name <> "@prim" &&
+            Seq.filter (fun (name, info) ->
+              is_implicit_package info.lib_package &&
                 let lib_id = Filename.basename name |> Filename.chop_extension in
                 lib_id = id.it) |>
             List.of_seq
         else []
       in
       match candidate_libs with
-      | [(name, typ)] ->
+      | [(name, info)] ->
+        let typ = info.lib_typ in
         id.note <-
           (Const, Some { it = ImplicitLibE name; at = exp.at; note = {note_typ = typ; note_eff = T.Triv} });
         typ
       | c1::c2::cs ->
-        let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
+        let import_suggestions = List.map (fun (name, _) -> Suggest.module_name_as_url name) candidate_libs in
         error env id.at "M0057"
           ~spans:[primary env id.at "help: Did you mean to import %s?" (String.concat " or " import_suggestions)]
           "unbound variable %s%a"
@@ -2819,7 +2851,7 @@ and infer_exp'' env exp : T.typ =
     check_import env exp.at f ri
   | ImplicitLibE lib ->
     match T.Env.find_opt lib env.libs with
-    | Some t -> t
+    | Some info -> info.lib_typ
     | None -> failwith "ImplicitLibE not found in env.libs"
 
 and infer_bin_exp env exp1 exp2 =
@@ -4566,10 +4598,10 @@ and infer_migration_chain env at =
      in
      let norm_path = Lib.FilePath.normalise path in
      let chain =
-       T.Env.fold (fun lib lib_typ acc ->
+       T.Env.fold (fun lib info acc ->
            if Filename.dirname lib <> norm_path
            then acc else
-           match Type.normalize lib_typ with
+           match Type.normalize info.lib_typ with
              | T.Obj(T.Module, fields, _) as mod_typ ->
                begin
                 match Type.lookup_val_field_opt "migration" fields with
@@ -4640,17 +4672,55 @@ and check_migration_function env typ at =
 
 and check_enhanced_migration_chain env chain stab_tfs at =
  if chain = [] then () else
+ (* Prefer the actor field span from check_stab; fall back to the actor region. *)
+ let field_at tf =
+   let r = tf.T.src.T.region in
+   if r <> no_region then r else at
+ in
+ let chain_fields =
+   List.map
+     (fun (file, _, typ) ->
+       T.{lab = migration_lab_of_filename file; typ; src = empty_src})
+     chain
+ in
  let check_chain chain post =
    let mfs = List.rev chain in
-   let rec check_mfs at post mfs =
+   let rec check_mfs step_at post mfs =
      match mfs with
      | [] ->
-       (* issue warnings if we infer the initial actor in the chain requires any fields *)
+       (* Same initial_required set: M0254, or M0267 when a baseline is set but does not
+          explain the field. With a baseline, also run --stable-compatible against the
+          inferred Multi sig (may overlap M0267 with M0169/M0170/M0216/M0263). *)
+       let baseline_post =
+         match env.stable_baseline_sig with
+         | None -> None
+         | Some s -> Some (fst (T.post s))
+       in
        List.iter (fun tf ->
-         warn env at "M0254"
-           "initial actor requires field `%s` of type%a"
-           tf.T.lab display_typ tf.T.typ)
-         post
+         let unexplained =
+           match baseline_post with
+           | None -> false
+           | Some baseline ->
+             match T.lookup_val_field_opt tf.T.lab baseline with
+             | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> false
+             | _ -> true
+         in
+         if unexplained then
+           local_error env (field_at tf) "M0267"
+             "initial actor requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
+             tf.T.lab display_typ tf.T.typ
+         else
+           warn env step_at "M0254"
+             "initial actor requires field `%s` of type%a"
+             tf.T.lab display_typ tf.T.typ)
+         post;
+       (match env.stable_baseline_sig with
+        | None -> ()
+        | Some baseline_sig ->
+          let new_sig = T.Multi {chain = chain_fields; post = stab_tfs} in
+          let post1, mig_lab_opt = T.post baseline_sig in
+          let pre2 = T.pre mig_lab_opt new_sig in
+          Stability.match_stab_fields env.msgs at Stability.enhanced_migration_link None post1 pre2)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
@@ -4664,7 +4734,8 @@ and check_enhanced_migration_chain env chain stab_tfs at =
           |> List.sort T.compare_field
         in
         Stability.match_stab_fields env.msgs
-          at
+          step_at
+          Stability.enhanced_migration_link
           (Some mf.T.lab)
           out
           (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post);
@@ -5173,7 +5244,7 @@ and infer_val_path env exp : T.typ option =
      | _ -> None)
   | ImplicitLibE lib ->
     (match T.Env.find_opt lib env.libs with
-    | Some t -> Some t
+    | Some info -> Some info.lib_typ
     | None -> None)
   | DotE (path, id, _) ->
     (match infer_val_path env path with
@@ -5571,7 +5642,7 @@ let infer_split_prog env at check_unused imports decls =
   t, Scope.adjoin iscope sscope
 
 (* Programs *)
-let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
+let infer_prog ?(enable_type_recovery=false) ~stable_baseline_sig scope pkg_opt async_cap prog
     : (T.typ * Scope.t) Diag.result
   =
   let recovery_fn = if enable_type_recovery then
@@ -5588,6 +5659,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
               async = async_cap;
               type_recovery = enable_type_recovery;
               enhanced_migration = !Flags.enhanced_migration;
+              stable_baseline_sig;
             } in
           let imports, decls = split_imports prog.it in
           let t, sscope = infer_split_prog env prog.at true imports decls in
@@ -5635,7 +5707,7 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
         ) progs
     )
 
-let check_lib scope pkg_opt lib : Scope.t Diag.result =
+let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
   Diag.with_message_store
     (fun msgs ->
       recover_opt
@@ -5647,9 +5719,10 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
               (* For now, only the main actor(class) and mixins support enhanced_migration, not libraries
                  For imported classes, we would need some convention to locate their migration
                  dirs *)
-              enhanced_migration = match cub.it with
-                | MixinU _ -> !Flags.enhanced_migration;
-                | _ -> None;
+              enhanced_migration = (match cub.it with
+                | MixinU _ -> !Flags.enhanced_migration
+                | _ -> None);
+              stable_baseline_sig;
             } in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_split_prog env lib.at false imp_ds ds in
@@ -5664,7 +5737,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
                 in
                 warn env r "M0142" "deprecated syntax: an imported library should be a module or named actor class"
               end;
-              Scope.lib lib.note.filename typ
+              Scope.lib ~package:pkg_opt lib.note.filename typ
             | ActorClassU (_persistence, sp, exp_opt, id, tbs, p, _, self_id, dec_fields) ->
               if is_anon_id id then
                 error env cub.at "M0143" "bad import: imported actor class cannot be anonymous";
@@ -5685,7 +5758,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
                 (id.it, fun_typ);
                 ("system", obj Module [id.it, install_typ (List.map (close cs) ts1) class_typ])
               ] [(id.it, con)]) in
-              Scope.lib lib.note.filename typ
+              Scope.lib ~package:pkg_opt lib.note.filename typ
             | MixinU (need_system, arg, decs) ->
               Scope.mixin lib.note.filename Scope.{ imports; need_system; arg; decs; typ }
             | ActorU _ ->

@@ -1,0 +1,4 @@
+// Field y removed — compatible_fields hits Lib.This (extra field in old) -> false
+actor {
+  stable var obj : {x : Nat; z : Bool};
+};

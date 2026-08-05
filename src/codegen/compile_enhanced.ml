@@ -971,39 +971,15 @@ let narrow_to_32 env get_value =
   get_value ^^
   G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64))
 
-module FakeMultiVal = struct
-  (* For some use-cases (e.g. processing the compiler output with analysis
-     tools) it is useful to avoid the multi-value extension.
+module MultiVal = struct
+  (* Multi-value codegen is always on, so these are transparent wrappers:
+     [ty] is the identity and [store]/[load] are no-ops (values stay on the
+     Wasm stack). [if_]/[block_] remain drop-in replacements for E.if_/E.block_. *)
+  let ty tys = tys
 
-     This module provides mostly transparent wrappers that put multiple values
-     in statically allocated globals and pull them off again.
+  let store _env _tys = G.nop
 
-     So far only does I64Type (but that could be changed).
-
-     If the multi_value flag is on, these do not do anything.
-  *)
-  let ty tys =
-    if !Flags.multi_value || List.length tys <= 1
-    then tys
-    else []
-
-  let global env i =
-    E.get_global64_lazy env (Printf.sprintf "multi_val_%d" i) Mutable 0L
-
-  let store env tys =
-    if !Flags.multi_value || List.length tys <= 1 then G.nop else
-    G.concat_mapi (fun i ty ->
-      assert(ty = I64Type);
-      G.i (GlobalSet (nr (global env i)))
-    ) tys
-
-  let load env tys =
-    if !Flags.multi_value || List.length tys <= 1 then G.nop else
-    let n = List.length tys - 1 in
-    G.concat_mapi (fun i ty ->
-      assert(ty = I64Type);
-      G.i (GlobalGet (nr (global env (n - i))))
-    ) tys
+  let load _env _tys = G.nop
 
   (* A drop-in replacement for E.if_ *)
   let if_ env bt thn els =
@@ -1017,7 +993,7 @@ module FakeMultiVal = struct
     )) ^^
     load env bt
 
-end (* FakeMultiVal *)
+end (* MultiVal *)
 
 module Func = struct
   (* This module contains basic bookkeeping functionality to define functions,
@@ -1028,9 +1004,9 @@ module Func = struct
   let of_body env params retty mk_body =
     let env1 = E.mk_fun_env env (Int32.of_int (List.length params)) (List.length retty) in
     List.iteri (fun i (n,_t) -> E.add_local_name env1 (Int32.of_int i) n) params;
-    let ty = FuncType (List.map snd params, FakeMultiVal.ty retty) in
+    let ty = FuncType (List.map snd params, MultiVal.ty retty) in
     let body = G.to_instr_list (
-      mk_body env1 ^^ FakeMultiVal.store env1 retty
+      mk_body env1 ^^ MultiVal.store env1 retty
     ) in
     (nr { ftype = nr (E.func_type env ty);
           locals = E.get_locals env1;
@@ -1060,7 +1036,7 @@ module Func = struct
       in
       define_built_in env name params retty (fun env -> mk_body env getters);
       G.i (Call (nr (E.built_in env name))) ^^
-      FakeMultiVal.load env retty
+      MultiVal.load env retty
     else begin
       assert (sharing = Never);
       let locals =
@@ -1071,8 +1047,8 @@ module Func = struct
       let set_locals = List.fold_right (fun (set, get, _) is-> is ^^ set) locals G.nop in
       let getters = List.map (fun (set, get, _) -> get) locals in
       set_locals ^^
-      mk_body env getters ^^ FakeMultiVal.store env retty ^^
-      FakeMultiVal.load env retty
+      mk_body env getters ^^ MultiVal.store env retty ^^
+      MultiVal.load env retty
    end
 
   (* Shorthands for various arities *)
@@ -2451,14 +2427,14 @@ module Closure = struct
        An extra first argument for the closure! *)
     let ty = E.func_type env (FuncType (
       I64Type :: Lib.List.make n_args I64Type,
-      FakeMultiVal.ty (Lib.List.make n_res I64Type))) in
+      MultiVal.ty (Lib.List.make n_res I64Type))) in
     (* get the table index *)
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env funptr_field ^^
     (* All done: Call! *)
     let table_index = 0l in
     G.i (CallIndirect (nr table_index, nr ty)) ^^
-    FakeMultiVal.load env (Lib.List.make n_res I64Type)
+    MultiVal.load env (Lib.List.make n_res I64Type)
 
   let constant env get_fi =
     let fi = Wasm.I64_convert.extend_i32_u (E.add_fun_ptr env (get_fi ())) in
@@ -5661,7 +5637,7 @@ module Cycles = struct
        end)
 
   (* takes a bignum from the stack, traps if ≥2^128, and leaves two 64bit words on the stack *)
-  (* only used twice, so ok to not use share_code1; that would require I64Type support in FakeMultiVal *)
+  (* only used twice, so ok to not use share_code1; that would require I64Type support in MultiVal *)
   let to_two_word64 env =
     let (set_val, get_val) = new_local env "cycles" in
     set_val ^^
@@ -6586,7 +6562,7 @@ module StackRep = struct
 
   (* The env looks unused, but will be needed once we can use multi-value, to register
      the complex types in the environment.
-     For now, multi-value block returns are handled via FakeMultiVal. *)
+     For now, multi-value block returns are handled via MultiVal. *)
   let to_block_type env = function
     | Vanilla -> [I64Type]
     | UnboxedWord64 _ -> [I64Type]
@@ -8526,13 +8502,24 @@ module Serialization = struct
           Internals.dedup env          (* Call dedup *)
         )
       | Prim Principal ->
-        with_prim_typ t
-        begin
+        (* rule: `service <actortype> <: principal`, so also accept a service reference *)
+        let read_principal_data () =
           read_byte_tagged
             [ E.trap_with env "IDL error: unexpected principal reference"
             ; read_principal Tagged.P ()
             ]
-        end
+        in
+        check_prim_typ t ^^
+        E.if1 I64Type
+          (read_principal_data ())
+          begin
+            check_composite_typ get_idltyp idl_service ^^
+            E.if1 I64Type
+              (read_principal_data ())
+              ( skip get_idltyp ^^
+                coercion_failed ("IDL error: unexpected IDL type when parsing " ^ string_of_typ t)
+              )
+          end
       | Prim Text ->
         with_prim_typ t (read_text ())
       | Tup [] -> (* e(()) = null *)
@@ -11670,7 +11657,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
          compile_unboxed_zero ^^ (* A dummy closure *)
          compile_exp_as env ae (StackRep.of_arity n_args) e2 ^^ (* the args *)
          G.i (Call (nr (mk_fi()))) ^^
-         FakeMultiVal.load env (Lib.List.make return_arity I64Type)
+         MultiVal.load env (Lib.List.make return_arity I64Type)
       | _, Type.Local ->
          let (set_clos, get_clos) = new_local env "clos" in
 
@@ -11819,7 +11806,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | RetPrim, [e] ->
     SR.Unreachable,
     compile_exp_as env ae (StackRep.of_arity (E.get_return_arity env)) e ^^
-    FakeMultiVal.store env (Lib.List.make (E.get_return_arity env) I64Type) ^^
+    MultiVal.store env (Lib.List.make (E.get_return_arity env) I64Type) ^^
     G.i Return
 
   (* Numeric conversions *)
@@ -13163,7 +13150,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     in
     sr,
     code_scrut ^^
-    FakeMultiVal.if_ env
+    MultiVal.if_ env
       (StackRep.to_block_type env sr)
       (code1 ^^ StackRep.adjust env sr1 sr)
       (code2 ^^ StackRep.adjust env sr2 sr)
@@ -13206,7 +13193,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
 
     final_sr,
     (* Run rest in block to exit from *)
-    FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+    MultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
        ) [sr, CannotFail code1 ^^^ pat_code ^^^ CannotFail rhs_code]) ^^
@@ -13234,7 +13221,7 @@ and compile_exp_with_hint (env : E.t) ae sr_hint exp =
     (* Run scrut *)
     code1 ^^ set_i ^^
     (* Run rest in block to exit from *)
-    FakeMultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
+    MultiVal.block_ env (StackRep.to_block_type env final_sr) (fun branch_code ->
        orsPatternFailure env (List.map (fun (sr, c) ->
           c ^^^ CannotFail (StackRep.adjust env sr final_sr ^^ branch_code)
        ) codes) ^^
@@ -14103,7 +14090,7 @@ and conclude_module env set_serialization_globals start_fi_o =
          emulation adds a second memory (`multimemory`, tracked dynamically). *)
       target_features =
         [ "bulk-memory"; "bulk-memory-opt"; "memory64"; "nontrapping-fptoint"; "sign-ext" ]
-        @ (if !Flags.multi_value then ["multivalue"] else [])
+        @ ["multivalue"]
         @ (if List.mem "multi-memory" (E.get_features env) then ["multimemory"] else []);
     } in
 

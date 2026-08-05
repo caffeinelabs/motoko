@@ -1,5 +1,5 @@
-(unknown location): Compatibility error [M0170], the new type of stable variable `products` is not compatible with the previous version.
- The previous type
+(unknown location): Compatibility error [M0170], stable variable `products` is not compatible with the previous version.
+Previous type
   var {root : Tree<Text, Product>; size : Nat}
  is not a subtype of
   Map<Text, OldProduct> = {root : Tree<Text, OldProduct>; size : Nat}
@@ -20,5 +20,6 @@
  is not compatible with type 
   (Text, Nat)
  in `OldProduct` (used by `Tree` in `root` in `Map` in `products`).
- Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 FALSE
