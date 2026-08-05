@@ -40,7 +40,8 @@ let package_urls : string M.t ref = ref M.empty
 let implicit_package : string option ref = ref None
 let actor_aliases : (string * string, string * string option) Either.t M.t ref = ref M.empty
 let actor_idl_path : string option ref = ref None
-let max_stable_pages_default = 65536
+(* 100 GiB, expressed in 64KiB pages (16384 pages per GiB) *)
+let max_stable_pages_default = 100 * 16384
 let max_stable_pages : int ref = ref max_stable_pages_default
 let measure_rts_stack = ref false
 let actors = ref RequirePersistentActors
