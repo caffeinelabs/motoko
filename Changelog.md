@@ -12,6 +12,9 @@
     (was 4 GiB), raising the default ceiling for the `Region` library.
     Override with `--max-stable-pages <n>` as before (#6279).
 
+  * bugfix: a self tail call whose argument is a tuple-returning expression
+    crashed the compiler (or miscompiled, with the IR check off) (#6292).
+
 ## 1.13.0 (2026-08-03)
 
 * motoko (`moc`)
