@@ -1,6 +1,9 @@
+//MOC-FLAG -A=M0194
 import Prim "mo:⛔";
 
 // `class` in expression position must yield its constructor, not `()`.
+func blob_keys(b : Blob) : () -> {} = class() {};
+
 type Iter = { next : () -> ?Nat };
 func vals(xs : [Nat]) : () -> Iter = class() : Iter {
   var i = 0;
