@@ -1,0 +1,7 @@
+type user_id = nat;
+type AccountBalance = nat;
+type t = text;
+service : {
+  get : (user_id) -> (AccountBalance) query;
+  name : () -> (t) query;
+}

@@ -41,7 +41,7 @@ and [remote store builds](https://docs.nixbuild.net/remote-builds/#using-remote-
 Each derivation gets its own machine (up to 16 CPUs) instead of sharing one
 runner, which is both faster and cheaper. Because the GitHub runner then does
 almost no work, the Linux jobs run on the small/free runners (`ubuntu-latest`,
-`ubuntu-24.04-arm`) instead of `ubuntu-24-large` / `arm64-linux-16`.
+`ubuntu-26.04-arm`) instead of `ubuntu-24-large` / `arm64-linux-16`.
 
 This mirrors the earlier setup from
 [PR #5032](https://github.com/caffeinelabs/motoko/pull/5032) (later reverted in

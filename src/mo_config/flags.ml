@@ -30,7 +30,6 @@ let print_depth = ref 2
 let release_mode = ref false
 let compile_mode = ref ICMode
 let debug_info = ref false
-let multi_value = ref true
 let await_lowering = ref true
 let async_lowering = ref true
 let dump_parse = ref false
@@ -41,7 +40,8 @@ let package_urls : string M.t ref = ref M.empty
 let implicit_package : string option ref = ref None
 let actor_aliases : (string * string, string * string option) Either.t M.t ref = ref M.empty
 let actor_idl_path : string option ref = ref None
-let max_stable_pages_default = 65536
+(* 100 GiB, expressed in 64KiB pages (16384 pages per GiB) *)
+let max_stable_pages_default = 100 * 16384
 let max_stable_pages : int ref = ref max_stable_pages_default
 let measure_rts_stack = ref false
 let actors = ref RequirePersistentActors
@@ -72,6 +72,8 @@ let use_stable_regions = ref false
 let enhanced_orthogonal_persistence = ref true
 let explicit_enhanced_orthogonal_persistence = ref false
 let enhanced_migration : string option ref = ref None
+(* Last deployed .most for check-time stable-compat + M0254 carry *)
+let stable_baseline : string option ref = ref None
 let share_code = ref false
 let stabilization_instruction_limit_default = {
   upgrade = 180_000_000_000L; (* 200 billion limit with 10% reserve *)

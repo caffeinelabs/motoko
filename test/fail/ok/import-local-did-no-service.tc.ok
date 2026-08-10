@@ -1,0 +1,1 @@
+import-local-did-no-service.mo:1.1-1.53: import error [M0004], file import-local-did-no-service/types.did does not define a service

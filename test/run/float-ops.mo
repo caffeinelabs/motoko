@@ -1,3 +1,6 @@
+//MOC-FLAG -A M0266
+// This test exercises float ops with deliberately over-precise literals
+// (a 19-digit pi, ~10^101 magnitudes), so silence the excess-precision warning.
 import Prim "mo:⛔";
 
 func isNegative(number: Float): Bool {

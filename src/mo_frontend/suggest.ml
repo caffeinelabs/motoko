@@ -2,6 +2,7 @@
 (* Suggestions *)
 open Mo_def
 open Mo_types
+open Scope
 open Mo_config
 open Type
 
@@ -58,11 +59,11 @@ let search_obj desc path ty ty1 ty2 =
   go path ty;
   !suggestions
 
-let suggest_conversion libs vals ty1 ty2 =
+let suggest_conversion (libs : lib_env) vals ty1 ty2 =
   match promote ty1, promote ty2 with
   | Prim p1, Prim p2 ->
     let suggestions = ref [] in
-    Env.iter (fun filename ty ->
+    Env.iter (fun filename {lib_typ = ty; _} ->
       if String.starts_with ~prefix:"@" filename
       then () (* skip prim etc *)
       else
