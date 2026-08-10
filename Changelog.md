@@ -1,6 +1,8 @@
 # Motoko compiler changelog
 
 * motoko (`moc`)
+
+  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`). The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`, deriving operations like serialization for any variant whose case payloads have instances (#6192).
     
   * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
     (dfinity/candid#748): service references now decode at type `Principal`, both when
