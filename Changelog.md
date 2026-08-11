@@ -1,5 +1,7 @@
 # Motoko compiler changelog
 
+## 1.14.0 (2026-08-11)
+
 * motoko (`moc`)
 
   * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`).
