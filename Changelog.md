@@ -2,15 +2,23 @@
 
 * motoko (`moc`)
 
-  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`). The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`, deriving operations like serialization for any variant whose case payloads have instances (#6192).
-    
-  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
-    (dfinity/candid#748): service references now decode at type `Principal`, both when
-    decoded directly and in deferred subtype checks on function references (#6275).
-    
+  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`).
+    The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`,
+    deriving operations like serialization for any variant whose case payloads have instances (#6192).
+
   * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
     (was 4 GiB), raising the default ceiling for the `Region` library.
     Override with `--max-stable-pages <n>` as before (#6279).
+
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+
+  * bugfix: a `class` in expression position lowered to unit instead of its
+    constructor (#6291).
+
+  * bugfix: a self tail call whose argument is a tuple-returning expression
+    crashed the compiler (or miscompiled, with the IR check off) (#6292).
 
 ## 1.13.0 (2026-08-03)
 
