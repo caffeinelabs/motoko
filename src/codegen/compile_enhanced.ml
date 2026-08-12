@@ -2323,8 +2323,8 @@ module WeakRef = struct
     E.call_rts env "running_gc" ^^
     Bool.from_rts_int32 ^^
     E.if_ env [I64Type]
-      ( get_value ^^ E.call_rts env "read_with_barrier" )
-      ( get_value )
+      (get_value ^^ E.call_rts env "read_with_barrier")
+      get_value
 
   let store_field env =
     let (set_weak_value, get_weak_value) = new_local env "weak_value" in
