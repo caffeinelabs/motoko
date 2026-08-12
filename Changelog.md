@@ -1,7 +1,5 @@
 # Motoko compiler changelog
 
-## Next
-
 * motoko (`moc`)
 
   * improvement: RTS weak reference interaction with the incremental GC: weak
