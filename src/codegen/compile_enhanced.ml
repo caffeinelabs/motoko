@@ -504,6 +504,9 @@ module E = struct
     constant_functions : int32 ref;
     dedup : (unit -> int32) option ref;
 
+    (* Signals that blob dedup functionality should be enabled. *)
+    requires_blob_dedup : bool ref;
+
     enhanced_migration : string option;
   }
 
@@ -540,6 +543,7 @@ module E = struct
     global_type_descriptor = ref None;
     constant_functions = ref 0l;
     dedup = ref None;
+    requires_blob_dedup = ref false;
     enhanced_migration;
   }
 
@@ -820,6 +824,12 @@ module E = struct
 
   let set_dedup (env : t) (mk_fi : unit -> int32) =
     env.dedup := Some mk_fi
+
+  let requires_blob_dedup (env : t) : bool =
+    !(env.requires_blob_dedup)
+
+  let set_requires_blob_dedup (env : t) =
+    env.requires_blob_dedup := true
 
   let enhanced_migration (env : t) : string option =
     env.enhanced_migration
@@ -6994,6 +7004,25 @@ module Internals = struct
 
 end
 
+(* Indirection for the dedup call on Candid blob deserialization.
+   Deserialization code is generated before we can actually know
+   whether dedup is needed or not. *)
+module BlobDedup = struct
+  let hook_name = "@blob_dedup_hook"
+
+  let call env = G.i (Call (nr (E.built_in env hook_name)))
+
+  (* Call only after all code is compiled. *)
+  let define_hook env =
+    Func.define_built_in env hook_name [("blob", I64Type)] [I64Type] (fun env ->
+      if E.requires_blob_dedup env then
+        compile_unboxed_zero ^^
+        G.i (LocalGet (nr 0l)) ^^
+        Internals.dedup env
+      else
+        G.i (LocalGet (nr 0l)))
+end
+
 module Serialization = struct
   (*
     The general serialization strategy is as follows:
@@ -8495,11 +8524,8 @@ module Serialization = struct
         Opt.null_lit env
       | Prim Blob ->
         with_blob_typ env (
-          let (set_blob, get_blob) = new_local env "blob" in
-          read_blob () ^^ set_blob ^^  (* Read blob and save it *)
-          compile_unboxed_zero ^^      (* Put closure on stack *)
-          get_blob ^^                  (* Put blob on stack *)
-          Internals.dedup env          (* Call dedup *)
+          read_blob () ^^
+          BlobDedup.call env           (* Dedup only if the program requires it *)
         )
       | Prim Principal ->
         (* rule: `service <actortype> <: principal`, so also accept a service reference *)
@@ -12392,6 +12418,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.Vanilla,
     IC.caller_info_data env
 
+  (* Emits no code. Compiling this marks that a dedup table consumer is reachable. *)
+  | OtherPrim "require_blob_dedup", [] ->
+    SR.unit,
+    (E.set_requires_blob_dedup env; G.nop)
+
   | OtherPrim "get_dedup_table", [] ->
     SR.Vanilla,
     E.call_rts env "get_dedup_table"
@@ -14124,6 +14155,11 @@ let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm
   RTS.system_imports env;
 
   compile_init_func env prog;
+
+  (* Hook calls are already emitted against a reserved, empty function slot. Defining
+     it here fills that slot, once nothing can change `requires_blob_dedup` anymore. *)
+  BlobDedup.define_hook env;
+
   let start_fi_o = match E.mode env with
     | Flags.ICMode | Flags.RefMode ->
       IC.export_init env;
