@@ -344,6 +344,24 @@ unsafe fn pre_write_barrier<M: Memory>(mem: &mut M, state: &mut State, overwritt
     }
 }
 
+/// Read barrier to be called AFTER loading a pointer value out of a weak reference.
+/// `value` (skewed if a pointer) denotes the loaded target.
+/// The barrier can be conservatively called even if the loaded value is not a pointer:
+/// scalars and the null pointer are ignored by `points_to_or_beyond`.
+/// The barrier is only effective while the GC is in the mark phase, where it marks the
+/// loaded target. This is symmetric to `pre_write_barrier` and keeps the marked set a
+/// superset of the snapshot-at-the-beginning.
+unsafe fn pre_read_barrier<M: Memory>(mem: &mut M, state: &mut State, value: Value) {
+    if state.phase == Phase::Mark {
+        let base_address = state.partitioned_heap.base_address();
+        if value.points_to_or_beyond(base_address) {
+            let mut time = BoundedTime::new(0);
+            let mut increment = MarkIncrement::instance(mem, state, &mut time);
+            increment.mark_object(value);
+        }
+    }
+}
+
 /// Allocation barrier to be called AFTER a new object allocation.
 /// `new_object` is the skewed pointer of the newly allocated and initialized object.
 /// The new object needs to be fully initialized, except for the payload of a blob.

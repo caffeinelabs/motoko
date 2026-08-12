@@ -1271,6 +1271,7 @@ module RTS = struct
     add_rts_import "buffer_in_32_bit_range" [] [I64Type];
     add_rts_import "alloc_weak_ref" [I64Type] [I64Type];
     add_rts_import "weak_ref_is_live" [I64Type] [I32Type];
+    add_rts_import "read_with_barrier" [I64Type] [I64Type];
     add_rts_import "get_dedup_table" [] [I64Type];
     add_rts_import "set_dedup_table" [I64Type] [];
     add_rts_import "get_migrations" [] [I64Type];
@@ -2312,6 +2313,18 @@ module WeakRef = struct
   let load_field env =
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env field
+
+  (* Load the target through a load barrier, marking it during the GC mark phase.
+     Fast-path gated on the GC state, mirroring [Tagged.write_with_barrier]. *)
+  let load_field_with_barrier env =
+    load_field env ^^
+    let (set_value, get_value) = new_local env "weak_target" in
+    set_value ^^
+    E.call_rts env "running_gc" ^^
+    Bool.from_rts_int32 ^^
+    E.if_ env [I64Type]
+      ( get_value ^^ E.call_rts env "read_with_barrier" )
+      ( get_value )
 
   let store_field env =
     let (set_weak_value, get_weak_value) = new_local env "weak_value" in
@@ -12367,7 +12380,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "weak_get", [weak_ref] ->
     SR.Vanilla,
     compile_exp_vanilla env ae weak_ref ^^
-    WeakRef.load_field env
+    WeakRef.load_field_with_barrier env
 
   | OtherPrim "weak_ref_is_live", [weak_ref] ->
     SR.Vanilla,
