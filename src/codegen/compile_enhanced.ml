@@ -4465,8 +4465,8 @@ module Arr = struct
      No difference between mutable and immutable arrays.
   *)
 
-  (* NB max_array_size must agree with limit 2^61 imposed by RTS alloc_array() *)
-  let max_array_size = Int64.shift_left 1L 61 (* inclusive *)
+  (* NB max_array_size must agree with limit 2^48 imposed by RTS alloc_array() *)
+  let max_array_size = Int64.shift_left 1L 48 (* inclusive *)
 
   let header_size = Int64.add Tagged.header_size 1L
   let element_size = 8L
@@ -4540,8 +4540,14 @@ module Arr = struct
   (* Does not initialize the fields! *)
   (* Note: Post allocation barrier must be applied after initialization *)
   let alloc env array_sort len =
+    let set_len, get_len = new_local env "len" in
+    len ^^ set_len ^^
+    (* Trap on an element count that could never be allocated anyway: 2^48 elements
+       are 2 PiB of payload, and admitting more lets the RTS wrap the byte size *)
+    get_len ^^ compile_shrU_const 48L ^^ compile_test I64Op.Eqz ^^
+    E.else_trap_with env "array too large" ^^
     compile_unboxed_const Tagged.(int_of_tag (Array array_sort)) ^^
-    len ^^
+    get_len ^^
     E.call_rts env "alloc_array"
 
   let iterate env get_array body =
