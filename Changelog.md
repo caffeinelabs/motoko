@@ -5,10 +5,7 @@
   * improvement: RTS weak reference interaction with the incremental GC: weak
     reference reads now go through a load barrier (#6296).
 
-  * bugfix: when decoding a Candid `blob` or `text`, the claimed length is now
-    bounded by the bytes remaining in the message before allocating from it, so
-    a short message can no longer provoke a multi-gigabyte allocation, nor a
-    read past the end of the message (#6311).
+  * bugfix: when decoding a Candid `blob` or `text`, bound the claimed length (#6311).
 
 ## 1.14.0 (2026-08-11)
 
