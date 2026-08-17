@@ -3093,7 +3093,7 @@ module ReadBuf = struct
      The blob-like payloads (blob, text, principal) allocate from this count, so
      it has to be checked _before_ that allocation, not just before the copy. *)
   let read_byte_count env get_buf =
-    let (set_len, get_len) = new_local env "len" in
+    let set_len, get_len = new_local env "len" in
     read_leb128 env get_buf ^^ set_len ^^
     check_space env get_buf get_len ^^
     get_len
