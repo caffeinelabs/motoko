@@ -2923,6 +2923,15 @@ module ReadBuf = struct
     compile_comparison I64Op.LeU ^^
     E.else_trap_with env "IDL error: out of bounds read"
 
+  (* Read a LEB128 byte count and bound it by the bytes left in the buffer.
+     The blob-like payloads (blob, text, principal) allocate from this count, so
+     it has to be checked _before_ that allocation, not just before the copy. *)
+  let read_byte_count env get_buf =
+    let (set_len, get_len) = new_local env "len" in
+    read_leb128 env get_buf ^^ set_len ^^
+    check_space env get_buf get_len ^^
+    get_len
+
   let check_page_end env get_buf incr_delta =
     get_ptr get_buf ^^ compile_bitand_const 0xFFFFL ^^
     incr_delta ^^
@@ -8202,7 +8211,7 @@ module Serialization = struct
       let read_blob () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         Blob.alloc env Tagged.B get_len ^^ set_x ^^
         get_x ^^ Blob.payload_ptr_unskewed env ^^
@@ -8213,7 +8222,7 @@ module Serialization = struct
       let read_principal sort () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         (* at most 29 bytes, according to
            https://sdk.dfinity.org/docs/interface-spec/index.html#principal
@@ -8229,7 +8238,7 @@ module Serialization = struct
 
       let read_text () =
         let (set_len, get_len) = new_local env "len" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
         let (set_ptr, get_ptr) = new_local env "x" in
         ReadBuf.get_ptr get_data_buf ^^ set_ptr ^^
         ReadBuf.advance get_data_buf get_len ^^
