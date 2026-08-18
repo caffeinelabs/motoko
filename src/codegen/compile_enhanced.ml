@@ -1202,6 +1202,7 @@ module RTS = struct
     add_rts_import "continuation_count" [] [I64Type];
     add_rts_import "continuation_table_size" [] [I64Type];
     add_rts_import "blob_of_text" [I64Type] [I64Type];
+    add_rts_import "blob_dot_int8" [I64Type; I64Type] [I32Type];
     add_rts_import "text_compare" [I64Type; I64Type] [I64Type];
     add_rts_import "text_concat" [I64Type; I64Type] [I64Type];
     add_rts_import "text_iter_done" [I64Type] [I64Type];
@@ -12125,6 +12126,14 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae e2 ^^
     Blob.compare env None ^^
     TaggedSmallWord.msb_adjust Type.Int8
+
+  | OtherPrim "blob_dot_int8", [e1; e2] ->
+    SR.UnboxedWord64 Type.Int32,
+    compile_exp_vanilla env ae e1 ^^
+    compile_exp_vanilla env ae e2 ^^
+    E.call_rts env "blob_dot_int8" ^^
+    G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendSI32)) ^^
+    TaggedSmallWord.msb_adjust Type.Int32
 
   | OtherPrim "blob_size", [e] ->
     SR.Vanilla, compile_exp_vanilla env ae e ^^ Blob.len_nat env

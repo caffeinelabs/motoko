@@ -1108,6 +1108,7 @@ module RTS = struct
     add_rts_import "continuation_count" [] [I32Type];
     add_rts_import "continuation_table_size" [] [I32Type];
     add_rts_import "blob_of_text" [I32Type] [I32Type];
+    add_rts_import "blob_dot_int8" [I32Type; I32Type] [I32Type];
     add_rts_import "text_compare" [I32Type; I32Type] [I32Type];
     add_rts_import "text_concat" [I32Type; I32Type] [I32Type];
     add_rts_import "text_iter_done" [I32Type] [I32Type];
@@ -11782,6 +11783,12 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae e1 ^^
     compile_exp_vanilla env ae e2 ^^
     Blob.compare env None
+
+  | OtherPrim "blob_dot_int8", [e1; e2] ->
+    SR.UnboxedWord32 Type.Int32,
+    compile_exp_vanilla env ae e1 ^^
+    compile_exp_vanilla env ae e2 ^^
+    E.call_rts env "blob_dot_int8"
 
   | OtherPrim "blob_size", [e] ->
     SR.Vanilla, compile_exp_vanilla env ae e ^^ Blob.len_nat env
