@@ -4,9 +4,9 @@
 
 // Same project as multi-migration-baseline-drop-pending.mo, one deploy
 // later: the baseline is now this code's own signature — chain ends in "m1"
-// and x is gone from its post actor. The upgrade skips m1 and x is never
-// demanded — yet the initial-required check replays the chain against the
-// baseline post and reports M0267 for x.
+// and x is gone from its post actor. The upgrade resumes after m1, so x is
+// never demanded: no M0267, only M0254 for the fields demanded at the
+// resume point.
 actor {
     var y : Nat;
 };

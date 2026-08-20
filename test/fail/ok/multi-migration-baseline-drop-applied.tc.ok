@@ -1,4 +1,2 @@
-multi-migration-baseline-drop-applied.mo:10.1-12.2: type error [M0267], initial actor requires field `x` of type
-  Nat; not found in the previous version — write a migration that produces it
-enhanced-migration/enh-mig-test4/m1.mo:0.1: warning [M0254], initial actor requires field `y` of type
+enhanced-migration/enh-mig-test4/m1.mo:0.1: warning [M0254], upgrade resuming after migration `m1` requires field `y` of type
   var Nat

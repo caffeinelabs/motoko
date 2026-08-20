@@ -4704,20 +4704,31 @@ and check_enhanced_migration_chain env chain stab_tfs at =
        T.{lab = migration_lab_of_filename file; typ; src = empty_src})
      chain
  in
+ let baseline_post, baseline_mig_lab =
+   match env.stable_baseline_sig with
+   | None -> None, None
+   | Some s ->
+     let post_tfs, mig_lab_opt = T.post s in
+     Some post_tfs, mig_lab_opt
+ in
  let check_chain chain post =
    let mfs = List.rev chain in
-   let rec check_mfs step_at post mfs =
+   (* When the baseline already applied one of the chain's migrations, the upgrade resumes
+      after it (see T.pre), so the fields demanded from the baseline are those at the resume
+      point, not the initial actor's; `resume` captures that point during the backward walk. *)
+   let rec check_mfs step_at post resume mfs =
      match mfs with
      | [] ->
        (* Same initial_required set: M0254, or M0267 when a baseline is set but does not
           explain the field. With a baseline, also run --stable-compatible against the
           inferred Multi sig (may overlap M0267 with M0169/M0170/M0216/M0263). *)
-       let baseline_post =
-         match env.stable_baseline_sig with
-         | None -> None
-         | Some s -> Some (fst (T.post s))
+       let demanded, demand_at, desc =
+         match resume with
+         | Some (resume_post, lab, lab_at) ->
+           resume_post, lab_at, "upgrade resuming after migration `" ^ lab ^ "`"
+         | None -> post, step_at, "initial actor"
        in
-       List.iter (fun tf ->
+       demanded |> List.iter (fun tf ->
          let unexplained =
            match baseline_post with
            | None -> false
@@ -4728,13 +4739,12 @@ and check_enhanced_migration_chain env chain stab_tfs at =
          in
          if unexplained then
            local_error env (field_at tf) "M0267"
-             "initial actor requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
-             tf.T.lab display_typ tf.T.typ
+             "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
+             desc tf.T.lab display_typ tf.T.typ
          else
-           warn env step_at "M0254"
-             "initial actor requires field `%s` of type%a"
-             tf.T.lab display_typ tf.T.typ)
-         post;
+           warn env demand_at "M0254"
+             "%s requires field `%s` of type%a"
+             desc tf.T.lab display_typ tf.T.typ);
        (match env.stable_baseline_sig with
         | None -> ()
         | Some baseline_sig ->
@@ -4745,6 +4755,11 @@ and check_enhanced_migration_chain env chain stab_tfs at =
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
+        let resume =
+          if resume = None && baseline_mig_lab = Some mf.T.lab
+          then Some (post, mf.T.lab, file_at)
+          else resume
+        in
         (* is this a migration function *)
         let (dom_mf, rng_mf) = check_migration_function env mf.T.typ file_at in
         let out =
@@ -4763,10 +4778,10 @@ and check_enhanced_migration_chain env chain stab_tfs at =
         (* calculate the previous post and iterate *)
         let pre = T.pre_fields mf.T.typ post in
         let prev_post = List.map (fun (_required, tf) -> tf) pre in
-        check_mfs file_at prev_post mfs1
+        check_mfs file_at prev_post resume mfs1
    in
    (* all migrations compose to produce post *)
-   check_mfs at post mfs
+   check_mfs at post None mfs
  in
  check_chain chain stab_tfs
 
