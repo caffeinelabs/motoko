@@ -1745,6 +1745,18 @@ module SynthesizeWrapper = struct
       thunk (call impl_path impl_arg)
     ) elem_impl_paths in
     combiner_wrapper ~name combiner_path params entries
+
+  (** Variant: [func($v) { combiner(switch $v { case (#tag0 $x) ("tag0", func() { impl0($x) }); ... }) }].
+      The combiner is applied once to the matched [(tag, thunk)] so [combiner_path] is not shared across cases. *)
+  let variant_wrapper variant_fields ~name combiner_path case_impl_paths =
+    let cases = List.map2 (fun T.{lab; _} impl_path ->
+      let pat = TagP (id lab, var_pat "$x") @! no_region in
+      let label_lit = mk (LitE (ref (TextLit lab))) in
+      let entry = mk (TupE [label_lit; thunk (call impl_path (var "$x"))]) in
+      { pat; exp = entry } @@ no_region
+    ) variant_fields case_impl_paths in
+    let matched = mk (SwitchE (var "$v", cases)) in
+    func_ ~name ["$v"] (call combiner_path matched)
 end
 
 (** Checks [args -> rets  <:  req_args -> req_rets] via subtyping or
@@ -1824,10 +1836,10 @@ module ImplicitHoles = struct
      The parameter type determines the synthesis kind:
        __record : [(Text, () -> T)] -> R   — record combiner (lazy per-field thunks)
        __tuple  : [() -> T]         -> R   — tuple combiner  (lazy per-element thunks)
-       __variant: (Text, T)         -> R   — matched variant case (future)
+       __variant: (Text, () -> T)   -> R   — matched variant case (tag + lazy payload thunk)
   *)
   type structural_info = {
-    kind : [ `Record of T.field list | `Tuple of T.typ list ];
+    kind : [ `Record of T.field list | `Tuple of T.typ list | `Variant of T.field list ];
     arity : [ `Unary | `Binary ];
     ret : T.typ;
   }
@@ -1849,9 +1861,14 @@ module ImplicitHoles = struct
       | T.Array thunk_typ ->
         with_thunk_elem `Tuple thunk_typ ret_typ
       | _ -> None)
+    | T.Func (T.Local, T.Returns, [], [T.Named ("__variant", inner_typ)], [ret_typ]) ->
+      (match T.normalize inner_typ with
+      | T.Tup [txt; thunk_typ] when T.normalize txt = T.Prim T.Text ->
+        with_thunk_elem `Variant thunk_typ ret_typ
+      | _ -> None)
     | _ -> None
 
-  let structural_kind_tag = function `Record _ -> `Record | `Tuple _ -> `Tuple
+  let structural_kind_tag = function `Record _ -> `Record | `Tuple _ -> `Tuple | `Variant _ -> `Variant
 
   let is_matching_structural_combiner {kind; ret; _} typ =
     match as_structural_combiner_typ typ with
@@ -1864,6 +1881,7 @@ module ImplicitHoles = struct
       (match T.normalize dom with
        | T.Obj (T.Object, fs, _) -> Some { kind = `Record fs; arity = `Unary; ret }
        | T.Tup elems when List.length elems >= 2 -> Some { kind = `Tuple elems; arity = `Unary; ret }
+       | T.Variant fs when fs <> [] -> Some { kind = `Variant fs; arity = `Unary; ret }
        | _ -> None)
     | T.Func (T.Local, T.Returns, [], [d1; d2], [ret]) ->
       (match T.normalize d1, T.normalize d2 with
@@ -2062,6 +2080,7 @@ module ImplicitHoles = struct
       let elements = match kind with
       | `Record record_fields -> List.map (fun f -> T.as_immut f.T.typ) record_fields
       | `Tuple elem_typs -> elem_typs
+      | `Variant variant_fields -> List.map (fun f -> f.T.typ) variant_fields
       in
       elements |> List.map (fun ft ->
         let args = match arity with
@@ -2074,13 +2093,15 @@ module ImplicitHoles = struct
         SynthesizeWrapper.record_wrapper record_fields arity
       | `Tuple elem_typs ->
         SynthesizeWrapper.tuple_wrapper arity
+      | `Variant variant_fields ->
+        SynthesizeWrapper.variant_wrapper variant_fields
     in
     let try_derive_structural info candidates =
       try_derive_with (structural_holes info) (structural_wrapper info) (disambiguate_structural_elems candidates)
     in
 
     (* Short-circuit: avoid O(modules × fields) traversals when the hole cannot possibly
-       match a structural combiner (i.e. its domain is not a record/object type). *)
+       match a structural combiner (i.e. its domain is not a record, tuple, or variant type). *)
     match structural_info_of_hole hole_typ with
     | None -> Error (HoleSuggestions (lib_fields, None))
     | Some info ->

@@ -1238,7 +1238,9 @@ and block force_unit ds =
     (decs prefix @ [letD x (exp e); letP (pat p) (varE x)], varE x)
   | false, S.LetD (p, e, Some f) ->
     (decs prefix, let_else_switch (pat p) (exp e) (exp f))
-  | _, _ ->
+  | false, S.ClassD (_, _, _, id, _, _, _, _, _) -> (* `dec'` binds the constructor to `id` *)
+    (decs ds, varE (var id.it last.note.S.note_typ))
+  | _ ->
     (decs ds, tupE [])
 
 and decs ds = List.concat_map dec ds
