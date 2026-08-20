@@ -419,7 +419,7 @@ unsafe fn pre_write_barrier<M: Memory>(mem: &mut M, state: &mut State, overwritt
 /// loaded target. This is symmetric to `pre_write_barrier` and keeps the marked set a
 /// superset of the snapshot-at-the-beginning.
 unsafe fn pre_read_barrier<M: Memory>(mem: &mut M, state: &mut State, value: Value) {
-    if state.phase == Phase::Mark {
+    if state.phase() == Phase::Mark {
         let base_address = state.partitioned_heap.base_address();
         if value.points_to_or_beyond(base_address) {
             let mut time = BoundedTime::new(0);
