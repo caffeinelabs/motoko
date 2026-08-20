@@ -4719,32 +4719,29 @@ and check_enhanced_migration_chain env chain stab_tfs at =
    let rec check_mfs step_at post resume mfs =
      match mfs with
      | [] ->
-       (* Same initial_required set: M0254, or M0267 when a baseline is set but does not
-          explain the field. With a baseline, also run --stable-compatible against the
-          inferred Multi sig (may overlap M0267 with M0169/M0170/M0216/M0263). *)
-       let demanded, demand_at, desc =
+       (* Without a baseline the demand is unverifiable, so each field warns M0254.
+          A baseline settles it: explained fields are silent, unexplained fields error
+          with M0267. The --stable-compatible run below may overlap M0267 with
+          M0169/M0170/M0216/M0263. *)
+       let demanded, desc =
          match resume with
-         | Some (resume_post, lab, lab_at) ->
-           resume_post, lab_at, "upgrade resuming after migration `" ^ lab ^ "`"
-         | None -> post, step_at, "initial actor"
+         | Some (resume_post, lab, _) ->
+           resume_post, "upgrade resuming after migration `" ^ lab ^ "`"
+         | None -> post, "initial actor"
        in
        demanded |> List.iter (fun tf ->
-         let unexplained =
-           match baseline_post with
-           | None -> false
-           | Some baseline ->
-             match T.lookup_val_field_opt tf.T.lab baseline with
-             | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> false
-             | _ -> true
-         in
-         if unexplained then
-           local_error env (field_at tf) "M0267"
-             "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
-             desc tf.T.lab display_typ tf.T.typ
-         else
-           warn env demand_at "M0254"
-             "%s requires field `%s` of type%a"
-             desc tf.T.lab display_typ tf.T.typ);
+         match baseline_post with
+         | None ->
+           warn env step_at "M0254"
+             "initial actor requires field `%s` of type%a"
+             tf.T.lab display_typ tf.T.typ
+         | Some baseline ->
+           match T.lookup_val_field_opt tf.T.lab baseline with
+           | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> ()
+           | _ ->
+             local_error env (field_at tf) "M0267"
+               "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
+               desc tf.T.lab display_typ tf.T.typ);
        (match env.stable_baseline_sig with
         | None -> ()
         | Some baseline_sig ->

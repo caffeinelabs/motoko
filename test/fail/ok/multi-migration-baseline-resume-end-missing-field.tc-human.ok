@@ -1,0 +1,5 @@
+error[M0267]: upgrade resuming after migration `m2` requires field `c` of type
+  var Nat; not found in the previous version — write a migration that produces it
+    ┌─ multi-migration-baseline-resume-end-missing-field.mo:9:9
+  9 │      var c : Nat;
+    │          ^ 

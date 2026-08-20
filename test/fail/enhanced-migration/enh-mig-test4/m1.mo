@@ -1,4 +1,6 @@
 module {
-    // Drop field x.
-    public func migration(_ : { x : Nat }) : {} { {} };
+    // Transform a, introduce b.
+    public func migration(old : { a : Nat }) : { a : Nat; b : Nat } {
+        { a = old.a; b = 1 }
+    };
 };

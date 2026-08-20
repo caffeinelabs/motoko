@@ -1,2 +1,0 @@
-enhanced-migration/enh-mig-test4/m1.mo:0.1: warning [M0254], upgrade resuming after migration `m1` requires field `y` of type
-  var Nat
