@@ -176,6 +176,15 @@ pub struct State {
     statistics: Statistics,
 }
 
+// The persisted layout of `State` is a compatibility contract with canisters built
+// by an earlier compiler: an in-place EOP upgrade reinterprets the very same bytes,
+// which is why the struct is `#[repr(C)]`. Renaming a field is free, but reordering
+// or resizing one is not — that needs `persistence::VERSION` bumped. Pin what the
+// upgrade path and the barriers depend on, so such a change breaks the build here
+// rather than a canister in the field.
+const _: () = assert!(core::mem::offset_of!(State, phase_inner) == 0);
+const _: () = assert!(core::mem::size_of::<Phase>() == 4);
+
 #[cfg(feature = "ic")]
 unsafe extern "C" {
     // Provided by generated code: pushes the running-GC boolean to a
