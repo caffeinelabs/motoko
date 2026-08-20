@@ -1944,6 +1944,7 @@ module type PrettyConfig = sig
   val con_sep : string
   val par_sep : string
   val max_list : int option
+  val canonicalize : bool
 end
 
 module ShowStamps = struct
@@ -1953,6 +1954,7 @@ module ShowStamps = struct
   let con_sep = "__" (* TODO: revert to "/" *)
   let par_sep = "_"
   let max_list = None
+  let canonicalize = false
 end
 
 module ParseableStamps = struct
@@ -1962,6 +1964,7 @@ module ParseableStamps = struct
   let par_sep = "_"
   let show_hash_suffix = true
   let max_list = None
+  let canonicalize = true;
 end
 
 module ElideStamps = struct
@@ -1971,6 +1974,7 @@ module ElideStamps = struct
   let con_sep = ShowStamps.con_sep
   let par_sep = ShowStamps.par_sep
   let max_list = None
+  let canonicalize = false;
 end
 
 module ElideStampsAndHashes = struct
@@ -2025,9 +2029,30 @@ let pp_print_list ?(pp_sep = pp_print_cut) pp_v ppf v =
 
 let pr = pp_print_string
 
+let rec eta_args i tbs ts =
+  match (tbs, ts) with
+  | ([],[]) -> true
+  | (tb::tbs1, Var (_, j):: ts1) ->
+    tb.bound = Any &&
+    i = j &&
+    eta_args (i+1) tbs1 ts1
+  | _ -> false
+
+let rec canonical c = match Cons.kind c with
+  | Def (tbs, Con(d, ts)) ->
+    (match Cons.kind d with
+     | Def _ ->
+       if eta_args 0 tbs ts then
+         canonical d
+       else c
+     | _ -> c)
+  | _ -> c
+
 let comma ppf () = fprintf ppf ",@ "
 
 let semi ppf () = fprintf ppf ";@ "
+
+module StringMap = Map.Make(String)
 
 module StringSet = Set.Make(String)
 
@@ -2051,6 +2076,7 @@ let rec string_of_path p = match p with
   | DotP (p1, lab) -> string_of_path p1 ^ "." ^ lab
 
 let string_of_con c =
+  let c = if Cfg.canonicalize then canonical c else c in
   match ConEnv.find_opt c !con_map with
   | Some path -> string_of_path path
   | None ->
@@ -2320,11 +2346,42 @@ and pp_stab_sig ppf sig_ =
     | PrePost (pre, post) -> List.map snd pre @ post
     | Multi {chain; post} -> chain @ post
   in
-  let cs = List.fold_right
+
+  let cs0 = List.fold_right
     (cons_field false)
     (* false here ^ means ignore unreferenced type field components
        that would produce unreferenced bindings when unfolded *)
     all_fields ConSet.empty in
+
+  let cs =
+    if Cfg.canonicalize then
+      (* contract all simple type redefinitions, eliding them *)
+      ConSet.fold (fun c cs -> ConSet.add (canonical c) cs) cs0 ConSet.empty
+    else cs0 in
+
+  let path c index =
+    if index = 0 then
+      IdP (Cons.name c)
+    else
+      IdP (Cons.name c ^ Cfg.con_sep ^ (Int.to_string index))
+  in
+
+  (* (ab)use con_map to renumber constructors *)
+  con_map := ConEnv.empty;
+  let counts = ref StringMap.empty in
+  ConSet.iter (fun c ->
+      let index =
+        match StringMap.find_opt (Cons.name c) !counts with
+        | None ->
+          counts := StringMap.add (Cons.name c) (ref 0) (!counts);
+          0
+        | Some ri ->
+          ri := !ri + 1;
+          !ri
+      in
+      con_map := ConEnv.add c (path c index) (!con_map))
+    cs;
+
   let vs = vs_of_cs cs in
   let ds =
     let cs' = ConSet.filter (fun c ->
