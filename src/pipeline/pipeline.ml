@@ -342,7 +342,7 @@ let validate_stab_sig s : unit Diag.result =
       Stability.match_stab_sig (Single post1) (Single post2)
     | _, _ -> assert false))
 
-(* Load --stable-baseline .most for M0254/M0267 and check-time stable-compat. *)
+(* Load --stable-baseline .most for the M0267 demand check and check-time stable-compat. *)
 let load_stable_baseline () : Type.stab_sig option Diag.result =
   let open Diag.Syntax in
   match !Flags.stable_baseline, !Flags.enhanced_migration with

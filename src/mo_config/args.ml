@@ -83,7 +83,7 @@ let migration_args = [
   "<dir>  enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence.";
   "--stable-baseline",
   Arg.String (fun s -> Flags.stable_baseline := Some s),
-  "<file.most>  last deployed stable signature; with --enhanced-migration, partitions initial fields (M0254/M0267) and runs upgrade compatibility (as --stable-compatible)";
+  "<file.most>  last deployed stable signature; with --enhanced-migration, errors (M0267) on fields the migration chain demands at its resume point but the baseline does not explain, and runs upgrade compatibility (as --stable-compatible)";
 ]
 
 let persistent_actors_args = [

@@ -7,8 +7,9 @@
   * bugfix: with `--stable-baseline` and `--enhanced-migration`, the M0254/M0267
     check now honors the migrations the baseline records as already applied:
     requirements are computed at the chain's resume point instead of replaying
-    the whole chain, and fields the baseline explains no longer warn M0254
-    (#6318).
+    the whole chain, and fields the baseline explains no longer warn M0254;
+    M0267 now distinguishes a field missing from the baseline from one with an
+    incompatible type (#6318).
 
 ## 1.14.1 (2026-08-17)
 

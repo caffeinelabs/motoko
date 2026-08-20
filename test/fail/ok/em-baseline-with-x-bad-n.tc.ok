@@ -1,5 +1,6 @@
 em-baseline-with-x-bad-n.mo:11.9-11.10: type error [M0267], initial actor requires field `n` of type
-  var Nat; not found in the previous version — write a migration that produces it
+  var Nat; the previous version provides incompatible type
+  var Int — write a migration that converts it
 em-baseline-with-x-bad-n.mo:6.1-12.2: Compatibility error [M0170], stable variable `n` is not compatible with the previous version.
 Previous type
   var Int

@@ -4725,7 +4725,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
           M0169/M0170/M0216/M0263. *)
        let demanded, desc =
          match resume with
-         | Some (resume_post, lab, _) ->
+         | Some (resume_post, lab) ->
            resume_post, "upgrade resuming after migration `" ^ lab ^ "`"
          | None -> post, "initial actor"
        in
@@ -4738,23 +4738,26 @@ and check_enhanced_migration_chain env chain stab_tfs at =
          | Some baseline ->
            match T.lookup_val_field_opt tf.T.lab baseline with
            | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> ()
-           | _ ->
+           | Some t ->
+             local_error env (field_at tf) "M0267"
+               "%s requires field `%s` of type%a; the previous version provides incompatible type%a — write a migration that converts it"
+               desc tf.T.lab display_typ tf.T.typ display_typ t
+           | None ->
              local_error env (field_at tf) "M0267"
                "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
                desc tf.T.lab display_typ tf.T.typ);
-       (match env.stable_baseline_sig with
+       (match baseline_post with
         | None -> ()
-        | Some baseline_sig ->
+        | Some post1 ->
           let new_sig = T.Multi {chain = chain_fields; post = stab_tfs} in
-          let post1, mig_lab_opt = T.post baseline_sig in
-          let pre2 = T.pre mig_lab_opt new_sig in
+          let pre2 = T.pre baseline_mig_lab new_sig in
           Stability.match_stab_fields env.msgs at Stability.enhanced_migration_link None post1 pre2)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
         let resume =
           if resume = None && baseline_mig_lab = Some mf.T.lab
-          then Some (post, mf.T.lab, file_at)
+          then Some (post, mf.T.lab)
           else resume
         in
         (* is this a migration function *)
