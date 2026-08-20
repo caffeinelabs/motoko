@@ -1,0 +1,8 @@
+// Version: 3.0.0
+actor ({
+  in x : Nat;
+  stable var y : Nat
+}, {
+  stable x : Nat;
+  stable var y : Nat
+}) ;

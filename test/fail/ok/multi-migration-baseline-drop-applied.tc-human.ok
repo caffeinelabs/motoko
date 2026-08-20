@@ -1,0 +1,14 @@
+error[M0267]: initial actor requires field `x` of type
+  Nat; not found in the previous version — write a migration that produces it
+    ┌─ multi-migration-baseline-drop-applied.mo:10:1
+  9 │    // baseline post and reports M0267 for x.
+ 10 │ ╭  actor {
+ 11 │ │      var y : Nat;
+ 12 │ │  };
+    │ ╰──^ 
+ 13 │    
+warning[M0254]: initial actor requires field `y` of type
+  var Nat
+    ┌─ enhanced-migration/enh-mig-test4/m1.mo:1:1
+  1 │  module {
+    │  ^ 
