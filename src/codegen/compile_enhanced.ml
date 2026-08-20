@@ -2352,16 +2352,17 @@ module WeakRef = struct
     Tagged.load_field env field
 
   (* Load the target through a load barrier, marking it during the GC mark phase.
-     Fast-path gated on the GC state, mirroring [Tagged.write_with_barrier]. *)
+     Fast-path gated on the GC state, mirroring [Tagged.allocation_barrier]: the
+     RTS function returns its argument unchanged when the GC is paused, so a
+     single `global.get __running_gc` + multi-value `if (param i64) (result i64)`
+     elides the call on the common path and lets the loaded target flow through
+     without a local. *)
   let load_field_with_barrier env =
     load_field env ^^
-    let (set_value, get_value) = new_local env "weak_target" in
-    set_value ^^
-    E.call_rts env "running_gc" ^^
-    Bool.from_rts_int32 ^^
-    E.if_ env [I64Type]
-      (get_value ^^ E.call_rts env "read_with_barrier")
-      get_value
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
+      (E.call_rts env "read_with_barrier")
+      G.nop
 
   let store_field env =
     let (set_weak_value, get_weak_value) = new_local env "weak_value" in
