@@ -1,5 +1,10 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * perf: the incremental GC's write, allocation and weak-reference read barriers now
+    gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
+
 ## 1.14.1 (2026-08-17)
 
 * motoko (`moc`)
@@ -39,8 +44,6 @@
     `import S "idl:foo.did"` exposes `S.Self` (the service actor type) and named
     Candid types, PascalCased when unambiguous (e.g. `user_id` → `S.UserId`). No principal or
     `--actor-idl` flags required (#6263).
-
-  * perf: write-barrier improvements for the incremental GC (e.g. EOP) (#6111).
 
   * chore: multi-value Wasm codegen is now always on;
     `--(no-)experimental-multi-value` are kept for CLI compatibility but have
