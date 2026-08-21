@@ -1,0 +1,12 @@
+// Version: 4.0.0
+{
+  "m1" : {} -> {consumed : Nat};
+  "m2" :
+    (old : {consumed : Nat}) ->
+      {bad : Int; dropped : Nat; lossy : {a : Nat; b : Nat}}
+}
+actor  {
+  stable bad : Int;
+  stable dropped : Nat;
+  stable lossy : {a : Nat; b : Nat}
+};

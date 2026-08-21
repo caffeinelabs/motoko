@@ -1,0 +1,10 @@
+error[M0169]: initial actor leaves stable variable `lossy` of type
+  {a : Nat; b : Nat} of the previous version unused; the data cannot be implicitly discarded — write a migration that consumes it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
+    ┌─ em-baseline-with-bad-dropped-lossy-at-m2-fully-trimmed.mo:8:1
+  7 │    // state; the actor then drops the carried `lossy`.
+  8 │ ╭  actor {
+  9 │ │      let bad : Nat;
+ 10 │ │  };
+    │ ╰──^ 
+ 11 │    

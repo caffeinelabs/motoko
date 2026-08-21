@@ -1,0 +1,7 @@
+// Version: 4.0.0
+{
+  "m1" : {} -> {consumed : Nat}
+}
+actor  {
+  stable consumed : Nat
+};

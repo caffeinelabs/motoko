@@ -1,0 +1,34 @@
+error[M0170]: stable variable `consumed` is not compatible with version `m1`.
+Previous type
+  Nat
+ is not a subtype of
+  Bool
+ because the type 
+  Nat
+ is not compatible with type 
+  Bool
+ in `consumed`.
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
+    ┌─ enhanced-migration/enh-mig-newstep/m2.mo:1:1
+  1 │  module {
+    │  ^ 
+error[M0267]: upgrade resuming after migration `m1` requires field `consumed` of type
+  Bool; the previous version provides incompatible type
+  Nat — write a migration that converts it
+    ┌─ em-baseline-with-consumed-at-m1.mo:8:1
+  7 │    // matches m2's output.
+  8 │ ╭  actor {
+  9 │ │      let done : Nat;
+ 10 │ │  };
+    │ ╰──^ 
+ 11 │    
+error[M0267]: upgrade resuming after migration `m1` requires field `nonexistent` of type
+  Text; not found in the previous version — write a migration that produces it
+    ┌─ em-baseline-with-consumed-at-m1.mo:8:1
+  7 │    // matches m2's output.
+  8 │ ╭  actor {
+  9 │ │      let done : Nat;
+ 10 │ │  };
+    │ ╰──^ 
+ 11 │    
