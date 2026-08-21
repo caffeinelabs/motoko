@@ -1,5 +1,4 @@
-error[M0169]: initial actor leaves stable variable `extra` of type
-  Text of the previous version unused; the data cannot be implicitly discarded — write a migration that consumes it.
+error[M0169]: stable variable `extra` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
     ┌─ em-baseline-with-x-and-extra.mo:6:1
   5 │    // x explained by baseline (silent); `extra` in baseline but not in new pre → M0169

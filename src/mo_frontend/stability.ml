@@ -71,6 +71,19 @@ let error_required s at link mig_lab_opt tf =
           tf.lab
           link))
 
+(* --stable-baseline boundary variant of error_required: under
+   --enhanced-migration the actor itself demands fields (no initializers),
+   not just migration inputs, and the fix differs — produce the field. *)
+let em_error_required s at mig_lab_opt tf =
+  Diag.add_msg s
+    (Diag.error_message at "M0267" "type"
+       (Format.asprintf
+          "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
+          (match mig_lab_opt with
+           | None -> "initial actor"
+           | Some mig_lab -> "upgrade resuming after migration `" ^ mig_lab ^ "`")
+          tf.lab display_typ tf.typ))
+
 (*
    - Mutability of stable fields can be changed because they are never aliased.
    - Stable fields cannot be dropped.
@@ -103,9 +116,10 @@ let match_stab_fields s at link mig_lab_opt tfs1 tfs2 =
    enhanced-migration stable fields have no initializers, so every demanded
    field is required and the `required` flags above do not apply. Compares
    the deployed fields (tfs1) with the fields demanded at the chain's resume
-   point (tfs2); `desc` names that point in the messages. *)
+   point (tfs2, named by mig_lab_opt); a missing demanded field is always an
+   error (em_error_required), never optional. *)
 
-let match_stab_em_fields s at link desc tfs1 tfs2 =
+let match_stab_em_fields s at link mig_lab_opt tfs1 tfs2 =
   (* Assume that tfs1 and tfs2 are sorted. *)
   let field_at tf =
     let r = tf.src.region in
@@ -113,26 +127,21 @@ let match_stab_em_fields s at link desc tfs1 tfs2 =
   in
   Lib.List.align compare_field tfs1 tfs2
   |> Seq.iter (function
-    (* deployed data nothing consumes would be silently discarded *)
-    | Lib.This tf ->
-      Diag.add_msg s
-        (Diag.error_message at "M0169" cat
-           (Format.asprintf
-              "%s leaves stable variable `%s` of type%a of the previous version unused; the data cannot be implicitly discarded — write a migration that consumes it.\nSee %s"
-              desc tf.lab display_typ tf.typ link))
+    (* no dropped fields *)
+    | Lib.This tf1 ->
+      error_discard s at link mig_lab_opt tf1
     | Lib.That tf ->
-      Diag.add_msg s
-        (Diag.error_message (field_at tf) "M0267" "type"
-           (Format.asprintf
-              "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
-              desc tf.lab display_typ tf.typ))
+      em_error_required s (field_at tf) mig_lab_opt tf
     | Lib.Both (tf1, tf2) ->
-      if not (Type.stable_sub (as_immut tf1.typ) (as_immut tf2.typ)) then
-        Diag.add_msg s
-          (Diag.error_message (field_at tf2) "M0267" "type"
-             (Format.asprintf
-                "%s requires field `%s` of type%a; the previous version provides incompatible type%a — write a migration that converts it"
-                desc tf2.lab display_typ tf2.typ display_typ tf1.typ)))
+      let context = [StableVariable tf2.lab] in
+      begin
+        match Type.sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
+        | Incompatible explanation -> error_sub s (field_at tf2) link mig_lab_opt tf1 tf2 explanation
+        | Compatible ->
+           match Type.stable_sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
+           | Incompatible explanation -> error_stable_sub s (field_at tf2) link mig_lab_opt tf1 tf2 explanation
+           | Compatible -> ()
+      end)
 
 let incompat_mix_migrations s at =
   Diag.add_msg s

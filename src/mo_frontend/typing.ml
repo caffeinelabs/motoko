@@ -4712,11 +4712,10 @@ and check_enhanced_migration_chain env chain stab_tfs at =
           A baseline settles both directions in one sweep: explained fields are
           silent, unexplained fields error with M0267, and deployed fields
           nothing demands error with M0169. *)
-       let demanded, desc =
+       let demanded, resume_lab =
          match resume with
-         | Some (resume_post, lab) ->
-           resume_post, "upgrade resuming after migration `" ^ lab ^ "`"
-         | None -> post, "initial actor"
+         | Some (resume_post, lab) -> resume_post, Some lab
+         | None -> post, None
        in
        (match baseline_post with
         | None ->
@@ -4726,7 +4725,7 @@ and check_enhanced_migration_chain env chain stab_tfs at =
               tf.T.lab display_typ tf.T.typ)
         | Some baseline ->
           Stability.match_stab_em_fields env.msgs at
-            Stability.enhanced_migration_link desc baseline demanded)
+            Stability.enhanced_migration_link resume_lab baseline demanded)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in

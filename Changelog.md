@@ -8,10 +8,11 @@
     check now honors the migrations the baseline records as already applied:
     requirements are computed at the chain's resume point instead of replaying
     the whole chain, and fields the baseline explains no longer warn M0254;
-    M0267 now distinguishes a field missing from the baseline from one with an
-    incompatible type. The baseline comparison is a single enhanced-migration
-    check (`match_stab_em_fields`), so each boundary finding is reported once,
-    with messages naming the resume point (#6318).
+    a field missing from the baseline errors with M0267 naming the resume
+    point, while an incompatible one keeps the detailed M0170/M0216
+    compatibility errors. The baseline comparison is a single
+    enhanced-migration check (`match_stab_em_fields`), so each boundary
+    finding is reported once (#6318).
 
 ## 1.14.1 (2026-08-17)
 
