@@ -1,6 +1,6 @@
-error[M0267]: upgrade resuming after migration `m2` requires field `c` of type
+error[M0267]: initial actor requires field `c` of type
   var Nat; not found in the previous version — write a migration that produces it.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-b-at-m2.mo:9:9
-  9 │      var c : Nat;
+    ┌─ em-baseline-legacy-with-a-only.mo:10:9
+ 10 │      var c : Nat;
     │          ^ 

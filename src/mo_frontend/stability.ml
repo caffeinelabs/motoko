@@ -27,6 +27,12 @@ let desc mig_lab_opt =
   | None -> "the previous version"
   | Some mig_lab -> "version `" ^ mig_lab ^ "`"
 
+(* the demanding side of the --stable-baseline boundary *)
+let em_desc mig_lab_opt =
+  match mig_lab_opt with
+  | None -> "initial actor"
+  | Some mig_lab -> "upgrade resuming after migration `" ^ mig_lab ^ "`"
+
 (* FUTURE: we could perhaps use tf.src.region to better locate the errors below *)
 let error_discard s at link mig_lap_opt tf =
   Diag.add_msg s
@@ -74,15 +80,12 @@ let error_required s at link mig_lab_opt tf =
 (* --stable-baseline boundary variant of error_required: under
    --enhanced-migration the actor itself demands fields (no initializers),
    not just migration inputs, and the fix differs — produce the field. *)
-let em_error_required s at mig_lab_opt tf =
+let em_error_required s at link mig_lab_opt tf =
   Diag.add_msg s
     (Diag.error_message at "M0267" "type"
        (Format.asprintf
-          "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
-          (match mig_lab_opt with
-           | None -> "initial actor"
-           | Some mig_lab -> "upgrade resuming after migration `" ^ mig_lab ^ "`")
-          tf.lab display_typ tf.typ))
+          "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it.\nSee %s"
+          (em_desc mig_lab_opt) tf.lab display_typ tf.typ link))
 
 (*
    - Mutability of stable fields can be changed because they are never aliased.
@@ -131,7 +134,7 @@ let match_stab_em_fields s at link mig_lab_opt tfs1 tfs2 =
     | Lib.This tf1 ->
       error_discard s at link mig_lab_opt tf1
     | Lib.That tf ->
-      em_error_required s (field_at tf) mig_lab_opt tf
+      em_error_required s (field_at tf) link mig_lab_opt tf
     | Lib.Both (tf1, tf2) ->
       let context = [StableVariable tf2.lab] in
       begin

@@ -2,7 +2,7 @@
 //MOC-FLAG --stable-baseline enhanced-migration/baselines/with-x-bad-n.most
 //MOC-FLAG -A=M0194
 
-// x explained by baseline (silent); n has incompatible baseline type → M0170 (stable-compat)
+// x explained by baseline (silent); n has incompatible baseline type → M0170
 actor {
     let a : Float;
     let b : Bool;
