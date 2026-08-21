@@ -3,13 +3,3 @@ error[M0267]: upgrade resuming after migration `m1` requires field `c` of type
     ┌─ em-baseline-with-a-b-at-m1.mo:10:9
  10 │      var c : Nat;
     │          ^ 
-error[M0263]: the previous version does not contain the stable variable `c`. The migration function cannot require this variable as input.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-a-b-at-m1.mo:8:1
-  7 │    // stable-compat run.
-  8 │ ╭  actor {
-  9 │ │      let b : Nat;
- 10 │ │      var c : Nat;
- 11 │ │  };
-    │ ╰──^ 
- 12 │    

@@ -4693,17 +4693,6 @@ and check_migration_function env typ at =
 
 and check_enhanced_migration_chain env chain stab_tfs at =
  if chain = [] then () else
- (* Prefer the actor field span from check_stab; fall back to the actor region. *)
- let field_at tf =
-   let r = tf.T.src.T.region in
-   if r <> no_region then r else at
- in
- let chain_fields =
-   List.map
-     (fun (file, _, typ) ->
-       T.{lab = migration_lab_of_filename file; typ; src = empty_src})
-     chain
- in
  let baseline_post, baseline_mig_lab =
    match env.stable_baseline_sig with
    | None -> None, None
@@ -4720,38 +4709,24 @@ and check_enhanced_migration_chain env chain stab_tfs at =
      match mfs with
      | [] ->
        (* Without a baseline the demand is unverifiable, so each field warns M0254.
-          A baseline settles it: explained fields are silent, unexplained fields error
-          with M0267. The --stable-compatible run below may overlap M0267 with
-          M0169/M0170/M0216/M0263. *)
+          A baseline settles both directions in one sweep: explained fields are
+          silent, unexplained fields error with M0267, and deployed fields
+          nothing demands error with M0169. *)
        let demanded, desc =
          match resume with
          | Some (resume_post, lab) ->
            resume_post, "upgrade resuming after migration `" ^ lab ^ "`"
          | None -> post, "initial actor"
        in
-       demanded |> List.iter (fun tf ->
-         match baseline_post with
-         | None ->
-           warn env step_at "M0254"
-             "initial actor requires field `%s` of type%a"
-             tf.T.lab display_typ tf.T.typ
-         | Some baseline ->
-           match T.lookup_val_field_opt tf.T.lab baseline with
-           | Some t when T.stable_sub (T.as_immut t) (T.as_immut tf.T.typ) -> ()
-           | Some t ->
-             local_error env (field_at tf) "M0267"
-               "%s requires field `%s` of type%a; the previous version provides incompatible type%a — write a migration that converts it"
-               desc tf.T.lab display_typ tf.T.typ display_typ t
-           | None ->
-             local_error env (field_at tf) "M0267"
-               "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
-               desc tf.T.lab display_typ tf.T.typ);
        (match baseline_post with
-        | None -> ()
-        | Some post1 ->
-          let new_sig = T.Multi {chain = chain_fields; post = stab_tfs} in
-          let pre2 = T.pre baseline_mig_lab new_sig in
-          Stability.match_stab_fields env.msgs at Stability.enhanced_migration_link None post1 pre2)
+        | None ->
+          demanded |> List.iter (fun tf ->
+            warn env step_at "M0254"
+              "initial actor requires field `%s` of type%a"
+              tf.T.lab display_typ tf.T.typ)
+        | Some baseline ->
+          Stability.match_stab_em_fields env.msgs at
+            Stability.enhanced_migration_link desc baseline demanded)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in

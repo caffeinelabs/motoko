@@ -1,15 +1,3 @@
 em-baseline-with-x-bad-n.mo:11.9-11.10: type error [M0267], initial actor requires field `n` of type
   var Nat; the previous version provides incompatible type
   var Int — write a migration that converts it
-em-baseline-with-x-bad-n.mo:6.1-12.2: Compatibility error [M0170], stable variable `n` is not compatible with the previous version.
-Previous type
-  var Int
- is not a subtype of
-  var Nat
- because the type 
-  Int
- is not compatible with type 
-  Nat
- in `n`.
-Write an explicit migration function to convert it.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/

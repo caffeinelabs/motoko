@@ -4,24 +4,3 @@ error[M0267]: initial actor requires field `n` of type
     ┌─ em-baseline-with-x-bad-n.mo:11:9
  11 │      var n : Nat;
     │          ^ 
-error[M0170]: stable variable `n` is not compatible with the previous version.
-Previous type
-  var Int
- is not a subtype of
-  var Nat
- because the type 
-  Int
- is not compatible with type 
-  Nat
- in `n`.
-Write an explicit migration function to convert it.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-x-bad-n.mo:6:1
-  5 │    // x explained by baseline (silent); n has incompatible baseline type → M0170 (stable-compat)
-  6 │ ╭  actor {
-  7 │ │      let a : Float;
-    · │  
- 11 │ │      var n : Nat;
- 12 │ │  };
-    │ ╰──^ 
- 13 │    

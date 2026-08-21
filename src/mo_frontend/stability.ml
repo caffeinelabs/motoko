@@ -99,6 +99,41 @@ let match_stab_fields s at link mig_lab_opt tfs1 tfs2 =
              | Compatible -> ()
         end)
 
+(* EM counterpart of match_stab_fields for the --stable-baseline boundary:
+   enhanced-migration stable fields have no initializers, so every demanded
+   field is required and the `required` flags above do not apply. Compares
+   the deployed fields (tfs1) with the fields demanded at the chain's resume
+   point (tfs2); `desc` names that point in the messages. *)
+
+let match_stab_em_fields s at link desc tfs1 tfs2 =
+  (* Assume that tfs1 and tfs2 are sorted. *)
+  let field_at tf =
+    let r = tf.src.region in
+    if r <> Source.no_region then r else at
+  in
+  Lib.List.align compare_field tfs1 tfs2
+  |> Seq.iter (function
+    (* deployed data nothing consumes would be silently discarded *)
+    | Lib.This tf ->
+      Diag.add_msg s
+        (Diag.error_message at "M0169" cat
+           (Format.asprintf
+              "%s leaves stable variable `%s` of type%a of the previous version unused; the data cannot be implicitly discarded — write a migration that consumes it.\nSee %s"
+              desc tf.lab display_typ tf.typ link))
+    | Lib.That tf ->
+      Diag.add_msg s
+        (Diag.error_message (field_at tf) "M0267" "type"
+           (Format.asprintf
+              "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it"
+              desc tf.lab display_typ tf.typ))
+    | Lib.Both (tf1, tf2) ->
+      if not (Type.stable_sub (as_immut tf1.typ) (as_immut tf2.typ)) then
+        Diag.add_msg s
+          (Diag.error_message (field_at tf2) "M0267" "type"
+             (Format.asprintf
+                "%s requires field `%s` of type%a; the previous version provides incompatible type%a — write a migration that converts it"
+                desc tf2.lab display_typ tf2.typ display_typ tf1.typ)))
+
 let incompat_mix_migrations s at =
   Diag.add_msg s
     (Diag.error_message at "M0255" cat
