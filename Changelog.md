@@ -1,5 +1,10 @@
 # Motoko compiler changelog
 
+## Unreleased
+
+* motoko (`moc`)
+  * feat: allow resolving context-dot for async functions (#6085).
+
 ## 1.14.1 (2026-08-17)
 
 * motoko (`moc`)

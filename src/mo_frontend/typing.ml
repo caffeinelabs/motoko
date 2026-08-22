@@ -2176,10 +2176,10 @@ type ctx_dot_candidate =
  *)
 
 (* Does an instantiation for [tbs] exist that makes [t1] <: [t2]? *)
-let permissive_sub t1 (tbs, t2) =
+let permissive_sub scope t1 (tbs, t2) =
   try
     (* Solve only tvars from the receiver, let the unused tvars be unsolved *)
-    let (inst, c) = Bi_match.bi_match_subs None tbs None [t1, t2, no_region] ~must_solve:[t2] in
+    let (inst, c) = Bi_match.bi_match_subs scope tbs None [t1, t2, no_region] ~must_solve:[t2] in
     (* Call finalize to verify the instantiation (sanity checks), optional step. *)
     ignore (Bi_match.finalize inst c []);
     Some inst
@@ -2191,10 +2191,10 @@ type 'a context_dot_error =
   | DotAmbiguous of (env -> 'a)
 
 module CtxDot = struct
-  let is_matching_func func_ty receiver_ty =
+  let is_matching_func scope func_ty receiver_ty =
     match T.normalize func_ty with
     | T.Func (_, _, tbs, T.Named("self", first_arg)::_, _) as func_ty ->
-      (match permissive_sub receiver_ty (tbs, first_arg) with
+      (match permissive_sub scope receiver_ty (tbs, first_arg) with
         | Some inst -> Some (T.open_ inst first_arg, func_ty, inst)
         | _ -> None)
     | _ -> None
@@ -2205,13 +2205,13 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
 
   let find_candidate in_libs (module_ref, fs) =
     let* field = T.find_val_field_opt name.it fs in
-    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func field.T.typ receiver_ty in
+    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func (scope_of_env env) field.T.typ receiver_ty in
     let path = dot_module_exp (module_exp in_libs module_ref) name in
     Some { module_ref = Some module_ref; path; func_ty; arg_ty; inst } in
 
   let local_candidate =
     let* (t, _, _, _) = T.Env.find_opt name.it env.vals in
-    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func t receiver_ty in
+    let* (arg_ty, func_ty, inst) = CtxDot.is_matching_func (scope_of_env env) t receiver_ty in
     let path = VarE (name.it @~ name.at) @? name.at in
     Some { module_ref = None; path; func_ty; arg_ty; inst } in
 
@@ -2254,7 +2254,7 @@ let contextual_dot_suggestions libs receiver_ty =
   let find_candidate (module_path, fs) =
     List.to_seq fs |>
     Seq.filter_map (fun fld ->
-      CtxDot.is_matching_func fld.T.typ receiver_ty |>
+      CtxDot.is_matching_func None fld.T.typ receiver_ty |>
       Option.map (fun (_, func_ty, _inst) ->
         { module_url = Suggest.module_name_as_url module_path; func_name = fld.T.lab; func_ty }))
   in
