@@ -77,6 +77,15 @@ let error_required s at link mig_lab_opt tf =
           tf.lab
           link))
 
+(* an input of the migration chain itself: no new migration file can sort
+   before its consumer, so the previous version must provide it — no hint *)
+let em_error_chain_input s at link tf =
+  Diag.add_msg s
+    (Diag.error_message at "M0267" "type"
+       (Format.asprintf
+          "the migration chain requires field `%s` of type%a as input; the previous version must provide it.\nSee %s"
+          tf.lab display_typ tf.typ link))
+
 (* --stable-baseline boundary variant of error_required: under
    --enhanced-migration the actor itself demands fields (no initializers),
    not just migration inputs, and the fix differs — produce the field. *)
@@ -120,9 +129,11 @@ let match_stab_fields s at link mig_lab_opt tfs1 tfs2 =
    field is required and the `required` flags above do not apply. Compares
    the deployed fields (tfs1) with the fields demanded at the chain's resume
    point (tfs2, named by mig_lab_opt); a missing demanded field is always an
-   error (em_error_required), never optional. *)
+   error, never optional. `chain_input` is the demand of the chain alone
+   (T.pre over an empty post): a field in it cannot be fixed by a new
+   migration file, so its error carries no produce-a-migration hint. *)
 
-let match_stab_em_fields s at link mig_lab_opt tfs1 tfs2 =
+let match_stab_em_fields s at link mig_lab_opt chain_input tfs1 tfs2 =
   (* Assume that tfs1 and tfs2 are sorted. *)
   let field_at tf =
     let r = tf.src.region in
@@ -134,7 +145,9 @@ let match_stab_em_fields s at link mig_lab_opt tfs1 tfs2 =
     | Lib.This tf1 ->
       error_discard s at link mig_lab_opt tf1
     | Lib.That tf ->
-      em_error_required s (field_at tf) link mig_lab_opt tf
+      if lookup_val_field_opt tf.lab chain_input <> None
+      then em_error_chain_input s (field_at tf) link tf
+      else em_error_required s (field_at tf) link mig_lab_opt tf
     | Lib.Both (tf1, tf2) ->
       let context = [StableVariable tf2.lab] in
       begin
