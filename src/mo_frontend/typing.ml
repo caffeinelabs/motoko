@@ -4694,6 +4694,7 @@ and check_migration_function env typ at =
 and check_enhanced_migration_chain env chain stab_tfs at =
  if chain = [] then () else
  let baseline_post, baseline_mig_lab =
+   (* .most baseline tells us which fields are deployed and what is the most recent applied migration *)
    match env.stable_baseline_sig with
    | None -> None, None
    | Some s ->
@@ -4726,13 +4727,8 @@ and check_enhanced_migration_chain env chain stab_tfs at =
         | Some baseline ->
           (* the chain's own input demand, computed without the actor fields:
              a missing field in it is not fixable by a new migration file *)
-          let chain_input =
-            Stability.chain_input_fields resume_lab
-              (chain |> List.map (fun (file, _, typ) ->
-                   (T.migration_lab_of_filename file, typ)))
-          in
-          Stability.match_stab_em_fields env.msgs at
-            Stability.enhanced_migration_link resume_lab chain_input baseline demanded)
+          let chain_input = Stability.chain_input_fields resume_lab chain in
+          Stability.match_stab_em_fields env.msgs at resume_lab chain_input baseline demanded)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
