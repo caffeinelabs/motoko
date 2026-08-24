@@ -1,4 +1,0 @@
-enhanced-migration/enh-mig-test2/m1.mo:0.1: warning [M0254], initial actor requires field `x` of type
-  {#X}
-multi-migration-baseline-discard.mo:6.1-11.2: Compatibility error [M0169], stable variable `extra` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
