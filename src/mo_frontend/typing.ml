@@ -4687,58 +4687,47 @@ and check_migration_function env typ at =
    all remaining stable fields are deemed necessary and `required` from the previous version
    (like the other inputs to migration functions).
 
+   A --stable-baseline splits the chain in two. Migrations after the one it records as
+   most recently applied are pending: they still have to compose, so they are walked
+   backwards from the actor as above. The rest have already run — their composition is
+   history, and what the actor must fit is the deployed state the baseline describes —
+   so they are matched against the history it records instead.
+
    This code is deliberately similar to check_chain in check_stab_sig below but produces more
    error messages.
  *)
 
 and check_enhanced_migration_chain env chain stab_tfs at =
  if chain = [] then () else
- let baseline_post, baseline_mig_lab =
-   (* .most baseline tells us which fields are deployed and what is the most recent applied migration *)
+ (* the deployed state: which stable fields the canister holds, which migrations
+    produced them (newest first, as the walk visits them) and the most recent of those *)
+ let baseline_post, deployed, deployed_head =
    match env.stable_baseline_sig with
-   | None -> None, None
+   | None -> None, [], None
    | Some s ->
      let post_tfs, mig_lab_opt = T.post s in
-     Some post_tfs, mig_lab_opt
+     Some post_tfs,
+     (match s with
+      | T.Multi {chain; _} -> List.rev chain
+      | T.Single _ | T.PrePost _ -> []),
+     mig_lab_opt
  in
+ let file_at file = let file_pos = { no_pos with file } in {left = file_pos; right = file_pos} in
  let check_chain chain post =
-   let mfs = List.rev chain in
-   (* When the baseline already applied one of the chain's migrations, the upgrade resumes
-      after it (see T.pre), so the fields demanded from the baseline are those at the resume
-      point, not the initial actor's; `resume` captures that point during the backward walk. *)
-   let rec check_mfs step_at post resume mfs =
+   let pending, applied =
+     match deployed_head with
+     | None -> chain, []
+     | Some head ->
+       List.partition (fun (file, _, _) -> T.migration_lab_of_filename file > head) chain
+   in
+   (* each pending migration composes with the state its successor demands *)
+   let rec check_pending step_at post mfs =
      match mfs with
-     | [] ->
-       (* Without a baseline the demand is unverifiable, so each field warns M0254.
-          A baseline settles both directions in one sweep: explained fields are
-          silent, unexplained fields error with M0267, and deployed fields
-          nothing demands error with M0169. *)
-       let demanded, resume_lab =
-         match resume with
-         | Some (resume_post, lab) -> resume_post, Some lab
-         | None -> post, None
-       in
-       (match baseline_post with
-        | None ->
-          demanded |> List.iter (fun tf ->
-            warn env step_at "M0254"
-              "initial actor requires field `%s` of type%a"
-              tf.T.lab display_typ tf.T.typ)
-        | Some baseline ->
-          (* the chain's own input demand, computed without the actor fields:
-             a missing field in it is not fixable by a new migration file *)
-          let chain_input = Stability.chain_input_fields resume_lab chain in
-          Stability.match_stab_em_fields env.msgs at resume_lab chain_input baseline demanded)
+     | [] -> step_at, post
      | (file, _, typ)::mfs1 ->
-        let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
-        let resume =
-          if resume = None && baseline_mig_lab = Some mf.T.lab
-          then Some (post, mf.T.lab)
-          else resume
-        in
         (* is this a migration function *)
-        let (dom_mf, rng_mf) = check_migration_function env mf.T.typ file_at in
+        let (dom_mf, rng_mf) = check_migration_function env mf.T.typ (file_at file) in
         let out =
           rng_mf @
             (List.filter (fun tf ->
@@ -4755,10 +4744,60 @@ and check_enhanced_migration_chain env chain stab_tfs at =
         (* calculate the previous post and iterate *)
         let pre = T.pre_fields mf.T.typ post in
         let prev_post = List.map (fun (_required, tf) -> tf) pre in
-        check_mfs file_at prev_post resume mfs1
+        check_pending (file_at file) prev_post mfs1
    in
-   (* all migrations compose to produce post *)
-   check_mfs at post None mfs
+   (* the applied ones must still be the files that ran: the local chain may omit the
+      oldest of them, but nothing else may differ *)
+   let error_unrecorded file lab =
+     local_error env (file_at file) "M0268"
+       "migration `%s` is not part of the deployed history recorded by the stable baseline"
+       lab
+   in
+   let rec check_applied mfs bfs =
+     match mfs with
+     | [] -> () (* the oldest migrations may be trimmed away entirely *)
+     | (file, _, typ)::mfs1 ->
+       let lab = T.migration_lab_of_filename file in
+       (* nothing local accounts for the deployed migrations that sort after this one *)
+       let rec drain bfs =
+         match bfs with
+         | bf::bfs1 when lab < bf.T.lab ->
+           local_error env at "M0268"
+             "deployed migration `%s` is missing from the migration directory; only the oldest migrations may be trimmed away"
+             bf.T.lab;
+           drain bfs1
+         | bfs -> bfs
+       in
+       let bfs = drain bfs in
+       (* is this a migration function *)
+       ignore (check_migration_function env typ (file_at file));
+       match bfs with
+       | bf::bfs1 when lab = bf.T.lab ->
+         if T.is_migration typ && not (T.eq typ bf.T.typ) then
+           local_error env (file_at file) "M0268"
+             "migration `%s` no longer matches the deployed history: it now has type%a\nbut the stable baseline records%a"
+             lab display_typ typ display_typ bf.T.typ;
+         check_applied mfs1 bfs1
+       | bfs ->
+         error_unrecorded file lab;
+         check_applied mfs1 bfs
+   in
+   let step_at, demanded = check_pending at post (List.rev pending) in
+   check_applied (List.rev applied) deployed;
+   (* `demanded` is what the deployed state has to supply. Without a baseline that is
+      unverifiable, so each field warns M0254; with one, explained fields are silent,
+      unexplained ones error with M0267 and deployed fields nothing demands error with M0169. *)
+   match baseline_post with
+   | None ->
+     demanded |> List.iter (fun tf ->
+       warn env step_at "M0254"
+         "initial actor requires field `%s` of type%a"
+         tf.T.lab display_typ tf.T.typ)
+   | Some baseline ->
+     (* the chain's own input demand, computed without the actor fields:
+        a missing field in it is not fixable by a new migration file *)
+     let chain_input = Stability.chain_input_fields deployed_head chain in
+     Stability.match_stab_em_fields env.msgs at deployed_head chain_input baseline demanded
  in
  check_chain chain stab_tfs
 

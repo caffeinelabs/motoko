@@ -1,4 +1,6 @@
-em-baseline-with-bad-dropped-lossy-at-m2-history-mismatch.mo:10.1-14.2: Compatibility error [M0169], stable variable `consumed` of version `m1` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-enhanced-migration/enh-mig-history/m1.mo:0.1: Compatibility error [M0169], stable variable `sneaky` of version `m0` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
-See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
+em-baseline-with-bad-dropped-lossy-at-m2-history-mismatch.mo:10.1-14.2: type error [M0268], deployed migration `m2` is missing from the migration directory; only the oldest migrations may be trimmed away
+enhanced-migration/enh-mig-history/m1.mo:0.1: type error [M0268], migration `m1` no longer matches the deployed history: it now has type
+  {} -> {consumed : Int}
+but the stable baseline records
+  {} -> {consumed : Nat}
+enhanced-migration/enh-mig-history/m0.mo:0.1: type error [M0268], migration `m0` is not part of the deployed history recorded by the stable baseline

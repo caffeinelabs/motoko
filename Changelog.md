@@ -14,6 +14,19 @@
     write-a-migration hint is only offered when adding a migration file can
     actually fix the field (#6318).
 
+  * feat: with `--stable-baseline` and `--enhanced-migration`, the migration
+    directory is now checked against the history the baseline records. The oldest
+    migrations may be trimmed away once they have been applied, but one that was
+    edited, backdated or deleted after deployment is an error (M0268) — where
+    before it surfaced as a puzzling complaint about the stable variables it
+    produced, or went unnoticed entirely.
+
+    Migrations the baseline records as applied are no longer re-checked as
+    incremental steps: their composition is history, and what the actor has to fit
+    is the deployed state the baseline describes. A problem with a stable variable
+    such a migration produced is therefore reported once, against that state and
+    pointing at the offending declaration, instead of twice (#6281).
+
 ## 1.14.1 (2026-08-17)
 
 * motoko (`moc`)
