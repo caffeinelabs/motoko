@@ -4727,14 +4727,9 @@ and check_enhanced_migration_chain env chain stab_tfs at =
           (* the chain's own input demand, computed without the actor fields:
              a missing field in it is not fixable by a new migration file *)
           let chain_input =
-            let chain_fields =
-              chain |> List.filter_map (fun (file, _, typ) ->
-                  if T.is_migration typ
-                  then Some T.{lab = migration_lab_of_filename file; typ; src = empty_src}
-                  else None)
-            in
-            if chain_fields = [] then [] else
-            List.map snd (T.pre baseline_mig_lab (T.Multi {chain = chain_fields; post = []}))
+            Stability.chain_input_fields resume_lab
+              (chain |> List.map (fun (file, _, typ) ->
+                   (T.migration_lab_of_filename file, typ)))
           in
           Stability.match_stab_em_fields env.msgs at
             Stability.enhanced_migration_link resume_lab chain_input baseline demanded)

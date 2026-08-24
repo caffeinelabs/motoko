@@ -77,6 +77,21 @@ let error_required s at link mig_lab_opt tf =
           tf.lab
           link))
 
+(* The demand of the migration chain alone at the resume point named by
+   mig_lab_opt: inputs some migration consumes that no earlier migration
+   produces, i.e. pre over an empty post. Malformed chain entries are skipped
+   — the caller's walk diagnoses them (M0201-M0203) — and an all-malformed
+   chain yields no demand rather than an invariant-breaking empty Multi. *)
+let chain_input_fields mig_lab_opt chain =
+  let chain_fields =
+    chain |> List.filter_map (fun (lab, typ) ->
+        if Type.is_migration typ
+        then Some {lab; typ; src = empty_src}
+        else None)
+  in
+  if chain_fields = [] then [] else
+  List.map snd (pre mig_lab_opt (Multi {chain = chain_fields; post = []}))
+
 (* an input of the migration chain itself: no new migration file can sort
    before its consumer, so the previous version must provide it — no hint *)
 let em_error_chain_input s at link tf =
@@ -129,9 +144,9 @@ let match_stab_fields s at link mig_lab_opt tfs1 tfs2 =
    field is required and the `required` flags above do not apply. Compares
    the deployed fields (tfs1) with the fields demanded at the chain's resume
    point (tfs2, named by mig_lab_opt); a missing demanded field is always an
-   error, never optional. `chain_input` is the demand of the chain alone
-   (T.pre over an empty post): a field in it cannot be fixed by a new
-   migration file, so its error carries no produce-a-migration hint. *)
+   error, never optional. `chain_input` (see chain_input_fields) holds the
+   fields no new migration file can fix, so their error carries no
+   produce-a-migration hint. *)
 
 let match_stab_em_fields s at link mig_lab_opt chain_input tfs1 tfs2 =
   (* Assume that tfs1 and tfs2 are sorted. *)
