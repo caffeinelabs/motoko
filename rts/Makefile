@@ -15,12 +15,19 @@ TOMMATHFILES = \
    mp_set_u32 mp_set_i32 mp_get_i32 mp_get_mag_u32 \
    mp_set_u64 mp_set_i64 mp_get_i64 mp_get_mag_u64 \
    mp_set_double mp_get_double \
-   mp_div mp_init_copy mp_neg mp_abs mp_2expt mp_expt_u32 mp_set mp_sqr \
+   mp_div mp_init_copy mp_neg mp_abs mp_2expt mp_expt_u32 mp_set mp_sqr mp_cmp_d \
    s_mp_add mp_cmp_mag s_mp_sub mp_grow mp_clamp \
    mp_init_size mp_exch mp_clear mp_copy mp_count_bits mp_mul_2d mp_rshd mp_mul_d mp_div_2d mp_mod_2d \
    s_mp_balance_mul s_mp_toom_mul s_mp_toom_sqr s_mp_karatsuba_sqr s_mp_sqr_fast s_mp_sqr s_mp_karatsuba_mul \
    s_mp_mul_digs_fast s_mp_mul_digs mp_init_multi mp_clear_multi mp_mul_2 mp_div_2 mp_div_3 mp_lshd mp_incr \
-   mp_decr mp_add_d mp_sub_d
+   mp_decr mp_add_d mp_sub_d \
+   mp_mod mp_addmod mp_submod mp_mulmod mp_exptmod mp_invmod \
+   mp_reduce mp_reduce_setup mp_montgomery_setup mp_montgomery_calc_normalization mp_montgomery_reduce \
+   mp_dr_is_modulus mp_dr_setup mp_dr_reduce \
+   mp_reduce_is_2k mp_reduce_2k_setup mp_reduce_2k \
+   mp_reduce_is_2k_l mp_reduce_2k_setup_l mp_reduce_2k_l \
+   mp_cnt_lsb s_mp_exptmod s_mp_exptmod_fast s_mp_montgomery_reduce_fast \
+   s_mp_invmod_fast s_mp_invmod_slow s_mp_mul_high_digs s_mp_mul_high_digs_fast
 
 TOMMATHSRC ?= $(CURDIR)/../../libtommath
 
@@ -157,6 +164,16 @@ TOMMATH_BIND_OPTIONS = \
 	    --allowlist-function mp_expt_u32 \
 	    --allowlist-function mp_2expt \
 	    --allowlist-function mp_incr \
+	    --allowlist-function mp_mod \
+	    --allowlist-function mp_addmod \
+	    --allowlist-function mp_submod \
+	    --allowlist-function mp_mulmod \
+	    --allowlist-function mp_exptmod \
+	    --allowlist-function mp_invmod \
+	    --allowlist-function mp_sqr \
+	    --allowlist-function mp_montgomery_setup \
+	    --allowlist-function mp_montgomery_calc_normalization \
+	    --allowlist-function mp_montgomery_reduce \
 	    --blocklist-type __int32_t \
 	    --blocklist-type __int64_t \
 	    --blocklist-type __uint32_t \

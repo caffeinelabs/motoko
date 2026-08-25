@@ -1176,6 +1176,15 @@ module RTS = struct
     add_rts_import "bigint_rem" [I64Type; I64Type] [I64Type];
     add_rts_import "bigint_div" [I64Type; I64Type] [I64Type];
     add_rts_import "bigint_pow" [I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_addmod" [I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_submod" [I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_mulmod" [I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_exptmod" [I64Type; I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_invmod" [I64Type; I64Type] [I64Type];
+    add_rts_import "bigint_sqr" [I64Type] [I64Type];
+    add_rts_import "bigint_montgomery_setup" [I64Type] [I64Type];
+    add_rts_import "bigint_montgomery_calc_normalization" [I64Type] [I64Type];
+    add_rts_import "bigint_montgomery_reduce" [I64Type; I64Type; I64Type] [I64Type];
     add_rts_import "bigint_neg" [I64Type] [I64Type];
     add_rts_import "bigint_lsh" [I64Type; I64Type] [I64Type];
     add_rts_import "bigint_rsh" [I64Type; I64Type] [I64Type];
@@ -3062,6 +3071,15 @@ sig
   val compile_unsigned_div : E.t -> G.t
   val compile_unsigned_rem : E.t -> G.t
   val compile_unsigned_pow : E.t -> G.t
+  val compile_addmod : E.t -> G.t
+  val compile_submod : E.t -> G.t
+  val compile_mulmod : E.t -> G.t
+  val compile_powmod : E.t -> G.t
+  val compile_invmod : E.t -> G.t
+  val compile_sqr : E.t -> G.t
+  val compile_montgomery_setup : E.t -> G.t
+  val compile_montgomery_calc_normalization : E.t -> G.t
+  val compile_montgomery_reduce : E.t -> G.t
   val compile_lsh : E.t -> G.t
   val compile_rsh : E.t -> G.t
 
@@ -3254,6 +3272,71 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
   let compile_unsigned_div = try_unbox2 "B_div" (adjust_result Word64.compile_unsigned_div) Num.compile_unsigned_div
   let compile_unsigned_rem = try_unbox2 "B_rem" Word64.compile_unsigned_rem Num.compile_unsigned_rem
   let compile_unsigned_sub = try_unbox2 "B_sub" Word64.compile_unsigned_sub Num.compile_unsigned_sub
+
+  (* Modular arithmetic: always use the slow path (boxed BigNums via RTS). *)
+  let slow_only3 name slow env =
+    Func.share_code3 Func.Always env name (("a", I64Type), ("b", I64Type), ("m", I64Type)) [I64Type]
+      (fun env get_a get_b get_m ->
+        let set_res, get_res = new_local env "res" in
+        get_a ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_a ^^ box env)
+          get_a ^^
+        get_b ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_b ^^ box env)
+          get_b ^^
+        get_m ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_m ^^ box env)
+          get_m ^^
+        slow env ^^ set_res ^^ get_res ^^
+        fits_in_vanilla env ^^
+        E.if1 I64Type
+          (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+          get_res
+      )
+
+  let slow_only2 name slow env =
+    Func.share_code2 Func.Always env name (("a", I64Type), ("m", I64Type)) [I64Type]
+      (fun env get_a get_m ->
+        let set_res, get_res = new_local env "res" in
+        get_a ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_a ^^ box env)
+          get_a ^^
+        get_m ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_m ^^ box env)
+          get_m ^^
+        slow env ^^ set_res ^^ get_res ^^
+        fits_in_vanilla env ^^
+        E.if1 I64Type
+          (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+          get_res
+      )
+
+  let slow_only1 name slow env =
+    Func.share_code1 Func.Always env name ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let set_res, get_res = new_local env "res" in
+        get_a ^^ BitTagged.if_tagged_scalar env [I64Type]
+          (get_a ^^ box env)
+          get_a ^^
+        slow env ^^ set_res ^^ get_res ^^
+        fits_in_vanilla env ^^
+        E.if1 I64Type
+          (get_res ^^ Num.truncate_to_word64 env ^^ BitTagged.tag env Type.Int)
+          get_res
+      )
+
+  let compile_addmod = slow_only3 "B_addmod" (fun env -> E.call_rts env "bigint_addmod")
+  let compile_submod = slow_only3 "B_submod" (fun env -> E.call_rts env "bigint_submod")
+  let compile_mulmod = slow_only3 "B_mulmod" (fun env -> E.call_rts env "bigint_mulmod")
+  let compile_powmod = slow_only3 "B_powmod" (fun env -> E.call_rts env "bigint_exptmod")
+  let compile_invmod = slow_only2 "B_invmod" (fun env -> E.call_rts env "bigint_invmod")
+  let compile_sqr = slow_only1 "B_sqr" (fun env -> E.call_rts env "bigint_sqr")
+  let compile_montgomery_setup =
+    slow_only1 "B_mont_setup" (fun env -> E.call_rts env "bigint_montgomery_setup")
+  let compile_montgomery_calc_normalization =
+    slow_only1 "B_mont_calcnorm" (fun env -> E.call_rts env "bigint_montgomery_calc_normalization")
+  let compile_montgomery_reduce =
+    slow_only3 "B_mont_reduce" (fun env -> E.call_rts env "bigint_montgomery_reduce")
 
   let compile_unsigned_pow env =
     Func.share_code2 Func.Always env "B_pow" (("a", I64Type), ("b", I64Type)) [I64Type]
@@ -3747,6 +3830,16 @@ module BigNumLibtommath : BigNumType = struct
   let compile_unsigned_rem env = E.call_rts env "bigint_rem"
   let compile_unsigned_div env = E.call_rts env "bigint_div"
   let compile_unsigned_pow env = E.call_rts env "bigint_pow"
+  let compile_addmod env = E.call_rts env "bigint_addmod"
+  let compile_submod env = E.call_rts env "bigint_submod"
+  let compile_mulmod env = E.call_rts env "bigint_mulmod"
+  let compile_powmod env = E.call_rts env "bigint_exptmod"
+  let compile_invmod env = E.call_rts env "bigint_invmod"
+  let compile_sqr env = E.call_rts env "bigint_sqr"
+  let compile_montgomery_setup env = E.call_rts env "bigint_montgomery_setup"
+  let compile_montgomery_calc_normalization env =
+    E.call_rts env "bigint_montgomery_calc_normalization"
+  let compile_montgomery_reduce env = E.call_rts env "bigint_montgomery_reduce"
   let compile_lsh env = E.call_rts env "bigint_lsh"
   let compile_rsh env = E.call_rts env "bigint_rsh"
 
@@ -11653,6 +11746,7 @@ and compile_array_index env ae e1 e2 =
 and compile_prim_invocation (env : E.t) ae p es at =
   (* for more concise code when all arguments and result use the same sr *)
   let const_sr sr inst = sr, G.concat_map (compile_exp_as env ae sr) es ^^ inst in
+  let vanilla_sr = const_sr SR.Vanilla in
 
   begin match p, es with
   (* Calls *)
@@ -12156,6 +12250,16 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae e1 ^^
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat32) e2 ^^
     BigNum.compile_rsh env
+
+  | OtherPrim "intAddMod", [_; _; _] -> vanilla_sr (BigNum.compile_addmod env)
+  | OtherPrim "intSubMod", [_; _; _] -> vanilla_sr (BigNum.compile_submod env)
+  | OtherPrim "intMulMod", [_; _; _] -> vanilla_sr (BigNum.compile_mulmod env)
+  | OtherPrim "intPowMod", [_; _; _] -> vanilla_sr (BigNum.compile_powmod env)
+  | OtherPrim "intInvMod", [_; _] -> vanilla_sr (BigNum.compile_invmod env)
+  | OtherPrim "intSqr", [_] -> vanilla_sr (BigNum.compile_sqr env)
+  | OtherPrim "intMontgomerySetup", [_] -> vanilla_sr (BigNum.compile_montgomery_setup env)
+  | OtherPrim "intMontgomeryCalcNormalization", [_] -> vanilla_sr (BigNum.compile_montgomery_calc_normalization env)
+  | OtherPrim "intMontgomeryReduce", [_; _; _] -> vanilla_sr (BigNum.compile_montgomery_reduce env)
 
   | OtherPrim ("explode_Nat16" | "explode_Int16" as pr), [e] ->
     SR.UnboxedTuple 2,
@@ -12775,21 +12879,21 @@ and compile_prim_invocation (env : E.t) ae p es at =
     IC.trap_text env
 
   | OtherPrim "principalOfBlob", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env B P)
+    vanilla_sr Tagged.(Blob.copy env B P)
   | OtherPrim "blobOfPrincipal", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env P B)
+    vanilla_sr Tagged.(Blob.copy env P B)
   | OtherPrim "principalOfActor", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env A P)
+    vanilla_sr Tagged.(Blob.copy env A P)
   | OtherPrim "actorOfPrincipal", e ->
-    const_sr SR.Vanilla Tagged.(Blob.copy env P A)
+    vanilla_sr Tagged.(Blob.copy env P A)
 
   | OtherPrim "blobToArray", e ->
-    const_sr SR.Vanilla (Arr.ofBlob env Tagged.I)
+    vanilla_sr (Arr.ofBlob env Tagged.I)
   | OtherPrim "blobToArrayMut", e ->
-    const_sr SR.Vanilla (Arr.ofBlob env Tagged.M)
+    vanilla_sr (Arr.ofBlob env Tagged.M)
 
   | OtherPrim ("arrayToBlob" | "arrayMutToBlob"), e ->
-    const_sr SR.Vanilla (Arr.toBlob env)
+    vanilla_sr (Arr.toBlob env)
 
   | OtherPrim ("stableMemoryLoadNat32" | "stableMemoryLoadInt32" as p), [e] ->
     let ty = Type.(if p = "stableMemoryLoadNat32" then Nat32 else Int32) in
@@ -12906,11 +13010,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   (* Other prims, binary *)
   | OtherPrim "Array.init", [_;_] ->
-    const_sr SR.Vanilla (Arr.init env)
+    vanilla_sr (Arr.init env)
   | OtherPrim "Array.tabulate", [_;_] ->
-    const_sr SR.Vanilla (Arr.tabulate env Tagged.I)
+    vanilla_sr (Arr.tabulate env Tagged.I)
   | OtherPrim "Array.tabulateVar", [_;_] ->
-    const_sr SR.Vanilla (Arr.tabulate env Tagged.M)
+    vanilla_sr (Arr.tabulate env Tagged.M)
   | OtherPrim "btst8", [_;_] ->
     (* TODO: btstN returns Bool, not a small value *)
     const_sr (SR.UnboxedWord64 Type.Nat8) (TaggedSmallWord.btst_kernel env Type.Nat8)
@@ -12978,16 +13082,16 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp env ae e
 
   | DecodeUtf8, [_] ->
-    const_sr SR.Vanilla (Text.of_blob env)
+    vanilla_sr (Text.of_blob env)
   | EncodeUtf8, [_] ->
-    const_sr SR.Vanilla (Text.to_blob env)
+    vanilla_sr (Text.to_blob env)
 
   (* textual to bytes *)
   | (OtherPrim "decode_principal" | BlobOfIcUrl), [_] ->
-    const_sr SR.Vanilla (E.call_rts env "blob_of_principal")
+    vanilla_sr (E.call_rts env "blob_of_principal")
   (* The other direction *)
   | IcUrlOfBlob, [_] ->
-    const_sr SR.Vanilla (E.call_rts env "principal_of_blob")
+    vanilla_sr (E.call_rts env "principal_of_blob")
 
   (* Actor ids are blobs in the RTS *)
   | ActorOfIdBlob _, [e] ->

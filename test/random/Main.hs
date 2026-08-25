@@ -46,6 +46,12 @@ import Turtle
 import Embedder
 -- import Debug.Trace (traceShowId, traceShow)
 
+-- Modular exponentiation by repeated squaring (reference implementation)
+powerMod :: Integer -> Integer -> Integer -> Integer
+powerMod _ 0 _ = 1
+powerMod b e m
+  | even e    = powerMod (b * b `mod` m) (e `div` 2) m
+  | otherwise = b * powerMod b (e - 1) m `mod` m
 
 main :: IO ()
 main = do
@@ -56,7 +62,7 @@ main = do
                $ [ embedder | good ] <> [ Drun | goodDrun ]
   let tests :: TestTree
       tests = testGroup "Motoko tests" . concat
-               $ [ [arithProps, conversionProps, utf8Props, matchingProps] | good ]
+               $ [ [arithProps, conversionProps, utf8Props, matchingProps, modularProps] | good ]
                <> [ [encodingProps] | goodDrun ]
 
   if not (good || goodDrun)
@@ -98,6 +104,11 @@ utf8Props = testGroup "UTF-8 coding"
 matchingProps :: TestTree
 matchingProps = testGroup "Pattern matching" $
   [ QC.testProperty "intra-actor" $ prop_matchStructured ]
+
+modularProps :: TestTree
+modularProps = testGroup "Modular arithmetic"
+  [ QC.testProperty "expected successes" $ withMaxSuccess 100 prop_verifies
+  ]
 
 
 -- these require messaging
@@ -517,6 +528,9 @@ data MOTerm :: * -> * where
   -- Arithmetic
   Pos, Neg, Abs :: MOTerm a -> MOTerm a
   Add, Sub, Mul, Div, Mod, Pow :: MOTerm a -> MOTerm a -> MOTerm a
+  -- Modular arithmetic (ternary: a, b, modulus) — Int only
+  AddMod, SubMod, MulMod :: MOTerm Integer -> MOTerm Integer -> MOTerm Integer -> MOTerm Integer
+  PowMod :: MOTerm Integer -> MOTerm Integer -> MOTerm Integer -> MOTerm Integer
   -- Wrapping Arithmetic
   WrapAdd, WrapSub, WrapMul, WrapPow
     :: MOTerm (BitLimited n a) -> MOTerm (BitLimited n a) -> MOTerm (BitLimited n a)
@@ -570,6 +584,9 @@ shrinkOp2 f a b = a : b : shrinkRel2 f a b
 shrinkOp1 :: Arbitrary a => (a -> a) -> a -> [a]
 shrinkOp1 f a = a : (f <$> shrink a)
 
+shrinkOp3 :: Arbitrary a => (a -> a -> a -> a) -> a -> a -> a -> [a]
+shrinkOp3 f a b c = [a, b, c] <> [f a' b' c' | (a', b', c') <- shrink (a, b, c)]
+
 subShrink :: Arbitrary (MOTerm t) => MOTerm t -> [MOTerm t]
 subShrink Five = []
 subShrink (Lit _) = []
@@ -593,6 +610,10 @@ subShrink (a `WrapAdd` b) = shrinkOp2 WrapAdd a b
 subShrink (a `WrapSub` b) = shrinkOp2 WrapSub a b
 subShrink (a `WrapMul` b) = shrinkOp2 WrapMul a b
 subShrink (a `WrapPow` b) = shrinkOp2 WrapPow a b
+subShrink (AddMod a b m) = shrinkOp3 AddMod a b m
+subShrink (SubMod a b m) = shrinkOp3 SubMod a b m
+subShrink (MulMod a b m) = shrinkOp3 MulMod a b m
+subShrink (PowMod a b m) = shrinkOp3 PowMod a b m
 subShrink (PopCnt n) = shrinkOp1 PopCnt n
 subShrink (Clz n) = shrinkOp1 Clz n
 subShrink (Ctz n) = shrinkOp1 Ctz n
@@ -715,8 +736,15 @@ instance Arbitrary (MOTerm Natural) where
   shrink (Lit _) = []
   shrink x = [ Lit (fromIntegral x) | Just x <- pure $ evaluate x ] <> subShrink x
 
+posModulus :: Gen (MOTerm Integer)
+posModulus = Lit . (+ 2) . (`mod` 1000) . abs <$> arbitrary
+
+smallPosExp :: Gen (MOTerm Integer)
+smallPosExp = Lit . (`mod` 10) . abs <$> arbitrary
+
 instance Arbitrary (MOTerm Integer) where
   arbitrary = reasonablyShaped $ \n ->
+    let sub2 = resize (n `div` 3) arbitrary in
     arithTerm n <>
     [ (n, resize (n `div` 2) $ Pos <$> arbitrary)
     , (n, resize (n `div` 2) $ Neg <$> arbitrary)
@@ -726,6 +754,10 @@ instance Arbitrary (MOTerm Integer) where
     , (n `div` 3, ConvertIntNToInt <$> (arbitrary @(MOTerm Int16)))
     , (n `div` 3, ConvertIntNToInt <$> (arbitrary @(MOTerm Int32)))
     , (n `div` 3, ConvertIntNToInt <$> (arbitrary @(MOTerm Int64)))
+    , (n `div` 4, AddMod <$> sub2 <*> sub2 <*> posModulus)
+    , (n `div` 4, SubMod <$> sub2 <*> sub2 <*> posModulus)
+    , (n `div` 4, MulMod <$> sub2 <*> sub2 <*> posModulus)
+    , (n `div` 5, PowMod <$> sub2 <*> smallPosExp <*> posModulus)
     ]
   shrink (Lit _) = []
   shrink x = [ Lit (fromIntegral x) | Just x <- pure $ evaluate x ] <> subShrink x
@@ -1028,6 +1060,10 @@ eval (a `Mul` b) = eval a * eval b
 eval (a `Div` b) = eval a `quot` eval b
 eval (a `Mod` b) = eval a `rem` eval b
 eval (a `Pow` (eval -> b)) = do b' <- b; exponentiable b'; (^) <$> eval a <*> b
+eval (AddMod a b m) = do a <- eval a; b <- eval b; m <- eval m; guard (m /= 0); pure $ (a + b) `mod` m
+eval (SubMod a b m) = do a <- eval a; b <- eval b; m <- eval m; guard (m /= 0); pure $ (a - b) `mod` m
+eval (MulMod a b m) = do a <- eval a; b <- eval b; m <- eval m; guard (m /= 0); pure $ (a * b) `mod` m
+eval (PowMod base exp m) = do base <- eval base; exp <- eval exp; m <- eval m; guard (m > 0 && exp >= 0); pure $ powerMod base exp m
 eval (ConvertNatural t) = fromIntegral <$> evaluate t
 eval c@(ConvertNatToNatN t) = fromIntegral . (.&. maskFor c) <$> evaluate t
 eval (ConvertNatNToNat t) = fromIntegral <$> evaluate t
@@ -1151,6 +1187,10 @@ unparseMO (a `WrapAdd` b) = inParens unparseMO "+%" a b
 unparseMO (a `WrapSub` b) = inParens unparseMO "-%" a b
 unparseMO (a `WrapMul` b) = inParens unparseMO "*%" a b
 unparseMO (a `WrapPow` b) = inParens unparseMO "**%" a b
+unparseMO (AddMod a b m) = "(Prim.intAddMod(" <> unparseMO a <> ", " <> unparseMO b <> ", " <> unparseMO m <> "))"
+unparseMO (SubMod a b m) = "(Prim.intSubMod(" <> unparseMO a <> ", " <> unparseMO b <> ", " <> unparseMO m <> "))"
+unparseMO (MulMod a b m) = "(Prim.intMulMod(" <> unparseMO a <> ", " <> unparseMO b <> ", " <> unparseMO m <> "))"
+unparseMO (PowMod a b m) = "(Prim.intPowMod(" <> unparseMO a <> ", " <> unparseMO b <> ", " <> unparseMO m <> "))"
 unparseMO t@(PopCnt n) = typSuffix t "(Prim.popcnt" <> " " <> unparseMO n <> ")"
 unparseMO t@(Clz n) = typSuffix t "(Prim.clz" <> " " <> unparseMO n <> ")"
 unparseMO t@(Ctz n) = typSuffix t "(Prim.ctz" <> " " <> unparseMO n <> ")"

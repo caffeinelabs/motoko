@@ -422,6 +422,116 @@ pub unsafe extern "C" fn bigint_pow(a: Value, b: Value) -> Value {
     persist_bigint(i)
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn bigint_addmod(a: Value, b: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_addmod(
+        a.as_bigint().mp_int_ptr(),
+        b.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bigint_submod(a: Value, b: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_submod(
+        a.as_bigint().mp_int_ptr(),
+        b.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bigint_mulmod(a: Value, b: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_mulmod(
+        a.as_bigint().mp_int_ptr(),
+        b.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bigint_exptmod(base: Value, exp: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_exptmod(
+        base.as_bigint().mp_int_ptr(),
+        exp.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bigint_invmod(a: Value, modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_invmod(
+        a.as_bigint().mp_int_ptr(),
+        modulus.as_bigint().mp_int_ptr(),
+        &mut i,
+    ));
+    persist_bigint(i)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bigint_sqr(a: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_sqr(a.as_bigint().mp_int_ptr(), &mut i));
+    persist_bigint(i)
+}
+
+// `mp_montgomery_setup` returns the Montgomery `rho` constant as a single
+// `mp_digit` (28 bits on wasm32, 60 on wasm64). We surface it as a Motoko
+// `Int` so the user can pass it back into `bigint_montgomery_reduce`
+// without caring about the underlying digit width.
+#[no_mangle]
+pub unsafe extern "C" fn bigint_montgomery_setup(modulus: Value) -> Value {
+    let mut rho: mp_digit = 0;
+    check(mp_montgomery_setup(
+        modulus.as_bigint().mp_int_ptr(),
+        &mut rho,
+    ));
+    let mut i = tmp_bigint();
+    // mp_set_u64 covers both wasm32 (where mp_digit fits in u32 ⊂ u64) and
+    // wasm64 (where mp_digit IS u64). Single line, both targets.
+    mp_set_u64(&mut i, rho as u64);
+    persist_bigint(i)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bigint_montgomery_calc_normalization(modulus: Value) -> Value {
+    let mut i = tmp_bigint();
+    check(mp_montgomery_calc_normalization(
+        &mut i,
+        modulus.as_bigint().mp_int_ptr(),
+    ));
+    persist_bigint(i)
+}
+
+// `mp_montgomery_reduce` modifies its first argument in place. We work on a
+// fresh copy so the caller's `t` value isn't mutated. `mp` is read back as a
+// `mp_digit` from the Motoko `Int` the caller obtained via `intMontgomerySetup`.
+#[no_mangle]
+pub unsafe extern "C" fn bigint_montgomery_reduce(t: Value, modulus: Value, mp: Value) -> Value {
+    let mut a = tmp_bigint();
+    check(mp_init_copy(&mut a, t.as_bigint().mp_int_ptr()));
+    let mp_val = mp_get_i64(mp.as_bigint().mp_int_ptr()) as u64 as mp_digit;
+    check(mp_montgomery_reduce(
+        &mut a,
+        modulus.as_bigint().mp_int_ptr(),
+        mp_val,
+    ));
+    persist_bigint(a)
+}
+
 #[cfg(feature = "ic")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn bigint_div(a: Value, b: Value) -> Value {

@@ -1,0 +1,1 @@
+outside-file-import.mo:1.1-1.25: import error [M0006], cannot parse import URL "file:/.file": Unrecognized URL

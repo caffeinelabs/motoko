@@ -164,6 +164,8 @@
 
   * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
 
+  * Add `intAddMod`, `intSubMod`, `intMulMod`, `intPowMod` and `intInvMod` modular arithmetic primitives via LibTomMath (#6026).
+
 ## 1.7.0 (2026-04-29)
 
 * motoko (`moc`)

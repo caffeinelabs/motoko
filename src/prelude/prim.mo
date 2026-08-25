@@ -48,6 +48,35 @@ func shiftRight(x : Nat, shift : Nat32) : Nat {
   (prim "rsh_Nat" : (Nat, Nat32) -> Nat)(x, shift);
 };
 
+// Modular arithmetic (backed by LibTomMath)
+func intAddMod(a : Int, b : Int, m : Int) : Int {
+  (prim "intAddMod" : (Int, Int, Int) -> Int)(a, b, m);
+};
+func intSubMod(a : Int, b : Int, m : Int) : Int {
+  (prim "intSubMod" : (Int, Int, Int) -> Int)(a, b, m);
+};
+func intMulMod(a : Int, b : Int, m : Int) : Int {
+  (prim "intMulMod" : (Int, Int, Int) -> Int)(a, b, m);
+};
+func intPowMod(base : Int, exp : Int, m : Int) : Int {
+  (prim "intPowMod" : (Int, Int, Int) -> Int)(base, exp, m);
+};
+func intInvMod(a : Int, m : Int) : Int {
+  (prim "intInvMod" : (Int, Int) -> Int)(a, m);
+};
+func intSqr(a : Int) : Int {
+  (prim "intSqr" : Int -> Int) a;
+};
+func intMontgomerySetup(m : Int) : Int {
+  (prim "intMontgomerySetup" : Int -> Int) m;
+};
+func intMontgomeryCalcNormalization(m : Int) : Int {
+  (prim "intMontgomeryCalcNormalization" : Int -> Int) m;
+};
+func intMontgomeryReduce(t : Int, m : Int, mp : Int) : Int {
+  (prim "intMontgomeryReduce" : (Int, Int, Int) -> Int)(t, m, mp);
+};
+
 // for testing
 func idlHash(x : Text) : Nat32 { (prim "idlHash" : Text -> Nat32) x };
 

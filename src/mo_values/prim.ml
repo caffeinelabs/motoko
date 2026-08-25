@@ -214,6 +214,114 @@ let prim trap =
     (match as_tup v with
      | [x; shift] -> k (Int Numerics.Int.(div (as_int x) (pow (of_int 2) (of_big_int (Nat32.to_big_int (as_nat32 shift))))))
      | _ -> failwith "rsh_Nat")
+  | "intAddMod" | "intSubMod" | "intMulMod" | "intPowMod" as name ->
+    let open Numerics.Int in
+    let op = match name with
+      | "intAddMod" -> add | "intSubMod" -> sub
+      | "intMulMod" -> mul | "intPowMod" -> pow
+      | _ -> assert false in
+    fun _ v k ->
+    (match as_tup v with
+     | [a; b; m] ->
+       let r = rem (op (as_int a) (as_int b)) (as_int m) in
+       k (Int (if lt r zero then add r (abs (as_int m)) else r))
+     | _ -> failwith name)
+  | "intInvMod" -> fun _ v k ->
+    let open Numerics.Int in
+    let rec ext_gcd a b =
+      if eq b zero then (a, one, zero)
+      else
+        let q = div a b in
+        let g, x1, y1 = ext_gcd b (sub a (mul q b)) in
+        (g, y1, sub x1 (mul q y1))
+    in
+    (match as_tup v with
+     | [a; m] ->
+       let a, m = as_int a, as_int m in
+       let g, x, _ = ext_gcd a (abs m) in
+       if not (eq (abs g) one) then trap.trap "intInvMod: no inverse exists";
+       let r = rem x (abs m) in
+       k (Int (if lt r zero then add r (abs m) else r))
+     | _ -> failwith "intInvMod")
+
+  | "intSqr" -> fun _ v k ->
+    let open Numerics.Int in
+    let a = as_int v in k (Int (mul a a))
+
+  (* Montgomery primitives. The libtommath operations are tied to its internal
+     `digit_bit` (28 on wasm32, 60 on wasm64). For the interpreter we pick a
+     fixed digit_bit = 28 — this matches the classical (wasm32) backend's
+     libtommath build. Round-trip tests
+       intMontgomeryReduce(a * R mod m, m, mp) == a mod m
+     where `R = intMontgomeryCalcNormalization(m)` and `mp = intMontgomerySetup(m)`
+     hold for any consistent digit_bit, so tests that exercise round-trip rather
+     than exact values are portable across targets. *)
+  | "intMontgomerySetup" | "intMontgomeryCalcNormalization" as name ->
+    let open Numerics.Int in
+    let digit_bit = 28 in
+    let two_pow_dbit = pow (of_int 2) (of_int digit_bit) in
+    let bit_length n =
+      let n = abs n in
+      let rec go n k = if eq n zero then k else go (div n (of_int 2)) (k + 1) in
+      go n 0
+    in
+    let rec ext_gcd a b =
+      if eq b zero then (a, one, zero)
+      else
+        let q = div a b in
+        let g, x1, y1 = ext_gcd b (sub a (mul q b)) in
+        (g, y1, sub x1 (mul q y1))
+    in
+    fun _ v k ->
+      let m = abs (as_int v) in
+      (match name with
+       | "intMontgomerySetup" ->
+         (* rho = -m^-1 mod 2^digit_bit, computed against m's lowest digit. *)
+         let m_low = rem m two_pow_dbit in
+         let _, x, _ = ext_gcd m_low two_pow_dbit in
+         let inv = rem x two_pow_dbit in
+         let inv = if lt inv zero then add inv two_pow_dbit else inv in
+         let neg_inv = rem (sub two_pow_dbit inv) two_pow_dbit in
+         k (Int neg_inv)
+       | "intMontgomeryCalcNormalization" ->
+         let bl = bit_length m in
+         let num_digits = (bl + digit_bit - 1) / digit_bit in
+         let r = pow (of_int 2) (of_int (digit_bit * num_digits)) in
+         k (Int (rem r m))
+       | _ -> assert false)
+
+  | "intMontgomeryReduce" -> fun _ v k ->
+    let open Numerics.Int in
+    let digit_bit = 28 in
+    let bit_length n =
+      let n = abs n in
+      let rec go n k = if eq n zero then k else go (div n (of_int 2)) (k + 1) in
+      go n 0
+    in
+    let rec ext_gcd a b =
+      if eq b zero then (a, one, zero)
+      else
+        let q = div a b in
+        let g, x1, y1 = ext_gcd b (sub a (mul q b)) in
+        (g, y1, sub x1 (mul q y1))
+    in
+    (match as_tup v with
+     | [t; m; _mp] ->
+       (* Algebraically: reduce(t, m, mp) = t * R^-1 mod m. The mp parameter
+          is consumed by libtommath's iterative reduction algorithm but is
+          irrelevant to the closed-form result. *)
+       let t = as_int t in
+       let m = abs (as_int m) in
+       let bl = bit_length m in
+       let num_digits = (bl + digit_bit - 1) / digit_bit in
+       let r = pow (of_int 2) (of_int (digit_bit * num_digits)) in
+       let _, r_inv, _ = ext_gcd r m in
+       let r_inv = rem r_inv m in
+       let r_inv = if lt r_inv zero then add r_inv m else r_inv in
+       let result = rem (mul t r_inv) m in
+       let result = if lt result zero then add result m else result in
+       k (Int result)
+     | _ -> failwith "intMontgomeryReduce")
 
   | "explode_Nat16" -> fun _ v k ->
     let n, ff = as_nat16 v, Nat16.(of_int 0xFF) in

@@ -144,6 +144,20 @@ let
     '';
   };
 
+  mkQcSuite = name: testDerivation {
+    buildInputs = [ moc pkgs.wasmtime haskellPackages.qc-motoko ];
+    checkPhase = ''
+      export LANG=C.utf8
+      qc-motoko --pattern '$0 == "${name}"'${pkgs.lib.optionalString (replay != 0)
+          " --quickcheck-replay=${toString replay}"}
+    '';
+  };
+  qc-arith = mkQcSuite "Arithmetic/logic";
+  qc-modular = mkQcSuite "Modular arithmetic";
+  qc-conversions = mkQcSuite "Numeric conversions";
+  qc-utf8 = mkQcSuite "UTF-8 coding";
+  qc-matching = mkQcSuite "Pattern matching";
+
   unit = testDerivation {
     # The rule for src/pipeline/dune will attempt to copy some files from the
     # test directory to be run by src/pipeline/test_field_srcs.ml. We create src
@@ -252,7 +266,7 @@ fix_names
     run-deser = test_subdir "run-deser" [ deser ];
     perf = perf_subdir false "perf" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     # TODO: profiling-graph is excluded because the underlying parity_wasm is deprecated and does not support passive data segments and memory64.
-    inherit qc unit candid coverage;
+    inherit qc qc-arith qc-modular qc-conversions qc-utf8 qc-matching unit candid coverage;
   }
   // pkgs.lib.optionalAttrs
   (pkgs.stdenv.hostPlatform.system == accept-bench)
