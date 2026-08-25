@@ -4678,6 +4678,57 @@ and check_migration_function env typ at =
       "expected non-generic, local function type, but migration expression produces type%a"
       display_typ_expand typ;
 
+(* Validate the migration directory against the deployed history recorded by
+   a Multi --stable-baseline.
+
+   On upgrade the chain resumes after the recorded head, so a recorded migration
+   may be deleted only along with every older one (trimming), a kept one must
+   still have its recorded type, and a local migration sorting before the head
+   without being part of the history can never run. Each disagreement warns
+   M0268 — an error by default — against the offending file.
+   Both the directory and the recorded chain are sorted by the labels the
+   migrations run in, so a single merge walk aligns them. *)
+
+and check_migration_history env chain recorded at =
+  let file_at file =
+    let file_pos = { no_pos with file } in { left = file_pos; right = file_pos }
+  in
+  let missing rf =
+    warn env at "M0268"
+      "deployed migration `%s` is missing from the migration directory; only the oldest migrations may be trimmed away"
+      rf.T.lab
+  in
+  (* matched: a recorded migration is present locally, so older recorded ones
+     can no longer pass as a trimmed prefix *)
+  let rec go matched locals recorded =
+    match locals, recorded with
+    | _, [] -> () (* remaining locals sort after the head: pending, unconstrained *)
+    | [], rf :: recorded' ->
+      if matched then missing rf;
+      go matched [] recorded'
+    | (file, _, typ) :: locals', rf :: recorded' ->
+      let lab = T.migration_lab_of_filename file in
+      let cmp = String.compare lab rf.T.lab in
+      if cmp = 0 then begin
+        if not (T.eq typ rf.T.typ) then
+          warn env (file_at file) "M0268"
+            "migration `%s` no longer matches the deployed history: it now has type%a\nbut the stable baseline records%a"
+            lab display_typ typ display_typ rf.T.typ;
+        go true locals' recorded'
+      end
+      else if cmp < 0 then begin
+        warn env (file_at file) "M0268"
+          "migration `%s` is not part of the deployed history recorded by the stable baseline"
+          lab;
+        go matched locals' recorded
+      end
+      else begin
+        if matched then missing rf;
+        go matched locals recorded'
+      end
+  in
+  go false chain recorded
+
 (* Validate the enhanced migration chain from --enhanced-migration directory.
 
    Each incremental step v_i -> m_{i+1} -> v_{i+1} has the same semantics as
@@ -4701,6 +4752,10 @@ and check_enhanced_migration_chain env chain stab_tfs at =
      let post_tfs, mig_lab_opt = T.post s in
      Some post_tfs, mig_lab_opt
  in
+ (match env.stable_baseline_sig with
+  | Some (T.Multi { chain = recorded; _ }) ->
+    check_migration_history env chain recorded at
+  | _ -> ());
  let check_chain chain post =
    let mfs = List.rev chain in
    (* When the baseline already applied one of the chain's migrations, the upgrade resumes

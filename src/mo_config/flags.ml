@@ -98,6 +98,7 @@ let default_warning_levels = M.empty
   |> M.add "M0235" Allow (* don't deprecate for non-caffeine *)
   |> M.add "M0236" Allow (* don't suggest contextual dot notation *)
   |> M.add "M0237" Allow (* don't report redundant explicit arguments *)
+  |> M.add "M0268" (Error : lint_level) (* diverging from the deployed migration history is a deployment hazard *)
 
 let warning_levels = ref default_warning_levels
 

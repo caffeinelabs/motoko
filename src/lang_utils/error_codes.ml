@@ -270,7 +270,8 @@ let warning_codes = [
   "M0244", None, "Mutable variable is never reassigned";
   "M0254", None, "Initial actor requires field";
   "M0265", None, "The `system` capability is not required by this mixin";
-  "M0266", None, "floating-point literal has more precision than its type can represent"
+  "M0266", None, "floating-point literal has more precision than its type can represent";
+  "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline"
   ]
 
 let try_find_explanation code =
