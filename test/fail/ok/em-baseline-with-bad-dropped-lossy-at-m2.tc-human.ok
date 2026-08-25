@@ -10,15 +10,26 @@ Previous type
  in `bad`.
 Write an explicit migration function to convert it.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-bad-dropped-lossy-at-m2.mo:10:9
- 10 │      let bad : Nat;
-    │          ^^^ 
-error[M0267]: upgrade resuming after migration `m2` requires field `consumed` of type
-  Nat; not found in the previous version — write a migration that produces it.
+    ┌─ em-baseline-with-bad-dropped-lossy-at-m2.mo:9:1
+  8 │    // which the deployed state does not have.
+  9 │ ╭  actor {
+ 10 │ │      let bad : Nat;
+ 11 │ │      let consumed : Nat;
+ 12 │ │      let lossy : { a : Nat };
+ 13 │ │  };
+    │ ╰──^ 
+ 14 │    
+error[M0263]: version `m2` does not contain the stable variable `consumed`. The migration function cannot require this variable as input.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-bad-dropped-lossy-at-m2.mo:11:9
- 11 │      let consumed : Nat;
-    │          ^^^^^^^^ 
+    ┌─ em-baseline-with-bad-dropped-lossy-at-m2.mo:9:1
+  8 │    // which the deployed state does not have.
+  9 │ ╭  actor {
+ 10 │ │      let bad : Nat;
+ 11 │ │      let consumed : Nat;
+ 12 │ │      let lossy : { a : Nat };
+ 13 │ │  };
+    │ ╰──^ 
+ 14 │    
 error[M0169]: stable variable `dropped` of version `m2` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
     ┌─ em-baseline-with-bad-dropped-lossy-at-m2.mo:9:1
@@ -40,6 +51,12 @@ Previous type
  of `lossy`.
 The data can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-bad-dropped-lossy-at-m2.mo:12:9
- 12 │      let lossy : { a : Nat };
-    │          ^^^^^ 
+    ┌─ em-baseline-with-bad-dropped-lossy-at-m2.mo:9:1
+  8 │    // which the deployed state does not have.
+  9 │ ╭  actor {
+ 10 │ │      let bad : Nat;
+ 11 │ │      let consumed : Nat;
+ 12 │ │      let lossy : { a : Nat };
+ 13 │ │  };
+    │ ╰──^ 
+ 14 │    

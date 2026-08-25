@@ -223,7 +223,6 @@ let error_codes : (string * string option) list =
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
     "M0264", None; (* mixin include requires system capability *)
     "M0267", None; (* Initial actor or chain resume point requires field; the baseline does not explain it (e.g. added with no migration) *)
-    "M0268", None; (* Migration directory disagrees with the deployed history recorded by --stable-baseline *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -271,7 +270,8 @@ let warning_codes = [
   "M0244", None, "Mutable variable is never reassigned";
   "M0254", None, "Initial actor requires field";
   "M0265", None, "The `system` capability is not required by this mixin";
-  "M0266", None, "floating-point literal has more precision than its type can represent"
+  "M0266", None, "floating-point literal has more precision than its type can represent";
+  "M0268", None, "Migration directory disagrees with the deployed history recorded by --stable-baseline" (* Warn or Error *)
   ]
 
 let try_find_explanation code =

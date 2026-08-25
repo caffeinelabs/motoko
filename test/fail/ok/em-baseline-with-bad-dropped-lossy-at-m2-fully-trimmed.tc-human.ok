@@ -1,4 +1,4 @@
-error[M0169]: stable variable `lossy` of version `m2` cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
+error[M0169]: stable variable `lossy` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
     ┌─ em-baseline-with-bad-dropped-lossy-at-m2-fully-trimmed.mo:8:1
   7 │    // state; the actor then drops the carried `lossy`.

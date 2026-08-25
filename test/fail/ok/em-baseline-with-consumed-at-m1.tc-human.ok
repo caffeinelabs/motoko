@@ -10,13 +10,9 @@ Previous type
  in `consumed`.
 Write an explicit migration function to convert it.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
-    ┌─ em-baseline-with-consumed-at-m1.mo:8:1
-  7 │    // matches m2's output.
-  8 │ ╭  actor {
-  9 │ │      let done : Nat;
- 10 │ │  };
-    │ ╰──^ 
- 11 │    
+    ┌─ enhanced-migration/enh-mig-newstep/m2.mo:1:1
+  1 │  module {
+    │  ^ 
 error[M0267]: the migration chain requires field `nonexistent` of type
   Text as input; the previous version must provide it.
 See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/

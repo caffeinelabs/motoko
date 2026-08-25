@@ -42,5 +42,6 @@ M0244 (W) Mutable variable is never reassigned
 M0254 (W) Initial actor requires field
 M0265 (W) The `system` capability is not required by this mixin
 M0266 (W) floating-point literal has more precision than its type can represent
+M0268 (E) Migration directory disagrees with the deployed history recorded by --stable-baseline
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)

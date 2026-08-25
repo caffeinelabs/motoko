@@ -17,15 +17,15 @@
   * feat: with `--stable-baseline` and `--enhanced-migration`, the migration
     directory is now checked against the history the baseline records. The oldest
     migrations may be trimmed away once they have been applied, but one that was
-    edited, backdated or deleted after deployment is an error (M0268) — where
-    before it surfaced as a puzzling complaint about the stable variables it
-    produced, or went unnoticed entirely.
+    edited, backdated or deleted after deployment is reported with M0268 — an
+    error by default, demotable to a warning with `-W=M0268` or silenced with
+    `-A=M0268` for directories that intentionally diverge.
 
-    Migrations the baseline records as applied are no longer re-checked as
-    incremental steps: their composition is history, and what the actor has to fit
-    is the deployed state the baseline describes. A problem with a stable variable
-    such a migration produced is therefore reported once, against that state and
-    pointing at the offending declaration, instead of twice (#6281).
+    In addition, a problem with a stable variable that an applied migration
+    consumes or produces is no longer reported twice — once by the migration
+    chain check and once against the deployed state. The chain check's error
+    stands, and the baseline only adds errors for fields the local chain does
+    not itself vouch for (#6281).
 
 ## 1.14.1 (2026-08-17)
 

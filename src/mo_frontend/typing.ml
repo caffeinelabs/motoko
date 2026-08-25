@@ -4687,11 +4687,11 @@ and check_migration_function env typ at =
    all remaining stable fields are deemed necessary and `required` from the previous version
    (like the other inputs to migration functions).
 
-   A --stable-baseline splits the chain in two. Migrations after the one it records as
-   most recently applied are pending: they still have to compose, so they are walked
-   backwards from the actor as above. The rest have already run — their composition is
-   history, and what the actor must fit is the deployed state the baseline describes —
-   so they are matched against the history it records instead.
+   The walk stands on the local chain alone: the produced wasm may also install fresh,
+   replaying every migration. A --stable-baseline only adds diagnostics for the upgrade
+   of the deployed canister it describes: the migration directory must still agree with
+   the history it records (M0268, an error unless demoted), and the fields the upgrade
+   demands at its resume point must be explained by the deployed state.
 
    This code is deliberately similar to check_chain in check_stab_sig below but produces more
    error messages.
@@ -4707,35 +4707,99 @@ and check_enhanced_migration_chain env chain stab_tfs at =
      let post_tfs, mig_lab_opt = T.post s in
      Some post_tfs, mig_lab_opt
  in
+ (* the local migrations the baseline records as already applied *)
+ let applied =
+   match baseline_mig_lab with
+   | None -> []
+   | Some head ->
+     List.filter (fun (file, _, _) -> T.migration_lab_of_filename file <= head) chain
+ in
+ (* fields an applied migration consumes or produces: the walk checks these at their own
+    step with per-version provenance, so the baseline sweep skips them and only speaks
+    about fields the local chain merely passes through *)
+ let touched =
+   applied |> List.concat_map (fun (_, _, typ) ->
+     if T.is_migration typ
+     then let (dom, rng) = T.as_migration typ in List.map (fun tf -> tf.T.lab) (dom @ rng)
+     else [])
+ in
+ let untouched = List.filter (fun tf -> not (List.mem tf.T.lab touched)) in
+ (* the applied ones must still be the files that ran: the local chain may omit the
+    oldest of them, but nothing else may differ *)
+ let rec check_history mfs bfs =
+   match mfs with
+   | [] -> () (* the oldest migrations may be trimmed away entirely *)
+   | (file, _, typ)::mfs1 ->
+     let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
+     let lab = T.migration_lab_of_filename file in
+     (* nothing local accounts for the deployed migrations that sort after this one *)
+     let rec drain bfs =
+       match bfs with
+       | bf::bfs1 when lab < bf.T.lab ->
+         warn env at "M0268"
+           "deployed migration `%s` is missing from the migration directory; only the oldest migrations may be trimmed away"
+           bf.T.lab;
+         drain bfs1
+       | bfs -> bfs
+     in
+     let bfs = drain bfs in
+     match bfs with
+     | bf::bfs1 when lab = bf.T.lab ->
+       if T.is_migration typ && not (T.eq typ bf.T.typ) then
+         warn env file_at "M0268"
+           "migration `%s` no longer matches the deployed history: it now has type%a\nbut the stable baseline records%a"
+           lab display_typ typ display_typ bf.T.typ;
+       check_history mfs1 bfs1
+     | bfs ->
+       warn env file_at "M0268"
+         "migration `%s` is not part of the deployed history recorded by the stable baseline"
+         lab;
+       check_history mfs1 bfs
+ in
+ let deployed =
+   (* the migrations that produced the deployed state, newest first *)
+   match env.stable_baseline_sig with
+   | Some (T.Multi {chain; _}) -> List.rev chain
+   | Some (T.Single _ | T.PrePost _) | None -> []
+ in
+ check_history (List.rev applied) deployed;
  let check_chain chain post =
-   let pending, applied =
-     match baseline_mig_lab with
-     | None -> chain, []
-     | Some head ->
-       List.partition (fun (file, _, _) -> T.migration_lab_of_filename file > head) chain
-   in
-   let mfs = List.rev pending in
-   let rec check_pending step_at post mfs =
+   let mfs = List.rev chain in
+   (* When the baseline already applied one of the chain's migrations, the upgrade resumes
+      after it (see T.pre), so the fields demanded from the baseline are those at the resume
+      point, not the initial actor's; `resume` captures that point during the backward walk. *)
+   let rec check_mfs step_at post resume mfs =
      match mfs with
      | [] ->
        (* Without a baseline the demand is unverifiable, so each field warns M0254.
           A baseline settles both directions in one sweep: explained fields are
           silent, unexplained fields error with M0267, and deployed fields
           nothing demands error with M0169. *)
+       let demanded, resume_lab =
+         match resume with
+         | Some (resume_post, lab) -> resume_post, Some lab
+         | None -> post, None
+       in
        (match baseline_post with
         | None ->
-          post |> List.iter (fun tf ->
+          demanded |> List.iter (fun tf ->
             warn env step_at "M0254"
               "initial actor requires field `%s` of type%a"
               tf.T.lab display_typ tf.T.typ)
         | Some baseline ->
           (* the chain's own input demand, computed without the actor fields:
              a missing field in it is not fixable by a new migration file *)
-          let chain_input = Stability.chain_input_fields baseline_mig_lab chain in
-          Stability.match_stab_em_fields env.msgs at baseline_mig_lab chain_input baseline post)
+          let chain_input = Stability.chain_input_fields resume_lab chain in
+          Stability.match_stab_em_fields env.msgs at resume_lab chain_input
+            (untouched baseline) (untouched demanded))
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
+        let resume =
+          if resume = None && baseline_mig_lab = Some mf.T.lab
+          then Some (post, mf.T.lab)
+          else resume
+        in
         (* is this a migration function *)
         let (dom_mf, rng_mf) = check_migration_function env mf.T.typ file_at in
         let out =
@@ -4754,51 +4818,10 @@ and check_enhanced_migration_chain env chain stab_tfs at =
         (* calculate the previous post and iterate *)
         let pre = T.pre_fields mf.T.typ post in
         let prev_post = List.map (fun (_required, tf) -> tf) pre in
-        check_pending file_at prev_post mfs1
+        check_mfs file_at prev_post resume mfs1
    in
-   (* the applied ones must still be the files that ran: the local chain may omit the
-      oldest of them, but nothing else may differ *)
-   let rec check_applied mfs bfs =
-     match mfs with
-     | [] -> () (* the oldest migrations may be trimmed away entirely *)
-     | (file, _, typ)::mfs1 ->
-       let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
-       let lab = T.migration_lab_of_filename file in
-       (* nothing local accounts for the deployed migrations that sort after this one *)
-       let rec drain bfs =
-         match bfs with
-         | bf::bfs1 when lab < bf.T.lab ->
-           local_error env at "M0268"
-             "deployed migration `%s` is missing from the migration directory; only the oldest migrations may be trimmed away"
-             bf.T.lab;
-           drain bfs1
-         | bfs -> bfs
-       in
-       let bfs = drain bfs in
-       (* is this a migration function *)
-       ignore (check_migration_function env typ file_at);
-       match bfs with
-       | bf::bfs1 when lab = bf.T.lab ->
-         if T.is_migration typ && not (T.eq typ bf.T.typ) then
-           local_error env file_at "M0268"
-             "migration `%s` no longer matches the deployed history: it now has type%a\nbut the stable baseline records%a"
-             lab display_typ typ display_typ bf.T.typ;
-         check_applied mfs1 bfs1
-       | bfs ->
-         local_error env file_at "M0268"
-           "migration `%s` is not part of the deployed history recorded by the stable baseline"
-           lab;
-         check_applied mfs1 bfs
-   in
-   let deployed =
-     (* the migrations that produced the deployed state, newest first *)
-     match env.stable_baseline_sig with
-     | Some (T.Multi {chain; _}) -> List.rev chain
-     | Some (T.Single _ | T.PrePost _) | None -> []
-   in
-   check_applied (List.rev applied) deployed;
-   (* the pending migrations compose to produce post *)
-   check_pending at post mfs
+   (* all migrations compose to produce post *)
+   check_mfs at post None mfs
  in
  check_chain chain stab_tfs
 

@@ -1,4 +1,4 @@
-em-baseline-with-consumed-at-m1.mo:8.1-10.2: Compatibility error [M0170], stable variable `consumed` is not compatible with version `m1`.
+enhanced-migration/enh-mig-newstep/m2.mo:0.1: Compatibility error [M0170], stable variable `consumed` is not compatible with version `m1`.
 Previous type
   Nat
  is not a subtype of
