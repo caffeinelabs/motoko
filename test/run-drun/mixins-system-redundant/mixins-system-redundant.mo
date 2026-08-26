@@ -1,7 +1,5 @@
 import M "mixins/Plain";
 
-// The reference interpreter cannot import mixins (separate, pre-existing
-// limitation); the runner executes this test on drun, which compiles to wasm.
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
