@@ -373,6 +373,7 @@ let encode (em : extended_module) =
       | I64Type -> vs7 (-0x02)
       | F32Type -> vs7 (-0x03)
       | F64Type -> vs7 (-0x04)
+      | V128Type -> vs7 (-0x05)
 
     let elem_type = function
       | FuncRefType -> vs7 (-0x10)
@@ -490,6 +491,8 @@ let encode (em : extended_module) =
         op 0x35; memop mo
       | Load {ty = F32Type | F64Type; sz = Some _; _} ->
         assert false
+      | Load {ty = V128Type; _} ->
+        assert false (* v128 loads are SimdRaw *)
 
       | Store ({ty = I32Type; sz = None; _} as mo) -> op 0x36; memop mo
       | Store ({ty = I64Type; sz = None; _} as mo) -> op 0x37; memop mo
@@ -502,6 +505,7 @@ let encode (em : extended_module) =
       | Store ({ty = I64Type; sz = Some Pack16; _} as mo) -> op 0x3d; memop mo
       | Store ({ty = I64Type; sz = Some Pack32; _} as mo) -> op 0x3e; memop mo
       | Store {ty = F32Type | F64Type; sz = Some _; _} -> assert false
+      | Store {ty = V128Type; _} -> assert false (* v128 stores are SimdRaw *)
 
       | MemorySize -> op 0x3f; u8 0x00
       | MemoryGrow -> op 0x40; u8 0x00
@@ -512,6 +516,9 @@ let encode (em : extended_module) =
       (* End of manual extension *)
       (* Manual extension for passive data segments *)
       | MemoryInit x -> op 0xfc; vu32 0x08l; var x; u8 0x00
+      (* End of manual extension *)
+      (* Manual extension for SIMD: re-emit the opaquely decoded bytes. *)
+      | SimdRaw (o, imm) -> op 0xfd; vu32 o; put_string s imm
       (* End of manual extension *)
 
       | Const {it = I32 c; _} -> op 0x41; vs32 c

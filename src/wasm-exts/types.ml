@@ -16,7 +16,7 @@ let rec map_filter f = function
 
 (* Types *)
 
-type value_type = I32Type | I64Type | F32Type | F64Type
+type value_type = I32Type | I64Type | F32Type | F64Type | V128Type
 type index_type = I32IndexType | I64IndexType
 type elem_type = FuncRefType
 type stack_type = value_type list
@@ -43,6 +43,7 @@ type extension = SX | ZX
 let size = function
   | I32Type | F32Type -> 4
   | I64Type | F64Type -> 8
+  | V128Type -> 16
 
 let packed_size = function
   | Pack8 -> 1
@@ -111,6 +112,7 @@ let string_of_value_type = function
   | I64Type -> "i64"
   | F32Type -> "f32"
   | F64Type -> "f64"
+  | V128Type -> "v128"
 
 let string_of_value_types = function
   | [t] -> string_of_value_type t
