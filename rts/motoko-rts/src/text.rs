@@ -366,6 +366,63 @@ pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
     }
 }
 
+/// Dot product of two int8 vectors stored as blobs, over the common prefix
+/// length, with wrapping i32 accumulation. Exposed as a `#[no_mangle]` RTS
+/// export for embedding/similarity workloads where the per-element cost of a
+/// Motoko-level loop dominates.
+///
+/// The body is dispatched on the `simd128` target feature: with it enabled the
+/// product is accumulated 16 bytes at a time with wasm SIMD; otherwise a scalar
+/// loop is used. Both resolve to the identical `no_mangle` export, so the symbol
+/// exists under every RTS build configuration.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn blob_dot_int8(a: Value, b: Value) -> i32 {
+    let n = min(text_size(a), text_size(b)).as_usize();
+    let s1 = core::slice::from_raw_parts(a.as_blob().payload_const() as *const i8, n);
+    let s2 = core::slice::from_raw_parts(b.as_blob().payload_const() as *const i8, n);
+    blob_dot_int8_impl(s1, s2)
+}
+
+#[cfg(target_feature = "simd128")]
+unsafe fn blob_dot_int8_impl(s1: &[i8], s2: &[i8]) -> i32 {
+    use core::arch::wasm;
+    use core::arch::wasm::v128;
+    let mut acc = 0i32;
+    let mut i = 0usize;
+    // Process 16 lanes at a time: widen each half-product to i16, pairwise-extend
+    // to i32 and accumulate. All arithmetic is exact (|i8*i8| <= 64 fits i16), so
+    // the grouped sums agree with the scalar accumulation up to addition order.
+    while i + 16 <= s1.len() {
+        let a16 = wasm::v128_load(s1.as_ptr().add(i) as *const v128);
+        let b16 = wasm::v128_load(s2.as_ptr().add(i) as *const v128);
+        let lo = wasm::i16x8_extmul_low_i8x16(a16, b16);
+        let hi = wasm::i16x8_extmul_high_i8x16(a16, b16);
+        let sum = wasm::i32x4_add(
+            wasm::i32x4_extadd_pairwise_i16x8(lo),
+            wasm::i32x4_extadd_pairwise_i16x8(hi),
+        );
+        acc = wasm::i32x4_extract_lane::<0>(sum)
+            + wasm::i32x4_extract_lane::<1>(sum)
+            + wasm::i32x4_extract_lane::<2>(sum)
+            + wasm::i32x4_extract_lane::<3>(sum)
+            + acc;
+        i += 16;
+    }
+    for k in i..s1.len() {
+        acc = acc.wrapping_add(s1[k] as i32 * s2[k] as i32);
+    }
+    acc
+}
+
+#[cfg(not(target_feature = "simd128"))]
+unsafe fn blob_dot_int8_impl(s1: &[i8], s2: &[i8]) -> i32 {
+    let mut acc = 0i32;
+    for (&x, &y) in s1.iter().zip(s2.iter()) {
+        acc = acc.wrapping_add(x as i32 * y as i32);
+    }
+    acc
+}
+
 /// Length in characters
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_len(text: Value) -> usize {
