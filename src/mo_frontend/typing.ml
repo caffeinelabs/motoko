@@ -5111,10 +5111,10 @@ and infer_dec env dec : T.typ =
       match T.Env.find_opt i.it env.mixins with
       | None -> error env i.at "M0226" "unknown mixin %s" i.it
       | Some mix ->
-        match (mix.Scope.need_system, sys) with
+        (match (mix.Scope.need_system, sys) with
         | true, false -> local_error env i.at "M0264" "mixin include requires system capability";
         | false, true -> warn env i.at "M0265" "`system` capability is not required by this mixin"
-        | _ -> ();
+        | _ -> ());
         check_exp env mix.Scope.arg.note arg
     end;
     T.unit

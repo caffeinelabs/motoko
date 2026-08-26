@@ -1,5 +1,5 @@
 import MixinCounter "mixins/Counter";
 
 persistent actor {
-  include MixinCounter<system>();
+  include MixinCounter<system>(0);
 };
