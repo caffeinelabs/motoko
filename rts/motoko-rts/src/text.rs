@@ -409,8 +409,6 @@ unsafe fn dot_int8_simd128(p1: *const u8, p2: *const u8, n: usize) -> i32 {
     }
     s
 }
-
-
 /// Length in characters
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_len(text: Value) -> usize {
