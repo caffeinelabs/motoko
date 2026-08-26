@@ -1218,3 +1218,112 @@ let link (em1 : extended_module) libname (em2 : extended_module) =
   let final = replace_got_imports lib_heap_start table_size got_imports merged.module_ in
 
   { merged with module_ = final }
+
+(* spike (design/MigrationObjects.md Phase 1): merge a moc-produced frozen
+   migration object into a moc-produced (still unlinked) main module.
+
+   Unlike [link], both sides are moc output: no dylink.0, no PIC, no GOT and
+   no memory placement. The object was compiled with --spike-{pool,table,
+   segment}-offset so its baked immediates already land in the merged index
+   spaces; it defines no memory, table, or start. Its "mco"-namespace exports
+   resolve the main module's "mco" imports; its "rts"/"ic0" imports are
+   carried over verbatim (duplicates are fine) and resolved later by the
+   ordinary RTS link or the IC. All other object exports are dropped. *)
+let link_mco (em1 : extended_module) (em2 : extended_module) : extended_module =
+  let dm2 = em2.module_ in
+
+  (if dm2.memories <> [] || dm2.tables <> [] || dm2.start <> None then
+    raise (LinkError "mco object must not define a memory, table, or start function"));
+
+  (* Resolve main's mco imports against the object's exports. Unresolved mco
+     imports are left in place for further objects in a multi-object build. *)
+  let fun_required1 = find_imports is_fun_import "mco" em1.module_ in
+  let fun_exports2 = find_exports is_fun_export dm2 in
+  let fun_resolved12 = resolve fun_required1 fun_exports2 in
+  (* Deduplicate the object's function imports against the main module's:
+     duplicate ic0.* imports are not only wasteful — the IC's instrumentation
+     of stable-memory system calls assumes one import entry per name, and a
+     call through a duplicate entry hits an unrewritten trapping stub. Map
+     each object import that exists in the main module (same module+item
+     name) onto the main module's import index. *)
+  let fun_resolved21 =
+    let em1_fun_imports =
+      let idx = ref (-1) in
+      List.filter_map (fun (i : import) ->
+        match i.it.idesc.it with
+        | FuncImport _ ->
+          incr idx;
+          Some ((i.it.module_name, i.it.item_name), Int32.of_int !idx)
+        | _ -> None)
+        em1.module_.imports in
+    let idx2 = ref (-1) in
+    List.filter_map (fun (i : import) ->
+      match i.it.idesc.it with
+      | FuncImport _ ->
+        incr idx2;
+        (match List.assoc_opt (i.it.module_name, i.it.item_name) em1_fun_imports with
+         | Some main_idx -> Some (Int32.of_int !idx2, main_idx)
+         | None -> None)
+      | _ -> None)
+      dm2.imports in
+  let (funs1, funs2) =
+    calculate_renaming
+      (count_imports is_fun_import em1.module_)
+      (Lib.List32.length em1.module_.funcs)
+      (count_imports is_fun_import dm2)
+      fun_resolved12
+      fun_resolved21 in
+  List.iter (check_fun_typ em1.module_ dm2) fun_resolved12;
+  List.iter (check_fun_typ dm2 em1.module_) fun_resolved21;
+
+  let (globals1, globals2) =
+    calculate_renaming
+      (count_imports is_global_import em1.module_)
+      (Lib.List32.length em1.module_.globals)
+      (count_imports is_global_import dm2)
+      [] [] in
+
+  (* Deduplicate types, as in [link]. *)
+  let type_indices : (Wasm_exts.Types.func_type, int32) Hashtbl.t = Hashtbl.create 100 in
+  let add_or_get_ty (ty : Wasm_exts.Types.func_type) =
+    match Hashtbl.find_opt type_indices ty with
+    | None ->
+      let idx = Int32.of_int (Hashtbl.length type_indices) in
+      Hashtbl.add type_indices ty idx;
+      idx
+    | Some idx -> idx
+  in
+  let ty_renamer (tys : Wasm_exts.Types.func_type phrase list) (t : int32) : int32 =
+    let fun_ty = List.nth tys (Int32.to_int t) in
+    add_or_get_ty fun_ty.it
+  in
+  let em1_tys =
+    map_module (fun m -> { (rename_types (ty_renamer m.types) m) with types = [] }) em1
+  in
+  let dm2 = { (rename_types (ty_renamer dm2.types) dm2) with types = [] } in
+  let type_indices_sorted : type_ list =
+    Hashtbl.to_seq type_indices |>
+    List.of_seq |>
+    List.sort (fun (_, idx1) (_, idx2) -> compare idx1 idx2) |>
+    List.map (fun (ty, _) -> ty @@ no_region)
+  in
+
+  join_modules
+    ( em1_tys
+    |> map_module (fun m -> { m with types = type_indices_sorted })
+    |> map_module (remove_imports is_fun_import fun_resolved12)
+    |> map_name_section (remove_fun_imports_name_section fun_resolved12)
+    |> rename_funcs_extended funs1
+    |> rename_globals_extended globals1
+    )
+    ( dm2
+    |> remove_imports is_fun_import fun_resolved21
+    |> rename_funcs funs2
+    |> rename_globals globals2
+    |> (fun m -> { m with exports = [] })
+    )
+    ( em2.name
+    |> remove_fun_imports_name_section fun_resolved21
+    |> rename_funcs_name_section funs2
+    )
+    type_indices

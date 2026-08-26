@@ -1,0 +1,3 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+install $ID mco/stock_linked.wasm ""
+ingress $ID show "DIDL\x00\x00"

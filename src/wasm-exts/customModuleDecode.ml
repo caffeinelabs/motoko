@@ -886,8 +886,11 @@ let motoko_section_subsection (ms : motoko_sections) s =
     { ms with labels = ms.labels @ labels }
   | i -> error s (pos s) (Printf.sprintf "unknown motoko section subsection id %d" i)
 
-let motoko_section_content p_end s =
-  repeat_until p_end s empty_motoko_sections motoko_section_subsection
+let motoko_section_content init p_end s =
+  (* fold from the already-decoded stable_types/compiler, not from empty —
+     starting from empty silently dropped them whenever a `motoko` section
+     was present *)
+  repeat_until p_end s init motoko_section_subsection
 
 let is_motoko n = (n = Utf8.decode "motoko")
 
@@ -895,7 +898,9 @@ let utf8 sec_end s =
   let pos = pos s in
   let bytes = get_string (sec_end - pos) s in
   try
-    let _ = Utf8.decode (string s) in
+    (* validate the bytes just read; reading `string s` here would consume a
+       length-prefixed string PAST sec_end and break every icp: section *)
+    let _ = Utf8.decode bytes in
     bytes
   with Utf8.Utf8 ->
     error s pos "malformed UTF-8 encoding"
@@ -903,7 +908,8 @@ let utf8 sec_end s =
 let motoko_sections s =
   let stable_types = icp_custom_section "motoko:stable-types" utf8 None s in
   let compiler = icp_custom_section "motoko:compiler" utf8 None s in
-  custom_section is_motoko motoko_section_content { empty_motoko_sections with stable_types; compiler; } s
+  let seeded = { empty_motoko_sections with stable_types; compiler; } in
+  custom_section is_motoko (motoko_section_content seeded) seeded s
 
 (* Enhanced orthogonal persistence section *)
 let enhanced_orthogonal_persistence_section s =
@@ -941,6 +947,9 @@ let is_unknown n = not (
   is_icp candid_service_name n ||
   is_icp candid_args_name n ||
   is_icp motoko_stable_types_name n ||
+  (* missing entries meant the skip loop consumed these sections as junk *)
+  is_icp (icp_name "motoko:compiler") n ||
+  is_icp (icp_name "enhanced-orthogonal-persistence") n ||
   is_wasm_features n ||
   is_target_features n)
 

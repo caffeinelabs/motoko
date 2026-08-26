@@ -519,7 +519,8 @@ module E = struct
     imports = Imports.empty ();
     exports = ref Table.empty;
     func_ptrs = ref FunEnv.empty;
-    end_of_table = ref 0l;
+    (* spike: objects allocate table slots above the main module's range *)
+    end_of_table = ref (Int32.of_int !Flags.spike_table_offset);
     globals = ref Table.empty;
     global_names = ref NameEnv.empty;
     built_in_funcs = ref NameEnv.empty;
@@ -1425,7 +1426,8 @@ module Heap = struct
     E.call_rts env "get_heap_size"
 
   let get_static_variable env index =
-    compile_unboxed_const index ^^
+    (* spike: objects address their pool slice above the main module's *)
+    compile_unboxed_const (Int64.add index (Int64.of_int !Flags.spike_pool_offset)) ^^
     E.call_rts env "get_static_variable"
 
 end (* Heap *)
@@ -3845,7 +3847,7 @@ module Blob = struct
     get_blob ^^ payload_ptr_unskewed env ^^ (* target address *)
     compile_const_32 0l ^^ (* data offset *)
     data_length ^^ G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
-    G.i (MemoryInit (nr segment_index)) ^^
+    G.i (MemoryInit (nr (Int32.add segment_index (Int32.of_int !Flags.spike_segment_offset)))) ^^
     get_blob
 
   let constant env sort payload : E.shared_value =
@@ -3883,7 +3885,7 @@ module Blob = struct
     get_blob ^^ payload_ptr_unskewed env ^^ (* target address *)
     compile_const_32 0l ^^ (* data offset *)
     data_length ^^ G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
-    G.i (MemoryInit (nr segment_index)) ^^
+    G.i (MemoryInit (nr (Int32.add segment_index (Int32.of_int !Flags.spike_segment_offset)))) ^^
     get_blob
 
   let of_ptr_size env = Func.share_code2 Func.Always env "blob_of_ptr_size" (("ptr", I64Type), ("size" , I64Type)) [I64Type] (
@@ -9700,12 +9702,19 @@ module GCRoots = struct
   let register_static_variables env =
     E.(env.object_pool.frozen) := true;
     Func.share_code0 Func.Always env "initialize_root_array" [] (fun env ->
-      let length = Int64.of_int (E.object_pool_size env) in
-      compile_unboxed_const length ^^
-      E.call_rts env "initialize_static_variables" ^^
+      (* spike: main mode reserves extra slots for linked objects' pool slices;
+         object mode skips the (single, main-owned) initialize call and writes
+         its slice at offset — sequential-init order is guaranteed by chaining
+         each object's init right after the main pool init in rts_start. *)
+      let pool_offset = Int64.of_int !Flags.spike_pool_offset in
+      let length = Int64.of_int (E.object_pool_size env + !Flags.spike_pool_extra) in
+      (if !Flags.spike_pool_offset = 0 then
+        compile_unboxed_const length ^^
+        E.call_rts env "initialize_static_variables"
+      else G.nop) ^^
       E.iterate_object_pool env (fun index allocation ->
       Func.share_code0 Func.Always env (Printf.sprintf "alloc_%i" index) [] (fun env ->
-            compile_unboxed_const (Int64.of_int index) ^^
+            compile_unboxed_const (Int64.add (Int64.of_int index) pool_offset) ^^
             allocation env ^^
               E.call_rts env "set_static_variable")
       )
@@ -12108,6 +12117,30 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
   (* Other prims, unary *)
 
+  (* spike (design/MigrationObjects.md Phase 1): call a frozen migration object
+     across the link boundary — dummy closure + vanilla arg, one vanilla result,
+     the exact shape of the whole-program direct call. *)
+  | OtherPrim p, [e] when Lib.String.chop_prefix "spike_frozen:" p <> None ->
+    let lab = Option.get (Lib.String.chop_prefix "spike_frozen:" p) in
+    SR.Vanilla,
+    compile_unboxed_zero ^^ (* dummy closure *)
+    compile_exp_vanilla env ae e ^^
+    E.call_import env "mco" ("mco_migration_" ^ lab)
+
+  (* spike: object mode — export the migration function under its mco symbol.
+     The argument must be a compile-time-known function (Const.Fun). *)
+  | OtherPrim "spike_export_migration", [e] ->
+    let lab = match !Flags.spike_mco_object with
+      | Some lab -> lab
+      | None -> assert false in
+    (match compile_exp env ae e with
+     | SR.Const (Const.Fun (_, mk_fi, _)), _code ->
+       E.add_export env (nr {
+         name = Lib.Utf8.decode ("mco_migration_" ^ lab);
+         edesc = nr (FuncExport (nr (mk_fi ()))) });
+       SR.unit, G.nop
+     | _ -> fatal "spike_export_migration: argument is not a compile-time function")
+
   | OtherPrim "array_len", [e] ->
     SR.Vanilla,
     compile_exp_vanilla env ae e ^^
@@ -14070,15 +14103,37 @@ and conclude_module env set_serialization_globals start_fi_o =
   set_heap_base dynamic_heap_start;
 
   (* Wrap the start function with the RTS initialization *)
-  let rts_start_fi = E.add_fun env "rts_start" (Func.of_body env [] [] (fun env1 ->
-    E.call_rts env ("initialize_incremental_gc") ^^
-    GCRoots.register_static_variables env ^^
-    match start_fi_o with
-    | Some fi ->
-      G.i (Call fi)
+  let rts_start_fi_o = match !Flags.spike_mco_object with
+    | Some lab ->
+      (* spike object mode: no start function. Export mco_init_<lab>, which
+         fills this object's pool slice (offset indices, no initialize call)
+         and runs the wrapper program's init if any. The consuming build's
+         rts_start calls it right after its own pool initialization, keeping
+         the RTS's sequential-init invariant. *)
+      let mco_init_fi = E.add_fun env ("mco_init_" ^ lab) (Func.of_body env [] [] (fun _env1 ->
+        GCRoots.register_static_variables env ^^
+        (match start_fi_o with
+         | Some fi -> G.i (Call fi)
+         | None -> G.nop)
+      )) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode ("mco_init_" ^ lab);
+        edesc = nr (FuncExport (nr mco_init_fi)) });
+      None
     | None ->
-      Lifecycle.set env Lifecycle.PreInit
-  )) in
+      Some (E.add_fun env "rts_start" (Func.of_body env [] [] (fun _env1 ->
+        E.call_rts env ("initialize_incremental_gc") ^^
+        GCRoots.register_static_variables env ^^
+        (* spike main mode: chain the frozen object's pool init, in order *)
+        (match !Flags.spike_mco_import with
+         | Some lab -> E.call_import env "mco" ("mco_init_" ^ lab)
+         | None -> G.nop) ^^
+        (match start_fi_o with
+        | Some fi ->
+          G.i (Call fi)
+        | None ->
+          Lifecycle.set env Lifecycle.PreInit)
+      ))) in
 
   IC.default_exports env;
 
@@ -14100,18 +14155,31 @@ and conclude_module env set_serialization_globals start_fi_o =
     init = [ nr fi ];
     }) (E.get_elems env) in
 
-  let table_sz = E.get_end_of_table env in
+  let table_sz = Int32.add (E.get_end_of_table env) (Int32.of_int !Flags.spike_table_extra) in
+
+  (* spike object mode: define no table/memory/start of our own (the consuming
+     module provides them; our code refers to index 0 which is theirs after
+     merging) and keep only the mco_* exports. *)
+  let spike_object = !Flags.spike_mco_object <> None in
+  let exports =
+    if spike_object then
+      List.filter (fun (e : export) ->
+        Lib.String.chop_prefix "mco_" (Lib.Utf8.encode e.it.name) <> None)
+        (E.get_exports env)
+    else E.get_exports env in
 
   let module_ = rename_funcs remapping {
       types = List.map nr (E.get_types env);
       funcs = List.map (fun (f,_,_) -> f) funcs;
-      tables = [ nr { ttype = HugeTableType (Int64.{ min = of_int32 table_sz; max = Some (of_int32 table_sz) }, FuncRefType) } ];
+      tables =
+        if spike_object then []
+        else [ nr { ttype = HugeTableType (Int64.{ min = of_int32 table_sz; max = Some (of_int32 table_sz) }, FuncRefType) } ];
       elems;
-      start = Some (nr rts_start_fi);
+      start = (match rts_start_fi_o with Some fi -> Some (nr fi) | None -> None);
       globals = E.get_globals env;
-      memories;
+      memories = if spike_object then [] else memories;
       imports = func_imports;
-      exports = E.get_exports env;
+      exports;
       datas
     } in
 
@@ -14150,6 +14218,13 @@ and conclude_module env set_serialization_globals start_fi_o =
   (* For debugging *)
   if !Flags.verbose then E.object_pool_report env;
 
+  (* spike: report the index-space sizes the offset bootstrap needs *)
+  (if !Flags.spike_mco_object <> None || !Flags.spike_mco_import <> None then
+    Printf.eprintf "spike-counts: pool=%d table=%ld segments=%d\n"
+      (E.object_pool_size env)
+      (E.get_end_of_table env)
+      (List.length datas));
+
   match E.get_rts env with
   | None -> emodule
   | Some rts -> Linking.LinkModule.link emodule "rts" rts
@@ -14175,6 +14250,13 @@ let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm
 
   IC.system_imports env;
   RTS.system_imports env;
+
+  (* spike main mode: declare the frozen-object imports before any function *)
+  (match !Flags.spike_mco_import with
+   | Some lab ->
+     E.add_func_import env "mco" ("mco_migration_" ^ lab) [I64Type; I64Type] [I64Type];
+     E.add_func_import env "mco" ("mco_init_" ^ lab) [] []
+   | None -> ());
 
   compile_init_func env prog;
 

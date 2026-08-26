@@ -117,6 +117,20 @@ let argspec =
   "-no-async", Arg.Clear Flags.async_lowering, " no async-lowering (with -iR)";
 
   "-no-link", Arg.Clear link, " do not statically link-in runtime";
+  "--spike-mco-object", Arg.String (fun s -> Flags.spike_mco_object := Some s),
+    "<label> (spike) compile a frozen migration object exporting mco_migration_<label>/mco_init_<label>";
+  "--spike-mco-import", Arg.String (fun s -> Flags.spike_mco_import := Some s),
+    "<label> (spike) call the frozen migration object for chain entry <label> instead of compiling its source body";
+  "--spike-pool-offset", Arg.Int (fun i -> Flags.spike_pool_offset := i),
+    "<n> (spike) offset static object pool indices by <n> (object mode)";
+  "--spike-pool-extra", Arg.Int (fun i -> Flags.spike_pool_extra := i),
+    "<n> (spike) extend the static pool initialization count by <n> (main mode)";
+  "--spike-table-offset", Arg.Int (fun i -> Flags.spike_table_offset := i),
+    "<n> (spike) start function table index allocation at <n> (object mode)";
+  "--spike-table-extra", Arg.Int (fun i -> Flags.spike_table_extra := i),
+    "<n> (spike) extend the declared table size by <n> (main mode)";
+  "--spike-segment-offset", Arg.Int (fun i -> Flags.spike_segment_offset := i),
+    "<n> (spike) offset passive data segment indices in memory.init by <n> (object mode)";
   "-no-timer", Arg.Clear Flags.global_timer, " do not create a global timer expiration endpoint";
   "-no-system-api",
     Arg.Unit (fun () -> Flags.(compile_mode := WasmMode)),

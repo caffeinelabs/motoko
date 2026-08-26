@@ -72,6 +72,16 @@ let use_stable_regions = ref false
 let enhanced_orthogonal_persistence = ref true
 let explicit_enhanced_orthogonal_persistence = ref false
 let enhanced_migration : string option ref = ref None
+
+(* MCO spike (design/MigrationObjects.md, Phase 1): frozen migration objects.
+   Throwaway flags for the feasibility prototype; not a public interface. *)
+let spike_mco_object : string option ref = ref None
+let spike_mco_import : string option ref = ref None
+let spike_pool_offset : int ref = ref 0
+let spike_pool_extra : int ref = ref 0
+let spike_table_offset : int ref = ref 0
+let spike_table_extra : int ref = ref 0
+let spike_segment_offset : int ref = ref 0
 (* Last deployed .most for the resume-point boundary check *)
 let stable_baseline : string option ref = ref None
 let share_code = ref false

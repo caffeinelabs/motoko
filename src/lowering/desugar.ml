@@ -881,10 +881,21 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
             mem_typ_k_fields
           in
           let else_branch =
+            (* spike (design/MigrationObjects.md Phase 1): when this chain
+               entry is frozen, call the linked migration object instead of
+               the compiled-in module's function. Same boundary, same types. *)
+            let migration_call =
+              match !Mo_config.Flags.spike_mco_import with
+              | Some lab when lab = mig_lab_k ->
+                { it = I.PrimE (I.OtherPrim ("spike_frozen:" ^ lab), [varE v_dom]);
+                  at = Source.no_region;
+                  note = Note.{ def with typ = rng_k } }
+              | _ -> callE run_expr [] (varE v_dom)
+            in
             blockE [
               letD state_prev (build_nested (k - 1));
               letD v_dom extract_dom;
-              letD v_rng (callE run_expr [] (varE v_dom));
+              letD v_rng migration_call;
               expD (rts_register_migration mig_lab_k)]
             merge_result
           in
@@ -1619,7 +1630,27 @@ let transform_unit_body (u : S.comp_unit_body) : Ir.comp_unit =
   match u.it with
   | S.MixinU _ ->
     raise (Invalid_argument "Desugar: Cannot transform mixin compilation unit")
-  | S.ProgU ds -> I.ProgU (decs ds)
+  | S.ProgU ds ->
+    let ids = decs ds in
+    (* spike object mode: the wrapper program must bind the migration function
+       as `let mco_entry = M.migration;` — export it via the spike prim. *)
+    let ids = match !Mo_config.Flags.spike_mco_object with
+      | Some _ ->
+        let entry =
+          List.find_map (fun (d : Ir.dec) -> match d.it with
+            | I.LetD ({it = I.VarP id; note = ty; _}, _) when id = "mco_entry" ->
+              Some (varE (var id ty))
+            | _ -> None) (List.rev ids) in
+        (match entry with
+         | Some e ->
+           ids @ [ expD {
+             it = I.PrimE (I.OtherPrim "spike_export_migration", [e]);
+             at = Source.no_region;
+             note = Note.{ def with typ = T.unit } } ]
+         | None ->
+           raise (Invalid_argument "spike: object wrapper must bind `mco_entry`"))
+      | None -> ids in
+    I.ProgU ids
   | S.ModuleU (self_id, fields) -> (* compiling a module as a library *)
     I.LibU ([], {
       it = build_obj u.at T.Module self_id fields u.note.S.note_typ;
