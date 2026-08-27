@@ -13,6 +13,7 @@
     compatibility errors. Each problem is reported once, and the
     write-a-migration hint is only offered when adding a migration file can
     actually fix the field (#6318).
+  * bugfix: fixes compilation error on <system>-enabled mixin (#6328).
 
 ## 1.14.1 (2026-08-17)
 
