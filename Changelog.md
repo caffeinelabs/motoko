@@ -5,6 +5,29 @@
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
+## 1.15.0 (2026-08-28)
+
+* motoko (`moc`)
+
+  * feat: with `--stable-baseline` and `--enhanced-migration`, the migration
+    directory is now validated against the migration history the baseline
+    records as already applied: a deployed migration that was deleted (unless
+    all older ones are deleted too), edited in place, or a local migration
+    backdated to sort before the deployed head reports the new M0268
+    diagnostic, a warning treated as an error by default (demote with
+    `-W=M0268`, silence with `-A=M0268`) (#6325).
+
+  * bugfix: with `--stable-baseline` and `--enhanced-migration`, the M0254/M0267
+    check now honors the migrations the baseline records as already applied:
+    requirements are computed at the chain's resume point instead of replaying
+    the whole chain, and fields the baseline explains no longer warn M0254;
+    a field missing from the baseline errors with M0267 naming the resume
+    point, while an incompatible one keeps the detailed M0170/M0216
+    compatibility errors. Each problem is reported once, and the
+    write-a-migration hint is only offered when adding a migration file can
+    actually fix the field (#6318).
+  * bugfix: fixes compilation error on <system>-enabled mixin (#6328).
+
 ## 1.14.1 (2026-08-17)
 
 * motoko (`moc`)

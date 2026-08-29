@@ -27,6 +27,12 @@ let desc mig_lab_opt =
   | None -> "the previous version"
   | Some mig_lab -> "version `" ^ mig_lab ^ "`"
 
+(* the demanding side of the --stable-baseline boundary *)
+let em_desc mig_lab_opt =
+  match mig_lab_opt with
+  | None -> "initial actor"
+  | Some mig_lab -> "upgrade resuming after migration `" ^ mig_lab ^ "`"
+
 (* FUTURE: we could perhaps use tf.src.region to better locate the errors below *)
 let error_discard s at link mig_lap_opt tf =
   Diag.add_msg s
@@ -71,6 +77,40 @@ let error_required s at link mig_lab_opt tf =
           tf.lab
           link))
 
+(**
+  The demand of the migration chain alone at the resume point named by [mig_lab_opt]:
+  inputs some migration consumes that no earlier migration produces, i.e. pre over an empty post.
+
+  Any malformed entry (already diagnosed M0201-M0203) yields no demand:
+  a hole-y chain is not a valid pre, and empty Multi is invalid. *)
+let chain_input_fields mig_lab_opt chain =
+  if chain = [] then [] else
+  let exception Malformed in
+  try
+    let chain_fields = chain |> List.map (fun (file, _, typ) ->
+      if Type.is_migration typ
+      then {lab = Type.migration_lab_of_filename file; typ; src = empty_src}
+      else raise Malformed)
+    in
+    List.map snd (pre mig_lab_opt (Multi {chain = chain_fields; post = []}))
+  with Malformed -> []
+
+(* an input of the migration chain itself: no new migration file can sort
+   before its consumer, so the previous version must provide it — no hint *)
+let em_error_chain_input s at tf =
+  Diag.add_msg s
+    (Diag.error_message at "M0267" "type"
+       (Format.asprintf
+          "the migration chain requires field `%s` of type%a as input; the previous version must provide it.\nSee %s"
+          tf.lab display_typ tf.typ enhanced_migration_link))
+
+let em_error_required s at mig_lab_opt tf =
+  Diag.add_msg s
+    (Diag.error_message at "M0267" "type"
+       (Format.asprintf
+          "%s requires field `%s` of type%a; not found in the previous version — write a migration that produces it.\nSee %s"
+          (em_desc mig_lab_opt) tf.lab display_typ tf.typ enhanced_migration_link))
+
 (*
    - Mutability of stable fields can be changed because they are never aliased.
    - Stable fields cannot be dropped.
@@ -98,6 +138,41 @@ let match_stab_fields s at link mig_lab_opt tfs1 tfs2 =
              | Incompatible explanation -> error_stable_sub s at link mig_lab_opt tf1 tf2 explanation
              | Compatible -> ()
         end)
+
+(**
+  EM counterpart of match_stab_fields for the --stable-baseline boundary:
+  EM fields have no initializers, so all are "required" (must be explained by the baseline).
+
+  Compares the deployed fields (tfs1) with the fields demanded at the chain's resume point (tfs2, named by mig_lab_opt);
+  a missing demanded field is always an error, never optional.
+
+  `chain_input` (see chain_input_fields) holds the fields no new migration file can fix,
+  so their error carries no produce-a-migration hint. *)
+let match_stab_em_fields s at mig_lab_opt chain_input tfs1 tfs2 =
+  (* Assume that tfs1 and tfs2 are sorted. *)
+  let field_at tf =
+    let r = tf.src.region in
+    if r <> Source.no_region then r else at
+  in
+  Lib.List.align compare_field tfs1 tfs2
+  |> Seq.iter (function
+    (* no dropped fields *)
+    | Lib.This tf1 ->
+      error_discard s at enhanced_migration_link mig_lab_opt tf1
+    | Lib.That tf ->
+      if lookup_val_field_opt tf.lab chain_input <> None
+      then em_error_chain_input s (field_at tf) tf
+      else em_error_required s (field_at tf) mig_lab_opt tf
+    | Lib.Both (tf1, tf2) ->
+      let context = [StableVariable tf2.lab] in
+      begin
+        match Type.sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
+        | Incompatible explanation -> error_sub s (field_at tf2) enhanced_migration_link mig_lab_opt tf1 tf2 explanation
+        | Compatible ->
+           match Type.stable_sub_explained context (as_immut tf1.typ) (as_immut tf2.typ) with
+           | Incompatible explanation -> error_stable_sub s (field_at tf2) enhanced_migration_link mig_lab_opt tf1 tf2 explanation
+           | Compatible -> ()
+      end)
 
 let incompat_mix_migrations s at =
   Diag.add_msg s
