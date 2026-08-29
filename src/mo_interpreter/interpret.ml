@@ -767,7 +767,14 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
       (fun v1 -> await env exp.at short (V.as_async v1) k)
   | AwaitE (T.AwaitCmp, exp1) ->
     interpret_exp env exp1
-      (fun v1 -> V.as_comp v1 k (Option.get env.throws))
+      (function
+        | V.Comp _ as v1 -> V.as_comp v1 k (Option.get env.throws)
+        (* Self-actor worker exception: `await*` on a `Async`-typed value
+           behaves the same as a plain `await` (see typing.ml `AwaitE` rule
+           and the syntactic classifier). The split into a wrapper/worker
+           is a lowering concern; at the AST-interpreter level there is no
+           message dispatch to elide. *)
+        | v1 -> await env exp.at false (V.as_async v1) k)
   | AssertE (Runtime, exp1) ->
     interpret_exp env exp1 (fun v ->
       if V.as_bool v

@@ -56,6 +56,17 @@ type env =
     rets : ret_env;
     async : C.async_cap;
     in_actor : bool;
+    (* `Some name` when typing inside an `actor`/`actor class` body, where
+       `name` is the identifier of the actor's self-reference binding. Used
+       by the AwaitE rule to syntactically discriminate self-actor method
+       calls (see the three-way classification in the `AwaitCmp` branch of
+       `infer_exp''`). *)
+    self_id : string option;
+    (* Names of `public` (shared) methods of the immediately-enclosing actor
+       body. Populated at actor-body entry from the dec_fields; used by the
+       AwaitE rule to recognise unqualified `foo(args)` as an obvious self
+       call. Empty when not in an actor body. *)
+    public_methods : S.t;
     in_prog : bool;
     context : exp' list;
     pre : bool;
@@ -96,6 +107,8 @@ let env_of_scope msgs scope =
     rets = NoRet;
     async = Async_cap.NullCap;
     in_actor = false;
+    self_id = None;
+    public_methods = S.empty;
     in_prog = true;
     context = [];
     pre = false;
@@ -2841,16 +2854,76 @@ and infer_exp'' env exp : T.typ =
        end;
        t3
      with Invalid_argument _ ->
-       error env exp1.at "M0088"
-         "expected async%s type, but expression has type%a%s"
-         (if s1 = T.Fut then "" else "*")
-         display_typ_expand t1
-         (if T.is_async t1 then
-            (if s1 = T.Fut then
-              "\nUse keyword 'await*' (not 'await' or 'await?') to consume this type."
-            else
-              "\nUse keyword 'await' or 'await?' (not 'await*') to consume this type.")
-          else "")
+       (* Self-actor worker exception: `await*` on a call to a `public` shared
+          method that returns `async T` is permitted via a syntactic
+          three-way classification of the inner CallE's callee:
+            (a) Obvious self  — `VarE id` with `id` in `env.public_methods`,
+                or `DotE (VarE self_id, _)` matching `env.self_id`.
+                Lowering elides message dispatch via the worker `id*`.
+            (b) Maybe self    — `DotE (e, _)` where `e : ActorT` and the
+                method name is a public field of that actor type. Lowering
+                emits a runtime `Prim.thisActor == addressee(e)` check that
+                takes the worker fast path when it holds, or the ordinary
+                message round-trip otherwise.
+            (c) Fully dynamic — anything else (let-aliased values,
+                computed callees). Statically rejected: `await*` here
+                cannot be statically targeted to a worker.
+          Soundness w.r.t. actor classes: two instances of the same class
+          share types and method-type cells, so a type-only check would
+          conflate `self.foo` with `other.foo`. The receiver-identity
+          discriminator is therefore syntactic, not type-based. *)
+       (* In the pre-pass the typed-AST notes inside the callee are not yet
+          populated, so the classifier below can't run reliably. Defer the
+          greenlight to the regular pass; in the pre-pass we just extract
+          the content type when t1 is some `async _ T` so block-level
+          typing can proceed. *)
+       if env.pre && T.is_async t1 then
+         let (_, _, t3) = T.as_async t1 in t3
+       else
+       let classify () : [ `Obvious | `Maybe | `Reject ] =
+         if s <> T.AwaitCmp then `Reject
+         else if not (T.is_async t1) then `Reject
+         else
+           let (s_async, _, _) = T.as_async t1 in
+           if s_async <> T.Fut then `Reject
+           else match exp1.it with
+             | CallE (_, callee, _, _) ->
+                 (match callee.it with
+                  | VarE id when S.mem id.it env.public_methods -> `Obvious
+                  | DotE ({ it = VarE recv_id; _ }, _, _)
+                    when env.self_id = Some recv_id.it -> `Obvious
+                  | DotE (recv, _, _) ->
+                      (match T.promote recv.note.note_typ with
+                       | T.Obj (T.Actor, _, _) -> `Maybe
+                       | _ -> `Reject)
+                  | _ -> `Reject)
+             | _ -> `Reject
+       in
+       let cls = classify () in
+       if cls <> `Reject then begin
+         let (t2, t3) = T.as_async_sub T.Fut t0 t1 in
+         if not (eq env exp.at t0 t2) then begin
+            local_error env exp1.at "M0087"
+              "ill-scoped await: expected async type from current scope %a, found async type from other scope %a%a%a"
+              T.pp_typ t0
+              T.pp_typ t2
+              (associated_region env exp.at) t0
+              (associated_region env exp.at) t2;
+           scope_info env t0 exp.at;
+           scope_info env t2 exp.at;
+         end;
+         t3
+       end else
+         error env exp1.at "M0088"
+           "expected async%s type, but expression has type%a%s"
+           (if s1 = T.Fut then "" else "*")
+           display_typ_expand t1
+           (if T.is_async t1 then
+              (if s1 = T.Fut then
+                "\nUse keyword 'await*' (not 'await' or 'await?') to consume this type."
+              else
+                "\nUse keyword 'await' or 'await?' (not 'await*') to consume this type.")
+            else "")
     )
   | AssertE (_, exp1) ->
     if not env.pre then check_exp_strong env T.bool exp1;
@@ -4483,12 +4556,18 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
   in
   let env =
     if s <> T.Actor && s <> T.Mixin then
-      { env with in_actor = false }
+      { env with in_actor = false; self_id = None; public_methods = S.empty }
     else
+      let _, pub_val = pub_fields dec_fields in
+      let public_methods =
+        T.Env.fold (fun id _ acc -> S.add id acc) pub_val S.empty in
       { env with
         in_actor = true;
         labs = T.Env.empty;
         rets = NoRet;
+        public_methods;
+        (* self_id is established by the enclosing ClassD's `infer_dec`; here
+           we just preserve what's already in env. *)
       }
   in
   let decs = List.map (fun (df : dec_field) -> df.it.dec) dec_fields in
@@ -5230,6 +5309,7 @@ and infer_dec env dec : T.typ =
           rets = NoRet;
           async = async_cap;
           in_actor;
+          self_id = if in_actor then Some self_id.it else None;
         }
       in
       let initial_usage = enter_scope env''' in
@@ -5565,7 +5645,8 @@ and infer_dec_typdecs env dec : Scope.t =
           labs = T.Env.empty;
           rets = NoRet;
           async = async_cap;
-          in_actor}
+          in_actor;
+          self_id = if in_actor then Some self_id.it else None}
     in
     let t = infer_obj { env'' with check_unused = false } obj_sort exp_opt dec_fields dec.at in
     let k = T.Def (T.close_binds class_cs class_tbs, T.close class_cs t) in

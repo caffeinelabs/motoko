@@ -9,7 +9,136 @@ open Operator
 module S = Syntax
 module I = Ir
 module T = Type
+module Traversals = Mo_frontend.Traversals
 open Construct
+
+(* String set used for collecting the per-actor "worker demand": names of
+   public methods that are `await*`'d as Obvious-self call sites somewhere
+   in the actor body. Built by `collect_obvious_self_demand`; consumed by
+   the wrapper/worker split in `build_actor` / `build_obj`. *)
+module StringSet = Set.Make (String)
+
+(* Context for the AwaitE retargeting at desugar time. Set by `build_actor`
+   for the duration of its dec_fields lowering; carries the actor's set of
+   public-method names (for matching unqualified `await* foo()` callees) and
+   the optional self-id binding (for matching `await* self.foo()`). Restored
+   to the previous value at the end of each actor scope to support nested
+   actors. *)
+let current_actor_context : (StringSet.t * string option) option ref = ref None
+
+(* ----- helpers used by the self-actor worker split -------------------- *)
+
+(* Walk the surface dec_fields of an actor body and collect the names of
+   public methods that need a worker emitted because they appear as the
+   target of an `await*` somewhere in the body. The classifier matches:
+
+   - Obvious self via unqualified `VarE id` with `id ∈ public_methods`;
+   - Obvious self via `DotE (VarE recv, _, _)` with `recv = self_id`;
+   - Maybe-self via `DotE (recv, _, _)` where `recv` has actor type and
+     the method name is in `public_methods` (recv may or may not be self
+     at runtime; phase-2 lowering emits a runtime-checked dual path).
+
+   Quadratic in the number of methods (each AwaitE call site checks
+   membership in `public_methods`), but N is small in practice. *)
+let collect_obvious_self_demand
+    (self_id_opt : string option)
+    (public_methods : StringSet.t)
+    (dec_fields : S.dec_field list)
+    : StringSet.t =
+  let demand = ref StringSet.empty in
+  let visit (e : S.exp) : S.exp =
+    (match e.it with
+     | S.AwaitE (T.AwaitCmp, e1) ->
+        (match e1.it with
+         | S.CallE (_, callee, _, _) ->
+            (match callee.it with
+             | S.VarE id when StringSet.mem id.it public_methods ->
+                demand := StringSet.add id.it !demand
+             | S.DotE ({ it = S.VarE recv; _ }, mname, _)
+                when self_id_opt = Some recv.it ->
+                demand := StringSet.add mname.it !demand
+             | S.DotE (recv, mname, _)
+                when StringSet.mem mname.it public_methods
+                     && (match T.promote recv.note.S.note_typ with
+                         | T.Obj (T.Actor, _, _) -> true
+                         | _ -> false) ->
+                demand := StringSet.add mname.it !demand
+             | _ -> ())
+         | _ -> ())
+     | _ -> ());
+    e
+  in
+  List.iter (fun df -> ignore (Traversals.over_dec_field visit df)) dec_fields;
+  !demand
+
+(* Given an IR `LetD (VarP name) (FuncE name Shared … (AsyncE Fut tb body t))`
+   for a demanded public method, return two decs: a private worker `name*`
+   wrapping `body` in `AsyncE Cmp`, and a modified wrapper whose body is
+   `async { await* name*(args) }` calling the worker.
+
+   Phase-1 limitation: the worker's body literally inherits the surface
+   `body` expression from the original wrapper's `AsyncE`. That is sound
+   as long as `body` does not reference the wrapper's `AsyncE` scope
+   variable directly (e.g. simple-returns like `{ 42 }`). For bodies that
+   do (e.g. they themselves `await` inner async calls), the references
+   would dangle — that case is handled by falling back to leaving the dec
+   untouched. *)
+let split_demanded_method (demand : StringSet.t) (d : I.dec) : I.dec list =
+  match d.it with
+  | I.LetD ({ it = I.VarP name; _ },
+            ({ it = I.FuncE (_fname, sort, _ctrl, tbs, args, typs, body); _ } as _fexp))
+    when StringSet.mem name demand && T.is_shared_sort sort ->
+      (match body.it with
+       | I.AsyncE (T.Fut, async_tb, user_body, scope_typ) ->
+           (* `scope_typ` is the wrapper's outer scope used as the AsyncE's
+              type-scope (typically `T.Con (tbs[0].it.con, [])`); `async_tb`
+              is the AsyncE's inner binder. *)
+           let content_typ = user_body.note.Note.typ in
+           (* Build the worker. Fresh outer typ_binds (its own function-scope
+              binder) and a fresh AsyncE inner binder. *)
+           let worker_name = name ^ "*" in
+           let worker_outer_con =
+             Cons.fresh T.default_scope_var (T.Abs ([], T.scope_bound)) in
+           let worker_outer_tb =
+             typ_arg worker_outer_con T.Scope T.scope_bound in
+           let worker_outer_typ = T.Con (worker_outer_con, []) in
+           let worker_async_con =
+             Cons.fresh T.default_scope_var (T.Abs ([], T.scope_bound)) in
+           let worker_async_tb =
+             typ_arg worker_async_con T.Scope T.scope_bound in
+           let worker_body =
+             asyncE T.Cmp worker_async_tb user_body worker_outer_typ in
+           let worker_return_typ =
+             T.Async (T.Cmp, worker_outer_typ, content_typ) in
+           let worker_func =
+             funcE worker_name T.Local T.Returns [worker_outer_tb]
+               args [worker_return_typ] worker_body in
+           let worker_var = var worker_name worker_func.note.Note.typ in
+           let worker_dec = letD worker_var worker_func in
+           (* New wrapper body: `async { await* worker(args) }`. The call
+              instantiates the worker's outer scope binder with the
+              wrapper's AsyncE scope. *)
+           let arg_forward = match args with
+             | [] -> tupE []
+             | _ -> tupE (List.map (fun a -> varE (var_of_arg a)) args) in
+           let call_worker =
+             (* Instantiate the worker's outer scope binder with the
+                wrapper's *current* AsyncE scope (the inner async_tb's con),
+                not the wrapper FuncE's outer scope. *)
+             callE (varE worker_var)
+               [T.Con (async_tb.it.I.con, [])]
+               arg_forward in
+           let await_call = awaitE T.AwaitCmp call_worker in
+           let new_wrapper_body =
+             asyncE T.Fut async_tb await_call scope_typ in
+           let new_wrapper_func =
+             funcE name sort T.Promises tbs args typs new_wrapper_body in
+           let new_wrapper_var = var name new_wrapper_func.note.Note.typ in
+           let new_wrapper_dec = letD new_wrapper_var new_wrapper_func in
+           [{ worker_dec with at = d.at };
+            { new_wrapper_dec with at = d.at }]
+       | _ -> [d])
+  | _ -> [d]
 
 (*
 As a first scaffolding, we translate imported files into let-bound
@@ -336,7 +465,141 @@ and exp' at note = function
                        | T.Async (_, t, _) -> t
                        | _ -> assert false) in
     (blockE (ds @ rs) { at; note; it }).it
-  | S.AwaitE (sort, e) -> I.PrimE I.(AwaitPrim sort, [exp e])
+  | S.AwaitE (sort, e) ->
+    (* Self-actor worker (phase-1 lowering). When the typechecker greenlit
+       AwaitCmp on an `async T` (not async-cmp) callee, the call is either
+       Obvious-self (statically resolvable to a public method of the
+       enclosing actor — VarE id with id in public_methods, or DotE on
+       self_id) or Maybe-self (callee receiver typed as some actor but not
+       known to be self). In the Obvious-self case we retarget the call to
+       the generated private async-cmp worker `foo+star` emitted by
+       split_demanded_method; the result is a well-typed AwaitPrim AwaitCmp
+       on an async-cmp callee. In the Maybe-self case (and any non-actor
+       context), we fall back to the polymorphic-await translation:
+       AwaitCmp on async-fut T becomes AwaitPrim (AwaitFut false), keeping
+       AwaitCmp semantically equivalent to AwaitFut. *)
+    let obvious_self_target =
+      match sort, T.promote e.note.S.note_typ, !current_actor_context with
+      | T.AwaitCmp, T.Async (T.Fut, _, _), Some (public_methods, self_id_opt) ->
+          (match e.it with
+           | S.CallE (_par, callee, _inst, (_s, e2_ref)) ->
+               (match callee.it with
+                | S.VarE id when StringSet.mem id.it public_methods ->
+                    Some (id.it, callee, !e2_ref)
+                | S.DotE ({ it = S.VarE recv; _ }, mname, _)
+                  when self_id_opt = Some recv.it ->
+                    Some (mname.it, callee, !e2_ref)
+                | _ -> None)
+           | _ -> None)
+      | _ -> None
+    in
+    (match obvious_self_target with
+     | Some (target_name, callee, args_e) ->
+         (* Retarget to the worker. Worker's function type is the callee's
+            type with codomain wrapped in `async* _ T` and sort/control
+            switched to Local/Returns. Structural match with the worker
+            emitted by `split_demanded_method` is sufficient — physical
+            cons identity is not required by `check_ir`. *)
+         let callee_typ = T.promote callee.note.S.note_typ in
+         let (_sort_orig, _ctrl_orig, tbs, doms, rng_typs) = T.as_func callee_typ in
+         let content_typ = match rng_typs with
+           | [t] -> t
+           | _ -> assert false in
+         let scope_var = T.Var (T.default_scope_var, 0) in
+         let worker_typ =
+           T.Func (T.Local, T.Returns, tbs, doms,
+                   [T.Async (T.Cmp, scope_var, content_typ)]) in
+         let worker_name = target_name ^ "*" in
+         let worker_var_e = varE (var worker_name worker_typ) in
+         (* Find a scope type-arg: take it from the surrounding async block
+            via the callee's CallE inst.note (already lowered for the
+            original call). Easier: use the callee's original inst.note
+            unchanged. *)
+         let inst_note = match e.it with
+           | S.CallE (_, _, inst, _) -> inst.note
+           | _ -> assert false in
+         let call_worker =
+           callE worker_var_e inst_note (exp args_e) in
+         let await_call = awaitE T.AwaitCmp call_worker in
+         await_call.it
+     | None ->
+         (* Phase-2 Maybe-self: callee is `DotE (recv, mname, _)` whose
+            receiver is dynamically typed as an actor but is *not*
+            statically `self_id`, and `mname` is a public method of the
+            current actor. Emit a runtime dual path:
+              let r = recv;
+              if (selfRef == principalOfActor r)
+              then await* foo*(args)           // fast path
+              else await r.foo(args)           // slow path
+            Both branches return the same content T. The receiver is
+            let-bound to avoid double-evaluation in the two branches. *)
+         let maybe_self_target =
+           match sort, T.promote e.note.S.note_typ, !current_actor_context with
+           | T.AwaitCmp, T.Async (T.Fut, _, _), Some (public_methods, _self_id_opt) ->
+               (match e.it with
+                | S.CallE (_par, callee, _inst, (_s, e2_ref)) ->
+                    (match callee.it with
+                     | S.DotE (recv, mname, _)
+                       when StringSet.mem mname.it public_methods
+                            && (match T.promote recv.note.S.note_typ with
+                                | T.Obj (T.Actor, _, _) -> true
+                                | _ -> false) ->
+                         Some (mname.it, recv, callee, !e2_ref)
+                     | _ -> None)
+                | _ -> None)
+           | _ -> None
+         in
+         (match maybe_self_target with
+          | Some (target_name, recv, callee, args_e) ->
+              let callee_typ_orig = T.promote callee.note.S.note_typ in
+              let (_sort_orig, _ctrl_orig, tbs, doms, rng_typs) =
+                T.as_func callee_typ_orig in
+              let content_typ = match rng_typs with
+                | [t] -> t
+                | _ -> assert false in
+              let scope_var = T.Var (T.default_scope_var, 0) in
+              let worker_typ =
+                T.Func (T.Local, T.Returns, tbs, doms,
+                        [T.Async (T.Cmp, scope_var, content_typ)]) in
+              let worker_name = target_name ^ "*" in
+              let inst_note = match e.it with
+                | S.CallE (_, _, inst, _) -> inst.note
+                | _ -> assert false in
+              let recv_typ = T.promote recv.note.S.note_typ in
+              let recv_var = fresh_var "recv" recv_typ in
+              let recv_letd = letD recv_var (exp recv) in
+              (* Condition: selfRefE principal == principalOfActor recv *)
+              let self_p = selfRefE T.principal in
+              let recv_p =
+                primE (I.OtherPrim "principalOfActor") [varE recv_var] in
+              let cond =
+                primE (I.RelPrim (T.principal, Operator.EqOp))
+                  [self_p; recv_p] in
+              (* Fast path: await* foo*(args) *)
+              let fast_call =
+                callE (varE (var worker_name worker_typ))
+                  inst_note (exp args_e) in
+              let fast_await = awaitE T.AwaitCmp fast_call in
+              (* Slow path: `await recv.foo(args)`. Rebuild the dot access
+                 on the let-bound `recv_var` so we don't re-evaluate `recv`.
+                 Must use `ActorDotPrim` (not `DotPrim`) since the receiver
+                 has actor sort. *)
+              let slow_callee =
+                { it = I.PrimE (I.ActorDotPrim target_name, [varE recv_var]);
+                  at = no_region;
+                  note = Note.{ def with typ = callee_typ_orig;
+                                          eff = T.Triv } } in
+              let slow_call =
+                callE slow_callee inst_note (exp args_e) in
+              let slow_await = awaitE (T.AwaitFut false) slow_call in
+              let if_expr = ifE cond fast_await slow_await in
+              (blockE [recv_letd] if_expr).it
+          | None ->
+              let sort' = match sort, T.promote e.note.S.note_typ with
+                | T.AwaitCmp, T.Async (T.Fut, _, _) -> T.AwaitFut false
+                | _ -> sort
+              in
+              I.PrimE I.(AwaitPrim sort', [exp e])))
   | S.AssertE (Runtime, e) -> I.PrimE (I.AssertPrim, [exp e])
   | S.AnnotE (e, _) -> assert false
   | S.ImportE (f, ir) -> raise (Invalid_argument (Printf.sprintf "Import expression found in unit body: %s" f))
@@ -754,8 +1017,42 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
 
 and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
   let fs0 = build_fields obj_typ0 in
+  (* Self-actor worker/wrapper split: collect the set of `public` methods
+     that are `await*`'d as Obvious-self call sites in this actor body, and
+     after lowering the dec_fields, replace each demanded method's
+     `LetD (VarP foo) (FuncE foo Shared … (AsyncE Fut tb body t))` with two
+     decs: a private worker `foo*` carrying `body` in `AsyncE Cmp`, and a
+     modified wrapper whose body is `async { await* foo*(args) }`. The
+     Obvious-self call sites in *other* methods are left untouched; they
+     continue to lower via the polymorphic-await* fallback (`AwaitCmp` on
+     `async _ T` → `AwaitFut false`). Retargeting those call sites to the
+     worker is a follow-up. *)
+  let self_id_opt = Option.map (fun (i : S.id) -> i.it) self_id in
+  let (_, tfs0, _) = T.as_obj' obj_typ0 in
+  let public_methods =
+    List.fold_left (fun s T.{lab; _} -> StringSet.add lab s) StringSet.empty tfs0 in
+  let demand = collect_obvious_self_demand self_id_opt public_methods es in
+  (* Plant `current_actor_context` for the duration of this actor's
+     dec_fields lowering so the `S.AwaitE` handler can recognise
+     Obvious-self call sites and retarget them to the generated worker. *)
+  let saved_context = !current_actor_context in
+  current_actor_context := Some (public_methods, self_id_opt);
   let stabs = List.concat_map build_stabs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
+  current_actor_context := saved_context;
+  (* Apply the wrapper/worker split alongside stabs adjustment so the two
+     lists stay equal-length for `List.map2 stabilize` below. The worker
+     is a private/flexible dec; the wrapper keeps the original method's
+     stability annotation (none for `public func`, etc.). *)
+  let stabs, ds =
+    List.combine stabs ds
+    |> List.concat_map (fun (st, d) ->
+        match split_demanded_method demand d with
+        | [worker; wrapper] ->
+            let flex = Some (S.Flexible @@ no_region) in
+            [(flex, worker); (st, wrapper)]
+        | ds' -> List.map (fun d -> (st, d)) ds')
+    |> List.split in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in

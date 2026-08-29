@@ -1,0 +1,6 @@
+await-self-worker-bad.mo:15.21-15.22: type error [M0088], expected async* type, but expression has type
+  async<$> Int
+Use keyword 'await' or 'await?' (not 'await*') to consume this type.
+await-self-worker-bad.mo:20.21-20.29: type error [M0088], expected async* type, but expression has type
+  async<$> Int
+Use keyword 'await' or 'await?' (not 'await*') to consume this type.
