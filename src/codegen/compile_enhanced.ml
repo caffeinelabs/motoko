@@ -480,6 +480,7 @@ module E = struct
     args : (bool * string) option ref;
     service : (bool * string) option ref;
     stable_types : (bool * string) option ref;
+    stable_types_text : string option ref;
     labs : LabSet.t ref; (* Used labels (fields and variants),
                             collected for Motoko custom section 0 *)
 
@@ -532,6 +533,7 @@ module E = struct
     args = ref None;
     service = ref None;
     stable_types = ref None;
+    stable_types_text = ref None;
     labs = ref LabSet.empty;
     (* Actually unused outside mk_fun_env: *)
     n_param = 0l;
@@ -13925,6 +13927,7 @@ and main_actor as_opt mod_env ds fs up =
 
   (* Export metadata *)
   mod_env.E.stable_types := metadata "motoko:stable-types" up.meta.sig_;
+  mod_env.E.stable_types_text := Some up.meta.sig_;
   mod_env.E.service := metadata "candid:service" up.meta.candid.service;
   mod_env.E.args := metadata "candid:args" up.meta.candid.args;
 
@@ -14045,7 +14048,13 @@ and main_actor as_opt mod_env ds fs up =
   )
 
 and metadata name value =
-  if List.mem name !Flags.omit_metadata_names then None
+  (* Strip [motoko:stable-types] under --enhanced-migration: the section
+     can grow very large with migration chains and the runtime system
+     already enforces stable-type compatibility at upgrade time; [.most]
+     emission and compile-time validation read [stable_types_text] instead. *)
+  if List.mem name !Flags.omit_metadata_names
+     || (name = "motoko:stable-types" && Option.is_some !Flags.enhanced_migration)
+  then None
   else Some (
            List.mem name !Flags.public_metadata_names,
            value)
@@ -14131,6 +14140,7 @@ and conclude_module env set_serialization_globals start_fi_o =
       motoko = {
         labels = E.get_labs env;
         stable_types = !(env.E.stable_types);
+        stable_types_text = !(env.E.stable_types_text);
         compiler = metadata "motoko:compiler" (Lib.Option.get Source_id.release Source_id.id);
       };
       enhanced_orthogonal_persistence = Some (false, "64-bit, layout version 1");
