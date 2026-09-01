@@ -1,5 +1,15 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * feat: Search nested modules for implicit candidates. When module `M` is in
+    scope, implicit resolution will now consider candidates like `M.N.compare`,
+    up to a nesting depth of 8. Breaking change: code whose implicits previously
+    resolved uniquely may now be ambiguous with candidates from nested modules
+    (#6084).
+
 ## 1.15.0 (2026-08-28)
 
 * motoko (`moc`)
@@ -147,7 +157,6 @@
 
 * motoko (`moc`)
 
-  * feat: Search nested modules for implicit candidates. When module `M` is in scope, implicit resolution will now consider candidates like `M.N.compare` (#6084).
   * feat: Structural implicit derivation for records and tuples via `__record` and `__tuple` combiners. Per-field results are lazy thunks, enabling short-circuiting for operations like `compare` (#5903).
 
   * feat: `--experimental-multi-value` flag enables function-level multi-value Wasm codegen. Off by default (#6113).

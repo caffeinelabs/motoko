@@ -1546,14 +1546,12 @@ and combine_pat_srcs env t pat : unit =
 type hole_candidate =
   { path: exp;
     typ : T.typ;
-    module_ref_opt: T.lab option; (* module name (from `vals`) or path (from `libs`) *)
+    module_ref_opt: T.lab option; (* root module name (from `vals`) or path (from `libs`) *)
+    desc : T.lab; (* dotted path for display, e.g. `M.Nested.compare` *)
     id : T.lab;
   }
 
-let desc_of_candidate candidate = quote
-  (match candidate.module_ref_opt with
-  | Some module_ref -> module_ref ^ "." ^ candidate.id
-  | None -> candidate.id)
+let desc_of_candidate candidate = quote candidate.desc
 
 let import_suggestion_of_candidate candidate =
   match candidate.module_ref_opt with
@@ -1911,9 +1909,9 @@ module ImplicitHoles = struct
   open Lib.Option.Syntax
 
   module MakeFromModule (M : CandidateSource) = struct
-    let make_field_candidate module_ref desc T.{lab; typ; _} =
-      let path = dot_module_exp module_ref (lab @@ no_region) @? no_region in
-      ({ path; typ; module_ref_opt = Some desc; id = lab} : hole_candidate)
+    let make_field_candidate (module_ref, path, desc) T.{lab; typ; _} =
+      let path = dot_module_exp path (lab @@ no_region) @? no_region in
+      ({ path; typ; module_ref_opt = Some module_ref; desc = desc ^ "." ^ lab; id = lab} : hole_candidate)
 
     (* Searches nested modules up to a given depth to find fields named [name] *)
     let rec find_candidates depth path desc t name = match T.normalize t with
@@ -1934,26 +1932,27 @@ module ImplicitHoles = struct
     let filter_fields hole on_field (entries : M.entry T.Env.t) =
       T.Env.to_seq entries
       |> Seq.concat_map (fun (lab, entry) ->
-        find_candidates max_search_depth (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name)
+        find_candidates max_search_depth (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name
+        |> Seq.map (fun (path, desc, field) -> ((lab, path, desc), field)))
       |> Seq.filter_map on_field
       |> List.of_seq
 
-    let matching_fields hole = filter_fields hole (fun (module_ref, desc, field) ->
+    let matching_fields hole = filter_fields hole (fun (site, field) ->
       if not (is_matching_typ hole field.T.typ) then None else
-      Some (make_field_candidate module_ref desc field))
+      Some (make_field_candidate site field))
 
-    let matching_fields_with_holes hole = filter_fields hole (fun (module_ref, desc, field) ->
+    let matching_fields_with_holes hole = filter_fields hole (fun (site, field) ->
       is_matching_typ_with_holes hole field.T.typ
-      |> Option.map (fun holes -> holes, make_field_candidate module_ref desc field))
+      |> Option.map (fun holes -> holes, make_field_candidate site field))
 
-    let matching_fields_structural info hole = filter_fields hole (fun (module_ref, desc, field) ->
+    let matching_fields_structural info hole = filter_fields hole (fun (site, field) ->
       is_matching_structural_combiner info field.T.typ
-      |> Option.map (fun elem_typ -> (elem_typ, make_field_candidate module_ref desc field)))
+      |> Option.map (fun elem_typ -> (elem_typ, make_field_candidate site field)))
   end
 
   let make_val_candidate id t =
     let path = VarE (id @~ no_region) @? no_region in
-    { path; typ = t; module_ref_opt = None; id }
+    { path; typ = t; module_ref_opt = None; desc = id; id }
 
   let matching_val hole (vals : val_env) =
     let* (t, _, _, _) = T.Env.find_opt hole.hole_name vals in
@@ -2000,7 +1999,7 @@ module ImplicitHoles = struct
     match find_matching_entry rec_bindings hole with
     | Some entry ->
       let id = entry.entry_name in
-      Ok { path = SynthesizeWrapper.var id; typ = hole_typ; module_ref_opt = None; id }
+      Ok { path = SynthesizeWrapper.var id; typ = hole_typ; module_ref_opt = None; desc = id; id }
     | None ->
 
     let try_derive_with holes wrapper candidates ~depth =
@@ -3241,7 +3240,10 @@ and check_hole env at hole_name hole_typ exp_ref =
         [Stdlib.Format.sprintf
           "If you're trying to omit an implicit argument%s you need to have a matching declaration%s in scope."
           desc desc]
-      else [Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " (List.filter_map import_suggestion_of_candidate lib_terms))]
+      else
+        (* Nested candidates within one lib share an import; dedupe the suggestions *)
+        let imports = List.sort_uniq String.compare (List.filter_map import_suggestion_of_candidate lib_terms) in
+        [Stdlib.Format.sprintf "Did you mean to import %s?" (String.concat " or " imports)]
     in
     let notes = import_sug @ derivation_sug in
     local_error ~notes env at "M0230" "Cannot determine implicit argument %s of type%a"
