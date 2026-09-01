@@ -1,0 +1,3 @@
+implicit-nested-conflict.mo:21.9-21.11: type error [M0231], ambiguous implicit argument named `zero` of type 
+  Nat.
+note: The ambiguous implicit candidates are: `Top.zero`, `Top.Nested.zero`.
