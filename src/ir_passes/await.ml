@@ -562,6 +562,7 @@ and declare_pat pat exp : exp =
   | OptP pat1
   | TagP (_, pat1) -> declare_pat pat1 exp
   | AltP (pat1, pat2) -> declare_pat pat1 exp
+  | AndP (pat1, pat2) -> declare_pat pat1 (declare_pat pat2 exp)
 
 and declare_pats pats exp : exp =
   match pats with
@@ -597,6 +598,10 @@ and rename_pat' pat =
     assert(Freevars.(M.is_empty (pat pat1)));
     assert(Freevars.(M.is_empty (pat pat2)));
     (PatEnv.empty,pat.it)
+  | AndP (pat1, pat2) ->
+    let patenv1, pat1' = rename_pat pat1 in
+    let patenv2, pat2' = rename_pat pat2 in
+    (PatEnv.disjoint_union patenv1 patenv2, AndP (pat1', pat2'))
 
 and rename_pats pats =
   match pats with
@@ -621,6 +626,8 @@ and define_pat patenv pat : dec list =
     assert(Freevars.(M.is_empty (pat pat1)));
     assert(Freevars.(M.is_empty (pat pat2)));
     []
+  | AndP (pat1, pat2) ->
+    define_pat patenv pat1 @ define_pat patenv pat2
 
 and define_pats patenv (pats : pat list) : dec list =
   List.concat_map (define_pat patenv) pats

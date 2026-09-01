@@ -147,3 +147,27 @@ do {
     "John",
   ); // warn M0223 + M0236 + M0237
 };
+
+// --- M0236: regression — unparenthesized single-arg call (#6096) ---
+
+do {
+  let m = Map.empty<Nat, Text>();
+
+  // single arg, no parens
+  ignore Map.size m; // warn M0236
+
+  // single arg, no parens, with type instantiation
+  ignore Map.size<Nat, Text> m; // warn M0236
+};
+
+// --- M0236: non-postfix receiver -> no warning (no clean autofix) ---
+
+do {
+  // BinE receiver: `Nat.toText((x * 6364136223846793005 + 1442695040888963407) % 4294967296)`
+  // would rewrite to `(...).toText()` adding outer parens; suppress instead.
+  let pos = 1;
+  ignore Nat.toText((pos * 6364136223846793005 + 1442695040888963407) % 4294967296); // no-warn
+
+  // IfE receiver — likewise.
+  ignore Nat.toText(if (pos == 0) 1 else 2); // no-warn
+};

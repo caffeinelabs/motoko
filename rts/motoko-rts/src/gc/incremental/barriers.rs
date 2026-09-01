@@ -6,14 +6,15 @@ use motoko_rts_macros::ic_mem_fn;
 
 use crate::{
     memory::Memory,
-    types::{is_skewed, Value},
+    types::{Value, is_skewed},
 };
 
 use super::{
-    count_allocation, get_incremental_gc_state, post_allocation_barrier, pre_write_barrier, Phase,
+    Phase, count_allocation, get_incremental_gc_state, post_allocation_barrier, pre_read_barrier,
+    pre_write_barrier,
 };
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn running_gc() -> bool {
     get_incremental_gc_state().phase != Phase::Pause
 }
@@ -36,6 +37,19 @@ pub unsafe fn write_with_barrier<M: Memory>(mem: &mut M, location: *mut Value, v
     *location = value.forward_if_possible();
 }
 
+/// Read a potential pointer value through a load barrier for the incremental GC.
+/// `value` (skewed if a pointer) is the target loaded out of a weak reference.
+/// During the mark phase this marks the loaded target, symmetric to `write_with_barrier`.
+/// Return:
+/// `value` for convenience.
+/// The barrier can be conservatively called even if the loaded value might not be a pointer.
+#[ic_mem_fn]
+pub unsafe fn read_with_barrier<M: Memory>(mem: &mut M, value: Value) -> Value {
+    let state = get_incremental_gc_state();
+    pre_read_barrier(mem, state, value);
+    value
+}
+
 /// Allocation barrier to be called after a new object allocation.
 /// The new object needs to be fully initialized, except for the payload of a blob.
 /// Used for the incremental GC.
@@ -46,7 +60,7 @@ pub unsafe fn write_with_barrier<M: Memory>(mem: &mut M, location: *mut Value, v
 /// * Mark new allocations during the GC mark and evacuation phases.
 /// * Resolve pointer forwarding during the GC update phase.
 /// * Keep track of concurrent allocations to adjust the GC increment time limit.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn allocation_barrier(new_object: Value) -> Value {
     let state = get_incremental_gc_state();
     if state.phase != Phase::Pause {

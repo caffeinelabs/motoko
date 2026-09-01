@@ -6,7 +6,7 @@ use motoko_rts::continuation_table::{
     continuation_count, recall_continuation, remember_continuation,
 };
 use motoko_rts::memory::alloc_blob;
-use motoko_rts::types::{Bytes, Value, TAG_BLOB_B};
+use motoko_rts::types::{Bytes, TAG_BLOB_B, Value};
 
 pub unsafe fn test() {
     println!("Testing continuation table ...");

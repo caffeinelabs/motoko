@@ -29,10 +29,10 @@ use crate::{
     memory::Memory,
     rts_trap_with,
     types::{
-        base_array_tag, size_of, Tag, Value, TAG_ARRAY_I, TAG_ARRAY_M, TAG_ARRAY_S,
-        TAG_ARRAY_SLICE_MIN, TAG_ARRAY_T, TAG_BIGINT, TAG_BITS64_F, TAG_BITS64_S, TAG_BITS64_U,
-        TAG_BLOB_A, TAG_BLOB_B, TAG_BLOB_P, TAG_BLOB_T, TAG_CONCAT, TAG_MUTBOX, TAG_OBJECT,
-        TAG_REGION, TAG_SOME, TAG_VARIANT, TAG_WEAK_REF, TRUE_VALUE,
+        TAG_ARRAY_I, TAG_ARRAY_M, TAG_ARRAY_S, TAG_ARRAY_SLICE_MIN, TAG_ARRAY_T, TAG_BIGINT,
+        TAG_BITS64_F, TAG_BITS64_S, TAG_BITS64_U, TAG_BLOB_A, TAG_BLOB_B, TAG_BLOB_P, TAG_BLOB_T,
+        TAG_CONCAT, TAG_MUTBOX, TAG_OBJECT, TAG_REGION, TAG_SOME, TAG_VARIANT, TAG_WEAK_REF,
+        TRUE_VALUE, Tag, Value, base_array_tag, size_of,
     },
 };
 
@@ -46,8 +46,8 @@ use self::{
 use super::{
     deserialization::stable_memory_access::StableMemoryAccess,
     serialization::{
-        stable_memory_stream::{ScanStream, StableMemoryStream, WriteStream},
         SerializationContext,
+        stable_memory_stream::{ScanStream, StableMemoryStream, WriteStream},
     },
 };
 

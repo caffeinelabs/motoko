@@ -13,7 +13,17 @@ A safe, simple, actor-based programming language for building [Internet Computer
 * [Language manual](doc/md/reference/language-manual.md)
 * [Concrete syntax](doc/md/examples/grammar.txt)
 * [Documentation sources](doc/md/)
-* [Base package documentation](doc/md/base/index.md)
+* [Core package documentation](https://mops.one/core/docs)
+
+## AI Agent Skills
+
+The Motoko coding-agent skills live in the public
+[caffeinelabs/skills-internal](https://github.com/caffeinelabs/skills-internal)
+repo:
+
+* [writing-motoko](https://github.com/caffeinelabs/skills-internal/tree/main/skills/writing-motoko) — language reference, `mo:core` library, architecture patterns
+* [migrating-motoko-actors](https://github.com/caffeinelabs/skills-internal/tree/main/skills/migrating-motoko-actors) — enhanced multi-migration for actor state
+* [troubleshooting-motoko-migrations](https://github.com/caffeinelabs/skills-internal/tree/main/skills/troubleshooting-motoko-migrations) — migration and compatibility failure modes
 
 ## Introduction
 

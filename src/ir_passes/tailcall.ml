@@ -88,7 +88,7 @@ and assignEs vars exp : dec list =
   | _, _ ->
     let tup = fresh_var "tup" (typ exp) in
     letD tup exp ::
-    List.mapi (fun i v -> expD (assignE v (projE (varE v) i))) vars
+    List.mapi (fun i v -> expD (assignE v (projE (varE tup) i))) vars
 
 and exp' env e  : exp' = match e.it with
   | (VarE (_, _) | LitE _) as it -> it
@@ -156,6 +156,7 @@ and pat' env = function
   | OptP p
   | TagP (_, p)    -> pat env p
   | AltP (p1, _p2) -> pat env p1 (* both bind the same vars, ensured in check_pat *)
+  | AndP (p1, p2) -> pat (pat env p1) p2
 
 and pats env ps  =
   match ps with

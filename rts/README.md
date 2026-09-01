@@ -20,8 +20,8 @@ Running `make` should produce RTS Wasm files (different versions).
 
 If run within the Nix shell, the environment variables `WASM_CLANG` and `WASM_LD`
 should point to suitable binaries (we track a specific unreleased version of
-`llvm`). If not present, the `Makefile` will try to use `clang-19` and
-`wasm-ld-19`.
+`llvm`). If not present, the `Makefile` will try to use `clang-21` and
+`wasm-ld-21`.
 
 The runtime compiles and links in [libtommath]. It needs the source, so
 `nix build` and `nix develop` will set the environment variable `TOMMATHSRC` to
@@ -70,27 +70,7 @@ If you change dependencies (e.g. bump versions, add more crates), Make sure that
 `motoko-rts-tests/Cargo.lock` is up to date. This can be done by running
 `cargo build --target=wasm32-wasip1` in `motoko-rts-tests/` directory.
 
-**Updating rustc**:
-
-1. Update the Rust version of `rust-nightly` in `nix/pkgs.nix`
-   CAVEAT: there is a second `rust-stable` for the stable `rustc` too.
-2. Invalidate `rustStdDepsHash` in `nix/rts.nix`.
-3. Run `nix build .#rts`. You should get an error message about the expected
-   value of `rustStdDepsHash`.
-4. Update `rustStdDepsHash` with the expected value in the error message.
-
-(Can this be automated?)
-
---------
-**The above doesn't always work**
-
-Sometimes you want to also bump the  `.toml` dependencies...
-
-E.g. when you get `perhaps a crate was updated and forgotten to be
-re-vendored?`, proceed as follows:
-[Invalid recipe deleted. Try `cargo update in `rts/motoko-rts*`,
- invalidate hashes: {`cargoVendorTools.cargoSha256`, `rustStdDepsHash`, `rtsDeps.sha256`}
- all at the same time and then `nix build .#rts -K` to examine the build products.]
+**Updating rustc**: see [`.agents/skills/bump-rust-nightly/SKILL.md`](../.agents/skills/bump-rust-nightly/SKILL.md) for the full recipe — nightly date, `rustStdDepsHash` probe, Cargo lockfile updates, common compiler-error fixes, and CI-trigger pattern.
 
 Running RTS tests
 -----------------

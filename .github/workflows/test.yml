@@ -10,15 +10,24 @@ permissions:
   issues: write
   pull-requests: write
 
+# Abort superseded runs: a new push to a PR cancels the in-progress run for that
+# PR (rapid-fire commits no longer pile up runners). Pushes to master and merge
+# queue runs are never cancelled (each gets a unique group via run_id).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   common-tests:
     strategy:
       matrix:
-        os: [ubuntu-24-large, arm64-linux-16]
+        # Small/free GitHub runners — the heavy lifting is offloaded to
+        # nixbuild.net by the test-blueprint action.
+        os: [ubuntu-latest, ubuntu-26.04-arm]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Common Tests
         uses: ./.github/actions/test-blueprint
@@ -27,15 +36,18 @@ jobs:
           test-target: common-tests
           test-name: ${{ matrix.os }}-common-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
 
   gc-tests:
     strategy:
       matrix:
-        os: [ubuntu-24-large, arm64-linux-16]
+        # The RTS-variant builds that previously OOM'd big runners now run as
+        # separate derivations on nixbuild.net.
+        os: [ubuntu-latest, ubuntu-26.04-arm]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run GC Tests
         uses: ./.github/actions/test-blueprint
@@ -44,16 +56,22 @@ jobs:
           test-target: gc-tests
           test-name: ${{ matrix.os }}-gc-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
+          # Ignored on the nixbuild.net path (builds run remotely). Only applies
+          # to the local fallback (fork PRs / no token): serialise the ~3 GB
+          # RTS-variant builds so they don't OOM the small standard runners.
+          max-jobs: 1
 
   tests:
     strategy:
       matrix:
-        os: [ubuntu-24-large, arm64-linux-16]
+        # Small/free GitHub runners — builds are offloaded to nixbuild.net.
+        os: [ubuntu-latest, ubuntu-26.04-arm]
         build_type: [release, debug]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # fetch full history so that git merge-base works
           fetch-depth: 0
@@ -67,16 +85,24 @@ jobs:
           test-target: ${{ matrix.build_type }}-systems-go
           test-name: ${{ matrix.os }}-${{ matrix.build_type }}-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
+          # Ignored on the nixbuild.net path (builds run remotely). Only applies
+          # to the local fallback (fork PRs / no token): serialise the ~3 GB
+          # derivation builds so they don't OOM the small standard runners.
+          max-jobs: 1
 
+      # Secrets/vars are not exposed to fork PRs, so this step (and the perf
+      # step that consumes its output) is skipped on fork PRs.
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
           private-key: ${{ secrets.GENERIC_CI_RW_APP_PRIVATE_KEY }}
 
       - name: Run Performance Tests
-        if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request' && runner.os == 'Linux' && runner.arch == 'X64' && matrix.build_type == 'release'
+        if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && runner.os == 'Linux' && runner.arch == 'X64' && matrix.build_type == 'release'
         uses: ./.github/actions/performance
         with:
           head_sha: ${{ github.event.pull_request.head.sha }}
@@ -86,38 +112,16 @@ jobs:
           is_fork: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
           token: ${{ steps.app-token.outputs.token }}
 
-  reports:
-    if: github.ref == 'refs/heads/master'
-    needs: [tests]
-    concurrency: ci-${{ github.ref }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
-      - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
-        with:
-          name: ic-hs-test
-      - name: Fetch report
-        run: nix build .#report-site -o report-site
-      - name: Resolve symlinks
-        run: cp -rL report-site report-site-copy
-      - name: Push report to GitHub pages
-        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
-        with:
-          branch: gh-pages
-          folder: report-site-copy
-          single-commit: true
-
   artifacts:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'build_artifacts')
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
-      - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: ic-hs-test
       - name: nix-build
@@ -175,7 +179,7 @@ jobs:
     needs: [verify-common-gc, verify-main-tests]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: "master"
       - name: Automatically closing successful trials
@@ -189,11 +193,11 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'master' && github.event.pull_request.changed_files == 1
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: "master"
       - name: Create GitHub App Token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token-for-approvals
         with:
           client-id: ${{ vars.GENERIC_CI_RW_APP_CLIENT_ID }}
@@ -207,10 +211,10 @@ jobs:
           ### Handles open PRs that address `master` and only have one changed file. The body checks whether that is the `Changelog.md` (since the `if:` condition can't). If so, the PR gets approved with a comment.
           [ $(gh pr diff $PR --name-only) == "Changelog.md" ] \
           && gh pr review $PR --approve --body 'A change to `Changelog.md`? I can handle that!'
-          ### Handles open PRs filed by `dependabot[bot]` that carry the `dependencies` label. The single changed file must be `doc/docusaurus/package-lock.json`. If so, the PR gets approved with a comment.
+          ### Handles open PRs filed by `dependabot[bot]` that carry the `dependencies` label. The single changed file must be `doc/site/package-lock.json`. If so, the PR gets approved with a comment.
           ${{ github.event.pull_request.user.login == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependencies') }} \
-          && [ $(gh pr diff $PR --name-only) == "doc/docusaurus/package-lock.json" ] \
-          && gh pr review $PR --approve --body 'A change to `doc/docusaurus/package-lock.json`? I can handle that!' \
+          && [ $(gh pr diff $PR --name-only) == "doc/site/package-lock.json" ] \
+          && gh pr review $PR --approve --body 'A change to `doc/site/package-lock.json`? I can handle that!' \
           && gh pr merge $PR --squash --auto
           ### Handles open PRs filed by the GH automation bot that carry the `automerge-squash` label. The single changed file must be `flake.lock`. If so, the PR gets approved with a comment, auto-merge activated and the label removed.
           ${{ github.event.pull_request.user.login == 'caffeine-ci-generic-rw[bot]' && contains(github.event.pull_request.labels.*.name, 'automerge-squash') }} \

@@ -110,7 +110,7 @@ let error_codes : (string * string option) list =
     "M0111", None; (* Operator pattern cannot consume type *)
     "M0112", None; (* Tuple pattern cannot consume type *)
     "M0113", None; (* Object pattern cannot consume type *)
-    "M0114", None; (* Object pattern cannot consume actor type *)
+    (* "M0114" DEFUNCT Object pattern cannot consume values from actor type *)
     "M0115", None; (* Option pattern cannot consume type *)
     "M0116", None; (* Variant pattern cannot consume type *)
     "M0117", None; (* Pattern cannot consume type *)
@@ -156,7 +156,7 @@ let error_codes : (string * string option) list =
     "M0164", None; (* Unknown record or variant label in textual representation *)
     "M0165", None; (* Odd expected type *)
     "M0168", None; (* Type union or intersection on forward types *)
-    "M0169", None; (* Stable variable will be discarded. This may cause data loss. *)
+    "M0169", None; (* Stable variable from the previous version is implicitly discarded by the new version. This may cause data loss. *)
     "M0170", None; (* Stable variable must subtype *)
     (* "M0171" DEFUNCT Stable variable changing mutability *)
     "M0172", None; (* to_candid produces Blob, not -- *)
@@ -217,6 +217,12 @@ let error_codes : (string * string option) list =
     "M0257", None; (* Misplaced uninitialized dec *)
     "M0258", None; (* Uninitialized `let` with non <id> : <typ> pattern *)
     "M0259", None; (* Uninitialized dec requires type annotation *)
+    "M0260", None; (* `and`-pattern binds the same variable in both legs *)
+    "M0261", None; (* Cannot infer and-pattern, please use an annotation *)
+    "M0262", None; (* `and`-pattern legs have incompatible inferred types *)
+    "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
+    "M0264", None; (* mixin include requires system capability *)
+    "M0267", None; (* Initial actor or chain resume point requires field; the baseline does not explain it (e.g. added with no migration) *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -262,7 +268,10 @@ let warning_codes = [
   "M0242", None, "Implicit oneway declaration";
   "M0243", None, "Unreachable else in let-else";
   "M0244", None, "Mutable variable is never reassigned";
-  "M0254", None, "Initial actor requires field"
+  "M0254", None, "Initial actor requires field";
+  "M0265", None, "The `system` capability is not required by this mixin";
+  "M0266", None, "floating-point literal has more precision than its type can represent";
+  "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline"
   ]
 
 let try_find_explanation code =

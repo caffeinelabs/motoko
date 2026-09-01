@@ -2,7 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-26.05";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -86,17 +86,17 @@
       llvmEnv = ''
         # When compiling to wasm, we want to have more control over the flags,
         # so we do not use the nix-provided wrapper in clang
-        export WASM_CLANG="clang-19"
+        export WASM_CLANG="clang-21"
         export WASM_LD=wasm-ld
         # because we use the unwrapped clang, we have to pass in some flags/paths
         # that otherwise the wrapped clang would take care for us
-        export WASM_CLANG_LIB="${pkgs.llvmPackages_19.clang-unwrapped.lib}"
+        export WASM_CLANG_LIB="${pkgs.llvmPackages_21.clang-unwrapped.lib}"
 
         # When compiling natively, we want to use `clang` (which is a nixpkgs
         # provided wrapper that sets various include paths etc).
         # But for some reason it does not handle building for Wasm well, so
-        # there we use plain clang-19. There is no stdlib there anyways.
-        export CLANG="${pkgs.clang_19}/bin/clang"
+        # there we use plain clang-21. There is no stdlib there anyways.
+        export CLANG="${pkgs.clang_21}/bin/clang"
       '';
 
       rts-set = import ./nix/rts.nix { inherit pkgs llvmEnv; };
@@ -145,12 +145,12 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-13.0.0" = "sha256-QMJWB1yRAgrvmugmGqG6zvk7Z3hzXkGTsGej5EJ3z8g=";
+          "pocket-ic-14.0.0" = "sha256-kYozElqipS6N9y+ydG2fNvSfMtybK3lv2codr189sCE=";
         };
       };
 
       # Define test-runner package.
-      test-runner = pkgs.rustPlatform-stable.buildRustPackage {
+      test-runner = pkgs.rustPlatform.buildRustPackage {
         pname = "test-runner";
         version = "0.1.0";
         src = ./test-runner;
@@ -227,10 +227,14 @@
         # TODO: Re-enable base tests once we recalibrate them so they
         # don't OOM anymore.
         # base-tests = import ./nix/base-tests.nix { inherit pkgs; inherit (debugMoPackages) moc; };
-        base-doc = import ./nix/base-doc.nix { inherit pkgs; inherit (debugMoPackages) mo-doc; };
-        report-site = import ./nix/report-site.nix { inherit pkgs base-doc docs; inherit (tests) coverage; };
 
-        inherit rts rts-checked base-src core-src docs shell;
+        # `rts-checked` is intentionally NOT included here: it is the slow,
+        # cargo-test-running variant, and on darwin its check phase is uncached
+        # and dominates wall-clock. Pulling it via `common-constituents` would
+        # drag it into the `*-systems-go` aggregates and force every test job
+        # to wait on it. The `nightly-macos-test` schedule has a dedicated
+        # `rts-checked` job that builds `.#rts-checked` directly.
+        inherit rts base-src core-src docs shell;
       };
     in
     {
@@ -238,7 +242,7 @@
         release = buildableReleaseMoPackages;
         debug = buildableDebugMoPackages;
 
-        inherit nix-update tests js test-runner;
+        inherit nix-update tests js test-runner rts-checked;
 
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 
@@ -249,7 +253,7 @@
 
         # Platform-specific release files.
         release-files-ubuntu-latest = import ./nix/release-files-ubuntu-latest.nix { inherit self pkgs; };
-        "release-files-ubuntu-24.04-arm" = import ./nix/release-files-ubuntu-24.04-arm.nix { inherit self pkgs; };
+        "release-files-ubuntu-26.04-arm" = import ./nix/release-files-ubuntu-26.04-arm.nix { inherit self pkgs; };
         release-files-macos-15-intel = import ./nix/release-files-macos-15-intel.nix { inherit self pkgs; };
         release-files-macos-latest = import ./nix/release-files-macos-latest.nix { inherit self pkgs; };
 
@@ -288,6 +292,14 @@
         };
 
         inherit (debug) moc;
+
+        # CI-only wrapper: `moc` with M0223 (redundant type instantiation)
+        # forced off, to silence the storm on `motoko-core` (which promotes it
+        # via `-E=M0223` in its mops.toml) until #6199 cleans it up. The trailing
+        # `-A M0223` wins (last-one-wins); `-E=M0154` etc. are preserved.
+        moc-M0223 = pkgs.writeShellScriptBin "moc" ''
+          exec ${debug.moc}/bin/moc "$@" -A M0223
+        '';
 
         default = release-systems-go;
       };

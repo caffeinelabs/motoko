@@ -2,12 +2,12 @@ use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
 
 use crate::{
     gc::incremental::{
+        State,
         array_slicing::slice_array,
         mark_stack::{MarkStack, STACK_EMPTY},
         partitioned_heap::PartitionedHeap,
-        roots::{visit_roots, Roots},
+        roots::{Roots, visit_roots},
         time::BoundedTime,
-        State,
     },
     memory::Memory,
     stable_option::StableOption,

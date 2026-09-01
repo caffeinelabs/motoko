@@ -471,6 +471,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         assert T.(exp.note.note_typ = Prim Blob);
         k (V.Blob contents)
       end
+    | IDLTypesPath _ -> k (V.Obj V.Env.empty)
     | IDLPath _ -> trap exp.at "actor import"
     | PrimPath -> k (find "@prim" env.libs)
     )
@@ -845,6 +846,7 @@ and declare_pat pat : val_env =
   | AltP (pat1, _) (* pat2 has the same identifiers *)
   | AnnotP (pat1, _)
   | ParP pat1 -> declare_pat pat1
+  | AndP (pat1, pat2) -> V.Env.adjoin (declare_pat pat1) (declare_pat pat2)
 
 and declare_pats pats ve : val_env =
   match pats with
@@ -917,6 +919,8 @@ and match_pat pat v : val_env option =
     match_pat {pat with it = LitP lit} (Operator.unop op t v)
   | TupP pats ->
     match_pats pats (V.as_tup v) V.Env.empty
+  | ObjP pfs when T.(sub pat.note (Obj (Actor, [], []))) ->
+    match_actor_pat_fields pfs v V.Env.empty
   | ObjP pfs ->
     match_pat_fields pfs (V.as_obj v) V.Env.empty
   | OptP pat1 ->
@@ -935,6 +939,9 @@ and match_pat pat v : val_env option =
     | None -> match_pat pat2 v
     | some -> some
     )
+  | AndP (pat1, pat2) ->
+    Option.(bind (match_pat pat1 v) (fun ve1 ->
+      map (V.Env.adjoin ve1) (match_pat pat2 v)))
   | AnnotP (pat1, _)
   | ParP pat1 ->
     match_pat pat1 v
@@ -958,6 +965,22 @@ and match_pat_fields pfs vs ve : val_env option =
     let v = V.Env.find id.it vs in
     begin match match_pat p v with
     | Some ve' -> match_pat_fields pfs' vs (V.Env.adjoin ve ve')
+    | None -> None
+    end
+
+(* Field matching for actor-typed ObjP: parallel to match_pat_fields,
+   but each ValPF synthesises a (principal, method-name) pair from the
+   actor value rather than looking up an env (actor values aren't
+   record-shaped here).  Mirrors the interpreter's DotE-on-actor case. *)
+and match_actor_pat_fields pfs v ve : val_env option =
+  match pfs with
+  | [] -> Some ve
+  | { it = TypPF(_); _ }::pfs' ->
+    match_actor_pat_fields pfs' v ve
+  | { it = ValPF(id, p); _ }::pfs' ->
+    let method_v = V.(Tup [v; Text id.it]) in
+    begin match match_pat p method_v with
+    | Some ve' -> match_actor_pat_fields pfs' v (V.Env.adjoin ve ve')
     | None -> None
     end
 
@@ -1024,7 +1047,7 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
-  | MixinD (_) -> V.Env.empty
+  | MixinD _ -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
     assert false
@@ -1061,7 +1084,7 @@ and interpret_dec env dec (k : V.value V.cont) =
   | TypD _ ->
     k V.unit
   | MixinD _ -> k V.unit
-  | IncludeD (_, _arg, _note) ->
+  | IncludeD (_, _, _arg, _note) ->
      (* TODO
         - evaluate arg and bind it against note.pat
         - define note.imports from mixin as local lets

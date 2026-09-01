@@ -149,13 +149,16 @@ let add_lib_import msgs imported ri_ref at lib_path =
   | Error err ->
     Diag.add_msg msgs err
 
-let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
+let add_did_import msgs imported ri_ref at full_path ri =
   if Sys.file_exists full_path
   then begin
-    ri_ref := IDLPath (full_path, envvar_or_bytes);
-    imported := RIM.add !ri_ref at !imported
+    ri_ref := ri;
+    imported := RIM.add ri at !imported
   end else
     err_file_does_not_exist msgs at full_path
+
+let add_idl_import msgs imported ri_ref at full_path envvar_or_bytes =
+  add_did_import msgs imported ri_ref at full_path (IDLPath (full_path, envvar_or_bytes))
 
 let add_value_import msgs imported ri_ref at path =
   if !Mo_config.Flags.blob_import_placeholders then begin
@@ -197,7 +200,6 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
   in
   match Url.parse f with
   | Ok (Url.Relative path) ->
-    (* TODO support importing local .did file *)
     add_lib_import msgs imported ri_ref at
       { path = in_base base path; package = None }
   | Ok (Url.Package (pkg,path)) ->
@@ -222,6 +224,9 @@ let resolve_import_string msgs base actor_idl_path aliases packages imported (f,
     end
   | Ok (Url.FileValue path) ->
     add_value_import msgs imported ri_ref at (in_base base path)
+  | Ok (Url.IdlFile path) ->
+    let full_path = Lib.FilePath.normalise (in_base base path) in
+    add_did_import msgs imported ri_ref at full_path (IDLTypesPath full_path)
   | Ok Url.Prim ->
     add_prim_import imported ri_ref at
   | Error msg ->

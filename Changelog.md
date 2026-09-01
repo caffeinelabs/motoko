@@ -1,8 +1,177 @@
 # Motoko compiler changelog
 
+## 1.15.0 (2026-08-28)
+
+* motoko (`moc`)
+
+  * feat: with `--stable-baseline` and `--enhanced-migration`, the migration
+    directory is now validated against the migration history the baseline
+    records as already applied: a deployed migration that was deleted (unless
+    all older ones are deleted too), edited in place, or a local migration
+    backdated to sort before the deployed head reports the new M0268
+    diagnostic, a warning treated as an error by default (demote with
+    `-W=M0268`, silence with `-A=M0268`) (#6325).
+
+  * bugfix: with `--stable-baseline` and `--enhanced-migration`, the M0254/M0267
+    check now honors the migrations the baseline records as already applied:
+    requirements are computed at the chain's resume point instead of replaying
+    the whole chain, and fields the baseline explains no longer warn M0254;
+    a field missing from the baseline errors with M0267 naming the resume
+    point, while an incompatible one keeps the detailed M0170/M0216
+    compatibility errors. Each problem is reported once, and the
+    write-a-migration hint is only offered when adding a migration file can
+    actually fix the field (#6318).
+  * bugfix: fixes compilation error on <system>-enabled mixin (#6328).
+
+## 1.14.1 (2026-08-17)
+
+* motoko (`moc`)
+
+  * improvement: RTS weak reference interaction with the incremental GC: weak
+    reference reads now go through a load barrier (#6296).
+
+  * bugfix: when decoding a Candid `blob` or `text`, bound the claimed length (#6311).
+
+## 1.14.0 (2026-08-11)
+
+* motoko (`moc`)
+
+  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`).
+    The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`,
+    deriving operations like serialization for any variant whose case payloads have instances (#6192).
+
+  * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
+    (was 4 GiB), raising the default ceiling for the `Region` library.
+    Override with `--max-stable-pages <n>` as before (#6279).
+
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+
+  * bugfix: a `class` in expression position lowered to unit instead of its
+    constructor (#6291).
+
+  * bugfix: a self tail call whose argument is a tuple-returning expression
+    crashed the compiler (or miscompiled, with the IR check off) (#6292).
+
+## 1.13.0 (2026-08-03)
+
+* motoko (`moc`)
+
+  * feat: import a local Candid file as a types-only Motoko module via the `idl:` URI scheme —
+    `import S "idl:foo.did"` exposes `S.Self` (the service actor type) and named
+    Candid types, PascalCased when unambiguous (e.g. `user_id` → `S.UserId`). No principal or
+    `--actor-idl` flags required (#6263).
+
+  * chore: multi-value Wasm codegen is now always on;
+    `--(no-)experimental-multi-value` are kept for CLI compatibility but have
+    no effect (#6266).
+
+## 1.12.0 (2026-07-30)
+
+* motoko (`moc`)
+
+  * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
+    `Float32`, suggesting the shortest round-trip equivalent (#6261).
+
+  * feat: `--stable-baseline <file.most>` with `--enhanced-migration` escalates unexplained
+    "initial actor requires field" cases to error M0267; fields whose baseline type is a
+    stable subtype of the required type keep warning M0254 (prototype for legacy→EM
+    conversions) (#6249).
+
+  * feat: `--stable-baseline` also runs the same upgrade check as `--stable-compatible` during
+    `--check`, so tools can typecheck and verify upgrade safety in one `moc` invocation (#6253).
+
+  * fix: refresh the broken docs links in compatibility and stable-memory diagnostics (#6255).
+
+## 1.11.2 (2026-07-22)
+
+* motoko (`moc`)
+
+  * bugfix: `--implicit-package=<pkg>` was incorrectly using all transitively loaded modules for implicit argument and contextual dot resolution instead of restricting to the given package (#6242).
+
+## 1.11.1 (2026-07-15)
+
+* motoko (`moc`)
+
+  * refactor: simplifies bounds checks for candid decoding in the RTS (#6240).
+  * fix: fix codegen for nested mixins (#6223).
+  * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
+    `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
+
+## 1.11.0 (2026-06-29)
+
+* motoko (`moc`)
+
+  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so `binaryen`-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
+
+  * feat: a `Float32` literal written with more precision than the type can hold now warns (M0266), suggesting the shortest equivalent — e.g. `0.123456789 : Float32` → `0.12345679`. The surplus digits were already silently discarded by rounding; the warning fires only on genuine excess (minimal literals like `0.1`/`3.14` stay quiet) (#6198).
+
+  * feat: allow requiring `system` capability for `mixin` definitions (#6211).
+    This makes the capability available in initializers and the `mixin` body.
+    `<system>` then needs to appear on the corresponding `include`.
+
+  * feat: allow effectful code in transient `let`s and in `actor`/`mixin` bodies with `--enhanced-migration` (#6191).
+
+  * bugfix: `--enhanced-migration` now also applies to `mixin`s and considers their stable fields when checking migrations (#6183).
+
+## 1.10.1 (2026-06-24)
+
+* motoko (`moc`)
+
+  * bugfix: M0223 ("redundant type instantiation") and M0237 ("implicit argument can be omitted") no longer emit suggestions that are individually valid but break compilation when applied together. In nested calls where an inner instantiation or implicit is only inferable thanks to an outer one (e.g. `List.fromArray(Array.tabulate(...))`), only a jointly-applicable subset is now suggested, so `mops check --fix` no longer rewrites the code into an M0098 type error. The check is conservative: a few genuinely-redundant cases may go unreported in exchange for soundness (#6209).
+
+## 1.10.0 (2026-06-19)
+
+* motoko (`moc`)
+
+  * feat: M0218 ("redundant `stable` keyword") now ships a machine-applicable edit, so `mops check --fix` removes the explicit `stable` keyword on fields of a `persistent actor` (#6175).
+
+  * feat: Permitting destructuring patterns against actor types — `let { foo } = a`, `func g({foo} : actor T) {}`, etc. (#6149).
+
+  * feat: `/// @deprecated M0235 <message>` — the caffeine deprecation warning (M0235) can now carry a free-text message, rendered as a `note:` sub-diagnostic at every use site. M0154 free-text deprecation messages now render the same way (#6153).
+
+  * perf: Multi-value Wasm codegen is now _on by default_, `--no-experimental-multi-value` flag disables (if not desired) (#6165).
+
+  * bugfix: M0237 (implicit argument can be omitted) only fires now when the suggested removal preserves the same type instantiation. Previously the edit could be rejected (M0098) (#6166).
+
+  * bugfix: M0236 dot-notation suggestion no longer fires for literal receivers — the `lit.f()` rewrite could misparse (`-1.1.isNaN()` → `-(1.1.isNaN())`), mis-lex (`0xff.abs` as a hex float), or fail to type-check when it lost a literal coercion (`Blob.isEmpty("\00")` → `"\00".isEmpty()`) (#6173).
+
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver cannot be inferred or would infer to a different type causing the call to resolve to a different function (#6177).
+
+  * bugfix: Implicit argument derivation now resolves type variables that occur only in a covariant result position (e.g. JSON-style decoders `Text -> ?T`). Previously such a variable was solved to `None` (bottom), so the implicit had to be passed explicitly (#6186).
+
+  * bugfix: Diagnostic columns now count Unicode codepoints (matching editor displays and `rustc`), and JSON diagnostics gain `byte_start`/`byte_end` for encoding-independent edit anchors. Previously `mops check --fix` over-deleted on multi-byte lines (e.g. `Char.toNat32('京')` trimmed the trailing `)`) (#6168).
+
+## 1.9.0 (2026-06-02)
+
+* motoko (`moc`)
+
+  * feat: Structural implicit derivation for records and tuples via `__record` and `__tuple` combiners. Per-field results are lazy thunks, enabling short-circuiting for operations like `compare` (#5903).
+
+  * feat: `--experimental-multi-value` flag enables function-level multi-value Wasm codegen. Off by default (#6113).
+
+## 1.8.2 (2026-05-21)
+
+* motoko (`moc`)
+
+  * bugfix: M0236 dot-notation suggestion no longer fires when the receiver argument is not already a postfix expression (e.g. `Nat.toText((x * a + b) % c)`). The compiler used to print the suggestion as `(<expr>).toText(...)` but emit no machine-applicable edits, leaving `mops check --fix` with nothing to do; suggesting `(complex).f()` over `Module.f(complex)` is also a debatable style change. Trivial-receiver cases (variables, literals, calls) are unaffected (#6144).
+
+## 1.8.1 (2026-05-20)
+
+* motoko (`moc`)
+
+  * bugfix: Split stable-signature compatibility error M0169 — the "previous version does not contain the stable variable required by the migration function" case now reports as new code **M0263**, leaving M0169 strictly for the "stable variable would be implicitly discarded" (data-loss) case. The two scenarios have different fixes and now have distinct codes (#6134).
+
+## 1.8.0 (2026-05-15)
+
 * motoko (`moc`)
 
   * feat: Implicit argument derivation — the compiler can derive implicit arguments from functions that themselves have implicit parameters (e.g., `compare` for `[Nat]` from `Array.compare<Nat>` + `Nat.compare`). Works transitively and is depth-limited via `--implicit-derivation-depth` (#5966).
+
+  * feat: `and`-patterns — `p1 and p2` matches when both legs match, binding from both (#6049).
+
+  * bugfix: M0236 dot-notation auto-fix on unparenthesized single-argument calls (e.g. `List.reverse b`) no longer rewrites them into a bare function reference (`b.reverse`), which silently turned a call into a no-op; the suggestion now produces `b.reverse()` (#6096).
 
 ## 1.7.0 (2026-04-29)
 
@@ -845,7 +1014,7 @@
     inspected on the IC replica dashboard as they are internal to the Motoko runtime system. 
     This query is only authorized to the canister controllers and self-calls of the canister.
 
-    ``` Motoko
+    ```motoko
     __motoko_runtime_information : () -> {
         compilerVersion : Text;
         rtsVersion : Text;
@@ -887,7 +1056,7 @@
     ensures that no cleanup is required.
 
     The relevant security best practices are accessible at
-    https://internetcomputer.org/docs/current/developer-docs/security/security-best-practices/inter-canister-calls#recommendation
+    https://docs.internetcomputer.org/guides/security/inter-canister-calls/#recommendation
 
     BREAKING CHANGE (Minor): `finally` is now a reserved keyword,
     programs using this identifier will break.
@@ -1123,7 +1292,7 @@
 
   * Allow identifiers in `or`-patterns (#3807).
     Bindings in alternatives must mention the same identifiers and have compatible types:
-    ``` Motoko
+    ```motoko
     let verbose = switch result {
       case (#ok) "All is good!";
       case (#warning why or #error why) "There is some problem: " # why;
@@ -1347,14 +1516,14 @@
     This is a frequently asked-for feature that allows to change the control-flow
     of programs when pattern-match failure occurs, thus providing a means against
     the famous "pyramid of doom" issue. A common example is look-ups:
-    ``` Motoko
+    ```motoko
     shared func getUser(user : Text) : async Id {
       let ?id = Map.get(users, user) else { throw Error.reject("no such user") };
       id
     }
     ```
     Similarly, an expression like
-    ``` Motoko
+    ```motoko
     (label v : Bool { let <pat> = <exp> else break v false; true })
     ```
     evaluates to a `Bool`, signifying whether `<pat>` matches `<exp>`.
@@ -1532,7 +1701,7 @@
 * motoko (`moc`)
 
   * Add new primitives for a default timer mechanism (#3542). These are
-    ``` Motoko
+    ```motoko
     setTimer : (delayNanos : Nat64, recurring : Bool, job : () -> async ()) -> (id : Nat)
     cancelTimer : (id : Nat) -> ()
     ```

@@ -542,6 +542,10 @@ annot_opt :
   | COLON t=typ { Some t }
   | (* empty *) { None }
 
+%inline system_opt :
+  | (* Empty *) { false }
+  | LT SYSTEM GT { true }
+
 (* Expressions *)
 
 lit :
@@ -940,6 +944,8 @@ pat_bin :
     { p }
   | p1=pat_bin OR p2=pat_bin
     { AltP(p1, p2) @! at $sloc }
+  | p1=pat_bin AND p2=pat_bin
+    { AndP(p1, p2) @! at $sloc }
   | p=pat_bin COLON t=typ
     { AnnotP(p, t) @! at $sloc }
 
@@ -996,11 +1002,11 @@ dec_nonvar :
       let is_sugar, e = desugar_func_body sp x t fb in
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
-  | MIXIN p=pat_plain dfs=obj_body {
+  | MIXIN system=system_opt p=pat_plain dfs=obj_body {
      let dfs = List.map (share_dec_field (fun () -> Stable (ref None) @@ no_region)) dfs in
-     MixinD(p, dfs) @? at $sloc
+     MixinD(system, p, dfs) @? at $sloc
   }
-  | INCLUDE x=id e=exp(ob) { IncludeD(x, e, ref None) @? at $sloc }
+  | INCLUDE x=id system=system_opt e=exp(ob) { IncludeD(x, system, e, ref None) @? at $sloc }
 
 obj_or_class_dec :
   | ds=obj_sort xf=id_opt t=annot_opt EQ? efs=obj_body

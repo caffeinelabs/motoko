@@ -8,7 +8,6 @@
   - [2. Open a release PR](#2-open-a-release-pr)
   - [3. Wait for the release to complete, and verify it](#3-wait-for-the-release-to-complete-and-verify-it)
   - [4. Update `motoko-core`](#4-update-motoko-core)
-  - [5. Update `motoko-base`](#5-update-motoko-base)
   - [Downstream](#downstream)
 - [Making draft / pre-releases](#making-draft--pre-releases)
   - [Version suffix](#version-suffix)
@@ -113,17 +112,16 @@ git switch master
 git pull
 ```
 
-Make sure the markdown doc for base is up-to-date:
-For now, in a nix shell `$ nix develop` (or _re-enter_ if you already have one open):
+Make sure the compiler, runtime, and any generated docs still build
+cleanly and the working tree stays clean:
 
 ```bash
-  make -C rts
-  make -C src
-  make -C doc base
-  git diff
+nix develop -c bash -c "
+  make -C rts &&
+  make -C src &&
+  git -C doc diff
+"
 ```
-
-If not, create and merge a separate PR to update the doc (adding any new files) and goto step 0.
 
 ### 1. Update Changelog
 
@@ -133,7 +131,7 @@ git log --first-parent $(git describe --abbrev=0)..HEAD
 ```
 Or, on macOS, in a browser:
 ```bash
-open "https://github.com/dfinity/motoko/compare/$(git describe --abbrev=0)...master"
+open "https://github.com/caffeinelabs/motoko/compare/$(git describe --abbrev=0)...master"
 ```
 
 Look at changes and check that everything relevant is mentioned in the changelog section,
@@ -261,71 +259,6 @@ git tag moc-$NEXT_MOC_VERSION
 git push origin moc-$NEXT_MOC_VERSION
 ```
 
-### 5. Update `motoko-base`
-
-From the `master` branch, push a tag for the new `moc` version:
-
-```bash
-git checkout master
-git pull
-git tag moc-$NEXT_MOC_VERSION
-git push origin moc-$NEXT_MOC_VERSION
-```
-
-<details>
-<summary>Click here for legacy `motoko-base` update steps.</summary>
-
-After releasing the compiler, update `motoko-base`'s `master` branch to the `next-moc` branch.
-
-* Wait ca. 5min after releasing to give the CI/CD pipeline time to upload the release artifacts
-* Change into `motoko-base` and pull the latest `next-moc`
-```bash
-git switch next-moc; git pull
-```
-* Revise and update the `CHANGELOG.md`, by adding a top entry for the release
-
-* Bump `moc` and create a PR:
-```bash
-# Create a new branch for the update
-git switch -c $USER/update-moc-$NEXT_MOC_VERSION && \
-
-# Update the `moc_version` env variable in `.github/workflows/{ci, package-set}.yml` and `mops.toml` to the new released version
-perl -pi -e "s/moc_version: \"\\d+\.\\d+\.\\d+\"/moc_version: \"$NEXT_MOC_VERSION\"/g" .github/workflows/ci.yml .github/workflows/package-set.yml && \
-perl -pi -e "s/moc = \"\\d+\.\\d+\.\\d+\"/moc = \"$NEXT_MOC_VERSION\"/g; s/version = \"\\d+\.\\d+\.\\d+\"/version = \"$NEXT_MOC_VERSION\"/g" mops.toml && \
-
-# Add the changed files and commit the changes
-git add .github/ CHANGELOG.md mops.toml && git commit -m "Motoko $NEXT_MOC_VERSION" && \
-
-# Push the branch
-git push --set-upstream origin $USER/update-moc-$NEXT_MOC_VERSION && \
-
-# Create a PR targeting `master`
-gh pr create --title "Motoko $NEXT_MOC_VERSION" --base master --head $USER/update-moc-$NEXT_MOC_VERSION --body ""
-
-```
-* You can check the status of the PR on GitHub with
-```bash
-gh pr view --web
-```
-* Once CI passes, merge the PR using the _normal merge_ (not squash merge).
-  > **Note:** To allow merge commits, go to the repository settings and enable merge commits. Remember to **disable it after the merge**. Unfortunately, `gh` CLI cannot update this setting without admin permissions.
-
-It will eventually be imported into this repo by a scheduled `niv-updater-action`.
-
-Finally tag the base release (so the documentation interpreter can do the right thing):
-First, switch to `master`, pull the latest changes and verify we are at the right commit:
-```bash
-git switch master && git pull
-git show
-```
-* Tag and push the release
-```bash
-git tag moc-$NEXT_MOC_VERSION
-git push origin moc-$NEXT_MOC_VERSION
-```
-
-</details>
-
 ### Downstream
 
 There are a few dependent actions to follow-up the release, e.g.
@@ -350,13 +283,13 @@ If you want to update the portal documentation, typically to keep in sync with a
 ## Making draft / pre-releases
 
 To make a draft / pre-release, you can use the GitHub Actions workflow:
-https://github.com/dfinity/motoko/actions/workflows/release.yml
+https://github.com/caffeinelabs/motoko/actions/workflows/release.yml
 
 1. Press the **"Run workflow"** button
 2. Select the branch for which you want to make the draft / pre-release
 3. Fill in the **"Version suffix"** that will be used to contruct the version name, e.g. `alpha-1` version suffix could produce a version like `0.16.3-alpha-1`
 4. Hit the green button to run the workflow and wait for it to complete.
-5. View the draft release at https://github.com/dfinity/motoko/releases once the workflow is complete.
+5. View the draft release at https://github.com/caffeinelabs/motoko/releases once the workflow is complete.
 6. To make a pre-release:
    1. Edit the draft release
    2. Make sure the tag and the name of the release are the same as the generated version, e.g. `0.16.3-alpha-1`. Note that there is no need to manually push the tag, it should be created automatically when publishing the pre-release.
@@ -385,8 +318,6 @@ The full report can be built with
 ```
 nix build .#tests.coverage
 ```
-and the report for latest `master` can be viewed at
-[https://dfinity.github.io/motoko/coverage/](https://dfinity.github.io/motoko/coverage/).
 
 ## Profile the compiler
 

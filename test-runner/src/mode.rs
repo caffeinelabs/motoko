@@ -1,12 +1,23 @@
-//! Per-test persistence mode inference for test-runner.
+//! Per-test mode inference for test-runner.
 //!
-//! Motoko tests self-declare their applicable persistence mode(s) via markers.
-//! Unmarked tests are run in both classical and EOP (both must agree on the
-//! same `ok/*.ok`). See `scan_force_eop`/`scan_force_classical` for markers.
+//! One mode axis is tracked:
+//!
+//! * **Persistence** (`Mode`): Classical vs EOP. Unmarked tests run in both.
+//!   Markers: `ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY` / `CLASSICAL-PERSISTENCE-ONLY`.
+//!
+//! `infer_modes` returns a `Vec` of applicable values.
+//!
+//! (A second axis — multi-value codegen — lived here until it became the
+//! compiler default; the same shape will return as `TcMode` for the upcoming
+//! `--experimental-tailcalls` bifurcation.)
 
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+// ---------------------------------------------------------------------------
+// Persistence axis
+// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mode {
@@ -31,9 +42,9 @@ impl Mode {
     }
 }
 
-/// Infer applicable modes. For `.drun`, a marker on the `.drun` itself wins
-/// over any marker in referenced `.mo` files (e.g. classical→EOP upgrade
-/// scenarios). Conflicts are warned and fall back to both modes.
+/// Infer applicable persistence modes. For `.drun`, a marker on the `.drun`
+/// itself wins over any marker in referenced `.mo` files (e.g. classical→EOP
+/// upgrade scenarios). Conflicts are warned and fall back to both modes.
 pub fn infer_modes(path: &Path) -> Vec<Mode> {
     let Ok(content) = fs::read_to_string(path) else {
         return vec![Mode::Classical, Mode::Eop];
@@ -218,4 +229,5 @@ mod tests {
     fn nonexistent_file_defaults_to_both() {
         assert_eq!(infer_modes(&PathBuf::from("/nonexistent.mo")), vec![C, E]);
     }
+
 }

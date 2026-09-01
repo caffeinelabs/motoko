@@ -43,9 +43,24 @@ Each line on stdout is a JSON object with the following structure:
         {
             /* File path as passed to the compiler. May be relative or absolute. */
             "file": "myfile.mo",
+            /* 0-based UTF-8 byte offset from the start of the file (inclusive).
+               Prefer this over line/column when applying edits — bytes are
+               independent of any source encoding. `null` if unavailable; in
+               that case `column_start`/`column_end` may also be unreliable
+               for non-ASCII content, and machine-applicable edits should be
+               skipped.
+            */
+            "byte_start": 124,
+            /* 0-based UTF-8 byte offset from the start of the file (exclusive).
+               `null` if unavailable; see `byte_start`.
+            */
+            "byte_end": 131,
             /* First line of the span (1-based, inclusive). */
             "line_start": 7,
-            /* First column of the span (1-based, inclusive). */
+            /* First column of the span (1-based, inclusive).
+               Counts Unicode codepoints — matching what editors display and
+               `rustc`'s `column_start` — not UTF-8 bytes or UTF-16 code units.
+            */
             "column_start": 15,
             /* Last line of the span (1-based, inclusive). */
             "line_end": 7,
@@ -85,6 +100,6 @@ Example output
 --------------
 
 ```
-{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"example.mo","line_start":2,"column_start":7,"line_end":2,"column_end":11,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
-{"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"example.mo","line_start":5,"column_start":15,"line_end":5,"column_end":22,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
+{"message":"this pattern of type\n  Bool\ndoes not cover value\n  false","code":"M0145","level":"warning","spans":[{"file":"example.mo","byte_start":17,"byte_end":21,"line_start":2,"column_start":7,"line_end":2,"column_end":11,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
+{"message":"literal of type\n  Text\ndoes not have expected type\n  Nat","code":"M0050","level":"error","spans":[{"file":"example.mo","byte_start":58,"byte_end":65,"line_start":5,"column_start":15,"line_end":5,"column_end":22,"is_primary":true,"label":null,"suggested_replacement":null,"suggestion_applicability":null}],"notes":[]}
 ```

@@ -15,13 +15,13 @@ let
   # the dfinity CI releases versions weekly and sometimes they result in breaking changes.
   # Whenever someone would like to update the pocket-ic-server, they should get the
   # needed release tag and sha256 hashes from the dfinity releases and update them here as needed.
-  releaseTag = "release-2026-04-16_04-20-base";
+  releaseTag = "release-2026-06-18_04-52-base";
   baseUrl = "https://github.com/dfinity/ic/releases/download/${releaseTag}";
   sha256Map = {
-    "pocket-ic-x86_64-linux" = "sha256:a67b88175828b8250753ba2978480f02ff2d5ad791bec99c3abf61c74e145883";
-    "pocket-ic-arm64-linux" = "sha256:ffe10ce5ffaf1c17d4a553c13a7693e8d6c1960ffe29b9089482e5a57075bef3";
-    "pocket-ic-x86_64-darwin" = "sha256:05e46e490d608ee94ec8b64fe58111f064d6f36d0e9d8317b3dd0c9cf26ce331";
-    "pocket-ic-arm64-darwin" = "sha256:7027f9622f8d552d54618ff469101b58455f888fe96cc87716b73dd4cc88b6a7";
+    "pocket-ic-x86_64-linux" = "sha256:38c5a25cb2dc99b88b2765722465b4603cfd99848785769f968b5facbb717b67";
+    "pocket-ic-arm64-linux" = "sha256:66785cf289ace8fb8ca79fede48008aa16fa0aab9a3b0e45f2967655c4fc9254";
+    "pocket-ic-x86_64-darwin" = "sha256:4dad5dccbd48d13383f9700df05124262ea29ace2a46e96504f9e83b554337c9";
+    "pocket-ic-arm64-darwin" = "sha256:cfbcfaad1662119702566987c11abc185a7327340d12b51e3038b9e228f43c95";
   };
 
   server = pkgs.stdenv.mkDerivation rec {
