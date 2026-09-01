@@ -2379,22 +2379,35 @@ and pp_stab_sig hash ppf sig_ =
       match Cons.kind c with
       | Def ([], (Con _)) -> acc  (* bare alias: avoid [type X = X] *)
       | Def ([], body) ->
+        (* [hash] is partial: [Invalid_argument] on [Async] and on type
+           components, [Assert_failure] on non-stable types reachable
+           only through tf bodies (e.g. polymorphic function aliases). *)
         (try
           HM.update (Cons.name c, hash body) (function
-            | Some xs -> Some (c :: xs)
-            | None -> Some [c]) acc
-        with Invalid_argument _ -> acc)  (* [hash] bails on [Async] *)
+            | Some xs -> Some ((c, body) :: xs)
+            | None -> Some [(c, body)]) acc
+        with Invalid_argument _ | Assert_failure _ -> acc)
       | _ -> acc) cs_all HM.empty in
     HM.fold (fun _ members acc ->
-      match members with
-      | [] | [_] -> acc
-      | first :: rest ->
-        (* [Cons.compare] orders by hash, stamp, name — deterministic. *)
-        let rep = List.fold_left
-          (fun best c -> if Cons.compare c best < 0 then c else best)
-          first rest in
-        List.fold_left (fun acc c ->
-          if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members
+      (* Hash injectivity isn't load-bearing: collapse only [eq]-confirmed
+         subgroups of a bucket. *)
+      let classes = List.fold_left (fun classes (c, body) ->
+        let rec insert = function
+          | [] -> [(body, [c])]
+          | (b, cs) :: rest when eq b body -> (b, c :: cs) :: rest
+          | cls :: rest -> cls :: insert rest
+        in insert classes) [] members in
+      List.fold_left (fun acc (_, members) ->
+        match members with
+        | [] | [_] -> acc
+        | first :: rest ->
+          (* [Cons.compare] orders by hash, stamp, name — deterministic. *)
+          let rep = List.fold_left
+            (fun best c -> if Cons.compare c best < 0 then c else best)
+            first rest in
+          List.fold_left (fun acc c ->
+            if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members)
+        acc classes
     ) groups ConEnv.empty
   in
   let cs_top, sig_ =
