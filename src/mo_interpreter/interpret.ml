@@ -471,6 +471,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         assert T.(exp.note.note_typ = Prim Blob);
         k (V.Blob contents)
       end
+    | IDLTypesPath _ -> k (V.Obj V.Env.empty)
     | IDLPath _ -> trap exp.at "actor import"
     | PrimPath -> k (find "@prim" env.libs)
     )
@@ -1046,7 +1047,7 @@ and declare_dec dec : val_env =
   match dec.it with
   | ExpD _
   | TypD _
-  | MixinD (_) -> V.Env.empty
+  | MixinD _ -> V.Env.empty
   | IncludeD _ ->
      (* TODO support mixins in the interpreter *)
     assert false
@@ -1083,7 +1084,7 @@ and interpret_dec env dec (k : V.value V.cont) =
   | TypD _ ->
     k V.unit
   | MixinD _ -> k V.unit
-  | IncludeD (_, _arg, _note) ->
+  | IncludeD (_, _, _arg, _note) ->
      (* TODO
         - evaluate arg and bind it against note.pat
         - define note.imports from mixin as local lets

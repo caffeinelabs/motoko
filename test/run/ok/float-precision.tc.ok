@@ -1,0 +1,3 @@
+float-precision.mo:6.24-6.35: warning [M0266], literal 0.123456789 has more precision than Float32 can represent; it rounds to 0.12345679 (the surplus digits are discarded)
+float-precision.mo:9.23-9.45: warning [M0266], literal 0.12345678901234567890 has more precision than Float can represent; it rounds to 0.12345678901234568 (the surplus digits are discarded)
+float-precision.mo:10.17-10.39: warning [M0266], literal 0.12345678901234567890 has more precision than Float can represent; it rounds to 0.12345678901234568 (the surplus digits are discarded)

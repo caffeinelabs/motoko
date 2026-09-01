@@ -202,6 +202,7 @@ let async_cap_of_prog prog =
 
 let infer_prog
     ?(enable_type_recovery=false)
+    ~stable_baseline_sig
     pkg_opt
     senv
     async_cap
@@ -209,7 +210,7 @@ let infer_prog
   let filename = prog.note.Syntax.filename in
   phase "Checking" filename;
   Cons.session ~scope:filename (fun () ->
-    let r = Typing.infer_prog ~enable_type_recovery pkg_opt senv async_cap prog in
+    let r = Typing.infer_prog ~enable_type_recovery ~stable_baseline_sig pkg_opt senv async_cap prog in
     if !Flags.trace && !Flags.verbose then begin
       match r with
       | Ok ((_, scope), _) ->
@@ -226,6 +227,7 @@ let infer_prog
 
 let check_progs
     ?(enable_type_recovery=false)
+    ~stable_baseline_sig
     senv
     progs : (Scope.t list * Scope.t) Diag.result =
   let rec go senv sscopes = function
@@ -236,7 +238,7 @@ let check_progs
       let async_cap = async_cap_of_prog prog in
       let* _t, sscope =
         Cons.session ~scope:filename (fun () ->
-          infer_prog ~enable_type_recovery senv None async_cap prog)
+          infer_prog ~enable_type_recovery ~stable_baseline_sig senv None async_cap prog)
       in
       let senv' = Scope.adjoin senv sscope in
       let sscopes' = sscope :: sscopes in
@@ -244,12 +246,12 @@ let check_progs
   in
   go senv [] progs
 
-let check_lib senv pkg_opt lib : Scope.scope Diag.result =
+let check_lib ~stable_baseline_sig senv pkg_opt lib : Scope.scope Diag.result =
   let filename = lib.note.Syntax.filename in
   Cons.session ~scope:filename (fun () ->
     phase "Checking" (Filename.basename filename);
     let open Diag.Syntax in
-    let* sscope = Typing.check_lib senv pkg_opt lib in
+    let* sscope = Typing.check_lib ~stable_baseline_sig senv pkg_opt lib in
     phase "Definedness" (Filename.basename filename);
     let* () = Definedness.check_lib lib in
     Diag.return sscope)
@@ -271,7 +273,7 @@ let check_builtin what src senv0 : Syntax.prog * stat_env =
   match parse_with Lexer.mode_priv lexer parse what with
   | Error es -> builtin_error "parsing" what es
   | Ok (prog, _ws) ->
-    match infer_prog senv0 None Async_cap.NullCap prog with
+    match infer_prog ~stable_baseline_sig:None senv0 None Async_cap.NullCap prog with
     | Error es -> builtin_error "checking" what es
     | Ok ((_t, sscope), _ws) ->
       let senv1 = Scope.adjoin senv0 sscope in
@@ -304,18 +306,16 @@ let parse_stab_sig_from_file filename : Syntax.stab_sig Diag.result =
     Diag.return sig_
   )
 
+let load_stab_sig path : Type.stab_sig Diag.result =
+  let open Diag.Syntax in
+  let* p = parse_stab_sig_from_file path in
+  Cons.session ~scope:p.note.Syntax.filename (fun () ->
+    Typing.check_stab_sig initial_stat_env0 p)
+
 let stable_compatible pre post : unit Diag.result =
   let open Diag.Syntax in
-  let* p1 = parse_stab_sig_from_file pre in
-  let* p2 = parse_stab_sig_from_file post in
-  let* s1 =
-    Cons.session ~scope:p1.note.Syntax.filename (fun () ->
-      Typing.check_stab_sig initial_stat_env0 p1)
-  in
-  let* s2 =
-    Cons.session ~scope:p2.note.Syntax.filename (fun () ->
-      Typing.check_stab_sig initial_stat_env0 p2)
-  in
+  let* s1 = load_stab_sig pre in
+  let* s2 = load_stab_sig post in
   Stability.match_stab_sig s1 s2
 
 (* basic sanity checking of emitted stable signatures *)
@@ -341,6 +341,15 @@ let validate_stab_sig s : unit Diag.result =
          with a possibly different or no migration function *)
       Stability.match_stab_sig (Single post1) (Single post2)
     | _, _ -> assert false))
+
+(* Load --stable-baseline .most for the resume-point boundary check (match_stab_em_fields). *)
+let load_stable_baseline () : Type.stab_sig option Diag.result =
+  let open Diag.Syntax in
+  match !Flags.stable_baseline, !Flags.enhanced_migration with
+  | None, _ | _, None -> Diag.return None
+  | Some path, Some _ ->
+    let* s = load_stab_sig path in
+    Diag.return (Some s)
 
 (* The prim module *)
 
@@ -372,7 +381,7 @@ let check_prim () : Syntax.lib * stat_env =
       at = no_region;
       note = { filename = "@prim"; trivia = Trivia.empty_triv_table }
     } in
-    match check_lib senv0 None lib with
+    match check_lib ~stable_baseline_sig:None senv0 None lib with
     | Error es -> prim_error "checking" es
     | Ok (sscope, _ws) ->
       let senv1 = Scope.adjoin senv0 sscope in
@@ -403,15 +412,9 @@ type load_result =
 type load_decl_result =
   (Syntax.lib list * Syntax.prog * Scope.scope * Type.typ * Scope.scope) Diag.result
 
-let resolved_import_name ri =
-  Syntax.(match ri.it with
-  | Unresolved -> "/* unresolved */"
-  | LibPath { package = _; path }
-  | IDLPath (path, _)
-  | ImportedValuePath path -> path
-  | PrimPath -> "@prim")
+let resolved_import_name ri = Syntax.lib_key_of_resolved_import ri.it
 
-let chase_imports_cached parsefn senv0 imports scopes_map
+let chase_imports_cached ~stable_baseline_sig parsefn senv0 imports scopes_map
     : (Syntax.lib list * Scope.scope * scope_cache) Diag.result
   =
   (*
@@ -475,7 +478,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         let* more_imports = ResolveImport.resolve (resolve_flags ~is_main:false ~base cur_pkg_opt) prog base in
         let* () = go_set cur_pkg_opt more_imports in
         let lib = lib_of_prog f prog in
-        let* sscope = check_lib !senv cur_pkg_opt lib in
+        let* sscope = check_lib ~stable_baseline_sig !senv cur_pkg_opt lib in
         libs := lib :: !libs; (* NB: Conceptually an append *)
         senv := Scope.adjoin !senv sscope;
         cache := Type.Env.add ri_name sscope !cache;
@@ -483,22 +486,44 @@ let chase_imports_cached parsefn senv0 imports scopes_map
         Diag.return ()
       end
     | Syntax.ImportedValuePath full_path ->
-      let sscope = Scope.lib full_path Type.blob in
+      let sscope = Scope.lib ~package:None full_path Type.blob in
       senv := Scope.adjoin !senv sscope;
       Diag.return ()
-    | Syntax.IDLPath (f, _) ->
+    | Syntax.(IDLPath (f, _) | IDLTypesPath f) ->
+      let types_only = match it with Syntax.IDLTypesPath _ -> true | _ -> false in
+      if Type.Env.mem ri_name !senv.Scope.lib_env then
+        Diag.return ()
+      else
       (* TODO: [Idllib.Pipeline.check_file] will perform a similar pipeline,
          going recursively through imports of the IDL path to parse and
          typecheck them. We should extend the cache system to it as well. *)
       let* prog, idl_scope, actor_opt = Idllib.Pipeline.check_file f in
+      let local_type_ids =
+        let Idllib.Syntax.{ decs; _ } = prog.it in
+        List.filter_map (fun (d : Idllib.Syntax.dec) ->
+          match d.it with
+          | Idllib.Syntax.TypD (id, _) -> Some id.it
+          | _ -> None) decs
+      in
       if actor_opt = None then
         Diag.error
           ri.at
           "M0004"
           "import"
           (Printf.sprintf "file %s does not define a service" f)
+      else if types_only && List.mem "Self" local_type_ids then
+        Diag.error
+          ri.at
+          "M0004"
+          "import"
+          (Printf.sprintf "file %s declares type Self, which is reserved for the imported service type" f)
       else
-        match Mo_idl.Idl_to_mo.check_prog idl_scope actor_opt with
+        let check =
+          if types_only
+          then Mo_idl.Idl_to_mo.check_prog_types_only local_type_ids
+          else Mo_idl.Idl_to_mo.check_prog
+        in
+        match check idl_scope actor_opt with
         | exception Idllib.Exception.UnsupportedCandidFeature error_message ->
           Stdlib.Error [
             Diag.error_message
@@ -508,7 +533,7 @@ let chase_imports_cached parsefn senv0 imports scopes_map
               (Printf.sprintf "file %s uses Candid types without corresponding Motoko type" f);
             error_message ]
         | actor ->
-          let sscope = Scope.lib f actor in
+          let sscope = Scope.lib ~package:None ri_name actor in
           senv := Scope.adjoin !senv sscope;
           cache := Type.Env.add ri_name sscope !cache;
           Diag.return ()
@@ -516,10 +541,10 @@ let chase_imports_cached parsefn senv0 imports scopes_map
   in
   Diag.map (fun () -> List.rev !libs, !senv, !cache) (go_set None imports)
 
-let chase_imports parsefn senv0 imports : (Syntax.lib list * Scope.scope) Diag.result =
+let chase_imports ~stable_baseline_sig parsefn senv0 imports : (Syntax.lib list * Scope.scope) Diag.result =
   let open Diag.Syntax in
   let cache = Type.Env.empty in
-  let* libs, senv, _cache = chase_imports_cached parsefn senv0 imports cache in
+  let* libs, senv, _cache = chase_imports_cached ~stable_baseline_sig parsefn senv0 imports cache in
   Diag.return (libs, senv)
 
 let load_progs_cached
@@ -534,13 +559,14 @@ let load_progs_cached
   let* rs = resolve_progs parsed in
   let progs = List.map fst rs in
   let libs = List.concat_map snd rs in
+  let* stable_baseline_sig = load_stable_baseline () in
   let* libs, senv, scope_cache =
-    chase_imports_cached parsefn senv libs scope_cache
+    chase_imports_cached ~stable_baseline_sig parsefn senv libs scope_cache
   in
   let* () = Typing.check_actors ?check_actors senv progs in
   (* [infer_prog] seems to annotate the AST with types by mutating some of its
      nodes, therefore, we always run the type checker for programs. *)
-  let* sscopes, senv = check_progs ~enable_type_recovery senv progs in
+  let* sscopes, senv = check_progs ~enable_type_recovery ~stable_baseline_sig senv progs in
   let prog_result =
     List.map2
       (fun (prog, rims) sscope ->
@@ -564,8 +590,9 @@ let load_decl parse_one senv : load_decl_result =
   let open Diag.Syntax in
   let* parsed = parse_one in
   let* prog, libs = resolve_prog parsed in
-  let* libs, senv' = chase_imports parse_file senv libs in
-  let* t, sscope = infer_prog senv' (Some "<toplevel>") (Async_cap.(AwaitCap top_cap)) prog in
+  let* stable_baseline_sig = load_stable_baseline () in
+  let* libs, senv' = chase_imports ~stable_baseline_sig parse_file senv libs in
+  let* t, sscope = infer_prog ~stable_baseline_sig senv' (Some "<toplevel>") (Async_cap.(AwaitCap top_cap)) prog in
   let senv'' = Scope.adjoin senv' sscope in
   Diag.return (libs, prog, senv'', t, sscope)
 

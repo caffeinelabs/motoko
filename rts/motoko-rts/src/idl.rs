@@ -202,7 +202,7 @@ unsafe fn parse_idl_header<M: Memory>(
     let n_types = leb128_decode(buf);
 
     // Early sanity check
-    if (*buf).ptr.add(n_types as usize) >= (*buf).end {
+    if n_types as usize > buf.size() {
         idl_trap_with("too many types");
     }
 
@@ -1219,6 +1219,8 @@ pub(crate) unsafe fn sub(
                 }
                 return true;
             }
+            // rule: `service <actortype> <: principal`
+            (IDL_CON_service, IDL_REF_principal) => return true,
             (IDL_CON_service, IDL_CON_service) => {
                 let mut n1 = leb128_decode(&mut tb1);
                 let n2 = leb128_decode(&mut tb2);

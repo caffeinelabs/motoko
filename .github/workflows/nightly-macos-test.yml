@@ -8,8 +8,8 @@ jobs:
   rts-checked:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
         with:
           name: ic-hs-test
@@ -20,7 +20,7 @@ jobs:
   common-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Common Tests
         uses: ./.github/actions/test-blueprint
@@ -33,7 +33,7 @@ jobs:
   gc-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run GC Tests
         uses: ./.github/actions/test-blueprint
@@ -49,7 +49,7 @@ jobs:
         build_type: [release, debug]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get `motoko` Repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Populate `moc`
         uses: ./.github/actions/test-blueprint
         with:
@@ -72,9 +72,10 @@ jobs:
           test-target: moc
           test-name: fetch-moc
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
       - name: Build `moc`
         run: |
-          nix build .#moc --print-out-paths
+          ${{ github.workspace }}/nixbuildcopy.sh .#moc
       - name: Build M0223-silenced `moc`
         # CI-only: `.#moc-M0223` wraps moc to force M0223 off, so motoko-core's
         # `-E=M0223` (mops.toml) doesn't fail the build on its ~2871 redundant
@@ -82,21 +83,21 @@ jobs:
         # working dir) and its store path stashed for the fixup step. Drop once
         # #6199 cleans core up.
         run: |
-          echo "MOC_M0223=$(nix build .#moc-M0223 --print-out-paths)" >> "$GITHUB_ENV"
+          echo "MOC_M0223=$(${{ github.workspace }}/nixbuildcopy.sh .#moc-M0223)" >> "$GITHUB_ENV"
       - name: Save the `test-blueprint` action
         # This is needed by the "Post Populate `moc`" step (cleanup)
         # but since the checkout of `motoko-core` destroys the `pwd` contents
         # we have to keep it elsewhere and restore later.
         run: cp -r ./.github/actions/test-blueprint ..
       - name: Get `motoko-core` Repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: dfinity/motoko-core
           fetch-depth: "0"
       - name: Restore the `test-blueprint` action
         run:  mv ../test-blueprint ./.github/actions
       - name: Set up `mops`
-        uses: dfinity/motoko-core/.github/actions/setup@1b6e4995e730b5f152106e64d943ae0cc0aa117b # main
+        uses: dfinity/motoko-core/.github/actions/setup@83d8d2d9450a506452132625014b7065c61fccff # main
       - name: Set up `mops` cache
         run: |
           npx ic-mops --version

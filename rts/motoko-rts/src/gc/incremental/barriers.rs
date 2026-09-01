@@ -10,7 +10,8 @@ use crate::{
 };
 
 use super::{
-    Phase, count_allocation, get_incremental_gc_state, post_allocation_barrier, pre_write_barrier,
+    Phase, count_allocation, get_incremental_gc_state, post_allocation_barrier, pre_read_barrier,
+    pre_write_barrier,
 };
 
 #[unsafe(no_mangle)]
@@ -34,6 +35,19 @@ pub unsafe fn write_with_barrier<M: Memory>(mem: &mut M, location: *mut Value, v
     let state = get_incremental_gc_state();
     pre_write_barrier(mem, state, *location);
     *location = value.forward_if_possible();
+}
+
+/// Read a potential pointer value through a load barrier for the incremental GC.
+/// `value` (skewed if a pointer) is the target loaded out of a weak reference.
+/// During the mark phase this marks the loaded target, symmetric to `write_with_barrier`.
+/// Return:
+/// `value` for convenience.
+/// The barrier can be conservatively called even if the loaded value might not be a pointer.
+#[ic_mem_fn]
+pub unsafe fn read_with_barrier<M: Memory>(mem: &mut M, value: Value) -> Value {
+    let state = get_incremental_gc_state();
+    pre_read_barrier(mem, state, value);
+    value
 }
 
 /// Allocation barrier to be called after a new object allocation.

@@ -2,6 +2,7 @@ open Mo_def
 open Mo_types
 open Mo_values
 module Flags = Mo_config.Flags
+open Scope
 
 open Syntax
 open Source
@@ -72,6 +73,12 @@ type env =
     closest_loop : (Syntax.loop_flags * T.typ) option;
     closest_scrutinee : (region * T.typ) option;
     enhanced_migration : string option;
+    (* --stable-baseline stab sig; None if flag unset. *)
+    stable_baseline_sig : T.stab_sig option;
+    (* Inside the args of a call whose own instantiation/implicit is being suggested for removal:
+       M0223/M0237 probes drop the donated expected type (it vanishes once applied),
+       avoiding suggestions that are unsound when applied together. *)
+    enclosing_removal : bool;
   }
 and ret_env =
   | NoRet
@@ -106,7 +113,19 @@ let env_of_scope msgs scope =
     closest_loop = None;
     closest_scrutinee = None;
     enhanced_migration = None;
+    stable_baseline_sig = None;
+    enclosing_removal = false;
   }
+
+let is_implicit_package pkg =
+  match !Flags.implicit_package, pkg with
+  | Some ip, Some p -> ip = p
+  | _ -> false
+
+let is_implicit_lib env path =
+  match T.Env.find_opt path env.libs with
+  | Some info -> is_implicit_package info.lib_package
+  | None -> false
 
 let use_identifier env id =
   env.used_identifiers := T.Env.update id (function
@@ -187,7 +206,7 @@ let try_all f xs =
   with
   | Error _ -> None
   | Ok (a, _) -> Some a
-  
+
 let eq_ts ts ts' = List.length ts = List.length ts' && List.for_all2 (T.eq ?src_fields:None) ts ts'
 
 let eq_ts_opt ts = function
@@ -343,7 +362,7 @@ let check_deprecation env at desc id depr =
        | 0 -> warn
        | _ -> fun ?(notes = []) ?(spans = []) ?(edits = []) _ _ _ _ -> ())
        env at code
-       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://internetcomputer.org/docs/current/motoko/main/stable-memory/stable-regions/#the-region-library or compile with flag `--experimental-stable-memory 1` to suppress this message."
+       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message."
     end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
@@ -610,14 +629,11 @@ let check_closed env id k at =
 let check_import env at f ri =
   let full_path = match !ri with
     | Unresolved -> error env at "M0020" "unresolved import %s" f
-    | LibPath {path = fp; _}
-    | ImportedValuePath fp
-    | IDLPath (fp, _) -> fp
-    | PrimPath -> "@prim" in
+    | ri -> lib_key_of_resolved_import ri in
   match T.Env.find_opt full_path env.libs with
-  | Some T.Pre ->
+  | Some {lib_typ = T.Pre; _} ->
     error env at "M0021" "cannot infer type of forward import %s" f
-  | Some t -> t
+  | Some info -> info.lib_typ
   | None ->
     match T.Env.find_opt full_path env.mixins with
     | Some mix -> mix.Scope.typ
@@ -1256,10 +1272,10 @@ and is_explicit_dec d =
   | ClassD (_, _, _, _, _, p, _, _, dfs) ->
     is_explicit_pat p &&
     List.for_all (fun (df : dec_field) -> is_explicit_dec df.it.dec) dfs
-  | MixinD (p, dfs) ->
+  | MixinD (_, p, dfs) ->
     is_explicit_pat p &&
     List.for_all (fun (df : dec_field) -> is_explicit_dec df.it.dec) dfs
-  | IncludeD (_, e, _) -> is_explicit_exp e
+  | IncludeD (_, _, e, _) -> is_explicit_exp e
 
 
 (* Literals *)
@@ -1282,6 +1298,58 @@ let check_int64 env = check_lit_val env T.Int64 Numerics.Int_64.of_string
 let check_float env = check_lit_val env T.Float Numerics.Float.of_string
 let check_float32 env at s =
   check_lit_val env T.Float32 Numerics.Float32.of_string at s
+
+(* Shortest decimal that round-trips to the float [v]: try 1..[cap] significant
+   digits with the printer + parser we already have (no shortest-float dep). *)
+let shortest_roundtrip (cap, to_float, eq, of_string) v : string =
+  let f = to_float v in
+  let rec go n =
+    let cand = Printf.sprintf "%.*g" n f in
+    if n >= cap || (try eq (of_string cand) v with _ -> false)
+    then cand
+    else go (n + 1)
+  in
+  go 1
+
+let float32_shortest = shortest_roundtrip Numerics.Float32.(9, to_float, eq, of_string)
+let float_shortest   = shortest_roundtrip Numerics.Float.(17, to_float, eq, of_string)
+
+(* Significant digits of a decimal float/int literal lexeme; [None] for a hex
+   float (which we don't analyse). Strips digit separators, the exponent, the
+   point, and leading/trailing zeros — so 1.0, 1e3, 0.10 count as 1. *)
+let decimal_sig_digits (s : string) : int option =
+  let s = String.concat "" (String.split_on_char '_' s) in
+  let s = String.lowercase_ascii s in
+  if String.length s >= 2 && s.[0] = '0' && s.[1] = 'x' then None
+  else begin
+    let mant = match String.index_opt s 'e' with
+      | Some i -> String.sub s 0 i
+      | None -> s in
+    let digits =
+      String.to_seq mant
+      |> Seq.filter (fun c -> c >= '0' && c <= '9')
+      |> String.of_seq in
+    let n = String.length digits in
+    let i = ref 0 in while !i < n && digits.[!i] = '0' do incr i done;
+    let j = ref (n - 1) in while !j >= !i && digits.[!j] = '0' do decr j done;
+    Some (if !j >= !i then !j - !i + 1 else 0)
+  end
+
+(* Warn (M0266) when a float literal carries more significant digits than its
+   type [ty] can hold — the surplus is silently discarded by rounding. Fires
+   only on genuine excess: a minimal literal equals its own shortest round-trip
+   form ([shortest]), so 0.1, 3.14, 1.5 etc. stay quiet. *)
+let check_float_precision env at ty shortest s =
+  match decimal_sig_digits s with
+  | None -> ()
+  | Some used ->
+    let short = shortest () in
+    (match decimal_sig_digits short with
+     | Some need when used > need ->
+       warn env at "M0266"
+         "literal %s has more precision than %s can represent; it rounds to %s (the surplus digits are discarded)"
+         s (T.string_of_typ (T.Prim ty)) short
+     | _ -> ())
 
 let check_text env at s =
   if not (Lib.Utf8.is_valid s) then
@@ -1316,8 +1384,11 @@ let infer_lit env lit at : T.prim =
       lit := IntLit (check_int env at s); (* default *)
     T.Int
   | PreLit (s, T.Float) ->
-    if not env.pre then
-      lit := FloatLit (check_float env at s); (* default *)
+    if not env.pre then begin
+      let v = check_float env at s in
+      check_float_precision env at T.Float (fun () -> float_shortest v) s;
+      lit := FloatLit v (* default *)
+    end;
     T.Float
   | PreLit (s, T.Text) ->
     if not env.pre then
@@ -1351,9 +1422,13 @@ let check_lit env t lit at suggest =
   | Prim Int64, PreLit (s, (Nat | Int)) ->
     lit := Int64Lit (check_int64 env at s)
   | Prim Float, PreLit (s, (Nat | Int | Float)) ->
-    lit := FloatLit (check_float env at s)
+    let v = check_float env at s in
+    check_float_precision env at T.Float (fun () -> float_shortest v) s;
+    lit := FloatLit v
   | Prim Float32, PreLit (s, (Nat | Int | Float)) ->
-    lit := Float32Lit (check_float32 env at s)
+    let v = check_float32 env at s in
+    check_float_precision env at T.Float32 (fun () -> float32_shortest v) s;
+    lit := Float32Lit v
   | Prim Blob, PreLit (s, Text) ->
     lit := BlobLit s
   | t, _ ->
@@ -1511,13 +1586,15 @@ let disambiguate_resolutions (rel : 'candidate -> 'candidate -> bool) (candidate
   | [] -> `Empty
   | frontier -> `Many frontier
 
-let is_lib_module (n, t) =
+let is_module_typ (n, t) =
   match T.normalize t with
   | T.Obj (T.Module, fs, _) -> Some (n, fs)
   | _ -> None
 
+let is_lib_module (n, (info : lib_info)) = is_module_typ (n, info.lib_typ)
+
 let is_val_module (n, ((t, _, _, _) : val_info)) =
-  is_lib_module (n, t)
+  is_module_typ (n, t)
 
 let module_exp in_libs module_ref =
   if not in_libs then
@@ -1668,6 +1745,18 @@ module SynthesizeWrapper = struct
       thunk (call impl_path impl_arg)
     ) elem_impl_paths in
     combiner_wrapper ~name combiner_path params entries
+
+  (** Variant: [func($v) { combiner(switch $v { case (#tag0 $x) ("tag0", func() { impl0($x) }); ... }) }].
+      The combiner is applied once to the matched [(tag, thunk)] so [combiner_path] is not shared across cases. *)
+  let variant_wrapper variant_fields ~name combiner_path case_impl_paths =
+    let cases = List.map2 (fun T.{lab; _} impl_path ->
+      let pat = TagP (id lab, var_pat "$x") @! no_region in
+      let label_lit = mk (LitE (ref (TextLit lab))) in
+      let entry = mk (TupE [label_lit; thunk (call impl_path (var "$x"))]) in
+      { pat; exp = entry } @@ no_region
+    ) variant_fields case_impl_paths in
+    let matched = mk (SwitchE (var "$v", cases)) in
+    func_ ~name ["$v"] (call combiner_path matched)
 end
 
 (** Checks [args -> rets  <:  req_args -> req_rets] via subtyping or
@@ -1747,10 +1836,10 @@ module ImplicitHoles = struct
      The parameter type determines the synthesis kind:
        __record : [(Text, () -> T)] -> R   — record combiner (lazy per-field thunks)
        __tuple  : [() -> T]         -> R   — tuple combiner  (lazy per-element thunks)
-       __variant: (Text, T)         -> R   — matched variant case (future)
+       __variant: (Text, () -> T)   -> R   — matched variant case (tag + lazy payload thunk)
   *)
   type structural_info = {
-    kind : [ `Record of T.field list | `Tuple of T.typ list ];
+    kind : [ `Record of T.field list | `Tuple of T.typ list | `Variant of T.field list ];
     arity : [ `Unary | `Binary ];
     ret : T.typ;
   }
@@ -1772,9 +1861,14 @@ module ImplicitHoles = struct
       | T.Array thunk_typ ->
         with_thunk_elem `Tuple thunk_typ ret_typ
       | _ -> None)
+    | T.Func (T.Local, T.Returns, [], [T.Named ("__variant", inner_typ)], [ret_typ]) ->
+      (match T.normalize inner_typ with
+      | T.Tup [txt; thunk_typ] when T.normalize txt = T.Prim T.Text ->
+        with_thunk_elem `Variant thunk_typ ret_typ
+      | _ -> None)
     | _ -> None
 
-  let structural_kind_tag = function `Record _ -> `Record | `Tuple _ -> `Tuple
+  let structural_kind_tag = function `Record _ -> `Record | `Tuple _ -> `Tuple | `Variant _ -> `Variant
 
   let is_matching_structural_combiner {kind; ret; _} typ =
     match as_structural_combiner_typ typ with
@@ -1787,6 +1881,7 @@ module ImplicitHoles = struct
       (match T.normalize dom with
        | T.Obj (T.Object, fs, _) -> Some { kind = `Record fs; arity = `Unary; ret }
        | T.Tup elems when List.length elems >= 2 -> Some { kind = `Tuple elems; arity = `Unary; ret }
+       | T.Variant fs when fs <> [] -> Some { kind = `Variant fs; arity = `Unary; ret }
        | _ -> None)
     | T.Func (T.Local, T.Returns, [], [d1; d2], [ret]) ->
       (match T.normalize d1, T.normalize d2 with
@@ -1807,9 +1902,9 @@ module ImplicitHoles = struct
     let make_ref_exp r = VarE (r @~ no_region)
   end
 
-  module LibCandidateSource : CandidateSource with type entry = T.typ = struct
-    type entry = T.typ
-    let get_typ t = t
+  module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
+    type entry = Scope.lib_info
+    let get_typ info = info.lib_typ
     let make_ref_exp r = ImplicitLibE r
   end
 
@@ -1941,9 +2036,12 @@ module ImplicitHoles = struct
     | `Empty ->
 
     (* Get direct module field candidates from libs (unimported modules) *)
-    (* Use them for resolution only when the feature flag is set! *)
+    (* Resolve only implicit-package libs; error suggestions may still list others. *)
+    let from_implicit_lib c =
+      Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref_opt
+    in
     let lib_fields = FromModuleLib.matching_fields hole env.libs in
-    match if Option.is_some !Flags.implicit_package then disambiguate_holes lib_fields else `Empty with
+    match if Option.is_some !Flags.implicit_package then disambiguate_holes (List.filter from_implicit_lib lib_fields) else `Empty with
     | `Single term -> Ok term
     | `Many _ | `Empty ->
 
@@ -1971,7 +2069,7 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive ~depth lib_fields_with_holes
+      then try_derive ~depth (List.filter (fun (_, c) -> from_implicit_lib c) lib_fields_with_holes)
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -1982,6 +2080,7 @@ module ImplicitHoles = struct
       let elements = match kind with
       | `Record record_fields -> List.map (fun f -> T.as_immut f.T.typ) record_fields
       | `Tuple elem_typs -> elem_typs
+      | `Variant variant_fields -> List.map (fun f -> f.T.typ) variant_fields
       in
       elements |> List.map (fun ft ->
         let args = match arity with
@@ -1994,13 +2093,15 @@ module ImplicitHoles = struct
         SynthesizeWrapper.record_wrapper record_fields arity
       | `Tuple elem_typs ->
         SynthesizeWrapper.tuple_wrapper arity
+      | `Variant variant_fields ->
+        SynthesizeWrapper.variant_wrapper variant_fields
     in
     let try_derive_structural info candidates =
       try_derive_with (structural_holes info) (structural_wrapper info) (disambiguate_structural_elems candidates)
     in
 
     (* Short-circuit: avoid O(modules × fields) traversals when the hole cannot possibly
-       match a structural combiner (i.e. its domain is not a record/object type). *)
+       match a structural combiner (i.e. its domain is not a record, tuple, or variant type). *)
     match structural_info_of_hole hole_typ with
     | None -> Error (HoleSuggestions (lib_fields, None))
     | Some info ->
@@ -2024,7 +2125,8 @@ module ImplicitHoles = struct
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
       if Option.is_some !Flags.implicit_package
-      then try_derive_structural info structural_lib_candidates ~depth
+      then try_derive_structural info
+        (List.filter (fun (_, c) -> from_implicit_lib c) structural_lib_candidates) ~depth
       else `Empty
     with
     | `Committed (Ok term) -> Ok term
@@ -2130,8 +2232,16 @@ let contextual_dot env name receiver_ty : (ctx_dot_candidate, 'a context_dot_err
       let modules = String.concat ", " (List.filter_map (fun c -> c.module_ref) cs) in
       error env name.at "M0224" "overlapping resolution for `%s` in scope from these modules: %s" name.it modules))
     | `Empty ->
+      (* Resolve only implicit-package libs; error suggestions may still list others. *)
       let lib_candidates = candidates true env.libs is_lib_module in
-      match if Option.is_some !Flags.implicit_package then disambiguate_candidates lib_candidates else `Empty with
+      let lib_resolution =
+        if Option.is_some !Flags.implicit_package then
+          lib_candidates
+          |> List.filter (fun c -> Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref)
+          |> disambiguate_candidates
+        else `Empty
+      in
+      match lib_resolution with
       | `Single c -> Ok c
       | `Many _ | `Empty -> Error (DotSuggestions (fun env -> List.filter_map (fun candidate -> Option.map Suggest.module_name_as_url candidate.module_ref) lib_candidates))
 
@@ -2259,20 +2369,21 @@ and infer_exp'' env exp : T.typ =
       let candidate_libs =
         if Option.is_some(!Flags.implicit_package) then
           T.Env.to_seq env.libs |>
-            Seq.filter (fun (name, typ) ->
-              name <> "@prim" &&
+            Seq.filter (fun (name, info) ->
+              is_implicit_package info.lib_package &&
                 let lib_id = Filename.basename name |> Filename.chop_extension in
                 lib_id = id.it) |>
             List.of_seq
         else []
       in
       match candidate_libs with
-      | [(name, typ)] ->
+      | [(name, info)] ->
+        let typ = info.lib_typ in
         id.note <-
           (Const, Some { it = ImplicitLibE name; at = exp.at; note = {note_typ = typ; note_eff = T.Triv} });
         typ
       | c1::c2::cs ->
-        let import_suggestions = List.map (fun (name, ty) -> Suggest.module_name_as_url name) candidate_libs in
+        let import_suggestions = List.map (fun (name, _) -> Suggest.module_name_as_url name) candidate_libs in
         error env id.at "M0057"
           ~spans:[primary env id.at "help: Did you mean to import %s?" (String.concat " or " import_suggestions)]
           "unbound variable %s%a"
@@ -2761,7 +2872,7 @@ and infer_exp'' env exp : T.typ =
     check_import env exp.at f ri
   | ImplicitLibE lib ->
     match T.Env.find_opt lib env.libs with
-    | Some t -> t
+    | Some info -> info.lib_typ
     | None -> failwith "ImplicitLibE not found in env.libs"
 
 and infer_bin_exp env exp1 exp2 =
@@ -3370,9 +3481,8 @@ and emit_m0237_warnings env candidates =
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
 and check_explicit_arguments env ts = function
   | None -> false
-  | Some (implicit_positions, check) ->
-    let candidates = m0237_validate_candidates env ts implicit_positions in
-    candidates <> [] && check ts && (emit_m0237_warnings env candidates; true)
+  | Some (ts', candidates) ->
+    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3432,6 +3542,12 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _, Some _ -> true
     | _ -> false
   in
+  let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
+  let explicit_ts =
+    if has_explicit_inst
+    then Some (check_inst_bounds env sort tbs typs t_ret at)
+    else None
+  in
   (* Prep for the "Redundant implicit argument check". MUST run before the actual type inference non-pre phase *)
   (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
   let m0237_prep =
@@ -3442,14 +3558,19 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     then None
     else
       let implicits, args = partition_implicit_args t_args syntax_args in
-      let check = if has_explicit_inst then fun _ -> true else (* Explicit instantiation means no need to infer, skip backtracking *)
+      match explicit_ts with
+      | Some ts -> Some (ts, m0237_validate_candidates env ts implicits)
+      | None ->
         let exp2_with_holes = { exp2 with it = insert_holes at t_args args; note = empty_typ_note } in
-        let ts_opt = with_backtracking env (fun env' ->
-          let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in ts')
-        in fun ts -> eq_ts_opt ts ts_opt
-      in
-      Some (implicits, check)
+        (* Drop the fragile expected type under enclosing removal; keep [extra_subtype_problems] (the receiver constraint survives). *)
+        let t_expect_opt = if env.enclosing_removal then None else t_expect_opt in
+        with_backtracking env (fun env' ->
+          let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2_with_holes at t_expect_opt extra_subtype_problems in
+          ts', m0237_validate_candidates env ts' implicits)
   in
+  let m0237_fires = match m0237_prep with
+    | Some (_, candidates) -> candidates <> [] (* over-approximate without checking [ts] here *)
+    | None -> false in
   (* Prep for the "Dot-rewrite suggestion". MUST run before the actual type inference non-pre phase *)
   (* Note: Do not let the 'redundant type instantiation' suggestion clash with the other warnings! *)
   let m0236_prep =
@@ -3467,21 +3588,26 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   (* ONLY report this warning if there are not other warnings that could have relied on the explicit instantiation! *)
   let is_redundant_inst = ref false in
   let ts, t_arg', t_ret' =
-    if has_explicit_inst then begin
+    match explicit_ts with
+    | Some ts -> begin
       (* explicit instantiation, check argument against instantiated domain *)
-      let typs = match inst.it with None -> [] | Some (_, typs) -> typs in
-      let ts = check_inst_bounds env sort tbs typs t_ret at in
       let t_arg' = T.open_ ts t_arg in
       let t_ret' = T.open_ ts t_ret in
       if not env.pre then begin
-        (* Redundant type instantiation check. MUST run before [check_exp_strong] *)
+        (* M0223 redundancy probe; MUST precede [check_exp_strong]. Drop only the fragile expected type. *)
+        let probe_expect = if env.enclosing_removal then None else t_expect_opt in
         is_redundant_inst := typs <> [] && Flags.is_warning_enabled "M0223" &&
           eq_ts_opt ts (with_backtracking env (fun env' ->
-            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems in ts'));
+            let ts', _, _ = infer_call_instantiation env' t1 ctx_dot tbs t_arg t_ret exp2 at probe_expect extra_subtype_problems in ts'));
+        (* Dropping this instantiation makes the args' expected type fragile, so flag inner probes.
+           A same-call M0237 keeps the instantiation instead, leaving the context stable. *)
+        let env = { env with enclosing_removal = env.enclosing_removal || (!is_redundant_inst && not m0237_fires) } in
         check_exp_strong env t_arg' exp2
       end;
       ts, t_arg', t_ret'
-    end else (* implicit, infer *)
+    end
+    | None -> (* implicit, infer *)
+      let env = { env with enclosing_removal = env.enclosing_removal || m0237_fires } in
       infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt extra_subtype_problems
   in
   inst.note <- ts;
@@ -4235,7 +4361,7 @@ and pub_fields dec_fields : visibility_env =
 
 and pub_field dec_field xs : visibility_env =
   match dec_field.it with
-  | {dec = { it=IncludeD(_, _, n); _ }; _} when Option.is_some !n -> pub_fields' (Option.get !n).decs xs
+  | {dec = { it=IncludeD(_, _, _, n); _ }; _} when Option.is_some !n -> pub_fields' (Option.get !n).decs xs
   | {vis = { it = Public depr; _}; dec; _} ->
     vis_dec T.{depr = depr; track_region = no_region; region = dec_field.at} dec xs
   | _ -> xs
@@ -4394,10 +4520,7 @@ and infer_obj env obj_sort exp_opt dec_fields at : T.typ =
             "a shared function cannot be private"
       ) dec_fields;
     end;
-    if s = T.Module then
-      Static.module_fields env.msgs dec_fields;
-    if (s = T.Actor || s = T.Mixin) && Option.is_some env.enhanced_migration then
-      Static.actor_fields env.msgs dec_fields;
+    if s = T.Module then Static.dec_fields env.msgs dec_fields;
     check_system_fields env s scope fs dec_fields;
     let stab_tfs = check_stab env obj_sort scope dec_fields in
     if s = T.Actor then check_migration env obj_sort stab_tfs exp_opt at;
@@ -4496,10 +4619,10 @@ and infer_migration_chain env at =
      in
      let norm_path = Lib.FilePath.normalise path in
      let chain =
-       T.Env.fold (fun lib lib_typ acc ->
+       T.Env.fold (fun lib info acc ->
            if Filename.dirname lib <> norm_path
            then acc else
-           match Type.normalize lib_typ with
+           match Type.normalize info.lib_typ with
              | T.Obj(T.Module, fields, _) as mod_typ ->
                begin
                 match Type.lookup_val_field_opt "migration" fields with
@@ -4555,6 +4678,57 @@ and check_migration_function env typ at =
       "expected non-generic, local function type, but migration expression produces type%a"
       display_typ_expand typ;
 
+(* Validate the migration directory against the deployed history recorded by
+   a Multi --stable-baseline.
+
+   On upgrade the chain resumes after the recorded head, so a recorded migration
+   may be deleted only along with every older one (trimming), a kept one must
+   still have its recorded type, and a local migration sorting before the head
+   without being part of the history can never run. Each disagreement warns
+   M0268 — an error by default — against the offending file.
+   Both the directory and the recorded chain are sorted by the labels the
+   migrations run in, so a single merge walk aligns them. *)
+
+and check_migration_history env chain recorded at =
+  let file_at file =
+    let file_pos = { no_pos with file } in { left = file_pos; right = file_pos }
+  in
+  let missing rf =
+    warn env at "M0268"
+      "deployed migration `%s` is missing from the migration directory; only the oldest migrations may be trimmed away"
+      rf.T.lab
+  in
+  (* matched: a recorded migration is present locally, so older recorded ones
+     can no longer pass as a trimmed prefix *)
+  let rec go matched locals recorded =
+    match locals, recorded with
+    | _, [] -> () (* remaining locals sort after the head: pending, unconstrained *)
+    | [], rf :: recorded' ->
+      if matched then missing rf;
+      go matched [] recorded'
+    | (file, _, typ) :: locals', rf :: recorded' ->
+      let lab = T.migration_lab_of_filename file in
+      let cmp = String.compare lab rf.T.lab in
+      if cmp = 0 then begin
+        if not (T.eq typ rf.T.typ) then
+          warn env (file_at file) "M0268"
+            "migration `%s` no longer matches the deployed history: it now has type%a\nbut the stable baseline records%a"
+            lab display_typ typ display_typ rf.T.typ;
+        go true locals' recorded'
+      end
+      else if cmp < 0 then begin
+        warn env (file_at file) "M0268"
+          "migration `%s` is not part of the deployed history recorded by the stable baseline"
+          lab;
+        go matched locals' recorded
+      end
+      else begin
+        if matched then missing rf;
+        go matched locals recorded'
+      end
+  in
+  go false chain recorded
+
 (* Validate the enhanced migration chain from --enhanced-migration directory.
 
    Each incremental step v_i -> m_{i+1} -> v_{i+1} has the same semantics as
@@ -4570,20 +4744,54 @@ and check_migration_function env typ at =
 
 and check_enhanced_migration_chain env chain stab_tfs at =
  if chain = [] then () else
+ let baseline_post, baseline_mig_lab =
+   (* .most baseline tells us which fields are deployed and what is the most recent applied migration *)
+   match env.stable_baseline_sig with
+   | None -> None, None
+   | Some s ->
+     let post_tfs, mig_lab_opt = T.post s in
+     Some post_tfs, mig_lab_opt
+ in
+ (match env.stable_baseline_sig with
+  | Some (T.Multi { chain = recorded; _ }) ->
+    check_migration_history env chain recorded at
+  | _ -> ());
  let check_chain chain post =
    let mfs = List.rev chain in
-   let rec check_mfs at post mfs =
+   (* When the baseline already applied one of the chain's migrations, the upgrade resumes
+      after it (see T.pre), so the fields demanded from the baseline are those at the resume
+      point, not the initial actor's; `resume` captures that point during the backward walk. *)
+   let rec check_mfs step_at post resume mfs =
      match mfs with
      | [] ->
-       (* issue warnings if we infer the initial actor in the chain requires any fields *)
-       List.iter (fun tf ->
-         warn env at "M0254"
-           "initial actor requires field `%s` of type%a"
-           tf.T.lab display_typ tf.T.typ)
-         post
+       (* Without a baseline the demand is unverifiable, so each field warns M0254.
+          A baseline settles both directions in one sweep: explained fields are
+          silent, unexplained fields error with M0267, and deployed fields
+          nothing demands error with M0169. *)
+       let demanded, resume_lab =
+         match resume with
+         | Some (resume_post, lab) -> resume_post, Some lab
+         | None -> post, None
+       in
+       (match baseline_post with
+        | None ->
+          demanded |> List.iter (fun tf ->
+            warn env step_at "M0254"
+              "initial actor requires field `%s` of type%a"
+              tf.T.lab display_typ tf.T.typ)
+        | Some baseline ->
+          (* the chain's own input demand, computed without the actor fields:
+             a missing field in it is not fixable by a new migration file *)
+          let chain_input = Stability.chain_input_fields resume_lab chain in
+          Stability.match_stab_em_fields env.msgs at resume_lab chain_input baseline demanded)
      | (file, _, typ)::mfs1 ->
         let file_at = let file_pos = { no_pos with file = file} in {left = file_pos; right=file_pos} in
         let mf = T.{lab = T.migration_lab_of_filename file; typ; src = T.empty_src } in
+        let resume =
+          if resume = None && baseline_mig_lab = Some mf.T.lab
+          then Some (post, mf.T.lab)
+          else resume
+        in
         (* is this a migration function *)
         let (dom_mf, rng_mf) = check_migration_function env mf.T.typ file_at in
         let out =
@@ -4594,17 +4802,18 @@ and check_enhanced_migration_chain env chain stab_tfs at =
           |> List.sort T.compare_field
         in
         Stability.match_stab_fields env.msgs
-          at
+          step_at
+          Stability.enhanced_migration_link
           (Some mf.T.lab)
           out
           (List.map (fun tf -> (T.lookup_val_field_opt tf.T.lab rng_mf = None, tf)) post);
         (* calculate the previous post and iterate *)
         let pre = T.pre_fields mf.T.typ post in
         let prev_post = List.map (fun (_required, tf) -> tf) pre in
-        check_mfs file_at prev_post mfs1
+        check_mfs file_at prev_post resume mfs1
    in
    (* all migrations compose to produce post *)
-   check_mfs at post mfs
+   check_mfs at post None mfs
  in
  check_chain chain stab_tfs
 
@@ -4777,15 +4986,20 @@ and check_stab env sort scope dec_fields =
       local_error env stab.at "M0132"
         "misplaced stability declaration on field of non-actor";
       []
-    | (T.Actor | T.Mixin), _ , IncludeD _ -> []
+    | (T.Actor | T.Mixin), _ , IncludeD (_, _, _, note) ->
+      let include_note = Option.get !note in
+      let fs = check_stab env sort scope include_note.decs in
+      List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
     | (T.Actor | T.Mixin), Some {it = Stable view; _}, VarD (id, _) ->
       check_stable id.it id.at;
-      infer_viewer env scope Var id view;
+      if sort.it = T.Actor then
+        infer_viewer env scope Var id view;
       [id]
     | (T.Actor | T.Mixin), Some {it = Stable view; _}, LetD (pat, _, _) when stable_pat pat ->
       let ids = T.Env.keys (gather_pat env Scope.empty pat).Scope.val_env in
       List.iter (fun id -> check_stable id pat.at) ids;
-      infer_viewer env scope Const (stable_id pat) view;
+      if sort.it = T.Actor then
+        infer_viewer env scope Const (stable_id pat) view;
       List.map (fun id -> {it = id; at = pat.at; note = ()}) ids;
     | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
     | (T.Actor | T.Mixin), Some stab, _ ->
@@ -4939,14 +5153,24 @@ and check_init env pat_opt exp at =
 and infer_dec env dec : T.typ =
   let t =
   match dec.it with
-  | IncludeD (i, arg, n) ->
+  | IncludeD (i, sys, arg, n) ->
     if not env.pre then begin
       use_identifier env i.it;
       if not env.in_actor then
         error env dec.at "M0227" "mixins can only be included in an actor context";
+      if sys then begin match env.async with
+      | C.(SystemCap c | AwaitCap c | AsyncCap c) -> ()
+      | _ -> local_error env i.at "M0197"
+        "`system` capability required, but not available\n (need an enclosing async expression or function body or explicit `system` type parameter)"
+      end;
       match T.Env.find_opt i.it env.mixins with
       | None -> error env i.at "M0226" "unknown mixin %s" i.it
-      | Some mix -> check_exp env mix.Scope.arg.note arg
+      | Some mix ->
+        (match (mix.Scope.need_system, sys) with
+        | true, false -> local_error env i.at "M0264" "mixin include requires system capability";
+        | false, true -> warn env i.at "M0265" "`system` capability is not required by this mixin"
+        | _ -> ());
+        check_exp env mix.Scope.arg.note arg
     end;
     T.unit
   | ExpD exp -> infer_exp env exp
@@ -5030,13 +5254,13 @@ and infer_dec env dec : T.typ =
       | _, (T.Memory | T.Mixin) -> assert false
     end;
     T.normalize t
-  | MixinD (args, dec_fields) ->
+  | MixinD (sys, args, dec_fields) ->
     if not env.in_prog then
       error env dec.at "M0228" "mixins may only be declared at the top-level";
     let t_pat, ve = infer_pat_exhaustive error env args in
     let env' = adjoin_vals env ve in
     let obj_sort : obj_sort = { it = T.Mixin ; at = no_region; note = { it = true; at = no_region; note = [] } }  in
-    let t' = infer_obj { env' with check_unused = false } obj_sort None dec_fields dec.at in
+    let t' = infer_obj { env' with check_unused = false; async = if sys then C.SystemCap C.top_cap else C.NullCap } obj_sort None dec_fields dec.at in
     T.normalize t'
   | TypD _ ->
     T.unit
@@ -5088,7 +5312,7 @@ and infer_val_path env exp : T.typ option =
      | _ -> None)
   | ImplicitLibE lib ->
     (match T.Env.find_opt lib env.libs with
-    | Some t -> Some t
+    | Some info -> Some info.lib_typ
     | None -> None)
   | DotE (path, id, _) ->
     (match infer_val_path env path with
@@ -5171,7 +5395,7 @@ and gather_dec env scope dec : Scope.t =
       mixin_env = scope.mixin_env;
       fld_src_env = scope.fld_src_env;
     }
-  | IncludeD(i, _, _) -> begin
+  | IncludeD(i, _, _, _) -> begin
     match T.Env.find_opt i.it env.mixins with
     | None -> error env i.at "M0226" "unknown mixin %s" i.it
     | Some mix ->
@@ -5187,7 +5411,7 @@ and gather_dec env scope dec : Scope.t =
       ) scope.val_env fs in
       { scope with typ_env; val_env }
     end
-  | MixinD _  | ExpD _ -> scope
+  | MixinD _ | ExpD _ -> scope
 
 and gather_pat env (scope : Scope.t) pat : Scope.t =
    gather_pat_aux env Scope.Declaration scope pat
@@ -5273,7 +5497,7 @@ and infer_block_typdecs env decs : Scope.t =
 and infer_dec_typdecs env dec : Scope.t =
   match dec.it with
   | MixinD _ -> Scope.empty
-  | IncludeD (i, _, n) -> begin
+  | IncludeD (i, _, _, n) -> begin
     match T.Env.find_opt i.it env.mixins with
     | None -> error env i.at "M0226" "unknown mixin %s" i.it
     | Some mix ->
@@ -5370,7 +5594,7 @@ and infer_block_valdecs env decs scope : Scope.t =
 
 and infer_dec_valdecs env dec : Scope.t =
   match dec.it with
-  | IncludeD(i, _, n) -> Scope.empty
+  | IncludeD(i, _, _, n) -> Scope.empty
   | ExpD _ ->
     Scope.empty
   (* TODO: generalize beyond let <id> = <obje> *)
@@ -5411,7 +5635,7 @@ and infer_dec_valdecs env dec : Scope.t =
       typ_env = T.Env.singleton id.it c;
       con_env = T.ConSet.singleton c;
     }
-  | MixinD (_, _) -> Scope.empty
+  | MixinD (_, _, _) -> Scope.empty
   | ClassD (_exp_opt, _shared_pat, obj_sort, id, typ_binds, pat, _, _, _) ->
     if obj_sort.it = T.Actor then begin
       error_in Flags.[WASIMode; WasmMode] env dec.at "M0138" "actor classes are not supported";
@@ -5486,7 +5710,7 @@ let infer_split_prog env at check_unused imports decls =
   t, Scope.adjoin iscope sscope
 
 (* Programs *)
-let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
+let infer_prog ?(enable_type_recovery=false) ~stable_baseline_sig scope pkg_opt async_cap prog
     : (T.typ * Scope.t) Diag.result
   =
   let recovery_fn = if enable_type_recovery then
@@ -5503,6 +5727,7 @@ let infer_prog ?(enable_type_recovery=false) scope pkg_opt async_cap prog
               async = async_cap;
               type_recovery = enable_type_recovery;
               enhanced_migration = !Flags.enhanced_migration;
+              stable_baseline_sig;
             } in
           let imports, decls = split_imports prog.it in
           let t, sscope = infer_split_prog env prog.at true imports decls in
@@ -5550,20 +5775,23 @@ let check_actors ?(check_actors=false) scope progs : unit Diag.result =
         ) progs
     )
 
-let check_lib scope pkg_opt lib : Scope.t Diag.result =
+let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
   Diag.with_message_store
     (fun msgs ->
       recover_opt
         (fun lib ->
+          let { imports; body = cub; _ } = lib.it in
           let env =
             { (env_of_scope msgs scope) with
               errors_only = pkg_opt <> None;
-              (* For now, only the main actor(class) supports enhanced_migration, not libraries
+              (* For now, only the main actor(class) and mixins support enhanced_migration, not libraries
                  For imported classes, we would need some convention to locate their migration
                  dirs *)
-              enhanced_migration = None
+              enhanced_migration = (match cub.it with
+                | MixinU _ -> !Flags.enhanced_migration
+                | _ -> None);
+              stable_baseline_sig;
             } in
-          let { imports; body = cub; _ } = lib.it in
           let (imp_ds, ds) = CompUnit.decs_of_lib lib in
           let typ, _ = infer_split_prog env lib.at false imp_ds ds in
           List.iter2 (fun import imp_d -> import.note <- imp_d.note.note_typ) imports imp_ds;
@@ -5577,7 +5805,7 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
                 in
                 warn env r "M0142" "deprecated syntax: an imported library should be a module or named actor class"
               end;
-              Scope.lib lib.note.filename typ
+              Scope.lib ~package:pkg_opt lib.note.filename typ
             | ActorClassU (_persistence, sp, exp_opt, id, tbs, p, _, self_id, dec_fields) ->
               if is_anon_id id then
                 error env cub.at "M0143" "bad import: imported actor class cannot be anonymous";
@@ -5598,9 +5826,9 @@ let check_lib scope pkg_opt lib : Scope.t Diag.result =
                 (id.it, fun_typ);
                 ("system", obj Module [id.it, install_typ (List.map (close cs) ts1) class_typ])
               ] [(id.it, con)]) in
-              Scope.lib lib.note.filename typ
-            | MixinU (arg, decs) ->
-              Scope.mixin lib.note.filename Scope.{ imports; arg; decs; typ }
+              Scope.lib ~package:pkg_opt lib.note.filename typ
+            | MixinU (need_system, arg, decs) ->
+              Scope.mixin lib.note.filename Scope.{ imports; need_system; arg; decs; typ }
             | ActorU _ ->
               error env cub.at "M0144" "bad import: expected a module or actor class but found an actor"
             | ProgU _ ->

@@ -363,9 +363,10 @@ The syntax of an **import** `<imp>` is as follows:
   "ic:<canisterid>"                 Import external actor by <canisterid>
   "canister:<name>"                 Import external actor by <name>
   "blob:file:<filepath>"            Import literal `Blob` value from <filepath>
+  "idl:<filepath>"                  Import types-only module from Candid <filepath>
 ```
 
-An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
+An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, a types-only module from a Candid IDL file, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
 
 Though typically a simple identifier, `<id>`, `<pat>` can also be any composite pattern binding selective components of the resource.
 
@@ -1361,6 +1362,8 @@ In detail, if `<url>` is of the form:
 
 -   `"blob:file:<filepath>"` then `<pat>` is bound to a blob containing the contents of the file `<filepath>`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. For example, `import image "blob:file:/assets/image.jpg"` defines `image` as the blob with bytes from local file `./assets/image.jpg`. Unlike library imports, `<filepath>` should include the
 file's extension, if any.
+
+-   `"idl:<filepath>"` then `<pat>` is bound to a types-only Motoko module derived from the Candid IDL file at `<filepath>`: type field `Self` is the service actor type, and each named Candid type declared in that file is exported (PascalCased when unambiguous). `<filepath>` is interpreted relative to the absolute location of the enclosing file and should include the extension (typically `.did`). For example, `import S "idl:api/ledger.did"` defines `S` with `S.Self` and related type aliases. This import cannot be used to call methods; use `ic:` / `canister:` (or `actor "<principal>" : S.Self`) for a live reference.
 
 The case sensitivity of file references depends on the host operating system so it is recommended not to distinguish resources by filename casing alone.
 
@@ -2393,7 +2396,7 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
 
     - `__record` (parameter type `[(Text, () -> E)] -> R`): handles both unary holes (`SomeRecord -> R`) and binary holes (`(SomeRecord, SomeRecord) -> R` where both args are the same record type). For a unary hole it synthesizes `func($r) { combiner([("f", func() = inst($r.f)), ...]) }` with per-field implicits `FieldType -> E`. For a binary hole it synthesizes `func($r1, $r2) { combiner([("f", func() = inst($r1.f, $r2.f)), ...]) }` with per-field implicits `(FieldType, FieldType) -> E`. Per-field thunks let the combiner short-circuit (e.g. comparison). The arity is determined by the hole type, not the combiner.
     - `__tuple` (parameter type `[() -> E] -> R`): handles both unary holes (`(A, B, ...) -> R` with at least two elements) and binary holes (`((A, B, ...), (A, B, ...)) -> R` where both args are the same tuple type with ≥ 2 elements). For a unary hole it synthesizes `func($t) { combiner([func() = inst0($t.0), func() = inst1($t.1), ...]) }` with per-element implicits `ElemType_i -> E`. For a binary hole it synthesizes `func($t1, $t2) { combiner([func() = inst0($t1.0, $t2.0), ...]) }` with per-element implicits `(ElemType_i, ElemType_i) -> E`. Tuples with fewer than two elements are not synthesized: single-element tuples reduce to the element type, and unit `()` is treated as a scalar.
-    - `__variant` is reserved for future extension.
+    - `__variant` (parameter type `(Text, () -> E) -> R`): handles unary holes (`SomeVariant -> R`) only. Since a variant value is exactly one of its cases, it synthesizes `func($v) { combiner(switch $v { case (#t x) ("t", func() = inst(x)); ... }) }` with per-case implicits `CaseType -> E`. Binary holes (`(SomeVariant, SomeVariant) -> R`) are not synthesized, since the two values may inhabit different cases.
 
 The call expression `<exp1> <T0,…​,Tn>? <exp2>` evaluates `<exp1>` to a result `r1`. If `r1` is `trap`, then the result is `trap`.
 

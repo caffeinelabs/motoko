@@ -128,21 +128,13 @@ let argspec =
   Arg.Unit (fun () -> Flags.(compile_mode := RefMode)),
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
   "--experimental-multi-value",
-  Arg.Set Flags.multi_value,
-  " use the wasm multi-value extension in codegen (disables `FakeMultiVal` global-stash emulation) (default)";
+  Arg.Unit (fun () ->
+    eprintf "moc: --experimental-multi-value has no effect; multi-value codegen is always on.\n"),
+  " (deprecated, no effect) multi-value codegen is always on";
   "--no-experimental-multi-value",
-  Arg.Clear Flags.multi_value,
-  " force `FakeMultiVal` emulation, opting out of the default multi-value codegen";
-  "-multi-value",
   Arg.Unit (fun () ->
-    eprintf "moc: -multi-value is deprecated. Use --experimental-multi-value instead.\n";
-    Flags.multi_value := true),
-  " (deprecated alias for --experimental-multi-value)";
-  "-no-multi-value",
-  Arg.Unit (fun () ->
-    eprintf "moc: -no-multi-value is deprecated. Use --no-experimental-multi-value instead.\n";
-    Flags.multi_value := false),
-  " (deprecated alias for --no-experimental-multi-value)";
+    eprintf "moc: --no-experimental-multi-value has no effect; multi-value codegen is always on.\n"),
+  " (deprecated, no effect) multi-value codegen can no longer be disabled";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";
@@ -201,7 +193,7 @@ let argspec =
 
   "--max-stable-pages",
   Arg.Set_int Flags.max_stable_pages,
-  "<n>  set maximum number of pages available for library `ExperimentalStableMemory.mo` (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
+  "<n>  set maximum number of pages available to stable memory via the `Region` library (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
 
   "--experimental-field-aliasing",
   Arg.Unit (fun () -> Flags.experimental_field_aliasing := true),
@@ -409,7 +401,12 @@ let () =
   then begin
     eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
   end;
-  
+
+  if Option.is_some !Flags.stable_baseline && Option.is_none !Flags.enhanced_migration
+  then begin
+    eprintf "moc: --stable-baseline requires --enhanced-migration\n"; exit 1
+  end;
+
   if not !Flags.skip_gc_deprecation_warning 
   then begin
     match !Flags.gc_strategy with

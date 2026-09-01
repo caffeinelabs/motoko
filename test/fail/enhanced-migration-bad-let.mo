@@ -8,8 +8,6 @@ actor {
 
   let (y,_) : (Int,Int); // reject
 
-  let 1 : Int; // reject
-
   let untyped; // reject, no annotation
 
 }

@@ -141,6 +141,9 @@ type __List = {
   index : Nat;
 };
 func __getDedupTable() : ?[var __List] {
+  // Empty prim to signal all consumers of this function (e.g., through caffeine blob storage)
+  // that blob deduplication functionality is required.
+  (prim "require_blob_dedup" : () -> ())();
   (prim "get_dedup_table" : () -> ?[var __List])();
 };
 

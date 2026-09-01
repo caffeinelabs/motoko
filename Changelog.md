@@ -4,6 +4,127 @@
 
   * perf: Long enhanced-migration chains no longer redeclare structurally-equal type aliases at every step in the `motoko:stable-types` Wasm custom section, shrinking the section dramatically and deferring when projects hit the IC's 1 MiB custom-section ceiling (#6074).
 
+## 1.15.0 (2026-08-28)
+
+* motoko (`moc`)
+
+  * feat: with `--stable-baseline` and `--enhanced-migration`, the migration
+    directory is now validated against the migration history the baseline
+    records as already applied: a deployed migration that was deleted (unless
+    all older ones are deleted too), edited in place, or a local migration
+    backdated to sort before the deployed head reports the new M0268
+    diagnostic, a warning treated as an error by default (demote with
+    `-W=M0268`, silence with `-A=M0268`) (#6325).
+
+  * bugfix: with `--stable-baseline` and `--enhanced-migration`, the M0254/M0267
+    check now honors the migrations the baseline records as already applied:
+    requirements are computed at the chain's resume point instead of replaying
+    the whole chain, and fields the baseline explains no longer warn M0254;
+    a field missing from the baseline errors with M0267 naming the resume
+    point, while an incompatible one keeps the detailed M0170/M0216
+    compatibility errors. Each problem is reported once, and the
+    write-a-migration hint is only offered when adding a migration file can
+    actually fix the field (#6318).
+  * bugfix: fixes compilation error on <system>-enabled mixin (#6328).
+
+## 1.14.1 (2026-08-17)
+
+* motoko (`moc`)
+
+  * improvement: RTS weak reference interaction with the incremental GC: weak
+    reference reads now go through a load barrier (#6296).
+
+  * bugfix: when decoding a Candid `blob` or `text`, bound the claimed length (#6311).
+
+## 1.14.0 (2026-08-11)
+
+* motoko (`moc`)
+
+  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`).
+    The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`,
+    deriving operations like serialization for any variant whose case payloads have instances (#6192).
+
+  * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
+    (was 4 GiB), raising the default ceiling for the `Region` library.
+    Override with `--max-stable-pages <n>` as before (#6279).
+
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+
+  * bugfix: a `class` in expression position lowered to unit instead of its
+    constructor (#6291).
+
+  * bugfix: a self tail call whose argument is a tuple-returning expression
+    crashed the compiler (or miscompiled, with the IR check off) (#6292).
+
+## 1.13.0 (2026-08-03)
+
+* motoko (`moc`)
+
+  * feat: import a local Candid file as a types-only Motoko module via the `idl:` URI scheme —
+    `import S "idl:foo.did"` exposes `S.Self` (the service actor type) and named
+    Candid types, PascalCased when unambiguous (e.g. `user_id` → `S.UserId`). No principal or
+    `--actor-idl` flags required (#6263).
+
+  * chore: multi-value Wasm codegen is now always on;
+    `--(no-)experimental-multi-value` are kept for CLI compatibility but have
+    no effect (#6266).
+
+## 1.12.0 (2026-07-30)
+
+* motoko (`moc`)
+
+  * feat: the excess-precision warning (M0266) now also covers `Float` (F64) literals, not just
+    `Float32`, suggesting the shortest round-trip equivalent (#6261).
+
+  * feat: `--stable-baseline <file.most>` with `--enhanced-migration` escalates unexplained
+    "initial actor requires field" cases to error M0267; fields whose baseline type is a
+    stable subtype of the required type keep warning M0254 (prototype for legacy→EM
+    conversions) (#6249).
+
+  * feat: `--stable-baseline` also runs the same upgrade check as `--stable-compatible` during
+    `--check`, so tools can typecheck and verify upgrade safety in one `moc` invocation (#6253).
+
+  * fix: refresh the broken docs links in compatibility and stable-memory diagnostics (#6255).
+
+## 1.11.2 (2026-07-22)
+
+* motoko (`moc`)
+
+  * bugfix: `--implicit-package=<pkg>` was incorrectly using all transitively loaded modules for implicit argument and contextual dot resolution instead of restricting to the given package (#6242).
+
+## 1.11.1 (2026-07-15)
+
+* motoko (`moc`)
+
+  * refactor: simplifies bounds checks for candid decoding in the RTS (#6240).
+  * fix: fix codegen for nested mixins (#6223).
+  * deprecation: removed the legacy `-multi-value`/`-no-multi-value` flags; `--experimental-multi-value` and
+    `--no-experimental-multi-value` now warn as deprecated — multi-value Wasm codegen is the default (#6206).
+
+## 1.11.0 (2026-06-29)
+
+* motoko (`moc`)
+
+  * feat: `moc` now emits the standardized `target_features` Wasm custom section, so `binaryen`-based tools (`wasm-opt`, `ic-wasm optimize`, `dfx`'s `optimize`) accept and optimize Motoko output without per-tool feature flags. Previously these tools defaulted to MVP and rejected the `multivalue`/`bulk-memory`/`memory64` features moc relies on (#6214).
+
+  * feat: a `Float32` literal written with more precision than the type can hold now warns (M0266), suggesting the shortest equivalent — e.g. `0.123456789 : Float32` → `0.12345679`. The surplus digits were already silently discarded by rounding; the warning fires only on genuine excess (minimal literals like `0.1`/`3.14` stay quiet) (#6198).
+
+  * feat: allow requiring `system` capability for `mixin` definitions (#6211).
+    This makes the capability available in initializers and the `mixin` body.
+    `<system>` then needs to appear on the corresponding `include`.
+
+  * feat: allow effectful code in transient `let`s and in `actor`/`mixin` bodies with `--enhanced-migration` (#6191).
+
+  * bugfix: `--enhanced-migration` now also applies to `mixin`s and considers their stable fields when checking migrations (#6183).
+
+## 1.10.1 (2026-06-24)
+
+* motoko (`moc`)
+
+  * bugfix: M0223 ("redundant type instantiation") and M0237 ("implicit argument can be omitted") no longer emit suggestions that are individually valid but break compilation when applied together. In nested calls where an inner instantiation or implicit is only inferable thanks to an outer one (e.g. `List.fromArray(Array.tabulate(...))`), only a jointly-applicable subset is now suggested, so `mops check --fix` no longer rewrites the code into an M0098 type error. The check is conservative: a few genuinely-redundant cases may go unreported in exchange for soundness (#6209).
+
 ## 1.10.0 (2026-06-19)
 
 * motoko (`moc`)
@@ -932,7 +1053,7 @@
     ensures that no cleanup is required.
 
     The relevant security best practices are accessible at
-    https://internetcomputer.org/docs/current/developer-docs/security/security-best-practices/inter-canister-calls#recommendation
+    https://docs.internetcomputer.org/guides/security/inter-canister-calls/#recommendation
 
     BREAKING CHANGE (Minor): `finally` is now a reserved keyword,
     programs using this identifier will break.

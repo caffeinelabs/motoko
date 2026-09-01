@@ -1,5 +1,5 @@
-(unknown location): Compatibility error [M0170], the new type of stable variable `CanisterMap` is not compatible with the previous version.
- The previous type
+(unknown location): Compatibility error [M0170], stable variable `CanisterMap` is not compatible with the previous version.
+Previous type
   {
     DTCTArchives : SBuffer<CreditsActorData>;
     var ICPfundsActor : [ICPfundsActor];
@@ -45,5 +45,6 @@
     xfMobErr : shared (Text, Text, Text) -> async Text
   }
  of `Account` (used by `Account` in `AccountActor` in `Actor` in `AccountActorData` in `elements` in `Buffer` in `SBuffer` in `accountCanisters` in `CanisterMap`).
- Write an explicit migration function, please see https://internetcomputer.org/docs/motoko/fundamentals/actors/compatibility#explicit-migration-using-a-migration-function.
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
 FALSE
