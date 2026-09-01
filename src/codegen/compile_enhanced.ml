@@ -8343,7 +8343,12 @@ module Serialization = struct
         Stack.with_words env "get_n_ptr" 1L (fun get_n_ptr ->
           get_n_ptr ^^
           ReadBuf.read_leb128 env get_typ_buf ^^
-          store_unskewed_ptr ^^
+          (* Store the record field count as a u32, matching the classical
+             (32-bit) backend, rather than a full 64-bit word, so both backends
+             write the count at the same width into the slot that
+             find_field/skip_fields read back. *)
+          G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+          G.i (Store {ty = I32Type; align = 2; offset = 0L; sz = None}) ^^
           f get_typ_buf get_n_ptr
         )
       ) in
