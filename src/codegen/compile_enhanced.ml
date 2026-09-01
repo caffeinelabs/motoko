@@ -504,6 +504,9 @@ module E = struct
     constant_functions : int32 ref;
     dedup : (unit -> int32) option ref;
 
+    (* Signals that blob dedup functionality should be enabled. *)
+    requires_blob_dedup : bool ref;
+
     enhanced_migration : string option;
   }
 
@@ -540,6 +543,7 @@ module E = struct
     global_type_descriptor = ref None;
     constant_functions = ref 0l;
     dedup = ref None;
+    requires_blob_dedup = ref false;
     enhanced_migration;
   }
 
@@ -820,6 +824,12 @@ module E = struct
 
   let set_dedup (env : t) (mk_fi : unit -> int32) =
     env.dedup := Some mk_fi
+
+  let requires_blob_dedup (env : t) : bool =
+    !(env.requires_blob_dedup)
+
+  let set_requires_blob_dedup (env : t) =
+    env.requires_blob_dedup := true
 
   let enhanced_migration (env : t) : string option =
     env.enhanced_migration
@@ -1271,6 +1281,7 @@ module RTS = struct
     add_rts_import "buffer_in_32_bit_range" [] [I64Type];
     add_rts_import "alloc_weak_ref" [I64Type] [I64Type];
     add_rts_import "weak_ref_is_live" [I64Type] [I32Type];
+    add_rts_import "read_with_barrier" [I64Type] [I64Type];
     add_rts_import "get_dedup_table" [] [I64Type];
     add_rts_import "set_dedup_table" [I64Type] [];
     add_rts_import "get_migrations" [] [I64Type];
@@ -2313,6 +2324,18 @@ module WeakRef = struct
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env field
 
+  (* Load the target through a load barrier, marking it during the GC mark phase.
+     Fast-path gated on the GC state, mirroring [Tagged.write_with_barrier]. *)
+  let load_field_with_barrier env =
+    load_field env ^^
+    let (set_value, get_value) = new_local env "weak_target" in
+    set_value ^^
+    E.call_rts env "running_gc" ^^
+    Bool.from_rts_int32 ^^
+    E.if_ env [I64Type]
+      (get_value ^^ E.call_rts env "read_with_barrier")
+      get_value
+
   let store_field env =
     let (set_weak_value, get_weak_value) = new_local env "weak_value" in
     set_weak_value ^^
@@ -2899,6 +2922,15 @@ module ReadBuf = struct
     get_end get_buf ^^ get_ptr get_buf ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
     compile_comparison I64Op.LeU ^^
     E.else_trap_with env "IDL error: out of bounds read"
+
+  (* Read a LEB128 byte count and bound it by the bytes left in the buffer.
+     The blob-like payloads (blob, text, principal) allocate from this count, so
+     it has to be checked _before_ that allocation, not just before the copy. *)
+  let read_byte_count env get_buf =
+    let set_len, get_len = new_local env "len" in
+    read_leb128 env get_buf ^^ set_len ^^
+    check_space env get_buf get_len ^^
+    get_len
 
   let check_page_end env get_buf incr_delta =
     get_ptr get_buf ^^ compile_bitand_const 0xFFFFL ^^
@@ -6994,6 +7026,25 @@ module Internals = struct
 
 end
 
+(* Indirection for the dedup call on Candid blob deserialization.
+   Deserialization code is generated before we can actually know
+   whether dedup is needed or not. *)
+module BlobDedup = struct
+  let hook_name = "@blob_dedup_hook"
+
+  let call env = G.i (Call (nr (E.built_in env hook_name)))
+
+  (* Call only after all code is compiled. *)
+  let define_hook env =
+    Func.define_built_in env hook_name [("blob", I64Type)] [I64Type] (fun env ->
+      if E.requires_blob_dedup env then
+        compile_unboxed_zero ^^
+        G.i (LocalGet (nr 0l)) ^^
+        Internals.dedup env
+      else
+        G.i (LocalGet (nr 0l)))
+end
+
 module Serialization = struct
   (*
     The general serialization strategy is as follows:
@@ -8160,7 +8211,7 @@ module Serialization = struct
       let read_blob () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         Blob.alloc env Tagged.B get_len ^^ set_x ^^
         get_x ^^ Blob.payload_ptr_unskewed env ^^
@@ -8171,7 +8222,7 @@ module Serialization = struct
       let read_principal sort () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         (* at most 29 bytes, according to
            https://sdk.dfinity.org/docs/interface-spec/index.html#principal
@@ -8187,7 +8238,7 @@ module Serialization = struct
 
       let read_text () =
         let (set_len, get_len) = new_local env "len" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
         let (set_ptr, get_ptr) = new_local env "x" in
         ReadBuf.get_ptr get_data_buf ^^ set_ptr ^^
         ReadBuf.advance get_data_buf get_len ^^
@@ -8495,11 +8546,8 @@ module Serialization = struct
         Opt.null_lit env
       | Prim Blob ->
         with_blob_typ env (
-          let (set_blob, get_blob) = new_local env "blob" in
-          read_blob () ^^ set_blob ^^  (* Read blob and save it *)
-          compile_unboxed_zero ^^      (* Put closure on stack *)
-          get_blob ^^                  (* Put blob on stack *)
-          Internals.dedup env          (* Call dedup *)
+          read_blob () ^^
+          BlobDedup.call env           (* Dedup only if the program requires it *)
         )
       | Prim Principal ->
         (* rule: `service <actortype> <: principal`, so also accept a service reference *)
@@ -12367,7 +12415,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "weak_get", [weak_ref] ->
     SR.Vanilla,
     compile_exp_vanilla env ae weak_ref ^^
-    WeakRef.load_field env
+    WeakRef.load_field_with_barrier env
 
   | OtherPrim "weak_ref_is_live", [weak_ref] ->
     SR.Vanilla,
@@ -12391,6 +12439,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "caller_info_data", [] ->
     SR.Vanilla,
     IC.caller_info_data env
+
+  (* Emits no code. Compiling this marks that a dedup table consumer is reachable. *)
+  | OtherPrim "require_blob_dedup", [] ->
+    SR.unit,
+    (E.set_requires_blob_dedup env; G.nop)
 
   | OtherPrim "get_dedup_table", [] ->
     SR.Vanilla,
@@ -14124,6 +14177,11 @@ let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm
   RTS.system_imports env;
 
   compile_init_func env prog;
+
+  (* Hook calls are already emitted against a reserved, empty function slot. Defining
+     it here fills that slot, once nothing can change `requires_blob_dedup` anymore. *)
+  BlobDedup.define_hook env;
+
   let start_fi_o = match E.mode env with
     | Flags.ICMode | Flags.RefMode ->
       IC.export_init env;

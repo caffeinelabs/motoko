@@ -72,7 +72,7 @@ let use_stable_regions = ref false
 let enhanced_orthogonal_persistence = ref true
 let explicit_enhanced_orthogonal_persistence = ref false
 let enhanced_migration : string option ref = ref None
-(* Last deployed .most for check-time stable-compat + M0254 carry *)
+(* Last deployed .most for the resume-point boundary check *)
 let stable_baseline : string option ref = ref None
 let share_code = ref false
 let stabilization_instruction_limit_default = {
@@ -98,6 +98,7 @@ let default_warning_levels = M.empty
   |> M.add "M0235" Allow (* don't deprecate for non-caffeine *)
   |> M.add "M0236" Allow (* don't suggest contextual dot notation *)
   |> M.add "M0237" Allow (* don't report redundant explicit arguments *)
+  |> M.add "M0268" (Error : lint_level) (* diverging from the deployed migration history is a deployment hazard *)
 
 let warning_levels = ref default_warning_levels
 

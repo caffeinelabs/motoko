@@ -1,14 +1,58 @@
 # Motoko compiler changelog
 
+## 1.15.0 (2026-08-28)
+
 * motoko (`moc`)
-    
-  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
-    (dfinity/candid#748): service references now decode at type `Principal`, both when
-    decoded directly and in deferred subtype checks on function references (#6275).
-    
+
+  * feat: with `--stable-baseline` and `--enhanced-migration`, the migration
+    directory is now validated against the migration history the baseline
+    records as already applied: a deployed migration that was deleted (unless
+    all older ones are deleted too), edited in place, or a local migration
+    backdated to sort before the deployed head reports the new M0268
+    diagnostic, a warning treated as an error by default (demote with
+    `-W=M0268`, silence with `-A=M0268`) (#6325).
+
+  * bugfix: with `--stable-baseline` and `--enhanced-migration`, the M0254/M0267
+    check now honors the migrations the baseline records as already applied:
+    requirements are computed at the chain's resume point instead of replaying
+    the whole chain, and fields the baseline explains no longer warn M0254;
+    a field missing from the baseline errors with M0267 naming the resume
+    point, while an incompatible one keeps the detailed M0170/M0216
+    compatibility errors. Each problem is reported once, and the
+    write-a-migration hint is only offered when adding a migration file can
+    actually fix the field (#6318).
+  * bugfix: fixes compilation error on <system>-enabled mixin (#6328).
+
+## 1.14.1 (2026-08-17)
+
+* motoko (`moc`)
+
+  * improvement: RTS weak reference interaction with the incremental GC: weak
+    reference reads now go through a load barrier (#6296).
+
+  * bugfix: when decoding a Candid `blob` or `text`, bound the claimed length (#6311).
+
+## 1.14.0 (2026-08-11)
+
+* motoko (`moc`)
+
+  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`).
+    The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`,
+    deriving operations like serialization for any variant whose case payloads have instances (#6192).
+
   * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
     (was 4 GiB), raising the default ceiling for the `Region` library.
     Override with `--max-stable-pages <n>` as before (#6279).
+
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+
+  * bugfix: a `class` in expression position lowered to unit instead of its
+    constructor (#6291).
+
+  * bugfix: a self tail call whose argument is a tuple-returning expression
+    crashed the compiler (or miscompiled, with the IR check off) (#6292).
 
 ## 1.13.0 (2026-08-03)
 
