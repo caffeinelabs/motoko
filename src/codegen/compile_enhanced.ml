@@ -14043,10 +14043,10 @@ and main_actor as_opt mod_env ds fs up =
   )
 
 and metadata name value =
-  (* Strip [motoko:stable-types] under --enhanced-migration: 
-  This is a space optimization. User can still emit and 
-  use .most files, but this bloats the custom section
-  which grows very large due to the migration chains. *)
+  (* Strip [motoko:stable-types] under --enhanced-migration: the section
+     can grow very large with migration chains and the runtime system
+     already enforces stable-type compatibility at upgrade time; [.most]
+     emission and compile-time validation read [stable_types_text] instead. *)
   if List.mem name !Flags.omit_metadata_names
      || (name = "motoko:stable-types" && Option.is_some !Flags.enhanced_migration)
   then None

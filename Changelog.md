@@ -1,5 +1,15 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * fix: Strip the `motoko:stable-types` custom section from the wasm
+    under `--enhanced-migration`: it can grow very large with migration
+    chains, and the runtime system already enforces stable-type
+    compatibility at upgrade time. Compile-time validation and the
+    `.most` output under `--stable-types` are unaffected (#6073).
+
 ## 1.15.0 (2026-08-28)
 
 * motoko (`moc`)
@@ -176,13 +186,6 @@
 ## 1.7.0 (2026-04-29)
 
 * motoko (`moc`)
-
-  * fix: Strip the `motoko:stable-types` custom section from the wasm
-    under `--enhanced-migration`. The section grows linearly with the
-    migration chain (~280 KB at length 200, ~1.4 MB at length 1000), and
-    the runtime system already enforces stable-type compatibility at
-    upgrade time. Compile-time validation and the `.most` output under
-    `--stable-types` are unaffected.
 
   * feat: Add null-coalescing operator `??` (#5722).
     `e1 ?? e2` evaluates to the unwrapped contents of `e1` when `e1` is `?v`,
