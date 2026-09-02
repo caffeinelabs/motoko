@@ -4,6 +4,19 @@
 
   * perf: Long enhanced-migration chains no longer redeclare structurally-equal type aliases at every step in the `motoko:stable-types` Wasm custom section, shrinking the section dramatically and deferring when projects hit the IC's 1 MiB custom-section ceiling (#6074).
 
+## 1.15.1 (2026-09-02)
+
+* motoko (`moc`)
+
+  * fix: Strip the `motoko:stable-types` custom section from the wasm
+    under `--enhanced-migration`: it can grow very large with migration
+    chains, and the runtime system already enforces stable-type
+    compatibility at upgrade time. Compile-time validation and the
+    `.most` output under `--stable-types` are unaffected (#6073).
+
+  * bugfix: Candid record decoding now skips trailing extra fields whose count
+    is a multiple of 256; the skip count had been truncated to a byte (#6334).
+
 ## 1.15.0 (2026-08-28)
 
 * motoko (`moc`)
