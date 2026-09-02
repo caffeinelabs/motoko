@@ -2,37 +2,37 @@
 type Event__599461622 = {#added : Nat; #removed : Nat};
 type Item__207709396 = {count : Nat; id : Nat; name : Text; tag : Text};
 type Item__528485171 = {id : Nat; name : Text};
-type NewActor__195573664 =
-  {
-    events : [Event__599461622];
-    items : [Item__528485171];
-    orders : [Order__38089332];
-    users : [User__106324931]
-  };
-type NewActor__379987439 =
-  {
-    events : [Event__599461622];
-    items : [NewItem__396027537];
-    orders : [Order__38089332];
-    users : [User__106324931]
-  };
-type NewActor__645748228 =
+type NewActor__163145049 =
   {
     events : [Event__599461622];
     items : [NewItem__348584508];
     orders : [Order__38089332];
     users : [User__106324931]
   };
+type NewActor__375088140 =
+  {
+    events : [Event__599461622];
+    items : [NewItem__396027537];
+    orders : [Order__38089332];
+    users : [User__106324931]
+  };
+type NewActor__876229335 =
+  {
+    events : [Event__599461622];
+    items : [Item__528485171];
+    orders : [Order__38089332];
+    users : [User__106324931]
+  };
 type NewItem__348584508 = {count : Nat; id : Nat; name : Text; tag : Text};
 type NewItem__396027537 = {id : Nat; name : Text; tag : Text};
-type OldActor__207735062 =
+type OldActor__634213361 =
   {
     events : [Event__599461622];
     items : [OldItem__845759797];
     orders : [Order__38089332];
     users : [User__106324931]
   };
-type OldActor__925854415 =
+type OldActor__815300102 =
   {
     events : [Event__599461622];
     items : [OldItem__575904130];
@@ -44,9 +44,9 @@ type OldItem__845759797 = {id : Nat; name : Text};
 type Order__38089332 = {amount : Nat; id : Nat; status : Text};
 type User__106324931 = {active : Bool; email : Text; id : Nat};
 {
-  "1_Init" : {} -> NewActor__195573664;
-  "2_AddTag" : (old : OldActor__207735062) -> NewActor__379987439;
-  "3_AddCount" : (old : OldActor__925854415) -> NewActor__645748228
+  "1_Init" : {} -> NewActor__876229335;
+  "2_AddTag" : (old : OldActor__634213361) -> NewActor__375088140;
+  "3_AddCount" : (old : OldActor__815300102) -> NewActor__163145049
 }
 actor  {
   stable events : [Event__599461622];

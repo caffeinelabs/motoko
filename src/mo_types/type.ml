@@ -2412,7 +2412,12 @@ and pp_stab_sig hash ppf sig_ =
   in
   let cs_top, sig_ =
     if ConEnv.is_empty dedup then cs_top, sig_
-    else begin
+    (* Mint clones in a dedicated stamp scope. [Cons.session] restores the
+       per-name counters on exit, and compile runs in a fresh session with
+       the main unit's filename as scope — so a clone minted here in the
+       enclosing scope can reuse a checker-era stamp and [Cons.eq]-collide
+       with a live cons of the same name, silently dropping its decl. *)
+    else Cons.session ~scope:"stable-sig-dedup" (fun () ->
       (* Clone only cons whose body transitively refs a non-rep; leaving
          the rest pinned to their original cons preserves the prim filter
          for prelude aliases. *)
@@ -2441,8 +2446,7 @@ and pp_stab_sig hash ppf sig_ =
         | Multi {chain; post} ->
           Multi {chain = List.map f chain; post = List.map f post}
       in
-      cs_top, sig_
-    end
+      cs_top, sig_)
   in
   let vs = vs_of_cs cs_top in
   let ds =
