@@ -2352,19 +2352,16 @@ and pp_mig_field vs ppf {lab; typ; src} =
 
 (* Render a stable signature, collapsing structurally-equal type aliases.
 
-   Group zero-arity Def cons by [(name, hash body)] and pick one rep per
-   group. Cons whose body transitively refs a non-rep get cloned with
-   their kind rewritten to point at the rep; others stay on their
-   original cons (notably prelude prim aliases like [Nat], so the prim
-   filter below still elides their decls).
+   Group zero-arity Def cons by [hash body], confirm with [eq], and pick
+   one rep per group. A name lost to a cross-name merge survives as a
+   residual alias decl [type Loser = Rep]. Cons whose body transitively
+   refs a non-rep get cloned with their kind rewritten to point at the
+   rep; others stay on their original cons (notably prelude prim aliases
+   like [Nat], so the prim filter below still elides their decls).
 
    [hash] is injected to avoid a cycle: [Typ_hash] depends on [Type]. *)
 and pp_stab_sig hash ppf sig_ =
-  let module HM = Map.Make (struct
-    type t = string * string
-    let compare (n1, h1) (n2, h2) =
-      match String.compare n1 n2 with 0 -> String.compare h1 h2 | c -> c
-  end) in
+  let module HM = Map.Make (String) in
   let all_fields = match sig_ with
     | Single tfs -> tfs
     | PrePost (pre, post) -> List.map snd pre @ post
@@ -2374,16 +2371,19 @@ and pp_stab_sig hash ppf sig_ =
      [pp_typ_field], no decl but still substituted). *)
   let cs_top = List.fold_right (cons_field false) all_fields ConSet.empty in
   let cs_all = List.fold_right (cons_field true) all_fields ConSet.empty in
-  let dedup =
+  let dedup, lost =
     let groups = ConSet.fold (fun c acc ->
       match Cons.kind c with
-      | Def ([], (Con _)) -> acc  (* bare alias: avoid [type X = X] *)
+      (* Nullary bare alias: avoid [type X = X]. Parameterized alias
+         bodies like [Map<Text, T>] are safe to group — their head cons
+         has arity > 0 and thus is never itself a group member. *)
+      | Def ([], Con (_, [])) -> acc
       | Def ([], body) ->
         (* [hash] is partial: [Invalid_argument] on [Async] and on type
            components, [Assert_failure] on non-stable types reachable
            only through tf bodies (e.g. polymorphic function aliases). *)
         (try
-          HM.update (Cons.name c, hash body) (function
+          HM.update (hash body) (function
             | Some xs -> Some ((c, body) :: xs)
             | None -> Some [(c, body)]) acc
         with Invalid_argument _ | Assert_failure _ -> acc)
@@ -2397,18 +2397,29 @@ and pp_stab_sig hash ppf sig_ =
           | (b, cs) :: rest when eq b body -> (b, c :: cs) :: rest
           | cls :: rest -> cls :: insert rest
         in insert classes) [] members in
-      List.fold_left (fun acc (_, members) ->
+      List.fold_left (fun (dacc, lacc) (_, members) ->
         match members with
-        | [] | [_] -> acc
+        | [] | [_] -> (dacc, lacc)
         | first :: rest ->
           (* [Cons.compare] orders by hash, stamp, name — deterministic. *)
           let rep = List.fold_left
             (fun best c -> if Cons.compare c best < 0 then c else best)
             first rest in
-          List.fold_left (fun acc c ->
-            if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members)
+          let dacc = List.fold_left (fun acc c ->
+            if Cons.eq c rep then acc else ConEnv.add c rep acc) dacc members in
+          (* A merge across names erases the losers' names from the sig;
+             keep one member per lost name so a residual alias decl
+             [type Loser = Rep] can preserve it. Tf-only cons never had
+             a decl, so their names aren't lost. *)
+          let module NM = Map.Make (String) in
+          let lost_names = List.fold_left (fun m c ->
+            if Cons.name c = Cons.name rep || not (ConSet.mem c cs_top) then m
+            else NM.update (Cons.name c) (function
+              | Some c' when Cons.compare c' c <= 0 -> Some c'
+              | _ -> Some c) m) NM.empty members in
+          (dacc, NM.fold (fun _ c l -> (c, rep) :: l) lost_names lacc))
         acc classes
-    ) groups ConEnv.empty
+    ) groups (ConEnv.empty, [])
   in
   let cs_top, sig_ =
     if ConEnv.is_empty dedup then cs_top, sig_
@@ -2434,9 +2445,14 @@ and pp_stab_sig hash ppf sig_ =
         if Cons.eq c target' then acc else ConEnv.add c target' acc) cs_all ConEnv.empty in
       ConEnv.iter (fun orig clone ->
         Cons.unsafe_set_kind clone (cons_subst_kind sigma (Cons.kind orig))) clones;
+      (* Residual aliases preserving names lost to cross-name merges;
+         unreferenced by construction (all refs now point at the rep). *)
+      let aliases = List.map (fun (loser, rep) ->
+        let target = ConEnv.find_opt rep clones |> Option.value ~default:rep in
+        Cons.clone loser (Def ([], Con (target, [])))) lost in
       let cs_top = ConSet.fold (fun c acc ->
         ConSet.add (ConEnv.find_opt c sigma |> Option.value ~default:c) acc)
-        cs_top ConSet.empty in
+        cs_top (ConSet.of_list aliases) in
       let f fld = { fld with typ = cons_subst sigma fld.typ } in
       let sig_ = match sig_ with
         | Single fs -> Single (List.map f fs)

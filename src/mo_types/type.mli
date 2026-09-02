@@ -352,8 +352,9 @@ val match_stab_fields : field list -> (bool * field) list -> bool
 
 (* [hash] (typically [Typ_hash.typ_hash]) lets the printer collapse
    structurally equivalent zero-arity type constructors onto a canonical
-   representative. The cons graph is not mutated; substitution is applied
-   only at render time. *)
+   representative; a name lost to a cross-name merge is preserved as a
+   residual alias decl. The cons graph is not mutated; substitution is
+   applied only at render time. *)
 val string_of_stab_sig : (typ -> string) -> stab_sig -> string
 
 val motoko_runtime_information_type : typ

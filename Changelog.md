@@ -2,7 +2,7 @@
 
 * motoko (`moc`)
 
-  * perf: Long enhanced-migration chains no longer redeclare structurally-equal type aliases at every step in the `motoko:stable-types` Wasm custom section, shrinking the section dramatically and deferring when projects hit the IC's 1 MiB custom-section ceiling (#6074).
+  * perf: The `motoko:stable-types` Wasm custom section no longer redeclares structurally-equal type aliases — including same-shape aliases under different names (a lost name is kept as a one-line alias, e.g. `type NewActor = OldActor`) and repeated parameterized aliases like `type Registry = Map<Text, Provider>` — shrinking the section dramatically on long enhanced-migration chains and deferring when projects hit the IC's 1 MiB custom-section ceiling (#6074).
 
 ## 1.15.0 (2026-08-28)
 

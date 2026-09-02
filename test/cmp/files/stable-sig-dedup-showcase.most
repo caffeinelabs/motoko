@@ -1,0 +1,14 @@
+// Version: 1.0.0
+type Event__400808399 = {#added : Nat; #removed : Nat};
+type Map__413603539<K, V> = [(K, V)];
+type NewState__677264604 = OldState__430764159;
+type OldState__430764159 = {events : [Event__400808399]; total : Nat};
+type Registry__946337785 = Map__413603539<Text, Event__400808399>;
+actor {
+  stable _ea : ?Event__400808399;
+  stable _eb : ?Event__400808399;
+  stable _new : ?OldState__430764159;
+  stable _old : ?OldState__430764159;
+  stable _ra : ?Registry__946337785;
+  stable _rb : ?Registry__946337785
+};
