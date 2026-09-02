@@ -1,7 +1,5 @@
 # Motoko compiler changelog
 
-<!--changelog-shake-->
-
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)
