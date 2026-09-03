@@ -1,6 +1,6 @@
 # Motoko compiler changelog
 
-## Next
+## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)
 
@@ -9,6 +9,9 @@
     chains, and the runtime system already enforces stable-type
     compatibility at upgrade time. Compile-time validation and the
     `.most` output under `--stable-types` are unaffected (#6073).
+
+  * bugfix: Candid record decoding now skips trailing extra fields whose count
+    is a multiple of 256; the skip count had been truncated to a byte (#6334).
 
 ## 1.15.0 (2026-08-28)
 
