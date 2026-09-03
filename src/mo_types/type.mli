@@ -350,11 +350,10 @@ val mem_typ_of_pre : (bool * field) list -> typ
 val match_stab_sig : stab_sig -> stab_sig -> bool
 val match_stab_fields : field list -> (bool * field) list -> bool
 
-(* [hash] (typically [Typ_hash.typ_hash]) lets the printer collapse
-   structurally equivalent zero-arity type constructors onto a canonical
-   representative; a name lost to a cross-name merge is preserved as a
-   residual alias decl. The cons graph is not mutated; substitution is
-   applied only at render time. *)
+(* [hash] (typically [Typ_hash.typ_hash]) lets the printer collapse structurally equivalent
+   type aliases onto a canonical representative; a name lost to a cross-name merge is preserved
+   as a residual alias decl [type Loser = Rep]. The cons graph is never mutated: substitution
+   happens on throwaway clones at render time only. *)
 val string_of_stab_sig : (typ -> string) -> stab_sig -> string
 
 val motoko_runtime_information_type : typ
