@@ -1,5 +1,10 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * bugfix: trap on array element counts that cannot be allocated, instead of
+    wrapping the byte size computed from them (#6312).
+
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)

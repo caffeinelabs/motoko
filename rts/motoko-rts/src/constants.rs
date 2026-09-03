@@ -25,3 +25,11 @@ pub const WASM32_HEAP_SIZE: Words<usize> = Words(1024 * 1024 * 1024);
 // See `compile_enhanced.ml`, `GetPastArrayOffset`.
 // Two bits reserved: Two for Int tag (0b10L) and one for the sign bit.
 pub const MAX_ARRAY_LENGTH_FOR_ITERATOR: usize = 1 << (usize::BITS as usize - 3);
+
+// Inclusive upper bound on the element count of an allocatable array. This is not the
+// iterator bound above: an array of that many elements could not be allocated at all,
+// and admitting it lets the byte size `(header + len) * WORD_SIZE` wrap, handing out a
+// few bytes for an array whose header claims ~2^61 elements. 2^48 elements are 2 PiB of
+// payload, far beyond any addressable memory, and leave the size computation 13 bits of
+// headroom. The 32-bit bound is unchanged and cannot wrap.
+pub const MAX_ARRAY_LENGTH: usize = if usize::BITS == 64 { 1 << 48 } else { 1 << 29 };
