@@ -2430,7 +2430,7 @@ and pp_stab_sig hash ppf sig_ =
      chains (acyclic by definedness) and the main dedup, so aliases of
      merged cons unify too. Same-name only: keeping [Ms = Nat] and
      [Cents = Nat] separate preserves intent for free. *)
-  let dedup =
+  let dedup, alias_final =
     let rec chase c =
       match Cons.kind c with
       | Def ([], Con (c', [])) -> chase c'
@@ -2459,16 +2459,20 @@ and pp_stab_sig hash ppf sig_ =
             | None -> Some [c]) groups,
            dedup)
       | _ -> (groups, dedup)) cs_all (AM.empty, dedup) in
-    AM.fold (fun _ members acc ->
+    AM.fold (fun (_, t) members (dacc, aacc) ->
       match members with
-      | [] | [_] -> acc
+      | [] | [_] -> (dacc, aacc)
       | first :: rest ->
         let rep = List.fold_left
           (fun best c -> if Cons.compare c best < 0 then c else best)
           first rest in
-        List.fold_left (fun acc c ->
-          if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members
-    ) groups dedup
+        (* Merged alias chains can point back into their own group; a
+           merged rep therefore rebinds to the final target directly
+           (never an alias), keeping every emitted alias productive. *)
+        (List.fold_left (fun acc c ->
+           if Cons.eq c rep then acc else ConEnv.add c rep acc) dacc members,
+         ConEnv.add rep t aacc)
+    ) groups (dedup, ConEnv.empty)
   in
   let cs_top, sig_ =
     if ConEnv.is_empty dedup then cs_top, sig_
@@ -2486,14 +2490,19 @@ and pp_stab_sig hash ppf sig_ =
         ConSet.exists (fun c' -> ConEnv.mem c' dedup) reachable
       in
       let clones = ConSet.fold (fun c m ->
-        if ConEnv.mem c dedup || not (needs_clone c) then m
-        else ConEnv.add c (Cons.clone c (Cons.kind c)) m) cs_all ConEnv.empty in
+        if ConEnv.mem c dedup then m
+        else if ConEnv.mem c alias_final || needs_clone c then
+          ConEnv.add c (Cons.clone c (Cons.kind c)) m
+        else m) cs_all ConEnv.empty in
       let sigma = ConSet.fold (fun c acc ->
         let target = ConEnv.find_opt c dedup |> Option.value ~default:c in
         let target' = ConEnv.find_opt target clones |> Option.value ~default:target in
         if Cons.eq c target' then acc else ConEnv.add c target' acc) cs_all ConEnv.empty in
       ConEnv.iter (fun orig clone ->
-        Cons.unsafe_set_kind clone (cons_subst_kind sigma (Cons.kind orig))) clones;
+        let k = match ConEnv.find_opt orig alias_final with
+          | Some final -> Def ([], Con (final, []))
+          | None -> Cons.kind orig in
+        Cons.unsafe_set_kind clone (cons_subst_kind sigma k)) clones;
       (* Residual aliases preserving names lost to cross-name merges;
          unreferenced by construction (all refs now point at the rep). *)
       let aliases = List.map (fun (loser, rep) ->
