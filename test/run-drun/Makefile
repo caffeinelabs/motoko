@@ -15,10 +15,10 @@ include ../*.mk
 
 # Override the .mo rule from quick.mk to use our RUNFLAGS
 _out/%_done: %.mo $(wildcard ../../src/moc) $(RUN_TEST) | _out
-	@+ chronic run-test $(RUNFLAGS) $<
+	@+ chronic run-test $(RUNFLAGS) $(EXTRA_RUNFLAGS) $<
 	@+ touch $@
 
 # Add .drun rule (not in quick.mk)
 _out/%_done: %.drun $(wildcard ../../src/moc) $(RUN_TEST) | _out
-	@+ chronic run-test $(RUNFLAGS) $<
+	@+ chronic run-test $(RUNFLAGS) $(EXTRA_RUNFLAGS) $<
 	@+ touch $@

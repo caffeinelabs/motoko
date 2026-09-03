@@ -766,14 +766,20 @@ fn handle_drun(ctx: &mut Ctx, cli: &Cli, src: &str, d: &Directives) {
         return;
     }
 
-    let drun_out = base_out.join(format!("{}.drun.drun", ctx.base));
-    let mangled = mangle_drun_paths(src, &ctx.base, &ctx.out);
-    let _ = fs::write(&drun_out, &mangled);
+    // Execution (pocket-ic) adds no compiler coverage, so honour SKIP_RUNNING
+    // here as the .mo path already does — this keeps the coverage build from
+    // spawning pocket-ic-server for every .drun. The comp phase above still
+    // runs, so backend coverage is unaffected.
+    if !yes_env("SKIP_RUNNING") {
+        let drun_out = base_out.join(format!("{}.drun.drun", ctx.base));
+        let mangled = mangle_drun_paths(src, &ctx.base, &ctx.out);
+        let _ = fs::write(&drun_out, &mangled);
 
-    let payload = drun_payload_script(&drun_out, subnet);
-    let _ = run_inline(ctx, "drun", d, None, move || {
-        exec::run_cmdline_test(payload, subnet);
-    });
+        let payload = drun_payload_script(&drun_out, subnet);
+        let _ = run_inline(ctx, "drun", d, None, move || {
+            exec::run_cmdline_test(payload, subnet);
+        });
+    }
 }
 
 fn referenced_mo_files(src: &str) -> Vec<String> {
