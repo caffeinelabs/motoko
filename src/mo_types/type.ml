@@ -2421,6 +2421,55 @@ and pp_stab_sig hash ppf sig_ =
         acc classes
     ) groups (ConEnv.empty, [])
   in
+  (* Second pass: nullary bare aliases [type X = C], excluded above
+     because collapsing one onto a group member could print [type X = X]
+     (and an alias of a prim could hijack its class). A re-export alias
+     [type X = M.X] whose final target shares its name adds nothing:
+     drop it and point refs at the target. Other aliases merge when they
+     agree on name and final target; targets resolve through alias
+     chains (acyclic by definedness) and the main dedup, so aliases of
+     merged cons unify too. Same-name only: keeping [Ms = Nat] and
+     [Cents = Nat] separate preserves intent for free. *)
+  let dedup =
+    let rec chase c =
+      match Cons.kind c with
+      | Def ([], Con (c', [])) -> chase c'
+      | _ -> c
+    in
+    let final c =
+      let t = chase c in
+      ConEnv.find_opt t dedup |> Option.value ~default:t
+    in
+    let module AM = Map.Make (struct
+      type t = string * con
+      let compare (n1, c1) (n2, c2) =
+        match String.compare n1 n2 with
+        | 0 -> Cons.compare c1 c2
+        | o -> o
+    end) in
+    let groups, dedup = ConSet.fold (fun c (groups, dedup) ->
+      match Cons.kind c with
+      | Def ([], Con (c', [])) ->
+        let t = final c' in
+        if Cons.name c = Cons.name (chase c') && not (Cons.eq c t) then
+          (groups, ConEnv.add c t dedup)
+        else
+          (AM.update (Cons.name c, t) (function
+            | Some xs -> Some (c :: xs)
+            | None -> Some [c]) groups,
+           dedup)
+      | _ -> (groups, dedup)) cs_all (AM.empty, dedup) in
+    AM.fold (fun _ members acc ->
+      match members with
+      | [] | [_] -> acc
+      | first :: rest ->
+        let rep = List.fold_left
+          (fun best c -> if Cons.compare c best < 0 then c else best)
+          first rest in
+        List.fold_left (fun acc c ->
+          if Cons.eq c rep then acc else ConEnv.add c rep acc) acc members
+    ) groups dedup
+  in
   let cs_top, sig_ =
     if ConEnv.is_empty dedup then cs_top, sig_
     (* Mint clones in a dedicated stamp scope. [Cons.session] restores the
