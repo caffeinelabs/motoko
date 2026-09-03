@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * perf: Stable-type signatures (the `.most` output and the `motoko:stable-types` Wasm custom section, where still emitted) no longer redeclare structurally-equal type aliases — including same-shape aliases under different names (a lost name is kept as a one-line alias, e.g. `type NewActor = OldActor`) and repeated parameterized aliases like `type Registry = Map<Text, Provider>` — shrinking signatures dramatically on long enhanced-migration chains (#6074).
+
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)

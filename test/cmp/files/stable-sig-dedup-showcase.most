@@ -1,0 +1,21 @@
+// Version: 1.0.0
+type Event__400808399 = {#added : Nat; #removed : Nat};
+type Map__413603539<K, V> = [(K, V)];
+type MyNat__1052204641 = Nat;
+type NewState__677264604 = OldState__430764159;
+type OldState__430764159 = {events : [Event__400808399]; total : Nat};
+type Registry__946337785 = Map__413603539<Text, Event__400808399>;
+type Tag__459342319 = Text;
+actor {
+  stable _ea : ?Event__400808399;
+  stable _eb : ?Event__400808399;
+  stable _ec : ?Event__400808399;
+  stable _mn : ?MyNat__1052204641;
+  stable _n : ?Nat;
+  stable _new : ?OldState__430764159;
+  stable _old : ?OldState__430764159;
+  stable _ra : ?Registry__946337785;
+  stable _rb : ?Registry__946337785;
+  stable _ta : ?Tag__459342319;
+  stable _tb : ?Tag__459342319
+};

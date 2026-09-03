@@ -1,0 +1,44 @@
+// Version: 4.0.0
+type Event__599461622 = {#added : Nat; #removed : Nat};
+type Item__207709396 = {count : Nat; id : Nat; name : Text; tag : Text};
+type Item__528485171 = {id : Nat; name : Text};
+type NewActor__163145049 = OldActor__815300102;
+type NewActor__375088140 =
+  {
+    events : [Event__599461622];
+    items : [Item__207709396];
+    orders : [Order__38089332];
+    users : [User__106324931]
+  };
+type NewActor__876229335 = OldActor__634213361;
+type NewItem__396027537 = {id : Nat; name : Text; tag : Text};
+type NewItem__977113464 = Item__207709396;
+type OldActor__634213361 =
+  {
+    events : [Event__599461622];
+    items : [Item__528485171];
+    orders : [Order__38089332];
+    users : [User__106324931]
+  };
+type OldActor__815300102 =
+  {
+    events : [Event__599461622];
+    items : [NewItem__396027537];
+    orders : [Order__38089332];
+    users : [User__106324931]
+  };
+type OldItem__380367136 = NewItem__396027537;
+type OldItem__38689098 = Item__528485171;
+type Order__38089332 = {amount : Nat; id : Nat; status : Text};
+type User__106324931 = {active : Bool; email : Text; id : Nat};
+{
+  "1_Init" : {} -> OldActor__634213361;
+  "2_AddTag" : (old : OldActor__634213361) -> OldActor__815300102;
+  "3_AddCount" : (old : OldActor__815300102) -> NewActor__375088140
+}
+actor  {
+  stable events : [Event__599461622];
+  stable items : [Item__207709396];
+  stable orders : [Order__38089332];
+  stable users : [User__106324931]
+};
