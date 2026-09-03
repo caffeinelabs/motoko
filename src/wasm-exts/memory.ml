@@ -121,6 +121,7 @@ let load_value mem a o t =
   | I64Type -> I64 n
   | F32Type -> F32 (F32.of_bits (Int64.to_int32 n))
   | F64Type -> F64 (F64.of_bits n)
+  | V128Type -> raise (Invalid_argument "load_value: no v128 values")
 
 let store_value mem a o v =
   let x =

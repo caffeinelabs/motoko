@@ -119,6 +119,11 @@ and instr' =
   (* Manual extension for passive data segments *)
   | MemoryInit of var                 (* initialize memory range from segment *)
   (* End of manual extension *)
+  (* Manual extension for SIMD (0xFD-prefixed) instructions: opaque
+     passthrough of sub-opcode + raw immediate bytes. Sound because no SIMD
+     instruction carries a function/type/global index needing relocation. *)
+  | SimdRaw of int32 * string
+  (* End of manual extension *)
   | Const of literal                  (* constant *)
   | Test of testop                    (* numeric test *)
   | Compare of relop                  (* numeric comparison *)
