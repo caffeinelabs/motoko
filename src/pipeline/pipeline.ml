@@ -925,9 +925,9 @@ let compile_files mode do_link files : compile_result =
   let* ext_module = compile_progs mode do_link libs progs in
   (* validate any stable type signature, as a sanity check *)
   let* () =
-    match Wasm_exts.CustomModule.(ext_module.motoko.stable_types) with
-    | Some (_, ss) -> validate_stab_sig ss
-    | _ -> Diag.return ()
+    match Wasm_exts.CustomModule.(ext_module.motoko.stable_types_text) with
+    | Some ss -> validate_stab_sig ss
+    | None -> Diag.return ()
   in
   let* () =
     if Wasm_exts.CustomModule.(ext_module.wasm_features) <> []

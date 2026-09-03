@@ -564,7 +564,7 @@ unsafe extern "C" fn find_field(
     buf: *mut Buf,
     typtbl: *mut *mut u8,
     tag: u32,
-    n: *mut u8,
+    n: *mut u32,
 ) -> bool {
     while *n > 0 {
         let last_p = (*tb).ptr;
@@ -587,7 +587,7 @@ unsafe extern "C" fn find_field(
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn skip_fields(tb: *mut Buf, buf: *mut Buf, typtbl: *mut *mut u8, n: *mut u8) {
+unsafe extern "C" fn skip_fields(tb: *mut Buf, buf: *mut Buf, typtbl: *mut *mut u8, n: *mut u32) {
     while *n > 0 {
         skip_leb128(tb);
         let it = sleb128_decode(tb);

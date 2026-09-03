@@ -5,6 +5,19 @@
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
+## 1.15.1 (2026-09-02)
+
+* motoko (`moc`)
+
+  * fix: Strip the `motoko:stable-types` custom section from the wasm
+    under `--enhanced-migration`: it can grow very large with migration
+    chains, and the runtime system already enforces stable-type
+    compatibility at upgrade time. Compile-time validation and the
+    `.most` output under `--stable-types` are unaffected (#6073).
+
+  * bugfix: Candid record decoding now skips trailing extra fields whose count
+    is a multiple of 256; the skip count had been truncated to a byte (#6334).
+
 ## 1.15.0 (2026-08-28)
 
 * motoko (`moc`)

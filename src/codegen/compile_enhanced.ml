@@ -480,6 +480,7 @@ module E = struct
     args : (bool * string) option ref;
     service : (bool * string) option ref;
     stable_types : (bool * string) option ref;
+    stable_types_text : string option ref;
     labs : LabSet.t ref; (* Used labels (fields and variants),
                             collected for Motoko custom section 0 *)
 
@@ -532,6 +533,7 @@ module E = struct
     args = ref None;
     service = ref None;
     stable_types = ref None;
+    stable_types_text = ref None;
     labs = ref LabSet.empty;
     (* Actually unused outside mk_fun_env: *)
     n_param = 0l;
@@ -8402,7 +8404,12 @@ module Serialization = struct
         Stack.with_words env "get_n_ptr" 1L (fun get_n_ptr ->
           get_n_ptr ^^
           ReadBuf.read_leb128 env get_typ_buf ^^
-          store_unskewed_ptr ^^
+          (* Store the record field count as a u32, matching the classical
+             (32-bit) backend, rather than a full 64-bit word, so both backends
+             write the count at the same width into the slot that
+             find_field/skip_fields read back. *)
+          G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+          G.i (Store {ty = I32Type; align = 2; offset = 0L; sz = None}) ^^
           f get_typ_buf get_n_ptr
         )
       ) in
@@ -13979,6 +13986,7 @@ and main_actor as_opt mod_env ds fs up =
 
   (* Export metadata *)
   mod_env.E.stable_types := metadata "motoko:stable-types" up.meta.sig_;
+  mod_env.E.stable_types_text := Some up.meta.sig_;
   mod_env.E.service := metadata "candid:service" up.meta.candid.service;
   mod_env.E.args := metadata "candid:args" up.meta.candid.args;
 
@@ -14099,7 +14107,13 @@ and main_actor as_opt mod_env ds fs up =
   )
 
 and metadata name value =
-  if List.mem name !Flags.omit_metadata_names then None
+  (* Strip [motoko:stable-types] under --enhanced-migration: the section
+     can grow very large with migration chains and the runtime system
+     already enforces stable-type compatibility at upgrade time; [.most]
+     emission and compile-time validation read [stable_types_text] instead. *)
+  if List.mem name !Flags.omit_metadata_names
+     || (name = "motoko:stable-types" && Option.is_some !Flags.enhanced_migration)
+  then None
   else Some (
            List.mem name !Flags.public_metadata_names,
            value)
@@ -14185,6 +14199,7 @@ and conclude_module env set_serialization_globals start_fi_o =
       motoko = {
         labels = E.get_labs env;
         stable_types = !(env.E.stable_types);
+        stable_types_text = !(env.E.stable_types_text);
         compiler = metadata "motoko:compiler" (Lib.Option.get Source_id.release Source_id.id);
       };
       enhanced_orthogonal_persistence = Some (false, "64-bit, layout version 1");
