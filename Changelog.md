@@ -1,5 +1,10 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * perf: the incremental GC's write, allocation and weak-reference read barriers now
+    gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
+
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)

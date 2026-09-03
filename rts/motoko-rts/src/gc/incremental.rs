@@ -45,6 +45,10 @@ pub mod time;
 #[ic_mem_fn(ic_only)]
 unsafe fn initialize_incremental_gc<M: Memory>(mem: &mut M) {
     initialize(mem);
+    // The `State` is now adopted (fresh on install, persisted-in-place on a
+    // stable-heap EOP upgrade). Re-seat the backend `__running_gc` cache from it:
+    // this runs in the wasm `(start)`, before any exported entry or write barrier.
+    get_incremental_gc_state().resync_running_gc_cache();
 }
 
 #[cfg(feature = "ic")]
@@ -68,7 +72,14 @@ unsafe fn initialize<M: Memory>(_mem: &mut M) {
 #[ic_mem_fn(ic_only)]
 unsafe fn schedule_incremental_gc<M: Memory>(mem: &mut M) {
     let state = get_incremental_gc_state();
-    let running = state.phase != Phase::Pause;
+    // Sanity: the backend `__running_gc` cache must equal the authoritative
+    // `phase != Pause` (the value the uncached pre-PR code computed live). Runs
+    // every schedule point, so it catches a decohered cache — e.g. a missing
+    // start-time re-seat after a stable-heap EOP upgrade landing mid-cycle —
+    // on the first GC scheduling after the assignment that would skip a barrier.
+    #[cfg(debug_assertions)]
+    debug_assert_eq!(get_running_gc(), (state.phase() != Phase::Pause) as i32);
+    let running = state.phase() != Phase::Pause;
     if running || scheduling::should_start_gc() {
         incremental_gc(mem);
     }
@@ -78,12 +89,12 @@ unsafe fn schedule_incremental_gc<M: Memory>(mem: &mut M) {
 unsafe fn incremental_gc<M: Memory>(mem: &mut M) {
     use self::roots::root_set;
     let state = get_incremental_gc_state();
-    assert!(state.phase != Phase::Stop);
-    if state.phase == Phase::Pause {
+    assert!(state.phase() != Phase::Stop);
+    if state.phase() == Phase::Pause {
         record_gc_start::<M>();
     }
     IncrementalGC::instance(mem, state).empty_call_stack_increment(root_set());
-    if state.phase == Phase::Pause {
+    if state.phase() == Phase::Pause {
         record_gc_stop::<M>();
     }
 }
@@ -137,9 +148,9 @@ const INCREMENT_BASE_LIMIT: usize = 5_000_000; // Increment limit without concur
 const INCREMENT_ALLOCATION_FACTOR: usize = 50; // Additional time factor per concurrent allocation.
 
 // Performance note: Storing the phase-specific state in the enum would be nicer but it is much slower.
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 #[repr(C)]
-enum Phase {
+pub enum Phase {
     Stop,     // GC stopped during canister upgrade and explicit stabilization/destabilization.
     Pause,    // Inactive, waiting for the next GC run.
     Mark,     // Incremental marking.
@@ -151,7 +162,13 @@ enum Phase {
 /// Use a long-term representation by relying on C layout.
 #[repr(C)]
 pub struct State {
-    phase: Phase,
+    /// Current GC phase. **DO NOT assign directly** — always go through
+    /// [`State::set_phase`], which keeps the backend-side `__running_gc`
+    /// global in sync via the `set_running_gc` export on every
+    /// `Pause ↔ non-Pause` transition. The field privacy (no `pub`)
+    /// enforces this within the module; the rule is repeated here for
+    /// future contributors to make the invariant explicit.
+    phase_inner: Phase,
     partitioned_heap: PartitionedHeap,
     allocation_count: usize, // Number of allocations during an active GC run.
     mark_state: StableOption<MarkState>,
@@ -159,11 +176,69 @@ pub struct State {
     statistics: Statistics,
 }
 
+// The persisted layout of `State` is a compatibility contract with canisters built
+// by an earlier compiler: an in-place EOP upgrade reinterprets the very same bytes,
+// which is why the struct is `#[repr(C)]`. Renaming a field is free, but reordering
+// or resizing one is not — that needs `persistence::VERSION` bumped. Pin what the
+// upgrade path and the barriers depend on, so such a change breaks the build here
+// rather than a canister in the field.
+const _: () = assert!(core::mem::offset_of!(State, phase_inner) == 0);
+const _: () = assert!(core::mem::size_of::<Phase>() == 4);
+
+#[cfg(feature = "ic")]
+unsafe extern "C" {
+    // Provided by generated code: pushes the running-GC boolean to a
+    // backend-side global so the write-barrier fast path can read it
+    // without an RTS round-trip.
+    fn set_running_gc(state: i32);
+}
+
+#[cfg(all(feature = "ic", debug_assertions))]
+unsafe extern "C" {
+    // Sanity-only read-mirror of `set_running_gc`, provided by generated code
+    // under `--sanity-checks` (incremental GC only). Lets the RTS assert the
+    // `__running_gc` cache still agrees with the authoritative GC phase — the
+    // value the pre-cache code computed live on every barrier.
+    fn get_running_gc() -> i32;
+}
+
+impl State {
+    pub fn phase(&self) -> Phase {
+        self.phase_inner
+    }
+
+    pub fn set_phase(&mut self, new: Phase) {
+        let was_running = self.phase_inner != Phase::Pause;
+        let now_running = new != Phase::Pause;
+        self.phase_inner = new;
+        #[cfg(feature = "ic")]
+        if was_running != now_running {
+            unsafe { set_running_gc(now_running as i32) }
+        }
+    }
+
+    /// Re-seat the backend-cached `__running_gc` global from the authoritative
+    /// `phase_inner` — without a phase transition. Idempotent.
+    ///
+    /// `set_phase` only pushes the global on a `Pause ↔ non-Pause` *transition*,
+    /// which assumes the global already agrees with `phase_inner`. That assumption
+    /// breaks at canister start: module (re-)instantiation resets the global to its
+    /// init value (0 = not running), independently of the GC `State` — which, under
+    /// stable-heap EOP, persists in main memory in place and may be mid-cycle
+    /// (`phase_inner != Pause`). Call this once after the `State` is adopted from
+    /// persistence, before any write barrier can fire, so the fast-path cache matches
+    /// the phase.
+    #[cfg(feature = "ic")]
+    pub fn resync_running_gc_cache(&self) {
+        unsafe { set_running_gc((self.phase_inner != Phase::Pause) as i32) }
+    }
+}
+
 /// GC state retained over multiple GC increments.
 #[classical_persistence]
 #[cfg(feature = "ic")]
 static mut STATE: core::cell::RefCell<State> = core::cell::RefCell::new(State {
-    phase: Phase::Pause,
+    phase_inner: Phase::Pause,
     partitioned_heap: self::partitioned_heap::UNINITIALIZED_HEAP,
     allocation_count: 0,
     mark_state: StableOption::None,
@@ -195,7 +270,7 @@ impl<'a, M: Memory + 'a> IncrementalGC<'a, M> {
             max_live: Bytes(0),
         };
         State {
-            phase: Phase::Pause,
+            phase_inner: Phase::Pause,
             partitioned_heap,
             allocation_count: 0,
             mark_state: StableOption::None,
@@ -227,19 +302,19 @@ impl<'a, M: Memory + 'a> IncrementalGC<'a, M> {
         if self.pausing() {
             self.start_marking(roots);
         }
-        if self.state.phase == Phase::Mark {
+        if self.state.phase() == Phase::Mark {
             MarkIncrement::instance(self.mem, self.state, &mut self.time).run();
         }
         if self.mark_completed() {
             self.start_evacuating(roots);
         }
-        if self.state.phase == Phase::Evacuate {
+        if self.state.phase() == Phase::Evacuate {
             EvacuationIncrement::instance(self.mem, self.state, &mut self.time).run();
         }
         if self.evacuation_completed() {
             self.start_updating(roots);
         }
-        if self.state.phase == Phase::Update {
+        if self.state.phase() == Phase::Update {
             UpdateIncrement::instance(self.state, &mut self.time).run();
         }
         if self.updating_completed() {
@@ -249,21 +324,22 @@ impl<'a, M: Memory + 'a> IncrementalGC<'a, M> {
     }
 
     unsafe fn pausing(&mut self) -> bool {
-        self.state.phase == Phase::Pause
+        self.state.phase() == Phase::Pause
     }
 
     /// Only to be called when the call stack is empty as pointers on stack are not collected as roots.
     unsafe fn start_marking(&mut self, roots: Roots) {
         debug_assert!(self.pausing());
 
-        self.state.phase = Phase::Mark;
+        self.state.set_phase(Phase::Mark);
         MarkIncrement::start_phase(self.mem, self.state, &mut self.time);
         let mut increment = MarkIncrement::instance(self.mem, self.state, &mut self.time);
         increment.mark_roots(roots);
     }
 
     unsafe fn mark_completed(&mut self) -> bool {
-        self.state.phase == Phase::Mark && MarkIncrement::<M>::mark_completed(self.mem, self.state)
+        self.state.phase() == Phase::Mark
+            && MarkIncrement::<M>::mark_completed(self.mem, self.state)
     }
 
     unsafe fn check_mark_completion(&mut self, _roots: Roots) {
@@ -282,33 +358,33 @@ impl<'a, M: Memory + 'a> IncrementalGC<'a, M> {
         self.check_mark_completion(roots);
         debug_assert!(self.mark_completed());
         MarkIncrement::<M>::complete_phase(self.mem, self.state);
-        self.state.phase = Phase::Evacuate;
+        self.state.set_phase(Phase::Evacuate);
         EvacuationIncrement::<M>::start_phase(self.mem, self.state);
     }
 
     unsafe fn evacuation_completed(&self) -> bool {
-        self.state.phase == Phase::Evacuate
+        self.state.phase() == Phase::Evacuate
             && EvacuationIncrement::<M>::evacuation_completed(self.state)
     }
 
     unsafe fn start_updating(&mut self, roots: Roots) {
         debug_assert!(self.evacuation_completed());
         EvacuationIncrement::<M>::complete_phase(self.state);
-        self.state.phase = Phase::Update;
+        self.state.set_phase(Phase::Update);
         UpdateIncrement::start_phase(self.state);
         let mut increment = UpdateIncrement::instance(self.state, &mut self.time);
         increment.update_roots(roots);
     }
 
     unsafe fn updating_completed(&self) -> bool {
-        self.state.phase == Phase::Update && UpdateIncrement::update_completed(self.state)
+        self.state.phase() == Phase::Update && UpdateIncrement::update_completed(self.state)
     }
 
     /// Only to be called when the call stack is empty as pointers on stack are not updated.
     unsafe fn complete_run(&mut self, roots: Roots) {
         debug_assert!(self.updating_completed());
         UpdateIncrement::complete_phase(self.state);
-        self.state.phase = Phase::Pause;
+        self.state.set_phase(Phase::Pause);
         self.check_update_completion(roots);
     }
 
@@ -330,7 +406,7 @@ impl<'a, M: Memory + 'a> IncrementalGC<'a, M> {
 /// The barrier can be conservatively called even if the overwritten value is not a pointer.
 /// The barrier is only effective while the GC is in the mark phase.
 unsafe fn pre_write_barrier<M: Memory>(mem: &mut M, state: &mut State, overwritten_value: Value) {
-    if state.phase == Phase::Mark {
+    if state.phase() == Phase::Mark {
         let base_address = state.partitioned_heap.base_address();
         if overwritten_value.points_to_or_beyond(base_address) {
             let mut time = BoundedTime::new(0);
@@ -352,7 +428,7 @@ unsafe fn pre_write_barrier<M: Memory>(mem: &mut M, state: &mut State, overwritt
 /// loaded target. This is symmetric to `pre_write_barrier` and keeps the marked set a
 /// superset of the snapshot-at-the-beginning.
 unsafe fn pre_read_barrier<M: Memory>(mem: &mut M, state: &mut State, value: Value) {
-    if state.phase == Phase::Mark {
+    if state.phase() == Phase::Mark {
         let base_address = state.partitioned_heap.base_address();
         if value.points_to_or_beyond(base_address) {
             let mut time = BoundedTime::new(0);
@@ -367,9 +443,9 @@ unsafe fn pre_read_barrier<M: Memory>(mem: &mut M, state: &mut State, value: Val
 /// The new object needs to be fully initialized, except for the payload of a blob.
 /// The barrier is only effective during a running GC.
 unsafe fn post_allocation_barrier(state: &mut State, new_object: Value) {
-    if state.phase == Phase::Mark || state.phase == Phase::Evacuate {
+    if state.phase() == Phase::Mark || state.phase() == Phase::Evacuate {
         mark_new_allocation(state, new_object);
-    } else if state.phase == Phase::Update {
+    } else if state.phase() == Phase::Update {
         update_new_allocation(state, new_object);
     }
 }
@@ -392,7 +468,7 @@ unsafe fn post_allocation_barrier(state: &mut State, new_object: Value) {
 /// * During the update phase
 ///   - New objects do not need to be marked as they are allocated in non-evacuated partitions.
 unsafe fn mark_new_allocation(state: &mut State, new_object: Value) {
-    debug_assert!(state.phase == Phase::Mark || state.phase == Phase::Evacuate);
+    debug_assert!(state.phase() == Phase::Mark || state.phase() == Phase::Evacuate);
     let object = new_object.get_ptr() as *mut Obj;
     let unmarked_before = state.partitioned_heap.mark_object(object);
     debug_assert!(unmarked_before);
@@ -416,7 +492,7 @@ unsafe fn mark_new_allocation(state: &mut State, new_object: Value) {
 ///   - Allocation barrier: Resolve the forwarding for all pointers in the new allocation.
 ///   - Write barrier: Resolve forwarding for the written pointer value.
 unsafe fn update_new_allocation(state: &State, new_object: Value) {
-    debug_assert!(state.phase == Phase::Update);
+    debug_assert!(state.phase() == Phase::Update);
     if state.partitioned_heap.updates_needed() {
         let object = new_object.get_ptr() as *mut Obj;
         visit_pointer_fields(
@@ -434,7 +510,7 @@ unsafe fn update_new_allocation(state: &State, new_object: Value) {
 
 /// Count a concurrent allocation to increase the next scheduled GC increment.
 unsafe fn count_allocation(state: &mut State) {
-    if state.phase != Phase::Pause {
+    if state.phase() != Phase::Pause {
         state.allocation_count += 1;
     }
 }
@@ -464,21 +540,21 @@ pub unsafe fn get_max_live_size() -> Bytes<usize> {
 /// Stop the GC. Called before stabilzation and destabilization.
 pub unsafe fn stop_gc() {
     let state = get_incremental_gc_state();
-    state.phase = Phase::Stop;
+    state.set_phase(Phase::Stop);
 }
 
 /// Resume the stopped GC. Called after completed destabilization.
 pub unsafe fn resume_gc() {
     let state = get_incremental_gc_state();
-    assert!(state.phase == Phase::Stop);
-    state.phase = Phase::Pause;
+    assert!(state.phase() == Phase::Stop);
+    state.set_phase(Phase::Pause);
     // The allocation during destabilization should not count as concurrent
     // mutator allocation. Therefore, reset the allocation count.
     state.allocation_count = 0;
 }
 
 pub unsafe fn is_gc_stopped() -> bool {
-    get_incremental_gc_state().phase == Phase::Stop
+    get_incremental_gc_state().phase() == Phase::Stop
 }
 
 /// Safety guard before Candid-stabilization with classical persistence.

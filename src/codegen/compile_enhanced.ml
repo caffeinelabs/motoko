@@ -602,6 +602,14 @@ module E = struct
   let add_global64 (env : t) name mut init =
     add_global64_delayed env name mut init
 
+  let add_global32 (env : t) name mut init =
+    let p = Lib.Promise.make () in
+    add_global env name p;
+    Lib.Promise.fulfill p (nr {
+      gtype = GlobalType (I32Type, mut);
+      value = nr (G.to_instr_list (G.i (Const (nr (Wasm_exts.Values.I32 init)))))
+    })
+
   let get_global (env : t) name : int32 =
     match NameEnv.find_opt name !(env.global_names) with
     | Some gi -> gi
@@ -668,10 +676,11 @@ module E = struct
 
   let get_rts (env : t) = env.rts
 
-  let as_block_type env : stack_type -> block_type = function
-    | [] -> ValBlockType None
-    | [t] -> ValBlockType (Some t)
-    | ts -> VarBlockType (nr (func_type env (FuncType ([], ts))))
+  let as_block_type ?(param=[]) env (results : stack_type) : block_type =
+    match param, results with
+    | [], []  -> ValBlockType None
+    | [], [t] -> ValBlockType (Some t)
+    | ps, rs  -> VarBlockType (nr (func_type env (FuncType (ps, rs))))
 
 
   let prepare_branch_condition =
@@ -684,6 +693,15 @@ module E = struct
     G.if1 return_type then_block else_block
 
   let if_ env tys thn els = prepare_branch_condition ^^ G.if_ (as_block_type env tys) thn els
+  (* [if' env ?param ?return thn els] — block-type-aware multi-value `if`,
+     a thin wrapper over `as_block_type`. [param]/[return] are optional
+     `stack_type`s (default empty). Unlike `if_`, does *not*
+     `prepare_branch_condition` (no `i32.wrap_i64`): the caller must place
+     an i32 condition on the wasm stack themselves — use this for raw-wasm
+     conditions like `global.get` of an i32 flag. *)
+  let if' env ?param ?(return=[]) thn els =
+    G.if_ (as_block_type ?param env return) thn els
+  let i64s n = Lib.List.make n I64Type
   let block_ env tys bdy = G.block_ (as_block_type env tys) bdy
 
 
@@ -1133,7 +1151,6 @@ module RTS = struct
     add_rts_import "incremental_gc" [] [];
     add_rts_import "write_with_barrier" [I64Type; I64Type] [];
     add_rts_import "allocation_barrier" [I64Type] [I64Type];
-    add_rts_import "running_gc" [] [I32Type];
     add_rts_import "register_stable_type" [I64Type; I64Type] [];
     add_rts_import "assign_stable_type" [I64Type; I64Type] [];
     add_rts_import "has_stable_actor" [] [I32Type];
@@ -1302,7 +1319,13 @@ module GC = struct
   let register_globals env =
     E.add_global64 env "__mutator_instructions" Mutable 0L;
     E.add_global64 env "__collector_instructions" Mutable 0L;
-    E.add_global64 env "__lifetime_instructions" Mutable 0L
+    E.add_global64 env "__lifetime_instructions" Mutable 0L;
+    (* GC-running flag. RTS-side cache of `phase != Pause`, written via
+       the `set_running_gc` export below (registered in RTS_Exports).
+       Registered here so `Tagged.write_with_barrier` can resolve the
+       global during expression compilation, which runs before
+       `conclude_module`. *)
+    E.add_global32 env "__running_gc" Mutable 0l
 
   let get_mutator_instructions env =
     G.i (GlobalGet (nr (E.get_global env "__mutator_instructions")))
@@ -2120,22 +2143,26 @@ module Tagged = struct
     go cases
 
   let allocation_barrier env =
-    E.call_rts env "allocation_barrier"
+    (* Inline running-GC fast path. The RTS function returns its
+       argument unchanged when `state.phase() == Pause`, so a single
+       `global.get __running_gc` + multi-value `if (param i64) (result i64)`
+       elides the function-call overhead on the common (paused) path,
+       leaving the new_object on the stack identity-wise. *)
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
+      (E.call_rts env "allocation_barrier")
+      G.nop
 
   let write_with_barrier env =
-    let (set_value, get_value) = new_local env "written_value" in
-    let (set_location, get_location) = new_local env "write_location" in
-    set_value ^^ set_location ^^
-    (* performance gain by first checking the GC state *)
-    E.call_rts env "running_gc" ^^
-    Bool.from_rts_int32 ^^
-    E.if0 (
-      get_location ^^ get_value ^^
-      E.call_rts env "write_with_barrier"
-    ) (
-      get_location ^^ get_value ^^
+    (* Stack on entry: [location, value]. Read the backend-cached
+       running-GC flag (i32) and dispatch via a multi-value
+       `if (param i64 i64)` block-type so the operands flow through
+       without locals. The RTS pushes the flag via `set_running_gc`
+       on every Pause↔non-Pause transition. *)
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' env ~param:(E.i64s 2)
+      (E.call_rts env "write_with_barrier")
       store_unskewed_ptr
-    )
 
   let obj env tag element_instructions : G.t =
     let n = List.length element_instructions in
@@ -2327,16 +2354,17 @@ module WeakRef = struct
     Tagged.load_field env field
 
   (* Load the target through a load barrier, marking it during the GC mark phase.
-     Fast-path gated on the GC state, mirroring [Tagged.write_with_barrier]. *)
+     Fast-path gated on the GC state, mirroring [Tagged.allocation_barrier]: the
+     RTS function returns its argument unchanged when the GC is paused, so a
+     single `global.get __running_gc` + multi-value `if (param i64) (result i64)`
+     elides the call on the common path and lets the loaded target flow through
+     without a local. *)
   let load_field_with_barrier env =
     load_field env ^^
-    let (set_value, get_value) = new_local env "weak_target" in
-    set_value ^^
-    E.call_rts env "running_gc" ^^
-    Bool.from_rts_int32 ^^
-    E.if_ env [I64Type]
-      (get_value ^^ E.call_rts env "read_with_barrier")
-      get_value
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
+      (E.call_rts env "read_with_barrier")
+      G.nop
 
   let store_field env =
     let (set_weak_value, get_weak_value) = new_local env "weak_value" in
@@ -6334,6 +6362,39 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr bigint_trap_fi))
     });
 
+    (* GC-running flag export. The `__running_gc` global itself is
+       registered in `GC.register_globals` so `Tagged.write_with_barrier`
+       can resolve it during expression compilation. The RTS pushes
+       cached `phase != Pause` here on every Pause↔non-Pause transition;
+       the write_with_barrier fast path reads the global instead of
+       round-tripping through an RTS call. *)
+    let set_running_gc_fi = E.add_fun env "set_running_gc" (
+      Func.of_body env ["state", I32Type] [] (fun env ->
+        G.i (LocalGet (nr 0l)) ^^
+        G.i (GlobalSet (nr (E.get_global env "__running_gc")))
+      )
+    ) in
+    E.add_export env (nr {
+      name = Lib.Utf8.decode "set_running_gc";
+      edesc = nr (FuncExport (nr set_running_gc_fi))
+    });
+
+    (* Sanity-only read-mirror of `set_running_gc`: lets the RTS assert the
+       `__running_gc` cache still agrees with the authoritative GC phase
+       (differential oracle vs. the pre-cache behaviour). Created *and* exported
+       only under `--sanity-checks` (incremental is implied by EOP); the RTS
+       imports it only in debug builds, so producer and consumer coincide. *)
+    if !Flags.sanity then begin
+      let get_running_gc_fi = E.add_fun env "get_running_gc" (
+        Func.of_body env [] [I32Type] (fun env ->
+          G.i (GlobalGet (nr (E.get_global env "__running_gc"))))
+      ) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode "get_running_gc";
+        edesc = nr (FuncExport (nr get_running_gc_fi))
+      })
+    end;
+
     (* Keep a memory reserve when in update or init state.
        This reserve can be used by queries, composite queries, and upgrades. *)
     let keep_memory_reserve_fi = E.add_fun env "keep_memory_reserve" (
@@ -6889,34 +6950,32 @@ module Var = struct
   (* Returns desired stack representation, preparation code and code to consume
      the value onto the stack *)
   let set_val env ae var : G.t * SR.t * G.t = match VarEnv.lookup ae var with
-    | Some ((Local (sr, i)), _) ->
+    | Some (Local (sr, i), _) ->
       G.nop,
       sr,
       G.i (LocalSet (nr i))
-    | Some ((HeapInd i), typ) when potential_pointer typ ->
+    | Some (HeapInd i, typ) when potential_pointer typ ->
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int64.mul MutBox.field Heap.word_size),
+      compile_add_const Int64.(add ptr_unskew (mul MutBox.field Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
-    | Some ((HeapInd i), typ) ->
+    | Some (HeapInd i, typ) ->
       G.i (LocalGet (nr i)),
       SR.Vanilla,
       MutBox.store_field env
-    | Some ((Static index), typ) when potential_pointer typ ->
+    | Some (Static index, typ) when potential_pointer typ ->
       Heap.get_static_variable env index ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int64.mul MutBox.field Heap.word_size),
+      compile_add_const Int64.(add ptr_unskew (mul MutBox.field Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
-    | Some ((Static index), typ) ->
+    | Some (Static index, typ) ->
       Heap.get_static_variable env index,
       SR.Vanilla,
       MutBox.store_field env
-    | Some ((Const _), _) -> fatal "set_val: %s is const" var
-    | Some ((PublicMethod _), _) -> fatal "set_val: %s is PublicMethod" var
+    | Some (Const _, _) -> fatal "set_val: %s is const" var
+    | Some (PublicMethod _, _) -> fatal "set_val: %s is PublicMethod" var
     | None -> fatal "set_val: %s missing" var
 
   (* Stores the payload. Returns stack preparation code, and code that consumes the values from the stack *)
@@ -6965,7 +7024,7 @@ module Var = struct
   *)
   let capture old_env ae0 var : G.t * (E.t -> VarEnv.t -> VarEnv.t * scope_wrap) =
     match VarEnv.lookup ae0 var with
-    | Some ((Local (sr, i)), typ) ->
+    | Some (Local (sr, i), typ) ->
       ( G.i (LocalGet (nr i)) ^^ StackRep.adjust old_env sr SR.Vanilla
       , fun new_env ae1 ->
         (* we use SR.Vanilla in the restored environment. We could use sr;
@@ -6974,7 +7033,7 @@ module Var = struct
         let restore_code = G.i (LocalSet (nr j))
         in ae2, fun body -> restore_code ^^ body
       )
-    | Some ((HeapInd i), typ) ->
+    | Some (HeapInd i, typ) ->
       ( G.i (LocalGet (nr i))
       , fun new_env ae1 ->
         let ae2, j = VarEnv.add_local_with_heap_ind new_env ae1 var typ in

@@ -1,0 +1,10 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+# The GC state is persisted main memory; an upgrade brings a fresh module whose
+# `__running_gc` global starts at zero, so it must be re-seated from the phase.
+install $ID gc-cache-upgrade/v1.mo ""
+ingress $ID build "DIDL\x00\x00"
+upgrade $ID gc-cache-upgrade/v2.mo ""
+ingress $ID churn "DIDL\x00\x00"
+upgrade $ID gc-cache-upgrade/v1.mo ""
+ingress $ID churn "DIDL\x00\x00"
+ingress $ID size "DIDL\x00\x00"
