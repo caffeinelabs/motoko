@@ -45,6 +45,12 @@ vendored under `test/*-stub`.
   Directories encode the kind: `run/` (interpret+wasm), `run-drun/` (IC
   semantics), `fail/` (must not typecheck, expectations in `fail/ok/*.tc.ok`),
   plus `perf/`, `repl/`, `mo-idl/`, etc.
+- **Enhanced-migration test naming**: tests exercising `--enhanced-migration`
+  are named `em-*`. A test that also passes `--stable-baseline` is named after
+  its baseline file: `em-baseline-<basename>.mo` for
+  `baselines/<basename>.most` (e.g. `em-baseline-with-b-at-m2.mo`), so the
+  pairing is visible in review. Older `enhanced-migration-*`/`multi-migration-*`
+  names predate this convention — do not add new ones.
 - **New warnings/errors** need an `M0NNN` code registered in
   `src/lang_utils/error_codes.ml` (append, never renumber) and test coverage
   of the new diagnostic.
