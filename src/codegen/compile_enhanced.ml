@@ -11426,15 +11426,14 @@ let compile_binop env t op : SR.t * SR.t * G.t =
             Bool.from_int64 ^^
             E.if1 I64Type
               begin
-                let overflow_type = match ty with
-                | Type.Nat32 -> Type.Nat64
-                | Type.(Nat8 | Nat16) -> Type.Nat32
-                | _ -> assert false in
-                let overflow_type_bits = TaggedSmallWord.bits_of_type overflow_type in
-                let overflow_boundary = -Int.(sub (mul overflow_type_bits 2) 2) in
+                (* n**exp is accumulated in a Nat64 intermediate, and get_n is
+                   lsb-adjusted, so (unsigned_dynamics get_n - 64) is the negated
+                   bit width of n; times exp it bounds the width of the result. *)
+                let intermediate_bits = 64 in
+                let overflow_boundary = -Int.sub intermediate_bits 2 in
                 get_exp ^^ compile_unboxed_const 64L ^^
                 compile_comparison I64Op.GeU ^^ then_arithmetic_overflow env ^^
-                unsigned_dynamics get_n ^^ compile_sub_const (Int64.of_int bits) ^^
+                unsigned_dynamics get_n ^^ compile_sub_const (Int64.of_int intermediate_bits) ^^
                 get_exp ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) ^^
                 compile_unboxed_const (Int64.of_int overflow_boundary) ^^
                 compile_comparison I64Op.LtS ^^ then_arithmetic_overflow env ^^
@@ -11479,15 +11478,13 @@ let compile_binop env t op : SR.t * SR.t * G.t =
                   (get_n ^^ TaggedSmallWord.msb_adjust ty) (* n@{0,1} ** (1+exp) == n *)
               end
               begin
-                let overflow_type = match ty with
-                | Type.Int32 -> Type.Int64
-                | Type.(Int8 | Int16) -> Type.Int32
-                | _ -> assert false in
-                let overflow_type_bits = TaggedSmallWord.bits_of_type overflow_type in
-                let overflow_boundary = -Int.(sub (mul overflow_type_bits 2) 2) in
+                (* as for the Nat widths: the Nat64 intermediate, not the target
+                   width, sets the offset (one less, for the sign) and boundary. *)
+                let intermediate_bits = 64 in
+                let overflow_boundary = -Int.sub intermediate_bits 2 in
                 get_exp ^^ compile_unboxed_const 64L ^^
                 compile_comparison I64Op.GeU ^^ then_arithmetic_overflow env ^^
-                signed_dynamics get_n ^^ compile_sub_const (Int64.of_int (Int.sub bits 1)) ^^
+                signed_dynamics get_n ^^ compile_sub_const (Int64.of_int (Int.sub intermediate_bits 1)) ^^
                 get_exp ^^
                 G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) ^^
                 compile_unboxed_const (Int64.of_int overflow_boundary) ^^

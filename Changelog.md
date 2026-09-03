@@ -1,5 +1,15 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * bugfix: trapping `**` on `Nat8`, `Nat16`, `Nat32`, `Int8`, `Int16` and
+    `Int32` now traps when the result overflows the 64-bit intermediate
+    instead of returning a wrapped value (e.g. `(65536 : Nat32) ** 4` returned
+    `0`). The pre-multiply overflow check was offset by the target width rather
+    than the width of the intermediate, making it unsatisfiable (#6340).
+
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)
