@@ -366,6 +366,22 @@ pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
     }
 }
 
+/// Dot product of two int8 vectors stored as blobs, over the common prefix
+/// length, with wrapping i32 accumulation. Exposed as `Prim.blobDotInt8` for
+/// embedding/similarity workloads where the per-element cost of a Motoko-level
+/// loop dominates.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn blob_dot_int8(a: Value, b: Value) -> i32 {
+    let n = min(text_size(a), text_size(b)).as_usize();
+    let s1 = core::slice::from_raw_parts(a.as_blob().payload_const() as *const i8, n);
+    let s2 = core::slice::from_raw_parts(b.as_blob().payload_const() as *const i8, n);
+    let mut acc: i32 = 0;
+    for (&x, &y) in s1.iter().zip(s2.iter()) {
+        acc = acc.wrapping_add(x as i32 * y as i32);
+    }
+    acc
+}
+
 /// Length in characters
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_len(text: Value) -> usize {
