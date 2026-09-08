@@ -4,13 +4,15 @@
 
 * motoko (`moc`)
 
-  * feat: `{ base with ... }` record-update now shallow-copies a base's
+  * feat!: `{ base with ... }` record-update now shallow-copies a base's
     mutable (`var`) fields into fresh cells instead of erroring with M0179 or,
     under the experimental flag, aliasing them to the base's cells. The result
     is exactly the equivalent field-for-field record literal, so mutating the
     copy does not mutate the base and vice versa. The now-redundant
     `--experimental-field-aliasing` flag is removed; aliasing is no longer
-    supported (#6346).
+    supported. Breaking change: inherited `var` fields from a base now copy
+    instead of alias, so code relying on the experimental aliasing flag must
+    use explicit `var x = base.x` copies or a shared reference (#6346).
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
     differently: the suggestion now validates the rewritten callee against
