@@ -9,12 +9,13 @@ let nn2 : ??Nat = ?null;
 let nn3 = ??1;
 let nn4 : ??Nat = ??1;
 
-// '?? T' (with whitespace) must still parse as nested option, for backward
-// compatibility with the pre-PR tokenization of `??` as two `?`.
-let nn5 : ?? Nat = ?? 1;
-assert (nn5 == ?? 1);
-switch (?? 9 : ?? Nat) {
-  case (?? p) assert (p == 9);
+// `??` is whitespace-sensitive: `??x` (unspaced) means two option
+// introductions `?(?x)`, `?? ` (with trailing whitespace) is the
+// null-coalescing operator.
+let nn5 : ??Nat = ??1;
+assert (nn5 == ??1);
+switch (??9 : ??Nat) {
+  case (??p) assert (p == 9);
   case _ Prim.trap("");
 };
 
@@ -55,10 +56,10 @@ assert (WithDo.app(1) == 5);
 let b1 = (do { // block is not allowed on LHS
   let x = 1;
   ?{x};
-}) ?? {{x=0}}; // block is allowed on RHS, so the record needs extra braces
+}) ?? {x=0}; // the RHS is expression position, so a record literal just works
 assert (b1 == {x=1});
 let br = ?{x=1};
-let b2 = br ?? {
+let b2 = br ?? do { // a block on the RHS needs `do`
   let x = 2;
   {x}
 };

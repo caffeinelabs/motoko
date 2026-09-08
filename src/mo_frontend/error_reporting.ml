@@ -73,6 +73,9 @@ let terminal2token (type a) (symbol : a terminal) : token =
       | T_LTOP -> LTOP
       | T_LT -> LT
       | T_LPAR -> LPAR
+      | T_TIGHT_LPAR -> TIGHT_LPAR
+      | T_TIGHT_HASH -> TIGHT_HASH
+      | T_TIGHT_LBRACKET -> TIGHT_LBRACKET
       | T_LOOP -> LOOP
       | T_LET -> LET
       | T_LEOP -> LEOP

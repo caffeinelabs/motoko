@@ -121,7 +121,52 @@ end
 
 module R = MenhirRecoveryLib.Make (Parser.MenhirInterpreter) (RecoveryConfig) (RecoveryTracer)
 
-let handle_error lexbuf error_detail message_store (start, end_) explanations =
+(* Targeted diagnostics for the block-vs-record ambiguity and reserved
+   keywords, with concrete fix-its; anything unrecognized falls back to the
+   generic M0001 "unexpected token" report. *)
+
+(* Keyword-shaped lexemes; keywords are lower-case words, possibly ending in
+   `*` or `?` (`async*`, `await?`) *)
+let keyword_shaped lexeme =
+  lexeme <> "" &&
+  (match lexeme.[0] with 'a'..'z' -> true | _ -> false) &&
+  String.for_all
+    (function 'a'..'z' | '_' | '*' | '?' -> true | _ -> false)
+    lexeme
+
+let is_statement_start (token : Parser.token) =
+  match token with
+  | Parser.LET | Parser.VAR | Parser.TYPE | Parser.FUNC | Parser.CLASS
+  | Parser.OBJECT | Parser.IF | Parser.SWITCH | Parser.WHILE | Parser.FOR
+  | Parser.LOOP | Parser.RETURN | Parser.BREAK | Parser.CONTINUE
+  | Parser.THROW | Parser.TRY | Parser.IGNORE | Parser.DO | Parser.ASSERT
+  | Parser.LABEL | Parser.DEBUG | Parser.AWAIT | Parser.AWAITSTAR
+  | Parser.AWAITQUEST | Parser.ASYNC | Parser.ASYNCSTAR | Parser.ASSIGN
+  | Parser.LPAR | Parser.SEMICOLON | Parser.SEMICOLON_EOL
+  | Parser.NAT _ | Parser.FLOAT _ | Parser.CHAR _ | Parser.TEXT _
+  | Parser.BOOL _ | Parser.NULL -> true
+  | _ -> false
+
+let contains_substring s sub =
+  let n = String.length s and m = String.length sub in
+  let rec go i = i + m <= n && (String.sub s i m = sub || go (i + 1)) in
+  go 0
+
+(* Does any explanation mention the record-field nonterminal, i.e. is the
+   parser inside a record literal `{ ... }`? *)
+let expecting_exp_field explanations =
+  let mentions sym =
+    let s = Printers.string_of_symbol sym in
+    (* matches <exp_field> and seplist(<exp_field>,...) *)
+    contains_substring s "exp_field"
+  in
+  List.exists (fun e ->
+    mentions (E.goal e) ||
+    (match E.future e with sym :: _ -> mentions sym | [] -> false))
+    explanations
+
+let handle_error lexbuf error_detail message_store (start, end_)
+    (inputneeded_cp : 'a I.checkpoint) last_token explanations =
   let at =
         {left = Lexer.convert_pos start; right = Lexer.convert_pos end_}
   in
@@ -130,28 +175,56 @@ let handle_error lexbuf error_detail message_store (start, end_) explanations =
     if lexeme = "" then "end of input" else
       "token '" ^ String.escaped lexeme ^ "'"
   in
-  let msg =
-    match error_detail with
-    | 1 ->
+  let acceptable tok = I.acceptable inputneeded_cp tok start in
+  let code, msg =
+    (* a block of declarations where only a record literal `{ ... }` is
+       allowed: point to `do { ... }` *)
+    if is_statement_start last_token && expecting_exp_field explanations then
+      "M0270",
       Printf.sprintf
-        "unexpected %s, expected one of token or <phrase>:\n  %s"
-        token (abstract_symbols explanations)
-    | 2 ->
+        "unexpected %s: braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`"
+        token
+    (* a record literal or block where neither is allowed (e.g. an
+       unparenthesized `if` condition or `switch` scrutinee) *)
+    else if last_token = Parser.LCURLY && acceptable Parser.LPAR then
+      "M0269",
+      "a record literal or block is not allowed in this position; wrap a record in parentheses, `({ ... })`, or use `do { ... }` for a block"
+    (* a reserved keyword where an identifier would be accepted; keywords that
+       start a statement (`return`, `async*`, ...) or `else` are excluded, as
+       for those the user almost certainly meant the statement *)
+    else if (match last_token with
+             | Parser.ID _ | Parser.ELSE -> false
+             | t -> not (is_statement_start t) && keyword_shaped lexeme)
+            && acceptable (Parser.ID "id") then
+      "M0271",
       Printf.sprintf
-        "unexpected %s, expected one of token or <phrase> sequence:\n  %s"
-        token (abstract_futures explanations)
-    | 3 ->
-      Printf.sprintf
-        "unexpected %s in position marked . of partially parsed item(s):\n%s"
-        token (abstract_items explanations)
-    | 4 ->
-      Printf.sprintf
-        "unexpected %s, expected one of token or <phrase> sequence:\n  %s"
-        token (abstract_futures_with_examples explanations)
-    | _ ->
-      Printf.sprintf "unexpected %s" token
+        "`%s` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `%s_`)"
+        lexeme lexeme
+    else
+    let msg =
+      match error_detail with
+      | 1 ->
+        Printf.sprintf
+          "unexpected %s, expected one of token or <phrase>:\n  %s"
+          token (abstract_symbols explanations)
+      | 2 ->
+        Printf.sprintf
+          "unexpected %s, expected one of token or <phrase> sequence:\n  %s"
+          token (abstract_futures explanations)
+      | 3 ->
+        Printf.sprintf
+          "unexpected %s in position marked . of partially parsed item(s):\n%s"
+          token (abstract_items explanations)
+      | 4 ->
+        Printf.sprintf
+          "unexpected %s, expected one of token or <phrase> sequence:\n  %s"
+          token (abstract_futures_with_examples explanations)
+      | _ ->
+        Printf.sprintf "unexpected %s" token
+    in
+    "M0001", msg
   in
-  Diag.add_msg message_store (Diag.error_message at "M0001" "syntax" msg)
+  Diag.add_msg message_store (Diag.error_message at code "syntax" msg)
 
 (* We drive the parser in the usual way, but records the last [InputNeeded]
    checkpoint. If a syntax error is detected, we go back to this checkpoint
@@ -161,6 +234,13 @@ let parse ?(recovery = false) mode error_detail start lexer lexbuf =
   Diag.with_message_store ~allow_errors:recovery (fun m ->
     Parser_lib.msg_store := Some m;
     Parser_lib.mode := Some mode;
+    (* Remember the offending token for the targeted diagnostics *)
+    let last_token = ref Parser.EOF in
+    let lexer () =
+      let (t, _, _) as tok = lexer () in
+      last_token := t;
+      tok
+    in
     let save_error (inputneeded_cp : 'a I.checkpoint) (fail_cp : 'a I.checkpoint) : unit =
     (* The parser signals a syntax error. Note the position of the
          problematic token, which is useful. Then, go back to the
@@ -169,7 +249,7 @@ let parse ?(recovery = false) mode error_detail start lexer lexbuf =
       | I.HandlingError env ->
         let (startp, _) as positions = I.positions env in
         let explanations = E.investigate startp inputneeded_cp in
-        handle_error lexbuf error_detail m positions explanations
+        handle_error lexbuf error_detail m positions inputneeded_cp !last_token explanations
       | _ -> assert false
     in
     let fail cp = None in

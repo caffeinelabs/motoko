@@ -2,11 +2,10 @@ syntax5.mo:3.1: syntax error [M0001], unexpected end of input, expected one of t
   )
   .<nat>
   !
-  <exp_nullary(ob)>
-  <binop> <exp(ob)>
+  <exp_cont>
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
-  <binop> <exp_nest>
+  <binop> <exp(ob)>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -17,8 +16,7 @@ syntax5.mo:3.1: syntax error [M0001], unexpected end of input, expected one of t
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>
   with seplist(<exp_field>,<semicolon>) ) <obj_or_class_dec>
+  with seplist(<exp_field>,<semicolon>) ) <exp_post(ob)>
   with seplist(<exp_field>,<semicolon>) ) async <exp_nest>
-  with seplist(<exp_field>,<semicolon>) ) <exp_post(ob)> <inst> <exp_nullary(ob)>

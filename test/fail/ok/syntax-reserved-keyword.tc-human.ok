@@ -1,0 +1,4 @@
+error[M0271]: `query` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `query_`)
+    ┌─ syntax-reserved-keyword.mo:2:5
+  2 │  let query = 5;
+    │      ^^^^^ 

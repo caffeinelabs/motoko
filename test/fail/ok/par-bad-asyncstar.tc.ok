@@ -1,4 +1,4 @@
 par-bad-asyncstar.mo:1.19-1.25: syntax error [M0001], unexpected token 'async*', expected one of token or <phrase> sequence:
   <obj_or_class_dec>
+  <exp_post(ob)>
   async <exp_nest>
-  <exp_post(ob)> <inst> <exp_nullary(ob)>

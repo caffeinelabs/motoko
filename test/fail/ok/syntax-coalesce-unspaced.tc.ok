@@ -1,4 +1,4 @@
-error[M0001]: unexpected token 'let', expected one of token or <phrase> sequence:
+syntax-coalesce-unspaced.mo:4.11-4.12: syntax error [M0001], unexpected token '?', expected one of token or <phrase> sequence:
   <eof>
   .<nat>
   !
@@ -18,6 +18,3 @@ error[M0001]: unexpected token 'let', expected one of token or <phrase> sequence
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
   <inst> <exp_arg>
-    ┌─ syntax2.mo:2:1
-  2 │  let y = 2;
-    │  ^^^ 

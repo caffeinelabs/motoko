@@ -27,6 +27,25 @@ s/(<bl>)//g
 s/(<ob>)//g
 s/(B)//g
 s/ B$/ <exp_obj>/g
+s/(B, R, L)//g
+s/(<ob>, <ob>, <exp_cont>)//g
+s/(<bl>, <bl>, <exp_cont_tight>)//g
+s/(<bl>, R, L)//g
+s/(R, R, L)//g
+s/(R, L)//g
+s/(<ob>, <exp_cont>)//g
+s/(<bl>, <exp_cont_tight>)//g
+s/(R)//g
+s/ L$/ <exp_cont>/g
+/^<lpar> ::=/,/^$/d
+/^<lbracket> ::=/,/^$/d
+/^<hash> ::=/,/^$/d
+s/<lpar>/'('/g
+s/<lbracket>/'['/g
+s/<hash>/'#'/g
+s/TIGHT_LPAR/'('/g
+s/TIGHT_LBRACKET/'['/g
+s/TIGHT_HASH/'#'/g
 s/\[/(/g
 s/\]/)?/g
 s/(\([a-zA-Z_0-9]*\))/\1/g

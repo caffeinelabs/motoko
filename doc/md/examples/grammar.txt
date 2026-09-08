@@ -48,14 +48,13 @@
 <typ_nullary> ::= 
     '(' <list(<typ_item>, ',')> ')'
     <typ_path> <typ_args>?
-    '[' 'var'? <typ> ']'
+    '(' 'var'? <typ> ']'
     <typ_obj>
     <typ_variant>
 
 <typ_un> ::= 
     <typ_nullary>
     '?' <typ_un>
-    '??' <typ_un>
     'weak' <typ_un>
 
 <typ_pre> ::= 
@@ -82,7 +81,6 @@
     '<' <list(<typ>, ',')> '>'
 
 <inst> ::= 
-    <empty>
     '<' <list(<typ>, ',')> '>'
     '<' 'system' (',' <typ>)* '>'
 
@@ -173,8 +171,8 @@
 
 <exp_obj> ::= 
     '{' <list(<exp_field>, ';')> '}'
-    '{' <exp_post> 'and' <exp_post> ('and' <exp_post>)* '}'
-    '{' <exp_post> ('and' <exp_post>)* 'with' <list1(<exp_field>, ';')> '}'
+    '{' <exp_post> 'and' <exp_post(<ob>, <ob>, <exp_cont>)> ('and' <exp_post>)* '}'
+    '{' <exp_post> ('and' <exp_post(<ob>, <ob>, <exp_cont>)>)* 'with' <list1(<exp_field>, ';')> '}'
 
 <exp_plain> ::= 
     <lit>
@@ -187,7 +185,7 @@
     '_'
 
 <exp_arg> ::= 
-    <ob>
+    <exp_obj>
     <lit>
     '(' <list(<exp>, ',')> ')'
     <id>
@@ -195,27 +193,39 @@
 
 <exp_post> ::= 
     <exp_nullary>
-    '[' 'var'? <list(<exp_nonvar>, ',')> ']'
-    <exp_post> '[' <exp> ']'
+    '(' 'var'? <list(<exp_nonvar(<ob>, <ob>, <exp_cont>)>, ',')> ']'
+    <exp_post> <exp_cont>
     <exp_post> '.'<nat>
     <exp_post> '.' <id>
     <exp_post> <inst> <exp_arg>
     <exp_post> '!'
     '(' 'system' <exp_post> '.' <id> ')'
 
+<exp_cont_tight> ::= 
+    '(' <list(<exp>, ',')> ')'
+    '(' <exp> ']'
+
+<exp_cont> ::= 
+    <exp_cont_tight>
+    '(' <list(<exp>, ',')> ')'
+    '[' <exp> ']'
+    <ob>
+    <lit>
+    <id>
+    '_'
+
 <exp_un> ::= 
     <exp_post>
-    <parenthetical> <exp_post> <inst> <exp_arg>
+    <parenthetical> <exp_post>
     '#' <id>
     '#' <id> <exp_nullary>
     '?' <exp_un>
-    '??' <exp_un>
     <unop> <exp_un>
     <unassign> <exp_un>
     'actor' <exp_plain>
     'not' <exp_un>
     'debug_show' <exp_un>
-    'to_candid' '(' <list(<exp>, ',')> ')'
+    'to_candid' '(' <list(<exp(<ob>, <ob>, <exp_cont>)>, ',')> ')'
     'from_candid' <exp_un>
 
 <exp_bin> ::= 
@@ -230,7 +240,7 @@
 <exp_nondec> ::= 
     <exp_bin>
     <exp_bin> ':=' <exp>
-    <exp_bin> '??' <exp_nest>
+    <exp_bin> '??' <exp>
     <exp_bin> <binassign> <exp>
     'return' <exp>?
     <parenthetical>? 'async' <exp_nest>
@@ -240,18 +250,20 @@
     'await*' <exp_nest>
     'assert' <exp_nest>
     'label' <id> (':' <typ>)? <exp_nest>
-    'break' <id> <exp_nullary>?
+    'break' <id>
+    'break' <id> <exp_nullary>
     'break'
-    'continue' <id>?
+    'continue'
+    'continue' <id>
     'debug' <exp_nest>
-    'if' <exp_nullary> <exp_nest>
-    'if' <exp_nullary> <exp_nest> 'else' <exp_nest>
+    'if' <exp> <exp_nest(R, L)>
+    'if' <exp> <exp_nest(R, L)> 'else' <exp_nest>
     'try' <exp_nest> <catch>
     'try' <exp_nest> <catch> 'finally' <exp_nest>
     'try' <exp_nest> 'finally' <exp_nest>
     'throw' <exp_nest>
-    'switch' <exp_nullary> '{' <list(<case>, ';')> '}'
-    'while' <exp_nullary> <exp_nest>
+    'switch' <exp> '{' <cases> '}'
+    'while' <exp> <exp_nest>
     'loop' <exp_nest>
     'loop' <exp_nest> 'while' <exp_nest>
     'for' '(' <pat> 'in' <exp> ')' <exp_nest>
@@ -275,7 +287,12 @@
     '{' <list(<dec>, ';')> '}'
 
 <case> ::= 
-    'case' <pat_nullary> <exp_nest>
+    'case' <case_pat> <exp_nest>
+
+<cases> ::= 
+    <empty>
+    <case> <cases>
+    <case> ';' <cases>
 
 <catch> ::= 
     'catch' <pat_nullary> <exp_nest>
@@ -314,7 +331,6 @@
     '#' <id>
     '#' <id> <pat_nullary>
     '?' <pat_un>
-    '??' <pat_un>
     <unop> <lit>
 
 <pat_bin> ::= 
@@ -325,6 +341,16 @@
 
 <pat> ::= 
     <pat_bin>
+
+<pat_paren> ::= 
+    '(' <list(<pat_bin>, ',')> ')'
+
+<case_pat> ::= 
+    <pat_nullary>
+    '#' <id>
+    '#' <id> <pat_paren>
+    '?' <case_pat>
+    <unop> <lit>
 
 <pat_field> ::= 
     <id> (':' <typ>)?
@@ -355,7 +381,8 @@
     <dec_var>
     <dec_nonvar>
     <exp_nondec>
-    'let' <pat> '=' <exp> 'else' <exp_nest>
+    'let' <pat> '=' <exp> 'else' <exp_nest(<ob>, <exp_cont>)>
+    <id> '=' <exp>
 
 <func_body> ::= 
     '=' <exp>

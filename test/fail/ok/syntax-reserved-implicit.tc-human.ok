@@ -1,0 +1,4 @@
+error[M0271]: `implicit` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `implicit_`)
+    ┌─ syntax-reserved-implicit.mo:2:5
+  2 │  let implicit = 5;
+    │      ^^^^^^^^ 
