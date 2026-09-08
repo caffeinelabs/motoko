@@ -60,3 +60,4 @@ assert s6 == "#ping(7)";
 type Tree = { #leaf : Nat; #nest : Tree };
 let s7 = inspect<Tree>(#nest (#nest (#leaf 3)));
 assert s7 == "#nest(#nest(#leaf(3)))";
+//MOC-FLAG -A=M0269

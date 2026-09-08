@@ -123,3 +123,4 @@ actor Await {
 };
 
 Await.Test(); //OR-CALL ingress Test 0x4449444C0000
+//MOC-FLAG -A=M0269

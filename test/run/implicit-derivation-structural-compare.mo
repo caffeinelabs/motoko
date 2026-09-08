@@ -130,3 +130,4 @@ let tt3 : TaggedTeam = { key = (1 : Nat, "A"); size = 3 };
 assert cmp(tt1, tt2) == #less; // key: (1,"A") < (2,"B")
 assert cmp(tt1, tt3) == #greater; // same key; size: 5 > 3
 assert cmp(tt1, { key = (1 : Nat, "A"); size = 5 }) == #equal;
+//MOC-FLAG -A=M0269

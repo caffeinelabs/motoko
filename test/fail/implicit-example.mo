@@ -51,3 +51,5 @@ func test () {
 };
 
 test();
+
+//MOC-FLAG -A=M0269

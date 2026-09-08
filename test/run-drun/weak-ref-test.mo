@@ -90,3 +90,4 @@ persistent actor {
 //ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 
 //CALL ingress test3 "DIDL\x00\x00"
+//MOC-FLAG -A=M0269

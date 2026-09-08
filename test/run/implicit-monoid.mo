@@ -57,3 +57,4 @@ do {
   let Monoid = Nat.MonoidMul;
   assert fold([2, 3, 4]) == 24;
 };
+//MOC-FLAG -A=M0269

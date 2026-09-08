@@ -1,0 +1,6 @@
+deprecated-vals.mo:11.14-11.18: warning [M0269], member `.vals()` is deprecated for caffeine; use `.values()` instead
+deprecated-vals.mo:13.15-13.19: warning [M0269], member `.vals()` is deprecated for caffeine; use `.values()` instead
+deprecated-vals.mo:18.14-18.18: warning [M0269], member `.vals()` is deprecated for caffeine; use `.values()` instead
+deprecated-vals.mo:20.15-20.19: warning [M0269], member `.vals()` is deprecated for caffeine; use `.values()` instead
+deprecated-vals.mo:25.14-25.18: warning [M0269], member `.vals()` is deprecated for caffeine; use `.values()` instead
+deprecated-vals.mo:27.15-27.19: warning [M0269], member `.vals()` is deprecated for caffeine; use `.values()` instead

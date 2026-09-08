@@ -158,3 +158,4 @@ func _f9<A>(array : [A]) {
 var sum10 : Nat8 = 0;
 for (check10 in ([3, 5, 7, 11] : [Nat8]).values()) { sum10 += check10 };
 assert sum10 == 26;
+//MOC-FLAG -A=M0269

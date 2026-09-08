@@ -90,3 +90,4 @@ assert zeroFields({}, {}) == "{}";
 type Pair = (Text, Nat);
 func showPair(x : Pair, render : (implicit : Pair -> Text)) : Text = render(x);
 assert showPair(("world", 7 : Nat)) == "(world, 7)";
+//MOC-FLAG -A=M0269

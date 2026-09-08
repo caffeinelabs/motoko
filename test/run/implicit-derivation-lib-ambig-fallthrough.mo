@@ -26,3 +26,4 @@ module Combiner {
 func render(r : R, show : (implicit : R -> Text)) : Text = show(r);
 
 assert render({ a = 1; b = 2 }) == "{a:1,b:2}";
+//MOC-FLAG -A=M0269

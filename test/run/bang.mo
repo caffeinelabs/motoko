@@ -80,3 +80,4 @@ let o7 = do ? {
 };
 print o7;
 assert (o7 == null);
+//MOC-FLAG -A=M0269

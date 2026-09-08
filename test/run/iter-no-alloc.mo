@@ -25,3 +25,4 @@ iter("record", Prim.Array_tabulate<{foo : Nat}>(iters,func x = ({ foo = x })));
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
+//MOC-FLAG -A=M0269

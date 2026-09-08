@@ -338,3 +338,4 @@ persistent actor Core {
 //CALL ingress evalBench 0x4449444C0000
 //CALL ingress weekdayBench 0x4449444C0000
 //CALL ingress getPerfData 0x4449444C0000
+//MOC-FLAG -A=M0269
