@@ -6995,11 +6995,6 @@ module Var = struct
     | Some (Static index) -> Heap.get_static_variable env index
     | _ -> assert false
 
-  let capture_aliased_box env ae var = match VarEnv.lookup_var ae var with
-    | Some (HeapInd i) ->
-      G.i (LocalSet (nr i))
-    | _ -> assert false
-
 end (* Var *)
 
 (* Calling well-known prelude functions *)
@@ -10855,10 +10850,6 @@ module AllocHow = struct
       | LetD (_, e) when e.note.Note.const ->
         M.map (fun _ -> (Const : how)) d
 
-      (* References to mutboxes *)
-      | RefD _ ->
-        M.map (fun _ -> StoreHeap) d
-
       (* Everything else needs at least a local *)
       | _ ->
         M.map (fun t -> LocalImmut (stackrep_of_type t)) d in
@@ -10912,13 +10903,6 @@ module AllocHow = struct
       let index = MutBox.add_global_mutbox env in
       let ae1 = VarEnv.add_static_variable ae name index typ in
       (ae1, G.nop)
-
-  let add_local_for_alias env ae how name typ : VarEnv.t * G.t =
-    match M.find name how with
-    | StoreHeap ->
-      let ae1, _ = VarEnv.add_local_with_heap_ind env ae name typ in
-      ae1, G.nop
-    | _ -> assert false
 
 end (* AllocHow *)
 
@@ -13680,19 +13664,6 @@ and compile_dec env pre_ae how v2en dec : VarEnv.t * G.t * (VarEnv.t -> scope_wr
       unmodified
     )
 
-  | RefD (name, typ, { it = DotLE (e, n); _ }) ->
-    let pre_ae1, alloc_code = AllocHow.add_local_for_alias env pre_ae how name typ in
-
-    ( pre_ae1,
-      alloc_code,
-      (fun ae ->
-        compile_exp_vanilla env ae e ^^
-        Object.load_idx_raw env n ^^
-        Var.capture_aliased_box env ae name),
-      unmodified
-    )
-  | RefD _ -> assert false
-
 and compile_decs_public env pre_ae decs v2en captured_in_body : VarEnv.t * scope_wrap =
   let how = AllocHow.decs pre_ae decs captured_in_body in
   let rec go pre_ae = function
@@ -13876,7 +13847,7 @@ and compile_const_dec env pre_ae dec : (VarEnv.t -> VarEnv.t) * (E.t -> VarEnv.t
     let (const, fill) = compile_const_exp env pre_ae e in
     (fun ae -> match destruct_const_pat ae p const with Some ae -> ae | _ -> assert false),
     (fun env ae -> fill env ae)
-  | VarD _ | RefD _ -> fatal "compile_const_dec: Unexpected VarD/RefD"
+  | VarD _ -> fatal "compile_const_dec: Unexpected VarD"
 
 and compile_init_func mod_env ((cu, flavor) : Ir.prog) =
   assert (not flavor.has_typ_field);

@@ -109,10 +109,6 @@ and dec' rho = function
      let rho = id_bind rho i in
      (fun rho' -> VarD (i, t, exp rho' e)),
      rho
-  | RefD (i, t, le) ->
-     let rho = id_bind rho i in
-     (fun rho' -> RefD (i, t, lexp rho' le)),
-     rho
 
 and decs rho ds =
   let rec decs_aux rho ds =
