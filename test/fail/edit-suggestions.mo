@@ -109,7 +109,7 @@ module Impl {
 do {
   let data : [(Nat, Text)] = [];
 
-  // implicit in the middle -> M0236 + M0237
+  // implicit in the middle -> M0237 only: the array's built-in `get` field would shadow `data.get(...)`
   ignore Impl.get(data, Nat.compare, 1);
 
   // two adjacent implicits -> M0236 + M0237 x2
@@ -170,4 +170,38 @@ do {
 
   // IfE receiver — likewise.
   ignore Nat.toText(if (pos == 0) 1 else 2); // no-warn
+};
+
+// Suggest context dot conflicts with field resolution
+do {
+  module Tree {
+    public func delete<K, V>(self : RBTree<K, V>, key : K) : Bool { ignore self; ignore key; true };
+    public func size<K, V>(self : RBTree<K, V>) : Nat { ignore self; 1 };
+  };
+
+  type RBTree<K, V> = { delete : K -> (); size : () -> Nat };
+  func make<K, V>() : RBTree<K, V> {
+    { delete = func(k : K) { ignore k }; size = func() : Nat { 1 } }
+  };
+  let t = make<Nat, Text>();
+  let n1 = Tree.size(t); // no warn because .size does not resolve to Tree.size!
+  let n2 = t.size();
+  let b = Tree.delete(t, 0); // no warn, as above
+  t.delete(0);
+  ignore (n1, n2, b);
+};
+
+// Field shadowing decides the suggestion exactly like real dot resolution
+do {
+  module Counter {
+    public func count(self : Cnt) : Nat { self.count + 1 };
+    public func reset(self : Cnt) : Cnt { ignore self; { count = 0; reset = self.reset } };
+  };
+  type Cnt = { count : Nat; reset : () -> Cnt };
+  func mk() : Cnt { { count = 1; reset = func() : Cnt { mk() } } };
+  let cnt = mk();
+  // warn M0236 — the non-function `count` field does not shadow, `cnt.count()` still resolves to Counter.count
+  ignore Counter.count(cnt);
+  // no warn — the function-typed `reset` field shadows, `cnt.reset()` would call the field instead of Counter.reset
+  ignore Counter.reset(cnt);
 };
