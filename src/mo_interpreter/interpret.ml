@@ -534,7 +534,13 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     (* NB: we ignore the migration expression _exp_opt *)
     interpret_obj env obj_sort.it self_id_opt dec_fields k
   | ObjE (exp_bases, exp_fields) ->
-    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj env)) in
+    (* shallow-copy var fields carried over from bases into fresh cells, so
+       record-update does not alias the base's mutable state (OCaml-style copy).
+       Snapshot after the explicit fields run so a field initializer that
+       mutates a base var sees the post-initializer value, matching the
+       desugar/lowering order. *)
+    let copy_mut env = V.Env.map (function V.Mut r -> V.Mut (ref !r) | v -> v) env in
+    let fields fld_env = interpret_exp_fields env exp_fields fld_env (fun env -> k (V.Obj (copy_mut env))) in
     let open V.Env in
     let merges =
       List.fold_left
@@ -549,10 +555,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
     let strip vs =
       let known fs k _ = List.exists (fun { T.lab; _ } -> k = lab) fs in
       List.map2 (fun fs v -> filter (known fs) (V.as_obj v)) tys vs in
-    (* shallow-copy var fields carried over from bases into fresh cells, so
-       record-update does not alias the base's mutable state (OCaml-style copy) *)
-    let copy_mut env = V.Env.map (function V.Mut r -> V.Mut (ref !r) | v -> v) env in
-    interpret_exps env exp_bases [] (fun objs -> fields (copy_mut (merges (strip objs))))
+    interpret_exps env exp_bases [] (fun objs -> fields (merges (strip objs)))
   | TagE (i, exp1) ->
     interpret_exp env exp1 (fun v1 -> k (V.Variant (i.it, v1)))
   | DotE (exp1, id, _) when T.(sub exp1.note.note_typ (Obj (Actor, [], []))) ->
