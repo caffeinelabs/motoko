@@ -3008,13 +3008,6 @@ and infer_check_bases_fields env (check_fields : T.field list) exp_at exp_bases 
   iter2 (fun t exp ->
     let _, fs, tfs = T.as_obj' t in
     fs |> iter (fun f ->
-      (* do not allow var fields for now (to avoid aliasing) *)
-      if not (!Flags.experimental_field_aliasing) && T.is_mut f.T.typ then begin
-        info env exp.at "overwrite field to resolve error";
-        error env exp.at "M0179"
-          "base has non-aliasable var field%a"
-          display_lab f.T.lab
-      end;
       match Hashtbl.find_opt field_map f.T.lab with
       | Some at ->
         info env at "field also present in base, here (consider overwriting)";

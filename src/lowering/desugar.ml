@@ -1063,7 +1063,6 @@ and stabilize stab_opt d =
      varD (var i (T.Mut t))
        (switch_optE (dotE (callE (varE get_state) [] (unitE ())) i (T.Opt t))
          fallback (varP v) (varE v) t))
-  | (S.Stable _, I.RefD _) -> assert false (* RefD cannot come from user code *)
   | (S.Stable _, I.LetD({it = I.VarP i; _} as p, e)) ->
     let t = p.note in
     ([(i, t)],
@@ -1152,7 +1151,7 @@ and obj obj_typ efs bases =
       let [@warning "-8"] [base_var] = concat_map ((|>) lab) pickers in
       let d =
         if T.is_mut typ then
-          refD id { it = I.DotLE(varE base_var, lab); note = typ; at = no_region }
+          varD id (dotE (varE base_var) lab (T.as_immut typ))
         else
           letD id (dotE (varE base_var) lab typ) in
       let f = { it = I.{ name = lab; var = id_of_var id }; at = no_region; note = typ } in

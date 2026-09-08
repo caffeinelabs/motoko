@@ -1,3 +1,0 @@
-object-ext-var-base.mo:13.11-13.18: info, overwrite field to resolve error
-object-ext-var-base.mo:13.11-13.18: type error [M0179], base has non-aliasable var field
-  v

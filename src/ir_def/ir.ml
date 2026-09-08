@@ -198,7 +198,6 @@ and dec = dec' Source.phrase
 and dec' =
   | LetD of pat * exp                          (* immutable *)
   | VarD of id * Type.typ * exp                (* mutable *)
-  | RefD of id * Type.typ * lexp               (* reference - only required for flag --experimental_field_aliasing *)
 
 (* Literals *)
 

@@ -195,10 +195,6 @@ let argspec =
   Arg.Set_int Flags.max_stable_pages,
   "<n>  set maximum number of pages available to stable memory via the `Region` library (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
 
-  "--experimental-field-aliasing",
-  Arg.Unit (fun () -> Flags.experimental_field_aliasing := true),
-  " enable experimental support for aliasing of var fields";
-
   "--experimental-rtti",
   Arg.Unit (fun () -> Flags.rtti := true),
   " enable experimental support for precise runtime type information (default with enhanced orthogonal persistence)";
