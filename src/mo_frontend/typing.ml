@@ -1444,19 +1444,22 @@ let check_lit env t lit at suggest =
 
 let array_obj t =
   let open T in
-  let immut t =
-    [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src};
-      {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
-      {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
+  (* in [compare_field] order; `put` (mutable arrays only) sorts between `keys` and `size` *)
+  let fields t put =
+    {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src} ::
+    {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src} ::
+    put @
+    [ {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
       {lab = "vals"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
       {lab = "values"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
     ] in
-  let mut t = immut t @
-    [ {lab = "put"; typ = Func (Local, Returns, [], [Prim Nat; t], []); src = empty_src} ] in
   Object,
-  List.sort compare_field (match t with Mut t' -> mut t' | t -> immut t)
+  match t with
+  | Mut t' ->
+    fields t' [ {lab = "put"; typ = Func (Local, Returns, [], [Prim Nat; t'], []); src = empty_src} ]
+  | t -> fields t []
 
-let blob_obj () =
+let blob_obj =
   let open T in
   Object,
   [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [Prim Nat8]); src = empty_src};
@@ -1466,7 +1469,7 @@ let blob_obj () =
     {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
   ]
 
-let text_obj () =
+let text_obj =
   let open T in
   Object,
   [ {lab = "chars"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Char)]); src = empty_src};
@@ -2285,18 +2288,21 @@ let dot_rewrite_receiver exp es ts_size =
 let dot_field_view id t1 =
   try Some (snd (T.as_obj_sub [id] t1)) with Invalid_argument _ ->
   try Some (snd (array_obj (T.as_array_sub t1))) with Invalid_argument _ ->
-  try Some (snd (blob_obj (T.as_prim_sub T.Blob t1))) with Invalid_argument _ ->
-  try Some (snd (text_obj (T.as_prim_sub T.Text t1))) with Invalid_argument _ ->
+  try T.as_prim_sub T.Blob t1; Some (snd blob_obj) with Invalid_argument _ ->
+  try T.as_prim_sub T.Text t1; Some (snd text_obj) with Invalid_argument _ ->
   None
 
 let dot_error_not_obj env receiver_at t0 =
-  type_error receiver_at "M0070" 
+  type_error receiver_at "M0070"
     (Format.asprintf env "expected object type, but expression produces type%a" display_typ_expand t0) [] [] []
+
+let dot_field_suggestions env id fs =
+  suggest_span env id.at (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))
 
 let dot_error_missing_field env id t0 fs =
   type_error id.at "M0072"
     (Format.asprintf env "field %s does not exist in %a" id.it display_obj t0)
-    [] (suggest_span env id.at (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))) []
+    [] (dot_field_suggestions env id fs) []
 
 type 'a dot_callee_resolution =
   (* The receiver's own field — it shadows contextual dot. *)
@@ -2321,9 +2327,8 @@ let resolve_dot_callee env id receiver_at t0 t1 =
         match field with
         | Some _ ->
           type_error id.at "M0234"
-            (Format.asprintf env "field %s does exist in %a\nbut is not %s."
-               id.it display_obj t0 "a function")
-            [] (suggest_span env id.at (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))) []
+            (Format.asprintf env "field %s does exist in %a\nbut is not a function." id.it display_obj t0)
+            [] (dot_field_suggestions env id fs) []
         | None -> dot_error_missing_field env id t0 fs)
 
 let check_can_dot env m0236_prep tys exp at =

@@ -205,3 +205,31 @@ do {
   // no warn — the function-typed `reset` field shadows, `cnt.reset()` would call the field instead of Counter.reset
   ignore Counter.reset(cnt);
 };
+
+// Built-in pseudo-fields of blobs and text shadow like record fields
+do {
+  module Str {
+    public func size(self : Text) : Nat { self.size() };
+    public func trim2(self : Text) : Text { self };
+  };
+  module Bytes {
+    public func get(self : Blob, i : Nat) : Nat8 { self.get(i) };
+    public func rank(self : Blob) : Nat { ignore self; 0 };
+  };
+  let t = "hi";
+  let b : Blob = "\00\01";
+  ignore Str.size(t); // no warn — text's built-in `size` shadows
+  ignore Str.trim2(t); // warn M0236
+  ignore Bytes.get(b, 0); // no warn — blob's built-in `get` shadows
+  ignore Bytes.rank(b); // warn M0236
+};
+
+// Phantom type parameter: probing with the promoted receiver still resolves, `s.size()` compiles
+do {
+  module Phantom {
+    public type Box<K> = { arr : [Nat] };
+    public func size<K>(self : Box<K>) : Nat { self.arr.size() };
+  };
+  let s : Phantom.Box<Text> = { arr = [] };
+  ignore Phantom.size(s); // warn M0236
+};

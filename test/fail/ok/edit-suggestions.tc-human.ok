@@ -217,3 +217,21 @@ warning[M0236]: You can use the dot notation `cnt.count(...)` here
     │           ^^^^^^^^^^^^^^^^^^ 
     = help: replace `Counter` with `cnt`
     = help: remove `cnt`
+warning[M0236]: You can use the dot notation `t.trim2(...)` here
+    ┌─ edit-suggestions.mo:222:10
+222 │    ignore Str.trim2(t); // warn M0236
+    │           ^^^^^^^^^^^^ 
+    = help: replace `Str` with `t`
+    = help: remove `t`
+warning[M0236]: You can use the dot notation `b.rank(...)` here
+    ┌─ edit-suggestions.mo:224:10
+224 │    ignore Bytes.rank(b); // warn M0236
+    │           ^^^^^^^^^^^^^ 
+    = help: replace `Bytes` with `b`
+    = help: remove `b`
+warning[M0236]: You can use the dot notation `s.size(...)` here
+    ┌─ edit-suggestions.mo:234:10
+234 │    ignore Phantom.size(s); // warn M0236
+    │           ^^^^^^^^^^^^^^^ 
+    = help: replace `Phantom` with `s`
+    = help: remove `s`
