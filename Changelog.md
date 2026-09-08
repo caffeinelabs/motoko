@@ -11,6 +11,12 @@
     copy does not mutate the base and vice versa. The now-redundant
     `--experimental-field-aliasing` flag is removed; aliasing is no longer
     supported (#6346).
+  * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
+    rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
+    differently: the suggestion now validates the rewritten callee against
+    the actual dot resolution, so a same-named function field on the
+    receiver (including the built-in fields of arrays, blobs and text)
+    suppresses the suggestion (#6343).
 
 ## 1.15.1 (2026-09-02)
 
