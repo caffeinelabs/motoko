@@ -3390,9 +3390,7 @@ and infer_callee env exp =
     let t0, t1 = infer_exp_and_promote env exp1 in
     match resolve_dot_callee env id exp1.at t0 t1 with
     | DotField (T.Pre, _) ->
-      error env exp.at "M0071"
-        "cannot infer type of forward field reference %s"
-        id.it
+      error env exp.at "M0071" "cannot infer type of forward field reference %s" id.it
     | DotField (t, fs) ->
       if not env.pre then
         check_deprecation env exp.at "field" id.it (T.lookup_val_deprecation id.it fs);
