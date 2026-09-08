@@ -1,0 +1,10 @@
+enhanced-migration stable-types sections: 0
+--- em.most ---
+// Version: 4.0.0
+{
+  "1" : {} -> {_x : Nat}
+}
+actor  {
+  stable _x : Nat
+};
+plain stable-types sections: 1

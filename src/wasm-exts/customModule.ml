@@ -46,6 +46,10 @@ type dylink0_section = dylink0_subsection list
 type motoko_sections = {
   labels : string list;
   stable_types : (bool * string) option;
+  (* Raw signature text, always populated even when [stable_types] above
+     is suppressed. Read by compile-time [validate_stab_sig] and
+     [--stable-types] [.most] emit. *)
+  stable_types_text : string option;
   compiler : (bool * string) option;
 }
 
@@ -57,6 +61,7 @@ type candid_sections = {
 let empty_motoko_sections = {
   labels = [];
   stable_types = None;
+  stable_types_text = None;
   compiler = None;
 }
 
