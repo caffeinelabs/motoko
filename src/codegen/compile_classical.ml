@@ -5153,6 +5153,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
+    E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
 
     E.add_func_import env "ic0" "certified_data_set" (is 2) [];
     E.add_func_import env "ic0" "data_certificate_present" [] [I32Type];
@@ -10499,6 +10500,22 @@ module Cost = struct
           Cycles.from_word128_ptr env
         )
       )
+
+  let vetkd_derive_key env =
+    Func.share_code2 Func.Always env "cost_vetkd_derive_key"
+      (("key_name", IC.i), ("curve", I32Type))
+      [IC.i; I32Type]
+      (fun env get_key_name get_curve ->
+        Stack.with_words env "dst" 4l (fun get_dst ->
+          get_key_name ^^ Text.to_blob env ^^ Blob.as_ptr_len env ^^
+          get_curve ^^
+          get_dst ^^
+          IC.ic_system_call "cost_vetkd_derive_key" env  ^^
+          StackRep.adjust env (SR.UnboxedWord32 Type.Int32) SR.Vanilla ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
 end
 
 (* The actual compiler code that looks at the AST *)
@@ -12744,6 +12761,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae key_name ^^
     compile_exp_as env ae (SR.UnboxedWord32 Type.Nat32) algorithm ^^
     Cost.sign_with_schnorr env
+  | OtherPrim "costVetkdDeriveKey", [key_name; curve] ->
+    SR.UnboxedTuple 2,
+    compile_exp_vanilla env ae key_name ^^
+    compile_exp_as env ae (SR.UnboxedWord32 Type.Nat32) curve ^^
+    Cost.vetkd_derive_key env
 
   | SystemTimeoutSetPrim, [e1] ->
     SR.unit, compile_exp_as env ae (SR.UnboxedWord32 Type.Nat32) e1 ^^ IC.system_call env "call_with_best_effort_response"

@@ -11,6 +11,13 @@
     receiver (including the built-in fields of arrays, blobs and text)
     suppresses the suggestion (#6343).
 
+  * feat: add `Prim.costVetkdDeriveKey` for querying the cycle cost of the
+    IC `cost_vetkd_derive_key` system call, mirroring the existing
+    `costSignWithEcdsa`/`costSignWithSchnorr` primitives. It takes a `Text`
+    key name and a `Nat32` curve encoding and returns `(resultCode, costOrUndefined)`,
+    where a non-zero `resultCode` signals an invalid key name or curve
+    encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6337).
+
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)

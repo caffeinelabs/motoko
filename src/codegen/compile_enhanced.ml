@@ -4929,6 +4929,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
+    E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
 
     E.add_func_import env "ic0" "certified_data_set" (is 2) [];
     E.add_func_import env "ic0" "data_certificate_present" [] [I32Type];
@@ -10998,6 +10999,24 @@ module Cost = struct
           Cycles.from_word128_ptr env
         )
       )
+
+  let vetkd_derive_key env =
+    Func.share_code2 Func.Always env "cost_vetkd_derive_key"
+      (("key_name", IC.i), ("curve", I32Type))
+      [IC.i; I64Type]
+      (fun env get_key_name get_curve ->
+        Stack.with_words env "dst" 2L (fun get_dst ->
+          get_key_name ^^ Text.to_blob env ^^ Blob.as_ptr_len env ^^
+          get_curve ^^
+          get_dst ^^
+          IC.ic_system_call "cost_vetkd_derive_key" env ^^
+          G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32)) ^^
+          TaggedSmallWord.msb_adjust Type.Nat32 ^^
+          StackRep.adjust env (SR.UnboxedWord64 Type.Nat32) SR.Vanilla ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
 end
 
 (* The actual compiler code that looks at the AST *)
@@ -13129,6 +13148,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     TaggedSmallWord.lsb_adjust Type.Nat32 ^^
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     Cost.sign_with_schnorr env
+  | OtherPrim "costVetkdDeriveKey", [key_name; curve] ->
+    SR.UnboxedTuple 2,
+    compile_exp_vanilla env ae key_name ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat32) curve ^^
+    TaggedSmallWord.lsb_adjust Type.Nat32 ^^
+    G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+    Cost.vetkd_derive_key env
 
   | SystemTimeoutSetPrim, [e1] ->
     SR.unit,
