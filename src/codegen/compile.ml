@@ -4504,6 +4504,49 @@ module Wide = struct
           snd (if want_rem then rl.(i) else ql.(i)) ^^ store_limb env i) ^^
         get_res)
 
+  (* --- Exponentiation --------------------------------------------------------------------
+     Square-and-multiply. The exponent is held in locals and shifted down a bit at a time;
+     the base and the accumulator stay heap values because each multiply produces one.
+
+     The base is squared ONLY when exponent bits remain. That is not just an optimisation:
+     with the trapping form, a final unnecessary squaring would trap on inputs whose actual
+     result fits perfectly well (2^200 ** 1 would square 2^200 and overflow). Squaring when
+     bits DO remain is safe to trap on, because the final result then contains a factor of
+     base^(2^k) with k >= 1 and so is at least as large as the square. *)
+  let pow env width ~trap =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_pow%s" width (if trap then "" else "_wrap") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let el = Array.init n (fun i -> new_local env (Printf.sprintf "e%d" i)) in
+        let (set_res, get_res) = new_local env "res" in
+        let (set_base, get_base) = new_local env "base" in
+        let orr = G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) in
+        let exponent_nonzero =
+          G.table n (fun i -> snd el.(i) ^^ (if i = 0 then G.nop else orr)) ^^
+          compile_unboxed_const 0L ^^ compile_comparison I64Op.Ne
+        in
+        (* e >>= 1, bottom limb first so the higher limbs are still their old values *)
+        let halve_exponent =
+          G.table n (fun i ->
+            snd el.(i) ^^ compile_unboxed_const 1L ^^
+            G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrU)) ^^
+            (if i = n - 1 then G.nop
+             else snd el.(i + 1) ^^ compile_unboxed_const 63L ^^
+                  G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) ^^ orr) ^^
+            fst el.(i))
+        in
+        constant env width Big_int.unit_big_int ^^ set_res ^^
+        get_a ^^ set_base ^^
+        G.table n (fun i -> get_b ^^ load_limb env i ^^ fst el.(i)) ^^
+        compile_while env exponent_nonzero
+          (snd el.(0) ^^ compile_bitand_const 1L ^^
+           E.if0 (get_res ^^ get_base ^^ mul env width ~trap ^^ set_res) G.nop ^^
+           halve_exponent ^^
+           exponent_nonzero ^^
+           E.if0 (get_base ^^ get_base ^^ mul env width ~trap ^^ set_base) G.nop) ^^
+        get_res)
+
 end (* Wide *)
 
 module Object = struct
@@ -11937,6 +11980,8 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               AndOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.And))
   | Type.(Prim (Nat128 | Nat256 as pty)), WMulOp -> Wide.mul env (Wide.width_of_typ pty) ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), WPowOp -> Wide.pow env (Wide.width_of_typ pty) ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), PowOp  -> Wide.pow env (Wide.width_of_typ pty) ~trap:true
   | Type.(Prim (Nat128 | Nat256 as pty)), DivOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:false
   | Type.(Prim (Nat128 | Nat256 as pty)), ModOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:true
   | Type.(Prim (Nat128 | Nat256 as pty)), MulOp  -> Wide.mul env (Wide.width_of_typ pty) ~trap:true
