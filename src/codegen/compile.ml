@@ -4324,6 +4324,89 @@ module Wide = struct
         in dispatch 0 ^^
         get_r)
 
+  (* --- Multiplication -------------------------------------------------------------------
+
+     wasm has no widening multiply, so the 64x64 -> 128 partial product is built from four
+     32-bit multiplies (Hacker's Delight): the low half is plain i64.mul, which is already
+     exact modulo 2^64, and only the high half needs the split. *)
+  let mulhi env =
+    Func.share_code2 Func.Never env "wide_mulhi_u" (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_t, get_t) = new_local env "t" in
+        let (set_k, get_k) = new_local env "k" in
+        let (set_w1, get_w1) = new_local env "w1" in
+        let (set_w2, get_w2) = new_local env "w2" in
+        let lo32 x = x ^^ compile_bitand_const 0xFFFFFFFFL in
+        let hi32 x = x ^^ compile_shrU_const 32L in
+        let mul = G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
+        lo32 get_a ^^ lo32 get_b ^^ mul ^^ set_t ^^
+        get_t ^^ compile_shrU_const 32L ^^ set_k ^^
+        hi32 get_a ^^ lo32 get_b ^^ mul ^^ get_k ^^ add ^^ set_t ^^
+        get_t ^^ compile_bitand_const 0xFFFFFFFFL ^^ set_w1 ^^
+        get_t ^^ compile_shrU_const 32L ^^ set_w2 ^^
+        lo32 get_a ^^ hi32 get_b ^^ mul ^^ get_w1 ^^ add ^^ set_t ^^
+        get_t ^^ compile_shrU_const 32L ^^ set_k ^^
+        hi32 get_a ^^ hi32 get_b ^^ mul ^^ get_w2 ^^ add ^^ get_k ^^ add)
+
+  (* Schoolbook, fully unrolled, with the operands and the whole 2n-limb accumulator held in
+     LOCALS rather than memory: each is touched n times, and there is no reason to make n^2
+     round trips to the heap for values that fit in registers. Only the result is allocated.
+
+     The row carry cannot overflow: r + a*b + c is at most
+     (2^64-1) + (2^64-1)^2 + (2^64-1) = 2^128 - 1, so the accumulated high word always fits
+     a single limb. This is why the classic algorithm needs no second carry chain.
+
+     Trapping and wrapping share the computation, exactly as add and subtract do -- the full
+     2n-limb product is formed either way and `*` simply also asks whether the top n limbs
+     came out zero. *)
+  let mul env width ~trap =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_mul%s" width (if trap then "" else "_wrap") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let al = Array.init n (fun i -> new_local env (Printf.sprintf "a%d" i)) in
+        let bl = Array.init n (fun i -> new_local env (Printf.sprintf "b%d" i)) in
+        let rl = Array.init (2 * n) (fun i -> new_local env (Printf.sprintf "p%d" i)) in
+        let (set_c, get_c) = new_local env "c" in
+        let (set_s, get_s) = new_local env "s" in
+        let (set_lo, get_lo) = new_local env "lo" in
+        let (set_hi, get_hi) = new_local env "hi" in
+        let (set_r, get_r) = new_local env "r" in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
+        let mul = G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) in
+        G.table n (fun i -> get_a ^^ load_limb env i ^^ fst al.(i)) ^^
+        G.table n (fun i -> get_b ^^ load_limb env i ^^ fst bl.(i)) ^^
+        G.table n (fun i -> compile_unboxed_const 0L ^^ fst rl.(i)) ^^
+        G.table n (fun i ->
+          compile_unboxed_const 0L ^^ set_c ^^
+          G.table n (fun j ->
+            snd al.(i) ^^ snd bl.(j) ^^ mul ^^ set_lo ^^
+            snd al.(i) ^^ snd bl.(j) ^^ mulhi env ^^ set_hi ^^
+            (* s = r[i+j] + lo; the wrap rolls into this partial product's high word *)
+            snd rl.(i + j) ^^ get_lo ^^ add ^^ set_s ^^
+            get_hi ^^ get_s ^^ get_lo ^^ compile_comparison I64Op.LtU ^^ add ^^ set_hi ^^
+            (* r[i+j] = s + carry-in; its wrap rolls in too *)
+            get_s ^^ get_c ^^ add ^^ fst rl.(i + j) ^^
+            get_hi ^^ snd rl.(i + j) ^^ get_c ^^ compile_comparison I64Op.LtU ^^ add ^^
+            set_c) ^^
+          (* r[i+n] is first written here, as row i's carry out -- never accumulated *)
+          get_c ^^ fst rl.(i + n)) ^^
+        (if trap
+         then
+           (* Fold the high half and ask whether ANY bit survived. Note the test must be
+              Eqz on the full i64: E.if0 truncates its condition to 32 bits, so a high limb
+              like 2^32 would read as false and the overflow would pass silently. *)
+           G.table n (fun i -> snd rl.(n + i) ^^ (if i = 0 then G.nop
+                        else G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)))) ^^
+           compile_test I64Op.Eqz ^^
+           E.else_trap_with env "arithmetic overflow"
+         else G.nop) ^^
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^ snd rl.(i) ^^ store_limb env i) ^^
+        get_r)
+
 end (* Wide *)
 
 module Object = struct
@@ -11756,6 +11839,8 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim Float32),                      PowOp -> E.call_rts env "powf"
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               AndOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.And))
+  | Type.(Prim (Nat128 | Nat256 as pty)), WMulOp -> Wide.mul env (Wide.width_of_typ pty) ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), MulOp  -> Wide.mul env (Wide.width_of_typ pty) ~trap:true
   | Type.(Prim (Nat128 | Nat256 as pty)), AndOp -> Wide.bitop env (Wide.width_of_typ pty) I64Op.And
   | Type.(Prim (Nat128 | Nat256 as pty)), OrOp  -> Wide.bitop env (Wide.width_of_typ pty) I64Op.Or
   | Type.(Prim (Nat128 | Nat256 as pty)), XorOp -> Wide.bitop env (Wide.width_of_typ pty) I64Op.Xor
