@@ -13,6 +13,8 @@ let as_big_int = function
   | Type.Nat16 -> fun v -> Nat16.to_big_int (as_nat16 v)
   | Type.Nat32 -> fun v -> Nat32.to_big_int (as_nat32 v)
   | Type.Nat64 -> fun v -> Nat64.to_big_int (as_nat64 v)
+  | Type.Nat128 -> fun v -> Nat128.to_big_int (as_nat128 v)
+  | Type.Nat256 -> fun v -> Nat256.to_big_int (as_nat256 v)
   | Type.Int8 -> fun v -> Int_8.to_big_int (as_int8 v)
   | Type.Int16 -> fun v -> Int_16.to_big_int (as_int16 v)
   | Type.Int32 -> fun v -> Int_32.to_big_int (as_int32 v)
@@ -29,6 +31,8 @@ let of_big_int_trap = function
   | Type.Nat16 -> fun i -> Nat16 (Nat16.of_big_int i)
   | Type.Nat32 -> fun i -> Nat32 (Nat32.of_big_int i)
   | Type.Nat64 -> fun i -> Nat64 (Nat64.of_big_int i)
+  | Type.Nat128 -> fun i -> Nat128 (Nat128.of_big_int i)
+  | Type.Nat256 -> fun i -> Nat256 (Nat256.of_big_int i)
   | Type.Int8 -> fun i -> Int8 (Int_8.of_big_int i)
   | Type.Int16 -> fun i -> Int16 (Int_16.of_big_int i)
   | Type.Int32 -> fun i -> Int32 (Int_32.of_big_int i)
@@ -61,7 +65,8 @@ type trap = { trap : 'a. string -> 'a  }
 let num_conv_trap_prim trap t1 t2 =
   let module T = Type in
   match t1, t2 with
-  | T.Nat, T.(T.Nat8|Nat16|Nat32|Nat64)
+  | T.Nat, T.(T.Nat8|Nat16|Nat32|Nat64|Nat128|Nat256)
+  | T.(Nat128|Nat256), T.Nat
   | T.Int, T.(Int8|Int16|Int32|Int64)
   | T.(Nat8|Nat16|Nat32|Nat64), T.Nat
   | T.(Int8|Int16|Int32|Int64), T.Int

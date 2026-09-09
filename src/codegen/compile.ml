@@ -3428,7 +3428,11 @@ module MakeCompact (Num : BigNumType) : BigNumType = struct
 
   let fits_unsigned_bits env n =
     try_unbox I64Type (fun _ -> match n with
-        | 64 -> G.i Drop ^^ Bool.lit true
+        (* A compact value is a tagged scalar, so its payload is at most 64 bits wide and
+           trivially fits any width from 64 up. This read `| 64 ->` alone and fell through
+           to `assert false` for the 128- and 256-bit widths the wide naturals ask about.
+           The boxed path below is already width-generic (bigint_count_bits <= n). *)
+        | n when n >= 64 -> G.i Drop ^^ Bool.lit true
         | 8 | 16 | 32 ->
           (* use shifting to test that the payload including the tag fits the desired bit width.
               E.g. this is now n + 2 for Type.Int. *)
@@ -4114,6 +4118,103 @@ module Wide = struct
   let store_limb env i =
     (* expects: blob-ptr, value *)
     G.i (Store {ty = I64Type; align = 3; offset = Int64.of_int (8 * i); sz = None})
+
+  (* --- Addition and subtraction -------------------------------------------------------
+
+     The carry chain UNROLLS, because the width is a static property of the type: a Nat256
+     add is four adds and three carry computations of straight-line wasm with a single
+     allocation for the result -- no loop, no RTS call, no heap bignum. That is the entire
+     reason these types exist. An implementation that reached for BigNum here would hand
+     you the type while throwing away the reason for the type.
+
+     wasm has no add-with-carry, so the carry out of `x + y + c` is recovered from the two
+     wraps: an unsigned sum wraps exactly when it lands strictly below either operand, and
+     at most one of the two adds can wrap (if `x + y` wrapped, its result is <= x - 1, so
+     adding c <= 1 cannot wrap again). Subtraction is the mirror image: a difference
+     borrows exactly when the minuend is below the subtrahend.
+
+     The trapping and wrapping forms are the SAME code -- `+` is `+%` that also asks
+     whether the top limb carried out. Deriving one from the other is what keeps them from
+     ever disagreeing about a boundary. *)
+  let addsub env width ~sub ~trap =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_%s%s" width
+      (if sub then "sub" else "add") (if trap then "" else "_wrap") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_r, get_r) = new_local env "r" in
+        let (set_c, get_c) = new_local env "c" in
+        let (set_t, get_t) = new_local env "t" in
+        let (set_s, get_s) = new_local env "s" in
+        let op = if sub then I64Op.Sub else I64Op.Add in
+        alloc env width ^^ set_r ^^
+        compile_unboxed_const 0L ^^ set_c ^^
+        G.table n (fun i ->
+          (* t = a[i] op b[i]; s = t op c -- carry in from the limb below *)
+          get_a ^^ load_limb env i ^^
+          get_b ^^ load_limb env i ^^
+          G.i (Binary (Wasm_exts.Values.I64 op)) ^^ set_t ^^
+          get_t ^^ get_c ^^ G.i (Binary (Wasm_exts.Values.I64 op)) ^^ set_s ^^
+          (* carry (borrow) out = did either step wrap? *)
+          (if sub
+           then
+             get_a ^^ load_limb env i ^^ get_b ^^ load_limb env i ^^
+             compile_comparison I64Op.LtU ^^
+             get_t ^^ get_c ^^ compile_comparison I64Op.LtU
+           else
+             get_t ^^ get_a ^^ load_limb env i ^^ compile_comparison I64Op.LtU ^^
+             get_s ^^ get_t ^^ compile_comparison I64Op.LtU) ^^
+          G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^ set_c ^^
+          (* store only after the carry is read, so `a + a` and `a - a` are safe *)
+          get_r ^^ Blob.payload_ptr_unskewed env ^^ get_s ^^ store_limb env i) ^^
+        (if trap
+         then get_c ^^ E.then_trap_with env "arithmetic overflow"
+         else G.nop) ^^
+        get_r)
+
+  (* --- Conversions to and from Nat -----------------------------------------------------
+
+     This is the ONE place a bignum appears anywhere in the wide implementation, and it is
+     not arithmetic: `Nat` IS arbitrary precision, so converting to it must build one, and
+     converting from one must consume one. The operators above never allocate a bignum.
+
+     `to_bignum` is Horner from the top limb down, generalising Cycles.from_word128_ptr,
+     which does exactly this for the two-limb cycles API. *)
+  let to_bignum env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "wide%d_to_bignum" width)
+      ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_acc, get_acc) = new_local env "acc" in
+        get_a ^^ load_limb env (n - 1) ^^ BigNum.from_word64 env ^^ set_acc ^^
+        G.table (n - 1) (fun j ->
+          get_acc ^^
+          compile_unboxed_const 64L ^^ TaggedSmallWord.msb_adjust Type.Nat32 ^^
+          BigNum.compile_lsh env ^^
+          get_a ^^ load_limb env (n - 2 - j) ^^ BigNum.from_word64 env ^^
+          BigNum.compile_add env ^^ set_acc) ^^
+        get_acc)
+
+  (* Nat -> wide. Traps when the value does not fit, exactly as every other narrowing
+     conversion in this compiler does, with the same message. *)
+  let of_bignum env width =
+    Func.share_code1 Func.Never env (Printf.sprintf "bignum_to_wide%d" width)
+      ("n", I64Type) [I64Type]
+      (fun env get_n ->
+        let (set_v, get_v) = new_local env "v" in
+        let (set_r, get_r) = new_local env "r" in
+        get_n ^^ BigNum.fits_unsigned_bits env width ^^
+        E.else_trap_with env "losing precision" ^^
+        get_n ^^ set_v ^^
+        alloc env width ^^ set_r ^^
+        G.table (limbs_of_width width) (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          get_v ^^ BigNum.truncate_to_word64 env ^^
+          store_limb env i ^^
+          get_v ^^
+          compile_unboxed_const 64L ^^ TaggedSmallWord.msb_adjust Type.Nat32 ^^
+          BigNum.compile_rsh env ^^ set_v) ^^
+        get_r)
 
 end (* Wide *)
 
@@ -11327,6 +11428,18 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   StackRep.of_type t,
   Operator.(match t, op with
   | Type.(Prim (Nat | Int)),                  AddOp -> BigNum.compile_add env
+
+  (* Wide naturals: fixed-limb, unrolled, allocation-free apart from the result.
+     `+%`/`-%` wrap; `+`/`-` are the same code plus the question "did the top limb carry
+     out?", so the two forms cannot drift apart at the boundary. See module Wide. *)
+  | Type.(Prim (Nat128 | Nat256 as pty)), WAddOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:false ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), AddOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:false ~trap:true
+  | Type.(Prim (Nat128 | Nat256 as pty)), WSubOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:true ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), SubOp ->
+    Wide.addsub env (Wide.width_of_typ pty) ~sub:true ~trap:true
   | Type.(Prim (Nat64|Int64)),                WAddOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.Add))
   | Type.(Prim Int64),                        AddOp ->
     compile_Int64_kernel env "add" BigNum.compile_add
@@ -11931,6 +12044,18 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | NumConvTrapPrim (t1, t2), [e] -> begin
     let open Type in
     match t1, t2 with
+
+    (* Wide <-> Nat. The wide side is limbs; `Nat` is a bignum by definition, so these are
+       the only wide operations that touch BigNum at all. *)
+    | (Nat128 | Nat256), Nat ->
+      SR.Vanilla,
+      compile_exp_vanilla env ae e ^^
+      Wide.to_bignum env (Wide.width_of_typ t1)
+
+    | Nat, (Nat128 | Nat256) ->
+      SR.Vanilla,
+      compile_exp_vanilla env ae e ^^
+      Wide.of_bignum env (Wide.width_of_typ t2)
 
     | Int, Int64 ->
       SR.UnboxedWord64 Int64,
