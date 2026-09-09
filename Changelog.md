@@ -4,7 +4,36 @@
 
 * motoko (`moc`)
 
-  * feat: syntax ergonomics (#6348, implements #6344):
+  * feat: syntax ergonomics, part 1 of the #6344 batch (#6358):
+
+    * the semicolon between `switch` cases is now optional:
+      `switch (n) { case 0 { ... } case _ { ... } }`.
+
+    * `case` patterns with deterministic extent no longer need parentheses:
+      `case null`, `case -1`, `case ?v`, `case #tag`, and `case #tag(pat)`.
+      A variant payload still requires its own parentheses (`case #tag(pat)`,
+      not `case #tag pat`), so that in `case #tag { ... }` the braces are
+      unambiguously the case body.
+
+    * BREAKING: `??` is now whitespace-sensitive, mirroring the existing rule
+      for `<` and `>`: `a ?? b` (followed by whitespace) is the null-coalescing
+      operator, while `??x` (no whitespace) means two option introductions
+      `?(?x)`. Unspaced binary usage `a ??b` no longer parses; the prefix
+      compatibility hack that treated the operator token `?? e` as `?(?e)`
+      (likewise in types and patterns) is removed.
+
+    * BREAKING: the right-hand side of `??` is now parsed in expression
+      position: `opt ?? { x = 0 }` is a record literal (it previously did
+      not parse), and a block on the right must be written `opt ?? do { ... }`.
+
+    * new targeted parse errors with concrete fix-its: `M0269` (record literal
+      in block position, e.g. a `case` arm or function body, suggesting to
+      nest the record as the block's result), `M0270` (block in record-literal
+      position, suggesting `do { ... }`), and `M0271` (reserved keyword such
+      as `query` or `implicit` used as an identifier), replacing the generic
+      `M0001` in these situations.
+
+  * feat: syntax ergonomics, part 2 — unparenthesized heads (#6348, target syntax in #6352):
 
     * `switch`, `if`, and `while` now accept full expressions as scrutinee or
       condition, without parentheses: `switch f(x) { ... }`, `if a and b { ... }`,
@@ -25,22 +54,6 @@
       (diagnosed by the new `M0272` with a fix-it). Bare branches remain
       available exactly as before, with parenthesized or atomic heads.
 
-    * the semicolon between `switch` cases is now optional:
-      `switch n { case 0 { ... } case _ { ... } }`.
-
-    * `case` patterns with deterministic extent no longer need parentheses:
-      `case null`, `case -1`, `case ?v`, `case #tag`, and `case #tag(pat)`.
-      A variant payload still requires its own parentheses (`case #tag(pat)`,
-      not `case #tag pat`), so that in `case #tag { ... }` the braces are
-      unambiguously the case body.
-
-    * BREAKING: `??` is now whitespace-sensitive, mirroring the existing rule
-      for `<` and `>`: `a ?? b` (followed by whitespace) is the null-coalescing
-      operator, while `??x` (no whitespace) means two option introductions
-      `?(?x)`. Unspaced binary usage `a ??b` no longer parses; the prefix
-      compatibility hack that treated the operator token `?? e` as `?(?e)`
-      (likewise in types and patterns) is removed.
-
     * BREAKING: `#` immediately followed by an identifier is now a variant
       introduction wherever an expression can start, so
       `if (c) #less else #greater` parses with the variants as branches.
@@ -48,16 +61,9 @@
       after an expression (`x#y`), but the half-spaced form `x #y` now parses
       as `x` juxtaposed with the variant `#y` and is rejected.
 
-    * BREAKING: the right-hand side of `??` is now parsed in expression
-      position: `opt ?? { x = 0 }` is a record literal (it previously did
-      not parse), and a block on the right must be written `opt ?? do { ... }`.
-
-    * new targeted parse errors with concrete fix-its: `M0269` (record literal
-      in block or scrutinee position, suggesting `({ ... })`, `let`, or `:=`),
-      `M0270` (block in record-literal position, suggesting `do { ... }`),
-      `M0271` (reserved keyword such as `query` used as an identifier), and
-      `M0272` (missing block after an unparenthesized head),
-      replacing the generic `M0001` in these situations.
+    * `M0269` additionally covers a record literal written directly as a
+      `switch`/`if`/`while` head, where the `{` already belongs to the
+      construct's body.
 
 ## 1.15.1 (2026-09-02)
 
