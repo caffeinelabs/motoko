@@ -31,7 +31,7 @@ M0218 (A) Redundant `stable`
 M0222 (A) Ignored `async*`
 M0223 (A) Redundant type instantiation
 M0235 (A) Deprecate for caffeine
-M0236 (A) Suggest contextual dot notation
+M0236 (W) Suggest contextual dot notation
 M0237 (A) Suggest redundant explicit arguments
 M0239 (W) Avoid binding a unit `()` result
 M0240 (W) Unused identifier in shared pattern warning
