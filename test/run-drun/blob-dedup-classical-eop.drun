@@ -1,5 +1,7 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
-install $ID blob-dedup-classical-eop/v1.mo ""
+# blob deduplication across the classical→enhanced boundary.
+# The classical install uses the committed `v1-old.wasm` (built from `v1.mo`, see note.txt);
+# `v2.mo` upgrades to the EOP side.
+install $ID blob-dedup-classical-eop/v1-old.wasm ""
 ingress $ID test "DIDL\x00\x00"
 upgrade $ID blob-dedup-classical-eop/v2.mo ""
 ingress $ID test "DIDL\x00\x00"

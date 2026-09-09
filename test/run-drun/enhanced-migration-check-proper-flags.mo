@@ -11,7 +11,6 @@ persistent actor {
     };
 };
 
-//CLASSICAL-PERSISTENCE-ONLY
 //SKIP run
 //SKIP run-ir
 //SKIP run-low

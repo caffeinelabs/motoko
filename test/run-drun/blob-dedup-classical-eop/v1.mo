@@ -1,3 +1,7 @@
+// Provides provenance for the committed classical `v1-old.wasm` fixture used by
+// `blob-dedup-classical-eop.drun` (built from this file by moc 1.14.1, see note.txt).
+// Not compiled by the test runner.
+
 import Prim "mo:prim";
 
 persistent actor {
@@ -15,5 +19,3 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//CLASSICAL-PERSISTENCE-ONLY
-//MOC-FLAG --legacy-persistence

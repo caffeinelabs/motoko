@@ -1,6 +1,7 @@
-# CLASSICAL-PERSISTENCE-ONLY
-# DEFAULT-GC-ONLY
-install $ID migrate-candid-sharing/old-stabilization.mo ""
+# Shared cyclic-object migration across the classical→enhanced boundary.
+# The classical install uses the committed `old.wasm` (built from
+# `old-stabilization.mo`, see note.txt).
+install $ID migrate-candid-sharing/old.wasm ""
 upgrade $ID migrate-candid-sharing/new-stabilization.mo ""
 upgrade $ID migrate-candid-sharing/new-stabilization.mo ""
-upgrade $ID migrate-candid-sharing/old-stabilization.mo ""
+upgrade $ID migrate-candid-sharing/old.wasm ""
