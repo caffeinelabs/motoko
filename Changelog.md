@@ -16,7 +16,7 @@
     `costSignWithEcdsa`/`costSignWithSchnorr` primitives. It takes a `Text`
     key name and a `Nat32` curve encoding and returns `(resultCode, costOrUndefined)`,
     where a non-zero `resultCode` signals an invalid key name or curve
-    encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6337).
+    encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
 
 ## 1.15.1 (2026-09-02)
 
