@@ -16,6 +16,23 @@
     unsupported counter type, such as 2, now traps instead of reading
     counter 0 (#6545).
 
+  * feat: `Nat128` and `Nat256` — fixed-width unsigned integers wider than a machine word,
+    for code that needs exact 256-bit arithmetic (EVM semantics, cryptographic and
+    fixed-point work). They are represented as a fixed number of 64-bit limbs, not as
+    arbitrary-precision values, so arithmetic is generated as straight-line operations over
+    that fixed number of limbs and allocates nothing beyond its result.
+
+    The full operator set is supported: `+ - * / % **` with their wrapping forms
+    `+% -% *% **%`, the bitwise operations, shifts and rotations, comparisons, and
+    `popcnt`/`clz`/`ctz`. Conversions to and from `Nat` and every other bounded natural are
+    available on `Prim`, with the narrowing directions trapping when the value does not fit.
+
+    On the wire they are Candid `nat`, which is what the ecosystem already uses for 256-bit
+    quantities; a value too large for the width traps on decode. As stable variables they are
+    distinct from `Nat` and from each other, so an upgrade that changes a stable variable
+    between `Nat`, `Nat128` and `Nat256` is rejected rather than silently reinterpreting the
+    stored value (#NNNN).
+
 ## 2.2.5 (2026-11-24)
 
 * motoko (`moc`)
