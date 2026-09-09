@@ -1,4 +1,4 @@
-use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
+use motoko_rts_macros::enhanced_orthogonal_persistence;
 
 use crate::{
     gc::incremental::{
@@ -97,10 +97,7 @@ impl<'a, M: Memory + 'a> MarkIncrement<'a, M> {
         loop {
             let value = self.mark_stack.pop();
 
-            #[enhanced_orthogonal_persistence]
             debug_assert!(value.is_non_null_ptr());
-            #[classical_persistence]
-            debug_assert!(value.is_ptr());
 
             if value == STACK_EMPTY {
                 self.complete_marking();

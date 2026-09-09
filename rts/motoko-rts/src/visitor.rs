@@ -1,10 +1,7 @@
 #[enhanced_orthogonal_persistence]
 pub mod enhanced;
 
-#[classical_persistence]
-pub mod classical;
-
-use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
+use motoko_rts_macros::enhanced_orthogonal_persistence;
 
 use crate::types::*;
 
@@ -16,7 +13,7 @@ use crate::types::*;
 /// * `ctx`: any context passed to the `visit_*` callbacks
 /// * `obj`: the heap object to be visited (note: its heap tag may be invalid)
 /// * `tag`: the heap object's logical tag (or start of array object's suffix slice)
-/// * `_heap_base`: start address of the dynamic heap, only used with classical persistence.
+/// * `_heap_base`: start address of the dynamic heap.
 /// * `visit_ptr_field`: callback for individual fields
 /// * `visit_field_range`: callback for determining the suffix slice
 ///   Arguments:
@@ -39,26 +36,4 @@ pub unsafe fn visit_pointer_fields<C, F, G>(
     G: Fn(&mut C, usize, *mut Array) -> usize,
 {
     self::enhanced::visit_pointer_fields(ctx, obj, tag, visit_ptr_field, visit_field_range);
-}
-
-#[classical_persistence]
-pub unsafe fn visit_pointer_fields<C, F, G>(
-    ctx: &mut C,
-    obj: *mut Obj,
-    tag: Tag,
-    heap_base: usize,
-    visit_ptr_field: F,
-    visit_field_range: G,
-) where
-    F: Fn(&mut C, *mut Value),
-    G: Fn(&mut C, usize, *mut Array) -> usize,
-{
-    self::classical::visit_pointer_fields(
-        ctx,
-        obj,
-        tag,
-        heap_base,
-        visit_ptr_field,
-        visit_field_range,
-    );
 }

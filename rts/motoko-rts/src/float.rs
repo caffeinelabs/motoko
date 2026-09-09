@@ -8,7 +8,7 @@ use motoko_rts_macros::ic_mem_fn;
 #[ic_mem_fn]
 pub unsafe fn float_fmt<M: Memory>(mem: &mut M, a: f64, prec: usize, mode: usize) -> Value {
     // prec and mode are tagged small words (`Nat8`s), so we shift 56 or 24 bits.
-    // See `TaggedSmallWord.bits_of_type` in `compile_enhanced.ml` or `compile_classical.ml`.
+    // See `TaggedSmallWord.bits_of_type` in `compile_enhanced.ml`.
     const SHIFT: u32 = usize::BITS - 8;
     let mode = mode >> SHIFT;
     let prec = core::cmp::min(prec >> SHIFT, 100) as usize;

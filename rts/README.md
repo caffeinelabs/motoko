@@ -68,15 +68,18 @@ To build Motoko RTS in nix we need pre-fetch Rust dependencies. This works in
 
 If you change dependencies (e.g. bump versions, add more crates), Make sure that
 `motoko-rts-tests/Cargo.lock` is up to date. This can be done by running
-`cargo build --target=wasm32-wasip1` in `motoko-rts-tests/` directory.
+`cargo build --target=wasm64-unknown-unknown --features enhanced_orthogonal_persistence` in `motoko-rts-tests/` directory (see the `test64` target in `rts/Makefile`).
 
 **Updating rustc**: see [`.agents/skills/bump-rust-nightly/SKILL.md`](../.agents/skills/bump-rust-nightly/SKILL.md) for the full recipe — nightly date, `rustStdDepsHash` probe, Cargo lockfile updates, common compiler-error fixes, and CI-trigger pattern.
 
 Running RTS tests
 -----------------
 
-- Build tests using rustc WASI target: `cargo build --target=wasm32-wasip1`
-- Run with wasmtime: `wasmtime target/wasm32-wasip1/debug/motoko-rts-tests.wasm`
+- Build tests using the wasm64 EOP target: `make test` (in `rts/`, builds the
+  `test64` variant of `motoko-rts-tests` and runs every module under wasmtime)
+- Or manually: `cargo build --target=wasm64-unknown-unknown --features enhanced_orthogonal_persistence`
+  in `motoko-rts-tests/`, then run with
+  `wasmtime -W memory64 --invoke test_<module> target/wasm64-unknown-unknown/debug/motoko-rts-tests.wasm`
 
 Debugging the RTS
 -----------------
