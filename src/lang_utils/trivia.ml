@@ -53,7 +53,7 @@ module PosHash = struct
 
   let equal i j = i = j
 
-  let hash { file = _; line; column } = column lor 20 land line
+  let hash ({ file = _; line; column } : t) = column lor 20 land line
 end
 
 module PosHashtbl = Hashtbl.Make (PosHash)
