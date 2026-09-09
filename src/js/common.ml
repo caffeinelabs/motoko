@@ -279,7 +279,7 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
   (* senv: accumulated scope from prelude and all transitive imports *)
   | Ok ((_libs, progs, senv, scope_cache), msgs) ->
     let progs =
-      progs |> List.map (fun (prog, immediate_imports, sscope) ->
+      progs |> List.map (fun ((prog : Mo_def.Syntax.prog), immediate_imports, sscope) ->
         let open Mo_def in
         let module Arrange = Astjs.Make (struct
           let include_sources = true

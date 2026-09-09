@@ -1266,7 +1266,7 @@ and dec' d =
   | S.TypD _ -> []
   | S.MixinD _ -> []
   | S.IncludeD(_, _, args, note) ->
-    let { imports = is; pat = p; decs } = Option.get !note in
+    let { imports = is; pat = p; decs; _ } = Option.get !note in
     let ir_imports = List.map transform_import is in
     let renamed_imports, rho = Rename.decs Rename.Renaming.empty ir_imports in
     let renamed_pat, rho = Rename.pat rho (pat p) in

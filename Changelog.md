@@ -17,6 +17,11 @@
     where a non-zero `resultCode` signals an invalid key name or curve
     encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
 
+  * bugfix: `///` doc comments on members contributed to an actor via a
+    `mixin` `include` now appear in the generated Candid interface (`.did`),
+    matching the behavior for directly-declared members. Previously such
+    docs were silently dropped (#6351).
+
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
     differently: the suggestion now validates the rewritten callee against
