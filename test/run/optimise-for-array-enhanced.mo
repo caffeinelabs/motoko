@@ -72,7 +72,7 @@ for (check3 in (((["hello", "immutable", "world"].values())))) { Prim.debugPrint
 // bottom iteration expression is treated fairly
 var c = 42;
 if (c == c + 1) {
-    for (check4 in (loop {}).vals()) { Prim.debugPrint check4 }
+    for (check4 in (loop {}).values()) { Prim.debugPrint check4 }
 };
 
 // FIX-CHECK:      i64.const 170
@@ -102,7 +102,7 @@ if (c == c + 1) {
 // FIX-CHECK-NEXT: else
 // typed bottom iteration expression is treated fairly
 if (c == c + 1) {
-    for (check5 in ((loop {}) : [Text]).vals()) { Prim.debugPrint check5 }
+    for (check5 in ((loop {}) : [Text]).values()) { Prim.debugPrint check5 }
 };
 
 // FIX-CHECK:      call $B_add

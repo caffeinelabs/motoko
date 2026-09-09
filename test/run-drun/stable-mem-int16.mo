@@ -88,3 +88,4 @@ actor {
 //CALL ingress testBounds "DIDL\x00\x00"
 //CALL upgrade ""
 
+//MOC-FLAG -A=M0270
