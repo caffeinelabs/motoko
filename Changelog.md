@@ -9,6 +9,16 @@
     `system func preupgrade`/`postupgrade` are deprecated in favor of the
     persistent upgrade machinery. Silence with `-A=M0269` / `-A=M0270`
     (#6347).
+
+  * BREAKING CHANGE: the `motoko-Darwin-x86_64` release tarball and the
+    Intel-Mac (`macos-15-intel`) build/release CI legs are dropped; neither
+    the compiler nor its runtime are built or shipped for Intel Macs anymore.
+    x86_64-linux, aarch64-linux and Apple Silicon (`macos-latest`) binaries
+    continue to be produced. Users on Intel Macs should build from source.
+    The `motoko-base-library.tar.gz` release artifact is also dropped (the
+    `base` library remains available for tests as `base-tests`/`base-stub`);
+    `motoko-core.tar.gz` is unaffected. (#6355)
+
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
     differently: the suggestion now validates the rewritten callee against
