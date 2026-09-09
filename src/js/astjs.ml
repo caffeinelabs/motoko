@@ -197,10 +197,13 @@ module Make (Cfg : Config) = struct
   let add_trivia (at : region) (it : Js.Unsafe.any) : Js.Unsafe.any =
     match Cfg.include_docs with
     | Some table -> (
-        let rec lookup_trivia (line, column) =
-          Trivia.PosHashtbl.find_opt table Trivia.{ line; column }
-        and find_trivia (parser_pos : region) : Trivia.trivia_info =
-          lookup_trivia (parser_pos.left.line, parser_pos.left.column)
+        let find_trivia (parser_pos : region) : Trivia.trivia_info =
+          Trivia.PosHashtbl.find_opt table
+            Trivia.{
+              file = parser_pos.left.file;
+              line = parser_pos.left.line;
+              column = parser_pos.left.column
+            }
           |> Option.get
         in
         match Trivia.doc_comment_of_trivia_info (find_trivia at) with
