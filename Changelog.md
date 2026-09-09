@@ -9,7 +9,7 @@
     `export_view` desugaring and the view-gathering in `mo_to_idl`), and the
     `--experimental-stable-memory` flag. Use of the `ExperimentalStableMemory`
     library is now an unconditional `M0199` error; migrate to the `Region`
-    library instead (#6231).
+    library instead (#6357).
 
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
