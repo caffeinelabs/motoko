@@ -1,0 +1,1 @@
+syntax-record-in-block.mo:3.3-3.8: syntax error [M0269], a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`

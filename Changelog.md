@@ -1,5 +1,38 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * feat: syntax ergonomics, part 1 of the #6344 batch (#6358):
+
+    * the semicolon between `switch` cases is now optional:
+      `switch (n) { case 0 { ... } case _ { ... } }`.
+
+    * `case` patterns with deterministic extent no longer need parentheses:
+      `case null`, `case -1`, `case ?v`, `case #tag`, and `case #tag(pat)`.
+      A variant payload still requires its own parentheses (`case #tag(pat)`,
+      not `case #tag pat`), so that in `case #tag { ... }` the braces are
+      unambiguously the case body.
+
+    * BREAKING: `??` is now whitespace-sensitive, mirroring the existing rule
+      for `<` and `>`: `a ?? b` (followed by whitespace) is the null-coalescing
+      operator, while `??x` (no whitespace) means two option introductions
+      `?(?x)`. Unspaced binary usage `a ??b` no longer parses; the prefix
+      compatibility hack that treated the operator token `?? e` as `?(?e)`
+      (likewise in types and patterns) is removed.
+
+    * BREAKING: the right-hand side of `??` is now parsed in expression
+      position: `opt ?? { x = 0 }` is a record literal (it previously did
+      not parse), and a block on the right must be written `opt ?? do { ... }`.
+
+    * new targeted parse errors with concrete fix-its: `M0269` (record literal
+      in block position, e.g. a `case` arm or function body, suggesting to
+      nest the record as the block's result), `M0270` (block in record-literal
+      position, suggesting `do { ... }`), and `M0271` (reserved keyword such
+      as `query` or `implicit` used as an identifier), replacing the generic
+      `M0001` in these situations.
+
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)

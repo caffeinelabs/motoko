@@ -223,6 +223,9 @@ let error_codes : (string * string option) list =
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
     "M0264", None; (* mixin include requires system capability *)
     "M0267", None; (* Initial actor or chain resume point requires field; the baseline does not explain it (e.g. added with no migration) *)
+    "M0269", Some([%blob "lang_utils/error_codes/M0269.md"]); (* Record literal in block position *)
+    "M0270", Some([%blob "lang_utils/error_codes/M0270.md"]); (* Block not allowed in this position, use do { ... } *)
+    "M0271", Some([%blob "lang_utils/error_codes/M0271.md"]); (* Reserved keyword used as an identifier *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

@@ -1,0 +1,4 @@
+error[M0270]: unexpected token 'let': braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`
+    ┌─ syntax-block-in-record.mo:2:11
+  2 │  let x = { let y = 1; y };
+    │            ^^^ 

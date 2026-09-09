@@ -15,6 +15,8 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
     (unit -> parser_token) * triv_table =
   let trivia_table : triv_table = PosHashtbl.create 1013 in
   let lookahead : source_token option ref = ref None in
+  (* Second half of a token that was split in two (see NULLCOALESCE below) *)
+  let pending : parser_token option ref = ref None in
   (* We keep the trailing whitespace of the previous token
      around so we can disambiguate operators *)
   let last_trailing : line_feed trivia list ref = ref [] in
@@ -38,6 +40,11 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
     | Some t -> t
   in
   let next_parser_token () : parser_token =
+    match !pending with
+    | Some t ->
+        pending := None;
+        t
+    | None ->
     let rec eat_leading acc =
       let token, start, end_ = next () in
       match ST.to_parser_token token with
@@ -80,6 +87,12 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
     last_trailing := List.map (map_trivia absurd) trailing_trivia;
     PosHashtbl.add trivia_table (pos_of_lexpos start)
       { leading_trivia; trailing_trivia };
-    (token, start, end_)
+    (* `??` followed by whitespace is the null-coalescing operator; unspaced `??x` means two option introductions, i.e. `?(?x)` *)
+    match token with
+    | Parser.NULLCOALESCE when not (trailing_ws ()) ->
+        let mid = { start with Lexing.pos_cnum = start.Lexing.pos_cnum + 1 } in
+        pending := Some (Parser.QUEST, mid, end_);
+        (Parser.QUEST, start, mid)
+    | _ -> (token, start, end_)
   in
   (next_parser_token, trivia_table)
