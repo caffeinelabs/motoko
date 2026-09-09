@@ -2312,7 +2312,7 @@ type 'a dot_callee_resolution =
 
 let warn_deprecated_vals env id fs =
   if id.it = "vals" && T.lookup_val_field_opt "values" fs <> None then
-    warn env id.at "M0269" "member `.vals()` is deprecated for caffeine; use `.values()` instead"
+    warn env id.at "M0269" "member `.vals()` is deprecated; use `.values()` instead"
 
 (* How a dot callee `e.f(...)` resolves: a function-typed field of the receiver shadows contextual dot.
    The single source of that precedence — [infer_callee] and the M0236 suggestion both resolve through it, so they cannot drift.
@@ -4608,7 +4608,7 @@ and check_system_fields env sort scope tfs dec_fields =
           if vis = System then
             begin
               if id.it = "preupgrade" || id.it = "postupgrade" then
-                warn env id.at "M0270" "system function `%s` is deprecated for caffeine; use the persistent-actor upgrade machinery (stable variables / migration functions) instead" id.it;
+                warn env id.at "M0270" "system function `%s` is deprecated; use migration functions instead" id.it;
               let (t1, _, _) = T.Env.find id.it scope.Scope.val_env in
               if not (sub env id.at t1 t) then
                 local_error env df.at "M0127" "system function %s is declared with type%a\ninstead of expected type%a" id.it

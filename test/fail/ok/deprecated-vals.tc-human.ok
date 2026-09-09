@@ -1,24 +1,24 @@
-warning[M0269]: member `.vals()` is deprecated for caffeine; use `.values()` instead
+warning[M0269]: member `.vals()` is deprecated; use `.values()` instead
     ┌─ deprecated-vals.mo:11:14
  11 │    let it = a.vals();            // value position, immutable array
     │               ^^^^ 
-warning[M0269]: member `.vals()` is deprecated for caffeine; use `.values()` instead
+warning[M0269]: member `.vals()` is deprecated; use `.values()` instead
     ┌─ deprecated-vals.mo:13:15
  13 │    for (x in a.vals()) {}        // call position
     │                ^^^^ 
-warning[M0269]: member `.vals()` is deprecated for caffeine; use `.values()` instead
+warning[M0269]: member `.vals()` is deprecated; use `.values()` instead
     ┌─ deprecated-vals.mo:18:14
  18 │    let it = m.vals();            // mutable array
     │               ^^^^ 
-warning[M0269]: member `.vals()` is deprecated for caffeine; use `.values()` instead
+warning[M0269]: member `.vals()` is deprecated; use `.values()` instead
     ┌─ deprecated-vals.mo:20:15
  20 │    for (x in m.vals()) {}
     │                ^^^^ 
-warning[M0269]: member `.vals()` is deprecated for caffeine; use `.values()` instead
+warning[M0269]: member `.vals()` is deprecated; use `.values()` instead
     ┌─ deprecated-vals.mo:25:14
  25 │    let it = b.vals();            // Blob
     │               ^^^^ 
-warning[M0269]: member `.vals()` is deprecated for caffeine; use `.values()` instead
+warning[M0269]: member `.vals()` is deprecated; use `.values()` instead
     ┌─ deprecated-vals.mo:27:15
  27 │    for (x in b.vals()) {}
     │                ^^^^ 
