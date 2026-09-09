@@ -184,6 +184,16 @@ let handle_error lexbuf error_detail message_store (start, end_)
       Printf.sprintf
         "unexpected %s: braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`"
         token
+    (* only a block can follow: the branches or body of an
+       `if`/`while`/`for` with an unparenthesized (extended) head must be
+       braced *)
+    else if last_token <> Parser.LCURLY && acceptable Parser.LCURLY
+            && not (acceptable (Parser.ID "id")) && not (acceptable Parser.LPAR)
+            && not (acceptable Parser.EQ) then
+      "M0272",
+      Printf.sprintf
+        "unexpected %s, expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition"
+        token
     (* a record literal or block where neither is allowed (e.g. an
        unparenthesized `if` condition or `switch` scrutinee) *)
     else if last_token = Parser.LCURLY && acceptable Parser.LPAR then

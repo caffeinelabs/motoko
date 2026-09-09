@@ -293,10 +293,17 @@ and objblock eo s id ty dec_fields =
 %nonassoc SHLOP SHROP ROTLOP ROTROP
 %left POWOP WRAPPOWOP
 
-(* Tokens that may extend an expression or start the phrase following one
-   (see EXP_NO_JUXTA above); higher than every production precedence so the
-   parser extends greedily. *)
-%nonassoc LPAR LBRACKET TIGHT_LPAR TIGHT_LBRACKET TIGHT_HASH LCURLY ID UNDERSCORE PRIM NAT FLOAT CHAR TEXT BOOL NULL QUEST NUM_DOT_ID DISALLOWED VAR TYPE TRY TO_CANDID THROW SWITCH SHARED RETURN QUERY PERSISTENT OBJECT NOT MODULE MIXIN LOOP LET LABEL INCLUDE IGNORE IF FUNC FROM_CANDID FOR DO DEBUG_SHOW DEBUG CONTINUE COMPOSITE CLASS BREAK AWAITSTAR AWAITQUEST AWAIT ASYNCSTAR ASYNC ASSERT ACTOR PLUSASSIGN MINUSASSIGN XORASSIGN
+(* The boundary after an atomic `if`/`while` head (`if (c) …`): the operator
+   levels above and the tight `(`/`[` below EXP_ATOM extend the head into an
+   extended one (which then requires braced branches); every other token —
+   identifiers, literals, spaced `(`, `{`, tight `#` variants, statement
+   keywords — starts a legacy bare branch. EXP_ATOM is the precedence of
+   ending the atomic head. LPAR/LCURLY also outrank the variant-tag
+   reductions below, so an unparenthesized variant pattern takes its
+   parenthesized (or object) payload greedily. *)
+%nonassoc TIGHT_LPAR TIGHT_LBRACKET
+%nonassoc EXP_ATOM
+%nonassoc LPAR LCURLY
 
 %type<Mo_def.Syntax.exp> exp(ob, ob, exp_cont) exp_nullary(ob) exp_plain exp_obj exp_nest(ob, exp_cont) exp_nest(bl, exp_cont_tight)
 %type<Mo_def.Syntax.exp * bool> exp_arg(ob) exp_arg(bl)
@@ -330,6 +337,7 @@ and objblock eo s id ty dec_fields =
 %type<unit option> option(EQ)
 %type<Mo_def.Syntax.exp> exp_un(ob, ob, exp_cont) exp_un(bl, ob, exp_cont) exp_un(bl, bl, exp_cont_tight) exp_post(ob, ob, exp_cont) exp_post(bl, ob, exp_cont) exp_post(bl, bl, exp_cont_tight) exp_nullary(bl) exp_nonvar(ob, ob, exp_cont) exp_nonvar(bl, ob, exp_cont) exp_nonvar(bl, bl, exp_cont_tight) exp_nondec(ob, ob, exp_cont) exp_nondec(bl, ob, exp_cont) exp_nondec(bl, bl, exp_cont_tight) block exp_bin(ob, ob, exp_cont) exp_bin(bl, ob, exp_cont) exp_bin(bl, bl, exp_cont_tight) exp(bl, ob, exp_cont) exp(bl, bl, exp_cont_tight)
 %type<Mo_def.Syntax.exp -> region -> Mo_def.Syntax.exp> exp_cont exp_cont_tight
+%type<Mo_def.Syntax.exp> exp_head exp_head_bin exp_head_un exp_head_post if_exp(ob, exp_cont) if_exp(bl, exp_cont_tight) else_branch(ob, exp_cont) else_branch(bl, exp_cont_tight)
 %type<bool * Mo_def.Syntax.exp> func_body(ob, exp_cont) func_body(bl, exp_cont_tight)
 %type<Mo_def.Syntax.lit> lit
 %type<Mo_def.Syntax.dec> dec imp dec_var(ob, exp_cont) dec_var(bl, exp_cont_tight) dec_nonvar(ob, exp_cont) dec_nonvar(bl, exp_cont_tight)
@@ -713,7 +721,7 @@ exp_arg(B):
 
 
 exp_post(B, R, L) :
-  | e=exp_nullary(B)
+  | e=exp_nullary(B) %prec EXP_ATOM
     { e }
   | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob, exp_cont), COMMA) RBRACKET
     { ArrayE(m, es) @? at $sloc }
@@ -789,9 +797,9 @@ exp_cont :
       fun e1 at -> CallE(None, e1, no_inst (), (false, ref e2)) @? at }
 
 exp_un(B, R, L) :
-  | e=exp_post(B, R, L) %prec EXP_NO_JUXTA
+  | e=exp_post(B, R, L)
     { e }
-  | par=parenthetical e=exp_post(B, R, L) %prec EXP_NO_JUXTA
+  | par=parenthetical e=exp_post(B, R, L)
      { match e.it with
        | CallE (None, e1, inst, args) ->
          CallE (par, e1, inst, args) @? at $sloc
@@ -799,7 +807,7 @@ exp_un(B, R, L) :
          syntax_error (at $sloc) "M0210"
            "misplaced parenthetical note: it must precede a function call";
          e }
-  | hash x=id %prec EXP_NO_JUXTA
+  | hash x=id
     { TagE (x, TupE([]) @? at $sloc) @? at $sloc }
   | hash x=id e=exp_nullary(R)
     { TagE (x, e) @? at $sloc }
@@ -847,7 +855,7 @@ exp_un(B, R, L) :
 
 
 %public exp_nondec(B, R, L) :
-  | e=exp_bin(B, R, L) %prec EXP_NO_JUXTA
+  | e=exp_bin(B, R, L)
     { e }
   | e1=exp_bin(B, R, L) ASSIGN e2=exp(R, R, L)
     { AssignE(e1, e2) @? at $sloc}
@@ -882,15 +890,15 @@ exp_un(B, R, L) :
         | _ -> e
       in
       LabelE(x, Lib.Option.get rt (unit ()), e') @? at $sloc }
-  | BREAK x=id %prec EXP_NO_JUXTA
+  | BREAK x=id
     { let e = TupE([]) @? at $sloc in
       BreakE(Break, Some x, e) @? at $sloc }
   | BREAK x=id e=exp_nullary(R)
     { BreakE(Break, Some x, e) @? at $sloc }
-  | BREAK %prec EXP_NO_JUXTA
+  | BREAK
     { let e = TupE([]) @? at $sloc in
       BreakE(Break, None, e) @? at $sloc }
-  | CONTINUE %prec EXP_NO_JUXTA
+  | CONTINUE
     { let e = TupE([]) @? at $sloc in
       BreakE(Continue, None, e) @? at $sloc }
   | CONTINUE x=id
@@ -899,10 +907,8 @@ exp_un(B, R, L) :
       BreakE(Continue, Some x', e) @? at $sloc }
   | DEBUG e=exp_nest(R, L)
     { DebugE(e) @? at $sloc }
-  | IF b=exp(bl, bl, exp_cont_tight) e1=exp_nest(R, L) %prec IF_NO_ELSE
-    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
-  | IF b=exp(bl, bl, exp_cont_tight) e1=exp_nest(R, L) ELSE e2=exp_nest(R, L)
-    { IfE(b, e1, e2) @? at $sloc }
+  | e=if_exp(R, L)
+    { e }
   | TRY e1=exp_nest(R, L) c=catch(R, L) %prec TRY_CATCH_NO_FINALLY
     { TryE(e1, [c], None) @? at $sloc }
   | TRY e1=exp_nest(R, L) c=catch(R, L) FINALLY e2=exp_nest(R, L)
@@ -917,7 +923,9 @@ exp_un(B, R, L) :
     { ThrowE(e) @? at $sloc }
   | SWITCH e=exp(bl, bl, exp_cont_tight) LCURLY cs=cases RCURLY
     { SwitchE(e, cs) @? at $sloc }
-  | WHILE e1=exp(bl, bl, exp_cont_tight) e2=exp_nest(R, L)
+  | WHILE e1=exp_nullary(bl) e2=exp_nest(R, L)
+    { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
+  | WHILE e1=exp_head e2=block
     { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
   | LOOP e=exp_nest(R, L) %prec LOOP_NO_WHILE
     { LoopE(e, None, new_loop_flags ()) @? at $sloc }
@@ -925,7 +933,7 @@ exp_un(B, R, L) :
     { LoopE(e1, Some e2, new_loop_flags ()) @? at $sloc }
   | FOR lpar p=pat IN e1=exp(ob, ob, exp_cont) RPAR e2=exp_nest(R, L)
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
-  | FOR p=pat IN e1=exp(bl, bl, exp_cont_tight) e2=exp_nest(R, L)
+  | FOR p=pat IN e1=exp(bl, bl, exp_cont_tight) e2=block
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
   | IGNORE e=exp_nest(R, L)
     { IgnoreE(e) @? at $sloc }
@@ -970,6 +978,133 @@ cases :
 catch(R, L) :
   | CATCH p=pat_nullary e=exp_nest(R, L)
     { {pat = p; exp = e} @@ at $sloc }
+
+(* `if`: with a legacy atomic head (identifier, literal, or parenthesized
+   expression) the branches remain free-form expressions; with an extended
+   head (anything more, see exp_head) the branches must be blocks, per the
+   brace discipline of the target syntax. This admits the target style
+   without also admitting `if f(x) e1 else e2`. *)
+if_exp(R, L) :
+  | IF b=exp_nullary(bl) e1=exp_nest(R, L) %prec IF_NO_ELSE
+    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
+  | IF b=exp_nullary(bl) e1=exp_nest(R, L) ELSE e2=exp_nest(R, L)
+    { IfE(b, e1, e2) @? at $sloc }
+  | IF b=exp_head e1=block %prec IF_NO_ELSE
+    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
+  | IF b=exp_head e1=block ELSE e2=else_branch(R, L)
+    { IfE(b, e1, e2) @? at $sloc }
+
+else_branch(R, L) :
+  | e=block { e }
+  | e=if_exp(R, L) { e }
+
+(* Extended heads: a scrutinee/condition that is more than a single atom —
+   at least one call, projection, indexing, operator, or prefix form applied.
+   Disjoint from exp_nullary by construction. Statement-like heads
+   (assignments, `return`, nested `if`/`switch`/loops, declarations) are
+   deliberately not included: they are nonsense as conditions and would only
+   complicate the grammar; parenthesize if truly needed. *)
+exp_head_post :
+  | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob, exp_cont), COMMA) RBRACKET
+    { ArrayE(m, es) @? at $sloc }
+  | e1=exp_post(bl, bl, exp_cont_tight) c=exp_cont_tight
+    { c e1 (at $sloc) }
+  | e=exp_post(bl, bl, exp_cont_tight) s=DOT_NUM
+    { ProjE (e, int_of_string s) @? at $sloc }
+  | e=exp_post(bl, bl, exp_cont_tight) DOT x=id
+    { DotE(e, x, ref None) @? at $sloc }
+  | nid = NUM_DOT_ID
+    { let (num, id) = nid in
+      let {left; right} = at $sloc in
+      let e =
+	LitE(ref (PreLit (num, Type.Nat))) @?
+	{ left;
+	  right = { right with column = left.column + String.length num }}
+      in
+      let x =
+	id @@
+	{ left = { left with column = right.column - String.length id };
+	  right } in
+      DotE(e, x, ref None) @? at $sloc
+    }
+  | e1=exp_post(bl, bl, exp_cont_tight) inst=inst e2=exp_arg(bl)
+    {
+      let e2, sugar = e2 in
+      CallE(None, e1, inst, (sugar, ref e2)) @? at $sloc
+    }
+  | e1=exp_post(bl, bl, exp_cont_tight) BANG
+    { BangE(e1) @? at $sloc }
+  | lpar SYSTEM e1=exp_post(bl, bl, exp_cont_tight) DOT x=id RPAR
+    { DotE(
+        DotE(e1, "system" @@ at ($startpos($1),$endpos($1)), ref None) @? at $sloc,
+        x, ref None) @? at $sloc }
+
+exp_head_un :
+  | e=exp_head_post
+    { e }
+  | par=parenthetical e=exp_post(bl, bl, exp_cont_tight)
+     { match e.it with
+       | CallE (None, e1, inst, args) ->
+         CallE (par, e1, inst, args) @? at $sloc
+       | _ ->
+         syntax_error (at $sloc) "M0210"
+           "misplaced parenthetical note: it must precede a function call";
+         e }
+  | hash x=id
+    { TagE (x, TupE([]) @? at $sloc) @? at $sloc }
+  | hash x=id e=exp_nullary(bl)
+    { TagE (x, e) @? at $sloc }
+  | QUEST e=exp_un(bl, bl, exp_cont_tight)
+    { OptE(e) @? at $sloc }
+  | op=unop e=exp_un(bl, bl, exp_cont_tight)
+    { match op, e.it with
+      | (PosOp | NegOp), LitE {contents = PreLit (s, (Type.(Nat | Float) as typ))} ->
+        let signed = match op with NegOp -> "-" ^ s | _ -> "+" ^ s in
+        LitE(ref (PreLit (signed, Type.(if typ = Nat then Int else typ)))) @? at $sloc
+      | _ -> UnE(ref Type.Pre, op, e) @? at $sloc
+    }
+  | ACTOR e=exp_plain
+    { ActorUrlE e @? at $sloc }
+  | NOT e=exp_un(bl, bl, exp_cont_tight)
+    { NotE e @? at $sloc }
+  | DEBUG_SHOW e=exp_un(bl, bl, exp_cont_tight)
+    { ShowE (ref Type.Pre, e) @? at $sloc }
+  | TO_CANDID lpar es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
+    { ToCandidE es @? at $sloc }
+  | FROM_CANDID e=exp_un(bl, bl, exp_cont_tight)
+    { FromCandidE e @? at $sloc }
+
+exp_head_bin :
+  | e=exp_head_un
+    { e }
+  | e1=exp_bin(bl, bl, exp_cont_tight) op=binop e2=exp_bin(bl, bl, exp_cont_tight)
+    { BinE(ref Type.Pre, e1, op, e2) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) op=relop e2=exp_bin(bl, bl, exp_cont_tight)
+    { RelE(ref Type.Pre, e1, op, e2) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) AND e2=exp_bin(bl, bl, exp_cont_tight)
+    { AndE(e1, e2) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) OR e2=exp_bin(bl, bl, exp_cont_tight)
+    { OrE(e1, e2) @? at $sloc }
+  | e=exp_bin(bl, bl, exp_cont_tight) COLON t=typ_nobin
+    { AnnotE(e, t) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) PIPE e2=exp_bin(bl, bl, exp_cont_tight)
+    { let x = "_" @@ e1.at in
+      BlockE [
+        LetD (VarP x @! x.at, e1, None) @? e1.at;
+        ExpD e2 @? e2.at
+      ] @? at $sloc }
+
+exp_head :
+  | e=exp_head_bin
+    { e }
+  | e1=exp_bin(bl, bl, exp_cont_tight) NULLCOALESCE e2=exp(bl, bl, exp_cont_tight)
+    { NullCoalesceE(e1, e2) @? at $sloc }
+  | AWAIT e=exp_nest(bl, exp_cont_tight)
+    { AwaitE(Type.AwaitFut false, e) @? at $sloc }
+  | AWAITQUEST e=exp_nest(bl, exp_cont_tight)
+    { AwaitE(Type.AwaitFut true, e) @? at $sloc }
+  | AWAITSTAR e=exp_nest(bl, exp_cont_tight)
+    { AwaitE(Type.AwaitCmp, e) @? at $sloc }
 
 exp_field :
   | m=var_opt x=id t=annot_opt

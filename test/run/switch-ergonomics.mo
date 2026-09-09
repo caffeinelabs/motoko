@@ -38,8 +38,13 @@ switch ({ x = 1 }) {
 // an unspaced `(` extends the condition (call argument) ...
 if inc(2) == 3 {} else { assert false };
 // ... while a spaced `(` (or any other atom) is the branch, keeping the
-// pre-existing `if (cond) branch` style working
+// pre-existing `if (cond) branch` style working (atomic heads only: an
+// unparenthesized extended head requires braced branches, M0272)
 if (inc(2) == 3) (assert true) else (assert false);
+let cmp = if (i > 0) #pos else #zero;
+assert (cmp == #pos);
+// else-if chains work in the braced form
+if inc(0) == 0 { assert false } else if inc(0) == 1 {} else { assert false };
 let legacy = if (1 > 0) null else (?5);
 assert (legacy == null);
 // same for `[`: unspaced indexes the scrutinee, spaced starts the body

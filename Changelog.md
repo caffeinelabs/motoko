@@ -18,6 +18,12 @@
       (spaced `(e)` is the branch). Other operators extend the condition
       greedily: `if a + 1 > n { }` works, but a branch that begins with a
       unary `-`/`+` after an unparenthesized condition now needs parentheses.
+      Following the target syntax (#6352), the new head forms are coupled to
+      the brace discipline: when the head of `if`/`while` is more than a
+      single atom (or a `for` head is unparenthesized), the branches or body
+      must be blocks — `if f(x) { e1 } else { e2 }`, never `if f(x) e1 else e2`
+      (diagnosed by the new `M0272` with a fix-it). Bare branches remain
+      available exactly as before, with parenthesized or atomic heads.
 
     * the semicolon between `switch` cases is now optional:
       `switch n { case 0 { ... } case _ { ... } }`.
@@ -48,8 +54,9 @@
 
     * new targeted parse errors with concrete fix-its: `M0269` (record literal
       in block or scrutinee position, suggesting `({ ... })`, `let`, or `:=`),
-      `M0270` (block in record-literal position, suggesting `do { ... }`), and
-      `M0271` (reserved keyword such as `query` used as an identifier),
+      `M0270` (block in record-literal position, suggesting `do { ... }`),
+      `M0271` (reserved keyword such as `query` used as an identifier), and
+      `M0272` (missing block after an unparenthesized head),
       replacing the generic `M0001` in these situations.
 
 ## 1.15.1 (2026-09-02)

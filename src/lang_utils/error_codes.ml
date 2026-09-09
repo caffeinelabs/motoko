@@ -226,6 +226,7 @@ let error_codes : (string * string option) list =
     "M0269", Some([%blob "lang_utils/error_codes/M0269.md"]); (* Record literal (or block) not allowed in this position *)
     "M0270", Some([%blob "lang_utils/error_codes/M0270.md"]); (* Block not allowed in this position, use do { ... } *)
     "M0271", Some([%blob "lang_utils/error_codes/M0271.md"]); (* Reserved keyword used as an identifier *)
+    "M0272", Some([%blob "lang_utils/error_codes/M0272.md"]); (* Unparenthesized head requires braced branches/body *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)

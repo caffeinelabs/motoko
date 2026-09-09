@@ -1,0 +1,4 @@
+error[M0272]: unexpected token '1', expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition
+    ┌─ syntax-head-braces.mo:4:17
+  4 │  let y = if f(1) 1 else 2;
+    │                  ^ 
