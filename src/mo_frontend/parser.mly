@@ -226,8 +226,8 @@ and objblock eo s id ty dec_fields =
 
 %token LET VAR
 %token LPAR RPAR LBRACKET RBRACKET LCURLY RCURLY
-(* `(`/`[` not preceded by whitespace; in scrutinee/condition position only
-   these extend the expression (call/index), a spaced one starts the body *)
+(* `(`/`[` not preceded by whitespace; only these may extend a head
+   (call/index) — a spaced one belongs to the branch or body that follows *)
 %token TIGHT_LPAR TIGHT_LBRACKET
 (* `#` immediately followed by an identifier: a variant introduction, never
    the (binary) concatenation operator *)
@@ -269,13 +269,9 @@ and objblock eo s id ty dec_fields =
 %token COMPOSITE
 %token WEAK
 
-(* EXP_NO_JUXTA marks reductions that end an expression (or pattern) where the
-   next token could instead extend it (call argument, indexing, variant
-   payload, operand of an operator). It sits below every token, so the parser
-   always prefers to extend ("greedy" parsing, as in Rust): in `if f (x) { }`
-   the `(x)` is a call argument, not the branch. The highest precedence level
-   (below, after the operators) lists the tokens that can start such an
-   extension or begin the body following an unparenthesized scrutinee. *)
+(* EXP_NO_JUXTA: the precedence of reducing a bare variant tag (`#a`) in a
+   pattern. It loses to LPAR/LCURLY (highest level below), so `#a(p)` and
+   `#a { f }` take the payload greedily instead of ending the pattern at the tag. *)
 %nonassoc EXP_NO_JUXTA
 %nonassoc RETURN_NO_ARG IF_NO_ELSE LOOP_NO_WHILE TRY_CATCH_NO_FINALLY
 %nonassoc ELSE WHILE FINALLY
@@ -293,14 +289,16 @@ and objblock eo s id ty dec_fields =
 %nonassoc SHLOP SHROP ROTLOP ROTROP
 %left POWOP WRAPPOWOP
 
-(* The boundary after an atomic `if`/`while` head (`if (c) …`): the operator
-   levels above and the tight `(`/`[` below EXP_ATOM extend the head into an
-   extended one (which then requires braced branches); every other token —
-   identifiers, literals, spaced `(`, `{`, tight `#` variants, statement
-   keywords — starts a legacy bare branch. EXP_ATOM is the precedence of
-   ending the atomic head. LPAR/LCURLY also outrank the variant-tag
-   reductions below, so an unparenthesized variant pattern takes its
-   parenthesized (or object) payload greedily. *)
+(* The token after an atomic `if`/`while` head (`if (c) …`) decides whether
+   the head keeps growing or a legacy bare branch begins. EXP_ATOM is the
+   precedence of ending the atomic head: the operator levels above and the
+   tight `(`/`[` below it beat it and extend the head — which, once extended,
+   only admits braced branches — while spaced `(` and `{` above it win as
+   branch starters. Every other branch-starter (identifiers, literals, tight
+   `#` variants, statement keywords) can never continue a head, so it needs no
+   precedence at all. LPAR/LCURLY additionally outrank the variant-tag
+   reductions (EXP_NO_JUXTA above), so an unparenthesized variant pattern
+   takes its parenthesized or object payload greedily. *)
 %nonassoc TIGHT_LPAR TIGHT_LBRACKET
 %nonassoc EXP_ATOM
 %nonassoc LPAR LCURLY
@@ -541,11 +539,10 @@ typ_item :
 typ_args :
   | LT ts=seplist(typ, COMMA) GT { ts }
 
-(* Note: [inst] is deliberately non-nullable; calls without instantiation have
-   their own productions (with [no_inst]). A nullable [inst] would force a
-   reduce decision before the argument is seen, which clashes (reduce/reduce,
-   unresolvable by precedence) with ending an unparenthesized `if`/`while`/
-   `switch` scrutinee. *)
+(* [inst] is deliberately non-nullable; calls without instantiation are built
+   by the exp_cont* rules (with [no_inst]). A nullable [inst] would force a
+   reduce decision before the argument is seen, clashing (reduce/reduce,
+   unresolvable by precedence) with ending an unparenthesized head. *)
 inst :
   | LT ts=seplist(typ, COMMA) GT
     { { it = Some (false, ts); at = at $sloc; note = [] } }
@@ -694,17 +691,21 @@ exp_nullary [@recover.expr mk_stub_expr loc] (B) :
   | UNDERSCORE
     { VarE ("_" @~ at $sloc) @? at $sloc }
 
-(* The expression grammar is parameterized over two modes:
-   - B ("begin") controls whether the expression may START with `{`:
-     under `ob` a leading `{` is a record literal, under `bl` it is not
-     part of the expression at all (statement position: a leading `{` is
-     a block; scrutinee position: it opens the construct's body).
-   - R ("rest") controls whether a `{` may CONTINUE the expression
-     anywhere later (record call argument, variant payload, operand of a
-     nested operator). `if`/`while` conditions and `switch` scrutinees
-     are parsed as exp(bl, bl, exp_cont_tight), so that the `{` following them always
-     belongs to the construct (the Rust rule for struct literals);
-     parenthesized subexpressions reset to (ob, ob). *)
+(* Three grammar modes decide which tokens are part of an expression and
+   which belong to the enclosing construct:
+   - B ("begin"): may the expression START with `{`? Under `ob` a leading `{`
+     is a record literal; under `bl` it is not part of the expression at all
+     (a block in statement position, the construct's body in head position).
+   - R ("rest"): may a `{` CONTINUE the expression later (record call
+     argument, variant payload, nested operand)? Under `bl` it may not, so
+     after a head the `{` always belongs to the construct — the Rust rule
+     for struct literals in conditions.
+   - L: which postfix continuations exist: `exp_cont` admits spaced and
+     tight `(`/`[` plus juxtaposed atomic arguments, `exp_cont_tight` only
+     the tight forms, so in a head a spaced `(`/`[` ends the expression.
+   Heads (`switch`/`for` scrutinees, extended `if`/`while` heads) parse in
+   (bl, bl, exp_cont_tight); statement position is (bl, ob, exp_cont);
+   parenthesized subexpressions reset to (ob, ob, exp_cont). *)
 
 exp_arg(B):
   | e=B { e, false }
@@ -758,12 +759,11 @@ exp_post(B, R, L) :
         x, ref None) @? at $sloc }
 
 (* Postfix continuations (call argument or indexing), as functions from the
-   expression they extend (and the full source region) to the extended
+   expression they extend and the full source region to the extended
    expression. `exp_cont_tight` admits only a `(`/`[` NOT preceded by
-   whitespace; it is the continuation mode of scrutinee/condition position,
-   where a spaced `(`/`[` (or any other juxtaposed atom) instead starts the
-   body following the scrutinee. Everywhere else, `exp_cont` also admits the
-   spaced forms and juxtaposed atomic arguments. *)
+   whitespace: it is the head mode, where a spaced `(`/`[` (or any juxtaposed
+   atom) belongs to what follows the head instead. Everywhere else,
+   `exp_cont` also admits the spaced forms and juxtaposed atomic arguments. *)
 exp_cont_tight :
   | TIGHT_LPAR es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
     { let e2, sugar =
@@ -979,11 +979,11 @@ catch(R, L) :
   | CATCH p=pat_nullary e=exp_nest(R, L)
     { {pat = p; exp = e} @@ at $sloc }
 
-(* `if`: with a legacy atomic head (identifier, literal, or parenthesized
-   expression) the branches remain free-form expressions; with an extended
-   head (anything more, see exp_head) the branches must be blocks, per the
-   brace discipline of the target syntax. This admits the target style
-   without also admitting `if f(x) e1 else e2`. *)
+(* `if` comes in two coupled shapes: a legacy atomic head (identifier,
+   literal, or parenthesized expression) keeps free-form branches, while an
+   extended head (anything more, see exp_head) requires braced branches,
+   with `else if` chaining allowed. The coupling admits the brace-discipline
+   style without making `if f(x) e1 else e2` expressible. *)
 if_exp(R, L) :
   | IF b=exp_nullary(bl) e1=exp_nest(R, L) %prec IF_NO_ELSE
     { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
@@ -1317,8 +1317,8 @@ dec :
   | LET p=pat EQ e=exp(ob, ob, exp_cont) ELSE fail=exp_nest(ob, exp_cont)
     { let p', e' = normalize_let p e in
       LetD (p', e', Some fail) @? at $sloc }
-  (* error production: `x = e` in declaration position is a common mis-spelling
-     of a record field (`{ ... }` is a block here) or of `let`/`:=` *)
+  (* error production: `x = e` where a declaration is expected is a record
+     field written in block position, or a mis-spelled `let`/`:=` (M0269) *)
   | x=id EQ e=exp(ob, ob, exp_cont)
     { syntax_error (at $sloc) "M0269"
         "a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`";

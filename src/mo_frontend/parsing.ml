@@ -186,7 +186,10 @@ let handle_error lexbuf error_detail message_store (start, end_)
         token
     (* only a block can follow: the branches or body of an
        `if`/`while`/`for` with an unparenthesized (extended) head must be
-       braced *)
+       braced; the acceptable-token guards exclude the other `{`-expecting
+       spots (a class body also accepts `=`, an object body a field name, a
+       legacy branch an expression), so this fires only where a block is the
+       sole continuation *)
     else if last_token <> Parser.LCURLY && acceptable Parser.LCURLY
             && not (acceptable (Parser.ID "id")) && not (acceptable Parser.LPAR)
             && not (acceptable Parser.EQ) then

@@ -93,8 +93,8 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
       match token with
       | Parser.GT when leading_ws () && trailing_ws () -> Parser.GTOP
       | Parser.LT when leading_ws () && trailing_ws () -> Parser.LTOP
-      (* an unspaced `(`/`[` may extend a scrutinee or condition (call/index),
-         a spaced one starts the enclosing construct's body *)
+      (* an unspaced `(`/`[` may extend a head (call/index), a spaced one
+         belongs to the branch or body that follows it *)
       | Parser.LPAR when not (leading_ws ()) -> Parser.TIGHT_LPAR
       | Parser.LBRACKET when not (leading_ws ()) -> Parser.TIGHT_LBRACKET
       (* `#` immediately followed by an identifier is a variant introduction

@@ -54,7 +54,8 @@ switch arr[1] {
   case _ { assert false };
 };
 
-// `for` heads no longer need parentheses either; the legacy form still works
+// `for` heads may be unparenthesized (block body required); the legacy
+// parenthesized form keeps its free-form body
 var sum = 0;
 for x in arr.vals() { sum += x };
 assert (sum == 6);
