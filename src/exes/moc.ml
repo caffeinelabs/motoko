@@ -165,23 +165,23 @@ let argspec =
       " force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory, depending on current use of ExperimentalStableMemory library";
 
   "--generational-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Generational),
-  " use generational GC (only available with legacy/classical persistence)\n\
-  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
+  Arg.Unit (fun () ->
+    fail "moc: --generational-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
 
   "--incremental-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Incremental),
-  " use incremental GC (default, works with both enhanced orthogonal persistence and legacy/classical persistence)";
+  " use incremental GC (default, works with enhanced orthogonal persistence)";
 
   "--compacting-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.MarkCompact),
-  " use compacting GC (only available with legacy/classical persistence)\n\
-  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
+  Arg.Unit (fun () ->
+    fail "moc: --compacting-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
 
   "--copying-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Copying),
-  " use copying GC (only available with legacy/classical persistence)\n\
-  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
+  Arg.Unit (fun () ->
+    fail "moc: --copying-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
 
   "--force-gc",
   Arg.Unit (fun () -> Flags.force_gc := true),
@@ -207,10 +207,6 @@ let argspec =
   Arg.Unit (fun () -> Flags.generate_view_queries := true),
   " auto-generate queries for stable variables; preferring applicable .view() methods (default false)";
 
-  "--rts-stack-pages",
-  Arg.Int (fun pages -> Flags.rts_stack_pages := Some pages),
-  "<n>  set maximum number of pages available for runtime system stack (default " ^ (Int.to_string Flags.rts_stack_pages_default) ^ ", only available with classical persistence)";
-
   "--trap-on-call-error",
   Arg.Unit (fun () -> Flags.trap_on_call_error := true),
   " Trap, don't throw an `Error`, when an IC call fails due to destination queue full or freezing threshold is crossed. Emulates behaviour of moc versions < 0.8.0.";
@@ -223,11 +219,12 @@ let argspec =
 
   (* persistence *)
   "--legacy-persistence",
-  Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := false),
-  " use legacy (classical) persistence. This also enables the usage of --copying-gc, --compacting-gc, and --generational-gc. Deprecated in favor of the new enhanced orthogonal persistence, which is default. Legacy persistence will be removed in the future.";
+  Arg.Unit (fun () ->
+    fail "moc: --legacy-persistence has been removed; enhanced orthogonal persistence is always used. Existing classical canisters upgrade to enhanced persistence on their next upgrade. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) enhanced orthogonal persistence is always used";
 
   "-unguarded-enhanced-orthogonal-persistence",
-  Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := true; Flags.explicit_enhanced_orthogonal_persistence := false),
+  Arg.Unit (fun () -> Flags.explicit_enhanced_orthogonal_persistence := false),
   Args._UNDOCUMENTED_ "  (internal testing only)";
   ]
 
@@ -258,10 +255,6 @@ let argspec =
   "-fshared-code",
   Arg.Unit (fun () -> Flags.share_code := true),
   " do share low-level utility code: smaller code size but increased cycle consumption";
-
-  "--skip-gc-deprecation-warning",
-  Arg.Unit (fun () -> Flags.skip_gc_deprecation_warning := true),
-  " skip the deprecation warning for the GC strategy flags"
 
   ]
 
@@ -397,22 +390,9 @@ let () =
   if !Flags.warnings_are_errors && (not !Flags.print_warnings)
   then fail "moc: --hide-warnings and -Werror together do not make sense";
 
-  if Option.is_some !Flags.enhanced_migration && not !Flags.enhanced_orthogonal_persistence
-  then begin
-    eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
-  end;
-
   if Option.is_some !Flags.stable_baseline && Option.is_none !Flags.enhanced_migration
   then begin
     eprintf "moc: --stable-baseline requires --enhanced-migration\n"; exit 1
-  end;
-
-  if not !Flags.skip_gc_deprecation_warning 
-  then begin
-    match !Flags.gc_strategy with
-    | Mo_config.Flags.Copying | Mo_config.Flags.MarkCompact | Mo_config.Flags.Generational ->
-        eprintf "moc: --%s-gc is deprecated and will be removed in the future. Use --incremental-gc instead.\n" (Flags.gc_strategy_to_str !Flags.gc_strategy); 
-      | _ -> ();
   end;
 
   process_profiler_flags ();
