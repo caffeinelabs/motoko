@@ -276,7 +276,7 @@ actor Publisher {
     };
 
     public shared func publish(message : Text) : async () {
-        for (sub in subscribers.vals()) {
+        for (sub in subscribers.values()) {
             let subActor = actor(Principal.toText(sub)) : actor { notify : (Text) -> async () };
             await subActor.notify(message);
         };

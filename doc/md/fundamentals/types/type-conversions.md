@@ -172,7 +172,7 @@ import Text "mo:core/Text";
 actor MapConverter {
   func arrayToMap(arr : [(Text, Nat)]) : HashMap.HashMap<Text, Nat> {
     let map = HashMap.HashMap<Text, Nat>(arr.size(), Text.equal, Text.hash);
-      for ((key, value) in arr.vals()) {
+      for ((key, value) in arr.values()) {
           map.put(key, value)
       };
       map

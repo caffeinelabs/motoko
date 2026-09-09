@@ -269,8 +269,10 @@ let warning_codes = [
   "M0254", None, "Initial actor requires field";
   "M0265", None, "The `system` capability is not required by this mixin";
   "M0266", None, "floating-point literal has more precision than its type can represent";
-  "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline"
-  ]
+  "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline";
+  "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
+  "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
+]
 
 let try_find_explanation code =
   match List.find_opt (fun (c, _) -> String.equal c code) error_codes with

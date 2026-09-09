@@ -41,19 +41,19 @@ actor Core {
 
   func sumTriples(ts : [(Text, Expr, Expr)]) : Nat {
     var n = 0;
-    for ((_, r, b) in ts.vals()) n += size r + size b;
+    for ((_, r, b) in ts.values()) n += size r + size b;
     n
   };
 
   func sumAlts(alts : [(Text, Expr)]) : Nat {
     var n = 0;
-    for ((_, e) in alts.vals()) n += size e;
+    for ((_, e) in alts.values()) n += size e;
     n
   };
 
   func sumArgs(args : [Expr]) : Nat {
     var n = 0;
-    for (e in args.vals()) n += size e;
+    for (e in args.values()) n += size e;
     n
   };
 
@@ -184,7 +184,7 @@ actor Core {
     case (#Case (s, alts)) {
       switch (eval(s, env)) {
         case (#VCon (tag, _)) {
-          for ((altTag, altBody) in alts.vals()) {
+          for ((altTag, altBody) in alts.values()) {
             if (tag == altTag) return eval(altBody, env);
           };
           assert false; #VInt 0
@@ -228,7 +228,7 @@ actor Core {
     case_  = func(scr, alts) = func(env) {
       switch (scr env) {
         case (#VCon (tag, _)) {
-          for ((altTag, altBody) in alts.vals()) {
+          for ((altTag, altBody) in alts.values()) {
             if (tag == altTag) return altBody env;
           };
           assert false; #VInt 0
@@ -315,14 +315,14 @@ actor Core {
     var acc1 = 0;
     var i = 0;
     while (i < 10_000) {
-      for (d in week.vals()) { if (isWeekend d) acc1 += 1 };
+      for (d in week.values()) { if (isWeekend d) acc1 += 1 };
       i += 1;
     };
     let (_m1, n1) = counters();
     var acc2 = 0;
     var j = 0;
     while (j < 10_000) {
-      for (d in week.vals()) { if (isWeekendOr d) acc2 += 1 };
+      for (d in week.values()) { if (isWeekendOr d) acc2 += 1 };
       j += 1;
     };
     let (_m2, n2) = counters();

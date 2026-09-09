@@ -2310,6 +2310,10 @@ type 'a dot_callee_resolution =
   (* Contextual dot resolution, with the field-access error to report when contextual dot fails too. *)
   | DotCtxDot of (ctx_dot_candidate, 'a context_dot_error) Result.t * (unit -> Diag.message)
 
+let warn_deprecated_vals env id fs =
+  if id.it = "vals" && T.lookup_val_field_opt "values" fs <> None then
+    warn env id.at "M0269" "member `.vals()` is deprecated; use `.values()` instead"
+
 (* How a dot callee `e.f(...)` resolves: a function-typed field of the receiver shadows contextual dot.
    The single source of that precedence — [infer_callee] and the M0236 suggestion both resolve through it, so they cannot drift.
    [t1] is the promoted receiver type; [t0] the unpromoted one, only for error messages. *)
@@ -2958,8 +2962,10 @@ and try_infer_dot_exp env at exp id =
         "cannot infer type of forward field reference %s"
         id.it
     | Some(t) ->
-      if not env.pre then
+      if not env.pre then begin
         check_deprecation env at "field" id.it (T.lookup_val_deprecation id.it fs);
+        warn_deprecated_vals env id fs
+      end;
       Ok(t)
     | None ->
       Error (fun () -> dot_error_missing_field env id t0 fs)
@@ -3397,8 +3403,10 @@ and infer_callee env exp =
     | DotField (T.Pre, _) ->
       error env exp.at "M0071" "cannot infer type of forward field reference %s" id.it
     | DotField (t, fs) ->
-      if not env.pre then
+      if not env.pre then begin
         check_deprecation env exp.at "field" id.it (T.lookup_val_deprecation id.it fs);
+        warn_deprecated_vals env id fs
+      end;
       infer_exp_wrapper (fun _ _ -> t) T.as_immut env exp, None
     | DotCtxDot (Error (DotSuggestions mk_suggestions), mk_e) ->
       if env.pre && env.type_recovery then T.Non, None else
@@ -4599,6 +4607,8 @@ and check_system_fields env sort scope tfs dec_fields =
           (* TBR why does Stable.md require this to be a manifest function, not just any expression of appropriate type?  *)
           if vis = System then
             begin
+              if id.it = "preupgrade" || id.it = "postupgrade" then
+                warn env id.at "M0270" "system function `%s` is deprecated; use migration functions instead" id.it;
               let (t1, _, _) = T.Env.find id.it scope.Scope.val_env in
               if not (sub env id.at t1 t) then
                 local_error env df.at "M0127" "system function %s is declared with type%a\ninstead of expected type%a" id.it
@@ -5509,7 +5519,7 @@ and infer_dec_typdecs env dec : Scope.t =
     | None -> error env i.at "M0226" "unknown mixin %s" i.it
     | Some mix ->
       let open Scope in
-      n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs });
+      n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs; trivia = mix.trivia });
       let (_, fs, tfs) = T.as_obj' mix.typ in
       let scope = scope_of_object Scope.MixinIncluded env fs tfs in
       scope
@@ -5835,7 +5845,8 @@ let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
               ] [(id.it, con)]) in
               Scope.lib ~package:pkg_opt lib.note.filename typ
             | MixinU (need_system, arg, decs) ->
-              Scope.mixin lib.note.filename Scope.{ imports; need_system; arg; decs; typ }
+              let mixin_note = lib.note in
+              Scope.mixin mixin_note.filename Scope.{ imports; need_system; arg; decs; typ; trivia = mixin_note.trivia }
             | ActorU _ ->
               error env cub.at "M0144" "bad import: expected a module or actor class but found an actor"
             | ProgU _ ->

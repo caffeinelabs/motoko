@@ -41,7 +41,7 @@ actor {
     while (idx < 5) {
 
       Prim.debugPrint(debug_show ("================"));
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
       };
 
@@ -66,7 +66,7 @@ actor {
 
       Prim.debugPrint(debug_show ("================"));
 
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         let val = Prim.weakGet(wr);
         Prim.debugPrint(debug_show (val));
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
