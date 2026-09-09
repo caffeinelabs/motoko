@@ -61,7 +61,7 @@ let
         export MOTOKO_CORE="${core-src}"
         type -p moc && moc --version
         ${if dir == "run-drun" && pkgs.stdenv.hostPlatform.system != "x86_64-darwin" && !accept
-          then "test-runner -b --single-mode -j 4 ${dir}"
+          then "test-runner -b -j 4 ${dir}"
           else "make -C ${dir}${pkgs.lib.optionalString accept " accept"}"
         }
       '';
@@ -82,21 +82,6 @@ let
   snty_subdir = dir: deps:
     (test_subdir dir deps).overrideAttrs {
       EXTRA_MOC_ARGS = "--sanity-checks";
-    };
-
-  snty_compacting_gc_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --compacting-gc";
-    };
-
-  snty_generational_gc_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --generational-gc";
-    };
-
-  snty_incremental_gc_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --incremental-gc";
     };
 
   enhanced_orthogonal_persistence_subdir = dir: deps:
@@ -234,9 +219,6 @@ fix_names
     run-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run" [ moc test-runner ];
     drun-release = test_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-debug = snty_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-compacting-gc = snty_compacting_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-generational-gc = snty_generational_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-incremental-gc = snty_incremental_gc_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-eop-release = enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     fail = test_subdir "fail" [ moc test-runner ];

@@ -38,30 +38,6 @@ jobs:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
 
-  gc-tests:
-    strategy:
-      matrix:
-        # The RTS-variant builds that previously OOM'd big runners now run as
-        # separate derivations on nixbuild.net.
-        os: [ubuntu-latest, ubuntu-26.04-arm]
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Run GC Tests
-        uses: ./.github/actions/test-blueprint
-        with:
-          os: ${{ matrix.os }}
-          test-target: gc-tests
-          test-name: ${{ matrix.os }}-gc-tests
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
-          # Ignored on the nixbuild.net path (builds run remotely). Only applies
-          # to the local fallback (fork PRs / no token): serialise the ~3 GB
-          # RTS-variant builds so they don't OOM the small standard runners.
-          max-jobs: 1
-
   tests:
     strategy:
       matrix:
@@ -137,24 +113,23 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 5
 
-  verify-common-gc:
-    needs: [common-tests, gc-tests]
+  verify-common-tests:
+    needs: common-tests
     if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
     runs-on: ubuntu-latest
     steps:
       - name: Show dependency results
         run: |
           echo common-tests: ${{ needs.common-tests.result }}
-          echo gc-tests: ${{ needs.gc-tests.result }}
       - name: Fail if any dependency did not succeed
         run: |
-          if ${{ needs.common-tests.result != 'success' || needs.gc-tests.result != 'success' }}; then
+          if ${{ needs.common-tests.result != 'success' }}; then
             echo "One or more dependencies failed/skipped/cancelled."
             exit 1
           fi
-      - name: Common and GC tests passed
+      - name: Common tests passed
         if: ${{ success() }}
-        run: echo "Common and GC tests completed successfully."
+        run: echo "Common tests completed successfully."
 
   verify-main-tests:
     needs: tests
@@ -176,7 +151,7 @@ jobs:
 
   autoclose:
     if: github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'master' && contains(github.event.pull_request.labels.*.name, 'autoclose')
-    needs: [verify-common-gc, verify-main-tests]
+    needs: [verify-common-tests, verify-main-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

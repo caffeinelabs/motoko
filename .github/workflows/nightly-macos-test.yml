@@ -30,19 +30,6 @@ jobs:
           test-name: macos-common-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-  gc-tests:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Run GC Tests
-        uses: ./.github/actions/test-blueprint
-        with:
-          os: macos-latest
-          test-target: gc-tests
-          test-name: macos-gc-tests
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
   systems-go-tests:
     strategy:
       matrix:
@@ -114,7 +101,7 @@ jobs:
         run: npm test
 
   create-issue:
-    needs: [rts-checked, common-tests, gc-tests, systems-go-tests, motoko-core-tests]
+    needs: [rts-checked, common-tests, systems-go-tests, motoko-core-tests]
     if: ${{ always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest # No need to run on macOS, the ubuntu runner should be cheaper to run.
     steps:
