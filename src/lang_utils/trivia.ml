@@ -51,7 +51,7 @@ let pos_of_lexpos : Lexing.position -> pos =
 module PosHash = struct
   type t = pos
 
-  let equal = ( = )
+  let equal = (=)
 
   let hash = Hashtbl.hash
 end

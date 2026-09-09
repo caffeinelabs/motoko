@@ -4,11 +4,6 @@
 
 * motoko (`moc`)
 
-  * fix: `///` doc comments on members contributed to an actor via a
-    `mixin include` now appear in the generated Candid interface (`.did`),
-    matching the behavior for directly-declared members. Previously such
-    docs were silently dropped (#6351).
-
   * feat: warn (default-on, M0269) that `.vals()` is deprecated in favor of
     `.values()` on arrays and Blob, and warn (default-on, M0270) that
     `system func preupgrade`/`postupgrade` are deprecated in favor of the
@@ -21,6 +16,11 @@
     key name and a `Nat32` curve encoding and returns `(resultCode, costOrUndefined)`,
     where a non-zero `resultCode` signals an invalid key name or curve
     encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
+
+  * fix: `///` doc comments on members contributed to an actor via a
+    `mixin include` now appear in the generated Candid interface (`.did`),
+    matching the behavior for directly-declared members. Previously such
+    docs were silently dropped (#6351).
 
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
