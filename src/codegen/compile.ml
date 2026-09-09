@@ -4058,6 +4058,65 @@ module Blob = struct
 
 end (* Blob *)
 
+(* WIDE NATURALS (Nat128 / Nat256).
+
+   A wide value is a Blob of exactly 16 or 32 bytes holding LITTLE-ENDIAN 64-bit limbs. Not a
+   bignum: the entire reason these types exist is that EVM and cryptographic code should not
+   allocate a heap bignum and walk a general-purpose algorithm for every 256-bit operation.
+   The width is static, so the limb count is static, so every loop here unrolls and the
+   arithmetic is a straight-line sequence of i64 ops.
+
+   Choosing a Blob for the container rather than a new heap tag is what keeps this change out
+   of the garbage collectors and out of stabilization: a Blob is already a leaf object that
+   every GC and the graph copier understand, and its payload is opaque bytes. The TYPE carries
+   the width; the representation carries none.
+
+   Layout: limb 0 is the LEAST significant, at payload offset 0. Little-endian throughout, so
+   the bytes of a wide value are also its canonical serialized form.
+*)
+module Wide = struct
+
+  let limbs_of_width width = width / 64          (* 2 for Nat128, 4 for Nat256 *)
+  let bytes_of_width width = width / 8
+
+  let width_of_typ = function
+    | Type.Nat128 -> 128
+    | Type.Nat256 -> 256
+    | _ -> assert false
+
+  (* The constant form: a wide literal is its little-endian bytes, shared through the constant
+     pool like any other blob. A literal's representation is decided by its DECLARED TYPE and
+     nothing else -- keying it on the shape of the right-hand side is precisely the bug that
+     made `let x : Nat256 = 7` read out of bounds in the other implementation, while the same
+     literal returned directly was fine. *)
+  let lit_bytes width (n : Big_int.big_int) : string =
+    let open Big_int in
+    let b = Bytes.make (bytes_of_width width) '\000' in
+    let v = ref n in
+    let base = big_int_of_int 256 in
+    for i = 0 to bytes_of_width width - 1 do
+      Bytes.set b i (Char.chr (int_of_big_int (mod_big_int !v base)));
+      v := div_big_int !v base
+    done;
+    Bytes.to_string b
+
+  let constant env width n = Blob.lit env Tagged.B (lit_bytes width n)
+
+  (* Load limb `i` of the wide value whose pointer is on the stack. *)
+  let load_limb env i =
+    Blob.payload_ptr_unskewed env ^^
+    G.i (Load {ty = I64Type; align = 3; offset = Int64.of_int (8 * i); sz = None})
+
+  (* Allocate an uninitialised result of this width. *)
+  let alloc env width =
+    Blob.alloc env Tagged.B (compile_unboxed_const (Int64.of_int (bytes_of_width width)))
+
+  let store_limb env i =
+    (* expects: blob-ptr, value *)
+    G.i (Store {ty = I64Type; align = 3; offset = Int64.of_int (8 * i); sz = None})
+
+end (* Wide *)
+
 module Object = struct
   (* An object with a mutable field1 and immutable field 2 has the following
      heap layout:
@@ -6468,6 +6527,11 @@ module StackRep = struct
     match normalize t with
     | Prim Bool -> SR.bool
     | Prim (Nat | Int) -> Vanilla
+    (* A wide natural is a fixed-size Blob of little-endian limbs -- NOT a bignum. The
+       whole point of these types is that 256-bit arithmetic should not allocate a bignum
+       and walk a general-purpose algorithm; the width is static, so the limb count is
+       static and the arithmetic unrolls. See module Wide. *)
+    | Prim (Nat128 | Nat256) -> Vanilla
     | Prim (Nat8 | Nat16 | Nat32 | Nat64 | Int8 | Int16 | Int32 | Int64 | Char as pty) -> UnboxedWord64 pty
     | Prim (Text | Blob | Principal) -> Vanilla
     | Prim Float -> UnboxedFloat64
@@ -10960,11 +11024,12 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | Nat16Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Nat16 (Numerics.Nat16.to_int64 n))
   | Int32Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Int32 (Numerics.Int_32.to_int64 n))
   | Nat32Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Nat32 (Numerics.Nat32.to_int64 n))
-  (* Phase 4 fills these in. Until then an explicit failure, not a fallthrough: a literal
-     that silently took another width's path is exactly the bug moxzi shipped (a wide `let`
-     read as a pointer), and it announces itself nowhere. *)
-  | Nat128Lit _ | Nat256Lit _ ->
-    raise (Invalid_argument "wide integer literals are not yet compiled")
+  (* A wide literal is its little-endian bytes. The WIDTH comes from the literal's own
+     constructor, i.e. from the declared type the typer already resolved -- never from the
+     shape of the right-hand side, which is how `let x : Nat256 = 7` came to read out of
+     bounds elsewhere while the same literal returned directly was correct. *)
+  | Nat128Lit n   -> Const.Blob (Wide.lit_bytes 128 (Numerics.Nat128.to_big_int n))
+  | Nat256Lit n   -> Const.Blob (Wide.lit_bytes 256 (Numerics.Nat256.to_big_int n))
   | Int64Lit n    -> Const.Word64 (Type.Int64, (Big_int.int64_of_big_int (Numerics.Int_64.to_big_int n)))
   | Nat64Lit n    -> Const.Word64 (Type.Nat64, (Big_int.int64_of_big_int (nat64_to_int64 (Numerics.Nat64.to_big_int n))))
   | CharLit c     -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Char (Int64.of_int c))
@@ -11505,6 +11570,10 @@ let compile_eq env =
   function
   | Prim Text -> Text.compare env Operator.EqOp
   | Prim (Blob|Principal) | Obj (Actor, _, _) -> Blob.compare env (Some Operator.EqOp)
+  (* Two wide values are equal exactly when their bytes are: the representation is fixed
+     width and canonical (no leading-zero ambiguity, no sign word), so there is nothing to
+     normalise first. *)
+  | Prim (Nat128 | Nat256) -> Blob.compare env (Some Operator.EqOp)
   | Func (Shared _, _, _, _, _) -> FuncDec.equate_msgref env
   | Prim (Nat | Int) -> BigNum.compile_eq env
   | Prim (Bool | Int8 | Nat8 | Int16 | Nat16 | Int32 | Nat32 | Int64 | Nat64 | Char) ->
@@ -13348,8 +13417,9 @@ and compile_lit_pat env l =
   | Nat8Lit _ ->
     compile_lit_as env SR.Vanilla l ^^
     compile_eq env Type.(Prim Nat8)
-  | Nat128Lit _ | Nat256Lit _ ->
-    raise (Invalid_argument "wide integer pattern matching is not yet compiled")
+  | (Nat128Lit _ | Nat256Lit _) ->
+    compile_lit_as env SR.Vanilla l ^^
+    Blob.compare env (Some Operator.EqOp)
   | Nat16Lit _ ->
     compile_lit_as env SR.Vanilla l ^^
     compile_eq env Type.(Prim Nat16)
