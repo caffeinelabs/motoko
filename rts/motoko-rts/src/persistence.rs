@@ -21,7 +21,10 @@ use crate::{
     },
     rts_trap_with,
     stable_mem::read_persistence_version,
-    types::{Bytes, NULL_POINTER, TAG_BLOB_B, Value},
+    types::{
+        Array, Bytes, Some, NULL_POINTER, TAG_ARRAY_M, TAG_ARRAY_T, TAG_BLOB_B, TAG_BLOB_T, TAG_CONCAT,
+        TAG_SOME, Value,
+    },
 };
 
 use self::compatibility::TypeDescriptor;
@@ -131,26 +134,87 @@ pub unsafe fn initialize_memory<M: Memory>() {
     let metadata = PersistentMetadata::get();
     if use_enhanced_orthogonal_persistence() && metadata.is_initialized() {
         metadata.check_version();
-        // Explicit migration from a version of the RTS without weak reference support.
-        if (*metadata).weak_ref_registry.get_raw() == 0 {
-            // This is the first upgrade from a version of the RTS without weak reference
-            // support. We need to initialize the weak reference registry to NULL_POINTER.
-            (*metadata).weak_ref_registry = NULL_POINTER;
-        }
-        // Explicit migration from a version of the RTS without dedup table support.
-        if (*metadata).dedup_table.get_raw() == 0 {
-            // This is the first upgrade from a version of the RTS without dedup table support.
-            // We need to initialize the dedup table to NULL_POINTER.
-            (*metadata).dedup_table = NULL_POINTER;
-        }
-        // Explicit migration from a version of the RTS without migration functions support.
-        if (*metadata).migration_functions.get_raw() == 0 {
-            // This is the first upgrade from a version of the RTS without migration functions support.
-            // We need to initialize the migration functions array to NULL_POINTER.
-            (*metadata).migration_functions = NULL_POINTER;
-        }
+        // Roots added to the metadata after the first enhanced-orthogonal-persistence release
+        // (weak reference registry, dedup table, migration function list) are, on the first
+        // upgrade from an RTS that did not know them, WHATEVER THE MEMORY HELD THERE. That is
+        // zero for a canister installed under enhanced orthogonal persistence (Wasm memory is
+        // zero-initialized) but NOT for a canister that migrated from classical persistence:
+        // the metadata reserve was laid over the classical heap and only the fields the
+        // migrating RTS knew were written. Testing `== 0` then takes classical-heap bytes for
+        // a live root -- a garbage GC root, or a phantom migration list that makes every
+        // later upgrade trap with "cannot upgrade from an actor using enhanced migration".
+        // (Seen on a canister that went 0.14.9 classical -> 0.16.3 -> 1.14.1.) So each root
+        // is kept only if it is null or a well-formed pointer to an object of the shape that
+        // root holds, and reset to null otherwise. Resetting is safe: the registry and the
+        // dedup table are caches rebuilt on demand, and a genuine migration list is always
+        // well-formed.
+        sanitize_root(&mut (*metadata).weak_ref_registry, is_weak_ref_registry);
+        sanitize_root(&mut (*metadata).dedup_table, is_dedup_table);
+        sanitize_root(&mut (*metadata).migration_functions, is_migration_list);
     } else {
         metadata.initialize::<M>();
+    }
+}
+
+/// Is `address` a word-aligned address inside the partitioned heap (past the metadata)?
+unsafe fn in_heap(address: usize) -> bool {
+    use crate::constants::WORD_SIZE;
+    address >= HEAP_START
+        && address % WORD_SIZE == 0
+        && address < crate::gc::incremental::get_partitioned_heap().end_address()
+}
+
+/// Resolve a root read from metadata to the object it names, if it names one at all:
+/// a non-null pointer into the heap, followed through the incremental GC's forwarding pointer.
+unsafe fn resolve_root(value: Value) -> Option<Value> {
+    if !value.is_non_null_ptr() || !in_heap(value.get_ptr()) {
+        return None;
+    }
+    let forwarded = value.forward();
+    if !forwarded.is_non_null_ptr() || !in_heap(forwarded.get_ptr()) {
+        return None;
+    }
+    Option::Some(forwarded)
+}
+
+unsafe fn sanitize_root(root: &mut Value, well_formed: unsafe fn(Value) -> bool) {
+    if root.get_raw() == 0 || *root == NULL_POINTER {
+        *root = NULL_POINTER;
+        return;
+    }
+    match resolve_root(*root) {
+        Option::Some(object) if well_formed(object) => {}
+        _ => *root = NULL_POINTER,
+    }
+}
+
+/// The weak reference registry is a `MarkStack` stored inside a byte blob.
+unsafe fn is_weak_ref_registry(object: Value) -> bool {
+    object.tag() == TAG_BLOB_B
+}
+
+/// The dedup table is the prelude's `[var List]`.
+unsafe fn is_dedup_table(object: Value) -> bool {
+    object.tag() == TAG_ARRAY_M
+}
+
+/// The migration list is `?(Text, ?...)`: a `Some` whose field is a 2-tuple whose first
+/// element is a text (a UTF-8 blob or a concatenation).
+unsafe fn is_migration_list(object: Value) -> bool {
+    if object.tag() != TAG_SOME {
+        return false;
+    }
+    let field = (*(object.get_ptr() as *const Some)).field;
+    let tuple = match resolve_root(field) {
+        Option::Some(tuple) if tuple.tag() == TAG_ARRAY_T => tuple.get_ptr() as *mut Array,
+        _ => return false,
+    };
+    if tuple.len() != 2 {
+        return false;
+    }
+    match resolve_root(tuple.get(0)) {
+        Option::Some(name) => name.tag() == TAG_BLOB_T || name.tag() == TAG_CONCAT,
+        _ => false,
     }
 }
 

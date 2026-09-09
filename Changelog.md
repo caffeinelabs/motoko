@@ -1,5 +1,9 @@
 # Motoko compiler changelog
 
+## Next
+
+* bugfix: On upgrade, validate the persistent-metadata roots added after the first enhanced-orthogonal-persistence release (weak reference registry, dedup table, migration function list) instead of trusting any non-zero word. A canister that migrated from classical persistence keeps classical-heap bytes in those slots; they were taken for a live dedup-table GC root and a phantom migration list, so every later upgrade trapped with `cannot upgrade from an actor using enhanced migration`. Ill-formed roots are reset to null, well-formed ones are kept (#TBD).
+
 ## 1.14.1 (2026-08-17)
 
 * motoko (`moc`)

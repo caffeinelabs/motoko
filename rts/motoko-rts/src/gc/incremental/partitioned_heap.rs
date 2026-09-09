@@ -559,6 +559,12 @@ impl PartitionedHeap {
         self.heap_base
     }
 
+    /// First address past the last partition (partition `i` covers `[i * PARTITION_SIZE, (i+1) * PARTITION_SIZE)`).
+    /// Used to bound pointers read back from persistent metadata before they are trusted.
+    pub fn end_address(&self) -> usize {
+        self.number_of_partitions * PARTITION_SIZE
+    }
+
     unsafe fn get_extension_table(&self, partition_index: usize) -> *mut PartitionTable {
         debug_assert!(partition_index >= PARTITIONS_PER_TABLE);
         let mut index = partition_index - PARTITIONS_PER_TABLE;
