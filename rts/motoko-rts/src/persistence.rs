@@ -198,17 +198,23 @@ unsafe fn is_dedup_table(object: Value) -> bool {
     object.tag() == TAG_ARRAY_M
 }
 
-/// The migration list is `?(Text, ?...)`: a `Some` whose field is a 2-tuple whose first
-/// element is a text (a UTF-8 blob or a concatenation).
+/// The migration list is `?(Text, ?...)`. Motoko represents `?v` as `v` itself (a `Some` box
+/// exists only for nested `?null`), so the root normally points STRAIGHT AT the 2-tuple; a
+/// `Some` box is accepted too. The tuple's first element is a text: a UTF-8 blob or a
+/// concatenation.
 unsafe fn is_migration_list(object: Value) -> bool {
-    if object.tag() != TAG_SOME {
+    let tuple_value = if object.tag() == TAG_SOME {
+        match resolve_root((*(object.get_ptr() as *const Some)).field) {
+            Option::Some(inner) => inner,
+            _ => return false,
+        }
+    } else {
+        object
+    };
+    if tuple_value.tag() != TAG_ARRAY_T {
         return false;
     }
-    let field = (*(object.get_ptr() as *const Some)).field;
-    let tuple = match resolve_root(field) {
-        Option::Some(tuple) if tuple.tag() == TAG_ARRAY_T => tuple.get_ptr() as *mut Array,
-        _ => return false,
-    };
+    let tuple = tuple_value.get_ptr() as *mut Array;
     if tuple.len() != 2 {
         return false;
     }
