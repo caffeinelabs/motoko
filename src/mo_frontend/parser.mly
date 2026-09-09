@@ -288,9 +288,9 @@ and objblock eo s id ty dec_fields =
 %left POWOP WRAPPOWOP
 
 (* tl;dr: after `if (c)` the next token decides "still the condition" vs "start of a legacy bare branch".
-   EXP_ATOM is the precedence of stopping after an atomic head.
-   Operators and tight `(`/`[` sit below it, so they win and keep growing the head — and a grown (extended) head only accepts braced branches.
-   Spaced `(` and `{` sit above it, so they win and start the branch.
+   EXP_ATOM is the precedence of the reduction that commits the atom to growing into an extended head — and a grown head only accepts braced branches.
+   Operators and tight `(`/`[` rank below it, so growing wins over shifting them as a branch start.
+   Spaced `(` and `{` never compete: nothing lets a head continue with them, so the branch is the only parse and no precedence is consulted.
    Every other branch starter (identifiers, literals, `#tag`, statement keywords) could never continue a head anyway, so it needs no precedence at all.
    LPAR/LCURLY also sit above EXP_NO_JUXTA, so a variant pattern grabs its `(...)` or `{...}` payload greedily. *)
 %nonassoc TIGHT_LPAR TIGHT_LBRACKET
