@@ -19,7 +19,7 @@ module {
       case (#array items) {
         var s = "[";
         var first = true;
-        for (item in items.vals()) {
+        for (item in items.values()) {
           if (not first) { s #= "," };
           s #= toText(item);
           first := false;
@@ -29,7 +29,7 @@ module {
       case (#obj pairs) {
         var s = "{";
         var first = true;
-        for ((k, v) in pairs.vals()) {
+        for ((k, v) in pairs.values()) {
           if (not first) { s #= "," };
           s #= "\"" # k # "\":" # toText(v);
           first := false;
