@@ -4216,6 +4216,114 @@ module Wide = struct
           BigNum.compile_rsh env ^^ set_v) ^^
         get_r)
 
+  (* --- Ordering -------------------------------------------------------------------------
+     Compare from the MOST significant limb down, stopping at the first that differs.
+
+     Note this cannot be Blob.compare, which is what equality uses: blob comparison is
+     lexicographic over bytes in ascending address order, and our limbs are little-endian,
+     so byte order is the reverse of significance order. Equality does not care -- two
+     values are equal iff all their bytes are -- but every ordering comparison would be
+     answered backwards. *)
+  let compare env width rel =
+    let n = limbs_of_width width in
+    let strict = Operator.(rel = LtOp || rel = GtOp) in
+    let dir = Operator.(if rel = LtOp || rel = LeOp then I64Op.LtU else I64Op.GtU) in
+    let name = Printf.sprintf "wide%d_%s" width Operator.(match rel with
+      | LtOp -> "lt" | LeOp -> "le" | GtOp -> "gt" | GeOp -> "ge" | _ -> assert false) in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        (* all limbs equal: `<` and `>` are false, `<=` and `>=` are true *)
+        let rec go i =
+          if i < 0 then Bool.lit (not strict) else
+          get_a ^^ load_limb env i ^^ get_b ^^ load_limb env i ^^
+          compile_comparison I64Op.Eq ^^
+          E.if1 I64Type
+            (go (i - 1))
+            (get_a ^^ load_limb env i ^^ get_b ^^ load_limb env i ^^
+             compile_comparison dir)
+        in go (n - 1))
+
+  (* --- Bitwise --------------------------------------------------------------------------
+     Limb-wise and completely independent per limb, so this is the one family that needs no
+     carry, no borrow and no ordering. It is also why the fixed-limb representation needs no
+     new RTS support for `&`, `|`, `^`: the bignum library exports no bitwise operations at
+     all, so a BigNum-backed wide type would have had to grow three. *)
+  let bitop env width op =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_%s" width (match op with
+      | I64Op.And -> "and" | I64Op.Or -> "or" | I64Op.Xor -> "xor" | _ -> assert false) in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_r, get_r) = new_local env "r" in
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          get_a ^^ load_limb env i ^^
+          get_b ^^ load_limb env i ^^
+          G.i (Binary (Wasm_exts.Values.I64 op)) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* --- Shifts ---------------------------------------------------------------------------
+     The shift count is reduced modulo the width, as it is for every other fixed-width type
+     in this compiler. The width is a power of two, so that reduction is a mask of the
+     lowest limb -- the higher limbs of the count cannot matter once it is reduced.
+
+     A count splits into a whole-limb displacement q and a bit offset r. Only q is dynamic
+     in a way that moves data between limbs, and there are just 2 or 4 possible values of
+     it, so the limb displacement is a switch over the static cases and each case is
+     straight-line. That keeps every load at a constant offset.
+
+     `x >> (64 - r)` would be wrong for r = 0: wasm reduces shift counts modulo 64, so it
+     would shift by 0 and pull in a whole limb that should not be there. Splitting it as
+     `(x >> 1) >> (63 - r)` keeps every count in range. *)
+  let shift env width ~right =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_sh%s" width (if right then "r" else "l") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_r, get_r) = new_local env "r" in
+        let (set_q, get_q) = new_local env "q" in
+        let (set_bits, get_bits) = new_local env "bits" in
+        let (set_k, get_k) = new_local env "k" in
+        get_b ^^ load_limb env 0 ^^
+        compile_bitand_const (Int64.of_int (width - 1)) ^^ set_k ^^
+        get_k ^^ compile_shrU_const 6L ^^ set_q ^^          (* whole limbs *)
+        get_k ^^ compile_bitand_const 63L ^^ set_bits ^^    (* leftover bits *)
+        alloc env width ^^ set_r ^^
+        (* one straight-line case per whole-limb displacement *)
+        let case q =
+          G.table n (fun i ->
+            let src = if right then i + q else i - q in
+            let nxt = if right then src + 1 else src - 1 in
+            get_r ^^ Blob.payload_ptr_unskewed env ^^
+            (if src < 0 || src >= n then compile_unboxed_const 0L
+             else
+               get_a ^^ load_limb env src ^^ get_bits ^^
+               G.i (Binary (Wasm_exts.Values.I64
+                 (if right then I64Op.ShrU else I64Op.Shl)))) ^^
+            (if nxt < 0 || nxt >= n then G.nop
+             else
+               get_a ^^ load_limb env nxt ^^
+               compile_unboxed_const 1L ^^
+               G.i (Binary (Wasm_exts.Values.I64
+                 (if right then I64Op.Shl else I64Op.ShrU))) ^^
+               compile_unboxed_const 63L ^^ get_bits ^^
+               G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
+               G.i (Binary (Wasm_exts.Values.I64
+                 (if right then I64Op.Shl else I64Op.ShrU))) ^^
+               G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))) ^^
+            store_limb env i)
+        in
+        let rec dispatch q =
+          if q = n - 1 then case q
+          else
+            get_q ^^ compile_unboxed_const (Int64.of_int q) ^^
+            compile_comparison I64Op.Eq ^^
+            E.if0 (case q) (dispatch (q + 1))
+        in dispatch 0 ^^
+        get_r)
+
 end (* Wide *)
 
 module Object = struct
@@ -11648,6 +11756,11 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim Float32),                      PowOp -> E.call_rts env "powf"
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               AndOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.And))
+  | Type.(Prim (Nat128 | Nat256 as pty)), AndOp -> Wide.bitop env (Wide.width_of_typ pty) I64Op.And
+  | Type.(Prim (Nat128 | Nat256 as pty)), OrOp  -> Wide.bitop env (Wide.width_of_typ pty) I64Op.Or
+  | Type.(Prim (Nat128 | Nat256 as pty)), XorOp -> Wide.bitop env (Wide.width_of_typ pty) I64Op.Xor
+  | Type.(Prim (Nat128 | Nat256 as pty)), ShLOp -> Wide.shift env (Wide.width_of_typ pty) ~right:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), ShROp -> Wide.shift env (Wide.width_of_typ pty) ~right:true
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               OrOp  -> G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
@@ -11724,6 +11837,8 @@ let compile_relop env t op =
   | Prim Text, _ -> Text.compare env op
   | Prim (Blob|Principal), _ -> Blob.compare env (Some op)
   | _, EqOp -> compile_eq env t
+  | Prim (Nat128 | Nat256 as pty), (LtOp | LeOp | GtOp | GeOp) ->
+    Wide.compare env (Wide.width_of_typ pty) op
   | Prim (Nat | Nat8 | Nat16 | Nat32 | Nat64 | Int | Int8 | Int16 | Int32 | Int64 | Char as t1), op1 ->
     compile_comparison_op env t1 op1
   | Prim Float,   GtOp -> compile_comparison_f64 F64Op.Gt
