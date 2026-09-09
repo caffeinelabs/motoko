@@ -4,6 +4,13 @@
 
 * motoko (`moc`)
 
+  * feat!: Remove the dead/niche compiler flags `--(no-)experimental-multi-value`
+    and `--generate-view-queries` (including the type-checking hook, the
+    `export_view` desugaring and the view-gathering in `mo_to_idl`), and the
+    `--experimental-stable-memory` flag. Use of the `ExperimentalStableMemory`
+    library is now an unconditional `M0199` error; migrate to the `Region`
+    library instead (#6231).
+
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
     differently: the suggestion now validates the rewritten callee against

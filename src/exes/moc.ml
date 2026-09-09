@@ -127,14 +127,6 @@ let argspec =
   "-ref-system-api",
   Arg.Unit (fun () -> Flags.(compile_mode := RefMode)),
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
-  "--experimental-multi-value",
-  Arg.Unit (fun () ->
-    eprintf "moc: --experimental-multi-value has no effect; multi-value codegen is always on.\n"),
-  " (deprecated, no effect) multi-value codegen is always on";
-  "--no-experimental-multi-value",
-  Arg.Unit (fun () ->
-    eprintf "moc: --no-experimental-multi-value has no effect; multi-value codegen is always on.\n"),
-  " (deprecated, no effect) multi-value codegen can no longer be disabled";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";
@@ -162,7 +154,7 @@ let argspec =
   "--stable-regions",
   Arg.Unit (fun () ->
     Flags.use_stable_regions := true),
-      " force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory, depending on current use of ExperimentalStableMemory library";
+      " force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory";
 
   "--generational-gc",
   Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Generational),
@@ -187,10 +179,6 @@ let argspec =
   Arg.Unit (fun () -> Flags.force_gc := true),
   " disable GC scheduling, always do GC after an update message (for testing)";
 
-  "--experimental-stable-memory",
-  Arg.Set_int Flags.experimental_stable_memory,
-  " <n> select support for the deprecated `ExperimentalStableMemory.mo` library (n < 0: error, n == 0: warn, n > 0: allow) (default " ^ (Int.to_string Flags.experimental_stable_memory_default) ^ ")";
-
   "--max-stable-pages",
   Arg.Set_int Flags.max_stable_pages,
   "<n>  set maximum number of pages available to stable memory via the `Region` library (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
@@ -202,10 +190,6 @@ let argspec =
   "--experimental-rtti",
   Arg.Unit (fun () -> Flags.rtti := true),
   " enable experimental support for precise runtime type information (default with enhanced orthogonal persistence)";
-
-  "--generate-view-queries",
-  Arg.Unit (fun () -> Flags.generate_view_queries := true),
-  " auto-generate queries for stable variables; preferring applicable .view() methods (default false)";
 
   "--rts-stack-pages",
   Arg.Int (fun pages -> Flags.rts_stack_pages := Some pages),

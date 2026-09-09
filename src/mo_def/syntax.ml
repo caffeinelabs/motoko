@@ -193,14 +193,8 @@ let break_label kind (id_opt : id option) =
 
 type id_ref = (string, mut' * exp option) annotated_phrase
 
-and viewer_body = DotViewV of exp | DefaultV of exp
-and viewer = {
-    viewer_body : viewer_body;
-    viewer_field : Type.field
-  }
-
 and stab = stab' phrase
-and stab' = Stable of viewer option ref | Flexible
+and stab' = Stable | Flexible
 
 and exp = (exp', typ_note) annotated_phrase
 and exp' =

@@ -1,10 +1,12 @@
 import Prim "mo:⛔";
-import StableMemory "stable-mem/StableMemory";
+import Region "stable-region/Region";
+
+let r = Region.new();
 
 func ensure(offset : Nat64) {
   let pages = (offset + 65536) >> 16;
-  if (pages > StableMemory.size()) {
-    let oldsize = StableMemory.grow(pages - StableMemory.size());
+  if (pages > Region.size(r)) {
+    let oldsize = Region.grow(r, pages - Region.size(r));
     assert (oldsize != 0xFFFF_FFFF_FFFF_FFFF);
   };
 };
@@ -15,9 +17,9 @@ func log(t : Text) {
   let blob = Prim.encodeUtf8(t);
   let size = Prim.natToNat64(blob.size());
   ensure(base + size + 4);
-  StableMemory.storeBlob(base, blob);
+  Region.storeBlob(r, base, blob);
   base += size;
-  StableMemory.storeNat32(base, Prim.natToNat32(blob.size()));
+  Region.storeNat32(r, base, Prim.natToNat32(blob.size()));
   base += 4;
 };
 
@@ -27,9 +29,9 @@ func readLast(count : Nat) : [Text] {
   var k = 0;
   while (k < count and offset > 0) {
     offset -= 4;
-    let size = StableMemory.loadNat32(offset);
+    let size = Region.loadNat32(r, offset);
     offset -= Prim.natToNat64(Prim.nat32ToNat(size));
-    let blob = StableMemory.loadBlob(offset, Prim.nat32ToNat(size));
+    let blob = Region.loadBlob(r, offset, Prim.nat32ToNat(size));
     switch (Prim.decodeUtf8(blob)) {
       case (?t) { a[k] := t };
       case null { assert false };

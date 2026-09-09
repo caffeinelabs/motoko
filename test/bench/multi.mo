@@ -1,6 +1,5 @@
 // Benchmark: three multi-value-friendly algorithms from the literature.
-// Designed to exercise the wasm multi-value codegen path
-// (`--experimental-multi-value`) under load.
+// Designed to exercise the wasm multi-value codegen path under load.
 //
 // * `fibPair` — canonical example from Andreas Rossberg's multi-value
 //   proposal: single recursion that returns `(fib(n), fib(n+1))`,
@@ -11,10 +10,8 @@
 //   unsigned values to LEB128 via a helper that returns `(q, r)` from
 //   one operation. Every IC canister hits this path on Candid encode.
 //
-// With multi-value off (default) each tuple-returning call round-trips
-// the extra values through `multi_val_*` globals (FakeMultiVal). With
-// `--experimental-multi-value` on, the values stay on the wasm stack
-// across the function boundary.
+// Multi-value codegen is always enabled: tuple-returning calls keep the
+// extra values on the wasm stack across the function boundary.
 import {
   performanceCounter;
   rts_heap_size;

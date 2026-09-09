@@ -894,7 +894,7 @@ vis :
 stab :
   | (* empty *) { None }
   | FLEXIBLE { Some (Flexible @@ at $sloc) }
-  | STABLE { Some ((Stable (ref None)) @@ at $sloc) }
+  | STABLE { Some (Stable @@ at $sloc) }
   | TRANSIENT { Some (Flexible @@ at $sloc) }
 
 %inline persistent :
@@ -1003,7 +1003,7 @@ dec_nonvar :
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
   | MIXIN system=system_opt p=pat_plain dfs=obj_body {
-     let dfs = List.map (share_dec_field (fun () -> Stable (ref None) @@ no_region)) dfs in
+     let dfs = List.map (share_dec_field (fun () -> Stable @@ no_region)) dfs in
      MixinD(system, p, dfs) @? at $sloc
   }
   | INCLUDE x=id system=system_opt e=exp(ob) { IncludeD(x, system, e, ref None) @? at $sloc }
@@ -1018,7 +1018,7 @@ obj_or_class_dec :
       let named, x = xf sort $sloc in
       let e =
         if s.it = Type.Actor then
-          let default_stab () = (if persistent.it then (Stable (ref None)) else Flexible) @@ no_region in
+          let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
           let id = if named then Some x else None in
           AwaitE
             (Type.AwaitFut false,
@@ -1038,7 +1038,7 @@ obj_or_class_dec :
       let x, dfs = cb in
       let dfs', tps', t' =
        if s.it = Type.Actor then
-         let default_stab () = (if persistent.it then Stable (ref None) else Flexible) @@ no_region in
+         let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
           (List.map (share_dec_field default_stab) dfs,
            ensure_scope_bind "" tps,
            (* Not declared async: insert AsyncT but deprecate in typing *)

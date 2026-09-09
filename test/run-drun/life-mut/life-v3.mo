@@ -1,7 +1,9 @@
 import P = "mo:⛔";
-import SM = "../stable-mem/StableMemory";
+import Region = "../stable-region/Region";
 
 actor Life {
+
+  stable let r = Region.new();
 
   object Random {
     var state = 1;
@@ -25,7 +27,7 @@ actor Life {
   func readBit(offset : Nat64, index : Nat) : Bool {
     let bit = P.natToNat64(index);
     let mask : Nat64 = 1 << (bit % 64);
-    (SM.loadNat64(offset + ((bit >> 6) * 8)) & mask) == mask
+    (Region.loadNat64(r, offset + ((bit >> 6) * 8)) & mask) == mask
   };
 
   func writeBit(offset : Nat64, index : Nat, v : Bool) {
@@ -33,10 +35,10 @@ actor Life {
     let mask : Nat64 = 1 << (bit % 64);
     let i = (bit >> 6) * 8;
     if v {
-      SM.storeNat64(offset + i, SM.loadNat64(offset + i) | mask)
+      Region.storeNat64(r, offset + i, Region.loadNat64(r, offset + i) | mask)
     }
     else {
-      SM.storeNat64(offset + i, SM.loadNat64(offset + i) & ^mask)
+      Region.storeNat64(r, offset + i, Region.loadNat64(r, offset + i) & ^mask)
     };
     assert (readBit(offset, index) == v);
   };
@@ -51,9 +53,9 @@ actor Life {
 
 
   func ensureMemory(offset : Nat64) {
-      let pagesNeeded = ((offset + 65535) / 65536) - SM.size();
+      let pagesNeeded = ((offset + 65535) / 65536) - Region.size(r);
       if (pagesNeeded > 0) {
-        assert (SM.grow(pagesNeeded) != 0xFFFF_FFFF)
+        assert (Region.grow(r, pagesNeeded) != 0xFFFF_FFFF_FFFF_FFFF)
       };
   };
 
@@ -166,7 +168,7 @@ actor Life {
         word |= bit;
         word <<= 1;
       };
-      SM.storeNat64(offset + P.natToNat64(i) * 8, word );
+      Region.storeNat64(r, offset + P.natToNat64(i) * 8, word );
     };
     #v3 { size; offset};
   };

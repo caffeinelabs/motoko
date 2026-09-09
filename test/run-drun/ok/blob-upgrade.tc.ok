@@ -1,2 +1,0 @@
-blob-upgrade.mo:6.12-6.33: warning [M0199], this code is (or uses) the deprecated library `ExperimentalStableMemory`.
-Please use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message.

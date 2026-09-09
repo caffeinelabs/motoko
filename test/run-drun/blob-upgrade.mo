@@ -3,9 +3,10 @@ import Prim "mo:prim";
 actor {
     let blobSize = 32 * 1024 * 1024;
     let stablePageSize = 64 * 1024;
-    ignore Prim.stableMemoryGrow(Prim.natToNat64(blobSize / stablePageSize));
+    let r = Prim.regionNew();
+    ignore Prim.regionGrow(r, Prim.natToNat64(blobSize / stablePageSize));
 
-    stable let blob = Prim.stableMemoryLoadBlob(0, blobSize);
+    stable let blob = Prim.regionLoadBlob(r, 0, blobSize);
     stable let small = (123_456_789_123_456_789, "TEST");
 
     public query func check() : async () {
@@ -19,4 +20,3 @@ actor {
 //CALL ingress check "DIDL\x00\x00"
 //CALL upgrade
 //CALL ingress check "DIDL\x00\x00"
-

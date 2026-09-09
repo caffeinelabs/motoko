@@ -1,7 +1,4 @@
-//MOC-FLAG --stable-regions
-
 import P "mo:⛔";
-import M "../stable-mem/StableMemory";
 import Region "../stable-region/Region";
 
 actor {
@@ -14,26 +11,28 @@ actor {
     var b = 0 : Nat8;
 
     // Check size for necessary number of pages.
+    stable let r = Region.new();
+
     let reqPages = size / pageInBytes;
 
     P.debugPrint("reqPages = " # (debug_show reqPages));
-    P.debugPrint("M.size() = " # (debug_show M.size()));
+    P.debugPrint("Region.size(r) = " # (debug_show Region.size(r)));
 
-    assert M.size() == reqPages;
+    assert Region.size(r) == reqPages;
 
     // Load out previously-stored byte pattern in a defined interval.
-    // The interval serves for faster test runs on the CI, to avoid `drun` batch limit. 
+    // The interval serves for faster test runs on the CI, to avoid `drun` batch limit.
     // Check each byte is what we would have written, if we were repeating the same logic again.
     while (i < size) {
         let expected = b;
-        let loaded = M.loadNat8(i);
+        let loaded = Region.loadNat8(r, i);
         //P.debugPrint(" - " # (debug_show {i; expected; loaded}));
         assert loaded == expected;
         i := i + 10;
         b := b +% 1;
     };
 
-    P.debugPrint ("actor1: checked region0.");
+    P.debugPrint ("actor1: checked region.");
 
     stable var r1 = Region.new();
 

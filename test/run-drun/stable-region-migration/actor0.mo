@@ -1,5 +1,5 @@
 import P "mo:⛔";
-import M "../stable-mem/StableMemory";
+import Region "../stable-region/Region";
 
 actor {
 
@@ -15,12 +15,13 @@ actor {
 
     P.debugPrint("reqPages = " # (debug_show reqPages));
 
-    assert M.grow(reqPages) == 0;
-    assert M.size() == reqPages;
+    stable let r = Region.new();
+    assert Region.grow(r, reqPages) == 0;
+    assert Region.size(r) == reqPages;
 
     // write byte pattern, in a defined interval.
     while (i < size) {
-        M.storeNat8(i, b);
+        Region.storeNat8(r, i, b);
         i := i + 10;
         b := b +% 1;
     };

@@ -679,60 +679,6 @@ and export_runtime_information self_id =
   )],
    [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
-and export_view viewer_opt =
-  match viewer_opt with
-  | None -> ([], [], [])
-  | Some {viewer_body; viewer_field} ->
-     let open T in
-     let ts1, ts2, mk_body =
-       match (viewer_body, T.normalize viewer_field.typ) with
-       | DotViewV view_exp, T.Func(Shared Query, _, [_], ts1, ts2) ->
-         (* id.view() available *)
-         assert (List.for_all T.shared ts2);
-         ts1, ts2, fun vs ->
-           let view_e =
-             callE (exp view_exp) [] (seqE (List.map varE vs))
-           in
-           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
-       | DefaultV view_exp, T.Func(Shared Query, _, [_], [], ts2) ->
-         (* id, t shared *)
-         assert (List.for_all T.shared ts2);
-         [], ts2, fun _vs ->
-           let view_e = exp view_exp in
-           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
-       | _ -> assert false
-     in
-     let vs = fresh_vars "param" ts1 in
-     let args = List.map arg_of_var vs in
-     let lab = viewer_field.lab in
-     let v = fresh_id ("$"^lab) () in
-     let scope_con1 = Cons.fresh "T1" (Abs ([], scope_bound)) in
-     let scope_con2 = Cons.fresh "T2" (Abs ([], Any)) in
-     let bind1 = typ_arg scope_con1 Scope scope_bound in
-     let bind2 = typ_arg scope_con2 Scope scope_bound in
-     let typ = viewer_field.typ in
-     let caller = fresh_var "caller" caller in
-     let is_self_or_controller =
-       orE (primE (I.RelPrim (principal, Operator.EqOp)) [varE caller; selfRefE principal])
-         (primE (I.OtherPrim "is_controller") [varE caller])
-     in
-     ([ letD (var v typ) (
-          funcE v (Shared Query) Promises [bind1] args ts2 (
-            (asyncE T.Fut bind2
-              (blockE [
-                 (* authentication, self or controller only *)
-                 letD caller (primE I.ICCallerPrim []);
-                 expD (ifE is_self_or_controller
-                   (unitE())
-                   (primE (Ir.OtherPrim "trap")
-                     [textE "Unauthorized caller (caller must be self or a controller)"]))
-                 ]
-                 (mk_body vs))
-              (Con (scope_con1, []))))
-      )],
-      [T.{lab;typ; src = empty_src}],
-      [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
-
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
   | S.TypD _ -> []
   | S.MixinD _ -> assert false
@@ -1048,7 +994,7 @@ and stabilize stab_opt d =
   match s, d.it with
   | (S.Flexible, _) ->
     ([], fun _ -> d)
-  | (S.Stable _, I.VarD(i, t, e)) ->
+  | (S.Stable, I.VarD(i, t, e)) ->
     ([(i, T.Mut t)],
      fun get_state ->
      let v = fresh_var i t in
@@ -1063,8 +1009,8 @@ and stabilize stab_opt d =
      varD (var i (T.Mut t))
        (switch_optE (dotE (callE (varE get_state) [] (unitE ())) i (T.Opt t))
          fallback (varP v) (varE v) t))
-  | (S.Stable _, I.RefD _) -> assert false (* RefD cannot come from user code *)
-  | (S.Stable _, I.LetD({it = I.VarP i; _} as p, e)) ->
+  | (S.Stable, I.RefD _) -> assert false (* RefD cannot come from user code *)
+  | (S.Stable, I.LetD({it = I.VarP i; _} as p, e)) ->
     let t = p.note in
     ([(i, t)],
      fun get_state ->
@@ -1080,7 +1026,7 @@ and stabilize stab_opt d =
      letP p
        (switch_optE (dotE (callE (varE get_state) [] (unitE ())) i (T.Opt t))
          fallback (varP v) (varE v) t))
-  | (S.Stable _, I.LetD _) ->
+  | (S.Stable, I.LetD _) ->
     assert false
 
 and view stab_opt =
@@ -1089,8 +1035,7 @@ and view stab_opt =
   | Some stab ->
     match stab.it with
     | S.Flexible -> ([], [], [])
-    | S.Stable viewer ->
-      export_view (!viewer)
+    | S.Stable -> ([], [], [])
 
 and build_obj at s self_id dfs obj_typ =
   let fs = build_fields obj_typ in

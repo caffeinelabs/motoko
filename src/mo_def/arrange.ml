@@ -236,7 +236,7 @@ module Make (Cfg : Config) = struct
     | Some s ->
       (match s.it with
       | Flexible -> Atom "Flexible"
-      | Stable _ -> Atom "Stable")
+      | Stable -> Atom "Stable")
 
   and typ_field (tf : typ_field) = source tf.at (match tf.it with
     | ValF (lab, t, m) -> "ValF" $$ [id lab; typ t; mut m]

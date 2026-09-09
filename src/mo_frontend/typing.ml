@@ -357,12 +357,8 @@ let check_deprecation env at desc id depr =
     if !(env.reported_stable_memory) then ()
     else begin
       env.reported_stable_memory := true;
-      (match compare !Flags.experimental_stable_memory 0 with
-       | -1 -> error
-       | 0 -> warn
-       | _ -> fun ?(notes = []) ?(spans = []) ?(edits = []) _ _ _ _ -> ())
-       env at code
-       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message."
+      error env at code
+        "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/"
     end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
@@ -4947,8 +4943,8 @@ and check_stable_defaults env sort dec_fields =
   if Option.is_some env.enhanced_migration then begin
     List.iter (fun dec_field ->
       match dec_field.it.stab, dec_field.it.dec.it with
-      | Some {it = Stable _; _}, LetD (_, exp, _)
-      | Some {it = Stable _; _}, VarD (_, exp) ->
+      | Some {it = Stable; _}, LetD (_, exp, _)
+      | Some {it = Stable; _}, VarD (_, exp) ->
         (match exp.it with
          | PrimE "_"
          | AnnotE ({it = PrimE "_"; _}, _) -> () (* placeholder for no initializer -- OK *)
@@ -4965,7 +4961,7 @@ and check_stable_defaults env sort dec_fields =
         warn env sort.note.at "M0217" "with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed";
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
-        | Some {it = Stable _; at; _}, (LetD _ | VarD _) ->
+        | Some {it = Stable; at; _}, (LetD _ | VarD _) ->
           if at <> no_region then
             warn env at "M0218"
               ~edits:[edit at ""]
@@ -5014,16 +5010,12 @@ and check_stab env sort scope dec_fields =
       let include_note = Option.get !note in
       let fs = check_stab env sort scope include_note.decs in
       List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
-    | (T.Actor | T.Mixin), Some {it = Stable view; _}, VarD (id, _) ->
+    | (T.Actor | T.Mixin), Some {it = Stable; _}, VarD (id, _) ->
       check_stable id.it id.at;
-      if sort.it = T.Actor then
-        infer_viewer env scope Var id view;
       [id]
-    | (T.Actor | T.Mixin), Some {it = Stable view; _}, LetD (pat, _, _) when stable_pat pat ->
+    | (T.Actor | T.Mixin), Some {it = Stable; _}, LetD (pat, _, _) when stable_pat pat ->
       let ids = T.Env.keys (gather_pat env Scope.empty pat).Scope.val_env in
       List.iter (fun id -> check_stable id pat.at) ids;
-      if sort.it = T.Actor then
-        infer_viewer env scope Const (stable_id pat) view;
       List.map (fun id -> {it = id; at = pat.at; note = ()}) ids;
     | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
     | (T.Actor | T.Mixin), Some stab, _ ->
@@ -5049,61 +5041,6 @@ and check_stab env sort scope dec_fields =
              typ;
              src = {depr = None; track_region = id.at; region = id.at}})
       ids)
-
-and infer_viewer env scope mut id viewer =
-  if not !Flags.generate_view_queries then ()
-  else
-  begin
-    let at = id.at in
-    assert (!viewer = None);
-    let lab = "__" ^ id.it in
-    if T.Env.mem lab scope.Scope.val_env || String.starts_with ~prefix:"__motoko" lab
-    then () (* avoid any clash with local or reserved `__motokoXXX` members by omitting viewer *)
-    else
-      let viewer_field args ret =
-        (* approximate non-shared returns to Any, if necessary *)
-        let shared_ret =
-          List.map (fun ty -> if T.shared ty then ty else T.Any) ret in
-        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
-      let infer_dot_view =
-        Diag.with_message_store (recover_opt (fun msgs ->
-          (* checkpoint env.used_identifiers *)
-          let saved_used_identifiers = !(env.used_identifiers) in
-          let env = {env with msgs} in (* don't record errors in outer env *)
-          let env = adjoin env scope in
-          let varE = VarE {it = id.it; at; note = (mut, None)} @? at in
-          let dot_exp = DotE(varE, "view" @@ at, ref None) @? at in
-          let arg_exp = (false, ref (TupE [] @? at)) in
-          let inst = {it = None; at; note = []} in
-          let exp = CallE(None, dot_exp, inst, arg_exp) @? at in
-          let viewer_typ = infer_exp env exp in
-          match T.normalize viewer_typ with
-           | T.Func(T.Local, T.Returns, [], ts1, ts2)
-             when List.for_all T.shared ts1 && List.for_all T.shared ts2 ->
-              { viewer_body = DotViewV exp;
-                viewer_field = viewer_field ts1 ts2 }
-           | _ ->
-               (* restore env.used_identifiers *)
-               env.used_identifiers := saved_used_identifiers;
-               raise Recover))
-      in
-      match infer_dot_view with
-      | Ok (exp_typ, _) ->
-         viewer := Some exp_typ
-      | Error _ ->
-         let (typ, _, _) = T.Env.find id.it scope.Scope.val_env in
-         let typ = T.as_immut typ in
-         if T.stable typ then
-           let varE =
-             { (VarE {it = id.it; at; note = (mut, None)} @? at)
-               with note = { note_typ = typ;
-                             note_eff = T.Triv} }
-           in
-           use_identifier env id.it;
-           viewer := Some
-             { viewer_body = DefaultV(varE);
-               viewer_field = viewer_field [] [typ] }
-  end
 
 (* Blocks and Declarations *)
 

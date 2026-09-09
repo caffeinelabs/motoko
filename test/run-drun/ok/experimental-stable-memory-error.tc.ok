@@ -1,0 +1,2 @@
+experimental-stable-memory-error.mo:4.9-4.29: type error [M0199], this code is (or uses) the deprecated library `ExperimentalStableMemory`.
+Please use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/
