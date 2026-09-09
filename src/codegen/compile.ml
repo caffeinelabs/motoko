@@ -4248,7 +4248,7 @@ module Wide = struct
      carry, no borrow and no ordering. It is also why the fixed-limb representation needs no
      new RTS support for `&`, `|`, `^`: the bignum library exports no bitwise operations at
      all, so a BigNum-backed wide type would have had to grow three. *)
-  let bitop env width op =
+  let bitop_ptrs env width op =
     let n = limbs_of_width width in
     let name = Printf.sprintf "wide%d_%s" width (match op with
       | I64Op.And -> "and" | I64Op.Or -> "or" | I64Op.Xor -> "xor" | _ -> assert false) in
@@ -4277,17 +4277,16 @@ module Wide = struct
      `x >> (64 - r)` would be wrong for r = 0: wasm reduces shift counts modulo 64, so it
      would shift by 0 and pull in a whole limb that should not be there. Splitting it as
      `(x >> 1) >> (63 - r)` keeps every count in range. *)
-  let shift env width ~right =
+  let shift_by env width ~right =
     let n = limbs_of_width width in
-    let name = Printf.sprintf "wide%d_sh%s" width (if right then "r" else "l") in
-    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+    let name = Printf.sprintf "wide%d_sh%s_by" width (if right then "r" else "l") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("k", I64Type)) [I64Type]
       (fun env get_a get_b ->
         let (set_r, get_r) = new_local env "r" in
         let (set_q, get_q) = new_local env "q" in
         let (set_bits, get_bits) = new_local env "bits" in
         let (set_k, get_k) = new_local env "k" in
-        get_b ^^ load_limb env 0 ^^
-        compile_bitand_const (Int64.of_int (width - 1)) ^^ set_k ^^
+        get_b ^^ compile_bitand_const (Int64.of_int (width - 1)) ^^ set_k ^^
         get_k ^^ compile_shrU_const 6L ^^ set_q ^^          (* whole limbs *)
         get_k ^^ compile_bitand_const 63L ^^ set_bits ^^    (* leftover bits *)
         alloc env width ^^ set_r ^^
@@ -4546,6 +4545,140 @@ module Wide = struct
            exponent_nonzero ^^
            E.if0 (get_base ^^ get_base ^^ mul env width ~trap ^^ set_base) G.nop) ^^
         get_res)
+
+  (* The shift operators take their count as a wide value; rotation needs to compute a count
+     of its own, so the count is extracted here and the generator above works in i64. Only
+     the lowest limb can matter: the count is reduced modulo the width first. *)
+  let shift env width ~right =
+    let (set_b, get_b) = new_local env "b" in
+    set_b ^^ get_b ^^ load_limb env 0 ^^ shift_by env width ~right
+
+  (* Rotation is composed from the two shifts rather than generated directly. It is not in
+     the EVM opcode set and is rare in practice, so a third allocation is worth the much
+     smaller amount of code that can go wrong.
+
+     `rotl a 0` needs no special case: the complement count is (width - 0) mod width = 0, so
+     the expression degenerates to `a | a`, which is a. *)
+  let rotate env width ~left =
+    let name = Printf.sprintf "wide%d_rot%s" width (if left then "l" else "r") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let (set_k, get_k) = new_local env "k" in
+        let mask = Int64.of_int (width - 1) in
+        get_b ^^ load_limb env 0 ^^ compile_bitand_const mask ^^ set_k ^^
+        get_a ^^ get_k ^^ shift_by env width ~right:(not left) ^^
+        get_a ^^
+        compile_unboxed_const (Int64.of_int width) ^^ get_k ^^
+        G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
+        compile_bitand_const mask ^^
+        shift_by env width ~right:left ^^
+        bitop_ptrs env width I64Op.Or)
+
+  (* Bitwise complement: limb-wise xor with all ones. The width is exact, so there is no
+     mask to apply afterwards the way the small word types need one. *)
+  let lognot env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "wide%d_not" width) ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          get_a ^^ load_limb env i ^^ compile_xor_const (-1L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* Population count, and counting leading / trailing zeros. Each returns a value of the
+     same wide type, as the narrower types do, so the result is a wide value whose only
+     non-zero limb is the lowest. *)
+  let bitcount env width which =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env
+      (Printf.sprintf "wide%d_%s" width which) ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        let (set_acc, get_acc) = new_local env "acc" in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
+        (match which with
+         | "popcnt" ->
+           compile_unboxed_const 0L ^^ set_acc ^^
+           G.table n (fun i ->
+             get_acc ^^ get_a ^^ load_limb env i ^^
+             G.i (Unary (Wasm_exts.Values.I64 I64Op.Popcnt)) ^^ add ^^ set_acc)
+         | _ ->
+           (* Walk from the end the zeros are counted from; the first non-zero limb decides,
+              and everything below it contributes a full 64. An all-zero value counts the
+              full width. *)
+           let right = (which = "ctz") in
+           let rec go j =
+             if j = n then compile_unboxed_const (Int64.of_int width) ^^ set_acc
+             else
+               let i = if right then j else n - 1 - j in
+               get_a ^^ load_limb env i ^^ compile_test I64Op.Eqz ^^
+               E.if0
+                 (go (j + 1))
+                 (get_a ^^ load_limb env i ^^
+                  G.i (Unary (Wasm_exts.Values.I64
+                    (if right then I64Op.Ctz else I64Op.Clz))) ^^
+                  compile_add_const (Int64.of_int (64 * j)) ^^ set_acc)
+           in go 0) ^^
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if i = 0 then get_acc else compile_unboxed_const 0L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* Widening and narrowing between the fixed-width types. Widening copies the limbs and
+     zero-fills; narrowing traps unless the limbs being dropped are all zero, which is the
+     same contract every other narrowing conversion in this compiler has. *)
+  let resize env ~from_width ~to_width =
+    let fromn = limbs_of_width from_width and ton = limbs_of_width to_width in
+    Func.share_code1 Func.Never env
+      (Printf.sprintf "wide%d_to_wide%d" from_width to_width) ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        (if ton < fromn
+         then
+           G.table (fromn - ton) (fun i ->
+             get_a ^^ load_limb env (ton + i) ^^ (if i = 0 then G.nop
+               else G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)))) ^^
+           compile_test I64Op.Eqz ^^
+           E.else_trap_with env "losing precision"
+         else G.nop) ^^
+        alloc env to_width ^^ set_r ^^
+        G.table ton (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if i < fromn then get_a ^^ load_limb env i else compile_unboxed_const 0L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* A 64-bit word widened into limbs, and back. Narrowing traps unless the limbs being
+     dropped are zero, matching every other narrowing conversion here. *)
+  let of_word64 env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "word64_to_wide%d" width)
+      ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        let (set_r, get_r) = new_local env "r" in
+        alloc env width ^^ set_r ^^
+        G.table n (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if i = 0 then get_a else compile_unboxed_const 0L) ^^
+          store_limb env i) ^^
+        get_r)
+
+  let to_word64 env width =
+    let n = limbs_of_width width in
+    Func.share_code1 Func.Never env (Printf.sprintf "wide%d_to_word64" width)
+      ("a", I64Type) [I64Type]
+      (fun env get_a ->
+        G.table (n - 1) (fun i ->
+          get_a ^^ load_limb env (i + 1) ^^
+          (if i = 0 then G.nop else G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)))) ^^
+        compile_test I64Op.Eqz ^^
+        E.else_trap_with env "losing precision" ^^
+        get_a ^^ load_limb env 0)
 
 end (* Wide *)
 
@@ -11510,6 +11643,9 @@ let compile_unop env t op =
   | NegOp, Type.(Prim Float32) ->
     SR.UnboxedFloat32, SR.UnboxedFloat32,
     G.i (Unary (Wasm_exts.Values.F32 F32Op.Neg))
+  | NotOp, Type.(Prim (Nat128 | Nat256 as pty)) ->
+     SR.Vanilla, SR.Vanilla,
+     Wide.lognot env (Wide.width_of_typ pty)
   | NotOp, Type.(Prim (Nat64|Int64 as p)) ->
      SR.UnboxedWord64 p, SR.UnboxedWord64 p,
      compile_xor_const (-1L)
@@ -11980,14 +12116,16 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               AndOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.And))
   | Type.(Prim (Nat128 | Nat256 as pty)), WMulOp -> Wide.mul env (Wide.width_of_typ pty) ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), RotLOp -> Wide.rotate env (Wide.width_of_typ pty) ~left:true
+  | Type.(Prim (Nat128 | Nat256 as pty)), RotROp -> Wide.rotate env (Wide.width_of_typ pty) ~left:false
   | Type.(Prim (Nat128 | Nat256 as pty)), WPowOp -> Wide.pow env (Wide.width_of_typ pty) ~trap:false
   | Type.(Prim (Nat128 | Nat256 as pty)), PowOp  -> Wide.pow env (Wide.width_of_typ pty) ~trap:true
   | Type.(Prim (Nat128 | Nat256 as pty)), DivOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:false
   | Type.(Prim (Nat128 | Nat256 as pty)), ModOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:true
   | Type.(Prim (Nat128 | Nat256 as pty)), MulOp  -> Wide.mul env (Wide.width_of_typ pty) ~trap:true
-  | Type.(Prim (Nat128 | Nat256 as pty)), AndOp -> Wide.bitop env (Wide.width_of_typ pty) I64Op.And
-  | Type.(Prim (Nat128 | Nat256 as pty)), OrOp  -> Wide.bitop env (Wide.width_of_typ pty) I64Op.Or
-  | Type.(Prim (Nat128 | Nat256 as pty)), XorOp -> Wide.bitop env (Wide.width_of_typ pty) I64Op.Xor
+  | Type.(Prim (Nat128 | Nat256 as pty)), AndOp -> Wide.bitop_ptrs env (Wide.width_of_typ pty) I64Op.And
+  | Type.(Prim (Nat128 | Nat256 as pty)), OrOp  -> Wide.bitop_ptrs env (Wide.width_of_typ pty) I64Op.Or
+  | Type.(Prim (Nat128 | Nat256 as pty)), XorOp -> Wide.bitop_ptrs env (Wide.width_of_typ pty) I64Op.Xor
   | Type.(Prim (Nat128 | Nat256 as pty)), ShLOp -> Wide.shift env (Wide.width_of_typ pty) ~right:false
   | Type.(Prim (Nat128 | Nat256 as pty)), ShROp -> Wide.shift env (Wide.width_of_typ pty) ~right:true
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
@@ -12391,6 +12529,31 @@ and compile_prim_invocation (env : E.t) ae p es at =
 
     (* Wide <-> Nat. The wide side is limbs; `Nat` is a bignum by definition, so these are
        the only wide operations that touch BigNum at all. *)
+    | Nat128, Nat256 -> SR.Vanilla, compile_exp_vanilla env ae e ^^ Wide.resize env ~from_width:128 ~to_width:256
+    | Nat256, Nat128 -> SR.Vanilla, compile_exp_vanilla env ae e ^^ Wide.resize env ~from_width:256 ~to_width:128
+    | (Nat8|Nat16|Nat32|Nat64 as pty), (Nat128 | Nat256 as w) ->
+      SR.Vanilla,
+      compile_exp_as env ae (SR.UnboxedWord64 pty) e ^^
+      TaggedSmallWord.lsb_adjust pty ^^
+      Wide.of_word64 env (Wide.width_of_typ w)
+    | (Nat128 | Nat256 as w), (Nat8|Nat16|Nat32|Nat64 as pty) ->
+      StackRep.of_type (Prim pty),
+      compile_exp_vanilla env ae e ^^
+      Wide.to_word64 env (Wide.width_of_typ w) ^^
+      (* Fitting one limb is not enough for the narrower types: the value must fit THEIR
+         width too, so they get a second bound check. Note `e` is compiled exactly once --
+         an earlier draft of this recomputed it to re-check the bound, which would have
+         evaluated any side effect in the operand twice. *)
+      (if pty = Nat64 then G.nop
+       else
+         Func.share_code1 Func.Never env (prim_fun_name pty "wide->") ("n", I64Type) [I64Type]
+           (fun env get_n ->
+             get_n ^^
+             compile_unboxed_const Int64.(shift_left 1L (TaggedSmallWord.bits_of_type pty)) ^^
+             compile_comparison I64Op.LtU ^^
+             E.else_trap_with env "losing precision" ^^
+             get_n) ^^
+         TaggedSmallWord.msb_adjust pty)
     | (Nat128 | Nat256), Nat ->
       SR.Vanilla,
       compile_exp_vanilla env ae e ^^
@@ -13160,6 +13323,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
      compile_exp_as env ae (SR.UnboxedWord64 Type.Int32) e ^^
      G.i (Unary (Wasm_exts.Values.I64 I64Op.Popcnt))^^
      TaggedSmallWord.msb_adjust Type.Int32
+  | OtherPrim ("popcnt128"|"popcnt256"|"clz128"|"clz256"|"ctz128"|"ctz256" as pn), [e] ->
+     let width = if String.length pn > 3 && String.sub pn (String.length pn - 3) 3 = "256"
+                 then 256 else 128 in
+     let which = String.sub pn 0 (String.length pn - 3) in
+     SR.Vanilla,
+     compile_exp_vanilla env ae e ^^
+     Wide.bitcount env width which
   | OtherPrim "popcnt64", [e] ->
      SR.UnboxedWord64 Type.Nat64,
      compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) e ^^

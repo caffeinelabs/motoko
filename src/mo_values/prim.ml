@@ -66,6 +66,8 @@ let num_conv_trap_prim trap t1 t2 =
   let module T = Type in
   match t1, t2 with
   | T.Nat, T.(T.Nat8|Nat16|Nat32|Nat64|Nat128|Nat256)
+  | T.(Nat8|Nat16|Nat32|Nat64|Nat128), T.(Nat128|Nat256)
+  | T.(Nat128|Nat256), T.(Nat8|Nat16|Nat32|Nat64|Nat128)
   | T.(Nat128|Nat256), T.Nat
   | T.Int, T.(Int8|Int16|Int32|Int64)
   | T.(Nat8|Nat16|Nat32|Nat64), T.Nat
@@ -167,39 +169,45 @@ let prim trap =
   | "flog" -> fun _ v k -> k (via_float Stdlib.log v)
   (* TODO: refine exotic cases below to catch more errors *)
   | "popcntInt8" | "popcntInt16" | "popcntInt32" | "popcntInt64"
-  | "popcnt8" | "popcnt16" | "popcnt32" | "popcnt64" ->
+  | "popcnt8" | "popcnt16" | "popcnt32" | "popcnt64" | "popcnt128" | "popcnt256" ->
      fun _ v k ->
      k (match v with
         | Nat8  w -> Nat8  (Nat8. popcnt w)
         | Nat16 w -> Nat16 (Nat16.popcnt w)
         | Nat32 w -> Nat32 (Nat32.popcnt w)
         | Nat64 w -> Nat64 (Nat64.popcnt w)
+        | Nat128 w -> Nat128 (Nat128.popcnt w)
+        | Nat256 w -> Nat256 (Nat256.popcnt w)
         | Int8  w -> Int8  (Int_8. popcnt w)
         | Int16 w -> Int16 (Int_16.popcnt w)
         | Int32 w -> Int32 (Int_32.popcnt w)
         | Int64 w -> Int64 (Int_64.popcnt w)
         | _ -> failwith "popcnt")
   | "clzInt8" | "clzInt16" | "clzInt32" | "clzInt64"
-  | "clz8" | "clz16" | "clz32" | "clz64" ->
+  | "clz8" | "clz16" | "clz32" | "clz64" | "clz128" | "clz256" ->
      fun _ v k ->
      k (match v with
         | Nat8  w -> Nat8  (Nat8. clz w)
         | Nat16 w -> Nat16 (Nat16.clz w)
         | Nat32 w -> Nat32 (Nat32.clz w)
         | Nat64 w -> Nat64 (Nat64.clz w)
+        | Nat128 w -> Nat128 (Nat128.clz w)
+        | Nat256 w -> Nat256 (Nat256.clz w)
         | Int8  w -> Int8  (Int_8. clz w)
         | Int16 w -> Int16 (Int_16.clz w)
         | Int32 w -> Int32 (Int_32.clz w)
         | Int64 w -> Int64 (Int_64.clz w)
         | _ -> failwith "clz")
   | "ctzInt8" | "ctzInt16" | "ctzInt32" | "ctzInt64"
-  | "ctz8" | "ctz16" | "ctz32" | "ctz64" ->
+  | "ctz8" | "ctz16" | "ctz32" | "ctz64" | "ctz128" | "ctz256" ->
      fun _ v k ->
      k (match v with
         | Nat8  w -> Nat8  (Nat8. ctz w)
         | Nat16 w -> Nat16 (Nat16.ctz w)
         | Nat32 w -> Nat32 (Nat32.ctz w)
         | Nat64 w -> Nat64 (Nat64.ctz w)
+        | Nat128 w -> Nat128 (Nat128.ctz w)
+        | Nat256 w -> Nat256 (Nat256.ctz w)
         | Int8  w -> Int8  (Int_8. ctz w)
         | Int16 w -> Int16 (Int_16.ctz w)
         | Int32 w -> Int32 (Int_32.ctz w)
