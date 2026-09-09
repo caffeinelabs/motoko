@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * feat: warn (default-on, M0269) that `.vals()` is deprecated in favor of
+    `.values()` on arrays and Blob, and warn (default-on, M0270) that
+    `system func preupgrade`/`postupgrade` are deprecated in favor of the
+    persistent upgrade machinery. Silence with `-A=M0269` / `-A=M0270`
+    (#6347).
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
     differently: the suggestion now validates the rewritten callee against

@@ -5,7 +5,7 @@ let iters = 10_000;
 func iter<A>(what : Text, xs : [A]) {
   let before = Prim.rts_heap_size();
   for (_ in xs.keys()) {};
-  for (_ in xs.vals()) {};
+  for (_ in xs.values()) {};
   for (_ in xs.values()) {};
   let after = Prim.rts_heap_size();
   Prim.debugPrint("Allocation per iteration (" # what # "): " # debug_show ((after-before) / iters : Nat));
