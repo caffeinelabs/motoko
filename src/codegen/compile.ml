@@ -4406,102 +4406,287 @@ module Wide = struct
           get_r ^^ Blob.payload_ptr_unskewed env ^^ snd rl.(i) ^^ store_limb env i) ^^
         get_r)
 
-  (* --- Division and remainder -----------------------------------------------------------
+  (* --- Division, the fast paths ----------------------------------------------------------
 
-     Restoring binary long division: 128 or 256 iterations of "shift the remainder up by one
-     bit, pull down the next bit of the dividend, and subtract the divisor if it fits".
+     Two algorithms behind one runtime dispatch on the DIVISOR, both in base 2^32 so that
+     every quotient estimate is a 64/32 hardware divide and every product a 32x32 -- all of
+     which fit an i64 with room to spare. Base 2^64 would need a 128/64 divide, which wasm
+     does not have.
 
-     This is deliberately the SIMPLE algorithm rather than Knuth D. Division is the one wide
-     operation with real correction-step subtlety (Knuth's quotient estimate needs an
-     add-back that fires on roughly one input in 2^63, which is exactly the case no random
-     test will ever draw), and shipping a correct implementation first means the faster one
-     can be graded against something. The differential oracle over this version is what
-     will make a later Knuth D safe to land. Costed honestly: this is O(width) iterations of
-     O(limbs) work, so a Nat256 divide is far more expensive than a multiply.
+       divisor < 2^32   single-digit long division, fully unrolled, no scratch memory
+       otherwise        Knuth algorithm D
 
-     Dividend, divisor, quotient and remainder all live in locals. The outer walk over limbs
-     is unrolled statically, so only the bit index within a limb is dynamic, which keeps
-     every operand reference a named local rather than a computed address. *)
-  let divmod env width ~want_rem =
-    let n = limbs_of_width width in
-    let name = Printf.sprintf "wide%d_%s" width (if want_rem then "rem" else "div") in
-    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
-      (fun env get_a get_b ->
-        let ul = Array.init n (fun i -> new_local env (Printf.sprintf "u%d" i)) in
-        let vl = Array.init n (fun i -> new_local env (Printf.sprintf "v%d" i)) in
-        let ql = Array.init n (fun i -> new_local env (Printf.sprintf "q%d" i)) in
-        let rl = Array.init n (fun i -> new_local env (Printf.sprintf "r%d" i)) in
-        let (set_bit, get_bit) = new_local env "bit" in
-        let (set_t, get_t) = new_local env "t" in
-        let (set_s, get_s) = new_local env "s" in
-        let (set_c, get_c) = new_local env "brw" in
-        let (set_res, get_res) = new_local env "res" in
+     Knuth D reads vn[n-2], so it is only correct for a divisor of at least two base-2^32
+     digits. The small-divisor path is not merely an optimisation for it -- it is what makes
+     that read safe, and dividing by a small constant is the common case anyway. *)
+
+  (* Digit dg of a wide operand: the 32-bit half of limb dg/2. *)
+  let digit env get dg =
+    get ^^ load_limb env (dg / 2) ^^
+    (if dg mod 2 = 1
+     then compile_unboxed_const 32L ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrU))
+     else G.nop) ^^
+    compile_bitand_const 0xFFFFFFFFL
+
+  (* Branch conditions below are all comparison or test results, so 0 or 1; wrapping them to
+     i32 is safe. A raw i64 would lose its high half, which is the same trap the multiply
+     overflow check avoids. *)
+  let br_if_true d =
+    G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^ G.i (BrIf (nr d))
+
+  (* Divisor known to fit one base-2^32 digit: walk the dividend's digits from the top,
+     carrying a remainder that is always below the divisor and so always below 2^32, which
+     keeps `(rem << 32) | u[dg]` inside an i64. *)
+  let divmod_small env width ~want_rem =
+    let limbs = limbs_of_width width in
+    let dd = 2 * limbs in
+    Func.share_code2 Func.Never env
+      (Printf.sprintf "wide%d_%s_small" width (if want_rem then "rem" else "div"))
+      (("a", I64Type), ("v", I64Type)) [I64Type]
+      (fun env get_x get_v ->
+        let (set_rem, get_rem) = new_local env "rem" in
+        let (set_cur, get_cur) = new_local env "cur" in
+        let (set_r, get_r) = new_local env "r" in
+        let qs = Array.init dd (fun i -> new_local env (Printf.sprintf "qd%d" i)) in
+        compile_unboxed_const 0L ^^ set_rem ^^
+        G.table dd (fun rev ->
+          let dg = dd - 1 - rev in
+          get_rem ^^ compile_unboxed_const 32L ^^
+          G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) ^^
+          digit env get_x dg ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) ^^ set_cur ^^
+          get_cur ^^ get_v ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.DivU)) ^^ fst qs.(dg) ^^
+          get_cur ^^ get_v ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.RemU)) ^^ set_rem) ^^
+        alloc env width ^^ set_r ^^
+        G.table limbs (fun i ->
+          get_r ^^ Blob.payload_ptr_unskewed env ^^
+          (if want_rem
+           then (if i = 0 then get_rem else compile_unboxed_const 0L)
+           else
+             snd qs.(2 * i) ^^
+             snd qs.(2 * i + 1) ^^ compile_unboxed_const 32L ^^
+             G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) ^^
+             G.i (Binary (Wasm_exts.Values.I64 I64Op.Or))) ^^
+          store_limb env i) ^^
+        get_r)
+
+  (* Knuth algorithm D (TAOCP 4.3.1), base 2^32: normalise so the leading divisor digit has
+     its top bit set, then per position estimate the quotient digit from the top two digits,
+     correct it down at most twice, multiply-and-subtract, and add back on the rare borrow.
+
+     The digits live in a scratch Blob rather than in locals because the loops index them at
+     RUNTIME (j and i are not compile-time constants here, unlike everywhere else in this
+     module), and wasm has no indexed access to locals. Layout: un[dd+1] ++ vn[dd] ++ q[dd],
+     four bytes each, one allocation.
+
+     The add-back branch fires on roughly one input in 2^31, which is why this algorithm is
+     graded against the binary long division it replaces rather than against reasoning. *)
+  let knuth env width ~want_rem =
+    let limbs = limbs_of_width width in
+    let dd = 2 * limbs in
+    Func.share_code2 Func.Never env
+      (Printf.sprintf "wide%d_%s_knuth" width (if want_rem then "rem" else "div"))
+      (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_x get_y ->
+        let l n = new_local env n in
+        let (set_scr, get_scr) = l "scr" in
+        let (set_unp, get_unp) = l "unp" in
+        let (set_vnp, get_vnp) = l "vnp" in
+        let (set_qp, get_qp) = l "qp" in
+        let (set_n, get_n) = l "n" in
+        let (set_s, get_s) = l "s" in
+        let (set_j, get_j) = l "j" in
+        let (set_i, get_i) = l "i" in
+        let (set_qhat, get_qhat) = l "qhat" in
+        let (set_rhat, get_rhat) = l "rhat" in
+        let (set_tmp, get_tmp) = l "tmp" in
+        let (set_p, get_p) = l "p" in
+        let (set_t, get_t) = l "t" in
+        let (set_k, get_k) = l "k" in
+        let (set_v1, get_v1) = l "vn1" in
+        let (set_cond, get_cond) = l "cond" in
+        let (set_tj, get_tj) = l "tj" in
+        let (set_out, get_out) = l "out" in
+        let add = G.i (Binary (Wasm_exts.Values.I64 I64Op.Add)) in
         let sub = G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) in
+        let mul = G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) in
         let orr = G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) in
         let shl = G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) in
         let shru = G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrU)) in
+        let shrs = G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrS)) in
+        let mask = compile_bitand_const 0xFFFFFFFFL in
+        let b32 = compile_unboxed_const 0x100000000L in
+        let k32 = compile_unboxed_const 32L in
+        let one = compile_unboxed_const 1L in
+        let zero = compile_unboxed_const 0L in
+        let cst i = compile_unboxed_const (Int64.of_int i) in
+        let ld32 = G.i (Load {ty = I64Type; align = 2; offset = 0L;
+                              sz = Some Wasm_exts.Types.(Pack32, ZX)}) in
+        let st32 = G.i (Store {ty = I64Type; align = 2; offset = 0L;
+                               sz = Some Wasm_exts.Types.Pack32}) in
+        let addr base idx = base ^^ idx ^^ cst 4 ^^ mul ^^ add in
+        let getd base idx = addr base idx ^^ ld32 in
+        let setd base idx v = addr base idx ^^ v ^^ st32 in
+        (* 32 - s. When s is 0 this is 32, and shifting a zero-extended 32-bit value right by
+           32 in an i64 yields 0, which is exactly the wanted "nothing carried in". Doing this
+           in 32-bit arithmetic would instead shift by 0 and duplicate a whole digit. *)
+        let comp_s = k32 ^^ get_s ^^ sub in
+        let up_loop set_c get_c limit body =
+          zero ^^ set_c ^^
+          G.block0 (G.loop0 (
+            get_c ^^ limit ^^ compile_comparison I64Op.GeU ^^ br_if_true 1l ^^
+            body ^^
+            get_c ^^ one ^^ add ^^ set_c ^^
+            G.i (Br (nr 0l))))
+        in
+        Blob.alloc env Tagged.B (cst ((dd + 1 + dd + dd) * 4)) ^^ set_scr ^^
+        get_scr ^^ Blob.payload_ptr_unskewed env ^^ set_unp ^^
+        get_unp ^^ cst ((dd + 1) * 4) ^^ add ^^ set_vnp ^^
+        get_vnp ^^ cst (dd * 4) ^^ add ^^ set_qp ^^
+        G.table dd (fun dg ->
+          setd get_unp (cst dg) (digit env get_x dg) ^^
+          setd get_vnp (cst dg) (digit env get_y dg) ^^
+          setd get_qp (cst dg) zero) ^^
+        setd get_unp (cst dd) zero ^^
+        (* n = number of significant divisor digits; ascending, so the last write wins *)
+        zero ^^ set_n ^^
+        G.table dd (fun dg ->
+          getd get_vnp (cst dg) ^^ zero ^^ compile_comparison I64Op.Ne ^^
+          E.if0 (cst (dg + 1) ^^ set_n) G.nop) ^^
+        (* s = clz32(vn[n-1]), computed as clz64 - 32 on the zero-extended digit *)
+        getd get_vnp (get_n ^^ one ^^ sub) ^^
+        G.i (Unary (Wasm_exts.Values.I64 I64Op.Clz)) ^^ k32 ^^ sub ^^ set_s ^^
+        (* normalise, high digit first so the lower ones are still un-shifted when read *)
+        G.table dd (fun rev ->
+          let dg = dd - 1 - rev in
+          if dg = 0
+          then setd get_vnp (cst 0) (getd get_vnp (cst 0) ^^ get_s ^^ shl ^^ mask)
+          else setd get_vnp (cst dg)
+                 (getd get_vnp (cst dg) ^^ get_s ^^ shl ^^
+                  getd get_vnp (cst (dg - 1)) ^^ comp_s ^^ shru ^^ orr ^^ mask)) ^^
+        setd get_unp (cst dd) (getd get_unp (cst (dd - 1)) ^^ comp_s ^^ shru) ^^
+        G.table dd (fun rev ->
+          let dg = dd - 1 - rev in
+          if dg = 0
+          then setd get_unp (cst 0) (getd get_unp (cst 0) ^^ get_s ^^ shl ^^ mask)
+          else setd get_unp (cst dg)
+                 (getd get_unp (cst dg) ^^ get_s ^^ shl ^^
+                  getd get_unp (cst (dg - 1)) ^^ comp_s ^^ shru ^^ orr ^^ mask)) ^^
+        (* main loop: j from dd-n down to 0 *)
+        cst dd ^^ get_n ^^ sub ^^ set_j ^^
+        G.block0 (G.loop0 (
+          get_j ^^ zero ^^ compile_comparison I64Op.LtS ^^ br_if_true 1l ^^
+          getd get_vnp (get_n ^^ one ^^ sub) ^^ set_v1 ^^
+          (* tmp = un[j+n] * 2^32 + un[j+n-1] *)
+          getd get_unp (get_j ^^ get_n ^^ add) ^^ k32 ^^ shl ^^
+          getd get_unp (get_j ^^ get_n ^^ add ^^ one ^^ sub) ^^ orr ^^ set_tmp ^^
+          get_tmp ^^ get_v1 ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.DivU)) ^^ set_qhat ^^
+          get_tmp ^^ get_v1 ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.RemU)) ^^ set_rhat ^^
+          (* correct the estimate down; at most twice, but written as a loop as Knuth has it *)
+          G.block0 (G.loop0 (
+            get_qhat ^^ b32 ^^ compile_comparison I64Op.GeU ^^
+            E.if1 I64Type
+              one
+              (get_qhat ^^ getd get_vnp (get_n ^^ cst 2 ^^ sub) ^^ mul ^^
+               get_rhat ^^ k32 ^^ shl ^^
+               getd get_unp (get_j ^^ get_n ^^ add ^^ cst 2 ^^ sub) ^^ add ^^
+               compile_comparison I64Op.GtU) ^^
+            set_cond ^^
+            get_cond ^^ compile_test I64Op.Eqz ^^ br_if_true 1l ^^
+            get_qhat ^^ one ^^ sub ^^ set_qhat ^^
+            get_rhat ^^ get_v1 ^^ add ^^ set_rhat ^^
+            get_rhat ^^ b32 ^^ compile_comparison I64Op.GeU ^^ br_if_true 1l ^^
+            G.i (Br (nr 0l)))) ^^
+          (* multiply and subtract *)
+          zero ^^ set_k ^^
+          up_loop set_i get_i get_n (
+            get_qhat ^^ getd get_vnp get_i ^^ mul ^^ set_p ^^
+            getd get_unp (get_i ^^ get_j ^^ add) ^^ get_k ^^ sub ^^
+            get_p ^^ mask ^^ sub ^^ set_t ^^
+            setd get_unp (get_i ^^ get_j ^^ add) (get_t ^^ mask) ^^
+            get_p ^^ k32 ^^ shru ^^ get_t ^^ k32 ^^ shrs ^^ sub ^^ set_k) ^^
+          getd get_unp (get_j ^^ get_n ^^ add) ^^ get_k ^^ sub ^^ set_tj ^^
+          setd get_unp (get_j ^^ get_n ^^ add) (get_tj ^^ mask) ^^
+          (* add back when the estimate was one too large *)
+          get_tj ^^ zero ^^ compile_comparison I64Op.LtS ^^
+          E.if0
+            (get_qhat ^^ one ^^ sub ^^ set_qhat ^^
+             zero ^^ set_k ^^
+             up_loop set_i get_i get_n (
+               getd get_unp (get_i ^^ get_j ^^ add) ^^ getd get_vnp get_i ^^ add ^^
+               get_k ^^ add ^^ set_t ^^
+               setd get_unp (get_i ^^ get_j ^^ add) (get_t ^^ mask) ^^
+               get_t ^^ k32 ^^ shru ^^ set_k) ^^
+             setd get_unp (get_j ^^ get_n ^^ add)
+               (getd get_unp (get_j ^^ get_n ^^ add) ^^ get_k ^^ add ^^ mask))
+            G.nop ^^
+          setd get_qp get_j get_qhat ^^
+          get_j ^^ one ^^ sub ^^ set_j ^^
+          G.i (Br (nr 0l)))) ^^
+        alloc env width ^^ set_out ^^
+        (if want_rem
+         then
+           (* the remainder is un shifted back down by the normalisation amount *)
+           G.table limbs (fun kk ->
+             get_out ^^ Blob.payload_ptr_unskewed env ^^
+             (getd get_unp (cst (2 * kk)) ^^ get_s ^^ shru ^^
+              getd get_unp (cst (2 * kk + 1)) ^^ comp_s ^^ shl ^^ orr ^^ mask) ^^
+             (getd get_unp (cst (2 * kk + 1)) ^^ get_s ^^ shru ^^
+              getd get_unp (cst (2 * kk + 2)) ^^ comp_s ^^ shl ^^ orr ^^ mask) ^^
+             k32 ^^ shl ^^ orr ^^
+             store_limb env kk)
+         else
+           G.table limbs (fun kk ->
+             get_out ^^ Blob.payload_ptr_unskewed env ^^
+             getd get_qp (cst (2 * kk)) ^^
+             getd get_qp (cst (2 * kk + 1)) ^^ k32 ^^ shl ^^ orr ^^
+             store_limb env kk)) ^^
+        get_out)
 
-        (* r <<= 1, top limb first so the lower limbs are still their old values *)
-        let shift_rem_up =
-          G.table n (fun j ->
-            let i = n - 1 - j in
-            snd rl.(i) ^^ compile_unboxed_const 1L ^^ shl ^^
-            (if i = 0 then G.nop
-             else snd rl.(i - 1) ^^ compile_unboxed_const 63L ^^ shru ^^ orr) ^^
-            fst rl.(i))
-        in
-        (* r >= v, most significant limb first, stopping at the first that differs *)
-        let rec rem_ge_divisor i =
-          if i < 0 then Bool.lit true else
-          snd rl.(i) ^^ snd vl.(i) ^^ compile_comparison I64Op.Eq ^^
-          E.if1 I64Type
-            (rem_ge_divisor (i - 1))
-            (snd rl.(i) ^^ snd vl.(i) ^^ compile_comparison I64Op.GeU)
-        in
-        (* r -= v, the same borrow chain as subtraction, over locals *)
-        let sub_divisor =
-          compile_unboxed_const 0L ^^ set_c ^^
-          G.table n (fun i ->
-            snd rl.(i) ^^ snd vl.(i) ^^ sub ^^ set_t ^^
-            get_t ^^ get_c ^^ sub ^^ set_s ^^
-            snd rl.(i) ^^ snd vl.(i) ^^ compile_comparison I64Op.LtU ^^
-            get_t ^^ get_c ^^ compile_comparison I64Op.LtU ^^ orr ^^ set_c ^^
-            get_s ^^ fst rl.(i))
-        in
-        G.table n (fun i -> get_a ^^ load_limb env i ^^ fst ul.(i)) ^^
-        G.table n (fun i -> get_b ^^ load_limb env i ^^ fst vl.(i)) ^^
-        (* Division by zero raises the machine's own trap, by dividing by zero, so that the
-           message is identical to the one every other integer type produces here. Testing
-           the fold with Eqz rather than branching on it directly: E.if0 truncates to 32
-           bits, and a divisor of exactly 2^32 is all it would take. *)
-        G.table n (fun i -> snd vl.(i) ^^ (if i = 0 then G.nop else orr)) ^^
+  (* --- Division and remainder -----------------------------------------------------------
+
+     Two algorithms behind one runtime dispatch on the DIVISOR:
+
+       divisor < 2^32   single-digit long division, fully unrolled, no scratch memory
+       otherwise        Knuth algorithm D
+
+     This replaces a restoring binary long division that walked the dividend one bit at a
+     time. That version was correct and is what these were graded against; it was also
+     O(width) iterations of O(limbs) work each, which for Nat256 is far more work than the
+     multiply beside it. Landing it first was deliberate: division is the one wide operation
+     with real correction-step subtlety -- Knuth's estimate needs an add-back that fires on
+     roughly one input in 2^31 -- so having a simple correct version meant the fast one could
+     be graded against something rather than against my own reading of the proof.
+
+     Both paths work in base 2^32, so every quotient estimate is a 64/32 hardware divide and
+     every product a 32x32, all comfortably inside an i64. Base 2^64 would need a 128/64
+     divide, which wasm does not have. *)
+  let divmod env width ~want_rem =
+    let n = limbs_of_width width in
+    Func.share_code2 Func.Never env
+      (Printf.sprintf "wide%d_%s" width (if want_rem then "rem" else "div"))
+      (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let orr = G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) in
+        (* Division by zero raises the machine's own trap, by dividing by zero, so the
+           message matches every other integer type here. The test is Eqz on the full i64:
+           E.if0 truncates its condition to 32 bits, and a divisor of exactly 2^32 would
+           otherwise read as zero. *)
+        G.table n (fun i -> get_b ^^ load_limb env i ^^ (if i = 0 then G.nop else orr)) ^^
         compile_test I64Op.Eqz ^^
         E.if0
           (compile_unboxed_const 1L ^^ compile_unboxed_const 0L ^^
            G.i (Binary (Wasm_exts.Values.I64 I64Op.DivU)) ^^ G.i Drop)
           G.nop ^^
-        G.table n (fun i -> compile_unboxed_const 0L ^^ fst ql.(i)) ^^
-        G.table n (fun i -> compile_unboxed_const 0L ^^ fst rl.(i)) ^^
-        G.table n (fun j ->
-          let k = n - 1 - j in
-          compile_unboxed_const 64L ^^ set_bit ^^
-          compile_while env
-            (get_bit ^^ compile_unboxed_const 0L ^^ compile_comparison I64Op.GtU)
-            (get_bit ^^ compile_unboxed_const 1L ^^ sub ^^ set_bit ^^
-             shift_rem_up ^^
-             snd rl.(0) ^^ snd ul.(k) ^^ get_bit ^^ shru ^^
-             compile_bitand_const 1L ^^ orr ^^ fst rl.(0) ^^
-             rem_ge_divisor (n - 1) ^^
-             E.if0
-               (sub_divisor ^^
-                snd ql.(k) ^^ compile_unboxed_const 1L ^^ get_bit ^^ shl ^^ orr ^^
-                fst ql.(k))
-               G.nop)) ^^
-        alloc env width ^^ set_res ^^
-        G.table n (fun i ->
-          get_res ^^ Blob.payload_ptr_unskewed env ^^
-          snd (if want_rem then rl.(i) else ql.(i)) ^^ store_limb env i) ^^
-        get_res)
+        (* Does the divisor fit one base-2^32 digit? Every limb above the first must be zero
+           AND the first must be below 2^32. Dividing by a small constant is the common case,
+           and this path is also what keeps Knuth D's read of vn[n-2] in bounds. *)
+        G.table (n - 1) (fun i ->
+          get_b ^^ load_limb env (i + 1) ^^ (if i = 0 then G.nop else orr)) ^^
+        get_b ^^ load_limb env 0 ^^ compile_shrU_const 32L ^^ orr ^^
+        compile_test I64Op.Eqz ^^
+        E.if1 I64Type
+          (get_a ^^ get_b ^^ load_limb env 0 ^^ divmod_small env width ~want_rem)
+          (get_a ^^ get_b ^^ knuth env width ~want_rem))
 
   (* --- Exponentiation --------------------------------------------------------------------
      Square-and-multiply. The exponent is held in locals and shifted down a bit at a time;
@@ -4679,6 +4864,7 @@ module Wide = struct
         compile_test I64Op.Eqz ^^
         E.else_trap_with env "losing precision" ^^
         get_a ^^ load_limb env 0)
+
 
 end (* Wide *)
 
