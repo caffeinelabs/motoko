@@ -11,7 +11,6 @@ use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::OnceLock;
-use test_runner::mode::{self, Mode};
 use test_runner::test_runner::{self as exec, SubnetType};
 
 #[derive(Parser, Clone)]
@@ -34,14 +33,10 @@ struct Cli {
     _r: bool,
     #[arg(short = 'v')]
     _v: bool,
-    /// Loop over the persistence modes applicable to the test (first accepts,
-    /// later diff against the fresh golden). Otherwise honor `EXTRA_MOC_ARGS`.
-    #[arg(long = "all-modes")]
-    all_modes: bool,
     files: Vec<String>,
 }
 
-const MOC_ARGS_DEFAULT: &str = "--legacy-persistence --legacy-actors --skip-gc-deprecation-warning";
+const MOC_ARGS_DEFAULT: &str = "--legacy-actors";
 const WASMTIME_OPTIONS: &[&str] = &[
     "-C", "cache=n",
     "-W", "nan-canonicalization=y",
@@ -252,14 +247,8 @@ struct Directives {
     filter: HashMap<String, String>,
     check: bool,
     no_force_gc: bool,
-    no_skip_gc_deprecation_warning: bool,
-    eop_only: bool,
-    classical_only: bool,
-    incremental_gc_only: bool,
-    generational_gc_only: bool,
     skip_sanity_checks: bool,
     drun_skip: bool,
-    default_gc_only: bool,
     application_subnet: bool,
 }
 
@@ -282,16 +271,10 @@ fn parse_directives(src: &str, is_drun: bool) -> Directives {
             }
             d.check |= re(r"^// *CHECK").is_match(line);
             d.no_force_gc |= tagged("MOC-NO-FORCE-GC");
-            d.no_skip_gc_deprecation_warning |= tagged("NO-SKIP-GC-DEPRECATION-WARNING");
-            d.generational_gc_only |= tagged("GENERATIONAL-GC-ONLY");
         } else {
             d.drun_skip |= line.starts_with("# SKIP drun") || line.starts_with("#SKIP drun");
-            d.default_gc_only |= tagged("DEFAULT-GC-ONLY");
             d.application_subnet |= tagged("APPLICATION-SUBNET");
         }
-        d.eop_only |= tagged("ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY");
-        d.classical_only |= tagged("CLASSICAL-PERSISTENCE-ONLY");
-        d.incremental_gc_only |= tagged("INCREMENTAL-GC-ONLY");
         d.skip_sanity_checks |= tagged("SKIP-SANITY-CHECKS");
     }
     d
@@ -307,35 +290,11 @@ fn extract_directive(src: &str, marker: &str) -> Vec<String> {
 
 /// Returns `None` (run), `Some("")` (silent skip), or `Some(msg)` (print-and-skip).
 fn skip_reason(d: &Directives, is_drun: bool) -> Option<&'static str> {
-    let extra = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
-    let has = |s: &str| extra.contains(s);
-    let silent_or = |msg| if is_drun { Some("") } else { Some(msg) };
-
     if is_drun && d.drun_skip {
         return Some("");
     }
-    if d.eop_only && !has("--enhanced-orthogonal-persistence") {
-        return silent_or(" Skipped (not applicable to classical orthogonal persistence)");
-    }
-    if d.classical_only && has("--enhanced-orthogonal-persistence") {
-        return silent_or(" Skipped (not applicable to enhanced persistence)");
-    }
-    if d.skip_sanity_checks && has("--sanity-checks") {
-        return silent_or(" Skipped (not applicable to --sanity-checks)");
-    }
-    if d.incremental_gc_only && !has("--incremental-gc") {
-        return Some(" Skipped (not applicable to incremental gc)");
-    }
-    if !is_drun && d.generational_gc_only && !has("--generational-gc") {
-        return Some(" Skipped (not applicable to generational gc)");
-    }
-    if is_drun
-        && d.default_gc_only
-        && ["--copying-gc", "--compacting-gc", "--generational-gc", "--incremental-gc"]
-            .iter()
-            .any(|f| has(f))
-    {
-        return Some("");
+    if d.skip_sanity_checks && env::var("EXTRA_MOC_ARGS").unwrap_or_default().contains("--sanity-checks") {
+        return Some(" Skipped (not applicable to --sanity-checks)");
     }
     None
 }
@@ -483,11 +442,7 @@ fn handle_mo(ctx: &mut Ctx, cli: &Cli, src: &str, d: &Directives) {
     let extra_env = extract_directive(src, "//MOC-ENV");
     let extra_moc = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
 
-    let mut moc_args_base: Vec<String> = moc_default_args().to_vec();
-    if d.no_skip_gc_deprecation_warning {
-        moc_args_base.retain(|a| a != "--skip-gc-deprecation-warning");
-    }
-
+    let moc_args_base: Vec<String> = moc_default_args().to_vec();
     let mut test_moc_args: Vec<String> = Vec::new();
     if !d.no_force_gc {
         test_moc_args.push("--force-gc".into());
@@ -896,9 +851,8 @@ fn handle_cmp(ctx: &mut Ctx, cli: &Cli) {
 /// An EMPTY/absent capture removes its golden ONLY when the phase succeeded
 /// (exit 0 — no sibling `<phase>.ret` failure marker): that is a legitimate
 /// "this phase now produces nothing" removal. On a non-zero exit the empty is a
-/// FAILURE artifact and the golden is KEPT — so under `--all-modes`, where the
-/// persistence×MV product multiplies concurrent moc/drun/pocket-ic processes, a
-/// transient-empty capture can no longer silently delete a passing test's
+/// FAILURE artifact and the golden is KEPT — parallel test processes can race,
+/// so a transient-empty capture can no longer silently delete a passing test's
 /// golden. (Golden removal thus requires a *successful* empty run, never a flaky
 /// failed one.)
 fn accept(ctx: &Ctx) {
@@ -988,36 +942,12 @@ fn run_one_pass(
     }
 }
 
-/// Persistence modes to run for `file_name`.
-/// Empty means single-pass without touching `EXTRA_MOC_ARGS`
-/// (the non-`--all-modes` case).
-fn modes_to_run(all_modes: bool, file_name: &str) -> Vec<Mode> {
-    if !all_modes {
-        return Vec::new();
-    }
-    let extra = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
-
-    // If the inherited EXTRA_MOC_ARGS already pins a persistence mode (CI
-    // sets this), honour it rather than re-running in both.
-    if extra.contains("--enhanced-orthogonal-persistence") {
-        vec![Mode::Eop]
-    } else {
-        mode::infer_modes(Path::new(file_name))
-    }
-}
-
-/// Re-exec `run-test` for a single file, pinning the persistence mode via
-/// `EXTRA_MOC_ARGS`. Isolating per-file work in its own process is
-/// required for `.drun`: `pocket-ic-server` inherits fd 1 and 2 at spawn time,
-/// so reusing a single process across files (or modes) would silently route
-/// subsequent canisters' `debug_print` output to the first file's capture.
-fn spawn_self(
-    cli: &Cli,
-    file: &str,
-    orig_cwd: &Path,
-    mode: Option<Mode>,
-    accept: bool,
-) -> bool {
+/// Re-exec `run-test` for a single file, isolating it in its own process.
+/// Isolating per-file work in its own process is required for `.drun`:
+/// `pocket-ic-server` inherits fd 1 and 2 at spawn time, so reusing a single
+/// process across files would silently route subsequent canisters' `debug_print`
+/// output to the first file's capture.
+fn spawn_self(cli: &Cli, file: &str, orig_cwd: &Path, accept: bool) -> bool {
     let exe = env::current_exe().unwrap_or_else(|_| PathBuf::from("run-test"));
     let mut cmd = Command::new(exe);
     cmd.current_dir(orig_cwd).arg(file);
@@ -1027,16 +957,6 @@ fn spawn_self(
     if cli.silent { cmd.arg("-s"); }
     if cli.only_tc { cmd.arg("-t"); }
     if cli.idl { cmd.arg("-i"); }
-    if mode.is_none() && cli.all_modes { cmd.arg("--all-modes"); }
-
-    if let Some(persist) = mode {
-        let saved = env::var("EXTRA_MOC_ARGS").unwrap_or_default();
-        // Append persistence flags to whatever was inherited.
-        let mut parts: Vec<&str> = if saved.is_empty() { vec![] } else { vec![saved.as_str()] };
-        let pf = persist.extra_moc_args();
-        if !pf.is_empty() { parts.push(pf); }
-        cmd.env("EXTRA_MOC_ARGS", parts.join(" "));
-    }
     cmd.status().map(|s| s.success()).unwrap_or(false)
 }
 
@@ -1051,19 +971,6 @@ fn process_file(cli: &Cli, file: &str, orig_cwd: &Path) -> bool {
         println!("Unknown file extension in {file}");
         println!("Supported extensions: .mo .sh .wat .did .drun");
         return false;
-    }
-
-    let modes = modes_to_run(cli.all_modes, file);
-    if !modes.is_empty() {
-        let multi = modes.len() > 1;
-        let mut ok_all = true;
-        for (i, persist) in modes.iter().copied().enumerate() {
-            if multi {
-                println!("=== mode: {} ===", persist.label());
-            }
-            ok_all &= spawn_self(cli, file, orig_cwd, Some(persist), cli.accept && i == 0);
-        }
-        return ok_all;
     }
 
     let abs_dir = match file_path.parent() {
@@ -1131,7 +1038,7 @@ fn main() {
     for file in &cli.files {
         let c = per_file_cli(&cli, file);
         let ok = if isolate {
-            spawn_self(&c, file, &orig_cwd, None, cli.accept)
+            spawn_self(&c, file, &orig_cwd, cli.accept)
         } else {
             process_file(&c, file, &orig_cwd)
         };
