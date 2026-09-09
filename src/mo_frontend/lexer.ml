@@ -8,8 +8,7 @@ type parser_token = Parser.token * Lexing.position * Lexing.position
 
 let first (t, _, _) = t
 
-(* Tokens that can end an expression; used to keep an unspaced `#` after them
-   (e.g. `a#b`) meaning concatenation rather than a variant introduction *)
+(* Tokens that can end an expression — an unspaced `#` right after one (`a#b`) stays concatenation instead of becoming a variant *)
 let ends_exp = function
   | Parser.ID _ | Parser.NAT _ | Parser.FLOAT _ | Parser.CHAR _
   | Parser.TEXT _ | Parser.BOOL _ | Parser.NULL | Parser.RPAR
@@ -93,13 +92,11 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
       match token with
       | Parser.GT when leading_ws () && trailing_ws () -> Parser.GTOP
       | Parser.LT when leading_ws () && trailing_ws () -> Parser.LTOP
-      (* an unspaced `(`/`[` may extend a head (call/index), a spaced one
-         belongs to the branch or body that follows it *)
+      (* an unspaced `(`/`[` may extend a head with a call or index; a spaced one belongs to the branch or body that follows *)
       | Parser.LPAR when not (leading_ws ()) -> Parser.TIGHT_LPAR
       | Parser.LBRACKET when not (leading_ws ()) -> Parser.TIGHT_LBRACKET
-      (* `#` immediately followed by an identifier is a variant introduction
-         (e.g. the branch in `if (c < 0) #less else ...`) unless it directly
-         follows an expression-ending token (`a#b` stays concatenation) *)
+      (* `#` glued to an identifier is a variant introduction (the branch in `if (c < 0) #less else ...`),
+         unless it directly follows an expression-ending token — `a#b` stays concatenation *)
       | Parser.HASH
         when not (trailing_ws ())
              && (match first (peek ()) with ST.ID _ -> true | _ -> false)
@@ -110,8 +107,7 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
     last_trailing := List.map (map_trivia absurd) trailing_trivia;
     PosHashtbl.add trivia_table (pos_of_lexpos start)
       { leading_trivia; trailing_trivia };
-    (* `??` followed by whitespace is the null-coalescing operator; `??x`
-       (no whitespace) means two option introductions, i.e. `?(?x)` *)
+    (* `??` followed by whitespace is the null-coalescing operator; unspaced `??x` means two option introductions, i.e. `?(?x)` *)
     match token with
     | Parser.NULLCOALESCE when not (trailing_ws ()) ->
         let mid = { start with Lexing.pos_cnum = start.Lexing.pos_cnum + 1 } in

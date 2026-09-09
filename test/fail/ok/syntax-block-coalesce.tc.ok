@@ -1,1 +1,1 @@
-syntax-block-coalesce.mo:4.16-4.19: syntax error [M0270], unexpected token 'let': braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`
+syntax-block-coalesce.mo:3.16-3.19: syntax error [M0270], unexpected token 'let': braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`

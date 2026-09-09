@@ -121,12 +121,10 @@ end
 
 module R = MenhirRecoveryLib.Make (Parser.MenhirInterpreter) (RecoveryConfig) (RecoveryTracer)
 
-(* Targeted diagnostics for the block-vs-record ambiguity and reserved
-   keywords, with concrete fix-its; anything unrecognized falls back to the
-   generic M0001 "unexpected token" report. *)
+(* Targeted diagnostics with concrete fix-its for the block-vs-record ambiguity and reserved keywords;
+   anything unrecognized falls back to the generic M0001 "unexpected token" report. *)
 
-(* Keyword-shaped lexemes; keywords are lower-case words, possibly ending in
-   `*` or `?` (`async*`, `await?`) *)
+(* Keyword-shaped lexemes: lower-case words, possibly ending in `*` or `?` (`async*`, `await?`) *)
 let keyword_shaped lexeme =
   lexeme <> "" &&
   (match lexeme.[0] with 'a'..'z' -> true | _ -> false) &&
@@ -152,8 +150,7 @@ let contains_substring s sub =
   let rec go i = i + m <= n && (String.sub s i m = sub || go (i + 1)) in
   go 0
 
-(* Does any explanation mention the record-field nonterminal, i.e. is the
-   parser inside a record literal `{ ... }`? *)
+(* Does any explanation mention the record-field nonterminal, i.e. is the parser inside a record literal `{ ... }`? *)
 let expecting_exp_field explanations =
   let mentions sym =
     let s = Printers.string_of_symbol sym in
@@ -177,19 +174,16 @@ let handle_error lexbuf error_detail message_store (start, end_)
   in
   let acceptable tok = I.acceptable inputneeded_cp tok start in
   let code, msg =
-    (* a block of declarations where only a record literal `{ ... }` is
-       allowed: point to `do { ... }` *)
+    (* a block of declarations where only a record literal `{ ... }` is allowed: point to `do { ... }` *)
     if is_statement_start last_token && expecting_exp_field explanations then
       "M0270",
       Printf.sprintf
         "unexpected %s: braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`"
         token
-    (* only a block can follow: the branches or body of an
-       `if`/`while`/`for` with an unparenthesized (extended) head must be
-       braced; the acceptable-token guards exclude the other `{`-expecting
-       spots (a class body also accepts `=`, an object body a field name, a
-       legacy branch an expression), so this fires only where a block is the
-       sole continuation *)
+    (* only a block can follow: an unparenthesized (extended) `if`/`while`/`for` head requires braced branches or body.
+       The acceptable-token guards keep this away from the other `{`-expecting spots —
+       a class body also accepts `=`, an object body a field name, a legacy branch any expression —
+       so it fires only where `{` is the sole continuation *)
     else if last_token <> Parser.LCURLY && acceptable Parser.LCURLY
             && not (acceptable (Parser.ID "id")) && not (acceptable Parser.LPAR)
             && not (acceptable Parser.EQ) then
@@ -197,14 +191,12 @@ let handle_error lexbuf error_detail message_store (start, end_)
       Printf.sprintf
         "unexpected %s, expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition"
         token
-    (* a record literal or block where neither is allowed (e.g. an
-       unparenthesized `if` condition or `switch` scrutinee) *)
+    (* a record literal or block where neither is allowed, e.g. written directly as a `switch` or `if` head *)
     else if last_token = Parser.LCURLY && acceptable Parser.LPAR then
       "M0269",
       "a record literal or block is not allowed in this position; wrap a record in parentheses, `({ ... })`, or use `do { ... }` for a block"
-    (* a reserved keyword where an identifier would be accepted; keywords that
-       start a statement (`return`, `async*`, ...) or `else` are excluded, as
-       for those the user almost certainly meant the statement *)
+    (* a reserved keyword where an identifier would do; statement-starting keywords (`return`, `async*`, ...) and `else` are excluded —
+       there the user almost certainly meant the statement *)
     else if (match last_token with
              | Parser.ID _ | Parser.ELSE -> false
              | t -> not (is_statement_start t) && keyword_shaped lexeme)

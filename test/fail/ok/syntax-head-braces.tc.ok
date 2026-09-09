@@ -1,1 +1,1 @@
-syntax-head-braces.mo:4.17-4.18: syntax error [M0272], unexpected token '1', expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition
+syntax-head-braces.mo:3.17-3.18: syntax error [M0272], unexpected token '1', expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition

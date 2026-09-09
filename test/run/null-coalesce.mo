@@ -9,9 +9,8 @@ let nn2 : ??Nat = ?null;
 let nn3 = ??1;
 let nn4 : ??Nat = ??1;
 
-// `??` is whitespace-sensitive: `??x` (unspaced) means two option
-// introductions `?(?x)`, `?? ` (with trailing whitespace) is the
-// null-coalescing operator.
+// `??` is whitespace-sensitive: unspaced `??x` means two option introductions `?(?x)`,
+// while `?? ` (with trailing whitespace) is the null-coalescing operator.
 let nn5 : ??Nat = ??1;
 assert (nn5 == ??1);
 switch (??9 : ??Nat) {
