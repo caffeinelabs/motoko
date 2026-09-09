@@ -4407,6 +4407,103 @@ module Wide = struct
           get_r ^^ Blob.payload_ptr_unskewed env ^^ snd rl.(i) ^^ store_limb env i) ^^
         get_r)
 
+  (* --- Division and remainder -----------------------------------------------------------
+
+     Restoring binary long division: 128 or 256 iterations of "shift the remainder up by one
+     bit, pull down the next bit of the dividend, and subtract the divisor if it fits".
+
+     This is deliberately the SIMPLE algorithm rather than Knuth D. Division is the one wide
+     operation with real correction-step subtlety (Knuth's quotient estimate needs an
+     add-back that fires on roughly one input in 2^63, which is exactly the case no random
+     test will ever draw), and shipping a correct implementation first means the faster one
+     can be graded against something. The differential oracle over this version is what
+     will make a later Knuth D safe to land. Costed honestly: this is O(width) iterations of
+     O(limbs) work, so a Nat256 divide is far more expensive than a multiply.
+
+     Dividend, divisor, quotient and remainder all live in locals. The outer walk over limbs
+     is unrolled statically, so only the bit index within a limb is dynamic, which keeps
+     every operand reference a named local rather than a computed address. *)
+  let divmod env width ~want_rem =
+    let n = limbs_of_width width in
+    let name = Printf.sprintf "wide%d_%s" width (if want_rem then "rem" else "div") in
+    Func.share_code2 Func.Never env name (("a", I64Type), ("b", I64Type)) [I64Type]
+      (fun env get_a get_b ->
+        let ul = Array.init n (fun i -> new_local env (Printf.sprintf "u%d" i)) in
+        let vl = Array.init n (fun i -> new_local env (Printf.sprintf "v%d" i)) in
+        let ql = Array.init n (fun i -> new_local env (Printf.sprintf "q%d" i)) in
+        let rl = Array.init n (fun i -> new_local env (Printf.sprintf "r%d" i)) in
+        let (set_bit, get_bit) = new_local env "bit" in
+        let (set_t, get_t) = new_local env "t" in
+        let (set_s, get_s) = new_local env "s" in
+        let (set_c, get_c) = new_local env "brw" in
+        let (set_res, get_res) = new_local env "res" in
+        let sub = G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) in
+        let orr = G.i (Binary (Wasm_exts.Values.I64 I64Op.Or)) in
+        let shl = G.i (Binary (Wasm_exts.Values.I64 I64Op.Shl)) in
+        let shru = G.i (Binary (Wasm_exts.Values.I64 I64Op.ShrU)) in
+
+        (* r <<= 1, top limb first so the lower limbs are still their old values *)
+        let shift_rem_up =
+          G.table n (fun j ->
+            let i = n - 1 - j in
+            snd rl.(i) ^^ compile_unboxed_const 1L ^^ shl ^^
+            (if i = 0 then G.nop
+             else snd rl.(i - 1) ^^ compile_unboxed_const 63L ^^ shru ^^ orr) ^^
+            fst rl.(i))
+        in
+        (* r >= v, most significant limb first, stopping at the first that differs *)
+        let rec rem_ge_divisor i =
+          if i < 0 then Bool.lit true else
+          snd rl.(i) ^^ snd vl.(i) ^^ compile_comparison I64Op.Eq ^^
+          E.if1 I64Type
+            (rem_ge_divisor (i - 1))
+            (snd rl.(i) ^^ snd vl.(i) ^^ compile_comparison I64Op.GeU)
+        in
+        (* r -= v, the same borrow chain as subtraction, over locals *)
+        let sub_divisor =
+          compile_unboxed_const 0L ^^ set_c ^^
+          G.table n (fun i ->
+            snd rl.(i) ^^ snd vl.(i) ^^ sub ^^ set_t ^^
+            get_t ^^ get_c ^^ sub ^^ set_s ^^
+            snd rl.(i) ^^ snd vl.(i) ^^ compile_comparison I64Op.LtU ^^
+            get_t ^^ get_c ^^ compile_comparison I64Op.LtU ^^ orr ^^ set_c ^^
+            get_s ^^ fst rl.(i))
+        in
+        G.table n (fun i -> get_a ^^ load_limb env i ^^ fst ul.(i)) ^^
+        G.table n (fun i -> get_b ^^ load_limb env i ^^ fst vl.(i)) ^^
+        (* Division by zero raises the machine's own trap, by dividing by zero, so that the
+           message is identical to the one every other integer type produces here. Testing
+           the fold with Eqz rather than branching on it directly: E.if0 truncates to 32
+           bits, and a divisor of exactly 2^32 is all it would take. *)
+        G.table n (fun i -> snd vl.(i) ^^ (if i = 0 then G.nop else orr)) ^^
+        compile_test I64Op.Eqz ^^
+        E.if0
+          (compile_unboxed_const 1L ^^ compile_unboxed_const 0L ^^
+           G.i (Binary (Wasm_exts.Values.I64 I64Op.DivU)) ^^ G.i Drop)
+          G.nop ^^
+        G.table n (fun i -> compile_unboxed_const 0L ^^ fst ql.(i)) ^^
+        G.table n (fun i -> compile_unboxed_const 0L ^^ fst rl.(i)) ^^
+        G.table n (fun j ->
+          let k = n - 1 - j in
+          compile_unboxed_const 64L ^^ set_bit ^^
+          compile_while env
+            (get_bit ^^ compile_unboxed_const 0L ^^ compile_comparison I64Op.GtU)
+            (get_bit ^^ compile_unboxed_const 1L ^^ sub ^^ set_bit ^^
+             shift_rem_up ^^
+             snd rl.(0) ^^ snd ul.(k) ^^ get_bit ^^ shru ^^
+             compile_bitand_const 1L ^^ orr ^^ fst rl.(0) ^^
+             rem_ge_divisor (n - 1) ^^
+             E.if0
+               (sub_divisor ^^
+                snd ql.(k) ^^ compile_unboxed_const 1L ^^ get_bit ^^ shl ^^ orr ^^
+                fst ql.(k))
+               G.nop)) ^^
+        alloc env width ^^ set_res ^^
+        G.table n (fun i ->
+          get_res ^^ Blob.payload_ptr_unskewed env ^^
+          snd (if want_rem then rl.(i) else ql.(i)) ^^ store_limb env i) ^^
+        get_res)
+
 end (* Wide *)
 
 module Object = struct
@@ -11840,6 +11937,8 @@ let compile_binop env t op : SR.t * SR.t * G.t =
   | Type.(Prim (Nat8|Nat16|Nat32|Nat64|Int8|Int16|Int32|Int64)),
                                               AndOp -> G.i (Binary (Wasm_exts.Values.I64 I64Op.And))
   | Type.(Prim (Nat128 | Nat256 as pty)), WMulOp -> Wide.mul env (Wide.width_of_typ pty) ~trap:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), DivOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:false
+  | Type.(Prim (Nat128 | Nat256 as pty)), ModOp -> Wide.divmod env (Wide.width_of_typ pty) ~want_rem:true
   | Type.(Prim (Nat128 | Nat256 as pty)), MulOp  -> Wide.mul env (Wide.width_of_typ pty) ~trap:true
   | Type.(Prim (Nat128 | Nat256 as pty)), AndOp -> Wide.bitop env (Wide.width_of_typ pty) I64Op.And
   | Type.(Prim (Nat128 | Nat256 as pty)), OrOp  -> Wide.bitop env (Wide.width_of_typ pty) I64Op.Or
