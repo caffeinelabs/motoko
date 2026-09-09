@@ -1,0 +1,5 @@
+implicit-derivation-record-variant.mo:148.29-148.69: warning [M0236], You can use the dot notation `l1.compare(...)` here
+implicit-derivation-record-variant.mo:264.14-264.51: warning [M0236], You can use the dot notation `tasks.sort(...)` here
+implicit-derivation-record-variant.mo:273.16-273.61: warning [M0236], You can use the dot notation `tasks.sort(...)` here
+implicit-derivation-record-variant.mo:284.15-284.77: warning [M0236], You can use the dot notation `tasks.sort(...)` here
+implicit-derivation-record-variant.mo:287.17-287.87: warning [M0236], You can use the dot notation `tasks.sort(...)` here

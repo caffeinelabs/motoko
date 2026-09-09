@@ -1,3 +1,15 @@
+warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
+    ┌─ inf-error.mo:44:13
+ 44 │       ignore Map.get(peopleMap, Nat.compare, 1); // ok
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `peopleMap`
+    = help: remove `peopleMap,`
+warning[M0236]: You can use the dot notation `peopleMap.get(...)` here
+    ┌─ inf-error.mo:45:13
+ 45 │       ignore Map.get(peopleMap, 1); // ok
+    │              ^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `peopleMap`
+    = help: remove `peopleMap,`
 error[M0096]: expression of type
   Text
 cannot produce expected type
@@ -24,6 +36,18 @@ error[M0230]: Cannot determine implicit argument `compare` of type
  52 │       ignore peopleMap.get("test"); // bad
     │              ^^^^^^^^^^^^^^^^^^^^^ 
     = note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+warning[M0236]: You can use the dot notation `peopleMap.set(...)` here
+    ┌─ inf-error.mo:57:13
+ 57 │       ignore Map.set(peopleMap, Nat.compare, 1, ""); // ok
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `peopleMap`
+    = help: remove `peopleMap,`
+warning[M0236]: You can use the dot notation `peopleMap.set(...)` here
+    ┌─ inf-error.mo:58:13
+ 58 │       ignore Map.set(peopleMap, 1, ""); // ok
+    │              ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Map` with `peopleMap`
+    = help: remove `peopleMap,`
 error[M0096]: expression of type
   Text
 cannot produce expected type

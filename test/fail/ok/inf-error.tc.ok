@@ -1,3 +1,5 @@
+inf-error.mo:44.13-44.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+inf-error.mo:45.13-45.34: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
 inf-error.mo:46.45-46.51: type error [M0096], expression of type
   Text
 cannot produce expected type
@@ -12,6 +14,8 @@ cannot produce expected type
 inf-error.mo:52.13-52.34: type error [M0230], Cannot determine implicit argument `compare` of type
   (Any, Any) -> Order
 note: If you're trying to omit an implicit argument named `compare` you need to have a matching declaration named `compare` in scope.
+inf-error.mo:57.13-57.51: warning [M0236], You can use the dot notation `peopleMap.set(...)` here
+inf-error.mo:58.13-58.38: warning [M0236], You can use the dot notation `peopleMap.set(...)` here
 inf-error.mo:59.45-59.51: type error [M0096], expression of type
   Text
 cannot produce expected type

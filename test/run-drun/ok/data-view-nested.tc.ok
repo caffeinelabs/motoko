@@ -6,8 +6,3 @@ data-view-sample/views.mo:213.12-213.33: warning [M0236], You can use the dot no
 data-view-sample/views.mo:216.12-216.33: warning [M0236], You can use the dot notation `self.values(...)` here
 data-view-sample/views.mo:233.12-233.34: warning [M0236], You can use the dot notation `self.values(...)` here
 data-view-sample/views.mo:236.12-236.34: warning [M0236], You can use the dot notation `self.values(...)` here
-data-view-sample.mo:248.26-248.40: warning [M0154], field fromNat32 is deprecated
-note: Use `Nat32.toChar` instead.
-data-view-sample.mo:248.41-248.54: warning [M0154], field fromNat is deprecated
-note: Use `Nat.toNat32` instead.
-data-view-sample.mo:248.14-248.59: warning [M0236], You can use the dot notation `Char.fromNat32(Nat32.fromNat(i)).toText(...)` here
