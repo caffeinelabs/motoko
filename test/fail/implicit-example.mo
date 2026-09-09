@@ -16,7 +16,7 @@ module Array {
 
   public func toText<T>(as : [T], toText : (implicit : T -> Text)) : Text {
      var t = "";
-     for (a in as.vals()) {
+     for (a in as.values()) {
        t := t # (toText(a));
      };
      t
@@ -52,4 +52,3 @@ func test () {
 
 test();
 
-//MOC-FLAG -A=M0269

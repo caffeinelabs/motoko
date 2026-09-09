@@ -3,7 +3,7 @@ import Prim "mo:⛔";
 let a = Prim.Array_init<Nat>(10,42);
 
 assert (a.size() == 10);
-for (n in a.vals()) {
+for (n in a.values()) {
   assert(n == 42);
 };
 for (n in a.values()) {
@@ -59,4 +59,3 @@ tabulate(1);
 tabulate(2);
 tabulate(1000);
 tabulate(1000_000);
-//MOC-FLAG -A=M0269

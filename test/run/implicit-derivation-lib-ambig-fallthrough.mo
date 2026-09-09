@@ -14,7 +14,7 @@ module Combiner {
   public func show(__record : [(Text, () -> Text)]) : Text {
     var s = "{";
     var first = true;
-    for ((k, v) in __record.vals()) {
+    for ((k, v) in __record.values()) {
       if (not first) { s #= "," };
       s #= k # ":" # v();
       first := false;
@@ -26,4 +26,3 @@ module Combiner {
 func render(r : R, show : (implicit : R -> Text)) : Text = show(r);
 
 assert render({ a = 1; b = 2 }) == "{a:1,b:2}";
-//MOC-FLAG -A=M0269

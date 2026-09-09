@@ -41,7 +41,7 @@ module RecordShow {
   public func show(__record : [(Text, () -> Text)]) : Text {
     var s = "{";
     var first = true;
-    for ((k, v) in __record.vals()) {
+    for ((k, v) in __record.values()) {
       if (not first) { s #= "," };
       s #= k # "=" # v();
       first := false;
@@ -60,4 +60,3 @@ assert s6 == "#ping(7)";
 type Tree = { #leaf : Nat; #nest : Tree };
 let s7 = inspect<Tree>(#nest (#nest (#leaf 3)));
 assert s7 == "#nest(#nest(#leaf(3)))";
-//MOC-FLAG -A=M0269

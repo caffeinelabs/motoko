@@ -41,7 +41,7 @@ persistent actor {
     while (idx < 5) {
 
       Prim.debugPrint(debug_show ("================"));
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
       };
 
@@ -66,7 +66,7 @@ persistent actor {
 
       Prim.debugPrint(debug_show ("================"));
 
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         let val = Prim.weakGet(wr);
         Prim.debugPrint(debug_show (val));
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
@@ -90,4 +90,3 @@ persistent actor {
 //ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 
 //CALL ingress test3 "DIDL\x00\x00"
-//MOC-FLAG -A=M0269

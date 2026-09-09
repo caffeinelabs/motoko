@@ -10,7 +10,7 @@ type Monoid<T> = module {
 
 func fold<T>(xs : [T], Monoid : (implicit : Monoid<T>)) : T {
   var acc = Monoid.empty;
-  for (x in xs.vals()) {
+  for (x in xs.values()) {
     acc := Monoid.combine(acc, x);
   };
   acc;
@@ -57,4 +57,3 @@ do {
   let Monoid = Nat.MonoidMul;
   assert fold([2, 3, 4]) == 24;
 };
-//MOC-FLAG -A=M0269

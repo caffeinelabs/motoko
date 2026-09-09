@@ -33,7 +33,7 @@ actor Await {
    for (i in os.keys()) {
      os[i] := ? (Ack());
    };
-   for (o in os.vals()) {
+   for (o in os.values()) {
      switch o {
       case (? a) await a;
       case null (assert false);
@@ -123,4 +123,3 @@ actor Await {
 };
 
 Await.Test(); //OR-CALL ingress Test 0x4449444C0000
-//MOC-FLAG -A=M0269
