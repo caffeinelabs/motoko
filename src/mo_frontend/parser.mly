@@ -1321,7 +1321,7 @@ dec :
      of a record field (`{ ... }` is a block here) or of `let`/`:=` *)
   | x=id EQ e=exp(ob, ob, exp_cont)
     { syntax_error (at $sloc) "M0269"
-        "a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`";
+        "a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`";
       let ef = { mut = Const @@ no_region; id = x; exp = e } @@ at $sloc in
       ExpD (ObjE ([], [ef]) @? at $sloc) @? at $sloc }
 

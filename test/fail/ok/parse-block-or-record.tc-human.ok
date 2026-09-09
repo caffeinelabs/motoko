@@ -1,40 +1,40 @@
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:14:14
  14 │      case _ { x = 1 }; // ambiguous, block preferred, syntax error
     │               ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:15:14
  15 │      case _ { x = 1    // also missing '}'
     │               ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:21:14
  21 │      case _ { y = 2; z = 3; w = 4 }
     │               ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:21:21
  21 │      case _ { y = 2; z = 3; w = 4 }
     │                      ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:21:28
  21 │      case _ { y = 2; z = 3; w = 4 }
     │                             ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:26:25
  26 │      case _ { var x = 1; y = 2; z = 3; w = 4 }
     │                          ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:26:32
  26 │      case _ { var x = 1; y = 2; z = 3; w = 4 }
     │                                 ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:26:39
  26 │      case _ { var x = 1; y = 2; z = 3; w = 4 }
     │                                        ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:31:36
  31 │      case _ { var x = 1; var y = 2; z = 3; w = 4 }
     │                                     ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:31:43
  31 │      case _ { var x = 1; var y = 2; z = 3; w = 4 }
     │                                            ^^^^^ 
@@ -96,135 +96,135 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
     ┌─ parse-block-or-record.mo:44:23
  44 │      case _ { r with x = 1 } // ambiguous, block preferred, syntax error
     │                        ^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:50:24
  50 │    catch _ { var x = 1; y = 2; z = 3; w = 4 }
     │                         ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:50:31
  50 │    catch _ { var x = 1; y = 2; z = 3; w = 4 }
     │                                ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:50:38
  50 │    catch _ { var x = 1; y = 2; z = 3; w = 4 }
     │                                       ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:51:24
  51 │    finally { var x = 1; y = 2; z = 3; w = 4 };
     │                         ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:51:31
  51 │    finally { var x = 1; y = 2; z = 3; w = 4 };
     │                                ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:51:38
  51 │    finally { var x = 1; y = 2; z = 3; w = 4 };
     │                                       ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:53:22
  53 │    throw { var x = 1; y = 2; z = 3; w = 4 };
     │                       ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:53:29
  53 │    throw { var x = 1; y = 2; z = 3; w = 4 };
     │                              ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:53:36
  53 │    throw { var x = 1; y = 2; z = 3; w = 4 };
     │                                     ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:57:33
  57 │    let ?x = ?1 else { var x = 1; y = 2; z = 3; w = 4 };
     │                                  ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:57:40
  57 │    let ?x = ?1 else { var x = 1; y = 2; z = 3; w = 4 };
     │                                         ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:57:47
  57 │    let ?x = ?1 else { var x = 1; y = 2; z = 3; w = 4 };
     │                                                ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:61:24
  61 │    if true { var x = 1; y = 2; z = 3; w = 4 }
     │                         ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:61:31
  61 │    if true { var x = 1; y = 2; z = 3; w = 4 }
     │                                ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:61:38
  61 │    if true { var x = 1; y = 2; z = 3; w = 4 }
     │                                       ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:62:21
  62 │    else { var x = 1; y = 2; z = 3; w = 4 };
     │                      ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:62:28
  62 │    else { var x = 1; y = 2; z = 3; w = 4 };
     │                             ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:62:35
  62 │    else { var x = 1; y = 2; z = 3; w = 4 };
     │                                    ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:64:27
  64 │    while true { var x = 1; y = 2; z = 3; w = 4 };
     │                            ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:64:34
  64 │    while true { var x = 1; y = 2; z = 3; w = 4 };
     │                                   ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:64:41
  64 │    while true { var x = 1; y = 2; z = 3; w = 4 };
     │                                          ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:66:21
  66 │    loop { var x = 1; y = 2; z = 3; w = 4 };
     │                      ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:66:28
  66 │    loop { var x = 1; y = 2; z = 3; w = 4 };
     │                             ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:66:35
  66 │    loop { var x = 1; y = 2; z = 3; w = 4 };
     │                                    ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:70:23
  70 │    ignore { var x = 1; y = 2; z = 3; w = 4 };
     │                        ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:70:30
  70 │    ignore { var x = 1; y = 2; z = 3; w = 4 };
     │                               ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:70:37
  70 │    ignore { var x = 1; y = 2; z = 3; w = 4 };
     │                                      ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:71:22
  71 │    async { var x = 1; y = 2; z = 3; w = 4 };
     │                       ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:71:29
  71 │    async { var x = 1; y = 2; z = 3; w = 4 };
     │                              ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:71:36
  71 │    async { var x = 1; y = 2; z = 3; w = 4 };
     │                                     ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:77:5
  77 │      x = 2;
     │      ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:82:5
  82 │      x = 2;
     │      ^^^^^ 
-error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to write a record, wrap it in parentheses: `({ ... })`; to declare a variable, use `let`; to assign, use `:=`
+error[M0269]: a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
     ┌─ parse-block-or-record.mo:86:5
  86 │      x = 2; // Missing let/var? Or assignment := operator? Or meant a record?
     │      ^^^^^ 
