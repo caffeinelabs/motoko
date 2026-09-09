@@ -1,5 +1,7 @@
 (library
   (name mo_values)
   (libraries num wasm lib lang_utils mo_types idllib checkseum ic uucp)
+  (inline_tests)
+  (preprocess (pps ppx_inline_test))
   (instrumentation (backend bisect_ppx --bisect-silent yes))
 )

@@ -83,5 +83,7 @@ module Nat8 : BitNumType
 module Nat16 : BitNumType
 module Nat32 : BitNumType
 module Nat64 : BitNumType
+module Nat128 : BitNumType
+module Nat256 : BitNumType
 
 val bigint_of_double : Wasm.F64.t -> Big_int.big_int

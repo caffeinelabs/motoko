@@ -150,6 +150,40 @@ This WordType is used only internally in this module, to implement the bit-wise
 or wrapping operations on NatN and IntN (see module Ranged)
 *)
 
+(*
+What `Ranged` actually needs from a word representation.
+
+A strict subset of `WordType`: the arithmetic below is done in arbitrary precision and then
+range-checked, so only the BIT-LEVEL operations go through the word. Splitting the signature
+out is what lets a 128/256-bit word exist at all -- `Wasm.Ixx.S` has no implementation at
+those widths, and `Ranged` never needed most of it.
+
+Every existing `WordNRep` satisfies this by having more than it asks for.
+*)
+module type BitWordType =
+sig
+  type t
+  val bitwidth : int
+  val of_big_int : Big_int.big_int -> t   (* wrapping *)
+  val to_big_int : t -> Big_int.big_int
+  val not : t -> t
+  val popcnt : t -> t
+  val clz : t -> t
+  val ctz : t -> t
+  val and_ : t -> t -> t
+  val or_ : t -> t -> t
+  val xor : t -> t -> t
+  val shl : t -> t -> t
+  val shr_s : t -> t -> t
+  val shr_u : t -> t -> t
+  val rotl : t -> t -> t
+  val rotr : t -> t -> t
+  val add : t -> t -> t
+  val sub : t -> t -> t
+  val mul : t -> t -> t
+  val pow : t -> t -> t
+end
+
 module type WordType =
 sig
   include Wasm.Ixx.S
@@ -181,6 +215,103 @@ struct
   let of_big_int = Rep.of_big_int
   let to_big_int = Rep.to_big_int
 end
+
+(*
+WIDE WORDS (128 / 256 bit).
+
+There is no machine word this size, and `MakeWord` cannot help: it builds on
+`Wasm.Ixx.Make`, which the wasm reference interpreter provides for I32 and I64 only.
+
+But `Ranged` (below) does its ARITHMETIC in arbitrary precision and only range-checks the
+result -- it reaches into the word representation for the BIT-LEVEL operations alone. So a
+wide word needs the small signature `BitWordType`, not all of `Wasm.Ixx.S`, and can simply be
+a `big_int` kept masked to the width.
+
+This runs at compile time and in the interpreter, never in a deployed canister, so clarity
+beats speed here.
+*)
+module WideRep (W : sig val bitwidth : int end) : BitWordType =
+struct
+  open Big_int
+  type t = big_int
+
+  let bitwidth = W.bitwidth
+  let modulus = power_int_positive_int 2 bitwidth
+
+  (* Every value leaves this module masked into [0, 2^bitwidth). `mod_big_int` takes the sign
+     of its argument, so a negative intermediate needs one correction. *)
+  let norm x =
+    let r = mod_big_int x modulus in
+    if sign_big_int r < 0 then add_big_int r modulus else r
+
+  let of_big_int = norm            (* wrapping, per WordRepType's contract *)
+  let to_big_int x = x             (* already normalised *)
+
+  (* Shift and rotate counts are taken modulo the width, as wasm does. Reduce BEFORE
+     converting to int: a shift count is a full-width value and would overflow `int`. *)
+  let count b =
+    int_of_big_int (mod_big_int (norm b) (big_int_of_int bitwidth))
+
+  let bits_used x =
+    let rec go v n = if sign_big_int v = 0 then n else go (shift_right_big_int v 1) (n + 1) in
+    go x 0
+
+  let and_ a b = and_big_int a b
+  let or_ a b = or_big_int a b
+  let xor a b = xor_big_int a b
+  let not a = sub_big_int (sub_big_int modulus unit_big_int) a   (* 2^w - 1 - a *)
+
+  let shl a b = norm (shift_left_big_int a (count b))
+  let shr_u a b = shift_right_big_int a (count b)
+  let shr_s a b =
+    let n = count b in
+    (* Reinterpret the top bit as a sign, shift arithmetically, mask back. *)
+    let signed =
+      if ge_big_int a (power_int_positive_int 2 (bitwidth - 1))
+      then sub_big_int a modulus else a in
+    norm (shift_right_big_int signed n)
+
+  let rotl a b =
+    let n = count b in
+    if n = 0 then a
+    else norm (or_big_int (shift_left_big_int a n) (shift_right_big_int a (bitwidth - n)))
+  let rotr a b =
+    let n = count b in
+    if n = 0 then a
+    else norm (or_big_int (shift_right_big_int a n) (shift_left_big_int a (bitwidth - n)))
+
+  let clz a = big_int_of_int (bitwidth - bits_used a)
+  let ctz a =
+    if sign_big_int a = 0 then big_int_of_int bitwidth
+    else
+      let rec go v n =
+        if sign_big_int (and_big_int v unit_big_int) <> 0 then n
+        else go (shift_right_big_int v 1) (n + 1) in
+      big_int_of_int (go a 0)
+  let popcnt a =
+    let rec go v n =
+      if sign_big_int v = 0 then n
+      else go (shift_right_big_int v 1) (n + int_of_big_int (and_big_int v unit_big_int)) in
+    big_int_of_int (go a 0)
+
+  let add a b = norm (add_big_int a b)
+  let sub a b = norm (sub_big_int a b)
+  let mul a b = norm (mult_big_int a b)
+
+  (* Square-and-multiply over the bits of the exponent: an exponent is a full-width value, so
+     `int_of_big_int` on it would overflow. *)
+  let pow a b =
+    let rec go acc base e =
+      if sign_big_int e = 0 then acc
+      else
+        let acc = if sign_big_int (and_big_int e unit_big_int) <> 0
+                  then norm (mult_big_int acc base) else acc in
+        go acc (norm (mult_big_int base base)) (shift_right_big_int e 1) in
+    go unit_big_int a (norm b)
+end
+
+module Word128Rep = WideRep (struct let bitwidth = 128 end)
+module Word256Rep = WideRep (struct let bitwidth = 256 end)
 
 module Word8Rep  = MakeWord (Int8Rep)
 module Word16Rep = MakeWord (Int16Rep)
@@ -333,7 +464,7 @@ end
 
 module Ranged
   (Rep : NumType)
-  (WordRep : WordType)
+  (WordRep : BitWordType)
   : BitNumType =
 struct
   let to_word i = WordRep.of_big_int (Rep.to_big_int i)
@@ -401,8 +532,101 @@ module Nat8 = Ranged (Nat) (Word8Rep)
 module Nat16 = Ranged (Nat) (Word16Rep)
 module Nat32 = Ranged (Nat) (Word32Rep)
 module Nat64 = Ranged (Nat) (Word64Rep)
+module Nat128 = Ranged (Nat) (Word128Rep)
+module Nat256 = Ranged (Nat) (Word256Rep)
 
 module Int_8 = Ranged (Int) (Word8Rep)
 module Int_16 = Ranged (Int) (Word16Rep)
 module Int_32 = Ranged (Int) (Word32Rep)
 module Int_64 = Ranged (Int) (Word64Rep)
+
+
+(* ---------------------------------------------------------------------------------------
+   Wide words: the properties that must hold before anything is built on them.
+
+   These run at build time. Each is a way a masked-big_int representation goes wrong quietly:
+   a value that escapes its width, a shift count that is not reduced, a logical shift that
+   behaves arithmetically, or a trapping operation that wraps instead.
+
+   Values are compared through `of_string`, never against a printed form -- `to_string` here
+   is `to_pretty_string` and groups digits with underscores, so a test written against its
+   output would be testing the formatter.
+   --------------------------------------------------------------------------------------- *)
+
+let max256 =
+  "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+let max128 = "340282366920938463463374607431768211455"
+
+let eq256 v s = Nat256.eq v (Nat256.of_string s)
+let eq128 v s = Nat128.eq v (Nat128.of_string s)
+let traps f = try ignore (f ()); false with Invalid_argument _ -> true
+
+let%test "Nat256: the largest representable value round-trips" =
+  eq256 (Nat256.of_string max256) max256
+
+let%test "Nat256: one past the top is out of bounds, not silently wrapped" =
+  traps (fun () -> Nat256.of_big_int (Big_int.power_int_positive_int 2 256))
+
+let%test "Nat128: the largest representable value round-trips" =
+  eq128 (Nat128.of_string max128) max128
+
+let%test "Nat256: addition TRAPS on overflow rather than wrapping" =
+  traps (fun () -> Nat256.add (Nat256.of_string max256) (Nat256.of_int 1))
+
+let%test "Nat256: wrapping addition wraps to zero at the boundary" =
+  eq256 (Nat256.wadd (Nat256.of_string max256) (Nat256.of_int 1)) "0"
+
+let%test "Nat256: wrapping multiply agrees with 2^255 * 2 = 0" =
+  let h = Nat256.wrapping_of_big_int (Big_int.power_int_positive_int 2 255) in
+  eq256 (Nat256.wmul h (Nat256.of_int 2)) "0"
+
+let%test "Nat256: shift counts are taken modulo the width, as wasm does" =
+  eq256 (Nat256.shl (Nat256.of_int 1) (Nat256.of_int 256)) "1"
+
+let%test "Nat256: shift left to the top bit and back" =
+  let top = Nat256.shl (Nat256.of_int 1) (Nat256.of_int 255) in
+  eq256 (Nat256.shr top (Nat256.of_int 255)) "1"
+
+let%test "Nat256: shift right is LOGICAL -- Nat is unsigned, so a set top bit does not smear" =
+  let top = Nat256.shl (Nat256.of_int 1) (Nat256.of_int 255) in
+  eq256 (Nat256.shr top (Nat256.of_int 254)) "2"
+
+let%test "Nat256: not 0 is the all-ones value" =
+  eq256 (Nat256.not (Nat256.of_int 0)) max256
+
+let%test "Nat256: clz/ctz/popcnt on a single set bit" =
+  let b = Nat256.shl (Nat256.of_int 1) (Nat256.of_int 200) in
+  eq256 (Nat256.clz b) "55" && eq256 (Nat256.ctz b) "200" && eq256 (Nat256.popcnt b) "1"
+
+let%test "Nat256: clz and ctz of zero are the full width" =
+  eq256 (Nat256.clz (Nat256.of_int 0)) "256" && eq256 (Nat256.ctz (Nat256.of_int 0)) "256"
+
+let%test "Nat256: rotate left by the full width is the identity" =
+  let v = Nat256.of_string "123456789012345678901234567890" in
+  Nat256.eq (Nat256.rotl v (Nat256.of_int 256)) v
+
+let%test "Nat256: rotl then rotr by the same amount is the identity" =
+  let v = Nat256.of_string "98765432109876543210987654321" in
+  let n = Nat256.of_int 77 in
+  Nat256.eq (Nat256.rotr (Nat256.rotl v n) n) v
+
+let%test "Nat256: rotate carries the high bit round to the bottom" =
+  let top = Nat256.shl (Nat256.of_int 1) (Nat256.of_int 255) in
+  eq256 (Nat256.rotl top (Nat256.of_int 1)) "1"
+
+let%test "Nat256: division and remainder are exact at full width" =
+  let a = Nat256.of_string max256 in
+  let b = Nat256.of_string "1000000007" in
+  let q = Nat256.div a b and r = Nat256.rem a b in
+  Nat256.eq (Nat256.add (Nat256.mul q b) r) a
+
+let%test "Nat256: pow traps when the true result does not fit" =
+  traps (fun () -> Nat256.pow (Nat256.of_int 2) (Nat256.of_int 256))
+
+let%test "Nat256: wrapping pow of 2^256 is zero" =
+  eq256 (Nat256.wpow (Nat256.of_int 2) (Nat256.of_int 256)) "0"
+
+let%test "Nat128 and Nat256 are genuinely different widths" =
+  traps (fun () -> Nat128.of_big_int (Big_int.power_int_positive_int 2 128))
+  && eq256 (Nat256.of_big_int (Big_int.power_int_positive_int 2 128))
+       "340282366920938463463374607431768211456"
