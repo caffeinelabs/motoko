@@ -81,6 +81,8 @@ let prim = function
   | Nat16 -> "n16"
   | Nat32 -> "n32"
   | Nat64 -> "n64"
+  | Nat128 -> "n128"
+  | Nat256 -> "n256"
   | Int -> "I"
   | Int8 -> "i8"
   | Int16 -> "i16"

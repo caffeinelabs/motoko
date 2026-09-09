@@ -39,6 +39,8 @@ module Make (Cfg : Config) = struct
     | Nat16 -> Atom "Nat16"
     | Nat32 -> Atom "Nat32"
     | Nat64 -> Atom "Nat64"
+    | Nat128 -> Atom "Nat128"
+    | Nat256 -> Atom "Nat256"
     | Int -> Atom "Int"
     | Int8 -> Atom "Int8"
     | Int16 -> Atom "Int16"

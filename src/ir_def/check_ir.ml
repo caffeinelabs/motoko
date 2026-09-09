@@ -373,6 +373,8 @@ let type_lit env lit at : T.prim =
   | Nat16Lit _ -> T.Nat16
   | Nat32Lit _ -> T.Nat32
   | Nat64Lit _ -> T.Nat64
+  | Nat128Lit _ -> T.Nat128
+  | Nat256Lit _ -> T.Nat256
   | IntLit _ -> T.Int
   | Int8Lit _ -> T.Int8
   | Int16Lit _ -> T.Int16

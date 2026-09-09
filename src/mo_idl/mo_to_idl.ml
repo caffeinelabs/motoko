@@ -82,6 +82,10 @@ module MakeState() = struct
     | Nat16 -> PrimT Nat16
     | Nat32 -> PrimT Nat32
     | Nat64 -> PrimT Nat64
+    (* Candid has no fixed 128/256-bit integer, and needs none: `nat` is LEB128 and
+       arbitrary-precision, so a wide value crosses the wire exactly. Decoding back into a
+       fixed width range-checks, like every other narrowing decode. *)
+    | Nat128 | Nat256 -> PrimT Nat
     | Int -> PrimT Int
     | Int8 -> PrimT Int8
     | Int16 -> PrimT Int16

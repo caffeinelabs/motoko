@@ -85,6 +85,8 @@ let pick_val vs = function
   | T.Nat16 -> pick_nat (module Numerics.Nat16) (fun x -> V.Nat16 x) vs
   | T.Nat32 -> pick_nat (module Numerics.Nat32) (fun x -> V.Nat32 x) vs
   | T.Nat64 -> pick_nat (module Numerics.Nat64) (fun x -> V.Nat64 x) vs
+  | T.Nat128 -> pick_nat (module Numerics.Nat128) (fun x -> V.Nat128 x) vs
+  | T.Nat256 -> pick_nat (module Numerics.Nat256) (fun x -> V.Nat256 x) vs
   | T.Int -> pick_int (module Numerics.Int) (fun x -> V.Int x) vs
   | T.Int8 -> pick_int (module Numerics.Int_8) (fun x -> V.Int8 x) vs
   | T.Int16 -> pick_int (module Numerics.Int_16) (fun x -> V.Int16 x) vs
@@ -173,6 +175,8 @@ let value_of_lit = function
   | Nat16Lit w -> V.Nat16 w
   | Nat32Lit w -> V.Nat32 w
   | Nat64Lit w -> V.Nat64 w
+  | Nat128Lit w -> V.Nat128 w
+  | Nat256Lit w -> V.Nat256 w
   | IntLit i -> V.Int i
   | Int8Lit w -> V.Int8 w
   | Int16Lit w -> V.Int16 w

@@ -25,6 +25,8 @@ type prim =
   | Nat16
   | Nat32
   | Nat64
+  | Nat128
+  | Nat256
   | Int
   | Int8
   | Int16

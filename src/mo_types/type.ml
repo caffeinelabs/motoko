@@ -35,6 +35,8 @@ type prim =
   | Nat16
   | Nat32
   | Nat64
+  | Nat128
+  | Nat256
   | Int
   | Int8
   | Int16
@@ -112,7 +114,9 @@ let tag_prim = function
   | Error -> 16
   | Principal -> 17
   | Region -> 18
-  (* next free: 20 *)
+  | Nat128 -> 20
+  | Nat256 -> 21
+  (* next free: 22 *)
 
 let tag_func_sort = function
   | Local -> 0
@@ -411,6 +415,8 @@ let prim = function
   | "Nat16" -> Nat16
   | "Nat32" -> Nat32
   | "Nat64" -> Nat64
+  | "Nat128" -> Nat128
+  | "Nat256" -> Nat256
   | "Int" -> Int
   | "Int8" -> Int8
   | "Int16" -> Int16
@@ -780,7 +786,7 @@ let rec span = function
   | Prim (Nat | Int | Float | Float32 | Text | Blob | Error | Principal | Region) -> None
   | Prim (Nat8 | Int8) -> Some 0x100
   | Prim (Nat16 | Int16) -> Some 0x10000
-  | Prim (Nat32 | Int32 | Nat64 | Int64 | Char) -> None  (* for all practical purposes *)
+  | Prim (Nat32 | Int32 | Nat64 | Int64 | Nat128 | Nat256 | Char) -> None  (* for all practical purposes *)
   | Obj _ | Tup _ | Async _ -> Some 1
   | Variant fs -> Some (List.length fs)
   | Array _ | Func _ | Any -> None
@@ -1903,6 +1909,8 @@ let string_of_prim = function
   | Nat16 -> "Nat16"
   | Nat32 -> "Nat32"
   | Nat64 -> "Nat64"
+  | Nat128 -> "Nat128"
+  | Nat256 -> "Nat256"
   | Int -> "Int"
   | Int8 -> "Int8"
   | Int16 -> "Int16"

@@ -44,11 +44,13 @@ let impossible _ = raise (Invalid_argument "operator called for None")
 (* Unary operators *)
 
 (* bit-wise unops *)
-let bit_unop (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, fint64) = function
+let bit_unop (fnat8, fnat16, fnat32, fnat64, fnat128, fnat256, fint8, fint16, fint32, fint64) = function
   | T.Nat8 -> fun v -> Nat8 (fnat8 (as_nat8 v))
   | T.Nat16 -> fun v -> Nat16 (fnat16 (as_nat16 v))
   | T.Nat32 -> fun v -> Nat32 (fnat32 (as_nat32 v))
   | T.Nat64 -> fun v -> Nat64 (fnat64 (as_nat64 v))
+  | T.Nat128 -> fun v -> Nat128 (fnat128 (as_nat128 v))
+  | T.Nat256 -> fun v -> Nat256 (fnat256 (as_nat256 v))
   | T.Int8 -> fun v -> Int8 (fint8 (as_int8 v))
   | T.Int16 -> fun v -> Int16 (fint16 (as_int16 v))
   | T.Int32 -> fun v -> Int32 (fint32 (as_int32 v))
@@ -79,7 +81,7 @@ let unop op t =
         Float32.neg
         p
     | NotOp -> bit_unop
-      (Nat8.not, Nat16.not, Nat32.not, Nat64.not,
+      (Nat8.not, Nat16.not, Nat32.not, Nat64.not, Nat128.not, Nat256.not,
        Int_8.not, Int_16.not, Int_32.not, Int_64.not)
       p
     )
@@ -93,11 +95,13 @@ let text_binop ftext = function
   | T.Text -> fun v1 v2 -> Text (ftext (as_text v1) (as_text v2))
   | _ -> raise (Invalid_argument "binop")
 
-let fixed_binop (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, fint64) = function
+let fixed_binop (fnat8, fnat16, fnat32, fnat64, fnat128, fnat256, fint8, fint16, fint32, fint64) = function
   | T.Nat8 -> fun v1 v2 -> Nat8 (fnat8 (as_nat8 v1) (as_nat8 v2))
   | T.Nat16 -> fun v1 v2 -> Nat16 (fnat16 (as_nat16 v1) (as_nat16 v2))
   | T.Nat32 -> fun v1 v2 -> Nat32 (fnat32 (as_nat32 v1) (as_nat32 v2))
   | T.Nat64 -> fun v1 v2 -> Nat64 (fnat64 (as_nat64 v1) (as_nat64 v2))
+  | T.Nat128 -> fun v1 v2 -> Nat128 (fnat128 (as_nat128 v1) (as_nat128 v2))
+  | T.Nat256 -> fun v1 v2 -> Nat256 (fnat256 (as_nat256 v1) (as_nat256 v2))
   | T.Int8 -> fun v1 v2 -> Int8 (fint8 (as_int8 v1) (as_int8 v2))
   | T.Int16 -> fun v1 v2 -> Int16 (fint16 (as_int16 v1) (as_int16 v2))
   | T.Int32 -> fun v1 v2 -> Int32 (fint32 (as_int32 v1) (as_int32 v2))
@@ -115,23 +119,23 @@ let binop op t =
   match t with
   | T.Prim p ->
     (match op with
-    | AddOp -> num_binop Nat.add Int.add (Nat8.add, Nat16.add, Nat32.add, Nat64.add, Int_8.add, Int_16.add, Int_32.add, Int_64.add) Float.add Float32.add p
-    | SubOp -> num_binop Nat.sub Int.sub (Nat8.sub, Nat16.sub, Nat32.sub, Nat64.sub, Int_8.sub, Int_16.sub, Int_32.sub, Int_64.sub) Float.sub Float32.sub p
-    | MulOp -> num_binop Nat.mul Int.mul (Nat8.mul, Nat16.mul, Nat32.mul, Nat64.mul, Int_8.mul, Int_16.mul, Int_32.mul, Int_64.mul) Float.mul Float32.mul p
-    | DivOp -> num_binop Nat.div Int.div (Nat8.div, Nat16.div, Nat32.div, Nat64.div, Int_8.div, Int_16.div, Int_32.div, Int_64.div) Float.div Float32.div p
-    | ModOp -> num_binop Nat.rem Int.rem (Nat8.rem, Nat16.rem, Nat32.rem, Nat64.rem, Int_8.rem, Int_16.rem, Int_32.rem, Int_64.rem) Float.rem Float32.rem p
-    | PowOp -> num_binop Nat.pow Int.pow (Nat8.pow, Nat16.pow, Nat32.pow, Nat64.pow, Int_8.pow, Int_16.pow, Int_32.pow, Int_64.pow) Float.pow Float32.pow p
-    | AndOp -> fixed_binop (Nat8.and_, Nat16.and_, Nat32.and_, Nat64.and_, Int_8.and_, Int_16.and_, Int_32.and_, Int_64.and_) p
-    | OrOp  -> fixed_binop (Nat8.or_, Nat16.or_, Nat32.or_, Nat64.or_, Int_8.or_, Int_16.or_, Int_32.or_, Int_64.or_) p
-    | XorOp -> fixed_binop (Nat8.xor, Nat16.xor, Nat32.xor, Nat64.xor, Int_8.xor, Int_16.xor, Int_32.xor, Int_64.xor) p
-    | ShLOp -> fixed_binop (Nat8.shl, Nat16.shl, Nat32.shl, Nat64.shl, Int_8.shl, Int_16.shl, Int_32.shl, Int_64.shl) p
-    | ShROp -> fixed_binop (Nat8.shr, Nat16.shr, Nat32.shr, Nat64.shr, Int_8.shr, Int_16.shr, Int_32.shr, Int_64.shr) p
-    | RotLOp -> fixed_binop (Nat8.rotl, Nat16.rotl, Nat32.rotl, Nat64.rotl, Int_8.rotl, Int_16.rotl, Int_32.rotl, Int_64.rotl) p
-    | RotROp -> fixed_binop (Nat8.rotr, Nat16.rotr, Nat32.rotr, Nat64.rotr, Int_8.rotr, Int_16.rotr, Int_32.rotr, Int_64.rotr) p
-    | WAddOp -> fixed_binop (Nat8.wadd, Nat16.wadd, Nat32.wadd, Nat64.wadd, Int_8.wadd, Int_16.wadd, Int_32.wadd, Int_64.wadd) p
-    | WSubOp -> fixed_binop (Nat8.wsub, Nat16.wsub, Nat32.wsub, Nat64.wsub, Int_8.wsub, Int_16.wsub, Int_32.wsub, Int_64.wsub) p
-    | WMulOp -> fixed_binop (Nat8.wmul, Nat16.wmul, Nat32.wmul, Nat64.wmul, Int_8.wmul, Int_16.wmul, Int_32.wmul, Int_64.wmul) p
-    | WPowOp -> fixed_binop (Nat8.wpow, Nat16.wpow, Nat32.wpow, Nat64.wpow, Int_8.wpow, Int_16.wpow, Int_32.wpow, Int_64.wpow) p
+    | AddOp -> num_binop Nat.add Int.add (Nat8.add, Nat16.add, Nat32.add, Nat64.add, Nat128.add, Nat256.add, Int_8.add, Int_16.add, Int_32.add, Int_64.add) Float.add Float32.add p
+    | SubOp -> num_binop Nat.sub Int.sub (Nat8.sub, Nat16.sub, Nat32.sub, Nat64.sub, Nat128.sub, Nat256.sub, Int_8.sub, Int_16.sub, Int_32.sub, Int_64.sub) Float.sub Float32.sub p
+    | MulOp -> num_binop Nat.mul Int.mul (Nat8.mul, Nat16.mul, Nat32.mul, Nat64.mul, Nat128.mul, Nat256.mul, Int_8.mul, Int_16.mul, Int_32.mul, Int_64.mul) Float.mul Float32.mul p
+    | DivOp -> num_binop Nat.div Int.div (Nat8.div, Nat16.div, Nat32.div, Nat64.div, Nat128.div, Nat256.div, Int_8.div, Int_16.div, Int_32.div, Int_64.div) Float.div Float32.div p
+    | ModOp -> num_binop Nat.rem Int.rem (Nat8.rem, Nat16.rem, Nat32.rem, Nat64.rem, Nat128.rem, Nat256.rem, Int_8.rem, Int_16.rem, Int_32.rem, Int_64.rem) Float.rem Float32.rem p
+    | PowOp -> num_binop Nat.pow Int.pow (Nat8.pow, Nat16.pow, Nat32.pow, Nat64.pow, Nat128.pow, Nat256.pow, Int_8.pow, Int_16.pow, Int_32.pow, Int_64.pow) Float.pow Float32.pow p
+    | AndOp -> fixed_binop (Nat8.and_, Nat16.and_, Nat32.and_, Nat64.and_, Nat128.and_, Nat256.and_, Int_8.and_, Int_16.and_, Int_32.and_, Int_64.and_) p
+    | OrOp  -> fixed_binop (Nat8.or_, Nat16.or_, Nat32.or_, Nat64.or_, Nat128.or_, Nat256.or_, Int_8.or_, Int_16.or_, Int_32.or_, Int_64.or_) p
+    | XorOp -> fixed_binop (Nat8.xor, Nat16.xor, Nat32.xor, Nat64.xor, Nat128.xor, Nat256.xor, Int_8.xor, Int_16.xor, Int_32.xor, Int_64.xor) p
+    | ShLOp -> fixed_binop (Nat8.shl, Nat16.shl, Nat32.shl, Nat64.shl, Nat128.shl, Nat256.shl, Int_8.shl, Int_16.shl, Int_32.shl, Int_64.shl) p
+    | ShROp -> fixed_binop (Nat8.shr, Nat16.shr, Nat32.shr, Nat64.shr, Nat128.shr, Nat256.shr, Int_8.shr, Int_16.shr, Int_32.shr, Int_64.shr) p
+    | RotLOp -> fixed_binop (Nat8.rotl, Nat16.rotl, Nat32.rotl, Nat64.rotl, Nat128.rotl, Nat256.rotl, Int_8.rotl, Int_16.rotl, Int_32.rotl, Int_64.rotl) p
+    | RotROp -> fixed_binop (Nat8.rotr, Nat16.rotr, Nat32.rotr, Nat64.rotr, Nat128.rotr, Nat256.rotr, Int_8.rotr, Int_16.rotr, Int_32.rotr, Int_64.rotr) p
+    | WAddOp -> fixed_binop (Nat8.wadd, Nat16.wadd, Nat32.wadd, Nat64.wadd, Nat128.wadd, Nat256.wadd, Int_8.wadd, Int_16.wadd, Int_32.wadd, Int_64.wadd) p
+    | WSubOp -> fixed_binop (Nat8.wsub, Nat16.wsub, Nat32.wsub, Nat64.wsub, Nat128.wsub, Nat256.wsub, Int_8.wsub, Int_16.wsub, Int_32.wsub, Int_64.wsub) p
+    | WMulOp -> fixed_binop (Nat8.wmul, Nat16.wmul, Nat32.wmul, Nat64.wmul, Nat128.wmul, Nat256.wmul, Int_8.wmul, Int_16.wmul, Int_32.wmul, Int_64.wmul) p
+    | WPowOp -> fixed_binop (Nat8.wpow, Nat16.wpow, Nat32.wpow, Nat64.wpow, Nat128.wpow, Nat256.wpow, Int_8.wpow, Int_16.wpow, Int_32.wpow, Int_64.wpow) p
     | CatOp -> text_binop (^) p
     )
   | T.Non -> impossible
@@ -140,12 +144,14 @@ let binop op t =
 
 (* Relational operators *)
 
-let num_relop fnat fint (fnat8, fnat16, fnat32, fnat64, fint8, fint16, fint32, fint64) ffloat = function
+let num_relop fnat fint (fnat8, fnat16, fnat32, fnat64, fnat128, fnat256, fint8, fint16, fint32, fint64) ffloat = function
   | T.Nat -> fun v1 v2 -> Bool (fnat (as_int v1) (as_int v2))
   | T.Nat8 -> fun v1 v2 -> Bool (fnat8 (as_nat8 v1) (as_nat8 v2))
   | T.Nat16 -> fun v1 v2 -> Bool (fnat16 (as_nat16 v1) (as_nat16 v2))
   | T.Nat32 -> fun v1 v2 -> Bool (fnat32 (as_nat32 v1) (as_nat32 v2))
   | T.Nat64 -> fun v1 v2 -> Bool (fnat64 (as_nat64 v1) (as_nat64 v2))
+  | T.Nat128 -> fun v1 v2 -> Bool (fnat128 (as_nat128 v1) (as_nat128 v2))
+  | T.Nat256 -> fun v1 v2 -> Bool (fnat256 (as_nat256 v1) (as_nat256 v2))
   | T.Int -> fun v1 v2 -> Bool (fint (as_int v1) (as_int v2))
   | T.Int8 -> fun v1 v2 -> Bool (fint8 (as_int8 v1) (as_int8 v2))
   | T.Int16 -> fun v1 v2 -> Bool (fint16 (as_int16 v1) (as_int16 v2))
@@ -167,7 +173,7 @@ let eq_relop fnat fint fwords ffloat fchar ftext fblob fnull fbool = function
   | t -> ord_relop fnat fint fwords ffloat fchar ftext fblob t
 
 let eq_prim =
-  eq_relop Nat.eq  Int.eq (Nat8.eq, Nat16.eq, Nat32.eq, Nat64.eq, Int_8.eq, Int_16.eq, Int_32.eq, Int_64.eq) Float.eq (=) (=) (=) (=) (=)
+  eq_relop Nat.eq  Int.eq (Nat8.eq, Nat16.eq, Nat32.eq, Nat64.eq, Nat128.eq, Nat256.eq, Int_8.eq, Int_16.eq, Int_32.eq, Int_64.eq) Float.eq (=) (=) (=) (=) (=)
 
 (* Follows the structure of `shared` in mo_type/type.ml *)
 let structural_equality t =
@@ -252,11 +258,11 @@ let relop op t =
   | T.Prim p ->
     (match op with
     | EqOp -> eq_prim p
-    | NeqOp -> eq_relop Nat.ne Int.ne (Nat8.ne, Nat16.ne, Nat32.ne, Nat64.ne, Int_8.ne, Int_16.ne, Int_32.ne, Int_64.ne) Float.ne (<>) (<>) (<>) (<>) (<>) p
-    | LtOp -> ord_relop Nat.lt Int.lt (Nat8.lt, Nat16.lt, Nat32.lt, Nat64.lt, Int_8.lt, Int_16.lt, Int_32.lt, Int_64.lt) Float.lt (<) (<) (<) p
-    | GtOp -> ord_relop Nat.gt Int.gt (Nat8.gt, Nat16.gt, Nat32.gt, Nat64.gt, Int_8.gt, Int_16.gt, Int_32.gt, Int_64.gt) Float.gt (>) (>) (>) p
-    | LeOp -> ord_relop Nat.le Int.le (Nat8.le, Nat16.le, Nat32.le, Nat64.le, Int_8.le, Int_16.le, Int_32.le, Int_64.le) Float.le (<=) (<=) (<=) p
-    | GeOp -> ord_relop Nat.ge Int.ge (Nat8.ge, Nat16.ge, Nat32.ge, Nat64.ge, Int_8.ge, Int_16.ge, Int_32.ge, Int_64.ge) Float.ge (>=) (>=) (>=) p
+    | NeqOp -> eq_relop Nat.ne Int.ne (Nat8.ne, Nat16.ne, Nat32.ne, Nat64.ne, Nat128.ne, Nat256.ne, Int_8.ne, Int_16.ne, Int_32.ne, Int_64.ne) Float.ne (<>) (<>) (<>) (<>) (<>) p
+    | LtOp -> ord_relop Nat.lt Int.lt (Nat8.lt, Nat16.lt, Nat32.lt, Nat64.lt, Nat128.lt, Nat256.lt, Int_8.lt, Int_16.lt, Int_32.lt, Int_64.lt) Float.lt (<) (<) (<) p
+    | GtOp -> ord_relop Nat.gt Int.gt (Nat8.gt, Nat16.gt, Nat32.gt, Nat64.gt, Nat128.gt, Nat256.gt, Int_8.gt, Int_16.gt, Int_32.gt, Int_64.gt) Float.gt (>) (>) (>) p
+    | LeOp -> ord_relop Nat.le Int.le (Nat8.le, Nat16.le, Nat32.le, Nat64.le, Nat128.le, Nat256.le, Int_8.le, Int_16.le, Int_32.le, Int_64.le) Float.le (<=) (<=) (<=) p
+    | GeOp -> ord_relop Nat.ge Int.ge (Nat8.ge, Nat16.ge, Nat32.ge, Nat64.ge, Nat128.ge, Nat256.ge, Int_8.ge, Int_16.ge, Int_32.ge, Int_64.ge) Float.ge (>=) (>=) (>=) p
     )
   | T.Non -> impossible
   | t when op = EqOp && T.shared t ->

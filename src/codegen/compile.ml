@@ -10960,6 +10960,11 @@ let const_lit_of_lit : Ir.lit -> Const.lit = function
   | Nat16Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Nat16 (Numerics.Nat16.to_int64 n))
   | Int32Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Int32 (Numerics.Int_32.to_int64 n))
   | Nat32Lit n    -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Nat32 (Numerics.Nat32.to_int64 n))
+  (* Phase 4 fills these in. Until then an explicit failure, not a fallthrough: a literal
+     that silently took another width's path is exactly the bug moxzi shipped (a wide `let`
+     read as a pointer), and it announces itself nowhere. *)
+  | Nat128Lit _ | Nat256Lit _ ->
+    raise (Invalid_argument "wide integer literals are not yet compiled")
   | Int64Lit n    -> Const.Word64 (Type.Int64, (Big_int.int64_of_big_int (Numerics.Int_64.to_big_int n)))
   | Nat64Lit n    -> Const.Word64 (Type.Nat64, (Big_int.int64_of_big_int (nat64_to_int64 (Numerics.Nat64.to_big_int n))))
   | CharLit c     -> Const.Vanilla (TaggedSmallWord.vanilla_lit Type.Char (Int64.of_int c))
@@ -13343,6 +13348,8 @@ and compile_lit_pat env l =
   | Nat8Lit _ ->
     compile_lit_as env SR.Vanilla l ^^
     compile_eq env Type.(Prim Nat8)
+  | Nat128Lit _ | Nat256Lit _ ->
+    raise (Invalid_argument "wide integer pattern matching is not yet compiled")
   | Nat16Lit _ ->
     compile_lit_as env SR.Vanilla l ^^
     compile_eq env Type.(Prim Nat16)
