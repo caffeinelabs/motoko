@@ -34,12 +34,6 @@ moc flags that are helpful when benchmarking GCs:
 
   This flag should always be used when micro-benchmarking GC.
 
-- `--copying-gc`: Enables copying GC. This is the default when I write this,
-  but it may not be in the future. Always use this flag or the next to avoid
-  confusion (when looking at shell history, scripts etc.).
-
-- `--compacting-gc`: Enables compacting GC.
-
 ## Building the hacky replica to generate canister stats
 
 You should be using drun from `roman/hypervisor-instr-hack` branch of DFINITY.
@@ -96,8 +90,11 @@ clone motoko-base and update the path above with the path to your clone.
   to update base path to point at motoko-base master.
 - `<wasm file name>`: Name of the generated .wasm file. Make sure to add some
   prefix/suffixes to this binary to describe the compile flags. E.g.
-  `cancan_copying_gc_my_awesome_patch_tweaked_scheduling_wow.wasm`.
-- `<gc strategy>`: `--copying-gc` or `--compacting-gc`.
+  `cancan_incremental_gc_my_awesome_patch_tweaked_scheduling_wow.wasm`.
+
+(The classical `--copying-gc` and `--compacting-gc` GC strategies were removed
+in the 1.16 → v2 migration; `moc` always uses the incremental GC. Use
+`--force-gc` for GC benchmarking as described above.)
 
 ## Writing a drun script
 

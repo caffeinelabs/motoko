@@ -130,7 +130,7 @@ A Motoko canister upgrade is safe provided:
 -  The canister’s Motoko stable signature evolves to a stable-compatible one.
 
 :::danger
-With [classical orthogonal persistence](./orthogonal-persistence/classical.md), the upgrade can still fail due to resource constraints. This is problematic as the canister can then not be upgraded. It is therefore strongly advised to test the scalability of upgrades extensively. This does not apply to enhanced orthogonal persistence.
+Upgrades of *classical* orthogonally-persistent canisters (compiled with the removed [classical orthogonal persistence](./orthogonal-persistence/classical.md)) could still fail due to resource constraints. This is problematic as the canister can then not be upgraded, so it was strongly advised to test the scalability of such upgrades extensively. This does not apply to enhanced orthogonal persistence, which all canisters now use.
 :::
 
 

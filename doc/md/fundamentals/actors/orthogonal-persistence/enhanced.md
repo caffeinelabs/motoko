@@ -20,7 +20,7 @@ Moreover, it is advised to have a backup possibility for rescuing data even when
 :::
 
 :::note
-[Classical orthogonal persistence](./classical.md) with 32-bit main memory and Candid stabilization was the previous default compilation mode for `moc`. If necessary, it can be re-enabled with compiler flag `--legacy-persistence`.
+[Classical orthogonal persistence](./classical.md) with 32-bit main memory and Candid stabilization was the previous default compilation mode for `moc`. It has been removed: `moc` always produces enhanced-orthogonal-persistence canisters, and the `--legacy-persistence` flag is no longer accepted. Existing classical canisters transparently migrate to enhanced persistence on their next upgrade.
 See [orthogonal persistence modes](./index.md) for a comparison.
 :::
 
