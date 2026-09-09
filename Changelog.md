@@ -9,7 +9,7 @@
     which actor fields were implicitly `transient`, is restored with
     `--require-persistent-actors`). The `--default-persistent-actors`,
     `--require-persistent-actors` and `--legacy-actors` flags are now
-    documented in `moc --help`.
+    documented in `moc --help` (#6356).
 
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
