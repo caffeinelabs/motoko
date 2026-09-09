@@ -2,7 +2,7 @@ import Principal "mo:core/Principal";
 import Set "mo:core/pure/Set";
 import Error "mo:core/Error";
 
-persistent actor {
+actor {
 
     // Create set to record principals
     var principals : Set.Set<Principal> = Set.empty();

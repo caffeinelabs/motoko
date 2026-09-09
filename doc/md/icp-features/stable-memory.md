@@ -148,7 +148,7 @@ This example illustrates the simultaneous use of stable variables and stable mem
 import Nat64 "mo:core/Nat64";
 import Region "mo:core/Region";
 
-persistent actor StableLog {
+actor StableLog {
 
   // Index of saved log entry.
   public type Index = Nat64;

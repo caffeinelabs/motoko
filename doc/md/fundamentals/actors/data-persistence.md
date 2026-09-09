@@ -7,36 +7,33 @@ sidebar:
 
 One key feature of Motoko is its ability to automatically persist the program's state without explicit user instruction. This is called **orthogonal persistence**. Data persists across transactions and canister upgrades.
 
-Motoko data persistence is not simple, but it prevents data corruption or loss while being efficient at the same time. No database, stable memory API, or stable data structure is required to retain state across upgrades. Instead, a simple `stable` keyword is sufficient to declare a data structure of arbitrary shape persistent, even if the structure uses sharing, has a deep complexity, or contains cycles transfers.
+Motoko data persistence is not simple, but it prevents data corruption or loss while being efficient at the same time. No database, stable memory API, or stable data structure is required to retain state across upgrades. Because actors are persistent by default, every actor field is automatically carried across upgrades — even if the data structure uses sharing, has a deep complexity, or contains cycle transfers, its value survives with no declaration needed.
 
 In comparison to other supported languages for building canisters, such as Rust, data persistence must be achieved through explicit use of stable data structures and stable memory, as other languages are not designed for orthogonal persistence and instead rearranges memory structures in an uncontrolled manner on re-compilation or at runtime.
 
-## Declaring stable variables
+## State persistence
 
-Within an actor, you can configure which part of the program is considered to be persistent (retained across upgrades) and which part is ephemeral (reset on upgrades).
-
-More precisely, each `let` and `var` variable declaration in an actor can specify whether the variable is `stable` or `transient`. Actors are `persistent` by default, and if you don’t provide a modifier, the variable is assumed to be `stable` by default.
-
-* `stable` means that all values directly or indirectly reachable from that stable variable are considered persistent and are automatically retained across upgrades. This is the primary choice for most of the program's state.
-
-* `transient` means that the variable is re-initialized on upgrade such that the values referenced by the transient variable are discarded, unless the values are transitively reachable by other variables that are stable. `transient` is only used for temporary state or references to high-order types, such as local function references.
-
-:::note
-
-You can only use the `stable`, `transient` (or legacy `flexible`) modifier on `let` and `var` declarations that are **actor fields**. You cannot use these modifiers anywhere else in your program.
-
-:::
-
-The following is a simple example of how to declare a stable counter that can be upgraded while preserving the counter’s value:
+Every actor persists its state across canister upgrades. You don't need to declare anything: a `let` or `var` actor field is kept, with its value, for the lifetime of the canister.
 
 ```motoko file=<motokoExamples>/StableCounter.mo
 ```
 
-When you compile and deploy a canister for the first time, all transient and stable variables in the actor are initialized in sequence. When a canister is upgraded, all stable variables that existed in the previous version of the actor are pre-initialized with their old values and the remaining transient and any newly-added stable variables are initialized in sequence.
+When you compile and deploy a canister for the first time, all actor fields are initialized in sequence. When a canister is upgraded, fields that existed in the previous version are pre-initialized with their old values, and any newly-added fields are initialized in sequence.
 
-Actors are `persistent` by default now, so all `let` and `var` declarations of the actor or actor class are implicitly declared `stable`. Only `transient` variables need an explicit `transient` declaration.
+## Opting a field out of persistence
 
-Using `persistent` actors avoids unintended data loss across upgrades. The `persistent` keyword itself is now optional and redundant; you can still write it explicitly for clarity, and the (pre-v2) `--require-persistent-actors` compiler flag restores the legacy behaviour where actors are non-`persistent` by default and fields default to `transient` instead.
+Most of the time, persistence is exactly what you want: it is why the actor's counter, registry, or wallet balance survives an upgrade. Occasionally you want a field to restart fresh on every upgrade — a cache, a one-time initialization, or a value whose type cannot be persisted (for example, an object with methods). Fields like these are the exception, not the rule, so declaring them is explicit:
+
+* `stable` fields are persisted across upgrades. This is the default; you generally don't need to write it.
+* `transient` fields are not. They are re-initialized on upgrade, unless they are transitively reachable from a persisted field. Use `transient` only for temporary state or references to higher-order types, such as local function references.
+
+Only `transient` fields need an explicit `transient` declaration. The `stable` and `transient` modifiers are only allowed on `let` and `var` declarations that are **actor fields**; you cannot use them anywhere else in your program.
+
+:::note
+
+The `persistent` keyword is redundant for actors, since actors are `persistent` by default. If you see it in code, it can be removed. Older code written against the pre-v2 default used `persistent` (and `stable`) to opt into persistence — now that persistence is the default, these keywords are optional. The (pre-v2) `--require-persistent-actors` compiler flag restores the legacy default where actor fields are `transient` unless declared otherwise; it exists only to help migrate old code and will be removed.
+
+:::
 
 ```motoko file=<motokoExamples>/PersistentCounter.mo
 ```

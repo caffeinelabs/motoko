@@ -1,4 +1,4 @@
-persistent actor {
+actor {
   type Card = {
     title : Text;
     description : Text;

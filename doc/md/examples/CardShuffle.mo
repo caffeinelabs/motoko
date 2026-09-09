@@ -5,7 +5,7 @@ import Error = "mo:core/Error";
 
 // Define an actor
 
-persistent actor {
+actor {
 
   // Create a random number generator using cryptographic entropy:
   transient let random = Random.crypto();

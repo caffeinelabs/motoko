@@ -2,7 +2,7 @@ import Text "mo:core/Text";
 import Map "mo:core/Map";
 import Iter "mo:core/Iter";
 
-persistent actor Registry {
+actor Registry {
 
   var entries : [(Text, Nat)] = []; // implicitly `stable`
 

@@ -4962,7 +4962,7 @@ and check_stable_defaults env sort dec_fields =
   if declared_persistent then
     begin
       if !Flags.actors = Flags.DefaultPersistentActors && sort.note.at <> no_region then
-        warn env sort.note.at "M0217" "with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed";
+        warn env sort.note.at "M0217" "redundant `persistent` keyword";
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
         | Some {it = Stable _; at; _}, (LetD _ | VarD _) ->
@@ -4982,14 +4982,14 @@ and check_stable_defaults env sort dec_fields =
         | Some {it = Flexible; at; _}, (LetD _ | VarD _) ->
            if at = no_region
            then
-             (local_error env dec_field.it.dec.at "M0219" "this declaration is currently implicitly transient, please declare it explicitly `transient`";
+             (local_error env dec_field.it.dec.at "M0219" "this field is not persisted across upgrades, declare it `transient` to make this explicit";
               true)
            else acc
         | _ -> acc)
         false dec_fields
     in
     if not has_implicit_flexible then
-      local_error env sort.at "M0220" "this actor or actor class should be declared `persistent`"
+      local_error env sort.at "M0220" "this actor is not persistent; its fields will be lost on upgrade"
   end
 
 and check_stab env sort scope dec_fields =

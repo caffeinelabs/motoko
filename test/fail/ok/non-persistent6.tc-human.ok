@@ -1,4 +1,4 @@
 error[M0219]: this field is not persisted across upgrades, declare it `transient` to make this explicit
-    ┌─ non-persistent1.mo:4:3
-  4 │    var _y = #y; // error
+    ┌─ non-persistent6.mo:5:3
+  5 │    let _z = #z;
     │    ^^^^^^^^^^^ 

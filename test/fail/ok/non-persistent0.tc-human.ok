@@ -1,8 +1,8 @@
-error[M0219]: this declaration is currently implicitly transient, please declare it explicitly `transient`
+error[M0219]: this field is not persisted across upgrades, declare it `transient` to make this explicit
     ┌─ non-persistent0.mo:3:3
   3 │    let _x = #x; // error
     │    ^^^^^^^^^^^ 
-error[M0219]: this declaration is currently implicitly transient, please declare it explicitly `transient`
+error[M0219]: this field is not persisted across upgrades, declare it `transient` to make this explicit
     ┌─ non-persistent0.mo:4:3
   4 │    var _y = #y; // error
     │    ^^^^^^^^^^^ 

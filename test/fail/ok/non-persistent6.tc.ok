@@ -1,1 +1,1 @@
-non-persistent6.mo:5.3-5.14: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
+non-persistent6.mo:5.3-5.14: type error [M0219], this field is not persisted across upgrades, declare it `transient` to make this explicit

@@ -101,7 +101,7 @@ This extended `Counter` class checks that the implementation matches interface `
 Actor classes enable you to create networks of actors programmatically. These classes must be defined in separate source files.
 
 ```motoko no-repl title="Counter.mo"
-persistent actor class Counter(init : Nat) {
+actor class Counter(init : Nat) {
   var count : Nat = init;
 
   public func inc() : async Nat {
@@ -129,7 +129,7 @@ Then, in another file you can create an instance of this actor class:
 ```motoko no-repl title="CallCounter.mo"
 import Counter "./Counter";
 
-persistent actor {
+actor {
 
   public func test() : async () {
     let counter = await (with cycles = 1_000_000_000_000) Counter.Counter(0);

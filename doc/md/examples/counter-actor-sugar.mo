@@ -1,4 +1,4 @@
-persistent actor Counter {
+actor Counter {
 
   stable var count = 0;
 

@@ -1,4 +1,4 @@
-persistent actor Counter {
+actor Counter {
   var value = 0;
   public func inc() : async Nat {
     value += 1;
@@ -6,7 +6,7 @@ persistent actor Counter {
   };
 };
 
-persistent actor Factorial {
+actor Factorial {
 
   var last = 1;
 

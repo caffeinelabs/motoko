@@ -1,4 +1,4 @@
-warning[M0217]: with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed
+warning[M0217]: redundant `persistent` keyword
     ┌─ non-persistent5.mo:2:1
   2 │  persistent actor { // warn
     │  ^^^^^^^^^^ 

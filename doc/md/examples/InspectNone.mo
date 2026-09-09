@@ -1,4 +1,4 @@
-persistent actor {
+actor {
 
    var c = 0;
 
