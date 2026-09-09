@@ -183,6 +183,16 @@ let argspec =
     fail "moc: --copying-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
   " (removed) the incremental garbage collector is always used";
 
+  "--rts-stack-pages",
+  Arg.Unit (fun () ->
+    fail "moc: --rts-stack-pages has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
+
+  "--skip-gc-deprecation-warning",
+  Arg.Unit (fun () ->
+    fail "moc: --skip-gc-deprecation-warning has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
+
   "--force-gc",
   Arg.Unit (fun () -> Flags.force_gc := true),
   " disable GC scheduling, always do GC after an update message (for testing)";

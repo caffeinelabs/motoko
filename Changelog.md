@@ -17,8 +17,11 @@
   * Existing classical canisters are **not** orphaned: the runtime keeps
     reading all earlier classical stable-memory formats, and a classical
     canister transparently migrates to enhanced persistence on its next
-    upgrade. The graph-copy stabilization machinery that produces this
-    migration is retained.
+    upgrade — recompile that upgrade with the explicit
+    `--enhanced-orthogonal-persistence` flag (`moc` otherwise traps at
+    upgrade time with "Detected implicit upgrade from classical orthogonal
+    persistence to enhanced orthogonal persistence"). The graph-copy
+    stabilization machinery that produces this migration is retained.
 
   * Because `--legacy-persistence` is gone, `moc` can no longer *produce*
     classical canisters; projects that still need a classical module must

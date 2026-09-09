@@ -15,7 +15,8 @@ classical-only flags (`--legacy-persistence`, `--copying-gc`, `--compacting-gc`,
 `--generational-gc`, `--rts-stack-pages`) fail with a hard error. Existing
 classical canisters are not orphaned: the runtime keeps reading all earlier
 classical stable-memory formats, and a classical canister transparently migrates
-to enhanced persistence on its next upgrade.
+to enhanced persistence on its next upgrade (recompile with the explicit
+`--enhanced-orthogonal-persistence` flag for that upgrade).
 
 ## Compiler Flags
 
@@ -43,7 +44,7 @@ The Motoko runtime system (RTS) is a combined source base, with a debug and a re
 
 ## Compiler
 The compiler backend targets enhanced orthogonal persistence:
-* `compile-enhanced.ml`: Enhanced orthogonal persistence, 64-bit, passive data segments, incremental graph copy.
+* `compile_enhanced.ml`: Enhanced orthogonal persistence, 64-bit, passive data segments, incremental graph copy.
 
 The linker integrates the single persistence mode and 64-bit support in one package.
 

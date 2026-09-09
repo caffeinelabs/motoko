@@ -22,6 +22,6 @@ Motoko's orthogonal persistence is implemented by [enhanced orthogonal persisten
 Since version 0.15.0, the `moc` compiler enables enhanced orthogonal persistence by default.
 Classical orthogonal persistence, the default compilation mode in previous versions, has been removed: `moc` no longer accepts the `--legacy-persistence` flag, and all canisters are now compiled with enhanced orthogonal persistence.
 
-Upgrading a canister compiled with classical persistence to one compiled with enhanced orthogonal persistence remains supported — existing classical canisters transparently migrate to enhanced persistence on their next upgrade. Downgrades from enhanced to classical are *not* supported.
+Upgrading a canister compiled with classical persistence to one compiled with enhanced orthogonal persistence remains supported — existing classical canisters transparently migrate to enhanced persistence on their next upgrade (recompile with the explicit `--enhanced-orthogonal-persistence` flag for that upgrade). Downgrades from enhanced to classical are *not* supported.
 
 :::

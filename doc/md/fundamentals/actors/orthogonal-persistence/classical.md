@@ -25,7 +25,7 @@ These issues are solved by [enhanced orthogonal persistence](./enhanced.md).
 
 
 :::note
-Existing classical canisters are **not** orphaned: the runtime keeps reading all earlier classical stable-memory formats, and a classical canister transparently migrates to enhanced persistence on its next upgrade (this requires recompiling with enhanced-orthogonal-persistence code — the migration is irreversible).
+Existing classical canisters are **not** orphaned: the runtime keeps reading all earlier classical stable-memory formats, and a classical canister transparently migrates to enhanced persistence on its next upgrade. Recompile with `--enhanced-orthogonal-persistence` and redeploy to enable this irreversible one-way migration — without the flag, a recompiled module sees the earlier classical format and traps with the message `Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence`. Subsequent upgrades no longer need the flag.
 
 Because `--legacy-persistence` is gone, `moc` can no longer *produce* classical canisters. Projects that still need a classical module must keep an older `moc` (e.g. 1.14.x).
 :::

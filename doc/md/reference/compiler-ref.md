@@ -51,7 +51,7 @@ You can use the following options with the `moc` command.
 | `--idl`                                   | Compile binary and emit Candid IDL specification to `.did` file.                                                                                      |
 | `-i`                                      | Runs the compiler in an interactive read–eval–print loop (REPL) shell so you can evaluate program execution (implies -r).                             |
 | `--implicit-derivation-depth <n>`         | Maximum recursion depth for [implicit](../fundamentals/implicit-parameters.md) argument derivation (default 100). Raise if a complex derivation is rejected as depth-limited.                                                                                                |
-| `--legacy-persistence`                    | Removed. Enhanced orthogonal persistence is always used; existing classical canisters upgrade to enhanced persistence on their next upgrade (see the changelog for the 1.16 → v2 migration notes). |
+| `--legacy-persistence`                    | Removed. Enhanced orthogonal persistence is always used; existing classical canisters upgrade to enhanced persistence on their next upgrade when recompiled with the explicit `--enhanced-orthogonal-persistence` flag (see the changelog for the 1.16 → v2 migration notes). |
 | `--map`                                   | Outputs a JavaScript source map.                                                                                                                      |
 | `--max-stable-pages <n>`                  | Set maximum number of pages available to stable memory via the `Region` library (default 1638400, i.e. 100 GiB).                                                        |
 | `-no-system-api`                          | Disables system API imports.                                                                                                                          |
@@ -78,6 +78,7 @@ You can use the following options with the `moc` command.
 > `--generational-gc` and `--rts-stack-pages` have been removed and are now
 > hard errors. Enhanced orthogonal persistence is always used; existing
 > classical canisters upgrade to enhanced persistence on their next upgrade
+> when recompiled with the explicit `--enhanced-orthogonal-persistence` flag
 > (see the changelog for the 1.16 → v2 migration notes).
 
 
