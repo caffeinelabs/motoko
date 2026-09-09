@@ -4467,8 +4467,8 @@ module Arr = struct
      No difference between mutable and immutable arrays.
   *)
 
-  (* NB max_array_size must agree with limit 2^61 imposed by RTS alloc_array() *)
-  let max_array_size = Int64.shift_left 1L 61 (* inclusive *)
+  (* NB max_array_size must agree with limit 2^48 imposed by RTS alloc_array() *)
+  let max_array_size = Int64.shift_left 1L 48 (* inclusive *)
 
   let header_size = Int64.add Tagged.header_size 1L
   let element_size = 8L
@@ -4542,8 +4542,14 @@ module Arr = struct
   (* Does not initialize the fields! *)
   (* Note: Post allocation barrier must be applied after initialization *)
   let alloc env array_sort len =
+    let set_len, get_len = new_local env "len" in
+    len ^^ set_len ^^
+    (* Trap on an element count that could never be allocated anyway: 2^48 elements
+       are 2 PiB of payload, and admitting more lets the RTS wrap the byte size *)
+    get_len ^^ compile_shrU_const 48L ^^ compile_test I64Op.Eqz ^^
+    E.else_trap_with env "array too large" ^^
     compile_unboxed_const Tagged.(int_of_tag (Array array_sort)) ^^
-    len ^^
+    get_len ^^
     E.call_rts env "alloc_array"
 
   let iterate env get_array body =
@@ -4929,6 +4935,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
+    E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
 
     E.add_func_import env "ic0" "certified_data_set" (is 2) [];
     E.add_func_import env "ic0" "data_certificate_present" [] [I32Type];
@@ -10998,6 +11005,24 @@ module Cost = struct
           Cycles.from_word128_ptr env
         )
       )
+
+  let vetkd_derive_key env =
+    Func.share_code2 Func.Always env "cost_vetkd_derive_key"
+      (("key_name", IC.i), ("curve", I32Type))
+      [IC.i; I64Type]
+      (fun env get_key_name get_curve ->
+        Stack.with_words env "dst" 2L (fun get_dst ->
+          get_key_name ^^ Text.to_blob env ^^ Blob.as_ptr_len env ^^
+          get_curve ^^
+          get_dst ^^
+          IC.ic_system_call "cost_vetkd_derive_key" env ^^
+          G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32)) ^^
+          TaggedSmallWord.msb_adjust Type.Nat32 ^^
+          StackRep.adjust env (SR.UnboxedWord64 Type.Nat32) SR.Vanilla ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
 end
 
 (* The actual compiler code that looks at the AST *)
@@ -13129,6 +13154,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     TaggedSmallWord.lsb_adjust Type.Nat32 ^^
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     Cost.sign_with_schnorr env
+  | OtherPrim "costVetkdDeriveKey", [key_name; curve] ->
+    SR.UnboxedTuple 2,
+    compile_exp_vanilla env ae key_name ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat32) curve ^^
+    TaggedSmallWord.lsb_adjust Type.Nat32 ^^
+    G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+    Cost.vetkd_derive_key env
 
   | SystemTimeoutSetPrim, [e1] ->
     SR.unit,
