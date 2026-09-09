@@ -49,6 +49,14 @@ switch arr[1] {
   case _ { assert false };
 };
 
+// `for` heads no longer need parentheses either; the legacy form still works
+var sum = 0;
+for x in arr.vals() { sum += x };
+assert (sum == 6);
+for (k, v) in [(1, 2), (3, 4)].vals() { assert (k + 1 == v) };
+for (x in arr.vals()) { sum += x };
+assert (sum == 12);
+
 // optional `;` between cases
 let s = switch i {
   case 0 { "zero" }

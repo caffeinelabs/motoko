@@ -8,7 +8,8 @@
 
     * `switch`, `if`, and `while` now accept full expressions as scrutinee or
       condition, without parentheses: `switch f(x) { ... }`, `if a and b { ... }`,
-      `switch p.x { ... }`, `switch arr[i] { ... }`. Following Rust's rule for
+      `switch p.x { ... }`, `switch arr[i] { ... }`; likewise, `for` loops no
+      longer need parentheses: `for x in xs.vals() { ... }`. Following Rust's rule for
       the identical ambiguity, a record literal directly in these positions
       must be parenthesized: `switch ({ x = 0 }) { ... }`. Whether a `(`/`[`
       extends the scrutinee or starts the following branch is decided by

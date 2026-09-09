@@ -925,6 +925,8 @@ exp_un(B, R, L) :
     { LoopE(e1, Some e2, new_loop_flags ()) @? at $sloc }
   | FOR lpar p=pat IN e1=exp(ob, ob, exp_cont) RPAR e2=exp_nest(R, L)
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
+  | FOR p=pat IN e1=exp(bl, bl, exp_cont_tight) e2=exp_nest(R, L)
+    { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
   | IGNORE e=exp_nest(R, L)
     { IgnoreE(e) @? at $sloc }
   | DO e=block
