@@ -231,8 +231,6 @@ let argspec =
   Args._UNDOCUMENTED_ "  (internal testing only)";
   ]
 
-  @ Args.persistent_actors_args
-
   @ Args.migration_args
 
   @ [

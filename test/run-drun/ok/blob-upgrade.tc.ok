@@ -1,2 +1,4 @@
 blob-upgrade.mo:6.12-6.33: warning [M0199], this code is (or uses) the deprecated library `ExperimentalStableMemory`.
 Please use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message.
+blob-upgrade.mo:8.5-8.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+blob-upgrade.mo:9.5-9.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

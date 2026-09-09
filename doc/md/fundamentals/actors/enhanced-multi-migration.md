@@ -110,7 +110,6 @@ Pass the migration directory to the compiler:
 
 ```bash
 moc --enhanced-orthogonal-persistence \
-    --default-persistent-actors \
     --enhanced-migration ./migrations \
     src/main.mo -o main.wasm
 ```
@@ -406,7 +405,6 @@ The first migration in the chain must initialize all required fields. When a can
 
 ```bash
 moc --enhanced-orthogonal-persistence \
-    --default-persistent-actors \
     --enhanced-migration ./migrations \
     actor.mo -o actor.wasm
 ```

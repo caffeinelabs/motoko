@@ -17,7 +17,7 @@ In Motoko, actors are `persistent` by default, so all `let` and `var` declaratio
 Stable values must have types that belong to the set of stable types.
 Transient values are not subject to this restriction and may have any type, including non-stable types such as functions or objects with function members.
 
-Under the legacy `--require-persistent-actors` flag, actors behave as before v2: fields are not persisted unless explicitly marked `stable`. This flag exists only to help migrate old code and will be removed.
+Under the pre-v2 compiler, actors were not persistent by default and fields were not persisted unless explicitly marked `stable`.
 
 :::
 

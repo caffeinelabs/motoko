@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   let keepAlive : [var Blob] = [var "!caf!hello", "!caf!world", "!caf!hello", "!caf!world", "!caf!letmetestyou", "bla", "blabla", "test"];
 

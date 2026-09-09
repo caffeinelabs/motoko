@@ -1,12 +1,12 @@
-candid_opts.mo:5.5-5.8: warning [M0145], this pattern of type
+candid_opts.mo:5.15-5.18: warning [M0145], this pattern of type
   ?{x : ?Nat32}
 does not cover value
   null
-candid_opts.mo:6.5-6.8: warning [M0145], this pattern of type
+candid_opts.mo:6.15-6.18: warning [M0145], this pattern of type
   ?{x : ??Nat32}
 does not cover value
   null
-candid_opts.mo:7.5-7.8: warning [M0145], this pattern of type
+candid_opts.mo:7.15-7.18: warning [M0145], this pattern of type
   ?{x : ???Nat32}
 does not cover value
   null

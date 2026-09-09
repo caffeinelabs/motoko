@@ -1,4 +1,9 @@
 stable-mem/StableMemory.mo:5.21-5.42: warning [M0199], this code is (or uses) the deprecated library `ExperimentalStableMemory`.
 Please use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message.
+region0-stable-mem-grow.mo:7.3-7.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+region0-stable-mem-grow.mo:8.3-8.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+region0-stable-mem-grow.mo:9.3-9.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+region0-stable-mem-grow.mo:10.3-10.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+region0-stable-mem-grow.mo:11.3-11.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
 region0-stable-mem-grow.mo:33.11-33.14: warning [M0244], variable pre is never reassigned, consider using `let`
 region0-stable-mem-grow.mo:34.11-34.15: warning [M0244], variable post is never reassigned, consider using `let`

@@ -1,3 +1,4 @@
+# CLASSICAL-PERSISTENCE-ONLY
 install $ID upgrade-hooks/upgrade-hook.mo ""
 upgrade $ID upgrade-hooks/upgrade-hook0.mo ""
 query $ID check "DIDL\x00\x01\x7d\x01"

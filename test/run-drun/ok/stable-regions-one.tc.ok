@@ -1,3 +1,7 @@
+stable-regions-one.mo:7.3-7.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-regions-one.mo:8.3-8.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-regions-one.mo:9.3-9.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-regions-one.mo:10.3-10.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
 stable-regions-one.mo:7.14-7.16: warning [M0244], variable r1 is never reassigned, consider using `let`
 stable-regions-one.mo:8.14-8.21: warning [M0244], variable aliases is never reassigned, consider using `let`
 stable-regions-one.mo:9.14-9.16: warning [M0244], variable id is never reassigned, consider using `let`

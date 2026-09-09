@@ -31,7 +31,7 @@ Only `transient` fields need an explicit `transient` declaration. The `stable` a
 
 :::note
 
-The `persistent` keyword is redundant for actors, since actors are `persistent` by default. If you see it in code, it can be removed. Older code written against the pre-v2 default used `persistent` (and `stable`) to opt into persistence — now that persistence is the default, these keywords are optional. The (pre-v2) `--require-persistent-actors` compiler flag restores the legacy default where actor fields are `transient` unless declared otherwise; it exists only to help migrate old code and will be removed.
+The `persistent` keyword is redundant for actors, since actors are `persistent` by default. If you see it in code, it can be removed. Older code written against the pre-v2 default used `persistent` (and `stable`) to opt into persistence — now that persistence is the default, these keywords are optional.
 
 :::
 

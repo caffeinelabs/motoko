@@ -10,7 +10,6 @@ let moc_args = Mo_args.inclusion_args
   @ Mo_args.warning_args
   @ Mo_args.error_args
   @ Mo_args.ai_args
-  @ Mo_args.persistent_actors_args
   @ Mo_args.migration_args
 
 let position_of_pos pos =

@@ -1,0 +1,3 @@
+upgrade-instructions.mo:4.3-4.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+upgrade-instructions.mo:5.3-5.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+upgrade-instructions.mo:6.3-6.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

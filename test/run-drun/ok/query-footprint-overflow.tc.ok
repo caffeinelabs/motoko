@@ -1,0 +1,1 @@
+query-footprint-overflow.mo:23.5-23.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

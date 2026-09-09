@@ -1,0 +1,2 @@
+stable-regions-new-each-upgrade.mo:8.3-8.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-regions-new-each-upgrade.mo:9.3-9.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

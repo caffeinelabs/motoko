@@ -1,6 +1,6 @@
 // simplified version of data-view.mo that doesn't require core.
 //MOC-FLAG --generate-view-queries
-persistent actor Self {
+actor Self {
 
   type T0 = {#T0};
   module View0 {

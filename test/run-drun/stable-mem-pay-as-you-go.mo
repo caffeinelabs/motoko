@@ -8,7 +8,7 @@ actor {
   let l1 = P.rts_logical_stable_memory_size();
   P.debugPrint (debug_show({s1;l1}));
   P.debugPrint ("SM.grow(16)");
-  let _ = StableMemory.grow(16);
+  transient let _ = StableMemory.grow(16);
   let s2 = P.rts_stable_memory_size();
   let l2 = P.rts_logical_stable_memory_size();
   P.debugPrint (debug_show({s2;l2}));

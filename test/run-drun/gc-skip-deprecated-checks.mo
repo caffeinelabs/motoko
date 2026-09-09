@@ -2,7 +2,7 @@
 //CLASSICAL-PERSISTENCE-ONLY
 //GENERATIONAL-GC-ONLY
 actor {
-  let _ = 5;
+  transient let _ = 5;
 };
 
 //SKIP run-low

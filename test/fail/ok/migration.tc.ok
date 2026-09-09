@@ -1,5 +1,7 @@
 migration.mo:10.7-10.22: warning [M0215], field `unused` is provided but not expected in record of type
   {var three : Text; unstable2 : () -> (); var versoin : ()}
+migration.mo:16.4-16.10: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+migration.mo:18.4-18.10: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
 migration.mo:3.7-13.7: type error [M0201], expected stable type, but migration expression produces non-stable type
   {var three : Text; unstable2 : () -> (); var versoin : ()}
 migration.mo:3.7-13.7: type error [M0201], expected stable type, but migration expression consumes non-stable type

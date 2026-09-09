@@ -4,7 +4,7 @@ import P "mo:⛔";
 import {stableMemoryGrow= _} "mo:⛔";
 actor {
 
-  let _ = P.stableMemorySize;
+  transient let _ = P.stableMemorySize;
 }
 
 //SKIP run

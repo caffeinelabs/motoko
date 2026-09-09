@@ -1,3 +1,9 @@
+incremental-stabilization.mo:11.5-11.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+incremental-stabilization.mo:15.5-15.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+incremental-stabilization.mo:19.5-19.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+incremental-stabilization.mo:23.5-23.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+incremental-stabilization.mo:27.5-27.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+incremental-stabilization.mo:36.5-36.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
 incremental-stabilization.mo:11.16-11.25: warning [M0244], variable stableNat is never reassigned, consider using `let`
 incremental-stabilization.mo:15.16-15.25: warning [M0244], variable stableInt is never reassigned, consider using `let`
 incremental-stabilization.mo:19.16-19.26: warning [M0244], variable stableText is never reassigned, consider using `let`

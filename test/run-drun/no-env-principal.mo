@@ -2,7 +2,7 @@
 
 import _Management "canister:management";
 
-persistent actor {};
+actor {};
 
 //SKIP run
 //SKIP run-ir

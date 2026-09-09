@@ -5,7 +5,7 @@ import Prim = "mo:prim";
 // test failure on illegal payloads
 actor a {
 
-  let weak_ = Prim.allocWeakRef;
+  transient let weak_ = Prim.allocWeakRef;
 
   let _ok = [
     weak_ "abc",

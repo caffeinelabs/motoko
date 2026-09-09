@@ -1,1 +1,0 @@
-non-persistent2.mo:2.1-2.6: type error [M0220], this actor is not persistent; its fields will be lost on upgrade

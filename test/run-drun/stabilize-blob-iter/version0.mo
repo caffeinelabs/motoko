@@ -1,9 +1,9 @@
 import Prim "mo:prim";
 
 actor {
-  let temporary = 1;
+  transient let temporary = 1;
 
-  let blobiter = ("hello" : Blob).values();
+  transient let blobiter = ("hello" : Blob).values();
 
   stable let value : {
     stableField : Text;

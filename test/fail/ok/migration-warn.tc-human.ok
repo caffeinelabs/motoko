@@ -1,3 +1,8 @@
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ migration-warn.mo:11:4
+ 11 │     stable var data = 0;
+    │     ^^^^^^ 
+    = help: remove `stable`
 warning[M0206]: migration expression consumes field `data` of type
   Nat
 but does not produce it, yet the field is declared in the actor.
@@ -13,6 +18,16 @@ If reinitialization is unintended, and you want to preserve the consumed value, 
   8 │ │     })
     │ ╰─────^ 
   9 │    actor A {
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ migration-warn.mo:24:4
+ 24 │     stable var data = 0;
+    │     ^^^^^^ 
+    = help: remove `stable`
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ migration-warn.mo:37:4
+ 37 │     stable var data = 0;
+    │     ^^^^^^ 
+    = help: remove `stable`
 warning[M0244]: variable data is never reassigned, consider using `let`
     ┌─ migration-warn.mo:11:15
  11 │     stable var data = 0;

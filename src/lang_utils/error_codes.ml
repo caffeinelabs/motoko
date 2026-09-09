@@ -192,8 +192,6 @@ let error_codes : (string * string option) list =
     "M0213", None; (* Parenthetical note on shared functions is disallowed *)
     "M0214", None; (* Expected type of field in parenthetical note differs from inferred *)
     "M0216", None; (* Stable variable must stable subtype *)
-    "M0219", None; (* actor field not persisted without an explicit `transient` *)
-    "M0220", None; (* actor not persistent, fields would be lost on upgrade *)
     "M0221", None; (* Failed to determine type for type pattern field *)
     "M0224", None; (* Overlapping dot resolution *)
     "M0225", None; (* A mixin cannot be used as an entry point *)

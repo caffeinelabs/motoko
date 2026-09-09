@@ -1,4 +1,4 @@
-persistent actor {
+actor {
 
    module Nat {
      public func id(self : Nat) : Nat { self };

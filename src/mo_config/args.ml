@@ -85,18 +85,3 @@ let migration_args = [
   Arg.String (fun s -> Flags.stable_baseline := Some s),
   "<file.most>  last deployed stable signature; with --enhanced-migration, checks the fields demanded at the chain's resume point against it: unexplained fields error (M0267), incompatible ones M0170/M0216, and deployed fields the upgrade would drop M0169";
 ]
-
-let persistent_actors_args = [
-  (* default stability *)
-  "--default-persistent-actors",
-  Arg.Unit (fun () -> Flags.actors := Flags.DefaultPersistentActors),
-  " declare every actor (class) as implicitly `persistent`, defaulting actor fields to `stable` (default). The `persistent` keyword is now optional and redundant.";
-
-  "--require-persistent-actors",
-  Arg.Unit (fun () -> Flags.actors := Flags.RequirePersistentActors),
-  " require all actors to be declared `persistent`, defaulting actor fields to `transient`. Emit diagnostics to help migrate from non-persistent to `persistent` actors. Use this to restore the pre-v2 default.";
-
-  "--legacy-actors",
-  Arg.Unit (fun () -> Flags.actors := Flags.LegacyActors),
-  " in non-`persistent` actors, silently default actor fields to `transient` (legacy behaviour)";
-]

@@ -5,13 +5,14 @@
 * motoko (`moc`)
 
   * breaking: Actors are now `persistent` by default: a bare `actor`/`actor class`
-    declaration makes its fields implicitly `stable` (the former default, in
-    which actor fields were implicitly `transient`, is restored with
-    `--require-persistent-actors`). The `--default-persistent-actors`,
-    `--require-persistent-actors` and `--legacy-actors` flags are now
-    documented in `moc --help` (#6356). Diagnostics and documentation no
-    longer treat persistence as a choice: they describe actors as persistent
-    by default and only call out `transient` as the explicit exception.
+    declaration makes its fields implicitly `stable`. The former default, in
+    which actor fields were implicitly `transient`, can no longer be restored
+    via a compiler flag — mark fields `transient` explicitly instead. The
+    `--default-persistent-actors`, `--require-persistent-actors` and
+    `--legacy-actors` flags have been removed (#6356). Diagnostics and
+    documentation no longer treat persistence as a choice: they describe actors
+    as persistent by default and only call out `transient` as the explicit
+    exception.
 
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve

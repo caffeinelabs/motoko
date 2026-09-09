@@ -4961,7 +4961,7 @@ and check_stable_defaults env sort dec_fields =
   let declared_persistent = sort.note.it in
   if declared_persistent then
     begin
-      if !Flags.actors = Flags.DefaultPersistentActors && sort.note.at <> no_region then
+      if sort.note.at <> no_region then
         warn env sort.note.at "M0217" "redundant `persistent` keyword";
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
@@ -4973,23 +4973,6 @@ and check_stable_defaults env sort dec_fields =
         | _ -> ())
       dec_fields
     end
-  else
-    (* non-`persistent` *)
-    if !Flags.actors = Flags.RequirePersistentActors then
-    let has_implicit_flexible =
-      List.fold_left (fun acc dec_field ->
-        match dec_field.it.stab, dec_field.it.dec.it with
-        | Some {it = Flexible; at; _}, (LetD _ | VarD _) ->
-           if at = no_region
-           then
-             (local_error env dec_field.it.dec.at "M0219" "this field is not persisted across upgrades, declare it `transient` to make this explicit";
-              true)
-           else acc
-        | _ -> acc)
-        false dec_fields
-    in
-    if not has_implicit_flexible then
-      local_error env sort.at "M0220" "this actor is not persistent; its fields will be lost on upgrade"
   end
 
 and check_stab env sort scope dec_fields =

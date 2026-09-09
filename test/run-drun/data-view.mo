@@ -1,7 +1,7 @@
 // simplified version of data-view.mo that doesn't require core.
 //MOC-FLAG --generate-view-queries
 import Prim "mo:⛔";
-persistent actor Self {
+actor Self {
 
   module ArrayView {
     public func view<V>(self : [var V]) :

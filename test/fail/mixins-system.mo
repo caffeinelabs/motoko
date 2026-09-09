@@ -1,5 +1,5 @@
 import Mixin "mixins/Mixin1";
 
-persistent actor {
+actor {
   include Mixin();
 };

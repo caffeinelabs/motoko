@@ -1,2 +1,0 @@
-non-persistent0.mo:3.3-3.14: type error [M0219], this field is not persisted across upgrades, declare it `transient` to make this explicit
-non-persistent0.mo:4.3-4.14: type error [M0219], this field is not persisted across upgrades, declare it `transient` to make this explicit

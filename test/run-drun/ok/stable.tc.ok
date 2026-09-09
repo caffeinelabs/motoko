@@ -1,0 +1,2 @@
+stable.mo:11.3-11.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable.mo:12.3-12.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

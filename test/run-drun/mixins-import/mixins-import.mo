@@ -1,7 +1,7 @@
 import ImportMixin "ImportMixin";
 import Text "Text1";
 
-persistent actor {
+actor {
   include ImportMixin("MyPrefix ", " MySuffix");
 
   let t1 = Text.text1();

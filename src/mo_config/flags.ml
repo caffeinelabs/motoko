@@ -12,8 +12,6 @@ type instruction_limits = {
   update_call: Int64.t;
 }
 
-type actors = LegacyActors | RequirePersistentActors | DefaultPersistentActors
-
 type error_format = Plain | Human | Json
 
 type lint_level = Allow | Warn | Error
@@ -44,7 +42,6 @@ let actor_idl_path : string option ref = ref None
 let max_stable_pages_default = 100 * 16384
 let max_stable_pages : int ref = ref max_stable_pages_default
 let measure_rts_stack = ref false
-let actors = ref DefaultPersistentActors
 let pre_ref : string option ref = ref None
 let post_ref : string option ref = ref None
 let profile = ref false

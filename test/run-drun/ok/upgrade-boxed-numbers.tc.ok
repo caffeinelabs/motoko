@@ -1,0 +1,4 @@
+upgrade-boxed-numbers.mo:4.3-4.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+upgrade-boxed-numbers.mo:5.3-5.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+upgrade-boxed-numbers.mo:6.3-6.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+upgrade-boxed-numbers.mo:7.3-7.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

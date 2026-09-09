@@ -475,7 +475,6 @@ The **stability** qualifier `<stab>` determines the **upgrade** behavior of acto
 
 -   A stability qualifier may appear on `let` and `var` declarations that are actor fields.
     Actors and actor classes are `persistent` by default, so an absent stability qualifier means the field is persisted across upgrades (`stable`).
-    Under the legacy `--require-persistent-actors` flag, an absent stability qualifier instead means the field is not persisted (`flexible`/`transient`).
     The keywords `transient` and `flexible` are interchangeable.
 
 -   `<stab>` qualifiers must not appear on fields of objects or modules.
