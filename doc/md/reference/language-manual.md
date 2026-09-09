@@ -474,8 +474,8 @@ The **visibility** qualifier `<vis>?` determines the accessibility of every fiel
 The **stability** qualifier `<stab>` determines the **upgrade** behavior of actor fields:
 
 -   A stability qualifier should appear on `let` and `var` declarations that are actor fields.
-    Within a `persistent` actor or actor class, an absent stability qualifier defaults to `stable`.
-    Within a non-`persistent` actor or actor class, an absent stability qualifier defaults to `flexible` (or `transient`).
+    Actors and actor classes are `persistent` by default, so an absent stability qualifier defaults to `stable`.
+    In a non-`persistent` actor or actor class (e.g. under the legacy `--require-persistent-actors` flag), an absent stability qualifier defaults to `flexible` (or `transient`).
     The keywords `transient` and `flexible` are interchangeable.
 
 -   `<stab>` qualifiers must not appear on fields of objects or modules.
@@ -1379,7 +1379,7 @@ Any identifier bound by a `public` declaration appears in the type of enclosing 
 
 An identifier bound by a `private` or `system` declaration is excluded from the type of the enclosing object, module or actor and thus inaccessible.
 
-In a `persistent` actor or actor class, all declarations are implicitly `stable` unless explicitly declared otherwise.
+In a `persistent` actor or actor class (the default), all declarations are implicitly `stable` unless explicitly declared otherwise.
 In a non-`persistent` actor or actor class, all declarations are implicitly `transient` (equivalently `flexible`) unless explicitly declared otherwise.
 
 The declaration field has type `T` provided:

@@ -15,7 +15,7 @@ In comparison to other supported languages for building canisters, such as Rust,
 
 Within an actor, you can configure which part of the program is considered to be persistent (retained across upgrades) and which part is ephemeral (reset on upgrades).
 
-More precisely, each `let` and `var` variable declaration in an actor can specify whether the variable is `stable` or `transient`. If you don’t provide a modifier, the variable is assumed to be `transient` by default.
+More precisely, each `let` and `var` variable declaration in an actor can specify whether the variable is `stable` or `transient`. Actors are `persistent` by default, and if you don’t provide a modifier, the variable is assumed to be `stable` by default.
 
 * `stable` means that all values directly or indirectly reachable from that stable variable are considered persistent and are automatically retained across upgrades. This is the primary choice for most of the program's state.
 
@@ -34,9 +34,9 @@ The following is a simple example of how to declare a stable counter that can be
 
 When you compile and deploy a canister for the first time, all transient and stable variables in the actor are initialized in sequence. When a canister is upgraded, all stable variables that existed in the previous version of the actor are pre-initialized with their old values and the remaining transient and any newly-added stable variables are initialized in sequence.
 
-Starting with Motoko v0.13.5, if you prefix the `actor` keyword with the keyword `persistent`, then all `let` and `var` declarations of the actor or actor class are implicitly declared `stable`. Only `transient` variables will need an explicit `transient` declaration.
+Actors are `persistent` by default now, so all `let` and `var` declarations of the actor or actor class are implicitly declared `stable`. Only `transient` variables need an explicit `transient` declaration.
 
-Using a `persistent` actor can help avoid unintended data loss. It is the recommended declaration syntax for actors and actor classes. The non-`persistent` declaration is provided for backwards compatibility.
+Using `persistent` actors avoids unintended data loss across upgrades. The `persistent` keyword itself is now optional and redundant; you can still write it explicitly for clarity, and the (pre-v2) `--require-persistent-actors` compiler flag restores the legacy behaviour where actors are non-`persistent` by default and fields default to `transient` instead.
 
 ```motoko file=<motokoExamples>/PersistentCounter.mo
 ```

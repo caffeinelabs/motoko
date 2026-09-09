@@ -12,11 +12,9 @@ The set of stable types defines the kinds of values that can be transferred from
 Types that cannot be transferred include those whose values depend on the actor's current code, such as non-shared functions or, more generally, objects containing function members. These types are not stable because their behavior cannot be preserved independently of the code that defines them.
 
 :::note
-In Motoko, the treatment of private declarations depends on whether an actor is declared with the `persistent` keyword:
+In Motoko, actors are `persistent` by default, so all private declarations (except function declarations) are considered **stable** by default, unless explicitly marked `transient`.
 
-- In actors **without** the `persistent` keyword, all private declarations are considered **transient** by default, unless explicitly marked `stable`.
-
-- In **`persistent` actors**, all private declarations (except function declarations) are considered **stable** by default, unless explicitly marked `transient`.
+With the legacy `--require-persistent-actors` flag, actors without the `persistent` keyword are non-`persistent`, and their private declarations are considered **transient** by default unless explicitly marked `stable`.
 
 Stable variables must have types that belong to the set of stable types.
 Transient variables are not subject to this restriction and may have any type, including non-stable types such as functions or objects with function members.
