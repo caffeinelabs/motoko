@@ -366,6 +366,49 @@ pub unsafe extern "C" fn blob_compare(s1: Value, s2: Value) -> isize {
     }
 }
 
+/// Dot product of two int8 vectors stored as blobs, over the common prefix
+/// length, with wrapping i32 accumulation. Exposed as a `#[no_mangle]` RTS
+/// export for embedding/similarity workloads where the per-element cost of a
+/// Motoko-level loop dominates. The product is accumulated 16 bytes at a time
+/// with Wasm SIMD (extmul + extadd_pairwise); all arithmetic is exact
+/// (|i8*i8| <= 64 fits i16, pairwise i16 sums fit i32), so the grouped sums
+/// agree with the scalar accumulation up to addition order.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn blob_dot_int8(a: Value, b: Value) -> i32 {
+    let n = min(text_size(a), text_size(b)).as_usize();
+    let p1 = a.as_blob().payload_const() as *const u8;
+    let p2 = b.as_blob().payload_const() as *const u8;
+    dot_int8_simd128(p1, p2, n)
+}
+
+#[target_feature(enable = "simd128")]
+unsafe fn dot_int8_simd128(p1: *const u8, p2: *const u8, n: usize) -> i32 {
+    #[cfg(target_arch = "wasm32")]
+    use core::arch::wasm32::*;
+    #[cfg(target_arch = "wasm64")]
+    use core::arch::wasm64::*;
+
+    let mut acc = i32x4_splat(0);
+    let mut i = 0;
+    while i + 16 <= n {
+        let x = v128_load(p1.add(i) as *const v128);
+        let y = v128_load(p2.add(i) as *const v128);
+        let lo = i16x8_extmul_low_i8x16(x, y);
+        let hi = i16x8_extmul_high_i8x16(x, y);
+        acc = i32x4_add(acc, i32x4_extadd_pairwise_i16x8(lo));
+        acc = i32x4_add(acc, i32x4_extadd_pairwise_i16x8(hi));
+        i += 16;
+    }
+    let mut s = i32x4_extract_lane::<0>(acc)
+        .wrapping_add(i32x4_extract_lane::<1>(acc))
+        .wrapping_add(i32x4_extract_lane::<2>(acc))
+        .wrapping_add(i32x4_extract_lane::<3>(acc));
+    while i < n {
+        s = s.wrapping_add((*p1.add(i) as i8 as i32) * (*p2.add(i) as i8 as i32));
+        i += 1;
+    }
+    s
+}
 /// Length in characters
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn text_len(text: Value) -> usize {

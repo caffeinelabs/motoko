@@ -1,7 +1,8 @@
 (*
 This module originated as a copy of interpreter/syntax/values.ml in the
 reference implementation.
-No adjustments.
+Adjustment: V128Type has no value representation (SIMD instructions are
+handled opaquely); `default_value` rejects it.
 *)
 
 open Types
@@ -29,6 +30,7 @@ let default_value = function
   | I64Type -> I64 I64.zero
   | F32Type -> F32 F32.zero
   | F64Type -> F64 F64.zero
+  | V128Type -> raise (Invalid_argument "default_value: no v128 values")
 
 
 (* Conversion *)

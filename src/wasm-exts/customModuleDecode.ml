@@ -171,6 +171,7 @@ let value_type s =
   | -0x02 -> I64Type
   | -0x03 -> F32Type
   | -0x04 -> F64Type
+  | -0x05 -> V128Type
   | _ -> error s (pos s - 1) "malformed value type"
 
 let elem_type s =
@@ -501,8 +502,26 @@ let rec instr s =
   | 0xc4 -> i64_extend32_s
 
   | 0xfc -> math_prefix s
+  | 0xfd -> simd_prefix s
 
   | b -> illegal s pos b
+
+(* SIMD (0xFD-prefixed) instructions are decoded opaquely: consume the
+   immediates per the spec's shapes and keep their raw bytes for re-encoding.
+   No SIMD instruction carries an index that linking would need to rewrite. *)
+and simd_prefix s =
+  let op = vu32 s in
+  let start = pos s in
+  let memarg () = ignore (vu32 s); ignore (vu64 s) in
+  (match Int32.to_int op with
+   | n when n >= 0x00 && n <= 0x0b -> memarg ()          (* loads/stores *)
+   | 0x0c | 0x0d -> skip 16 s                            (* v128.const, i8x16.shuffle *)
+   | n when n >= 0x15 && n <= 0x22 -> skip 1 s           (* extract/replace lane *)
+   | n when n >= 0x54 && n <= 0x5b -> memarg (); skip 1 s (* load/store lane *)
+   | 0x5c | 0x5d -> memarg ()                            (* load zero *)
+   | _ -> ());
+  let imm = String.sub s.bytes start (pos s - start) in
+  SimdRaw (op, imm)
 
 and instr_block s = List.rev (instr_block' s [])
 and instr_block' s es =
