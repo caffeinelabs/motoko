@@ -4,22 +4,11 @@
 
 * motoko (`moc`)
 
-  * bugfix: trap on array element counts that cannot be allocated, instead of
-    wrapping the byte size computed from them (#6312).
-
-* motoko (`moc`)
-
   * feat: warn (default-on, M0269) that `.vals()` is deprecated in favor of
     `.values()` on arrays and Blob, and warn (default-on, M0270) that
     `system func preupgrade`/`postupgrade` are deprecated in favor of the
     persistent upgrade machinery. Silence with `-A=M0269` / `-A=M0270`
     (#6347).
-  * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
-    rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
-    differently: the suggestion now validates the rewritten callee against
-    the actual dot resolution, so a same-named function field on the
-    receiver (including the built-in fields of arrays, blobs and text)
-    suppresses the suggestion (#6343).
 
   * feat: add `Prim.costVetkdDeriveKey` for querying the cycle cost of the
     IC `cost_vetkd_derive_key` system call, mirroring the existing
@@ -27,6 +16,16 @@
     key name and a `Nat32` curve encoding and returns `(resultCode, costOrUndefined)`,
     where a non-zero `resultCode` signals an invalid key name or curve
     encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
+
+  * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
+    rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
+    differently: the suggestion now validates the rewritten callee against
+    the actual dot resolution, so a same-named function field on the
+    receiver (including the built-in fields of arrays, blobs and text)
+    suppresses the suggestion (#6343).
+
+  * bugfix: trap on array element counts that cannot be allocated, instead of
+    wrapping the byte size computed from them (#6312).
 
 ## 1.15.1 (2026-09-02)
 
