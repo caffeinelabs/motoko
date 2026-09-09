@@ -48,3 +48,4 @@ actor {
 //CALL ingress __motoko_stabilize_before_upgrade "DIDL\x00\x00"
 //CALL upgrade ""
 //CALL ingress sanityTest "DIDL\x00\x00"
+//MOC-FLAG -A=M0270

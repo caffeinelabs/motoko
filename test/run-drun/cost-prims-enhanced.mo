@@ -6,6 +6,7 @@
 //   OtherPrim "costHttpRequest"
 //   OtherPrim "costSignWithEcdsa"
 //   OtherPrim "costSignWithSchnorr"
+//   OtherPrim "costVetkdDeriveKey"
 //SKIP run
 //SKIP run-low
 //SKIP run-ir
@@ -36,17 +37,20 @@ actor {
     // OtherPrim "costHttpRequest"
     Prim.debugPrint(debug_show (Prim.costHttpRequest(15, 2000)) # " -- cost_http_request");
 
-    // OtherPrim "costSignWithEcdsa" / "costSignWithSchnorr"
+    // OtherPrim "costSignWithEcdsa" / "costSignWithSchnorr" / "costVetkdDeriveKey"
     // drun has empty key sets; all queries produce error codes
     let validKey = "test_key_1";
     let invalidCurveOrAlgorithm : Nat32 = 42;
     let validCurveOrAlgorithm : Nat32 = 0;
     testCost(Prim.costSignWithEcdsa(validKey, invalidCurveOrAlgorithm), " -- cost_sign_with_ecdsa");
     testCost(Prim.costSignWithSchnorr(validKey, invalidCurveOrAlgorithm), " -- cost_sign_with_schnorr");
+    testCost(Prim.costVetkdDeriveKey(validKey, invalidCurveOrAlgorithm), " -- cost_vetkd_derive_key");
     testCost(Prim.costSignWithEcdsa("wrong_key", validCurveOrAlgorithm), " -- cost_sign_with_ecdsa");
     testCost(Prim.costSignWithSchnorr("wrong_key", validCurveOrAlgorithm), " -- cost_sign_with_schnorr");
+    testCost(Prim.costVetkdDeriveKey("wrong_key", validCurveOrAlgorithm), " -- cost_vetkd_derive_key");
     testCost(Prim.costSignWithEcdsa(validKey, validCurveOrAlgorithm), " -- cost_sign_with_ecdsa");
     testCost(Prim.costSignWithSchnorr(validKey, validCurveOrAlgorithm), " -- cost_sign_with_schnorr");
+    testCost(Prim.costVetkdDeriveKey(validKey, validCurveOrAlgorithm), " -- cost_vetkd_derive_key");
   };
 };
 

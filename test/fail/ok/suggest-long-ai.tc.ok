@@ -109,6 +109,9 @@ suggest-long-ai.mo:4.6-4.13: type error [M0072], field stableM does not exist in
     costSignWithSchnorr :
       (keyName : Text, algorithmEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
+    costVetkdDeriveKey :
+      (keyName : Text, curveEncoding : Nat32) ->
+        (resultCode : Nat32, costOrUndefined : Nat);
     createActor : (wasm : Blob, argument : Blob) -> async Principal;
     ctzInt16 : (w : Int16) -> Int16;
     ctzInt32 : (w : Int32) -> Int32;
