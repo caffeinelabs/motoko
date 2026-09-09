@@ -17,7 +17,7 @@
     where a non-zero `resultCode` signals an invalid key name or curve
     encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
 
-  * fix: `///` doc comments on members contributed to an actor via a
+  * bugfix: `///` doc comments on members contributed to an actor via a
     `mixin include` now appear in the generated Candid interface (`.did`),
     matching the behavior for directly-declared members. Previously such
     docs were silently dropped (#6351).
