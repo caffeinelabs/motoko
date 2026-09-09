@@ -186,8 +186,7 @@ module Make (Cfg : Config) = struct
     let open Trivia in
     match Cfg.trivia with
     | Some t ->
-      let pos : Trivia.pos = { file = at.left.file; line = at.left.line; column = at.left.column } in
-      let trivia = PosHashtbl.find_opt t pos in
+      let trivia = PosHashtbl.find_opt t at.left in
       (match trivia with
       | Some t ->
         List.iter (function

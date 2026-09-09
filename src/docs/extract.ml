@@ -281,14 +281,7 @@ end
 let extract_docs : Syntax.prog -> (extracted, string) result =
  fun prog ->
   let find_trivia (parser_pos : region) : Trivia.trivia_info =
-    PosTable.find_opt prog.note.Syntax.trivia
-      Trivia.
-        {
-          file = parser_pos.left.file;
-          line = parser_pos.left.line;
-          column = parser_pos.left.column;
-        }
-    |> Option.get
+    PosTable.find_opt prog.note.Syntax.trivia parser_pos.left |> Option.get
   in
   let module_docs = find_trivia prog.at in
   (* Skip the module header *)

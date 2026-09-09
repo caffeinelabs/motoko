@@ -29,7 +29,7 @@ val docs_of_trivia_info : trivia_info -> doc list
 
 val doc_comment_of_trivia_info : trivia_info -> string option
 
-type pos = { file : string; line : int; column : int }
+type pos = Source.pos = { file : string; line : int; column : int }
 
 val pos_of_lexpos : Lexing.position -> pos
 
