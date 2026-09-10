@@ -197,6 +197,7 @@ let
   coverage = testDerivation {
     # this runs all subdirectories, so let's just depend on all of test/
     src = ../test;
+    enableParallelBuilding = true;
     buildInputs =
       builtins.attrValues coverage_bins ++
       [ pkgs.ocamlPackages.bisect_ppx test-runner pkgs.pocket-ic.server pkgs.cacert ] ++
@@ -215,7 +216,10 @@ let
         builtins.concatStringsSep " " (map (d: "${d}/src") (builtins.attrValues coverage_bins))
       }"
       type -p moc && moc --version
-      make coverage
+      # NIX_BUILD_CORES is the core count the builder grants this derivation
+      # (the daemon sets it to nproc when `cores = 0`); make's jobserver fans
+      # the whole suite out over those cores.
+      make -j"$NIX_BUILD_CORES" coverage
     '';
     installPhase = ''
       mv coverage $out;
