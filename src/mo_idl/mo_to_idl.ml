@@ -25,6 +25,10 @@ module MakeState() = struct
   module TypeMap = Map.Make (struct type t = con * typ list let compare = compare end)
   let type_map = ref TypeMap.empty
 
+  (* Trivia tables of mixins a top-level actor includes, merged into the
+     Candid program so mixin-member docs render with the actor's own. *)
+  let mixin_trivia = ref []
+
   let normalize_name name =
     String.map (fun c ->
         if c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
@@ -215,23 +219,23 @@ module MakeState() = struct
         dec::list
       ) !env []
 
-  let rec gather_views acc dfs =
+  let rec gather_views includes acc dfs =
     E.(match dfs with
-    | [] -> acc
+    | [] -> acc, List.rev includes
     | df :: dfs1 ->
       match df.it.dec.it with
       | E.IncludeD (_, _, _, include_note) ->
         (match !include_note with
-         | Some note -> gather_views acc (note.decs @ dfs1)
-         | None -> gather_views acc dfs1)
+         | Some note -> gather_views (note.trivia :: includes) acc (note.decs @ dfs1)
+         | None -> gather_views includes acc dfs1)
       | _ ->
          (match df.it.stab with
           | Some { it = Stable exp_ref; _} ->
              (match !exp_ref with
-                None -> gather_views acc dfs1
-              | Some {viewer_field;_} -> gather_views (viewer_field::acc) dfs1)
+                None -> gather_views includes acc dfs1
+              | Some {viewer_field;_} -> gather_views includes (viewer_field::acc) dfs1)
           | _ ->
-             gather_views acc dfs1))
+             gather_views includes acc dfs1))
 
   let extend_obj t tfs =
     if tfs = [] then t else
@@ -246,7 +250,8 @@ module MakeState() = struct
     match cub.it with
     | ProgU _ | ModuleU _ | MixinU _ -> None
     | ActorU (_, _, _, dfs) ->
-       let viewer_tfs = gather_views [] dfs in
+       let (viewer_tfs, includes) = gather_views [] [] dfs in
+       mixin_trivia := includes;
        let extended_actor_typ = extend_obj cub.note.note_typ viewer_tfs in
        Some (typ extended_actor_typ)
     | ActorClassU (_, _, _, _, _, _, _, _, dfs) ->
@@ -254,7 +259,8 @@ module MakeState() = struct
         | Func (Local, Returns, [tb], ts1, [t2]) ->
           let args = List.map arg_typ (List.map (open_ [Non]) ts1) in
           let (_, _, actor_typ) = as_async (normalize (open_ [Non] t2)) in
-          let viewer_tfs = gather_views [] dfs in
+          let (viewer_tfs, includes) = gather_views [] [] dfs in
+          mixin_trivia := includes;
           let extended_actor_typ = extend_obj actor_typ viewer_tfs in
           let actor = typ extended_actor_typ in
           Some (I.ClassT (args, actor) @@ cub.at)
@@ -264,9 +270,9 @@ end
 
 let prog (progs, senv) : I.prog =
   let prog = CompUnit.combine_progs progs in
-  let trivia = prog.note.E.trivia in
   let open MakeState() in
   let actor = actor prog in
+  let trivia = Trivia.merge_triv_tables (prog.note.E.trivia :: !mixin_trivia) in
   if actor = None then chase_decs senv;
   let decs = gather_decs () in
   let it = I.{decs; actor} in

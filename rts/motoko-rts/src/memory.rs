@@ -1,6 +1,6 @@
 #[cfg(feature = "ic")]
 pub mod ic;
-use crate::{constants::MAX_ARRAY_LENGTH_FOR_ITERATOR, types::*};
+use crate::{constants::MAX_ARRAY_LENGTH, types::*};
 
 use motoko_rts_macros::classical_persistence;
 use motoko_rts_macros::enhanced_orthogonal_persistence;
@@ -75,7 +75,9 @@ pub unsafe fn alloc_blob<M: Memory>(mem: &mut M, tag: Tag, size: Bytes<usize>) -
 #[ic_mem_fn]
 pub unsafe fn alloc_array<M: Memory>(mem: &mut M, tag: Tag, len: usize) -> Value {
     debug_assert!(is_base_array_tag(tag));
-    assert!(len <= MAX_ARRAY_LENGTH_FOR_ITERATOR);
+    // Not the iterator bound: a longer array cannot be allocated, and would wrap the
+    // byte size below (#6299).
+    assert!(len <= MAX_ARRAY_LENGTH);
 
     let skewed_ptr = mem.alloc_words(size_of::<Array>() + Words(len));
 

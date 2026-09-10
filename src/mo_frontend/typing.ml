@@ -5536,7 +5536,7 @@ and infer_dec_typdecs env dec : Scope.t =
     | None -> error env i.at "M0226" "unknown mixin %s" i.it
     | Some mix ->
       let open Scope in
-      n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs });
+      n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs; trivia = mix.trivia });
       let (_, fs, tfs) = T.as_obj' mix.typ in
       let scope = scope_of_object Scope.MixinIncluded env fs tfs in
       scope
@@ -5862,7 +5862,8 @@ let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
               ] [(id.it, con)]) in
               Scope.lib ~package:pkg_opt lib.note.filename typ
             | MixinU (need_system, arg, decs) ->
-              Scope.mixin lib.note.filename Scope.{ imports; need_system; arg; decs; typ }
+              let mixin_note = lib.note in
+              Scope.mixin mixin_note.filename Scope.{ imports; need_system; arg; decs; typ; trivia = mixin_note.trivia }
             | ActorU _ ->
               error env cub.at "M0144" "bad import: expected a module or actor class but found an actor"
             | ProgU _ ->

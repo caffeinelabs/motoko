@@ -19,6 +19,7 @@ and mixin_data =  {
   arg : S.pat;
   decs : S.dec_field list;
   typ : T.typ;
+  trivia : Trivia.triv_table;
 }
 type obj_env = scope T.Env.t  (* internal object scopes *)
 and scope =

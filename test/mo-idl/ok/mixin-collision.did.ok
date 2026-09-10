@@ -1,0 +1,6 @@
+service : {
+  /// own doc B.
+  bar: () -> ();
+  /// own doc A.
+  foo: () -> ();
+}
