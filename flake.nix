@@ -244,6 +244,11 @@
 
         inherit nix-update tests js test-runner rts-checked;
 
+        # Published to GitHub Pages by test.yml's `reports` job. Deliberately not
+        # in `common-constituents`: that feeds the `*-systems-go` aggregates, and
+        # this pulls in the (expensive) instrumented coverage build.
+        report-site = import ./nix/report-site.nix { inherit pkgs; inherit (tests) coverage; };
+
         inherit (pkgs) nix-build-uncached ic-wasm pocket-ic;
 
         # Get pocket-ic server.
