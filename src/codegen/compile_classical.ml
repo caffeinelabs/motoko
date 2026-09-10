@@ -613,10 +613,7 @@ module E = struct
     | ps, rs  -> VarBlockType (nr (func_type env (FuncType (ps, rs))))
 
   let if_ env tys thn els = G.if_ (as_block_type env tys) thn els
-  (* Multi-value-aware `if`, a thin wrapper over `as_block_type`:
-     [param]/[return] are optional `stack_type`s (default empty). With
-     both omitted this is just a nullary `if`. Mirror of
-     `compile_enhanced.ml`'s `E.if'`. *)
+  (* Multi-value `if`; unlike `if_` it takes a raw i32 condition and block params. *)
   let if' env ?param ?(return=[]) thn els =
     G.if_ (as_block_type ?param env return) thn els
   let i32s n = Lib.List.make n I32Type
@@ -1208,10 +1205,7 @@ module GC = struct
     if !Flags.gc_strategy <> Flags.Incremental then
       E.add_global32 env "_HP" Mutable 0l
     else
-      (* GC-running flag. RTS-side cache of `phase != Pause`, written
-         via `set_running_gc` (RTS_Exports). Registered early so
-         `Tagged.write_with_barrier` can resolve it during expression
-         compilation. *)
+      (* Registered before expression compilation, which already reads it in the barriers. *)
       E.add_global32 env "__running_gc" Mutable 0l
 
   let get_mutator_instructions env =
@@ -2209,8 +2203,7 @@ module Tagged = struct
 
   let allocation_barrier env =
     (if !Flags.gc_strategy = Flags.Incremental then
-      (* Inline running-GC fast path. RTS body returns the argument
-         unchanged on Pause, so skip the call. *)
+      (* The RTS returns its argument unchanged while paused, so skip the call. *)
       G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
       E.if' env ~param:(E.i32s 1) ~return:(E.i32s 1)
         (E.call_rts env "allocation_barrier")
@@ -2222,9 +2215,6 @@ module Tagged = struct
     let (set_value, get_value) = new_local env "written_value" in
     let (set_location, get_location) = new_local env "write_location" in
     set_value ^^ set_location ^^
-    (* Read the backend-cached running-GC flag (i32). The RTS pushes
-       the flag via `set_running_gc` on every Pause↔non-Pause
-       transition, so the fast path avoids the RTS round-trip. *)
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     G.if0 (
       get_location ^^ get_value ^^
@@ -6523,12 +6513,7 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr bigint_trap_fi))
     });
 
-    (* GC-running flag export (incremental GC only). The RTS pushes
-       cached `phase != Pause` here on every Pause↔non-Pause
-       transition; the write_with_barrier fast path reads
-       `__running_gc` directly instead of round-tripping through an
-       RTS call. The global itself is registered in
-       `GC.register_globals`. *)
+    (* The RTS mirrors `phase != Pause` into `__running_gc`, so barriers can skip the RTS call while paused. *)
     if !Flags.gc_strategy = Flags.Incremental then begin
       let set_running_gc_fi = E.add_fun env "set_running_gc" (
         Func.of_body env ["state", I32Type] [] (fun env ->
@@ -6542,11 +6527,7 @@ module RTS_Exports = struct
       })
     end;
 
-    (* Sanity-only read-mirror of `set_running_gc`: lets the RTS assert the
-       `__running_gc` cache still agrees with the authoritative GC phase
-       (differential oracle vs. the pre-cache behaviour). Created *and* exported
-       only under `--sanity-checks` with the incremental GC; the RTS imports it
-       only in debug builds, so producer and consumer coincide. *)
+    (* Imported only by the debug RTS, which is linked exactly under `--sanity-checks`. *)
     if !Flags.sanity && !Flags.gc_strategy = Flags.Incremental then begin
       let get_running_gc_fi = E.add_fun env "get_running_gc" (
         Func.of_body env [] [I32Type] (fun env ->

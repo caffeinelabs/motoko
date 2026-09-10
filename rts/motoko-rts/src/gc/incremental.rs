@@ -45,9 +45,7 @@ pub mod time;
 #[ic_mem_fn(ic_only)]
 unsafe fn initialize_incremental_gc<M: Memory>(mem: &mut M) {
     initialize(mem);
-    // The `State` is now adopted (fresh on install, persisted-in-place on a
-    // stable-heap EOP upgrade). Re-seat the backend `__running_gc` cache from it:
-    // this runs in the wasm `(start)`, before any exported entry or write barrier.
+    // Instantiation reset the `__running_gc` global, but under EOP the persisted phase may be mid-cycle.
     get_incremental_gc_state().resync_running_gc_cache();
 }
 
@@ -72,11 +70,7 @@ unsafe fn initialize<M: Memory>(_mem: &mut M) {
 #[ic_mem_fn(ic_only)]
 unsafe fn schedule_incremental_gc<M: Memory>(mem: &mut M) {
     let state = get_incremental_gc_state();
-    // Sanity: the backend `__running_gc` cache must equal the authoritative
-    // `phase != Pause` (the value the uncached pre-PR code computed live). Runs
-    // every schedule point, so it catches a decohered cache — e.g. a missing
-    // start-time re-seat after a stable-heap EOP upgrade landing mid-cycle —
-    // on the first GC scheduling after the assignment that would skip a barrier.
+    // A stale `__running_gc` cache silently skips barriers, so check it against the authoritative phase.
     #[cfg(debug_assertions)]
     debug_assert_eq!(get_running_gc(), (state.phase() != Phase::Pause) as i32);
     let running = state.phase() != Phase::Pause;
@@ -162,12 +156,7 @@ pub enum Phase {
 /// Use a long-term representation by relying on C layout.
 #[repr(C)]
 pub struct State {
-    /// Current GC phase. **DO NOT assign directly** — always go through
-    /// [`State::set_phase`], which keeps the backend-side `__running_gc`
-    /// global in sync via the `set_running_gc` export on every
-    /// `Pause ↔ non-Pause` transition. The field privacy (no `pub`)
-    /// enforces this within the module; the rule is repeated here for
-    /// future contributors to make the invariant explicit.
+    /// Only assign through `set_phase`, which mirrors the running flag into the backend `__running_gc` global.
     phase_inner: Phase,
     partitioned_heap: PartitionedHeap,
     allocation_count: usize, // Number of allocations during an active GC run.
@@ -176,29 +165,19 @@ pub struct State {
     statistics: Statistics,
 }
 
-// The persisted layout of `State` is a compatibility contract with canisters built
-// by an earlier compiler: an in-place EOP upgrade reinterprets the very same bytes,
-// which is why the struct is `#[repr(C)]`. Renaming a field is free, but reordering
-// or resizing one is not — that needs `persistence::VERSION` bumped. Pin what the
-// upgrade path and the barriers depend on, so such a change breaks the build here
-// rather than a canister in the field.
+// An in-place EOP upgrade reinterprets these bytes, so reordering or resizing fields needs a `persistence::VERSION` bump.
 const _: () = assert!(core::mem::offset_of!(State, phase_inner) == 0);
 const _: () = assert!(core::mem::size_of::<Phase>() == 4);
 
 #[cfg(feature = "ic")]
 unsafe extern "C" {
-    // Provided by generated code: pushes the running-GC boolean to a
-    // backend-side global so the write-barrier fast path can read it
-    // without an RTS round-trip.
+    // Exported by generated code, lets barriers skip the RTS call while the GC is paused.
     fn set_running_gc(state: i32);
 }
 
 #[cfg(all(feature = "ic", debug_assertions))]
 unsafe extern "C" {
-    // Sanity-only read-mirror of `set_running_gc`, provided by generated code
-    // under `--sanity-checks` (incremental GC only). Lets the RTS assert the
-    // `__running_gc` cache still agrees with the authoritative GC phase — the
-    // value the pre-cache code computed live on every barrier.
+    // Only exported under `--sanity-checks`, which is exactly when the debug RTS gets linked.
     fn get_running_gc() -> i32;
 }
 
@@ -217,17 +196,8 @@ impl State {
         }
     }
 
-    /// Re-seat the backend-cached `__running_gc` global from the authoritative
-    /// `phase_inner` — without a phase transition. Idempotent.
-    ///
-    /// `set_phase` only pushes the global on a `Pause ↔ non-Pause` *transition*,
-    /// which assumes the global already agrees with `phase_inner`. That assumption
-    /// breaks at canister start: module (re-)instantiation resets the global to its
-    /// init value (0 = not running), independently of the GC `State` — which, under
-    /// stable-heap EOP, persists in main memory in place and may be mid-cycle
-    /// (`phase_inner != Pause`). Call this once after the `State` is adopted from
-    /// persistence, before any write barrier can fire, so the fast-path cache matches
-    /// the phase.
+    /// `set_phase` only pushes the flag on transitions, so after instantiation resets the global
+    /// the persisted phase must be pushed once explicitly, before any barrier runs.
     #[cfg(feature = "ic")]
     pub fn resync_running_gc_cache(&self) {
         unsafe { set_running_gc((self.phase_inner != Phase::Pause) as i32) }
