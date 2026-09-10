@@ -1,1 +1,1 @@
-mixins/Mixin1.mo:4.3-4.9: type error [M0130], misplaced system visibility, did you mean private?
+mixins/Mixin1.mo:4.3-4.30: type error [M0130], misplaced system visibility, did you mean private?
