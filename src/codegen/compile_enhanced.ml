@@ -693,12 +693,7 @@ module E = struct
     G.if1 return_type then_block else_block
 
   let if_ env tys thn els = prepare_branch_condition ^^ G.if_ (as_block_type env tys) thn els
-  (* [if' env ?param ?return thn els] — block-type-aware multi-value `if`,
-     a thin wrapper over `as_block_type`. [param]/[return] are optional
-     `stack_type`s (default empty). Unlike `if_`, does *not*
-     `prepare_branch_condition` (no `i32.wrap_i64`): the caller must place
-     an i32 condition on the wasm stack themselves — use this for raw-wasm
-     conditions like `global.get` of an i32 flag. *)
+  (* Multi-value `if`; unlike `if_` it takes a raw i32 condition (no `prepare_branch_condition`) and block params. *)
   let if' env ?param ?(return=[]) thn els =
     G.if_ (as_block_type ?param env return) thn els
   let i64s n = Lib.List.make n I64Type
@@ -1320,11 +1315,7 @@ module GC = struct
     E.add_global64 env "__mutator_instructions" Mutable 0L;
     E.add_global64 env "__collector_instructions" Mutable 0L;
     E.add_global64 env "__lifetime_instructions" Mutable 0L;
-    (* GC-running flag. RTS-side cache of `phase != Pause`, written via
-       the `set_running_gc` export below (registered in RTS_Exports).
-       Registered here so `Tagged.write_with_barrier` can resolve the
-       global during expression compilation, which runs before
-       `conclude_module`. *)
+    (* Registered before expression compilation, which already reads it in the barriers. *)
     E.add_global32 env "__running_gc" Mutable 0l
 
   let get_mutator_instructions env =
@@ -2143,22 +2134,14 @@ module Tagged = struct
     go cases
 
   let allocation_barrier env =
-    (* Inline running-GC fast path. The RTS function returns its
-       argument unchanged when `state.phase() == Pause`, so a single
-       `global.get __running_gc` + multi-value `if (param i64) (result i64)`
-       elides the function-call overhead on the common (paused) path,
-       leaving the new_object on the stack identity-wise. *)
+    (* The RTS returns its argument unchanged while paused, so skip the call. *)
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
       (E.call_rts env "allocation_barrier")
       G.nop
 
   let write_with_barrier env =
-    (* Stack on entry: [location, value]. Read the backend-cached
-       running-GC flag (i32) and dispatch via a multi-value
-       `if (param i64 i64)` block-type so the operands flow through
-       without locals. The RTS pushes the flag via `set_running_gc`
-       on every Pause↔non-Pause transition. *)
+    (* Stack on entry: [location, value]; both arms consume them via the block params. *)
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     E.if' env ~param:(E.i64s 2)
       (E.call_rts env "write_with_barrier")
@@ -2354,11 +2337,7 @@ module WeakRef = struct
     Tagged.load_field env field
 
   (* Load the target through a load barrier, marking it during the GC mark phase.
-     Fast-path gated on the GC state, mirroring [Tagged.allocation_barrier]: the
-     RTS function returns its argument unchanged when the GC is paused, so a
-     single `global.get __running_gc` + multi-value `if (param i64) (result i64)`
-     elides the call on the common path and lets the loaded target flow through
-     without a local. *)
+     The RTS returns its argument unchanged while paused, so skip the call. *)
   let load_field_with_barrier env =
     load_field env ^^
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
@@ -6369,12 +6348,7 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr bigint_trap_fi))
     });
 
-    (* GC-running flag export. The `__running_gc` global itself is
-       registered in `GC.register_globals` so `Tagged.write_with_barrier`
-       can resolve it during expression compilation. The RTS pushes
-       cached `phase != Pause` here on every Pause↔non-Pause transition;
-       the write_with_barrier fast path reads the global instead of
-       round-tripping through an RTS call. *)
+    (* The RTS mirrors `phase != Pause` into `__running_gc`, so barriers can skip the RTS call while paused. *)
     let set_running_gc_fi = E.add_fun env "set_running_gc" (
       Func.of_body env ["state", I32Type] [] (fun env ->
         G.i (LocalGet (nr 0l)) ^^
@@ -6386,11 +6360,7 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr set_running_gc_fi))
     });
 
-    (* Sanity-only read-mirror of `set_running_gc`: lets the RTS assert the
-       `__running_gc` cache still agrees with the authoritative GC phase
-       (differential oracle vs. the pre-cache behaviour). Created *and* exported
-       only under `--sanity-checks` (incremental is implied by EOP); the RTS
-       imports it only in debug builds, so producer and consumer coincide. *)
+    (* Imported only by the debug RTS, which is linked exactly under `--sanity-checks`. *)
     if !Flags.sanity then begin
       let get_running_gc_fi = E.add_fun env "get_running_gc" (
         Func.of_body env [] [I32Type] (fun env ->
