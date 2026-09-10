@@ -156,7 +156,10 @@ let%expect_test "" =
     test-field-srcs.mo:3.17-3.21: test-field-srcs.mo:3.17-3.21
     test-field-srcs.mo:8.9-8.15: test-field-srcs.mo:8.9-8.15
     test-field-srcs.mo:9.17-9.21: test-field-srcs.mo:3.17-3.21 test-field-srcs.mo:9.17-9.21
-    test-field-srcs.mo:14.15-14.19: test-field-srcs.mo:14.15-14.19 |}]
+    test-field-srcs.mo:14.15-14.19: test-field-srcs.mo:14.15-14.19
+    With diagnostics:
+    test-field-srcs.mo:1.1-1.11: warning [M0217], redundant `persistent` keyword
+ |}]
 
 let run_compare_typed_asts_test filename =
   let open Diag.Syntax in
