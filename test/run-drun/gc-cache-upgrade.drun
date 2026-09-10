@@ -1,0 +1,9 @@
+# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
+# Upgrading mid-GC-cycle must re-seat the fresh module's `__running_gc` global from the persisted phase.
+install $ID gc-cache-upgrade/v1.mo ""
+ingress $ID build "DIDL\x00\x00"
+upgrade $ID gc-cache-upgrade/v2.mo ""
+ingress $ID churn "DIDL\x00\x00"
+upgrade $ID gc-cache-upgrade/v1.mo ""
+ingress $ID churn "DIDL\x00\x00"
+ingress $ID size "DIDL\x00\x00"
