@@ -3,5 +3,5 @@ debug.print: Stable memory size: 10
 ingress Completed: Reply: 0x4449444c0000
 debug.print: Stable memory size: 20
 ingress Completed: Reply: 0x4449444c0000
-debug.print: Upgrade instructions: 10_465
+debug.print: Ignore Diff: (ignored)
 ingress Completed: Reply: 0x4449444c0000
