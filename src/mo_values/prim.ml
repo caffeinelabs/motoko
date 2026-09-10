@@ -305,6 +305,18 @@ let prim trap =
                             (let a, b = Value.as_blob a, Value.as_blob b in
                              if a = b then 0 else if a < b then -1 else 1)))
      | _ -> assert false)
+  | "blob_dot_int8" -> fun _ v k ->
+    (match Value.as_tup v with
+     | [a; b] ->
+       let a, b = Value.as_blob a, Value.as_blob b in
+       let n = min (String.length a) (String.length b) in
+       let sx s i = let c = Char.code s.[i] in if c < 128 then c else c - 256 in
+       let acc = ref 0l in
+       for i = 0 to n - 1 do
+         acc := Int32.add !acc (Int32.mul (Int32.of_int (sx a i)) (Int32.of_int (sx b i)))
+       done;
+       k (Int32 (Int_32.of_int32 !acc))
+     | _ -> assert false)
   | "text_iter" -> fun _ v k ->
     let s = Lib.Utf8.decode (Value.as_text v) in
     let i = Seq.map (fun c -> Char c) (List.to_seq s) in

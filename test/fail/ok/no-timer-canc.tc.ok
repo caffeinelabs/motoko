@@ -66,6 +66,7 @@ no-timer-canc.mo:3.10-3.21: type error [M0119], object field cancelTimer is not 
     arrayMutToBlob : (a : [var Nat8]) -> Blob;
     arrayToBlob : (a : [Nat8]) -> Blob;
     blobCompare : (b1 : Blob, b2 : Blob) -> Int8;
+    blobDotInt8 : (b1 : Blob, b2 : Blob) -> Int32;
     blobOfPrincipal : (id : Principal) -> Blob;
     blobToArray : (b : Blob) -> [Nat8];
     blobToArrayMut : (b : Blob) -> [var Nat8];
