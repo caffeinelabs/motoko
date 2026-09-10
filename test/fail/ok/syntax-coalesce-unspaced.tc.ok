@@ -2,7 +2,7 @@ syntax-coalesce-unspaced.mo:4.11-4.12: syntax error [M0001], unexpected token '?
   <eof>
   .<nat>
   !
-  <exp_nullary(ob)>
+  <exp_cont>
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
@@ -17,5 +17,4 @@ syntax-coalesce-unspaced.mo:4.11-4.12: syntax error [M0001], unexpected token '?
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>

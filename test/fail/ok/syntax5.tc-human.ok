@@ -2,7 +2,7 @@ error[M0001]: unexpected end of input, expected one of token or <phrase> sequenc
   )
   .<nat>
   !
-  <exp_nullary(ob)>
+  <exp_cont>
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
   <binop> <exp(ob)>
@@ -16,11 +16,10 @@ error[M0001]: unexpected end of input, expected one of token or <phrase> sequenc
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>
   with seplist(<exp_field>,<semicolon>) ) <obj_or_class_dec>
+  with seplist(<exp_field>,<semicolon>) ) <exp_post(ob)>
   with seplist(<exp_field>,<semicolon>) ) async <exp_nest>
-  with seplist(<exp_field>,<semicolon>) ) <exp_post(ob)> <inst> <exp_nullary(ob)>
     ┌─ syntax5.mo:3:1
   3 │  
     │  ^ 

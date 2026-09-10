@@ -1,0 +1,1 @@
+syntax-else-chain-legacy.mo:4.38-4.39: syntax error [M0272], unexpected token '2', expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition

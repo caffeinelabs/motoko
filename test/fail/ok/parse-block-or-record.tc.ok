@@ -16,7 +16,7 @@ parse-block-or-record.mo:42.26-42.27: syntax error [M0001], unexpected token '='
   }
   .<nat>
   !
-  <exp_nullary(ob)>
+  <exp_cont>
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
@@ -30,14 +30,13 @@ parse-block-or-record.mo:42.26-42.27: syntax error [M0001], unexpected token '='
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>
 parse-block-or-record.mo:44.16-44.20: syntax error [M0271], `with` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `with_`)
 parse-block-or-record.mo:44.23-44.24: syntax error [M0001], unexpected token '=', expected one of token or <phrase> sequence:
   }
   .<nat>
   !
-  <exp_nullary(ob)>
+  <exp_cont>
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
@@ -51,8 +50,7 @@ parse-block-or-record.mo:44.23-44.24: syntax error [M0001], unexpected token '='
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>
 parse-block-or-record.mo:50.24-50.29: syntax error [M0269], a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
 parse-block-or-record.mo:50.31-50.36: syntax error [M0269], a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`
 parse-block-or-record.mo:50.38-50.43: syntax error [M0269], a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`

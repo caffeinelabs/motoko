@@ -131,7 +131,7 @@ let%expect_test "test1" =
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
@@ -146,14 +146,13 @@ let%expect_test "test1" =
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]')
+      <inst> <exp_arg> (e.g. '<Int> 42')
 
     (unknown location): syntax error [M0001], unexpected token 'let', expected one of token or <phrase> sequence:
       }
       .<nat> (e.g. '.1')
       !
-      <exp_nullary(ob)> (e.g. '42')
+      <exp_cont> (e.g. '(42)')
       ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
       |> <exp_bin(ob)> (e.g. '|> 42')
       or <exp_bin(ob)> (e.g. 'or 42')
@@ -168,8 +167,7 @@ let%expect_test "test1" =
       <binassign> <exp(ob)> (e.g. '+= 42')
       and <exp_bin(ob)> (e.g. 'and 42')
       <unop> <exp_bin(ob)> (e.g. '- 42')
-      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
-      [ <exp(ob)> ] (e.g. '[ 42 ]')
+      <inst> <exp_arg> (e.g. '<Int> 42')
     |}]
 
 let%expect_test "test2" =

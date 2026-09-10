@@ -33,6 +33,46 @@
       as `query` or `implicit` used as an identifier), replacing the generic
       `M0001` in these situations.
 
+  * feat: syntax ergonomics, part 2 — unparenthesized heads (#6348, target syntax in #6352):
+
+    * `switch`, `if`, and `while` now accept full expressions as scrutinee or
+      condition, without parentheses: `switch f(x) { ... }`, `if a and b { ... }`,
+      `switch p.x { ... }`, `switch arr[i] { ... }`; likewise, `for` loops no
+      longer need parentheses: `for x in xs.vals() { ... }`. Following Rust's rule for
+      the identical ambiguity, a record literal directly in these positions
+      must be parenthesized: `switch ({ x = 0 }) { ... }`. Whether a `(`/`[`
+      extends the scrutinee or starts the following branch is decided by
+      whitespace, mirroring the existing rule for `<`/`>`: `if f(x) { }` is a
+      call (no space), while `if (c) (e) else (e')` keeps its existing meaning
+      (spaced `(e)` is the branch). Other operators extend the condition
+      greedily: `if a + 1 > n { }` works, but a branch that begins with a
+      unary `-`/`+` after an unparenthesized condition now needs parentheses.
+      Following the target syntax (#6352), the new head forms are coupled to
+      the brace discipline: when the head of `if`/`while` is more than a
+      single atom (or a `for` head is unparenthesized), the branches or body
+      must be blocks — `if f(x) { e1 } else { e2 }`, never `if f(x) e1 else e2`
+      (diagnosed by the new `M0272` with a fix-it). Bare branches remain
+      available exactly as before, with parenthesized or atomic heads.
+      An `else if` chain that starts from an unparenthesized head stays
+      braced throughout (`if f(x) { } else if c { } else { }`); a bare-branch
+      `if` cannot continue such a chain. All four constructs share one head
+      grammar (an atom, or a call/projection/index/operator/prefix
+      expression; `do { ... }` counts as an expression, so `if do { ... } { }`
+      parses, as `if { c } { }` does in Rust), and `break l e` now takes a
+      full expression as its operand, like `return e` (`break l f(x)`,
+      `break l do { ... }`).
+
+    * BREAKING: `#` immediately followed by an identifier is now a variant
+      introduction wherever an expression can start, so
+      `if (c) #less else #greater` parses with the variants as branches.
+      Concatenation is unaffected when spaced (`x # y`) or written tightly
+      after an expression (`x#y`), but the half-spaced form `x #y` now parses
+      as `x` juxtaposed with the variant `#y` and is rejected.
+
+    * `M0269` additionally covers a record literal written directly as a
+      `switch`/`if`/`while` head, where the `{` already belongs to the
+      construct's body.
+
 ## 1.15.1 (2026-09-02)
 
 * motoko (`moc`)

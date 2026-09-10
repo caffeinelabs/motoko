@@ -81,7 +81,6 @@
     '<' <list(<typ>, ',')> '>'
 
 <inst> ::= 
-    <empty>
     '<' <list(<typ>, ',')> '>'
     '<' 'system' (',' <typ>)* '>'
 
@@ -186,7 +185,7 @@
     '_'
 
 <exp_arg> ::= 
-    <ob>
+    <exp_obj>
     <lit>
     '(' <list(<exp>, ',')> ')'
     <id>
@@ -195,16 +194,29 @@
 <exp_post> ::= 
     <exp_nullary>
     '[' 'var'? <list(<exp_nonvar>, ',')> ']'
-    <exp_post> '[' <exp> ']'
+    <exp_post> <exp_cont>
     <exp_post> '.'<nat>
     <exp_post> '.' <id>
     <exp_post> <inst> <exp_arg>
     <exp_post> '!'
     '(' 'system' <exp_post> '.' <id> ')'
 
+<exp_cont_tight> ::= 
+    '(' <list(<exp>, ',')> ')'
+    '[' <exp> ']'
+
+<exp_cont> ::= 
+    <exp_cont_tight>
+    '(' <list(<exp>, ',')> ')'
+    '[' <exp> ']'
+    <ob>
+    <lit>
+    <id>
+    '_'
+
 <exp_un> ::= 
     <exp_post>
-    <parenthetical> <exp_post> <inst> <exp_arg>
+    <parenthetical> <exp_post>
     '#' <id>
     '#' <id> <exp_nullary>
     '?' <exp_un>
@@ -238,21 +250,24 @@
     'await*' <exp_nest>
     'assert' <exp_nest>
     'label' <id> (':' <typ>)? <exp_nest>
-    'break' <id> <exp_nullary>?
+    'break' <id>
+    'break' <id> <exp>
     'break'
-    'continue' <id>?
+    'continue'
+    'continue' <id>
     'debug' <exp_nest>
-    'if' <exp_nullary> <exp_nest>
-    'if' <exp_nullary> <exp_nest> 'else' <exp_nest>
+    <if_exp>
     'try' <exp_nest> <catch>
     'try' <exp_nest> <catch> 'finally' <exp_nest>
     'try' <exp_nest> 'finally' <exp_nest>
     'throw' <exp_nest>
-    'switch' <exp_nullary> '{' <cases> '}'
+    'switch' <head> '{' <cases> '}'
     'while' <exp_nullary> <exp_nest>
+    'while' <exp_head> <block>
     'loop' <exp_nest>
     'loop' <exp_nest> 'while' <exp_nest>
     'for' '(' <pat> 'in' <exp> ')' <exp_nest>
+    'for' <pat> 'in' <head> <block>
     'ignore' <exp_nest>
     'do' <block>
     'do' '?' <block>
@@ -282,6 +297,64 @@
 
 <catch> ::= 
     'catch' <pat_nullary> <exp_nest>
+
+<if_exp> ::= 
+    'if' <exp_nullary> <exp_nest>
+    'if' <exp_nullary> <exp_nest> 'else' <exp_nest>
+    'if' <exp_head> <block>
+    'if' <exp_head> <block> 'else' <else_branch>
+
+<else_branch> ::= 
+    <block>
+    <if_braced>
+
+<if_braced> ::= 
+    'if' <head> <block>
+    'if' <head> <block> 'else' <else_branch>
+
+<head> ::= 
+    <exp_nullary>
+    <exp_head>
+
+<exp_head_post> ::= 
+    '[' 'var'? <list(<exp_nonvar>, ',')> ']'
+    <exp_post> <exp_cont_tight>
+    <exp_post> '.'<nat>
+    <exp_post> '.' <id>
+    <exp_post> <inst> <exp_arg>
+    <exp_post> '!'
+    '(' 'system' <exp_post> '.' <id> ')'
+
+<exp_head_un> ::= 
+    <exp_head_post>
+    <parenthetical> <exp_post>
+    '#' <id>
+    '#' <id> <exp_nullary>
+    '?' <exp_un>
+    <unop> <exp_un>
+    'actor' <exp_plain>
+    'not' <exp_un>
+    'debug_show' <exp_un>
+    'to_candid' '(' <list(<exp>, ',')> ')'
+    'from_candid' <exp_un>
+
+<exp_head_bin> ::= 
+    <exp_head_un>
+    <exp_bin> <binop> <exp_bin>
+    <exp_bin> <relop> <exp_bin>
+    <exp_bin> 'and' <exp_bin>
+    <exp_bin> 'or' <exp_bin>
+    <exp_bin> ':' <typ_nobin>
+    <exp_bin> '|>' <exp_bin>
+
+<exp_head> ::= 
+    <exp_head_bin>
+    <exp_bin> '??' <exp>
+    'await' <exp_nest>
+    'await?' <exp_nest>
+    'await*' <exp_nest>
+    'do' <block>
+    'do' '?' <block>
 
 <exp_field> ::= 
     'var'? <id> (':' <typ>)?

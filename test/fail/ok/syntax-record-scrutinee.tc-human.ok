@@ -1,0 +1,4 @@
+error[M0269]: a record literal or block is not allowed in this position; wrap a record in parentheses, `({ ... })`, or use `do { ... }` for a block
+    ┌─ syntax-record-scrutinee.mo:2:8
+  2 │  switch { x = 1 } {
+    │         ^ 

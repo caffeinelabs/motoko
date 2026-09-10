@@ -2,7 +2,7 @@ syntax2.mo:2.1-2.4: syntax error [M0001], unexpected token 'let', expected one o
   <eof>
   .<nat>
   !
-  <exp_nullary(ob)>
+  <exp_cont>
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
@@ -17,5 +17,4 @@ syntax2.mo:2.1-2.4: syntax error [M0001], unexpected token 'let', expected one o
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>

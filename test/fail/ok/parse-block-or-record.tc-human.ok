@@ -52,7 +52,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   }
   .<nat>
   !
-  <exp_nullary(ob)>
+  <exp_cont>
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
@@ -66,8 +66,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>
     ┌─ parse-block-or-record.mo:42:26
  42 │    let _b = do { r with x = 1 }; // syntax error
     │                           ^ 
@@ -79,7 +78,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   }
   .<nat>
   !
-  <exp_nullary(ob)>
+  <exp_cont>
   ; seplist(<dec>,<semicolon>)
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
@@ -93,8 +92,7 @@ error[M0001]: unexpected token '=', expected one of token or <phrase> sequence:
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>
     ┌─ parse-block-or-record.mo:44:23
  44 │      case _ { r with x = 1 } // ambiguous, block preferred, syntax error
     │                        ^ 

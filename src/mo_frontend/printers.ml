@@ -112,6 +112,9 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (T T_LTOP) -> relop " < "
   | X (T T_LT) -> simple_token "<"
   | X (T T_LPAR) -> simple_token "("
+  | X (T T_TIGHT_LPAR) -> simple_token "("
+  | X (T T_TIGHT_HASH) -> simple_token "#"
+  | X (T T_TIGHT_LBRACKET) -> simple_token "["
   | X (T T_LOOP) -> simple_token "loop"
   | X (T T_LET) -> simple_token "let"
   | X (T T_LEOP) -> relop "<="
@@ -175,35 +178,35 @@ let repr_of_symbol : xsymbol -> (string * string) =
   (* non-terminals *)
   | X (N N_bl) -> "<bl>", "<bl>"
   | X (N N_case) -> "<case>", eg_case
-  | X (N N_catch) -> "<catch>", "catch " ^ eg_pat ^ " {}"
+  | X (N N_catch_ob_exp_cont_) | X (N N_catch_bl_exp_cont_tight_) -> "<catch>", "catch " ^ eg_pat ^ " {}"
   | X (N N_class_body) -> "<class_body>", "= {}"
   | X (N N_dec) -> "<dec>", eg_dec
   | X (N N_dec_field) -> "<dec_field>", eg_dec_field
-  | X (N N_dec_nonvar) -> "<dec_nonvar>", eg_dec
-  | X (N N_dec_var) -> "<dec_var>", "var x : Int = 0"
-  | X (N N_exp_bl_) -> "<exp(bl)>", eg_exp
-  | X (N N_exp_ob_) -> "<exp(ob)>", eg_exp
-  | X (N N_exp_bin_bl_) -> "<exp_bin(bl)>", eg_exp
-  | X (N N_exp_bin_ob_) -> "<exp_bin(ob)>", eg_exp
+  | X (N N_dec_nonvar_ob_exp_cont_) | X (N N_dec_nonvar_bl_exp_cont_tight_) -> "<dec_nonvar>", eg_dec
+  | X (N N_dec_var_ob_exp_cont_) | X (N N_dec_var_bl_exp_cont_tight_) -> "<dec_var>", "var x : Int = 0"
+  | X (N N_exp_bl_ob_exp_cont_) | X (N N_exp_bl_bl_exp_cont_tight_) -> "<exp(bl)>", eg_exp
+  | X (N N_exp_ob_ob_exp_cont_) -> "<exp(ob)>", eg_exp
+  | X (N N_exp_bin_bl_ob_exp_cont_) | X (N N_exp_bin_bl_bl_exp_cont_tight_) -> "<exp_bin(bl)>", eg_exp
+  | X (N N_exp_bin_ob_ob_exp_cont_) -> "<exp_bin(ob)>", eg_exp
   | X (N N_exp_obj) -> "<exp_obj>", eg_exp_obj
-  | X (N N_exp_nest) -> "<exp_nest>", eg_exp
+  | X (N N_exp_nest_ob_exp_cont_) | X (N N_exp_nest_bl_exp_cont_tight_) -> "<exp_nest>", eg_exp
   | X (N N_block) -> "<block>", "{}"
   | X (N N_exp_field) -> "<exp_field>", eg_exp_field
-  | X (N N_exp_nondec_bl_) -> "<exp_nondec(bl)>", eg_exp
-  | X (N N_exp_nondec_ob_) -> "<exp_nondec(ob)>", eg_exp
-  | X (N N_exp_nonvar_bl_) -> "<exp_nonvar(bl)>", eg_exp
-  | X (N N_exp_nonvar_ob_) -> "<exp_nonvar(ob)>", eg_exp
+  | X (N N_exp_nondec_bl_ob_exp_cont_) | X (N N_exp_nondec_bl_bl_exp_cont_tight_) -> "<exp_nondec(bl)>", eg_exp
+  | X (N N_exp_nondec_ob_ob_exp_cont_) -> "<exp_nondec(ob)>", eg_exp
+  | X (N N_exp_nonvar_bl_ob_exp_cont_) | X (N N_exp_nonvar_bl_bl_exp_cont_tight_) -> "<exp_nonvar(bl)>", eg_exp
+  | X (N N_exp_nonvar_ob_ob_exp_cont_) -> "<exp_nonvar(ob)>", eg_exp
   | X (N N_exp_nullary_bl_) -> "<exp_nullary(bl)>", eg_exp
   | X (N N_exp_nullary_ob_) -> "<exp_nullary(ob)>", eg_exp
-  | X (N N_exp_arg) -> "<exp_nullary(ob)>", eg_exp
+  | X (N N_exp_arg_ob_) | X (N N_exp_arg_bl_) -> "<exp_arg>", eg_exp
   | X (N N_exp_plain) -> "<exp_plain>", "true"
-  | X (N N_exp_post_bl_) -> "<exp_post(bl)>", eg_exp
-  | X (N N_exp_post_ob_) -> "<exp_post(ob)>", eg_exp
+  | X (N N_exp_post_bl_ob_exp_cont_) | X (N N_exp_post_bl_bl_exp_cont_tight_) -> "<exp_post(bl)>", eg_exp
+  | X (N N_exp_post_ob_ob_exp_cont_) -> "<exp_post(ob)>", eg_exp
   | X (N N_obj_or_class_dec) -> "<obj_or_class_dec>", "object " ^ eg_pat ^ " = {}"
-  | X (N N_option_exp_post_ob__) -> "<exp_post(ob)>?", eg_exp
-  | X (N N_exp_un_bl_) -> "<exp_un(bl)>", eg_exp
-  | X (N N_exp_un_ob_) -> "<exp_un(ob)>", eg_exp
-  | X (N N_func_body) -> "<func_body>", "{}"
+  | X (N N_option_exp_post_ob_ob_exp_cont__) -> "<exp_post(ob)>?", eg_exp
+  | X (N N_exp_un_bl_ob_exp_cont_) | X (N N_exp_un_bl_bl_exp_cont_tight_) -> "<exp_un(bl)>", eg_exp
+  | X (N N_exp_un_ob_ob_exp_cont_) -> "<exp_un(ob)>", eg_exp
+  | X (N N_func_body_ob_exp_cont_) | X (N N_func_body_bl_exp_cont_tight_) -> "<func_body>", "{}"
   | X (N N_func_pat) -> "<func_pat>", "f(x : Int)"
   | X (N N_imp) -> "<imp>", eg_imp
   | X (N N_import_list) -> "<import_list>", eg_imp
@@ -212,10 +215,8 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_ob) -> "<ob>", eg_exp_obj
   | X (N N_obj_body) -> "<obj_body>", "{}"
   | X (N N_option_EQ_) -> "=?", "=?"
-  | X (N N_option_exp_nullary_ob__) -> "<exp_nullary(ob)>?", eg_exp
   | X (N N_option_typ_args_) -> "<typ_args>?", eg_typ_args
   | X (N N_option_query_) -> "<query>?", "query"
-  | X (N N_option_id_) -> "<id>?", "x"
   | X (N N_parse_module_header) -> entry_point "<parse_module_header>"
   | X (N N_parse_prog) -> entry_point "<parse_prog>"
   | X (N N_parse_prog_interactive) -> entry_point "<parse_prog_interactive>"
@@ -230,17 +231,23 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_typ_path) -> "<path>", "A.B.C"
   | X (N N_annot_opt) -> "<annot_opt>", eg_annot
   | X (N N_cases) -> "<case>*", eg_case
+  | X (N N_exp_cont) -> "<exp_cont>", "(" ^ eg_exp ^ ")"
+  | X (N N_exp_head) | X (N N_exp_head_bin) | X (N N_exp_head_un) | X (N N_exp_head_post) -> "<exp_head>", eg_exp
+  | X (N N_if_exp_ob_exp_cont_) | X (N N_if_exp_bl_exp_cont_tight_) -> "<if_exp>", "if c {}"
+  | X (N N_else_branch) -> "<else_branch>", "{}"
+  | X (N N_if_braced) -> "<if_braced>", "if c {}"
+  | X (N N_exp_cont_tight) -> "<exp_cont>", "(" ^ eg_exp ^ ")"
   | X (N N_case_pat) -> "<case_pat>", eg_pat
   | X (N N_pat_paren) -> "(<pat>)", "(" ^ eg_pat ^ ")"
   | X (N N_seplist_dec_SEMICOLON_) -> seplist ("<dec>", eg_dec) semi2
   | X (N N_seplist_dec_semicolon_) -> seplist ("<dec>", eg_dec) semi
   | X (N N_seplist_typ_dec_semicolon_) -> seplist ("<typ_dec>", eg_typ_dec) semi
   | X (N N_seplist_dec_field_semicolon_) -> seplist ("<dec_field>", eg_dec_field) semi
-  | X (N N_seplist_exp_ob__COMMA_) -> seplist ("<exp(ob)>", eg_exp) comma
+  | X (N N_seplist_exp_ob_ob_exp_cont__COMMA_) -> seplist ("<exp(ob)>", eg_exp) comma
   | X (N N_seplist_exp_field_semicolon_) -> seplist ("<exp_field>", eg_exp_field) semi
   | X (N N_seplist1_exp_field_semicolon_) -> "seplist1(<exp_field>,<semicolon>)", eg_exp_field
-  | X (N N_separated_nonempty_list_AND_exp_post_ob__) -> "seplist+(<exp_post(ob)>,and)", eg_exp
-  | X (N N_seplist_exp_nonvar_ob__COMMA_) -> seplist ("<exp_nonvar(ob)>", eg_exp) comma
+  | X (N N_separated_nonempty_list_AND_exp_post_ob_ob_exp_cont__) -> "seplist+(<exp_post(ob)>,and)", eg_exp
+  | X (N N_seplist_exp_nonvar_ob_ob_exp_cont__COMMA_) -> seplist ("<exp_nonvar(ob)>", eg_exp) comma
   | X (N N_seplist_imp_SEMICOLON_) -> seplist ("<imp>", eg_imp) semi2
   | X (N N_seplist_imp_semicolon_) -> seplist ("<imp>", eg_imp) semi
   | X (N N_seplist_pat_bin_COMMA_) -> seplist ("<pat_bin>", eg_pat) comma

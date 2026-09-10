@@ -85,6 +85,8 @@ let assign_op lhs rhs_f at =
   | [] -> e
   | ds -> BlockE (ds @ [ExpD e @? e.at]) @? at
 
+let no_inst () : inst = { it = None; at = no_region; note = [] }
+
 let annot_exp e = function
   | None -> e
   | Some t -> AnnotE(e, t) @? span t.at e.at
@@ -224,6 +226,11 @@ and objblock eo s id ty dec_fields =
 
 %token LET VAR
 %token LPAR RPAR LBRACKET RBRACKET LCURLY RCURLY
+(* `(`/`[` written tight (no space before it): the only forms that can extend a head with a call or index —
+   a spaced one belongs to the branch or body that follows the head *)
+%token TIGHT_LPAR TIGHT_LBRACKET
+(* `#` glued to an identifier (`#less`): always a variant introduction, never the binary concatenation operator *)
+%token TIGHT_HASH
 %token AWAIT AWAITSTAR AWAITQUEST ASYNC ASYNCSTAR BREAK CASE CATCH CONTINUE DO LABEL DEBUG
 %token IF IGNORE IN IMPLICIT ELSE SWITCH LOOP WHILE FOR RETURN TRY THROW FINALLY WITH
 %token ARROW ASSIGN
@@ -261,7 +268,10 @@ and objblock eo s id ty dec_fields =
 %token COMPOSITE
 %token WEAK
 
-%nonassoc RETURN_NO_ARG IF_NO_ELSE LOOP_NO_WHILE TRY_CATCH_NO_FINALLY
+(* EXP_NO_JUXTA: the precedence of stopping a variant pattern at its bare tag.
+   It loses to LPAR/LCURLY (top level below), so `#a(p)` and `#a { f }` grab the payload instead of stopping at `#a`. *)
+%nonassoc EXP_NO_JUXTA
+%nonassoc RETURN_NO_ARG BREAK_NO_ARG IF_NO_ELSE LOOP_NO_WHILE TRY_CATCH_NO_FINALLY
 %nonassoc ELSE WHILE FINALLY
 
 %left COLON
@@ -277,13 +287,18 @@ and objblock eo s id ty dec_fields =
 %nonassoc SHLOP SHROP ROTLOP ROTROP
 %left POWOP WRAPPOWOP
 
-(* TAG_NO_PAYLOAD: the precedence of stopping a case pattern at its bare variant tag.
-   It loses to LPAR below, so `case #tag(p)` grabs the payload instead of stopping at `#tag`. *)
-%nonassoc TAG_NO_PAYLOAD
-%nonassoc LPAR
+(* tl;dr: after `if (c)` the next token decides "still the condition" vs "start of a legacy bare branch".
+   EXP_ATOM is the precedence of the reduction that commits the atom to growing into an extended head — and a grown head only accepts braced branches.
+   Operators and tight `(`/`[` rank below it, so growing wins over shifting them as a branch start.
+   Spaced `(` and `{` never compete: nothing lets a head continue with them, so the branch is the only parse and no precedence is consulted.
+   Every other branch starter (identifiers, literals, `#tag`, statement keywords) could never continue a head anyway, so it needs no precedence at all.
+   LPAR/LCURLY also sit above EXP_NO_JUXTA, so a variant pattern grabs its `(...)` or `{...}` payload greedily. *)
+%nonassoc TIGHT_LPAR TIGHT_LBRACKET
+%nonassoc EXP_ATOM
+%nonassoc LPAR LCURLY
 
-%type<Mo_def.Syntax.exp> exp(ob) exp_nullary(ob) exp_plain exp_obj exp_nest
-%type<Mo_def.Syntax.exp * bool> exp_arg
+%type<Mo_def.Syntax.exp> exp(ob, ob, exp_cont) exp_nullary(ob) exp_plain exp_obj exp_nest(ob, exp_cont) exp_nest(bl, exp_cont_tight)
+%type<Mo_def.Syntax.exp * bool> exp_arg(ob) exp_arg(bl)
 %type<Mo_def.Syntax.typ_item> typ_item
 %type<Mo_def.Syntax.typ> typ_un typ_nullary typ typ_pre typ_nobin
 %type<Mo_def.Syntax.vis> vis
@@ -301,9 +316,9 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.pat_field list> seplist(pat_field,semicolon)
 %type<Mo_def.Syntax.pat list> seplist(pat_bin,COMMA)
 %type<Mo_def.Syntax.dec list> seplist(imp,semicolon) seplist(imp,SEMICOLON) seplist(dec,semicolon) seplist(dec,SEMICOLON)
-%type<Mo_def.Syntax.exp list> seplist(exp_nonvar(ob),COMMA) seplist(exp(ob),COMMA)
+%type<Mo_def.Syntax.exp list> seplist(exp_nonvar(ob, ob, exp_cont),COMMA) seplist(exp(ob, ob, exp_cont),COMMA)
 %type<Mo_def.Syntax.exp_field list> seplist1(exp_field,semicolon) seplist(exp_field,semicolon)
-%type<Mo_def.Syntax.exp list> separated_nonempty_list(AND, exp_post(ob))
+%type<Mo_def.Syntax.exp list> separated_nonempty_list(AND, exp_post(ob, ob, exp_cont))
 %type<Mo_def.Syntax.dec_field list> seplist(dec_field,semicolon) obj_body
 %type<Mo_def.Syntax.case list> cases
 %type<Mo_def.Syntax.typ option> annot_opt
@@ -311,16 +326,17 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.pat> pat pat_un pat_plain pat_nullary pat_bin case_pat pat_paren
 %type<Mo_def.Syntax.pat_field> pat_field
 %type<Mo_def.Syntax.typ list option> option(typ_args)
-%type<Mo_def.Syntax.exp option> option(exp_nullary(ob))
 %type<unit option> option(EQ)
-%type<Mo_def.Syntax.exp> exp_un(ob) exp_un(bl) exp_post(ob) exp_post(bl) exp_nullary(bl) exp_nonvar(ob) exp_nonvar(bl) exp_nondec(ob) exp_nondec(bl) block exp_bin(ob) exp_bin(bl) exp(bl)
-%type<bool * Mo_def.Syntax.exp> func_body
+%type<Mo_def.Syntax.exp> exp_un(ob, ob, exp_cont) exp_un(bl, ob, exp_cont) exp_un(bl, bl, exp_cont_tight) exp_post(ob, ob, exp_cont) exp_post(bl, ob, exp_cont) exp_post(bl, bl, exp_cont_tight) exp_nullary(bl) exp_nonvar(ob, ob, exp_cont) exp_nonvar(bl, ob, exp_cont) exp_nonvar(bl, bl, exp_cont_tight) exp_nondec(ob, ob, exp_cont) exp_nondec(bl, ob, exp_cont) exp_nondec(bl, bl, exp_cont_tight) block exp_bin(ob, ob, exp_cont) exp_bin(bl, ob, exp_cont) exp_bin(bl, bl, exp_cont_tight) exp(bl, ob, exp_cont) exp(bl, bl, exp_cont_tight)
+%type<Mo_def.Syntax.exp -> region -> Mo_def.Syntax.exp> exp_cont exp_cont_tight
+%type<Mo_def.Syntax.exp> exp_head exp_head_bin exp_head_un exp_head_post if_exp(ob, exp_cont) if_exp(bl, exp_cont_tight) else_branch if_braced
+%type<bool * Mo_def.Syntax.exp> func_body(ob, exp_cont) func_body(bl, exp_cont_tight)
 %type<Mo_def.Syntax.lit> lit
-%type<Mo_def.Syntax.dec> dec imp dec_var dec_nonvar
+%type<Mo_def.Syntax.dec> dec imp dec_var(ob, exp_cont) dec_var(bl, exp_cont_tight) dec_nonvar(ob, exp_cont) dec_nonvar(bl, exp_cont_tight)
 %type<Mo_def.Syntax.exp_field> exp_field
 %type<Mo_def.Syntax.dec_field> dec_field
 %type<Mo_def.Syntax.id * Mo_def.Syntax.dec_field list> class_body
-%type<Mo_def.Syntax.case> catch case
+%type<Mo_def.Syntax.case> catch(ob, exp_cont) catch(bl, exp_cont_tight) case
 %type<Mo_def.Syntax.exp> bl ob
 %type<Mo_def.Syntax.dec list> import_list
 %type<Mo_def.Syntax.inst> inst
@@ -347,7 +363,7 @@ and objblock eo s id ty dec_fields =
 %start<string -> Mo_def.Syntax.prog> parse_prog_interactive
 %start<unit> parse_module_header (* Result passed via the Parser_lib.Imports exception *)
 %start<string -> Mo_def.Syntax.stab_sig> parse_stab_sig
-%on_error_reduce exp_bin(ob) exp_bin(bl) exp_nondec(bl) exp_nondec(ob)
+%on_error_reduce exp_bin(ob, ob, exp_cont) exp_bin(bl, ob, exp_cont) exp_bin(bl, bl, exp_cont_tight) exp_nondec(ob, ob, exp_cont) exp_nondec(bl, ob, exp_cont) exp_nondec(bl, bl, exp_cont_tight)
 %%
 
 
@@ -369,6 +385,19 @@ seplist1(X, SEP) :
 %inline semicolon :
   | SEMICOLON
   | SEMICOLON_EOL { () }
+
+(* Most positions do not care whether `(`/`[` is preceded by whitespace *)
+%inline lpar :
+  | LPAR
+  | TIGHT_LPAR { () }
+
+%inline lbracket :
+  | LBRACKET
+  | TIGHT_LBRACKET { () }
+
+%inline hash :
+  | HASH
+  | TIGHT_HASH { () }
 
 %inline id :
   | id=ID { id @@ at $sloc }
@@ -446,14 +475,14 @@ typ_variant :
     { tfs }
 
 typ_nullary :
-  | LPAR ts=seplist(typ_item, COMMA) RPAR
+  | lpar ts=seplist(typ_item, COMMA) RPAR
     { (match ts with
        | [(Some id, t)] -> NamedT(id, t)
        | [(None, t)] -> ParT t
        | _ -> TupT(ts)) @! at $sloc }
   | p=typ_path tso=typ_args?
     { PathT(p, Lib.Option.get tso []) @! at $sloc }
-  | LBRACKET m=var_opt t=typ RBRACKET
+  | lbracket m=var_opt t=typ RBRACKET
     { ArrayT(m, t) @! at $sloc }
   | tfs=typ_obj
     { ObjT(Type.Object @@ at $sloc, tfs) @! at $sloc }
@@ -504,9 +533,10 @@ typ_item :
 typ_args :
   | LT ts=seplist(typ, COMMA) GT { ts }
 
+(* [inst] is deliberately non-nullable — plain calls are built by the exp_cont* rules with [no_inst].
+   If it were nullable, the parser would have to commit to "a call follows" before seeing the argument,
+   and that collides (a reduce/reduce conflict, beyond what precedence can fix) with the option of ending an unparenthesized head right there. *)
 inst :
-  | (* empty *)
-    { { it = None; at = no_region; note = [] } }
   | LT ts=seplist(typ, COMMA) GT
     { { it = Some (false, ts); at = at $sloc; note = [] } }
   | LT SYSTEM ts=preceded(COMMA, typ)* GT
@@ -531,7 +561,7 @@ typ_field :
       ValF (x, t, Const @@ no_region) @@ at $sloc }
 
 typ_tag :
-  | HASH x=id t=annot_opt
+  | hash x=id t=annot_opt
     { {tag = x; typ = Lib.Option.get t (TupT [] @! at $sloc)} @@ at $sloc }
 
 typ_bind :
@@ -621,7 +651,7 @@ bl : DISALLOWED { PrimE("dummy") @? at $sloc }
 %public ob : e=exp_obj { e }
 
 %inline parenthetical:
-  | LPAR base=exp_post(ob)? WITH fs=seplist(exp_field, semicolon) RPAR
+  | lpar base=exp_post(ob, ob, exp_cont)? WITH fs=seplist(exp_field, semicolon) RPAR
     { Some (ObjE (Option.(to_list base), fs) @? at $sloc) }
 
 %inline parenthetical_opt :
@@ -631,15 +661,15 @@ bl : DISALLOWED { PrimE("dummy") @? at $sloc }
 exp_obj :
   | LCURLY efs=seplist(exp_field, semicolon) RCURLY
     { ObjE ([], efs) @? at $sloc }
-  | LCURLY base=exp_post(ob) AND bases=separated_nonempty_list(AND, exp_post(ob)) RCURLY
+  | LCURLY base=exp_post(ob, ob, exp_cont) AND bases=separated_nonempty_list(AND, exp_post(ob, ob, exp_cont)) RCURLY
     { ObjE (base :: bases, []) @? at $sloc }
-  | LCURLY bases=separated_nonempty_list(AND, exp_post(ob)) WITH efs=seplist1(exp_field, semicolon) RCURLY
+  | LCURLY bases=separated_nonempty_list(AND, exp_post(ob, ob, exp_cont)) WITH efs=seplist1(exp_field, semicolon) RCURLY
     { ObjE (bases, efs) @? at $sloc }
 
 exp_plain :
   | l=lit
     { LitE(ref l) @? at $sloc }
-  | LPAR es=seplist(exp(ob), COMMA) RPAR
+  | lpar es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
     { match es with [e] -> e | _ -> TupE(es) @? at $sloc }
 
 (* recovery comment: force to emit special variable instead of "_" to filter spurious errors *)
@@ -654,11 +684,21 @@ exp_nullary [@recover.expr mk_stub_expr loc] (B) :
   | UNDERSCORE
     { VarE ("_" @~ at $sloc) @? at $sloc }
 
-exp_arg:
-  | e=ob { e, false }
+(* Three grammar modes say which tokens still belong to the expression and which already belong to the surrounding construct:
+   - B ("begin"): may it START with `{`?
+     Under `ob` a leading `{` is a record; under `bl` it is not part of the expression at all — it is a block (statement position) or the construct's body (head position).
+   - R ("rest"): may a `{` appear LATER inside it, as a record argument, variant payload, or operand?
+     Under `bl` it may not, so after a head a `{` always means the body — Rust's rule for struct literals in conditions.
+   - L: which calls and indexings can continue it.
+     `exp_cont` takes spaced and tight `(`/`[` plus juxtaposed atoms like `f x`; `exp_cont_tight` takes only the tight forms, so in a head a spaced `(` ends the expression.
+   Heads (`switch`/`for` scrutinees, extended `if`/`while` heads) parse as (bl, bl, exp_cont_tight),
+   statement position is (bl, ob, exp_cont), and anything parenthesized resets to (ob, ob, exp_cont). *)
+
+exp_arg(B):
+  | e=B { e, false }
   | l=lit
     { LitE(ref l) @? at $sloc, false }
-  | LPAR es=seplist(exp(ob), COMMA) RPAR
+  | lpar es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
     { match es with [e] -> e, true | _ -> TupE(es) @? at $sloc, false }
   | x=id
     { VarE (x.it @~ x.at) @? at $sloc, false }
@@ -668,16 +708,16 @@ exp_arg:
     { VarE ("_" @~ at $sloc) @? at $sloc, false }
 
 
-exp_post(B) :
-  | e=exp_nullary(B)
+exp_post(B, R, L) :
+  | e=exp_nullary(B) %prec EXP_ATOM
     { e }
-  | LBRACKET m=var_opt es=seplist(exp_nonvar(ob), COMMA) RBRACKET
+  | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob, exp_cont), COMMA) RBRACKET
     { ArrayE(m, es) @? at $sloc }
-  | e1=exp_post(B) LBRACKET e2=exp(ob) RBRACKET
-    { IdxE(e1, e2) @? at $sloc }
-  | e=exp_post(B) s=DOT_NUM
+  | e1=exp_post(B, R, L) c=L
+    { c e1 (at $sloc) }
+  | e=exp_post(B, R, L) s=DOT_NUM
     { ProjE (e, int_of_string s) @? at $sloc }
-  | e=exp_post(B) DOT x=id
+  | e=exp_post(B, R, L) DOT x=id
     { DotE(e, x, ref None) @? at $sloc }
   | nid = NUM_DOT_ID
     { let (num, id) = nid in
@@ -693,64 +733,104 @@ exp_post(B) :
 	  right } in
       DotE(e, x, ref None) @? at $sloc
     }
-  | e1=exp_post(B) inst=inst e2=exp_arg
+  | e1=exp_post(B, R, L) inst=inst e2=exp_arg(R)
     {
       let e2, sugar = e2 in
       CallE(None, e1, inst, (sugar, ref e2)) @? at $sloc
     }
-  | e1=exp_post(B) BANG
+  | e1=exp_post(B, R, L) BANG
     { BangE(e1) @? at $sloc }
-  | LPAR SYSTEM e1=exp_post(B) DOT x=id RPAR
+  | lpar SYSTEM e1=exp_post(B, R, L) DOT x=id RPAR
     { DotE(
         DotE(e1, "system" @@ at ($startpos($1),$endpos($1)), ref None) @? at $sloc,
         x, ref None) @? at $sloc }
 
-exp_un(B) :
-  | e=exp_post(B)
+(* A postfix continuation is "the rest of a call or indexing": give it the expression parsed so far and it returns that expression with the argument or index attached.
+   `exp_cont_tight` accepts only a tight `(`/`[` — that is the head mode, where a spaced `(`/`[` (or any juxtaposed atom) already belongs to the branch or body after the head.
+   `exp_cont`, used everywhere else, also accepts the spaced forms and juxtaposed atomic arguments like `f x`. *)
+exp_cont_tight :
+  | TIGHT_LPAR es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
+    { let e2, sugar =
+        match es with [e] -> e, true | _ -> TupE(es) @? at $sloc, false in
+      fun e1 at -> CallE(None, e1, no_inst (), (sugar, ref e2)) @? at }
+  | TIGHT_LBRACKET e2=exp(ob, ob, exp_cont) RBRACKET
+    { fun e1 at -> IdxE(e1, e2) @? at }
+
+exp_cont :
+  | c=exp_cont_tight
+    { c }
+  | LPAR es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
+    { let e2, sugar =
+        match es with [e] -> e, true | _ -> TupE(es) @? at $sloc, false in
+      fun e1 at -> CallE(None, e1, no_inst (), (sugar, ref e2)) @? at }
+  | LBRACKET e2=exp(ob, ob, exp_cont) RBRACKET
+    { fun e1 at -> IdxE(e1, e2) @? at }
+  | e2=ob
+    { fun e1 at -> CallE(None, e1, no_inst (), (false, ref e2)) @? at }
+  | l=lit
+    { let e2 = LitE(ref l) @? at $sloc in
+      fun e1 at -> CallE(None, e1, no_inst (), (false, ref e2)) @? at }
+  | x=id
+    { let e2 = VarE (x.it @~ x.at) @? at $sloc in
+      fun e1 at -> CallE(None, e1, no_inst (), (false, ref e2)) @? at }
+  | PRIM s=TEXT
+    { let e2 = PrimE(s) @? at $sloc in
+      fun e1 at -> CallE(None, e1, no_inst (), (false, ref e2)) @? at }
+  | UNDERSCORE
+    { let e2 = VarE ("_" @~ at $sloc) @? at $sloc in
+      fun e1 at -> CallE(None, e1, no_inst (), (false, ref e2)) @? at }
+
+exp_un(B, R, L) :
+  | e=exp_post(B, R, L)
     { e }
-  | par=parenthetical e1=exp_post(B) inst=inst e2=exp_arg
-     { let e2, sugar = e2 in
-       CallE(par, e1, inst, (sugar, ref e2)) @? at $sloc }
-  | HASH x=id
+  | par=parenthetical e=exp_post(B, R, L)
+     { match e.it with
+       | CallE (None, e1, inst, args) ->
+         CallE (par, e1, inst, args) @? at $sloc
+       | _ ->
+         syntax_error (at $sloc) "M0210"
+           "misplaced parenthetical note: it must precede a function call";
+         e }
+  | hash x=id
     { TagE (x, TupE([]) @? at $sloc) @? at $sloc }
-  | HASH x=id e=exp_nullary(ob)
+  | hash x=id e=exp_nullary(R)
     { TagE (x, e) @? at $sloc }
-  | QUEST e=exp_un(ob)
+  | QUEST e=exp_un(R, R, L)
     { OptE(e) @? at $sloc }
-  | op=unop e=exp_un(ob)
+  | op=unop e=exp_un(R, R, L)
     { match op, e.it with
       | (PosOp | NegOp), LitE {contents = PreLit (s, (Type.(Nat | Float) as typ))} ->
         let signed = match op with NegOp -> "-" ^ s | _ -> "+" ^ s in
         LitE(ref (PreLit (signed, Type.(if typ = Nat then Int else typ)))) @? at $sloc
       | _ -> UnE(ref Type.Pre, op, e) @? at $sloc
     }
-  | op=unassign e=exp_un(ob)
+  | op=unassign e=exp_un(R, R, L)
     { assign_op e (fun e' -> UnE(ref Type.Pre, op, e') @? at $sloc) (at $sloc) }
   | ACTOR e=exp_plain
     { ActorUrlE e @? at $sloc }
-  | NOT e=exp_un(ob)
+  | NOT e=exp_un(R, R, L)
     { NotE e @? at $sloc }
-  | DEBUG_SHOW e=exp_un(ob)
+  | DEBUG_SHOW e=exp_un(R, R, L)
     { ShowE (ref Type.Pre, e) @? at $sloc }
-  | TO_CANDID LPAR es=seplist(exp(ob), COMMA) RPAR
+  | TO_CANDID lpar es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
     { ToCandidE es @? at $sloc }
-  | FROM_CANDID e=exp_un(ob)
+  | FROM_CANDID e=exp_un(R, R, L)
     { FromCandidE e @? at $sloc }
 
-%public exp_bin(B) :
-  | e=exp_un(B)
+%public exp_bin(B, R, L) :
+  | e=exp_un(B, R, L)
     { e }
-  | e1=exp_bin(B) op=binop e2=exp_bin(ob)
+  | e1=exp_bin(B, R, L) op=binop e2=exp_bin(R, R, L)
     { BinE(ref Type.Pre, e1, op, e2) @? at $sloc }
-  | e1=exp_bin(B) op=relop e2=exp_bin(ob)
+  | e1=exp_bin(B, R, L) op=relop e2=exp_bin(R, R, L)
     { RelE(ref Type.Pre, e1, op, e2) @? at $sloc }
-  | e1=exp_bin(B) AND e2=exp_bin(ob)
+  | e1=exp_bin(B, R, L) AND e2=exp_bin(R, R, L)
     { AndE(e1, e2) @? at $sloc }
-  | e1=exp_bin(B) OR e2=exp_bin(ob)
+  | e1=exp_bin(B, R, L) OR e2=exp_bin(R, R, L)
     { OrE(e1, e2) @? at $sloc }
-  | e=exp_bin(B) COLON t=typ_nobin
+  | e=exp_bin(B, R, L) COLON t=typ_nobin
     { AnnotE(e, t) @? at $sloc }
-  | e1=exp_bin(B) PIPE e2=exp_bin(ob)
+  | e1=exp_bin(B, R, L) PIPE e2=exp_bin(R, R, L)
     { let x = "_" @@ e1.at in
       BlockE [
         LetD (VarP x @! x.at, e1, None) @? e1.at;
@@ -758,32 +838,32 @@ exp_un(B) :
       ] @? at $sloc }
 
 
-%public exp_nondec(B) :
-  | e=exp_bin(B)
+%public exp_nondec(B, R, L) :
+  | e=exp_bin(B, R, L)
     { e }
-  | e1=exp_bin(B) ASSIGN e2=exp(ob)
+  | e1=exp_bin(B, R, L) ASSIGN e2=exp(R, R, L)
     { AssignE(e1, e2) @? at $sloc}
-  | e1=exp_bin(B) NULLCOALESCE e2=exp(ob)
+  | e1=exp_bin(B, R, L) NULLCOALESCE e2=exp(R, R, L)
     { NullCoalesceE(e1, e2) @? at $sloc }
-  | e1=exp_bin(B) op=binassign e2=exp(ob)
+  | e1=exp_bin(B, R, L) op=binassign e2=exp(R, R, L)
     { assign_op e1 (fun e1' -> BinE(ref Type.Pre, e1', op, e2) @? at $sloc) (at $sloc) }
   | RETURN %prec RETURN_NO_ARG
     { RetE(TupE([]) @? at $sloc) @? at $sloc }
-  | RETURN e=exp(ob)
+  | RETURN e=exp(R, R, L)
     { RetE(e) @? at $sloc }
-  | par=parenthetical_opt ASYNC e=exp_nest
+  | par=parenthetical_opt ASYNC e=legacy_body(R, L)
     { AsyncE(par, Type.Fut, scope_bind (anon_id "async" (at $sloc)) (at $sloc), e) @? at $sloc }
-  | ASYNCSTAR e=exp_nest
+  | ASYNCSTAR e=legacy_body(R, L)
     { AsyncE(None, Type.Cmp, scope_bind (anon_id "async*" (at $sloc)) (at $sloc), e) @? at $sloc }
-  | AWAIT e=exp_nest
+  | AWAIT e=legacy_operand(R, L)
     { AwaitE(Type.AwaitFut false, e) @? at $sloc }
-  | AWAITQUEST e=exp_nest
+  | AWAITQUEST e=legacy_operand(R, L)
     { AwaitE(Type.AwaitFut true, e) @? at $sloc }
-  | AWAITSTAR e=exp_nest
+  | AWAITSTAR e=legacy_operand(R, L)
     { AwaitE(Type.AwaitCmp, e) @? at $sloc }
-  | ASSERT e=exp_nest
+  | ASSERT e=legacy_operand(R, L)
     { AssertE(Runtime, e) @? at $sloc }
-  | LABEL x=id rt=annot_opt e=exp_nest
+  | LABEL x=id rt=annot_opt e=legacy_operand(R, L)
     { let x' = ("continue " ^ x.it) @@ x.at in
       let unit () = TupT [] @! at $sloc in
       let e' =
@@ -794,75 +874,99 @@ exp_un(B) :
         | _ -> e
       in
       LabelE(x, Lib.Option.get rt (unit ()), e') @? at $sloc }
-  | BREAK x=id eo=exp_nullary(ob)?
-    { let e = Lib.Option.get eo (TupE([]) @? at $sloc) in
+  | BREAK x=id %prec BREAK_NO_ARG
+    { let e = TupE([]) @? at $sloc in
       BreakE(Break, Some x, e) @? at $sloc }
+  | BREAK x=id e=exp(R, R, L)
+    { BreakE(Break, Some x, e) @? at $sloc }
   | BREAK
     { let e = TupE([]) @? at $sloc in
       BreakE(Break, None, e) @? at $sloc }
-  | CONTINUE x=id?
+  | CONTINUE
     { let e = TupE([]) @? at $sloc in
-      let x = Option.map (fun x -> ("continue " ^ x.it) @@ x.at) x in
-      BreakE(Continue, x, e) @? at $sloc }
-  | DEBUG e=exp_nest
+      BreakE(Continue, None, e) @? at $sloc }
+  | CONTINUE x=id
+    { let e = TupE([]) @? at $sloc in
+      let x' = ("continue " ^ x.it) @@ x.at in
+      BreakE(Continue, Some x', e) @? at $sloc }
+  | DEBUG e=legacy_operand(R, L)
     { DebugE(e) @? at $sloc }
-  | IF b=exp_nullary(ob) e1=exp_nest %prec IF_NO_ELSE
-    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
-  | IF b=exp_nullary(ob) e1=exp_nest ELSE e2=exp_nest
-    { IfE(b, e1, e2) @? at $sloc }
-  | TRY e1=exp_nest c=catch %prec TRY_CATCH_NO_FINALLY
+  | e=if_exp(R, L)
+    { e }
+  | TRY e1=legacy_body(R, L) c=catch(R, L) %prec TRY_CATCH_NO_FINALLY
     { TryE(e1, [c], None) @? at $sloc }
-  | TRY e1=exp_nest c=catch FINALLY e2=exp_nest
+  | TRY e1=legacy_body(R, L) c=catch(R, L) FINALLY e2=legacy_body(R, L)
     { TryE(e1, [c], Some e2) @? at $sloc }
-  | TRY e1=exp_nest FINALLY e2=exp_nest
+  | TRY e1=legacy_body(R, L) FINALLY e2=legacy_body(R, L)
     { TryE(e1, [], Some e2) @? at $sloc }
 (* TODO: enable multi-branch TRY (already supported by compiler)
-  | TRY e=exp_nest LCURLY cs=seplist(case, semicolon) RCURLY
+  | TRY e=exp_nest(R, L) LCURLY cs=cases RCURLY
     { TryE(e, cs) @? at $sloc }
 *)
-  | THROW e=exp_nest
+  | THROW e=legacy_operand(R, L)
     { ThrowE(e) @? at $sloc }
-  | SWITCH e=exp_nullary(ob) LCURLY cs=cases RCURLY
+  | SWITCH e=head LCURLY cs=cases RCURLY
     { SwitchE(e, cs) @? at $sloc }
-  | WHILE e1=exp_nullary(ob) e2=exp_nest
+  (* LEGACY(v3): bare `while (c) body`; the target is `while c { }` below *)
+  | WHILE e1=exp_nullary(bl) e2=legacy_body(R, L)
     { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
-  | LOOP e=exp_nest %prec LOOP_NO_WHILE
+  | WHILE e1=exp_head e2=block
+    { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
+  | LOOP e=legacy_body(R, L) %prec LOOP_NO_WHILE
     { LoopE(e, None, new_loop_flags ()) @? at $sloc }
-  | LOOP e1=exp_nest WHILE e2=exp_nest
+  | LOOP e1=legacy_body(R, L) WHILE e2=legacy_operand(R, L)
     { LoopE(e1, Some e2, new_loop_flags ()) @? at $sloc }
-  | FOR LPAR p=pat IN e1=exp(ob) RPAR e2=exp_nest
+  (* LEGACY(v3): parenthesized `for (p in e) body`; the target is `for p in e { }` below *)
+  | FOR lpar p=pat IN e1=exp(ob, ob, exp_cont) RPAR e2=legacy_body(R, L)
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
-  | IGNORE e=exp_nest
+  | FOR p=pat IN e1=head e2=block
+    { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
+  | IGNORE e=legacy_operand(R, L)
     { IgnoreE(e) @? at $sloc }
   | DO e=block
     { e.it @? at $sloc }
   | DO QUEST e=block
     { DoOptE(e) @? at $sloc }
 
-exp_nonvar(B) :
-  | e=exp_nondec(B)
+exp_nonvar(B, R, L) :
+  | e=exp_nondec(B, R, L)
     { e }
-  | d=dec_nonvar
+  | d=dec_nonvar(R, L)
     { match d.it with ExpD e -> e | _ -> BlockE([d]) @? at $sloc }
 
 (* recovery comment: force to emit special variable rather than "return" *)
-exp [@recover.expr mk_stub_expr loc] (B) :
-  | e=exp_nonvar(B)
+exp [@recover.expr mk_stub_expr loc] (B, R, L) :
+  | e=exp_nonvar(B, R, L)
     { e }
-  | d=dec_var
+  | d=dec_var(R, L)
     { BlockE([d]) @? at $sloc }
 
-%public exp_nest :
+(* MIGRATION BRIDGE — retired in moc v3 (#6352, rule 5: no optional blocks).
+   In the target grammar a position is either a *body*, where only a braced block parses, or an *operand*,
+   where `{` is a record and a block is spelled `do { }`. `exp_nest` is the legacy `block | exp` alternative
+   that admits both. Every use site goes through one of two aliases naming which way it flips at v3:
+     legacy_body(R, L)     -> `block`        (rule 2: `if`/`while`/`for`/`loop` bodies, `case`/`catch` arms, `try`/`finally`, `async`)
+     legacy_operand(R, L)  -> `exp(R, R, L)` (rule 3: `assert`, `ignore`, `throw`, `await`, `debug`, `label`, `let … else`, `loop … while`)
+   The v3 flip is: apply those two substitutions, delete `exp_nest` and the aliases, then drop the `bl` mode
+   everywhere except control heads. The other bridge pieces are the productions marked LEGACY(v3) below
+   and the TIGHT_* tokens in lexer.ml. *)
+%public exp_nest(R, L) :
   | e=block
-  | e=exp(bl)
+  | e=exp(bl, R, L)
     { e }
+
+%inline legacy_body(R, L) :
+  | e=exp_nest(R, L) { e }
+
+%inline legacy_operand(R, L) :
+  | e=exp_nest(R, L) { e }
 
 block :
   | LCURLY ds=seplist(dec, semicolon) RCURLY
     { BlockE(ds) @? at $sloc }
 
 case :
-  | CASE p=case_pat e=exp_nest
+  | CASE p=case_pat e=legacy_body(ob, exp_cont)
     { {pat = p; exp = e} @@ at $sloc }
 
 (* The `;` between cases is optional: every case starts with the `case` keyword, so the separator disambiguates nothing. *)
@@ -871,15 +975,159 @@ cases :
   | c=case cs=cases { c::cs }
   | c=case semicolon cs=cases { c::cs }
 
-catch :
-  | CATCH p=pat_nullary e=exp_nest
+catch(R, L) :
+  | CATCH p=pat_nullary e=legacy_body(R, L)
     { {pat = p; exp = e} @@ at $sloc }
+
+(* `if` has two coupled shapes.
+   An atomic head (identifier, literal, or parenthesized expression) keeps the free-form branches Motoko always had;
+   an extended head (anything more — see exp_head) demands braced branches, with `else if` chains allowed.
+   The coupling is the point: `if f(x) { } else { }` works, while `if f(x) e1 else e2` never becomes writable. *)
+if_exp(R, L) :
+  (* LEGACY(v3): bare branches after an atomic head, `if (c) e1 else e2`; the target is `if c { } else { }` *)
+  | IF b=exp_nullary(bl) e1=legacy_body(R, L) %prec IF_NO_ELSE
+    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
+  | IF b=exp_nullary(bl) e1=legacy_body(R, L) ELSE e2=legacy_body(R, L)
+    { IfE(b, e1, e2) @? at $sloc }
+  | IF b=exp_head e1=block %prec IF_NO_ELSE
+    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
+  | IF b=exp_head e1=block ELSE e2=else_branch
+    { IfE(b, e1, e2) @? at $sloc }
+
+(* `else if` chains only into the braced shape, so a legacy bare-branch `if` cannot ride on an extended head *)
+else_branch :
+  | e=block { e }
+  | e=if_braced { e }
+
+if_braced :
+  | IF b=head e1=block %prec IF_NO_ELSE
+    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
+  | IF b=head e1=block ELSE e2=else_branch
+    { IfE(b, e1, e2) @? at $sloc }
+
+(* The one head grammar shared by `if`, `while`, `switch`, and `for`: an atom or an extended head (see exp_head).
+   In the target grammar (#6352, rule 1) a head is simply any expression except a bare record literal — `do { }` included,
+   as in Rust — and this alias collapses into `exp(bl)` once bodies are brace-only. Until then it is the bridge's
+   approximation of that, kept identical across the four constructs so that none accepts a head another rejects. *)
+%inline head :
+  | b=exp_nullary(bl) { b }
+  | b=exp_head { b }
+
+(* An extended head: a scrutinee or condition that is more than a single atom — at least one call, projection, indexing, operator, or prefix form.
+   It is disjoint from exp_nullary by construction, which is what lets if_exp couple head shape to branch shape without ambiguity.
+   Statement-like heads (assignments, `return`, nested `if`/loops, declarations) are left out:
+   they make no sense as conditions, and admitting them would only grow the grammar — parenthesize in the unlikely case one is needed. *)
+exp_head_post :
+  | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob, exp_cont), COMMA) RBRACKET
+    { ArrayE(m, es) @? at $sloc }
+  | e1=exp_post(bl, bl, exp_cont_tight) c=exp_cont_tight
+    { c e1 (at $sloc) }
+  | e=exp_post(bl, bl, exp_cont_tight) s=DOT_NUM
+    { ProjE (e, int_of_string s) @? at $sloc }
+  | e=exp_post(bl, bl, exp_cont_tight) DOT x=id
+    { DotE(e, x, ref None) @? at $sloc }
+  | nid = NUM_DOT_ID
+    { let (num, id) = nid in
+      let {left; right} = at $sloc in
+      let e =
+	LitE(ref (PreLit (num, Type.Nat))) @?
+	{ left;
+	  right = { right with column = left.column + String.length num }}
+      in
+      let x =
+	id @@
+	{ left = { left with column = right.column - String.length id };
+	  right } in
+      DotE(e, x, ref None) @? at $sloc
+    }
+  | e1=exp_post(bl, bl, exp_cont_tight) inst=inst e2=exp_arg(bl)
+    {
+      let e2, sugar = e2 in
+      CallE(None, e1, inst, (sugar, ref e2)) @? at $sloc
+    }
+  | e1=exp_post(bl, bl, exp_cont_tight) BANG
+    { BangE(e1) @? at $sloc }
+  | lpar SYSTEM e1=exp_post(bl, bl, exp_cont_tight) DOT x=id RPAR
+    { DotE(
+        DotE(e1, "system" @@ at ($startpos($1),$endpos($1)), ref None) @? at $sloc,
+        x, ref None) @? at $sloc }
+
+exp_head_un :
+  | e=exp_head_post
+    { e }
+  | par=parenthetical e=exp_post(bl, bl, exp_cont_tight)
+     { match e.it with
+       | CallE (None, e1, inst, args) ->
+         CallE (par, e1, inst, args) @? at $sloc
+       | _ ->
+         syntax_error (at $sloc) "M0210"
+           "misplaced parenthetical note: it must precede a function call";
+         e }
+  | hash x=id
+    { TagE (x, TupE([]) @? at $sloc) @? at $sloc }
+  | hash x=id e=exp_nullary(bl)
+    { TagE (x, e) @? at $sloc }
+  | QUEST e=exp_un(bl, bl, exp_cont_tight)
+    { OptE(e) @? at $sloc }
+  | op=unop e=exp_un(bl, bl, exp_cont_tight)
+    { match op, e.it with
+      | (PosOp | NegOp), LitE {contents = PreLit (s, (Type.(Nat | Float) as typ))} ->
+        let signed = match op with NegOp -> "-" ^ s | _ -> "+" ^ s in
+        LitE(ref (PreLit (signed, Type.(if typ = Nat then Int else typ)))) @? at $sloc
+      | _ -> UnE(ref Type.Pre, op, e) @? at $sloc
+    }
+  | ACTOR e=exp_plain
+    { ActorUrlE e @? at $sloc }
+  | NOT e=exp_un(bl, bl, exp_cont_tight)
+    { NotE e @? at $sloc }
+  | DEBUG_SHOW e=exp_un(bl, bl, exp_cont_tight)
+    { ShowE (ref Type.Pre, e) @? at $sloc }
+  | TO_CANDID lpar es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
+    { ToCandidE es @? at $sloc }
+  | FROM_CANDID e=exp_un(bl, bl, exp_cont_tight)
+    { FromCandidE e @? at $sloc }
+
+exp_head_bin :
+  | e=exp_head_un
+    { e }
+  | e1=exp_bin(bl, bl, exp_cont_tight) op=binop e2=exp_bin(bl, bl, exp_cont_tight)
+    { BinE(ref Type.Pre, e1, op, e2) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) op=relop e2=exp_bin(bl, bl, exp_cont_tight)
+    { RelE(ref Type.Pre, e1, op, e2) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) AND e2=exp_bin(bl, bl, exp_cont_tight)
+    { AndE(e1, e2) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) OR e2=exp_bin(bl, bl, exp_cont_tight)
+    { OrE(e1, e2) @? at $sloc }
+  | e=exp_bin(bl, bl, exp_cont_tight) COLON t=typ_nobin
+    { AnnotE(e, t) @? at $sloc }
+  | e1=exp_bin(bl, bl, exp_cont_tight) PIPE e2=exp_bin(bl, bl, exp_cont_tight)
+    { let x = "_" @@ e1.at in
+      BlockE [
+        LetD (VarP x @! x.at, e1, None) @? e1.at;
+        ExpD e2 @? e2.at
+      ] @? at $sloc }
+
+exp_head :
+  | e=exp_head_bin
+    { e }
+  | e1=exp_bin(bl, bl, exp_cont_tight) NULLCOALESCE e2=exp(bl, bl, exp_cont_tight)
+    { NullCoalesceE(e1, e2) @? at $sloc }
+  | AWAIT e=legacy_operand(bl, exp_cont_tight)
+    { AwaitE(Type.AwaitFut false, e) @? at $sloc }
+  | AWAITQUEST e=legacy_operand(bl, exp_cont_tight)
+    { AwaitE(Type.AwaitFut true, e) @? at $sloc }
+  | AWAITSTAR e=legacy_operand(bl, exp_cont_tight)
+    { AwaitE(Type.AwaitCmp, e) @? at $sloc }
+  | DO e=block
+    { e.it @? at $sloc }
+  | DO QUEST e=block
+    { DoOptE(e) @? at $sloc }
 
 exp_field :
   | m=var_opt x=id t=annot_opt
     { let e = VarE (x.it @~ x.at) @? x.at in
       { mut = m; id = x; exp = annot_exp e t; } @@ at $sloc }
-  | m=var_opt x=id t=annot_opt EQ e=exp(ob)
+  | m=var_opt x=id t=annot_opt EQ e=exp(ob, ob, exp_cont)
     { { mut = m; id = x; exp = annot_exp e t; } @@ at $sloc }
 
 dec_field :
@@ -915,7 +1163,7 @@ pat_plain :
     { VarP(x) @! at $sloc }
   | l=lit
     { LitP(ref l) @! at $sloc }
-  | LPAR ps=seplist(pat_bin, COMMA) RPAR
+  | lpar ps=seplist(pat_bin, COMMA) RPAR
     { (match ps with [p] -> ParP(p) | _ -> TupP(ps)) @! at $sloc }
 
 pat_nullary :
@@ -927,9 +1175,9 @@ pat_nullary :
 pat_un :
   | p=pat_nullary
     { p }
-  | HASH x=id
+  | hash x=id %prec EXP_NO_JUXTA
     { TagP(x, TupP [] @! at $sloc) @! at $sloc }
-  | HASH x=id p=pat_nullary
+  | hash x=id p=pat_nullary
     { TagP(x, p) @! at $sloc }
   | QUEST p=pat_un
     { OptP(p) @! at $sloc }
@@ -958,7 +1206,7 @@ pat :
 (* Deliberately just the parenthesized form of pat_plain: an unparenthesized case pattern must parenthesize its payload,
    so that in `case #tag { ... }` the braces are unambiguously the case body. *)
 pat_paren :
-  | LPAR ps=seplist(pat_bin, COMMA) RPAR
+  | lpar ps=seplist(pat_bin, COMMA) RPAR
     { (match ps with [p] -> ParP(p) | _ -> TupP(ps)) @! at $sloc }
 
 (* Case patterns that end unambiguously without parentheses: `case null`, `case 0`, `case -1`, `case ?p`, `case #tag`, `case #tag(p)`.
@@ -966,9 +1214,9 @@ pat_paren :
 case_pat :
   | p=pat_nullary
     { p }
-  | HASH x=id %prec TAG_NO_PAYLOAD
+  | hash x=id %prec EXP_NO_JUXTA
     { TagP(x, TupP [] @! at $sloc) @! at $sloc }
-  | HASH x=id p=pat_paren
+  | hash x=id p=pat_paren
     { TagP(x, p) @! at $sloc }
   | QUEST p=case_pat
     { OptP(p) @! at $sloc }
@@ -999,8 +1247,8 @@ func_pat :
 
 (* Declarations *)
 
-dec_var :
-  | VAR x=id t=annot_opt EQ e=exp(ob)
+dec_var(R, L) :
+  | VAR x=id t=annot_opt EQ e=exp(R, R, L)
     { VarD(x, annot_exp e t) @? at $sloc }
   | VAR x=id COLON t=typ
     (* No initializer - use PrimE "_" : None as placeholder *)
@@ -1008,8 +1256,8 @@ dec_var :
     { let init_exp = PrimE "_" @? at $sloc in
       VarD(x, annot_exp init_exp (Some t)) @? at $sloc }
 
-dec_nonvar :
-  | LET p=pat EQ e=exp(ob)
+dec_nonvar(R, L) :
+  | LET p=pat EQ e=exp(R, R, L)
     { let p', e' = normalize_let p e in
       LetD (p', e', None) @? at $sloc }
   | LET p=pat
@@ -1020,7 +1268,7 @@ dec_nonvar :
   | TYPE x=typ_id tps=type_typ_params_opt EQ t=typ
     { TypD(x, tps, t) @? at $sloc }
   | sp=shared_pat_opt FUNC
-      xf_tps_p=func_pat t=annot_opt fb=func_body
+      xf_tps_p=func_pat t=annot_opt fb=func_body(R, L)
     { (* This is a hack to support local func declarations that return a computed async.
          These should be defined using RHS syntax EQ e to avoid the implicit AsyncE introduction
          around bodies declared as blocks *)
@@ -1033,7 +1281,7 @@ dec_nonvar :
      let dfs = List.map (share_dec_field (fun () -> Stable (ref None) @@ no_region)) dfs in
      MixinD(system, p, dfs) @? at $sloc
   }
-  | INCLUDE x=id system=system_opt e=exp(ob) { IncludeD(x, system, e, ref None) @? at $sloc }
+  | INCLUDE x=id system=system_opt e=exp(R, R, L) { IncludeD(x, system, e, ref None) @? at $sloc }
 
 obj_or_class_dec :
   | ds=obj_sort xf=id_opt t=annot_opt EQ? efs=obj_body
@@ -1075,25 +1323,27 @@ obj_or_class_dec :
       ClassD(eo, sp, {s with note = persistent}, cid, tps', p, t', x, dfs') @? at $sloc }
 
 dec :
-  | d=dec_var
+  | d=dec_var(ob, exp_cont)
     { d }
-  | d=dec_nonvar
+  | d=dec_nonvar(ob, exp_cont)
     { d }
-  | e=exp_nondec(ob)
+  | e=exp_nondec(ob, ob, exp_cont)
     { ExpD e @? at $sloc }
-  | LET p=pat EQ e=exp(ob) ELSE fail=exp_nest
+  | LET p=pat EQ e=exp(ob, ob, exp_cont) ELSE fail=legacy_operand(ob, exp_cont)
     { let p', e' = normalize_let p e in
       LetD (p', e', Some fail) @? at $sloc }
   (* error production: `x = e` where a declaration is expected is almost always a record field written where braces mean a block,
      or a mis-spelled `let`/`:=` (M0269) *)
-  | x=id EQ e=exp(ob)
+  | x=id EQ e=exp(ob, ob, exp_cont)
     { syntax_error (at $sloc) "M0269"
         "a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`";
       let ef = { mut = Const @@ no_region; id = x; exp = e } @@ at $sloc in
       ExpD (ObjE ([], [ef]) @? at $sloc) @? at $sloc }
 
-func_body :
-  | EQ e=exp(ob) { (false, e) }
+func_body(R, L) :
+  (* LEGACY(v3): `= e` bodies retire, a function body is a block (#6352). Open corner before the flip:
+     `= e` is also the way to forward a computed `async` without the implicit wrapper a block body adds. *)
+  | EQ e=exp(R, R, L) { (false, e) }
   | e=block { (true, e) }
 
 obj_body :
@@ -1169,7 +1419,7 @@ parse_stab_sig :
           note = { filename; trivia } }
     }
   | start ds=seplist(typ_dec, semicolon)
-       ACTOR LPAR LCURLY sfs_pre=seplist(pre_stab_field, semicolon) RCURLY COMMA
+       ACTOR lpar LCURLY sfs_pre=seplist(pre_stab_field, semicolon) RCURLY COMMA
              LCURLY sfs_post=seplist(stab_field, semicolon) RCURLY  RPAR
     { let trivia = !triv_table in
       let sigs = PrePost(sfs_pre, sfs_post) in
