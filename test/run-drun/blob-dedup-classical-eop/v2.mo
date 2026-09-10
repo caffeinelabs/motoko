@@ -1,3 +1,4 @@
+//MOC-FLAG --enhanced-orthogonal-persistence
 import Prim "mo:prim";
 
 persistent actor {
@@ -36,4 +37,3 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY

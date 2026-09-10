@@ -1,3 +1,4 @@
+//MOC-FLAG --enhanced-orthogonal-persistence
 import Prim "mo:prim";
 import Region "../stable-region/Region";
 

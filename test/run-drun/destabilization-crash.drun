@@ -1,5 +1,5 @@
 # Destabilization of stable variables during upgrade must not crash with an
 # RTS stack overflow. `old.wasm` is a committed classical build of
-# `destabilization-crash.mo` (see note.txt).
+# `destabilization-crash` (see note.txt).
 install $ID destabilization-crash/old.wasm ""
 upgrade $ID destabilization-crash/old.wasm ""

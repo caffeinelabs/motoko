@@ -1,6 +1,6 @@
 # Mixed map upgrades across the classical→enhanced boundary.
-# The classical installs use the committed `old.wasm` (built from `map0.mo`, see note.txt);
-# `map1.mo` is kept-replace/keep-memory upgraded from the enhanced side.
+# The classical installs use the committed `old.wasm` (built from `map0`, see note.txt);
+# `map1` is kept-replace/keep-memory upgraded from the enhanced side.
 install $ID map-mixed-upgrades/old.wasm ""
 ingress $ID go "DIDL\x00\x00"
 upgrade $ID map-mixed-upgrades/old.wasm ""

@@ -31,7 +31,7 @@
 
   * Tests: the classical/32-bit test class is removed, and the upgrades
     exercising the classical→EOP boundary now install committed classical
-    `old.wasm` fixtures built by `moc` 1.14.1 (see `test/run-drun/*/note.txt`).
+    `old.wasm` fixtures built by `moc` 1.14.1 (see `test/run-drun/*/note.txt`). (#6362)
 
 ## 1.16.0 (2026-09-09)
 
