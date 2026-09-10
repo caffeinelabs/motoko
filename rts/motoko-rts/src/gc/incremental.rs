@@ -11,8 +11,6 @@
 //! retained across upgrades and therefore be stored part of the
 //! persistent metadata, cf. `persistence::PersistentMetadata`.
 
-#[cfg(feature = "ic")]
-use motoko_rts_macros::classical_persistence;
 use motoko_rts_macros::{enhanced_orthogonal_persistence, ic_mem_fn};
 
 use crate::{memory::Memory, stable_option::StableOption, types::*, visitor::visit_pointer_fields};
@@ -52,17 +50,6 @@ unsafe fn initialize_incremental_gc<M: Memory>(mem: &mut M) {
 unsafe fn initialize<M: Memory>(_mem: &mut M) {
     use crate::persistence::initialize_memory;
     initialize_memory::<M>();
-}
-
-#[cfg(feature = "ic")]
-#[classical_persistence]
-unsafe fn initialize<M: Memory>(_mem: &mut M) {
-    use crate::memory::ic;
-
-    let state = STATE.get_mut();
-    let heap_base = ic::get_aligned_heap_base();
-    *state = IncrementalGC::<M>::initial_gc_state(heap_base);
-    partitioned_heap::allocate_initial_memory(Bytes(heap_base));
 }
 
 #[ic_mem_fn(ic_only)]
@@ -159,26 +146,11 @@ pub struct State {
     statistics: Statistics,
 }
 
-/// GC state retained over multiple GC increments.
-#[classical_persistence]
-#[cfg(feature = "ic")]
-static mut STATE: core::cell::RefCell<State> = core::cell::RefCell::new(State {
-    phase: Phase::Pause,
-    partitioned_heap: self::partitioned_heap::UNINITIALIZED_HEAP,
-    allocation_count: 0,
-    mark_state: StableOption::None,
-    iterator_state: StableOption::None,
-    statistics: Statistics {
-        last_allocations: Bytes(0),
-        max_live: Bytes(0),
-    },
-});
-
 /// Temporary state during message execution, not part of the persistent metadata.
 static mut RUNNING_GC_INCREMENT: bool = false;
 
 /// Incremental GC.
-/// Each GC call has its new GC instance that shares the common GC state `STATE`.
+/// Each GC call has its new GC instance that shares the common GC state.
 pub struct IncrementalGC<'a, M: Memory> {
     mem: &'a mut M,
     state: &'a mut State,
@@ -451,12 +423,6 @@ pub unsafe fn get_incremental_gc_state() -> &'static mut State {
 }
 
 #[cfg(feature = "ic")]
-#[classical_persistence]
-pub unsafe fn get_incremental_gc_state() -> &'static mut State {
-    STATE.get_mut()
-}
-
-#[cfg(feature = "ic")]
 pub unsafe fn get_max_live_size() -> Bytes<usize> {
     get_incremental_gc_state().statistics.max_live
 }
@@ -479,16 +445,6 @@ pub unsafe fn resume_gc() {
 
 pub unsafe fn is_gc_stopped() -> bool {
     get_incremental_gc_state().phase == Phase::Stop
-}
-
-/// Safety guard before Candid-stabilization with classical persistence.
-/// For graph copying, a different GC stop function is used, see
-/// `stabilization::ic::stop_gc_before_stabilization()`.
-#[classical_persistence]
-#[cfg(feature = "ic")]
-#[unsafe(no_mangle)]
-unsafe extern "C" fn stop_gc_on_upgrade() {
-    stop_gc();
 }
 
 /// For RTS unit testing only.

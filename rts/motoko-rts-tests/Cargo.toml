@@ -6,7 +6,6 @@ edition = "2024"
 
 [features]
 incremental_gc = ["motoko-rts/incremental_gc"]
-classical_persistence = ["motoko-rts/classical_persistence"]
 enhanced_orthogonal_persistence = ["motoko-rts/enhanced_orthogonal_persistence", "incremental_gc"]
 
 [dependencies]

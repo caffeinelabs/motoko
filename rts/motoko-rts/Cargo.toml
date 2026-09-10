@@ -28,14 +28,10 @@ memory_check = []
 # Incremental GC, using the extended object header containing the forwarding pointer.
 incremental_gc = []
 
-# Classical persistence, 32-bit, with Candid stabilization
-classical_persistence = ["libc"]
-
 # Enhanced orthogonal persistence, 64-bit, retaining the main memory across upgrades.
 enhanced_orthogonal_persistence = ["incremental_gc"]
 
 [dependencies]
-libc = { version = "0.2.139", default-features = false, optional = true }
 libm = "=0.2.16"
 motoko-rts-macros = { path = "../motoko-rts-macros" }
 

@@ -77,7 +77,7 @@ Add `-Zjson-target-spec` to `NIGHTLY_CARGO_OPTIONS` in `rts/Makefile`.
 
 #### `target-pointer-width: invalid type: string "32", expected u16`
 Change `"target-pointer-width": "32"` → `"target-pointer-width": 32` (integer)
-in `rts/motoko-rts/wasm32-none-shared.json` and `wasm64-none-shared.json`.
+in `rts/motoko-rts/wasm64-none-shared.json`.
 
 #### `panic_immediate_abort is now a real panic strategy`
 Remove `panic_immediate_abort` from `-Zbuild-std-features` and add
@@ -114,8 +114,8 @@ Two known failure modes that are *not* code regressions:
 1. **OOM on `systems-go-tests`** — fails in ~4 min with `patch: **** out of
    memory` while building `ocaml4.14.2-merlin-*` from scratch (before any
    tests run). Runner memory pressure. Re-trigger.
-2. **Slow `gc-tests` / `common-tests`** — same XProtect/wasm64 malaise; they
-   eventually finish. Be patient, don't cancel.
+2. **Slow `common-tests`** — same XProtect/wasm64 malaise; it
+   eventually finishes. Be patient, don't cancel.
 
 ### 8. Commit
 ```
@@ -125,7 +125,7 @@ chore: bump rustc-nightly to YYYY-MM-DD
 - rust-overlay: updated to YYYY-MM-DD
 - rustStdDepsHash: updated for new nightly
 - rts/Makefile: <list any Makefile fixes>
-- wasm{32,64}-none-shared.json: <if changed>
+- wasm64-none-shared.json: <if changed>
 - motoko-rts: bump foo =X.Y.Z → =X.Y+1.Z
 - cargo update: motoko-rts, motoko-rts-tests
 ```

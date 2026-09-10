@@ -1,3 +1,4 @@
+//MOC-FLAG --enhanced-orthogonal-persistence
 import Prim "mo:prim";
 
 actor {
@@ -10,6 +11,6 @@ actor {
     Prim.debugPrint(debug_show(state));
 
     public func test() : async () {
-        Prim.debugPrint("Upgrade instructions: " # debug_show (Prim.rts_upgrade_instructions()));
+        Prim.debugPrint("Ignore Diff: Upgrade instructions: " # debug_show (Prim.rts_upgrade_instructions()));
     };
 };

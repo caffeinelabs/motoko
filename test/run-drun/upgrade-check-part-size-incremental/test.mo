@@ -1,5 +1,3 @@
-//INCREMENTAL-GC-ONLY
-
 import Prim "mo:prim";
 
 persistent actor {

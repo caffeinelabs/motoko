@@ -1,4 +1,6 @@
-// Uses classical persistence, see `migrations-path.drun`.
+// Provides provenance for the committed classical `old.wasm` fixture used by
+// `migration-paths.drun` (built from this file by moc 1.14.1, see note.txt).
+// Not compiled by the test runner.
 import Prim "mo:⛔";
 import Cycles = "../cycles/cycles";
 import TestCanister "test_canister";

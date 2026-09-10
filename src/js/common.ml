@@ -403,12 +403,10 @@ let gc_flags option =
   match Js.to_string option with
   | "force" -> Flags.force_gc := true
   | "scheduling" -> Flags.force_gc := false
-  | "copying" -> Flags.gc_strategy := Mo_config.Flags.Copying
-  | "marking" -> Flags.gc_strategy := Mo_config.Flags.MarkCompact
-  | "generational" -> Flags.gc_strategy := Mo_config.Flags.Generational
   | "incremental" -> Flags.gc_strategy := Mo_config.Flags.Incremental
-  | "enhancedOP" -> Flags.enhanced_orthogonal_persistence := true
-  | "classicOP" -> Flags.enhanced_orthogonal_persistence := false
+  | "enhancedOP" -> () (* enhanced orthogonal persistence is always used *)
+  | ("copying" | "marking" | "generational" | "classicOP") as s ->
+      raise (Invalid_argument (Printf.sprintf "gc_flags: %s was removed; only \"incremental\" is supported" s))
   | _ -> raise (Invalid_argument "gc_flags: Unexpected flag")
 
 let js_contextual_dot_suggestions scope raw_exp =

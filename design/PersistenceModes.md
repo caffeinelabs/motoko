@@ -1,49 +1,53 @@
-# Persistence Modes
+# Persistence
 
-This Motoko build includes two substantially different persistence modes in one build:
+This Motoko build implements a single persistence mode:
 
-* [Classical Persistence](OldStableMemory.md) (default): 
-    This is the traditional Motoko compiler design based on 32-bit memory and Candid-based stabilization for upgrades.
-    This mode is known to have severe scalability problems on upgrades, because the stabilization may exceed upgrade instruction limit for stable data amounts, besides other problems such as exponential duplication or stack overflows depending on the data structures.
-* [Enhanced Orthogonal Persistence](OrthogonalPersistence.md) (new):
-    This implements scalable persistence with 64-bit main memory that is retained across upgrades without stabilization to stable memory.
-    The mode needs to be enabled by the compiler flag `--enhanced-orthogonal-persistence` and is intended to become the future default mode, deprecating classical persistence.
+* [Enhanced Orthogonal Persistence](OrthogonalPersistence.md):
+    This implements scalable persistence with 64-bit main memory that is retained
+    across upgrades without stabilization to stable memory. It is the only
+    persistence mode; see [classical persistence](OldStableMemory.md) for the
+    historical, now removed, 32-bit mode.
 
-The reason for having one build instead of two separate branches and release artefact is for having a unified branch, and ensure that new features are implemented and tested for both persistence modes, passing the same CI.
+Classical (legacy, 32-bit) persistence with Candid-based stabilization was the
+original default compilation mode. It was removed in the 1.16 → v2 migration:
+`moc` now always targets enhanced orthogonal persistence, and the previously
+classical-only flags (`--legacy-persistence`, `--copying-gc`, `--compacting-gc`,
+`--generational-gc`, `--rts-stack-pages`) fail with a hard error. Existing
+classical canisters are not orphaned: the runtime keeps reading all earlier
+classical stable-memory formats, and a classical canister transparently migrates
+to enhanced persistence on its next upgrade (recompile with the explicit
+`--enhanced-orthogonal-persistence` flag for that upgrade).
 
 ## Compiler Flags
 
-* (no flag): Use classical persistence
-* `--enhanced-orthogonal-persistence`: Use enhanced orthogonal persistence.
+`moc` always uses enhanced orthogonal persistence. The flag
+`--enhanced-orthogonal-persistence` is accepted for compatibility and is the
+default; the flag `--legacy-persistence` is removed.
 
-Certain compiler flags are only applicable to a specific persistence mode:
+The default garbage collector is the incremental GC. The non-incremental
+classical GCs (copying, compacting, generational) are removed.
+
+Flags that only apply to enhanced persistence:
 
 Flag              | Applicable Mode
 ------------------|----------------
---rts-stack-pages | Classical persistence only
 --stabilization-instruction-limit | Enhanced persistence only
---copying-gc      | Classical persistence only
---compacting-gc   | Classical persistence only
---generational-gc | Classical persistence only
+--stable-memory-access-limit      | Enhanced persistence only
 
-(All other flags are applicable to both modes.)
-
-Incremental graph copy stabilization with `__motoko_stabilize_before_upgrade` and `__motoko_destabilize_after_upgrade` are only available with enhanced orthogonal persistence and only needed in a seldom case of memory layout upgrade.
+Incremental graph copy stabilization with `__motoko_stabilize_before_upgrade` and `__motoko_destabilize_after_upgrade` is used by enhanced orthogonal persistence and only needed in a seldom case of memory layout upgrade.
 
 ## Source Structure
 
 ## Runtime System
-The Motoko runtime system (RTS) is a combined source base supporting 3 modes, each with a debug and release build:
-* 32-bit classical persistence, with classical non-incremental GCs
-* 32-bit classical persistence, with the incremental GC
-* 64-bit enhanced orthogonal persistence
+The Motoko runtime system (RTS) is a combined source base, with a debug and a release build:
+* 64-bit enhanced orthogonal persistence, with the incremental GC.
 
 ## Compiler
-For pragmatic purposes, the compiler backend is split/duplicated in two parts
-* `compile-enhanced.ml`: Enhanced orthogonal persistence, 64-bit, passive data segments, incremental graph copy.
-* `compile-classical.ml`: Classical persistence, 32-bit, Candid stabilization.
+The compiler backend targets enhanced orthogonal persistence:
+* `compile_enhanced.ml`: Enhanced orthogonal persistence, 64-bit, passive data segments, incremental graph copy.
 
-The linker integrates both persistence modes and 32-bit and 64-bit in one package.
+The linker integrates the single persistence mode and 64-bit support in one package.
 
 ## Tests
-Most tests run on both modes. Specific tests apply to selected modes, as defined by the `ENHANCED-ORTHOGONAL-PERSISTENCE` or `CLASSICAL-PERSISTENCE` tags.
+Tests apply to the single enhanced-orthogonal-persistence mode. Specific tests
+apply to selected subsets, as defined by runner tags.

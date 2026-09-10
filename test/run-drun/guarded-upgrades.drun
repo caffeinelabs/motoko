@@ -1,4 +1,6 @@
-# CLASSICAL-PERSISTENCE-ONLY
-install $ID guarded-upgrades/version0.mo ""
+# classical → enhanced upgrade guard: installing a classical canister, then
+# upgrading first to unguarded enhanced (must fail), then to enhanced (succeeds).
+# `old.wasm` is a committed classical build of `version0` (see note.txt).
+install $ID guarded-upgrades/old.wasm ""
 upgrade $ID guarded-upgrades/version1.mo ""
 upgrade $ID guarded-upgrades/version2.mo ""

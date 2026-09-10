@@ -1,9 +1,10 @@
-# CLASSICAL-PERSISTENCE-ONLY
-# DEFAULT-GC-ONLY
-install $ID migrate-stabilization/old-stabilization.mo ""
+# Linked-list stable-data migration across the classical→enhanced boundary.
+# The classical install/upgrade steps use the committed `old.wasm` (built from
+# `old-stabilization`, see note.txt); `new-stabilization` is the EOP side.
+install $ID migrate-stabilization/old.wasm ""
 ingress $ID populate "DIDL\x00\x00"
 ingress $ID print "DIDL\x00\x00"
-upgrade $ID migrate-stabilization/old-stabilization.mo ""
+upgrade $ID migrate-stabilization/old.wasm ""
 ingress $ID populate "DIDL\x00\x00"
 ingress $ID print "DIDL\x00\x00"
 upgrade $ID migrate-stabilization/new-stabilization.mo ""
@@ -12,4 +13,4 @@ ingress $ID print "DIDL\x00\x00"
 upgrade $ID migrate-stabilization/new-stabilization.mo ""
 ingress $ID populate "DIDL\x00\x00"
 ingress $ID print "DIDL\x00\x00"
-upgrade $ID migrate-stabilization/old-stabilization.mo ""
+upgrade $ID migrate-stabilization/old.wasm ""

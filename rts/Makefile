@@ -40,9 +40,6 @@ TOMMATH_FLAGS_COMMON = \
   -DMP_NO_FILE \
   -D__STDC_IEC_559__
 
-TOMMATH_FLAGS_32 = $(TOMMATH_FLAGS_COMMON) \
-  -DMP_32BIT
-
 TOMMATH_FLAGS_64 = $(TOMMATH_FLAGS_COMMON) \
   -DMP_64BIT
 
@@ -62,9 +59,6 @@ CLANG_FLAGS_COMMON = \
    --optimize=s \
    -resource-dir=$(wildcard $(WASM_CLANG_LIB)/lib/clang/*)
 
-CLANG_FLAGS_32 = $(CLANG_FLAGS_COMMON) \
-   --target=wasm32
-
 CLANG_FLAGS_64 = $(CLANG_FLAGS_COMMON) \
    --target=wasm64
 
@@ -74,15 +68,12 @@ CLANG_FLAGS_64 = $(CLANG_FLAGS_COMMON) \
 
 .PHONY: all
 
-all: mo-rts-non-incremental.wasm mo-rts-non-incremental-debug.wasm mo-rts-incremental.wasm mo-rts-incremental-debug.wasm mo-rts-eop.wasm mo-rts-eop-debug.wasm
+all: mo-rts-eop.wasm mo-rts-eop-debug.wasm
 
 _build:
 	mkdir -p $@
 
 _build/wasm64:
-	mkdir -p $@
-
-_build/wasm32:
 	mkdir -p $@
 
 #
@@ -95,21 +86,11 @@ vpath %.c $(TOMMATHSRC)
 # Building the libtommath files
 #
 
-TOMMATH_WASM_32_O=$(TOMMATHFILES:%=_build/wasm32/tommath_%.o)
-TOMMATH_WASM_32_A=_build/libtommath_wasm32.a
-
 TOMMATH_WASM_64_O=$(TOMMATHFILES:%=_build/wasm64/tommath_%.o)
 TOMMATH_WASM_64_A=_build/libtommath_wasm64.a
 
-_build/wasm32/tommath_%.o: bn_%.c | _build/wasm32
-	$(WASM_CLANG) $(CLANG_FLAGS_32) $(TOMMATH_FLAGS_32) $< --output $@
-
 _build/wasm64/tommath_%.o: bn_%.c | _build/wasm64
 	$(WASM_CLANG) $(CLANG_FLAGS_64) $(TOMMATH_FLAGS_64) $< --output $@
-
-$(TOMMATH_WASM_32_A): $(TOMMATH_WASM_32_O)
-	llvm-ar rcs $@ $^
-	llvm-ranlib $@
 
 $(TOMMATH_WASM_64_A): $(TOMMATH_WASM_64_O)
 	llvm-ar rcs $@ $^
@@ -128,7 +109,6 @@ RTS_RELEASE_COMPILE_FLAGS=$(RTS_COMPILE_FLAGS) -Zunstable-options -Cpanic=immedi
 NIGHTLY_CARGO_OPTIONS=-Zjson-target-spec -Zbuild-std=core,alloc
 NIGHTLY_RELEASE_CARGO_OPTIONS=$(NIGHTLY_CARGO_OPTIONS) --release -Zbuild-std-features="optimize_for_size"
 
-TOMMATH_BINDINGS_RS_32=_build/wasm32/tommath_bindings.rs
 TOMMATH_BINDINGS_RS_64=_build/wasm64/tommath_bindings.rs
 
 TOMMATH_BIND_OPTIONS = \
@@ -163,13 +143,6 @@ TOMMATH_BIND_OPTIONS = \
 	    --blocklist-type __uint64_t \
 
 
-$(TOMMATH_BINDINGS_RS_32): | _build/wasm32
-	bindgen $(TOMMATHSRC)/tommath.h \
-	    -o $@ \
-	    --ctypes-prefix="crate::libc_declarations" \
-		$(TOMMATH_BIND_OPTIONS) \
-		-- $(TOMMATH_FLAGS_32)
-
 $(TOMMATH_BINDINGS_RS_64): | _build/wasm64
 	bindgen $(TOMMATHSRC)/tommath.h \
 	    -o $@ \
@@ -183,37 +156,6 @@ $(TOMMATH_BINDINGS_RS_64): | _build/wasm64
 	#
 	# Note that bindgen can't generate Rust macros or functions for CPP macros, so
 	# macros like `mp_get_u32` and `mp_isneg` need to be manually implemented.
-
-# 32-bit Wasm builds
-
-RTS_DEPENDENCIES_32=$(TOMMATH_BINDINGS_RS_32) $(RTS_RUST_FILES) $(RTS_CARGO_FILES) | _build/wasm32
-RTS_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json $(NIGHTLY_CARGO_OPTIONS)
-RTS_DEBUG_BUILD_32=$(RTS_BUILD_32)
-RTS_RELEASE_BUILD_32=cd motoko-rts && RUSTFLAGS="${RTS_RELEASE_COMPILE_FLAGS}" cargo build --target wasm32-none-shared.json $(NIGHTLY_RELEASE_CARGO_OPTIONS)
-RTS_DEBUG_TARGET_32=motoko-rts/target/wasm32-none-shared/debug/libmotoko_rts.a
-RTS_RELEASE_TARGET_32=motoko-rts/target/wasm32-none-shared/release/libmotoko_rts.a
-
-RTS_RUST_NON_INCREMENTAL_WASM_32_A=_build/wasm32/libmotoko_rts.a
-RTS_RUST_NON_INCREMENTAL_DEBUG_WASM_32_A=_build/wasm32/libmotoko_rts_debug.a
-
-RTS_RUST_INCREMENTAL_WASM_32_A=_build/wasm32/libmotoko_rts_incremental.a
-RTS_RUST_INCREMENTAL_DEBUG_WASM_32_A=_build/wasm32/libmotoko_rts_incremental_debug.a
-
-$(RTS_RUST_NON_INCREMENTAL_WASM_32_A): $(RTS_DEPENDENCIES_32)
-	$(RTS_RELEASE_BUILD_32) --features classical_persistence
-	cp $(RTS_RELEASE_TARGET_32) $@
-
-$(RTS_RUST_NON_INCREMENTAL_DEBUG_WASM_32_A): $(RTS_DEPENDENCIES_32)
-	$(RTS_DEBUG_BUILD_32) --features classical_persistence
-	cp $(RTS_DEBUG_TARGET_32) $@
-
-$(RTS_RUST_INCREMENTAL_WASM_32_A): $(RTS_DEPENDENCIES_32)
-	$(RTS_RELEASE_BUILD_32) --features classical_persistence,incremental_gc
-	cp $(RTS_RELEASE_TARGET_32) $@
-
-$(RTS_RUST_INCREMENTAL_DEBUG_WASM_32_A): $(RTS_DEPENDENCIES_32)
-	$(RTS_DEBUG_BUILD_32) --features classical_persistence,incremental_gc
-	cp $(RTS_DEBUG_TARGET_32) $@
 
 # 64-bit Wasm builds
 
@@ -240,7 +182,6 @@ $(RTS_RUST_DEBUG_WASM_64_A): $(RTS_DEPENDENCIES_64)
 # The test suite
 #
 
-TEST_DEPENDENCIES_32=$(TOMMATH_WASM_32_A) $(TOMMATH_BINDINGS_RS_32)
 TEST_DEPENDENCIES_64=$(TOMMATH_WASM_64_A) $(TOMMATH_BINDINGS_RS_64)
 
 # RTS test variant template.
@@ -283,18 +224,12 @@ endef
 
 comma := ,
 
-$(eval $(call test_variant,test32-non-incremental,wasm32-wasip1,,\
-  --features classical_persistence,,TEST_DEPENDENCIES_32))
-
-$(eval $(call test_variant,test32-incremental,wasm32-wasip1,,\
-  --features classical_persistence$(comma)incremental_gc,,TEST_DEPENDENCIES_32))
-
 $(eval $(call test_variant,test64,wasm64-unknown-unknown,\
   -Zbuild-std=core$(comma)alloc$(comma)std$(comma)panic_abort,\
   --features enhanced_orthogonal_persistence,-W memory64,TEST_DEPENDENCIES_64))
 
 .PHONY: test
-test: test32-non-incremental test32-incremental test64
+test: test64
 
 #
 # Putting it all together
@@ -317,41 +252,11 @@ EXPORTED_SYMBOLS=\
   fmodf \
   log
 
-WASM_A_DEPENDENCIES_32=$(TOMMATH_WASM_32_A)
-LINKER_OPTIONS_32=\
-  --import-memory --shared --no-entry --gc-sections \
-  $(EXPORTED_SYMBOLS:%=--export=%) --import-undefined \
-  --whole-archive --experimental-pic
-
 WASM_A_DEPENDENCIES_64=$(TOMMATH_WASM_64_A)
 LINKER_OPTIONS_64=\
   -mwasm64 --import-memory --shared --no-entry --gc-sections \
   $(EXPORTED_SYMBOLS:%=--export=%) --import-undefined \
   --whole-archive --experimental-pic
-
-mo-rts-non-incremental.wasm: $(RTS_RUST_NON_INCREMENTAL_WASM_32_A) $(WASM_A_DEPENDENCIES_32)
-	$(WASM_LD) -o $@ \
-	  $(LINKER_OPTIONS_32) \
-	  $+
-	wasm-validate $@
-
-mo-rts-non-incremental-debug.wasm: $(RTS_RUST_NON_INCREMENTAL_DEBUG_WASM_32_A) $(WASM_A_DEPENDENCIES_32)
-	$(WASM_LD) -o $@ \
-	  $(LINKER_OPTIONS_32) \
-	  $+
-	wasm-validate $@
-
-mo-rts-incremental.wasm: $(RTS_RUST_INCREMENTAL_WASM_32_A) $(WASM_A_DEPENDENCIES_32)
-	$(WASM_LD) -o $@ \
-	  $(LINKER_OPTIONS_32) \
-	  $+
-	wasm-validate $@
-
-mo-rts-incremental-debug.wasm: $(RTS_RUST_INCREMENTAL_DEBUG_WASM_32_A) $(WASM_A_DEPENDENCIES_32)
-	$(WASM_LD) -o $@ \
-	  $(LINKER_OPTIONS_32) \
-	  $+
-	wasm-validate $@
 
 mo-rts-eop.wasm: $(RTS_RUST_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
 	$(WASM_LD) -o $@ \

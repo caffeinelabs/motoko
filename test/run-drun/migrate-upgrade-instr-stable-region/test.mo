@@ -1,3 +1,4 @@
+//MOC-FLAG --enhanced-orthogonal-persistence
 import Prim "mo:prim";
 import Region "../stable-region/Region";
 
@@ -7,6 +8,6 @@ actor {
     Prim.debugPrint("Region size: " # debug_show(Region.size(region)));
 
     public func test() : async () {
-        Prim.debugPrint("Upgrade instructions: " # debug_show (Prim.rts_upgrade_instructions()));
+        Prim.debugPrint("Ignore Diff: Upgrade instructions: " # debug_show (Prim.rts_upgrade_instructions()));
     };
 };

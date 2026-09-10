@@ -5,23 +5,9 @@
 //
 // To convert an offset into an address, add heap array's address to the offset.
 
-use motoko_rts_macros::{
-    classical_persistence, enhanced_orthogonal_persistence, incremental_gc, non_incremental_gc,
-};
-
-#[classical_persistence]
-mod classical;
-#[enhanced_orthogonal_persistence]
 mod enhanced;
-
-#[non_incremental_gc]
-mod compacting;
-#[non_incremental_gc]
-mod generational;
-#[incremental_gc]
-mod incremental;
-
 pub mod heap;
+mod incremental;
 pub mod random;
 pub mod utils;
 
@@ -59,15 +45,8 @@ pub fn test_random_range(start: u64, end: u64) {
     print!("\r");
 }
 
-#[non_incremental_gc]
 pub fn test_gc_components() {
-    compacting::test();
-    generational::test();
-}
-
-#[incremental_gc]
-pub fn test_gc_components() {
-    incremental::test();
+    self::incremental::test();
 }
 
 fn test_heaps() -> Vec<TestHeap> {
@@ -188,10 +167,6 @@ fn test_gc(gc: GC, test_heap: &TestHeap) {
     }
 }
 
-#[non_incremental_gc]
-fn initialize_gc(_heap: &mut MotokoHeap) {}
-
-#[incremental_gc]
 fn initialize_gc(heap: &mut MotokoHeap) {
     use motoko_rts::gc::incremental::{
         IncrementalGC, get_partitioned_heap, set_incremental_gc_state,
@@ -210,10 +185,6 @@ fn initialize_gc(heap: &mut MotokoHeap) {
     }
 }
 
-#[non_incremental_gc]
-fn reset_gc() {}
-
-#[incremental_gc]
 fn reset_gc() {
     use motoko_rts::gc::incremental::set_incremental_gc_state;
     unsafe {
@@ -229,37 +200,9 @@ pub enum CheckMode {
     /// that all garbage objects have been reclaimed.
     AllReclaimed,
     /// Check valid dynamic heap after stabilization.
-    #[cfg(feature = "enhanced_orthogonal_persistence")]
     Stabilzation,
 }
 
-#[classical_persistence]
-pub fn check_dynamic_heap(
-    mode: CheckMode,
-    objects: &[(ObjectIdx, Vec<ObjectIdx>)],
-    roots: &[ObjectIdx],
-    continuation_table: &[ObjectIdx],
-    heap: &[u8],
-    heap_base_offset: usize,
-    heap_ptr_offset: usize,
-    _static_root_array_variable_offset: usize,
-    continuation_table_variable_offset: usize,
-    region0_ptr_offset: usize,
-) {
-    self::classical::check_dynamic_heap(
-        mode,
-        objects,
-        roots,
-        continuation_table,
-        heap,
-        heap_base_offset,
-        heap_ptr_offset,
-        continuation_table_variable_offset,
-        region0_ptr_offset,
-    );
-}
-
-#[enhanced_orthogonal_persistence]
 pub fn check_dynamic_heap(
     mode: CheckMode,
     objects: &[(ObjectIdx, Vec<ObjectIdx>)],

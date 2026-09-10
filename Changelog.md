@@ -1,5 +1,38 @@
 # Motoko compiler changelog
 
+## next (1.16 → v2)
+
+### Classical/32-bit removal
+
+* motoko (`moc`)
+
+  * **Important:** classical (legacy, 32-bit) persistence is removed.
+    `moc` now always targets enhanced orthogonal persistence (EOP) with a
+    persistent 64-bit main memory; the flags `--legacy-persistence`,
+    `--copying-gc`, `--compacting-gc`, `--generational-gc` and
+    `--rts-stack-pages` are removed and now fail with a hard error. The
+    classical `moc` flags `--legacy-persistence` and 32-bit (`wasm32`)
+    RTS builds no longer exist.
+
+  * Existing classical canisters are **not** orphaned: the runtime keeps
+    reading all earlier classical stable-memory formats, and a classical
+    canister transparently migrates to enhanced persistence on its next
+    upgrade — recompile that upgrade with the explicit
+    `--enhanced-orthogonal-persistence` flag (`moc` otherwise traps at
+    upgrade time with "Detected implicit upgrade from classical orthogonal
+    persistence to enhanced orthogonal persistence"). The graph-copy
+    stabilization machinery that produces this migration is retained.
+
+  * Because `--legacy-persistence` is gone, `moc` can no longer *produce*
+    classical canisters; projects that still need a classical module must
+    keep an older `moc` (e.g. 1.14.x). The default GC remains incremental,
+    and the non-incremental classical GCs (copying, compacting,
+    generational) are removed.
+
+  * Tests: the classical/32-bit test class is removed, and the upgrades
+    exercising the classical→EOP boundary now install committed classical
+    `old.wasm` fixtures built by `moc` 1.14.1 (see `test/run-drun/*/note.txt`). (#6362)
+
 ## 1.16.0 (2026-09-09)
 
 * motoko (`moc`)

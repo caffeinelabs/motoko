@@ -8,8 +8,8 @@ This implements the vision of **enhanced orthogonal persistence** in Motoko that
 As a result, the use of secondary storage (explicit stable memory, dedicated stable data structures, DB-like storage abstractions) will no longer be necessary: Motoko developers can directly work on their normal object-oriented program structures that are automatically persisted and retained across program version changes.
 
 ## Activation
-Enhanced orthogonal persistence is offered via the compiler flag `--enhanced-orthogonal-persistence`.
-Classical persistence with 32-bit main memory and Candid stabilization currently remains the default mode.
+Enhanced orthogonal persistence is the only persistence mode and is enabled by default (it was previously offered via the compiler flag `--enhanced-orthogonal-persistence`, which is now redundant).
+Classical persistence with 32-bit main memory and Candid stabilization was removed in the 1.16 → v2 migration.
 See `design/PersistenceModes.md` for more information.
 
 ## Advantages
