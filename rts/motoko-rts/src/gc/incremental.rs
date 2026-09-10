@@ -72,7 +72,7 @@ unsafe fn schedule_incremental_gc<M: Memory>(mem: &mut M) {
     let state = get_incremental_gc_state();
     // A stale `__running_gc` cache silently skips barriers, so check it against the authoritative phase.
     #[cfg(debug_assertions)]
-    debug_assert_eq!(get_running_gc(), (state.phase() != Phase::Pause) as i32);
+    assert_eq!(get_running_gc(), (state.phase() != Phase::Pause) as i32);
     let running = state.phase() != Phase::Pause;
     if running || scheduling::should_start_gc() {
         incremental_gc(mem);
