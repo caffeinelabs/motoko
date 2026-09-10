@@ -693,7 +693,7 @@ module E = struct
     G.if1 return_type then_block else_block
 
   let if_ env tys thn els = prepare_branch_condition ^^ G.if_ (as_block_type env tys) thn els
-  (* Multi-value `if`; unlike `if_` it takes a raw i32 condition (no `prepare_branch_condition`) and block params. *)
+  (* Unlike `if_`, takes a raw i32 condition (no `prepare_branch_condition`) and block params. *)
   let if' env ?param ?(return=[]) thn els =
     G.if_ (as_block_type ?param env return) thn els
   let i64s n = Lib.List.make n I64Type
@@ -2141,7 +2141,7 @@ module Tagged = struct
       G.nop
 
   let write_with_barrier env =
-    (* Stack on entry: [location, value]; both arms consume them via the block params. *)
+    (* Stack on entry: [location, value]. *)
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     E.if' env ~param:(E.i64s 2)
       (E.call_rts env "write_with_barrier")

@@ -613,7 +613,7 @@ module E = struct
     | ps, rs  -> VarBlockType (nr (func_type env (FuncType (ps, rs))))
 
   let if_ env tys thn els = G.if_ (as_block_type env tys) thn els
-  (* Multi-value `if`; unlike `if_` it takes a raw i32 condition and block params. *)
+  (* Unlike `if_`, takes a raw i32 condition and block params. *)
   let if' env ?param ?(return=[]) thn els =
     G.if_ (as_block_type ?param env return) thn els
   let i32s n = Lib.List.make n I32Type
