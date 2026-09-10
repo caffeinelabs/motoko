@@ -107,3 +107,19 @@ assert (r2.x == 5);
 // a block on the RHS of `??` uses `do { ... }`
 let d = (null : ?Nat) ?? do { let k = 2; k + 1 };
 assert (d == 3);
+
+// `do { ... }` is the block-as-expression, so it is a valid head like any other expression
+if do { let k = 1; k == 1 } {} else { assert false };
+var w = 0;
+while do { w < 2 } { w += 1 };
+assert (w == 2);
+
+// `break` takes a full operand, like `return`
+let bk = label l : Nat loop { break l inc(41) };
+assert (bk == 42);
+let bd = label m : Nat loop { break m do { let k = 6; k * 7 } };
+assert (bd == 42);
+
+// `else if` chains through atomic and extended heads alike, with braced branches throughout
+let chain = if inc(0) == 0 { 0 } else if a { 1 } else if inc(1) == 2 { 2 } else { 3 };
+assert (chain == 1);

@@ -37,17 +37,23 @@ s/(<ob>, <exp_cont>)//g
 s/(<bl>, <exp_cont_tight>)//g
 s/(R)//g
 s/ L$/ <exp_cont>/g
+# the legacy_* aliases only document the v3 flip (#6352); the published grammar shows the underlying production
+/^<legacy_body> ::=/,/^$/d
+/^<legacy_operand> ::=/,/^$/d
+s/<legacy_body>/<exp_nest>/g
+s/<legacy_operand>/<exp_nest>/g
 /^<lpar> ::=/,/^$/d
 /^<lbracket> ::=/,/^$/d
 /^<hash> ::=/,/^$/d
 s/<lpar>/'('/g
-s/<lbracket>/'['/g
 s/<hash>/'#'/g
 s/TIGHT_LPAR/'('/g
-s/TIGHT_LBRACKET/'['/g
 s/TIGHT_HASH/'#'/g
 s/\[/(/g
 s/\]/)?/g
+# bracket tokens are rewritten only after obelisk's optional-group brackets above, else they would become parens
+s/<lbracket>/'['/g
+s/TIGHT_LBRACKET/'['/g
 s/(\([a-zA-Z_0-9]*\))/\1/g
 s/(\(<[a-z_0-9]*>\))/\1/g
 s/<semicolon>/\';\'/g

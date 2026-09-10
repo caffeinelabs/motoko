@@ -234,7 +234,8 @@ let repr_of_symbol : xsymbol -> (string * string) =
   | X (N N_exp_cont) -> "<exp_cont>", "(" ^ eg_exp ^ ")"
   | X (N N_exp_head) | X (N N_exp_head_bin) | X (N N_exp_head_un) | X (N N_exp_head_post) -> "<exp_head>", eg_exp
   | X (N N_if_exp_ob_exp_cont_) | X (N N_if_exp_bl_exp_cont_tight_) -> "<if_exp>", "if c {}"
-  | X (N N_else_branch_ob_exp_cont_) | X (N N_else_branch_bl_exp_cont_tight_) -> "<else_branch>", "{}"
+  | X (N N_else_branch) -> "<else_branch>", "{}"
+  | X (N N_if_braced) -> "<if_braced>", "if c {}"
   | X (N N_exp_cont_tight) -> "<exp_cont>", "(" ^ eg_exp ^ ")"
   | X (N N_case_pat) -> "<case_pat>", eg_pat
   | X (N N_pat_paren) -> "(<pat>)", "(" ^ eg_pat ^ ")"

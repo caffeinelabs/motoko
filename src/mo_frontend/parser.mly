@@ -271,7 +271,7 @@ and objblock eo s id ty dec_fields =
 (* EXP_NO_JUXTA: the precedence of stopping a variant pattern at its bare tag.
    It loses to LPAR/LCURLY (top level below), so `#a(p)` and `#a { f }` grab the payload instead of stopping at `#a`. *)
 %nonassoc EXP_NO_JUXTA
-%nonassoc RETURN_NO_ARG IF_NO_ELSE LOOP_NO_WHILE TRY_CATCH_NO_FINALLY
+%nonassoc RETURN_NO_ARG BREAK_NO_ARG IF_NO_ELSE LOOP_NO_WHILE TRY_CATCH_NO_FINALLY
 %nonassoc ELSE WHILE FINALLY
 
 %left COLON
@@ -329,7 +329,7 @@ and objblock eo s id ty dec_fields =
 %type<unit option> option(EQ)
 %type<Mo_def.Syntax.exp> exp_un(ob, ob, exp_cont) exp_un(bl, ob, exp_cont) exp_un(bl, bl, exp_cont_tight) exp_post(ob, ob, exp_cont) exp_post(bl, ob, exp_cont) exp_post(bl, bl, exp_cont_tight) exp_nullary(bl) exp_nonvar(ob, ob, exp_cont) exp_nonvar(bl, ob, exp_cont) exp_nonvar(bl, bl, exp_cont_tight) exp_nondec(ob, ob, exp_cont) exp_nondec(bl, ob, exp_cont) exp_nondec(bl, bl, exp_cont_tight) block exp_bin(ob, ob, exp_cont) exp_bin(bl, ob, exp_cont) exp_bin(bl, bl, exp_cont_tight) exp(bl, ob, exp_cont) exp(bl, bl, exp_cont_tight)
 %type<Mo_def.Syntax.exp -> region -> Mo_def.Syntax.exp> exp_cont exp_cont_tight
-%type<Mo_def.Syntax.exp> exp_head exp_head_bin exp_head_un exp_head_post if_exp(ob, exp_cont) if_exp(bl, exp_cont_tight) else_branch(ob, exp_cont) else_branch(bl, exp_cont_tight)
+%type<Mo_def.Syntax.exp> exp_head exp_head_bin exp_head_un exp_head_post if_exp(ob, exp_cont) if_exp(bl, exp_cont_tight) else_branch if_braced
 %type<bool * Mo_def.Syntax.exp> func_body(ob, exp_cont) func_body(bl, exp_cont_tight)
 %type<Mo_def.Syntax.lit> lit
 %type<Mo_def.Syntax.dec> dec imp dec_var(ob, exp_cont) dec_var(bl, exp_cont_tight) dec_nonvar(ob, exp_cont) dec_nonvar(bl, exp_cont_tight)
@@ -851,19 +851,19 @@ exp_un(B, R, L) :
     { RetE(TupE([]) @? at $sloc) @? at $sloc }
   | RETURN e=exp(R, R, L)
     { RetE(e) @? at $sloc }
-  | par=parenthetical_opt ASYNC e=exp_nest(R, L)
+  | par=parenthetical_opt ASYNC e=legacy_body(R, L)
     { AsyncE(par, Type.Fut, scope_bind (anon_id "async" (at $sloc)) (at $sloc), e) @? at $sloc }
-  | ASYNCSTAR e=exp_nest(R, L)
+  | ASYNCSTAR e=legacy_body(R, L)
     { AsyncE(None, Type.Cmp, scope_bind (anon_id "async*" (at $sloc)) (at $sloc), e) @? at $sloc }
-  | AWAIT e=exp_nest(R, L)
+  | AWAIT e=legacy_operand(R, L)
     { AwaitE(Type.AwaitFut false, e) @? at $sloc }
-  | AWAITQUEST e=exp_nest(R, L)
+  | AWAITQUEST e=legacy_operand(R, L)
     { AwaitE(Type.AwaitFut true, e) @? at $sloc }
-  | AWAITSTAR e=exp_nest(R, L)
+  | AWAITSTAR e=legacy_operand(R, L)
     { AwaitE(Type.AwaitCmp, e) @? at $sloc }
-  | ASSERT e=exp_nest(R, L)
+  | ASSERT e=legacy_operand(R, L)
     { AssertE(Runtime, e) @? at $sloc }
-  | LABEL x=id rt=annot_opt e=exp_nest(R, L)
+  | LABEL x=id rt=annot_opt e=legacy_operand(R, L)
     { let x' = ("continue " ^ x.it) @@ x.at in
       let unit () = TupT [] @! at $sloc in
       let e' =
@@ -874,10 +874,10 @@ exp_un(B, R, L) :
         | _ -> e
       in
       LabelE(x, Lib.Option.get rt (unit ()), e') @? at $sloc }
-  | BREAK x=id
+  | BREAK x=id %prec BREAK_NO_ARG
     { let e = TupE([]) @? at $sloc in
       BreakE(Break, Some x, e) @? at $sloc }
-  | BREAK x=id e=exp_nullary(R)
+  | BREAK x=id e=exp(R, R, L)
     { BreakE(Break, Some x, e) @? at $sloc }
   | BREAK
     { let e = TupE([]) @? at $sloc in
@@ -889,37 +889,39 @@ exp_un(B, R, L) :
     { let e = TupE([]) @? at $sloc in
       let x' = ("continue " ^ x.it) @@ x.at in
       BreakE(Continue, Some x', e) @? at $sloc }
-  | DEBUG e=exp_nest(R, L)
+  | DEBUG e=legacy_operand(R, L)
     { DebugE(e) @? at $sloc }
   | e=if_exp(R, L)
     { e }
-  | TRY e1=exp_nest(R, L) c=catch(R, L) %prec TRY_CATCH_NO_FINALLY
+  | TRY e1=legacy_body(R, L) c=catch(R, L) %prec TRY_CATCH_NO_FINALLY
     { TryE(e1, [c], None) @? at $sloc }
-  | TRY e1=exp_nest(R, L) c=catch(R, L) FINALLY e2=exp_nest(R, L)
+  | TRY e1=legacy_body(R, L) c=catch(R, L) FINALLY e2=legacy_body(R, L)
     { TryE(e1, [c], Some e2) @? at $sloc }
-  | TRY e1=exp_nest(R, L) FINALLY e2=exp_nest(R, L)
+  | TRY e1=legacy_body(R, L) FINALLY e2=legacy_body(R, L)
     { TryE(e1, [], Some e2) @? at $sloc }
 (* TODO: enable multi-branch TRY (already supported by compiler)
   | TRY e=exp_nest(R, L) LCURLY cs=cases RCURLY
     { TryE(e, cs) @? at $sloc }
 *)
-  | THROW e=exp_nest(R, L)
+  | THROW e=legacy_operand(R, L)
     { ThrowE(e) @? at $sloc }
-  | SWITCH e=exp(bl, bl, exp_cont_tight) LCURLY cs=cases RCURLY
+  | SWITCH e=head LCURLY cs=cases RCURLY
     { SwitchE(e, cs) @? at $sloc }
-  | WHILE e1=exp_nullary(bl) e2=exp_nest(R, L)
+  (* LEGACY(v3): bare `while (c) body`; the target is `while c { }` below *)
+  | WHILE e1=exp_nullary(bl) e2=legacy_body(R, L)
     { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
   | WHILE e1=exp_head e2=block
     { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
-  | LOOP e=exp_nest(R, L) %prec LOOP_NO_WHILE
+  | LOOP e=legacy_body(R, L) %prec LOOP_NO_WHILE
     { LoopE(e, None, new_loop_flags ()) @? at $sloc }
-  | LOOP e1=exp_nest(R, L) WHILE e2=exp_nest(R, L)
+  | LOOP e1=legacy_body(R, L) WHILE e2=legacy_operand(R, L)
     { LoopE(e1, Some e2, new_loop_flags ()) @? at $sloc }
-  | FOR lpar p=pat IN e1=exp(ob, ob, exp_cont) RPAR e2=exp_nest(R, L)
+  (* LEGACY(v3): parenthesized `for (p in e) body`; the target is `for p in e { }` below *)
+  | FOR lpar p=pat IN e1=exp(ob, ob, exp_cont) RPAR e2=legacy_body(R, L)
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
-  | FOR p=pat IN e1=exp(bl, bl, exp_cont_tight) e2=block
+  | FOR p=pat IN e1=head e2=block
     { ForE(p, e1, e2, new_loop_flags ()) @? at $sloc }
-  | IGNORE e=exp_nest(R, L)
+  | IGNORE e=legacy_operand(R, L)
     { IgnoreE(e) @? at $sloc }
   | DO e=block
     { e.it @? at $sloc }
@@ -939,17 +941,32 @@ exp [@recover.expr mk_stub_expr loc] (B, R, L) :
   | d=dec_var(R, L)
     { BlockE([d]) @? at $sloc }
 
+(* MIGRATION BRIDGE — retired in moc v3 (#6352, rule 5: no optional blocks).
+   In the target grammar a position is either a *body*, where only a braced block parses, or an *operand*,
+   where `{` is a record and a block is spelled `do { }`. `exp_nest` is the legacy `block | exp` alternative
+   that admits both. Every use site goes through one of two aliases naming which way it flips at v3:
+     legacy_body(R, L)     -> `block`        (rule 2: `if`/`while`/`for`/`loop` bodies, `case`/`catch` arms, `try`/`finally`, `async`)
+     legacy_operand(R, L)  -> `exp(R, R, L)` (rule 3: `assert`, `ignore`, `throw`, `await`, `debug`, `label`, `let … else`, `loop … while`)
+   The v3 flip is: apply those two substitutions, delete `exp_nest` and the aliases, then drop the `bl` mode
+   everywhere except control heads. The other bridge pieces are the productions marked LEGACY(v3) below
+   and the TIGHT_* tokens in lexer.ml. *)
 %public exp_nest(R, L) :
   | e=block
   | e=exp(bl, R, L)
     { e }
+
+%inline legacy_body(R, L) :
+  | e=exp_nest(R, L) { e }
+
+%inline legacy_operand(R, L) :
+  | e=exp_nest(R, L) { e }
 
 block :
   | LCURLY ds=seplist(dec, semicolon) RCURLY
     { BlockE(ds) @? at $sloc }
 
 case :
-  | CASE p=case_pat e=exp_nest(ob, exp_cont)
+  | CASE p=case_pat e=legacy_body(ob, exp_cont)
     { {pat = p; exp = e} @@ at $sloc }
 
 (* The `;` between cases is optional: every case starts with the `case` keyword, so the separator disambiguates nothing. *)
@@ -959,7 +976,7 @@ cases :
   | c=case semicolon cs=cases { c::cs }
 
 catch(R, L) :
-  | CATCH p=pat_nullary e=exp_nest(R, L)
+  | CATCH p=pat_nullary e=legacy_body(R, L)
     { {pat = p; exp = e} @@ at $sloc }
 
 (* `if` has two coupled shapes.
@@ -967,18 +984,34 @@ catch(R, L) :
    an extended head (anything more — see exp_head) demands braced branches, with `else if` chains allowed.
    The coupling is the point: `if f(x) { } else { }` works, while `if f(x) e1 else e2` never becomes writable. *)
 if_exp(R, L) :
-  | IF b=exp_nullary(bl) e1=exp_nest(R, L) %prec IF_NO_ELSE
+  (* LEGACY(v3): bare branches after an atomic head, `if (c) e1 else e2`; the target is `if c { } else { }` *)
+  | IF b=exp_nullary(bl) e1=legacy_body(R, L) %prec IF_NO_ELSE
     { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
-  | IF b=exp_nullary(bl) e1=exp_nest(R, L) ELSE e2=exp_nest(R, L)
+  | IF b=exp_nullary(bl) e1=legacy_body(R, L) ELSE e2=legacy_body(R, L)
     { IfE(b, e1, e2) @? at $sloc }
   | IF b=exp_head e1=block %prec IF_NO_ELSE
     { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
-  | IF b=exp_head e1=block ELSE e2=else_branch(R, L)
+  | IF b=exp_head e1=block ELSE e2=else_branch
     { IfE(b, e1, e2) @? at $sloc }
 
-else_branch(R, L) :
+(* `else if` chains only into the braced shape, so a legacy bare-branch `if` cannot ride on an extended head *)
+else_branch :
   | e=block { e }
-  | e=if_exp(R, L) { e }
+  | e=if_braced { e }
+
+if_braced :
+  | IF b=head e1=block %prec IF_NO_ELSE
+    { IfE(b, e1, TupE([]) @? at $sloc) @? at $sloc }
+  | IF b=head e1=block ELSE e2=else_branch
+    { IfE(b, e1, e2) @? at $sloc }
+
+(* The one head grammar shared by `if`, `while`, `switch`, and `for`: an atom or an extended head (see exp_head).
+   In the target grammar (#6352, rule 1) a head is simply any expression except a bare record literal — `do { }` included,
+   as in Rust — and this alias collapses into `exp(bl)` once bodies are brace-only. Until then it is the bridge's
+   approximation of that, kept identical across the four constructs so that none accepts a head another rejects. *)
+%inline head :
+  | b=exp_nullary(bl) { b }
+  | b=exp_head { b }
 
 (* An extended head: a scrutinee or condition that is more than a single atom — at least one call, projection, indexing, operator, or prefix form.
    It is disjoint from exp_nullary by construction, which is what lets if_exp couple head shape to branch shape without ambiguity.
@@ -1079,12 +1112,16 @@ exp_head :
     { e }
   | e1=exp_bin(bl, bl, exp_cont_tight) NULLCOALESCE e2=exp(bl, bl, exp_cont_tight)
     { NullCoalesceE(e1, e2) @? at $sloc }
-  | AWAIT e=exp_nest(bl, exp_cont_tight)
+  | AWAIT e=legacy_operand(bl, exp_cont_tight)
     { AwaitE(Type.AwaitFut false, e) @? at $sloc }
-  | AWAITQUEST e=exp_nest(bl, exp_cont_tight)
+  | AWAITQUEST e=legacy_operand(bl, exp_cont_tight)
     { AwaitE(Type.AwaitFut true, e) @? at $sloc }
-  | AWAITSTAR e=exp_nest(bl, exp_cont_tight)
+  | AWAITSTAR e=legacy_operand(bl, exp_cont_tight)
     { AwaitE(Type.AwaitCmp, e) @? at $sloc }
+  | DO e=block
+    { e.it @? at $sloc }
+  | DO QUEST e=block
+    { DoOptE(e) @? at $sloc }
 
 exp_field :
   | m=var_opt x=id t=annot_opt
@@ -1292,7 +1329,7 @@ dec :
     { d }
   | e=exp_nondec(ob, ob, exp_cont)
     { ExpD e @? at $sloc }
-  | LET p=pat EQ e=exp(ob, ob, exp_cont) ELSE fail=exp_nest(ob, exp_cont)
+  | LET p=pat EQ e=exp(ob, ob, exp_cont) ELSE fail=legacy_operand(ob, exp_cont)
     { let p', e' = normalize_let p e in
       LetD (p', e', Some fail) @? at $sloc }
   (* error production: `x = e` where a declaration is expected is almost always a record field written where braces mean a block,
@@ -1304,6 +1341,8 @@ dec :
       ExpD (ObjE ([], [ef]) @? at $sloc) @? at $sloc }
 
 func_body(R, L) :
+  (* LEGACY(v3): `= e` bodies retire, a function body is a block (#6352). Open corner before the flip:
+     `= e` is also the way to forward a computed `async` without the implicit wrapper a block body adds. *)
   | EQ e=exp(R, R, L) { (false, e) }
   | e=block { (true, e) }
 

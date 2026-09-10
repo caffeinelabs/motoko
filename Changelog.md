@@ -53,6 +53,14 @@
       must be blocks — `if f(x) { e1 } else { e2 }`, never `if f(x) e1 else e2`
       (diagnosed by the new `M0272` with a fix-it). Bare branches remain
       available exactly as before, with parenthesized or atomic heads.
+      An `else if` chain that starts from an unparenthesized head stays
+      braced throughout (`if f(x) { } else if c { } else { }`); a bare-branch
+      `if` cannot continue such a chain. All four constructs share one head
+      grammar (an atom, or a call/projection/index/operator/prefix
+      expression; `do { ... }` counts as an expression, so `if do { ... } { }`
+      parses, as `if { c } { }` does in Rust), and `break l e` now takes a
+      full expression as its operand, like `return e` (`break l f(x)`,
+      `break l do { ... }`).
 
     * BREAKING: `#` immediately followed by an identifier is now a variant
       introduction wherever an expression can start, so

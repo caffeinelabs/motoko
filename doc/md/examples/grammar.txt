@@ -48,7 +48,7 @@
 <typ_nullary> ::= 
     '(' <list(<typ_item>, ',')> ')'
     <typ_path> <typ_args>?
-    '(' 'var'? <typ> ']'
+    '[' 'var'? <typ> ']'
     <typ_obj>
     <typ_variant>
 
@@ -193,7 +193,7 @@
 
 <exp_post> ::= 
     <exp_nullary>
-    '(' 'var'? <list(<exp_nonvar>, ',')> ']'
+    '[' 'var'? <list(<exp_nonvar>, ',')> ']'
     <exp_post> <exp_cont>
     <exp_post> '.'<nat>
     <exp_post> '.' <id>
@@ -203,7 +203,7 @@
 
 <exp_cont_tight> ::= 
     '(' <list(<exp>, ',')> ')'
-    '(' <exp> ']'
+    '[' <exp> ']'
 
 <exp_cont> ::= 
     <exp_cont_tight>
@@ -251,7 +251,7 @@
     'assert' <exp_nest>
     'label' <id> (':' <typ>)? <exp_nest>
     'break' <id>
-    'break' <id> <exp_nullary>
+    'break' <id> <exp>
     'break'
     'continue'
     'continue' <id>
@@ -261,13 +261,13 @@
     'try' <exp_nest> <catch> 'finally' <exp_nest>
     'try' <exp_nest> 'finally' <exp_nest>
     'throw' <exp_nest>
-    'switch' <exp> '{' <cases> '}'
+    'switch' <head> '{' <cases> '}'
     'while' <exp_nullary> <exp_nest>
     'while' <exp_head> <block>
     'loop' <exp_nest>
     'loop' <exp_nest> 'while' <exp_nest>
     'for' '(' <pat> 'in' <exp> ')' <exp_nest>
-    'for' <pat> 'in' <exp> <block>
+    'for' <pat> 'in' <head> <block>
     'ignore' <exp_nest>
     'do' <block>
     'do' '?' <block>
@@ -306,10 +306,18 @@
 
 <else_branch> ::= 
     <block>
-    <if_exp>
+    <if_braced>
+
+<if_braced> ::= 
+    'if' <head> <block>
+    'if' <head> <block> 'else' <else_branch>
+
+<head> ::= 
+    <exp_nullary>
+    <exp_head>
 
 <exp_head_post> ::= 
-    '(' 'var'? <list(<exp_nonvar>, ',')> ']'
+    '[' 'var'? <list(<exp_nonvar>, ',')> ']'
     <exp_post> <exp_cont_tight>
     <exp_post> '.'<nat>
     <exp_post> '.' <id>
@@ -345,6 +353,8 @@
     'await' <exp_nest>
     'await?' <exp_nest>
     'await*' <exp_nest>
+    'do' <block>
+    'do' '?' <block>
 
 <exp_field> ::= 
     'var'? <id> (':' <typ>)?
