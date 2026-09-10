@@ -271,7 +271,7 @@ let%expect_test "test3" =
                   )
                 )
                 Private
-                Stable
+                Flexible
               )
               (DecField
                 (LetD
@@ -279,7 +279,7 @@ let%expect_test "test3" =
                   (AnnotE (LitE (PreLit 2 Nat)) (PathT (IdH (ID Int))))
                 )
                 Private
-                Flexible
+                Stable
               )
             )
           )
@@ -330,7 +330,7 @@ actor Main {
               _
               Actor
               Main
-              (DecField (LetD (VarP (ID x)) (LitE (PreLit 1 Nat))) Private Flexible)
+              (DecField (LetD (VarP (ID x)) (LitE (PreLit 1 Nat))) Private Stable)
               (DecField
                 (ExpD
                   (FuncE
@@ -387,7 +387,8 @@ actor Main {
       object class <func_pat> <annot_opt> <class_body> (e.g. 'object class f(x : Int) : Int = {}')
       module class <func_pat> <annot_opt> <class_body> (e.g. 'module class f(x : Int) : Int = {}')
       actor class <func_pat> <annot_opt> <class_body> (e.g. 'actor class f(x : Int) : Int = {}')
-      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}') |}]
+      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}')
+    |}]
 
 let%expect_test "test5" =
   let s = "module {
@@ -442,7 +443,8 @@ let%expect_test "test5" =
       object class <func_pat> <annot_opt> <class_body> (e.g. 'object class f(x : Int) : Int = {}')
       module class <func_pat> <annot_opt> <class_body> (e.g. 'module class f(x : Int) : Int = {}')
       actor class <func_pat> <annot_opt> <class_body> (e.g. 'actor class f(x : Int) : Int = {}')
-      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}') |}]
+      persistent actor class <func_pat> <annot_opt> <class_body> (e.g. 'persistent actor class f(x : Int) : Int = {}')
+    |}]
 
 let%expect_test "test type recovery 1" =
   let s = "func test_func () {
