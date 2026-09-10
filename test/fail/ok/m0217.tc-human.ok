@@ -1,8 +1,8 @@
 warning[M0217]: redundant `persistent` keyword
     ┌─ m0217.mo:2:1
-  2 │ persistent actor {
+  2 │ persistent actor class C1() = this {
     │ ^^^^^^^^^^
 warning[M0217]: redundant `persistent` keyword
     ┌─ m0217.mo:6:1
-  6 │ persistent actor class C() = this {
+  6 │ persistent actor class C2() = this {
     │ ^^^^^^^^^^
