@@ -1,0 +1,7 @@
+stable-sig.mo:7.3-7.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-sig.mo:8.3-8.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-sig.mo:10.3-10.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-sig.mo:11.3-11.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-sig.mo:12.3-12.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-sig.mo:13.3-13.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stable-sig.mo:14.3-14.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

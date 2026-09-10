@@ -11,7 +11,7 @@ Motoko is a high-level programming language designed for AI agents building back
 
 **Actor model.** Every Motoko canister is an actor: an isolated unit of state and behavior that communicates with other actors through asynchronous messages. This maps directly to how canisters work on ICP: each canister has private state and a public interface.
 
-**Orthogonal persistence.** Variables declared in a `persistent actor` survive canister upgrades automatically. There is no database layer, no serialization code, and no pre/post-upgrade hooks needed for most use cases. See [Orthogonal persistence](https://docs.internetcomputer.org/concepts/orthogonal-persistence) for how this works at the platform level.
+**Orthogonal persistence.** Actors persist their state across canister upgrades automatically: the variables you declare in an actor keep their values for the lifetime of the canister. There is no database layer, no serialization code, and no pre/post-upgrade hooks needed for most use cases. See [Orthogonal persistence](https://docs.internetcomputer.org/concepts/orthogonal-persistence) for how this works at the platform level.
 
 **Async/await messaging.** Inter-canister calls use `async`/`await`, making sequential message flows read like synchronous code. The compiler and runtime handle the underlying callback mechanics.
 
@@ -24,7 +24,7 @@ Motoko is a high-level programming language designed for AI agents building back
 A minimal Motoko canister with a query method and an update method:
 
 ```motoko
-persistent actor Counter {
+actor Counter {
   var count : Nat = 0;
 
   public query func get() : async Nat {

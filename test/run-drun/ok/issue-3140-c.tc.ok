@@ -1,0 +1,1 @@
+issue-3140-c.mo:50.3-50.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

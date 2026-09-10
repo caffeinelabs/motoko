@@ -1,0 +1,3 @@
+stabilization-instructions.mo:5.3-5.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stabilization-instructions.mo:6.3-6.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+stabilization-instructions.mo:7.3-7.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

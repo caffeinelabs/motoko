@@ -1,0 +1,1 @@
+double-sharing-benchmark.mo:11.5-11.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

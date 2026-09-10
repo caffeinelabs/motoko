@@ -52,7 +52,7 @@ system func timer(setGlobalTimer : Nat64 -> ()) : async () {
 The `preupgrade()` system function is invoked immediately before a canister upgrade. It runs before the new Wasm module is installed, giving the current version one last chance to act. The function takes no arguments and must have type `() -> ()`.
 
 ```motoko no-repl
-persistent actor MyCanister {
+actor MyCanister {
   system func preupgrade() {
     // Runs before the upgrade installs the new Wasm.
   }
@@ -70,7 +70,7 @@ With orthogonal persistence, `mo:core` data structures persist across upgrades a
 The `postupgrade()` system function runs immediately after an upgrade installs the new Wasm. The function takes no arguments and must have type `() -> ()`.
 
 ```motoko no-repl
-persistent actor MyCanister {
+actor MyCanister {
   system func postupgrade() {
     // Runs after the upgrade installs the new Wasm.
   }
@@ -113,7 +113,7 @@ The following actor defines an inspect function that blocks anonymous callers, l
 ```motoko no-repl
 import Principal "mo:core/Principal";
 
-persistent actor Counter {
+actor Counter {
   
   var c = 0;
 

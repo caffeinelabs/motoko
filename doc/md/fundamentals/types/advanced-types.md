@@ -210,7 +210,7 @@ The *actor reference* expression `actor <exp>` compute a reference to an actor f
 A simple example of using actor references is to access the management canister with textual address `"aaaaa-aa"`. Amongst other things, it has a method `raw_rand` for generating cryptographically random bytes as a `Blob`.
 
 ```motoko no-repl
-persistent actor Coin {
+actor Coin {
   public func flip() : async Bool {
     let managementCanister = actor "aaaaa-aa" : actor { raw_rand : () -> async Blob };
     let entropy = await managementCanister.raw_rand();
@@ -224,7 +224,7 @@ A variation computes the textual canister identifier from a given principal. A c
 ```motoko no-repl
 import Principal "mo:core/Principal";
 
-persistent actor Coin {
+actor Coin {
   public func flipWith(principal : Principal) : async Bool {
     let canister = actor (Principal.toText(principal)) : actor { raw_rand : () -> async Blob };
     let entropy = await canister.raw_rand();
@@ -241,7 +241,7 @@ For this reason, you should only use actor references sparingly. It's typically 
 For example, a safer variant of `flipWith` is:
 
 ```motoko no-repl
-persistent actor Coin {
+actor Coin {
    public func flipWith(canister : actor { raw_rand : () -> async Blob }) : async Bool { 
        let entropy = await canister.raw_rand();
        (entropy[0] & 1) == 1;

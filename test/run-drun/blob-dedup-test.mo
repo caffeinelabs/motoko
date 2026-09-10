@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   public func test(b : Blob) : async () {
     Prim.debugPrint(debug_show (b));

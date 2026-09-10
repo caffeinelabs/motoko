@@ -21,8 +21,8 @@ The following is a simple example of how to declare a stateful counter:
 ```
 
 Importantly, in this example, when the counter is upgraded, its state is preserved and the counter will resume from its last value before the upgrade.
-This is because actor variables are by default `stable`, meaning their state is persisted across upgrades.
-The above actor is equivalent to using an explicit `stable` declaration:
+This is because actor variables are persisted across upgrades, by default.
+The above actor declaration shows the field without an explicit qualifier, which is the same as writing nothing at all: persistence is the default.
 
 ```motoko no-repl file=<motokoExamples>/count-v1stable.mo
 ```

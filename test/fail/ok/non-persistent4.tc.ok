@@ -1,2 +1,0 @@
-non-persistent4.mo:2.1-2.11: warning [M0217], with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed
-non-persistent4.mo:5.3-5.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

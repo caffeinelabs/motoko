@@ -19,7 +19,7 @@ actor a {
 
   stable let savedNodes : [var ?(actor{})] = Prim.Array_init(n, null);
 
-  let nodes : [var ?Node] = Prim.Array_init(n, null);
+  transient let nodes : [var ?Node] = Prim.Array_init(n, null);
 
   // Would be nice if these were both tail calls on the platform
   public func lookup(k : Key) : async ?Value {

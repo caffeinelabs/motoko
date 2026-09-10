@@ -6,7 +6,7 @@ import Float "mo:core/Float";
   func (old : { var state : Int }) : { var newState : Float } {
     { var newState = Float.fromInt(old.state) };
   })
-persistent actor Counter_v7 {
+actor Counter_v7 {
 
   var newState : Float = 0.0; // implicitly `stable`
 

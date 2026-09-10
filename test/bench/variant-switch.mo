@@ -11,7 +11,7 @@ import {
   Array_tabulate;
 } = "mo:⛔";
 
-persistent actor Core {
+actor Core {
 
   type Expr = {
     #Var    : Text;

@@ -41,7 +41,7 @@ struct Cli {
     files: Vec<String>,
 }
 
-const MOC_ARGS_DEFAULT: &str = "--legacy-persistence --legacy-actors --skip-gc-deprecation-warning";
+const MOC_ARGS_DEFAULT: &str = "--legacy-persistence --skip-gc-deprecation-warning";
 const WASMTIME_OPTIONS: &[&str] = &[
     "-C", "cache=n",
     "-W", "nan-canonicalization=y",

@@ -4,7 +4,7 @@
 import Prim "mo:prim";
 
 actor {
-    let flexibleNat = do {
+    transient let flexibleNat = do {
         Prim.debugPrint("Initialize flexible Nat");
         1
     };
@@ -28,7 +28,7 @@ actor {
         Prim.debugPrint("Initialize stable object");
         { stableNat; stableInt; stableText; stableArray; }
     };
-    let flexibleText = do {
+    transient let flexibleText = do {
         Prim.debugPrint("Initialize flexible text");
         "Flexible text"
     };

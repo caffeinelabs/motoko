@@ -3,7 +3,7 @@
 import Prim "mo:prim";
 
 (with multi_migration = (func(_ : {}) : { var field1 : Nat } { { var field1 = 121 } }))
-persistent actor {
+actor {
     var field1 : Nat;
 
     public func check() : async () {

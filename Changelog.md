@@ -1,5 +1,17 @@
 # Motoko compiler changelog
 
+* motoko (`moc`)
+
+  * breaking: Actors are now `persistent` by default: a bare `actor`/`actor class`
+    declaration makes its fields implicitly `stable`. The former default, in
+    which actor fields were implicitly `transient`, can no longer be restored
+    via a compiler flag — mark fields `transient` explicitly instead. The
+    `--default-persistent-actors`, `--require-persistent-actors` and
+    `--legacy-actors` flags have been removed (#6356). Diagnostics and
+    documentation no longer treat persistence as a choice: they describe actors
+    as persistent by default and only call out `transient` as the explicit
+    exception.
+
 ## 1.16.0 (2026-09-09)
 
 * motoko (`moc`)

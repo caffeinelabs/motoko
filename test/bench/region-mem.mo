@@ -19,7 +19,7 @@ actor stablemem {
   let blocks : Nat64 = 3;
   let pages : Nat64 = blocks * block_pages;
   let r = new();
-  let _ = grow(r, pages);
+  let _pages = grow(r, pages);
   assert size(r) == pages;
 
   // write and read 3 blocks of nat16

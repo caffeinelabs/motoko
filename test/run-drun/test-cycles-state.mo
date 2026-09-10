@@ -9,7 +9,7 @@ import WalletLib = "cycles/wallet";
 
 actor a {
 
- let print = Prim.debugPrint;
+ transient let print = Prim.debugPrint;
 
  public func go() : async () {
   if (Cycles.balance() == 0)

@@ -3,6 +3,16 @@ error[M0131]: variable bad1 is declared stable but has non-stable type
     ┌─ weak.mo:12:14
  12 │    stable let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
     │               ^^^^ 
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ weak.mo:9:3
+  9 │    stable let w : weak Blob = Prim.allocWeakRef("" : Blob); // accept, stable with eop
+    │    ^^^^^^ 
+    = help: remove `stable`
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ weak.mo:12:3
+ 12 │    stable let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
+    │    ^^^^^^ 
+    = help: remove `stable`
 error[M0031]: shared function has non-shared parameter type
   (x : weak Blob)
 type

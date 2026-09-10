@@ -1,4 +1,4 @@
-//MOC-FLAG --default-persistent-actors --error-format=json
+//MOC-FLAG --error-format=json
 // Verifies the machine-applicable edit for M0218 ("redundant `stable`").
 actor {
   stable let _x = #x;  // warn M0218

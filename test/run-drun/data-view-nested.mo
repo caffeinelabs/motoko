@@ -17,7 +17,7 @@ service : {
 }
 */
 
-persistent actor Self {
+actor Self {
 
   include Views();
 

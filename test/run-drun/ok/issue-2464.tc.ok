@@ -1,1 +1,2 @@
 issue-2464/caller.mo:9.17-9.30: warning [M0244], variable calleeHandler is never reassigned, consider using `let`
+issue-2464.mo:23.13-23.19: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

@@ -10,7 +10,7 @@ import Debug "mo:core/Debug";
 // mixin providing views for Core data structures
 import Views "data-view-sample/views";
 
-persistent actor Self {
+actor Self {
 
   include Views();
 

@@ -5,13 +5,13 @@ import Prim "mo:⛔";
 
 actor a {
 
-  let balance : () -> Nat = Prim.cyclesBalance;
-  let available : () -> Nat = Prim.cyclesAvailable;
-  let accept : <system>Nat -> Nat = Prim.cyclesAccept;
-  let add : <system>Nat -> () = Prim.cyclesAdd;
-  let burn : <system>Nat -> Nat = Prim.cyclesBurn;
+  transient let balance : () -> Nat = Prim.cyclesBalance;
+  transient let available : () -> Nat = Prim.cyclesAvailable;
+  transient let accept : <system>Nat -> Nat = Prim.cyclesAccept;
+  transient let add : <system>Nat -> () = Prim.cyclesAdd;
+  transient let burn : <system>Nat -> Nat = Prim.cyclesBurn;
 
-  let refunded : () -> Nat = Prim.cyclesRefunded;
+  transient let refunded : () -> Nat = Prim.cyclesRefunded;
 
 
   public func provisional_top_up_actor(a : actor {}, amount : Nat) : async () {

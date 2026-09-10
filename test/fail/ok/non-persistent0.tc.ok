@@ -1,2 +1,0 @@
-non-persistent0.mo:3.3-3.14: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`
-non-persistent0.mo:4.3-4.14: type error [M0219], this declaration is currently implicitly transient, please declare it explicitly `transient`

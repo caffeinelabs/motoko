@@ -1,3 +1,3 @@
-persistent actor {
+actor {
   let _x : Nat;
 };

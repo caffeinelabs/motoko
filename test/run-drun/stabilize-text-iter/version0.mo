@@ -1,9 +1,9 @@
 import Prim "mo:prim";
 
 actor {
-  let temporary = 1;
+  transient let temporary = 1;
 
-  let textiter = "hello".chars();
+  transient let textiter = "hello".chars();
 
   stable let value : {
     stableField : Text;

@@ -4,7 +4,7 @@ import Time "mo:core/Time";
 import Result "mo:core/Result";
 import Error "mo:core/Error";
 
-persistent actor Todo {
+actor Todo {
 
   type Time = Int;
   type Seconds = Int;
@@ -92,7 +92,7 @@ persistent actor Todo {
 
 };
 
-persistent actor TodoCaller {
+actor TodoCaller {
 
   type Time = Int;
   type Seconds = Int;

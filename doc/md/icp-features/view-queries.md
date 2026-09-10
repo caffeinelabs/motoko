@@ -128,7 +128,7 @@ View modules for common core data structures (`Map`, `Set`, arrays, `List`, `Sta
 ```motoko no-repl
 import Views "views";
 
-persistent actor {
+actor {
   include Views();
 
   let customers : Map.Map<Text, Customer> = Map.empty();
@@ -142,7 +142,7 @@ persistent actor {
 //MOC-FLAG --generate-view-queries
 import Array "mo:core/Array";
 
-persistent actor Self {
+actor Self {
 
   module ArrayView {
     public func view<V>(self : [var V]) :

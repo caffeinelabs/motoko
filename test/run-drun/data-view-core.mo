@@ -6,7 +6,7 @@ import Iter "mo:core/Iter";
 import Order "mo:core/Order";
 import Text "mo:core/Text";
 
-persistent actor {
+actor {
 
   module MapView {
 

@@ -14,3 +14,13 @@ error[M0257]: this declaration has no initializer. Omitting an initializer is on
     ┌─ bad-field-dec.mo:8:13
   8 │    transient var d : Nat;
     │              ^^^^^^^^^^^ 
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ bad-field-dec.mo:4:3
+  4 │    stable let a : Nat;
+    │    ^^^^^^ 
+    = help: remove `stable`
+warning[M0218]: redundant `stable` keyword, this declaration is implicitly stable
+    ┌─ bad-field-dec.mo:5:3
+  5 │    stable var b : Nat;
+    │    ^^^^^^ 
+    = help: remove `stable`

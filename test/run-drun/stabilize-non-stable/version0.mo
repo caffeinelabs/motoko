@@ -1,7 +1,7 @@
 import Prim "mo:prim";
 
 actor {
-  let temporary = 1;
+  transient let temporary = 1;
 
   func f() {
     Prim.debugPrint(debug_show (temporary));

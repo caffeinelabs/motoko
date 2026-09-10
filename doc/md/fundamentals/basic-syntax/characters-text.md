@@ -42,7 +42,7 @@ import Text "mo:core/Text";
 import Iter "mo:core/Iter";
 import Char "mo:core/Char";
 
-persistent actor Alternator {
+actor Alternator {
 
   // Turn text into an iterator of Char
   func textToChars(t: Text) : Iter.Iter<Char> {

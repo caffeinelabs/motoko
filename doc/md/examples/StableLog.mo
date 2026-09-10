@@ -6,7 +6,7 @@ import VarArray "mo:core/VarArray";
 
 import StableMemory "mo:base/ExperimentalStableMemory"; // deprecated
 
-persistent actor StableLog {
+actor StableLog {
 
   func ensure(offset : Nat64) {
     let pages = (offset + 65536) >> 16;

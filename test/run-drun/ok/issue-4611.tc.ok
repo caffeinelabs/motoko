@@ -1,0 +1,2 @@
+issue-4611.mo:6.5-6.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
+issue-4611.mo:7.5-7.11: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable
