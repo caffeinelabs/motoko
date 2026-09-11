@@ -1063,8 +1063,18 @@ pub(crate) unsafe fn sub(
             (_, IDL_CON_alias) | (IDL_CON_alias, _) => idl_trap_with("sub: unexpected alias"),
             (_, IDL_PRIM_reserved)
             | (IDL_PRIM_empty, _)
-            | (IDL_PRIM_nat, IDL_PRIM_int)
-            | (_, IDL_CON_opt) => return true, // apparently, this is admissable
+            | (IDL_PRIM_nat, IDL_PRIM_int) => return true,
+            (IDL_CON_opt, IDL_CON_opt) => {
+                let t11 = sleb128_decode(&mut tb1);
+                let t21 = sleb128_decode(&mut tb2);
+                if sub(rel, p, typtbl1, typtbl2, end1, end2, t11, t21) {
+                    return true;
+                } else {
+                    break 'return_false;
+                }
+            }
+            (IDL_PRIM_null, IDL_CON_opt) => return true,
+            (_, IDL_CON_opt) => break 'return_false,
             (IDL_CON_vec, IDL_CON_vec) => {
                 let t11 = sleb128_decode(&mut tb1);
                 let t21 = sleb128_decode(&mut tb2);
