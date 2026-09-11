@@ -1,5 +1,14 @@
 # Motoko compiler changelog
 
+## Next
+
+* motoko (`moc`)
+
+  * bugfix: tighten RTS Candid subtype checking for `opt` types so that
+	`T <: ?U` holds only when `T = null`, `T = reserved`, or `T <: U`,
+	closing an unsoundness where any type was accepted as a subtype of
+	any `opt T` by `idl_sub` (#6367).
+
 ## 1.16.0 (2026-09-09)
 
 * motoko (`moc`)

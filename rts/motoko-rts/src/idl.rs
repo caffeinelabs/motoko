@@ -1,11 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use crate::bitrel::BitRel;
-use crate::buf::{Buf, read_byte, read_word, skip_leb128};
+use crate::buf::{read_byte, read_word, skip_leb128, Buf};
 use crate::idl_trap_with;
 
-use crate::memory::{Memory, alloc_blob};
-use crate::types::{TAG_BLOB_B, Words};
+use crate::memory::{alloc_blob, Memory};
+use crate::types::{Words, TAG_BLOB_B};
 use crate::utf8::utf8_validate;
 
 use core::cmp::min;
@@ -1061,9 +1061,9 @@ pub(crate) unsafe fn sub(
     'return_false: loop {
         match (u1, u2) {
             (_, IDL_CON_alias) | (IDL_CON_alias, _) => idl_trap_with("sub: unexpected alias"),
-            (_, IDL_PRIM_reserved)
-            | (IDL_PRIM_empty, _)
-            | (IDL_PRIM_nat, IDL_PRIM_int) => return true,
+            (_, IDL_PRIM_reserved) | (IDL_PRIM_empty, _) | (IDL_PRIM_nat, IDL_PRIM_int) => {
+                return true
+            }
             (IDL_CON_opt, IDL_CON_opt) => {
                 let t11 = sleb128_decode(&mut tb1);
                 let t21 = sleb128_decode(&mut tb2);
@@ -1074,7 +1074,17 @@ pub(crate) unsafe fn sub(
                 }
             }
             (IDL_PRIM_null, IDL_CON_opt) => return true,
-            (_, IDL_CON_opt) => break 'return_false,
+            (_, IDL_CON_opt) => {
+                let t21 = sleb128_decode(&mut tb2);
+                if u1 == IDL_PRIM_reserved {
+                    return true;
+                }
+                if sub(rel, p, typtbl1, typtbl2, end1, end2, t1, t21) {
+                    return true;
+                } else {
+                    break 'return_false;
+                }
+            }
             (IDL_CON_vec, IDL_CON_vec) => {
                 let t11 = sleb128_decode(&mut tb1);
                 let t21 = sleb128_decode(&mut tb2);
