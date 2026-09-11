@@ -1,11 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use crate::bitrel::BitRel;
-use crate::buf::{read_byte, read_word, skip_leb128, Buf};
+use crate::buf::{Buf, read_byte, read_word, skip_leb128};
 use crate::idl_trap_with;
 
-use crate::memory::{alloc_blob, Memory};
-use crate::types::{Words, TAG_BLOB_B};
+use crate::memory::{Memory, alloc_blob};
+use crate::types::{TAG_BLOB_B, Words};
 use crate::utf8::utf8_validate;
 
 use core::cmp::min;
@@ -1060,9 +1060,9 @@ pub(crate) unsafe fn sub(
     // exit either via 'return true' or 'break 'return_false' to memoize the negative result
     'return_false: loop {
         match (u1, u2) {
-            (_, IDL_CON_alias) | (IDL_CON_alias, _) => idl_trap_with("sub: unexpected alias"),
+            (_, IDL_CON_alias) | (IDL_CON_alias, _) => break 'return_false,
             (_, IDL_PRIM_reserved) | (IDL_PRIM_empty, _) | (IDL_PRIM_nat, IDL_PRIM_int) => {
-                return true
+                return true;
             }
             (IDL_CON_opt, IDL_CON_opt) => {
                 let t11 = sleb128_decode(&mut tb1);
