@@ -60,7 +60,7 @@ do {
   let o = (from_candid b) :?[Nat];
   P.debugPrint(debug_show(o));
   assert o == null;
-}; // traps due to broken back-tracking in array decoding
+}; // ok
 
 
 do {
@@ -71,7 +71,7 @@ do {
   let o = (from_candid b) :?[{#b:Nat}];
   P.debugPrint(debug_show(o));
   assert o == null;
-}; // traps due to broken back-tracking in array decoding
+}; // ok
 
 //SKIP run
 //SKIP run-ir
