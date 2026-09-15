@@ -65,7 +65,7 @@ You can use the following options with the `moc` command.
 | `--print-deps`                            | Prints the dependencies for a given source file.                                                                                                      |
 | `-r`                                      | Interprets programs.                                                                                                                                  |
 | `--release`                               | Ignores debug expressions in the source.                                                                                                              |
-| `--stable-regions`                        | Force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory, depending on current use of ExperimentalStableMemory. |
+| `--stable-regions`                        | Force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory.                                                                   |
 | `--stable-types`                          | Compile binary and emit signature of stable types to `.most` file.                                                                                    |
 | `--stable-compatible <pre> <post>`        | Test upgrade compatibility between stable-type signatures `<pre>` and `<post>`.                                                                       |
 | `--rts-stack-pages <n>`                   | Set maximum number of pages available for runtime system stack (only supported with classical persistence, default 32).                               |
@@ -74,5 +74,15 @@ You can use the following options with the `moc` command.
 | `-v`                                      | Generates verbose output.                                                                                                                             |
 | `--version`                               | Displays version information.                                                                                                                         |
 | `-wasi-system-api`                        | Uses the WASI system API (`wasmtime`).                                                                                                                |
+
+## Removed options
+
+These options have been removed and are now rejected as unknown options.
+
+| Option                            | Description                                                                                                                                                                                                                                                                                                                          |
+|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--generate-view-queries`         | Auto-generated, per-stable-variable query methods named `__<id>` for inspecting canister state. The feature never became a stable part of the language, and the generated methods were an undocumented compiler convention. Declare the accessors you need explicitly as `public query func` methods, or expose them from a library such as a `Map`'s `.view()`-style function. |
+| `--experimental-stable-memory`    | Selected the deprecation policy for the `ExperimentalStableMemory` library (`-1` error, `0` warn, `N>0` silent). Both the flag and the library are gone; any use of `ExperimentalStableMemory` is now an unconditional `M0199` error. Migrate to the [`Region`](https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/) library, which offers isolated regions instead of a single memory shared by every caller. |
+| `--experimental-multi-value`      | Enabled (or, with the `--no-` prefix, disabled) the experimental multi-value WebAssembly backend. Multi-value is now always on; there is no replacement flag. |
 
 

@@ -1,0 +1,41 @@
+ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
+debug.print: =============
+debug.print: do nothing
+debug.print: {l1 = 0; s1 = 0}
+debug.print: Region.grow(r1,1)
+debug.print: {l2 = 144; r1 = 16; s2 = 144}
+debug.print: Region.new()
+debug.print: {l3 = 144; r1 = 16; r2 = 17; s3 = 144}
+debug.print: Region.grow(r2,1)
+debug.print: {l4 = 272; r1 = 16; r2 = 17; s4 = 272}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: =============
+debug.print: do nothing
+debug.print: {l1 = 272; s1 = 273}
+debug.print: Region.grow(r1,1)
+debug.print: {l2 = 400; r1 = 18; s2 = 400}
+debug.print: Region.new()
+debug.print: {l3 = 400; r1 = 18; r2 = 19; s3 = 400}
+debug.print: Region.grow(r2,1)
+debug.print: {l4 = 528; r1 = 18; r2 = 19; s4 = 528}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: =============
+debug.print: do nothing
+debug.print: {l1 = 528; s1 = 529}
+debug.print: Region.grow(r1,1)
+debug.print: {l2 = 656; r1 = 20; s2 = 656}
+debug.print: Region.new()
+debug.print: {l3 = 656; r1 = 20; r2 = 21; s3 = 656}
+debug.print: Region.grow(r2,1)
+debug.print: {l4 = 784; r1 = 20; r2 = 21; s4 = 784}
+ingress Completed: Reply: 0x4449444c0000
+debug.print: =============
+debug.print: do nothing
+debug.print: {l1 = 784; s1 = 785}
+debug.print: Region.grow(r1,1)
+debug.print: {l2 = 912; r1 = 22; s2 = 912}
+debug.print: Region.new()
+debug.print: {l3 = 912; r1 = 22; r2 = 23; s3 = 912}
+debug.print: Region.grow(r2,1)
+debug.print: {l4 = 1_040; r1 = 22; r2 = 23; s4 = 1_040}
+ingress Completed: Reply: 0x4449444c0000

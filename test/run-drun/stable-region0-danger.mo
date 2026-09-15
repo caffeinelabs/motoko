@@ -2,9 +2,11 @@
 // THIS TEST IS NOT RUN ON ANY FLAVOUR
 // Its a counterexample to show what goes wrong if we naively support Region.region0() without
 // extra steps to ensure correct aliasing.
+//
+// Note that `Region.region0()` has never been exported by `stable-region/Region`, so this
+// has never compiled; the file is kept as the written-down argument against exposing it.
 import P "mo:⛔";
 import Region "stable-region/Region";
-import Region0 "stable-mem/StableMemory";
 
 // counter-example: shows why we can't expose region0 without further steps to ensure
 // correct aliasing of all region0 objects, pre and post upgrade
