@@ -2134,6 +2134,10 @@ module Tagged = struct
     go cases
 
   let allocation_barrier env =
+    (* Under `--sanity-checks` always call into the RTS: the barrier performs
+       validation there that must run for every fresh allocation, not just
+       while a collection is in progress. *)
+    if !Flags.sanity then E.call_rts env "allocation_barrier" else
     (* The RTS returns its argument unchanged while paused, so skip the call. *)
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
@@ -8199,12 +8203,20 @@ module Serialization = struct
       let set_failure = compile_unboxed_one ^^ set_failed in
       let when_failed f = get_failed ^^ E.if0 f G.nop in
 
-      (* This looks at a value and if it is coercion_error_value, sets the failure flag.
-         This propagates the error out of arrays, records, etc.
+      (* Looks at a decoded value and, if it is coercion_error_value, sets the
+         failure flag (propagating the error out of arrays, records, etc.) and
+         yields the value to store into the aggregate under construction,
+         substituting the null pointer for the failure marker.
+
+         coercion_error_value is a dummy marker, not a heap reference (see the
+         Note where it is defined), so tracing the slot it occupies is wasted
+         GC work. Storing the null pointer instead lets the collector skip it
+         when it scans the aggregate. The aggregate is discarded on failure, so
+         the substitute is never observed.
        *)
-      let remember_failure get_val =
+      let remember_failure_recovering get_val =
           get_val ^^ compile_eq_const (coercion_error_value env) ^^
-          E.if0 set_failure G.nop
+          E.if1 I64Type (set_failure ^^ Opt.null_lit env) get_val
       in
 
       (* This sets the failure flag and puts coercion_error_value on the stack *)
@@ -8629,8 +8641,7 @@ module Serialization = struct
               begin
                 ReadBuf.read_sleb128 env get_typ_buf ^^
                 go env t ^^ set_val ^^
-                remember_failure get_val ^^
-                get_val
+                remember_failure_recovering get_val
               end
               begin
                 match normalize t with
@@ -8659,8 +8670,7 @@ module Serialization = struct
                 begin
                   ReadBuf.read_sleb128 env get_typ_buf ^^
                   go env f.typ ^^ set_val ^^
-                  remember_failure get_val ^^
-                  get_val
+                  remember_failure_recovering get_val
                   end
                 begin
                   match normalize f.typ with
@@ -8689,8 +8699,7 @@ module Serialization = struct
           get_len ^^ from_0_to_n env (fun get_i ->
             get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
             get_arg_typ ^^ go env t ^^ set_val ^^
-            remember_failure get_val ^^
-            get_val ^^ store_ptr
+            remember_failure_recovering get_val ^^ store_ptr
           ) ^^
           get_x ^^
           Tagged.allocation_barrier env ^^
@@ -8734,8 +8743,7 @@ module Serialization = struct
           get_len ^^ from_0_to_n env (fun get_i ->
           get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
           get_arg_typ ^^ go env t ^^ set_val ^^
-          remember_failure get_val ^^
-          get_val ^^ store_ptr
+          remember_failure_recovering get_val ^^ store_ptr
         ) ^^
         get_x ^^
         Tagged.allocation_barrier env)
@@ -8807,8 +8815,7 @@ module Serialization = struct
               E.if1 I64Type
                 ( Variant.inject env l (
                   get_arg_typ ^^ go env t ^^ set_val ^^
-                  remember_failure get_val ^^
-                  get_val
+                  remember_failure_recovering get_val
                 ))
                 continue
             )

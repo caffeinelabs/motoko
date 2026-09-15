@@ -7,6 +7,9 @@
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
+  * perf: don't GC trace dummy coercion markers for freshly Candid-decoded
+    objects (#6370).
+
 ## 1.16.0 (2026-09-09)
 
 * motoko (`moc`)

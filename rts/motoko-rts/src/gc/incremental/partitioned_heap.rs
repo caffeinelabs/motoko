@@ -559,6 +559,12 @@ impl PartitionedHeap {
         self.heap_base
     }
 
+    /// Exclusive upper bound of any valid heap address
+    #[cfg(any(feature = "memory_check", debug_assertions))]
+    pub fn heap_end(&self) -> usize {
+        self.number_of_partitions * PARTITION_SIZE
+    }
+
     unsafe fn get_extension_table(&self, partition_index: usize) -> *mut PartitionTable {
         debug_assert!(partition_index >= PARTITIONS_PER_TABLE);
         let mut index = partition_index - PARTITIONS_PER_TABLE;

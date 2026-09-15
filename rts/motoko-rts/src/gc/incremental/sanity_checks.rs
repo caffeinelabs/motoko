@@ -12,6 +12,32 @@ use super::mark_stack::{MarkStack, STACK_EMPTY};
 use super::partitioned_heap::PartitionedHeap;
 use super::roots::{Roots, visit_roots};
 
+/// Sanity check invoked from the allocation barrier (in `--sanity-checks`
+/// builds) for every freshly allocated object. It verifies that every field
+/// presented to the collector as a pointer denotes a real heap object, i.e.
+/// refers below the end of the heap.
+#[cfg(debug_assertions)]
+pub unsafe fn check_new_allocation(heap: &PartitionedHeap, new_object: Value) {
+    if !heap.is_initialized() {
+        return;
+    }
+    let heap_end = heap.heap_end();
+    let object = new_object.get_ptr() as *mut Obj;
+    visit_pointer_fields(
+        &mut { heap_end },
+        object,
+        object.tag(),
+        heap.base_address(),
+        |heap_end, field| {
+            assert!(
+                (*field).get_ptr() < *heap_end,
+                "pointer field beyond heap end in freshly allocated object"
+            );
+        },
+        |_, _, array| array.len(),
+    );
+}
+
 pub unsafe fn check_memory<M: Memory>(
     mem: &mut M,
     heap: &mut PartitionedHeap,
