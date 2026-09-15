@@ -8203,12 +8203,6 @@ module Serialization = struct
          failure flag (propagating the error out of arrays, records, etc.) and
          yields the value to store into the aggregate under construction,
          substituting the null pointer for the failure marker.
-
-         coercion_error_value is a dummy marker, not a heap reference (see the
-         Note where it is defined), so tracing the slot it occupies is wasted
-         GC work. Storing the null pointer instead lets the collector skip it
-         when it scans the aggregate. The aggregate is discarded on failure, so
-         the substitute is never observed.
        *)
       let remember_failure_recovering get_val =
           get_val ^^ compile_eq_const (coercion_error_value env) ^^
@@ -8224,9 +8218,8 @@ module Serialization = struct
         set_failure ^^ compile_unboxed_const (coercion_error_value env) in
 
       (* Like `coercion_failed`, but for a slot of an aggregate under
-         construction: yields the null pointer rather than the marker, for the
-         same reason as `remember_failure_recovering` above. Used where the
-         field is absent from the wire, so no decoded value was produced. *)
+         construction. Used where the field is absent from the wire,
+         so no decoded value was produced. *)
       let coercion_failed_recovering msg =
         get_can_recover ^^ E.else_trap_with env msg ^^
         set_failure ^^ Opt.null_lit env in
