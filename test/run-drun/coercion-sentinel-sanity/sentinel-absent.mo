@@ -9,7 +9,9 @@ import Prim "mo:⛔";
 // a regression is caught at decode time.
 //
 // One case per aggregate arm of the deserializer that stores decoded elements:
-// immutable array, record/object, variant, and (nested) tuple. The mutable
+// immutable array, record/object, variant, and (nested) tuple -- each both
+// for a field present but uncoercible and, for record/tuple, a field absent
+// from the wire. The mutable
 // array arm is only reachable via stable/upgrade deserialization -- `[var T]`
 // is not a shared type -- so it is not exercised here.
 persistent actor {
@@ -39,6 +41,19 @@ persistent actor {
   public func tupVal() : async Nat {
     let b = to_candid({ pair = ("a", "b") });
     switch (from_candid(b) : ?{ pair : (Nat, Nat) }) { case null { 0 }; case (?r) { r.pair.0 } }
+  };
+
+  // record with a *required field absent* from the wire: a recoverable
+  // coercion failure that produces no decoded value for the slot
+  public func recMissing() : async Nat {
+    let b = to_candid({});
+    switch (from_candid(b) : ?{ x : Nat }) { case null { 0 }; case (?r) { r.x } }
+  };
+
+  // same, for a tuple field
+  public func tupMissing() : async Nat {
+    let b = to_candid({ pair = ("a", "b") });
+    switch (from_candid(b) : ?{ pair : (Nat, Nat, Nat) }) { case null { 0 }; case (?r) { r.pair.0 } }
   };
 
   public func peek() : async Nat { 0 };

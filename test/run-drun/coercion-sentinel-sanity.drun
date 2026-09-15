@@ -5,4 +5,6 @@ ingress $ID fromCandid "DIDL\x01\x6d\x7b\x01\x00\x4a\x44\x49\x44\x4c\x01\x6d\x71
 ingress $ID recVal "DIDL\x00\x00"
 ingress $ID varVal "DIDL\x00\x00"
 ingress $ID tupVal "DIDL\x00\x00"
+ingress $ID recMissing "DIDL\x00\x00"
+ingress $ID tupMissing "DIDL\x00\x00"
 ingress $ID peek "DIDL\x00\x00"

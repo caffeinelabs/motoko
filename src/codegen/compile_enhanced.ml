@@ -8227,6 +8227,14 @@ module Serialization = struct
         get_can_recover ^^ E.else_trap_with env msg ^^
         set_failure ^^ compile_unboxed_const (coercion_error_value env) in
 
+      (* Like `coercion_failed`, but for a slot of an aggregate under
+         construction: yields the null pointer rather than the marker, for the
+         same reason as `remember_failure_recovering` above. Used where the
+         field is absent from the wire, so no decoded value was produced. *)
+      let coercion_failed_recovering msg =
+        get_can_recover ^^ E.else_trap_with env msg ^^
+        set_failure ^^ Opt.null_lit env in
+
       (* returns true if we are looking at primitive type with this id *)
       let check_prim_typ t =
         get_idltyp ^^
@@ -8646,7 +8654,7 @@ module Serialization = struct
               begin
                 match normalize t with
                 | Prim Null | Opt _ | Any -> Opt.null_lit env
-                | _ -> coercion_failed "IDL error: did not find tuple field in record"
+                | _ -> coercion_failed_recovering "IDL error: did not find tuple field in record"
               end
           ) ts ^^
 
@@ -8675,7 +8683,7 @@ module Serialization = struct
                 begin
                   match normalize f.typ with
                   | Prim Null | Opt _ | Any -> Opt.null_lit env
-                  | _ -> coercion_failed (Printf.sprintf "IDL error: did not find field %s in record" f.lab)
+                  | _ -> coercion_failed_recovering (Printf.sprintf "IDL error: did not find field %s in record" f.lab)
                 end
           ) (sort_by_hash fs)) ^^
 
