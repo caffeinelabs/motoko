@@ -25,6 +25,10 @@ module MakeState() = struct
   module TypeMap = Map.Make (struct type t = con * typ list let compare = compare end)
   let type_map = ref TypeMap.empty
 
+  (* Trivia tables of mixins a top-level actor includes, merged into the
+     Candid program so mixin-member docs render with the actor's own. *)
+  let mixin_trivia = ref []
+
   let normalize_name name =
     String.map (fun c ->
         if c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
@@ -215,18 +219,33 @@ module MakeState() = struct
         dec::list
       ) !env []
 
+  (* Collect the trivia tables of the mixins included by a top-level actor, so
+     that docs attached to mixin members survive into the generated Candid. *)
+  let rec gather_mixin_trivia includes dfs =
+    E.(match dfs with
+    | [] -> List.rev includes
+    | df :: dfs1 ->
+      match df.it.dec.it with
+      | E.IncludeD (_, _, _, include_note) ->
+        (match !include_note with
+         | Some note -> gather_mixin_trivia (note.trivia :: includes) dfs1
+         | None -> gather_mixin_trivia includes dfs1)
+      | _ -> gather_mixin_trivia includes dfs1)
+
   let actor prog =
     let open E in
     let { body = cub; _ } = (CompUnit.comp_unit_of_prog false prog).it in
     match cub.it with
     | ProgU _ | ModuleU _ | MixinU _ -> None
-    | ActorU (_, _, _, _) ->
+    | ActorU (_, _, _, dfs) ->
+       mixin_trivia := gather_mixin_trivia [] dfs;
        Some (typ cub.note.note_typ)
-    | ActorClassU (_, _, _, _, _, _, _, _, _) ->
+    | ActorClassU (_, _, _, _, _, _, _, _, dfs) ->
        (match normalize cub.note.note_typ with
         | Func (Local, Returns, [tb], ts1, [t2]) ->
           let args = List.map arg_typ (List.map (open_ [Non]) ts1) in
           let (_, _, actor_typ) = as_async (normalize (open_ [Non] t2)) in
+          mixin_trivia := gather_mixin_trivia [] dfs;
           let actor = typ actor_typ in
           Some (I.ClassT (args, actor) @@ cub.at)
         | _ -> assert false
@@ -235,9 +254,9 @@ end
 
 let prog (progs, senv) : I.prog =
   let prog = CompUnit.combine_progs progs in
-  let trivia = prog.note.E.trivia in
   let open MakeState() in
   let actor = actor prog in
+  let trivia = Trivia.merge_triv_tables (prog.note.E.trivia :: !mixin_trivia) in
   if actor = None then chase_decs senv;
   let decs = gather_decs () in
   let it = I.{decs; actor} in
