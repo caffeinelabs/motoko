@@ -1,6 +1,6 @@
 # Motoko compiler changelog
 
-## next (1.16 → v2)
+## Next
 
 ### Classical/32-bit removal
 
@@ -32,6 +32,9 @@
   * Tests: the classical/32-bit test class is removed, and the upgrades
     exercising the classical→EOP boundary now install committed classical
     `old.wasm` fixtures built by `moc` 1.14.1 (see `test/run-drun/*/note.txt`). (#6362)
+
+  * perf: the incremental GC's write, allocation and weak-reference read barriers now
+    gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
 ## 1.16.0 (2026-09-09)
 
