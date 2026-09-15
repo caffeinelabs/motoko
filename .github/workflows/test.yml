@@ -113,7 +113,9 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 5
 
-  verify-common-tests:
+  # Job id is pinned by the `master` branch ruleset (required status check);
+  # rename it together with the ruleset.
+  verify-common-gc:
     needs: common-tests
     if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
     runs-on: ubuntu-latest
@@ -151,7 +153,7 @@ jobs:
 
   autoclose:
     if: github.event_name == 'pull_request' && github.event.pull_request.state == 'open' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'master' && contains(github.event.pull_request.labels.*.name, 'autoclose')
-    needs: [verify-common-tests, verify-main-tests]
+    needs: [verify-common-gc, verify-main-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -5,8 +5,6 @@ module S = Set.Make(String)
 
 type compile_mode = WasmMode | ICMode | RefMode | WASIMode
 
-type gc_strategy = Incremental
-
 type instruction_limits = {
   upgrade: Int64.t;
   update_call: Int64.t;
@@ -58,7 +56,6 @@ let compiled = ref false
 let error_detail = ref 2
 let error_recovery = ref false (* multiple syntax errors *)
 let sanity = ref false
-let gc_strategy = ref Incremental
 let force_gc = ref false
 let global_timer = ref true
 let experimental_field_aliasing = ref false
@@ -67,7 +64,6 @@ let js_project_root : string option ref = ref None
 let rtti = ref false
 let trap_on_call_error = ref false
 let use_stable_regions = ref false
-let enhanced_orthogonal_persistence = ref true
 let explicit_enhanced_orthogonal_persistence = ref false
 let enhanced_migration : string option ref = ref None
 (* Last deployed .most for the resume-point boundary check *)

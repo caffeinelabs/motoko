@@ -12463,8 +12463,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.Vanilla,
     StableMem.get_mem_size env ^^ BigNum.from_word64 env
 
-  | OtherPrim "rts_in_upgrade", [] -> (* EOP specific *)
-    assert (!Flags.enhanced_orthogonal_persistence);
+  | OtherPrim "rts_in_upgrade", [] ->
     SR.Vanilla,
     Persistence.in_upgrade env
 
@@ -14233,7 +14232,6 @@ and conclude_module env set_serialization_globals start_fi_o =
 let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)
   assert !Flags.rtti; (* Use precise tagging for graph copy. *)
-  assert (!Flags.gc_strategy = Flags.Incremental); (* Define heap layout with the incremental GC. *)
   let env = E.mk_global mode rts IC.trap_with enhanced_migration in
 
   IC.register_globals env;

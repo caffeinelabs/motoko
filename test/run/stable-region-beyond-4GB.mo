@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-FLAG --max-stable-pages=1000000
 import Prim "mo:prim";
 

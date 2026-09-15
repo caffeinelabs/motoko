@@ -834,12 +834,8 @@ let load_as_rts () =
 
 type compile_result = (Idllib.Syntax.prog * Wasm_exts.CustomModule.extended_module) Diag.result
 
-let invalid_flag message =
-  builtin_error "compile" (Printf.sprintf "Invalid compiler flag combination: %s" message) []
-
 let adjust_flags () =
-  (* Enhanced orthogonal persistence always uses the incremental GC and precise tagging. *)
-  Flags.gc_strategy := Flags.Incremental;
+  (* Enhanced orthogonal persistence always uses precise tagging. *)
   Flags.rtti := true
 
 (* This transforms the flat list of libs (some of which are classes)

@@ -8,30 +8,49 @@
 
   * **Important:** classical (legacy, 32-bit) persistence is removed.
     `moc` now always targets enhanced orthogonal persistence (EOP) with a
-    persistent 64-bit main memory; the flags `--legacy-persistence`,
-    `--copying-gc`, `--compacting-gc`, `--generational-gc` and
-    `--rts-stack-pages` are removed and now fail with a hard error. The
-    classical `moc` flags `--legacy-persistence` and 32-bit (`wasm32`)
-    RTS builds no longer exist.
+    persistent 64-bit main memory, and 32-bit (`wasm32`) RTS builds no
+    longer exist. The classical-only flags `--legacy-persistence`,
+    `--copying-gc`, `--compacting-gc`, `--generational-gc`,
+    `--rts-stack-pages` and `--skip-gc-deprecation-warning` are removed and
+    now fail with a hard error. `--incremental-gc` and
+    `--enhanced-orthogonal-persistence` remain accepted (they select the
+    only remaining behavior).
 
   * Existing classical canisters are **not** orphaned: the runtime keeps
     reading all earlier classical stable-memory formats, and a classical
-    canister transparently migrates to enhanced persistence on its next
-    upgrade — recompile that upgrade with the explicit
-    `--enhanced-orthogonal-persistence` flag (`moc` otherwise traps at
-    upgrade time with "Detected implicit upgrade from classical orthogonal
-    persistence to enhanced orthogonal persistence"). The graph-copy
-    stabilization machinery that produces this migration is retained.
+    canister migrates to enhanced persistence on its next upgrade. That
+    upgrade must be compiled with the explicit
+    `--enhanced-orthogonal-persistence` flag and must not use
+    `--enhanced-migration`: without the flag the new module traps with
+    "Detected implicit upgrade from classical orthogonal persistence to
+    enhanced orthogonal persistence", and with `--enhanced-migration` it
+    traps with "Cannot upgrade from classical orthogonal persistence with
+    --enhanced-migration". The migration is irreversible; later upgrades
+    need no flag. The graph-copy stabilization machinery that performs it
+    is retained.
 
   * Because `--legacy-persistence` is gone, `moc` can no longer *produce*
     classical canisters; projects that still need a classical module must
-    keep an older `moc` (e.g. 1.14.x). The default GC remains incremental,
-    and the non-incremental classical GCs (copying, compacting,
-    generational) are removed.
+    keep an older `moc` (e.g. 1.14.x). The incremental GC is the only GC;
+    the non-incremental classical GCs (copying, compacting, generational)
+    are removed.
 
-  * Tests: the classical/32-bit test class is removed, and the upgrades
-    exercising the classical→EOP boundary now install committed classical
-    `old.wasm` fixtures built by `moc` 1.14.1 (see `test/run-drun/*/note.txt`). (#6362)
+  * `--enhanced-migration` no longer requires `--enhanced-orthogonal-persistence`
+    on the command line; the corresponding "flag requires" error is gone
+    because EOP is always in effect.
+
+  * Tests: the classical/32-bit test class and the
+    `ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY` test markers are removed, and the
+    upgrades exercising the classical→EOP boundary now install committed
+    classical `old.wasm` fixtures built by `moc` 1.14.1 (see
+    `test/run-drun/*/note.txt`). (#6362)
+
+* motoko-js (`moc.js`)
+
+  * **Breaking:** `gcFlags` accepts only `"incremental"`, `"enhancedOP"`
+    (both no-ops, describing the only remaining mode), `"force"` and
+    `"scheduling"`; `"copying"`, `"marking"`, `"generational"` and
+    `"classicOP"` now throw `Invalid_argument` (#6362).
 
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).

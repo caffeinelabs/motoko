@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID stabilization-upgrade-hooks/upgrade-hook.mo ""
 ingress $ID __motoko_stabilize_before_upgrade "DIDL\x00\x00"
 upgrade $ID stabilization-upgrade-hooks/upgrade-hook0.mo ""

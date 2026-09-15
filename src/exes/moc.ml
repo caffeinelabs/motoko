@@ -170,8 +170,8 @@ let argspec =
   " (removed) the incremental garbage collector is always used";
 
   "--incremental-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Incremental),
-  " use incremental GC (default, works with enhanced orthogonal persistence)";
+  Arg.Unit (fun () -> ()),
+  " use incremental GC (default and only GC)";
 
   "--compacting-gc",
   Arg.Unit (fun () ->
@@ -185,13 +185,13 @@ let argspec =
 
   "--rts-stack-pages",
   Arg.Unit (fun () ->
-    fail "moc: --rts-stack-pages has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
-  " (removed) the incremental garbage collector is always used";
+    fail "moc: --rts-stack-pages has been removed; the runtime system stack has a fixed size with enhanced orthogonal persistence. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the runtime system stack has a fixed size";
 
   "--skip-gc-deprecation-warning",
   Arg.Unit (fun () ->
-    fail "moc: --skip-gc-deprecation-warning has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
-  " (removed) the incremental garbage collector is always used";
+    fail "moc: --skip-gc-deprecation-warning has been removed; the non-incremental garbage collectors it silenced warnings for no longer exist. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the non-incremental garbage collectors no longer exist";
 
   "--force-gc",
   Arg.Unit (fun () -> Flags.force_gc := true),
@@ -223,8 +223,7 @@ let argspec =
 
   (* persistence *)
   "--enhanced-orthogonal-persistence",
-  Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := true;
-                      Flags.explicit_enhanced_orthogonal_persistence := true),
+  Arg.Unit (fun () -> Flags.explicit_enhanced_orthogonal_persistence := true),
   " use enhanced orthogonal persistence (default): Scalable and fast upgrades using a persistent 64-bit main memory. Also, enable upgrade from classical to enhanced orthogonal persistence";
 
   (* persistence *)

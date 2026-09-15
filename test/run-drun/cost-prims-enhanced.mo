@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 // Exercises compile_enhanced.ml arms:
 //   SystemCyclesBurnPrim   (Cycles.burn)
 //   OtherPrim "costCall"

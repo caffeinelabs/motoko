@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 import P "mo:⛔";
 import SM "stable-mem/StableMemory";
 

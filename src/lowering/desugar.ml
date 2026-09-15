@@ -624,11 +624,7 @@ and export_runtime_information self_id =
   let bind1 = typ_arg scope_con1 Scope scope_bound in
   let bind2 = typ_arg scope_con2 Scope scope_bound in
   let gc_strategy =
-    let strategy =
-      match !Mo_config.Flags.gc_strategy with
-      | Mo_config.Flags.Incremental -> "incremental"
-    in
-    if !Mo_config.Flags.force_gc then (Printf.sprintf "%s force" strategy) else strategy
+    if !Mo_config.Flags.force_gc then "incremental force" else "incremental"
   in
   let prim_call function_name = primE (I.OtherPrim function_name) [] in
   let information = [
@@ -1577,7 +1573,7 @@ let import_compiled_class (lib : S.comp_unit) wasm : import_declaration =
           (callE (varE install_actor_helper) cs'
             (tupE [
               install_arg;
-              boolE ((!Mo_config.Flags.enhanced_orthogonal_persistence));
+              boolE true; (* enhanced orthogonal persistence *)
               varE wasm_blob;
               primE (Ir.SerializePrim ts1') [seqE (List.map varE vs)]])))
         (primE (Ir.CastPrim (T.principal, t_actor)) [varE principal]))

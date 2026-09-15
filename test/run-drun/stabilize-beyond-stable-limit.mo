@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-FLAG --stabilization-instruction-limit=100000 --max-stable-pages 16
 
 // This test fails because the stabilization code is using virtual stablemem_grow, which caps growth to max-stable-pages (default is 65536, but lowered below). It should be using physical ic0_stable64_grow (and _size) instead.

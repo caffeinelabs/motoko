@@ -1,0 +1,1 @@
+moc: --legacy-persistence has been removed; enhanced orthogonal persistence is always used. Existing classical canisters upgrade to enhanced persistence on their next upgrade. See the changelog for the 1.16 → v2 migration notes.

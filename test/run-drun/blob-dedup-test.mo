@@ -84,7 +84,6 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-NO-FORCE-GC
 
 //CALL ingress test2 "DIDL\x00\x00"

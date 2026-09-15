@@ -12,11 +12,12 @@ Classical (legacy, 32-bit) persistence with Candid-based stabilization was the
 original default compilation mode. It was removed in the 1.16 → v2 migration:
 `moc` now always targets enhanced orthogonal persistence, and the previously
 classical-only flags (`--legacy-persistence`, `--copying-gc`, `--compacting-gc`,
-`--generational-gc`, `--rts-stack-pages`) fail with a hard error. Existing
-classical canisters are not orphaned: the runtime keeps reading all earlier
-classical stable-memory formats, and a classical canister transparently migrates
-to enhanced persistence on its next upgrade (recompile with the explicit
-`--enhanced-orthogonal-persistence` flag for that upgrade).
+`--generational-gc`, `--rts-stack-pages`, `--skip-gc-deprecation-warning`) fail
+with a hard error. Existing classical canisters are not orphaned: the runtime
+keeps reading all earlier classical stable-memory formats, and a classical
+canister migrates to enhanced persistence on its next upgrade, provided that
+upgrade is compiled with the explicit `--enhanced-orthogonal-persistence` flag
+and without `--enhanced-migration` (either mistake traps at upgrade time).
 
 ## Compiler Flags
 

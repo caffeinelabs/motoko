@@ -403,7 +403,7 @@ let gc_flags option =
   match Js.to_string option with
   | "force" -> Flags.force_gc := true
   | "scheduling" -> Flags.force_gc := false
-  | "incremental" -> Flags.gc_strategy := Mo_config.Flags.Incremental
+  | "incremental" -> () (* the incremental GC is the only GC *)
   | "enhancedOP" -> () (* enhanced orthogonal persistence is always used *)
   | ("copying" | "marking" | "generational" | "classicOP") as s ->
       raise (Invalid_argument (Printf.sprintf "gc_flags: %s was removed; only \"incremental\" is supported" s))

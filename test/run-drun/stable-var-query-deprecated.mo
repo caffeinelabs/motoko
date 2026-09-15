@@ -1,4 +1,6 @@
 //MOC-FLAG -A=M0194
+// `stableVarQuery` / `__motoko_stable_var_info` only existed for classical
+// persistence; with enhanced orthogonal persistence every call must trap.
 import { stableVarQuery } "mo:⛔";
 
 actor footprint = {

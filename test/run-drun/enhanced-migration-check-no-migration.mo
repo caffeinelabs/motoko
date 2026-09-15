@@ -7,4 +7,3 @@ actor {
 //SKIP run-ir
 //SKIP run-low
 //SKIP run
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY

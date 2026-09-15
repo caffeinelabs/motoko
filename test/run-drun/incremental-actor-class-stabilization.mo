@@ -1,4 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 //MOC-FLAG --stabilization-instruction-limit=10000 -A=M0270
 
 import Prim "mo:⛔";
