@@ -559,10 +559,13 @@ impl PartitionedHeap {
         self.heap_base
     }
 
-    /// Exclusive upper bound of any valid heap address
+    /// Exclusive upper bound of any valid heap address.
+    /// Saturating: the native test harness configures partition counts whose
+    /// product with `PARTITION_SIZE` exceeds the address space, and this is
+    /// only ever compared against, so clamping to `usize::MAX` is sound.
     #[cfg(any(feature = "memory_check", debug_assertions))]
     pub fn heap_end(&self) -> usize {
-        self.number_of_partitions * PARTITION_SIZE
+        self.number_of_partitions.saturating_mul(PARTITION_SIZE)
     }
 
     unsafe fn get_extension_table(&self, partition_index: usize) -> *mut PartitionTable {
