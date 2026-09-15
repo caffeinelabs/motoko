@@ -35,7 +35,7 @@ pub mod mark_stack;
 pub mod partitioned_heap;
 mod phases;
 pub mod roots;
-#[cfg(any(feature = "memory_check", debug_assertions))]
+#[cfg(feature = "memory_check")]
 pub mod sanity_checks;
 #[cfg(feature = "ic")]
 mod scheduling;

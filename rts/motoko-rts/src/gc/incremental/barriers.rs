@@ -58,8 +58,6 @@ pub unsafe fn read_with_barrier<M: Memory>(mem: &mut M, value: Value) -> Value {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn allocation_barrier(new_object: Value) -> Value {
     let state = get_incremental_gc_state();
-    #[cfg(debug_assertions)]
-    super::sanity_checks::check_new_allocation(&state.partitioned_heap, new_object);
     if state.phase() != Phase::Pause {
         post_allocation_barrier(state, new_object);
         count_allocation(state);

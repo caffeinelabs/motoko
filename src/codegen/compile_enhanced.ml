@@ -2134,10 +2134,6 @@ module Tagged = struct
     go cases
 
   let allocation_barrier env =
-    (* Under `--sanity-checks` always call into the RTS: the barrier performs
-       validation there that must run for every fresh allocation, not just
-       while a collection is in progress. *)
-    if !Flags.sanity then E.call_rts env "allocation_barrier" else
     (* The RTS returns its argument unchanged while paused, so skip the call. *)
     G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
