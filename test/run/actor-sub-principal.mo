@@ -32,5 +32,17 @@ let mgmt : Principal = (actor "aaaaa-aa" : actor {});
 assert (Prim.blobOfPrincipal mgmt == "");
 assert (not (p == mgmt));
 
+// `blobOfPrincipal` on an upcast value sees an `A`-tagged blob where a `P` one
+// would be, since the upcast does not retag. Round-trips through the dedicated
+// conversions must agree with it.
+let viaBlob : Principal = Prim.principalOfBlob (Prim.blobOfPrincipal p);
+assert (p == viaBlob);
+assert (Prim.blobOfPrincipal viaBlob == Prim.blobOfPrincipal p);
+
+// and back to an actor, then up again
+let a2 : actor {} = Prim.actorOfPrincipal viaBlob;
+assert ((a2 : Principal) == p);
+assert (Prim.blobOfPrincipal (a2 : Principal) == Prim.blobOfPrincipal p);
+
 Prim.debugPrint(debug_show p);
 Prim.debugPrint(debug_show (Prim.blobOfPrincipal p));

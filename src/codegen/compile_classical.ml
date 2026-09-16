@@ -2116,6 +2116,36 @@ module Tagged = struct
     else
       G.nop
 
+  (* Like `sanity_check_tag`, but accepts any tag from `tags`. `Principal` and
+     `actor {}` share a layout and differ only in tag, and `actor <: Principal`
+     upcasts without retagging, so a value consumed at type `Principal` may
+     carry either. *)
+  let sanity_check_tags line env tags =
+    let ints = List.map int_of_tag tags in
+    let name = "sanity_check_tags_" ^
+                 String.concat "_" (List.map Int32.to_string ints) ^
+                 (if TaggingScheme.debug then Int.to_string line else "")
+    in
+    if TaggingScheme.debug || !Flags.sanity then
+      Func.share_code1 Func.Always env name ("obj", I32Type) [I32Type]
+        (fun env get_obj ->
+         let (set_tag, get_tag) = new_local env "tag" in
+         get_obj ^^ load_tag env ^^ set_tag ^^
+         let test tag =
+           get_tag ^^ compile_unboxed_const tag ^^
+           G.i (Compare (Wasm.Values.I32 I32Op.Eq)) in
+         begin match ints with
+         | [] -> assert false
+         | t :: ts ->
+           List.fold_left
+             (fun acc tag -> acc ^^ test tag ^^ G.i (Binary (Wasm.Values.I32 I32Op.Or)))
+             (test t) ts
+         end ^^
+         E.else_trap_with env name ^^
+         get_obj)
+    else
+      G.nop
+
   let check_forwarding env unskewed =
     (if !Flags.gc_strategy = Flags.Incremental then
       let name = "check_forwarding_" ^ if unskewed then "unskewed" else "skewed" in
@@ -4337,7 +4367,10 @@ module Blob = struct
        let (set_dst, get_dst) = new_local env "dst" in
        alloc env dst_sort (get_src ^^ len env) ^^ set_dst ^^
        get_dst ^^ payload_ptr_unskewed env ^^
-       get_src ^^ Tagged.sanity_check_tag __LINE__ env (Tagged.Blob src_sort) ^^
+       get_src ^^
+       (match src_sort with
+        | Tagged.P | Tagged.A -> Tagged.sanity_check_tags __LINE__ env Tagged.[Blob P; Blob A]
+        | _ -> Tagged.sanity_check_tag __LINE__ env (Tagged.Blob src_sort)) ^^
        as_ptr_len env ^^
        Heap.memcpy env ^^
        get_dst
