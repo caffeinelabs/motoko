@@ -6,7 +6,8 @@
     (e.g. `let p : Principal = someActor`), so `Principal.fromActor`/`Prim.principalOfActor`
     are no longer needed; the reverse remains an explicit downcast. Mirrors Candid's
     `service <: principal` and works in value positions, across Candid (de)serialization,
-    and enhanced-orthogonal-persistence stable-variable upgrades (#6228).
+    and enhanced-orthogonal-persistence stable-variable upgrades.
+    BREAKING CHANGE (Minor) (#6228).
 
   * BREAKING CHANGE: the `motoko-Darwin-x86_64` release tarball and the
     Intel-Mac (`macos-15-intel`) build/release CI legs are dropped; neither
@@ -14,7 +15,7 @@
     x86_64-linux, aarch64-linux and Apple Silicon (`macos-latest`) binaries
     continue to be produced. Users on Intel Macs should build from source.
     The `motoko-base-library.tar.gz` release artifact is also dropped;
-    `motoko-core.tar.gz` is unaffected. (#6355)
+    `motoko-core.tar.gz` is unaffected (#6355).
 
 ## 1.16.1 (2026-09-16)
 
