@@ -480,6 +480,7 @@ module E = struct
     args : (bool * string) option ref;
     service : (bool * string) option ref;
     stable_types : (bool * string) option ref;
+    stable_types_text : string option ref;
     labs : LabSet.t ref; (* Used labels (fields and variants),
                             collected for Motoko custom section 0 *)
 
@@ -503,6 +504,9 @@ module E = struct
     (* Counter for deriving a unique id per constant function. *)
     constant_functions : int32 ref;
     dedup : (unit -> int32) option ref;
+
+    (* Signals that blob dedup functionality should be enabled. *)
+    requires_blob_dedup : bool ref;
 
     enhanced_migration : string option;
   }
@@ -529,6 +533,7 @@ module E = struct
     args = ref None;
     service = ref None;
     stable_types = ref None;
+    stable_types_text = ref None;
     labs = ref LabSet.empty;
     (* Actually unused outside mk_fun_env: *)
     n_param = 0l;
@@ -540,6 +545,7 @@ module E = struct
     global_type_descriptor = ref None;
     constant_functions = ref 0l;
     dedup = ref None;
+    requires_blob_dedup = ref false;
     enhanced_migration;
   }
 
@@ -595,6 +601,14 @@ module E = struct
     )
   let add_global64 (env : t) name mut init =
     add_global64_delayed env name mut init
+
+  let add_global32 (env : t) name mut init =
+    let p = Lib.Promise.make () in
+    add_global env name p;
+    Lib.Promise.fulfill p (nr {
+      gtype = GlobalType (I32Type, mut);
+      value = nr (G.to_instr_list (G.i (Const (nr (Wasm_exts.Values.I32 init)))))
+    })
 
   let get_global (env : t) name : int32 =
     match NameEnv.find_opt name !(env.global_names) with
@@ -662,10 +676,11 @@ module E = struct
 
   let get_rts (env : t) = env.rts
 
-  let as_block_type env : stack_type -> block_type = function
-    | [] -> ValBlockType None
-    | [t] -> ValBlockType (Some t)
-    | ts -> VarBlockType (nr (func_type env (FuncType ([], ts))))
+  let as_block_type ?(param=[]) env (results : stack_type) : block_type =
+    match param, results with
+    | [], []  -> ValBlockType None
+    | [], [t] -> ValBlockType (Some t)
+    | ps, rs  -> VarBlockType (nr (func_type env (FuncType (ps, rs))))
 
 
   let prepare_branch_condition =
@@ -678,6 +693,10 @@ module E = struct
     G.if1 return_type then_block else_block
 
   let if_ env tys thn els = prepare_branch_condition ^^ G.if_ (as_block_type env tys) thn els
+  (* Unlike `if_`, takes a raw i32 condition (no `prepare_branch_condition`) and block params. *)
+  let if' env ?param ?(return=[]) thn els =
+    G.if_ (as_block_type ?param env return) thn els
+  let i64s n = Lib.List.make n I64Type
   let block_ env tys bdy = G.block_ (as_block_type env tys) bdy
 
 
@@ -820,6 +839,12 @@ module E = struct
 
   let set_dedup (env : t) (mk_fi : unit -> int32) =
     env.dedup := Some mk_fi
+
+  let requires_blob_dedup (env : t) : bool =
+    !(env.requires_blob_dedup)
+
+  let set_requires_blob_dedup (env : t) =
+    env.requires_blob_dedup := true
 
   let enhanced_migration (env : t) : string option =
     env.enhanced_migration
@@ -1121,7 +1146,6 @@ module RTS = struct
     add_rts_import "incremental_gc" [] [];
     add_rts_import "write_with_barrier" [I64Type; I64Type] [];
     add_rts_import "allocation_barrier" [I64Type] [I64Type];
-    add_rts_import "running_gc" [] [I32Type];
     add_rts_import "register_stable_type" [I64Type; I64Type] [];
     add_rts_import "assign_stable_type" [I64Type; I64Type] [];
     add_rts_import "has_stable_actor" [] [I32Type];
@@ -1271,6 +1295,7 @@ module RTS = struct
     add_rts_import "buffer_in_32_bit_range" [] [I64Type];
     add_rts_import "alloc_weak_ref" [I64Type] [I64Type];
     add_rts_import "weak_ref_is_live" [I64Type] [I32Type];
+    add_rts_import "read_with_barrier" [I64Type] [I64Type];
     add_rts_import "get_dedup_table" [] [I64Type];
     add_rts_import "set_dedup_table" [I64Type] [];
     add_rts_import "get_migrations" [] [I64Type];
@@ -1289,7 +1314,9 @@ module GC = struct
   let register_globals env =
     E.add_global64 env "__mutator_instructions" Mutable 0L;
     E.add_global64 env "__collector_instructions" Mutable 0L;
-    E.add_global64 env "__lifetime_instructions" Mutable 0L
+    E.add_global64 env "__lifetime_instructions" Mutable 0L;
+    (* Registered before expression compilation, which already reads it in the barriers. *)
+    E.add_global32 env "__running_gc" Mutable 0l
 
   let get_mutator_instructions env =
     G.i (GlobalGet (nr (E.get_global env "__mutator_instructions")))
@@ -2107,22 +2134,18 @@ module Tagged = struct
     go cases
 
   let allocation_barrier env =
-    E.call_rts env "allocation_barrier"
+    (* The RTS returns its argument unchanged while paused, so skip the call. *)
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
+      (E.call_rts env "allocation_barrier")
+      G.nop
 
   let write_with_barrier env =
-    let (set_value, get_value) = new_local env "written_value" in
-    let (set_location, get_location) = new_local env "write_location" in
-    set_value ^^ set_location ^^
-    (* performance gain by first checking the GC state *)
-    E.call_rts env "running_gc" ^^
-    Bool.from_rts_int32 ^^
-    E.if0 (
-      get_location ^^ get_value ^^
-      E.call_rts env "write_with_barrier"
-    ) (
-      get_location ^^ get_value ^^
+    (* Stack on entry: [location, value]. *)
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' env ~param:(E.i64s 2)
+      (E.call_rts env "write_with_barrier")
       store_unskewed_ptr
-    )
 
   let obj env tag element_instructions : G.t =
     let n = List.length element_instructions in
@@ -2312,6 +2335,15 @@ module WeakRef = struct
   let load_field env =
     Tagged.load_forwarding_pointer env ^^
     Tagged.load_field env field
+
+  (* Load the target through a load barrier, marking it during the GC mark phase.
+     The RTS returns its argument unchanged while paused, so skip the call. *)
+  let load_field_with_barrier env =
+    load_field env ^^
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+    E.if' env ~param:(E.i64s 1) ~return:(E.i64s 1)
+      (E.call_rts env "read_with_barrier")
+      G.nop
 
   let store_field env =
     let (set_weak_value, get_weak_value) = new_local env "weak_value" in
@@ -2899,6 +2931,15 @@ module ReadBuf = struct
     get_end get_buf ^^ get_ptr get_buf ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.Sub)) ^^
     compile_comparison I64Op.LeU ^^
     E.else_trap_with env "IDL error: out of bounds read"
+
+  (* Read a LEB128 byte count and bound it by the bytes left in the buffer.
+     The blob-like payloads (blob, text, principal) allocate from this count, so
+     it has to be checked _before_ that allocation, not just before the copy. *)
+  let read_byte_count env get_buf =
+    let set_len, get_len = new_local env "len" in
+    read_leb128 env get_buf ^^ set_len ^^
+    check_space env get_buf get_len ^^
+    get_len
 
   let check_page_end env get_buf incr_delta =
     get_ptr get_buf ^^ compile_bitand_const 0xFFFFL ^^
@@ -4433,8 +4474,8 @@ module Arr = struct
      No difference between mutable and immutable arrays.
   *)
 
-  (* NB max_array_size must agree with limit 2^61 imposed by RTS alloc_array() *)
-  let max_array_size = Int64.shift_left 1L 61 (* inclusive *)
+  (* NB max_array_size must agree with limit 2^48 imposed by RTS alloc_array() *)
+  let max_array_size = Int64.shift_left 1L 48 (* inclusive *)
 
   let header_size = Int64.add Tagged.header_size 1L
   let element_size = 8L
@@ -4508,8 +4549,14 @@ module Arr = struct
   (* Does not initialize the fields! *)
   (* Note: Post allocation barrier must be applied after initialization *)
   let alloc env array_sort len =
+    let set_len, get_len = new_local env "len" in
+    len ^^ set_len ^^
+    (* Trap on an element count that could never be allocated anyway: 2^48 elements
+       are 2 PiB of payload, and admitting more lets the RTS wrap the byte size *)
+    get_len ^^ compile_shrU_const 48L ^^ compile_test I64Op.Eqz ^^
+    E.else_trap_with env "array too large" ^^
     compile_unboxed_const Tagged.(int_of_tag (Array array_sort)) ^^
-    len ^^
+    get_len ^^
     E.call_rts env "alloc_array"
 
   let iterate env get_array body =
@@ -4895,6 +4942,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
+    E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
 
     E.add_func_import env "ic0" "certified_data_set" (is 2) [];
     E.add_func_import env "ic0" "data_certificate_present" [] [I32Type];
@@ -6300,6 +6348,30 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr bigint_trap_fi))
     });
 
+    (* The RTS mirrors `phase != Pause` into `__running_gc`, so barriers can skip the RTS call while paused. *)
+    let set_running_gc_fi = E.add_fun env "set_running_gc" (
+      Func.of_body env ["state", I32Type] [] (fun env ->
+        G.i (LocalGet (nr 0l)) ^^
+        G.i (GlobalSet (nr (E.get_global env "__running_gc")))
+      )
+    ) in
+    E.add_export env (nr {
+      name = Lib.Utf8.decode "set_running_gc";
+      edesc = nr (FuncExport (nr set_running_gc_fi))
+    });
+
+    (* Imported only by the debug RTS, which is linked exactly under `--sanity-checks`. *)
+    if !Flags.sanity then begin
+      let get_running_gc_fi = E.add_fun env "get_running_gc" (
+        Func.of_body env [] [I32Type] (fun env ->
+          G.i (GlobalGet (nr (E.get_global env "__running_gc"))))
+      ) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode "get_running_gc";
+        edesc = nr (FuncExport (nr get_running_gc_fi))
+      })
+    end;
+
     (* Keep a memory reserve when in update or init state.
        This reserve can be used by queries, composite queries, and upgrades. *)
     let keep_memory_reserve_fi = E.add_fun env "keep_memory_reserve" (
@@ -6855,34 +6927,32 @@ module Var = struct
   (* Returns desired stack representation, preparation code and code to consume
      the value onto the stack *)
   let set_val env ae var : G.t * SR.t * G.t = match VarEnv.lookup ae var with
-    | Some ((Local (sr, i)), _) ->
+    | Some (Local (sr, i), _) ->
       G.nop,
       sr,
       G.i (LocalSet (nr i))
-    | Some ((HeapInd i), typ) when potential_pointer typ ->
+    | Some (HeapInd i, typ) when potential_pointer typ ->
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int64.mul MutBox.field Heap.word_size),
+      compile_add_const Int64.(add ptr_unskew (mul MutBox.field Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
-    | Some ((HeapInd i), typ) ->
+    | Some (HeapInd i, typ) ->
       G.i (LocalGet (nr i)),
       SR.Vanilla,
       MutBox.store_field env
-    | Some ((Static index), typ) when potential_pointer typ ->
+    | Some (Static index, typ) when potential_pointer typ ->
       Heap.get_static_variable env index ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int64.mul MutBox.field Heap.word_size),
+      compile_add_const Int64.(add ptr_unskew (mul MutBox.field Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
-    | Some ((Static index), typ) ->
+    | Some (Static index, typ) ->
       Heap.get_static_variable env index,
       SR.Vanilla,
       MutBox.store_field env
-    | Some ((Const _), _) -> fatal "set_val: %s is const" var
-    | Some ((PublicMethod _), _) -> fatal "set_val: %s is PublicMethod" var
+    | Some (Const _, _) -> fatal "set_val: %s is const" var
+    | Some (PublicMethod _, _) -> fatal "set_val: %s is PublicMethod" var
     | None -> fatal "set_val: %s missing" var
 
   (* Stores the payload. Returns stack preparation code, and code that consumes the values from the stack *)
@@ -6931,7 +7001,7 @@ module Var = struct
   *)
   let capture old_env ae0 var : G.t * (E.t -> VarEnv.t -> VarEnv.t * scope_wrap) =
     match VarEnv.lookup ae0 var with
-    | Some ((Local (sr, i)), typ) ->
+    | Some (Local (sr, i), typ) ->
       ( G.i (LocalGet (nr i)) ^^ StackRep.adjust old_env sr SR.Vanilla
       , fun new_env ae1 ->
         (* we use SR.Vanilla in the restored environment. We could use sr;
@@ -6940,7 +7010,7 @@ module Var = struct
         let restore_code = G.i (LocalSet (nr j))
         in ae2, fun body -> restore_code ^^ body
       )
-    | Some ((HeapInd i), typ) ->
+    | Some (HeapInd i, typ) ->
       ( G.i (LocalGet (nr i))
       , fun new_env ae1 ->
         let ae2, j = VarEnv.add_local_with_heap_ind new_env ae1 var typ in
@@ -6992,6 +7062,25 @@ module Internals = struct
 
   let dedup env = G.i (Call (nr (E.get_dedup env)))
 
+end
+
+(* Indirection for the dedup call on Candid blob deserialization.
+   Deserialization code is generated before we can actually know
+   whether dedup is needed or not. *)
+module BlobDedup = struct
+  let hook_name = "@blob_dedup_hook"
+
+  let call env = G.i (Call (nr (E.built_in env hook_name)))
+
+  (* Call only after all code is compiled. *)
+  let define_hook env =
+    Func.define_built_in env hook_name [("blob", I64Type)] [I64Type] (fun env ->
+      if E.requires_blob_dedup env then
+        compile_unboxed_zero ^^
+        G.i (LocalGet (nr 0l)) ^^
+        Internals.dedup env
+      else
+        G.i (LocalGet (nr 0l)))
 end
 
 module Serialization = struct
@@ -8110,12 +8199,14 @@ module Serialization = struct
       let set_failure = compile_unboxed_one ^^ set_failed in
       let when_failed f = get_failed ^^ E.if0 f G.nop in
 
-      (* This looks at a value and if it is coercion_error_value, sets the failure flag.
-         This propagates the error out of arrays, records, etc.
+      (* Looks at a decoded value and, if it is coercion_error_value, sets the
+         failure flag (propagating the error out of arrays, records, etc.) and
+         yields the value to store into the aggregate under construction,
+         substituting the null pointer for the failure marker.
        *)
-      let remember_failure get_val =
+      let remember_failure_recovering get_val =
           get_val ^^ compile_eq_const (coercion_error_value env) ^^
-          E.if0 set_failure G.nop
+          E.if1 I64Type (set_failure ^^ Opt.null_lit env) get_val
       in
 
       (* This sets the failure flag and puts coercion_error_value on the stack *)
@@ -8125,6 +8216,13 @@ module Serialization = struct
         *)
         get_can_recover ^^ E.else_trap_with env msg ^^
         set_failure ^^ compile_unboxed_const (coercion_error_value env) in
+
+      (* Like `coercion_failed`, but for a slot of an aggregate under
+         construction. Used where the field is absent from the wire,
+         so no decoded value was produced. *)
+      let coercion_failed_recovering msg =
+        get_can_recover ^^ E.else_trap_with env msg ^^
+        set_failure ^^ Opt.null_lit env in
 
       (* returns true if we are looking at primitive type with this id *)
       let check_prim_typ t =
@@ -8160,7 +8258,7 @@ module Serialization = struct
       let read_blob () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         Blob.alloc env Tagged.B get_len ^^ set_x ^^
         get_x ^^ Blob.payload_ptr_unskewed env ^^
@@ -8171,7 +8269,7 @@ module Serialization = struct
       let read_principal sort () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         (* at most 29 bytes, according to
            https://sdk.dfinity.org/docs/interface-spec/index.html#principal
@@ -8187,7 +8285,7 @@ module Serialization = struct
 
       let read_text () =
         let (set_len, get_len) = new_local env "len" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
         let (set_ptr, get_ptr) = new_local env "x" in
         ReadBuf.get_ptr get_data_buf ^^ set_ptr ^^
         ReadBuf.advance get_data_buf get_len ^^
@@ -8292,7 +8390,12 @@ module Serialization = struct
         Stack.with_words env "get_n_ptr" 1L (fun get_n_ptr ->
           get_n_ptr ^^
           ReadBuf.read_leb128 env get_typ_buf ^^
-          store_unskewed_ptr ^^
+          (* Store the record field count as a u32, matching the classical
+             (32-bit) backend, rather than a full 64-bit word, so both backends
+             write the count at the same width into the slot that
+             find_field/skip_fields read back. *)
+          G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+          G.i (Store {ty = I32Type; align = 2; offset = 0L; sz = None}) ^^
           f get_typ_buf get_n_ptr
         )
       ) in
@@ -8495,11 +8598,8 @@ module Serialization = struct
         Opt.null_lit env
       | Prim Blob ->
         with_blob_typ env (
-          let (set_blob, get_blob) = new_local env "blob" in
-          read_blob () ^^ set_blob ^^  (* Read blob and save it *)
-          compile_unboxed_zero ^^      (* Put closure on stack *)
-          get_blob ^^                  (* Put blob on stack *)
-          Internals.dedup env          (* Call dedup *)
+          read_blob () ^^
+          BlobDedup.call env           (* Dedup only if the program requires it *)
         )
       | Prim Principal ->
         (* rule: `service <actortype> <: principal`, so also accept a service reference *)
@@ -8538,13 +8638,12 @@ module Serialization = struct
               begin
                 ReadBuf.read_sleb128 env get_typ_buf ^^
                 go env t ^^ set_val ^^
-                remember_failure get_val ^^
-                get_val
+                remember_failure_recovering get_val
               end
               begin
                 match normalize t with
                 | Prim Null | Opt _ | Any -> Opt.null_lit env
-                | _ -> coercion_failed "IDL error: did not find tuple field in record"
+                | _ -> coercion_failed_recovering "IDL error: did not find tuple field in record"
               end
           ) ts ^^
 
@@ -8568,13 +8667,12 @@ module Serialization = struct
                 begin
                   ReadBuf.read_sleb128 env get_typ_buf ^^
                   go env f.typ ^^ set_val ^^
-                  remember_failure get_val ^^
-                  get_val
+                  remember_failure_recovering get_val
                   end
                 begin
                   match normalize f.typ with
                   | Prim Null | Opt _ | Any -> Opt.null_lit env
-                  | _ -> coercion_failed (Printf.sprintf "IDL error: did not find field %s in record" f.lab)
+                  | _ -> coercion_failed_recovering (Printf.sprintf "IDL error: did not find field %s in record" f.lab)
                 end
           ) (sort_by_hash fs)) ^^
 
@@ -8598,8 +8696,7 @@ module Serialization = struct
           get_len ^^ from_0_to_n env (fun get_i ->
             get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
             get_arg_typ ^^ go env t ^^ set_val ^^
-            remember_failure get_val ^^
-            get_val ^^ store_ptr
+            remember_failure_recovering get_val ^^ store_ptr
           ) ^^
           get_x ^^
           Tagged.allocation_barrier env ^^
@@ -8643,8 +8740,7 @@ module Serialization = struct
           get_len ^^ from_0_to_n env (fun get_i ->
           get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
           get_arg_typ ^^ go env t ^^ set_val ^^
-          remember_failure get_val ^^
-          get_val ^^ store_ptr
+          remember_failure_recovering get_val ^^ store_ptr
         ) ^^
         get_x ^^
         Tagged.allocation_barrier env)
@@ -8716,8 +8812,7 @@ module Serialization = struct
               E.if1 I64Type
                 ( Variant.inject env l (
                   get_arg_typ ^^ go env t ^^ set_val ^^
-                  remember_failure get_val ^^
-                  get_val
+                  remember_failure_recovering get_val
                 ))
                 continue
             )
@@ -10943,6 +11038,24 @@ module Cost = struct
           Cycles.from_word128_ptr env
         )
       )
+
+  let vetkd_derive_key env =
+    Func.share_code2 Func.Always env "cost_vetkd_derive_key"
+      (("key_name", IC.i), ("curve", I32Type))
+      [IC.i; I64Type]
+      (fun env get_key_name get_curve ->
+        Stack.with_words env "dst" 2L (fun get_dst ->
+          get_key_name ^^ Text.to_blob env ^^ Blob.as_ptr_len env ^^
+          get_curve ^^
+          get_dst ^^
+          IC.ic_system_call "cost_vetkd_derive_key" env ^^
+          G.i (Convert (Wasm_exts.Values.I64 I64Op.ExtendUI32)) ^^
+          TaggedSmallWord.msb_adjust Type.Nat32 ^^
+          StackRep.adjust env (SR.UnboxedWord64 Type.Nat32) SR.Vanilla ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
 end
 
 (* The actual compiler code that looks at the AST *)
@@ -11371,15 +11484,14 @@ let compile_binop env t op : SR.t * SR.t * G.t =
             Bool.from_int64 ^^
             E.if1 I64Type
               begin
-                let overflow_type = match ty with
-                | Type.Nat32 -> Type.Nat64
-                | Type.(Nat8 | Nat16) -> Type.Nat32
-                | _ -> assert false in
-                let overflow_type_bits = TaggedSmallWord.bits_of_type overflow_type in
-                let overflow_boundary = -Int.(sub (mul overflow_type_bits 2) 2) in
+                (* n**exp is accumulated in a Nat64 intermediate, and get_n is
+                   lsb-adjusted, so (unsigned_dynamics get_n - 64) is the negated
+                   bit width of n; times exp it bounds the width of the result. *)
+                let intermediate_bits = 64 in
+                let overflow_boundary = -Int.sub intermediate_bits 2 in
                 get_exp ^^ compile_unboxed_const 64L ^^
                 compile_comparison I64Op.GeU ^^ then_arithmetic_overflow env ^^
-                unsigned_dynamics get_n ^^ compile_sub_const (Int64.of_int bits) ^^
+                unsigned_dynamics get_n ^^ compile_sub_const (Int64.of_int intermediate_bits) ^^
                 get_exp ^^ G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) ^^
                 compile_unboxed_const (Int64.of_int overflow_boundary) ^^
                 compile_comparison I64Op.LtS ^^ then_arithmetic_overflow env ^^
@@ -11424,15 +11536,13 @@ let compile_binop env t op : SR.t * SR.t * G.t =
                   (get_n ^^ TaggedSmallWord.msb_adjust ty) (* n@{0,1} ** (1+exp) == n *)
               end
               begin
-                let overflow_type = match ty with
-                | Type.Int32 -> Type.Int64
-                | Type.(Int8 | Int16) -> Type.Int32
-                | _ -> assert false in
-                let overflow_type_bits = TaggedSmallWord.bits_of_type overflow_type in
-                let overflow_boundary = -Int.(sub (mul overflow_type_bits 2) 2) in
+                (* as for the Nat widths: the Nat64 intermediate, not the target
+                   width, sets the offset (one less, for the sign) and boundary. *)
+                let intermediate_bits = 64 in
+                let overflow_boundary = -Int.sub intermediate_bits 2 in
                 get_exp ^^ compile_unboxed_const 64L ^^
                 compile_comparison I64Op.GeU ^^ then_arithmetic_overflow env ^^
-                signed_dynamics get_n ^^ compile_sub_const (Int64.of_int (Int.sub bits 1)) ^^
+                signed_dynamics get_n ^^ compile_sub_const (Int64.of_int (Int.sub intermediate_bits 1)) ^^
                 get_exp ^^
                 G.i (Binary (Wasm_exts.Values.I64 I64Op.Mul)) ^^
                 compile_unboxed_const (Int64.of_int overflow_boundary) ^^
@@ -12367,7 +12477,7 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "weak_get", [weak_ref] ->
     SR.Vanilla,
     compile_exp_vanilla env ae weak_ref ^^
-    WeakRef.load_field env
+    WeakRef.load_field_with_barrier env
 
   | OtherPrim "weak_ref_is_live", [weak_ref] ->
     SR.Vanilla,
@@ -12391,6 +12501,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
   | OtherPrim "caller_info_data", [] ->
     SR.Vanilla,
     IC.caller_info_data env
+
+  (* Emits no code. Compiling this marks that a dedup table consumer is reachable. *)
+  | OtherPrim "require_blob_dedup", [] ->
+    SR.unit,
+    (E.set_requires_blob_dedup env; G.nop)
 
   | OtherPrim "get_dedup_table", [] ->
     SR.Vanilla,
@@ -13069,6 +13184,13 @@ and compile_prim_invocation (env : E.t) ae p es at =
     TaggedSmallWord.lsb_adjust Type.Nat32 ^^
     G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
     Cost.sign_with_schnorr env
+  | OtherPrim "costVetkdDeriveKey", [key_name; curve] ->
+    SR.UnboxedTuple 2,
+    compile_exp_vanilla env ae key_name ^^
+    compile_exp_as env ae (SR.UnboxedWord64 Type.Nat32) curve ^^
+    TaggedSmallWord.lsb_adjust Type.Nat32 ^^
+    G.i (Convert (Wasm_exts.Values.I32 I32Op.WrapI64)) ^^
+    Cost.vetkd_derive_key env
 
   | SystemTimeoutSetPrim, [e1] ->
     SR.unit,
@@ -13867,6 +13989,7 @@ and main_actor as_opt mod_env ds fs up =
 
   (* Export metadata *)
   mod_env.E.stable_types := metadata "motoko:stable-types" up.meta.sig_;
+  mod_env.E.stable_types_text := Some up.meta.sig_;
   mod_env.E.service := metadata "candid:service" up.meta.candid.service;
   mod_env.E.args := metadata "candid:args" up.meta.candid.args;
 
@@ -13987,7 +14110,13 @@ and main_actor as_opt mod_env ds fs up =
   )
 
 and metadata name value =
-  if List.mem name !Flags.omit_metadata_names then None
+  (* Strip [motoko:stable-types] under --enhanced-migration: the section
+     can grow very large with migration chains and the runtime system
+     already enforces stable-type compatibility at upgrade time; [.most]
+     emission and compile-time validation read [stable_types_text] instead. *)
+  if List.mem name !Flags.omit_metadata_names
+     || (name = "motoko:stable-types" && Option.is_some !Flags.enhanced_migration)
+  then None
   else Some (
            List.mem name !Flags.public_metadata_names,
            value)
@@ -14073,6 +14202,7 @@ and conclude_module env set_serialization_globals start_fi_o =
       motoko = {
         labels = E.get_labs env;
         stable_types = !(env.E.stable_types);
+        stable_types_text = !(env.E.stable_types_text);
         compiler = metadata "motoko:compiler" (Lib.Option.get Source_id.release Source_id.id);
       };
       enhanced_orthogonal_persistence = Some (false, "64-bit, layout version 1");
@@ -14124,6 +14254,11 @@ let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm
   RTS.system_imports env;
 
   compile_init_func env prog;
+
+  (* Hook calls are already emitted against a reserved, empty function slot. Defining
+     it here fills that slot, once nothing can change `requires_blob_dedup` anymore. *)
+  BlobDedup.define_hook env;
+
   let start_fi_o = match E.mode env with
     | Flags.ICMode | Flags.RefMode ->
       IC.export_init env;

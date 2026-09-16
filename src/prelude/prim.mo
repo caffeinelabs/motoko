@@ -141,6 +141,9 @@ type __List = {
   index : Nat;
 };
 func __getDedupTable() : ?[var __List] {
+  // Empty prim to signal all consumers of this function (e.g., through caffeine blob storage)
+  // that blob deduplication functionality is required.
+  (prim "require_blob_dedup" : () -> ())();
   (prim "get_dedup_table" : () -> ?[var __List])();
 };
 
@@ -680,6 +683,8 @@ func costHttpRequest(requestSize : Nat64, maxResBytes : Nat64) : Nat = (prim "co
 func costSignWithEcdsa(keyName : Text, curveEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costSignWithEcdsa" : (Text, Nat32) -> (Nat32, Nat))(keyName, curveEncoding);
 
 func costSignWithSchnorr(keyName : Text, algorithmEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costSignWithSchnorr" : (Text, Nat32) -> (Nat32, Nat))(keyName, algorithmEncoding);
+
+func costVetkdDeriveKey(keyName : Text, curveEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costVetkdDeriveKey" : (Text, Nat32) -> (Nat32, Nat))(keyName, curveEncoding);
 
 // certified data
 func setCertifiedData(data : Blob) = (prim "setCertifiedData" : Blob -> ()) data;

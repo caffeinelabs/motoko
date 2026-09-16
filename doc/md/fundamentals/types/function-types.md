@@ -321,7 +321,7 @@ A collection of values can be passed as a single array argument.
 ```motoko no-repl
   public func sum(numbers : [Nat]) : async Nat {
     var total : Nat = 0;
-    for (num in numbers.vals()) { total += num };
+    for (num in numbers.values()) { total += num };
     total;
   }
 ```

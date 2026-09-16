@@ -1,14 +1,122 @@
 # Motoko compiler changelog
 
+## 1.16.1 (2026-09-16)
+
 * motoko (`moc`)
-    
-  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
-    (dfinity/candid#748): service references now decode at type `Principal`, both when
-    decoded directly and in deferred subtype checks on function references (#6275).
-    
+
+  * bugfix: trapping `**` on `Nat8`, `Nat16`, `Nat32`, `Int8`, `Int16` and
+    `Int32` now traps when the result overflows the 64-bit intermediate
+    instead of returning a wrapped value (e.g. `(65536 : Nat32) ** 4` returned
+    `0`) (#6340).
+
+  * bugfix: `Region.loadBlob`/`Region.storeBlob` no longer read one block past
+    the end of a region's block table when a block-aligned range ends exactly
+    at the end of the region (#6373).
+
+  * perf: the incremental GC's write, allocation and weak-reference read barriers now
+    gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
+
+  * perf: don't GC trace dummy coercion markers for freshly Candid-decoded
+    objects (#6370).
+
+## 1.16.0 (2026-09-09)
+
+* motoko (`moc`)
+
+  * feat: warn (default-on, M0269) that `.vals()` is deprecated in favor of
+    `.values()` on arrays and Blob, and warn (default-on, M0270) that
+    `system func preupgrade`/`postupgrade` are deprecated in favor of the
+    persistent upgrade machinery. Silence with `-A=M0269` / `-A=M0270`
+    (#6347).
+
+  * feat: add `Prim.costVetkdDeriveKey` for querying the cycle cost of the
+    IC `cost_vetkd_derive_key` system call, mirroring the existing
+    `costSignWithEcdsa`/`costSignWithSchnorr` primitives. It takes a `Text`
+    key name and a `Nat32` curve encoding and returns `(resultCode, costOrUndefined)`,
+    where a non-zero `resultCode` signals an invalid key name or curve
+    encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
+
+  * bugfix: `///` doc comments on members contributed to an actor via a
+    `mixin` `include` now appear in the generated Candid interface (`.did`),
+    matching the behavior for directly-declared members. Previously such
+    docs were silently dropped (#6351).
+
+  * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
+    rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
+    differently: the suggestion now validates the rewritten callee against
+    the actual dot resolution, so a same-named function field on the
+    receiver (including the built-in fields of arrays, blobs and text)
+    suppresses the suggestion (#6343).
+
+  * bugfix: trap on array element counts that cannot be allocated, instead of
+    wrapping the byte size computed from them (#6312).
+
+## 1.15.1 (2026-09-02)
+
+* motoko (`moc`)
+
+  * fix: Strip the `motoko:stable-types` custom section from the wasm
+    under `--enhanced-migration`: it can grow very large with migration
+    chains, and the runtime system already enforces stable-type
+    compatibility at upgrade time. Compile-time validation and the
+    `.most` output under `--stable-types` are unaffected (#6073).
+
+  * bugfix: Candid record decoding now skips trailing extra fields whose count
+    is a multiple of 256; the skip count had been truncated to a byte (#6334).
+
+## 1.15.0 (2026-08-28)
+
+* motoko (`moc`)
+
+  * feat: with `--stable-baseline` and `--enhanced-migration`, the migration
+    directory is now validated against the migration history the baseline
+    records as already applied: a deployed migration that was deleted (unless
+    all older ones are deleted too), edited in place, or a local migration
+    backdated to sort before the deployed head reports the new M0268
+    diagnostic, a warning treated as an error by default (demote with
+    `-W=M0268`, silence with `-A=M0268`) (#6325).
+
+  * bugfix: with `--stable-baseline` and `--enhanced-migration`, the M0254/M0267
+    check now honors the migrations the baseline records as already applied:
+    requirements are computed at the chain's resume point instead of replaying
+    the whole chain, and fields the baseline explains no longer warn M0254;
+    a field missing from the baseline errors with M0267 naming the resume
+    point, while an incompatible one keeps the detailed M0170/M0216
+    compatibility errors. Each problem is reported once, and the
+    write-a-migration hint is only offered when adding a migration file can
+    actually fix the field (#6318).
+  * bugfix: fixes compilation error on <system>-enabled mixin (#6328).
+
+## 1.14.1 (2026-08-17)
+
+* motoko (`moc`)
+
+  * improvement: RTS weak reference interaction with the incremental GC: weak
+    reference reads now go through a load barrier (#6296).
+
+  * bugfix: when decoding a Candid `blob` or `text`, bound the claimed length (#6311).
+
+## 1.14.0 (2026-08-11)
+
+* motoko (`moc`)
+
+  * feat: Structural implicit derivation now supports variants via the `__variant` combiner (`(Text, () -> E) -> R`).
+    The synthesized wrapper switches on the active case and applies the combiner to its `(tag, payload thunk)`,
+    deriving operations like serialization for any variant whose case payloads have instances (#6192).
+
   * feat: the default maximum for stable memory (`--max-stable-pages`) is now 100 GiB
     (was 4 GiB), raising the default ceiling for the `Region` library.
     Override with `--max-stable-pages <n>` as before (#6279).
+
+  * bugfix: implement the new Candid subtyping rule `service <actortype> <: principal`
+    (dfinity/candid#748): service references now decode at type `Principal`, both when
+    decoded directly and in deferred subtype checks on function references (#6275).
+
+  * bugfix: a `class` in expression position lowered to unit instead of its
+    constructor (#6291).
+
+  * bugfix: a self tail call whose argument is a tuple-returning expression
+    crashed the compiler (or miscompiled, with the IR check off) (#6292).
 
 ## 1.13.0 (2026-08-03)
 

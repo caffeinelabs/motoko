@@ -425,6 +425,7 @@ module E = struct
     args : (bool * string) option ref;
     service : (bool * string) option ref;
     stable_types : (bool * string) option ref;
+    stable_types_text : string option ref;
     labs : LabSet.t ref; (* Used labels (fields and variants),
                             collected for Motoko custom section 0 *)
 
@@ -467,6 +468,7 @@ module E = struct
     args = ref None;
     service = ref None;
     stable_types = ref None;
+    stable_types_text = ref None;
     labs = ref LabSet.empty;
     (* Actually unused outside mk_fun_env: *)
     n_param = 0l;
@@ -604,19 +606,17 @@ module E = struct
 
   let get_rts (env : t) = env.rts
 
-  let as_block_type env : stack_type -> block_type = function
-    | [] -> ValBlockType None
-    | [t] -> ValBlockType (Some t)
-    | ts -> VarBlockType (nr (func_type env (FuncType ([], ts))))
+  let as_block_type ?(param=[]) env (results : stack_type) : block_type =
+    match param, results with
+    | [], []  -> ValBlockType None
+    | [], [t] -> ValBlockType (Some t)
+    | ps, rs  -> VarBlockType (nr (func_type env (FuncType (ps, rs))))
 
   let if_ env tys thn els = G.if_ (as_block_type env tys) thn els
-
-  (* NB: confuses wasm-opt, don't use for now
-  let _multi_if_ env tys1 tys2 thn els =
-    G.if_
-      (VarBlockType (nr (func_type env (FuncType (tys1, tys2)))))
-      thn els
-  *)
+  (* Unlike `if_`, takes a raw i32 condition and block params. *)
+  let if' env ?param ?(return=[]) thn els =
+    G.if_ (as_block_type ?param env return) thn els
+  let i32s n = Lib.List.make n I32Type
 
   let block_ env tys bdy = G.block_ (as_block_type env tys) bdy
 
@@ -1026,7 +1026,6 @@ module RTS = struct
     add_rts_import "write_with_barrier" [I32Type; I32Type] [];
     add_rts_import "allocation_barrier" [I32Type] [I32Type];
     add_rts_import "stop_gc_on_upgrade" [] [];
-    add_rts_import "running_gc" [] [I32Type];
     ()
 
   let non_incremental_gc_imports env =
@@ -1205,6 +1204,9 @@ module GC = struct
     E.add_global64 env "__lifetime_instructions" Mutable 0L;
     if !Flags.gc_strategy <> Flags.Incremental then
       E.add_global32 env "_HP" Mutable 0l
+    else
+      (* Registered before expression compilation, which already reads it in the barriers. *)
+      E.add_global32 env "__running_gc" Mutable 0l
 
   let get_mutator_instructions env =
     G.i (GlobalGet (nr (E.get_global env "__mutator_instructions")))
@@ -2201,7 +2203,11 @@ module Tagged = struct
 
   let allocation_barrier env =
     (if !Flags.gc_strategy = Flags.Incremental then
-      E.call_rts env "allocation_barrier"
+      (* The RTS returns its argument unchanged while paused, so skip the call. *)
+      G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
+      E.if' env ~param:(E.i32s 1) ~return:(E.i32s 1)
+        (E.call_rts env "allocation_barrier")
+        G.nop
     else
       G.nop)
 
@@ -2209,8 +2215,7 @@ module Tagged = struct
     let (set_value, get_value) = new_local env "written_value" in
     let (set_location, get_location) = new_local env "write_location" in
     set_value ^^ set_location ^^
-    (* performance gain by first checking the GC state *)
-    E.call_rts env "running_gc" ^^
+    G.i (GlobalGet (nr (E.get_global env "__running_gc"))) ^^
     G.if0 (
       get_location ^^ get_value ^^
       E.call_rts env "write_with_barrier"
@@ -3088,6 +3093,15 @@ module ReadBuf = struct
     get_end get_buf ^^ get_ptr get_buf ^^ G.i (Binary (Wasm.Values.I32 I32Op.Sub)) ^^
     G.i (Compare (Wasm.Values.I32 I64Op.LeU)) ^^
     E.else_trap_with env "IDL error: out of bounds read"
+
+  (* Read a LEB128 byte count and bound it by the bytes left in the buffer.
+     The blob-like payloads (blob, text, principal) allocate from this count, so
+     it has to be checked _before_ that allocation, not just before the copy. *)
+  let read_byte_count env get_buf =
+    let set_len, get_len = new_local env "len" in
+    read_leb128 env get_buf ^^ set_len ^^
+    check_space env get_buf get_len ^^
+    get_len
 
   let check_page_end env get_buf incr_delta =
     get_ptr get_buf ^^ compile_bitand_const 0xFFFFl ^^
@@ -5142,6 +5156,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
+    E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
 
     E.add_func_import env "ic0" "certified_data_set" (is 2) [];
     E.add_func_import env "ic0" "data_certificate_present" [] [I32Type];
@@ -6498,6 +6513,32 @@ module RTS_Exports = struct
       edesc = nr (FuncExport (nr bigint_trap_fi))
     });
 
+    (* The RTS mirrors `phase != Pause` into `__running_gc`, so barriers can skip the RTS call while paused. *)
+    if !Flags.gc_strategy = Flags.Incremental then begin
+      let set_running_gc_fi = E.add_fun env "set_running_gc" (
+        Func.of_body env ["state", I32Type] [] (fun env ->
+          G.i (LocalGet (nr 0l)) ^^
+          G.i (GlobalSet (nr (E.get_global env "__running_gc")))
+        )
+      ) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode "set_running_gc";
+        edesc = nr (FuncExport (nr set_running_gc_fi))
+      })
+    end;
+
+    (* Imported only by the debug RTS, which is linked exactly under `--sanity-checks`. *)
+    if !Flags.sanity && !Flags.gc_strategy = Flags.Incremental then begin
+      let get_running_gc_fi = E.add_fun env "get_running_gc" (
+        Func.of_body env [] [I32Type] (fun env ->
+          G.i (GlobalGet (nr (E.get_global env "__running_gc"))))
+      ) in
+      E.add_export env (nr {
+        name = Lib.Utf8.decode "get_running_gc";
+        edesc = nr (FuncExport (nr get_running_gc_fi))
+      })
+    end;
+
     let rts_trap_fi = E.add_fun env "rts_trap" (
       Func.of_body env ["str", I32Type; "len", I32Type] [] (fun env ->
         let get_str = G.i (LocalGet (nr 0l)) in
@@ -7759,7 +7800,7 @@ module MakeSerialization (Strm : Stream) = struct
       let read_blob () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         Blob.alloc env Tagged.B get_len ^^ set_x ^^
         get_x ^^ Blob.payload_ptr_unskewed env ^^
@@ -7770,7 +7811,7 @@ module MakeSerialization (Strm : Stream) = struct
       let read_principal sort () =
         let (set_len, get_len) = new_local env "len" in
         let (set_x, get_x) = new_local env "x" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
 
         (* at most 29 bytes, according to
            https://sdk.dfinity.org/docs/interface-spec/index.html#principal
@@ -7786,7 +7827,7 @@ module MakeSerialization (Strm : Stream) = struct
 
       let read_text () =
         let (set_len, get_len) = new_local env "len" in
-        ReadBuf.read_leb128 env get_data_buf ^^ set_len ^^
+        ReadBuf.read_byte_count env get_data_buf ^^ set_len ^^
         let (set_ptr, get_ptr) = new_local env "x" in
         ReadBuf.get_ptr get_data_buf ^^ set_ptr ^^
         ReadBuf.advance get_data_buf get_len ^^
@@ -9520,52 +9561,48 @@ module Var = struct
   (* Returns desired stack representation, preparation code and code to consume
      the value onto the stack *)
   let set_val env ae var : G.t * SR.t * G.t = match (VarEnv.lookup ae var, !Flags.gc_strategy) with
-    | (Some ((Local (sr, i)), _), _) ->
+    | (Some (Local (sr, i), _), _) ->
       G.nop,
       sr,
       G.i (LocalSet (nr i))
-    | (Some ((HeapInd i), typ), Flags.Generational) when potential_pointer typ ->
+    | (Some (HeapInd i, typ), Flags.Generational) when potential_pointer typ ->
       G.i (LocalGet (nr i)),
       SR.Vanilla,
       MutBox.store_field env ^^
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^ (* not needed for this GC, but only for forward pointer sanity checks *)
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size) ^^
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)) ^^
       E.call_rts env "post_write_barrier"
-    | (Some ((HeapInd i), typ), Flags.Incremental) when potential_pointer typ ->
+    | (Some (HeapInd i, typ), Flags.Incremental) when potential_pointer typ ->
       G.i (LocalGet (nr i)) ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size),
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
-    | (Some ((HeapInd i), typ), _) ->
+    | (Some (HeapInd i, typ), _) ->
       G.i (LocalGet (nr i)),
       SR.Vanilla,
       MutBox.store_field env
-    | (Some ((HeapStatic ptr), typ), Flags.Generational) when potential_pointer typ ->
+    | (Some (HeapStatic ptr, typ), Flags.Generational) when potential_pointer typ ->
       compile_unboxed_const ptr,
       SR.Vanilla,
       MutBox.store_field env ^^
       compile_unboxed_const ptr ^^
       Tagged.load_forwarding_pointer env ^^ (* not needed for this GC, but only for forward pointer sanity checks *)
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size) ^^
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)) ^^
       E.call_rts env "post_write_barrier"
-    | (Some ((HeapStatic ptr), typ), Flags.Incremental) when potential_pointer typ ->
+    | (Some (HeapStatic ptr, typ), Flags.Incremental) when potential_pointer typ ->
       compile_unboxed_const ptr ^^
       Tagged.load_forwarding_pointer env ^^
-      compile_add_const ptr_unskew ^^
-      compile_add_const (Int32.mul (MutBox.field env) Heap.word_size),
+      compile_add_const Int32.(add ptr_unskew (mul (MutBox.field env) Heap.word_size)),
       SR.Vanilla,
       Tagged.write_with_barrier env
-    | (Some ((HeapStatic ptr), typ), _) ->
+    | (Some (HeapStatic ptr, typ), _) ->
       compile_unboxed_const ptr,
       SR.Vanilla,
       MutBox.store_field env
-    | (Some ((Const _), _), _) -> fatal "set_val: %s is const" var
-    | (Some ((PublicMethod _), _), _) -> fatal "set_val: %s is PublicMethod" var
+    | (Some (Const _, _), _) -> fatal "set_val: %s is const" var
+    | (Some (PublicMethod _, _), _) -> fatal "set_val: %s is PublicMethod" var
     | (None, _)   -> fatal "set_val: %s missing" var
 
   (* Stores the payload. Returns stack preparation code, and code that consumes the values from the stack *)
@@ -9612,7 +9649,7 @@ module Var = struct
   *)
   let capture old_env ae0 var : G.t * (E.t -> VarEnv.t -> VarEnv.t * scope_wrap) =
     match VarEnv.lookup ae0 var with
-    | Some ((Local (sr, i)), typ) ->
+    | Some (Local (sr, i), typ) ->
       ( G.i (LocalGet (nr i)) ^^ StackRep.adjust old_env sr SR.Vanilla
       , fun new_env ae1 ->
         (* we use SR.Vanilla in the restored environment. We could use sr;
@@ -9621,7 +9658,7 @@ module Var = struct
         let restore_code = G.i (LocalSet (nr j))
         in ae2, fun body -> restore_code ^^ body
       )
-    | Some ((HeapInd i), typ) ->
+    | Some (HeapInd i, typ) ->
       ( G.i (LocalGet (nr i))
       , fun new_env ae1 ->
         let ae2, j = VarEnv.add_local_with_heap_ind new_env ae1 var typ in
@@ -10483,6 +10520,22 @@ module Cost = struct
           get_algorithm ^^
           get_dst ^^
           IC.ic_system_call "cost_sign_with_schnorr" env  ^^
+          StackRep.adjust env (SR.UnboxedWord32 Type.Int32) SR.Vanilla ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
+
+  let vetkd_derive_key env =
+    Func.share_code2 Func.Always env "cost_vetkd_derive_key"
+      (("key_name", IC.i), ("curve", I32Type))
+      [IC.i; I32Type]
+      (fun env get_key_name get_curve ->
+        Stack.with_words env "dst" 4l (fun get_dst ->
+          get_key_name ^^ Text.to_blob env ^^ Blob.as_ptr_len env ^^
+          get_curve ^^
+          get_dst ^^
+          IC.ic_system_call "cost_vetkd_derive_key" env  ^^
           StackRep.adjust env (SR.UnboxedWord32 Type.Int32) SR.Vanilla ^^
           get_dst ^^
           Cycles.from_word128_ptr env
@@ -12733,6 +12786,11 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_vanilla env ae key_name ^^
     compile_exp_as env ae (SR.UnboxedWord32 Type.Nat32) algorithm ^^
     Cost.sign_with_schnorr env
+  | OtherPrim "costVetkdDeriveKey", [key_name; curve] ->
+    SR.UnboxedTuple 2,
+    compile_exp_vanilla env ae key_name ^^
+    compile_exp_as env ae (SR.UnboxedWord32 Type.Nat32) curve ^^
+    Cost.vetkd_derive_key env
 
   | SystemTimeoutSetPrim, [e1] ->
     SR.unit, compile_exp_as env ae (SR.UnboxedWord32 Type.Nat32) e1 ^^ IC.system_call env "call_with_best_effort_response"
@@ -13592,6 +13650,7 @@ and main_actor as_opt mod_env ds fs up =
 
     (* Export metadata *)
     env.E.stable_types := metadata "motoko:stable-types" up.meta.sig_;
+    env.E.stable_types_text := Some up.meta.sig_;
     env.E.service := metadata "candid:service" up.meta.candid.service;
     env.E.args := metadata "candid:args" up.meta.candid.args;
 
@@ -13710,6 +13769,7 @@ and conclude_module env set_serialization_globals start_fi_o =
       motoko = {
         labels = E.get_labs env;
         stable_types = !(env.E.stable_types);
+        stable_types_text = !(env.E.stable_types_text);
         compiler = metadata "motoko:compiler" (Lib.Option.get Source_id.release Source_id.id)
       };
       enhanced_orthogonal_persistence = None;

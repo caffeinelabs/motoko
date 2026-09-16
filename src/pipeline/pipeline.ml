@@ -342,7 +342,7 @@ let validate_stab_sig s : unit Diag.result =
       Stability.match_stab_sig (Single post1) (Single post2)
     | _, _ -> assert false))
 
-(* Load --stable-baseline .most for M0254/M0267 and check-time stable-compat. *)
+(* Load --stable-baseline .most for the resume-point boundary check (match_stab_em_fields). *)
 let load_stable_baseline () : Type.stab_sig option Diag.result =
   let open Diag.Syntax in
   match !Flags.stable_baseline, !Flags.enhanced_migration with
@@ -925,9 +925,9 @@ let compile_files mode do_link files : compile_result =
   let* ext_module = compile_progs mode do_link libs progs in
   (* validate any stable type signature, as a sanity check *)
   let* () =
-    match Wasm_exts.CustomModule.(ext_module.motoko.stable_types) with
-    | Some (_, ss) -> validate_stab_sig ss
-    | _ -> Diag.return ()
+    match Wasm_exts.CustomModule.(ext_module.motoko.stable_types_text) with
+    | Some ss -> validate_stab_sig ss
+    | None -> Diag.return ()
   in
   let* () =
     if Wasm_exts.CustomModule.(ext_module.wasm_features) <> []

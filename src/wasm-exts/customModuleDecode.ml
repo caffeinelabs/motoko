@@ -903,7 +903,8 @@ let utf8 sec_end s =
 let motoko_sections s =
   let stable_types = icp_custom_section "motoko:stable-types" utf8 None s in
   let compiler = icp_custom_section "motoko:compiler" utf8 None s in
-  custom_section is_motoko motoko_section_content { empty_motoko_sections with stable_types; compiler; } s
+  let stable_types_text = Option.map snd stable_types in
+  custom_section is_motoko motoko_section_content { empty_motoko_sections with stable_types; stable_types_text; compiler; } s
 
 (* Enhanced orthogonal persistence section *)
 let enhanced_orthogonal_persistence_section s =

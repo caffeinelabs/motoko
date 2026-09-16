@@ -46,3 +46,4 @@ actor {
 //CALL ingress sanityTest "DIDL\x00\x00"
 //CALL upgrade ""
 //CALL ingress sanityTest "DIDL\x00\x00"
+//MOC-FLAG -A=M0270
