@@ -10,6 +10,11 @@
     `ExperimentalStableMemory` library (or its primitives) is now an unconditional
     `M0199` error; use the `Region` library instead (#6357).
 
+  * bugfix: trapping `**` on `Nat8`, `Nat16`, `Nat32`, `Int8`, `Int16` and
+    `Int32` now traps when the result overflows the 64-bit intermediate
+    instead of returning a wrapped value (e.g. `(65536 : Nat32) ** 4` returned
+    `0`) (#6340).
+
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
