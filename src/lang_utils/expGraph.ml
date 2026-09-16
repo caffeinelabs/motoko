@@ -135,9 +135,8 @@ let equiv_classes (type b) (graph : (int * b) Seq.t) : (int IM.t * int) =
 
 (* Children-before-parents order, or None if the graph has a cycle *)
 let topo_order (graph : 'a t) : int list option =
-  let state = ref IM.empty in (* false = on stack, true = finished *)
-  let order = ref [] in
-  let cyclic = ref false in
+  let order, cyclic, state =
+    ref [], ref false, ref IM.empty (* false = on stack, true = finished *) in
   let rec go i =
     if not !cyclic then
       match IM.find_opt i !state with
