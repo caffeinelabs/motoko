@@ -1099,9 +1099,10 @@ and build_obj at s self_id dfs obj_typ =
   let e = blockE ds obj_e in
   match self_id with
     | None -> e.it
-    | Some self_id ->
+    | Some self_id when Freevars.M.mem self_id.it (Freevars.exp e) ->
       let self = var self_id.it obj_typ in
       (letE self e (varE self)).it
+    | Some _ -> e.it
 
 and exp_field obj_typ ef =
   let _, fts = T.as_obj_sub [] obj_typ in
@@ -1239,7 +1240,12 @@ and block force_unit ds =
   | false, S.LetD (p, e, Some f) ->
     (decs prefix, let_else_switch (pat p) (exp e) (exp f))
   | false, S.ClassD (_, _, _, id, _, _, _, _, _) -> (* `dec'` binds the constructor to `id` *)
-    (decs ds, varE (var id.it last.note.S.note_typ))
+    let ds' = decs ds in
+    (match List.rev ds' with
+     | { it = I.LetD ({ it = I.VarP x; _ }, rhs); _ } :: rest_rev
+         when x = id.it && not (Freevars.M.mem x (Freevars.exp rhs)) ->
+       (List.rev rest_rev, rhs)
+     | _ -> (ds', varE (var id.it last.note.S.note_typ)))
   | _ ->
     (decs ds, tupE [])
 
