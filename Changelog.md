@@ -1,6 +1,35 @@
 # Motoko compiler changelog
 
-## Next
+* motoko (`moc`)
+
+  * BREAKING CHANGE: the `motoko-Darwin-x86_64` release tarball and the
+    Intel-Mac (`macos-15-intel`) build/release CI legs are dropped; neither
+    the compiler nor its runtime are built or shipped for Intel Macs anymore.
+    x86_64-linux, aarch64-linux and Apple Silicon (`macos-latest`) binaries
+    continue to be produced. Users on Intel Macs should build from source.
+    The `motoko-base-library.tar.gz` release artifact is also dropped;
+    `motoko-core.tar.gz` is unaffected. (#6355)
+
+## 1.16.1 (2026-09-16)
+
+* motoko (`moc`)
+
+  * bugfix: trapping `**` on `Nat8`, `Nat16`, `Nat32`, `Int8`, `Int16` and
+    `Int32` now traps when the result overflows the 64-bit intermediate
+    instead of returning a wrapped value (e.g. `(65536 : Nat32) ** 4` returned
+    `0`) (#6340).
+
+  * bugfix: `Region.loadBlob`/`Region.storeBlob` no longer read one block past
+    the end of a region's block table when a block-aligned range ends exactly
+    at the end of the region (#6373).
+
+  * perf: the incremental GC's write, allocation and weak-reference read barriers now
+    gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
+
+  * perf: don't GC trace dummy coercion markers for freshly Candid-decoded
+    objects (#6370).
+
+## 1.16.0 (2026-09-09)
 
 * motoko (`moc`)
 
@@ -10,14 +39,17 @@
     persistent upgrade machinery. Silence with `-A=M0269` / `-A=M0270`
     (#6347).
 
-  * BREAKING CHANGE: the `motoko-Darwin-x86_64` release tarball and the
-    Intel-Mac (`macos-15-intel`) build/release CI legs are dropped; neither
-    the compiler nor its runtime are built or shipped for Intel Macs anymore.
-    x86_64-linux, aarch64-linux and Apple Silicon (`macos-latest`) binaries
-    continue to be produced. Users on Intel Macs should build from source.
-    The `motoko-base-library.tar.gz` release artifact is also dropped (the
-    `base` library remains available for tests as `base-tests`/`base-stub`);
-    `motoko-core.tar.gz` is unaffected. (#6355)
+  * feat: add `Prim.costVetkdDeriveKey` for querying the cycle cost of the
+    IC `cost_vetkd_derive_key` system call, mirroring the existing
+    `costSignWithEcdsa`/`costSignWithSchnorr` primitives. It takes a `Text`
+    key name and a `Nat32` curve encoding and returns `(resultCode, costOrUndefined)`,
+    where a non-zero `resultCode` signals an invalid key name or curve
+    encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
+
+  * bugfix: `///` doc comments on members contributed to an actor via a
+    `mixin` `include` now appear in the generated Candid interface (`.did`),
+    matching the behavior for directly-declared members. Previously such
+    docs were silently dropped (#6351).
 
   * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
     rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
@@ -25,6 +57,9 @@
     the actual dot resolution, so a same-named function field on the
     receiver (including the built-in fields of arrays, blobs and text)
     suppresses the suggestion (#6343).
+
+  * bugfix: trap on array element counts that cannot be allocated, instead of
+    wrapping the byte size computed from them (#6312).
 
 ## 1.15.1 (2026-09-02)
 
