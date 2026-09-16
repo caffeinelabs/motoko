@@ -1028,16 +1028,18 @@ pub(crate) unsafe fn region_load<M: Memory>(_mem: &mut M, r: Value, offset: u64,
         // Do rest of block-sized reads.
         // (invariant: they always occur at the start of a block).
         loop {
+            // The initial read may already have covered the whole range
+            // (e.g. a block-aligned range of exactly one block per read).
+            // Stop before resolving the next block: `offset + i` is then out
+            // of range and names a block the region does not own.
+            if i >= dst.len() as u64 {
+                break;
+            }
             let (s_, _, b_len) = r.relative_into_absolute_info(offset + i);
             s = s_;
             if i + b_len > dst.len() as u64 {
                 // case: last (generally partial) block.
-                if dst.len() as u64 > i {
-                    read(
-                        s,
-                        core::slice::from_raw_parts_mut(d, dst.len() - i as usize),
-                    );
-                }
+                read(s, core::slice::from_raw_parts_mut(d, dst.len() - i as usize));
                 break;
             } else {
                 // case: internal (full) block.
@@ -1084,13 +1086,18 @@ pub(crate) unsafe fn region_store<M: Memory>(_mem: &mut M, r: Value, offset: u64
         // Do rest of block-sized writes.
         // (invariant: they always occur at the start of a block).
         loop {
+            // The initial write may already have covered the whole range
+            // (e.g. a block-aligned range of exactly one block per write).
+            // Stop before resolving the next block: `offset + i` is then out
+            // of range and names a block the region does not own.
+            if i >= src.len() as u64 {
+                break;
+            }
             let (d_, _, b_len) = r.relative_into_absolute_info(offset + i);
             d = d_;
             if i + b_len > src.len() as u64 {
                 // case: last (generally partial) block.
-                if src.len() as u64 > i {
-                    write(d, core::slice::from_raw_parts(s, src.len() - i as usize));
-                }
+                write(d, core::slice::from_raw_parts(s, src.len() - i as usize));
                 break;
             } else {
                 // case: internal (full) block.

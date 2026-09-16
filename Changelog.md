@@ -14,6 +14,13 @@
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
+  * bugfix: `Prim.regionLoadBlob`/`Prim.regionStoreBlob` no longer read the
+    region's access vector out of bounds when the requested range ends exactly
+    on a block boundary at the end of the region (e.g. loading the whole of a
+    region whose size is a multiple of 8 MiB). Debug builds trapped with
+    `assertion failed: (i as usize) * 2 + 1 < self.0.len().as_usize()`; release
+    builds had undefined behaviour (#6357).
+
 ## 1.16.0 (2026-09-09)
 
 * motoko (`moc`)
