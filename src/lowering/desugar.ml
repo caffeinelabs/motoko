@@ -698,21 +698,13 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
-and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
-  let fs0 = build_fields obj_typ0 in
+and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
+  let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
-  let triples = List.map view stabs in
-  let view_ds = List.concat_map (fun (ds, _, _) -> ds) triples in
-  (* let view_fields = List.concat_map (fun (_, flds, _) -> flds) triples in *)
-  let view_fields = [] in
-  let view_fs = List.concat_map (fun (_, _, fs) -> fs) triples in
-  let (sort, tfs0, tfs1) = T.as_obj' obj_typ0 in
-  let obj_typ = T.Obj(sort, List.sort T.compare_field (tfs0@view_fields), tfs1) in
-  let fs = fs0@view_fs in
   let stab_fields = List.sort T.compare_field
     (List.map (fun (i, t) -> T.{lab = i; typ = t; src = empty_src}) ids)
   in
@@ -957,7 +949,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
             mem_ty)) in
   let footprint_d, footprint_f = export_footprint self_id (with_stable_vars Fun.id) in
   let runtime_info_d, runtime_info_f = export_runtime_information self_id in
-  I.(ActorE (footprint_d @ runtime_info_d @ ds' @ view_ds, footprint_f @ runtime_info_f @ fs,
+  I.(ActorE (footprint_d @ runtime_info_d @ ds', footprint_f @ runtime_info_f @ fs,
      { meta;
        preupgrade = (primE (I.ICStableWrite mem_ty) []);
        postupgrade =
@@ -1028,14 +1020,6 @@ and stabilize stab_opt d =
          fallback (varP v) (varE v) t))
   | (S.Stable, I.LetD _) ->
     assert false
-
-and view stab_opt =
-  match stab_opt with
-  | None -> ([], [], [])
-  | Some stab ->
-    match stab.it with
-    | S.Flexible -> ([], [], [])
-    | S.Stable -> ([], [], [])
 
 and build_obj at s self_id dfs obj_typ =
   let fs = build_fields obj_typ in

@@ -219,8 +219,8 @@ module MakeState() = struct
         dec::list
       ) !env []
 
-  (* Collect the trivia tables of the mixins included by a top-level actor, so
-     that docs attached to mixin members survive into the generated Candid. *)
+  (* Trivia tables of all (transitively) included mixins, so that doc comments
+     on mixin members survive into the generated Candid. *)
   let rec gather_mixin_trivia includes dfs =
     E.(match dfs with
     | [] -> List.rev includes
@@ -228,7 +228,7 @@ module MakeState() = struct
       match df.it.dec.it with
       | E.IncludeD (_, _, _, include_note) ->
         (match !include_note with
-         | Some note -> gather_mixin_trivia (note.trivia :: includes) dfs1
+         | Some note -> gather_mixin_trivia (note.trivia :: includes) (note.decs @ dfs1)
          | None -> gather_mixin_trivia includes dfs1)
       | _ -> gather_mixin_trivia includes dfs1)
 
