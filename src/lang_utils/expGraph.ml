@@ -159,9 +159,7 @@ let topo_order (graph : 'a t) : int list option =
    and so is quadratic on deep chains. *)
 let combine_acyclic (type a) (graph : a t) (order : int list) : a t =
   let module KM = Map.Make (struct type t = a * int list let compare = compare end) in
-  let cls = ref IM.empty in
-  let km = ref KM.empty in
-  let next = start_counting 0 in
+  let cls, km, next = ref IM.empty, ref KM.empty, start_counting 0 in
   List.iter (fun i ->
     let k, args = IM.find i graph in
     let key = k, List.map (fun j -> IM.find j !cls) args in
