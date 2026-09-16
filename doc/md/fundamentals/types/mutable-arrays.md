@@ -207,7 +207,7 @@ func createTicTacToeBoard() : [var [var Text]] {
 
   // Function to print the board
   func printBoard() {
-    for (row in board.vals()) {
+    for (row in board.values()) {
       let rowText = Array.foldLeft<Text, Text>(Array.freeze<Text>(row), "", func(acc, cell) = acc # cell # " ");
       Debug.print(rowText)
     }

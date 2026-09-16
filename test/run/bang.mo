@@ -22,7 +22,7 @@ assert (o2 == null);
 
 let o3 = do ? {
    var sum = 0;
-   for(o in [?1, ?2, ?3].vals()) {
+   for(o in [?1, ?2, ?3].values()) {
      sum += o!
    };
    sum
@@ -41,7 +41,7 @@ assert (o3Values == ? 6);
 
 let o4 = do ? {
    var sum = 0;
-   for(o in [?1, ?2, null].vals()) {
+   for(o in [?1, ?2, null].values()) {
      sum += o!
    };
    sum

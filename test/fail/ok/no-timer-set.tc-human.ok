@@ -108,6 +108,9 @@ error[M0119]: object field setTimer is not contained in expected type
     costSignWithSchnorr :
       (keyName : Text, algorithmEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
+    costVetkdDeriveKey :
+      (keyName : Text, curveEncoding : Nat32) ->
+        (resultCode : Nat32, costOrUndefined : Nat);
     createActor : (wasm : Blob, argument : Blob) -> async Principal;
     ctzInt16 : (w : Int16) -> Int16;
     ctzInt32 : (w : Int32) -> Int32;
