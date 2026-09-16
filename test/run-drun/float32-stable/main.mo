@@ -9,7 +9,7 @@ actor {
 
   public func show() : async () {
     debugPrint (debug_show (float32ToFloat x));
-    for (v in arr.vals()) debugPrint (debug_show (float32ToFloat v))
+    for (v in arr.values()) debugPrint (debug_show (float32ToFloat v))
   };
 
   public func mutate() : async () {
