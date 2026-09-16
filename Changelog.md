@@ -4,25 +4,17 @@
 
 * motoko (`moc`)
 
-  * feat!: Remove the dead/niche compiler flags `--(no-)experimental-multi-value`
-    and `--generate-view-queries` (including the type-checking hook, the
-    `export_view` desugaring and the view-gathering in `mo_to_idl`), and the
-    `--experimental-stable-memory` flag. Use of the `ExperimentalStableMemory`
-    library is now an unconditional `M0199` error; migrate to the `Region`
-    library instead (#6357).
+  * feat!: Remove the `--generate-view-queries` flag (and the `__<var>` view
+    queries it generated), the no-op `--(no-)experimental-multi-value` flags, and
+    the `--experimental-stable-memory` flag. Using the deprecated
+    `ExperimentalStableMemory` library (or its primitives) is now an unconditional
+    `M0199` error; use the `Region` library instead (#6357).
 
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
   * perf: don't GC trace dummy coercion markers for freshly Candid-decoded
     objects (#6370).
-
-  * bugfix: `Prim.regionLoadBlob`/`Prim.regionStoreBlob` no longer read the
-    region's access vector out of bounds when the requested range ends exactly
-    on a block boundary at the end of the region (e.g. loading the whole of a
-    region whose size is a multiple of 8 MiB). Debug builds trapped with
-    `assertion failed: (i as usize) * 2 + 1 < self.0.len().as_usize()`; release
-    builds had undefined behaviour (#6357).
 
 ## 1.16.0 (2026-09-09)
 
