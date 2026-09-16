@@ -12,8 +12,7 @@
 
   * bugfix: `Region.loadBlob`/`Region.storeBlob` no longer read one block past
     the end of a region's block table when a block-aligned range ends exactly
-    at the end of the region (a debug-RTS assertion failure under
-    `--sanity-checks`; a harmless out-of-bounds read otherwise) (#6373).
+    at the end of the region (#6373).
 
 ## 1.16.0 (2026-09-09)
 
