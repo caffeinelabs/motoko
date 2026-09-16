@@ -1039,7 +1039,12 @@ pub(crate) unsafe fn region_load<M: Memory>(_mem: &mut M, r: Value, offset: u64,
             s = s_;
             if i + b_len > dst.len() as u64 {
                 // case: last (generally partial) block.
-                read(s, core::slice::from_raw_parts_mut(d, dst.len() - i as usize));
+                if dst.len() as u64 > i {
+                    read(
+                        s,
+                        core::slice::from_raw_parts_mut(d, dst.len() - i as usize),
+                    );
+                }
                 break;
             } else {
                 // case: internal (full) block.
@@ -1097,7 +1102,9 @@ pub(crate) unsafe fn region_store<M: Memory>(_mem: &mut M, r: Value, offset: u64
             d = d_;
             if i + b_len > src.len() as u64 {
                 // case: last (generally partial) block.
-                write(d, core::slice::from_raw_parts(s, src.len() - i as usize));
+                if src.len() as u64 > i {
+                    write(d, core::slice::from_raw_parts(s, src.len() - i as usize));
+                }
                 break;
             } else {
                 // case: internal (full) block.
