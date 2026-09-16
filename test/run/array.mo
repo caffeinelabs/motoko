@@ -112,3 +112,4 @@ let homogeneous = [true, false, true];
 
 assert not homogeneous[1];
 assert homogeneous[2]
+//MOC-FLAG -A=M0269

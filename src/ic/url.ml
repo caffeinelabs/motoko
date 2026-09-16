@@ -43,6 +43,7 @@ type parsed =
   | Ic of string
   | IcAlias of string
   | FileValue of string
+  | IdlFile of string
   | Prim
 
 let string_of_parsed = function
@@ -51,6 +52,7 @@ let string_of_parsed = function
   | Ic x -> Printf.sprintf "Ic %s" x
   | IcAlias x -> Printf.sprintf "IcAlias %s" x
   | FileValue x -> Printf.sprintf "FileValue %s" x
+  | IdlFile x -> Printf.sprintf "IdlFile %s" x
   | Prim -> "Prim"
 
 let parse (f: string) : (parsed, string) result =
@@ -84,9 +86,12 @@ let parse (f: string) : (parsed, string) result =
         match Lib.String.chop_prefix "blob:file:" f with
         | Some suffix -> Ok (FileValue suffix)
         | None ->
-          match Stdlib.String.index_opt f ':' with
-          | Some _ -> Error "Unrecognized URL"
-          | None -> Ok (Relative (Lib.FilePath.normalise f))
+          match Lib.String.chop_prefix "idl:" f with
+          | Some suffix -> Ok (IdlFile suffix)
+          | None ->
+            match Stdlib.String.index_opt f ':' with
+            | Some _ -> Error "Unrecognized URL"
+            | None -> Ok (Relative (Lib.FilePath.normalise f))
 
 
 (* Basename of the IDL file searched (see DFX-Interface.md) *)

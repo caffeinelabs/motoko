@@ -17,7 +17,7 @@ tested_codes = set()
 # This list should only contain errors that are impossible or hard to
 # exercise in our test suite (or defunct)
 known_untested_codes = {
-    # See issue 5050... "M0000", # internal compiler error
+    "M0000", # internal compiler error; only exercisable while some IR-check bug is live (was issue 5050, fixed in #6291)
     "M0005", # case mismatch, hard to test on linux
     "M0020", # unresolved import, seems to be an internal error?
     "M0021", # infer forwart import type. internal, because imports are topologically sorted?

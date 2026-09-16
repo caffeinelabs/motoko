@@ -94,3 +94,15 @@ let { type T1 } and { type T2 } : module { type T1 = Nat; type T2 = Text } =
 let t1v : T1 = 99;
 let t2v : T2 = "type-and";
 debugPrint (debug_show {t1v; t2v});
+
+// Public let bindings with varied patterns in an object exercise vis_pat /
+// vis_pat_field across every pattern arm (only VarP was reached before).
+let M = object {
+  public let (a, b) = (1, 2);
+  public let { x = c } = { x = 3 };
+  public let (?d) = ?(4 : Nat);
+  public let (#tag e) = (#tag 5 : {#tag : Nat});
+  public let (f : Nat) = 6;
+  public let ((g : Nat) and h) = 7 : Nat;
+};
+assert (M.a + M.b + M.c + M.d + M.e + M.f + M.g + M.h == 35);

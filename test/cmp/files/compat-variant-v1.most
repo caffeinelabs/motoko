@@ -1,0 +1,4 @@
+// compatible_tags: variant with extra tags (supertype upgrades)
+actor {
+  stable var status : {#ok : Nat; #err : Text};
+};

@@ -471,6 +471,7 @@ and interpret_exp_mut env exp (k : V.value V.cont) =
         assert T.(exp.note.note_typ = Prim Blob);
         k (V.Blob contents)
       end
+    | IDLTypesPath _ -> k (V.Obj V.Env.empty)
     | IDLPath _ -> trap exp.at "actor import"
     | PrimPath -> k (find "@prim" env.libs)
     )

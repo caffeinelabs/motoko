@@ -39,3 +39,4 @@ actor {
 //SKIP run-low
 //SKIP run
 //SKIP run-ir
+//MOC-FLAG -A=M0270

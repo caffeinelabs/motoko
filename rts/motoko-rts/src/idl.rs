@@ -202,7 +202,7 @@ unsafe fn parse_idl_header<M: Memory>(
     let n_types = leb128_decode(buf);
 
     // Early sanity check
-    if (*buf).ptr.add(n_types as usize) >= (*buf).end {
+    if n_types as usize > buf.size() {
         idl_trap_with("too many types");
     }
 
@@ -564,7 +564,7 @@ unsafe extern "C" fn find_field(
     buf: *mut Buf,
     typtbl: *mut *mut u8,
     tag: u32,
-    n: *mut u8,
+    n: *mut u32,
 ) -> bool {
     while *n > 0 {
         let last_p = (*tb).ptr;
@@ -587,7 +587,7 @@ unsafe extern "C" fn find_field(
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn skip_fields(tb: *mut Buf, buf: *mut Buf, typtbl: *mut *mut u8, n: *mut u8) {
+unsafe extern "C" fn skip_fields(tb: *mut Buf, buf: *mut Buf, typtbl: *mut *mut u8, n: *mut u32) {
     while *n > 0 {
         skip_leb128(tb);
         let it = sleb128_decode(tb);
@@ -1222,6 +1222,8 @@ pub(crate) unsafe fn sub(
                 }
                 return true;
             }
+            // rule: `service <actortype> <: principal`
+            (IDL_CON_service, IDL_REF_principal) => return true,
             (IDL_CON_service, IDL_CON_service) => {
                 let mut n1 = leb128_decode(&mut tb1);
                 let n2 = leb128_decode(&mut tb2);

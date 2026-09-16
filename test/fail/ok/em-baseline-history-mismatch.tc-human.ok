@@ -1,0 +1,19 @@
+error[M0268]: migration `m0` is not part of the deployed history recorded by the stable baseline
+    ┌─ enhanced-migration/enh-mig-history/m0.mo:1:1
+  1 │  module {
+    │  ^ 
+error[M0268]: migration `m1` no longer matches the deployed history: it now has type
+  (old : {a : Nat}) -> {a : Nat}
+but the stable baseline records
+  {} -> {a : Nat}
+    ┌─ enhanced-migration/enh-mig-history/m1.mo:1:1
+  1 │  module {
+    │  ^ 
+error[M0268]: deployed migration `m2` is missing from the migration directory; only the oldest migrations may be trimmed away
+    ┌─ em-baseline-history-mismatch.mo:10:1
+  9 │    // the baseline boundary themselves are consistent and stay silent.
+ 10 │ ╭  actor {
+ 11 │ │      let a : Nat;
+ 12 │ │  };
+    │ ╰──^ 
+ 13 │    

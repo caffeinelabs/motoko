@@ -18,8 +18,19 @@ type resolved_import =
   | Unresolved
   | LibPath of lib_path
   | IDLPath of (string * (string, string) Either.t) (* filepath * envvar/bytes *)
+  | IDLTypesPath of string (* types-only import of a .did file *)
   | ImportedValuePath of string
   | PrimPath (* the built-in prim module *)
+
+(* Key identifying a resolved import in lib envs and import caches;
+   types-only and actor imports of the same .did file must not share a key. *)
+let lib_key_of_resolved_import = function
+  | Unresolved -> "/* unresolved */"
+  | LibPath {path; _}
+  | ImportedValuePath path
+  | IDLPath (path, _) -> path
+  | IDLTypesPath path -> path ^ "#types"
+  | PrimPath -> "@prim"
 
 (* Identifiers *)
 
@@ -274,7 +285,7 @@ and dec' =
       exp option * sort_pat * obj_sort * typ_id * typ_bind list * pat * typ option * id * dec_field list
   | MixinD of bool * pat * dec_field list             (* mixin *)
   | IncludeD of id * bool * exp * include_note (* mixin include *)
-and include_note' = { imports : import list; pat : pat; decs : dec_field list }
+and include_note' = { imports : import list; pat : pat; decs : dec_field list; trivia : Trivia.triv_table }
 and include_note = include_note' option ref
 
 and import = (import', Type.typ) annotated_phrase
@@ -351,6 +362,7 @@ let string_of_lit = function
 let string_of_resolved_import = function
   | LibPath {path; package } -> Printf.sprintf "LibPath {path = %s, package = %s}" path (match package with | Some p -> p | None -> "None")
   | IDLPath (path, _) -> Printf.sprintf "IDLPath (%s, _)" path
+  | IDLTypesPath path -> Printf.sprintf "IDLTypesPath %s" path
   | ImportedValuePath path -> Printf.sprintf "ImportedValuePath %s" path
   | PrimPath -> "PrimPath"
   | Unresolved -> "Unresolved"

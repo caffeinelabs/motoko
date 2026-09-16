@@ -1,0 +1,5 @@
+error[M0072]: field ping does not exist in type:
+  module {type Self = actor {ping : shared query () -> async ()}}
+    ┌─ import-local-did-call.mo:3:10
+  3 │  ignore S.ping;
+    │           ^^^^ 

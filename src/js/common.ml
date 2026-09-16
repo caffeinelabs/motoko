@@ -123,9 +123,9 @@ let js_compile_wasm mode source =
   Mo_types.Cons.session (fun _ -> js_result (Pipeline.compile_files mode true [source])
     (fun (idl_prog, m) ->
       let open CustomModule in
-      let sig_ = match m.motoko.stable_types with
-        | Some (_, txt) -> Js.some (Js.string txt)
-        | _ -> Js.null in
+      let sig_ = match m.motoko.stable_types_text with
+        | Some txt -> Js.some (Js.string txt)
+        | None -> Js.null in
       let candid = Idllib.Arrange_idl.string_of_prog idl_prog in
       let (_, wasm) = CustomModuleEncode.encode m in
       let constructor = Js.Unsafe.global##._Uint8Array in
@@ -279,7 +279,7 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
   (* senv: accumulated scope from prelude and all transitive imports *)
   | Ok ((_libs, progs, senv, scope_cache), msgs) ->
     let progs =
-      progs |> List.map (fun (prog, immediate_imports, sscope) ->
+      progs |> List.map (fun ((prog : Mo_def.Syntax.prog), immediate_imports, sscope) ->
         let open Mo_def in
         let module Arrange = Astjs.Make (struct
           let include_sources = true
