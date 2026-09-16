@@ -14,6 +14,9 @@
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
 
+  * perf: don't GC trace dummy coercion markers for freshly Candid-decoded
+    objects (#6370).
+
   * bugfix: `Prim.regionLoadBlob`/`Prim.regionStoreBlob` no longer read the
     region's access vector out of bounds when the requested range ends exactly
     on a block boundary at the end of the region (e.g. loading the whole of a

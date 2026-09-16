@@ -8199,12 +8199,14 @@ module Serialization = struct
       let set_failure = compile_unboxed_one ^^ set_failed in
       let when_failed f = get_failed ^^ E.if0 f G.nop in
 
-      (* This looks at a value and if it is coercion_error_value, sets the failure flag.
-         This propagates the error out of arrays, records, etc.
+      (* Looks at a decoded value and, if it is coercion_error_value, sets the
+         failure flag (propagating the error out of arrays, records, etc.) and
+         yields the value to store into the aggregate under construction,
+         substituting the null pointer for the failure marker.
        *)
-      let remember_failure get_val =
+      let remember_failure_recovering get_val =
           get_val ^^ compile_eq_const (coercion_error_value env) ^^
-          E.if0 set_failure G.nop
+          E.if1 I64Type (set_failure ^^ Opt.null_lit env) get_val
       in
 
       (* This sets the failure flag and puts coercion_error_value on the stack *)
@@ -8214,6 +8216,13 @@ module Serialization = struct
         *)
         get_can_recover ^^ E.else_trap_with env msg ^^
         set_failure ^^ compile_unboxed_const (coercion_error_value env) in
+
+      (* Like `coercion_failed`, but for a slot of an aggregate under
+         construction. Used where the field is absent from the wire,
+         so no decoded value was produced. *)
+      let coercion_failed_recovering msg =
+        get_can_recover ^^ E.else_trap_with env msg ^^
+        set_failure ^^ Opt.null_lit env in
 
       (* returns true if we are looking at primitive type with this id *)
       let check_prim_typ t =
@@ -8629,13 +8638,12 @@ module Serialization = struct
               begin
                 ReadBuf.read_sleb128 env get_typ_buf ^^
                 go env t ^^ set_val ^^
-                remember_failure get_val ^^
-                get_val
+                remember_failure_recovering get_val
               end
               begin
                 match normalize t with
                 | Prim Null | Opt _ | Any -> Opt.null_lit env
-                | _ -> coercion_failed "IDL error: did not find tuple field in record"
+                | _ -> coercion_failed_recovering "IDL error: did not find tuple field in record"
               end
           ) ts ^^
 
@@ -8659,13 +8667,12 @@ module Serialization = struct
                 begin
                   ReadBuf.read_sleb128 env get_typ_buf ^^
                   go env f.typ ^^ set_val ^^
-                  remember_failure get_val ^^
-                  get_val
+                  remember_failure_recovering get_val
                   end
                 begin
                   match normalize f.typ with
                   | Prim Null | Opt _ | Any -> Opt.null_lit env
-                  | _ -> coercion_failed (Printf.sprintf "IDL error: did not find field %s in record" f.lab)
+                  | _ -> coercion_failed_recovering (Printf.sprintf "IDL error: did not find field %s in record" f.lab)
                 end
           ) (sort_by_hash fs)) ^^
 
@@ -8689,8 +8696,7 @@ module Serialization = struct
           get_len ^^ from_0_to_n env (fun get_i ->
             get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
             get_arg_typ ^^ go env t ^^ set_val ^^
-            remember_failure get_val ^^
-            get_val ^^ store_ptr
+            remember_failure_recovering get_val ^^ store_ptr
           ) ^^
           get_x ^^
           Tagged.allocation_barrier env ^^
@@ -8734,8 +8740,7 @@ module Serialization = struct
           get_len ^^ from_0_to_n env (fun get_i ->
           get_x ^^ get_i ^^ Arr.unsafe_idx env ^^
           get_arg_typ ^^ go env t ^^ set_val ^^
-          remember_failure get_val ^^
-          get_val ^^ store_ptr
+          remember_failure_recovering get_val ^^ store_ptr
         ) ^^
         get_x ^^
         Tagged.allocation_barrier env)
@@ -8807,8 +8812,7 @@ module Serialization = struct
               E.if1 I64Type
                 ( Variant.inject env l (
                   get_arg_typ ^^ go env t ^^ set_val ^^
-                  remember_failure get_val ^^
-                  get_val
+                  remember_failure_recovering get_val
                 ))
                 continue
             )
