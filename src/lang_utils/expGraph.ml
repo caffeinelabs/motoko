@@ -164,7 +164,7 @@ let combine_acyclic (type a) (graph : a t) (order : int list) : a t =
   let next = start_counting 0 in
   List.iter (fun i ->
     let k, args = IM.find i graph in
-    let key = (k, List.map (fun j -> IM.find j !cls) args) in
+    let key = k, List.map (fun j -> IM.find j !cls) args in
     let c = match KM.find_opt key !km with
       | Some c -> c
       | None -> let c = next () in km := KM.add key c !km; c in
