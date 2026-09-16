@@ -987,6 +987,9 @@ pub(crate) unsafe fn memory_compatible(
             }
             variance != TypeVariance::Invariance || n1 == 0
         }
+        // An actor reference upcasts to its canister-id principal (service <: principal),
+        // mirroring the Motoko type rule (type.ml rel_typ). Widening — sub direction only.
+        (IDL_CON_service, IDL_REF_principal) => variance != TypeVariance::Invariance,
         // default
         (_, _) => false,
     }

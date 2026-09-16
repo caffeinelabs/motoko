@@ -1,0 +1,21 @@
+error[M0096]: expression of type
+  Principal
+cannot produce expected type
+  actor {}
+    ┌─ actor-sub-principal.mo:6:39
+  6 │  func down(p : Principal) : actor {} = p;
+    │                                        ^ 
+error[M0096]: expression of type
+  {field : Nat}
+cannot produce expected type
+  Principal
+    ┌─ actor-sub-principal.mo:10:45
+ 10 │  func obj(o : { field : Nat }) : Principal = o;
+    │                                              ^ 
+error[M0096]: expression of type
+  module {x : Nat}
+cannot produce expected type
+  Principal
+    ┌─ actor-sub-principal.mo:14:27
+ 14 │  func modu() : Principal = M;
+    │                            ^ 
