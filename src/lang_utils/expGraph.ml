@@ -145,7 +145,7 @@ let topo_order (graph : 'a t) : int list option =
       | Some false -> cyclic := true
       | None ->
         state := IM.add i false !state;
-        let (_, args) = IM.find i graph in
+        let _, args = IM.find i graph in
         List.iter go args;
         state := IM.add i true !state;
         order := i :: !order
@@ -164,7 +164,7 @@ let combine_acyclic (type a) (graph : a t) (order : int list) : a t =
   let km = ref KM.empty in
   let next = start_counting 0 in
   List.iter (fun i ->
-    let (k, args) = IM.find i graph in
+    let k, args = IM.find i graph in
     let key = (k, List.map (fun j -> IM.find j !cls) args) in
     let c = match KM.find_opt key !km with
       | Some c -> c
