@@ -14,6 +14,12 @@
     instead of alias, so code relying on the experimental aliasing flag must
     use explicit `var x = base.x` copies or a shared reference (#6346).
 
+  * feat!: Remove the `--generate-view-queries` flag (and the `__<var>` view
+    queries it generated), the no-op `--(no-)experimental-multi-value` flags, and
+    the `--experimental-stable-memory` flag. Using the deprecated
+    `ExperimentalStableMemory` library (or its primitives) is now an unconditional
+    `M0199` error; use the `Region` library instead (#6357).
+
   * feat: the contextual dot suggestion (`M0236`) is now on by default: `moc`
     warns about calls like `Map.filter(map, ...)` that could be written with
     dot notation `map.filter(...)`. Silence with `-A M0236`. The related

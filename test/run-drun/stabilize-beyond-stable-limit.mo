@@ -1,7 +1,8 @@
 //ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
-//MOC-FLAG --stabilization-instruction-limit=100000 --max-stable-pages 16
+//MOC-FLAG --stabilization-instruction-limit=100000 --max-stable-pages 144
 
 // This test fails because the stabilization code is using virtual stablemem_grow, which caps growth to max-stable-pages (default is 65536, but lowered below). It should be using physical ic0_stable64_grow (and _size) instead.
+// The region below fills the cap exactly: 16 pages of region metadata plus one 128-page block.
 
 // Unfixed, the bug would prevent a user relying on defaults from serializing more than 4GB of heap data, even in 64-bit mode.
 
@@ -10,12 +11,13 @@ import Prim "mo:prim";
 actor {
 
     let pages : Nat64 = 16;
-    if (Prim.stableMemorySize() == 0) {
+    stable let r = Prim.regionNew();
+    if (Prim.regionSize(r) == 0) {
       Prim.debugPrint("growing stable memory");
-      ignore Prim.stableMemoryGrow(pages);
+      ignore Prim.regionGrow(r, pages);
     };
-    assert Prim.stableMemorySize() == pages;
-    stable let blob = Prim.stableMemoryLoadBlob(0,65536);
+    assert Prim.regionSize(r) == pages;
+    stable let blob = Prim.regionLoadBlob(r, 0, 65536);
 
     public func check() : async () {
         Prim.debugPrint(debug_show (blob.size()))

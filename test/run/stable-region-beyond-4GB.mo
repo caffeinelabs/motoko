@@ -6,7 +6,6 @@ let size: Nat64 = 4 * 1024 * 1024 * 1024 + 1; // 5 GB
 let wasmPageSize: Nat64 = 64 * 1024; // 64 KB
 let numberOfPages: Nat64 = (size + wasmPageSize - 1) / wasmPageSize;
 
-Prim.debugPrint(debug_show {size = Prim.stableMemorySize()});
 let r1 = Prim.regionNew();
 let result = Prim.regionGrow(r1, numberOfPages);
 assert(result == 0);

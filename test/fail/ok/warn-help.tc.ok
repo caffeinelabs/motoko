@@ -19,7 +19,6 @@ M0191 (W) Code requires Wasm features ... to execute
 M0194 (E) Unused identifier warning
 M0195 (W) warn that `system` capability is implicitly supplied
 M0198 (W) Unused field pattern warning
-M0199 (W) Deprecate experimental stable memory
 M0206 (W) Migration consumes, but does not produce, a declared field
 M0207 (W) Migration consumes, but does not produce, an un-declared field
 M0210 (W) Parenthetical note must be applied to a message send
