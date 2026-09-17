@@ -1084,11 +1084,11 @@ dec :
   | LET p=pat EQ e=exp(ob) ELSE fail=exp_nest
     { let p', e' = normalize_let p e in
       LetD (p', e', Some fail) @? at $sloc }
-  (* error production: `x = e` where a declaration is expected is almost always a record field written where braces mean a block,
-     or a mis-spelled `let`/`:=` (M0269) *)
+  (* error production: `x = e` where a declaration is expected is almost always a record field written where braces mean a block
+     (or an object body), or a mis-spelled `let`/`:=` (M0269) *)
   | x=id EQ e=exp(ob)
     { syntax_error (at $sloc) "M0269"
-        "a record literal is not allowed here, braces `{ ... }` enclose a block in this position; to produce a record, nest it as the block's result: `{ { x = 0 } }`; to declare a variable, use `let`; to assign, use `:=`";
+        "`x = e` is a record field, but this position holds declarations, not a record literal; to declare a variable or field, use `let` (or `var`); to assign, use `:=`; to produce a record from a block, nest it as the block's result: `{ { x = 0 } }`";
       let ef = { mut = Const @@ no_region; id = x; exp = e } @@ at $sloc in
       ExpD (ObjE ([], [ef]) @? at $sloc) @? at $sloc }
 

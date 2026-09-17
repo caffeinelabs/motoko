@@ -357,7 +357,27 @@ actor Main {
     )
 
      with errors:
-    (unknown location): syntax error [M0271], `public` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `public_`)
+    (unknown location): syntax error [M0001], unexpected token 'public', expected one of token or <phrase> sequence:
+      }
+      .<nat> (e.g. '.1')
+      !
+      <exp_nullary(ob)> (e.g. '42')
+      ; seplist(<dec_field>,<semicolon>) (e.g. '; public let x : Int = 0')
+      |> <exp_bin(ob)> (e.g. '|> 42')
+      or <exp_bin(ob)> (e.g. 'or 42')
+      <binop> <exp(ob)> (e.g. '+ 42')
+      <unassign> <exp(ob)> (e.g. '-= 42')
+      <relop> <exp_bin(ob)> (e.g. '== 42')
+      else <exp_nest> (e.g. 'else 42')
+      . <id>
+      : <typ_nobin> (e.g. ': Int')
+      := <exp(ob)> (e.g. ':= 42')
+      <binop> <exp_bin(ob)> (e.g. '+ 42')
+      <binassign> <exp(ob)> (e.g. '+= 42')
+      and <exp_bin(ob)> (e.g. 'and 42')
+      <unop> <exp_bin(ob)> (e.g. '- 42')
+      <inst> <exp_nullary(ob)> (e.g. '<Int> 42')
+      [ <exp(ob)> ] (e.g. '[ 42 ]')
 
     (unknown location): syntax error [M0001], unexpected token '(', expected one of token or <phrase> sequence:
       func <func_pat> <annot_opt> <func_body> (e.g. 'func f(x : Int) : Int {}')
@@ -411,7 +431,9 @@ let%expect_test "test5" =
     )
 
      with errors:
-    (unknown location): syntax error [M0271], `public` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `public_`)
+    (unknown location): syntax error [M0001], unexpected token 'public', expected one of token or <phrase> sequence:
+      <exp(ob)> (e.g. '42')
+      <exp(ob)> else <exp_nest> (e.g. '42 else 42')
 
     (unknown location): syntax error [M0001], unexpected token '(', expected one of token or <phrase> sequence:
       func <func_pat> <annot_opt> <func_body> (e.g. 'func f(x : Int) : Int {}')
