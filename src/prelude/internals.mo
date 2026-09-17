@@ -507,9 +507,10 @@ func @call_error() : Error {
 // corollary: if expire == 0 then the pre is completely expired
 //
 // Note: Below the `expire` field is an encoding of an aliased mutable field with
-//       a single-element mutable array. It eliminates `--experimental-field-aliasing`
-//       while compiling this file at the cost of slightly higher syntactic noise
-//       as well as increased allocation and runtime cost accessing the data. Oh well.
+//       a single-element mutable array. It gives the timer mechanism a shared
+//       mutable cell without relying on var-field aliasing, at the cost of
+//       slightly higher syntactic noise as well as increased allocation and
+//       runtime cost accessing the data. Oh well.
 //
 type @Node = {
   expire : [var Nat64];

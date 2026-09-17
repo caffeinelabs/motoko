@@ -2133,11 +2133,11 @@ Thus the field list serves to:
 -   Define new fields.
 -   Override existing fields and their types.
 -   Add new `var` fields.
--   Redefine existing `var` fields from some base to prevent aliasing.
+-   Override existing `var` fields from some base, replacing the base's field with a fresh one.
 
 The resulting type is determined by the bases' and explicitly given fields' static type.
 
-Any `var` field from some base must be overwritten in the explicit field list. This prevents introducing aliases of `var` fields.
+A `var` field of some base that is not overwritten is copied into a fresh mutable field of the result, initialized with the base field's value at the time the record expression is evaluated. Mutating that field of the result does not affect the base, and mutating the base's field does not affect the result. Since an explicit field initializer may mutate a base, each such copy is made after all the explicit fields have been evaluated.
 
 The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_fieldn>; }` has type `T` provided:
 
@@ -2152,8 +2152,6 @@ The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_field
     Let `fields(i) == { <idi1>, ..., <idik> }` be the set of static field names of base `i`. Then:
 
     -   `fields(i)` is disjoint from `newfields` (possibly by applying subtyping to the type of `<expi>`).
-
-    -   No field in `field_tysi` is a `var` field.
 
     -  `fields(i)` is disjoint from `fields(j)` for `j < i`.
 
@@ -2174,7 +2172,7 @@ Note that the case for type fields is simpler than the value fields case only be
 The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_fieldm>; }` evaluates records `<exp1>` through `<expn>` and `{ exp-field1; ... <exp_fieldm }` to results `r1` through `rn` and `r`, trapping on the first result that is a trap. If none of the expressions produces a trap, the results are objects `sort1 { f1 }`, `sortn { fn }` and `object { f }`, where `f1` ... `fn` and `f` are maps from identifiers to values or mutable locations.
 
 The result of the entire expression is the value `object { g }` where `g` is the partial map with domain `fields(1) union fields(n) union newfields` mapping identifiers to unique
-values or locations such that `g(<id>) = fi(<id>)` if `<id>` is in `fields(i)`, for some `i`, or `f(<id>)` if `<id>` is in `newfields`.
+values or locations such that `g(<id>) = fi(<id>)` if `<id>` is in `fields(i)` and is not a `var` field, for some `i`; `g(<id>)` is a fresh location holding the value of `fi(<id>)` if `<id>` is in `fields(i)` and is a `var` field; and `g(<id>) = f(<id>)` if `<id>` is in `newfields`. A location `fi(<id>)` copied this way yields a different location than `g(<id>)`, so the two can be updated independently. As the copy is taken after the evaluation of `{ exp-field1; ... <exp_fieldm> }`, a `var` base field mutated by a field initializer is copied at its updated value.
 
 ### Object projection (member access)
 

@@ -61,7 +61,6 @@ let sanity = ref false
 let gc_strategy = ref Default
 let force_gc = ref false
 let global_timer = ref true
-let experimental_field_aliasing = ref false
 let ocaml_js = ref false
 let js_project_root : string option ref = ref None
 let rts_stack_pages_default = 32 (* 2MB *)

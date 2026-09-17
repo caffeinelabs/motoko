@@ -9,6 +9,16 @@
     importing `mo:base/ExperimentalStableMemory` fails to type-check; use the
     `Region` library instead. The `M0199` diagnostic is retired with them (#6378).
 
+  * feat!: `{ base with ... }` record-update now shallow-copies a base's
+    mutable (`var`) fields into fresh cells instead of erroring with M0179 or,
+    under the experimental flag, aliasing them to the base's cells. The result
+    is exactly the equivalent field-for-field record literal, so mutating the
+    copy does not mutate the base and vice versa. The now-redundant
+    `--experimental-field-aliasing` flag is removed; aliasing is no longer
+    supported. Breaking change: inherited `var` fields from a base now copy
+    instead of alias, so code relying on the experimental aliasing flag must
+    use explicit `var x = base.x` copies or a shared reference (#6346).
+
   * feat!: Remove the `--generate-view-queries` flag (and the `__<var>` view
     queries it generated), the no-op `--(no-)experimental-multi-value` flags, and
     the `--experimental-stable-memory` flag. Using the deprecated

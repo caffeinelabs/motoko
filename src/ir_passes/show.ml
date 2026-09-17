@@ -338,7 +338,6 @@ and t_dec' env dec' =
   match dec' with
   | LetD (pat,exp) -> LetD (pat,t_exp env exp)
   | VarD (id, typ, exp) -> VarD (id, typ, t_exp env exp)
-  | RefD (id, typ, lexp) -> RefD (id, typ, t_lexp env lexp)
 
 and t_decs env decs = List.map (t_dec env) decs
 

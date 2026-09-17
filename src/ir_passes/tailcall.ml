@@ -229,10 +229,6 @@ and dec' env d =
     let env = bind env i None in
     (fun env1 -> VarD(i, t, exp env1 e)),
     env
-  | RefD (i, t, e) ->
-    let env = bind env i None in
-    (fun env1 -> RefD(i, t, lexp env1 e)),
-    env
 
 and decs env ds =
   let rec decs_aux env ds =
