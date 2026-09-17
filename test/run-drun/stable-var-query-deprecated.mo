@@ -4,8 +4,8 @@
 import { stableVarQuery } "mo:⛔";
 
 actor footprint = {
-    stable var s : Nat64 = 42;
-    stable var hello : Text = "Hey You!";
+    var s : Nat64 = 42;
+    var hello : Text = "Hey You!";
     var lost : Text = "This will be lost";
     let e0 = "seed";
     let e1 = [e0, e0];
@@ -18,7 +18,7 @@ actor footprint = {
     let e8 = [e7, e7];
     let e9 = [e8, e8];
     let e10 = [e9, e9];
-    stable var expl = e10;
+    var expl = e10;
 
     public func delegate() : async Nat64 {
         let stableVarInfo = stableVarQuery();

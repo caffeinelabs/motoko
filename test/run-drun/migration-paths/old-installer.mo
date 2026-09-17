@@ -6,7 +6,7 @@ import Cycles = "../cycles/cycles";
 import TestCanister "test_canister";
 
 actor installer {
-    stable var testCanister: ?TestCanister.TestCanister = null;
+    var testCanister: ?TestCanister.TestCanister = null;
 
     public func install() : async () {
         if (Cycles.balance() == 0) {

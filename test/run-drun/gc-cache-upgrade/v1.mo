@@ -3,7 +3,7 @@ import Prim "mo:prim";
 // The heap must exceed the GC increment limit so that a cycle spans several messages
 // and the upgrade lands mid-cycle; with a smaller heap a stale cache passes by accident.
 
-persistent actor {
+actor {
 
   var live : [var [var Nat]] = Prim.Array_init<[var Nat]>(192, Prim.Array_init<Nat>(0, 0));
 

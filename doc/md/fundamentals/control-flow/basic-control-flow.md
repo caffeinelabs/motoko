@@ -282,7 +282,7 @@ You can also exit any loop in a function using `return` or (in an asynchronous f
 A function call executes a function by passing arguments and receiving a result. In Motoko, function calls can be synchronous (executing immediately within the same [canister](https://docs.internetcomputer.org/concepts/canisters)) or [asynchronous](../actors/actors-async.md#async--await) (message passing between canisters). Asynchronous calls use `async`/`await` and are essential for inter-canister communication.
 
 ```motoko no-repl
-persistent actor {
+actor {
 
   func product(numbers : [Int]) : Int {
     var prod : Int = 1;

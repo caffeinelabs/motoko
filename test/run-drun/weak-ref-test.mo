@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   var arr = Prim.Array_init<Nat>(13, 0);
 

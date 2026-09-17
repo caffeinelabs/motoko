@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   let keepAlive : [var Blob] = Prim.Array_tabulateVar<Blob>(100, func(i : Nat) : Blob = "");
   var counter = 0;

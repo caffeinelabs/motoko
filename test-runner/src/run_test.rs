@@ -36,7 +36,9 @@ struct Cli {
     files: Vec<String>,
 }
 
-const MOC_ARGS_DEFAULT: &str = "--legacy-actors";
+// Empty since classical persistence (this branch) and `--legacy-actors` (#6356)
+// were both removed; kept as a hook for a future repo-wide default.
+const MOC_ARGS_DEFAULT: &str = "";
 const WASMTIME_OPTIONS: &[&str] = &[
     "-C", "cache=n",
     "-W", "nan-canonicalization=y",

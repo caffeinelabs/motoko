@@ -82,7 +82,7 @@ module myModule {
 If you need mutable state, use an `actor` or an `object` inside an actor instead:
 
 ```motoko no-repl
-persistent actor {
+actor {
   var x = 0; // allowed because actors can have state
 }
 ```

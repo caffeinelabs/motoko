@@ -3,7 +3,7 @@ import { abs } = "mo:core/Int";
 import { now } = "mo:core/Time";
 import { setTimer; recurringTimer } = "mo:core/Timer";
 
-persistent actor Reminder {
+actor Reminder {
 
   transient let solarYearSeconds = 356_925_216;
 

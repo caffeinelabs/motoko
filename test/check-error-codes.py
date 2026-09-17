@@ -65,11 +65,14 @@ def populate_tested_codes():
     tc_ok = glob.glob("./**/*.tc.ok", recursive=True)
     comp_ok = glob.glob("./**/*.comp.ok", recursive=True)
     cmp_ok = glob.glob("./**/*.cmp.ok", recursive=True)
-    paths = tc_ok + comp_ok + cmp_ok
+    # Tests that force --error-format=json carry the code only in their
+    # human-readable golden, so scan those too.
+    human_ok = glob.glob("./**/*.tc-human.ok", recursive=True)
+    paths = tc_ok + comp_ok + cmp_ok + human_ok
     for path in paths:
         with open(path) as fp:
             for line in fp:
-                match = re.search(r"(?:error|warning) \[(M\d+)\]", line)
+                match = re.search(r"(?:error|warning) ?\[(M\d+)\]", line)
                 if match:
                     code = match.group(1)
                     tested_codes.add(code)

@@ -120,7 +120,7 @@ runner embedder reqOutcome relevant name testCase =
         fileArg = fromString . encodeString
         script = do Turtle.output as $ withPrim <$> fromString testCase
                     res@(exitCode, _, _) <- procStrictWithErr "moc"
-                      (addCompilerArgs embedder ["--legacy-actors", "-no-check-ir", fileArg as]) empty
+                      (addCompilerArgs embedder ["-no-check-ir", fileArg as]) empty
                     if ExitSuccess == exitCode
                     then (True,) <$> invokeEmbedder embedder wasm
                     else pure (False, res)
@@ -295,7 +295,7 @@ prop_verifies :: TestCases -> Property
 prop_verifies (TestCases tcs) = monadicIO $ do
   Turtle.output "tests.mo" $ msum $ pure (withPrim mempty) : [ fromString (unparseTestCase tc) | tc <- tcs ]
   res@(exitCode, _, _) <- procStrictWithErr "moc"
-           (addCompilerArgs embedder ["--legacy-actors", "-no-check-ir", "tests.mo"]) empty
+           (addCompilerArgs embedder ["-no-check-ir", "tests.mo"]) empty
   res' <- if exitCode == ExitSuccess
           then (True,) <$> procStrictWithErr (embedderCommand embedder) (addEmbedderArgs embedder ["tests.wasm"]) empty
           else pure (False, res)

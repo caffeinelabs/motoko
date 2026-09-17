@@ -1,8 +1,8 @@
-typtbl.mo:9.7-9.16: warning [M0145], this pattern of type
+typtbl.mo:9.17-9.26: warning [M0145], this pattern of type
   ?()
 does not cover value
   null
-typtbl.mo:14.7-14.9: warning [M0145], this pattern of type
+typtbl.mo:14.17-14.19: warning [M0145], this pattern of type
   ?()
 does not cover value
   null

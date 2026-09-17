@@ -7,7 +7,7 @@ actor {
         right : ?Node<T>;
     };
 
-    stable var root : ?Node<Nat> = null;
+    var root : ?Node<Nat> = null;
 
     func double(value : Nat) {
         root := ?{

@@ -9,6 +9,8 @@ stability.mo:15.4-15.10: type error [M0133], misplaced stability modifier: allow
 stability.mo:16.4-16.10: type error [M0133], misplaced stability modifier: allowed on var or simple let declarations only
 stability.mo:17.15-17.16: type error [M0131], variable f is declared stable but has non-stable type
   () -> ()
+stability.mo:37.11-37.13: type error [M0131], variable o4 is declared stable but has non-stable type
+  {f : () -> ()}
 stability.mo:39.18-39.20: type error [M0131], variable o6 is declared stable but has non-stable type
   {f : () -> ()}
 stability.mo:43.18-43.20: type error [M0131], variable m3 is declared stable but has non-stable type

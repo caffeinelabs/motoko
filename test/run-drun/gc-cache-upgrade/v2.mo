@@ -2,7 +2,7 @@ import Prim "mo:prim";
 
 // Same shape as v1, so the upgrade is memory-compatible and the heap carries over.
 
-persistent actor {
+actor {
 
   var live : [var [var Nat]] = Prim.Array_init<[var Nat]>(192, Prim.Array_init<Nat>(0, 0));
 

@@ -1,3 +1,3 @@
 actor {
-   stable let test = {};
+   let test = {};
 };

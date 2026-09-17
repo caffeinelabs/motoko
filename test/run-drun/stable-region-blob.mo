@@ -4,9 +4,9 @@ import P "mo:⛔";
 import Region "stable-region/Region";
 actor {
 
-  stable var n : Nat64 = 0;
+  var n : Nat64 = 0;
 
-  stable let r = Region.new();
+  let r = Region.new();
 
   assert (n == Region.size(r));
 

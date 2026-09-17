@@ -19,7 +19,7 @@ import {
   rts_lifetime_instructions;
 } = "mo:⛔";
 
-persistent actor Multi {
+actor Multi {
 
   func counters() : (Int, Nat64) = (rts_heap_size(), performanceCounter(0));
 

@@ -1,5 +1,4 @@
 %{
-open Mo_config
 open Mo_def
 open Mo_types
 open Mo_values
@@ -395,7 +394,7 @@ seplist1(X, SEP) :
 %inline obj_sort_opt :
   | os=obj_sort { os }
   | (* empty *) {
-      (persistent (!Flags.actors = Flags.DefaultPersistentActors) no_region, Type.Object @@ no_region)
+      (persistent true no_region, Type.Object @@ no_region)
     }
 
 %inline query:
@@ -898,7 +897,7 @@ stab :
   | TRANSIENT { Some (Flexible @@ at $sloc) }
 
 %inline persistent :
-  | (* empty *) { persistent (!Flags.actors = Flags.DefaultPersistentActors) no_region }
+  | (* empty *) { persistent true no_region }
   | PERSISTENT { persistent true (at $sloc) }
 
 (* Patterns *)

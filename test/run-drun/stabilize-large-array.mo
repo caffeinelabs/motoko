@@ -3,7 +3,7 @@
 import Prim "mo:prim";
 
 actor {
-    stable var largeArray = Prim.Array_tabulate<Nat>(100_000, func(index) { index });
+    var largeArray = Prim.Array_tabulate<Nat>(100_000, func(index) { index });
 
     public func check() : async () {
         Prim.debugPrint("Array of length " # debug_show (largeArray.size()));

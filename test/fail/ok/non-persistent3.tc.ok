@@ -1,1 +1,0 @@
-non-persistent3.mo:5.3-5.9: warning [M0218], redundant `stable` keyword, this declaration is implicitly stable

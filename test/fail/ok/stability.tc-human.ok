@@ -39,6 +39,11 @@ error[M0131]: variable f is declared stable but has non-stable type
     ┌─ stability.mo:17:15
  17 │     stable let f = func(){}; // reject
     │                ^ 
+error[M0131]: variable o4 is declared stable but has non-stable type
+  {f : () -> ()}
+    ┌─ stability.mo:37:11
+ 37 │     object o4 { public func f(){};}; // accept as flexible (could warn)
+    │            ^^ 
 error[M0131]: variable o6 is declared stable but has non-stable type
   {f : () -> ()}
     ┌─ stability.mo:39:18

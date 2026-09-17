@@ -1,4 +1,4 @@
-persistent actor Atomicity {
+actor Atomicity {
 
   transient var s = 0;
   transient var pinged = false;

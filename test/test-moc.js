@@ -17,7 +17,7 @@ Motoko.saveFile("ok.mo", "1");
 Motoko.saveFile("bad.mo", "1+");
 Motoko.saveFile(
   "actor.mo",
-  'persistent actor { type A<B> = B; public query func main() : async A<Text> { "abc" } }'
+  'actor { type A<B> = B; public query func main() : async A<Text> { "abc" } }'
 );
 Motoko.saveFile(
   "ast.mo",
@@ -26,7 +26,7 @@ Motoko.saveFile(
       multi-line */
   import Prim "mo:prim";
 
-  persistent actor {
+  actor {
     /// Type comment
     type T = Nat;
     /// Variable comment
@@ -269,7 +269,7 @@ assert.deepStrictEqual(Motoko.run([], "blob.mo"), {
 
 // Relative --enhanced-migration path resolves against setProjectRoot (#6002)
 Motoko.saveFile("/project/src/Main.mo",
-  'persistent actor { let x : Nat; public func get() : async Nat { x } };'
+  'actor { let x : Nat; public func get() : async Nat { x } };'
 );
 Motoko.saveFile("/project/migrations/m1.mo",
   'module { public func migration(_ : {}) : { x : Nat } { { x = 42 } }; };'

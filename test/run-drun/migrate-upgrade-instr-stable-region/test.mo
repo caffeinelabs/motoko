@@ -3,7 +3,7 @@ import Prim "mo:prim";
 import Region "../stable-region/Region";
 
 actor {
-    stable var region = Region.new();
+    var region = Region.new();
     ignore Region.grow(region, 1);
     Prim.debugPrint("Region size: " # debug_show(Region.size(region)));
 

@@ -3,13 +3,13 @@ import Prim = "mo:prim";
 // test destabilization of stable variables, without rts stack overflow
 actor a {
 
-   let r = Prim.regionNew();
+   transient let r = Prim.regionNew();
    ignore Prim.regionGrow(r, 1);
    assert Prim.regionSize(r) == 1;
 
    type List<T> = ?(T, List<T>);
 
-   stable var map : List<(Blob, Blob)> = null;
+   var map : List<(Blob, Blob)> = null;
 
    var count : Nat32 = 0;
 

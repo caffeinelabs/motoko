@@ -1,5 +1,5 @@
 import Nested "mixins/NestedSystem2";
 
-persistent actor {
+actor {
   include Nested();
 };

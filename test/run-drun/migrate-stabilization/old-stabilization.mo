@@ -9,11 +9,11 @@ actor {
       var first : Node<K, V>;
       var last : Node<K, V>;
    };
-   stable let list : List<Nat, Text> = {
+   let list : List<Nat, Text> = {
       var first = null;
       var last = null;
    };
-   stable var counter = 0;
+   var counter = 0;
 
    Prim.debugPrint("INITIALIZED: " # debug_show(counter));
 

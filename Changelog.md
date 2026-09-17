@@ -37,11 +37,22 @@
     on the command line; the corresponding "flag requires" error is gone
     because EOP is always in effect.
 
-  * Tests: the classical/32-bit test class and the
-    `ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY` test markers are removed, and the
-    upgrades exercising the classical→EOP boundary now install committed
-    classical `old.wasm` fixtures built by `moc` 1.14.1 (see
-    `test/run-drun/*/note.txt`). (#6362)
+  * Tests: the classical/32-bit test class and the persistence test markers
+    are removed, and the upgrades exercising the classical→EOP boundary now
+    install committed classical `old.wasm` fixtures built by `moc` 1.14.1
+    (see `test/run-drun/*/note.txt`). The classical-only `upgrade-hooks` and
+    `map-upgrades` tests are dropped; their EOP twins
+    `stabilization-upgrade-hooks` and `map-stabilization` cover the same
+    sequences. (#6362)
+  * breaking: Actors are now `persistent` by default: a bare `actor`/`actor class`
+    declaration makes its fields implicitly `stable`. The former default, in
+    which actor fields were implicitly `transient`, can no longer be restored
+    via a compiler flag — mark fields `transient` explicitly instead. The
+    `--default-persistent-actors`, `--require-persistent-actors` and
+    `--legacy-actors` flags have been removed (#6356). Diagnostics and
+    documentation no longer treat persistence as a choice: they describe actors
+    as persistent by default and only call out `transient` as the explicit
+    exception.
 
   * feat!: Remove the `stableMemory*` primitives that backed the deprecated
     `ExperimentalStableMemory` library. `Prim.stableMemory*` no longer exists, so
