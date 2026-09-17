@@ -482,6 +482,7 @@ func charIsAlphabetic(c : Char) : Bool = (prim "char_is_alphabetic" : Char -> Bo
 // Blob functions
 
 func blobCompare(b1 : Blob, b2 : Blob) : Int8 = (prim "blob_compare" : (Blob, Blob) -> Int8)(b1, b2);
+func blobDotInt8(b1 : Blob, b2 : Blob) : Int32 = (prim "blob_dot_int8" : (Blob, Blob) -> Int32)(b1, b2);
 func hashBlob(b : Blob) : Nat32 { (prim "crc32Hash" : Blob -> Nat32) b };
 
 // Text conversion
