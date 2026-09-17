@@ -469,12 +469,6 @@ unsafe fn region_reserve_id_span<M: Memory>(
     }
 }
 
-#[ic_mem_fn]
-pub unsafe fn region0_get<M: Memory>(_mem: &mut M) -> Value {
-    debug_assert_ne!(REGION_0, NO_REGION);
-    REGION_0
-}
-
 // Expose Region0 object to GC algorithms as root
 #[allow(dead_code)]
 #[cfg(feature = "ic")]
@@ -969,6 +963,9 @@ pub(crate) unsafe fn region_load<M: Memory>(_mem: &mut M, r: Value, offset: u64,
         // Do rest of block-sized reads.
         // (invariant: they always occur at the start of a block).
         loop {
+            if i >= dst.len() as u64 {
+                break;
+            }
             let (s_, _, b_len) = r.relative_into_absolute_info(offset + i);
             s = s_;
             if i + b_len > dst.len() as u64 {
@@ -1025,6 +1022,9 @@ pub(crate) unsafe fn region_store<M: Memory>(_mem: &mut M, r: Value, offset: u64
         // Do rest of block-sized writes.
         // (invariant: they always occur at the start of a block).
         loop {
+            if i >= src.len() as u64 {
+                break;
+            }
             let (d_, _, b_len) = r.relative_into_absolute_info(offset + i);
             d = d_;
             if i + b_len > src.len() as u64 {

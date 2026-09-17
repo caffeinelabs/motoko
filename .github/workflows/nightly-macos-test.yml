@@ -84,19 +84,24 @@ jobs:
       - name: Restore the `test-blueprint` action
         run:  mv ../test-blueprint ./.github/actions
       - name: Set up `mops`
-        uses: dfinity/motoko-core/.github/actions/setup@83d8d2d9450a506452132625014b7065c61fccff # main
-      - name: Set up `mops` cache
+        uses: dfinity/motoko-core/.github/actions/setup@1e76139d366784a4e3725a2cc5288c313b1ddf05 # main
+      - name: Install the pinned `mops` toolchain
         run: |
           npx ic-mops --version
-          npx ${DFX_MOC_PATH} --version
-      - name: Fixup `mops` cache
+          # Installs the `[toolchain]` versions from motoko-core's mops.toml,
+          # `moc` among them; the setup action only runs `npm ci`.
+          npx ic-mops install
+      - name: Point the pinned `moc` at the M0223-silenced build
         run: |
-          # Point mops at the M0223-silenced moc wrapper (.#moc-M0223, built
-          # before the checkout). Its store path is used explicitly rather than
-          # the `*-moc` glob, since the wrapper and the real moc both end in
-          # `-moc`. Remove once motoko-core is cleaned up — see #6199.
-          ln -sf "$MOC_M0223/bin/moc" "$(cat .mops/moc-*)"
-          npx ${DFX_MOC_PATH} --version
+          # Compile motoko-core with the M0223-silenced wrapper (.#moc-M0223,
+          # built before the checkout) by replacing the toolchain's `moc`.
+          # `mops toolchain init` used to export DFX_MOC_PATH for this, but it
+          # was removed along with `moc-wrapper`, so ask mops where the binary
+          # lives instead of guessing at `.mops/` layout.
+          # Remove once motoko-core is cleaned up — see #6199.
+          MOC_BIN="$(npx ic-mops toolchain bin moc)"
+          ln -sf "$MOC_M0223/bin/moc" "$MOC_BIN"
+          "$MOC_BIN" --version
       - name: Run `motoko-core` Tests
         run: npm test
 

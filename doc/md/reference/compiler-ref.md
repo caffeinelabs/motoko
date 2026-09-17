@@ -36,10 +36,8 @@ You can use the following options with the `moc` command.
 | `--enhanced-orthogonal-persistence`       | Use enhanced orthogonal persistence (default): Scalable and fast upgrades using a persistent 64-bit main memory.                                      |
 | `--enhanced-migration <dir>`              | Enable enhanced migration system: requires initializers for all stable variables, disallows side-effects in actor bodies; only available with enhanced orthogonal persistence. The `motoko:stable-types` custom section is omitted from the wasm (the runtime system enforces stable-type compatibility at upgrade time); the `.most` file is still emitted under `--stable-types`. |
 | `--error-detail <n>`                      | Set level of error message detail for syntax errors, n in \[0..3\] (default 2).                                                                       |
-| `--experimental-stable-memory <n>`        | Select support for the deprecated `ExperimentalStableMemory.mo` library (n < 0: error, n = 0: warn, n > 0: allow) (default 0).                        |
 | `-fno-shared-code`                        | Do not share low-level utility code: larger code size but decreased cycle consumption (default).                                                      |
 | `-fshared-code`                           | Do share low-level utility code: smaller code size but increased cycle consumption.                                                                   |
-| `--generate-view-queries`                 | Auto-generate queries for stable variables; preferring applicable .view() methods (default false)                                                     |
 | `-help`,`--help`                          | Displays usage information.                                                                                                                           |
 | `--hide-warnings`                         | Hides compiler warnings.                                                                                                                              |
 | `-Werror`                                 | Treat warnings as errors.                                                                                                                             |
@@ -64,7 +62,7 @@ You can use the following options with the `moc` command.
 | `--print-deps`                            | Prints the dependencies for a given source file.                                                                                                      |
 | `-r`                                      | Interprets programs.                                                                                                                                  |
 | `--release`                               | Ignores debug expressions in the source.                                                                                                              |
-| `--stable-regions`                        | Force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory, depending on current use of ExperimentalStableMemory. |
+| `--stable-regions`                        | Force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory.                                                                   |
 | `--stable-types`                          | Compile binary and emit signature of stable types to `.most` file.                                                                                    |
 | `--stable-compatible <pre> <post>`        | Test upgrade compatibility between stable-type signatures `<pre>` and `<post>`.                                                                       |
 | `--trap-on-call-error`                    | Trap, don't throw an [`Error`](https://mops.one/core/docs/Error), when an IC call fails due to destination queue full or freezing threshold is crossed. Emulates behavior of moc versions < 0.8.0.                                                                                                                                           |
@@ -79,5 +77,3 @@ You can use the following options with the `moc` command.
 > and `--skip-gc-deprecation-warning` have been removed and are now hard
 > errors. Enhanced orthogonal persistence is always used; a classical canister migrates to enhanced persistence on its next upgrade. That upgrade must be compiled with the explicit `--enhanced-orthogonal-persistence` flag and must not use `--enhanced-migration`: without the flag the new module traps with `Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence`, and with `--enhanced-migration` it traps with `Cannot upgrade from classical orthogonal persistence with --enhanced-migration`. The migration is irreversible; later upgrades need no flag.
 > See the changelog for the 1.16 → v2 migration notes.
-
-

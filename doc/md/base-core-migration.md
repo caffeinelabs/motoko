@@ -86,7 +86,6 @@ The following modules have been **removed** in the core package:
 
 - `AssocList` - Use `Map` or `pure/Map` instead
 - `Buffer` - Use `List` or `VarArray` instead
-- `ExperimentalStableMemory` - Deprecated
 - `Hash` - Vulnerable to hash collision attacks
 - `HashMap` - Use `Map` or `pure/Map`
 - `Heap` - Use `Map` or `Set` instead

@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration enhanced-migration-mixin/migrations --generate-view-queries
+//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration enhanced-migration-mixin/migrations
 import Mixin "enhanced-migration-mixin/Mixin";
 
 actor {
