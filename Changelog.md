@@ -14,6 +14,11 @@
     as persistent by default and only call out `transient` as the explicit
     exception.
 
+  * feat!: Remove the `stableMemory*` primitives that backed the deprecated
+    `ExperimentalStableMemory` library. `Prim.stableMemory*` no longer exists, so
+    importing `mo:base/ExperimentalStableMemory` fails to type-check; use the
+    `Region` library instead. The `M0199` diagnostic is retired with them (#6378).
+
   * feat!: `{ base with ... }` record-update now shallow-copies a base's
     mutable (`var`) fields into fresh cells instead of erroring with M0179 or,
     under the experimental flag, aliasing them to the base's cells. The result

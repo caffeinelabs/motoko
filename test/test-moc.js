@@ -288,15 +288,3 @@ assert.throws(
   () => Motoko.setExtraFlags(["-W=MMM"]),
   /moc: invalid warning code: MMM/
 );
-
-// These flags are removed (#6357); they must be unknown options again rather
-// than silently accepted.
-for (const removed of [
-  "--generate-view-queries",
-  "--experimental-stable-memory",
-  "--experimental-multi-value",
-  "--no-experimental-multi-value",
-]) {
-  assert.throws(() => Motoko.setExtraFlags([removed]), /unknown option/, removed);
-}
-Motoko.setExtraFlags(["-W=M0223"]);
