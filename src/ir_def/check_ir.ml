@@ -942,7 +942,7 @@ let rec check_exp env (exp:Ir.exp) : unit =
       check e1.note.Note.const "constant TagPrim with non-constant subexpression"
     | BlockE (ds, e) ->
       List.iter (fun d -> match d.it with
-        | VarD _ | RefD _ -> check false "VarD/RefD in constant BlockE"
+        | VarD _ -> check false "VarD in constant BlockE"
         | LetD (p, e1) ->
           check (Ir_utils.is_irrefutable p) "refutable pattern in constant BlockE";
           check e1.note.Note.const "non-constant RHS in constant BlockE"
@@ -1183,9 +1183,6 @@ and check_dec env dec  =
   | VarD (id, t, exp) ->
     check_exp env exp;
     typ exp <: t
-  | RefD (id, t, lexp) ->
-    check_lexp env lexp;
-    lexp.note <: t
 
 and check_decs env decs  =
   List.iter (check_dec env) decs;
@@ -1203,13 +1200,6 @@ and gather_dec env scope dec : scope =
       (not (T.Env.mem id scope.val_env))
       "duplicate variable definition in block";
     let val_info = {typ = T.Mut t; const = false; loc_known = env.lvl = TopLvl} in
-    { val_env = T.Env.add id val_info scope.val_env }
-  | RefD (id, t, lexp) ->
-    check_mut_typ env t;
-    check env dec.at
-      (not (T.Env.mem id scope.val_env))
-      "duplicate variable definition in block";
-    let val_info = {typ = t; const = false; loc_known = false} in
     { val_env = T.Env.add id val_info scope.val_env }
 
 and to_async_sort = Type.(function | AwaitCmp -> Cmp | AwaitFut _ -> Fut)

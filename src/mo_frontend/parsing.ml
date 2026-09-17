@@ -145,6 +145,16 @@ let is_statement_start (token : Parser.token) =
   | Parser.BOOL _ | Parser.NULL -> true
   | _ -> false
 
+(* Keywords that open a declaration or continue a compound statement: where one of these is unexpected,
+   the user almost certainly misplaced the construct rather than tried to name something after it *)
+let is_declaration_start (token : Parser.token) =
+  match token with
+  | Parser.PUBLIC | Parser.PRIVATE | Parser.SYSTEM | Parser.SHARED
+  | Parser.STABLE | Parser.FLEXIBLE | Parser.TRANSIENT | Parser.PERSISTENT
+  | Parser.IMPORT | Parser.INCLUDE | Parser.MODULE | Parser.MIXIN | Parser.ACTOR
+  | Parser.CASE | Parser.CATCH | Parser.FINALLY | Parser.ELSE -> true
+  | _ -> false
+
 let contains_substring s sub =
   let n = String.length s and m = String.length sub in
   let rec go i = i + m <= n && (String.sub s i m = sub || go (i + 1)) in
@@ -176,7 +186,7 @@ let handle_error lexbuf error_detail message_store (start, end_)
   let code, msg =
     (* a block of declarations where only a record literal `{ ... }` is allowed: point to `do { ... }` *)
     if is_statement_start last_token && expecting_exp_field explanations then
-      "M0270",
+      "M0273",
       Printf.sprintf
         "unexpected %s: braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`"
         token
@@ -187,21 +197,22 @@ let handle_error lexbuf error_detail message_store (start, end_)
     else if last_token <> Parser.LCURLY && acceptable Parser.LCURLY
             && not (acceptable (Parser.ID "id")) && not (acceptable Parser.LPAR)
             && not (acceptable Parser.EQ) then
-      "M0272",
+      "M0275",
       Printf.sprintf
         "unexpected %s, expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition"
         token
     (* a record literal or block where neither is allowed, e.g. written directly as a `switch` or `if` head *)
     else if last_token = Parser.LCURLY && acceptable Parser.LPAR then
-      "M0269",
+      "M0272",
       "a record literal or block is not allowed in this position; wrap a record in parentheses, `({ ... })`, or use `do { ... }` for a block"
-    (* a reserved keyword where an identifier would do; statement-starting keywords (`return`, `async*`, ...) and `else` are excluded —
-       there the user almost certainly meant the statement *)
+    (* a reserved keyword where only an identifier would do; statement- and declaration-starting keywords (`return`, `public`, ...)
+       are excluded, as is any position that also accepts `;` — there the keyword most likely starts the next declaration after a
+       missing separator (`let x = 1 <newline> public func ...`) *)
     else if (match last_token with
-             | Parser.ID _ | Parser.ELSE -> false
-             | t -> not (is_statement_start t) && keyword_shaped lexeme)
-            && acceptable (Parser.ID "id") then
-      "M0271",
+             | Parser.ID _ -> false
+             | t -> not (is_statement_start t) && not (is_declaration_start t) && keyword_shaped lexeme)
+            && acceptable (Parser.ID "id") && not (acceptable Parser.SEMICOLON) then
+      "M0274",
       Printf.sprintf
         "`%s` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `%s_`)"
         lexeme lexeme

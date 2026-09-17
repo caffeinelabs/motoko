@@ -1,7 +1,7 @@
 # This is a test blueprint action that will be called from
 # test.yml, where the actual CI is invoked from.
 # It will call the tests defined in the flake.nix file.
-# These are: common-tests, gc-tests, and tests (debug, release)
+# These are: common-tests and tests (debug, release)
 #
 # On Linux the nix builds are offloaded to https://nixbuild.net (a remote
 # Nix builder optimised for Nix), so the GitHub runner itself does almost no
@@ -24,7 +24,7 @@ inputs:
     description: "OS to run tests on (ubuntu-latest, ubuntu-26.04-arm, macos-latest, ...)"
   test-target:
     required: true
-    description: "The test target to run (e.g. common-tests, gc-tests, release-systems-go, debug-systems-go)"
+    description: "The test target to run (e.g. common-tests, release-systems-go, debug-systems-go)"
   test-name:
     required: true
     description: "Name of the test to display in logs"

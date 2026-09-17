@@ -178,18 +178,15 @@
             let
               matchDebug = builtins.match ".*-debug$" name;
               matchRelease = builtins.match ".*-release$" name;
-              matchGC = builtins.match ".*-gc$" name;
               matchPerf = builtins.match ".*(bench|perf)$" name;
-              # Common tests are those that do not match -debug, -release, -gc, or -bench, -perf.
+              # Common tests are those that do not match -debug, -release, or -bench, -perf.
               matchCommon = matchDebug == null &&
                 matchRelease == null &&
-                matchGC == null &&
                 matchPerf == null;
             in
             {
               debug = matchDebug != null;
               release = matchRelease != null;
-              gc = matchGC != null;
               common = matchCommon;
             }.${type})
           tests);
@@ -254,19 +251,12 @@
         # Platform-specific release files.
         release-files-ubuntu-latest = import ./nix/release-files-ubuntu-latest.nix { inherit self pkgs; };
         "release-files-ubuntu-26.04-arm" = import ./nix/release-files-ubuntu-26.04-arm.nix { inherit self pkgs; };
-        release-files-macos-15-intel = import ./nix/release-files-macos-15-intel.nix { inherit self pkgs; };
         release-files-macos-latest = import ./nix/release-files-macos-latest.nix { inherit self pkgs; };
 
-        # Common tests version - includes non-GC, non-release/debug specific tests.
+        # Common tests version - includes non-release/debug specific tests.
         common-tests = pkgs.releaseTools.aggregate {
           name = "common-tests";
           constituents = filterTests "common"; # Only include common tests.
-        };
-
-        # GC tests version - only includes GC tests.
-        gc-tests = pkgs.releaseTools.aggregate {
-          name = "gc-tests";
-          constituents = filterTests "gc"; # Only include GC tests.
         };
 
         # Release version - excludes debug tests.

@@ -1,4 +1,4 @@
-//MOC-FLAG --enhanced-orthogonal-persistence --default-persistent-actors --enhanced-migration multi-migration-bad-chain/bad-init
+//MOC-FLAG --enhanced-orthogonal-persistence --enhanced-migration multi-migration-bad-chain/bad-init
 
 import Prim "mo:prim";
 

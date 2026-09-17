@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   public func test() : async () {
     let myPrincipal = Prim.getSelfPrincipal<system>();

@@ -1,7 +1,7 @@
 //SKIP comp
 // compare_typ Async arm (and compare_async_sort) via LUB of async expressions.
 
-persistent actor A {
+actor A {
   public func getAsync(b : Bool) : async Nat {
     if b { await async 1 } else { await async 2 }
   };

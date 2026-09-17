@@ -16,25 +16,11 @@
 use crate::gc::incremental::{get_incremental_gc_state, partitioned_heap::PARTITION_SIZE};
 use crate::memory::ic::partitioned_memory::{get_heap_size, get_total_allocations};
 use crate::types::Bytes;
-use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
+use motoko_rts_macros::enhanced_orthogonal_persistence;
 
 struct HeapThresholds {
     critical_heap_limit: Bytes<usize>,
     medium_heap_limit: Bytes<usize>,
-}
-
-#[classical_persistence]
-impl HeapThresholds {
-    unsafe fn get() -> HeapThresholds {
-        use crate::constants::{GB, MB};
-
-        const CRITICAL_HEAP_LIMIT: Bytes<usize> = Bytes(2 * GB + 256 * MB);
-        const MEDIUM_HEAP_LIMIT: Bytes<usize> = Bytes(1 * GB);
-        HeapThresholds {
-            critical_heap_limit: CRITICAL_HEAP_LIMIT,
-            medium_heap_limit: MEDIUM_HEAP_LIMIT,
-        }
-    }
 }
 
 #[enhanced_orthogonal_persistence]

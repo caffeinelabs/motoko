@@ -26,10 +26,10 @@
       position: `opt ?? { x = 0 }` is a record literal (it previously did
       not parse), and a block on the right must be written `opt ?? do { ... }`.
 
-    * new targeted parse errors with concrete fix-its: `M0269` (record literal
+    * new targeted parse errors with concrete fix-its: `M0272` (record literal
       in block position, e.g. a `case` arm or function body, suggesting to
-      nest the record as the block's result), `M0270` (block in record-literal
-      position, suggesting `do { ... }`), and `M0271` (reserved keyword such
+      nest the record as the block's result), `M0273` (block in record-literal
+      position, suggesting `do { ... }`), and `M0274` (reserved keyword such
       as `query` or `implicit` used as an identifier), replacing the generic
       `M0001` in these situations.
 
@@ -51,7 +51,7 @@
       the brace discipline: when the head of `if`/`while` is more than a
       single atom (or a `for` head is unparenthesized), the branches or body
       must be blocks — `if f(x) { e1 } else { e2 }`, never `if f(x) e1 else e2`
-      (diagnosed by the new `M0272` with a fix-it). Bare branches remain
+      (diagnosed by the new `M0275` with a fix-it). Bare branches remain
       available exactly as before, with parenthesized or atomic heads.
       An `else if` chain that starts from an unparenthesized head stays
       braced throughout (`if f(x) { } else if c { } else { }`); a bare-branch
@@ -69,9 +69,152 @@
       after an expression (`x#y`), but the half-spaced form `x #y` now parses
       as `x` juxtaposed with the variant `#y` and is rejected.
 
-    * `M0269` additionally covers a record literal written directly as a
+    * `M0272` additionally covers a record literal written directly as a
       `switch`/`if`/`while` head, where the `{` already belongs to the
       construct's body.
+
+  * **Important:** classical (legacy, 32-bit) persistence is removed.
+    `moc` now always targets enhanced orthogonal persistence (EOP) with a
+    persistent 64-bit main memory, and 32-bit (`wasm32`) RTS builds no
+    longer exist. The classical-only flags `--legacy-persistence`,
+    `--copying-gc`, `--compacting-gc`, `--generational-gc`,
+    `--rts-stack-pages` and `--skip-gc-deprecation-warning` are removed and
+    now fail with a hard error. `--incremental-gc` and
+    `--enhanced-orthogonal-persistence` remain accepted (they select the
+    only remaining behavior).
+
+  * Existing classical canisters are **not** orphaned: the runtime keeps
+    reading all earlier classical stable-memory formats, and a classical
+    canister migrates to enhanced persistence on its next upgrade. That
+    upgrade must be compiled with the explicit
+    `--enhanced-orthogonal-persistence` flag and must not use
+    `--enhanced-migration`: without the flag the new module traps with
+    "Detected implicit upgrade from classical orthogonal persistence to
+    enhanced orthogonal persistence", and with `--enhanced-migration` it
+    traps with "Cannot upgrade from classical orthogonal persistence with
+    --enhanced-migration". The migration is irreversible; later upgrades
+    need no flag. The graph-copy stabilization machinery that performs it
+    is retained.
+
+  * Because `--legacy-persistence` is gone, `moc` can no longer *produce*
+    classical canisters; projects that still need a classical module must
+    keep an older `moc` (e.g. 1.14.x). The incremental GC is the only GC;
+    the non-incremental classical GCs (copying, compacting, generational)
+    are removed.
+
+  * `--enhanced-migration` no longer requires `--enhanced-orthogonal-persistence`
+    on the command line; the corresponding "flag requires" error is gone
+    because EOP is always in effect.
+
+  * Tests: the classical/32-bit test class and the persistence test markers
+    are removed, and the upgrades exercising the classical→EOP boundary now
+    install committed classical `old.wasm` fixtures built by `moc` 1.14.1
+    (see `test/run-drun/*/note.txt`). The classical-only `upgrade-hooks` and
+    `map-upgrades` tests are dropped; their EOP twins
+    `stabilization-upgrade-hooks` and `map-stabilization` cover the same
+    sequences. (#6362)
+  * breaking: Actors are now `persistent` by default: a bare `actor`/`actor class`
+    declaration makes its fields implicitly `stable`. The former default, in
+    which actor fields were implicitly `transient`, can no longer be restored
+    via a compiler flag — mark fields `transient` explicitly instead. The
+    `--default-persistent-actors`, `--require-persistent-actors` and
+    `--legacy-actors` flags have been removed (#6356). Diagnostics and
+    documentation no longer treat persistence as a choice: they describe actors
+    as persistent by default and only call out `transient` as the explicit
+    exception.
+
+  * feat!: Remove the `stableMemory*` primitives that backed the deprecated
+    `ExperimentalStableMemory` library. `Prim.stableMemory*` no longer exists, so
+    importing `mo:base/ExperimentalStableMemory` fails to type-check; use the
+    `Region` library instead. The `M0199` diagnostic is retired with them (#6378).
+
+  * feat!: `{ base with ... }` record-update now shallow-copies a base's
+    mutable (`var`) fields into fresh cells instead of erroring with M0179 or,
+    under the experimental flag, aliasing them to the base's cells. The result
+    is exactly the equivalent field-for-field record literal, so mutating the
+    copy does not mutate the base and vice versa. The now-redundant
+    `--experimental-field-aliasing` flag is removed; aliasing is no longer
+    supported. Breaking change: inherited `var` fields from a base now copy
+    instead of alias, so code relying on the experimental aliasing flag must
+    use explicit `var x = base.x` copies or a shared reference (#6346).
+
+  * feat!: Remove the `--generate-view-queries` flag (and the `__<var>` view
+    queries it generated), the no-op `--(no-)experimental-multi-value` flags, and
+    the `--experimental-stable-memory` flag. Using the deprecated
+    `ExperimentalStableMemory` library (or its primitives) is now an unconditional
+    `M0199` error; use the `Region` library instead (#6357).
+
+  * feat: the contextual dot suggestion (`M0236`) is now on by default: `moc`
+    warns about calls like `Map.filter(map, ...)` that could be written with
+    dot notation `map.filter(...)`. Silence with `-A M0236`. The related
+    suggestions `M0223` (redundant type instantiation) and `M0237` (redundant
+    explicit arguments) remain off by default (allow with `-W`). (#6361)
+
+  * BREAKING CHANGE: the `motoko-Darwin-x86_64` release tarball and the
+    Intel-Mac (`macos-15-intel`) build/release CI legs are dropped; neither
+    the compiler nor its runtime are built or shipped for Intel Macs anymore.
+    x86_64-linux, aarch64-linux and Apple Silicon (`macos-latest`) binaries
+    continue to be produced. Users on Intel Macs should build from source.
+    The `motoko-base-library.tar.gz` release artifact is also dropped;
+    `motoko-core.tar.gz` is unaffected. (#6355)
+
+* motoko-js (`moc.js`)
+
+  * **Breaking:** `gcFlags` accepts only `"incremental"`, `"enhancedOP"`
+    (both no-ops, describing the only remaining mode), `"force"` and
+    `"scheduling"`; `"copying"`, `"marking"`, `"generational"` and
+    `"classicOP"` now throw `Invalid_argument` (#6362).
+
+## 1.16.1 (2026-09-16)
+
+* motoko (`moc`)
+
+  * bugfix: trapping `**` on `Nat8`, `Nat16`, `Nat32`, `Int8`, `Int16` and
+    `Int32` now traps when the result overflows the 64-bit intermediate
+    instead of returning a wrapped value (e.g. `(65536 : Nat32) ** 4` returned
+    `0`) (#6340).
+
+  * bugfix: `Region.loadBlob`/`Region.storeBlob` no longer read one block past
+    the end of a region's block table when a block-aligned range ends exactly
+    at the end of the region (#6373).
+
+  * perf: the incremental GC's write, allocation and weak-reference read barriers now
+    gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).
+
+  * perf: don't GC trace dummy coercion markers for freshly Candid-decoded
+    objects (#6370).
+
+## 1.16.0 (2026-09-09)
+
+* motoko (`moc`)
+
+  * feat: warn (default-on, M0269) that `.vals()` is deprecated in favor of
+    `.values()` on arrays and Blob, and warn (default-on, M0270) that
+    `system func preupgrade`/`postupgrade` are deprecated in favor of the
+    persistent upgrade machinery. Silence with `-A=M0269` / `-A=M0270`
+    (#6347).
+
+  * feat: add `Prim.costVetkdDeriveKey` for querying the cycle cost of the
+    IC `cost_vetkd_derive_key` system call, mirroring the existing
+    `costSignWithEcdsa`/`costSignWithSchnorr` primitives. It takes a `Text`
+    key name and a `Nat32` curve encoding and returns `(resultCode, costOrUndefined)`,
+    where a non-zero `resultCode` signals an invalid key name or curve
+    encoding, and `costOrUndefined` is the cost when `resultCode == 0` (#6353).
+
+  * bugfix: `///` doc comments on members contributed to an actor via a
+    `mixin` `include` now appear in the generated Candid interface (`.did`),
+    matching the behavior for directly-declared members. Previously such
+    docs were silently dropped (#6351).
+
+  * bugfix: The contextual dot suggestion (`M0236`) no longer proposes
+    rewriting `M.f(e, ...)` to `e.f(...)` when the rewrite would resolve
+    differently: the suggestion now validates the rewritten callee against
+    the actual dot resolution, so a same-named function field on the
+    receiver (including the built-in fields of arrays, blobs and text)
+    suppresses the suggestion (#6343).
+
+  * bugfix: trap on array element counts that cannot be allocated, instead of
+    wrapping the byte size computed from them (#6312).
 
 ## 1.15.1 (2026-09-02)
 

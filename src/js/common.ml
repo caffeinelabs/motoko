@@ -10,7 +10,6 @@ let moc_args = Mo_args.inclusion_args
   @ Mo_args.warning_args
   @ Mo_args.error_args
   @ Mo_args.ai_args
-  @ Mo_args.persistent_actors_args
   @ Mo_args.migration_args
 
 let position_of_pos pos =
@@ -279,7 +278,7 @@ let js_parse_motoko_typed_with_scope_cache_impl enable_recovery paths scope_cach
   (* senv: accumulated scope from prelude and all transitive imports *)
   | Ok ((_libs, progs, senv, scope_cache), msgs) ->
     let progs =
-      progs |> List.map (fun (prog, immediate_imports, sscope) ->
+      progs |> List.map (fun ((prog : Mo_def.Syntax.prog), immediate_imports, sscope) ->
         let open Mo_def in
         let module Arrange = Astjs.Make (struct
           let include_sources = true
@@ -403,12 +402,10 @@ let gc_flags option =
   match Js.to_string option with
   | "force" -> Flags.force_gc := true
   | "scheduling" -> Flags.force_gc := false
-  | "copying" -> Flags.gc_strategy := Mo_config.Flags.Copying
-  | "marking" -> Flags.gc_strategy := Mo_config.Flags.MarkCompact
-  | "generational" -> Flags.gc_strategy := Mo_config.Flags.Generational
-  | "incremental" -> Flags.gc_strategy := Mo_config.Flags.Incremental
-  | "enhancedOP" -> Flags.enhanced_orthogonal_persistence := true
-  | "classicOP" -> Flags.enhanced_orthogonal_persistence := false
+  | "incremental" -> () (* the incremental GC is the only GC *)
+  | "enhancedOP" -> () (* enhanced orthogonal persistence is always used *)
+  | ("copying" | "marking" | "generational" | "classicOP") as s ->
+      raise (Invalid_argument (Printf.sprintf "gc_flags: %s was removed; only \"incremental\" is supported" s))
   | _ -> raise (Invalid_argument "gc_flags: Unexpected flag")
 
 let js_contextual_dot_suggestions scope raw_exp =

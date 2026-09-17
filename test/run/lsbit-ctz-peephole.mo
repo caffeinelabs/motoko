@@ -1,5 +1,3 @@
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
-
 // Regression test for the LSB-and-1 → ctz peephole in EOP.
 // `if_both_tagged_scalar` emits `or; const 1; and; wrap_i64; if(slow,fast)`,
 // which the peephole at `instrList.ml` rewrites to `or; ctz; wrap_i64; if(fast,slow)`.

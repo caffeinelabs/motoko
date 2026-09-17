@@ -1,2 +1,2 @@
-// `implicit` is reserved (M0271).
+// `implicit` is reserved (M0274).
 let implicit = 5;

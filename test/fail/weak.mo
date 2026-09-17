@@ -6,10 +6,10 @@ actor a {
 
   transient let alloc = Prim.allocWeakRef;
 
-  stable let w : weak Blob = Prim.allocWeakRef("" : Blob); // accept, stable with eop
+  let w : weak Blob = Prim.allocWeakRef("" : Blob); // accept, stable with eop
   let wAlive = Prim.isLive(w);
 
-  stable let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
+  let bad1 : weak(() -> ()) = Prim.allocWeakRef(func() {}); // reject,  non-stable
 
   let bad1Alive = Prim.isLive(bad1);
 

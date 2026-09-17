@@ -1,3 +1,3 @@
 import Prim "mo:⛔";
 
-Prim.stableM;
+Prim.region;

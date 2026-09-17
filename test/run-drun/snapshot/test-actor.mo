@@ -1,7 +1,7 @@
 import Prim "mo:prim";
 
 actor class TestActor() {
-    stable var version = 0;
+    var version = 0;
     version += 1;
     var trapOnPreUpgrade = false;
 
