@@ -127,14 +127,6 @@ let argspec =
   "-ref-system-api",
   Arg.Unit (fun () -> Flags.(compile_mode := RefMode)),
       " use the reference implementation of the Internet Computer system API (ic-ref-run)";
-  "--experimental-multi-value",
-  Arg.Unit (fun () ->
-    eprintf "moc: --experimental-multi-value has no effect; multi-value codegen is always on.\n"),
-  " (deprecated, no effect) multi-value codegen is always on";
-  "--no-experimental-multi-value",
-  Arg.Unit (fun () ->
-    eprintf "moc: --no-experimental-multi-value has no effect; multi-value codegen is always on.\n"),
-  " (deprecated, no effect) multi-value codegen can no longer be disabled";
 
   "-dp", Arg.Set Flags.dump_parse, " dump parse";
   "-dt", Arg.Set Flags.dump_tc, " dump type-checked AST";
@@ -162,54 +154,48 @@ let argspec =
   "--stable-regions",
   Arg.Unit (fun () ->
     Flags.use_stable_regions := true),
-      " force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory, depending on current use of ExperimentalStableMemory library";
+      " force eager initialization of stable regions metadata (for testing purposes); consumes between 386KiB or 8MiB of additional physical stable memory";
 
   "--generational-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Generational),
-  " use generational GC (only available with legacy/classical persistence)\n\
-  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
+  Arg.Unit (fun () ->
+    fail "moc: --generational-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
 
   "--incremental-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Incremental),
-  " use incremental GC (default, works with both enhanced orthogonal persistence and legacy/classical persistence)";
+  Arg.Unit (fun () -> ()),
+  " use incremental GC (default and only GC)";
 
   "--compacting-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.MarkCompact),
-  " use compacting GC (only available with legacy/classical persistence)\n\
-  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
+  Arg.Unit (fun () ->
+    fail "moc: --compacting-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
 
   "--copying-gc",
-  Arg.Unit (fun () -> Flags.gc_strategy := Mo_config.Flags.Copying),
-  " use copying GC (only available with legacy/classical persistence)\n\
-  \  Deprecated, will be removed in the future. Use --incremental-gc instead.";
+  Arg.Unit (fun () ->
+    fail "moc: --copying-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the incremental garbage collector is always used";
+
+  "--rts-stack-pages",
+  Arg.Unit (fun () ->
+    fail "moc: --rts-stack-pages has been removed; the runtime system stack has a fixed size with enhanced orthogonal persistence. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the runtime system stack has a fixed size";
+
+  "--skip-gc-deprecation-warning",
+  Arg.Unit (fun () ->
+    fail "moc: --skip-gc-deprecation-warning has been removed; the non-incremental garbage collectors it silenced warnings for no longer exist. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) the non-incremental garbage collectors no longer exist";
 
   "--force-gc",
   Arg.Unit (fun () -> Flags.force_gc := true),
   " disable GC scheduling, always do GC after an update message (for testing)";
 
-  "--experimental-stable-memory",
-  Arg.Set_int Flags.experimental_stable_memory,
-  " <n> select support for the deprecated `ExperimentalStableMemory.mo` library (n < 0: error, n == 0: warn, n > 0: allow) (default " ^ (Int.to_string Flags.experimental_stable_memory_default) ^ ")";
-
   "--max-stable-pages",
   Arg.Set_int Flags.max_stable_pages,
   "<n>  set maximum number of pages available to stable memory via the `Region` library (default " ^ (Int.to_string Flags.max_stable_pages_default) ^ ")";
 
-  "--experimental-field-aliasing",
-  Arg.Unit (fun () -> Flags.experimental_field_aliasing := true),
-  " enable experimental support for aliasing of var fields";
-
   "--experimental-rtti",
   Arg.Unit (fun () -> Flags.rtti := true),
   " enable experimental support for precise runtime type information (default with enhanced orthogonal persistence)";
-
-  "--generate-view-queries",
-  Arg.Unit (fun () -> Flags.generate_view_queries := true),
-  " auto-generate queries for stable variables; preferring applicable .view() methods (default false)";
-
-  "--rts-stack-pages",
-  Arg.Int (fun pages -> Flags.rts_stack_pages := Some pages),
-  "<n>  set maximum number of pages available for runtime system stack (default " ^ (Int.to_string Flags.rts_stack_pages_default) ^ ", only available with classical persistence)";
 
   "--trap-on-call-error",
   Arg.Unit (fun () -> Flags.trap_on_call_error := true),
@@ -217,21 +203,19 @@ let argspec =
 
   (* persistence *)
   "--enhanced-orthogonal-persistence",
-  Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := true;
-                      Flags.explicit_enhanced_orthogonal_persistence := true),
+  Arg.Unit (fun () -> Flags.explicit_enhanced_orthogonal_persistence := true),
   " use enhanced orthogonal persistence (default): Scalable and fast upgrades using a persistent 64-bit main memory. Also, enable upgrade from classical to enhanced orthogonal persistence";
 
   (* persistence *)
   "--legacy-persistence",
-  Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := false),
-  " use legacy (classical) persistence. This also enables the usage of --copying-gc, --compacting-gc, and --generational-gc. Deprecated in favor of the new enhanced orthogonal persistence, which is default. Legacy persistence will be removed in the future.";
+  Arg.Unit (fun () ->
+    fail "moc: --legacy-persistence has been removed; enhanced orthogonal persistence is always used. Existing classical canisters upgrade to enhanced persistence on their next upgrade. See the changelog for the 1.16 → v2 migration notes."),
+  " (removed) enhanced orthogonal persistence is always used";
 
   "-unguarded-enhanced-orthogonal-persistence",
-  Arg.Unit (fun () -> Flags.enhanced_orthogonal_persistence := true; Flags.explicit_enhanced_orthogonal_persistence := false),
+  Arg.Unit (fun () -> Flags.explicit_enhanced_orthogonal_persistence := false),
   Args._UNDOCUMENTED_ "  (internal testing only)";
   ]
-
-  @ Args.persistent_actors_args
 
   @ Args.migration_args
 
@@ -258,10 +242,6 @@ let argspec =
   "-fshared-code",
   Arg.Unit (fun () -> Flags.share_code := true),
   " do share low-level utility code: smaller code size but increased cycle consumption";
-
-  "--skip-gc-deprecation-warning",
-  Arg.Unit (fun () -> Flags.skip_gc_deprecation_warning := true),
-  " skip the deprecation warning for the GC strategy flags"
 
   ]
 
@@ -397,22 +377,9 @@ let () =
   if !Flags.warnings_are_errors && (not !Flags.print_warnings)
   then fail "moc: --hide-warnings and -Werror together do not make sense";
 
-  if Option.is_some !Flags.enhanced_migration && not !Flags.enhanced_orthogonal_persistence
-  then begin
-    eprintf "moc: --enhanced-migration flag requires --enhanced-orthogonal-persistence flag\n"; exit 1
-  end;
-
   if Option.is_some !Flags.stable_baseline && Option.is_none !Flags.enhanced_migration
   then begin
     eprintf "moc: --stable-baseline requires --enhanced-migration\n"; exit 1
-  end;
-
-  if not !Flags.skip_gc_deprecation_warning 
-  then begin
-    match !Flags.gc_strategy with
-    | Mo_config.Flags.Copying | Mo_config.Flags.MarkCompact | Mo_config.Flags.Generational ->
-        eprintf "moc: --%s-gc is deprecated and will be removed in the future. Use --incremental-gc instead.\n" (Flags.gc_strategy_to_str !Flags.gc_strategy); 
-      | _ -> ();
   end;
 
   process_profiler_flags ();

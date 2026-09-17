@@ -3,7 +3,6 @@ use motoko_rts::leb128::{
     leb128_decode_checked, leb128_encode, sleb128_decode_checked, sleb128_encode,
 };
 
-use motoko_rts_macros::{classical_persistence, enhanced_orthogonal_persistence};
 use proptest::test_runner::{Config, TestCaseError, TestCaseResult, TestRunner};
 
 pub unsafe fn test() {
@@ -37,34 +36,6 @@ pub unsafe fn test() {
     check_overflows();
 }
 
-#[classical_persistence]
-unsafe fn check_overflows() {
-    check_signed_decode_overflow(&[
-        0b1111_1111,
-        0b1111_1111,
-        0b1111_1111,
-        0b1111_1111,
-        0b0111_0111,
-    ]); // i32::MIN - 1
-
-    check_signed_decode_overflow(&[
-        0b1000_0000,
-        0b1000_0000,
-        0b1000_0000,
-        0b1000_0000,
-        0b0000_1000,
-    ]); // i32::MAX + 1
-
-    check_unsigned_decode_overflow(&[
-        0b1000_0000,
-        0b1000_0000,
-        0b1000_0000,
-        0b1000_0000,
-        0b0001_0000,
-    ]); // u32::MAX + 1
-}
-
-#[enhanced_orthogonal_persistence]
 unsafe fn check_overflows() {
     check_signed_decode_overflow(&[
         0b1111_1111,

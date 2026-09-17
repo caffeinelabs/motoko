@@ -98,7 +98,7 @@ import Debug "mo:core/Debug";
 
 let numbers = [0, 1, 2, 3, 4];
 
-for (num in numbers.vals()) {
+for (num in numbers.values()) {
   Debug.print(debug_show(num));
 };
 ```
@@ -110,7 +110,7 @@ import Debug "mo:core/Debug";
 
 let pairs = [(1, 2), (3, 4)];
 
-for ((fst, snd) in pairs.vals()) {
+for ((fst, snd) in pairs.values()) {
   Debug.print(debug_show(fst + snd));
 };
 ```

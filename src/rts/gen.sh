@@ -11,11 +11,5 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-perl -0777 -ne 'print "let wasm_non_incremental_release = lazy \""; printf "\\x%02x", $_ for unpack("C*", $_); print "\"\n";' "$1/mo-rts-non-incremental.wasm" > "$file"
-perl -0777 -ne 'print "let wasm_non_incremental_debug = lazy \""; printf "\\x%02x", $_ for unpack("C*", $_); print "\"";' "$1/mo-rts-non-incremental-debug.wasm" >> "$file"
-
-perl -0777 -ne 'print "let wasm_incremental_release = lazy \""; printf "\\x%02x", $_ for unpack("C*", $_); print "\"\n";' "$1/mo-rts-incremental.wasm" >> "$file"
-perl -0777 -ne 'print "let wasm_incremental_debug = lazy \""; printf "\\x%02x", $_ for unpack("C*", $_); print "\"";' "$1/mo-rts-incremental-debug.wasm" >> "$file"
-
-perl -0777 -ne 'print "let wasm_eop_release = lazy \""; printf "\\x%02x", $_ for unpack("C*", $_); print "\"\n";' "$1/mo-rts-eop.wasm" >> "$file"
+perl -0777 -ne 'print "let wasm_eop_release = lazy \""; printf "\\x%02x", $_ for unpack("C*", $_); print "\"\n";' "$1/mo-rts-eop.wasm" > "$file"
 perl -0777 -ne 'print "let wasm_eop_debug = lazy \""; printf "\\x%02x", $_ for unpack("C*", $_); print "\"";' "$1/mo-rts-eop-debug.wasm" >> "$file"

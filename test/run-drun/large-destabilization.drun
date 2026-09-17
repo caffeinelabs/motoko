@@ -1,3 +1,2 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID large-destabilization/large-destabilization.mo ""
 upgrade $ID large-destabilization/large-destabilization.mo ""

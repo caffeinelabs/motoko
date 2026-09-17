@@ -2,9 +2,9 @@ import Prim "mo:prim";
 
 actor {
 
-let ?o1 = from_candid(to_candid({x = (5 : Nat32)})) :?({x : ?Nat32});
-let ?o2 = from_candid(to_candid({x = (5 : Nat32)})) :?({x : ??Nat32});
-let ?o3 = from_candid(to_candid({x = (5 : Nat32)})) :?({x : ???Nat32});
+transient let ?o1 = from_candid(to_candid({x = (5 : Nat32)})) :?({x : ?Nat32});
+transient let ?o2 = from_candid(to_candid({x = (5 : Nat32)})) :?({x : ??Nat32});
+transient let ?o3 = from_candid(to_candid({x = (5 : Nat32)})) :?({x : ???Nat32});
 
 Prim.debugPrint (debug_show {o1;o2;o3});
 

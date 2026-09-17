@@ -1,8 +1,5 @@
-# CLASSICAL-PERSISTENCE-ONLY
-# DEFAULT-GC-ONLY
-
-# Start with classical persistence
-install $ID migration-paths/old-installer.mo ""
+# Start with classical persistence (committed `old.wasm`, see note.txt)
+install $ID migration-paths/old.wasm ""
 ingress $ID install "DIDL\x00\x00"
 ingress $ID upgrade "DIDL\x00\x00"
 ingress $ID upgrade_replace_main_memory "DIDL\x00\x00"
@@ -21,5 +18,5 @@ ingress $ID upgrade_replace_main_memory "DIDL\x00\x00"
 ingress $ID initiate_graph_copy "DIDL\x00\x00"
 ingress $ID upgrade_keep_main_memory "DIDL\x00\x00"
 
-# Try to downgrade. This will fail:
-upgrade $ID migration-paths/old-installer.mo ""
+# Try to downgrade back to classical persistence. This will fail:
+upgrade $ID migration-paths/old.wasm ""

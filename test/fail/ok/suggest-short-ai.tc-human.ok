@@ -109,6 +109,9 @@ error[M0072]: field s does not exist in type:
     costSignWithSchnorr :
       (keyName : Text, algorithmEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
+    costVetkdDeriveKey :
+      (keyName : Text, curveEncoding : Nat32) ->
+        (resultCode : Nat32, costOrUndefined : Nat);
     createActor : (wasm : Blob, argument : Blob) -> async Principal;
     ctzInt16 : (w : Int16) -> Int16;
     ctzInt32 : (w : Int32) -> Int32;
@@ -285,28 +288,6 @@ error[M0072]: field s does not exist in type:
     shiftLeft : (x : Nat, shift : Nat32) -> Nat;
     shiftRight : (x : Nat, shift : Nat32) -> Nat;
     sin : (f : Float) -> Float;
-    stableMemoryGrow : (pages : Nat64) -> Nat64;
-    stableMemoryLoadBlob : (offset : Nat64, size : Nat) -> Blob;
-    stableMemoryLoadFloat : (offset : Nat64) -> Float;
-    stableMemoryLoadInt16 : (offset : Nat64) -> Int16;
-    stableMemoryLoadInt32 : (offset : Nat64) -> Int32;
-    stableMemoryLoadInt64 : (offset : Nat64) -> Int64;
-    stableMemoryLoadInt8 : (offset : Nat64) -> Int8;
-    stableMemoryLoadNat16 : (offset : Nat64) -> Nat16;
-    stableMemoryLoadNat32 : (offset : Nat64) -> Nat32;
-    stableMemoryLoadNat64 : (offset : Nat64) -> Nat64;
-    stableMemoryLoadNat8 : (offset : Nat64) -> Nat8;
-    stableMemorySize : () -> Nat64;
-    stableMemoryStoreBlob : (offset : Nat64, val : Blob) -> ();
-    stableMemoryStoreFloat : (offset : Nat64, val : Float) -> ();
-    stableMemoryStoreInt16 : (offset : Nat64, val : Int16) -> ();
-    stableMemoryStoreInt32 : (offset : Nat64, val : Int32) -> ();
-    stableMemoryStoreInt64 : (offset : Nat64, val : Int64) -> ();
-    stableMemoryStoreInt8 : (offset : Nat64, val : Int8) -> ();
-    stableMemoryStoreNat16 : (offset : Nat64, val : Nat16) -> ();
-    stableMemoryStoreNat32 : (offset : Nat64, val : Nat32) -> ();
-    stableMemoryStoreNat64 : (offset : Nat64, val : Nat64) -> ();
-    stableMemoryStoreNat8 : (offset : Nat64, val : Nat8) -> ();
     stableVarQuery : () -> shared query () -> async {size : Nat64};
     tan : (f : Float) -> Float;
     textCompare : (t1 : Text, t2 : Text) -> Int8;

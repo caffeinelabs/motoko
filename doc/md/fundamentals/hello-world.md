@@ -10,9 +10,9 @@ sidebar:
 Below is an example of "Hello, world!" written in Motoko:
 
 ```motoko no-repl
-// If an actor is declared with the persistent keyword, all private declarations are considered stable by default
-persistent actor HelloWorld {
-  // We store the greeting in a stable variable such that it gets persisted over canister upgrades.
+// Every actor is `persistent` by default: its fields persist across canister upgrades.
+actor HelloWorld {
+  // We store the greeting in a variable that persists over canister upgrades.
   var greeting : Text = "Hello, ";
 
   // This update method modifies the greeting prefix.
@@ -31,7 +31,7 @@ In this example:
 
 1. The code begins by defining an [actor](./actors/actors-async.md) named `HelloWorld`. In Motoko, an actor is an object capable of maintaining state and communicating with other entities via message passing.
 
-2. It then declares the variable `greeting`. This is a [stable variable](./types/stable-types.md) because the actor is declared with the keyword `persistent`. Stable variables are used to store data that persists across canister upgrades. [Read more about canister upgrades.](https://docs.internetcomputer.org/guides/canister-management/lifecycle#upgrade-a-canister)
+2. It then declares the variable `greeting`. Like every actor field, `greeting` is persisted across canister upgrades, so the prefix the canister has been set to is never lost — even when the canister is upgraded with new code. [Read more about canister upgrades.](https://docs.internetcomputer.org/guides/canister-management/lifecycle#upgrade-a-canister)
 
 3. An [update method](https://docs.internetcomputer.org/concepts/canisters#update-calls) named `setGreeting` is used to modify the canister’s state. This method specifically updates the value stored in `greeting`.
 

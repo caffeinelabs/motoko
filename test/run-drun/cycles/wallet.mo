@@ -3,7 +3,7 @@ import Cycles "cycles";
 
 shared(msg) actor class Wallet() {
 
-  let print = Prim.debugPrint;
+  transient let print = Prim.debugPrint;
 
   let owner = msg.caller;
 

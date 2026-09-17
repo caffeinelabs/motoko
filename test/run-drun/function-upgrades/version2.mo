@@ -5,5 +5,5 @@ actor {
    public shared func f2(_ : {#one; #three}, _ : { oldField : Nat }) : async { oldField : Int } {
       loop {};
    };
-   stable let x2 = f2;
+   let x2 = f2;
 };

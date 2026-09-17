@@ -186,7 +186,7 @@ let handle_error lexbuf error_detail message_store (start, end_)
   let code, msg =
     (* a block of declarations where only a record literal `{ ... }` is allowed: point to `do { ... }` *)
     if is_statement_start last_token && expecting_exp_field explanations then
-      "M0270",
+      "M0273",
       Printf.sprintf
         "unexpected %s: braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`"
         token
@@ -197,7 +197,7 @@ let handle_error lexbuf error_detail message_store (start, end_)
              | Parser.ID _ -> false
              | t -> not (is_statement_start t) && not (is_declaration_start t) && keyword_shaped lexeme)
             && acceptable (Parser.ID "id") && not (acceptable Parser.SEMICOLON) then
-      "M0271",
+      "M0274",
       Printf.sprintf
         "`%s` is a reserved keyword and cannot be used as an identifier; choose a different name (e.g. `%s_`)"
         lexeme lexeme

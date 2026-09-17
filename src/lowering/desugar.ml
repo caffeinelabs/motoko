@@ -624,14 +624,7 @@ and export_runtime_information self_id =
   let bind1 = typ_arg scope_con1 Scope scope_bound in
   let bind2 = typ_arg scope_con2 Scope scope_bound in
   let gc_strategy =
-    let open Mo_config in
-    let strategy = match !Flags.gc_strategy with
-    | Flags.Default -> "default"
-    | Flags.MarkCompact -> "compacting"
-    | Flags.Copying -> "copying"
-    | Flags.Generational -> "generational"
-    | Flags.Incremental -> "incremental" in
-    if !Flags.force_gc then (Printf.sprintf "%s force" strategy) else strategy
+    if !Mo_config.Flags.force_gc then "incremental force" else "incremental"
   in
   let prim_call function_name = primE (I.OtherPrim function_name) [] in
   let information = [
@@ -679,60 +672,6 @@ and export_runtime_information self_id =
   )],
    [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
 
-and export_view viewer_opt =
-  match viewer_opt with
-  | None -> ([], [], [])
-  | Some {viewer_body; viewer_field} ->
-     let open T in
-     let ts1, ts2, mk_body =
-       match (viewer_body, T.normalize viewer_field.typ) with
-       | DotViewV view_exp, T.Func(Shared Query, _, [_], ts1, ts2) ->
-         (* id.view() available *)
-         assert (List.for_all T.shared ts2);
-         ts1, ts2, fun vs ->
-           let view_e =
-             callE (exp view_exp) [] (seqE (List.map varE vs))
-           in
-           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
-       | DefaultV view_exp, T.Func(Shared Query, _, [_], [], ts2) ->
-         (* id, t shared *)
-         assert (List.for_all T.shared ts2);
-         [], ts2, fun _vs ->
-           let view_e = exp view_exp in
-           primE (Ir.CastPrim (view_e.note.Note.typ, T.seq ts2)) [view_e]
-       | _ -> assert false
-     in
-     let vs = fresh_vars "param" ts1 in
-     let args = List.map arg_of_var vs in
-     let lab = viewer_field.lab in
-     let v = fresh_id ("$"^lab) () in
-     let scope_con1 = Cons.fresh "T1" (Abs ([], scope_bound)) in
-     let scope_con2 = Cons.fresh "T2" (Abs ([], Any)) in
-     let bind1 = typ_arg scope_con1 Scope scope_bound in
-     let bind2 = typ_arg scope_con2 Scope scope_bound in
-     let typ = viewer_field.typ in
-     let caller = fresh_var "caller" caller in
-     let is_self_or_controller =
-       orE (primE (I.RelPrim (principal, Operator.EqOp)) [varE caller; selfRefE principal])
-         (primE (I.OtherPrim "is_controller") [varE caller])
-     in
-     ([ letD (var v typ) (
-          funcE v (Shared Query) Promises [bind1] args ts2 (
-            (asyncE T.Fut bind2
-              (blockE [
-                 (* authentication, self or controller only *)
-                 letD caller (primE I.ICCallerPrim []);
-                 expD (ifE is_self_or_controller
-                   (unitE())
-                   (primE (Ir.OtherPrim "trap")
-                     [textE "Unauthorized caller (caller must be self or a controller)"]))
-                 ]
-                 (mk_body vs))
-              (Con (scope_con1, []))))
-      )],
-      [T.{lab;typ; src = empty_src}],
-      [{ it = I.{ name = lab; var = v }; at = no_region; note = typ }])
-
 and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it with
   | S.TypD _ -> []
   | S.MixinD _ -> assert false
@@ -752,21 +691,13 @@ and build_stabs (df : S.dec_field) : stab option list = match df.it.S.dec.it wit
     List.concat_map build_stabs decs
   | _ -> [df.it.S.stab]
 
-and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
-  let fs0 = build_fields obj_typ0 in
+and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ =
+  let fs = build_fields obj_typ in
   let stabs = List.concat_map build_stabs es in
   let ds = decs (List.map (fun ef -> ef.it.S.dec) es) in
   let pairs = List.map2 stabilize stabs ds in
   let idss = List.map fst pairs in
   let ids = List.concat idss in
-  let triples = List.map view stabs in
-  let view_ds = List.concat_map (fun (ds, _, _) -> ds) triples in
-  (* let view_fields = List.concat_map (fun (_, flds, _) -> flds) triples in *)
-  let view_fields = [] in
-  let view_fs = List.concat_map (fun (_, _, fs) -> fs) triples in
-  let (sort, tfs0, tfs1) = T.as_obj' obj_typ0 in
-  let obj_typ = T.Obj(sort, List.sort T.compare_field (tfs0@view_fields), tfs1) in
-  let fs = fs0@view_fs in
   let stab_fields = List.sort T.compare_field
     (List.map (fun (i, t) -> T.{lab = i; typ = t; src = empty_src}) ids)
   in
@@ -1011,7 +942,7 @@ and build_actor at chain ts (exp_opt : Ir.exp option) self_id es obj_typ0 =
             mem_ty)) in
   let footprint_d, footprint_f = export_footprint self_id (with_stable_vars Fun.id) in
   let runtime_info_d, runtime_info_f = export_runtime_information self_id in
-  I.(ActorE (footprint_d @ runtime_info_d @ ds' @ view_ds, footprint_f @ runtime_info_f @ fs,
+  I.(ActorE (footprint_d @ runtime_info_d @ ds', footprint_f @ runtime_info_f @ fs,
      { meta;
        preupgrade = (primE (I.ICStableWrite mem_ty) []);
        postupgrade =
@@ -1048,7 +979,7 @@ and stabilize stab_opt d =
   match s, d.it with
   | (S.Flexible, _) ->
     ([], fun _ -> d)
-  | (S.Stable _, I.VarD(i, t, e)) ->
+  | (S.Stable, I.VarD(i, t, e)) ->
     ([(i, T.Mut t)],
      fun get_state ->
      let v = fresh_var i t in
@@ -1063,8 +994,7 @@ and stabilize stab_opt d =
      varD (var i (T.Mut t))
        (switch_optE (dotE (callE (varE get_state) [] (unitE ())) i (T.Opt t))
          fallback (varP v) (varE v) t))
-  | (S.Stable _, I.RefD _) -> assert false (* RefD cannot come from user code *)
-  | (S.Stable _, I.LetD({it = I.VarP i; _} as p, e)) ->
+  | (S.Stable, I.LetD({it = I.VarP i; _} as p, e)) ->
     let t = p.note in
     ([(i, t)],
      fun get_state ->
@@ -1080,17 +1010,8 @@ and stabilize stab_opt d =
      letP p
        (switch_optE (dotE (callE (varE get_state) [] (unitE ())) i (T.Opt t))
          fallback (varP v) (varE v) t))
-  | (S.Stable _, I.LetD _) ->
+  | (S.Stable, I.LetD _) ->
     assert false
-
-and view stab_opt =
-  match stab_opt with
-  | None -> ([], [], [])
-  | Some stab ->
-    match stab.it with
-    | S.Flexible -> ([], [], [])
-    | S.Stable viewer ->
-      export_view (!viewer)
 
 and build_obj at s self_id dfs obj_typ =
   let fs = build_fields obj_typ in
@@ -1152,7 +1073,7 @@ and obj obj_typ efs bases =
       let [@warning "-8"] [base_var] = concat_map ((|>) lab) pickers in
       let d =
         if T.is_mut typ then
-          refD id { it = I.DotLE(varE base_var, lab); note = typ; at = no_region }
+          varD id (dotE (varE base_var) lab (T.as_immut typ))
         else
           letD id (dotE (varE base_var) lab typ) in
       let f = { it = I.{ name = lab; var = id_of_var id }; at = no_region; note = typ } in
@@ -1266,7 +1187,7 @@ and dec' d =
   | S.TypD _ -> []
   | S.MixinD _ -> []
   | S.IncludeD(_, _, args, note) ->
-    let { imports = is; pat = p; decs } = Option.get !note in
+    let { imports = is; pat = p; decs; _ } = Option.get !note in
     let ir_imports = List.map transform_import is in
     let renamed_imports, rho = Rename.decs Rename.Renaming.empty ir_imports in
     let renamed_pat, rho = Rename.pat rho (pat p) in
@@ -1580,7 +1501,7 @@ let import_compiled_class (lib : S.comp_unit) wasm : import_declaration =
           (callE (varE install_actor_helper) cs'
             (tupE [
               install_arg;
-              boolE ((!Mo_config.Flags.enhanced_orthogonal_persistence));
+              boolE true; (* enhanced orthogonal persistence *)
               varE wasm_blob;
               primE (Ir.SerializePrim ts1') [seqE (List.map varE vs)]])))
         (primE (Ir.CastPrim (T.principal, t_actor)) [varE principal]))

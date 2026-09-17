@@ -69,7 +69,7 @@ module Map {
 
 };
 
-persistent actor {
+actor {
   let peopleMap = Map.empty<Nat, Text>();
 
   ignore Nat.compare(0, 1); // no-warn

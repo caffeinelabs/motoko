@@ -14,14 +14,14 @@ If reinitialization is unintended, and you want to preserve the consumed value, 
     │ ╰─────^ 
   9 │    actor A {
 warning[M0244]: variable data is never reassigned, consider using `let`
-    ┌─ migration-warn.mo:11:15
- 11 │     stable var data = 0;
-    │                ^^^^ 
+    ┌─ migration-warn.mo:11:8
+ 11 │     var data = 0;
+    │         ^^^^ 
 warning[M0244]: variable data is never reassigned, consider using `let`
-    ┌─ migration-warn.mo:24:15
- 24 │     stable var data = 0;
-    │                ^^^^ 
+    ┌─ migration-warn.mo:24:8
+ 24 │     var data = 0;
+    │         ^^^^ 
 warning[M0244]: variable data is never reassigned, consider using `let`
-    ┌─ migration-warn.mo:37:15
- 37 │     stable var data = 0;
-    │                ^^^^ 
+    ┌─ migration-warn.mo:37:8
+ 37 │     var data = 0;
+    │         ^^^^ 

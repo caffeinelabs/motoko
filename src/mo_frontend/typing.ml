@@ -66,7 +66,6 @@ type env =
     used_identifiers : usage T.Env.t ref;
     unused_warnings : UWSet.t ref;
     shared_pat_regions : region list ref;
-    reported_stable_memory : bool ref;
     errors_only : bool;
     type_recovery : bool;
     srcs : Field_sources.t;
@@ -106,7 +105,6 @@ let env_of_scope msgs scope =
     used_identifiers = ref T.Env.empty;
     unused_warnings = ref UWSet.empty;
     shared_pat_regions = ref [];
-    reported_stable_memory = ref false;
     errors_only = false;
     type_recovery = false;
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
@@ -353,17 +351,6 @@ let check_deprecation env at desc id depr =
   | None -> ()
   | Some ("M0235" as code) ->
     warn env at code "%s %s is deprecated for caffeine" desc id
-  | Some ("M0199" as code) ->
-    if !(env.reported_stable_memory) then ()
-    else begin
-      env.reported_stable_memory := true;
-      (match compare !Flags.experimental_stable_memory 0 with
-       | -1 -> error
-       | 0 -> warn
-       | _ -> fun ?(notes = []) ?(spans = []) ?(edits = []) _ _ _ _ -> ())
-       env at code
-       "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/ or compile with flag `--experimental-stable-memory 1` to suppress this message."
-    end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
     | Some m -> warn env at "M0235" ~notes:[m] "%s %s is deprecated for caffeine" desc id
@@ -1444,19 +1431,22 @@ let check_lit env t lit at suggest =
 
 let array_obj t =
   let open T in
-  let immut t =
-    [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src};
-      {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
-      {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
+  (* in [compare_field] order; `put` (mutable arrays only) sorts between `keys` and `size` *)
+  let fields t put =
+    {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [t]); src = empty_src} ::
+    {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src} ::
+    put @
+    [ {lab = "size";  typ = Func (Local, Returns, [], [], [Prim Nat]); src = empty_src};
       {lab = "vals"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
       {lab = "values"; typ = Func (Local, Returns, [], [], [iter_obj t]); src = empty_src};
     ] in
-  let mut t = immut t @
-    [ {lab = "put"; typ = Func (Local, Returns, [], [Prim Nat; t], []); src = empty_src} ] in
   Object,
-  List.sort compare_field (match t with Mut t' -> mut t' | t -> immut t)
+  match t with
+  | Mut t' ->
+    fields t' [ {lab = "put"; typ = Func (Local, Returns, [], [Prim Nat; t'], []); src = empty_src} ]
+  | t -> fields t []
 
-let blob_obj () =
+let blob_obj =
   let open T in
   Object,
   [ {lab = "get";  typ = Func (Local, Returns, [], [Prim Nat], [Prim Nat8]); src = empty_src};
@@ -1466,7 +1456,7 @@ let blob_obj () =
     {lab = "keys"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Nat)]); src = empty_src};
   ]
 
-let text_obj () =
+let text_obj =
   let open T in
   Object,
   [ {lab = "chars"; typ = Func (Local, Returns, [], [], [iter_obj (Prim Char)]); src = empty_src};
@@ -2281,32 +2271,88 @@ let dot_rewrite_receiver exp es ts_size =
     && Syntax.is_postfix_exp e && e.at.left.line = e.at.right.line -> Some (id, e, rest)
   | _ -> None
 
+(* The field view a receiver type exposes to `e.f`: object fields, or the built-in pseudo-fields of arrays, blobs and text. *)
+let dot_field_view id t1 =
+  try Some (snd (T.as_obj_sub [id] t1)) with Invalid_argument _ ->
+  try Some (snd (array_obj (T.as_array_sub t1))) with Invalid_argument _ ->
+  try T.as_prim_sub T.Blob t1; Some (snd blob_obj) with Invalid_argument _ ->
+  try T.as_prim_sub T.Text t1; Some (snd text_obj) with Invalid_argument _ ->
+  None
+
+let dot_error_not_obj env receiver_at t0 =
+  type_error receiver_at "M0070"
+    (Format.asprintf env "expected object type, but expression produces type%a" display_typ_expand t0) [] [] []
+
+let dot_field_suggestions env id fs =
+  suggest_span env id.at (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs))
+
+let dot_error_missing_field env id t0 fs =
+  type_error id.at "M0072"
+    (Format.asprintf env "field %s does not exist in %a" id.it display_obj t0)
+    [] (dot_field_suggestions env id fs) []
+
+type 'a dot_callee_resolution =
+  (* The receiver's own field — it shadows contextual dot. *)
+  | DotField of T.typ * T.field list
+  (* Contextual dot resolution, with the field-access error to report when contextual dot fails too. *)
+  | DotCtxDot of (ctx_dot_candidate, 'a context_dot_error) Result.t * (unit -> Diag.message)
+
+let warn_deprecated_vals env id fs =
+  if id.it = "vals" && T.lookup_val_field_opt "values" fs <> None then
+    warn env id.at "M0269" "member `.vals()` is deprecated; use `.values()` instead"
+
+(* How a dot callee `e.f(...)` resolves: a function-typed field of the receiver shadows contextual dot.
+   The single source of that precedence — [infer_callee] and the M0236 suggestion both resolve through it, so they cannot drift.
+   [t1] is the promoted receiver type; [t0] the unpromoted one, only for error messages. *)
+let resolve_dot_callee env id receiver_at t0 t1 =
+  let is_func_typ t = T.(match promote t with Func _ | Non -> true | _ -> false) in
+  match dot_field_view id.it t1 with
+  | None ->
+    DotCtxDot (contextual_dot env id t1, fun () -> dot_error_not_obj env receiver_at t0)
+  | Some fs ->
+    match T.lookup_val_field_opt id.it fs with
+    | Some T.Pre -> DotField (T.Pre, fs)
+    | Some t when is_func_typ (T.as_immut t) -> DotField (t, fs)
+    | field ->
+      DotCtxDot (contextual_dot env id t1, fun () ->
+        match field with
+        | Some _ ->
+          type_error id.at "M0234"
+            (Format.asprintf env "field %s does exist in %a\nbut is not a function." id.it display_obj t0)
+            [] (dot_field_suggestions env id fs) []
+        | None -> dot_error_missing_field env id t0 fs)
+
 let check_can_dot env m0236_prep tys exp at =
   match m0236_prep, tys with
   | Some (id, e, es_rest, Some inferred), receiver_ty :: _ ->
-    (match contextual_dot env id receiver_ty with
-     | Error _ -> ()
-     | Ok {path;_} ->
-       match path.it, exp.it with
-       | DotE ({ it = VarE {it = mod_id0; _};_ }, { it = id0; _}, _),
-         DotE ({ it = VarE {it = mod_id1; note = (Const, _); _};_ } as old_receiver, _, _)
-         when mod_id0 = mod_id1 && id0 = id.it ->
-         (* Rewrite `M.f(e, ...)` to `e.f(...)` is only safe when `e` can be inferred to the SAME receiver type, not just a compatible type because it could change the resolution! *)
-         if not (T.eq ~src_fields:env.srcs inferred receiver_ty) then () else
-         (match read_region e.at with
-          | None -> ()
-          | Some receiver_text ->
-            let replace_receiver = edit old_receiver.at receiver_text in
-            let argument_edit = match es_rest with
-              | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
-              | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
-              | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
-            in
-            warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-              ~edits:[replace_receiver; argument_edit]
-              receiver_text
-              id.it)
-       | _ -> ())
+    (match exp.it with
+     | DotE ({ it = VarE {it = mod_id; note = (Const, _); _};_ } as old_receiver, _, _) ->
+       (* Suggest `M.f(e, ...)` -> `e.f(...)` only when `e` infers to the SAME receiver type —
+          a mere subtype could change the chosen instantiation... *)
+       if not (T.eq ~src_fields:env.srcs inferred receiver_ty) then () else
+       (* ...and when `e.f` still resolves to the same `M.f` — a same-named function field on the receiver would shadow it. *)
+       (match resolve_dot_callee env id e.at inferred (T.promote inferred) with
+        | DotField _ -> ()
+        | DotCtxDot (Error _, _) -> ()
+        | DotCtxDot (Ok {path; _}, _) ->
+          match path.it with
+          | DotE ({ it = VarE {it = mod_id0; _};_ }, { it = id0; _}, _)
+            when mod_id0 = mod_id && id0 = id.it ->
+            (match read_region e.at with
+             | None -> ()
+             | Some receiver_text ->
+               let replace_receiver = edit old_receiver.at receiver_text in
+               let argument_edit = match es_rest with
+                 | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
+                 | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
+                 | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
+               in
+               warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+                 ~edits:[replace_receiver; argument_edit]
+                 receiver_text
+                 id.it)
+          | _ -> ())
+     | _ -> ())
   | _ -> ()
 
 
@@ -2538,9 +2584,9 @@ and infer_exp'' env exp : T.typ =
   | ObjE (exp_bases, exp_fields) ->
     infer_check_bases_fields env [] exp.at exp_bases exp_fields
   | DotE (exp1, id, _) ->
-    (match try_infer_dot_exp env exp.at exp1 id ("", (fun dot_typ -> true))  with
+    (match try_infer_dot_exp env exp.at exp1 id with
     | Ok t -> t
-    | Error (_, mk_e) ->
+    | Error mk_e ->
       if env.pre && env.type_recovery then T.Non else
       let e = mk_e() in
       Diag.add_msg env.msgs e;
@@ -2890,53 +2936,26 @@ and infer_bin_exp env exp1 exp2 =
     let t2 = T.normalize (infer_exp env exp2) in
     t1, t2
 
-(* Returns `Ok` when finding an object with a matching field or
-   `Error` with the type of the receiver as well as the error message
-   to report. This is used to delay the reporting for contextual dot resulution *)
-and try_infer_dot_exp env at exp id (desc, pred) =
+(* Returns `Ok` on an object with a matching field, `Error` with the message to report.
+   Dot callees take a different path: [infer_callee] resolves them via [resolve_dot_callee], where contextual dot may apply. *)
+and try_infer_dot_exp env at exp id =
   let t0, t1 = infer_exp_and_promote env exp in
-  let fields =
-    try Ok(T.as_obj_sub [id.it] t1) with Invalid_argument _ ->
-    try Ok(array_obj (T.as_array_sub t1)) with Invalid_argument _ ->
-    try Ok(blob_obj (T.as_prim_sub T.Blob t1)) with Invalid_argument _ ->
-    try Ok(text_obj (T.as_prim_sub T.Text t1)) with Invalid_argument _ ->
-      Error(t1, fun () ->
-        type_error exp.at "M0070"
-          (Format.asprintf env
-             "expected object type, but expression produces type%a"
-             display_typ_expand t0) [] [] [])
-  in
-  match fields with
-  | Error e -> Error e
-  | Ok((s, fs)) -> begin
-    let suggest () =
-      Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs)
-    in
+  match dot_field_view id.it t1 with
+  | None -> Error (fun () -> dot_error_not_obj env exp.at t0)
+  | Some fs -> begin
     match T.lookup_val_field_opt id.it fs with
     | Some(T.Pre) ->
       error env at "M0071"
         "cannot infer type of forward field reference %s"
         id.it
-    | Some(t) when pred (T.as_immut t) ->
-      if not env.pre then
+    | Some(t) ->
+      if not env.pre then begin
         check_deprecation env at "field" id.it (T.lookup_val_deprecation id.it fs);
+        warn_deprecated_vals env id fs
+      end;
       Ok(t)
-    | Some(t) (* when not (pred t) *) ->
-      Error(t1, fun () ->
-        let spans = suggest_span env id.at (suggest ()) in
-        type_error id.at "M0234"
-          (Format.asprintf env "field %s does exist in %a\nbut is not %s."
-             id.it
-             display_obj t0
-             desc) [] spans [])
     | None ->
-      Error(t1, fun () ->
-        let spans = suggest_span env id.at
-          (Suggest.suggest_id "field" id.it (List.map (fun f -> f.T.lab) fs)) in
-        type_error id.at "M0072"
-          (Format.asprintf env "field %s does not exist in %a"
-             id.it
-             display_obj t0) [] spans [])
+      Error (fun () -> dot_error_missing_field env id t0 fs)
     end
 
 and infer_exp_field env rf =
@@ -2982,13 +3001,6 @@ and infer_check_bases_fields env (check_fields : T.field list) exp_at exp_bases 
   iter2 (fun t exp ->
     let _, fs, tfs = T.as_obj' t in
     fs |> iter (fun f ->
-      (* do not allow var fields for now (to avoid aliasing) *)
-      if not (!Flags.experimental_field_aliasing) && T.is_mut f.T.typ then begin
-        info env exp.at "overwrite field to resolve error";
-        error env exp.at "M0179"
-          "base has non-aliasable var field%a"
-          display_lab f.T.lab
-      end;
       match Hashtbl.find_opt field_map f.T.lab with
       | Some at ->
         info env at "field also present in base, here (consider overwriting)";
@@ -3364,41 +3376,41 @@ and detect_lost_fields env t = function
   | _ -> ()
 
 and infer_callee env exp =
-  let is_func_typ typ = T.(
-    match promote typ with
-    | Func _ | Non -> true
-    | _ -> false)
-  in
   match exp.it with
   | DotE(exp1, id, note) -> begin
-    match try_infer_dot_exp env exp.at exp1 id ("a function", is_func_typ) with
-    | Ok t ->
+    let t0, t1 = infer_exp_and_promote env exp1 in
+    match resolve_dot_callee env id exp1.at t0 t1 with
+    | DotField (T.Pre, _) ->
+      error env exp.at "M0071" "cannot infer type of forward field reference %s" id.it
+    | DotField (t, fs) ->
+      if not env.pre then begin
+        check_deprecation env exp.at "field" id.it (T.lookup_val_deprecation id.it fs);
+        warn_deprecated_vals env id fs
+      end;
       infer_exp_wrapper (fun _ _ -> t) T.as_immut env exp, None
-    | Error (t1, mk_e) ->
-      match contextual_dot env id t1 with
-      | Error (DotSuggestions mk_suggestions) ->
-        if env.pre && env.type_recovery then T.Non, None else
-        (* TODO: move this logic into mk_suggestions *)
-        let suggestions = mk_suggestions env in
-        let e = mk_e () in
-        let e1 =
-          if suggestions = []
-          then e
-          else Diag.{e with text =
-            e.text ^
-            Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " suggestions)}
-        in
-        Diag.add_msg env.msgs e1; raise Recover
-      | Error (DotAmbiguous mk_error) ->
-        mk_error env
-      | Ok { module_ref; path; func_ty; inst; _ } ->
-        note := Some path;
-        if not env.pre then begin
-          check_exp env func_ty path;
-          let note_eff = A.infer_effect_exp exp in
-          exp.note <- {note_typ = func_ty; note_eff}
-        end;
-        func_ty, Some (exp1, t1, id.it, inst)
+    | DotCtxDot (Error (DotSuggestions mk_suggestions), mk_e) ->
+      if env.pre && env.type_recovery then T.Non, None else
+      (* TODO: move this logic into mk_suggestions *)
+      let suggestions = mk_suggestions env in
+      let e = mk_e () in
+      let e1 =
+        if suggestions = []
+        then e
+        else Diag.{e with text =
+          e.text ^
+          Stdlib.Format.sprintf "\nHint: Did you mean to import %s?" (String.concat " or " suggestions)}
+      in
+      Diag.add_msg env.msgs e1; raise Recover
+    | DotCtxDot (Error (DotAmbiguous mk_error), _) ->
+      mk_error env
+    | DotCtxDot (Ok { path; func_ty; inst; _ }, _) ->
+      note := Some path;
+      if not env.pre then begin
+        check_exp env func_ty path;
+        let note_eff = A.infer_effect_exp exp in
+        exp.note <- {note_typ = func_ty; note_eff}
+      end;
+      func_ty, Some (exp1, t1, id.it, inst)
      end
   | _ ->
      infer_exp_promote env exp, None
@@ -4575,6 +4587,8 @@ and check_system_fields env sort scope tfs dec_fields =
           (* TBR why does Stable.md require this to be a manifest function, not just any expression of appropriate type?  *)
           if vis = System then
             begin
+              if id.it = "preupgrade" || id.it = "postupgrade" then
+                warn env id.at "M0270" "system function `%s` is deprecated; use migration functions instead" id.it;
               let (t1, _, _) = T.Env.find id.it scope.Scope.val_env in
               if not (sub env id.at t1 t) then
                 local_error env df.at "M0127" "system function %s is declared with type%a\ninstead of expected type%a" id.it
@@ -4923,8 +4937,8 @@ and check_stable_defaults env sort dec_fields =
   if Option.is_some env.enhanced_migration then begin
     List.iter (fun dec_field ->
       match dec_field.it.stab, dec_field.it.dec.it with
-      | Some {it = Stable _; _}, LetD (_, exp, _)
-      | Some {it = Stable _; _}, VarD (_, exp) ->
+      | Some {it = Stable; _}, LetD (_, exp, _)
+      | Some {it = Stable; _}, VarD (_, exp) ->
         (match exp.it with
          | PrimE "_"
          | AnnotE ({it = PrimE "_"; _}, _) -> () (* placeholder for no initializer -- OK *)
@@ -4937,11 +4951,11 @@ and check_stable_defaults env sort dec_fields =
   let declared_persistent = sort.note.it in
   if declared_persistent then
     begin
-      if !Flags.actors = Flags.DefaultPersistentActors && sort.note.at <> no_region then
-        warn env sort.note.at "M0217" "with flag --default-persistent-actors, the `persistent` keyword is redundant and can be removed";
+      if sort.note.at <> no_region then
+        warn env sort.note.at "M0217" "redundant `persistent` keyword";
       List.iter (fun dec_field ->
         match dec_field.it.stab, dec_field.it.dec.it with
-        | Some {it = Stable _; at; _}, (LetD _ | VarD _) ->
+        | Some {it = Stable; at; _}, (LetD _ | VarD _) ->
           if at <> no_region then
             warn env at "M0218"
               ~edits:[edit at ""]
@@ -4949,23 +4963,6 @@ and check_stable_defaults env sort dec_fields =
         | _ -> ())
       dec_fields
     end
-  else
-    (* non-`persistent` *)
-    if !Flags.actors = Flags.RequirePersistentActors then
-    let has_implicit_flexible =
-      List.fold_left (fun acc dec_field ->
-        match dec_field.it.stab, dec_field.it.dec.it with
-        | Some {it = Flexible; at; _}, (LetD _ | VarD _) ->
-           if at = no_region
-           then
-             (local_error env dec_field.it.dec.at "M0219" "this declaration is currently implicitly transient, please declare it explicitly `transient`";
-              true)
-           else acc
-        | _ -> acc)
-        false dec_fields
-    in
-    if not has_implicit_flexible then
-      local_error env sort.at "M0220" "this actor or actor class should be declared `persistent`"
   end
 
 and check_stab env sort scope dec_fields =
@@ -4990,16 +4987,12 @@ and check_stab env sort scope dec_fields =
       let include_note = Option.get !note in
       let fs = check_stab env sort scope include_note.decs in
       List.map (fun f -> {it = f.T.lab; at = no_region; note = ()}) fs
-    | (T.Actor | T.Mixin), Some {it = Stable view; _}, VarD (id, _) ->
+    | (T.Actor | T.Mixin), Some {it = Stable; _}, VarD (id, _) ->
       check_stable id.it id.at;
-      if sort.it = T.Actor then
-        infer_viewer env scope Var id view;
       [id]
-    | (T.Actor | T.Mixin), Some {it = Stable view; _}, LetD (pat, _, _) when stable_pat pat ->
+    | (T.Actor | T.Mixin), Some {it = Stable; _}, LetD (pat, _, _) when stable_pat pat ->
       let ids = T.Env.keys (gather_pat env Scope.empty pat).Scope.val_env in
       List.iter (fun id -> check_stable id pat.at) ids;
-      if sort.it = T.Actor then
-        infer_viewer env scope Const (stable_id pat) view;
       List.map (fun id -> {it = id; at = pat.at; note = ()}) ids;
     | (T.Actor | T.Mixin), Some {it = Flexible; _} , (VarD _ | LetD _) -> []
     | (T.Actor | T.Mixin), Some stab, _ ->
@@ -5025,61 +5018,6 @@ and check_stab env sort scope dec_fields =
              typ;
              src = {depr = None; track_region = id.at; region = id.at}})
       ids)
-
-and infer_viewer env scope mut id viewer =
-  if not !Flags.generate_view_queries then ()
-  else
-  begin
-    let at = id.at in
-    assert (!viewer = None);
-    let lab = "__" ^ id.it in
-    if T.Env.mem lab scope.Scope.val_env || String.starts_with ~prefix:"__motoko" lab
-    then () (* avoid any clash with local or reserved `__motokoXXX` members by omitting viewer *)
-    else
-      let viewer_field args ret =
-        (* approximate non-shared returns to Any, if necessary *)
-        let shared_ret =
-          List.map (fun ty -> if T.shared ty then ty else T.Any) ret in
-        T.{ lab; typ = Func (Shared Query, Promises, [scope_bind], args, shared_ret); src = empty_src } in
-      let infer_dot_view =
-        Diag.with_message_store (recover_opt (fun msgs ->
-          (* checkpoint env.used_identifiers *)
-          let saved_used_identifiers = !(env.used_identifiers) in
-          let env = {env with msgs} in (* don't record errors in outer env *)
-          let env = adjoin env scope in
-          let varE = VarE {it = id.it; at; note = (mut, None)} @? at in
-          let dot_exp = DotE(varE, "view" @@ at, ref None) @? at in
-          let arg_exp = (false, ref (TupE [] @? at)) in
-          let inst = {it = None; at; note = []} in
-          let exp = CallE(None, dot_exp, inst, arg_exp) @? at in
-          let viewer_typ = infer_exp env exp in
-          match T.normalize viewer_typ with
-           | T.Func(T.Local, T.Returns, [], ts1, ts2)
-             when List.for_all T.shared ts1 && List.for_all T.shared ts2 ->
-              { viewer_body = DotViewV exp;
-                viewer_field = viewer_field ts1 ts2 }
-           | _ ->
-               (* restore env.used_identifiers *)
-               env.used_identifiers := saved_used_identifiers;
-               raise Recover))
-      in
-      match infer_dot_view with
-      | Ok (exp_typ, _) ->
-         viewer := Some exp_typ
-      | Error _ ->
-         let (typ, _, _) = T.Env.find id.it scope.Scope.val_env in
-         let typ = T.as_immut typ in
-         if T.stable typ then
-           let varE =
-             { (VarE {it = id.it; at; note = (mut, None)} @? at)
-               with note = { note_typ = typ;
-                             note_eff = T.Triv} }
-           in
-           use_identifier env id.it;
-           viewer := Some
-             { viewer_body = DefaultV(varE);
-               viewer_field = viewer_field [] [typ] }
-  end
 
 (* Blocks and Declarations *)
 
@@ -5502,7 +5440,7 @@ and infer_dec_typdecs env dec : Scope.t =
     | None -> error env i.at "M0226" "unknown mixin %s" i.it
     | Some mix ->
       let open Scope in
-      n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs });
+      n := Some({ imports = mix.imports; pat = mix.arg; decs = mix.decs; trivia = mix.trivia });
       let (_, fs, tfs) = T.as_obj' mix.typ in
       let scope = scope_of_object Scope.MixinIncluded env fs tfs in
       scope
@@ -5828,7 +5766,8 @@ let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
               ] [(id.it, con)]) in
               Scope.lib ~package:pkg_opt lib.note.filename typ
             | MixinU (need_system, arg, decs) ->
-              Scope.mixin lib.note.filename Scope.{ imports; need_system; arg; decs; typ }
+              let mixin_note = lib.note in
+              Scope.mixin mixin_note.filename Scope.{ imports; need_system; arg; decs; typ; trivia = mixin_note.trivia }
             | ActorU _ ->
               error env cub.at "M0144" "bad import: expected a module or actor class but found an actor"
             | ProgU _ ->

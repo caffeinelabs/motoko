@@ -90,7 +90,6 @@ pub(super) fn new_heap(
     MotokoHeapInner {
         heap: heap.into_boxed_slice(),
         heap_base_offset: root_pointers_size_bytes + realign,
-        _heap_ptr_last: root_pointers_size_bytes + realign,
         heap_ptr_offset: total_heap_size_bytes + realign,
         static_root_array_variable_offset: static_root_array_variable_offset + realign,
         continuation_table_variable_offset: continuation_table_variable_offset + realign,

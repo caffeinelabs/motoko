@@ -1,8 +1,9 @@
-# CLASSICAL-PERSISTENCE-ONLY
-# DEFAULT-GC-ONLY
-install $ID map-mixed-upgrades/map0.mo ""
+# Mixed map upgrades across the classical→enhanced boundary.
+# The classical installs use the committed `old.wasm` (built from `map0`, see note.txt);
+# `map1` is kept-replace/keep-memory upgraded from the enhanced side.
+install $ID map-mixed-upgrades/old.wasm ""
 ingress $ID go "DIDL\x00\x00"
-upgrade $ID map-mixed-upgrades/map0.mo ""
+upgrade $ID map-mixed-upgrades/old.wasm ""
 ingress $ID upgradeNodes "DIDL\x00\x00"
 # This succeeeds:
 ingress $ID upgradeNodesReplaceMainMemory "DIDL\x00\x00"
@@ -27,7 +28,7 @@ ingress $ID stabilizeNodes "DIDL\x00\x00"
 ingress $ID upgradeNodesReplaceMainMemory "DIDL\x00\x00"
 ingress $ID go "DIDL\x00\x00"
 # This fails (downgrade EOP to classical persistence)
-upgrade $ID map-mixed-upgrades/map0.mo ""
+upgrade $ID map-mixed-upgrades/old.wasm ""
 ingress $ID upgradeNodes "DIDL\x00\x00"
 ingress $ID go "DIDL\x00\x00"
 # This drops the memory, state will be lost:

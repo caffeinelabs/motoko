@@ -1,9 +1,0 @@
-ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
-debug.print: reqPages = 384
-debug.print: actor0: init'ed.
-ingress Completed: Reply: 0x4449444c0000
-debug.print: reqPages = 384
-debug.print: M.size() = 384
-debug.print: actor1: checked region0.
-debug.print: actor1: allocated another region.
-ingress Completed: Reply: 0x4449444c0000

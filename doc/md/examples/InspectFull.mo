@@ -1,6 +1,6 @@
 import Principal = "mo:core/Principal";
 
-persistent actor {
+actor {
 
    var c = 0;
 
