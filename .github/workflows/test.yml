@@ -137,6 +137,31 @@ jobs:
           path: ${{ env.UPLOAD_PATH }}
           retention-days: 5
 
+  reports:
+    # Publishes the coverage report to GitHub Pages. Restores the pipeline
+    # dropped in #6136, minus the `base-doc`/`docs` entries it also carried.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [tests]
+    concurrency: reports-${{ github.ref }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+        with:
+          name: ic-hs-test
+      - name: Build report site
+        run: nix build .#report-site -o report-site
+      # The store path is a tree of symlinks; the deploy action needs real files.
+      - name: Resolve symlinks
+        run: cp -rL report-site report-site-copy
+      - name: Push report to GitHub pages
+        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
+        with:
+          branch: gh-pages
+          folder: report-site-copy
+          single-commit: true
+
   verify-common-gc:
     needs: [common-tests, gc-tests]
     if: ${{ always() }} # run even if dependencies failed/skipped/cancelled
