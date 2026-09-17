@@ -472,12 +472,6 @@ unsafe fn region_reserve_id_span<M: Memory>(
     }
 }
 
-#[ic_mem_fn]
-pub unsafe fn region0_get<M: Memory>(_mem: &mut M) -> Value {
-    debug_assert_ne!(REGION_0, NO_REGION);
-    REGION_0
-}
-
 // Expose Region0 object to GC algorithms as root
 #[allow(dead_code)]
 #[cfg(feature = "ic")]

@@ -4,6 +4,11 @@
 
 * motoko (`moc`)
 
+  * feat!: Remove the `stableMemory*` primitives that backed the deprecated
+    `ExperimentalStableMemory` library. `Prim.stableMemory*` no longer exists, so
+    importing `mo:base/ExperimentalStableMemory` fails to type-check; use the
+    `Region` library instead. The `M0199` diagnostic is retired with them (#6378).
+
   * feat!: Remove the `--generate-view-queries` flag (and the `__<var>` view
     queries it generated), the no-op `--(no-)experimental-multi-value` flags, and
     the `--experimental-stable-memory` flag. Using the deprecated

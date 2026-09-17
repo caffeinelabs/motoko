@@ -66,7 +66,6 @@ type env =
     used_identifiers : usage T.Env.t ref;
     unused_warnings : UWSet.t ref;
     shared_pat_regions : region list ref;
-    reported_stable_memory : bool ref;
     errors_only : bool;
     type_recovery : bool;
     srcs : Field_sources.t;
@@ -106,7 +105,6 @@ let env_of_scope msgs scope =
     used_identifiers = ref T.Env.empty;
     unused_warnings = ref UWSet.empty;
     shared_pat_regions = ref [];
-    reported_stable_memory = ref false;
     errors_only = false;
     type_recovery = false;
     srcs = Field_sources.of_immutable_map scope.Scope.fld_src_env;
@@ -353,13 +351,6 @@ let check_deprecation env at desc id depr =
   | None -> ()
   | Some ("M0235" as code) ->
     warn env at code "%s %s is deprecated for caffeine" desc id
-  | Some ("M0199" as code) ->
-    if !(env.reported_stable_memory) then ()
-    else begin
-      env.reported_stable_memory := true;
-      error env at code
-        "this code is (or uses) the deprecated library `ExperimentalStableMemory`.\nPlease use the `Region` library instead: https://docs.internetcomputer.org/languages/motoko/icp-features/stable-memory/"
-    end
   | Some msg ->
     match Lib.String.chop_prefix "M0235 " msg with
     | Some m -> warn env at "M0235" ~notes:[m] "%s %s is deprecated for caffeine" desc id
