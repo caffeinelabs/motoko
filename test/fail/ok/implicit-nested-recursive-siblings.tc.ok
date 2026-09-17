@@ -1,0 +1,3 @@
+implicit-nested-recursive-siblings.mo:9.24-9.26: type error [M0231], ambiguous implicit argument named `zero` of type 
+  Nat.
+note: The ambiguous implicit candidates are: `M.zero`, `M.other.zero`.

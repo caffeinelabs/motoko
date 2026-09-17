@@ -1903,26 +1903,30 @@ module ImplicitHoles = struct
       let path = dot_module_exp path (lab @@ no_region) @? no_region in
       ({ path; typ; module_ref_opt = Some module_ref; desc = desc ^ "." ^ lab; id = lab} : hole_candidate)
 
-    (* Searches nested modules up to a given depth to find fields named [name] *)
-    let rec find_candidates depth path desc t name = match T.normalize t with
-      | T.Obj (T.Module, fs, _) when depth > 0 ->
+    (* Searches nested modules up to a given depth to find fields named [name].
+       [ancestors] are the module types on the current path: a nested module
+       whose type equals one of them is a recursive unfolding, so its
+       candidates repeat ones already found and could only add ambiguity. *)
+    let rec find_candidates depth ancestors path desc t name = match T.normalize t with
+      | T.Obj (T.Module, fs, _) when depth > 0 && not (List.exists (T.eq t) ancestors) ->
+        let ancestors = t :: ancestors in
         let direct = match T.find_val_field_opt name fs with
         | Some f when not (T.is_mut f.T.typ) -> Seq.return (path, desc, f)
         | _ -> Seq.empty in
         let nested = Seq.concat_map (fun f ->
           let path = dot_module_exp path (f.T.lab @@ no_region) in
           let desc = desc ^ "." ^ f.T.lab in
-          find_candidates (depth - 1) path desc f.T.typ name) (List.to_seq fs) in
+          find_candidates (depth - 1) ancestors path desc f.T.typ name) (List.to_seq fs) in
         Seq.append direct nested
       | _ -> Seq.empty
 
-    (* Modules can be defined recursively, so we set a conservative limit for search depth *)
+    (* Non-regular recursive module types unfold to ever new types, so bound the depth too *)
     let max_search_depth = 8
 
     let filter_fields hole on_field (entries : M.entry T.Env.t) =
       T.Env.to_seq entries
       |> Seq.concat_map (fun (lab, entry) ->
-        find_candidates max_search_depth (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name
+        find_candidates max_search_depth [] (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name
         |> Seq.map (fun (path, desc, field) -> ((lab, path, desc), field)))
       |> Seq.filter_map on_field
       |> List.of_seq
