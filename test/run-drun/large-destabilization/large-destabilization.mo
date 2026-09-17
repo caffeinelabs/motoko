@@ -3,7 +3,7 @@ import Prim = "mo:prim";
 // test destabilization of stable variables, without rts stack overflow
 actor a {
 
-   let r = Prim.regionNew();
+   transient let r = Prim.regionNew();
    ignore Prim.regionGrow(r, 1);
    assert Prim.regionSize(r) == 1;
 
