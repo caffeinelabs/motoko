@@ -293,6 +293,22 @@
     'public'
     'system'
 
+<dec_pub> ::= 
+    'let' <pat> '=' <exp>
+    'let' <pat>
+    'let' <pat> '=' <exp> 'else' <exp_nest>
+    'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
+    <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
+
+<dec_field_ac> ::= 
+    <stab> <dec>
+    'private' <stab> <dec>
+    'system' <stab> <dec>
+    'public' <parenthetical>? <stab> <dec_pub>
+
+<obj_body_ac> ::= 
+    '{' <list(<dec_field_ac>, ';')> '}'
+
 <stab> ::= 
     <empty>
     'flexible'
@@ -344,7 +360,7 @@
     'type' <id> ('<' <list(<typ_bind>, ',')> '>')? '=' <typ>
     <shared_pat_opt> 'func' <func_pat> (':' <typ>)? <func_body>
     <parenthetical>? <obj_or_class_dec>
-    'mixin' ('<' 'system' '>')? <pat_plain> <obj_body>
+    'mixin' ('<' 'system' '>')? <pat_plain> <obj_body_ac>
     'include' <id> ('<' 'system' '>')? <exp>
 
 <obj_or_class_dec> ::= 
