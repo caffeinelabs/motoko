@@ -1,1 +1,0 @@
-stable-memory-prims-removed.mo:4.14-4.30: type error [M0072], field stableMemorySize does not exist in module.
