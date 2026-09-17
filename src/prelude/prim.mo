@@ -684,6 +684,8 @@ func costSignWithEcdsa(keyName : Text, curveEncoding : Nat32) : (resultCode : Na
 
 func costSignWithSchnorr(keyName : Text, algorithmEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costSignWithSchnorr" : (Text, Nat32) -> (Nat32, Nat))(keyName, algorithmEncoding);
 
+func costVetkdDeriveKey(keyName : Text, curveEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costVetkdDeriveKey" : (Text, Nat32) -> (Nat32, Nat))(keyName, curveEncoding);
+
 // certified data
 func setCertifiedData(data : Blob) = (prim "setCertifiedData" : Blob -> ()) data;
 func getCertificate() : ?Blob = (prim "getCertificate" : () -> ?Blob)();

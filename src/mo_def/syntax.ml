@@ -285,7 +285,7 @@ and dec' =
       exp option * sort_pat * obj_sort * typ_id * typ_bind list * pat * typ option * id * dec_field list
   | MixinD of bool * pat * dec_field list             (* mixin *)
   | IncludeD of id * bool * exp * include_note (* mixin include *)
-and include_note' = { imports : import list; pat : pat; decs : dec_field list }
+and include_note' = { imports : import list; pat : pat; decs : dec_field list; trivia : Trivia.triv_table }
 and include_note = include_note' option ref
 
 and import = (import', Type.typ) annotated_phrase

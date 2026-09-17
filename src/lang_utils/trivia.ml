@@ -38,18 +38,22 @@ let string_of_trivia_info (info : trivia_info) : string =
     let trailing = List.map (string_of_trivia (fun _ -> "")) info.trailing_trivia |> String.concat ", " in
     Printf.sprintf "Leading: [%s]; Trailing: [%s]" leading trailing
 
-type pos = { line : int; column : int }
+type pos = Source.pos = { file : string; line : int; column : int }
 
 let pos_of_lexpos : Lexing.position -> pos =
  fun lexpos ->
-  Lexing.{ line = lexpos.pos_lnum; column = lexpos.pos_cnum - lexpos.pos_bol }
+  Lexing.{
+    file = lexpos.pos_fname;
+    line = lexpos.pos_lnum;
+    column = lexpos.pos_cnum - lexpos.pos_bol
+  }
 
 module PosHash = struct
   type t = pos
 
-  let equal i j = i = j
+  let equal = (=)
 
-  let hash ({ line; column } : pos) = column lor 20 land line
+  let hash = Hashtbl.hash
 end
 
 module PosHashtbl = Hashtbl.Make (PosHash)
@@ -59,9 +63,17 @@ type triv_table = trivia_info PosHashtbl.t
 
 let empty_triv_table = PosHashtbl.create 0
 
+(* The key includes the source file so that merged tables from separate
+   compilation units cannot misattribute same-line/column trivia. *)
 let find_trivia triv_table (parser_pos : region) : trivia_info =
-  PosHashtbl.find triv_table
-    { line = parser_pos.left.line; column = parser_pos.left.column }
+  PosHashtbl.find triv_table parser_pos.left
+
+(* Union of trivia tables. Keys carry the file, so tables from different units
+   do not collide; within one file, identical positions hold identical values. *)
+let merge_triv_tables (tables : triv_table list) : triv_table =
+  let merged = PosHashtbl.create 64 in
+  List.iter (PosHashtbl.iter (fun k v -> PosHashtbl.add merged k v)) tables;
+  merged
 
 let deprecated_of_trivia_info : trivia_info -> string option =
  fun info ->

@@ -460,12 +460,13 @@ data Neuralgic t
   | AroundNeg Integer
   | Around0
   | AroundPos Integer
+  | PowTwo Integer
   | LargePos
   | Offset (Neuralgic t) Off
  deriving (Eq, Ord, Show)
 
 instance Arbitrary (Neuralgic Integer) where
-  arbitrary = frequency [ (5, elements [LargeNeg, AroundNeg 63, AroundNeg 30, Around0, AroundPos 30, AroundPos 63, LargePos])
+  arbitrary = frequency [ (5, elements [LargeNeg, AroundNeg 63, AroundNeg 30, Around0, AroundPos 30, AroundPos 63, PowTwo 30, PowTwo 63, LargePos])
                         , (8, Offset <$> arbitrary <*> arbitrary)]
 
 
@@ -478,24 +479,24 @@ infix 1 `guardedFrom`
 
 instance Arbitrary (Neuralgic Natural) where
   arbitrary =  (\n -> if n >= 0 then pure (fromIntegral n) else Nothing)
-               `guardedFrom` [Around0, AroundPos 30, AroundPos 63, LargePos, AroundPos 77]
+               `guardedFrom` [Around0, AroundPos 30, AroundPos 63, PowTwo 30, PowTwo 63, LargePos, AroundPos 77]
 
 instance KnownNat n => Arbitrary (Neuralgic (BitLimited n Natural)) where
   arbitrary = fmap NatN <$> trapNat bits `guardedFrom` menu bits
     where bits = natVal (Proxy @n)
-          menu 8 = [Around0, AroundPos 3, AroundPos 5, AroundPos 8]
-          menu 16 = [Around0, AroundPos 3, AroundPos 5, AroundPos 8, AroundPos 13, AroundPos 16]
-          menu 32 = [Around0, AroundPos 8, AroundPos 13, AroundPos 16, AroundPos 23, AroundPos 32]
-          menu 64 = [Around0, AroundPos 8, AroundPos 13, AroundPos 23, AroundPos 31, AroundPos 47, AroundPos 64]
+          menu 8 = [Around0, AroundPos 3, AroundPos 5, AroundPos 8, PowTwo 5, PowTwo 7]
+          menu 16 = [Around0, AroundPos 3, AroundPos 5, AroundPos 8, AroundPos 13, AroundPos 16, PowTwo 13, PowTwo 15]
+          menu 32 = [Around0, AroundPos 8, AroundPos 13, AroundPos 16, AroundPos 23, AroundPos 32, PowTwo 16, PowTwo 23, PowTwo 31]
+          menu 64 = [Around0, AroundPos 8, AroundPos 13, AroundPos 23, AroundPos 31, AroundPos 47, AroundPos 64, PowTwo 31, PowTwo 47, PowTwo 63]
 
 
 instance KnownNat n => Arbitrary (Neuralgic (BitLimited n Integer)) where
   arbitrary = fmap IntN <$> trapInt bits `guardedFrom` menu bits
     where bits = natVal (Proxy @n)
-          menu 8 = [Around0, AroundNeg 3, AroundNeg 5, AroundNeg 7, AroundPos 3, AroundPos 5, AroundPos 7]
-          menu 16 = [Around0, AroundNeg 3, AroundNeg 7, AroundNeg 10, AroundNeg 15, AroundPos 3, AroundPos 8, AroundPos 10, AroundPos 15]
-          menu 32 = [Around0, AroundNeg 3, AroundNeg 17, AroundNeg 27, AroundNeg 31, AroundPos 3, AroundPos 18, AroundPos 25, AroundPos 31]
-          menu 64 = [Around0, AroundNeg 9, AroundNeg 27, AroundNeg 51, AroundNeg 63, AroundPos 10, AroundPos 28, AroundPos 55, AroundPos 63]
+          menu 8 = [Around0, AroundNeg 3, AroundNeg 5, AroundNeg 7, AroundPos 3, AroundPos 5, AroundPos 7, PowTwo 6]
+          menu 16 = [Around0, AroundNeg 3, AroundNeg 7, AroundNeg 10, AroundNeg 15, AroundPos 3, AroundPos 8, AroundPos 10, AroundPos 15, PowTwo 12, PowTwo 14]
+          menu 32 = [Around0, AroundNeg 3, AroundNeg 17, AroundNeg 27, AroundNeg 31, AroundPos 3, AroundPos 18, AroundPos 25, AroundPos 31, PowTwo 18, PowTwo 25, PowTwo 30]
+          menu 64 = [Around0, AroundNeg 9, AroundNeg 27, AroundNeg 51, AroundNeg 63, AroundPos 10, AroundPos 28, AroundPos 55, AroundPos 63, PowTwo 28, PowTwo 47, PowTwo 62]
 
 
 data MOTerm :: * -> * where
@@ -592,7 +593,15 @@ subShrink (a `ShiftR` b) = shrinkOp2 ShiftR a b
 subShrink (a `WrapAdd` b) = shrinkOp2 WrapAdd a b
 subShrink (a `WrapSub` b) = shrinkOp2 WrapSub a b
 subShrink (a `WrapMul` b) = shrinkOp2 WrapMul a b
-subShrink (a `WrapPow` b) = shrinkOp2 WrapPow a b
+-- `Pow` had no clause at all, so shrinking any counterexample containing one
+-- died with "Non-exhaustive patterns in function subShrink" -- the failure was
+-- still reported, but unshrunk. Only the base is shrunk here: the exponent is
+-- generated as `_ `Mod` Lit (exponentBound ...)` and `exponentiable` accepts
+-- exactly that range, so shrinking it out of its `Mod` could hand the reference
+-- an exponent it declines, which is indistinguishable from "traps" (see the NB
+-- in `evaluate`) and would report a bogus minimal case.
+subShrink (a `Pow` b) = (`Pow` b) <$> shrink a
+subShrink (a `WrapPow` b) = (`WrapPow` b) <$> shrink a
 subShrink (PopCnt n) = shrinkOp1 PopCnt n
 subShrink (Clz n) = shrinkOp1 Clz n
 subShrink (Ctz n) = shrinkOp1 Ctz n
@@ -626,7 +635,7 @@ subShrink (a `Concat` b) = shrinkOp2 Concat a b
 deriving instance Show (MOTerm t)
 
 
-arithTerm :: Arbitrary (MOTerm t) =>
+arithTerm :: forall t. (Restricted t, Arbitrary (MOTerm t)) =>
     Int -> [(Int, Gen (MOTerm t))]
 arithTerm n =
     [ (n, resize (n `div` 3) $ Add <$> arbitrary <*> arbitrary)
@@ -635,10 +644,10 @@ arithTerm n =
     , (n, resize (n `div` 3) $ Div <$> arbitrary <*> arbitrary)
     , (n, resize (n `div` 3) $ Mod <$> arbitrary <*> arbitrary)
     , (n, resize (n `div` 4) $ IfThenElse <$> arbitrary <*> arbitrary <*> arbitrary)
-    , (n `div` 5 , resize (n `div` 3) $ Pow <$> arbitrary <*> ((`Mod` Five) <$> arbitrary))
+    , (n `div` 5 , resize (n `div` 3) $ Pow <$> arbitrary <*> ((`Mod` Lit (exponentBound (Proxy @t))) <$> arbitrary))
     ]
 
-bitwiseTerm :: WordLike n => Arbitrary (MOTerm (BitLimited n i)) => Int -> [(Int, Gen (MOTerm (BitLimited n i)))]
+bitwiseTerm :: forall n i. WordLike n => Restricted (BitLimited n i) => Arbitrary (MOTerm (BitLimited n i)) => Int -> [(Int, Gen (MOTerm (BitLimited n i)))]
 bitwiseTerm n =
     [ (n `div` 5, resize (n `div` 3) $ Or <$> arbitrary <*> arbitrary)
     , (n `div` 5, resize (n `div` 3) $ And <$> arbitrary <*> arbitrary)
@@ -650,7 +659,7 @@ bitwiseTerm n =
     , (n `div` 5, resize (n `div` 3) $ WrapAdd <$> arbitrary <*> arbitrary)
     , (n `div` 5, resize (n `div` 3) $ WrapSub <$> arbitrary <*> arbitrary)
     , (n `div` 5, resize (n `div` 3) $ WrapMul <$> arbitrary <*> arbitrary)
-    , (n `div` 5, resize (n `div` 3) $ WrapPow <$> arbitrary <*> ((`Mod` Five) <$> arbitrary))
+    , (n `div` 5, resize (n `div` 3) $ WrapPow <$> arbitrary <*> ((`Mod` Lit (exponentBound (Proxy @(BitLimited n i)))) <$> arbitrary))
     , (n `div` 5, PopCnt <$> arbitrary)
     , (n `div` 5, Clz <$> arbitrary)
     , (n `div` 5, Ctz <$> arbitrary)
@@ -761,6 +770,13 @@ evalN LargeNeg = fromIntegral (minBound :: Int) - 111
 evalN (AroundNeg n) = - 2 ^ n
 evalN Around0 = 0
 evalN (AroundPos n) = 2 ^ n - 1
+-- `AroundNeg` lands on -2^n exactly, but `AroundPos` stops one short of 2^n, so
+-- without this the positive half of the numeric line never hits a
+-- representation boundary head-on -- only Offset..OneMore gets there, and only
+-- by chance. Codegen that misbehaves exactly at a power of two (a wrapping
+-- intermediate, say) was therefore far easier to trip over with a negative
+-- operand than a positive one.
+evalN (PowTwo n) = 2 ^ n
 evalN LargePos = fromIntegral (maxBound :: Int) + 333
 evalN (Offset (evalN -> n) (evalO -> o)) = o n
 
@@ -772,10 +788,38 @@ guardedEvalN g (g . evalN -> res) = res
 noExponentRestriction, nonNegativeExponentRestriction, defaultExponentRestriction :: (Ord a, Num a) => a -> Maybe ()
 noExponentRestriction _ = pure ()
 nonNegativeExponentRestriction = guard . (>= 0)
-defaultExponentRestriction = guard . ((&&) <$> (>= 0) <*> (< 5))
+defaultExponentRestriction = boundedExponentRestriction bignumExponentBound
+
+boundedExponentRestriction :: (Ord a, Num a) => Integer -> a -> Maybe ()
+boundedExponentRestriction bound = guard . ((&&) <$> (>= 0) <*> (< fromInteger bound))
+
+-- Exponents are generated as `arbitrary `Mod` Lit (exponentBound ...)`, and
+-- `exponentiable` has to accept exactly that range: a `Nothing` out of
+-- `evaluate` cannot be told apart from "traps" (see the NB in `evaluate`), so a
+-- bound the generator can step over would demand a trap from a legal program.
+-- Keep the two in lockstep by deriving both from `exponentBound`.
+--
+-- The fixed-width types can afford a generous bound -- the reference evaluates
+-- `n^exp` as an `Integer` that the width immediately clamps -- and they *need*
+-- one: the codegen accumulates small-word `**` in a 64-bit intermediate, and
+-- below 2^64 an overflowing result is caught by the subsequent width check
+-- rather than by the pre-multiply overflow check. With exponents < 5 that
+-- boundary is unreachable at four of the six small widths (65535^4 lands just
+-- under 2^64, and 2^16 is not a Nat16), so the pre-multiply check went
+-- unexercised. At 16 every width reaches it; the smallest exposing operands are
+-- 128^10 (Nat8), 8192^5 (Nat16), 4194304^3 (Nat32) and (-128)^10 (Int8) -- all
+-- powers of two, hence the `PowTwo` neuralgic points.
+--
+-- The bignum types keep the small bound: their exponents nest, so a large one
+-- squares up into intermediates that are expensive rather than informative.
+smallWordExponentBound, bignumExponentBound :: Integer
+smallWordExponentBound = 16
+bignumExponentBound = 5
 
 class Restricted a where
   substractable :: Maybe a -> Maybe a -> Bool
+  exponentBound :: Proxy a -> Integer
+  exponentBound _ = bignumExponentBound
   exponentiable :: (Num a, Ord a) => a -> Maybe ()
   exponentiable = defaultExponentRestriction
 
@@ -783,13 +827,17 @@ instance Restricted Integer where substractable _ _ = True
 instance Restricted Natural where substractable a b = isJust $ do m <- a; n <- b; guard $ m >= n
 instance KnownNat n => Restricted (BitLimited n Natural) where
   substractable a b = isJust $ do NatN m <- a; NatN n <- b; guard $ m >= n
+  exponentBound _ = smallWordExponentBound
+  -- an 8 bit base overflows for any exponent the generator can reach, so the
+  -- reference need not decline any of them
   exponentiable = if natVal (Proxy @n) <= 8
                   then noExponentRestriction
-                  else defaultExponentRestriction
+                  else boundedExponentRestriction smallWordExponentBound
 instance KnownNat n => Restricted (BitLimited n Integer) where
+  exponentBound _ = smallWordExponentBound
   exponentiable = if natVal (Proxy @n) <= 8
                   then nonNegativeExponentRestriction
-                  else defaultExponentRestriction
+                  else boundedExponentRestriction smallWordExponentBound
 
 class Ord a => Evaluatable a where
   evaluate :: MOTerm a -> Maybe a

@@ -320,7 +320,7 @@ import Order "mo:core/Order";
 // __record combiner: fold field-wise Order values, short-circuiting at first non-equal.
 // Thunks enable genuine short-circuiting — remaining fields are never evaluated.
 func compare(__record : [(Text, () -> Order.Order)]) : Order.Order {
-  for ((_, ordThunk) in __record.vals()) {
+  for ((_, ordThunk) in __record.values()) {
     let ord = ordThunk();
     if (ord != #equal) return ord
   };
@@ -366,7 +366,7 @@ Each per-element implicit has type `(ElemType_i, ElemType_i) -> E`. This enables
 // __tuple combiner: join per-element descriptions (evaluates all thunks)
 func describe(__tuple : [() -> Text]) : Text {
   var s = "("; var first = true;
-  for (t in __tuple.vals()) {
+  for (t in __tuple.values()) {
     if (not first) { s #= ", " };
     s #= t(); first := false
   };
