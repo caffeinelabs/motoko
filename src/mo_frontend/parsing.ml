@@ -190,7 +190,7 @@ let handle_error lexbuf error_detail message_store (start, end_)
       Printf.sprintf
         "unexpected %s: braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`"
         token
-    (* only a block can follow: an unparenthesized (extended) `if`/`while`/`for` head requires braced branches or body.
+    (* only a block can follow: the body of `switch`/`do`, or the branches/body after an unparenthesized (extended) `if`/`while`/`for` head.
        The acceptable-token guards keep this away from the other `{`-expecting spots —
        a class body also accepts `=`, an object body a field name, a legacy branch any expression —
        so it fires only where `{` is the sole continuation *)
@@ -199,7 +199,7 @@ let handle_error lexbuf error_detail message_store (start, end_)
             && not (acceptable Parser.EQ) then
       "M0275",
       Printf.sprintf
-        "unexpected %s, expected a block `{ ... }`: when the condition or head of `if`/`while`/`for` is written without parentheses, its branches or body must be blocks; alternatively, parenthesize the condition"
+        "unexpected %s, expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` when the condition or head is written without parentheses (parenthesize it to keep bare branches)"
         token
     (* a record literal or block where neither is allowed, e.g. written directly as a `switch` or `if` head *)
     else if last_token = Parser.LCURLY && acceptable Parser.LPAR then

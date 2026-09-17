@@ -193,6 +193,9 @@
 
 <exp_post> ::= 
     <exp_nullary>
+    <exp_post_ext>
+
+<exp_post_ext> ::= 
     '[' 'var'? <list(<exp_nonvar>, ',')> ']'
     <exp_post> <exp_cont>
     <exp_post> '.'<nat>
@@ -216,6 +219,9 @@
 
 <exp_un> ::= 
     <exp_post>
+    <exp_un_ext>
+
+<exp_un_ext> ::= 
     <parenthetical> <exp_post>
     '#' <id>
     '#' <id> <exp_nullary>
@@ -230,6 +236,9 @@
 
 <exp_bin> ::= 
     <exp_un>
+    <exp_bin_ext>
+
+<exp_bin_ext> ::= 
     <exp_bin> <binop> <exp_bin>
     <exp_bin> <relop> <exp_bin>
     <exp_bin> 'and' <exp_bin>
@@ -317,35 +326,15 @@
     <exp_head>
 
 <exp_head_post> ::= 
-    '[' 'var'? <list(<exp_nonvar>, ',')> ']'
-    <exp_post> <exp_cont_tight>
-    <exp_post> '.'<nat>
-    <exp_post> '.' <id>
-    <exp_post> <inst> <exp_arg>
-    <exp_post> '!'
-    '(' 'system' <exp_post> '.' <id> ')'
+    <exp_post_ext>
 
 <exp_head_un> ::= 
     <exp_head_post>
-    <parenthetical> <exp_post>
-    '#' <id>
-    '#' <id> <exp_nullary>
-    '?' <exp_un>
-    <unop> <exp_un>
-    'actor' <exp_plain>
-    'not' <exp_un>
-    'debug_show' <exp_un>
-    'to_candid' '(' <list(<exp>, ',')> ')'
-    'from_candid' <exp_un>
+    <exp_un_ext>
 
 <exp_head_bin> ::= 
     <exp_head_un>
-    <exp_bin> <binop> <exp_bin>
-    <exp_bin> <relop> <exp_bin>
-    <exp_bin> 'and' <exp_bin>
-    <exp_bin> 'or' <exp_bin>
-    <exp_bin> ':' <typ_nobin>
-    <exp_bin> '|>' <exp_bin>
+    <exp_bin_ext>
 
 <exp_head> ::= 
     <exp_head_bin>

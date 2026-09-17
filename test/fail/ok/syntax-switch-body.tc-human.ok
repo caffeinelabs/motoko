@@ -1,4 +1,4 @@
 error[M0275]: unexpected token '1', expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` when the condition or head is written without parentheses (parenthesize it to keep bare branches)
-    ┌─ syntax-head-braces.mo:3:17
-  3 │  let y = if f(1) 1 else 2;
-    │                  ^ 
+    ┌─ syntax-switch-body.mo:3:12
+  3 │  switch (x) 1;
+    │             ^ 

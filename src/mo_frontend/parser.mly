@@ -710,6 +710,12 @@ exp_arg(B):
 exp_post(B, R, L) :
   | e=exp_nullary(B) %prec EXP_ATOM
     { e }
+  | e=exp_post_ext(B, R, L)
+    { e }
+
+(* The postfix forms that grow an expression past a single atom: calls, indexing, projection, `!`.
+   Shared with exp_head_post, which is exactly these forms without the bare atom. *)
+%inline exp_post_ext(B, R, L) :
   | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob, exp_cont), COMMA) RBRACKET
     { ArrayE(m, es) @? at $sloc }
   | e1=exp_post(B, R, L) c=L
@@ -782,6 +788,11 @@ exp_cont :
 exp_un(B, R, L) :
   | e=exp_post(B, R, L)
     { e }
+  | e=exp_un_ext(B, R, L)
+    { e }
+
+(* The prefix forms (variant, `?`, unary and `not`, parenthetical notes, Candid conversions), shared with exp_head_un *)
+%inline exp_un_ext(B, R, L) :
   | par=parenthetical e=exp_post(B, R, L)
      { match e.it with
        | CallE (None, e1, inst, args) ->
@@ -819,6 +830,11 @@ exp_un(B, R, L) :
 %public exp_bin(B, R, L) :
   | e=exp_un(B, R, L)
     { e }
+  | e=exp_bin_ext(B, R, L)
+    { e }
+
+(* The binary forms (operators, `and`/`or`, `:`, `|>`), shared with exp_head_bin *)
+%inline exp_bin_ext(B, R, L) :
   | e1=exp_bin(B, R, L) op=binop e2=exp_bin(R, R, L)
     { BinE(ref Type.Pre, e1, op, e2) @? at $sloc }
   | e1=exp_bin(B, R, L) op=relop e2=exp_bin(R, R, L)
@@ -1017,94 +1033,20 @@ if_braced :
    Statement-like heads (assignments, `return`, nested `if`/loops, declarations) are left out:
    they make no sense as conditions, and admitting them would only grow the grammar — parenthesize in the unlikely case one is needed. *)
 exp_head_post :
-  | lbracket m=var_opt es=seplist(exp_nonvar(ob, ob, exp_cont), COMMA) RBRACKET
-    { ArrayE(m, es) @? at $sloc }
-  | e1=exp_post(bl, bl, exp_cont_tight) c=exp_cont_tight
-    { c e1 (at $sloc) }
-  | e=exp_post(bl, bl, exp_cont_tight) s=DOT_NUM
-    { ProjE (e, int_of_string s) @? at $sloc }
-  | e=exp_post(bl, bl, exp_cont_tight) DOT x=id
-    { DotE(e, x, ref None) @? at $sloc }
-  | nid = NUM_DOT_ID
-    { let (num, id) = nid in
-      let {left; right} = at $sloc in
-      let e =
-	LitE(ref (PreLit (num, Type.Nat))) @?
-	{ left;
-	  right = { right with column = left.column + String.length num }}
-      in
-      let x =
-	id @@
-	{ left = { left with column = right.column - String.length id };
-	  right } in
-      DotE(e, x, ref None) @? at $sloc
-    }
-  | e1=exp_post(bl, bl, exp_cont_tight) inst=inst e2=exp_arg(bl)
-    {
-      let e2, sugar = e2 in
-      CallE(None, e1, inst, (sugar, ref e2)) @? at $sloc
-    }
-  | e1=exp_post(bl, bl, exp_cont_tight) BANG
-    { BangE(e1) @? at $sloc }
-  | lpar SYSTEM e1=exp_post(bl, bl, exp_cont_tight) DOT x=id RPAR
-    { DotE(
-        DotE(e1, "system" @@ at ($startpos($1),$endpos($1)), ref None) @? at $sloc,
-        x, ref None) @? at $sloc }
+  | e=exp_post_ext(bl, bl, exp_cont_tight)
+    { e }
 
 exp_head_un :
   | e=exp_head_post
     { e }
-  | par=parenthetical e=exp_post(bl, bl, exp_cont_tight)
-     { match e.it with
-       | CallE (None, e1, inst, args) ->
-         CallE (par, e1, inst, args) @? at $sloc
-       | _ ->
-         syntax_error (at $sloc) "M0210"
-           "misplaced parenthetical note: it must precede a function call";
-         e }
-  | hash x=id
-    { TagE (x, TupE([]) @? at $sloc) @? at $sloc }
-  | hash x=id e=exp_nullary(bl)
-    { TagE (x, e) @? at $sloc }
-  | QUEST e=exp_un(bl, bl, exp_cont_tight)
-    { OptE(e) @? at $sloc }
-  | op=unop e=exp_un(bl, bl, exp_cont_tight)
-    { match op, e.it with
-      | (PosOp | NegOp), LitE {contents = PreLit (s, (Type.(Nat | Float) as typ))} ->
-        let signed = match op with NegOp -> "-" ^ s | _ -> "+" ^ s in
-        LitE(ref (PreLit (signed, Type.(if typ = Nat then Int else typ)))) @? at $sloc
-      | _ -> UnE(ref Type.Pre, op, e) @? at $sloc
-    }
-  | ACTOR e=exp_plain
-    { ActorUrlE e @? at $sloc }
-  | NOT e=exp_un(bl, bl, exp_cont_tight)
-    { NotE e @? at $sloc }
-  | DEBUG_SHOW e=exp_un(bl, bl, exp_cont_tight)
-    { ShowE (ref Type.Pre, e) @? at $sloc }
-  | TO_CANDID lpar es=seplist(exp(ob, ob, exp_cont), COMMA) RPAR
-    { ToCandidE es @? at $sloc }
-  | FROM_CANDID e=exp_un(bl, bl, exp_cont_tight)
-    { FromCandidE e @? at $sloc }
+  | e=exp_un_ext(bl, bl, exp_cont_tight)
+    { e }
 
 exp_head_bin :
   | e=exp_head_un
     { e }
-  | e1=exp_bin(bl, bl, exp_cont_tight) op=binop e2=exp_bin(bl, bl, exp_cont_tight)
-    { BinE(ref Type.Pre, e1, op, e2) @? at $sloc }
-  | e1=exp_bin(bl, bl, exp_cont_tight) op=relop e2=exp_bin(bl, bl, exp_cont_tight)
-    { RelE(ref Type.Pre, e1, op, e2) @? at $sloc }
-  | e1=exp_bin(bl, bl, exp_cont_tight) AND e2=exp_bin(bl, bl, exp_cont_tight)
-    { AndE(e1, e2) @? at $sloc }
-  | e1=exp_bin(bl, bl, exp_cont_tight) OR e2=exp_bin(bl, bl, exp_cont_tight)
-    { OrE(e1, e2) @? at $sloc }
-  | e=exp_bin(bl, bl, exp_cont_tight) COLON t=typ_nobin
-    { AnnotE(e, t) @? at $sloc }
-  | e1=exp_bin(bl, bl, exp_cont_tight) PIPE e2=exp_bin(bl, bl, exp_cont_tight)
-    { let x = "_" @@ e1.at in
-      BlockE [
-        LetD (VarP x @! x.at, e1, None) @? e1.at;
-        ExpD e2 @? e2.at
-      ] @? at $sloc }
+  | e=exp_bin_ext(bl, bl, exp_cont_tight)
+    { e }
 
 exp_head :
   | e=exp_head_bin
