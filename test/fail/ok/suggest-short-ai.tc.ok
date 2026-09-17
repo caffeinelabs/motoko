@@ -103,6 +103,7 @@ suggest-short-ai.mo:4.6-4.7: type error [M0072], field s does not exist in type:
     costCall : (methodNameSize : Nat64, payloadSize : Nat64) -> Nat;
     costCreateCanister : () -> Nat;
     costHttpRequest : (requestSize : Nat64, maxResBytes : Nat64) -> Nat;
+    costHttpRequestV2 : (params : Blob) -> Nat;
     costSignWithEcdsa :
       (keyName : Text, curveEncoding : Nat32) ->
         (resultCode : Nat32, costOrUndefined : Nat);
@@ -311,6 +312,7 @@ suggest-short-ai.mo:4.6-4.7: type error [M0072], field s does not exist in type:
     stableMemoryStoreNat64 : (offset : Nat64, val : Nat64) -> ();
     stableMemoryStoreNat8 : (offset : Nat64, val : Nat8) -> ();
     stableVarQuery : () -> shared query () -> async {size : Nat64};
+    subnetSelfNodeCount : () -> Nat32;
     tan : (f : Float) -> Float;
     textCompare : (t1 : Text, t2 : Text) -> Int8;
     textLowercase : (t : Text) -> Text;

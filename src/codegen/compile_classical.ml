@@ -5137,6 +5137,7 @@ module IC = struct
     E.add_func_import env "ic0" "root_key_copy" (is 3) [];
     E.add_func_import env "ic0" "root_key_size" [] [i];
     E.add_func_import env "ic0" "in_replicated_execution" [] [I32Type];
+    E.add_func_import env "ic0" "subnet_self_node_count" [] [I32Type];
     E.add_func_import env "ic0" "is_controller" (is 2) [I32Type];
     E.add_func_import env "ic0" "subnet_self_copy" (is 3) [];
     E.add_func_import env "ic0" "subnet_self_size" [] [i];
@@ -5154,6 +5155,7 @@ module IC = struct
     E.add_func_import env "ic0" "cost_call" [I64Type; I64Type; i] [];
     E.add_func_import env "ic0" "cost_create_canister" [i] [];
     E.add_func_import env "ic0" "cost_http_request" [I64Type; I64Type; i] [];
+    E.add_func_import env "ic0" "cost_http_request_v2" [i; i; i] [];
     E.add_func_import env "ic0" "cost_sign_with_ecdsa" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_sign_with_schnorr" [i; i; I32Type; i] [I32Type];
     E.add_func_import env "ic0" "cost_vetkd_derive_key" [i; i; I32Type; i] [I32Type];
@@ -5275,6 +5277,7 @@ module IC = struct
   let performance_counter = ic_system_call "performance_counter"
   let is_controller = ic_system_call "is_controller"
   let replicated_execution = ic_system_call "in_replicated_execution"
+  let subnet_self_node_count = ic_system_call "subnet_self_node_count"
   let canister_version = ic_system_call "canister_version"
 
   let print_ptr_len env = G.i (Call (nr (E.built_in env "print_ptr")))
@@ -10478,6 +10481,20 @@ module Cost = struct
         )
       )
 
+  let http_request_v2 env =
+    Func.share_code1 Func.Always env "cost_http_request_v2"
+      ("params", IC.i)
+      [IC.i]
+      (fun env get_params ->
+        Stack.with_words env "dst" 4l (fun get_dst ->
+          get_params ^^ Blob.as_ptr_len env ^^
+          get_dst ^^
+          IC.ic_system_call "cost_http_request_v2" env ^^
+          get_dst ^^
+          Cycles.from_word128_ptr env
+        )
+      )
+
   let sign_with_ecdsa env =
     Func.share_code2 Func.Always env "cost_sign_with_ecdsa"
       (("key_name", IC.i), ("curve", I32Type))
@@ -12276,6 +12293,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
     SR.UnboxedWord64 Type.Nat64,
     IC.canister_version env
 
+  | OtherPrim "subnetSelfNodeCount", [] ->
+    SR.UnboxedWord32 Type.Nat32,
+    IC.subnet_self_node_count env
+
   | OtherPrim "crc32Hash", [e] ->
     SR.UnboxedWord32 Type.Nat32,
     compile_exp_vanilla env ae e ^^
@@ -12760,6 +12781,10 @@ and compile_prim_invocation (env : E.t) ae p es at =
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) request_size ^^
     compile_exp_as env ae (SR.UnboxedWord64 Type.Nat64) max_res_bytes ^^
     Cost.http_request env
+  | OtherPrim "costHttpRequestV2", [params] ->
+    SR.Vanilla,
+    compile_exp_vanilla env ae params ^^
+    Cost.http_request_v2 env
   | OtherPrim "costSignWithEcdsa", [key_name; curve] ->
     SR.UnboxedTuple 2,
     compile_exp_vanilla env ae key_name ^^

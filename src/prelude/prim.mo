@@ -651,6 +651,7 @@ func actorOfPrincipal<A <: actor {}>(p : Principal) : A = (prim "actorOfPrincipa
 func isController(p : Principal) : Bool = (prim "is_controller" : Principal -> Bool) p;
 func isReplicatedExecution() : Bool = (prim "replicated_execution" : () -> Bool)();
 func canisterVersion() : Nat64 = (prim "canister_version" : () -> Nat64)();
+func subnetSelfNodeCount() : Nat32 = (prim "subnetSelfNodeCount" : () -> Nat32)();
 func canisterSubnet() : Principal = (prim "canister_subnet" : () -> Principal)();
 func rootKey() : Blob = (prim "root_key" : () -> Blob)();
 func getSelfPrincipal<system>() : Principal = (prim "canister_self" : () -> Principal)();
@@ -679,6 +680,7 @@ func costCall(methodNameSize : Nat64, payloadSize : Nat64) : Nat = (prim "costCa
 func costCreateCanister() : Nat = (prim "costCreateCanister" : () -> Nat)();
 
 func costHttpRequest(requestSize : Nat64, maxResBytes : Nat64) : Nat = (prim "costHttpRequest" : (Nat64, Nat64) -> Nat)(requestSize, maxResBytes);
+func costHttpRequestV2(params : Blob) : Nat = (prim "costHttpRequestV2" : Blob -> Nat)(params);
 
 func costSignWithEcdsa(keyName : Text, curveEncoding : Nat32) : (resultCode : Nat32, costOrUndefined : Nat) = (prim "costSignWithEcdsa" : (Text, Nat32) -> (Nat32, Nat))(keyName, curveEncoding);
 
