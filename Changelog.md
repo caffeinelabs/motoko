@@ -12,7 +12,7 @@
     `--rts-stack-pages` and `--skip-gc-deprecation-warning` are removed and
     are now rejected as unknown options, as are the inert `--incremental-gc`
     and `--experimental-rtti`. `--enhanced-orthogonal-persistence` remains
-    accepted: it gates the classical->EOP upgrade (#6362, #6386).
+    accepted: it gates the classical->EOP upgrade (#6362, #6380).
 
   * Existing classical canisters are **not** orphaned: the runtime keeps
     reading all earlier classical stable-memory formats, and a classical
@@ -93,7 +93,7 @@
 
   * **Breaking:** `gcFlags` accepts only `"force"` and `"scheduling"`.
     `"incremental"`, `"enhancedOP"`, `"copying"`, `"marking"`, `"generational"`
-    and `"classicOP"` all raise `Invalid_argument` (#6362, #6386).
+    and `"classicOP"` all raise `Invalid_argument` (#6362, #6380).
 
 ## 1.16.1 (2026-09-16)
 
