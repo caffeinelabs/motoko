@@ -1,5 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
-
 # The wasm is obtained with compiler at git commit `895c20f49a3139b0f5c2ad9cc07c57260ef82b82`
 install $ID new-graph-copy-roots-bwd-compat/new-stabilization.wasm ""
 ingress $ID populate "DIDL\x00\x00"

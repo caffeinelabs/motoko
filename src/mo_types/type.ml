@@ -941,8 +941,6 @@ let serializable allow_mut t =
       | Any | Non | Prim _ -> true
       | Async _ -> false
       | Weak t ->
-         !Mo_config.Flags.enhanced_orthogonal_persistence &&
-         (* NB: Candid serialization doesn't preserve graph structure *)
          (* weak references are stable if content is stable *)
          allow_mut && go t
       | Mut t -> allow_mut && go t

@@ -166,7 +166,7 @@ let error_codes : (string * string option) list =
     "M0176", None; (* from_candid requires known type from context *)
     "M0177", None; (* Bases of record extensions must not have common fields that are not overwritten *)
     "M0178", None; (* Bases of record extensions must be either objects or modules *)
-    "M0179", None; (* Mutable (var) fields from bases must be overwritten explicitly *)
+    "M0179", None; (* Mutable (var) fields from bases must be overwritten explicitly. DEFUNCT: record-update now shallow-copies var fields, so this is never emitted. It must stay registered while test/check-error-codes.py lists it in known_untested_codes, which requires the code to be present. *)
     "M0180", None; (* Shared function has unexpected type parameters *)
     "M0181", None; (* Verification mode assertions not allowed *)
     "M0182", None; (* Timer defined by user when -no-timer flag is specified *)
@@ -181,6 +181,7 @@ let error_codes : (string * string option) list =
     "M0193", None; (* Can't declare actor class to have `async*` result *)
     "M0196", None; (* `system` capability supplied but not required *)
     "M0197", Some([%blob "lang_utils/error_codes/M0197.md"]); (* `system` capability required *)
+    "M0199", None; (* Deprecated experimental stable memory *)
     "M0200", Some([%blob "lang_utils/error_codes/M0200.md"]); (* Cannot determine subtyping or equality *)
     "M0201", None; (* Migration produces/consumes non-stable object *)
     "M0202", None; (* Migration produces/consume non-object type *)
@@ -192,8 +193,6 @@ let error_codes : (string * string option) list =
     "M0213", None; (* Parenthetical note on shared functions is disallowed *)
     "M0214", None; (* Expected type of field in parenthetical note differs from inferred *)
     "M0216", None; (* Stable variable must stable subtype *)
-    "M0219", None; (* Missing `transient` *)
-    "M0220", None; (* Missing `persistent` *)
     "M0221", None; (* Failed to determine type for type pattern field *)
     "M0224", None; (* Overlapping dot resolution *)
     "M0225", None; (* A mixin cannot be used as an entry point *)
@@ -223,6 +222,9 @@ let error_codes : (string * string option) list =
     "M0263", None; (* Migration function requires a stable variable that the previous version does not provide *)
     "M0264", None; (* mixin include requires system capability *)
     "M0267", None; (* Initial actor or chain resume point requires field; the baseline does not explain it (e.g. added with no migration) *)
+    "M0272", Some([%blob "lang_utils/error_codes/M0272.md"]); (* Record literal in block position *)
+    "M0273", Some([%blob "lang_utils/error_codes/M0273.md"]); (* Block not allowed in this position, use do { ... } *)
+    "M0274", Some([%blob "lang_utils/error_codes/M0274.md"]); (* Reserved keyword used as an identifier *)
   ]
 
 (** Message codes that can be both used as warnings and errors *)
@@ -248,7 +250,6 @@ let warning_codes = [
   "M0194", Some([%blob "lang_utils/error_codes/M0194.md"]), "Unused identifier warning";
   "M0195", Some([%blob "lang_utils/error_codes/M0195.md"]), "warn that `system` capability is implicitly supplied";
   "M0198", Some([%blob "lang_utils/error_codes/M0198.md"]), "Unused field pattern warning";
-  "M0199", Some([%blob "lang_utils/error_codes/M0199.md"]), "Deprecate experimental stable memory"; (* Warn or Error *)
   "M0206", None, "Migration consumes, but does not produce, a declared field";
   "M0207", None, "Migration consumes, but does not produce, an un-declared field";
   "M0210", None, "Parenthetical note must be applied to a message send";
@@ -271,8 +272,10 @@ let warning_codes = [
   "M0254", None, "Initial actor requires field";
   "M0265", None, "The `system` capability is not required by this mixin";
   "M0266", None, "floating-point literal has more precision than its type can represent";
-  "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline"
-  ]
+  "M0268", None, "Migration directory disagrees with the deployed history recorded by the stable baseline";
+  "M0269", None, "Deprecate `.vals()` in favor of `.values()`";
+  "M0270", None, "Deprecate `system func preupgrade`/`postupgrade`";
+]
 
 let try_find_explanation code =
   match List.find_opt (fun (c, _) -> String.equal c code) error_codes with

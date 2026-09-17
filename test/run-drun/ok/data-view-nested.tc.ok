@@ -1,0 +1,8 @@
+data-view-sample/views.mo:171.12-171.33: warning [M0236], You can use the dot notation `self.entries(...)` here
+data-view-sample/views.mo:174.12-174.33: warning [M0236], You can use the dot notation `self.entries(...)` here
+data-view-sample/views.mo:192.12-192.32: warning [M0236], You can use the dot notation `self.values(...)` here
+data-view-sample/views.mo:195.12-195.32: warning [M0236], You can use the dot notation `self.values(...)` here
+data-view-sample/views.mo:213.12-213.33: warning [M0236], You can use the dot notation `self.values(...)` here
+data-view-sample/views.mo:216.12-216.33: warning [M0236], You can use the dot notation `self.values(...)` here
+data-view-sample/views.mo:233.12-233.34: warning [M0236], You can use the dot notation `self.values(...)` here
+data-view-sample/views.mo:236.12-236.34: warning [M0236], You can use the dot notation `self.values(...)` here

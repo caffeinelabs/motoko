@@ -5,7 +5,7 @@ actor class Node(i : Nat) {
   type Value = Text;
 
   Prim.debugPrint("installing node" # debug_show i);
-  var map = func (_k: Nat) : ?Value { return null };
+  transient var map = func (_k: Nat) : ?Value { return null };
 
   public func lookup(k : Key) : async ? Value {
     Prim.debugPrint(debug_show i # ": lookup " # debug_show k);

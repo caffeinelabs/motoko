@@ -1,4 +1,3 @@
-# INCREMENTAL-GC-ONLY
 install $ID upgrade-check-part-size-incremental/test.mo ""
 ingress $ID test "DIDL\x00\x00"
 upgrade $ID upgrade-check-part-size-incremental/test.mo ""

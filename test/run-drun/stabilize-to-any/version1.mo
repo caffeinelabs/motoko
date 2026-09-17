@@ -14,8 +14,8 @@ actor {
       Prim.Array_init<Nat>(allocationSize / 8, 0);
    };
 
-   stable var firstVariable : Any = largeAllocation("first variable");
-   stable var secondVariable : Any = largeAllocation("second variable");
+   var firstVariable : Any = largeAllocation("first variable");
+   var secondVariable : Any = largeAllocation("second variable");
 
    public func check(): async() {
       // Extra GC increments.

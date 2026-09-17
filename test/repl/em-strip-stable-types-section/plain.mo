@@ -1,3 +1,3 @@
-persistent actor {
+actor {
   var _x : Nat = 0;
 };

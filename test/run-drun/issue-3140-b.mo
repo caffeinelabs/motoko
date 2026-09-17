@@ -6,6 +6,6 @@ actor {
   module Y = { public type A<T> = T };
   type T = (A<Nat>, X.A<Bool>, Y.A<Text>);
 
-  stable var t = (0, true, "abc") : T;
+  var t = (0, true, "abc") : T;
 
 }

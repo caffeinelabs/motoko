@@ -1,5 +1,4 @@
 %{
-open Mo_config
 open Mo_def
 open Mo_types
 open Mo_values
@@ -277,6 +276,11 @@ and objblock eo s id ty dec_fields =
 %nonassoc SHLOP SHROP ROTLOP ROTROP
 %left POWOP WRAPPOWOP
 
+(* TAG_NO_PAYLOAD: the precedence of stopping a case pattern at its bare variant tag.
+   It loses to LPAR below, so `case #tag(p)` grabs the payload instead of stopping at `#tag`. *)
+%nonassoc TAG_NO_PAYLOAD
+%nonassoc LPAR
+
 %type<Mo_def.Syntax.exp> exp(ob) exp_nullary(ob) exp_plain exp_obj exp_nest
 %type<Mo_def.Syntax.exp * bool> exp_arg
 %type<Mo_def.Syntax.typ_item> typ_item
@@ -300,10 +304,10 @@ and objblock eo s id ty dec_fields =
 %type<Mo_def.Syntax.exp_field list> seplist1(exp_field,semicolon) seplist(exp_field,semicolon)
 %type<Mo_def.Syntax.exp list> separated_nonempty_list(AND, exp_post(ob))
 %type<Mo_def.Syntax.dec_field list> seplist(dec_field,semicolon) obj_body
-%type<Mo_def.Syntax.case list> seplist(case,semicolon)
+%type<Mo_def.Syntax.case list> cases
 %type<Mo_def.Syntax.typ option> annot_opt
 %type<Mo_def.Syntax.path> path
-%type<Mo_def.Syntax.pat> pat pat_un pat_plain pat_nullary pat_bin
+%type<Mo_def.Syntax.pat> pat pat_un pat_plain pat_nullary pat_bin case_pat pat_paren
 %type<Mo_def.Syntax.pat_field> pat_field
 %type<Mo_def.Syntax.typ list option> option(typ_args)
 %type<Mo_def.Syntax.exp option> option(exp_nullary(ob))
@@ -395,7 +399,7 @@ seplist1(X, SEP) :
 %inline obj_sort_opt :
   | os=obj_sort { os }
   | (* empty *) {
-      (persistent (!Flags.actors = Flags.DefaultPersistentActors) no_region, Type.Object @@ no_region)
+      (persistent true no_region, Type.Object @@ no_region)
     }
 
 %inline query:
@@ -460,9 +464,6 @@ typ_un :
     { t }
   | QUEST t=typ_un
     { OptT(t) @! at $sloc }
-  (* backward compat: '?? T' (one NULLCOALESCE token) means '?(?T)' *)
-  | NULLCOALESCE t=typ_un
-    { OptT(OptT(t) @! at $sloc) @! at $sloc }
   | WEAK t=typ_un
     { WeakT(t) @! at $sloc }
 
@@ -715,9 +716,6 @@ exp_un(B) :
     { TagE (x, e) @? at $sloc }
   | QUEST e=exp_un(ob)
     { OptE(e) @? at $sloc }
-  (* backward compat: '?? e' (one NULLCOALESCE token) means '?(?e)' *)
-  | NULLCOALESCE e=exp_un(ob)
-    { OptE(OptE(e) @? at $sloc) @? at $sloc }
   | op=unop e=exp_un(ob)
     { match op, e.it with
       | (PosOp | NegOp), LitE {contents = PreLit (s, (Type.(Nat | Float) as typ))} ->
@@ -764,7 +762,7 @@ exp_un(B) :
     { e }
   | e1=exp_bin(B) ASSIGN e2=exp(ob)
     { AssignE(e1, e2) @? at $sloc}
-  | e1=exp_bin(B) NULLCOALESCE e2=exp_nest
+  | e1=exp_bin(B) NULLCOALESCE e2=exp(ob)
     { NullCoalesceE(e1, e2) @? at $sloc }
   | e1=exp_bin(B) op=binassign e2=exp(ob)
     { assign_op e1 (fun e1' -> BinE(ref Type.Pre, e1', op, e2) @? at $sloc) (at $sloc) }
@@ -823,7 +821,7 @@ exp_un(B) :
 *)
   | THROW e=exp_nest
     { ThrowE(e) @? at $sloc }
-  | SWITCH e=exp_nullary(ob) LCURLY cs=seplist(case, semicolon) RCURLY
+  | SWITCH e=exp_nullary(ob) LCURLY cs=cases RCURLY
     { SwitchE(e, cs) @? at $sloc }
   | WHILE e1=exp_nullary(ob) e2=exp_nest
     { WhileE(e1, e2, new_loop_flags ()) @? at $sloc }
@@ -863,8 +861,14 @@ block :
     { BlockE(ds) @? at $sloc }
 
 case :
-  | CASE p=pat_nullary e=exp_nest
+  | CASE p=case_pat e=exp_nest
     { {pat = p; exp = e} @@ at $sloc }
+
+(* The `;` between cases is optional: every case starts with the `case` keyword, so the separator disambiguates nothing. *)
+cases :
+  | (* empty *) { [] }
+  | c=case cs=cases { c::cs }
+  | c=case semicolon cs=cases { c::cs }
 
 catch :
   | CATCH p=pat_nullary e=exp_nest
@@ -894,11 +898,11 @@ vis :
 stab :
   | (* empty *) { None }
   | FLEXIBLE { Some (Flexible @@ at $sloc) }
-  | STABLE { Some ((Stable (ref None)) @@ at $sloc) }
+  | STABLE { Some (Stable @@ at $sloc) }
   | TRANSIENT { Some (Flexible @@ at $sloc) }
 
 %inline persistent :
-  | (* empty *) { persistent (!Flags.actors = Flags.DefaultPersistentActors) no_region }
+  | (* empty *) { persistent true no_region }
   | PERSISTENT { persistent true (at $sloc) }
 
 (* Patterns *)
@@ -928,9 +932,6 @@ pat_un :
     { TagP(x, p) @! at $sloc }
   | QUEST p=pat_un
     { OptP(p) @! at $sloc }
-  (* backward compat: '?? p' (one NULLCOALESCE token) means '?(?p)' *)
-  | NULLCOALESCE p=pat_un
-    { OptP(OptP(p) @! at $sloc) @! at $sloc }
   | op=unop l=lit
     { match op, l with
       | (PosOp | NegOp), PreLit (s, (Type.(Nat | Float) as typ)) ->
@@ -952,6 +953,31 @@ pat_bin :
 pat :
   | p=pat_bin
     { p }
+
+(* Deliberately just the parenthesized form of pat_plain: an unparenthesized case pattern must parenthesize its payload,
+   so that in `case #tag { ... }` the braces are unambiguously the case body. *)
+pat_paren :
+  | LPAR ps=seplist(pat_bin, COMMA) RPAR
+    { (match ps with [p] -> ParP(p) | _ -> TupP(ps)) @! at $sloc }
+
+(* Case patterns that end unambiguously without parentheses: `case null`, `case 0`, `case -1`, `case ?p`, `case #tag`, `case #tag(p)`.
+   Anything else still needs parentheses around the whole pattern. *)
+case_pat :
+  | p=pat_nullary
+    { p }
+  | HASH x=id %prec TAG_NO_PAYLOAD
+    { TagP(x, TupP [] @! at $sloc) @! at $sloc }
+  | HASH x=id p=pat_paren
+    { TagP(x, p) @! at $sloc }
+  | QUEST p=case_pat
+    { OptP(p) @! at $sloc }
+  | op=unop l=lit
+    { match op, l with
+      | (PosOp | NegOp), PreLit (s, (Type.(Nat | Float) as typ)) ->
+        let signed = match op with NegOp -> "-" ^ s | _ -> "+" ^ s in
+        LitP(ref (PreLit (signed, Type.(if typ = Nat then Int else typ)))) @! at $sloc
+      | _ -> SignP(op, ref l) @! at $sloc
+    }
 
 pat_field :
   | x=id t=annot_opt
@@ -1003,7 +1029,7 @@ dec_nonvar :
       let_or_exp named x (func_exp x.it sp tps p t is_sugar e) (at $sloc) }
   | eo=parenthetical_opt mk_d=obj_or_class_dec  { mk_d eo }
   | MIXIN system=system_opt p=pat_plain dfs=obj_body {
-     let dfs = List.map (share_dec_field (fun () -> Stable (ref None) @@ no_region)) dfs in
+     let dfs = List.map (share_dec_field (fun () -> Stable @@ no_region)) dfs in
      MixinD(system, p, dfs) @? at $sloc
   }
   | INCLUDE x=id system=system_opt e=exp(ob) { IncludeD(x, system, e, ref None) @? at $sloc }
@@ -1018,7 +1044,7 @@ obj_or_class_dec :
       let named, x = xf sort $sloc in
       let e =
         if s.it = Type.Actor then
-          let default_stab () = (if persistent.it then (Stable (ref None)) else Flexible) @@ no_region in
+          let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
           let id = if named then Some x else None in
           AwaitE
             (Type.AwaitFut false,
@@ -1038,7 +1064,7 @@ obj_or_class_dec :
       let x, dfs = cb in
       let dfs', tps', t' =
        if s.it = Type.Actor then
-         let default_stab () = (if persistent.it then Stable (ref None) else Flexible) @@ no_region in
+         let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
           (List.map (share_dec_field default_stab) dfs,
            ensure_scope_bind "" tps,
            (* Not declared async: insert AsyncT but deprecate in typing *)
@@ -1057,6 +1083,13 @@ dec :
   | LET p=pat EQ e=exp(ob) ELSE fail=exp_nest
     { let p', e' = normalize_let p e in
       LetD (p', e', Some fail) @? at $sloc }
+  (* error production: `x = e` where a declaration is expected is almost always a record field written where braces mean a block
+     (or an object body), or a mis-spelled `let`/`:=` (M0272) *)
+  | x=id EQ e=exp(ob)
+    { syntax_error (at $sloc) "M0272"
+        "`x = e` is a record field, but this position holds declarations, not a record literal; to declare a variable or field, use `let` (or `var`); to assign, use `:=`; to produce a record from a block, nest it as the block's result: `{ { x = 0 } }`";
+      let ef = { mut = Const @@ no_region; id = x; exp = e } @@ at $sloc in
+      ExpD (ObjE ([], [ef]) @? at $sloc) @? at $sloc }
 
 func_body :
   | EQ e=exp(ob) { (false, e) }

@@ -84,12 +84,6 @@ pub struct TestRunnerArgs {
     )]
     pub jobs: usize,
     #[arg(
-        long,
-        conflicts_with = "run",
-        help = "Do not pass --all-modes to run-test; honour the inherited EXTRA_MOC_ARGS literally (use in CI)."
-    )]
-    pub single_mode: bool,
-    #[arg(
         conflicts_with_all = ["run", "review", "dir"],
         help = "Test directories or files to consider. Defaults to the standard top-level test dirs when omitted."
     )]
@@ -280,13 +274,10 @@ struct SingleTestResult {
     test_name: String,
 }
 
-/// Dispatch one test to `run-test`. Mode inference, per-mode EXTRA_MOC_ARGS,
-/// and `-d`/`-t` flag selection all happen inside `run-test` itself.
+/// Dispatch one test to `run-test`. Per-file `-d`/`-t` flag selection happens
+/// inside `run-test` itself.
 fn run_single_test(test_name: String, args: &TestRunnerArgs) -> SingleTestResult {
     let mut cmd = Command::new("run-test");
-    if !args.single_mode {
-        cmd.arg("--all-modes");
-    }
     if args.accept {
         cmd.arg("-a");
     }

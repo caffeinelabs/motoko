@@ -3,7 +3,7 @@ import Prim "mo:⛔";
 import TestCanister "test_canister";
 
 actor {
-    stable var testCanister : ?TestCanister.TestCanister = null;
+    var testCanister : ?TestCanister.TestCanister = null;
 
     public func upgrade() : async () {
         let canister = testCanister ?? Prim.trap("null canister");

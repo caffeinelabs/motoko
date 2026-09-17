@@ -7,7 +7,7 @@ actor {
         var next : ?Node;
     };
 
-    stable var root = { var value = 0; var next = null : ?Node };
+    var root = { var value = 0; var next = null : ?Node };
 
     public func increase() : async () {
         root.value += 1;

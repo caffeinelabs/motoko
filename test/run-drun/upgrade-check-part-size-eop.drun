@@ -1,4 +1,3 @@
-# ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 install $ID upgrade-check-part-size-eop/test.mo ""
 ingress $ID test "DIDL\x00\x00"
 upgrade $ID upgrade-check-part-size-eop/test.mo ""

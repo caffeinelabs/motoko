@@ -7,7 +7,7 @@ actor {
   module X = { public type A<U> = U };
   type T = (A<Nat, Int>, X.A<Bool>);
 
-  stable var value = (([0], [1]), true) : T;
+  var value = (([0], [1]), true) : T;
 
   public func print() : async () {
     Prim.debugPrint(debug_show (value));

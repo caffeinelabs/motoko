@@ -1,5 +1,5 @@
-(* 
-This module contains common definitions for both compile_classical.ml and compile_enhanced.ml.
+(*
+This module contains common definitions for compile_enhanced.ml.
 *)
 open Mo_types
 
@@ -196,11 +196,6 @@ end) = struct
   let load_ptr = G.i (Load {ty = S.ty; align = S.align; offset = 1L; sz = None})
   let store_ptr = G.i (Store {ty = S.ty; align = S.align; offset = 1L; sz = None})
 end
-
-module W32_Pointers = Make_Ptr_Logic (struct
-  type t = int32
-  let (ty, align, skew, unskew) = (I32Type, 2, -1l, 1l)
-end)
 
 module W64_Pointers = Make_Ptr_Logic (struct
   type t = int64

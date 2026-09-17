@@ -1,5 +1,5 @@
-incremental-stabilization.mo:11.16-11.25: warning [M0244], variable stableNat is never reassigned, consider using `let`
-incremental-stabilization.mo:15.16-15.25: warning [M0244], variable stableInt is never reassigned, consider using `let`
-incremental-stabilization.mo:19.16-19.26: warning [M0244], variable stableText is never reassigned, consider using `let`
-incremental-stabilization.mo:23.16-23.27: warning [M0244], variable stableArray is never reassigned, consider using `let`
-incremental-stabilization.mo:27.16-27.28: warning [M0244], variable stableObject is never reassigned, consider using `let`
+incremental-stabilization.mo:10.9-10.18: warning [M0244], variable stableNat is never reassigned, consider using `let`
+incremental-stabilization.mo:14.9-14.18: warning [M0244], variable stableInt is never reassigned, consider using `let`
+incremental-stabilization.mo:18.9-18.19: warning [M0244], variable stableText is never reassigned, consider using `let`
+incremental-stabilization.mo:22.9-22.20: warning [M0244], variable stableArray is never reassigned, consider using `let`
+incremental-stabilization.mo:26.9-26.21: warning [M0244], variable stableObject is never reassigned, consider using `let`

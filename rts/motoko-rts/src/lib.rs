@@ -56,8 +56,6 @@ pub mod region;
 pub mod stabilization;
 pub mod stable_mem;
 mod static_checks;
-#[classical_persistence]
-pub mod stream;
 pub mod text;
 pub mod text_iter;
 mod tommath_bindings;
@@ -70,12 +68,6 @@ use motoko_rts_macros::*;
 #[ic_mem_fn(ic_only)]
 fn version<M: memory::Memory>(mem: &mut M) -> types::Value {
     unsafe { text::text_of_str(mem, "0.1") }
-}
-
-#[non_incremental_gc]
-#[ic_mem_fn(ic_only)]
-fn alloc_words<M: memory::Memory>(mem: &mut M, n: types::Words<usize>) -> types::Value {
-    unsafe { mem.alloc_words(n) }
 }
 
 #[incremental_gc]

@@ -1,6 +1,6 @@
 import Prim "mo:prim";
 
-persistent actor {
+actor {
 
   var arr = Prim.Array_init<Nat>(13, 0);
 
@@ -41,7 +41,7 @@ persistent actor {
     while (idx < 5) {
 
       Prim.debugPrint(debug_show ("================"));
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
       };
 
@@ -66,7 +66,7 @@ persistent actor {
 
       Prim.debugPrint(debug_show ("================"));
 
-      for (wr in wrs.vals()) {
+      for (wr in wrs.values()) {
         let val = Prim.weakGet(wr);
         Prim.debugPrint(debug_show (val));
         Prim.debugPrint(debug_show (Prim.isLive(wr)));
@@ -87,6 +87,5 @@ persistent actor {
 //SKIP run
 //SKIP run-ir
 //SKIP run-low
-//ENHANCED-ORTHOGONAL-PERSISTENCE-ONLY
 
 //CALL ingress test3 "DIDL\x00\x00"

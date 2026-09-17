@@ -3,11 +3,11 @@ actor {
   flexible let array = [var 1, 2, 3];
   flexible let obj = { var field = "hello"; extra = 1 };
 
-  stable let a = (array, array);
-  stable let b = (obj : { var field : Text} , obj);
+  let a = (array, array);
+  let b = (obj : { var field : Text} , obj);
 
   type Cyclic = { var self : [Cyclic]; var field : Text };
-  stable let c : Cyclic = { var self = ([] : [Cyclic]); var field = "hello"; };
+  let c : Cyclic = { var self = ([] : [Cyclic]); var field = "hello"; };
 
   public func tie() : async () {
     c.self := [c];

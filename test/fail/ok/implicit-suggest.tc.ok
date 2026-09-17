@@ -1,7 +1,14 @@
+implicit-suggest.mo:41.13-41.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
 implicit-suggest.mo:41.32-41.43: warning [M0237], The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:42.13-42.34: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
 implicit-suggest.mo:44.27-44.38: warning [M0237], The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:52.13-52.43: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
 implicit-suggest.mo:52.32-52.39: warning [M0237], The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:53.13-53.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:54.13-54.34: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
 implicit-suggest.mo:56.27-56.34: warning [M0237], The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+implicit-suggest.mo:57.13-57.47: warning [M0236], You can use the dot notation `peopleMap.get(...)` here
+implicit-suggest.mo:73.12-73.47: warning [M0236], You can use the dot notation `ambMap.get(...)` here
 implicit-suggest.mo:74.12-74.33: type error [M0231], ambiguous implicit argument named `compare` of type 
   (Amb1.T, Amb1.T) -> Order.
 note: The ambiguous implicit candidates are: `Amb1.compare`, `_Amb2.compare`.
