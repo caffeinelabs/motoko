@@ -9,7 +9,7 @@ actor a {
 
    type List<T> = ?(T, List<T>);
 
-   stable var map : List<(Blob, Blob)> = null;
+   var map : List<(Blob, Blob)> = null;
 
    var count : Nat32 = 0;
 

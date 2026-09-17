@@ -1,4 +1,4 @@
 //MOC-FLAG --legacy-persistence
 actor {
-   stable var value : Nat = 666
+   var value : Nat = 666
 };

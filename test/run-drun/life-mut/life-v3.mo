@@ -3,7 +3,7 @@ import Region = "../stable-region/Region";
 
 actor Life {
 
-  stable let r = Region.new();
+  let r = Region.new();
 
   transient object Random {
     var state = 1;
@@ -173,7 +173,7 @@ actor Life {
     #v3 { size; offset};
   };
 
-  stable var state : State = newState(0, 32);
+  var state : State = newState(0, 32);
 
   flexible var src = Grid(0, state);
   flexible var dst = Grid(32, newState(32, src.size()));

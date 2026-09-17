@@ -8,23 +8,23 @@ actor {
         Prim.debugPrint("Initialize flexible Nat");
         1
     };
-    stable var stableNat = do {
+    var stableNat = do {
         Prim.debugPrint("Initialize stable Nat");
         12345678901234567890123456789012345678901234567890123456789012345678901234567890;
     };
-    stable var stableInt = do {
+    var stableInt = do {
         Prim.debugPrint("Initialize stable Int");
         -2345678901234567890123456789012345678901234567890123456789012345678901234567890;
     };
-    stable var stableText = do {
+    var stableText = do {
         Prim.debugPrint("Initialize stable text");
         "Motoko incremental graph-copy-based upgrade test";
     };
-    stable var stableArray = do {
+    var stableArray = do {
         Prim.debugPrint("Initialize stable array");
         Prim.Array_tabulate<Nat>(100, func (index) { index });
     };
-    stable var stableObject = do {
+    var stableObject = do {
         Prim.debugPrint("Initialize stable object");
         { stableNat; stableInt; stableText; stableArray; }
     };
@@ -33,7 +33,7 @@ actor {
         "Flexible text"
     };
     // To trigger incremental serialization/deserialization
-    stable var _largeStableArray = do {
+    var _largeStableArray = do {
          Prim.Array_tabulate<Nat>(100_000, func (index) { index });
     };
 

@@ -2,23 +2,23 @@
 import Prim "mo:prim";
 
 actor {
-    stable var nullVariable = null;
-    stable var boolVariable = false;
-    stable var natVariable = 1234567890123456789012345678901234567890;
-    stable var nat8Variable = 123: Nat8;
-    stable var nat16Variable = 12345: Nat16;
-    stable var nat32Variable = 1234567890: Nat32;
-    stable var nat64Variable = 123456789012345: Nat64;
-    stable var intVariable = -1234567890123456789012345678901234567890;
-    stable var int8Variable = -123: Int8;
-    stable var int16Variable = -12345: Int16;
-    stable var int32Variable = -1234567890: Int32;
-    stable var int64Variable = -123456789012345: Int64;
-    stable var floatVariable = 1.234567890;
-    stable var charVariable = '!';
-    stable var textVariable = "\"TEST\"";
-    stable var blobVariable = "abc": Blob;
-    stable var principalVariable = Prim.principalOfBlob ("\00\00\00\00\00\30\00\D3\01\01": Blob);
+    var nullVariable = null;
+    var boolVariable = false;
+    var natVariable = 1234567890123456789012345678901234567890;
+    var nat8Variable = 123: Nat8;
+    var nat16Variable = 12345: Nat16;
+    var nat32Variable = 1234567890: Nat32;
+    var nat64Variable = 123456789012345: Nat64;
+    var intVariable = -1234567890123456789012345678901234567890;
+    var int8Variable = -123: Int8;
+    var int16Variable = -12345: Int16;
+    var int32Variable = -1234567890: Int32;
+    var int64Variable = -123456789012345: Int64;
+    var floatVariable = 1.234567890;
+    var charVariable = '!';
+    var textVariable = "\"TEST\"";
+    var blobVariable = "abc": Blob;
+    var principalVariable = Prim.principalOfBlob ("\00\00\00\00\00\30\00\D3\01\01": Blob);
 
     Prim.debugPrint("Initialized");
 

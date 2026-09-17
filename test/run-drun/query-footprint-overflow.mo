@@ -20,7 +20,7 @@ actor footprint = {
     let e13 = [e12, e12];
     let e14 = [e13, e13];
     let e15 = [e14, e14];
-    stable var expl = e15;
+    var expl = e15;
 
     public func delegate() : async Nat64 {
         let stableVarInfo = stableVarQuery();

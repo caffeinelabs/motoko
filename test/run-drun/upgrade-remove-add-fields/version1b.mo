@@ -1,7 +1,7 @@
 import Prim "mo:prim";
 
 actor {
-    stable var instance = {
+    var instance = {
         var secondField = 0;
     };
 

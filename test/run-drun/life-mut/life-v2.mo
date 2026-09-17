@@ -130,7 +130,7 @@ actor Life {
     #v2 { size = size; bits = words };
   };
 
-  stable var state : State = newState(32);
+  var state : State = newState(32);
 
   transient var src = Grid(state);
   transient var dst = Grid(newState(src.size()));

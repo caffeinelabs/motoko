@@ -82,7 +82,7 @@ actor Life {
     };
   };
 
-  stable var state : State =
+  var state : State =
     do {
       let n = 32;
       #v1 (

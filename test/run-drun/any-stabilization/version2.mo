@@ -1,3 +1,3 @@
 actor {
-   stable var value = "TEST";
+   var value = "TEST";
 };

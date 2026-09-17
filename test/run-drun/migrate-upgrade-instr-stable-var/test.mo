@@ -1,7 +1,7 @@
 import Prim "mo:prim";
 
 actor {
-    stable let state = {
+    let state = {
         var number = 0;
         var text = "Test";
     };

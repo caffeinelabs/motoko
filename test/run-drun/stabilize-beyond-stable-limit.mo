@@ -11,13 +11,13 @@ import Prim "mo:prim";
 actor {
 
     let pages : Nat64 = 16;
-    stable let r = Prim.regionNew();
+    let r = Prim.regionNew();
     if (Prim.regionSize(r) == 0) {
       Prim.debugPrint("growing stable memory");
       ignore Prim.regionGrow(r, pages);
     };
     assert Prim.regionSize(r) == pages;
-    stable let blob = Prim.regionLoadBlob(r, 0, 65536);
+    let blob = Prim.regionLoadBlob(r, 0, 65536);
 
     public func check() : async () {
         Prim.debugPrint(debug_show (blob.size()))

@@ -11,8 +11,8 @@ actor {
         doublings -= 1;
     };
 
-    stable let blob = Prim.encodeUtf8(text);
-    stable let small = (123_456_789_123_456_789, "TEST");
+    let blob = Prim.encodeUtf8(text);
+    let small = (123_456_789_123_456_789, "TEST");
 
     public query func check() : async () {
         assert (blob.size() == blobSize);

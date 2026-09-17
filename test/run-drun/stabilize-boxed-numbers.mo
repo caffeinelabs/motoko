@@ -2,10 +2,10 @@
 import Prim "mo:prim";
 
 actor {
-  stable let boxedNat32 : Nat32 = 4294967295;
-  stable let boxedInt32 : Int32 = -2147483648;
-  stable let boxedNat64 : Nat64 = 18446744073709551614;
-  stable let boxedInt64 : Int64 = -9223372036854775808;
+  let boxedNat32 : Nat32 = 4294967295;
+  let boxedInt32 : Int32 = -2147483648;
+  let boxedNat64 : Nat64 = 18446744073709551614;
+  let boxedInt64 : Int64 = -9223372036854775808;
 
   public func print() : async () {
     Prim.debugPrint(debug_show (boxedNat32));

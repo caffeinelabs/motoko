@@ -7,9 +7,9 @@ actor {
 
    Prim.debugPrint("Version 1");
 
-   stable var zero : Nat = 0;
+   var zero : Nat = 0;
 
-   stable var three : [var (Nat, Text)] = [var (1,"1")];
+   var three : [var (Nat, Text)] = [var (1,"1")];
 
    public func check(): async() {
      Prim.debugPrint (debug_show {zero; three});
