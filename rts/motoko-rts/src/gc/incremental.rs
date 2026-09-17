@@ -11,7 +11,7 @@
 //! retained across upgrades and therefore be stored part of the
 //! persistent metadata, cf. `persistence::PersistentMetadata`.
 
-use motoko_rts_macros::{enhanced_orthogonal_persistence, ic_mem_fn};
+use motoko_rts_macros::ic_mem_fn;
 
 use crate::{memory::Memory, stable_option::StableOption, types::*, visitor::visit_pointer_fields};
 
@@ -48,7 +48,6 @@ unsafe fn initialize_incremental_gc<M: Memory>(mem: &mut M) {
 }
 
 #[cfg(feature = "ic")]
-#[enhanced_orthogonal_persistence]
 unsafe fn initialize<M: Memory>(_mem: &mut M) {
     use crate::persistence::initialize_memory;
     initialize_memory::<M>();
@@ -354,7 +353,6 @@ unsafe fn pre_write_barrier<M: Memory>(mem: &mut M, state: &mut State, overwritt
             let mut time = BoundedTime::new(0);
             let mut increment = MarkIncrement::instance(mem, state, &mut time);
 
-            #[enhanced_orthogonal_persistence]
             debug_assert_ne!(overwritten_value, NULL_POINTER);
 
             increment.mark_object(overwritten_value);
@@ -463,7 +461,6 @@ pub unsafe fn get_partitioned_heap() -> &'static mut PartitionedHeap {
 }
 
 #[cfg(feature = "ic")]
-#[enhanced_orthogonal_persistence]
 pub unsafe fn get_incremental_gc_state() -> &'static mut State {
     crate::persistence::get_incremental_gc_state()
 }

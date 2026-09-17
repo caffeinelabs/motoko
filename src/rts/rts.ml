@@ -19,5 +19,5 @@ let load_file env =
     Printf.eprintf "Environment variable %s not set. Please run moc via the bin/moc wrapper (which should be in your PATH in the nix-shell)." env;
     exit 1
 
-let wasm_eop_release : string Lazy.t = lazy (load_file "MOC_EOP_RELEASE_RTS")
-let wasm_eop_debug : string Lazy.t = lazy (load_file "MOC_EOP_DEBUG_RTS")
+let wasm_release : string Lazy.t = lazy (load_file "MOC_RELEASE_RTS")
+let wasm_debug : string Lazy.t = lazy (load_file "MOC_DEBUG_RTS")

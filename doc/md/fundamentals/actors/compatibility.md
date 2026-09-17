@@ -133,9 +133,7 @@ In addition to Motoko's runtime check, `dfx` raises a warning message for these 
 Motoko tolerates Candid interface changes, since these are more likely to be intentional, breaking changes.
 
 :::danger
-Versions of Motoko using [classical orthogonal persistence](./orthogonal-persistence/classical.md) will drop the state and reinitialize the counter with `0.0`, if the `dfx` warning is ignored.
-
-For this reason, users should always heed any compatibility warnings issued by `dfx`.
+Users should always heed any compatibility warnings issued by `dfx`.
 :::
 
 
@@ -369,10 +367,6 @@ cannot be consumed at new type
 
 With [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md), compatibility errors of stable variables are always detected in the runtime system and if failing, the upgrade is safely rolled back.
 
-:::danger
-With [classical orthogonal persistence](./orthogonal-persistence/classical.md), however, an upgrade attempt from `v2.wasm` to `v3.wasm` is unpredictable and may lead to partial or complete data loss if the `dfx` warning is ignored.
-:::
-
 ## Adding record fields
 
 A common, real-world example of an incompatible upgrade can be found [on the forum](https://forum.dfinity.org/t/questions-about-data-structures-and-migrations/822/12?u=claudio/).
@@ -402,8 +396,7 @@ cannot be consumed at new type
 
 Do you want to proceed? yes/No
 ```
-It is recommended not to continue, as you will lose the state in older versions of Motoko that use [classical orthogonal persistence](./orthogonal-persistence/classical.md).
-Upgrading with [enhanced orthogonal persistence](./orthogonal-persistence/enhanced.md) will trap and roll back, keeping the old state.
+It is recommended not to continue: the upgrade will trap and roll back, keeping the old state.
 
 Adding a new record field to the type of existing stable variable is not supported. The reason is simple: the upgrade would need to supply values for the new field out of thin air. In this example, the upgrade would need to conjure up some value for the `description` field of every existing `card` in `map`. Moreover, allowing adding optional fields is also a problem, as a record can be shared from various variables with different static types, some of them already declaring the added field or adding a same-named optional field with a potentially different type (and/or different semantics).
 

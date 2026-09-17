@@ -19,8 +19,6 @@
 // [1]: https://github.com/rust-lang/reference/blob/master/src/types/struct.md
 // [2]: https://doc.rust-lang.org/stable/reference/type-layout.html#the-c-representation
 
-use motoko_rts_macros::{enhanced_orthogonal_persistence, incremental_gc};
-
 use crate::barriers::{init_with_barrier, write_with_barrier};
 use crate::memory::Memory;
 use crate::tommath_bindings::{mp_digit, mp_int};
@@ -163,7 +161,6 @@ pub const TRUE_VALUE: usize = 0x1;
 /// Constant sentinel pointer value for fast null tests.
 /// Points to the last unallocated Wasm page.
 /// See also `compile.ml` for other reserved sentinel values.
-#[enhanced_orthogonal_persistence]
 pub const NULL_POINTER: Value = Value::from_raw(0xffff_ffff_ffff_fffb);
 
 /// A value in a heap slot
@@ -245,7 +242,6 @@ impl Value {
     }
 
     /// Is the value a non-null pointer?
-    #[enhanced_orthogonal_persistence]
     pub fn is_non_null_ptr(&self) -> bool {
         self.get().is_ptr() && *self != NULL_POINTER
     }
@@ -290,14 +286,12 @@ impl Value {
     /// with a header as well as `OneWordFiller`, `FwdPtr`, and `FreeSpace`.
     /// In debug mode panics if the value is not a pointer.
     pub unsafe fn tag(self) -> Tag {
-        #[enhanced_orthogonal_persistence]
         debug_assert_ne!(self, NULL_POINTER);
 
         *(self.get_ptr() as *const Tag)
     }
 
     /// Get the forwarding pointer. Used by the incremental GC.
-    #[incremental_gc]
     pub unsafe fn forward(self) -> Value {
         debug_assert!(self.is_obj());
         debug_assert!(self.get_ptr() as *const Obj != null());
@@ -306,7 +300,6 @@ impl Value {
     }
 
     /// Resolve forwarding if the value is a pointer. Otherwise, return the same value.
-    #[enhanced_orthogonal_persistence]
     pub unsafe fn forward_if_possible(self) -> Value {
         // Second condition: Ignore raw null addresses used in `text_iter`.
         if self.is_non_null_ptr() && self.get_ptr() as *const Obj != null() {
@@ -416,7 +409,6 @@ impl Value {
     // optimized version of `value.is_non_null_ptr() && value.get_ptr() >= address`
     // value is a non-null pointer equal or greater than the unskewed address > 1
     #[inline]
-    #[enhanced_orthogonal_persistence]
     pub fn points_to_or_beyond(&self, address: usize) -> bool {
         debug_assert!(address > TRUE_VALUE);
         let raw = self.get_raw();
@@ -474,12 +466,9 @@ pub const TAG_BIGINT: Tag = 35;
 pub const TAG_CONCAT: Tag = 37;
 pub const TAG_REGION: Tag = 39;
 
-#[enhanced_orthogonal_persistence]
 pub const TAG_ONE_WORD_FILLER: Tag = 41;
-#[enhanced_orthogonal_persistence]
 pub const TAG_FREE_SPACE: Tag = 43;
 
-#[enhanced_orthogonal_persistence]
 pub const TAG_WEAK_REF: Tag = 45;
 
 // Special value to visit only a range of array fields.
@@ -492,17 +481,14 @@ pub const TAG_WEAK_REF: Tag = 45;
 // Note: The minimum value can be even, as it only denotes
 // a lower boundary to distinguish slice information from
 // the actual tag values.
-#[enhanced_orthogonal_persistence]
 pub const TAG_ARRAY_SLICE_MIN: Tag = 46;
 
 pub const TAG_SPACING: Tag = 2;
 
-#[enhanced_orthogonal_persistence]
 pub fn is_object_tag(tag: Tag) -> bool {
     tag >= TAG_OBJECT && tag <= TAG_REGION || tag == TAG_WEAK_REF
 }
 
-#[enhanced_orthogonal_persistence]
 pub fn is_weak_ref_tag(tag: Tag) -> bool {
     tag == TAG_WEAK_REF
 }
@@ -563,24 +549,20 @@ pub fn base_array_tag(tag: Tag) -> Tag {
 pub struct Obj {
     pub tag: Tag,
     // Cannot use `#[incremental_gc]` as Rust only allows non-macro attributes for fields.
-    #[cfg(feature = "incremental_gc")]
     /// Forwarding pointer to support object moving in the incremental GC.
     pub forward: Value,
 }
 
 impl Obj {
-    #[enhanced_orthogonal_persistence]
     pub fn new(tag: Tag, forward: Value) -> Obj {
         Obj { tag, forward }
     }
 
-    #[incremental_gc]
     pub fn init_forward(&mut self, value: Value) {
         self.forward = value;
     }
 
     /// Check whether the object's forwarding pointer refers to a different location.
-    #[incremental_gc]
     pub unsafe fn is_forwarded(self: *const Self) -> bool {
         (*self).forward.get_ptr() != self as usize
     }
@@ -676,7 +658,6 @@ impl Array {
 
 #[rustfmt::skip]
 #[repr(C)] // See the note at the beginning of this module
-#[enhanced_orthogonal_persistence]
 pub struct Region {
     pub header: Obj,
     pub id: u64,
@@ -684,7 +665,6 @@ pub struct Region {
     pub vec_pages: Value, // Blob of u16's (each a page block ID).
 }
 
-#[enhanced_orthogonal_persistence]
 impl Region {
     pub unsafe fn write_id64(self: *mut Self, value: u64) {
         (*self).id = value;
@@ -827,7 +807,7 @@ pub struct BigInt {
     /// the data within this object before it is used.
     /// (NB: If we have a non-moving GC, we can make this an invariant)
     /// NOTE: `mp_int` originates from Tom's math library implementation.
-    /// Layout in 64-bit memory (with enhanced orthogonal persistence):
+    /// Layout:
     /// ```
     /// pub struct mp_int { // Total size 24
     ///   pub used: c_int, // Offset 0, size 4
@@ -835,15 +815,6 @@ pub struct BigInt {
     ///   pub sign: mp_sign, // Offset 8, size 4
     ///   _padding: u32, // Implicit padding to align subsequent 64-bit pointer
     ///   pub dp: *mut mp_digit, // Offset 16, size 8
-    /// }
-    /// ```
-    /// Layout in 32-bit memory (with classical persistence):
-    /// ```
-    /// pub struct mp_int { // Total size 24
-    ///   pub used: c_int, // Offset 0, size 4
-    ///   pub alloc: c_int, // Offset 4, size 4
-    ///   pub sign: mp_sign, // Offset 8, size 4
-    ///   pub dp: *mut mp_digit, // Offset 12, size 4
     /// }
     /// ```
     pub mp_int: mp_int,
@@ -865,7 +836,6 @@ impl BigInt {
         self.add(1) as *mut mp_digit // skip closure header
     }
 
-    #[incremental_gc]
     pub unsafe fn forward(self: *mut Self) -> *mut Self {
         (*self).header.forward.as_bigint()
     }
@@ -966,7 +936,6 @@ pub struct WeakRef {
     pub field: Value,
 }
 
-#[cfg(feature = "enhanced_orthogonal_persistence")]
 impl WeakRef {
     pub unsafe fn is_live(&self) -> bool {
         let field_tag = self.header.tag;
@@ -994,7 +963,6 @@ pub(crate) unsafe fn block_size(address: usize) -> Words<usize> {
             size_of::<Object>() + Words(size)
         }
 
-        #[cfg(feature = "enhanced_orthogonal_persistence")]
         TAG_WEAK_REF => size_of::<WeakRef>(),
 
         // `block_size` is not used during the incremental mark phase and

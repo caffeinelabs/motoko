@@ -1,5 +1,5 @@
 (*
-This module contains common definitions for compile_enhanced.ml.
+This module contains common definitions for compile.ml.
 *)
 open Mo_types
 

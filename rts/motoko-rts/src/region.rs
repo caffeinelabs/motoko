@@ -26,7 +26,7 @@ const _: () = assert!(meta_data::size::PAGES_IN_BLOCK <= u8::MAX as u32);
 const _: () = assert!(meta_data::max::BLOCKS <= u16::MAX);
 const _: () = assert!(meta_data::max::REGIONS <= u64::MAX - 1);
 
-use motoko_rts_macros::{enhanced_orthogonal_persistence, ic_mem_fn};
+use motoko_rts_macros::ic_mem_fn;
 
 unsafe fn region_trap_with(msg: &str) -> ! {
     trap_with_prefix("Region error: ", msg)
@@ -478,7 +478,6 @@ pub(crate) unsafe fn region0_get_ptr_loc() -> *mut Value {
     addr_of_mut!(REGION_0)
 }
 
-#[enhanced_orthogonal_persistence]
 unsafe fn migrate_on_new_region<M: Memory>(mem: &mut M) {
     match crate::stable_mem::get_version() {
         VERSION_STABLE_HEAP_NO_REGIONS | VERSION_GRAPH_COPY_NO_REGIONS => {
@@ -796,7 +795,6 @@ pub(crate) unsafe fn region_migration_from_regions_plus<M: Memory>(mem: &mut M) 
 //
 // region manager migration/initialization, with pre-existing stable data.
 //
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn(ic_only)]
 pub(crate) unsafe fn region_init<M: Memory>(mem: &mut M, use_stable_regions: usize) {
     match crate::stable_mem::get_version() {

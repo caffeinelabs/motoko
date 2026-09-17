@@ -9,8 +9,6 @@ crate-type = ["rlib"]
 path = "../src/lib.rs"
 
 [features]
-incremental_gc = []
-enhanced_orthogonal_persistence = ["incremental_gc"]
 ic = [] # Not used by RTS unit tests
 memory_check = []
 

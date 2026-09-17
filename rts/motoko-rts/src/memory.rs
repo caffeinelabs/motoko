@@ -2,21 +2,17 @@
 pub mod ic;
 use crate::{constants::MAX_ARRAY_LENGTH, types::*};
 
-use motoko_rts_macros::enhanced_orthogonal_persistence;
 use motoko_rts_macros::ic_mem_fn;
 
-#[enhanced_orthogonal_persistence]
 use crate::barriers::init_with_barrier;
 
 #[cfg(feature = "ic")]
 use crate::constants::MB;
 
-#[enhanced_orthogonal_persistence]
 use crate::constants::GB;
 
 // TODO: Redesign for 64-bit support by using a dynamic partition list.
 /// Currently limited to 64 GB.
-#[enhanced_orthogonal_persistence]
 pub const MAXIMUM_MEMORY_SIZE: Bytes<u64> = Bytes(64u64 * GB as u64);
 
 // Memory reserve in bytes ensured during update and initialization calls.
@@ -86,7 +82,6 @@ pub unsafe fn alloc_array<M: Memory>(mem: &mut M, tag: Tag, len: usize) -> Value
 }
 
 /// Allocate a new weak reference.
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 pub unsafe fn alloc_weak_ref<M: Memory>(mem: &mut M, target: Value) -> Value {
     use crate::barriers::allocation_barrier;
@@ -100,7 +95,6 @@ pub unsafe fn alloc_weak_ref<M: Memory>(mem: &mut M, target: Value) -> Value {
 }
 
 /// Check if a weak reference is still live.
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 pub unsafe fn weak_ref_is_live<M: Memory>(_mem: &mut M, weak_ref: Value) -> bool {
     if !weak_ref.is_non_null_ptr() {
@@ -113,7 +107,6 @@ pub unsafe fn weak_ref_is_live<M: Memory>(_mem: &mut M, weak_ref: Value) -> bool
 }
 
 /// Get the dedup table.
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 #[cfg(feature = "ic")]
 pub unsafe fn get_dedup_table<M: Memory>(_mem: &mut M) -> Value {
@@ -122,7 +115,6 @@ pub unsafe fn get_dedup_table<M: Memory>(_mem: &mut M) -> Value {
 }
 
 /// Set the dedup table.
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 #[cfg(feature = "ic")]
 pub unsafe fn set_dedup_table<M: Memory>(mem: &mut M, dedup_table: Value) {
@@ -136,7 +128,6 @@ pub unsafe fn set_dedup_table<M: Memory>(mem: &mut M, dedup_table: Value) {
 }
 
 /// Get the migrations list.
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 #[cfg(feature = "ic")]
 pub unsafe fn get_migrations<M: Memory>(_mem: &mut M) -> Value {
@@ -145,7 +136,6 @@ pub unsafe fn get_migrations<M: Memory>(_mem: &mut M) -> Value {
 }
 
 /// Set the migrations list.
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 #[cfg(feature = "ic")]
 pub unsafe fn set_migrations<M: Memory>(mem: &mut M, migrations: Value) {

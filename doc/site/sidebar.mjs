@@ -58,7 +58,6 @@ export const sidebar = [
             items: [
               { slug: "fundamentals/actors/orthogonal-persistence/overview" },
               { slug: "fundamentals/actors/orthogonal-persistence/enhanced" },
-              { slug: "fundamentals/actors/orthogonal-persistence/classical" },
             ],
           },
           { slug: "fundamentals/actors/mixins" },

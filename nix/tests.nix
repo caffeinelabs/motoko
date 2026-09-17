@@ -84,16 +84,6 @@ let
       EXTRA_MOC_ARGS = "--sanity-checks";
     };
 
-  enhanced_orthogonal_persistence_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--enhanced-orthogonal-persistence";
-    };
-
-  snty_enhanced_orthogonal_persistence_subdir = dir: deps:
-    (test_subdir dir deps).overrideAttrs {
-      EXTRA_MOC_ARGS = "--sanity-checks --enhanced-orthogonal-persistence";
-    };
-
   perf_subdir = accept: dir: deps:
     (acceptable_subdir accept dir deps).overrideAttrs (args: {
       checkPhase = ''
@@ -215,22 +205,15 @@ fix_names
   {
     run-release = test_subdir "run" [ moc test-runner ];
     run-debug = snty_subdir "run" [ moc test-runner ];
-    run-eop-release = enhanced_orthogonal_persistence_subdir "run" [ moc test-runner ];
-    run-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run" [ moc test-runner ];
     drun-release = test_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     drun-debug = snty_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-eop-release = enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
-    drun-eop-debug = snty_enhanced_orthogonal_persistence_subdir "run-drun" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     fail = test_subdir "fail" [ moc test-runner ];
     repl = test_subdir "repl" [ moc test-runner ];
     ld = test_subdir "ld" ([ mo-ld test-runner ] ++ ldTestDeps);
-    ld-eop = enhanced_orthogonal_persistence_subdir "ld" ([ mo-ld test-runner ] ++ ldTestDeps);
     idl = test_subdir "idl" [ didc test-runner ];
     mo-idl = test_subdir "mo-idl" [ moc didc test-runner ];
-    mo-idl-eop = enhanced_orthogonal_persistence_subdir "mo-idl" [ moc didc test-runner ];
     mo-doc = test_subdir "mo-doc" [ mo-doc ];
     trap = test_subdir "trap" [ moc test-runner ];
-    trap-eop = enhanced_orthogonal_persistence_subdir "trap" [ moc test-runner ];
     run-deser = test_subdir "run-deser" [ deser ];
     perf = perf_subdir false "perf" [ moc test-runner pkgs.pocket-ic.server pkgs.cacert ];
     # TODO: profiling-graph is excluded because the underlying parity_wasm is deprecated and does not support passive data segments and memory64.

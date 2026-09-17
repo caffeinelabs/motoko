@@ -68,7 +68,7 @@ CLANG_FLAGS_64 = $(CLANG_FLAGS_COMMON) \
 
 .PHONY: all
 
-all: mo-rts-eop.wasm mo-rts-eop-debug.wasm
+all: mo-rts.wasm mo-rts-debug.wasm
 
 _build:
 	mkdir -p $@
@@ -160,9 +160,9 @@ $(TOMMATH_BINDINGS_RS_64): | _build/wasm64
 # 64-bit Wasm builds
 
 RTS_DEPENDENCIES_64=$(TOMMATH_BINDINGS_RS_64) $(RTS_RUST_FILES) $(RTS_CARGO_FILES) | _build/wasm64
-RTS_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_CARGO_OPTIONS) --features enhanced_orthogonal_persistence
+RTS_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_CARGO_OPTIONS)
 RTS_DEBUG_BUILD_64=$(RTS_BUILD_64)
-RTS_RELEASE_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_RELEASE_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_RELEASE_CARGO_OPTIONS) --features enhanced_orthogonal_persistence
+RTS_RELEASE_BUILD_64=cd motoko-rts && RUSTFLAGS="${RTS_RELEASE_COMPILE_FLAGS}" cargo build --target wasm64-none-shared.json $(NIGHTLY_RELEASE_CARGO_OPTIONS)
 
 RTS_DEBUG_TARGET_64=motoko-rts/target/wasm64-none-shared/debug/libmotoko_rts.a
 RTS_RELEASE_TARGET_64=motoko-rts/target/wasm64-none-shared/release/libmotoko_rts.a
@@ -203,17 +203,17 @@ GIT_HASH := $(shell git rev-parse HEAD 2>/dev/null || echo "0")
 
 define test_variant
 .PHONY: build-$(1) $(1)
-build-$(1): $$($(6))
+build-$(1): $$($(5))
 	cd motoko-rts-tests && CARGO_TARGET_DIR=target-$(1) \
 	  RTS_TEST_GIT_HASH=$(GIT_HASH) RUSTFLAGS="$${RTS_COMPILE_FLAGS}" \
-	  cargo build --target=$(2) $(3) $(4)
+	  cargo build --target=$(2) $(3)
 	test -f motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
 
 # Per-module targets: <variant>-<module>
 $(foreach mod,$(TEST_MODULES),
 .PHONY: $(1)-$(mod)
 $(1)-$(mod): build-$(1)
-	WASMTIME_BACKTRACE_DETAILS=1 wasmtime -C cache=n -W nan-canonicalization=y $(5) \
+	WASMTIME_BACKTRACE_DETAILS=1 wasmtime -C cache=n -W nan-canonicalization=y $(4) \
 	  --invoke test_$(mod) \
 	  motoko-rts-tests/target-$(1)/$(2)/debug/motoko-rts-tests.wasm
 )
@@ -226,7 +226,7 @@ comma := ,
 
 $(eval $(call test_variant,test64,wasm64-unknown-unknown,\
   -Zbuild-std=core$(comma)alloc$(comma)std$(comma)panic_abort,\
-  --features enhanced_orthogonal_persistence,-W memory64,TEST_DEPENDENCIES_64))
+  -W memory64,TEST_DEPENDENCIES_64))
 
 .PHONY: test
 test: test64
@@ -258,13 +258,13 @@ LINKER_OPTIONS_64=\
   $(EXPORTED_SYMBOLS:%=--export=%) --import-undefined \
   --whole-archive --experimental-pic
 
-mo-rts-eop.wasm: $(RTS_RUST_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
+mo-rts.wasm: $(RTS_RUST_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
 	$(WASM_LD) -o $@ \
 	  $(LINKER_OPTIONS_64) \
 	  $+
 	wasm-validate --enable-memory64 $@
 
-mo-rts-eop-debug.wasm: $(RTS_RUST_DEBUG_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
+mo-rts-debug.wasm: $(RTS_RUST_DEBUG_WASM_64_A) $(WASM_A_DEPENDENCIES_64)
 	$(WASM_LD) -o $@ \
 	  $(LINKER_OPTIONS_64) \
 	  $+

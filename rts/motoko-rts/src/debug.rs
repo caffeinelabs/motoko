@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use motoko_rts_macros::enhanced_orthogonal_persistence;
-
 use crate::print::*;
 use crate::types::*;
 
@@ -64,7 +62,6 @@ pub(crate) unsafe fn print_continuation_table(continuation_tbl_loc: *mut Value) 
     println!(50, "End of continuation table");
 }
 
-#[enhanced_orthogonal_persistence]
 fn is_valid_pointer(value: Value) -> bool {
     value.is_non_null_ptr()
 }
@@ -242,7 +239,6 @@ pub(crate) unsafe fn print_boxed_object(buf: &mut WriteBuf, p: usize) {
     }
 }
 
-#[enhanced_orthogonal_persistence]
 unsafe fn get_obj_hash_pointer(object: *mut Object) -> usize {
     (*object).hash_blob.get_raw()
 }

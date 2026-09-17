@@ -16,14 +16,12 @@
 use crate::gc::incremental::{get_incremental_gc_state, partitioned_heap::PARTITION_SIZE};
 use crate::memory::ic::partitioned_memory::{get_heap_size, get_total_allocations};
 use crate::types::Bytes;
-use motoko_rts_macros::enhanced_orthogonal_persistence;
 
 struct HeapThresholds {
     critical_heap_limit: Bytes<usize>,
     medium_heap_limit: Bytes<usize>,
 }
 
-#[enhanced_orthogonal_persistence]
 impl HeapThresholds {
     /// Heuristics: Determine the threshold values of the heap size to schedule a new GC start.
     /// Note:

@@ -25,11 +25,6 @@ ic = []
 # This feature enables extensive memory sanity checks in the incremental GC.
 memory_check = []
 
-# Incremental GC, using the extended object header containing the forwarding pointer.
-incremental_gc = []
-
-# Enhanced orthogonal persistence, 64-bit, retaining the main memory across upgrades.
-enhanced_orthogonal_persistence = ["incremental_gc"]
 
 [dependencies]
 libm = "=0.2.16"
