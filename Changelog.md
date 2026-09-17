@@ -10,10 +10,32 @@
     `ExperimentalStableMemory` library (or its primitives) is now an unconditional
     `M0199` error; use the `Region` library instead (#6357).
 
+  * feat: the contextual dot suggestion (`M0236`) is now on by default: `moc`
+    warns about calls like `Map.filter(map, ...)` that could be written with
+    dot notation `map.filter(...)`. Silence with `-A M0236`. The related
+    suggestions `M0223` (redundant type instantiation) and `M0237` (redundant
+    explicit arguments) remain off by default (allow with `-W`). (#6361)
+
+  * BREAKING CHANGE: the `motoko-Darwin-x86_64` release tarball and the
+    Intel-Mac (`macos-15-intel`) build/release CI legs are dropped; neither
+    the compiler nor its runtime are built or shipped for Intel Macs anymore.
+    x86_64-linux, aarch64-linux and Apple Silicon (`macos-latest`) binaries
+    continue to be produced. Users on Intel Macs should build from source.
+    The `motoko-base-library.tar.gz` release artifact is also dropped;
+    `motoko-core.tar.gz` is unaffected. (#6355)
+
+## 1.16.1 (2026-09-16)
+
+* motoko (`moc`)
+
   * bugfix: trapping `**` on `Nat8`, `Nat16`, `Nat32`, `Int8`, `Int16` and
     `Int32` now traps when the result overflows the 64-bit intermediate
     instead of returning a wrapped value (e.g. `(65536 : Nat32) ** 4` returned
     `0`) (#6340).
+
+  * bugfix: `Region.loadBlob`/`Region.storeBlob` no longer read one block past
+    the end of a region's block table when a block-aligned range ends exactly
+    at the end of the region (#6373).
 
   * perf: the incremental GC's write, allocation and weak-reference read barriers now
     gate on a backend-cached running-GC flag instead of calling into the RTS (#6111).

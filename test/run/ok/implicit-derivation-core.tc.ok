@@ -1,0 +1,2 @@
+implicit-derivation-core.mo:58.16-58.42: warning [M0236], You can use the dot notation `[3, 1, 2].sort(...)` here
+implicit-derivation-core.mo:77.49-77.69: warning [M0236], You can use the dot notation `arr.sort(...)` here
