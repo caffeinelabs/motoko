@@ -58,7 +58,6 @@ let sanity = ref false
 let gc_strategy = ref Default
 let force_gc = ref false
 let global_timer = ref true
-let experimental_field_aliasing = ref false
 let ocaml_js = ref false
 let js_project_root : string option ref = ref None
 let rts_stack_pages_default = 32 (* 2MB *)
@@ -83,17 +82,13 @@ let stable_memory_access_limit_default =
   update_call = Int64.mul 1L gigabyte; (* 2 GB limit with 1 GB reserve *)
 }
 let stable_memory_access_limit = ref stable_memory_access_limit_default
-let experimental_stable_memory_default = 0 (* _ < 0: error; _ = 0: warn, _ > 0: allow *)
-let experimental_stable_memory = ref experimental_stable_memory_default
 let typechecker_combine_srcs = ref false (* useful for the language server *)
 let blob_import_placeholders = ref false (* when enabled, blob:file imports resolve as empty blobs *)
 let implicit_derivation_depth = ref 100
-let generate_view_queries = ref false
 
 let default_warning_levels = M.empty
   |> M.add "M0223" Allow (* don't report redundant instantions *)
   |> M.add "M0235" Allow (* don't deprecate for non-caffeine *)
-  |> M.add "M0236" Allow (* don't suggest contextual dot notation *)
   |> M.add "M0237" Allow (* don't report redundant explicit arguments *)
   |> M.add "M0268" (Error : lint_level) (* diverging from the deployed migration history is a deployment hazard *)
 

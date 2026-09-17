@@ -39,6 +39,7 @@ known_untested_codes = {
     "M0162", # Candid service constructor type not supported as Motoko type
     "M0164", # unknown record or variant label in textual representation
     "M0165", # odd expected type
+    "M0179", # defunct: record-update var fields are now shallow-copied, not errored
     "M0181", # defunct viper error
     "M0191", # compiler warning about wasm features (hard to trigger)
     "M0232", # cannot infer type of implicit argument

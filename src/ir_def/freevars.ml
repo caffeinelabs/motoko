@@ -146,7 +146,6 @@ and cases cs : f = unions case cs
 and dec d = match d.it with
   | LetD (p, e) -> fd_of_defs (pat p) +++ exp e
   | VarD (i, t, e) -> fd_of_defs (M.singleton i t) +++ exp e
-  | RefD (i, t, e) -> fd_of_defs (M.singleton i t) +++ lexp e
 
 (* The variables captured by a function. May include the function itself! *)
 and captured e =

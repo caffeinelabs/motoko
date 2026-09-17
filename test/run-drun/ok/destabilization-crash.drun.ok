@@ -9,5 +9,5 @@ debug.print: {heap_MB = 320}
 debug.print: {heap_MB = 384}
 debug.print: {heap_MB = 448}
 debug.print: postupgrade!
-ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at destabilization-crash.mo:41.6-41.18'.
+ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'assertion failed at destabilization-crash.mo:42.6-42.18'.
 Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly

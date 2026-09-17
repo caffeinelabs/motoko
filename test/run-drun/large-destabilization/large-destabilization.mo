@@ -3,8 +3,9 @@ import Prim = "mo:prim";
 // test destabilization of stable variables, without rts stack overflow
 actor a {
 
-   stable let x = Prim.stableMemoryGrow(1);
-   assert Prim.stableMemorySize() == 1;
+   let r = Prim.regionNew();
+   ignore Prim.regionGrow(r, 1);
+   assert Prim.regionSize(r) == 1;
 
    type List<T> = ?(T, List<T>);
 
@@ -16,9 +17,9 @@ actor a {
      var c = 1024;
      while (c > 0) {
        count += 1;
-       Prim.stableMemoryStoreNat32(0, count);
-       var k = Prim.stableMemoryLoadBlob(0, 32);
-       var v = Prim.stableMemoryLoadBlob(0, 65536);
+       Prim.regionStoreNat32(r, 0, count);
+       var k = Prim.regionLoadBlob(r, 0, 32);
+       var v = Prim.regionLoadBlob(r, 0, 65536);
        map := ?((k,v), map);
        c -= 1;
      };
