@@ -12,9 +12,8 @@
 #   `error: <msg>`    -> malformed changelog / bad usage, exit 1
 #
 # Exit status separates the two: 0 means a section was extracted (or the
-# changelog legitimately has none), non-zero means the changelog is wrong.
-# The body length is the signal for "extracted": a non-empty body means a
-# section was found, and the caller reports `extractable` from that.
+# changelog legitimately has none), non-zero means the changelog is wrong. The
+# caller reports `extractable` from whether the body is non-empty.
 
 use strict;
 use warnings;
@@ -29,11 +28,8 @@ sub error {
     exit 1;
 }
 
-# The heading itself is always dropped: the body is the entries only. Nothing
-# else is rewritten, so `mode: version` keeps byte-for-byte the body the
-# release workflow has always published (leading blank lines are not part of
-# the entries and are dropped; the trailing blank line before the next heading
-# is kept, as before).
+# The heading itself is always dropped: the body is the entries only. Leading
+# blank lines are not entries, so they go too; everything else is kept as is.
 sub body_of {
     my ($body) = @_;
     $body = "" unless defined $body;
@@ -47,7 +43,6 @@ sub body_of {
 my $released_heading = qr/^## [0-9]+\.[0-9]+\.[0-9]+ \(\d\d\d\d-\d\d-\d\d\)/m;
 
 my ($file, $mode, $version) = @ARGV;
-# An unset/blank mode means the default, same as the action input's default.
 $mode = 'version' if !defined $mode || $mode !~ /\S/;
 $mode =~ s/^\s+|\s+$//g;
 $version =~ s/^\s+|\s+$//g if defined $version;
@@ -62,8 +57,8 @@ close $fh;
 if ($mode eq 'version') {
     error("mode 'version' requires a version") unless defined $version && length $version;
     # Any `## <version> (date)` section, not only the first one: a changelog
-    # that has unreleased entries above the latest release must still resolve
-    # a released version.
+    # with unreleased entries above the latest release must still resolve a
+    # released version.
     $changelog =~ /^## \Q$version\E \(\d\d\d\d-\d\d-\d\d\)\n+(.*?)^##/sm
         or warning("Changelog does not look right for this version: no '$version' section found (expected a '## $version (YYYY-MM-DD)' heading)");
     print body_of($1);
@@ -71,10 +66,10 @@ if ($mode eq 'version') {
 }
 
 if ($mode eq 'unreleased') {
-    # Everything above the first released section. The section heading for the
+    # Everything above the first released section: the heading of the
     # unreleased entries (`## Next`, or whatever it is called) is optional, so
-    # rather than looking for one, skip the leading heading block -- the titles
-    # and blank lines before the first entry. Only that block, so a `#` line
+    # skip the leading heading block -- the titles and blank lines before the
+    # first entry -- rather than look for one. Only that block, so a `#` line
     # inside the entries themselves is left alone.
     my $head = $changelog;
     $head =~ s/$released_heading.*//s;

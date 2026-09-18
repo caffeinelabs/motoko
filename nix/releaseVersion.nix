@@ -1,17 +1,14 @@
-# Extracts the first version number in Changelog.md
+# The release version: the first version number in Changelog.md, unless the
+# MOTOKO_RELEASE_VERSION environment variable overrides it.
 #
-# The env var MOTOKO_RELEASE_VERSION, when set and non-empty, overrides it.
-# This is what lets a prerelease (e.g. 2.0.0-beta.0) be built before its
-# `## x.y.z (date)` heading exists in the changelog:
+# The override is what lets a prerelease such as 2.0.0-beta.0 be built before
+# its `## x.y.z (date)` heading exists in the changelog:
 #
 #   MOTOKO_RELEASE_VERSION=2.0.0-beta.0 nix build --impure ...
 #
-# The `nix build` CLI needs `--impure` for this: under a pure evaluation
-# `builtins.getEnv` returns "" even when the variable is set in the
-# environment, so a pure evaluation falls back to the changelog. (The legacy
-# `nix-instantiate` CLI reads the environment either way; all release build
-# paths pass `--impure`, so the distinction does not matter here.) An unset
-# variable always falls back to the changelog.
+# `--impure` is required: under a pure evaluation `builtins.getEnv` returns ""
+# even when the variable is set, so the build silently falls back to the
+# changelog instead of failing.
 { pkgs, officialRelease ? false }:
 let
   changelogVersion =

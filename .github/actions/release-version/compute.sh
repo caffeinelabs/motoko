@@ -18,9 +18,9 @@ fail() {
   exit 1
 }
 
-# The version ends up in a git tag, a release tag, and artifact filenames (which
-# `mops toolchain` fetches by name), so keep it to characters that are safe in
-# all three. No leading or trailing separator either.
+# The version ends up in a git tag, a release tag, and artifact filenames
+# (which `mops toolchain` fetches by name), so keep it to characters that are
+# safe in all three.
 version_re='^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$'
 
 base="$BASE_VERSION"
@@ -35,7 +35,7 @@ printf '%s' "$base" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
 
 suffix="$VERSION_SUFFIX"
 if [ -n "$suffix" ]; then
-  printf '%s' "$suffix" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$' \
+  printf '%s' "$suffix" | grep -Eq "$version_re" \
     || fail "version suffix '${suffix}' must start and end with a letter or digit and contain only letters, digits, dots and hyphens (e.g. beta.0, alpha-1, rc.1)"
 fi
 

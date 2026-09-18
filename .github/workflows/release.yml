@@ -27,11 +27,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Resolve the version *once* so every job agrees on it. The version is
-  # `<base>[-<suffix>]`, where the base is either the `base_version` input or the
-  # first version in Changelog.md, and the suffix is the `version_suffix` input.
-  # It is used as the release tag, as the artifact filenames, and as the version
-  # the built compiler reports via `moc --version`.
+  # Resolve the version once, so every job agrees on it.
+  #
+  # The version is `<base>[-<suffix>]`, where the base is either the
+  # `base_version` input or the first version in Changelog.md, and the suffix is
+  # the `version_suffix` input. It is used as the release tag, as the artifact
+  # filenames, and as the version the built compiler reports via `moc --version`.
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -106,11 +107,9 @@ jobs:
       - run: echo "Preparing release ref=${{ github.ref_name }} version=${{ steps.release_version.outputs.version }}"
 
       # Publishing a draft release creates its tag, which fires this workflow
-      # again as a `push`. That second run must not rebuild and re-upload: the
-      # release is already complete. The rule is simply never to touch a
-      # published release -- a tag that already has one is skipped, while a
-      # dispatch can still (re)build its own draft, since a draft is not a
-      # published release.
+      # again as a `push`; that run must not rebuild or re-upload an already
+      # complete release. A tag whose release is published is skipped, while a
+      # dispatch can still build its own draft.
       - name: Check whether this version is already released
         id: already_released
         env:
