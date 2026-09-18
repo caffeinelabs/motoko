@@ -3,9 +3,8 @@
 #
 # Usage: extract-changelog.pl <file> <mode> [version]
 #   mode = version     -> the `## <version> (YYYY-MM-DD)` section
-#   mode = unreleased  -> the first `## ` section (title-agnostic), unless it
-#                         is a dated released section (then there is nothing
-#                         unreleased to extract)
+#   mode = unreleased  -> everything above the first released
+#                         `## <version> (YYYY-MM-DD)` section
 #
 # The extracted body (without the heading) goes to stdout; diagnostics go to
 # stderr:
@@ -42,10 +41,10 @@ sub body_of {
     return $body;
 }
 
-# A dated released heading, e.g. `## 1.16.1 (2026-09-16)`.
-sub is_released_heading {
-    return $_[0] =~ /^## [0-9]+\.[0-9]+\.[0-9]+ \(\d\d\d\d-\d\d-\d\d\)$/;
-}
+# A released section heading, e.g. `## 1.16.1 (2026-09-16)`. This is the marker
+# that ends the unreleased entries, whether or not they have a heading of their
+# own (`## Next`).
+my $released_heading = qr/^## [0-9]+\.[0-9]+\.[0-9]+ \(\d\d\d\d-\d\d-\d\d\)/m;
 
 my ($file, $mode, $version) = @ARGV;
 # An unset/blank mode means the default, same as the action input's default.
@@ -72,19 +71,17 @@ if ($mode eq 'version') {
 }
 
 if ($mode eq 'unreleased') {
-    # First `## ` section, whatever it is called, from just after the heading
-    # line to the next `## ` heading.
-    $changelog =~ /^(## [^\n]*)\n+(.*?)^##/sm
-        or warning("Changelog does not look right: no '## ' section found");
-    my $heading = $1;
-    my $body = $2;
-    # Guard: a dated released section as the first section means there is
-    # nothing unreleased; never report an already-shipped section as if it
-    # were unreleased.
-    if (is_released_heading($heading)) {
-        warning("Changelog has no unreleased entries: the first section is the released section '$heading'");
-    }
-    print body_of($body);
+    # Everything above the first released section. The section heading for the
+    # unreleased entries (`## Next`, or whatever it is called) is optional, so
+    # rather than looking for one, skip the leading heading block -- the titles
+    # and blank lines before the first entry. Only that block, so a `#` line
+    # inside the entries themselves is left alone.
+    my $head = $changelog;
+    $head =~ s/$released_heading.*//s;
+    $head =~ s/\A(?:[ \t]*\#[^\n]*\n|[ \t]*\n)*//;
+    my $body = body_of($head);
+    warning("Changelog has no unreleased entries above the latest release") unless $body =~ /\S/;
+    print $body;
     exit 0;
 }
 

@@ -332,10 +332,11 @@ by `moc --version`. Artifacts are uploaded with the correct names according to t
 generated version, e.g. `motoko-Darwin-arm64-2.0.0-beta.0.tar.gz` -- this is necessary
 for `mops toolchain` to fetch the correct file.
 
-The release body is the **unreleased** `Changelog.md` section -- everything above the
-most recent released `## X.Y.Z (YYYY-MM-DD)` section. The heading of that section is
-irrelevant, so leaving it as `## Next` (or renaming it) both work. If there are no
-unreleased entries, the body falls back to a generic placeholder.
+The release body is the **unreleased** `Changelog.md` entries -- everything above the
+most recent released `## X.Y.Z (YYYY-MM-DD)` section. Those entries need no heading at
+all: an optional heading such as `## Next` is dropped along with the title, so leaving
+the heading out, keeping it, or renaming it all work. If there is nothing above the
+latest release, the body falls back to a generic placeholder.
 
 ## Coverage report
 

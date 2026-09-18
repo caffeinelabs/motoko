@@ -6,7 +6,7 @@ inputs:
     required: false
     default: ''
   mode:
-    description: 'Which section to extract: `version` (the `## <version> (YYYY-MM-DD)` section) or `unreleased` (the first changelog section, whatever its title)'
+    description: 'Which entries to extract: `version` (the `## <version> (YYYY-MM-DD)` section) or `unreleased` (everything above the first released version section, heading or not)'
     required: false
     default: version
 runs:

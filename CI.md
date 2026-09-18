@@ -135,7 +135,8 @@ so ordinary `nix build` invocations are unaffected.
 
 Prerelease runs skip the changelog-section requirement, since no released
 section exists for a version that has not been released; the release body is the
-unreleased section of `Changelog.md` instead
+unreleased entries of `Changelog.md` instead -- everything above the latest
+released section, with or without a heading of their own
 ([.github/actions/extract-changelog](.github/actions/extract-changelog/)). A tag
 that is not on `master` is still rejected.
 
