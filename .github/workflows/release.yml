@@ -32,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,6 +73,13 @@ jobs:
           fi
           echo "Preparing release version=${version}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
+          # A suffix is what makes a version a prerelease, and it is what the
+          # release body and the GitHub release flags are chosen by.
+          if [ "${version#*-}" != "${version}" ]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
   # Check that the changelog is in good order and extract the changelog.
   changelog:
@@ -80,14 +88,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Extract changelog
-        # A version carrying a `-` is a prerelease, whose entries have no
-        # `## <version> (date)` section yet: extract the unreleased entries
-        # instead. Everything else is an official release.
+        # A prerelease's entries have no `## <version> (date)` section yet, so
+        # it gets the unreleased entries instead.
         id: read_changelog
         uses: ./.github/actions/extract-changelog
         with:
           version: ${{ needs.prepare.outputs.version }}
-          mode: ${{ contains(needs.prepare.outputs.version, '-') && 'unreleased' || 'version' }}
+          mode: ${{ needs.prepare.outputs.prerelease == 'true' && 'unreleased' || 'version' }}
     outputs:
       release_body: ${{ steps.read_changelog.outputs.release_body }}
 
@@ -175,10 +182,10 @@ jobs:
           overwrite: true
           body: ${{ needs.changelog.outputs.release_body || 'Draft release created for testing purposes' }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
-          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' || github.event_name == 'workflow_dispatch' }}
 
       - name: Notify node-motoko of new release
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name == 'push' && needs.prepare.outputs.prerelease != 'true' }}
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
         with:
           token: ${{ steps.app-token.outputs.token }}

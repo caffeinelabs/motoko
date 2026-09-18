@@ -322,6 +322,12 @@ everything above the most recent released section. Those entries need no
 heading of their own -- leaving out `## Next`, keeping it, or renaming it all
 work. Release bodies of official releases are unchanged.
 
+Publishing a pre-release creates its tag, which runs the workflow again as a tag
+push. That run rebuilds the same version and re-uploads the same assets over the
+published release, and because the version carries a suffix it is left marked as
+a pre-release and `node-motoko` is not notified. Only an official release
+becomes the latest release and notifies downstream.
+
 ## Coverage report
 
 To build with coverage enabled, compile the binaries in `src/` with
