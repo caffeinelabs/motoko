@@ -6,11 +6,11 @@ actor Registry {
   let map = Map.empty<Text, Nat>();
 
   public func register(name : Text) : async () {
-    switch (Map.get(map, Text.compare, name)) {
+    switch Map.get(map, Text.compare, name) {
       case null {
         Map.add(map, Text.compare, name, Map.size(map));
       };
-      case (?_) { };
+      case ?_ { };
     }
   };
 

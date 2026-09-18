@@ -62,7 +62,7 @@ A function that calls itself is a recursive function. Recursion enables looping 
 
 ```motoko no-repl
 func factorial(n : Nat) : Nat {
-    if (n == 0) {
+    if n == 0 {
         return 1;
     };
      // Calls itself with factorial(n - 1), reducing n until reaching 0.

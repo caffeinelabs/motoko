@@ -70,7 +70,7 @@ import Debug "mo:core/Debug";
 
 let arr : [Nat] = [1, 2, 3, 4, 5];
 
-for (i in arr.keys()) {
+for i in arr.keys() {
   Debug.print(debug_show(arr[i]));
 }
 ```
@@ -94,7 +94,7 @@ Motoko supports passing collections to a function, ensuring that all arguments a
 import Debug "mo:core/Debug"
 
 func printAllStrings(strings : [Text]) {
-  for (s in strings.values()) {
+  for s in strings.values() {
     Debug.print(s);
   }
 };
@@ -180,7 +180,7 @@ actor Chess{
   let chessboard : [[Text]] = generateChessboard();
 
   // Display the board
-  for (row in chessboard.values()) {
+  for row in chessboard.values() {
     let rowText = Array.foldLeft<Text, Text>(row, "", func(acc, square) = acc # square # " ");
     Debug.print(rowText)
   }

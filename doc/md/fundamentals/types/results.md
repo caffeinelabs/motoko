@@ -41,7 +41,7 @@ func greet(name : Text) : Result.Result<Text, Text> {
 };
 
 let result = greet("Motoko");
-switch (result){
+switch result{
   case (#ok message) {
     message
   };

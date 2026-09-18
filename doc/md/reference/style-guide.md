@@ -86,15 +86,18 @@ To increase readability and uniformity of Motoko source code, the style guide pr
 
     ``` motoko no-repl
     if (f()) A else B;
-    for (x in xs.values()) { ... };
-    switch (compare(x, y)) {
-      case (#less) { A };
-      case (_) { B };
+    for x in xs.values() { ... };
+    switch compare(x, y) {
+      case #less { A };
+      case _ { B };
     }
 
     assert (x < 100);
     await (async (0));
     ```
+
+    The legacy bare-branch `if` above keeps its parentheses, since dropping them
+    requires braced branches.
 
 -   Do not put a space between a function or variant tag and its argument tuple or around a generic type parameter list.
 
@@ -385,10 +388,10 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     };
 
     func eval(e : Expr) : Float {
-      switch (e) {
-        case (#const(x)) { x };
-        case (#add(e1, e2)) { eval(e1) + eval(e2) };
-        case (#mul(e1, e2)) { eval(e1) * eval(e2) };
+      switch e {
+        case #const(x) { x };
+        case #add(e1, e2) { eval(e1) + eval(e2) };
+        case #mul(e1, e2) { eval(e1) * eval(e2) };
       };
     }
     ```
@@ -397,13 +400,45 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
 ### Braces
 
+-   Write the head of an `if`, `while` or `switch` without enclosing parentheses.
+
+    ``` motoko no-repl
+    if f() { A } else { B };
+    for x in xs.values() { ... };
+    switch compare(x, y) {
+      case #less { A };
+      case _ { B };
+    }
+    ```
+
+    Parentheses are still needed where dropping them would change the parse: around a
+    head that is a tuple or a bare function application, around a `switch` head that is a
+    record literal, and around a variant payload in a `case` pattern.
+
+    ``` motoko no-repl
+    switch (r, c) { ... };              // tuple head
+    if f(x) == 0 { ... };               // parenthesize the application, not the comparison
+    switch ({ x = 1 }) { ... };         // record literal head
+    case (?n) { ... };                  // option payload
+    case (#node n) { ... };             // variant payload
+    ```
+
+    A head that is more than a single atom — a call, projection, index, operator or
+    prefix form — is only grammatical with braced branches or body. A single atom
+    head may still take bare branches, but prefer the braces for consistency.
+
+    ``` motoko no-repl
+    func g(i : Nat) : Nat { if i < 0 { 1 } else { 2 } };
+    func h(xs : [Nat]) : Nat { var s = 0; for x in xs.values() { s += x }; s };
+    ```
+
 -   Put braces around function bodies, `if` or `case` branches, and loop bodies, unless they appear nested as an expression and only contain a single expression.
 
     ``` motoko no-repl
     func f(x) { f1(x); f2(x) };
 
     let abs = if (v >= 0) v else -v;
-    let val = switch (f()) { case (#ok(x)) x; case (_) 0 };
+    let val = switch f() { case #ok(x) x; case _ 0 };
     func succ(x : Nat) : Nat = x + 1;
     ```
 
@@ -414,17 +449,17 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
       return;
     };
 
-    if (cond) {
+    if cond {
       foo();
     } else {
       bar();
     };
 
-    switch (opt) {
-      case (?x) {
+    switch opt {
+      case ?x {
         f(x);
       };
-      case (null) {};
+      case null {};
     };
     ```
 
@@ -605,10 +640,10 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     func eval(e : Expr) : Nat {
       let n =
-        switch (e) {
-          case (#neg(e1)) { - eval(e1) };
-          case (#add(e1, e2)) { eval(e1) + eval(e2) };
-          case (#mul(e1, e2)) { eval(e1) * eval(e2) };
+        switch e {
+          case #neg(e1) { - eval(e1) };
+          case #add(e1, e2) { eval(e1) + eval(e2) };
+          case #mul(e1, e2) { eval(e1) * eval(e2) };
         };
       Debug.print(n);
       return n;
@@ -623,7 +658,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     ``` motoko no-repl
     func foreach<X>(xs : [X], f : X -> ()) {
-      for (x in xs.values()) { f(x) }
+      for x in xs.values() { f(x) }
     }
     ```
 
@@ -653,7 +688,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 -   Similarly, put inline type annotations on arithmetic expressions with types other than [`Nat`](https://mops.one/core/docs/Nat) or [`Int`](https://mops.one/core/docs/Int).
 
     ``` motoko no-repl
-    if (x & mask == (1 : Nat32)) { ... };
+    if x & mask == (1 : Nat32) { ... };
     ```
 
     :::note
@@ -790,8 +825,8 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 -   Use `for` loops instead of `while` loops for iterating over a numeric range or a container.
 
     ``` motoko no-repl
-    for (i in Iter.range(1, 10)) { ... };
-    for (x in array.values()) { ... };
+    for i in Iter.range(1, 10) { ... };
+    for x in array.values() { ... };
     ```
 
     Rationale: For loops are less error-prone and easier to read.
@@ -801,7 +836,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     ``` motoko no-repl
     func abs(i : Int) : Int { if (i < 0) -i else i };
 
-    let delta = switch mode { case (#up) +1; case (#dn) -1 };
+    let delta = switch mode { case #up +1; case #dn -1 };
     ```
 
 -   Motoko requires that all expressions in a block have type `()`, in order to prevent accidentally dropped results.
@@ -833,7 +868,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     func gcd2(i : Nat, j : Nat) : Nat {
       var a = i;
       var b = j;
-      while (b > 0) {
+      while b > 0 {
         let c = a;
         a := b;
         b := c % b;

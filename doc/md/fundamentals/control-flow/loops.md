@@ -72,7 +72,7 @@ Even if the condition starts as false, the body runs at least once.
 A `for` loop in Motoko is used to iterate over the elements of a collection using the following structure:
 
 ```motoko no-repl
-for (pattern in iterator) {
+for pattern in iterator {
   // Code to run for each item
 }
 ```
@@ -98,7 +98,7 @@ import Debug "mo:core/Debug";
 
 let numbers = [0, 1, 2, 3, 4];
 
-for (num in numbers.values()) {
+for num in numbers.values() {
   Debug.print(debug_show(num));
 };
 ```
@@ -120,7 +120,7 @@ for ((fst, snd) in pairs.values()) {
 A `while` loop in Motoko repeatedly executes a block of code as long as a given condition is `true`.
 
 ```motoko no-repl
-while (condition) {
+while condition {
   // Code to run while the condition is true
 }
 ```
@@ -143,7 +143,7 @@ Once the condition becomes false, the loop stops, and the final result is `()`.
 import Debug "mo:core/Debug";
 
 var count = 3;
-while (count > 0) {
+while count > 0 {
   Debug.print("Counting down...");
   count -= 1;
 };
@@ -157,7 +157,7 @@ You can skip to the next iteration of a loop using the `continue` expression.
 import Debug "mo:core/Debug";
 
 var count = 8;
-while (count > 0) {
+while count > 0 {
   count -= 1;
   if (count % 2 == 0) continue;
   Debug.print("Counting down...");
@@ -171,7 +171,7 @@ This is useful when you have nested loops and need to continue a specific outer 
 import Debug "mo:core/Debug";
 
 var count = 8;
-label l while (count > 0) {
+label l while count > 0 {
   count -= 1;
   if (count % 2 == 0) continue l;
   Debug.print("Counting down...");

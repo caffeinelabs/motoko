@@ -33,7 +33,7 @@ Consider this function that computes the product of an array of integers.
 ```motoko no-repl
 func product(numbers : [Int]) : Int {
   var prod : Int = 1;
-  for (number in numbers.values()) {
+  for number in numbers.values() {
     prod *= number;
   };
   prod; // The implicit result of the block and function
@@ -47,7 +47,7 @@ However, `prod` will remain `0` once it becomes `0` so you can save some work by
 ```motoko no-repl
 func product(numbers : [Int]) : Int {
   var prod : Int = 1;
-  for (number in numbers.values()) {
+  for number in numbers.values() {
     prod *= number;
     if (prod == 0) return 0; // an early return can save work
   };
@@ -60,7 +60,7 @@ This also works with asynchronous functions that produce futures:
 ```motoko no-repl
 func asyncProduct(numbers : [Int]) : async Int {
   var prod : Int = 1;
-  for (number in numbers.values()) {
+  for number in numbers.values() {
     prod *= number;
     if (prod == 0) return 0; // an early return completes the future
   };
@@ -83,7 +83,7 @@ type HttpRequestStatus = {
 };
 
 func checkStatus(r : HttpRequestStatus) : Text {
-  switch (r) {
+  switch r {
     case (#ok successCode) { "Success: " # Nat.toText(successCode) };
     case (#err errorCode ) { "Failure: " # Nat.toText(errorCode) };
   };
@@ -152,7 +152,7 @@ Indeed, you can think of `return` as a `break` from the enclosing function.
 ```motoko no-repl
 func product(numbers : [Int]) : Int {
   var prod : Int = 1;
-  label l for (number in numbers.values()) {
+  label l for number in numbers.values() {
     prod *= number;
     if (prod == 0) break l;
   };
@@ -166,7 +166,7 @@ If the block produces a non-`()` result, as in this minor refactoring, the `brea
 func product(numbers : [Int]) : Int {
   label result : Int {
     var prod : Int = 1;
-    for (number in numbers.values()) {
+    for number in numbers.values() {
       prod *= number;
       if (prod == 0) break result 0;
     };
@@ -218,7 +218,7 @@ import Debug "mo:core/Debug";
 import Nat "mo:core/Nat";
 
 var i = 0;
-while (i < 5) {
+while i < 5 {
   Debug.print(Nat.toText(i));
   i += 1;
 }
@@ -233,7 +233,7 @@ import Debug "mo:core/Debug";
 import Nat "mo:core/Nat";
 
 let numbers = [0, 1, 2, 3, 4];
-for (num in numbers.values()) {
+for num in numbers.values() {
   Debug.print(Nat.toText(num));
 }
 ```
@@ -249,7 +249,7 @@ For example, computing the product we can skip a multiplication when the number 
 ```motoko no-repl
 func product(numbers : [Int]) : Int {
   var prod : Int = 1;
-  for (number in numbers.values()) {
+  for number in numbers.values() {
     if (number == 1) continue;
     prod *= number;
   };
@@ -262,7 +262,7 @@ When you have nested loops and need to continue a specific outer loop, you can u
 ```motoko no-repl
 func product(numbers : [Int]) : Int {
   var prod : Int = 1;
-  label l for (number in numbers.values()) {
+  label l for number in numbers.values() {
     if (number == 1) continue l;
     prod *= number;
   };
@@ -286,7 +286,7 @@ actor {
 
   func product(numbers : [Int]) : Int {
     var prod : Int = 1;
-    for (num in numbers.values()) {
+    for num in numbers.values() {
       prod += num;
       if (prod == 0) return 0; // an early return can save work
     };
