@@ -66,7 +66,10 @@ func goValidFloat(x : Float) { assert (x * x == 4); }; goValidFloat(2);
 // CHECK: unreachable
 
 
-// Also test that the value is included in a closure properly
+// Also test that the value is included in a closure properly.
+// NB: `y` is deliberately `var` here, not `let`: a mutable local is boxed and
+// captured by reference, which is exactly the path under test. The M0244
+// warnings below are expected and must not be "fixed".
 
 func goCaptureNat64() : () -> () {
  let x : Nat64 = 1 +% 1;
