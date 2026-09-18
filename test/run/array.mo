@@ -36,28 +36,28 @@ func opt_eq(x : ?Nat, y : Nat) : Bool {
              case (?i) { i == y } }
 };
 
-var emptyit = ([] : [Nat]).keys();
+let emptyit = ([] : [Nat]).keys();
 switch (emptyit.next()) { case null {}; case _ {assert false} };
 
-var it = a.keys();
+let it = a.keys();
 assert (opt_eq(it.next(), 0));
 assert (opt_eq(it.next(), 1));
 assert (opt_eq(it.next(), 2));
 switch (it.next()) { case null {}; case _ {assert false} };
 
-var it_again = a.keys();
+let it_again = a.keys();
 assert (opt_eq(it_again.next(), 0));
 assert (opt_eq(it_again.next(), 1));
 assert (opt_eq(it_again.next(), 2));
 switch (it_again.next()) { case null {}; case _ {assert false} };
 
-var it2 = a.vals();
+let it2 = a.vals();
 assert (opt_eq(it2.next(), 1));
 assert (opt_eq(it2.next(), 2));
 assert (opt_eq(it2.next(), 42));
 switch (it2.next()) { case null {}; case _ {assert false} };
 
-var it3 = a.values();
+let it3 = a.values();
 assert (opt_eq(it3.next(), 1));
 assert (opt_eq(it3.next(), 2));
 assert (opt_eq(it3.next(), 42));

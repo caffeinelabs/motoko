@@ -59,7 +59,7 @@ actor a {
 
   };
 
-  var tests = [
+  let tests = [
      0x0,
      0xFFFFFFFF,
      0xFFFFFFFF_FFFFFFFF,

@@ -8,12 +8,12 @@ let fs = [add1, add2, add3];
 assert(fs[0](fs[1](fs[2](1))) == 7);
 
 /* Closure (scalar) */
-var answer = 42;
+let answer = 42;
 func test_answer(x : Nat) { assert (answer == x) };
 test_answer(42);
 
 /* Closure (heap object) */
-var answers = [43, 44];
+let answers = [43, 44];
 func test_answers(x : Nat) { assert (answers[1] == x) };
 test_answers(44);
 
