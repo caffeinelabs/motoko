@@ -1,4 +1,4 @@
-import { floatToFloat32; float32ToFloat } = "mo:⛔";
+import { float32ToFloat } = "mo:⛔";
 
 actor {
     // Echo Float32 back (tests input/output Candid serialization)
