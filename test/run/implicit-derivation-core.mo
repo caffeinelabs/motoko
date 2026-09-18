@@ -55,7 +55,7 @@ assert compareNestedNatArrays([[1]], [[2]]) == #less;
 
 // Derive Array.sort for [Nat]
 do {
-  let sorted = Array.sort<Nat>([3, 1, 2]);
+  let sorted = [3, 1, 2].sort();
   assert sorted == [1, 2, 3];
 };
 
@@ -74,7 +74,7 @@ assert not arraysEqual([1, 2], [1, 3]);
 // Derivation inside a module body (ObjBlockE)
 do {
   module CoreOps {
-    public func sortNats(arr : [Nat]) : [Nat] = Array.sort<Nat>(arr);
+    public func sortNats(arr : [Nat]) : [Nat] = arr.sort();
     public func eqNatArrays(
       a : [Nat], b : [Nat],
       equal : (implicit : ([Nat], [Nat]) -> Bool),
