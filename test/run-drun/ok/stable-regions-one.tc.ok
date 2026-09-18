@@ -1,3 +1,0 @@
-stable-regions-one.mo:7.7-7.9: warning [M0244], variable r1 is never reassigned, consider using `let`
-stable-regions-one.mo:8.7-8.14: warning [M0244], variable aliases is never reassigned, consider using `let`
-stable-regions-one.mo:9.7-9.9: warning [M0244], variable id is never reassigned, consider using `let`
