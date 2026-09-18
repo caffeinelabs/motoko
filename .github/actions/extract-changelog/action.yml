@@ -1,9 +1,14 @@
 name: Extract Changelog for Release
-description: Extracts the changelog section for a given version from `Changelog.md` and outputs it as `release_body`
+description: Extracts a changelog section from `Changelog.md` and outputs it as `release_body`
 inputs:
   version:
-    description: The version number to extract the changelog for
-    required: true
+    description: The version number to extract the changelog for (used in `version` mode)
+    required: false
+    default: ''
+  mode:
+    description: 'Which entries to extract: `version` (the `## <version> (YYYY-MM-DD)` section) or `unreleased` (everything above the latest released version section, heading or not)'
+    required: false
+    default: version
 runs:
   using: composite
   steps:
@@ -12,7 +17,16 @@ runs:
       shell: bash
       run: |
         export VERSION="${{ inputs.version }}"
-        perl -0777 -ne '/^# Motoko compiler changelog\n\n## (??{quotemeta($ENV{VERSION})}) \(\d\d\d\d-\d\d-\d\d\)\n\n(.*?)^##/sm or die "Changelog does not look right for this version\n" ; print $1' Changelog.md > changelog-extract.md
+        export MODE="${{ inputs.mode }}"
+        if [ "$MODE" = unreleased ]; then
+          # Everything above the first released section. Its own heading
+          # (`## Next`, or nothing at all) is optional, so drop the leading
+          # heading block rather than require one -- only that block, so a `#`
+          # line among the entries survives.
+          perl -0777 -ne 's/^## [0-9]+\.[0-9]+\.[0-9]+ \(\d\d\d\d-\d\d-\d\d\).*//ms; s/\A(?:[ \t]*#[^\n]*\n|[ \t]*\n)*//; print' Changelog.md > changelog-extract.md
+        else
+          perl -0777 -ne '/^# Motoko compiler changelog\n\n## (??{quotemeta($ENV{VERSION})}) \(\d\d\d\d-\d\d-\d\d\)\n\n(.*?)^##/sm or die "Changelog does not look right for this version\n" ; print $1' Changelog.md > changelog-extract.md
+        fi
         cat changelog-extract.md
         # need to mangle to use with $GITHUB_OUTPUT,
         # see https://github.com/svenstaro/upload-release-action/blob/master/README.md

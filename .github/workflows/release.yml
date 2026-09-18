@@ -6,12 +6,17 @@ on:
       - "*"
   workflow_dispatch:
     # To test this workflow: Go to Actions -> release -> Run workflow
-    # Or using the CLI: gh workflow run release --ref <branch> -f version_suffix=test-draft-release
-    # This creates a draft release tagged with the specified version
+    # Or using the CLI: gh workflow run release --ref <branch> -f base_version=2.0.0 -f version_suffix=beta.0
+    # This creates a draft release tagged with the computed version
     # Remember to delete the draft release after testing!
     inputs:
+      base_version:
+        description: "Base version to build, e.g. 2.0.0 (default: the first version in Changelog.md)"
+        required: false
+        default: ""
+        type: string
       version_suffix:
-        description: "Suffix for draft release tag (e.g., experimental-foo-2)"
+        description: "Version suffix, e.g. beta.0 (together with the base version this makes the release version, e.g. 2.0.0-beta.0)"
         required: false
         default: test-draft-release
         type: string
@@ -22,15 +27,16 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Resolve the version once, so every job agrees on it.
   prepare:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - name: Checkout (for tag->master validation)
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ref: ${{ github.sha }}
 
       - name: Abort if tag is not on master
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
@@ -44,22 +50,35 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare release
-        run: echo "Preparing release ref=${{ github.ref_name }} suffix=${{ inputs.version_suffix }}"
-
-      - name: Validate draft suffix (workflow_dispatch only)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Compute the release version
+        id: version
+        env:
+          BASE_VERSION: ${{ inputs.base_version }}
+          VERSION_SUFFIX: ${{ inputs.version_suffix }}
         run: |
           set -eu
-          SUFFIX="${{ inputs.version_suffix }}"
-          if [ -z "${SUFFIX:-}" ]; then
-            echo "Error: inputs.version_suffix (draft suffix) is empty"
-            exit 1
+          if [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            base="${BASE_VERSION:-$(sed -nE 's/^## ([0-9]+\.[0-9]+\.[0-9]+) .*/\1/p' Changelog.md | head -n1)}"
+            if ! printf '%s' "${base}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "Error: base version must be MAJOR.MINOR.PATCH, e.g. 2.0.0 (got '${base}')"
+              exit 1
+            fi
+            if ! printf '%s' "${VERSION_SUFFIX}" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9.-]*$'; then
+              echo "Error: version_suffix must start with a letter or digit and contain only letters, digits, dots, and hyphens (got '${VERSION_SUFFIX}')"
+              exit 1
+            fi
+            version="${base}-${VERSION_SUFFIX}"
           fi
-          # Allow only letters, digits, and hyphens
-          if ! printf '%s' "${SUFFIX}" | grep -Eq '^[A-Za-z0-9-]+$'; then
-            echo "Error: inputs.version_suffix must contain only letters, digits, and hyphens (e.g., experimental-foo-2)"
-            exit 1
+          echo "Preparing release version=${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          # A suffix is what makes a version a prerelease, and it is what the
+          # release body and the GitHub release flags are chosen by.
+          if [ "${version#*-}" != "${version}" ]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
   # Check that the changelog is in good order and extract the changelog.
@@ -69,12 +88,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Extract changelog
-        # Skip this step for draft releases. Leave the release body empty.
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+        # A prerelease's entries have no `## <version> (date)` section yet, so
+        # it gets the unreleased entries instead.
         id: read_changelog
         uses: ./.github/actions/extract-changelog
         with:
-          version: ${{ github.ref_name }}
+          version: ${{ needs.prepare.outputs.version }}
+          mode: ${{ needs.prepare.outputs.prerelease == 'true' && 'unreleased' || 'version' }}
     outputs:
       release_body: ${{ steps.read_changelog.outputs.release_body }}
 
@@ -87,6 +107,11 @@ jobs:
       group: release-build-${{ matrix.os }}-${{ github.ref_name }}
       cancel-in-progress: true
     runs-on: ${{ matrix.os }}
+    env:
+      # nix/releaseVersion.nix reads this (needs `--impure`) so that the
+      # artifacts are named after, and report, the release version rather than
+      # the changelog version.
+      MOTOKO_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
@@ -103,7 +128,7 @@ jobs:
       - name: Build platform-specific release files
         shell: bash
         run: |
-          release_files="$(${{ github.workspace }}/nixbuildcopy.sh '.#"release-files-${{ matrix.os }}"')"
+          release_files="$(${{ github.workspace }}/nixbuildcopy.sh --impure '.#"release-files-${{ matrix.os }}"')"
           echo "UPLOAD_PATH=$release_files" >> $GITHUB_ENV
 
       - name: Upload Release Artifacts
@@ -116,7 +141,7 @@ jobs:
         shell: bash
         run: |
           uname -s -m
-          moc="$(${{ github.workspace }}/nixbuildcopy.sh .#release.moc)"
+          moc="$(${{ github.workspace }}/nixbuildcopy.sh --impure .#release.moc)"
           "$moc/bin/moc" --version
           file "$moc/bin/moc"
           ldd "$moc/bin/moc" || true
@@ -131,37 +156,6 @@ jobs:
           path: release-assets
           pattern: release-files-*
           merge-multiple: true
-
-      - name: Rewrite artifact filenames with draft suffix
-        id: rewrite_draft_assets
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        env:
-          DRAFT_SUFFIX: ${{ inputs.version_suffix }}
-        run: |
-          set -eu
-          echo "Applying draft suffix: ${DRAFT_SUFFIX}"
-          dir="release-assets"
-          # Extract numeric version from moc-<version>.js
-          version="$(ls "$dir"/moc-*.js 2>/dev/null | sed -n 's#.*moc-\([0-9.]\+\)\.js#\1#p' | head -n1 || true)"
-          if [ -z "${version}" ]; then
-            echo "Could not determine base version from moc-*.js; skipping rename."
-            exit 0
-          fi
-          echo "Detected base version: ${version}"
-          # Rename JS artifacts
-          if [ -f "$dir/moc-${version}.js" ]; then
-            mv "$dir/moc-${version}.js" "$dir/moc-${version}-${DRAFT_SUFFIX}.js"
-          fi
-          if [ -f "$dir/moc-interpreter-${version}.js" ]; then
-            mv "$dir/moc-interpreter-${version}.js" "$dir/moc-interpreter-${version}-${DRAFT_SUFFIX}.js"
-          fi
-          # Rename tarballs
-          for f in "$dir"/*-"${version}".tar.gz; do
-            [ -e "$f" ] || continue
-            mv "$f" "${f%.tar.gz}-${DRAFT_SUFFIX}.tar.gz"
-          done
-          # Expose computed draft tag as a step output
-          echo "tag=${version}-${DRAFT_SUFFIX}" >> "$GITHUB_OUTPUT"
 
       - name: List downloaded files
         run: |
@@ -180,15 +174,18 @@ jobs:
         uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
         with:
           repo_token: ${{ steps.app-token.outputs.token }}
-          tag: ${{ github.event_name == 'workflow_dispatch' && steps.rewrite_draft_assets.outputs.tag || github.ref_name }}
+          tag: ${{ needs.prepare.outputs.version }}
           file: release-assets/*
           file_glob: true
+          # Publishing a prerelease draft creates its tag, which runs this
+          # workflow again as a `push` and re-uploads the same asset names.
+          overwrite: true
           body: ${{ needs.changelog.outputs.release_body || 'Draft release created for testing purposes' }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
-          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' || github.event_name == 'workflow_dispatch' }}
 
       - name: Notify node-motoko of new release
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name == 'push' && needs.prepare.outputs.prerelease != 'true' }}
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
         with:
           token: ${{ steps.app-token.outputs.token }}
