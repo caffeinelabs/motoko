@@ -1,9 +1,14 @@
 name: Extract Changelog for Release
-description: Extracts the changelog section for a given version from `Changelog.md` and outputs it as `release_body`
+description: Extracts a changelog section from `Changelog.md` and outputs it as `release_body`
 inputs:
   version:
-    description: The version number to extract the changelog for
-    required: true
+    description: The version number to extract the changelog for (required for `version` mode)
+    required: false
+    default: ''
+  mode:
+    description: 'Which section to extract: `version` (the `## <version> (YYYY-MM-DD)` section) or `unreleased` (the first changelog section, whatever its title)'
+    required: false
+    default: version
 runs:
   using: composite
   steps:
@@ -11,14 +16,48 @@ runs:
       id: extract_changelog
       shell: bash
       run: |
-        export VERSION="${{ inputs.version }}"
-        perl -0777 -ne '/^# Motoko compiler changelog\n\n## (??{quotemeta($ENV{VERSION})}) \(\d\d\d\d-\d\d-\d\d\)\n\n(.*?)^##/sm or die "Changelog does not look right for this version\n" ; print $1' Changelog.md > changelog-extract.md
+        set -uo pipefail
+
+        MODE="${{ inputs.mode }}"
+        VERSION="${{ inputs.version }}"
+
+        # A missing section is not a job failure: prerelease tags have no dated
+        # changelog section, and a changelog may have no unreleased entries.
+        # The caller relies on `extractable` and an empty body instead.
+        if perl "${{ github.action_path }}/extract-changelog.pl" Changelog.md "$MODE" "$VERSION" > changelog-extract.md 2> changelog-extract.log; then
+          # Non-empty body means a section was found; empty means there was none.
+          if [ -s changelog-extract.md ]; then
+            EXTRACTABLE=true
+          else
+            EXTRACTABLE=false
+          fi
+        else
+          status=$?
+          echo "::error::Changelog extraction failed (mode '$MODE', version '$VERSION', exit $status)"
+          sed 's/^/  /' changelog-extract.log
+          exit $status
+        fi
+
+        if [ -s changelog-extract.log ]; then
+          while IFS= read -r line; do
+            case "$line" in
+              warning:*) echo "::warning::${line#warning: }" ;;
+              *) echo "$line" ;;
+            esac
+          done < changelog-extract.log
+        fi
+        rm -f changelog-extract.log
+
         cat changelog-extract.md
         # need to mangle to use with $GITHUB_OUTPUT,
         # see https://github.com/svenstaro/upload-release-action/blob/master/README.md
         # under "Example for feeding a file from repo to the body tag"
         echo "RELEASE_BODY=$(perl -0777 -p -e 's/%/%25/g; s/\n/%0A/g; s/\r/%0D/g' changelog-extract.md)" >> "$GITHUB_OUTPUT"
+        echo "EXTRACTABLE=$EXTRACTABLE" >> "$GITHUB_OUTPUT"
 outputs:
   release_body:
-    description: The extracted changelog body for the given version
+    description: The extracted changelog body for the given version (empty when not extractable)
     value: ${{ steps.extract_changelog.outputs.RELEASE_BODY }}
+  extractable:
+    description: Whether a changelog section was found (`true`/`false`); `release_body` is empty when `false`
+    value: ${{ steps.extract_changelog.outputs.EXTRACTABLE }}

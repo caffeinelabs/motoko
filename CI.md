@@ -112,8 +112,38 @@ Push releases
 Tagged versions cause a tarball with a Motoko release to be pushed to
 https://github.com/dfinity/motoko/releases
 
+Draft and pre-releases can also be cut on demand, without pushing a tag, via a
+manual `release` workflow dispatch that names the version to build.
+
 **Implementation (external):**
 A github action creates Github releases and includes the build artifacts there.
+
+The version is `<base>[-<suffix>]`. For a dispatch it comes from the
+`base_version` / `version_suffix` inputs, falling back to the first version in
+`Changelog.md`; for a pushed tag it comes from the tag itself. It is resolved
+once, in the workflow's `prepare` job
+([.github/actions/release-version](.github/actions/release-version/)), and used
+consistently as the release tag, the artifact filenames, and the version the
+built compiler reports via `moc --version`.
+
+The compiler's version is baked in at build time, so the release workflow sets
+`MOTOKO_RELEASE_VERSION` for the nix build
+([nix/releaseVersion.nix](nix/releaseVersion.nix)), which the workflow reads
+back with `--impure`. The override is inert (and the changelog is consulted as
+before) whenever the variable is unset, and it never affects a pure evaluation,
+so ordinary `nix build` invocations are unaffected.
+
+Prerelease runs skip the changelog-section requirement, since no released
+section exists for a version that has not been released; the release body is the
+unreleased section of `Changelog.md` instead
+([.github/actions/extract-changelog](.github/actions/extract-changelog/)). A tag
+that is not on `master` is still rejected.
+
+Publishing a draft creates its tag, which re-triggers this workflow as a tag
+`push`. That second run finds the version already published and skips the
+rebuild: the release and its assets are complete, and re-uploading them would
+fail on the duplicate asset names. A dispatch is unaffected, so a draft can
+always be rebuilt.
 
 Automatically merge when ready
 ------------------------------

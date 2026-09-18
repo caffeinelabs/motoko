@@ -1,0 +1,36 @@
+name: Release Version
+description: Resolves the release version `<base>[-<suffix>]` from an explicit base version or Changelog.md, and validates it.
+inputs:
+  base_version:
+    description: "Base version, e.g. 2.0.0. Empty to take the first version from Changelog.md."
+    required: false
+    default: ""
+  version_suffix:
+    description: "Prerelease suffix, e.g. beta.0. Empty for an official release."
+    required: false
+    default: ""
+  changelog_path:
+    description: "Path to the changelog to read the base version from"
+    required: false
+    default: Changelog.md
+outputs:
+  version:
+    description: "The resolved version, e.g. 2.0.0-beta.0"
+    value: ${{ steps.compute.outputs.version }}
+  base:
+    description: "The resolved base version, e.g. 2.0.0"
+    value: ${{ steps.compute.outputs.base }}
+  suffix:
+    description: "The prerelease suffix, empty for an official release"
+    value: ${{ steps.compute.outputs.suffix }}
+runs:
+  using: composite
+  steps:
+    - name: Compute release version
+      id: compute
+      shell: bash
+      env:
+        BASE_VERSION: ${{ inputs.base_version }}
+        VERSION_SUFFIX: ${{ inputs.version_suffix }}
+        CHANGELOG_PATH: ${{ inputs.changelog_path }}
+      run: ${{ github.action_path }}/compute.sh
