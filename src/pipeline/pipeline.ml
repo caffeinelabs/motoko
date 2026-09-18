@@ -829,14 +829,10 @@ let ir_passes mode prog_ir name =
 (* Compilation *)
 
 let load_as_rts () =
-  let rts = if !Flags.sanity then Rts.wasm_eop_debug else Rts.wasm_eop_release in
+  let rts = if !Flags.sanity then Rts.wasm_debug else Rts.wasm_release in
   Wasm_exts.CustomModuleDecode.decode "rts.wasm" (Lazy.force rts)
 
 type compile_result = (Idllib.Syntax.prog * Wasm_exts.CustomModule.extended_module) Diag.result
-
-let adjust_flags () =
-  (* Enhanced orthogonal persistence always uses precise tagging. *)
-  Flags.rtti := true
 
 (* This transforms the flat list of libs (some of which are classes)
    into a list of imported libs and (compiled) classes *)
@@ -867,9 +863,8 @@ and compile_unit mode (enhanced_migration:string option) do_link imports u : Was
     let* prog_ir = desugar_unit imports u name in
     let prog_ir = ir_passes mode prog_ir name in
     phase "Compiling" name;
-    adjust_flags ();
     let rts = if do_link then Some (load_as_rts ()) else None in
-    Diag.return (Codegen.Compile_enhanced.compile mode ~enhanced_migration rts prog_ir))
+    Diag.return (Codegen.Compile.compile mode ~enhanced_migration rts prog_ir))
 
 and compile_unit_to_wasm mode (enhanced_migration:string option) imports (u : Syntax.comp_unit) : string Diag.result =
   let open Diag.Syntax in

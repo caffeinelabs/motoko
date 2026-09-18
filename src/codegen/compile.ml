@@ -95,7 +95,6 @@ module TaggingScheme = struct
     | _                                                                                                                                                      -> TUnused
 
   let tag_of_typ pty = Type.(
-  if !Flags.rtti then
     match pty with
     | Nat
     | Int ->                                                                        0b10L
@@ -109,52 +108,22 @@ module TaggingScheme = struct
     | Int16 ->                   0b11000000_00000000_00000000_00000000_00000000_00000000L
     | Nat8  ->          0b01000000_00000000_00000000_00000000_00000000_00000000_00000000L
     | Int8  ->          0b11000000_00000000_00000000_00000000_00000000_00000000_00000000L
-    | _  -> assert false
-  else
-    (* no tag *)
-    match pty with
-    | Nat
-    | Int
-    | Nat64
-    | Int64
-    | Nat32
-    | Int32
-    | Char
-    | Nat16
-    | Int16
-    | Nat8
-    | Int8
-    | Float32 -> 0L
     | _  -> assert false)
 
+  (* all tag, no payload (none needed) *)
   let unit_tag =
-    if !Flags.rtti then
-      (* all tag, no payload (none needed) *)
-      0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000L
-    else
-      (* no tag *)
-      0L
+    0b01000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000L
 
   (* Number of payload bits in compact representation, including any sign *)
   let ubits_of pty = Type.(
-    if !Flags.rtti then
-      match pty with
-      | Nat | Int     -> 62
-      | Nat64 | Int64 -> 60
-      | Nat32 | Int32 | Float32 -> 32
-      | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
-      | Nat16 | Int16 -> 16
-      | Nat8  | Int8  ->  8
-      | _ -> assert false
-    else
-      match pty with
-      | Nat   | Int   -> 63
-      | Nat64 | Int64 -> 63
-      | Nat32 | Int32 | Float32 -> 32
-      | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
-      | Nat16 | Int16 -> 16
-      | Nat8  | Int8  ->  8
-      | _ -> assert false)
+    match pty with
+    | Nat | Int     -> 62
+    | Nat64 | Int64 -> 60
+    | Nat32 | Int32 | Float32 -> 32
+    | Char          -> 21 (* suffices for 21-bit UTF8 codepoints *)
+    | Nat16 | Int16 -> 16
+    | Nat8  | Int8  ->  8
+    | _ -> assert false)
 
 end
 module StaticBytes = struct
@@ -4906,7 +4875,6 @@ module IC = struct
   let i64s n = Lib.List.make n I64Type
 
   let import_ic0 env =
-    (* Keep all the imports in sync between classical and enhanced versions *)
     E.add_func_import env "ic0" "accept_message" [] [];
     E.add_func_import env "ic0" "call_data_append" (is 2) [];
     E.add_func_import env "ic0" "call_cycles_add128" (i64s 2) [];
@@ -13933,7 +13901,6 @@ and conclude_module env set_serialization_globals start_fi_o =
 
 let compile mode ~(enhanced_migration:string option) rts (prog : Ir.prog) : Wasm_exts.CustomModule.extended_module =
   (* Enhanced orthogonal persistence requires a fixed layout. *)
-  assert !Flags.rtti; (* Use precise tagging for graph copy. *)
   let env = E.mk_global mode rts IC.trap_with enhanced_migration in
 
   IC.register_globals env;

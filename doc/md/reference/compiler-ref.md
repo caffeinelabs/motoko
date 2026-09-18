@@ -45,11 +45,9 @@ You can use the following options with the `moc` command.
 | `-W <codes>`                              | Enable (Warn) comma-separated warning codes, e.g. `-W M0223`                                                                                          |
 | `-E <codes>`                              | Treat as error comma-separated warning codes, e.g. `-E M0217`                                                                                         |
 | `--warn-help`                             | Show available warning codes, current lint level, and descriptions                                                                                    |
-| `--incremental-gc`                        | Use incremental GC (default and only GC).                                                                                                            |
 | `--idl`                                   | Compile binary and emit Candid IDL specification to `.did` file.                                                                                      |
 | `-i`                                      | Runs the compiler in an interactive read–eval–print loop (REPL) shell so you can evaluate program execution (implies -r).                             |
 | `--implicit-derivation-depth <n>`         | Maximum recursion depth for [implicit](../fundamentals/implicit-parameters.md) argument derivation (default 100). Raise if a complex derivation is rejected as depth-limited.                                                                                                |
-| `--legacy-persistence`                    | Removed (hard error). Enhanced orthogonal persistence is always used; see the removed-flags note below. |
 | `--map`                                   | Outputs a JavaScript source map.                                                                                                                      |
 | `--max-stable-pages <n>`                  | Set maximum number of pages available to stable memory via the `Region` library (default 1638400, i.e. 100 GiB).                                                        |
 | `-no-system-api`                          | Disables system API imports.                                                                                                                          |
@@ -70,10 +68,3 @@ You can use the following options with the `moc` command.
 | `-v`                                      | Generates verbose output.                                                                                                                             |
 | `--version`                               | Displays version information.                                                                                                                         |
 | `-wasi-system-api`                        | Uses the WASI system API (`wasmtime`).                                                                                                                |
-
-> **Removed flags (1.16 → v2 migration):** with the removal of classical
-> (legacy, 32-bit) persistence, the flags `--legacy-persistence`,
-> `--copying-gc`, `--compacting-gc`, `--generational-gc`, `--rts-stack-pages`
-> and `--skip-gc-deprecation-warning` have been removed and are now hard
-> errors. Enhanced orthogonal persistence is always used; a classical canister migrates to enhanced persistence on its next upgrade. That upgrade must be compiled with the explicit `--enhanced-orthogonal-persistence` flag and must not use `--enhanced-migration`: without the flag the new module traps with `Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence`, and with `--enhanced-migration` it traps with `Cannot upgrade from classical orthogonal persistence with --enhanced-migration`. The migration is irreversible; later upgrades need no flag.
-> See the changelog for the 1.16 → v2 migration notes.

@@ -1,7 +1,5 @@
 //! Compile-time assertions to make sure object layouts are as expected
 
-use motoko_rts_macros::{enhanced_orthogonal_persistence, incremental_gc};
-
 use crate::{
     constants::{MAX_ARRAY_LENGTH, MAX_ARRAY_LENGTH_FOR_ITERATOR},
     types::*,
@@ -15,13 +13,11 @@ use core::mem::{align_of, size_of};
 const WORD_SIZE: usize = crate::constants::WORD_SIZE;
 
 #[allow(unused)]
-#[incremental_gc]
 const HEADER_SIZE: usize = 2 * WORD_SIZE;
 
 // We cannot use `assert_eq` below as `assert_eq` is not const yet
 
 // Check platform word size
-#[enhanced_orthogonal_persistence]
 const _: () = assert!(size_of::<usize>() == size_of::<u64>());
 
 const _: () = assert!(size_of::<usize>() == WORD_SIZE);

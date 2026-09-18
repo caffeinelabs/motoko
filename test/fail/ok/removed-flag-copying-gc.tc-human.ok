@@ -1,1 +1,0 @@
-moc: --copying-gc has been removed; the incremental garbage collector is always used. See the changelog for the 1.16 → v2 migration notes.

@@ -82,7 +82,7 @@ clone motoko-base and update the path above with the path to your clone.
 
 
 ```
-<path to moc> <package flags> service/CanCan.mo -o <wasm file name> --force-gc <gc strategy>
+<path to moc> <package flags> service/CanCan.mo -o <wasm file name> --force-gc
 ```
 
 - `<path to moc>`: Path to `moc` executable
@@ -91,10 +91,6 @@ clone motoko-base and update the path above with the path to your clone.
 - `<wasm file name>`: Name of the generated .wasm file. Make sure to add some
   prefix/suffixes to this binary to describe the compile flags. E.g.
   `cancan_incremental_gc_my_awesome_patch_tweaked_scheduling_wow.wasm`.
-
-(The classical `--copying-gc` and `--compacting-gc` GC strategies were removed
-in the 1.16 → v2 migration; `moc` always uses the incremental GC. Use
-`--force-gc` for GC benchmarking as described above.)
 
 ## Writing a drun script
 

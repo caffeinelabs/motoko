@@ -42,18 +42,13 @@ use crate::libc_declarations::c_void;
 
 use motoko_rts_macros::ic_mem_fn;
 
-#[cfg(feature = "ic")]
-use motoko_rts_macros::enhanced_orthogonal_persistence;
-
 // Provided by generated code
 #[cfg(feature = "ic")]
 unsafe extern "C" {
-    #[enhanced_orthogonal_persistence]
     fn int_from_i64(value: isize) -> Value;
 }
 
 #[cfg(feature = "ic")]
-#[enhanced_orthogonal_persistence]
 unsafe fn int_from_isize(value: isize) -> Value {
     int_from_i64(value)
 }
@@ -572,7 +567,6 @@ const BITS_PER_CHUNK: usize = 7;
 #[cfg(feature = "ic")]
 const MAX_CHUNKS_PER_WORD: usize = (usize::BITS as usize + BITS_PER_CHUNK - 1) / BITS_PER_CHUNK;
 
-#[enhanced_orthogonal_persistence]
 #[cfg(feature = "ic")]
 const _: () = assert!(MAX_CHUNKS_PER_WORD == 10);
 
@@ -678,7 +672,6 @@ pub unsafe extern "C" fn bigint_sleb128_decode_word64(
 }
 
 #[cfg(feature = "ic")]
-#[enhanced_orthogonal_persistence]
 unsafe fn sleb128_decode_word64_result(accumulator: u64) -> Value {
     // No unused bits in 64-bit representation. The sign bit is already set at bit 63.
     int_from_isize(accumulator as isize)

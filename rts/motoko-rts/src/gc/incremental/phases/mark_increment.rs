@@ -1,5 +1,3 @@
-use motoko_rts_macros::enhanced_orthogonal_persistence;
-
 use crate::{
     gc::incremental::{
         State,
@@ -15,7 +13,7 @@ use crate::{
     visitor::visit_pointer_fields,
 };
 
-#[cfg(all(feature = "ic", feature = "enhanced_orthogonal_persistence"))]
+#[cfg(feature = "ic")]
 use crate::persistence::{clear_weak_ref_registry, get_weak_ref_registry};
 
 /// Use a long-term representation by relying on C layout.
@@ -48,7 +46,7 @@ impl<'a, M: Memory + 'a> MarkIncrement<'a, M> {
     pub unsafe fn complete_phase(mem: &mut M, state: &mut State) {
         debug_assert!(Self::mark_completed(mem, state));
         state.mark_state = StableOption::None;
-        #[cfg(all(feature = "ic", feature = "enhanced_orthogonal_persistence"))]
+        #[cfg(feature = "ic")]
         {
             // The weak reference registry must be empty at the end of the marking phase.
             debug_assert!(get_weak_ref_registry(mem).is_empty());
@@ -60,7 +58,7 @@ impl<'a, M: Memory + 'a> MarkIncrement<'a, M> {
     pub unsafe fn mark_completed(_mem: &mut M, state: &State) -> bool {
         let mark_state = state.mark_state.as_ref().unwrap();
         debug_assert!(!mark_state.complete || mark_state.mark_stack.is_empty());
-        #[cfg(all(feature = "ic", feature = "enhanced_orthogonal_persistence"))]
+        #[cfg(feature = "ic")]
         debug_assert!(!mark_state.complete || get_weak_ref_registry(_mem).is_empty());
         mark_state.complete
     }
@@ -116,7 +114,6 @@ impl<'a, M: Memory + 'a> MarkIncrement<'a, M> {
     pub unsafe fn mark_object(&mut self, value: Value) {
         self.time.tick();
 
-        #[enhanced_orthogonal_persistence]
         debug_assert_ne!(value, NULL_POINTER);
 
         debug_assert!((value.get_ptr() >= self.heap.base_address()));
@@ -129,7 +126,7 @@ impl<'a, M: Memory + 'a> MarkIncrement<'a, M> {
             debug_assert!(is_object_tag(object.tag()));
             self.mark_stack.push(self.mem, value);
 
-            #[cfg(all(feature = "ic", feature = "enhanced_orthogonal_persistence"))]
+            #[cfg(feature = "ic")]
             {
                 use crate::types::is_weak_ref_tag;
                 let tag = value.as_obj().tag();
@@ -145,7 +142,7 @@ impl<'a, M: Memory + 'a> MarkIncrement<'a, M> {
     }
 
     unsafe fn mark_fields(&mut self, object: *mut Obj) {
-        #[cfg(all(feature = "ic", feature = "enhanced_orthogonal_persistence"))]
+        #[cfg(feature = "ic")]
         {
             use crate::types::is_weak_ref_tag;
             if is_weak_ref_tag(object.tag()) {
@@ -179,7 +176,7 @@ impl<'a, M: Memory + 'a> MarkIncrement<'a, M> {
         debug_assert!(!*self.complete);
         *self.complete = true;
 
-        #[cfg(all(feature = "ic", feature = "enhanced_orthogonal_persistence"))]
+        #[cfg(feature = "ic")]
         {
             // Process all weak references collected during marking.
             // If the target object is not marked, clear the weak reference.

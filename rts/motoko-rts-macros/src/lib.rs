@@ -136,29 +136,3 @@ pub fn ic_mem_fn(attr: TokenStream, input: TokenStream) -> TokenStream {
     )
     .into()
 }
-
-/// Feature macro for incremental GC features, in particular forwarding pointers.
-/// Equivalent to using the attribute `#[cfg(feature = "incremental_gc")]`.
-#[proc_macro_attribute]
-pub fn incremental_gc(attr: TokenStream, input: TokenStream) -> TokenStream {
-    assert!(attr.is_empty());
-    let block = syn::parse_macro_input!(input as syn::Item);
-    quote!(
-        #[cfg(feature = "incremental_gc")]
-        #block
-    )
-    .into()
-}
-
-/// Feature macro for enhanced orthogonal persistence.
-/// Equivalent to using the attribute `#[cfg(feature = "enhanced_orthogonal_persistence")]`.
-#[proc_macro_attribute]
-pub fn enhanced_orthogonal_persistence(attr: TokenStream, input: TokenStream) -> TokenStream {
-    assert!(attr.is_empty());
-    let block = syn::parse_macro_input!(input as syn::Item);
-    quote!(
-        #[cfg(feature = "enhanced_orthogonal_persistence")]
-        #block
-    )
-    .into()
-}

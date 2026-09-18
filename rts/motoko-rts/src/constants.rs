@@ -12,7 +12,7 @@ pub const MB: usize = 1024 * KB;
 pub const GB: usize = 1024 * MB;
 
 // The optimized array iterator requires array lengths to fit in signed compact numbers.
-// See `compile_enhanced.ml`, `GetPastArrayOffset`.
+// See `compile.ml`, `GetPastArrayOffset`.
 // Two bits reserved: Two for Int tag (0b10L) and one for the sign bit.
 pub const MAX_ARRAY_LENGTH_FOR_ITERATOR: usize = 1 << (usize::BITS as usize - 3);
 

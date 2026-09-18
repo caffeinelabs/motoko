@@ -1,7 +1,4 @@
-#[enhanced_orthogonal_persistence]
 pub mod enhanced;
-
-use motoko_rts_macros::enhanced_orthogonal_persistence;
 
 use crate::types::*;
 
@@ -23,7 +20,6 @@ use crate::types::*;
 ///   Returns:
 ///   * `usize`: start of the suffix slice of fields not to be passed to `visit_ptr_field`;
 ///            it is the callback's responsibility to deal with the spanned slice
-#[enhanced_orthogonal_persistence]
 pub unsafe fn visit_pointer_fields<C, F, G>(
     ctx: &mut C,
     obj: *mut Obj,

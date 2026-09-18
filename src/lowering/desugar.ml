@@ -1481,7 +1481,7 @@ let import_compiled_class (lib : S.comp_unit) wasm : import_declaration =
   let c', _ = T.as_con (List.hd cs') in
   let install_actor_helper = var "@install_actor_helper"
     T.(Func (Local, Returns, [scope_bind],
-      [install_arg_typ; bool; blob; blob],
+      [install_arg_typ; blob; blob],
       [Async(Cmp, Var (default_scope_var, 0), principal)]))
   in
   let wasm_blob = fresh_var "wasm_blob" T.blob in
@@ -1501,7 +1501,6 @@ let import_compiled_class (lib : S.comp_unit) wasm : import_declaration =
           (callE (varE install_actor_helper) cs'
             (tupE [
               install_arg;
-              boolE true; (* enhanced orthogonal persistence *)
               varE wasm_blob;
               primE (Ir.SerializePrim ts1') [seqE (List.map varE vs)]])))
         (primE (Ir.CastPrim (T.principal, t_actor)) [varE principal]))

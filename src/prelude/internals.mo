@@ -411,7 +411,6 @@ func @install_actor_helper(
       canister : actor {};
     };
   },
-  enhanced_orthogonal_persistence : Bool,
   wasm_module : Blob,
   arg : Blob,
 ) : async* Principal = async* {
@@ -431,13 +430,8 @@ func @install_actor_helper(
       (#reinstall, (prim "principalOfActor" : (actor {}) -> Principal) actor1);
     };
     case (#upgrade actor2) {
-      let wasm_memory_persistence = if enhanced_orthogonal_persistence {
-        ?(#keep);
-      } else {
-        null;
-      };
       let upgradeOptions = {
-        wasm_memory_persistence;
+        wasm_memory_persistence = ?(#keep);
       };
       ((#upgrade(?upgradeOptions)), (prim "principalOfActor" : (actor {}) -> Principal) actor2);
     };

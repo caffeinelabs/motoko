@@ -57,7 +57,6 @@ let force_gc = ref false
 let global_timer = ref true
 let ocaml_js = ref false
 let js_project_root : string option ref = ref None
-let rtti = ref false
 let trap_on_call_error = ref false
 let use_stable_regions = ref false
 let explicit_enhanced_orthogonal_persistence = ref false
