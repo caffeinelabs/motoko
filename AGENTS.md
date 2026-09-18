@@ -39,12 +39,28 @@ vendored under `test/*-stub`.
   a new `assert false`/`failwith`/non-exhaustive `match` reachable from valid
   Motoko input is a bug.
 - **Tests are expectation-based**: a test `foo.mo` pairs with `ok/foo.*.ok`
-  files regenerated via `make accept` (or `run-test -a foo.mo`). Changing
-  compiler output without updating the paired `.ok` files (or vice versa) is a
-  defect. Silent tests produce no output and have no `.ok` by design.
+  files regenerated via `test-runner -b -a <dir>` (or `run-test -a foo.mo` for a
+  single file). Changing compiler output without updating the paired `.ok`
+  files (or vice versa) is a defect. Silent tests produce no output and have no
+  `.ok` by design.
   Directories encode the kind: `run/` (interpret+wasm), `run-drun/` (IC
   semantics), `fail/` (must not typecheck, expectations in `fail/ok/*.tc.ok`),
   plus `perf/`, `repl/`, `mo-idl/`, etc.
+- **Use `test-runner` for local test iteration.** It runs tests in parallel and
+  infers the per-directory `run-test` flags from the path (`-d` for `run-drun/`,
+  `-t` for `fail/`), so pass a path that still contains those components — use
+  `test/fail` or `$(CURDIR)`, not `.`. From the repo root:
+  ```shell
+  test-runner -b test/fail          # a directory
+  test-runner -b -a test/fail       # ...and accept/regenerate ok/
+  test-runner -b -f M0236 --in-file # tests whose *output* matches M0236
+  ```
+  `make -C test/<dir> all|accept` delegates to `test-runner` for the
+  directories it supports (`run`, `run-drun`, `fail`, `trap`), so those are no
+  longer slow. Other directories either hold no `.mo`/`.drun` (`repl/`, `idl/`,
+  `cmp/`, `ld/`, `run-deser/`) or need a flag the path does not imply (`-i` for
+  `mo-idl/`, `-p` for `perf/` and `bench/`) — keep using `make` there, since
+  `test-runner` would still find the tests and run them with the wrong flags.
 - **Enhanced-migration test naming**: tests exercising `--enhanced-migration`
   are named `em-*`. A test that also passes `--stable-baseline` is named after
   its baseline file: `em-baseline-<basename>.mo` for
@@ -66,10 +82,13 @@ vendored under `test/*-stub`.
 
 ## Building and testing
 
-Environment via Nix: `nix develop`, then `make -C src moc` to build and
-`make -C test` (or `run-test test/run/foo.mo`) to test — details in
-[Building.md](Building.md) and [test/README.md](test/README.md). CI must be
-green; replicate locally with `nix build --no-link`.
+Environment via Nix: `nix develop`, then `make -C src moc` to build. Test with
+`test-runner` from the repo root (parallel; see the conventions above), e.g.
+`test-runner -b test/run`, or `run-test test/run/foo.mo` for a single file.
+`make -C test` still works — it drives the subdirectories, and for the four
+that `test-runner` supports its `all`/`accept` delegate to it.
+Details in [Building.md](Building.md) and [test/README.md](test/README.md).
+CI must be green; replicate locally with `nix build --no-link`.
 
 ## High-risk areas (extra scrutiny)
 

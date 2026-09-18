@@ -1,13 +1,13 @@
 RUNFLAGS = -t
 
+JOBS ?= $(shell getconf _NPROCESSORS_ONLN)
+TEST_RUNNER ?= test-runner
+
 all:
-	run-test $(RUNFLAGS) *.mo
+	$(TEST_RUNNER) -b -j $(JOBS) $(CURDIR)
 
 accept:
-	run-test $(RUNFLAGS) -a *.mo
-
-accept-par:
-	find . -maxdepth 1 -name '*.mo' -print0 | xargs -0 -P4 -I{} run-test $(RUNFLAGS) -a {}
+	$(TEST_RUNNER) -b -j $(JOBS) -a $(CURDIR)
 
 clean:
 	rm -rf _out
