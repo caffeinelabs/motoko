@@ -78,6 +78,10 @@ type env =
        M0223/M0237 probes drop the donated expected type (it vanishes once applied),
        avoiding suggestions that are unsound when applied together. *)
     enclosing_removal : bool;
+    (* Names of the `module M { ... }` declarations whose bodies we are inside.
+       Their fields are all directly in scope there, so nested implicit search
+       must not reach the same bindings again through `M.` *)
+    enclosing_modules : string list;
   }
 and ret_env =
   | NoRet
@@ -113,6 +117,7 @@ let env_of_scope msgs scope =
     enhanced_migration = None;
     stable_baseline_sig = None;
     enclosing_removal = false;
+    enclosing_modules = [];
   }
 
 let is_implicit_package pkg =
@@ -1878,22 +1883,34 @@ module ImplicitHoles = struct
        | _ -> None)
     | _ -> None
 
+  (* Modules can be defined recursively, so we set a conservative limit for search depth *)
+  let max_search_depth = 8
+
   module type CandidateSource = sig
     type entry
+    val entries : env -> entry T.Env.t
     val get_typ : entry -> T.typ
     val make_ref_exp : string -> exp'
+    val search_depth : env -> T.lab -> int
   end
 
   module ValCandidateSource : CandidateSource with type entry = val_info = struct
     type entry = val_info
+    let entries env = env.vals
     let get_typ ((t, _, _, _) : val_info) = t
     let make_ref_exp r = VarE (r @~ no_region)
+    (* Inside `module M`, its nested modules are in scope by themselves; only
+       keep the direct fields of M, as before nested search existed *)
+    let search_depth env lab =
+      if List.mem lab env.enclosing_modules then 1 else max_search_depth
   end
 
   module LibCandidateSource : CandidateSource with type entry = Scope.lib_info = struct
     type entry = Scope.lib_info
+    let entries env = env.libs
     let get_typ info = info.lib_typ
     let make_ref_exp r = ImplicitLibE r
+    let search_depth _ _ = max_search_depth
   end
 
   open Lib.Option.Syntax
@@ -1916,26 +1933,23 @@ module ImplicitHoles = struct
         Seq.append direct nested
       | _ -> Seq.empty
 
-    (* Modules can be defined recursively, so we set a conservative limit for search depth *)
-    let max_search_depth = 8
-
-    let filter_fields hole on_field (entries : M.entry T.Env.t) =
-      T.Env.to_seq entries
+    let filter_fields env hole on_field =
+      T.Env.to_seq (M.entries env)
       |> Seq.concat_map (fun (lab, entry) ->
-        find_candidates max_search_depth (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name
+        find_candidates (M.search_depth env lab) (M.make_ref_exp lab) lab (M.get_typ entry) hole.hole_name
         |> Seq.map (fun (path, desc, field) -> ((lab, path, desc), field)))
       |> Seq.filter_map on_field
       |> List.of_seq
 
-    let matching_fields hole = filter_fields hole (fun (site, field) ->
+    let matching_fields env hole = filter_fields env hole (fun (site, field) ->
       if not (is_matching_typ hole field.T.typ) then None else
       Some (make_field_candidate site field))
 
-    let matching_fields_with_holes hole = filter_fields hole (fun (site, field) ->
+    let matching_fields_with_holes env hole = filter_fields env hole (fun (site, field) ->
       is_matching_typ_with_holes hole field.T.typ
       |> Option.map (fun holes -> holes, make_field_candidate site field))
 
-    let matching_fields_structural info hole = filter_fields hole (fun (site, field) ->
+    let matching_fields_structural env info hole = filter_fields env hole (fun (site, field) ->
       is_matching_structural_combiner info field.T.typ
       |> Option.map (fun elem_typ -> (elem_typ, make_field_candidate site field)))
   end
@@ -2027,7 +2041,7 @@ module ImplicitHoles = struct
     | None ->
 
     (* Try direct candidates from module fields *)
-    let matching_fields = FromModuleVal.matching_fields hole env.vals in
+    let matching_fields = FromModuleVal.matching_fields env hole in
     match disambiguate_holes matching_fields with
     | `Single term -> Ok term
     | `Many _ -> Error (HoleAmbiguous matching_fields)
@@ -2038,7 +2052,7 @@ module ImplicitHoles = struct
     let from_implicit_lib c =
       Option.fold ~none:false ~some:(is_implicit_lib env) c.module_ref_opt
     in
-    let lib_fields = FromModuleLib.matching_fields hole env.libs in
+    let lib_fields = FromModuleLib.matching_fields env hole in
     match if Option.is_some !Flags.implicit_package then disambiguate_holes (List.filter from_implicit_lib lib_fields) else `Empty with
     | `Single term -> Ok term
     | `Many _ | `Empty ->
@@ -2056,14 +2070,14 @@ module ImplicitHoles = struct
     | `Empty ->
 
     (* Try derivations from module fields *)
-    match try_derive ~depth (FromModuleVal.matching_fields_with_holes hole env.vals) with
+    match try_derive ~depth (FromModuleVal.matching_fields_with_holes env hole) with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
     | `Ambiguous derivable_terms -> Error (HoleAmbiguous derivable_terms)
     | `Empty ->
 
     (* Get candidates for derivations from libs *)
-    let lib_fields_with_holes = FromModuleLib.matching_fields_with_holes hole env.libs in
+    let lib_fields_with_holes = FromModuleLib.matching_fields_with_holes env hole in
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) lib_fields_with_holes in
     match
       if Option.is_some !Flags.implicit_package
@@ -2113,13 +2127,13 @@ module ImplicitHoles = struct
     | `Ambiguous cs -> Error (HoleAmbiguous cs)
     | `Empty ->
 
-    match try_derive_structural info (FromModuleVal.matching_fields_structural info hole env.vals) ~depth with
+    match try_derive_structural info (FromModuleVal.matching_fields_structural env info hole) ~depth with
     | `Committed (Ok term) -> Ok term
     | `Committed (Error e) -> Error (HoleSuggestions (lib_fields, Some e))
     | `Ambiguous cs -> Error (HoleAmbiguous cs)
     | `Empty ->
 
-    let structural_lib_candidates = FromModuleLib.matching_fields_structural info hole env.libs in
+    let structural_lib_candidates = FromModuleLib.matching_fields_structural env info hole in
     let lib_fields = lib_fields @ List.map (fun (_, c) -> c) structural_lib_candidates in
     match
       if Option.is_some !Flags.implicit_package
@@ -5135,7 +5149,11 @@ and infer_dec env dec : T.typ =
       if not env.pre then
         check_exp env T.Non fail
     );
-    let t = infer_exp env exp in
+    let env' = match pat.it, exp.it with
+      | VarP id, ObjBlockE (_, {it = T.Module; _}, _, _) ->
+        {env with enclosing_modules = id.it :: env.enclosing_modules}
+      | _ -> env in
+    let t = infer_exp env' exp in
     if not env.pre then check_init env (Some pat) exp dec.at;
     if !Flags.typechecker_combine_srcs then
       combine_pat_srcs env t pat;
