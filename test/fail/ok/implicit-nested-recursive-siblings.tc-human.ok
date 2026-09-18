@@ -1,6 +1,0 @@
-error[M0231]: ambiguous implicit argument named `zero` of type 
-  Nat.
-    ┌─ implicit-nested-recursive-siblings.mo:9:24
-  9 │  func g(M : R) : Nat = f();
-    │                         ^^ 
-    = note: The ambiguous implicit candidates are: `M.zero`, `M.other.zero`.
