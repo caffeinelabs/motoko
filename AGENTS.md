@@ -61,9 +61,11 @@ vendored under `test/*-stub`.
   directories it supports (`run`, `run-drun`, `fail`, `trap`), so those are no
   longer slow. Other directories either hold no top-level `.mo`/`.drun`
   (`repl/`, `idl/`, `cmp/`, `ld/`, `run-deser/`) or need a flag the path does
-  not imply (`-i` for `mo-idl/`, `-p` for `perf/` and `bench/`), or drive a
-  binary `run-test` is not (`mo-doc/`) — keep using `make` there, since
-  `test-runner` would still find the tests and run them with the wrong flags.
+  not imply (`-i` for `mo-idl/`, `-p` for `perf/` and `bench/`, `-d` for
+  `run-drun-non-ci/`, whose name is not the `run-drun` the inference matches),
+  or drive a binary `run-test` is not (`mo-doc/`) — keep using `make` there,
+  since `test-runner` would still find the tests and run them with the wrong
+  flags.
 - **Enhanced-migration test naming**: tests exercising `--enhanced-migration`
   are named `em-*`. A test that also passes `--stable-baseline` is named after
   its baseline file: `em-baseline-<basename>.mo` for
