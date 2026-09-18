@@ -112,7 +112,8 @@ assert r2.x == 5;
 let d = (null : ?Nat) ?? do { let k = 2; k + 1 };
 assert d == 3;
 
-// `do { }` is an expression, so it is a valid head like any other (a lint concern, not a grammar one)
+// `do { }` is an expression, so it is a valid head like any other: tolerated and discouraged, not legacy —
+// a natural consequence of the grammar, as `if { c } { }` is in Rust; steering away from it is a formatter/lint concern
 if do { let k = 1; k == 1 } {} else { assert false };
 var w = 0;
 while do { w < 2 } { w += 1 };
