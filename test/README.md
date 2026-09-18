@@ -32,15 +32,18 @@ subdirectory for the right flags for that directory.
 
 For anything more than a single file, use `test-runner` instead: it runs tests
 in parallel and infers the per-directory `run-test` flags from the path, so the
-`Makefile` flags above are not needed. From the repo root:
+`Makefile` flags above are not needed. Pass a path that still contains the
+directory's name (`test/fail`), because that is what the flag inference matches
+on — `cd`ing into the directory and passing `.` silently loses the `-d`/`-t`
+flags. From the repo root:
 
     test-runner -b test/fail           # a directory
     test-runner -b -a test/fail        # ...and accept/regenerate ok/
     test-runner -b -j 10 test/run-drun # cap the parallelism
 
-Pass a path that still contains the directory's name (`test/fail`, or
-`$(CURDIR)`), because that is what the flag inference matches on — `cd`ing into
-the directory and passing `.` silently loses the `-d`/`-t` flags.
+Only `run/`, `run-drun/`, `fail/` and `trap/` are covered. Elsewhere it would
+find the tests but run them with the wrong flags — `mo-idl/` needs `-i`, and
+`perf/` and `bench/` need `-p` — so use `make` in those directories.
 
 Adding a new test
 -----------------

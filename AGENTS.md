@@ -48,20 +48,22 @@ vendored under `test/*-stub`.
   plus `perf/`, `repl/`, `mo-idl/`, etc.
 - **Use `test-runner` for local test iteration.** It runs tests in parallel and
   infers the per-directory `run-test` flags from the path (`-d` for `run-drun/`,
-  `-t` for `fail/`), so pass a path that still contains those components — use
-  `test/fail` or `$(CURDIR)`, not `.`. From the repo root:
+  `-t` for `fail/`), so pass a path that still contains those components — from
+  a Makefile, `$(CURDIR)`, never `.`. From the repo root:
   ```shell
   test-runner -b test/fail          # a directory
   test-runner -b -a test/fail       # ...and accept/regenerate ok/
   test-runner -b -f M0236 --in-file # tests whose *output* matches M0236
   ```
+  `--in-file` matches against `ok/<name>.{tc,drun-run,run}.ok` only, so hits
+  that exist solely in another `.ok` variant are invisible to it.
   `make -C test/<dir> all|accept` delegates to `test-runner` for the
   directories it supports (`run`, `run-drun`, `fail`, `trap`), so those are no
-  longer slow. Other directories either hold no `.mo`/`.drun` (`repl/`, `idl/`,
-  `cmp/`, `ld/`, `run-deser/`) or need a flag the path does not imply (`-i` for
-  `mo-idl/`, `-p` for `perf/` and `bench/`), or drive a binary `run-test` is not
-  (`mo-doc/`) — keep using `make` there, since `test-runner` would still find
-  the tests and run them with the wrong flags.
+  longer slow. Other directories either hold no top-level `.mo`/`.drun`
+  (`repl/`, `idl/`, `cmp/`, `ld/`, `run-deser/`) or need a flag the path does
+  not imply (`-i` for `mo-idl/`, `-p` for `perf/` and `bench/`), or drive a
+  binary `run-test` is not (`mo-doc/`) — keep using `make` there, since
+  `test-runner` would still find the tests and run them with the wrong flags.
 - **Enhanced-migration test naming**: tests exercising `--enhanced-migration`
   are named `em-*`. A test that also passes `--stable-baseline` is named after
   its baseline file: `em-baseline-<basename>.mo` for
