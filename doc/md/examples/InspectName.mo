@@ -16,7 +16,7 @@ actor {
         #reset : Any;
       }
     }) : Bool {
-    switch (msg) {
+    switch msg {
       case ((#set _) or (#reset _)) { false };
       case _ { true }; // allow inc and read
     }

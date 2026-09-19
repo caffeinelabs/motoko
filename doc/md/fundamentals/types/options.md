@@ -31,7 +31,7 @@ When a Motoko value has type `?T`, it is either `null` or contains a value, writ
 ```motoko no-repl
 func displayName(option : ?Text) : Text {
   switch option {
-    case (?user) { user };
+    case ?user { user };
     case null { "Guest" };
   }
 };
@@ -49,7 +49,7 @@ import Option "mo:core/Option";
 import Debug "mo:core/Debug";
 
 let value : ?Nat = ?5;
-if (Option.isSome(value)) {
+if Option.isSome(value) {
   Debug.print("Value is present.");
 }
 ```
@@ -101,7 +101,7 @@ The same logic can be expressed using a `switch`, though the result is more verb
 func get<T>(option : ?T, defaultValue : T) : T {
   switch option {
     case null defaultValue;
-    case (?value) value;
+    case ?value value;
   }
 };
 ```

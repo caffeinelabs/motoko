@@ -38,7 +38,7 @@ module Matrix {
   public func identity(n : Nat) : Matrix {
     Array.tabulate<[Nat]>(n, func (i : Nat) {
       Array.tabulate<Nat>(n, func (j : Nat) {
-        if (i == j) { 1 } else { 0 }
+        if i == j { 1 } else { 0 }
       })
     })
   };

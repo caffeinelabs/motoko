@@ -17,11 +17,11 @@ var @timeout : ?Nat32 = null;
 func @add_cycles<system>() {
   let cycles = @cycles;
   @reset_cycles();
-  if (cycles != 0) {
+  if cycles != 0 {
     (prim "cyclesAdd" : Nat -> ()) cycles;
   };
   switch @timeout {
-    case (?timeout) {
+    case ?timeout {
       @timeout := null;
       (prim "timeoutSet" : Nat32 -> ()) timeout;
     };
@@ -106,9 +106,9 @@ func @text_of_num(x : Nat, base : Nat, sep : Nat, digits : Nat -> Text) : Text {
   if (n == 0) return "0";
 
   var i = 0;
-  while (n > 0) {
+  while n > 0 {
     let rem = n % base;
-    if (sep > 0 and i == sep) { text := "_" # text; i := 0 };
+    if sep > 0 and i == sep { text := "_" # text; i := 0 };
     text := digits rem # text;
     n := n / base;
     i += 1;
@@ -117,10 +117,10 @@ func @text_of_num(x : Nat, base : Nat, sep : Nat, digits : Nat -> Text) : Text {
 };
 
 func @left_pad(pad : Nat, char : Text, t : Text) : Text {
-  if (pad > t.size()) {
+  if pad > t.size() {
     var i : Nat = pad - t.size();
     var text = t;
-    while (i > 0) {
+    while i > 0 {
       text := char # text;
       i -= 1;
     };
@@ -181,7 +181,7 @@ func @text_of_Char(c : Char) : Text {
 
 func @text_of_Blob(blob : Blob) : Text {
   var t = "\"";
-  for (b in blob.values()) {
+  for b in blob.values() {
     // Could do more clever escaping, e.g. leave ascii and utf8 in place
     t #= "\\" # @left_pad(2, "0", @text_of_num(@nat8ToNat b, 16, 0, @digits_hex));
   };
@@ -190,22 +190,22 @@ func @text_of_Blob(blob : Blob) : Text {
 };
 
 func @text_has_parens(t : Text) : Bool {
-  switch (t.chars().next()) {
-    case (?'(') true;
+  switch t.chars().next() {
+    case ?'(' true;
     case _ false;
   };
 };
 
 func @text_needs_parens(t : Text) : Bool {
-  switch (t.chars().next()) {
+  switch t.chars().next() {
     case (?('+' or '-' or '?' or '#')) true;
     case _ false;
   };
 };
 
 func @text_of_option<T>(f : T -> Text, x : ?T) : Text {
-  switch (x) {
-    case (?y) {
+  switch x {
+    case ?y {
       let fy = f y;
       if (@text_needs_parens(fy)) "?(" # fy # ")" else "?" # fy;
     };
@@ -221,7 +221,7 @@ func @text_of_variant<T>(l : Text, f : T -> Text, x : T) : Text {
 func @text_of_array<T>(f : T -> Text, xs : [T]) : Text {
   var text = "[";
   var first = true;
-  for (x in xs.values()) {
+  for x in xs.values() {
     if first {
       first := false;
     } else {
@@ -235,7 +235,7 @@ func @text_of_array<T>(f : T -> Text, xs : [T]) : Text {
 func @text_of_array_mut<T>(f : T -> Text, xs : [var T]) : Text {
   var text = "[var";
   var first = true;
-  for (x in xs.values()) {
+  for x in xs.values() {
     if first {
       first := false;
       text #= " ";
@@ -248,12 +248,12 @@ func @text_of_array_mut<T>(f : T -> Text, xs : [var T]) : Text {
 };
 
 func @equal_array<T>(eq : (T, T) -> Bool, a : [T], b : [T]) : Bool {
-  if (a.size() != b.size()) {
+  if a.size() != b.size() {
     return false;
   };
   var i = 0;
   let s = a.size();
-  while (i < s) {
+  while i < s {
     if (not eq(a[i], b[i])) {
       return false;
     };
@@ -308,7 +308,7 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
         rs := r_null;
         ws_(refund, t);
       };
-      case (?_) { assert false };
+      case ?_ { assert false };
     };
   };
 
@@ -321,7 +321,7 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
         rs := r_null;
         rs_(e);
       };
-      case (?_) { assert false };
+      case ?_ { assert false };
     };
   };
 
@@ -350,7 +350,7 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
         };
         #suspend;
       };
-      case (?#ok(r, t)) {
+      case ?#ok(r, t) {
         #schedule(func() { @refund := r; k(t) });
       };
       case (?#error e) {
@@ -478,7 +478,7 @@ func @create_actor_helper(wasm_module : Blob, arg : Blob) : async Principal = as
 // raw calls
 func @call_raw(p : Principal, m : Text, a : Blob) : async Blob {
   let available = (prim "cyclesAvailable" : () -> Nat)();
-  if (available != 0) {
+  if available != 0 {
     @cycles := (prim "cyclesAccept" : Nat -> Nat) available;
   };
   await (prim "call_raw" : (Principal, Text, Blob) -> async Blob)(p, m, a);
@@ -519,8 +519,8 @@ var @timers : ?@Node = null;
 
 func @prune(n : ?@Node) : ?@Node = switch n {
   case null null;
-  case (?n) {
-    if (n.expire[0] == 0) {
+  case ?n {
+    if n.expire[0] == 0 {
       @prune(n.post) // by corollary
     } else {
       ?{ n with pre = @prune(n.pre) };
@@ -530,7 +530,7 @@ func @prune(n : ?@Node) : ?@Node = switch n {
 
 func @nextExpiration(n : ?@Node) : Nat64 = switch n {
   case null 0;
-  case (?n) {
+  case ?n {
     let pivot = n.expire[0];
     if (pivot == 0) return @nextExpiration(n.post);
     let exp = @nextExpiration(n.pre);
@@ -552,16 +552,16 @@ func @timer_helper() : async () {
 
   func gatherExpired(n : ?@Node) = switch n {
     case null ();
-    case (?n) {
+    case ?n {
       let pivot = n.expire[0];
       if (pivot > 0) gatherExpired(n.pre); // by corollary
-      if (pivot <= now and gathered < thunks.size()) {
-        if (pivot > 0) {
+      if pivot <= now and gathered < thunks.size() {
+        if pivot > 0 {
           // not expunged yet
           thunks[gathered] := ?(n.job);
-          switch (n.delay) {
+          switch n.delay {
             case (null or ?0) n.expire[0] := 0;
-            case (?delay) {
+            case ?delay {
               // re-add the node, skipping past expirations
               let expire = pivot + delay * (1 + (now - pivot) / delay);
               n.expire[0] := 0;
@@ -572,7 +572,7 @@ func @timer_helper() : async () {
                   pre = null;
                   post = null;
                 });
-                case (?m) {
+                case ?m {
                   assert m.expire[0] != 0;
                   if (expire < m.expire[0]) ({ m with pre = ?reinsert(m.pre) }) else ({
                     m with post = ?reinsert(m.post)
@@ -597,14 +597,14 @@ func @timer_helper() : async () {
 
   var failed : Nat64 = 0;
   func reinsert(job : () -> async ()) {
-    if (failed == 0) {
+    if failed == 0 {
       @timers := @prune @timers;
       ignore (prim "global_timer_set" : Nat64 -> Nat64) 1;
     };
     failed += 1;
     @timers := ?(
       switch @timers {
-        case (?{ id = 0; pre; post; job = j; expire; delay })
+        case ?{ id = 0; pre; post; job = j; expire; delay }
         // push top node's contents into pre
         ({
           expire = [var failed];
@@ -626,9 +626,9 @@ func @timer_helper() : async () {
     );
   };
 
-  for (o in thunks.values()) {
+  for o in thunks.values() {
     switch o {
-      case (?thunk) try ignore thunk() catch _ reinsert thunk;
+      case ?thunk try ignore thunk() catch _ reinsert thunk;
       case _ return;
     };
   };
@@ -652,7 +652,7 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
       pre = null;
       post = null;
     });
-    case (?n) {
+    case ?n {
       assert n.expire[0] != 0;
       if (expire < n.expire[0]) ({ n with pre = ?insert(n.pre) }) else ({
         n with post = ?insert(n.post)
@@ -678,7 +678,7 @@ func @cancelTimer(id : Nat) {
 
   func hunt(n : ?@Node) : ?@Node = switch n {
     case null n;
-    case (?{ id = node; pre; post }) {
+    case ?{ id = node; pre; post } {
       if (node == id) {
         graft(pre, post);
       } else do ? { { n! with pre = hunt pre; post = hunt post } };
@@ -759,13 +759,13 @@ func @dedup(b : Blob) : Blob {
   func getFromList(list : List, originalBlob : Blob) : ?WeakRef {
     var copy = list;
     loop {
-      if (blobCompare(copy.originalBlob, originalBlob) == 0) {
+      if blobCompare(copy.originalBlob, originalBlob) == 0 {
         return copy.value;
       } else {
         let next = copy.next;
         switch next {
           case null { return null };
-          case (?next) { copy := next };
+          case ?next { copy := next };
         };
       };
     };
@@ -778,7 +778,7 @@ func @dedup(b : Blob) : Blob {
   func getHashArrayLen(hashArray : [var List]) : Nat {
     var len = 0;
     var i = 0;
-    while (i < HASH_ARRAY_SIZE) {
+    while i < HASH_ARRAY_SIZE {
       len += getListLen(hashArray[i]);
       i += 1;
     };
@@ -807,10 +807,10 @@ func @dedup(b : Blob) : Blob {
   // Check if the blob has magic bytes.
   // We only deduplicate blobs which have the first 5 bytes (!caf!).
   // Otherwise, we return the original blob so that the system works as usual.
-  if (b.size() < 5) {
+  if b.size() < 5 {
     return b;
   };
-  if (b[0] != 0x21 or b[1] != 0x63 or b[2] != 0x61 or b[3] != 0x66 or b[4] != 0x21) {
+  if b[0] != 0x21 or b[1] != 0x63 or b[2] != 0x61 or b[3] != 0x66 or b[4] != 0x21 {
     //debugPrint("The blob doesn't have magic bytes so we return the original.");
     return b;
   };
@@ -818,7 +818,7 @@ func @dedup(b : Blob) : Blob {
   // Get the dedup table from the RTS.
   let ptr = getDedupTable();
   let hashArray = switch ptr {
-    case (?dedupTable) {
+    case ?dedupTable {
       dedupTable;
     };
     case null {
@@ -833,11 +833,11 @@ func @dedup(b : Blob) : Blob {
   // Get the WeakRef from the hash table.
   let dedupedBlobWeakRef = getFromHashArray(hashArray, b);
   let result = switch dedupedBlobWeakRef {
-    case (?weakRef) {
+    case ?weakRef {
       // It was in the hash so we dereference the WeakRef.
       let derefed = weakGet(weakRef.ref);
       switch derefed {
-        case (?derefed) { derefed };
+        case ?derefed { derefed };
         case null {
           // This will only happen if the blob was deallocated by the GC.
           // We put it back in the hash table so that it can be deduplicated again.
@@ -860,6 +860,6 @@ func @dedup(b : Blob) : Blob {
 // envvar-indirection for principals
 func @envvar_principal(envvar : Text) : Blob =
   switch ((prim "env_var" : Text -> ?Text) envvar) {
-    case (?envvar) (prim "decode_principal" : Text -> Blob) envvar;
+    case ?envvar (prim "decode_principal" : Text -> Blob) envvar;
     case _ (prim "trap" : Text -> None)("envvar `" # envvar # "` not set")
   };

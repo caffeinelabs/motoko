@@ -68,7 +68,7 @@ func ensureCapacity(r : Region, requiredBytes : Nat64) {
   let bytesPerPage : Nat64 = 65536;
   let currentCapacity = currentPages * bytesPerPage;
   
-  if (requiredBytes > currentCapacity) {
+  if requiredBytes > currentCapacity {
     // Calculate how many new pages we need
     let additionalBytesNeeded = requiredBytes - currentCapacity;
     let pagesNeeded = (additionalBytesNeeded + bytesPerPage - 1) / bytesPerPage;
@@ -164,7 +164,7 @@ actor StableLog {
   // Grow a region to hold a certain number of total bytes.
   func regionEnsureSizeBytes(r : Region, new_byte_count : Nat64) {
     let pages = Region.size(r);
-    if (new_byte_count > pages << 16) {
+    if new_byte_count > pages << 16 {
       let new_pages = ((new_byte_count + ((1 << 16) - 1)) / (1 << 16)) - pages;
       assert Region.grow(r, new_pages) == pages
     }

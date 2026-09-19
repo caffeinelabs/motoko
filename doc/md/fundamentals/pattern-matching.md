@@ -73,7 +73,7 @@ The wildcard pattern `_` matches any value but does not bind to a variable. It i
 
 ```motoko no-repl
 func processNumber(n : Nat) : Text {
-    switch (n) {
+    switch n {
         case 0 { "Zero" };
         case 1 { "One" };
         case _ { "Other" };  // Matches any other number
@@ -110,8 +110,7 @@ import Nat "mo:core/Nat";
 
 func getValue(opt : ?Nat) : Text {
     switch opt {
-        // Parentheses required around `?n`
-        case (?n) { "Value: " # Nat.toText(n) };
+        case ?n { "Value: " # Nat.toText(n) };
         case null { "No value" };
     };
 };
@@ -125,8 +124,8 @@ Objects with named fields can be matched to extract specific properties.
 type Person = { name : Text; age : Nat };
 
 func describePerson(person : Person) : Text {
-    switch (person) {
-        case ({ name = fullName; age }) { fullName # " is " # Nat.toText(age) # " years old." };
+    switch person {
+        case { name = fullName; age } { fullName # " is " # Nat.toText(age) # " years old." };
     };
 };
 ```
@@ -140,7 +139,7 @@ type Status = { #ok; #error : Text };
 
 func processStatus(status : Status) : Text {
     switch status {
-        case (#ok) { "Success" };
+        case #ok { "Success" };
         case (#error message) { "Error: " # message };
     };
 };

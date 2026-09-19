@@ -158,7 +158,7 @@ scores.add("Charlie", 92);
 scores.add("Bob", 95);
 
 // Check and remove
-if (scores.containsKey("Alice")) {
+if scores.containsKey("Alice") {
   scores.remove("Alice");
 };
 
@@ -366,7 +366,7 @@ Each per-element implicit has type `(ElemType_i, ElemType_i) -> E`. This enables
 // __tuple combiner: join per-element descriptions (evaluates all thunks)
 func describe(__tuple : [() -> Text]) : Text {
   var s = "("; var first = true;
-  for (t in __tuple.values()) {
+  for t in __tuple.values() {
     if (not first) { s #= ", " };
     s #= t(); first := false
   };

@@ -16,7 +16,7 @@ actor {
     // Record a new principal
     public shared(msg) func recordPrincipal() : async () {
         let caller = msg.caller;
-        if (Principal.isAnonymous(caller)) {
+        if Principal.isAnonymous(caller) {
             throw Error.reject("Anonymous principal not allowed");
         };
 

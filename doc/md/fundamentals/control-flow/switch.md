@@ -81,7 +81,7 @@ Here's a simple example of matching against an option:
 func value<T>(option : ?T, default : T) : T {
    switch option {
       case null default;
-      case (?value) value;
+      case ?value value;
    }
 }
 ```
@@ -98,7 +98,7 @@ type List<T> = ?(T, List<T>);
 func size<T>(list : List<T>) : Nat {
   switch list {
      case null { 0 };
-     case (?(_, tail)) { 1 + size(tail) };
+     case ?(_, tail) { 1 + size(tail) };
   }
 }
 ```
@@ -127,8 +127,8 @@ func eval(e : Exp) : ? Nat {
     };
     case (#If (e1, e2, e3)) {
       switch (eval e1) {
-        case (?0) { eval e2 };
-        case (?_) { eval e3 };
+        case ?0 { eval e2 };
+        case ?_ { eval e3 };
         case _ { null }
       };
     };

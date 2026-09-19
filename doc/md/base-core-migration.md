@@ -215,12 +215,12 @@ import Debug "mo:base/Debug";
 
 persistent actor {
   // Iterate through -3, -2, -1, 0, 1, 2 (exclusive upper bound)
-  for (number in Int.range(-3, 3)) {
+  for number in Int.range(-3, 3) {
     Debug.print(debug_show number);
   };
 
   // Iterate through -3, -2, -1, 0, 1, 2, 3
-  for (number in Int.rangeInclusive(-3, 3)) {
+  for number in Int.rangeInclusive(-3, 3) {
     Debug.print(debug_show number);
   };
 }
@@ -480,8 +480,8 @@ persistent actor{
   };
 
   public func take() : async ?Item {
-    switch (Deque.popFront(deque)) {
-      case (?(item, newDeque)) {
+    switch Deque.popFront(deque) {
+      case ?(item, newDeque) {
         deque := newDeque;
         ?item;
       };
@@ -507,8 +507,8 @@ import Queue "mo:core/Queue";
   } {
     let queue = Queue.empty<App.Item>();
     label l loop {
-      switch (Deque.popFront(state.deque)) {
-        case (?(item, deque)) {
+      switch Deque.popFront(state.deque) {
+        case ?(item, deque) {
           Queue.pushBack(queue, item);
           state.deque := deque;
         };

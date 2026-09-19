@@ -26,7 +26,7 @@ For example, you might use an `if-else` to choose a label based on a value.
 let x : Int = 1;
 
 let identity : Text =
-  if (x == 1) {
+  if x == 1 {
     "x is 1"
   } else {
     "x is not 1"
@@ -61,7 +61,7 @@ Since `if`-expressions have type `()`, they can be used as declaration expressio
 ```motoko no-repl
 let x : Int = 1;
 
-if (x == 1) {
+if x == 1 {
     Debug.print("x is 1"); // Prints and returns ()
 };
 ```
@@ -74,9 +74,9 @@ if (x == 1) {
 ```motoko no-repl
 var age = 21;
 
-if (age < 18) {
+if age < 18 {
   "You are a minor."
-} else if (age >= 18 and age < 65) {
+} else if age >= 18 and age < 65 {
   "You are an adult."
 } else {
   "You are a senior citizen."
