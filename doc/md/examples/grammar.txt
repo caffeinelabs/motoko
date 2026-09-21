@@ -204,15 +204,15 @@
     <exp_post> '!'
     '(' 'system' <exp_post> '.' <id> ')'
 
-<exp_cont_tight> ::= 
-    '(' <list(<exp>, ',')> ')'
-    '[' <exp> ']'
-
 <exp_cont> ::= 
-    <exp_cont_tight>
     '(' <list(<exp>, ',')> ')'
     '[' <exp> ']'
-    <ob>
+    <exp_cont_loose>
+
+<exp_cont_loose> ::= 
+    '(' <list(<exp>, ',')> ')'
+    '[' <exp> ']'
+    <exp_obj>
     <lit>
     <id>
     '_'

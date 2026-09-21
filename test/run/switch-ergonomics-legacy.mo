@@ -15,6 +15,29 @@ assert (opt == null);
 let arr = if (a) [1] else [2];
 assert (arr[0] == 1);
 
+// a branch may start with a prefix-shaped operator: spaced before, glued to its operand
+let sgn = if (i < 0) -1 else 1;
+assert (sgn == 1);
+let neg = if (i > 0) -i else i;
+assert (neg == -3);
+let flipped : Nat8 = if (a) ^0 else 0;
+assert (flipped == 255);
+let plus = if (a) +1 else 0;
+assert (plus == 1);
+let vtag = if a #yes else #no;
+assert (vtag == #yes);
+let signed = if a -1 else 1;
+assert (signed == -1);
+// ... and in operand position the same spellings stay the binary operators they always were
+let t = "a" #"b";
+assert (t == "ab");
+let n : Int = 10 -1 -2 * 2;
+assert (n == 5);
+let m : Int = 5 -1 * 2 +1;
+assert (m == 4);
+let masked : Nat8 = 0xff ^0x0f;
+assert (masked == 0xf0);
+
 // a bare-branch `if` may continue an `else` chain that started from a parenthesized head
 let chain = if (i == 0) { 0 } else if (a) 1 else 2;
 assert (chain == 1);

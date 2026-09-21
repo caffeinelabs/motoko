@@ -46,19 +46,29 @@
       `switch p.x { ... }`, `switch arr[i] { ... }`; likewise, `for` loops no
       longer need parentheses: `for x in xs.vals() { ... }`. Following Rust's rule for
       the identical ambiguity, a record literal directly in these positions
-      must be parenthesized: `switch ({ x = 0 }) { ... }`. Whether a `(`/`[`
-      extends the scrutinee or starts the following branch is decided by
-      whitespace, mirroring the existing rule for `<`/`>`: `if f(x) { }` is a
-      call (no space), while `if (c) (e) else (e')` keeps its existing meaning
-      (spaced `(e)` is the branch). Other operators extend the condition
-      greedily: `if a + 1 > n { }` works, but a branch that begins with a
-      unary `-`/`+` after an unparenthesized condition now needs parentheses.
+      must be parenthesized: `switch ({ x = 0 }) { ... }`. Whether a token
+      after the condition still extends it or starts a bare branch is decided
+      by whitespace, mirroring the existing rule for `<`/`>`: an unspaced
+      `(`/`[` extends it (`if f(x) { }` is a call, `if xs[i] { }` an index),
+      a spaced one starts the branch (`if (c) (e) else (e')` and
+      `if (c) [e] else []` keep their meaning); a prefix-shaped `-x`, `+x`,
+      `^x`, or `#tag` (spaced before, glued to its operand) starts the branch
+      (`if (c) -1 else 1` and `if (c) #less else #greater` keep their
+      meaning), while an operator spaced on both sides or on neither extends
+      the condition (`if a + 1 > n { }`, `if n-1 > 0 { }`). Outside heads the
+      prefix-shaped spellings stay the binary operators they always were
+      (`n -1`, `a #b`).
+      BREAKING: an unspaced `(`/`[` directly after a bare identifier or
+      parenthesized condition is now a call or index, so a legacy bare branch
+      written that way (`if c[e] else []`, `if (c)(e) else e'`) no longer
+      parses; insert a space or parenthesize the condition.
       Following the target syntax (#6352), the new head forms are coupled to
       the brace discipline: when the head of `if`/`while` is more than a
       single atom (or a `for` head is unparenthesized), the branches or body
       must be blocks — `if f(x) { e1 } else { e2 }`, never `if f(x) e1 else e2`
       (diagnosed by the new `M0275` with a fix-it). Bare branches remain
-      available exactly as before, with parenthesized or atomic heads.
+      available with parenthesized or atomic heads, subject to the whitespace
+      rule above.
       An `else if` chain that starts from an unparenthesized head stays
       braced throughout (`if f(x) { } else if c { } else { }`); a bare-branch
       `if` cannot continue such a chain. All four constructs share one head
@@ -67,13 +77,6 @@
       parses, as `if { c } { }` does in Rust), and `break l e` now takes a
       full expression as its operand, like `return e` (`break l f(x)`,
       `break l do { ... }`).
-
-    * BREAKING: `#` immediately followed by an identifier is now a variant
-      introduction wherever an expression can start, so
-      `if (c) #less else #greater` parses with the variants as branches.
-      Concatenation is unaffected when spaced (`x # y`) or written tightly
-      after an expression (`x#y`), but the half-spaced form `x #y` now parses
-      as `x` juxtaposed with the variant `#y` and is rejected.
 
     * `M0272` additionally covers a record literal written directly as a
       `switch`/`if`/`while` head, where the `{` already belongs to the
