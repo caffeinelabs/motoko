@@ -85,7 +85,7 @@ To increase readability and uniformity of Motoko source code, the style guide pr
 -   Put a space between statement keywords and their operands.
 
     ``` motoko no-repl
-    if (f()) A else B;
+    if f() { A } else { B };
     for x in xs.values() { ... };
     switch compare(x, y) {
       case #less { A }
@@ -93,11 +93,8 @@ To increase readability and uniformity of Motoko source code, the style guide pr
     }
 
     assert (x < 100);
-    await (async (0));
+    await async { 0 };
     ```
-
-    The legacy bare-branch `if` above keeps its parentheses, since dropping them
-    requires braced branches.
 
 -   Do not put a space between a function or variant tag and its argument tuple or around a generic type parameter list.
 
@@ -372,7 +369,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     // No ; between the arms of a switch: `case` already ends the previous arm
     switch opt {
-      case ?x { f(x); }
+      case ?x { f(x) }
       case null {}
     };
 
@@ -404,10 +401,11 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
 ### Braces
 
--   Write the head of an `if`, `while` or `switch` without enclosing parentheses.
+-   Write the head of an `if`, `while`, `for` or `switch` without enclosing parentheses.
 
     ``` motoko no-repl
     if f() { A } else { B };
+    while more() { ... };
     for x in xs.values() { ... };
     switch compare(x, y) {
       case #less { A }
@@ -416,24 +414,41 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     ```
 
     Parentheses are still needed where dropping them would change the parse: around a
-    head that is a tuple or a bare function application, around a `switch` head that is a
-    record literal, and around a variant payload in a `case` pattern.
+    head that is a tuple or a record literal, and around a bare function application,
+    whose argument would otherwise swallow the `{` that opens the body.
 
     ``` motoko no-repl
     switch (r, c) { ... };              // tuple head
-    if f(x) == 0 { ... };               // parenthesize the application, not the comparison
     switch ({ x = 1 }) { ... };         // record literal head
-    case (?n) { ... };                  // option payload
-    case (#node n) { ... };             // variant payload
+    if (f x) == 0 { ... };              // or write the call tight: `if f(x) == 0 { ... }`
     ```
 
-    A head that is more than a single atom — a call, projection, index, operator or
-    prefix form — is only grammatical with braced branches or body. A single atom
-    head may still take bare branches, but switch arms are always braced:
+-   In a `case` pattern, parenthesize the payload rather than the whole pattern, matching
+    how the variant is written on the expression side. Patterns that already end
+    unambiguously take no parentheses at all.
 
     ``` motoko no-repl
-    func g(i : Nat) : Nat { if i < 0 { 1 } else { 2 } };
-    func h(xs : [Nat]) : Nat { var s = 0; for x in xs.values() { s += x }; s };
+    case null { ... }
+    case ?n { ... }
+    case -1 { ... }
+    case #leaf { ... }
+    case #node(n) { ... }
+    case (n, #male) { ... }             // parentheses delimit a tuple pattern
+    case ({ x; y }) { ... }             // ...and anything else not in the list above
+    ```
+
+-   Put braces around every control body: both `if` branches, `while`, `for` and `loop`
+    bodies, `case` and `catch` arms, `try` and `finally` bodies, `async` bodies, and
+    function bodies. The one exception is an `else if` chain, which does not brace the
+    inner `if`.
+
+    ``` motoko no-repl
+    func f(x) { f1(x); f2(x) };
+    func succ(x : Nat) : Nat { x + 1 };
+
+    let abs = if v >= 0 { v } else { -v };
+
+    if isEmpty(xs) { init() } else if xs.size() > cap { grow() } else { push(xs) };
 
     func sign(n : Int) : Text {
       switch n {
@@ -444,14 +459,12 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     };
     ```
 
--   Put braces around function bodies, `if` branches, and loop bodies, unless they appear nested as an expression and only contain a single expression. A `case` branch takes braces without exception, as above.
-
-    ``` motoko no-repl
-    func f(x) { f1(x); f2(x) };
-
-    let abs = if (v >= 0) v else -v;
-    func succ(x : Nat) : Nat = x + 1;
-    ```
+    `moc` still accepts a bare branch after a single-atom head (`if (v >= 0) v else -v`),
+    a bare `case` body (`case null 0`), and an expression function body
+    (`func succ(x : Nat) : Nat = x + 1`). All three are legacy forms on their way out;
+    do not write them in new code. The one place `= e` is still needed is a local
+    function that forwards an already-computed `async` value, which a block body would
+    re-wrap.
 
 -   Use "C-style" layout for braced sub-expressions stretching multiple lines.
 
@@ -873,7 +886,7 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     };
 
     func gcd(i : Nat, j : Nat) : Nat {
-      if (j == 0) i else gcd(j, i % j);
+      if j == 0 { i } else { gcd(j, i % j) };
     };
 
     func gcd2(i : Nat, j : Nat) : Nat {
