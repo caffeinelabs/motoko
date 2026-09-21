@@ -49,7 +49,7 @@ func product(numbers : [Int]) : Int {
   var prod : Int = 1;
   for number in numbers.values() {
     prod *= number;
-    if (prod == 0) return 0; // an early return can save work
+    if prod == 0 { return 0 }; // an early return can save work
   };
   prod; // The implicit result of the block and function
 }
@@ -62,7 +62,7 @@ func asyncProduct(numbers : [Int]) : async Int {
   var prod : Int = 1;
   for number in numbers.values() {
     prod *= number;
-    if (prod == 0) return 0; // an early return completes the future
+    if prod == 0 { return 0 }; // an early return completes the future
   };
   prod; // The implicit result of the block and function
 }
@@ -84,8 +84,8 @@ type HttpRequestStatus = {
 
 func checkStatus(r : HttpRequestStatus) : Text {
   switch r {
-    case (#ok successCode) { "Success: " # Nat.toText(successCode) }
-    case (#err errorCode ) { "Failure: " # Nat.toText(errorCode) }
+    case #ok(successCode) { "Success: " # Nat.toText(successCode) }
+    case #err(errorCode) { "Failure: " # Nat.toText(errorCode) }
   };
 };
 ```
@@ -154,7 +154,7 @@ func product(numbers : [Int]) : Int {
   var prod : Int = 1;
   label l for number in numbers.values() {
     prod *= number;
-    if (prod == 0) break l;
+    if prod == 0 { break l };
   };
   prod; // The implicit result of the block and function
 }
@@ -168,7 +168,7 @@ func product(numbers : [Int]) : Int {
     var prod : Int = 1;
     for number in numbers.values() {
       prod *= number;
-      if (prod == 0) break result 0;
+      if prod == 0 { break result 0 };
     };
     prod
  }
@@ -204,7 +204,7 @@ var i = 0;
 loop {
   Debug.print(Nat.toText(i));
   i += 1;
-} while (i < 5)
+} while i < 5
 ```
 
 
@@ -250,7 +250,7 @@ For example, computing the product we can skip a multiplication when the number 
 func product(numbers : [Int]) : Int {
   var prod : Int = 1;
   for number in numbers.values() {
-    if (number == 1) continue;
+    if number == 1 { continue };
     prod *= number;
   };
   prod;
@@ -263,7 +263,7 @@ When you have nested loops and need to continue a specific outer loop, you can u
 func product(numbers : [Int]) : Int {
   var prod : Int = 1;
   label l for number in numbers.values() {
-    if (number == 1) continue l;
+    if number == 1 { continue l };
     prod *= number;
   };
   prod;
@@ -288,7 +288,7 @@ actor {
     var prod : Int = 1;
     for num in numbers.values() {
       prod += num;
-      if (prod == 0) return 0; // an early return can save work
+      if prod == 0 { return 0 }; // an early return can save work
     };
     prod;
   };

@@ -30,7 +30,7 @@ import Debug "mo:core/Debug";
 
 var count : Nat = 0;
 loop {
-  if (count > 5) break;
+  if count > 5 { break };
   Debug.print(debug_show(count));
   count += 1;
 }
@@ -43,7 +43,7 @@ import Debug "mo:core/Debug";
 
 var count : Nat = 0;
 label countLoop loop {
-  if (count > 5) break countLoop;
+  if count > 5 { break countLoop };
   Debug.print(debug_show(count));
   count += 1;
 }
@@ -60,7 +60,7 @@ var count = 0;
 loop {
   Debug.print(debug_show(count));
   count += 1;
-} while (count < 5);
+} while count < 5;
 ```
 
 :::note
@@ -159,7 +159,7 @@ import Debug "mo:core/Debug";
 var count = 8;
 while count > 0 {
   count -= 1;
-  if (count % 2 == 0) continue;
+  if count % 2 == 0 { continue };
   Debug.print("Counting down...");
 };
 ```
@@ -173,7 +173,7 @@ import Debug "mo:core/Debug";
 var count = 8;
 label l while count > 0 {
   count -= 1;
-  if (count % 2 == 0) continue l;
+  if count % 2 == 0 { continue l };
   Debug.print("Counting down...");
 };
 ```

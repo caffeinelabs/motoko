@@ -189,7 +189,7 @@ For example, it is possible to constrain a generic type to be a subtype of a pri
 
 ```motoko no-repl
 func max<T <: Int>(x : T, y : T) : T {
-  if (x <= y) y else x
+  if x <= y { y } else { x }
 };
 max<Int>(-5, -10);  // returns -5  : Int
 ```
@@ -269,7 +269,7 @@ actor Publisher {
         if Array.find<Principal>(subscribers, func(s) { s == subscriber }) == null {
             let newSubscribers = Array.tabulate<Principal>(
                 subscribers.size() + 1,
-                func(i) { if (i < subscribers.size()) subscribers[i] else subscriber }
+                func(i) { if i < subscribers.size() { subscribers[i] } else { subscriber } }
             );
             subscribers := newSubscribers;
         };

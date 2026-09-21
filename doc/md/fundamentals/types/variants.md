@@ -172,7 +172,7 @@ let tree : Tree = #node {
 func traverseInOrder(t : Tree) {
   switch t {
     case #leaf {}
-    case (#node {value; left; right}) {
+    case #node({value; left; right}) {
       traverseInOrder(left);
       Debug.print(debug_show (value));
       traverseInOrder(right)

@@ -18,8 +18,7 @@ func eval(e : Exp) : ? Nat {
         }
       }
       case #IfZero(e1, e2, e3) {
-        let v1 = eval e1 !;
-        if v1 == 0 {
+        if eval(e1) ! == 0 {
           eval e2 !
         } else {
           eval e3 !

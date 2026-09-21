@@ -322,7 +322,7 @@ import Order "mo:core/Order";
 func compare(__record : [(Text, () -> Order.Order)]) : Order.Order {
   for ((_, ordThunk) in __record.values()) {
     let ord = ordThunk();
-    if (ord != #equal) return ord
+    if ord != #equal { return ord }
   };
   #equal
 };
@@ -367,7 +367,7 @@ Each per-element implicit has type `(ElemType_i, ElemType_i) -> E`. This enables
 func describe(__tuple : [() -> Text]) : Text {
   var s = "("; var first = true;
   for t in __tuple.values() {
-    if (not first) { s #= ", " };
+    if not first { s #= ", " };
     s #= t(); first := false
   };
   s #= ")"; s
@@ -389,10 +389,10 @@ Unlike a record or tuple, a variant value is exactly **one** of its cases at run
 
 ```
 func($v) {
-  combiner(switch ($v) {
-    case (#t1 x) ("t1", func() { inst1(x) });
+  combiner(switch $v {
+    case #t1(x) { ("t1", func() { inst1(x) }) }
     ...
-    case (#tn x) ("tn", func() { instn(x) });
+    case #tn(x) { ("tn", func() { instn(x) }) }
   })
 }
 ```

@@ -545,7 +545,7 @@ func float32ToFloat(f : Float32) : Float = (prim "num_conv_Float32_Float" : Floa
 // Checked Float -> Float32 conversion: returns ?Float32 if round-trip stays within epsilon, null otherwise
 func safeFloatToFloat32(f : Float, epsilon : Float) : ?Float32 {
   let f32 = floatToFloat32 f;
-  if (floatAbs(float32ToFloat f32 - f) <= epsilon) ?f32 else null
+  if floatAbs(float32ToFloat f32 - f) <= epsilon { ?f32 } else { null }
 };
 
 // Float operations
@@ -664,7 +664,7 @@ func cyclesRefunded() : Nat = @refund;
 func cyclesAccept<system>(amount : Nat) : Nat = (prim "cyclesAccept" : Nat -> Nat) amount;
 
 func cyclesAdd<system>(amount : Nat) : () {
-  if (amount == 0) return;
+  if amount == 0 { return };
   @cycles += amount;
   // trap if @cycles would exceed 2^128
   if @cycles > 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF {

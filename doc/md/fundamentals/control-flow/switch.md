@@ -115,18 +115,17 @@ A more complex example can be found below:
 type Exp = {#Lit : Nat; #Div : (Exp, Exp); #If : (Exp, Exp, Exp)};
 func eval(e : Exp) : ? Nat {
   switch e {
-    case (#Lit n) { ?n }
-    case (#Div (e1, e2)) {
+    case #Lit(n) { ?n }
+    case #Div(e1, e2) {
       switch (eval e1, eval e2) {
         case (?v1, ?v2) {
-          if (v2 == 0) null
-          else ?(v1 / v2)
+          if v2 == 0 { null } else { ?(v1 / v2) }
         }
         case _ { null }
       }
     }
-    case (#If (e1, e2, e3)) {
-      switch (eval e1) {
+    case #If(e1, e2, e3) {
+      switch eval(e1) {
         case ?0 { eval e2 }
         case ?_ { eval e3 }
         case _ { null }
@@ -151,19 +150,22 @@ type Exp = {#Lit : Nat; #Div : (Exp, Exp); #If : (Exp, Exp, Exp)};
 func eval(e : Exp) : ? Nat {
   do ? {
     switch e {
-      case (#Lit n) { n }
-      case (#Div (e1, e2)) {
+      case #Lit(n) { n }
+      case #Div(e1, e2) {
         let v1 = eval e1 !;  // If eval e1 returns null, exit with null
         let v2 = eval e2 !;  // If eval e2 returns null, exit with null
-        if (v2 == 0)
+        if v2 == 0 {
           null !  // Explicitly exit with null for division by zero
-        else v1 / v2
+        } else {
+          v1 / v2
+        }
       }
-      case (#If (e1, e2, e3)) {
-        if (eval e1 ! == 0)  // Unwrap and check if zero
+      case #If(e1, e2, e3) {
+        if eval(e1) ! == 0 {  // Unwrap and check if zero
           eval e2 !  // Return result of e2 (or null if it's null)
-        else
+        } else {
           eval e3 !  // Return result of e3 (or null if it's null)
+        }
       }
     };
   };

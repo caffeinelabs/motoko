@@ -60,7 +60,7 @@ actor Publisher {
         if Array.find<Subscriber.Subscriber>(subscribers, func(s) { s == subscriber }) == null {
             let newSubscribers = Array.tabulate<Subscriber.Subscriber>(
                 subscribers.size() + 1,
-                func(i) { if (i < subscribers.size()) subscribers[i] else subscriber }
+                func(i) { if i < subscribers.size() { subscribers[i] } else { subscriber } }
             );
             subscribers := newSubscribers;
         };

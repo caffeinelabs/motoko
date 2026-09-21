@@ -45,7 +45,7 @@ module Matrix {
 
   // Transpose a matrix (flip rows and columns)
   public func transpose(m : Matrix) : Matrix {
-    if (m.size() == 0) return [];
+    if m.size() == 0 { return [] };
     let rows = m.size();
     let cols = m[0].size();
     Array.tabulate<[Nat]>(cols, func (j: Nat) {

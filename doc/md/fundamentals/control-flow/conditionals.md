@@ -37,7 +37,7 @@ The result of the `if-else` is assigned to `identity`. Here, both branches have 
 
 ```motoko no-repl
 let n : Nat = 0;
-let parity = if (n % 2 == 0) #even else #odd;
+let parity = if n % 2 == 0 { #even } else { #odd };
 ```
 Here, the first branch has type `{#even}` and the second branch has type `{#odd}`. These types are different but they have a common supertype `{#even; #odd}`. The type of the `if-else` is then `{#even; #odd}`.
 
@@ -45,7 +45,7 @@ Motoko will infer the common supertype for you, choosing the most specific one p
 
 ```motoko no-repl
 let n : Nat = 0;
-let oops = if (n % 2 == 0) #even else 0;
+let oops = if n % 2 == 0 { #even } else { 0 };
 ```
 
 ## `if`-expression
