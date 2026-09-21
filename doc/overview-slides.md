@@ -76,13 +76,13 @@ Inspirations: Java(Script), C#, Swift, Pony, ML, Haskell
 
 ## Control flow
 
-- `if (b) …`
-- `if (b) … else …`
-- `switch x { case (pat1) e1; …; case _ en }`
-- `while (b) …`
-- `loop …`
-- `loop … while (b)`
-- `for (pat in e) …`
+- `if b { … }`
+- `if b { … } else { … }`
+- `switch x { case pat1 { e1 } … case _ { en } }`
+- `while b { … }`
+- `loop { … }`
+- `loop { … } while b`
+- `for pat in e { … }`
 
 <!--
 ### Labels, break and continue
@@ -165,7 +165,7 @@ Literals: `true`, `false`
 `a or b`  
 `a and b`  
 `not b`  
-`if (b) e1 else e2`
+`if b { e1 } else { e2 }`
 
 # Functions
 
@@ -198,7 +198,7 @@ Literals: `true`, `false`
 func add(x : Int, y : Int) : Int = x + y;
 
 func applyNTimes<T>(n : Nat, x : T, f : T -> ()) {
-  if (n == 0) return;
+  if n == 0 { return };
   f(x);
   applyNTimes(n-1, x, f);
 }
@@ -235,8 +235,8 @@ is either a value of that type, or `null`
 ```
 func foo(x : ?Text) : Text {
   switch x {
-    case (null) { "No value" }
-    case (?y) { "Value: " # y }
+    case null { "No value" }
+    case ?y { "Value: " # y }
   };
 };
 foo(null);
@@ -252,7 +252,7 @@ let days = ["Monday", "Tuesday", … ];
 assert(days.len() == 7);
 assert(days[1] == "Tuesday");
 // days[7] will trap (fixed size)
-for (d in days.values()) { Debug.print(d) };
+for d in days.values() { Debug.print(d) };
 ```
 
 ## Arrays (mutable)
@@ -300,12 +300,12 @@ Different syntax, same type as records
 ```
 type Health = { #invincible; #alive : Nat; #dead };
 func takeDamage(h : Health, p : Nat) : Health {
-  switch (h) {
-    case (#invincible) { #invincible }
-    case (#alive hp) {
-      if (hp > p) { #alive (hp-p) } else { #dead }
+  switch h {
+    case #invincible { #invincible }
+    case #alive(hp) {
+      if hp > p { #alive (hp-p) } else { #dead }
     }
-    case (#dead) { #dead }
+    case #dead { #dead }
   }
 }
 ```
@@ -379,7 +379,7 @@ actor {
   };
   public func send(t : Text) : async Nat {
     var sum := 0;
-    for (a in r.values()) {
+    for a in r.values() {
       sum += await a.recv(t);
     };
     return sum;
@@ -421,7 +421,7 @@ actor Self {
 actor Self {
   let myself : Principal = Principal.fromActor(Self);
   public shared(context) func hello() : async Text {
-    if (context.caller == myself) {
+    if context.caller == myself {
       "Talking to yourself is the first sign of madness";
     } else {
       "Hello, nice to see you";
@@ -547,7 +547,7 @@ actor Server {
     loop {
       switch next {
         case null { return; }
-        case (?l) { l.head.send(message); next := l.tail; }
+        case ?l { l.head.send(message); next := l.tail }
       };
     };
   };
