@@ -39,18 +39,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Abort if tag is not on master
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          set -euo pipefail
-          git fetch origin master
-          if git merge-base --is-ancestor "${GITHUB_SHA}" "origin/master"; then
-            echo "Tag commit ${GITHUB_SHA} is reachable from master."
-          else
-            echo "Error: Tag commit ${GITHUB_SHA} is not on master. Aborting workflow."
-            exit 1
-          fi
-
       - name: Compute the release version
         id: version
         env:
@@ -80,6 +68,21 @@ jobs:
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Only an official release has to come from master. A pre-release is
+      # cut from the branch it exists to test, which is the point of building
+      # one.
+      - name: Abort if tag is not on master
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && steps.version.outputs.prerelease != 'true' }}
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          if git merge-base --is-ancestor "${GITHUB_SHA}" "origin/master"; then
+            echo "Tag commit ${GITHUB_SHA} is reachable from master."
+          else
+            echo "Error: Tag commit ${GITHUB_SHA} is not on master. Aborting workflow."
+            exit 1
           fi
 
       # A prerelease's assets are uploaded to its draft, and publishing that

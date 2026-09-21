@@ -331,8 +331,9 @@ release's assets and body as they are; rebuilding would only replace the files
 people are downloading. For the same reason, running the workflow again for a
 version that is already published fails -- bump the suffix instead.
 
-A pre-release is never marked as the latest release and does not notify
-`node-motoko`; only an official release does.
+A pre-release may be cut from any branch, which is the point of building one.
+Only official releases have to be tagged on `master`; a pre-release is never
+marked as the latest release and does not notify `node-motoko`.
 
 ## Coverage report
 
