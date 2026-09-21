@@ -368,9 +368,11 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     func add(x : Nat, y : Nat) : Nat { return x + y };
 
     // No ; between the arms of a switch: `case` already ends the previous arm
-    switch opt {
-      case ?x { f(x) }
-      case null {}
+    func greet(opt : ?Text) : Text {
+      switch opt {
+        case ?name { "Hello " # name }
+        case null { "" }
+      }
     };
 
     type Address = {
@@ -860,7 +862,9 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     ``` motoko no-repl
     func abs(i : Int) : Int { if i < 0 { -i } else { i } };
 
-    let delta = switch mode { case #up { +1 } case #dn { -1 } };
+    func delta(mode : {#up; #dn}) : Int {
+      switch mode { case #up { +1 } case #dn { -1 } }
+    };
     ```
 
 -   Motoko requires that all expressions in a block have type `()`, in order to prevent accidentally dropped results.
