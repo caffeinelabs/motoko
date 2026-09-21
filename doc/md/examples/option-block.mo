@@ -7,7 +7,7 @@ type Exp = {
 func eval(e : Exp) : ? Nat {
   do ? {
     switch e {
-      case #Lit(n) { n };
+      case #Lit(n) { n }
       case #Div(e1, e2) {
         let v1 = eval e1 !;
         let v2 = eval e2 !;
@@ -16,7 +16,7 @@ func eval(e : Exp) : ? Nat {
         } else {
           v1 / v2
         }
-      };
+      }
       case #IfZero(e1, e2, e3) {
         let v1 = eval e1 !;
         if v1 == 0 {
@@ -24,7 +24,7 @@ func eval(e : Exp) : ? Nat {
         } else {
           eval e3 !
         }
-      };
+      }
     };
   };
 }

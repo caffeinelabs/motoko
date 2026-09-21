@@ -103,10 +103,10 @@ func reverseNat(l : List) : List {
       case ?(head, tail) {
         rev := ?(head, rev);
         current := tail;
-      };
+      }
       case null {
         return rev;
-      };
+      }
     };
   };
 };
@@ -132,10 +132,10 @@ func reverse<T>(l : List<T>) : List<T> {
       case ?(head, tail) {
         rev := ?(head, rev);
         current := tail;
-      };
+      }
       case null {
         return rev;
-      };
+      }
     };
   };
 };

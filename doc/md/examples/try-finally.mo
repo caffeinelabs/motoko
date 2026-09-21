@@ -7,8 +7,8 @@ actor {
    try {
       func greetOptional(optionalName : ?Text) : Text =
         switch optionalName {
-          case null { "No name to be found." };
-          case ?name { "Hello, " # name # "!" };
+          case null { "No name to be found." }
+          case ?name { "Hello, " # name # "!" }
         };
        assert greetOptional(?"Motoko") == "Motoko";
     } finally {

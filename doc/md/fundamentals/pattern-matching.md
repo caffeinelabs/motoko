@@ -74,9 +74,9 @@ The wildcard pattern `_` matches any value but does not bind to a variable. It i
 ```motoko no-repl
 func processNumber(n : Nat) : Text {
     switch n {
-        case 0 { "Zero" };
-        case 1 { "One" };
-        case _ { "Other" };  // Matches any other number
+        case 0 { "Zero" }
+        case 1 { "One" }
+        case _ { "Other" }  // Matches any other number
     };
 };
 ```
@@ -87,9 +87,9 @@ Pattern matching supports literal patterns, which look like constant values (e.g
 
 ```motoko no-repl
 switch ("Adrienne", #female) {
-  case (name, #female) { name # " is a girl!" };
-  case (name, #male) { name # " is a boy!" };
-  case (name, _) { name # ", is a human!" };
+  case (name, #female) { name # " is a girl!" }
+  case (name, #male) { name # " is a boy!" }
+  case (name, _) { name # ", is a human!" }
 }
 ```
 
@@ -110,8 +110,8 @@ import Nat "mo:core/Nat";
 
 func getValue(opt : ?Nat) : Text {
     switch opt {
-        case ?n { "Value: " # Nat.toText(n) };
-        case null { "No value" };
+        case ?n { "Value: " # Nat.toText(n) }
+        case null { "No value" }
     };
 };
 ```
@@ -125,7 +125,7 @@ type Person = { name : Text; age : Nat };
 
 func describePerson(person : Person) : Text {
     switch person {
-        case { name = fullName; age } { fullName # " is " # Nat.toText(age) # " years old." };
+        case { name = fullName; age } { fullName # " is " # Nat.toText(age) # " years old." }
     };
 };
 ```
@@ -139,8 +139,8 @@ type Status = { #ok; #error : Text };
 
 func processStatus(status : Status) : Text {
     switch status {
-        case #ok { "Success" };
-        case (#error message) { "Error: " # message };
+        case #ok { "Success" }
+        case (#error message) { "Error: " # message }
     };
 };
 ```

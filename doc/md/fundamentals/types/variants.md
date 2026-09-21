@@ -40,9 +40,9 @@ let bannedUser : Status = #Banned("Violation of rules");
 
 func getStatusMessage(status : Status) : Text {
   switch status {
-    case #Active "User is active";
-    case #Inactive "User is inactive";
-    case #Banned(reason) "User is banned: " # reason;
+    case #Active { "User is active" }
+    case #Inactive { "User is inactive" }
+    case #Banned(reason) { "User is banned: " # reason }
     };
 };
 
@@ -79,9 +79,9 @@ A function can define how the traffic light cycles from one [state](../actors/st
 ```motoko no-repl
 func nextState(light : TrafficLight) : TrafficLight {
     switch light {
-        case #red #green;
-        case #green #yellow;
-        case #yellow #red;
+        case #red { #green }
+        case #green { #yellow }
+        case #yellow { #red }
     }
 };
 nextState(#red);
@@ -95,9 +95,9 @@ import Iter "mo:core/Iter";
 
 func nextState(light : TrafficLight) : TrafficLight {
   switch light {
-    case #red #green;
-    case #green #yellow;
-    case #yellow #red
+    case #red { #green }
+    case #green { #yellow }
+    case #yellow { #red }
   }
 };
 
@@ -171,7 +171,7 @@ let tree : Tree = #node {
 
 func traverseInOrder(t : Tree) {
   switch t {
-    case #leaf {};
+    case #leaf {}
     case (#node {value; left; right}) {
       traverseInOrder(left);
       Debug.print(debug_show (value));

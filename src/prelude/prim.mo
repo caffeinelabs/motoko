@@ -165,16 +165,16 @@ class BlobIterator(hash : [var __List]) {
           case ?weakRef {
             let deref = weakGet(weakRef.ref);
             switch deref {
-              case ?deref {};
-              case null { len += 1 };
+              case ?deref {}
+              case null { len += 1 }
             };
-          };
-          case null {};
+          }
+          case null {}
         };
         let next = list.next;
         switch next {
-          case ?next { list := next };
-          case null { break countLoop };
+          case ?next { list := next }
+          case null { break countLoop }
         };
       };
       i += 1;
@@ -190,21 +190,21 @@ class BlobIterator(hash : [var __List]) {
           case ?weakRef {
             let deref = weakGet(weakRef.ref);
             switch deref {
-              case ?deref { return null };
-              case null { return ?myList.originalBlob };
+              case ?deref { return null }
+              case null { return ?myList.originalBlob }
             };
-          };
-          case null { return null };
+          }
+          case null { return null }
         };
-      };
-      case null { return null };
+      }
+      case null { return null }
     };
   };
 
   func advanceListNode(list : ?__List) : ?__List {
     switch list {
-      case ?list { list.next };
-      case null { null };
+      case ?list { list.next }
+      case null { null }
     };
   };
 
@@ -220,13 +220,13 @@ class BlobIterator(hash : [var __List]) {
           // So that next time we call nextDeadBlob(), we get the next blob.
           currentList := advanceListNode(currentList);
           return blob;
-        };
+        }
         case null {
           // If we didn't find a blob, advance to the next list node.
           currentList := advanceListNode(currentList);
 
           switch currentList {
-            case ?_ {};
+            case ?_ {}
             // If we reached the end of the list, advance to the next index.
             case null {
               currentIndex += 1;
@@ -236,10 +236,10 @@ class BlobIterator(hash : [var __List]) {
               };
               // Get the new list node.
               currentList := ?hashArray[currentIndex];
-            };
+            }
           };
 
-        };
+        }
       };
     };
     "";
@@ -264,17 +264,17 @@ class BlobIterator(hash : [var __List]) {
       if blobCompare(list.originalBlob, b) == 0 {
         let weakRef = list.value;
         switch weakRef {
-          case ?weakRef { return isLive(weakRef.ref) };
+          case ?weakRef { return isLive(weakRef.ref) }
           // The weak ref should not be null, but just in case.
-          case null { return false };
+          case null { return false }
         };
       } else {
         // Advance to the next list node.
         let next = list.next;
         switch next {
-          case ?next { list := next };
+          case ?next { list := next }
           // If we reached the end of the list, return false.
-          case null { return false };
+          case null { return false }
         };
       };
     };
@@ -287,16 +287,16 @@ class BlobIterator(hash : [var __List]) {
         if blobCompare(deadBlob, b) == 0 {
           let nextElem = list.next;
           switch nextElem {
-            case ?next { hashArray[index] := next; return true };
+            case ?next { hashArray[index] := next; return true }
             case null {
               // Do nothing. This case should not happen as the array is initialized
               // with a sentinel (empty) value that is non-null.};
-            };
+            }
           };
         };
-      };
+      }
       // No dead blob in this list node.
-      case null {};
+      case null {}
     };
     false;
   };
@@ -331,22 +331,22 @@ class BlobIterator(hash : [var __List]) {
                     prev.next := crntNode.next;
                     // Break the loop, we found the blob and pruned.
                     break findLoop;
-                  };
-                  case _ {};
+                  }
+                  case _ {}
                 };
               };
-            };
+            }
             case null {
               // No dead blob in this list node.
               // We can advance pointers.
               prev := crntNode;
               crntNode := advanceListNode(crntNode);
-            };
+            }
           };
           switch crntNode {
-            case ?crntNode {};
+            case ?crntNode {}
             // We reached the end, break.
-            case null { break findLoop };
+            case null { break findLoop }
           };
         };
       };
@@ -366,8 +366,8 @@ func getDeadBlobs() : ?[Blob] {
       let numDeadBlobs = dedupTableIter.size();
       let deadBlobs = Array_tabulate<Blob>(numDeadBlobs, func(i : Nat) : Blob { dedupTableIter.nextDeadBlob() });
       return ?deadBlobs;
-    };
-    case null { return null };
+    }
+    case null { return null }
   };
 
 };
@@ -378,7 +378,7 @@ func pruneConfirmedDeadBlobs(confirmedDeadBlobs : [Blob]) {
     case ?dedupTable {
       let dedupTableIter = BlobIterator(dedupTable);
       dedupTableIter.pruneDeadBlobs(confirmedDeadBlobs);
-    };
+    }
   };
 };
 
@@ -388,8 +388,8 @@ func isStorageBlobLive(b : Blob) : Bool {
     case ?dedupTable {
       let iter = BlobIterator(dedupTable);
       iter.isBlobLive(b);
-    };
-    case null { false };
+    }
+    case null { false }
   };
 };
 ///

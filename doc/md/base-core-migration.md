@@ -484,8 +484,8 @@ persistent actor{
       case ?(item, newDeque) {
         deque := newDeque;
         ?item;
-      };
-      case null { null };
+      }
+      case null { null }
     };
   };
 };
@@ -511,10 +511,10 @@ import Queue "mo:core/Queue";
         case ?(item, deque) {
           Queue.pushBack(queue, item);
           state.deque := deque;
-        };
+        }
         case null {
           break l;
-        };
+        }
       };
     };
     { queue };

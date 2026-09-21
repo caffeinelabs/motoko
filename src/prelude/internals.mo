@@ -24,8 +24,8 @@ func @add_cycles<system>() {
     case ?timeout {
       @timeout := null;
       (prim "timeoutSet" : Nat32 -> ()) timeout;
-    };
-    case null ();
+    }
+    case null { () }
   };
 };
 
@@ -191,15 +191,15 @@ func @text_of_Blob(blob : Blob) : Text {
 
 func @text_has_parens(t : Text) : Bool {
   switch t.chars().next() {
-    case ?'(' true;
-    case _ false;
+    case ?'(' { true }
+    case _ { false }
   };
 };
 
 func @text_needs_parens(t : Text) : Bool {
   switch t.chars().next() {
-    case (?('+' or '-' or '?' or '#')) true;
-    case _ false;
+    case (?('+' or '-' or '?' or '#')) { true }
+    case _ { false }
   };
 };
 
@@ -208,8 +208,8 @@ func @text_of_option<T>(f : T -> Text, x : ?T) : Text {
     case ?y {
       let fy = f y;
       if (@text_needs_parens(fy)) "?(" # fy # ")" else "?" # fy;
-    };
-    case null { "null" };
+    }
+    case null { "null" }
   };
 };
 
@@ -307,8 +307,8 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
         ws := w_null;
         rs := r_null;
         ws_(refund, t);
-      };
-      case ?_ { assert false };
+      }
+      case ?_ { assert false }
     };
   };
 
@@ -320,8 +320,8 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
         ws := w_null;
         rs := r_null;
         rs_(e);
-      };
-      case ?_ { assert false };
+      }
+      case ?_ { assert false }
     };
   };
 
@@ -349,13 +349,13 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
           r(e);
         };
         #suspend;
-      };
+      }
       case ?#ok(r, t) {
         #schedule(func() { @refund := r; k(t) });
-      };
+      }
       case (?#error e) {
         #schedule(func _ = r(e));
-      };
+      }
     };
   };
 
@@ -424,23 +424,23 @@ func @install_actor_helper(
         settings with sender_canister_version;
       };
       (#install, canister_id);
-    };
-    case (#install principal1) { (#install, principal1) };
+    }
+    case (#install principal1) { (#install, principal1) }
     case (#reinstall actor1) {
       (#reinstall, (prim "principalOfActor" : (actor {}) -> Principal) actor1);
-    };
+    }
     case (#upgrade actor2) {
       let upgradeOptions = {
         wasm_memory_persistence = ?(#keep);
       };
       ((#upgrade(?upgradeOptions)), (prim "principalOfActor" : (actor {}) -> Principal) actor2);
-    };
+    }
     case (#upgrade_with_persistence { wasm_memory_persistence; canister }) {
       let upgradeOptions = {
         wasm_memory_persistence = ?wasm_memory_persistence;
       };
       ((#upgrade(?upgradeOptions)), (prim "principalOfActor" : (actor {}) -> Principal) canister);
-    };
+    }
   };
   await @ic00.install_code {
     mode;
@@ -518,24 +518,24 @@ type @Node = {
 var @timers : ?@Node = null;
 
 func @prune(n : ?@Node) : ?@Node = switch n {
-  case null null;
+  case null { null }
   case ?n {
     if n.expire[0] == 0 {
       @prune(n.post) // by corollary
     } else {
       ?{ n with pre = @prune(n.pre) };
     };
-  };
+  }
 };
 
 func @nextExpiration(n : ?@Node) : Nat64 = switch n {
-  case null 0;
+  case null { 0 }
   case ?n {
     let pivot = n.expire[0];
     if (pivot == 0) return @nextExpiration(n.post);
     let exp = @nextExpiration(n.pre);
     if (exp == 0) pivot else exp;
-  };
+  }
 };
 
 // Function called by backend to run eligible timed actions.
@@ -551,7 +551,7 @@ func @timer_helper() : async () {
   let thunks = Array_init<?(() -> async ())>(10, null); // we want max 10
 
   func gatherExpired(n : ?@Node) = switch n {
-    case null ();
+    case null { () }
     case ?n {
       let pivot = n.expire[0];
       if (pivot > 0) gatherExpired(n.pre); // by corollary
@@ -560,33 +560,33 @@ func @timer_helper() : async () {
           // not expunged yet
           thunks[gathered] := ?(n.job);
           switch n.delay {
-            case (null or ?0) n.expire[0] := 0;
+            case (null or ?0) { n.expire[0] := 0 }
             case ?delay {
               // re-add the node, skipping past expirations
               let expire = pivot + delay * (1 + (now - pivot) / delay);
               n.expire[0] := 0;
               // N.B. reinsert only works on pruned nodes
               func reinsert(m : ?@Node) : @Node = switch m {
-                case null ({
+                case null { ({
                   n with expire = [var expire];
                   pre = null;
                   post = null;
-                });
+                }) }
                 case ?m {
                   assert m.expire[0] != 0;
                   if (expire < m.expire[0]) ({ m with pre = ?reinsert(m.pre) }) else ({
                     m with post = ?reinsert(m.post)
                   });
-                };
+                }
               };
               @timers := ?reinsert(@prune(@timers));
-            };
+            }
           };
           gathered += 1;
         };
         gatherExpired(n.post);
       };
-    };
+    }
   };
 
   gatherExpired(@timers);
@@ -614,22 +614,22 @@ func @timer_helper() : async () {
           post;
           pre = ?{ id = 0; expire; pre; post = null; delay; job = j };
         });
-        case _ ({
+        case _ { ({
           expire = [var failed];
           id = 0;
           delay = null;
           job;
           pre = null;
           post = @timers;
-        });
+        }) }
       }
     );
   };
 
   for o in thunks.values() {
     switch o {
-      case ?thunk try ignore thunk() catch _ reinsert thunk;
-      case _ return;
+      case ?thunk { try ignore thunk() catch _ reinsert thunk }
+      case _ { return }
     };
   };
 };
@@ -644,20 +644,20 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
   let delay = if recurring ?delayNanos else null;
   // only works on pruned nodes
   func insert(n : ?@Node) : @Node = switch n {
-    case null ({
+    case null { ({
       expire = [var expire];
       id;
       delay;
       job;
       pre = null;
       post = null;
-    });
+    }) }
     case ?n {
       assert n.expire[0] != 0;
       if (expire < n.expire[0]) ({ n with pre = ?insert(n.pre) }) else ({
         n with post = ?insert(n.post)
       });
-    };
+    }
   };
   @timers := ?insert(@prune(@timers));
 
@@ -670,14 +670,14 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
 
 func @cancelTimer(id : Nat) {
   func graft(onto : ?@Node, branch : ?@Node) : ?@Node = switch (onto, branch) {
-    case (null, null) null;
-    case (null, _) branch;
-    case (_, null) onto;
-    case (?onto, _) { ?{ onto with post = graft(onto.post, branch) } };
+    case (null, null) { null }
+    case (null, _) { branch }
+    case (_, null) { onto }
+    case (?onto, _) { ?{ onto with post = graft(onto.post, branch) } }
   };
 
   func hunt(n : ?@Node) : ?@Node = switch n {
-    case null n;
+    case null { n }
     case ?{ id = node; pre; post } {
       if (node == id) {
         graft(pre, post);
@@ -764,8 +764,8 @@ func @dedup(b : Blob) : Blob {
       } else {
         let next = copy.next;
         switch next {
-          case null { return null };
-          case ?next { copy := next };
+          case null { return null }
+          case ?next { copy := next }
         };
       };
     };
@@ -820,14 +820,14 @@ func @dedup(b : Blob) : Blob {
   let hashArray = switch ptr {
     case ?dedupTable {
       dedupTable;
-    };
+    }
     case null {
       // This means that the dedup table was not yet created.
       let arr = Array_tabulateVar<List>(HASH_ARRAY_SIZE, func(i : Nat) : List = { var next = null; value = null; originalBlob = ""; index = 0 });
       // We need to set it via the RTS so that it is persisted.
       setDedupTable(arr);
       arr;
-    };
+    }
   };
 
   // Get the WeakRef from the hash table.
@@ -837,21 +837,21 @@ func @dedup(b : Blob) : Blob {
       // It was in the hash so we dereference the WeakRef.
       let derefed = weakGet(weakRef.ref);
       switch derefed {
-        case ?derefed { derefed };
+        case ?derefed { derefed }
         case null {
           // This will only happen if the blob was deallocated by the GC.
           // We put it back in the hash table so that it can be deduplicated again.
           addToHashArray(hashArray, b);
           b;
-        };
+        }
       };
-    };
+    }
     // It wasn't in the hash so we put it in
     // and return the original.
     case null {
       addToHashArray(hashArray, b);
       b;
-    };
+    }
   };
 
   result;
@@ -860,6 +860,6 @@ func @dedup(b : Blob) : Blob {
 // envvar-indirection for principals
 func @envvar_principal(envvar : Text) : Blob =
   switch ((prim "env_var" : Text -> ?Text) envvar) {
-    case ?envvar (prim "decode_principal" : Text -> Blob) envvar;
-    case _ (prim "trap" : Text -> None)("envvar `" # envvar # "` not set")
+    case ?envvar { (prim "decode_principal" : Text -> Blob) envvar }
+    case _ { (prim "trap" : Text -> None)("envvar `" # envvar # "` not set") }
   };

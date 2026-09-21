@@ -84,8 +84,8 @@ type HttpRequestStatus = {
 
 func checkStatus(r : HttpRequestStatus) : Text {
   switch r {
-    case (#ok successCode) { "Success: " # Nat.toText(successCode) };
-    case (#err errorCode ) { "Failure: " # Nat.toText(errorCode) };
+    case (#ok successCode) { "Success: " # Nat.toText(successCode) }
+    case (#err errorCode ) { "Failure: " # Nat.toText(errorCode) }
   };
 };
 ```

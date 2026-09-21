@@ -138,10 +138,10 @@ actor Counter {
     if (arg.size() > 512) return false; // Reject messages larger than 512 bytes
 
     switch msg {
-      case (#inc _) { true };   // Allow increment
-      case (#set n) { n() != 13 }; // Reject setting counter to 13
-      case (#read _) { true };  // Allow reading the counter
-      case (#reset _) { false }; // Reject reset calls
+      case (#inc _) { true }   // Allow increment
+      case (#set n) { n() != 13 } // Reject setting counter to 13
+      case (#read _) { true }  // Allow reading the counter
+      case (#reset _) { false } // Reject reset calls
     }
   }
 }

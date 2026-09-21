@@ -15,8 +15,8 @@ actor Registry {
     switch Map.get(map, Text.compare, name) {
       case null  {
         Map.add(map, Text.compare, name, Map.size(map));
-      };
-      case ?_ { };
+      }
+      case ?_ { }
     }
   };
 

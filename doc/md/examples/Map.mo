@@ -14,8 +14,8 @@ actor Map {
 
   public func get(k : Key) : async ?Value {
     switch buckets[k % n] {
-      case null { null };
-      case ?bucket { await bucket.get(k) };
+      case null { null }
+      case ?bucket { await bucket.get(k) }
     };
   };
 
@@ -26,8 +26,8 @@ actor Map {
         let b = await Buckets.Bucket(n, i); // dynamically install a new Bucket
         buckets[i] := ?b;
         b;
-      };
-      case ?bucket { bucket };
+      }
+      case ?bucket { bucket }
     };
     await bucket.put(k, v);
   };

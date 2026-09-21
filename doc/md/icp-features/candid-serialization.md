@@ -82,11 +82,11 @@ actor {
       case ?user {
         Debug.print("User data deserialized successfully.");
         return ?user;
-      };
+      }
       case null {
         Debug.print("Deserialization failed: Invalid blob or type mismatch.");
         return null;
-      };
+      }
     };
   };
 }

@@ -17,8 +17,8 @@ actor {
       }
     }) : Bool {
     switch msg {
-      case ((#set _) or (#reset _)) { false };
-      case _ { true }; // allow inc and read
+      case ((#set _) or (#reset _)) { false }
+      case _ { true } // allow inc and read
     }
   }
 

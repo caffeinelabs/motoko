@@ -44,10 +44,10 @@ let result = greet("Motoko");
 switch result{
   case (#ok message) {
     message
-  };
+  }
   case (#err error) {
     error
-  };
+  }
 } // "Hello Motoko"
 ```
 

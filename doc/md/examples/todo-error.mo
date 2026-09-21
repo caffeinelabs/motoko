@@ -40,8 +40,8 @@ actor Todo {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         secondsBetween(todo.opened, now)
-      };
-      case _ { -1 };
+      }
+      case _ { -1 }
     }
   };
 
@@ -51,8 +51,8 @@ actor Todo {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         ?(secondsBetween(todo.opened, now))
-      };
-      case _ { null };
+      }
+      case _ { null }
     }
   };
 
@@ -64,13 +64,13 @@ actor Todo {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         #ok(secondsBetween(todo.opened, now))
-      };
+      }
       case ?(#done(time)) {
         #err(#alreadyDone(time))
-      };
+      }
       case null {
         #err(#notFound)
-      };
+      }
     }
   };
 
@@ -80,13 +80,13 @@ actor Todo {
         let now = Time.now();
         Map.add(todos, Int.compare, id, #done(now));
         secondsBetween(todo.opened, now)
-      };
+      }
       case ?(#done _) {
         throw Error.reject("Already done")
-      };
+      }
       case null {
         throw Error.reject("Not Found")
-      };
+      }
     }
   };
 
@@ -117,10 +117,10 @@ actor TodoCaller {
     switch await Todo.markDoneOption(id) {
       case null {
         "Something went wrong."
-      };
+      }
       case ?seconds {
         "Congrats! That took " # Int.toText(seconds) # " seconds."
-      };
+      }
     };
   };
 
@@ -128,14 +128,14 @@ actor TodoCaller {
     switch await Todo.markDoneResult(id) {
       case #err(#notFound) {
         "There is no Todo with that ID."
-      };
+      }
       case #err(#alreadyDone(at)) {
         let doneAgo = secondsBetween(at, Time.now());
         "You've already completed this todo " # Int.toText(doneAgo) # " seconds ago."
-      };
+      }
       case #ok(seconds) {
         "Congrats! That took " # Int.toText(seconds) # " seconds."
-      };
+      }
     };
   };
 
