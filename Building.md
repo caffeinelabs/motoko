@@ -302,9 +302,12 @@ https://github.com/caffeinelabs/motoko/actions/workflows/release.yml
 
 The version is made of a base version and a suffix, `<base>-<suffix>`, e.g. `2.0.0-beta.0`.
 
-The **base** is the "Base version" input when set, otherwise the first version
-heading in `Changelog.md` **on the selected branch**
-(source: [nix/releaseVersion.nix](nix/releaseVersion.nix)).
+The **base** is the "Base version" input when set, otherwise the first
+`## MAJOR.MINOR.PATCH` heading in `Changelog.md` **on the selected branch**
+(source: the "Compute the release version" step in
+[.github/workflows/release.yml](.github/workflows/release.yml); the same
+fallback in [nix/releaseVersion.nix](nix/releaseVersion.nix) is what local and
+CI builds outside this workflow use).
 
 The **suffix** is the "Version suffix" input, and its presence is what makes the
 run a prerelease rather than an official release. So base `2.0.0` with suffix
@@ -323,10 +326,13 @@ heading of their own -- leaving out `## Next`, keeping it, or renaming it all
 work. Release bodies of official releases are unchanged.
 
 Publishing a pre-release creates its tag, which runs the workflow again as a tag
-push. That run rebuilds the same version and re-uploads the same assets over the
-published release, and because the version carries a suffix it is left marked as
-a pre-release and `node-motoko` is not notified. Only an official release
-becomes the latest release and notifies downstream.
+push. That run sees the version is already published and stops, leaving the
+release's assets and body as they are; rebuilding would only replace the files
+people are downloading. For the same reason, running the workflow again for a
+version that is already published fails -- bump the suffix instead.
+
+A pre-release is never marked as the latest release and does not notify
+`node-motoko`; only an official release does.
 
 ## Coverage report
 

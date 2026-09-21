@@ -33,6 +33,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      skip: ${{ steps.published.outputs.skip }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -81,10 +82,45 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # A prerelease's assets are uploaded to its draft, and publishing that
+      # draft pushes the tag, which starts this workflow again. Building the
+      # same version once more would replace the assets people are already
+      # downloading and rewrite the release body, so stop instead -- on a tag
+      # push quietly, since that run is the normal flow, and on a dispatch
+      # loudly, since the version was asked for. Only a prerelease can be
+      # published before its build runs, so an official release never gets
+      # here.
+      - name: Stop if the version is already published
+        id: published
+        if: ${{ steps.version.outputs.prerelease == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          # This endpoint finds published releases only, which is the question
+          # being asked: a draft is still ours to overwrite.
+          if err="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${VERSION}" --silent 2>&1)"; then
+            :
+          elif printf '%s' "${err}" | grep -q 'HTTP 404'; then
+            echo "No published release for ${VERSION} yet."
+            exit 0
+          else
+            printf '%s\n' "${err}"
+            exit 1
+          fi
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "Error: ${VERSION} is already published. Bump the version suffix to build a new prerelease."
+            exit 1
+          fi
+          echo "::notice::${VERSION} is already published; leaving its assets and body untouched."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
   # Check that the changelog is in good order and extract the changelog.
   changelog:
     runs-on: ubuntu-latest
     needs: prepare
+    if: ${{ needs.prepare.outputs.skip != 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Extract changelog
@@ -100,6 +136,7 @@ jobs:
 
   build:
     needs: prepare
+    if: ${{ needs.prepare.outputs.skip != 'true' }}
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-26.04-arm, macos-latest]
@@ -177,8 +214,8 @@ jobs:
           tag: ${{ needs.prepare.outputs.version }}
           file: release-assets/*
           file_glob: true
-          # Publishing a prerelease draft creates its tag, which runs this
-          # workflow again as a `push` and re-uploads the same asset names.
+          # So that re-running a release whose upload failed part-way
+          # replaces what it managed to attach instead of failing on it.
           overwrite: true
           body: ${{ needs.changelog.outputs.release_body || 'Draft release created for testing purposes' }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
