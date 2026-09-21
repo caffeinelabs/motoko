@@ -88,8 +88,8 @@ To increase readability and uniformity of Motoko source code, the style guide pr
     if (f()) A else B;
     for x in xs.values() { ... };
     switch compare(x, y) {
-      case #less { A };
-      case _ { B };
+      case #less { A }
+      case _ { B }
     }
 
     assert (x < 100);
@@ -370,7 +370,11 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     func add(x : Nat, y : Nat) : Nat { return x + y };
 
-    // End last case with ;
+    // No ; between the arms of a switch: `case` already ends the previous arm
+    switch opt {
+      case ?x { f(x); }
+      case null {}
+    };
 
     type Address = {
       first : Text;
@@ -389,9 +393,9 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     func eval(e : Expr) : Float {
       switch e {
-        case #const(x) { x };
-        case #add(e1, e2) { eval(e1) + eval(e2) };
-        case #mul(e1, e2) { eval(e1) * eval(e2) };
+        case #const(x) { x }
+        case #add(e1, e2) { eval(e1) + eval(e2) }
+        case #mul(e1, e2) { eval(e1) * eval(e2) }
       };
     }
     ```
@@ -406,8 +410,8 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     if f() { A } else { B };
     for x in xs.values() { ... };
     switch compare(x, y) {
-      case #less { A };
-      case _ { B };
+      case #less { A }
+      case _ { B }
     }
     ```
 
@@ -425,20 +429,27 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 
     A head that is more than a single atom — a call, projection, index, operator or
     prefix form — is only grammatical with braced branches or body. A single atom
-    head may still take bare branches, but prefer the braces for consistency.
+    head may still take bare branches, but switch arms are always braced:
 
     ``` motoko no-repl
     func g(i : Nat) : Nat { if i < 0 { 1 } else { 2 } };
     func h(xs : [Nat]) : Nat { var s = 0; for x in xs.values() { s += x }; s };
+
+    func sign(n : Int) : Text {
+      switch n {
+        case -1 { "neg" }
+        case 0 { "zero" }
+        case _ { "other" }
+      }
+    };
     ```
 
--   Put braces around function bodies, `if` or `case` branches, and loop bodies, unless they appear nested as an expression and only contain a single expression.
+-   Put braces around function bodies, `if` branches, and loop bodies, unless they appear nested as an expression and only contain a single expression. A `case` branch takes braces without exception, as above.
 
     ``` motoko no-repl
     func f(x) { f1(x); f2(x) };
 
     let abs = if (v >= 0) v else -v;
-    let val = switch f() { case #ok(x) x; case _ 0 };
     func succ(x : Nat) : Nat = x + 1;
     ```
 
@@ -458,8 +469,8 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     switch opt {
       case ?x {
         f(x);
-      };
-      case null {};
+      }
+      case null {}
     };
     ```
 
@@ -476,8 +487,8 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     let choice = if flag { f1() } else { f2() };
 
     switch opt {
-      case null { tryAgain() };
-      case _ { proceed() };
+      case null { tryAgain() }
+      case _ { proceed() }
     };
     ```
 
@@ -641,9 +652,9 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
     func eval(e : Expr) : Nat {
       let n =
         switch e {
-          case #neg(e1) { - eval(e1) };
-          case #add(e1, e2) { eval(e1) + eval(e2) };
-          case #mul(e1, e2) { eval(e1) * eval(e2) };
+          case #neg(e1) { - eval(e1) }
+          case #add(e1, e2) { eval(e1) + eval(e2) }
+          case #mul(e1, e2) { eval(e1) * eval(e2) }
         };
       Debug.print(n);
       return n;
@@ -834,9 +845,9 @@ Rationale: `g[1]` in particular will be misparsed as an indexing operation.
 -   Use `if` or `switch` as expressions where appropriate.
 
     ``` motoko no-repl
-    func abs(i : Int) : Int { if (i < 0) -i else i };
+    func abs(i : Int) : Int { if i < 0 { -i } else { i } };
 
-    let delta = switch mode { case #up +1; case #dn -1 };
+    let delta = switch mode { case #up { +1 } case #dn { -1 } };
     ```
 
 -   Motoko requires that all expressions in a block have type `()`, in order to prevent accidentally dropped results.
