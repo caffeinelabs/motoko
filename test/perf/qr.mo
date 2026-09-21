@@ -76,7 +76,7 @@ actor QR {
       func(accum1, array) {
         Array.foldl<Bool, Text>(
           func(accum2, bit) {
-            let text = if bit "##" else "  ";
+            let text = if (bit) "##" else "  ";
             text # accum2;
           },
           "\n",

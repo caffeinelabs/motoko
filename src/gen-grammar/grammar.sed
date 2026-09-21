@@ -19,41 +19,35 @@ s/<id>/ID/g
 /^<parse_stab_sig> ::=/,/^$/d
 /.*PRIM.*/d
 /.*NUM_DOT_ID.*/d
-/^<bl> ::=/,+2d
-/^<ob> ::=/,+2d
+# the grammar modes are a device of the implementation, not of the language: show both atoms wherever operand mode allows them
+/^<ob(REC, PAR)> ::=/,/^$/d
+/^<bl(REC, PAR)> ::=/,/^$/d
+/^<hd(REC, PAR)> ::=/,/^$/d
+s/B(<exp_obj>, <paren_exp>)/<exp_obj>\n    <paren_exp>/
+s/B(<record_arg>, <paren_arg>)/<exp_obj>\n    <paren_arg>/
+s/R(<exp_cont_juxta>, <exp_cont_call>)/<exp_cont_call>\n    <exp_cont_juxta>/
 s/<start> //g
 s/<parse_prog>/<prog>/g
 s/(<bl>)//g
 s/(<ob>)//g
 s/(B)//g
-s/ B$/ <exp_obj>/g
-s/(B, R, L)//g
-s/(<ob>, <ob>, <exp_cont>)//g
-s/(<bl>, <bl>, <exp_cont_tight>)//g
-s/(<bl>, R, L)//g
-s/(R, R, L)//g
-s/(R, L)//g
-s/(<ob>, <exp_cont>)//g
-s/(<bl>, <exp_cont_tight>)//g
+s/(B, R)//g
+s/(B, <bl>)//g
+s/(<ob>, <ob>)//g
+s/(<bl>, <bl>)//g
+s/(<bl>, <ob>)//g
+s/(<hd>, <bl>)//g
+s/(<bl>, R)//g
+s/(R, R)//g
 s/(R)//g
-s/ L$/ <exp_cont>/g
+s/(<hd>)//g
 # the legacy_* aliases only document the v3 flip (#6352); the published grammar shows the underlying production
 /^<legacy_body> ::=/,/^$/d
 /^<legacy_operand> ::=/,/^$/d
 s/<legacy_body>/<exp_nest>/g
 s/<legacy_operand>/<exp_nest>/g
-/^<lpar> ::=/,/^$/d
-/^<lbracket> ::=/,/^$/d
-/^<hash> ::=/,/^$/d
-s/<lpar>/'('/g
-s/<hash>/'#'/g
-s/TIGHT_LPAR/'('/g
-s/TIGHT_HASH/'#'/g
 s/\[/(/g
 s/\]/)?/g
-# bracket tokens are rewritten only after obelisk's optional-group brackets above, else they would become parens
-s/<lbracket>/'['/g
-s/TIGHT_LBRACKET/'['/g
 s/(\([a-zA-Z_0-9]*\))/\1/g
 s/(\(<[a-z_0-9]*>\))/\1/g
 s/<semicolon>/\';\'/g

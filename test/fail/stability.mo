@@ -13,7 +13,7 @@ actor {
    stable let z1 : Nat = 1; // accept
    stable let ((z2 : Nat)) = 1; // accept
    stable let (p,q) = (1,2); // reject (for now, maybe forever)
-   stable let (r,s) = if true (1,2) else (2,1); // reject forever, I suspect, as RHS non-canonical
+   stable let (r,s) = if (true) (1,2) else (2,1); // reject forever, I suspect, as RHS non-canonical
    stable let f = func(){}; // reject
    flexible var a : [var Int] = [var]; //accept
    //public stable shared func pub() {}; //what does this even mean, actually? reject?

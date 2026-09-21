@@ -29,7 +29,7 @@ actor {
               let b = to_candid(l);
 
               let o : ?(List) =
-               if deserialize
+               if (deserialize)
                  from_candid(b)
                else null;
               ()
@@ -46,11 +46,11 @@ actor {
         debugPrint("serialized");
 
         let _o : ?(List) =
-          if deserialize
+          if (deserialize)
             from_candid(b)
           else null;
 
-        if deserialize debugPrint("deserialized");
+        if (deserialize) debugPrint("deserialized");
     }
 
 

@@ -18,7 +18,7 @@ actor {
     };
 
     let isNegative = x < 0;
-    var int = if isNegative (-x) else x;
+    var int = if (isNegative) (-x) else x;
 
     var text = "";
     let base = 10;
@@ -43,7 +43,7 @@ actor {
       int := int / base;
     };
 
-    return if isNegative ("-" # text) else text;
+    return if (isNegative) ("-" # text) else text;
   };
 
   // Color related type and constants

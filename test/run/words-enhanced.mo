@@ -17,7 +17,7 @@ assert (0 : Nat32 == 0);
 // CHECK: i64.const {{1824682495967232|1824683569709056}}
 assert not (424842 : Nat32 == 1);
 
-func printBit(a : Bool) { Prim.debugPrint(if a "set" else "clear") };
+func printBit(a : Bool) { Prim.debugPrint(if (a) "set" else "clear") };
 
 
 func checkpointAlpha() { assert true; };

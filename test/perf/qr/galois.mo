@@ -107,7 +107,7 @@ module {
   };
 
   public func elemFromBit(bit : Bool) : Elem {
-    if bit ({ unbox = 1 }) else ({ unbox = 0 })
+    if (bit) ({ unbox = 1 }) else ({ unbox = 0 })
   };
 
   public func elemToBits(elem : Elem) : List<Bool> {

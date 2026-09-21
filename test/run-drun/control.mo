@@ -19,21 +19,21 @@ actor control {
 
   public func testWhile() : () {
     label l while (condition()) {
-      if true break l
+      if (true) break l
       else continue l;
     };
   };
 
   public func testLoop() : () {
     label l loop {
-      if true break l
+      if (true) break l
       else continue l;
     };
   };
 
   public func testLoopWhile() : () {
     label l loop {
-      if true break l
+      if (true) break l
       else continue l;
     } while (condition());
   };
@@ -56,10 +56,10 @@ actor control {
 
   public func testNestedWhile() : () {
     label l while (condition()) {
-      if true break l
+      if (true) break l
       else continue l;
       label m while (condition()) {
-        if true continue l
+        if (true) continue l
         else break m;
       };
     };

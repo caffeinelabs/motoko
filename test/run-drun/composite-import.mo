@@ -20,8 +20,8 @@ actor {
 
   public composite query func cq() : async () {
     Prim.debugPrint "cq()";
-    if false await imported1.cq();
-    if false await imported2.cq();
+    if (false) await imported1.cq();
+    if (false) await imported2.cq();
   };
 
 };

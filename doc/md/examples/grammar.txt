@@ -176,26 +176,33 @@
 
 <exp_plain> ::= 
     <lit>
+    <paren_exp>
+
+<paren_exp> ::= 
     '(' <list(<exp>, ',')> ')'
 
 <exp_nullary> ::= 
     <exp_obj>
-    <exp_plain>
+    <paren_exp>
+    <lit>
     <id>
     '_'
 
 <exp_arg> ::= 
     <exp_obj>
+    <paren_arg>
     <lit>
-    '(' <list(<exp>, ',')> ')'
     <id>
     '_'
 
+<record_arg> ::= 
+    <exp_obj>
+
+<paren_arg> ::= 
+    '(' <list(<exp>, ',')> ')'
+
 <exp_post> ::= 
     <exp_nullary>
-    <exp_post_ext>
-
-<exp_post_ext> ::= 
     '[' 'var'? <list(<exp_nonvar>, ',')> ']'
     <exp_post> <exp_cont>
     <exp_post> '.'<nat>
@@ -204,24 +211,22 @@
     <exp_post> '!'
     '(' 'system' <exp_post> '.' <id> ')'
 
-<exp_cont_tight> ::= 
+<exp_cont> ::= 
+    <exp_cont_call>
+    <exp_cont_juxta>
+
+<exp_cont_call> ::= 
     '(' <list(<exp>, ',')> ')'
     '[' <exp> ']'
 
-<exp_cont> ::= 
-    <exp_cont_tight>
-    '(' <list(<exp>, ',')> ')'
-    '[' <exp> ']'
-    <ob>
+<exp_cont_juxta> ::= 
+    <exp_obj>
     <lit>
     <id>
     '_'
 
 <exp_un> ::= 
     <exp_post>
-    <exp_un_ext>
-
-<exp_un_ext> ::= 
     <parenthetical> <exp_post>
     '#' <id>
     '#' <id> <exp_nullary>
@@ -236,9 +241,6 @@
 
 <exp_bin> ::= 
     <exp_un>
-    <exp_bin_ext>
-
-<exp_bin_ext> ::= 
     <exp_bin> <binop> <exp_bin>
     <exp_bin> <relop> <exp_bin>
     <exp_bin> 'and' <exp_bin>
@@ -271,8 +273,8 @@
     'try' <exp_nest> 'finally' <exp_nest>
     'throw' <exp_nest>
     'switch' <head> '{' <cases> '}'
-    'while' <exp_nullary> <exp_nest>
-    'while' <exp_head> <block>
+    'while' <paren_exp> <exp_nest>
+    'while' <head> <block>
     'loop' <exp_nest>
     'loop' <exp_nest> 'while' <exp_nest>
     'for' '(' <pat> 'in' <exp> ')' <exp_nest>
@@ -308,36 +310,17 @@
     'catch' <pat_nullary> <exp_nest>
 
 <if_exp> ::= 
-    'if' <exp_nullary> <exp_nest>
-    'if' <exp_nullary> <exp_nest> 'else' <exp_nest>
-    'if' <exp_head> <block>
-    'if' <exp_head> <block> 'else' <else_branch>
-
-<else_branch> ::= 
-    <block>
-    <if_braced>
-
-<if_braced> ::= 
+    'if' <paren_exp> <exp_nest>
+    'if' <paren_exp> <exp_nest> 'else' <exp_nest>
     'if' <head> <block>
     'if' <head> <block> 'else' <else_branch>
 
+<else_branch> ::= 
+    <block>
+    <if_exp>
+
 <head> ::= 
-    <exp_nullary>
-    <exp_head>
-
-<exp_head_post> ::= 
-    <exp_post_ext>
-
-<exp_head_un> ::= 
-    <exp_head_post>
-    <exp_un_ext>
-
-<exp_head_bin> ::= 
-    <exp_head_un>
-    <exp_bin_ext>
-
-<exp_head> ::= 
-    <exp_head_bin>
+    <exp_bin>
     <exp_bin> '??' <exp>
     'await' <exp_nest>
     'await?' <exp_nest>

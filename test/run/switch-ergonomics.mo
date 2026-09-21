@@ -42,8 +42,15 @@ switch ({ x = 1 }) {
   case r { assert r.x == 1 }
 };
 
-// a call in the condition: unspaced `(` extends the head
+// a call, an index, or an operator chain in the condition
 if inc(2) == 3 {} else { assert false };
+let flags = [true];
+if flags[0] {} else { assert false };
+var k : Int = 3;
+if k - 1 > 0 {} else { assert false };
+if k-1 > 0 {} else { assert false };
+while k - 1 > 0 { k -= 1 };
+assert k == 1;
 
 // `if` as an expression, with variant branches
 let cmp = if i > 0 { #pos } else { #zero };

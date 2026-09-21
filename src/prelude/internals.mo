@@ -301,7 +301,7 @@ func @new_async<T <: Any>() : (@Async<T>, @Cont<T>, @Cont<Error>, @CleanCont) {
   func fulfill(t : T) {
     switch result {
       case null {
-        let refund = if getRefund @getSystemRefund() else 0;
+        let refund = if (getRefund) @getSystemRefund() else 0;
         result := ?(#ok(refund, t));
         let ws_ = ws;
         ws := w_null;
@@ -641,7 +641,7 @@ func @setTimer<system>(delayNanos : Nat64, recurring : Bool, job : () -> async (
   let id = @lastTimerId;
   let now = (prim "time" : () -> Nat64)();
   let expire = now + delayNanos;
-  let delay = if recurring ?delayNanos else null;
+  let delay = if (recurring) ?delayNanos else null;
   // only works on pruned nodes
   func insert(n : ?@Node) : @Node = switch n {
     case null ({

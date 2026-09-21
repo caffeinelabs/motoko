@@ -56,7 +56,7 @@ actor Counter {
         };
 
         do {
-         let bad_non_top_actor : actor {} = if true actor {} else actor {};
+         let bad_non_top_actor : actor {} = if (true) actor {} else actor {};
         };
 
         do {

@@ -1,0 +1,3 @@
+syntax-head-paren-start.mo:4.12-4.13: syntax error [M0001], unexpected token '*', expected one of token or <phrase> sequence:
+  <exp_nest>
+  <exp_nest> else <exp_nest>

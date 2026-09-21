@@ -7,10 +7,10 @@ actor class C(n : Nat, contr : ?Principal, cycleStats : Bool) = this {
    system func preupgrade () {
      assert not Prim.isController(Prim.principalOfActor this);
      upgrades += 1;
-     if cycleStats Prim.debugPrint ("Balance(preupgrade): " # debug_show Cycles.balance());
+     if (cycleStats) Prim.debugPrint ("Balance(preupgrade): " # debug_show Cycles.balance());
    };
 
-   if cycleStats Prim.debugPrint ("Balance(init): " # debug_show Cycles.balance());
+   if (cycleStats) Prim.debugPrint ("Balance(init): " # debug_show Cycles.balance());
 
    public func observe () : async {args : Nat;  upgrades : Nat} {
      switch contr { case (?contr) assert Prim.isController contr; case _ () };

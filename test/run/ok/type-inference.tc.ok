@@ -1,25 +1,25 @@
-type-inference.mo:6.9-6.28: warning [M0081], this if has type
+type-inference.mo:6.9-6.30: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   Bool
 false produces
   Nat
-type-inference.mo:7.9-7.34: warning [M0081], this if has type
+type-inference.mo:7.9-7.36: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   Bool
 false produces
   [var Nat]
-type-inference.mo:8.9-8.27: warning [M0081], this if has type
+type-inference.mo:8.9-8.29: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces
   Nat
 false produces
   Float
-type-inference.mo:9.9-9.29: warning [M0081], this if has type
+type-inference.mo:9.9-9.31: warning [M0081], this if has type
   Any
 because branches have inconsistent types,
 true produces

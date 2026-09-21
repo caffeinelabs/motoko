@@ -82,7 +82,7 @@ actor a {
 
 
     type Foo<A> = ?(Foo<A>);
-    ignore (if true (null : Foo<Int>) else (null : Foo<Bool>));
+    ignore (if (true) (null : Foo<Int>) else (null : Foo<Bool>));
 
 
     type U = { #a : U; #b : Int };

@@ -190,16 +190,17 @@ let handle_error lexbuf error_detail message_store (start, end_)
       Printf.sprintf
         "unexpected %s: braces `{ ... }` enclose a record literal in this position, not a block; to evaluate a block of statements here, use `do { ... }`"
         token
-    (* only a block can follow: the body of `switch`/`do`, or the branches/body after an unparenthesized (extended) `if`/`while`/`for` head.
+    (* only a block can follow: the body of `switch`/`do`, or the branches/body of an `if`/`while`/`for` whose head is not parenthesized.
        The acceptable-token guards keep this away from the other `{`-expecting spots —
-       a class body also accepts `=`, an object body a field name, a legacy branch any expression —
-       so it fires only where `{` is the sole continuation *)
+       a class body also accepts `=`, an object body a name, a legacy branch any expression —
+       so it fires only where `{` is the sole continuation, or where a completed head could still grow by a call or
+       an operator (`+` is acceptable right after an expression and nowhere else `{` is) *)
     else if last_token <> Parser.LCURLY && acceptable Parser.LCURLY
-            && not (acceptable (Parser.ID "id")) && not (acceptable Parser.LPAR)
-            && not (acceptable Parser.EQ) then
+            && not (acceptable (Parser.ID "id")) && not (acceptable Parser.EQ)
+            && (not (acceptable Parser.LPAR) || acceptable Parser.ADDOP) then
       "M0275",
       Printf.sprintf
-        "unexpected %s, expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` when the condition or head is written without parentheses (parenthesize it to keep bare branches)"
+        "unexpected %s, expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` unless the condition is written in parentheses; write `if (c) e1 else e2` to keep bare branches, or `if c { e1 } else { e2 }`"
         token
     (* a record literal or block where neither is allowed, e.g. written directly as a `switch` or `if` head *)
     else if last_token = Parser.LCURLY && acceptable Parser.LPAR then

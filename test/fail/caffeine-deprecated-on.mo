@@ -28,8 +28,8 @@ do { let {} = A; };
 
 
 // lub does not warn:
-assert ((if true A else B).foo == 5);
-assert ((if false A else B).foo == 6);
+assert ((if (true) A else B).foo == 5);
+assert ((if (false) A else B).foo == 6);
 
 // type annotation removes warning
 assert ((A : module { foo : Int }).foo == 5);

@@ -9,7 +9,7 @@ actor A {
         let a = async ();
         await a;
         ignore async debugPrint "Peek-a-boo!";
-        if shortCircuit
+        if (shortCircuit)
           await? a // fast await
         else
           await a; // proper await
@@ -24,13 +24,13 @@ actor A {
         let a = async ();
         await a;
         changed := true;
-        if shortCircuit
+        if (shortCircuit)
           await? a // fast await
         else
           await a; // proper await
         assert false;
       } catch _ {};
-      assert (if shortCircuit not changed else changed);
+      assert (if (shortCircuit) not changed else changed);
     };
 
     public func throwing(shortCircuit : Bool) : async () {
@@ -41,14 +41,14 @@ actor A {
         try ignore await a catch _ debugPrint "caught it!";
         changed := true;
         try {
-          ignore if shortCircuit
+          ignore if (shortCircuit)
             await? a // fast await
           else
             await a; // proper await
         } catch _ debugPrint "caught it again!";
         assert false;
       } catch _ {};
-      assert (if shortCircuit not changed else changed);
+      assert (if (shortCircuit) not changed else changed);
     };
 
     public func go() : async () {

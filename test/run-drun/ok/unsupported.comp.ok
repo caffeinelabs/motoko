@@ -4,7 +4,7 @@ unsupported.mo:51.11-51.43: type error [M0139], inner actor classes are not supp
   (This is a limitation of the current version.)
 unsupported.mo:55.11-55.50: type error [M0139], inner actor classes are not supported yet; any actor class must come last in your program
   (This is a limitation of the current version.)
-unsupported.mo:59.53-59.61: type error [M0069], non-toplevel actor; an actor can only be declared at the toplevel of a program
+unsupported.mo:59.55-59.63: type error [M0069], non-toplevel actor; an actor can only be declared at the toplevel of a program
   (This is a limitation of the current version.)
 unsupported.mo:63.47-63.55: type error [M0069], non-toplevel actor; an actor can only be declared at the toplevel of a program
   (This is a limitation of the current version.)

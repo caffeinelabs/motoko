@@ -13,7 +13,7 @@ module {
   public func toText(self : Json) : Text {
     switch self {
       case (#null_) "null";
-      case (#bool b) if b "true" else "false";
+      case (#bool b) if (b) "true" else "false";
       case (#number n) Int.toText(n);
       case (#string t) "\"" # t # "\"";
       case (#array items) {

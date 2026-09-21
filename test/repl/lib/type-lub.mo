@@ -82,7 +82,7 @@ func g(o : O, p : P, q : Q, r : R) : [O] { ignore([o, p, q, r]); [o, p, q, r] };
 
 
 type Foo<A> = ?(Foo<A>);
-ignore (if true (null : Foo<Int>) else (null : Foo<Bool>));
+ignore (if (true) (null : Foo<Int>) else (null : Foo<Bool>));
 
 
 type U = { #a : U; #b : Int };

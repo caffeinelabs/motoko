@@ -105,9 +105,9 @@ func f(g:shared Nat8 -> ()) : async () {
 func bnd<T <: Int>(x : T) : T { x };
 ignore bnd(1 : Int) : Int;
 ignore bnd(1) : Nat; // ok, uses expected type
-ignore (if false (bnd(loop {}):Nat) else 1); // ok, given expected type
-ignore (if false (bnd(loop {}):Int) else 1);
-ignore (if false (bnd(loop {}):None) else 1); // ok, given expected type
+ignore (if (false) (bnd(loop {}):Nat) else 1); // ok, given expected type
+ignore (if (false) (bnd(loop {}):Int) else 1);
+ignore (if (false) (bnd(loop {}):None) else 1); // ok, given expected type
 ignore bnd(true); // reject, overconstrained
 bnd(true); // reject, overconstrained
 
@@ -159,14 +159,14 @@ func k<T <: Any>(x:T) {
 
 // immutable arrays
 
-func choose<T>(b : Bool, x : [T], y : [T]) : [T] { if b x else y };
+func choose<T>(b : Bool, x : [T], y : [T]) : [T] { if (b) x else y };
 ignore choose(true, [1 : Nat], [1 : Nat]);
 ignore choose(true, [1 : Int], [1 : Int]);
 ignore choose(true, [1 : Nat], [1 :  Int]);
 
 
 // mutable arrays
-func choose_var<T>(b : Bool, x : [var T], y : [var T]) : [var T] { if b x else y };
+func choose_var<T>(b : Bool, x : [var T], y : [var T]) : [var T] { if (b) x else y };
 ignore choose_var(true, [var (1:Nat)], [var (1:Nat)]);
 ignore choose_var(true, [var (1:Int)], [var (1:Int)]);
 ignore choose_var(true, [var (1:Nat)], [var (1:Int)]); // rejected as overconstrained (variance not applicable)

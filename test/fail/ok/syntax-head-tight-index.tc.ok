@@ -1,0 +1,1 @@
+syntax-head-tight-index.mo:4.25-4.29: syntax error [M0275], unexpected token 'else', expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` unless the condition is written in parentheses; write `if (c) e1 else e2` to keep bare branches, or `if c { e1 } else { e2 }`
