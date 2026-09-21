@@ -683,7 +683,7 @@ func @cancelTimer(id : Nat) {
       if (node == id) {
         graft(pre, post);
       } else do ? { { n! with pre = hunt pre; post = hunt post } };
-    };
+    }
   };
 
   @timers := hunt @timers;

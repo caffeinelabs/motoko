@@ -235,8 +235,8 @@ is either a value of that type, or `null`
 ```
 func foo(x : ?Text) : Text {
   switch x {
-    case (null) { "No value" };
-    case (?y) { "Value: " # y };
+    case (null) { "No value" }
+    case (?y) { "Value: " # y }
   };
 };
 foo(null);
@@ -301,11 +301,11 @@ Different syntax, same type as records
 type Health = { #invincible; #alive : Nat; #dead };
 func takeDamage(h : Health, p : Nat) : Health {
   switch (h) {
-    case (#invincible) #invincible;
+    case (#invincible) { #invincible }
     case (#alive hp) {
-      if (hp > p) (#alive (hp-p)) else #dead
-    };
-    case (#dead) #dead;
+      if (hp > p) { #alive (hp-p) } else { #dead }
+    }
+    case (#dead) { #dead }
   }
 }
 ```
@@ -547,7 +547,7 @@ actor Server {
     loop {
       switch next {
         case null { return; }
-        case (?l) { l.head.send(message); next := l.tail; };
+        case (?l) { l.head.send(message); next := l.tail; }
       };
     };
   };
