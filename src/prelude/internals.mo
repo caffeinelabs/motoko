@@ -604,16 +604,17 @@ func @timer_helper() : async () {
     failed += 1;
     @timers := ?(
       switch @timers {
-        case ?{ id = 0; pre; post; job = j; expire; delay }
-        // push top node's contents into pre
-        ({
-          expire = [var failed];
-          id = 0;
-          delay;
-          job;
-          post;
-          pre = ?{ id = 0; expire; pre; post = null; delay; job = j };
-        });
+        case ?{ id = 0; pre; post; job = j; expire; delay } {
+          // push top node's contents into pre
+          ({
+            expire = [var failed];
+            id = 0;
+            delay;
+            job;
+            post;
+            pre = ?{ id = 0; expire; pre; post = null; delay; job = j };
+          })
+        }
         case _ { ({
           expire = [var failed];
           id = 0;
