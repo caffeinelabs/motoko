@@ -39,7 +39,7 @@
       as `query` or `implicit` used as an identifier), replacing the generic
       `M0001` in these situations.
 
-  * feat: syntax ergonomics, part 2 — unparenthesized heads (#6348, target syntax in #6352):
+  * feat: syntax ergonomics, part 2 — unparenthesized heads (#6348, #6388, target syntax in #6352):
 
     * `switch`, `if`, and `while` now accept full expressions as scrutinee or
       condition, without parentheses: `switch f(x) { ... }`, `if a and b { ... }`,
