@@ -1,7 +1,7 @@
 import { debugPrint } = "mo:⛔";
 
 actor Self {
-    var stored : shared () -> async () = Self.method;
+    let stored : shared () -> async () = Self.method;
     public func method() : async () { debugPrint "Hey!" };
     public func go() : async () {
         assert stored == stored;

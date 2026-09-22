@@ -362,7 +362,7 @@ module {
 
   /// Returns `true` if `t` starts with a prefix matching [pattern](#type.Pattern) `p`, otherwise returns `false`.
   public func startsWith(t : Text, p : Pattern) : Bool {
-    var cs = t.chars();
+    let cs = t.chars();
     let match = matchOfPattern(p);
     switch (match(cs)) {
       case (#success) { true };
@@ -377,7 +377,7 @@ module {
     let s1 = t.size();
     if (s2 > s1) return false;
     let match = matchOfPattern(p);
-    var cs1 = t.chars();
+    let cs1 = t.chars();
     var diff : Nat = s1 - s2;
     while (diff > 0)  {
       ignore cs1.next();
@@ -431,7 +431,7 @@ module {
   public func stripStart(t : Text, p : Pattern) : ?Text {
     let s = sizeOfPattern(p);
     if (s == 0) return ?t;
-    var cs = t.chars();
+    let cs = t.chars();
     let match = matchOfPattern(p);
     switch (match(cs)) {
       case (#success) return ?fromIter(cs);
@@ -446,7 +446,7 @@ module {
     let s1 = t.size();
     if (s2 > s1) return null;
     let match = matchOfPattern(p);
-    var cs1 = t.chars();
+    let cs1 = t.chars();
     var diff : Nat = s1 - s2;
     while (diff > 0) {
       ignore cs1.next();

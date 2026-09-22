@@ -21,7 +21,7 @@ actor {
   };
 
   var count = 0;
-  var max = 5;
+  let max = 5;
   let raw_rand = (actor "aaaaa-aa" : actor { raw_rand : () -> async Blob }).raw_rand;
   let second : Nat64 = 1_000_000_000;
 

@@ -199,7 +199,7 @@ let handle_error lexbuf error_detail message_store (start, end_)
             && not (acceptable Parser.EQ) then
       "M0275",
       Printf.sprintf
-        "unexpected %s, expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` when the condition or head is written without parentheses (parenthesize it to keep bare branches)"
+        "unexpected %s, expected a block `{ ... }`: `switch` and `do` always take a block, and so do the branches or body of `if`/`while`/`for` when the condition or head is an unparenthesized compound expression (a call, index, projection, or operator application); parenthesize it to keep bare branches — an unspaced `(`/`[` after a bare identifier continues the condition (`if c[i] ...` indexes `c`), a spaced one starts the branch (`if c [i] ...`)"
         token
     (* a record literal or block where neither is allowed, e.g. written directly as a `switch` or `if` head *)
     else if last_token = Parser.LCURLY && acceptable Parser.LPAR then

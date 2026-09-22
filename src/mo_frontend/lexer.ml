@@ -92,14 +92,19 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
       match token with
       | Parser.GT when leading_ws () && trailing_ws () -> Parser.GTOP
       | Parser.LT when leading_ws () && trailing_ws () -> Parser.LTOP
-      (* MIGRATION BRIDGE — retired in moc v3 (#6352): TIGHT_LPAR/TIGHT_LBRACKET/TIGHT_HASH exist only so that legacy bare branches
-         (`if (c) (e)`, `if (c) [e]`, `if (c) #tag`) keep parsing next to unparenthesized heads. Once control bodies are
-         brace-only a head is always terminated by `{`, and these collapse back into LPAR/LBRACKET/HASH.
+      (* MIGRATION BRIDGE — retired in moc v3 (#6352): the TIGHT_* tokens exist only so that legacy bare branches
+         (`if (c) (e)`, `if (c) [e]`, `if (c) #tag`, `if (c) -1`) keep parsing next to unparenthesized heads. Once control
+         bodies are brace-only a head is always terminated by `{`, and these collapse back into their plain tokens.
          An unspaced `(`/`[` may extend a head with a call or index; a spaced one belongs to the branch or body that follows *)
       | Parser.LPAR when not (leading_ws ()) -> Parser.TIGHT_LPAR
       | Parser.LBRACKET when not (leading_ws ()) -> Parser.TIGHT_LBRACKET
-      (* `#` glued to an identifier is a variant introduction (the branch in `if (c < 0) #less else ...`),
-         unless it directly follows an expression-ending token — `a#b` stays concatenation *)
+      (* `-`/`+`/`^` spaced from what precedes but glued to what follows is prefix-shaped: in a head it starts the branch
+         (`if (c) -1 else 1`); elsewhere the grammar still reads it as the binary operator (`n -1`) *)
+      | Parser.ADDOP when leading_ws () && not (trailing_ws ()) -> Parser.TIGHT_ADDOP
+      | Parser.SUBOP when leading_ws () && not (trailing_ws ()) -> Parser.TIGHT_SUBOP
+      | Parser.XOROP when leading_ws () && not (trailing_ws ()) -> Parser.TIGHT_XOROP
+      (* `#` glued to an identifier is prefix-shaped too — a variant introduction in a head (the branch in `if (c < 0) #less else ...`),
+         concatenation elsewhere — unless it directly follows an expression-ending token: `a#b` is concatenation everywhere *)
       | Parser.HASH
         when not (trailing_ws ())
              && (match first (peek ()) with ST.ID _ -> true | _ -> false)

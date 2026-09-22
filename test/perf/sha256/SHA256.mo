@@ -113,7 +113,7 @@ module {
     public func sum() : [Nat8] {
       var m = 0;
       var n = len;
-      var t = Nat64.toNat(n) % 64;
+      let t = Nat64.toNat(n) % 64;
       var buf : [var Nat8] = [var];
       if (56 > t) {
         m := 56 - t;
@@ -144,7 +144,7 @@ module {
 
     private func block(data : [Nat8]) {
       var p = data;
-      var w = Array.init<Nat32>(64, 0);
+      let w = Array.init<Nat32>(64, 0);
       while (p.size() >= 64) {
         var j = 0;
         for (i in Iter.range(0, 15)) {

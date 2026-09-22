@@ -45,6 +45,13 @@ switch ({ x = 1 }) {
 // a call in the condition: unspaced `(` extends the head
 if inc(2) == 3 {} else { assert false };
 
+// operators spaced on both sides, or on neither, extend the head
+var k : Int = 3;
+if k - 1 > 0 {} else { assert false };
+if k-1 > 0 {} else { assert false };
+while k - 1 > 0 { k -= 1 };
+assert k == 1;
+
 // `if` as an expression, with variant branches
 let cmp = if i > 0 { #pos } else { #zero };
 assert cmp == #pos;

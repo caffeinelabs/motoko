@@ -6,9 +6,9 @@ import Region "stable-region/Region";
 
 actor {
 
-  var r0 = Region.new();
-  var r1 = Region.new();
-  var r2 = Region.new();
+  let r0 = Region.new();
+  let r1 = Region.new();
+  let r2 = Region.new();
 
   let block_size_in_pages = 128 : Nat64;
 

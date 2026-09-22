@@ -4,4 +4,3 @@ par.mo:80.11-80.41: warning [M0212], unrecognised attribute moot in parenthetica
 par.mo:127.15-127.26: warning [M0211], redundant empty parenthetical note
 par.mo:129.15-129.26: warning [M0211], redundant empty parenthetical note
 par.mo:145.16-145.76: warning [M0210], misplaced parenthetical (`async*` calls cannot be modified)
-par.mo:120.13-120.16: warning [M0244], variable env is never reassigned, consider using `let`

@@ -3,7 +3,7 @@ actor {
   func inline(t1: Text, t2 : Text) : Text = t1 # t2;
   func makecalls() : () {
     let t1 = inline("a","b"); // should be inlined
-    var p = ("c","d");
+    let p = ("c","d");
     let t2 = inline p; // should not be inlined, but still just a direct call
   };
   public func go() : async () {

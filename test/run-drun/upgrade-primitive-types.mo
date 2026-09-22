@@ -8,16 +8,16 @@ actor {
     var nat16Variable = 12345: Nat16;
     var nat32Variable = 1234567890: Nat32;
     var nat64Variable = 123456789012345: Nat64;
-    var intVariable = -1234567890123456789012345678901234567890;
-    var int8Variable = -123: Int8;
-    var int16Variable = -12345: Int16;
-    var int32Variable = -1234567890: Int32;
-    var int64Variable = -123456789012345: Int64;
+    let intVariable = -1234567890123456789012345678901234567890;
+    let int8Variable = -123: Int8;
+    let int16Variable = -12345: Int16;
+    let int32Variable = -1234567890: Int32;
+    let int64Variable = -123456789012345: Int64;
     var floatVariable = 1.234567890;
     var charVariable = '!';
     var textVariable = "\"TEST\"";
-    var blobVariable = "abc": Blob;
-    var principalVariable = Prim.principalOfBlob ("\00\00\00\00\00\30\00\D3\01\01": Blob);
+    let blobVariable = "abc": Blob;
+    let principalVariable = Prim.principalOfBlob ("\00\00\00\00\00\30\00\D3\01\01": Blob);
 
     Prim.debugPrint("Initialized");
 

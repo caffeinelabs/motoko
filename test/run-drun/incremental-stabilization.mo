@@ -7,23 +7,23 @@ actor {
         Prim.debugPrint("Initialize flexible Nat");
         1
     };
-    var stableNat = do {
+    let stableNat = do {
         Prim.debugPrint("Initialize stable Nat");
         12345678901234567890123456789012345678901234567890123456789012345678901234567890;
     };
-    var stableInt = do {
+    let stableInt = do {
         Prim.debugPrint("Initialize stable Int");
         -2345678901234567890123456789012345678901234567890123456789012345678901234567890;
     };
-    var stableText = do {
+    let stableText = do {
         Prim.debugPrint("Initialize stable text");
         "Motoko incremental graph-copy-based upgrade test";
     };
-    var stableArray = do {
+    let stableArray = do {
         Prim.debugPrint("Initialize stable array");
         Prim.Array_tabulate<Nat>(100, func (index) { index });
     };
-    var stableObject = do {
+    let stableObject = do {
         Prim.debugPrint("Initialize stable object");
         { stableNat; stableInt; stableText; stableArray; }
     };
