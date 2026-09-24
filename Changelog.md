@@ -159,6 +159,9 @@
     byte early, so tools applying the suggested edits by byte offset (e.g.
     `mops check --fix`) garbled the file (#NNNN).
 
+  * fix: the dot-notation suggestion (`M0236`) is no longer silently dropped
+    after a line that ends with a lone CR (#NNNN).
+
 * motoko-js (`moc.js`)
 
   * **Breaking:** `gcFlags` accepts only `"force"` and `"scheduling"`.

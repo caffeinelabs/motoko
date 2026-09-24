@@ -2360,7 +2360,7 @@ let check_can_dot env m0236_prep tys exp at =
           match path.it with
           | DotE ({ it = VarE {it = mod_id0; _};_ }, { it = id0; _}, _)
             when mod_id0 = mod_id && id0 = id.it ->
-            (match read_region e.at with
+            (match Source_cache.read_region e.at with
              | None -> ()
              | Some receiver_text ->
                let replace_receiver = edit old_receiver.at receiver_text in
@@ -3889,11 +3889,11 @@ and infer_call_instantiation env t1 ctx_dot tbs t_arg t_ret exp2 at t_expect_opt
        | Some hint -> Stdlib.Format.asprintf "\n%s" hint)
 
 and debug_print_infer_defer_split exp2 t_arg t2 subs deferred =
-  print_endline (Printf.sprintf "exp2 : %s" (read_region_with_markers exp2.at |> Option.value ~default:""));
+  print_endline (Printf.sprintf "exp2 : %s" (Source_cache.read_region_with_markers exp2.at |> Option.value ~default:""));
   print_endline (Printf.sprintf "t_arg : %s" (T.string_of_typ t_arg));
   print_endline (Printf.sprintf "t2 : %s" (T.string_of_typ t2));
   print_endline (Printf.sprintf "subs : %s" (String.concat ", " (List.map (fun (t, t', _at) -> Printf.sprintf "%s <: %s" (T.string_of_typ t) (T.string_of_typ t')) subs)));
-  print_endline (Printf.sprintf "deferred : %s" (String.concat ", " (List.map (fun (exp, t) -> Printf.sprintf "%s : %s" (read_region exp.at |> Option.value ~default:"") (T.string_of_typ t)) deferred)));
+  print_endline (Printf.sprintf "deferred : %s" (String.concat ", " (List.map (fun (exp, t) -> Printf.sprintf "%s : %s" (Source_cache.read_region exp.at |> Option.value ~default:"") (T.string_of_typ t)) deferred)));
   print_endline ""
 
 (* Cases *)
