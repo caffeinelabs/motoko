@@ -251,19 +251,6 @@ do {
   ignore Map.size(
     m,
   ); // warn M0236
-
-  // comments after the argument stay
-  ignore Impl.find(data, 1, Nat.compare // why
-  ); // warn M0236 + M0237
-  ignore Impl.find(
-    data,
-    1,
-    Nat.compare, // why
-  ); // warn M0236 + M0237
-
-  // a parenthesized argument gets no edit, and without one no M0236
-  ignore Impl.find(data, 1, (Nat.compare)); // warn M0236 + M0237
-  ignore Map.size((m));
 };
 
 do {

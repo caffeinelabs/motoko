@@ -261,54 +261,11 @@ warning[M0236]: You can use the dot notation `m.size(...)` here
 252 │ │      m,
 253 │ │    ); // warn M0236
     │ ╰────^ 
-254 │    
+254 │    };
     = help: replace `Map` with `m`
     = help: remove `m,`
-warning[M0236]: You can use the dot notation `data.find(...)` here
-    ┌─ edit-suggestions.mo:256:10
-255 │      // comments after the argument stay
-256 │      ignore Impl.find(data, 1, Nat.compare // why
-    │ ╭───────────^
-257 │ │    ); // warn M0236 + M0237
-    │ ╰────^ 
-258 │      ignore Impl.find(
-    = help: replace `Impl` with `data`
-    = help: remove `data,`
-warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ edit-suggestions.mo:256:29
-256 │    ignore Impl.find(data, 1, Nat.compare // why
-    │                              ^^^^^^^^^^^ 
-    = help: remove `Nat.compare`
-warning[M0236]: You can use the dot notation `data.find(...)` here
-    ┌─ edit-suggestions.mo:258:10
-257 │      ); // warn M0236 + M0237
-258 │      ignore Impl.find(
-    │ ╭───────────^
-259 │ │      data,
-260 │ │      1,
-261 │ │      Nat.compare, // why
-262 │ │    ); // warn M0236 + M0237
-    │ ╰────^ 
-263 │    
-    = help: replace `Impl` with `data`
-    = help: remove `data,`
-warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ edit-suggestions.mo:261:5
-261 │      Nat.compare, // why
-    │      ^^^^^^^^^^^ 
-    = help: remove `Nat.compare,`
-warning[M0236]: You can use the dot notation `data.find(...)` here
-    ┌─ edit-suggestions.mo:265:10
-265 │    ignore Impl.find(data, 1, (Nat.compare)); // warn M0236 + M0237
-    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-    = help: replace `Impl` with `data`
-    = help: remove `data,`
-warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ edit-suggestions.mo:265:30
-265 │    ignore Impl.find(data, 1, (Nat.compare)); // warn M0236 + M0237
-    │                               ^^^^^^^^^^^ 
 warning[M0237]: The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
-    ┌─ edit-suggestions.mo:273:20
-273 │    ignore only<Nat> compare; // warn M0237
+    ┌─ edit-suggestions.mo:260:20
+260 │    ignore only<Nat> compare; // warn M0237
     │                     ^^^^^^^ 
     = help: replace `compare` with `()`

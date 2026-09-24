@@ -351,30 +351,12 @@ let suggest_span env at = function
 let edit at replacement : Diag.edit =
   Diag.{ at_edit = at; suggested_replacement = replacement }
 
-(* Each argument owns its trailing comma and the blanks up to the next argument or the closing `)`, so removing several arguments of one call never overlaps.
-   Comments in that gap survive, and a gap holding anything else (like the `)` of a parenthesized argument) gets no edit. *)
-let remove_arg_edit call_at (arg : exp) (next : exp option) : Diag.edit option =
-  let blank = String.for_all (fun c -> c = ' ' || c = '\t' || c = '\n' || c = '\r') in
-  let advance = String.fold_left (fun (p : Source.pos) c ->
-    if c = '\n' then { p with line = p.line + 1; column = 0 } else { p with column = p.column + 1 }) in
-  let remove_to right = Some (edit { arg.at with right } "") in
-  let bound = match next with
-    | Some next -> next.at.left
-    | None -> { call_at.right with column = call_at.right.column - 1 }
-  in
+(* Each argument owns the text up to the next one or the closing `)`, trailing comma included, so removing several arguments of one call never overlaps. *)
+let remove_arg_edit call_at (arg : exp) (next : exp option) =
   match next with
-  | None when arg.at.right = call_at.right -> Some (edit arg.at "()") (* `f x` needs an argument to stay a call *)
-  | _ ->
-    match read_region { left = arg.at.right; right = bound } with
-    | None -> remove_to bound
-    | Some gap ->
-      match String.index_opt gap ',' with
-      | Some i when blank (String.sub gap 0 i) ->
-        let rest = String.sub gap (i + 1) (String.length gap - i - 1) in
-        if blank rest then remove_to bound else remove_to (advance arg.at.right (String.sub gap 0 (i + 1)))
-      | None when blank gap -> remove_to bound
-      | None when not (String.contains gap ')') -> remove_to arg.at.right
-      | _ -> None
+  | Some next -> edit { arg.at with right = next.at.left } ""
+  | None when arg.at.right = call_at.right -> edit arg.at "()" (* `f x` needs an argument to stay a call *)
+  | None -> edit { arg.at with right = { call_at.right with column = call_at.right.column - 1 } } ""
 
 let check_deprecation env at desc id depr =
   match depr with
@@ -2388,13 +2370,10 @@ let check_can_dot env m0236_prep tys exp at =
             (match read_region e.at with
              | None -> ()
              | Some receiver_text ->
-               match remove_arg_edit at e (Lib.List.hd_opt es_rest) with
-               | None -> ()
-               | Some remove_receiver ->
-                 warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-                   ~edits:[edit old_receiver.at receiver_text; remove_receiver]
-                   receiver_text
-                   id.it)
+               warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+                 ~edits:[edit old_receiver.at receiver_text; remove_arg_edit at e (Lib.List.hd_opt es_rest)]
+                 receiver_text
+                 id.it)
           | _ -> ())
      | _ -> ())
   | _ -> ()
@@ -3533,7 +3512,7 @@ and emit_m0237_warnings env call_at candidates =
   List.iter (fun (name, exp, next_arg) ->
     if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
     warn env exp.at "M0237"
-      ~edits:(Option.to_list (remove_arg_edit call_at exp next_arg))
+      ~edits:[remove_arg_edit call_at exp next_arg]
       "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) candidates
 
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
