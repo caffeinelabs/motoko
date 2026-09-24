@@ -13,7 +13,7 @@ type t = (string, entry option) Hashtbl.t
 let create () : t = Hashtbl.create 16
 
 (* CR, LF and CRLF each end a line, matching the Motoko lexer (see [source_lexer.mll]).
-   A byte scan, since Uutf's newline normalization reports a CRLF's line break at the CR, one byte early. *)
+   A byte scan: Uutf's newline normalization puts a CRLF's break at the CR, and also breaks at FF, NEL, LS and PS. *)
 let build_entry content =
   let len = String.length content in
   let starts = ref [0] in

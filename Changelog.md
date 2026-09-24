@@ -157,7 +157,8 @@
   * fix: `--error-format=json` reports correct `byte_start`/`byte_end` in
     files with CRLF line endings. On every line after a CRLF they were one
     byte early, so tools applying the suggested edits by byte offset (e.g.
-    `mops check --fix`) garbled the file (#6393).
+    `mops check --fix`) garbled the file. A form feed, NEL, U+2028 or U+2029
+    in a comment or text literal likewise shifted every later offset (#6393).
 
   * fix: the dot-notation suggestion (`M0236`) is no longer silently dropped
     after a line that ends with a lone CR (#6393).
