@@ -15,4 +15,4 @@ warning[M0236]: You can use the dot notation `m.size(...)` here
   5 │  module M { public func size(self : Nat) : Nat = self };let m = 1;ignore M.size(m);ignore M.size(m);ignore M.size(  m,);
     │                                                                                                                ^^^^^^^^^^^^^^ 
     = help: replace `M` with `m`
-    = help: remove `m`
+    = help: remove `m,`

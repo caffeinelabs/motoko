@@ -154,15 +154,15 @@
     The `motoko-base-library.tar.gz` release artifact is also dropped;
     `motoko-core.tar.gz` is unaffected. (#6355)
 
-  * fix: `--error-format=json` reports correct `byte_start`/`byte_end` in
+  * bugfix: the `M0236` and `M0237` edits that remove the last argument of a call now remove its trailing comma too, so `mops check --fix` no longer turns a multi-line call like `f(\n  a,\n  Nat.compare,\n)` into an `M0001` syntax error. Removing a juxtaposed sole argument (`f x`) now leaves `f ()` (#6392).
+
+  * bugfix: `--error-format=json` reports correct `byte_start`/`byte_end` in
     files with CRLF line endings. On every line after a CRLF they were one
     byte early, so tools applying the suggested edits by byte offset (e.g.
     `mops check --fix`) garbled the file. A form feed, NEL, U+2028 or U+2029
     in a comment or text literal likewise shifted every later offset (#6393).
 
-  * bugfix: the `M0236` and `M0237` edits that remove the last argument of a call now remove its trailing comma too, so `mops check --fix` no longer turns a multi-line call like `f(\n  a,\n  Nat.compare,\n)` into an `M0001` syntax error. Removing a juxtaposed sole argument (`f x`) now leaves `f ()` (#6392).
-
-  * fix: the dot-notation suggestion (`M0236`) is no longer silently dropped
+  * bugfix: the dot-notation suggestion (`M0236`) is no longer silently dropped
     after a line that ends with a lone CR (#6393).
 
 * motoko-js (`moc.js`)

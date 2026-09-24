@@ -8,7 +8,7 @@ warning[M0236]: You can use the dot notation `m.size(...)` here
     │ ╰──^ 
  10 │    let s = "éé"; ignore M.size(m);
     = help: replace `M` with `m`
-    = help: remove `m`
+    = help: remove `m,`
 warning[M0236]: You can use the dot notation `m.size(...)` here
     ┌─ crlf-byte-offsets.mo:10:22
  10 │  let s = "éé"; ignore M.size(m);
