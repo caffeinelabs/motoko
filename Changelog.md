@@ -154,6 +154,11 @@
     The `motoko-base-library.tar.gz` release artifact is also dropped;
     `motoko-core.tar.gz` is unaffected. (#6355)
 
+  * fix: `--error-format=json` reports correct `byte_start`/`byte_end` in
+    files with CRLF line endings. On every line after a CRLF they were one
+    byte early, so tools applying the suggested edits by byte offset (e.g.
+    `mops check --fix`) garbled the file (#NNNN).
+
 * motoko-js (`moc.js`)
 
   * **Breaking:** `gcFlags` accepts only `"force"` and `"scheduling"`.

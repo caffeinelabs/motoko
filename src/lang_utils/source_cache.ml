@@ -12,27 +12,18 @@ type t = (string, entry option) Hashtbl.t
 
 let create () : t = Hashtbl.create 16
 
-(* Walk the file once with Uutf to record line offsets. [`ASCII] newline
-   normalization recognises CR, LF and CRLF — matching the Motoko lexer
-   (see [source_lexer.mll]). *)
+(* Record line offsets. CR, LF and CRLF each end a line, matching the
+   Motoko lexer (see [source_lexer.mll]). Not Uutf's newline normalization:
+   it reports the new line at the CR of a CRLF, one byte early. *)
 let build_entry content =
-  let dec = Uutf.decoder
-    ~encoding:`UTF_8
-    ~nln:(`ASCII (Uchar.of_int 0x0A))
-    (`String content)
-  in
+  let len = String.length content in
   let starts = ref [0] in
-  let rec loop prev_line =
-    match Uutf.decode dec with
-    | `End -> ()
-    | `Uchar _ | `Malformed _ ->
-      let cur_line = Uutf.decoder_line dec in
-      if cur_line > prev_line then
-        starts := Uutf.decoder_byte_count dec :: !starts;
-      loop cur_line
-    | `Await -> assert false
-  in
-  loop 1;
+  content |> String.iteri (fun i c ->
+    match c with
+    | '\n' -> starts := (i + 1) :: !starts
+    | '\r' when i + 1 >= len || content.[i + 1] <> '\n' ->
+      starts := (i + 1) :: !starts
+    | _ -> ());
   { content; line_starts = Array.of_list (List.rev !starts) }
 
 let load (cache : t) path : entry option =
