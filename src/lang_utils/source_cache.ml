@@ -12,9 +12,8 @@ type t = (string, entry option) Hashtbl.t
 
 let create () : t = Hashtbl.create 16
 
-(* Record line offsets. CR, LF and CRLF each end a line, matching the
-   Motoko lexer (see [source_lexer.mll]). Not Uutf's newline normalization:
-   it reports the new line at the CR of a CRLF, one byte early. *)
+(* CR, LF and CRLF each end a line, matching the Motoko lexer (see [source_lexer.mll]).
+   A byte scan, since Uutf's newline normalization reports a CRLF's line break at the CR, one byte early. *)
 let build_entry content =
   let len = String.length content in
   let starts = ref [0] in
@@ -87,7 +86,6 @@ let read_region_with process (r : region) =
 let read_region = read_region_with (fun content start stop ->
   String.sub content start (stop - start))
 
-(* The region's whole lines, with [**] around the region itself. *)
 let read_region_with_markers = read_region_with (fun content start stop ->
   let is_break c = c = '\n' || c = '\r' in
   let rec line_start i =
