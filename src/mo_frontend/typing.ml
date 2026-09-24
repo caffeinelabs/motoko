@@ -351,6 +351,31 @@ let suggest_span env at = function
 let edit at replacement : Diag.edit =
   Diag.{ at_edit = at; suggested_replacement = replacement }
 
+(* Each argument owns its trailing comma and the blanks up to the next argument or the closing `)`, so removing several arguments of one call never overlaps.
+   Comments in that gap survive, and a gap holding anything else (like the `)` of a parenthesized argument) gets no edit. *)
+let remove_arg_edit call_at (arg : exp) (next : exp option) : Diag.edit option =
+  let blank = String.for_all (fun c -> c = ' ' || c = '\t' || c = '\n' || c = '\r') in
+  let advance = String.fold_left (fun (p : Source.pos) c ->
+    if c = '\n' then { p with line = p.line + 1; column = 0 } else { p with column = p.column + 1 }) in
+  let remove_to right = Some (edit { arg.at with right } "") in
+  let bound = match next with
+    | Some next -> next.at.left
+    | None -> { call_at.right with column = call_at.right.column - 1 }
+  in
+  match next with
+  | None when arg.at.right = call_at.right -> Some (edit arg.at "()") (* `f x` needs an argument to stay a call *)
+  | _ ->
+    match read_region { left = arg.at.right; right = bound } with
+    | None -> remove_to bound
+    | Some gap ->
+      match String.index_opt gap ',' with
+      | Some i when blank (String.sub gap 0 i) ->
+        let rest = String.sub gap (i + 1) (String.length gap - i - 1) in
+        if blank rest then remove_to bound else remove_to (advance arg.at.right (String.sub gap 0 (i + 1)))
+      | None when blank gap -> remove_to bound
+      | None when not (String.contains gap ')') -> remove_to arg.at.right
+      | _ -> None
+
 let check_deprecation env at desc id depr =
   match depr with
   | None -> ()
@@ -2363,16 +2388,13 @@ let check_can_dot env m0236_prep tys exp at =
             (match read_region e.at with
              | None -> ()
              | Some receiver_text ->
-               let replace_receiver = edit old_receiver.at receiver_text in
-               let argument_edit = match es_rest with
-                 | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
-                 | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
-                 | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
-               in
-               warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-                 ~edits:[replace_receiver; argument_edit]
-                 receiver_text
-                 id.it)
+               match remove_arg_edit at e (Lib.List.hd_opt es_rest) with
+               | None -> ()
+               | Some remove_receiver ->
+                 warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
+                   ~edits:[edit old_receiver.at receiver_text; remove_receiver]
+                   receiver_text
+                   id.it)
           | _ -> ())
      | _ -> ())
   | _ -> ()
@@ -3507,28 +3529,18 @@ and m0237_validate_candidates env ts implicit_positions =
         | _ -> raise_notrace Bail)
   with Bail -> []
 
-(* [args_close] is the position of the call's closing `)`, when the arguments are parenthesized.
-   A non-last argument is removed together with the separator up to the next argument.
-   The last argument is removed up to the `)`, taking its own trailing comma along: stopping at the
-   argument would leave `f(a,\n  ,\n)`, a syntax error. Every other suggested edit on the call ends
-   at or before the last argument's start, so the removals never overlap.
-   An unparenthesized sole argument (`f x`) becomes `()`, as removing it would leave no call at all. *)
-and emit_m0237_warnings env args_close candidates =
+and emit_m0237_warnings env call_at candidates =
   List.iter (fun (name, exp, next_arg) ->
     if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
-    let to_remove, replacement = match next_arg, args_close with
-      | Some next, _ -> { exp.at with right = next.at.left }, ""
-      | None, Some close -> { exp.at with right = close }, ""
-      | None, None -> exp.at, "()" in
     warn env exp.at "M0237"
-      ~edits:[edit to_remove replacement]
+      ~edits:(Option.to_list (remove_arg_edit call_at exp next_arg))
       "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) candidates
 
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
-and check_explicit_arguments env args_close ts = function
+and check_explicit_arguments env call_at ts = function
   | None -> false
   | Some (ts', candidates) ->
-    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env args_close candidates; true)
+    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env call_at candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3676,16 +3688,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env m0236_prep (List.map (T.open_ ts) t_args) exp1 at;
-    (* Position of the closing `)`: a multi-argument tuple's region spans its parentheses,
-       while a single parenthesized argument drops them, so fall back to the call's end. *)
-    let args_close =
-      let before_last_char (p : Source.pos) = { p with column = p.column - 1 } in
-      match exp2.it with
-      | TupE _ when not parenthesized -> Some (before_last_char exp2.at.right)
-      | _ when parenthesized -> Some (before_last_char at.right)
-      | _ -> None
-    in
-    let warned = check_explicit_arguments env args_close ts m0237_prep in
+    let warned = check_explicit_arguments env at ts m0237_prep in
     if not warned && !is_redundant_inst then
       warn env inst.at "M0223" ~edits:[edit inst.at ""] "redundant type instantiation"
   end;

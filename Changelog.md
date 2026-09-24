@@ -154,12 +154,7 @@
     The `motoko-base-library.tar.gz` release artifact is also dropped;
     `motoko-core.tar.gz` is unaffected. (#6355)
 
-  * bugfix: the `M0237` (implicit argument can be omitted) edit no longer
-    leaves a syntax error when applied. For an implicit argument in last
-    position the edit now also removes its trailing comma, so a multi-line call
-    ending in `…,\n  Nat.compare,\n)` no longer becomes `…,\n  ,\n)`; a
-    juxtaposed sole argument (`f x`) becomes `f ()` instead of `f`. Previously
-    `mops check --fix` rewrote such calls into an `M0001` syntax error (#6392).
+  * bugfix: the `M0236` and `M0237` edits that remove the last argument of a call now remove its trailing comma too and keep comments, so `mops check --fix` no longer turns a multi-line call like `f(\n  a,\n  Nat.compare,\n)` into an `M0001` syntax error. Removing a juxtaposed sole argument (`f x`) now leaves `f ()` (#6392).
 
 * motoko-js (`moc.js`)
 
