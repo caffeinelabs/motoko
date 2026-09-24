@@ -351,6 +351,13 @@ let suggest_span env at = function
 let edit at replacement : Diag.edit =
   Diag.{ at_edit = at; suggested_replacement = replacement }
 
+(* Each argument owns the text up to the next one or the closing `)`, trailing comma included, so removing several arguments of one call never overlaps. *)
+let remove_arg_edit call_at (arg : exp) (next : exp option) =
+  match next with
+  | Some next -> edit { arg.at with right = next.at.left } ""
+  | None when arg.at.right = call_at.right -> edit arg.at "()" (* `f x` needs an argument to stay a call *)
+  | None -> edit { arg.at with right = { call_at.right with column = call_at.right.column - 1 } } ""
+
 let check_deprecation env at desc id depr =
   match depr with
   | None -> ()
@@ -2363,14 +2370,8 @@ let check_can_dot env m0236_prep tys exp at =
             (match Source_cache.read_region e.at with
              | None -> ()
              | Some receiver_text ->
-               let replace_receiver = edit old_receiver.at receiver_text in
-               let argument_edit = match es_rest with
-                 | [] when at.right = e.at.right -> edit e.at "()" (* unparenthesized single arg (`Module.f x`); preserve a `()` arg list *)
-                 | [] -> edit e.at "" (* parenthesized single arg; remove the argument, keep the parens *)
-                 | next :: _ -> edit { left = e.at.left; right = next.at.left } "" (* multi-arg; remove the argument + the comma *)
-               in
                warn env at "M0236" "You can use the dot notation `%s.%s(...)` here"
-                 ~edits:[replace_receiver; argument_edit]
+                 ~edits:[edit old_receiver.at receiver_text; remove_arg_edit at e (Lib.List.hd_opt es_rest)]
                  receiver_text
                  id.it)
           | _ -> ())
@@ -3507,19 +3508,18 @@ and m0237_validate_candidates env ts implicit_positions =
         | _ -> raise_notrace Bail)
   with Bail -> []
 
-and emit_m0237_warnings env candidates =
+and emit_m0237_warnings env call_at candidates =
   List.iter (fun (name, exp, next_arg) ->
     if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
-    let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
     warn env exp.at "M0237"
-      ~edits:[edit to_remove ""]
+      ~edits:[remove_arg_edit call_at exp next_arg]
       "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) candidates
 
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
-and check_explicit_arguments env ts = function
+and check_explicit_arguments env call_at ts = function
   | None -> false
   | Some (ts', candidates) ->
-    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env candidates; true)
+    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env call_at candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3667,7 +3667,7 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env m0236_prep (List.map (T.open_ ts) t_args) exp1 at;
-    let warned = check_explicit_arguments env ts m0237_prep in
+    let warned = check_explicit_arguments env at ts m0237_prep in
     if not warned && !is_redundant_inst then
       warn env inst.at "M0223" ~edits:[edit inst.at ""] "redundant type instantiation"
   end;

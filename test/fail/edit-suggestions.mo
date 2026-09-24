@@ -233,3 +233,29 @@ do {
   let s : Phantom.Box<Text> = { arr = [] };
   ignore Phantom.size(s); // warn M0236
 };
+
+// --- Removing the last argument leaves a call that parses ---
+
+do {
+  let m = Map.empty<Nat, Text>();
+  let data : [(Nat, Text)] = [];
+
+  // the trailing comma goes with the implicit
+  ignore Impl.find(
+    data,
+    1,
+    Nat.compare,
+  ); // warn M0236 + M0237
+
+  // the trailing comma goes with the receiver
+  ignore Map.size(
+    m,
+  ); // warn M0236
+};
+
+do {
+  // a juxtaposed sole argument becomes `()`
+  func only<K>(_cmp : (implicit : (compare : (K, K) -> Order))) : ?K { null };
+  let compare = Nat.compare;
+  ignore only<Nat> compare; // warn M0237
+};
