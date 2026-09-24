@@ -13,7 +13,7 @@ let
   vendorRustStdDeps = "${cargoVendorTools}/bin/vendor-rust-std-deps";
 
   # SHA256 of Rust std deps
-  rustStdDepsHash = "sha256-92QH5QOdms57sl2sDMJxx/yS1T90mZp5L9N0nTxckn0=";
+  rustStdDepsHash = "sha256-OTZ3LG84PNaPTbckD062aXpbXly07iTnIg00nQZD7Mw=";
 
   # Vendor directory for Rust std deps
   rustStdDeps = pkgs.stdenvNoCC.mkDerivation {
@@ -59,7 +59,7 @@ let
       rust-bindgen
       python3
       wabt
-    ] ++ pkgs.lib.optional pkgs.stdenv.isDarwin [
+    ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
       libiconv
     ];
 
@@ -85,12 +85,8 @@ let
 
     installPhase = ''
       mkdir -p $out/rts
-      cp mo-rts-non-incremental.wasm $out/rts
-      cp mo-rts-non-incremental-debug.wasm $out/rts
-      cp mo-rts-incremental.wasm $out/rts
-      cp mo-rts-incremental-debug.wasm $out/rts
-      cp mo-rts-eop.wasm $out/rts
-      cp mo-rts-eop-debug.wasm $out/rts
+      cp mo-rts.wasm $out/rts
+      cp mo-rts-debug.wasm $out/rts
     '';
 
     # This needs to be self-contained. Remove mention of nix path in debug
@@ -98,22 +94,14 @@ let
     preFixup = ''
       remove-references-to \
         -t ${pkgs.rust-nightly} \
-        $out/rts/mo-rts-non-incremental.wasm \
-        $out/rts/mo-rts-non-incremental-debug.wasm \
-        $out/rts/mo-rts-incremental.wasm \
-        $out/rts/mo-rts-incremental-debug.wasm \
-        $out/rts/mo-rts-eop.wasm \
-        $out/rts/mo-rts-eop-debug.wasm
+        $out/rts/mo-rts.wasm \
+        $out/rts/mo-rts-debug.wasm
 
       for rtsDep in $(find ${rtsDeps} -type l -exec readlink {} +); do
         remove-references-to \
           -t "$rtsDep" \
-          $out/rts/mo-rts-non-incremental.wasm \
-          $out/rts/mo-rts-non-incremental-debug.wasm \
-          $out/rts/mo-rts-incremental.wasm \
-          $out/rts/mo-rts-incremental-debug.wasm \
-          $out/rts/mo-rts-eop.wasm \
-          $out/rts/mo-rts-eop-debug.wasm
+          $out/rts/mo-rts.wasm \
+          $out/rts/mo-rts-debug.wasm
       done
     '';
 

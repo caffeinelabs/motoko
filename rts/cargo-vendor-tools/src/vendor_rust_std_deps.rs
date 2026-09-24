@@ -47,7 +47,7 @@ fn main() {
 
     let total_deps = compiler_deps.len();
     for (dep_idx, Dep { url, name, tarball_checksum }) in compiler_deps.into_iter().enumerate() {
-        println!("  {} ({}/{})", name, dep_idx + 1, total_deps);
+        println!("  {} {} ({}/{})", name, url, dep_idx + 1, total_deps);
 
         //
         // Fetch the package tarball
@@ -157,7 +157,7 @@ fn cargo_lock_deps(lock_file_path: &str) -> Vec<Dep> {
                 let checksum = package_tbl.get("checksum").unwrap().as_str().unwrap();
                 deps.push(Dep {
                     url: format!(
-                        "https://crates.io/api/v1/crates/{}/{}/download",
+                        "https://static.crates.io/crates/{}/{}/download",
                         name, version
                     ),
                     name: format!("{}-{}", name, version),

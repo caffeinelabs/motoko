@@ -32,3 +32,9 @@ assert ((if false A else B).foo == 6);
 
 // type annotation removes warning
 assert ((A : module { foo : Int }).foo == 5);
+
+module C {
+  /// @deprecated M0235 use `bar` instead
+  public let withMsg = 7;
+};
+ignore (C.withMsg);

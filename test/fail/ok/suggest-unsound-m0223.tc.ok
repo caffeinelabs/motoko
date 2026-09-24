@@ -1,0 +1,44 @@
+suggest-unsound-m0223.mo:11.21-11.26: warning [M0223], redundant type instantiation
+suggest-unsound-m0223.mo:8.17-8.33: warning [M0223], redundant type instantiation
+suggest-unsound-m0223.mo:20.15-22.6: type error [M0098], cannot apply function of type
+  <T>(array : [T]) -> List.List<T>
+to argument of type
+  [Nat]
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Nat>
+suggest-unsound-m0223.mo:47.5-47.15: warning [M0237], The `Impl1.impl` argument can be inferred and omitted here (the function parameter is `implicit`).
+suggest-unsound-m0223.mo:67.14-67.54: type error [M0098], cannot apply function of type
+  <T>(len : Nat, gen : Nat -> T) -> [var T]
+to argument of type
+  (Nat, gen : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+suggest-unsound-m0223.mo:74.5-74.15: warning [M0237], The `Impl1.impl` argument can be inferred and omitted here (the function parameter is `implicit`).
+suggest-unsound-m0223.mo:94.14-94.40: type error [M0098], cannot apply function of type
+  <T>(n : Nat, k : Nat -> T) -> [var T]
+to argument of type
+  (Nat, k : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+suggest-unsound-m0223.mo:99.34-99.44: warning [M0223], redundant type instantiation
+suggest-unsound-m0223.mo:119.14-119.54: type error [M0098], cannot apply function of type
+  <T>(len : Nat, gen : Nat -> T) -> [var T]
+to argument of type
+  (Nat, gen : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+suggest-unsound-m0223.mo:124.34-124.44: warning [M0223], redundant type instantiation
+suggest-unsound-m0223.mo:144.14-144.40: type error [M0098], cannot apply function of type
+  <T>(n : Nat, k : Nat -> T) -> [var T]
+to argument of type
+  (Nat, k : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>
+suggest-unsound-m0223.mo:154.36-154.40: warning [M0223], redundant type instantiation
+suggest-unsound-m0223.mo:153.5-153.15: warning [M0237], The `Impl1.impl` argument can be inferred and omitted here (the function parameter is `implicit`).
+suggest-unsound-m0223.mo:160.14-160.54: type error [M0098], cannot apply function of type
+  <T>(len : Nat, gen : Nat -> T) -> [var T]
+to argument of type
+  (Nat, gen : Nat -> T)
+because there is no "best" choice for type parameter `T`.
+Hint: Add explicit type instantiation, e.g. <Null>

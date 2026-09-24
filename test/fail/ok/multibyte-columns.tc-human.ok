@@ -1,0 +1,24 @@
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
+    ┌─ multibyte-columns.mo:10:12
+ 10 │      ignore Char.toNat32(c);                       // ASCII baseline
+    │             ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
+    ┌─ multibyte-columns.mo:11:24
+ 11 │      ignore "京"; ignore Char.toNat32(c);          // 3-byte UTF-8 before span
+    │                         ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
+    ┌─ multibyte-columns.mo:12:24
+ 12 │      ignore "💩"; ignore Char.toNat32(c);          // 4-byte UTF-8 (non-BMP) before span
+    │                         ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`
+warning[M0236]: You can use the dot notation `c.toNat32(...)` here
+    ┌─ multibyte-columns.mo:13:25
+ 13 │      ignore "京京"; ignore Char.toNat32(c);        // multibyte text before span
+    │                          ^^^^^^^^^^^^^^^ 
+    = help: replace `Char` with `c`
+    = help: remove `c`

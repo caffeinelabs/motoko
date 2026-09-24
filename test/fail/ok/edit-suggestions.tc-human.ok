@@ -70,12 +70,6 @@ warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the
  54 │      Nat.compare,
     │      ^^^^^^^^^^^ 
     = help: remove `Nat.compare,`
-warning[M0236]: You can use the dot notation `data.get(...)` here
-    ┌─ edit-suggestions.mo:113:10
-113 │    ignore Impl.get(data, Nat.compare, 1);
-    │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-    = help: replace `Impl` with `data`
-    = help: remove `data,`
 warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
     ┌─ edit-suggestions.mo:113:25
 113 │    ignore Impl.get(data, Nat.compare, 1);
@@ -174,9 +168,9 @@ warning[M0237]: The `Text.compare` argument can be inferred and omitted here (th
     │      ^^^^^^^^^^^^ 
     = help: remove `Text.compare,`
 warning[M0223]: redundant type instantiation
-    ┌─ edit-suggestions.mo:143:18
-143 │    let _ = Map.add<Nat, Text>(
-    │                   ^^^^^^^^^^^ 
+    ┌─ edit-suggestions.mo:144:14
+144 │      Map.empty<Nat, Text>(),
+    │               ^^^^^^^^^^^ 
     = help: remove `<Nat, Text>`
 warning[M0236]: You can use the dot notation `Map.empty<Nat, Text>().add(...)` here
     ┌─ edit-suggestions.mo:143:11
@@ -212,3 +206,66 @@ warning[M0236]: You can use the dot notation `m.size(...)` here
     │           ^^^^^^^^^^^^^^^^^^^^^ 
     = help: replace `Map` with `m`
     = help: replace `m` with `()`
+warning[M0223]: redundant type instantiation
+    ┌─ edit-suggestions.mo:160:18
+160 │    ignore Map.size<Nat, Text> m; // warn M0236
+    │                   ^^^^^^^^^^^ 
+    = help: remove `<Nat, Text>`
+warning[M0236]: You can use the dot notation `cnt.count(...)` here
+    ┌─ edit-suggestions.mo:204:10
+204 │    ignore Counter.count(cnt);
+    │           ^^^^^^^^^^^^^^^^^^ 
+    = help: replace `Counter` with `cnt`
+    = help: remove `cnt`
+warning[M0236]: You can use the dot notation `t.trim2(...)` here
+    ┌─ edit-suggestions.mo:222:10
+222 │    ignore Str.trim2(t); // warn M0236
+    │           ^^^^^^^^^^^^ 
+    = help: replace `Str` with `t`
+    = help: remove `t`
+warning[M0236]: You can use the dot notation `b.rank(...)` here
+    ┌─ edit-suggestions.mo:224:10
+224 │    ignore Bytes.rank(b); // warn M0236
+    │           ^^^^^^^^^^^^^ 
+    = help: replace `Bytes` with `b`
+    = help: remove `b`
+warning[M0236]: You can use the dot notation `s.size(...)` here
+    ┌─ edit-suggestions.mo:234:10
+234 │    ignore Phantom.size(s); // warn M0236
+    │           ^^^^^^^^^^^^^^^ 
+    = help: replace `Phantom` with `s`
+    = help: remove `s`
+warning[M0236]: You can use the dot notation `data.find(...)` here
+    ┌─ edit-suggestions.mo:244:10
+243 │      // the trailing comma goes with the implicit
+244 │      ignore Impl.find(
+    │ ╭───────────^
+245 │ │      data,
+246 │ │      1,
+247 │ │      Nat.compare,
+248 │ │    ); // warn M0236 + M0237
+    │ ╰────^ 
+249 │    
+    = help: replace `Impl` with `data`
+    = help: remove `data,`
+warning[M0237]: The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:247:5
+247 │      Nat.compare,
+    │      ^^^^^^^^^^^ 
+    = help: remove `Nat.compare,`
+warning[M0236]: You can use the dot notation `m.size(...)` here
+    ┌─ edit-suggestions.mo:251:10
+250 │      // the trailing comma goes with the receiver
+251 │      ignore Map.size(
+    │ ╭───────────^
+252 │ │      m,
+253 │ │    ); // warn M0236
+    │ ╰────^ 
+254 │    };
+    = help: replace `Map` with `m`
+    = help: remove `m,`
+warning[M0237]: The `compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ edit-suggestions.mo:260:20
+260 │    ignore only<Nat> compare; // warn M0237
+    │                     ^^^^^^^ 
+    = help: replace `compare` with `()`

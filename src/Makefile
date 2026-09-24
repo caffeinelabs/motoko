@@ -90,7 +90,8 @@ unit-tests-accept: $(SOURCE_ID)
 format:
 	ocamlformat --inplace \
 	  docs/*.mli \
-          docs/*.ml
+          docs/*.ml \
+          exes/deser.ml
 
 clean:
 	rm -f moc mo-ld moc.js didc deser $(SOURCE_ID)

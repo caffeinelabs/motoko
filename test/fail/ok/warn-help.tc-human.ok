@@ -19,7 +19,6 @@ M0191 (W) Code requires Wasm features ... to execute
 M0194 (E) Unused identifier warning
 M0195 (W) warn that `system` capability is implicitly supplied
 M0198 (W) Unused field pattern warning
-M0199 (W) Deprecate experimental stable memory
 M0206 (W) Migration consumes, but does not produce, a declared field
 M0207 (W) Migration consumes, but does not produce, an un-declared field
 M0210 (W) Parenthetical note must be applied to a message send
@@ -31,7 +30,7 @@ M0218 (A) Redundant `stable`
 M0222 (A) Ignored `async*`
 M0223 (A) Redundant type instantiation
 M0235 (A) Deprecate for caffeine
-M0236 (A) Suggest contextual dot notation
+M0236 (W) Suggest contextual dot notation
 M0237 (A) Suggest redundant explicit arguments
 M0239 (W) Avoid binding a unit `()` result
 M0240 (W) Unused identifier in shared pattern warning
@@ -40,5 +39,10 @@ M0242 (W) Implicit oneway declaration
 M0243 (W) Unreachable else in let-else
 M0244 (W) Mutable variable is never reassigned
 M0254 (W) Initial actor requires field
+M0265 (W) The `system` capability is not required by this mixin
+M0266 (W) floating-point literal has more precision than its type can represent
+M0268 (E) Migration directory disagrees with the deployed history recorded by the stable baseline
+M0269 (W) Deprecate `.vals()` in favor of `.values()`
+M0270 (W) Deprecate `system func preupgrade`/`postupgrade`
 
 Legend: A - allowed (warning disabled); W - warn (warning enabled); E - error (treated as error)

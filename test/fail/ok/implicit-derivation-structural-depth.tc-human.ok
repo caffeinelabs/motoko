@@ -1,0 +1,7 @@
+error[M0230]: Cannot determine implicit argument `enc` of type
+  {inner : {x : Text}} -> Tag
+    ┌─ implicit-derivation-structural-depth.mo:17:8
+ 17 │  ignore encode({ inner = { x = "hi" } });
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+    = note: Implicit derivation failed:
+                 depth limit reached (increase with `--implicit-derivation-depth`, current: 1)

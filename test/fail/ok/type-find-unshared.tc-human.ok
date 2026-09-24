@@ -1,0 +1,16 @@
+error[M0096]: expression of type
+  async<$> Nat
+cannot produce expected type
+  Nat
+    ┌─ type-find-unshared.mo:4:5
+  4 │      async f(1)
+    │      ^^^^^^^^^^ 
+error[M0031]: shared function has non-shared parameter type
+  (f : Nat -> Nat)
+type
+  (f : Nat -> Nat)
+is or contains non-shared type
+  Nat -> Nat
+    ┌─ type-find-unshared.mo:3:25
+  3 │    public shared func bad(f : Nat -> Nat) : async Nat {
+    │                          ^^^^^^^^^^^^^^^^ 

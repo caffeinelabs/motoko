@@ -145,7 +145,7 @@ module WithoutImplicitDerivation {
             case (null, null) #equal;
             case (null, _) #less;
             case (_, null) #greater;
-            case (?l1, ?l2) List.compare<Text>(l1, l2, Text.compare);
+            case (?l1, ?l2) l1.compare(l2);
           };
         };
         case (#inProgress _, _) #less;
@@ -261,7 +261,7 @@ let tasks : [Task] = [
 
 // Two compare functions exist for Task, so we must pass explicitly
 
-let sorted = Array.sort<Task>(tasks, Task.compare);
+let sorted = tasks.sort(Task.compare);
 
 assert sorted[0].name == "Write docs"; // low
 assert sorted[1].name == "Review PR"; // medium
@@ -270,7 +270,7 @@ assert sorted[3].name == "Add tests"; // high, inProgress (?[Alice, Bob])
 assert sorted[4].name == "Deploy"; // critical, pending
 assert sorted[5].name == "Fix crash"; // critical, completed
 
-let byStatus = Array.sort<Task>(tasks, TaskByStatus.compare);
+let byStatus = tasks.sort(TaskByStatus.compare);
 
 assert byStatus[0].name == "Write docs"; // pending, low
 assert byStatus[1].name == "Deploy"; // pending, critical
@@ -281,10 +281,10 @@ assert byStatus[5].name == "Fix crash"; // completed, critical
 
 // Verify manual compare functions produce the same results
 
-let sorted2 = Array.sort<Task>(tasks, WithoutImplicitDerivation.taskCompare);
+let sorted2 = tasks.sort(WithoutImplicitDerivation.taskCompare);
 for (i in sorted.keys()) { assert sorted[i].id == sorted2[i].id };
 
-let byStatus2 = Array.sort<Task>(tasks, WithoutImplicitDerivation.taskByStatusCompare);
+let byStatus2 = tasks.sort(WithoutImplicitDerivation.taskByStatusCompare);
 for (i in byStatus.keys()) { assert byStatus[i].id == byStatus2[i].id };
 
 //SKIP comp

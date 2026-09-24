@@ -8,9 +8,9 @@ jobs:
   rts-checked:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
-      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
         with:
           name: ic-hs-test
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -20,7 +20,7 @@ jobs:
   common-tests:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Common Tests
         uses: ./.github/actions/test-blueprint
@@ -30,26 +30,13 @@ jobs:
           test-name: macos-common-tests
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-  gc-tests:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Run GC Tests
-        uses: ./.github/actions/test-blueprint
-        with:
-          os: macos-latest
-          test-target: gc-tests
-          test-name: macos-gc-tests
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
   systems-go-tests:
     strategy:
       matrix:
         build_type: [release, debug]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Tests
         uses: ./.github/actions/test-blueprint
@@ -64,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get `motoko` Repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Populate `moc`
         uses: ./.github/actions/test-blueprint
         with:
@@ -72,36 +59,54 @@ jobs:
           test-target: moc
           test-name: fetch-moc
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          nixbuild_token: ${{ secrets.NIXBUILD_TOKEN }}
       - name: Build `moc`
         run: |
-          nix build .#moc --print-out-paths
+          ${{ github.workspace }}/nixbuildcopy.sh .#moc
+      - name: Build M0223-silenced `moc`
+        # CI-only: `.#moc-M0223` wraps moc to force M0223 off, so motoko-core's
+        # `-E=M0223` (mops.toml) doesn't fail the build on its ~2871 redundant
+        # `<T>`s. Built here (before the motoko-core checkout replaces the
+        # working dir) and its store path stashed for the fixup step. Drop once
+        # #6199 cleans core up.
+        run: |
+          echo "MOC_M0223=$(${{ github.workspace }}/nixbuildcopy.sh .#moc-M0223)" >> "$GITHUB_ENV"
       - name: Save the `test-blueprint` action
         # This is needed by the "Post Populate `moc`" step (cleanup)
         # but since the checkout of `motoko-core` destroys the `pwd` contents
         # we have to keep it elsewhere and restore later.
         run: cp -r ./.github/actions/test-blueprint ..
       - name: Get `motoko-core` Repo
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: dfinity/motoko-core
           fetch-depth: "0"
       - name: Restore the `test-blueprint` action
         run:  mv ../test-blueprint ./.github/actions
       - name: Set up `mops`
-        uses: dfinity/motoko-core/.github/actions/setup@1b6e4995e730b5f152106e64d943ae0cc0aa117b # main
-      - name: Set up `mops` cache
+        uses: dfinity/motoko-core/.github/actions/setup@1e76139d366784a4e3725a2cc5288c313b1ddf05 # main
+      - name: Install the pinned `mops` toolchain
         run: |
           npx ic-mops --version
-          npx ${DFX_MOC_PATH} --version
-      - name: Fixup `mops` cache
+          # Installs the `[toolchain]` versions from motoko-core's mops.toml,
+          # `moc` among them; the setup action only runs `npm ci`.
+          npx ic-mops install
+      - name: Point the pinned `moc` at the M0223-silenced build
         run: |
-          ln -sf /nix/store/*-moc/bin/moc $(cat .mops/moc-*)
-          npx ${DFX_MOC_PATH} --version
+          # Compile motoko-core with the M0223-silenced wrapper (.#moc-M0223,
+          # built before the checkout) by replacing the toolchain's `moc`.
+          # `mops toolchain init` used to export DFX_MOC_PATH for this, but it
+          # was removed along with `moc-wrapper`, so ask mops where the binary
+          # lives instead of guessing at `.mops/` layout.
+          # Remove once motoko-core is cleaned up — see #6199.
+          MOC_BIN="$(npx ic-mops toolchain bin moc)"
+          ln -sf "$MOC_M0223/bin/moc" "$MOC_BIN"
+          "$MOC_BIN" --version
       - name: Run `motoko-core` Tests
         run: npm test
 
   create-issue:
-    needs: [rts-checked, common-tests, gc-tests, systems-go-tests, motoko-core-tests]
+    needs: [rts-checked, common-tests, systems-go-tests, motoko-core-tests]
     if: ${{ always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest # No need to run on macOS, the ubuntu runner should be cheaper to run.
     steps:

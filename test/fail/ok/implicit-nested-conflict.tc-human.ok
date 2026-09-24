@@ -1,0 +1,6 @@
+error[M0231]: ambiguous implicit argument named `zero` of type 
+  Nat.
+    ┌─ implicit-nested-conflict.mo:21:9
+ 21 │  ignore f(); // Error, candidates from nested modules conflict with candidates from top-level modules
+    │          ^^ 
+    = note: The ambiguous implicit candidates are: `Top.zero`, `Top.Nested.zero`.

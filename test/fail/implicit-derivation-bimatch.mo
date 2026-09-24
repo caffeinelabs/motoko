@@ -1,7 +1,7 @@
 // Tests for bi-matching limits in implicit candidate selection.
 
-// B is fully phantom (no bounds at all); C has an upper bound from ret_subs
-// (C ≤ Nat) but no lower bound — bivariant solver still picks lb = None for both.
+// C is in `rets` (contravariant): the maximal solution picks its upper bound, C := Nat.
+// B is phantom (in neither args nor rets): solved to its lower bound None — phantom B fails derivation.
 module Pipeline {
   public func chain<A, B, C>(
     x : A,

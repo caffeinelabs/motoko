@@ -14,4 +14,8 @@ sed -e 's/::= /&\n    /' |
 # Transform
 sed -f $(dirname "${BASH_SOURCE[0]}")/grammar.sed |
 # Remove line breaks
-sed  -e ':a' -e 'N' -e '$!ba' -e 's/\n\ \ \ \ \ \ */ /g'
+sed  -e ':a' -e 'N' -e '$!ba' -e 's/\n\ \ \ \ \ \ */ /g' |
+# Scrub grammar-mode parameters that were split across a line break above
+sed -e 's/(B, R)//g' -e 's/(B, <ob>)//g' -e 's/(<ob>, <ob>)//g' -e 's/(<bl>, <bl>)//g' -e 's/(<bl>, <ob>)//g' -e 's/(<bl>, R)//g' -e 's/(R, R)//g' -e 's/(R)//g' |
+# The legacy_* aliases only document the v3 flip (#6352); obelisk may wrap their parameters across lines, so map them here too
+sed -e 's/<legacy_body>/<exp_nest>/g' -e 's/<legacy_operand>/<exp_nest>/g'

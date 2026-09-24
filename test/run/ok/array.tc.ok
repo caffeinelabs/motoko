@@ -1,8 +1,3 @@
 array.mo:110.27-110.64: warning [M0074], this array has type
   [Any]
 because elements have inconsistent types
-array.mo:39.5-39.12: warning [M0244], variable emptyit is never reassigned, consider using `let`
-array.mo:42.5-42.7: warning [M0244], variable it is never reassigned, consider using `let`
-array.mo:48.5-48.13: warning [M0244], variable it_again is never reassigned, consider using `let`
-array.mo:54.5-54.8: warning [M0244], variable it2 is never reassigned, consider using `let`
-array.mo:60.5-60.8: warning [M0244], variable it3 is never reassigned, consider using `let`

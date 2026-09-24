@@ -2,18 +2,7 @@
   description = "The Motoko compiler";
 
   inputs = {
-    # Tinker pin: nixpkgs PR #522774's branch (wasmtime 44.0.1 → 45.0.0).
-    # Reverts to nixpkgs-unstable once that PR lands and propagates.
-    nixpkgs.url = "github:ggreif/nixpkgs/auto-update/wasmtime";
-
-    # Tinker overlay: rebuild wasmtime from upstream main so we get
-    # post-v45 cranelift work (#13343's simplify_skeleton fold for
-    # ctz/clz-in-brif, and our planned i64 mirror).  Floats with main —
-    # `nix flake update wasmtime-src` to refresh.
-    wasmtime-src = {
-      url = "github:bytecodealliance/wasmtime/main";
-      flake = false;
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/release-26.05";
 
     flake-utils.url = "github:numtide/flake-utils";
 
@@ -77,11 +66,10 @@
     , motoko-matchers-src
     , grace-src
     , ocaml-recovery-parser-src
-    , wasmtime-src
     }: flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = import ./nix/pkgs.nix {
-        inherit nixpkgs system rust-overlay wasmtime-src;
+        inherit nixpkgs system rust-overlay;
         sources = {
           inherit
             candid-src
@@ -157,7 +145,7 @@
       test-runner-cargo-lock = {
         lockFile = ./test-runner/Cargo.lock;
         outputHashes = {
-          "pocket-ic-13.0.0" = "sha256-9DpJeFJ1AcUbcjUapE20UI/gE7j0glCFWU9FhbdOtHE=";
+          "pocket-ic-14.0.0" = "sha256-kYozElqipS6N9y+ydG2fNvSfMtybK3lv2codr189sCE=";
         };
       };
 
@@ -190,18 +178,15 @@
             let
               matchDebug = builtins.match ".*-debug$" name;
               matchRelease = builtins.match ".*-release$" name;
-              matchGC = builtins.match ".*-gc$" name;
               matchPerf = builtins.match ".*(bench|perf)$" name;
-              # Common tests are those that do not match -debug, -release, -gc, or -bench, -perf.
+              # Common tests are those that do not match -debug, -release, or -bench, -perf.
               matchCommon = matchDebug == null &&
                 matchRelease == null &&
-                matchGC == null &&
                 matchPerf == null;
             in
             {
               debug = matchDebug != null;
               release = matchRelease != null;
-              gc = matchGC != null;
               common = matchCommon;
             }.${type})
           tests);
@@ -265,20 +250,13 @@
 
         # Platform-specific release files.
         release-files-ubuntu-latest = import ./nix/release-files-ubuntu-latest.nix { inherit self pkgs; };
-        "release-files-ubuntu-24.04-arm" = import ./nix/release-files-ubuntu-24.04-arm.nix { inherit self pkgs; };
-        release-files-macos-15-intel = import ./nix/release-files-macos-15-intel.nix { inherit self pkgs; };
+        "release-files-ubuntu-26.04-arm" = import ./nix/release-files-ubuntu-26.04-arm.nix { inherit self pkgs; };
         release-files-macos-latest = import ./nix/release-files-macos-latest.nix { inherit self pkgs; };
 
-        # Common tests version - includes non-GC, non-release/debug specific tests.
+        # Common tests version - includes non-release/debug specific tests.
         common-tests = pkgs.releaseTools.aggregate {
           name = "common-tests";
           constituents = filterTests "common"; # Only include common tests.
-        };
-
-        # GC tests version - only includes GC tests.
-        gc-tests = pkgs.releaseTools.aggregate {
-          name = "gc-tests";
-          constituents = filterTests "gc"; # Only include GC tests.
         };
 
         # Release version - excludes debug tests.
@@ -304,6 +282,14 @@
         };
 
         inherit (debug) moc;
+
+        # CI-only wrapper: `moc` with M0223 (redundant type instantiation)
+        # forced off, to silence the storm on `motoko-core` (which promotes it
+        # via `-E=M0223` in its mops.toml) until #6199 cleans it up. The trailing
+        # `-A M0223` wins (last-one-wins); `-E=M0154` etc. are preserved.
+        moc-M0223 = pkgs.writeShellScriptBin "moc" ''
+          exec ${debug.moc}/bin/moc "$@" -A M0223
+        '';
 
         default = release-systems-go;
       };

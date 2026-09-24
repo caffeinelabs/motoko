@@ -8,5 +8,6 @@ pkgs.stdenv.mkDerivation {
   installPhase = "touch $out";
   checkPhase = ''
     ocamlformat --check docs/*.{ml,mli}
+    ocamlformat --check exes/deser.ml
   '';
 }

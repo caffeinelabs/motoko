@@ -6,7 +6,7 @@ import {new; size } "stable-region/Region";
 actor {
 
   public func go() : async() {
-    var l = 65536*8;
+    let l = 65536*8;
     var n = 16; // first 16 regions are reserved
     loop {
       let r = new();

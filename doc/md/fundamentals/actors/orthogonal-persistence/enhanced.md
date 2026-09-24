@@ -12,24 +12,19 @@ Enhanced orthogonal persistence implements the vision of efficient and scalable 
 As a result, the use of secondary storage (explicit stable memory, dedicated stable data structures, DB-like storage abstractions) will no longer be necessary: Motoko developers can directly work on their normal object-oriented program structures that are automatically persisted and retained across program version changes.
 
 
-Enhanced orthogonal persistence is enabled by default. (It was previously only offered via the compiler flag `--enhanced-orthogonal-persistence`, which is now redundant.)
+Enhanced orthogonal persistence is enabled by default.
 
 :::tip
 Despite the use of enhanced orthogonal persistence, it is strongly recommended to thoroughly test the upgrades of your application.
 Moreover, it is advised to have a backup possibility for rescuing data even when upgrades fail, e.g. by controller-privileged data query calls.
 :::
 
-:::note
-[Classical orthogonal persistence](./classical.md) with 32-bit main memory and Candid stabilization was the previous default compilation mode for `moc`. If necessary, it can be re-enabled with compiler flag `--legacy-persistence`.
-See [orthogonal persistence modes](./index.md) for a comparison.
-:::
-
 ## Design
-Compared to the legacy orthogonal persistence in Motoko, this design offers:
+This design offers:
 * **Performance**: New program versions directly resume from the existing main memory and have access to the memory-compatible data.
 * **Scalability**: The upgrade mechanism scales with larger heaps and in contrast to serialization, does not hit IC instruction limits.
 
-Compared to the explicit use of stable memory, this design improves:
+Compared to the explicit use of stable memory, it improves:
 * **Simplicity**: Developers do not need to deal with explicit stable memory.
 * **Performance**: No copying to and from the separate stable memory is necessary.
 
@@ -95,6 +90,6 @@ The old stable memory remains equally accessible as secondary (legacy) memory wi
 ## IC main memory retention
 
 The IC introduces a new upgrade option `wasm_memory_persistence` to control the retention of the canister's Wasm main memory.
-* `wasm_memory_persistence = opt keep` retains the Wasm main memory and is required for Motoko's enhanced orthogonal persistence. The IC prevents using this options for canisters with classical persistence.
-* `wasm_memory_persistence = null` uses the classical persistence, replacing the main memory. However, a safety check is implemented to prevent that main memory is not accidentally dropped for enhanced orthogonal persistence.
+* `wasm_memory_persistence = opt keep` retains the Wasm main memory and is what Motoko requires.
+* `wasm_memory_persistence = null` replaces the main memory. A safety check prevents the main memory from being dropped accidentally.
 * The other option `replace` is not recommended as it drops Wasm main memory, even for enhanced orthogonal persistence, leading to potential data loss.

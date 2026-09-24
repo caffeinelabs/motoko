@@ -745,7 +745,10 @@ and match_pat pat v : val_env option =
   | TupP pats ->
     match_pats pats (V.as_tup v) V.Env.empty
   | ObjP pfs ->
-    match_pat_fields pfs (V.as_obj v) V.Env.empty
+    if T.is_actor pat.note then
+      match_pat_fields_actor pfs v V.Env.empty
+    else
+      match_pat_fields pfs (V.as_obj v) V.Env.empty
   | OptP pat1 ->
     (match v with
     | V.Opt v1 -> match_pat pat1 v1
@@ -786,6 +789,18 @@ and match_pat_fields pfs vs ve : val_env option =
       | None -> None
     end
 
+and match_pat_fields_actor pfs actor ve : val_env option =
+  (* Actor field projection: each method binds to the deferred (actor, name)
+     pair ActorDotPrim produces (cf. interpret_prim_exp). *)
+  match pfs with
+  | [] -> Some ve
+  | pf::pfs' ->
+    begin
+      match match_pat pf.it.pat V.(Tup [actor; Text pf.it.name]) with
+      | Some ve' -> match_pat_fields_actor pfs' actor (V.Env.adjoin ve ve')
+      | None -> None
+    end
+
 (* Blocks and Declarations *)
 
 and interpret_block env ro decs exp k =
@@ -797,7 +812,7 @@ and interpret_block env ro decs exp k =
 and declare_dec dec : val_env =
   match dec.it with
   | LetD (pat, _) -> declare_pat pat
-  | VarD (id, _,  _) | RefD (id, _,  _) -> declare_id id
+  | VarD (id, _,  _) -> declare_id id
 
 and declare_decs decs ve : val_env =
   match decs with
@@ -818,11 +833,6 @@ and interpret_dec env dec k =
   | VarD (id, _, exp) ->
     interpret_exp env exp (fun v ->
       define_id env id (V.Mut (ref v));
-      k ()
-    )
-  | RefD (id, _, lexp) ->
-    interpret_lexp env lexp (fun v ->
-      define_id env id (V.Mut v);
       k ()
     )
 

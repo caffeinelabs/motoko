@@ -29,11 +29,11 @@ actor a {
 
   public func go() : async () {
     let u = ();
-    let ((),) = await* doUnit<()>(u);
-    let ((),) = await* doReturn<()>(u);
-    let ((),) = await* doExit<()>(u);
+    await* doUnit<()>(u);
+    await* doReturn<()>(u);
+    await* doExit<()>(u);
     try {
-      let ((),) = await* doThrow<()>();
+      await* doThrow<()>();
       assert(false);
     } catch (e) { assert P.errorMessage(e) == "oops";};
   }

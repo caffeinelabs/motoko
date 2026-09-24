@@ -6,3 +6,7 @@ func foo(b : Bool, n : Int) : (Int, Int) {
   }
 };
 ignore(foo(true,5));
+
+func pair(n : Nat64) : (Nat64, Nat64) = (n, n + 1);
+let (a, b) = pair(42);
+assert (a == 42 and b == 43);

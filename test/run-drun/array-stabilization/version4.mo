@@ -5,9 +5,9 @@ actor {
     type ArrayStructure = ?[AliasName];
     type AliasName = ArrayStructure;
 
-    stable var simpleArray: [var Float] = [var];
-    stable var nestedArray: [[Nat]] = [];
-    stable var recursiveArray = ?[] : ArrayStructure;
+    var simpleArray: [var Float] = [var];
+    var nestedArray: [[Nat]] = [];
+    var recursiveArray = ?[] : ArrayStructure;
 
     public func print() : async () {
         Prim.debugPrint(debug_show (simpleArray));

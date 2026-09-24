@@ -530,6 +530,14 @@ struct
   end
 end
 
+module Result =
+struct
+  module Syntax =
+  struct
+    let (let*) = Result.bind
+  end
+end
+
 module Promise =
 struct
   type 'a t = 'a option ref

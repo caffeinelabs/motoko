@@ -1,16 +1,16 @@
-deprecated.mo:15.9-15.14: warning [M0154], field foo is deprecated:
-do not use foo anymore
-deprecated.mo:16.9-16.14: warning [M0154], field foo is deprecated:
-do not use foo anymore
-deprecated.mo:18.8-18.11: warning [M0154], field f is deprecated:
-deprecated function
-deprecated.mo:19.8-19.11: warning [M0154], field f is deprecated:
-deprecated function
-deprecated.mo:20.8-20.11: warning [M0154], field f is deprecated:
-deprecated function
-deprecated.mo:22.13-22.16: warning [M0154], type field T is deprecated:
-also types
-deprecated.mo:24.11-24.12: warning [M0154], field f is deprecated:
-deprecated function
-deprecated.mo:25.11-25.16: warning [M0154], field f is deprecated:
-deprecated function
+deprecated.mo:15.9-15.14: warning [M0154], field foo is deprecated
+note: do not use foo anymore
+deprecated.mo:16.9-16.14: warning [M0154], field foo is deprecated
+note: do not use foo anymore
+deprecated.mo:18.8-18.11: warning [M0154], field f is deprecated
+note: deprecated function
+deprecated.mo:19.8-19.11: warning [M0154], field f is deprecated
+note: deprecated function
+deprecated.mo:20.8-20.11: warning [M0154], field f is deprecated
+note: deprecated function
+deprecated.mo:22.13-22.16: warning [M0154], type field T is deprecated
+note: also types
+deprecated.mo:24.11-24.12: warning [M0154], field f is deprecated
+note: deprecated function
+deprecated.mo:25.11-25.16: warning [M0154], field f is deprecated
+note: deprecated function

@@ -106,6 +106,7 @@ let run_get_sources_test source =
     let* _typ, sscope =
       Mo_types.Cons.session ~scope:filename (fun () ->
         Mo_frontend.Typing.infer_prog
+          ~stable_baseline_sig:None
           senv
           None
           async_cap
@@ -126,7 +127,7 @@ let run_get_sources_test source =
     ~finally:(fun () -> Mo_config.Flags.typechecker_combine_srcs := false)
 
 let%expect_test "" =
-  let s = {|persistent actor {
+  let s = {|actor {
   class Class1() = self {
     public func meth(_ : Int) : Nat {
       return 1

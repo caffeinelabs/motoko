@@ -1,0 +1,10 @@
+type-find-unshared2.mo:4.5-4.14: type error [M0096], expression of type
+  async<$> Nat
+cannot produce expected type
+  Nat
+type-find-unshared2.mo:3.29-3.48: type error [M0031], shared function has non-shared parameter type
+  (o : {var n : Nat})
+type
+  (o : {var n : Nat})
+is or contains non-shared type
+  var Nat

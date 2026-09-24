@@ -17,9 +17,9 @@ actor a {
 
   type Node = Lib.Node;
 
-  stable let savedNodes : [var ?(actor{})] = Prim.Array_init(n, null);
+  let savedNodes : [var ?(actor{})] = Prim.Array_init(n, null);
 
-  let nodes : [var ?Node] = Prim.Array_init(n, null);
+  transient let nodes : [var ?Node] = Prim.Array_init(n, null);
 
   // Would be nice if these were both tail calls on the platform
   public func lookup(k : Key) : async ?Value {
@@ -71,7 +71,7 @@ actor a {
     }
   };
 
-  stable var k = 0;
+  var k = 0;
   // add 2 next keys on each call
   public func go() : async () {
     // To get lots of cycles in drun

@@ -1,0 +1,6 @@
+error[M0231]: ambiguous implicit argument named `_toJson` of type 
+  {x : Int} -> Json.Json.
+    ┌─ implicit-derivation-structural-ambiguous.mo:16:32
+ 16 │  ignore ({ x = 1 : Int }).toJson();
+    │                                 ^^ 
+    = note: The ambiguous implicit candidates are: `AltRecordJson._toJson`, `RecordJson._toJson`.

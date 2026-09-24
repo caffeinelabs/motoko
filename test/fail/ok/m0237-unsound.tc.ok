@@ -1,0 +1,7 @@
+m0237-unsound.mo:29.54-29.65: warning [M0237], The `Nat.compare` argument can be inferred and omitted here (the function parameter is `implicit`).
+m0237-unsound.mo:35.11-35.56: type error [M0098], cannot apply function of type
+  <K, V>(iter : Iter.Iter<(K, V)>) -> Map.Map<K, V>
+to argument of type
+  Iter.Iter<(Nat, Text)>
+because there is no "best" choice for type parameter `K`.
+Hint: Add explicit type instantiation, e.g. <Nat, Text>

@@ -18,8 +18,19 @@ type resolved_import =
   | Unresolved
   | LibPath of lib_path
   | IDLPath of (string * (string, string) Either.t) (* filepath * envvar/bytes *)
+  | IDLTypesPath of string (* types-only import of a .did file *)
   | ImportedValuePath of string
   | PrimPath (* the built-in prim module *)
+
+(* Key identifying a resolved import in lib envs and import caches;
+   types-only and actor imports of the same .did file must not share a key. *)
+let lib_key_of_resolved_import = function
+  | Unresolved -> "/* unresolved */"
+  | LibPath {path; _}
+  | ImportedValuePath path
+  | IDLPath (path, _) -> path
+  | IDLTypesPath path -> path ^ "#types"
+  | PrimPath -> "@prim"
 
 (* Identifiers *)
 
@@ -182,14 +193,8 @@ let break_label kind (id_opt : id option) =
 
 type id_ref = (string, mut' * exp option) annotated_phrase
 
-and viewer_body = DotViewV of exp | DefaultV of exp
-and viewer = {
-    viewer_body : viewer_body;
-    viewer_field : Type.field
-  }
-
 and stab = stab' phrase
-and stab' = Stable of viewer option ref | Flexible
+and stab' = Stable | Flexible
 
 and exp = (exp', typ_note) annotated_phrase
 and exp' =
@@ -272,9 +277,9 @@ and dec' =
   | TypD of typ_id * typ_bind list * typ       (* type *)
   | ClassD of                                  (* class *)
       exp option * sort_pat * obj_sort * typ_id * typ_bind list * pat * typ option * id * dec_field list
-  | MixinD of pat * dec_field list             (* mixin *)
-  | IncludeD of id * exp * include_note (* mixin include *)
-and include_note' = { imports : import list; pat : pat; decs : dec_field list }
+  | MixinD of bool * pat * dec_field list             (* mixin *)
+  | IncludeD of id * bool * exp * include_note (* mixin include *)
+and include_note' = { imports : import list; pat : pat; decs : dec_field list; trivia : Trivia.triv_table }
 and include_note = include_note' option ref
 
 and import = (import', Type.typ) annotated_phrase
@@ -306,7 +311,7 @@ and comp_unit_body' =
  | ModuleU of id option * dec_field list     (* module library *)
  | ActorClassU of                            (* IC actor class, main or library *)
      persistence * exp option * sort_pat * typ_id * typ_bind list * pat * typ option * id * dec_field list
- | MixinU of pat * dec_field list            (* Mixins *)
+ | MixinU of bool * pat * dec_field list            (* Mixins *)
 
 type comp_unit = (comp_unit', prog_note) annotated_phrase
 and comp_unit' = {
@@ -351,6 +356,7 @@ let string_of_lit = function
 let string_of_resolved_import = function
   | LibPath {path; package } -> Printf.sprintf "LibPath {path = %s, package = %s}" path (match package with | Some p -> p | None -> "None")
   | IDLPath (path, _) -> Printf.sprintf "IDLPath (%s, _)" path
+  | IDLTypesPath path -> Printf.sprintf "IDLTypesPath %s" path
   | ImportedValuePath path -> Printf.sprintf "ImportedValuePath %s" path
   | PrimPath -> "PrimPath"
   | Unresolved -> "Unresolved"
@@ -401,10 +407,11 @@ let ignore_asyncE tbs e =
     AnnotE (AsyncE (None, Type.Fut, tbs, e) @? e.at,
       AsyncT (Type.Fut, scopeT e.at, TupT [] @! e.at) @! e.at) @? e.at ) @? e.at
 
-(** An expression that corresponds to the [exp_post] parser rule,
-    i.e. can appear to the left of [.] without parenthesization. *)
+(** An expression that can serve as the receiver of a postfix `.` rewrite.
+    Matches the [exp_post] grammar rule minus `LitE` — some literal source texts
+    don't round-trip (`-1.1` rebinds via unop, `0xff.f` lexes as a hex float). *)
 let is_postfix_exp (e : exp) = match e.it with
-  | VarE _ | LitE _ | CallE _ | DotE _
+  | VarE _ | CallE _ | DotE _
   | IdxE _ | ProjE _ | BangE _ | ArrayE _ -> true
   | _ -> false
 

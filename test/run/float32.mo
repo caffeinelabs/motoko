@@ -1,3 +1,6 @@
+//MOC-FLAG -A M0266
+// This test deliberately writes over-precise Float32 literals (e.g. a 21-digit
+// pi) to exercise rounding/conversion, so silence the excess-precision warning.
 import { floatToFloat32; float32ToFloat; debugPrint } = "mo:⛔";
 
 // 1.5 is exactly representable in f32, round-trips losslessly

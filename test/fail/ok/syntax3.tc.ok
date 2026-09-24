@@ -2,11 +2,10 @@ syntax3.mo:1.3-1.4: syntax error [M0001], unexpected token ';', expected one of 
   ]
   .<nat>
   !
-  <exp_nullary(ob)>
-  <binop> <exp(ob)>
+  <exp_cont>
   |> <exp_bin(ob)>
   or <exp_bin(ob)>
-  <binop> <exp_nest>
+  <binop> <exp(ob)>
   <unassign> <exp(ob)>
   <relop> <exp_bin(ob)>
   . <id>
@@ -17,5 +16,4 @@ syntax3.mo:1.3-1.4: syntax error [M0001], unexpected token ';', expected one of 
   <binassign> <exp(ob)>
   and <exp_bin(ob)>
   <unop> <exp_bin(ob)>
-  <inst> <exp_nullary(ob)>
-  [ <exp(ob)> ]
+  <inst> <exp_arg>

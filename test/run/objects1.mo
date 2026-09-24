@@ -53,7 +53,7 @@ assert (foo () == 67);
 
 // matching on type-annotated fields
 
-func baz () : Int = switch {a = 42} {
+func baz () : Int = switch ({a = 42}) {
   case {a : Int} a  // OK
 };
 

@@ -6,7 +6,7 @@ import Prim = "mo:⛔";
    { f : Int} =
    { f = -1 }
 )
-persistent actor {
+actor {
 
   var f : Int = Prim.trap("impossible");
   assert false

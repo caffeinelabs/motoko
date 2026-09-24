@@ -60,7 +60,7 @@ actor {
   };
 
   func lookupText(map : [(Text, Icrc3Value)], key : Text) : ?Text {
-    for ((k, v) in map.vals()) {
+    for ((k, v) in map.values()) {
       if (k == key) {
         switch v {
           case (#Text t) { return ?t };

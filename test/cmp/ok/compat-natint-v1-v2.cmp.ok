@@ -1,0 +1,13 @@
+(unknown location): Compatibility error [M0170], stable variable `i` is not compatible with the previous version.
+Previous type
+  var Int
+ is not a subtype of
+  var Nat
+ because the type 
+  Int
+ is not compatible with type 
+  Nat
+ in `i`.
+Write an explicit migration function to convert it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/compatibility/#explicit-migration-using-a-migration-function
+FALSE

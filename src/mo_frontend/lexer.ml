@@ -8,6 +8,14 @@ type parser_token = Parser.token * Lexing.position * Lexing.position
 
 let first (t, _, _) = t
 
+(* Tokens that can end an expression — an unspaced `#` right after one (`a#b`) stays concatenation instead of becoming a variant *)
+let ends_exp = function
+  | Parser.ID _ | Parser.NAT _ | Parser.FLOAT _ | Parser.CHAR _
+  | Parser.TEXT _ | Parser.BOOL _ | Parser.NULL | Parser.RPAR
+  | Parser.RBRACKET | Parser.RCURLY | Parser.UNDERSCORE
+  | Parser.DOT_NUM _ | Parser.NUM_DOT_ID _ | Parser.BANG | Parser.GT -> true
+  | _ -> false
+
 let opt_is_whitespace : 'a trivia option -> bool =
  fun x -> Option.fold ~none:false ~some:ST.is_whitespace x
 
@@ -15,6 +23,10 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
     (unit -> parser_token) * triv_table =
   let trivia_table : triv_table = PosHashtbl.create 1013 in
   let lookahead : source_token option ref = ref None in
+  (* Second half of a token that was split in two (see NULLCOALESCE below) *)
+  let pending : parser_token option ref = ref None in
+  (* The previously returned token, for the `#` disambiguation below *)
+  let prev_token : Parser.token ref = ref Parser.EOF in
   (* We keep the trailing whitespace of the previous token
      around so we can disambiguate operators *)
   let last_trailing : line_feed trivia list ref = ref [] in
@@ -37,7 +49,12 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
         token
     | Some t -> t
   in
-  let next_parser_token () : parser_token =
+  let next_parser_token' () : parser_token =
+    match !pending with
+    | Some t ->
+        pending := None;
+        t
+    | None ->
     let rec eat_leading acc =
       let token, start, end_ = next () in
       match ST.to_parser_token token with
@@ -75,11 +92,40 @@ let tokenizer (mode : Lexer_lib.mode) (lexbuf : Lexing.lexbuf) :
       match token with
       | Parser.GT when leading_ws () && trailing_ws () -> Parser.GTOP
       | Parser.LT when leading_ws () && trailing_ws () -> Parser.LTOP
+      (* MIGRATION BRIDGE — retired in moc v3 (#6352): the TIGHT_* tokens exist only so that legacy bare branches
+         (`if (c) (e)`, `if (c) [e]`, `if (c) #tag`, `if (c) -1`) keep parsing next to unparenthesized heads. Once control
+         bodies are brace-only a head is always terminated by `{`, and these collapse back into their plain tokens.
+         An unspaced `(`/`[` may extend a head with a call or index; a spaced one belongs to the branch or body that follows *)
+      | Parser.LPAR when not (leading_ws ()) -> Parser.TIGHT_LPAR
+      | Parser.LBRACKET when not (leading_ws ()) -> Parser.TIGHT_LBRACKET
+      (* `-`/`+`/`^` spaced from what precedes but glued to what follows is prefix-shaped: in a head it starts the branch
+         (`if (c) -1 else 1`); elsewhere the grammar still reads it as the binary operator (`n -1`) *)
+      | Parser.ADDOP when leading_ws () && not (trailing_ws ()) -> Parser.TIGHT_ADDOP
+      | Parser.SUBOP when leading_ws () && not (trailing_ws ()) -> Parser.TIGHT_SUBOP
+      | Parser.XOROP when leading_ws () && not (trailing_ws ()) -> Parser.TIGHT_XOROP
+      (* `#` glued to an identifier is prefix-shaped too — a variant introduction in a head (the branch in `if (c < 0) #less else ...`),
+         concatenation elsewhere — unless it directly follows an expression-ending token: `a#b` is concatenation everywhere *)
+      | Parser.HASH
+        when not (trailing_ws ())
+             && (match first (peek ()) with ST.ID _ -> true | _ -> false)
+             && (leading_ws () || not (ends_exp !prev_token)) ->
+          Parser.TIGHT_HASH
       | _ -> token
     in
     last_trailing := List.map (map_trivia absurd) trailing_trivia;
     PosHashtbl.add trivia_table (pos_of_lexpos start)
       { leading_trivia; trailing_trivia };
-    (token, start, end_)
+    (* `??` followed by whitespace is the null-coalescing operator; unspaced `??x` means two option introductions, i.e. `?(?x)` *)
+    match token with
+    | Parser.NULLCOALESCE when not (trailing_ws ()) ->
+        let mid = { start with Lexing.pos_cnum = start.Lexing.pos_cnum + 1 } in
+        pending := Some (Parser.QUEST, mid, end_);
+        (Parser.QUEST, start, mid)
+    | _ -> (token, start, end_)
+  in
+  let next_parser_token () : parser_token =
+    let (t, _, _) as tok = next_parser_token' () in
+    prev_token := t;
+    tok
   in
   (next_parser_token, trivia_table)

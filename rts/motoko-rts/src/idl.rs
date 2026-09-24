@@ -10,11 +10,10 @@ use crate::utf8::utf8_validate;
 
 use core::cmp::min;
 
-use motoko_rts_macros::{enhanced_orthogonal_persistence, ic_mem_fn};
+use motoko_rts_macros::ic_mem_fn;
 
 use crate::libc_declarations::{c_void, memcmp};
 
-#[enhanced_orthogonal_persistence]
 use crate::types::Value;
 
 unsafe extern "C" {
@@ -62,11 +61,8 @@ const IDL_CON_alias: i32 = 1;
 const IDL_PRIM_lowest: i32 = -17;
 
 // Only used for memory compatiblity checks for orthogonal persistence.
-#[enhanced_orthogonal_persistence]
 const IDL_EXT_blob: i32 = -129;
-#[enhanced_orthogonal_persistence]
 const IDL_EXT_tuple: i32 = -130;
-#[enhanced_orthogonal_persistence]
 const IDL_EXT_weak: i32 = -131;
 
 unsafe fn leb128_decode(buf: *mut Buf) -> u32 {
@@ -92,7 +88,6 @@ enum CompatibilityMode {
     /// Candidish stabilization (old stabilization format).
     CandidishStabilization,
     /// Memory compatibility of orthogonal persistence (with or without graph copying).
-    #[cfg(feature = "enhanced_orthogonal_persistence")]
     MemoryCompatibility,
 }
 
@@ -106,7 +101,6 @@ unsafe fn is_primitive_type(mode: CompatibilityMode, ty: i32) -> bool {
     match mode {
         CompatibilityMode::PureCandid => false,
         CompatibilityMode::CandidishStabilization => ty == IDL_EXT_region,
-        #[cfg(feature = "enhanced_orthogonal_persistence")]
         CompatibilityMode::MemoryCompatibility => ty == IDL_EXT_region || ty == IDL_EXT_blob,
     }
 }
@@ -202,7 +196,7 @@ unsafe fn parse_idl_header<M: Memory>(
     let n_types = leb128_decode(buf);
 
     // Early sanity check
-    if (*buf).ptr.add(n_types as usize) >= (*buf).end {
+    if n_types as usize > buf.size() {
         idl_trap_with("too many types");
     }
 
@@ -564,7 +558,7 @@ unsafe extern "C" fn find_field(
     buf: *mut Buf,
     typtbl: *mut *mut u8,
     tag: u32,
-    n: *mut u8,
+    n: *mut u32,
 ) -> bool {
     while *n > 0 {
         let last_p = (*tb).ptr;
@@ -587,7 +581,7 @@ unsafe extern "C" fn find_field(
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "C" fn skip_fields(tb: *mut Buf, buf: *mut Buf, typtbl: *mut *mut u8, n: *mut u8) {
+unsafe extern "C" fn skip_fields(tb: *mut Buf, buf: *mut Buf, typtbl: *mut *mut u8, n: *mut u32) {
     while *n > 0 {
         skip_leb128(tb);
         let it = sleb128_decode(tb);
@@ -614,7 +608,6 @@ unsafe fn is_null_opt_reserved(typtbl: *mut *mut u8, end: *mut u8, t: i32) -> bo
     return t == IDL_CON_opt;
 }
 
-#[enhanced_orthogonal_persistence]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub(crate) enum TypeVariance {
     Covariance,
@@ -622,7 +615,6 @@ pub(crate) enum TypeVariance {
     Invariance,
 }
 
-#[enhanced_orthogonal_persistence]
 impl TypeVariance {
     fn invert(self) -> TypeVariance {
         match self {
@@ -633,7 +625,6 @@ impl TypeVariance {
     }
 }
 
-#[enhanced_orthogonal_persistence]
 unsafe fn recurring_memory_check(
     cache: &BitRel,
     variance: TypeVariance,
@@ -647,7 +638,6 @@ unsafe fn recurring_memory_check(
     }
 }
 
-#[enhanced_orthogonal_persistence]
 unsafe fn remember_memory_check(cache: &BitRel, variance: TypeVariance, t1: usize, t2: usize) {
     match variance {
         TypeVariance::Covariance => cache.visit(true, t1, t2),
@@ -669,7 +659,6 @@ unsafe fn remember_memory_check(cache: &BitRel, variance: TypeVariance, t1: usiz
 /// * Records cannot introduce additional optional fields.
 /// * Same arity for tuple types.
 /// * Records and tuples are distinct.
-#[enhanced_orthogonal_persistence]
 pub(crate) unsafe fn memory_compatible(
     rel: &BitRel,
     variance: TypeVariance,
@@ -1219,6 +1208,8 @@ pub(crate) unsafe fn sub(
                 }
                 return true;
             }
+            // rule: `service <actortype> <: principal`
+            (IDL_CON_service, IDL_REF_principal) => return true,
             (IDL_CON_service, IDL_CON_service) => {
                 let mut n1 = leb128_decode(&mut tb1);
                 let n2 = leb128_decode(&mut tb2);
@@ -1287,7 +1278,6 @@ unsafe extern "C" fn idl_sub_buf_init(
     rel.init();
 }
 
-#[enhanced_orthogonal_persistence]
 #[ic_mem_fn]
 unsafe fn idl_alloc_typtbl<M: Memory>(
     mem: &mut M,

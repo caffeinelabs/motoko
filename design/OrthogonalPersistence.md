@@ -8,12 +8,10 @@ This implements the vision of **enhanced orthogonal persistence** in Motoko that
 As a result, the use of secondary storage (explicit stable memory, dedicated stable data structures, DB-like storage abstractions) will no longer be necessary: Motoko developers can directly work on their normal object-oriented program structures that are automatically persisted and retained across program version changes.
 
 ## Activation
-Enhanced orthogonal persistence is offered via the compiler flag `--enhanced-orthogonal-persistence`.
-Classical persistence with 32-bit main memory and Candid stabilization currently remains the default mode.
-See `design/PersistenceModes.md` for more information.
+Enhanced orthogonal persistence is the only persistence mode and is enabled by default.
 
 ## Advantages
-Compared to the existing orthogonal persistence in Motoko, this design offers:
+This design offers:
 * **Performance**: New program versions directly resume from the existing main memory and have access to the memory-compatible data.
 * **Scalability**: The upgrade mechanism scales with larger heaps and in contrast to serialization, does not hit IC instruction limits.
 
@@ -32,8 +30,8 @@ The enhanced orthogonal persistence is based on the following main properties:
 ## IC Main Memory Retention
 
 The IC introduces a new upgrade option `wasm_memory_persistence` to control the retention of the canister's Wasm main memory.
-* `wasm_memory_persistence = opt keep` retains the Wasm main memory and is required for Motoko's enhanced orthogonal persistence. The IC prevents using this options for canisters with classical persistence.
-* `wasm_memory_persistence = null` uses the classical persistence, replacing the main memory. However, a safety check is implemented to prevent that main memory is not accidentally dropped for enhanced orthogonal persistence.
+* `wasm_memory_persistence = opt keep` retains the Wasm main memory and is what Motoko requires.
+* `wasm_memory_persistence = null` replaces the main memory. A safety check prevents the main memory from being dropped accidentally.
 * The other option `replace` is not recommended as it drops main memory, even for enhanced orthogonal persistence.
 
 ### Memory Layout

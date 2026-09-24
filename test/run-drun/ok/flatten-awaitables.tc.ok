@@ -118,12 +118,4 @@ does not cover value
   (3, false, _) or
   (3, true, _) or
   (0 or 1 or _, _, _)
-flatten-awaitables.mo:38.5-38.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-flatten-awaitables.mo:47.5-47.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
 flatten-awaitables.mo:56.5-56.13: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-flatten-awaitables.mo:61.5-61.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-flatten-awaitables.mo:70.5-70.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-flatten-awaitables.mo:80.5-80.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-flatten-awaitables.mo:89.5-89.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-flatten-awaitables.mo:98.5-98.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression
-flatten-awaitables.mo:107.5-107.14: warning [M0239], Avoid binding a unit `()` result; remove `let` and keep the expression

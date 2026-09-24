@@ -380,3 +380,40 @@ do {
   assert needsNatArrayCompare([1, 2], [1, 3]) == #less;
   assert intCompareCalled;
 };
+
+// Derivation when the type variable occurs only in the (covariant) result, e.g.
+// JSON-style decoders `Text -> ?T`. The variable must be solved to the required
+// type, not bottom (`None`).
+do {
+  module Text {
+    public func decode(s : Text) : ?Text { ?s };
+  };
+
+  module Array {
+    public func decode<T>(s : Text, decode : (implicit : Text -> ?T)) : ?[T] =
+      do ? { [decode(s)!] };
+  };
+
+  func decodeField<T>(s : Text, decode : (implicit : Text -> ?T)) : ?T = decode(s);
+
+  assert decodeField<Text>("a") == ?"a";
+  // Derives Array.decode, whose inner `Text -> ?Text` hole resolves to Text.decode.
+  assert decodeField<[Text]>("a") == ?["a"];
+};
+
+// `?A -> ?B  <:  ?Nat -> ?Int` should pick the maximal solution
+// `A := Nat` (lower bound) and `B := Int` (upper bound).
+do {
+  module Int {
+    public func coerce(n : Nat) : Int = n;
+  };
+
+  module Opt {
+    public func coerce<A, B>(x : ?A, coerce : (implicit : A -> B)) : ?B =
+      do ? { coerce(x!) };
+  };
+
+  func useCoerce(x : ?Nat, coerce : (implicit : ?Nat -> ?Int)) : ?Int = coerce(x);
+
+  assert useCoerce(?5) == ?(5 : Int);
+};

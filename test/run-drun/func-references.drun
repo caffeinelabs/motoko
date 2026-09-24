@@ -1,0 +1,2 @@
+install $ID func-references/main.mo ""
+ingress $ID getFuncs "DIDL\x00\x00"

@@ -622,6 +622,7 @@ let is_non = function Non -> true | _ -> false
 let is_prim p = function Prim p' -> p = p' | _ -> false
 let is_obj = function Obj _ -> true | _ -> false
 let is_module = function Obj (Module, _, _) -> true | _ -> false
+let is_actor = function Obj (Actor, _, _) -> true | _ -> false
 let is_variant = function Variant _ -> true | _ -> false
 let is_array = function Array _ -> true | _ -> false
 let is_opt = function Opt _ -> true | _ -> false
@@ -940,8 +941,6 @@ let serializable allow_mut t =
       | Any | Non | Prim _ -> true
       | Async _ -> false
       | Weak t ->
-         !Mo_config.Flags.enhanced_orthogonal_persistence &&
-         (* NB: Candid serialization doesn't preserve graph structure *)
          (* weak references are stable if content is stable *)
          allow_mut && go t
       | Mut t -> allow_mut && go t

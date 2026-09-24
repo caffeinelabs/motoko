@@ -363,9 +363,10 @@ The syntax of an **import** `<imp>` is as follows:
   "ic:<canisterid>"                 Import external actor by <canisterid>
   "canister:<name>"                 Import external actor by <name>
   "blob:file:<filepath>"            Import literal `Blob` value from <filepath>
+  "idl:<filepath>"                  Import types-only module from Candid <filepath>
 ```
 
-An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
+An import introduces a resource referring to a local source module, module from a package of modules, a canister imported as an actor, a types-only module from a Candid IDL file, or a literal [`Blob`](#type-blob) value. The contents of the resource are bound to `<pat>`.
 
 Though typically a simple identifier, `<id>`, `<pat>` can also be any composite pattern binding selective components of the resource.
 
@@ -472,9 +473,8 @@ The **visibility** qualifier `<vis>?` determines the accessibility of every fiel
 
 The **stability** qualifier `<stab>` determines the **upgrade** behavior of actor fields:
 
--   A stability qualifier should appear on `let` and `var` declarations that are actor fields.
-    Within a `persistent` actor or actor class, an absent stability qualifier defaults to `stable`.
-    Within a non-`persistent` actor or actor class, an absent stability qualifier defaults to `flexible` (or `transient`).
+-   A stability qualifier may appear on `let` and `var` declarations that are actor fields.
+    Actors and actor classes are `persistent` by default, so an absent stability qualifier means the field is persisted across upgrades (`stable`).
     The keywords `transient` and `flexible` are interchangeable.
 
 -   `<stab>` qualifiers must not appear on fields of objects or modules.
@@ -1362,6 +1362,8 @@ In detail, if `<url>` is of the form:
 -   `"blob:file:<filepath>"` then `<pat>` is bound to a blob containing the contents of the file `<filepath>`. `<filepath>` is interpreted relative to the absolute location of the enclosing file. For example, `import image "blob:file:/assets/image.jpg"` defines `image` as the blob with bytes from local file `./assets/image.jpg`. Unlike library imports, `<filepath>` should include the
 file's extension, if any.
 
+-   `"idl:<filepath>"` then `<pat>` is bound to a types-only Motoko module derived from the Candid IDL file at `<filepath>`: type field `Self` is the service actor type, and each named Candid type declared in that file is exported (PascalCased when unambiguous). `<filepath>` is interpreted relative to the absolute location of the enclosing file and should include the extension (typically `.did`). For example, `import S "idl:api/ledger.did"` defines `S` with `S.Self` and related type aliases. This import cannot be used to call methods; use `ic:` / `canister:` (or `actor "<principal>" : S.Self`) for a live reference.
+
 The case sensitivity of file references depends on the host operating system so it is recommended not to distinguish resources by filename casing alone.
 
 When building multi-canister projects with the [IC SDK](https://github.com/dfinity/sdk), Motoko programs can typically import canisters by alias (e.g. `import C "canister:counter"`), without specifying low-level canister ids (e.g. `import C "ic:lg264-qjkae"`). The SDK tooling takes care of supplying the appropriate command-line arguments to the Motoko compiler.)
@@ -1376,8 +1378,8 @@ Any identifier bound by a `public` declaration appears in the type of enclosing 
 
 An identifier bound by a `private` or `system` declaration is excluded from the type of the enclosing object, module or actor and thus inaccessible.
 
-In a `persistent` actor or actor class, all declarations are implicitly `stable` unless explicitly declared otherwise.
-In a non-`persistent` actor or actor class, all declarations are implicitly `transient` (equivalently `flexible`) unless explicitly declared otherwise.
+In a `persistent` actor or actor class (the default), all declarations are persisted across upgrades (`stable`) unless explicitly declared `transient`.
+In a non-`persistent` actor or actor class, all declarations are `transient` (equivalently `flexible`) unless explicitly declared `stable`.
 
 The declaration field has type `T` provided:
 
@@ -2130,11 +2132,11 @@ Thus the field list serves to:
 -   Define new fields.
 -   Override existing fields and their types.
 -   Add new `var` fields.
--   Redefine existing `var` fields from some base to prevent aliasing.
+-   Override existing `var` fields from some base, replacing the base's field with a fresh one.
 
 The resulting type is determined by the bases' and explicitly given fields' static type.
 
-Any `var` field from some base must be overwritten in the explicit field list. This prevents introducing aliases of `var` fields.
+A `var` field of some base that is not overwritten is copied into a fresh mutable field of the result, initialized with the base field's value at the time the record expression is evaluated. Mutating that field of the result does not affect the base, and mutating the base's field does not affect the result. Since an explicit field initializer may mutate a base, each such copy is made after all the explicit fields have been evaluated.
 
 The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_fieldn>; }` has type `T` provided:
 
@@ -2149,8 +2151,6 @@ The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_field
     Let `fields(i) == { <idi1>, ..., <idik> }` be the set of static field names of base `i`. Then:
 
     -   `fields(i)` is disjoint from `newfields` (possibly by applying subtyping to the type of `<expi>`).
-
-    -   No field in `field_tysi` is a `var` field.
 
     -  `fields(i)` is disjoint from `fields(j)` for `j < i`.
 
@@ -2171,7 +2171,7 @@ Note that the case for type fields is simpler than the value fields case only be
 The record expression `{ <exp1> and ... <expn> with <exp-field1>; ... <exp_fieldm>; }` evaluates records `<exp1>` through `<expn>` and `{ exp-field1; ... <exp_fieldm }` to results `r1` through `rn` and `r`, trapping on the first result that is a trap. If none of the expressions produces a trap, the results are objects `sort1 { f1 }`, `sortn { fn }` and `object { f }`, where `f1` ... `fn` and `f` are maps from identifiers to values or mutable locations.
 
 The result of the entire expression is the value `object { g }` where `g` is the partial map with domain `fields(1) union fields(n) union newfields` mapping identifiers to unique
-values or locations such that `g(<id>) = fi(<id>)` if `<id>` is in `fields(i)`, for some `i`, or `f(<id>)` if `<id>` is in `newfields`.
+values or locations such that `g(<id>) = fi(<id>)` if `<id>` is in `fields(i)` and is not a `var` field, for some `i`; `g(<id>)` is a fresh location holding the value of `fi(<id>)` if `<id>` is in `fields(i)` and is a `var` field; and `g(<id>) = f(<id>)` if `<id>` is in `newfields`. A location `fi(<id>)` copied this way yields a different location than `g(<id>)`, so the two can be updated independently. As the copy is taken after the evaluation of `{ exp-field1; ... <exp_fieldm> }`, a `var` base field mutated by a field initializer is copied at its updated value.
 
 ### Object projection (member access)
 
@@ -2388,6 +2388,12 @@ the expanded function call expression `<parenthetical>? <exp1> <T0,…​,Tn>? <
     A derivable candidate is a function (possibly polymorphic) that has implicit parameters of its own, and whose type, after removing its implicit parameters and instantiating its type parameters, matches the required hole type.
     If the derivable candidate's own implicit parameters can be recursively resolved (up to a configurable depth limit), the compiler synthesizes a wrapper function that calls the candidate with the resolved inner implicits.
     This allows, for example, an implicit `compare : ([Nat], [Nat]) -> Order` to be derived from `Array.compare<Nat>` when `Nat.compare` is in scope. The derivation depth is bounded by the `--implicit-derivation-depth` flag.
+
+    **Structural derivation**: When derivation also fails, the compiler additionally searches for *structural combiners* — first among local values, then module fields, then library fields (gated on `--implicit-package`). The combiner's parameter name determines the structural kind:
+
+    - `__record` (parameter type `[(Text, () -> E)] -> R`): handles both unary holes (`SomeRecord -> R`) and binary holes (`(SomeRecord, SomeRecord) -> R` where both args are the same record type). For a unary hole it synthesizes `func($r) { combiner([("f", func() = inst($r.f)), ...]) }` with per-field implicits `FieldType -> E`. For a binary hole it synthesizes `func($r1, $r2) { combiner([("f", func() = inst($r1.f, $r2.f)), ...]) }` with per-field implicits `(FieldType, FieldType) -> E`. Per-field thunks let the combiner short-circuit (e.g. comparison). The arity is determined by the hole type, not the combiner.
+    - `__tuple` (parameter type `[() -> E] -> R`): handles both unary holes (`(A, B, ...) -> R` with at least two elements) and binary holes (`((A, B, ...), (A, B, ...)) -> R` where both args are the same tuple type with ≥ 2 elements). For a unary hole it synthesizes `func($t) { combiner([func() = inst0($t.0), func() = inst1($t.1), ...]) }` with per-element implicits `ElemType_i -> E`. For a binary hole it synthesizes `func($t1, $t2) { combiner([func() = inst0($t1.0, $t2.0), ...]) }` with per-element implicits `(ElemType_i, ElemType_i) -> E`. Tuples with fewer than two elements are not synthesized: single-element tuples reduce to the element type, and unit `()` is treated as a scalar.
+    - `__variant` (parameter type `(Text, () -> E) -> R`): handles unary holes (`SomeVariant -> R`) only. Since a variant value is exactly one of its cases, it synthesizes `func($v) { combiner(switch $v { case (#t x) ("t", func() = inst(x)); ... }) }` with per-case implicits `CaseType -> E`. Binary holes (`(SomeVariant, SomeVariant) -> R`) are not synthesized, since the two values may inhabit different cases.
 
 The call expression `<exp1> <T0,…​,Tn>? <exp2>` evaluates `<exp1>` to a result `r1`. If `r1` is `trap`, then the result is `trap`.
 

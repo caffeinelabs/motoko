@@ -1,0 +1,8 @@
+em-baseline-legacy-with-x-only.mo:9.1-12.2: type error [M0267], the migration chain requires field `a` of type
+  Nat as input; the previous version must provide it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
+em-baseline-legacy-with-x-only.mo:11.9-11.10: type error [M0267], initial actor requires field `c` of type
+  var Nat; not found in the previous version — write a migration that produces it.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/
+em-baseline-legacy-with-x-only.mo:9.1-12.2: Compatibility error [M0169], stable variable `x` of the previous version cannot be implicitly discarded. The variable can only be dropped by an explicit migration function.
+See https://docs.internetcomputer.org/languages/motoko/fundamentals/actors/enhanced-multi-migration/

@@ -6,6 +6,12 @@ open Mo_types
    c.f. (simpler) Types.match_sig.
 *)
 
-val match_stab_fields : Diag.msg_store -> Source.region -> Type.mig_lab option ->Type.field list -> (bool * Type.field) list -> unit
+val enhanced_migration_link : string
+
+val match_stab_fields : Diag.msg_store -> Source.region -> string -> Type.mig_lab option ->Type.field list -> (bool * Type.field) list -> unit
+
+val chain_input_fields : Type.mig_lab option -> (string * Type.typ * Type.typ) list -> Type.field list
+
+val match_stab_em_fields : Diag.msg_store -> Source.region -> Type.mig_lab option -> Type.field list -> Type.field list -> Type.field list -> unit
 
 val match_stab_sig : Type.stab_sig -> Type.stab_sig -> unit Diag.result

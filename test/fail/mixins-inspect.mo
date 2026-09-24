@@ -1,7 +1,7 @@
 import Mixin "mixins/Counter";
 // check system func inspect domain includes mixin methods
 // NB: generates odd warning about unused fields counter and increment
-persistent actor {
+actor {
   include Mixin(0);
 
   system func inspect(

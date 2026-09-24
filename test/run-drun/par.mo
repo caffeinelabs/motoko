@@ -117,7 +117,7 @@ actor A {
     func localOuter() : async () { debugPrint ("localOuter: " # debug_show(Cycles.available())) };
     public func test9() : async () {
         debugPrint "test9()";
-        var env = 42;
+        let env = 42;
         func local() : async () { debugPrint ("local: " # debug_show(env + Cycles.available())) };
 
         // give a (dynamically) bogus base

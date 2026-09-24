@@ -5,7 +5,7 @@ error[M0230]: Cannot determine implicit argument `chain` of type
     │         ^^^^^^^^^^^^^^ 
     = note: Implicit derivation failed:
                  `step : Nat -> None` not found
-                 `finish : None -> None` not found
+                 `finish : None -> Nat` not found
 error[M0230]: Cannot determine implicit argument `wrap` of type
   Nat -> Bool
     ┌─ implicit-derivation-bimatch.mo:23:8

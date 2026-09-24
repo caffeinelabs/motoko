@@ -19,16 +19,49 @@ s/<id>/ID/g
 /^<parse_stab_sig> ::=/,/^$/d
 /.*PRIM.*/d
 /.*NUM_DOT_ID.*/d
-/^<bl> ::=/,+2d
-/^<ob> ::=/,+2d
+# the grammar modes and their dead stand-ins are a device of the implementation, not of the language
+/^<bl(X, DEAD)> ::=/,/^$/d
+/^<ob(X, DEAD)> ::=/,/^$/d
+/^<dead_exp> ::=/,/^$/d
+/^<dead_cont> ::=/,/^$/d
+/^<dead_bin> ::=/,/^$/d
+s/B(<exp_obj>, <dead_exp>)/<exp_obj>/g
+s/R(<exp_cont_loose>, <dead_cont>)/<exp_cont_loose>/g
+# the prefix-shaped operator spellings are a whitespace detail of the lexer: the language grammar has one `+`, `-`, `^`, `#`
+/^ *R(<exp_bin_asym/d
+/^<exp_bin_asym(B)> ::=/,/^$/d
+/^<binop_asym> ::=/,/^$/d
+/^ *TIGHT_\(ADDOP\|SUBOP\|XOROP\)$/d
 s/<start> //g
 s/<parse_prog>/<prog>/g
 s/(<bl>)//g
 s/(<ob>)//g
 s/(B)//g
-s/ B$/ <exp_obj>/g
+s/(B, R)//g
+s/(B, <ob>)//g
+s/(<ob>, <ob>)//g
+s/(<bl>, <bl>)//g
+s/(<bl>, <ob>)//g
+s/(<bl>, R)//g
+s/(R, R)//g
+s/(R)//g
+# the legacy_* aliases only document the v3 flip (#6352); the published grammar shows the underlying production
+/^<legacy_body> ::=/,/^$/d
+/^<legacy_operand> ::=/,/^$/d
+s/<legacy_body>/<exp_nest>/g
+s/<legacy_operand>/<exp_nest>/g
+/^<lpar> ::=/,/^$/d
+/^<lbracket> ::=/,/^$/d
+/^<hash> ::=/,/^$/d
+s/<lpar>/'('/g
+s/<hash>/'#'/g
+s/TIGHT_LPAR/'('/g
+s/TIGHT_HASH/'#'/g
 s/\[/(/g
 s/\]/)?/g
+# bracket tokens are rewritten only after obelisk's optional-group brackets above, else they would become parens
+s/<lbracket>/'['/g
+s/TIGHT_LBRACKET/'['/g
 s/(\([a-zA-Z_0-9]*\))/\1/g
 s/(\(<[a-z_0-9]*>\))/\1/g
 s/<semicolon>/\';\'/g

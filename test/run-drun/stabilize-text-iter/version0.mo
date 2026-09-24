@@ -1,11 +1,11 @@
 import Prim "mo:prim";
 
 actor {
-  let temporary = 1;
+  transient let temporary = 1;
 
-  let textiter = "hello".chars();
+  transient let textiter = "hello".chars();
 
-  stable let value : {
+  let value : {
     stableField : Text;
   } = {
     stableField = "Version 0";
@@ -13,13 +13,13 @@ actor {
     unreachableField = -123;
   };
 
-  stable let any : Any = textiter;
-  stable let tuple : (Int, Any) = (0, textiter);
-  stable let variant : { #tag : Any } = #tag textiter;
-  stable let record : { lab : Any } = { lab = textiter };
-  stable let vector : [Any] = [textiter];
-  stable let array : [var Any] = [var textiter];
-  stable let opt : ?Any = ?textiter;
+  let any : Any = textiter;
+  let tuple : (Int, Any) = (0, textiter);
+  let variant : { #tag : Any } = #tag textiter;
+  let record : { lab : Any } = { lab = textiter };
+  let vector : [Any] = [textiter];
+  let array : [var Any] = [var textiter];
+  let opt : ?Any = ?textiter;
 
   public func print() : async () {
     Prim.debugPrint(debug_show (value));

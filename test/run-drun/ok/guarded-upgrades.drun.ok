@@ -1,5 +1,5 @@
 ingress Completed: Reply: 0x4449444c016c01b3c4b1f204680100010a00000000000000000101
 ingress Completed: Reply: 0x4449444c0000
 ingress Err: IC0503: Error from Canister rwlgt-iiaaa-aaaaa-aaaaa-cai: Canister called `ic0.trap` with message: 'Detected implicit upgrade from classical orthogonal persistence to enhanced orthogonal persistence. Recompile with explicit flag --enhanced-orthogonal-persistence and redeploy to enable this irreversible migration.'.
-Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://internetcomputer.org/docs/current/references/execution-errors#trapped-explicitly
+Consider gracefully handling failures from this canister or altering the canister to handle exceptions. See documentation: https://docs.internetcomputer.org/references/execution-errors#trapped-explicitly
 ingress Completed: Reply: 0x4449444c0000
