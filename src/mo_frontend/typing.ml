@@ -3507,19 +3507,28 @@ and m0237_validate_candidates env ts implicit_positions =
         | _ -> raise_notrace Bail)
   with Bail -> []
 
-and emit_m0237_warnings env candidates =
+(* [args_close] is the position of the call's closing `)`, when the arguments are parenthesized.
+   A non-last argument is removed together with the separator up to the next argument.
+   The last argument is removed up to the `)`, taking its own trailing comma along: stopping at the
+   argument would leave `f(a,\n  ,\n)`, a syntax error. Every other suggested edit on the call ends
+   at or before the last argument's start, so the removals never overlap.
+   An unparenthesized sole argument (`f x`) becomes `()`, as removing it would leave no call at all. *)
+and emit_m0237_warnings env args_close candidates =
   List.iter (fun (name, exp, next_arg) ->
     if exp.at = Source.no_region then () else (* no warnings for compiler-generated calls *)
-    let to_remove = match next_arg with None -> exp.at | Some next -> { exp.at with right = next.at.left } in
+    let to_remove, replacement = match next_arg, args_close with
+      | Some next, _ -> { exp.at with right = next.at.left }, ""
+      | None, Some close -> { exp.at with right = close }, ""
+      | None, None -> exp.at, "()" in
     warn env exp.at "M0237"
-      ~edits:[edit to_remove ""]
+      ~edits:[edit to_remove replacement]
       "The `%s` argument can be inferred and omitted here (the function parameter is `implicit`)." name) candidates
 
 (* Post-inference M0237 check: validates the prepared candidates against [ts] and emits warnings iff the trial confirms it's safe. *)
-and check_explicit_arguments env ts = function
+and check_explicit_arguments env args_close ts = function
   | None -> false
   | Some (ts', candidates) ->
-    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env candidates; true)
+    candidates <> [] && eq_ts ts ts' && (emit_m0237_warnings env args_close candidates; true)
 
 and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
   let exp2 = !ref_exp2 in
@@ -3667,7 +3676,16 @@ and infer_call env exp1 inst (parenthesized, ref_exp2) at t_expect_opt =
     | _ -> ()
     end;
     check_can_dot env m0236_prep (List.map (T.open_ ts) t_args) exp1 at;
-    let warned = check_explicit_arguments env ts m0237_prep in
+    (* Position of the closing `)`: a multi-argument tuple's region spans its parentheses,
+       while a single parenthesized argument drops them, so fall back to the call's end. *)
+    let args_close =
+      let before_last_char (p : Source.pos) = { p with column = p.column - 1 } in
+      match exp2.it with
+      | TupE _ when not parenthesized -> Some (before_last_char exp2.at.right)
+      | _ when parenthesized -> Some (before_last_char at.right)
+      | _ -> None
+    in
+    let warned = check_explicit_arguments env args_close ts m0237_prep in
     if not warned && !is_redundant_inst then
       warn env inst.at "M0223" ~edits:[edit inst.at ""] "redundant type instantiation"
   end;

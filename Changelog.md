@@ -154,6 +154,13 @@
     The `motoko-base-library.tar.gz` release artifact is also dropped;
     `motoko-core.tar.gz` is unaffected. (#6355)
 
+  * bugfix: the `M0237` (implicit argument can be omitted) edit no longer
+    leaves a syntax error when applied. For an implicit argument in last
+    position the edit now also removes its trailing comma, so a multi-line call
+    ending in `…,\n  Nat.compare,\n)` no longer becomes `…,\n  ,\n)`; a
+    juxtaposed sole argument (`f x`) becomes `f ()` instead of `f`. Previously
+    `mops check --fix` rewrote such calls into an `M0001` syntax error.
+
 * motoko-js (`moc.js`)
 
   * **Breaking:** `gcFlags` accepts only `"force"` and `"scheduling"`.

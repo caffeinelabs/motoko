@@ -1,0 +1,10 @@
+warning[M0237]: The `NatText.toText` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ m0237-trailing-comma.mo:16:3
+ 16 │    NatText.toText,
+    │    ^^^^^^^^^^^^^^ 
+    = help: remove `NatText.toText,`
+warning[M0237]: The `toText` argument can be inferred and omitted here (the function parameter is `implicit`).
+    ┌─ m0237-trailing-comma.mo:22:20
+ 22 │    ignore only<Nat> toText;
+    │                     ^^^^^^ 
+    = help: replace `toText` with `()`
