@@ -1,5 +1,4 @@
-text-module.mo:0.1: warning [M0142], deprecated syntax: an imported library should be a module or named actor class
 error-imports.mo:1.8-1.15: type error [M0050], literal of type
   Text
 does not have expected type
-  module {}
+  module {text : Text}

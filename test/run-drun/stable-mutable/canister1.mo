@@ -1,7 +1,7 @@
 actor {
 
-  flexible let array = [var 1, 2, 3];
-  flexible let obj = { var field = "hello"; extra = 1 };
+  transient let array = [var 1, 2, 3];
+  transient let obj = { var field = "hello"; extra = 1 };
 
   let a = (array, array);
   let b = (obj : { var field : Text} , obj);

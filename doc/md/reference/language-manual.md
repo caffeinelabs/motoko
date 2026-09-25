@@ -91,8 +91,8 @@ The following keywords are reserved and may not be used as identifiers:
 
 ``` bnf
 actor and assert async async* await await? await* break case
-catch class composite continue debug debug_show do else false flexible
-finally for from_candid func if ignore import implicit in include label let
+catch class composite continue debug debug_show do else false finally
+for from_candid func if ignore import implicit in include label let
 loop mixin module not null object or persistent private public query
 return shared stable switch system throw to_candid true transient try
 type var weak while with
@@ -455,8 +455,7 @@ For `<shared-pat>`, an absent `<pat>?` is shorthand for the wildcard pattern `_`
 
 <stab> ::=                                     field stability (actor only)
   stable
-  flexible
-  transient                                      (equivalent to flexible)
+  transient
 ```
 
 The **visibility** qualifier `<vis>?` determines the accessibility of every field `<id>` declared by `<dec>`:
@@ -475,7 +474,6 @@ The **stability** qualifier `<stab>` determines the **upgrade** behavior of acto
 
 -   A stability qualifier may appear on `let` and `var` declarations that are actor fields.
     Actors and actor classes are `persistent` by default, so an absent stability qualifier means the field is persisted across upgrades (`stable`).
-    The keywords `transient` and `flexible` are interchangeable.
 
 -   `<stab>` qualifiers must not appear on fields of objects or modules.
 
@@ -1379,7 +1377,7 @@ Any identifier bound by a `public` declaration appears in the type of enclosing 
 An identifier bound by a `private` or `system` declaration is excluded from the type of the enclosing object, module or actor and thus inaccessible.
 
 In a `persistent` actor or actor class (the default), all declarations are persisted across upgrades (`stable`) unless explicitly declared `transient`.
-In a non-`persistent` actor or actor class, all declarations are `transient` (equivalently `flexible`) unless explicitly declared `stable`.
+In a non-`persistent` actor or actor class, all declarations are `transient` unless explicitly declared `stable`.
 
 The declaration field has type `T` provided:
 

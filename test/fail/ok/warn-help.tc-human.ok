@@ -6,8 +6,6 @@ M0081 (W) If branches have inconsistent types
 M0089 (E) Redundant ignore
 M0101 (W) Switch with inconsistent branch types
 M0128 (W) Function with system function name but wrong visibility
-M0135 (W) Actor class has non-async return type
-M0142 (W) An imported library should be a module or named actor class
 M0145 (W) Pattern does not cover value
 M0146 (W) Pattern is never matched
 M0154 (W) Deprecation annotation

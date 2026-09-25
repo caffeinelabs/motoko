@@ -2,7 +2,7 @@
 import Prim "mo:⛔";
 actor a {
 
-  flexible var pending : Int = 4;
+  transient var pending : Int = 4;
 
   // test that oneways can locally try/throw
   public func oneway() : () {

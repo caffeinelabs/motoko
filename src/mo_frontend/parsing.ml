@@ -150,7 +150,7 @@ let is_statement_start (token : Parser.token) =
 let is_declaration_start (token : Parser.token) =
   match token with
   | Parser.PUBLIC | Parser.PRIVATE | Parser.SYSTEM | Parser.SHARED
-  | Parser.STABLE | Parser.FLEXIBLE | Parser.TRANSIENT | Parser.PERSISTENT
+  | Parser.STABLE | Parser.TRANSIENT | Parser.PERSISTENT
   | Parser.IMPORT | Parser.INCLUDE | Parser.MODULE | Parser.MIXIN | Parser.ACTOR
   | Parser.CASE | Parser.CATCH | Parser.FINALLY | Parser.ELSE -> true
   | _ -> false

@@ -5204,11 +5204,8 @@ and infer_dec env dec : T.typ =
       leave_scope env ve initial_usage;
       match typ_opt, obj_sort.it with
       | None, _ -> ()
-      | Some { it = AsyncT (T.Fut, _, typ); at; _ }, T.Actor
-      | Some ({ at; _ } as typ), T.(Module | Object) ->
-        if at = no_region then
-          warn env dec.at "M0135"
-            "actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'";
+      | Some { it = AsyncT (T.Fut, _, typ); _ }, T.Actor
+      | Some typ, T.(Module | Object) ->
         let t'' = check_typ env'' typ in
         if not (sub env dec.at t' t'') then
           local_error env dec.at "M0134"
@@ -5759,19 +5756,22 @@ let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
                 | _ -> None);
               stable_baseline_sig;
             } in
-          let (imp_ds, ds) = CompUnit.decs_of_lib lib in
+          let (imp_ds, ds) = match cub.it with
+            | ProgU _ ->
+              let r = {
+                left = { no_pos with file = lib.note.filename };
+                right = { no_pos with file = lib.note.filename }}
+              in
+              error env r "M0142" "bad import: an imported library should be a module or named actor class"
+            | ActorU _ ->
+              error env cub.at "M0144" "bad import: expected a module or actor class but found an actor"
+            | ModuleU _ | ActorClassU _ | MixinU _ -> CompUnit.decs_of_lib lib
+          in
           let typ, _ = infer_split_prog env lib.at false imp_ds ds in
           List.iter2 (fun import imp_d -> import.note <- imp_d.note.note_typ) imports imp_ds;
           cub.note <- {empty_typ_note with note_typ = typ};
           let imp_scope = match cub.it with
             | ModuleU _ ->
-              if cub.at = no_region then begin
-                let r = {
-                  left = { no_pos with file = lib.note.filename };
-                  right = { no_pos with file = lib.note.filename }}
-                in
-                warn env r "M0142" "deprecated syntax: an imported library should be a module or named actor class"
-              end;
               Scope.lib ~package:pkg_opt lib.note.filename typ
             | ActorClassU (_persistence, sp, exp_opt, id, tbs, p, _, self_id, dec_fields) ->
               if is_anon_id id then
@@ -5797,11 +5797,7 @@ let check_lib ~stable_baseline_sig scope pkg_opt lib : Scope.t Diag.result =
             | MixinU (need_system, arg, decs) ->
               let mixin_note = lib.note in
               Scope.mixin mixin_note.filename Scope.{ imports; need_system; arg; decs; typ; trivia = mixin_note.trivia }
-            | ActorU _ ->
-              error env cub.at "M0144" "bad import: expected a module or actor class but found an actor"
-            | ProgU _ ->
-              (* this shouldn't really happen, as an imported program should be rewritten to a module *)
-              error env cub.at "M0000" "compiler bug: expected a module or actor class but found a program, i.e. a sequence of declarations"
+            | ActorU _ | ProgU _ -> assert false (* rejected above *)
           in
           if pkg_opt = None && Diag.is_error_free msgs then emit_unused_warnings env;
           let fld_src_env = Field_sources.of_mutable_tbl env.srcs in

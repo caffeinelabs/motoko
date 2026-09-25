@@ -5,7 +5,7 @@
 
 actor control {
 
-  flexible func condition() : Bool = false;
+  transient func condition() : Bool = false;
 
   public func testBlock() : () {
     label l1 {

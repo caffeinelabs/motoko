@@ -1,7 +1,7 @@
 error[M0132]: misplaced stability declaration on field of non-actor
     ┌─ stability.mo:3:7
-  3 │        flexible let x = 1 //reject
-    │        ^^^^^^^^ 
+  3 │        transient let x = 1 //reject
+    │        ^^^^^^^^^ 
 warning[M0239]: Avoid binding a unit `()` result; remove `var` and keep the expression
     ┌─ stability.mo:25:11
  25 │     stable var foo = ();
@@ -16,16 +16,16 @@ error[M0133]: misplaced stability modifier: allowed on var or simple let declara
     │     ^^^^^^ 
 error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:6:4
-  6 │     flexible type U = Int; // reject
-    │     ^^^^^^^^ 
+  6 │     transient type U = Int; // reject
+    │     ^^^^^^^^^ 
 error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:7:4
-  7 │     flexible ignore 666; // reject
-    │     ^^^^^^^^ 
+  7 │     transient ignore 666; // reject
+    │     ^^^^^^^^^ 
 error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:8:4
-  8 │     flexible (); // reject
-    │     ^^^^^^^^ 
+  8 │     transient (); // reject
+    │     ^^^^^^^^^ 
 error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:15:4
  15 │     stable let (p,q) = (1,2); // reject (for now, maybe forever)
@@ -56,8 +56,8 @@ error[M0131]: variable m3 is declared stable but has non-stable type
     │                   ^^ 
 error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:46:4
- 46 │     flexible class C2(){}; // reject
-    │     ^^^^^^^^ 
+ 46 │     transient class C2(){}; // reject
+    │     ^^^^^^^^^ 
 error[M0133]: misplaced stability modifier: allowed on var or simple let declarations only
     ┌─ stability.mo:47:4
  47 │     stable class C3(){}; // reject

@@ -43,12 +43,6 @@ let ensure_scope_bind var tbs =
   | tb::_ when tb.it.sort.it = Type.Scope -> tbs
   | _ -> scope_bind var no_region :: tbs
 
-let ensure_async_typ t_opt =
-  match t_opt with
-  | None -> t_opt
-  | Some { it = AsyncT _; _} -> t_opt
-  | Some t -> Some (AsyncT(Type.Fut, scopeT no_region, t) @! no_region)
-
 let funcT (sort, tbs, t1, t2) =
   match sort.it, t2.it with
   | Type.Local, AsyncT _ -> FuncT (sort, ensure_scope_bind "" tbs, t1, t2)
@@ -256,7 +250,7 @@ and objblock eo s id ty dec_fields =
 %token WRAPADDASSIGN WRAPSUBASSIGN WRAPMULASSIGN WRAPPOWASSIGN
 %token NULL
 %token NULLCOALESCE
-%token FLEXIBLE STABLE
+%token STABLE
 %token TRANSIENT PERSISTENT
 %token<string> DOT_NUM
 %token<string> NAT
@@ -1117,7 +1111,6 @@ vis :
 
 stab :
   | (* empty *) { None }
-  | FLEXIBLE { Some (Flexible @@ at $sloc) }
   | STABLE { Some (Stable @@ at $sloc) }
   | TRANSIENT { Some (Flexible @@ at $sloc) }
 
@@ -1293,16 +1286,14 @@ obj_or_class_dec :
       let (_, id) = xf "class" $sloc in
       let cid = id.it @= id.at in
       let x, dfs = cb in
-      let dfs', tps', t' =
+      let dfs', tps' =
        if s.it = Type.Actor then
          let default_stab () = (if persistent.it then Stable else Flexible) @@ no_region in
           (List.map (share_dec_field default_stab) dfs,
-           ensure_scope_bind "" tps,
-           (* Not declared async: insert AsyncT but deprecate in typing *)
-           ensure_async_typ t)
-        else (dfs, tps, t)
+           ensure_scope_bind "" tps)
+        else (dfs, tps)
       in
-      ClassD(eo, sp, {s with note = persistent}, cid, tps', p, t', x, dfs') @? at $sloc }
+      ClassD(eo, sp, {s with note = persistent}, cid, tps', p, t, x, dfs') @? at $sloc }
 
 dec :
   | d=dec_var(ob)

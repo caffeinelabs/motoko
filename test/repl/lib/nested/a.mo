@@ -1,1 +1,3 @@
-let i = 42
+module {
+  public let i = 42;
+};

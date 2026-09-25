@@ -12,6 +12,6 @@ class.mo:48.1-48.27: type error [M0134], class body of type
   {}
 does not match expected type
   actor {}
-class.mo:49.1-49.33: warning [M0135], actor classes with non non-async return types are deprecated; please declare the return type as 'async ...'
+class.mo:49.1-49.33: type error [M0193], actor class has non-async return type
 class.mo:52.27-52.28: type error [M0030], type field T does not exist in type:
   {}

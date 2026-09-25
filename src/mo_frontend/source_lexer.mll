@@ -225,7 +225,6 @@ rule token mode = parse
   | "else" { ELSE }
   | "false" { BOOL false }
   | "finally" { FINALLY }
-  | "flexible" { FLEXIBLE }
   | "for" { FOR }
   | "from_candid" { FROM_CANDID }
   | "func" { FUNC }
